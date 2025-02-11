@@ -1,26 +1,30 @@
 """Example to create a scene and render a set of images of object undergoing
-    in plane rigid body motion
+    rigid body motion
 """
 
 import os
 from pathlib import Path
+import numpy as np
 import mooseherder as mh
-from dev_blenderscene import BlenderScene
+from dev_sceneblender import BlenderScene
 from dev_partblender import *
 from dev_objectmaterial import MaterialData
-from dev_blendercamera import CameraData
+from dev_camerablender import CameraData
 from dev_lightingblender import LightData, LightType
 from dev_rigidbodymotion import RigidBodyMotion
 
 
 def main() -> None:
-    # Making Blender scene
-    data_path = Path('src/pyvale/data/case18_1_out.e')
+    simcase = 17
+    if simcase in [13, 16, 17]:
+        data_path = Path('src/pyvale/data/case' + str(simcase) + '_out.e')
+    else:
+        data_path = Path('src/pyvale/simcases/case' + str(simcase) + '_out.e')
     data_reader = mh.ExodusReader(data_path)
     sim_data = data_reader.read_all_sim_data()
 
     dir = Path.cwd() / 'dev/lsdev/blender_files'
-    filename = 'case18.blend'
+    filename = 'case' + str(simcase) + '.blend'
     filepath = dir / filename
     all_files = os.listdir(dir)
     for ff in all_files:
@@ -29,6 +33,8 @@ def main() -> None:
 
     filepath = str(filepath)
 
+    # Creating scene
+    # --------------------------------------------------------------------------
     scene = BlenderScene()
 
     part_location = (0, 0, 0)
@@ -62,20 +68,19 @@ def main() -> None:
     light = scene.add_light(light_data)
 
     mat_data = MaterialData()
-    # image_path = '/home/lorna/pyvale/src/pyvale/data/optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff'
     image_path = '/home/lorna/Downloads/speckle_3000.bmp'
     mat = scene.add_material(mat_data, part, image_path, cam_data)
 
     #---------------------------------------------------------------------------
     # Rendering images
-    image_path = Path.cwd() / 'dev/lsdev/rendered_images/case18_rbm/New speckle blender'
+    image_path = Path.cwd() / 'dev/lsdev/rendered_images/rbm_test'
     output_path = image_path / 'RBM.txt'
 
     step = 0.1
     x_max = 1
     x_lims = [0, x_max]
     rigidbodymotion = RigidBodyMotion(part, step, part_location, image_path, output_path, cam_data)
-    rigidbodymotion.rigid_body_motion_x(x_lims, part)
+    rigidbodymotion.rigid_body_motion_z(x_lims, part)
 
 if __name__ == "__main__":
     main()

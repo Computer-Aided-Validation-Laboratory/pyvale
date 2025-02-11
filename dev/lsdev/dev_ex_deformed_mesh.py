@@ -3,25 +3,26 @@ from pathlib import Path
 import numpy as np
 import time
 import mooseherder as mh
-from dev_partblender import BlenderPart
-from dev_blenderscene import BlenderScene, set_origin
+from dev_sceneblender import BlenderScene
 from dev_partblender import *
-from dev_blendercamera import CameraData
+from dev_camerablender import CameraData
 from dev_lightingblender import LightData, LightType
 from dev_objectmaterial import MaterialData
 from dev_render import RenderData, Render, RenderEngine
 from dev_deform_part import DeformMesh, DeformPart
 
 def main() -> None:
-    # Making Blender scene
-    # data_path = Path('src/pyvale/simcases/case18_out.e')
-    data_path = Path('/home/lorna/mooseherder/scripts/moose/shear_ex_out.e')
+    simcase = 17
+    if simcase in [13, 16, 17]:
+        data_path = Path('src/pyvale/data/case' + str(simcase) + '_out.e')
+    else:
+        data_path = Path('src/pyvale/simcases/case' + str(simcase) + '_out.e')
     data_reader = mh.ExodusReader(data_path)
     sim_data = data_reader.read_all_sim_data()
 
 
     dir = Path.cwd() / 'dev/lsdev/blender_files'
-    name = 'shear_100x50' # Give this better name
+    name = 'case' + str(simcase)
     filename = name + '.blend'
     filepath = dir / filename
     all_files = os.listdir(dir)
@@ -31,6 +32,8 @@ def main() -> None:
 
     filepath = str(filepath)
 
+    # Creating scene
+    # --------------------------------------------------------------------------
     scene = BlenderScene()
 
     part_location = (0, 0, 0)
@@ -62,12 +65,11 @@ def main() -> None:
     light = scene.add_light(light_data)
 
     mat_data = MaterialData()
-    # image_path = '/home/lorna/pyvale/src/pyvale/data/optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff'
     image_path = '/home/lorna/pyvale/dev/lsdev/speckle_3000.bmp'
     mat = scene.add_material(mat_data, part, image_path, cam_data)
 
     #---------------------------------------------------------------------------
-    # Rendering images
+    # Set up rendering and render reference image
     render_start_time = time.perf_counter()
     image_path = Path.cwd() / 'dev/lsdev/rendered_images/shear_case/100x50/blender'
     output_path = str(image_path) + '/' + name +'_report.txt'
@@ -100,7 +102,7 @@ def main() -> None:
             print(f"{timestep=}")
             print(f"{part.dimensions=}")
 
-            render_name = 'def_larger_def'
+            render_name = 'def_image'
             render.render_image(render_name, timestep, part)
 
 
@@ -112,6 +114,8 @@ def main() -> None:
     report.write('\nTime taken to render images: ' + str(time_render) + 's')
     report.close()
 
+    # Save Blender file
+    # --------------------------------------------------------------------------
     scene.save_model(filepath)
 
 
