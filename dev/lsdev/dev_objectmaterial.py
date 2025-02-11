@@ -1,7 +1,6 @@
 import os
 from dataclasses import dataclass
-import numpy as np
-import bpy, bmesh
+import bpy
 
 @dataclass
 class MaterialData():
@@ -10,7 +9,7 @@ class MaterialData():
     interpolant = 'Cubic'
     # TODO: add other material properties to here
 
-class BlenderMaterial():
+class MaterialBlender():
     def __init__(self, MaterialData, object, image_path):
         self.mat_data = MaterialData
         self.object = object
@@ -29,7 +28,9 @@ class BlenderMaterial():
         bpy.ops.mesh.select_all(action='SELECT')
         FOV_mm = FOV_mm
         cube_size = FOV_mm / 1
-        bpy.ops.uv.cube_project(scale_to_bounds = False, correct_aspect=True, cube_size = cube_size)
+        bpy.ops.uv.cube_project(scale_to_bounds = False,
+                                correct_aspect=True,
+                                cube_size = cube_size)
         bpy.ops.object.mode_set(mode='OBJECT')
         self.object.select_set(False)
 
@@ -74,7 +75,7 @@ class BlenderMaterial():
 
     def add_material(self, FOV_mm):
         self._clear_nodes()
-        tex_image = self._set_image_texture()
+        self._set_image_texture()
         self._uv_unwrap(FOV_mm)
 
         return self.mat

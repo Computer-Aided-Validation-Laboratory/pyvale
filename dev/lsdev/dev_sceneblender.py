@@ -1,10 +1,9 @@
 import bpy
-import numpy as np
 from mooseherder import SimData
-from dev_blendercamera import CameraData, CameraBlender
-from dev_lightingblender import LightData, BlenderLight
-from dev_partblender import BlenderPart
-from dev_objectmaterial import MaterialData, BlenderMaterial
+from dev_camerablender import CameraData, CameraBlender
+from dev_lightingblender import LightData, LightBlender
+from dev_partblender import PartBlender
+from dev_objectmaterial import MaterialData, MaterialBlender
 from dev_stereo import StereoData, Stereo
 
 class BlenderScene:
@@ -34,7 +33,7 @@ class BlenderScene:
         bg_node.inputs[1].default_value = 0
 
     def add_light(self, light_data: LightData):
-        lightmaker = BlenderLight(light_data)
+        lightmaker = LightBlender(light_data)
         light = lightmaker.add_light()
         return light
 
@@ -49,12 +48,17 @@ class BlenderScene:
         stereromaker.add_stereo_system(scene)
 
 
-    def add_part(self, filename:str | None = None, sim_data: SimData | None = None):
+    def add_part(self,
+                 filename:str | None = None,
+                 sim_data: SimData | None = None,
+                 triangulate: bool = False):
         # TODO: Change outputs of method to have more under hood
-        partmaker = BlenderPart(filename=filename, sim_data=sim_data)
+        partmaker = PartBlender(filename=filename, sim_data=sim_data)
         spat_dim = partmaker._get_spat_dim()
         components = partmaker._get_components()
-        pv_surf, pv_grid = partmaker._simdata_to_pvsurf(components, spat_dim)
+        pv_surf, pv_grid = partmaker._simdata_to_pvsurf(components,
+                                                        spat_dim,
+                                                        triangulate)
         part = partmaker.import_from_obj(pv_surf)
         set_origin(part)
         return part, pv_surf, spat_dim, components
@@ -68,8 +72,12 @@ class BlenderScene:
         part.rotation_mode = 'XYZ'
         part.rotation_euler = rotation
 
-    def add_material(self, mat_data: MaterialData, part, image_path: str, cam_data:CameraData):
-        materialmaker = BlenderMaterial(mat_data, part, image_path)
+    def add_material(self,
+                     mat_data: MaterialData,
+                     part,
+                     image_path: str,
+                     cam_data:CameraData):
+        materialmaker = MaterialBlender(mat_data, part, image_path)
         cameramaker = CameraBlender(cam_data)
         FOV_mm = cameramaker.calc_FOV_mm()
         mat = materialmaker.add_material(FOV_mm)

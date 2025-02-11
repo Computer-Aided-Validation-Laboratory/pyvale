@@ -2,7 +2,7 @@ from multiprocessing import cpu_count
 from enum import Enum
 from dataclasses import dataclass
 import bpy
-from dev_blendercamera import CameraData
+from dev_camerablender import CameraData
 
 class RenderEngine(Enum):
     """Different render engines on Blender
@@ -21,11 +21,11 @@ class RenderData:
 
 class Render:
     def __init__(self,
-                 RenderData,
-                 image_path: str,
-                 output_path: str,
-                 cam_data: CameraData):
-        self.render_data = RenderData
+                 render_data: RenderData | None = RenderData,
+                 image_path: str | None = None,
+                 output_path: str | None = None,
+                 cam_data: CameraData | None = None):
+        self.render_data = render_data
         self.image_path = image_path
         self.output_path = output_path
         self.cam_data = cam_data
@@ -53,7 +53,11 @@ class Render:
 
         bpy.ops.render.render(write_still=True)
 
-    def render_image(self, name: int, image_count: int, part, cam_count: int | None = None):
+    def render_image(self,
+                     name: int,
+                     image_count: int,
+                     part,
+                     cam_count: int | None = None):
         if cam_count is not None:
             file_name = name + '_' + str(image_count) + '_' + str(cam_count) + '.tiff'
         else:

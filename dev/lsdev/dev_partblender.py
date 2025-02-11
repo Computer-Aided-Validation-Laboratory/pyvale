@@ -5,7 +5,7 @@ import bpy
 from mooseherder.simdata import SimData
 import pyvale
 
-class BlenderPart:
+class PartBlender:
     """Creates an object in Blender
     """
     def __init__(self,
@@ -41,14 +41,15 @@ class BlenderPart:
 
         return components
 
-    def _simdata_to_pvsurf(self, components, spat_dim):
-        # TODO: Add flag for triangulating mesh
+    def _simdata_to_pvsurf(self, components, spat_dim, triangulate):
         self.sim_data.coords = centre_nodes(self.sim_data.coords * 1000)
         (pv_grid, pv_grid_vis) = pyvale.conv_simdata_to_pyvista(self.sim_data,
                                                                 components,
                                                                 spat_dim=spat_dim)
         pv_surf = pv_grid.extract_surface()
-        # tri_surf = pv_surf.triangulate()
+        if triangulate is True:
+            tri_surf = pv_surf.triangulate()
+            pv_surf = tri_surf
 
         return pv_surf, pv_grid
 

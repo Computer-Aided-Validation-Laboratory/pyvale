@@ -18,7 +18,7 @@ class LightData():
     part_dimension: np.ndarray | None = None
 
 
-class BlenderLight():
+class LightBlender():
     def __init__(self, LightData):
         self.light_data = LightData
         self._light_ob = None
