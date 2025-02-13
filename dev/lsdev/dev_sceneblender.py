@@ -1,6 +1,6 @@
 import bpy
 from mooseherder import SimData
-from dev_camerablender import CameraData, CameraBlender
+from dev_camerablender import CameraData, CameraBlender, calc_FOV_mm
 from dev_lightingblender import LightData, LightBlender
 from dev_partblender import PartBlender
 from dev_objectmaterial import MaterialData, MaterialBlender
@@ -29,12 +29,12 @@ class BlenderScene:
 
         nodes.clear()
         bg_node = nodes.new(type='ShaderNodeBackground')
-        bg_node.inputs[0].default_value = [0.5, 0.5, 0.5, 1]
+        # bg_node.inputs[0].default_value = [0.5, 0.5, 0.5, 1]
         bg_node.inputs[1].default_value = 0
 
     def add_light(self, light_data: LightData):
         lightmaker = LightBlender(light_data)
-        light = lightmaker.add_light()
+        light = lightmaker.create_light()
         return light
 
     def add_camera(self, cam_data: CameraData):
@@ -79,8 +79,8 @@ class BlenderScene:
                      cam_data:CameraData):
         materialmaker = MaterialBlender(mat_data, part, image_path)
         cameramaker = CameraBlender(cam_data)
-        FOV_mm = cameramaker.calc_FOV_mm()
-        mat = materialmaker.add_material(FOV_mm)
+        FOV_mm = calc_FOV_mm(cam_data)
+        mat = materialmaker.add_material(FOV_mm[0])
 
         return mat
 

@@ -21,35 +21,26 @@ class LightData():
 class LightBlender():
     def __init__(self, LightData):
         self.light_data = LightData
-        self._light_ob = None
-        self._light = None
 
-    def _create_light(self):
+    def create_light(self):
         # TODO: Add different options for different light types
         type = self.light_data.type.value
         name = type.capitalize() + 'Light'
-        self._light = bpy.data.lights.new(name=name, type=type)
-        self._light_ob = bpy.data.objects.new(name=name, object_data=self._light)
-        bpy.context.collection.objects.link(self._light_ob)
+        light = bpy.data.lights.new(name=name, type=type)
+        light_ob = bpy.data.objects.new(name=name, object_data=light)
 
-    def _set_location(self):
-        self._light_ob.location = (self.light_data.position[0],
+        light_ob.location = (self.light_data.position[0],
                                    self.light_data.position[1],
                                    self.light_data.position[2])
 
-    def _set_rotation(self):
-        self._light_ob.rotation_mode = 'XYZ'
-        self._light_ob.rotation_euler = self.light_data.orientation
+        light_ob.rotation_mode = 'XYZ'
+        light_ob.rotation_euler = self.light_data.orientation
 
-    def _set_energy(self):
-        self._light.energy = self.light_data.energy
+        light.energy = self.light_data.energy
 
-    def add_light(self):
-        self._create_light()
-        self._set_location()
-        self._set_rotation()
-        self._set_energy()
+        bpy.context.collection.objects.link(light_ob)
 
-        return self._light_ob
+        return light_ob
+
 
 
