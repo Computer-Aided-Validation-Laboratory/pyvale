@@ -17,8 +17,8 @@ import pyvale
 def main() -> None:
     #---------------------------------------------------------------------------
     # LOAD FILES
-    sim_file = "platehole2d_largedef_out.e"
-    #sim_file = "mechplate2d_trpull_out.e"
+    #sim_file = "platehole2d_out.e"
+    sim_file = "mechplate2d_shear_out.e"
     sim_path = Path("dev/lfdev/imagedef_testsims") / sim_file
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
@@ -30,8 +30,8 @@ def main() -> None:
 
     coords = sim_data.coords
     connectivity = (sim_data.connect["connect1"]-1).T # Beware 0 indexing here
-    disp_x = sim_data.node_vars["disp_x"][:,-1]
-    disp_y = sim_data.node_vars["disp_y"][:,-1]
+    disp_x = sim_data.node_vars["disp_x"][:,:]
+    disp_y = sim_data.node_vars["disp_y"][:,:]
 
     print()
     print(80*"-")
@@ -90,7 +90,7 @@ def main() -> None:
                                             disp_x,
                                             disp_y,
                                             image_mask,
-                                            id_opts
+                                            id_opts,
                                             print_on=True)
 
     #pyvale.ImageDefDiags.plot_speckle_image(image_input)
