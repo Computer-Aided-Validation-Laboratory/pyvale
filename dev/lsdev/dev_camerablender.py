@@ -50,7 +50,6 @@ class CameraBlender():
         return mm_per_px
 
     def _calc_FOV_angle(self):
-        # Need to change to also work with stereo
         working_dist = np.sqrt(self.camera_data.position[0]**2 +
                                self.camera_data.position[1]**2 +
                                self.camera_data.position[2]**2)
@@ -66,6 +65,7 @@ class CameraBlender():
         return FOV_deg
 
     def add_camera(self):
+        # TODO: Work out whether to use Blender focal length method or adapt own to work with stereo
         new_cam = bpy.data.cameras.new(self.camera_data.name)
         camera = bpy.data.objects.new(self.camera_data.name, new_cam)
         bpy.context.collection.objects.link(camera)
