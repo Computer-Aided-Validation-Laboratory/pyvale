@@ -26,7 +26,6 @@ class Calibration():
     def _get_FOV_mm(self):
         cam_data = self.cal_data.cam_data[0]
         FOV_mm = calc_FOV_mm(cam_data)
-
         return FOV_mm
 
     def calibrate(self):
@@ -36,8 +35,8 @@ class Calibration():
                             self.cal_data.plunge_step):
             # Plunge
             FOV_mm = self._get_FOV_mm()
-            x_limit = int(round(FOV_mm[0] / 2)) - 35 # Need to set this more accurately
-            y_limit = int(round(FOV_mm[1] / 2)) - 25
+            x_limit = int(round((FOV_mm[0] / 2) - (self.cal_data.part.dimensions[0] / 2)))
+            y_limit = int(round((FOV_mm[1] / 2) - (self.cal_data.part.dimensions[1] / 2)))
             print('Plunge')
 
             for x in range(-x_limit, x_limit, 50):
@@ -64,7 +63,7 @@ class Calibration():
 
                             self._render_cal_image(render_counter)
                             render_counter += 1
-        print(f"{render_counter=}")
+        print('Total number of calibration images = ' + str(render_counter))
 
 
     def _render_cal_image(self, render_counter):
