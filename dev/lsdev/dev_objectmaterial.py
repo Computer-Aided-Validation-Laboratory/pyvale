@@ -4,9 +4,10 @@ import bpy
 
 @dataclass
 class MaterialData():
-    roughness: float | None = 0.5
+    roughness: float | None = 1
     metallic: float | None = 0
     interpolant = 'Cubic'
+    cal: bool = False
     # TODO: add other material properties to here
 
 class MaterialBlender():
@@ -28,9 +29,12 @@ class MaterialBlender():
         bpy.ops.mesh.select_all(action='SELECT')
         FOV_mm = FOV_mm
         cube_size = FOV_mm / 1
-        bpy.ops.uv.cube_project(scale_to_bounds = False,
-                                correct_aspect=True,
-                                cube_size = cube_size)
+        if self.mat_data.cal is not True:
+            bpy.ops.uv.cube_project(scale_to_bounds = False,
+                                    correct_aspect=True,
+                                    cube_size = cube_size)
+        else:
+            bpy.ops.uv.cube_project(scale_to_bounds=True)
         bpy.ops.object.mode_set(mode='OBJECT')
         self.object.select_set(False)
 
