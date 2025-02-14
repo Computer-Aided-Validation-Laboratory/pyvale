@@ -37,6 +37,7 @@ class LightBlender():
         light_ob.rotation_euler = self.light_data.orientation
 
         light.energy = self.light_data.energy
+        light.shadow_soft_size = 1.5
 
         bpy.context.collection.objects.link(light_ob)
 
