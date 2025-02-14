@@ -44,29 +44,24 @@ class Stereo:
     def stereo_calibration(self, cam0, cam1, calib_filepath):
         # Get rotation of cam0 to cam1
         cam0_orient = cam0.rotation_euler
-        cam0_orient = Rotation.from_euler('XYZ', cam0_orient)
         cam1_orient = cam1.rotation_euler
+
+        cam0_orient = Rotation.from_euler('XYZ', cam0_orient)
         cam1_orient = Rotation.from_euler('XYZ', cam1_orient)
 
-        cam0_quat = Rotation.as_quat(cam0_orient)
-        cam1_quat = Rotation.as_quat(cam1_orient)
+        cam0_matrix = Rotation.as_matrix(cam0_orient)
+        cam1_matrix = Rotation.as_matrix(cam1_orient)
 
-        q_x = [math.cos(np.pi / 2), math.sin(np.pi / 2), 0, 0]
-        cam0_quat = self._rotate_quaternion(q_x, cam0_quat)
-        cam1_quat = self._rotate_quaternion(q_x, cam1_quat)
+        rotation, rmse = Rotation.align_vectors(cam0_matrix, cam1_matrix)
+        ang = Rotation.as_euler(rotation, 'XYZ', degrees=True)
+        quat = Rotation.as_quat(rotation)
+        quat_conj = self._quaternion_conjugate(quat)
 
-        q_rot = self._quaternion_multiply(cam0_quat,
-                                          self._quaternion_conjugate(cam1_quat))
-        q_rot_conj = self._quaternion_conjugate(q_rot)
-        q_rot = Rotation.from_quat(q_rot)
-        ang = Rotation.as_euler(q_rot, 'XYZ', degrees=True)
-
-        # Translation of cam0 to cam1 + rotate vector to orientation of cam1
         dist = cam0.location - cam1.location
         dist[2] *= -1
         dist[1] *= -1
 
-        dist_rot = self._rotate_vec(self._rotate_vec(dist, Rotation.as_quat(cam0_orient)), q_rot_conj)
+        dist_rot = self._rotate_vec(self._rotate_vec(dist, Rotation.as_quat(cam0_orient)), quat_conj)
 
         if Path(calib_filepath).is_dir() is False:
             Path.mkdir(calib_filepath)
@@ -98,13 +93,6 @@ class Stereo:
             file.write(f"Theta [deg];{ang[0]}\n")
             file.write(f"Phi [deg];{ang[1]}\n")
             file.write(f"Psi [deg];{ang[2]}")
-
-    def _rotate_quaternion(self, q0 ,q1):
-        # q2 = q1.q0.conj(q0)
-
-        q0_conj = self._quaternion_conjugate(q0)
-        q2 = self._quaternion_multiply(self._quaternion_multiply(q0, q1), q0_conj)
-        return q2
 
     def _quaternion_conjugate(self, q0):
         if type(q0) is list or type(q0) is mathutils.Quaternion:
