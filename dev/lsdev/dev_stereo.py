@@ -4,10 +4,9 @@ from dataclasses import dataclass
 import numpy as np
 import math
 import mathutils
-from dev_blendercamera import CameraData, CameraBlender
-# Notes
-    # Can iterate through cameras and make active?
-    # Just need to set camera as current camera - bpy.context.scene.camera = cam
+from pathlib import Path
+from dev_camerablender import CameraData
+from scipy.spatial.transform import Rotation
 
 @dataclass
 class StereoData:
@@ -36,6 +35,7 @@ class Stereo:
         cam_1.rotation_mode = 'XYZ'
         cam_1.rotation_euler = (0, np.radians(self.stereo_data.angle_deg), 0)
 
+
         if self.stereo_data.calib_file:
             calib_filepath = self.stereo_data.calib_filepath
             self.stereo_calibration(cam_0, cam_1, calib_filepath)
@@ -43,49 +43,58 @@ class Stereo:
 
     def stereo_calibration(self, cam0, cam1, calib_filepath):
         # Get rotation of cam0 to cam1
-        cam0_orient = cam0.rotation_quaternion
-        cam1_orient = cam1.rotation_quaternion
-        q_x = [math.cos(np.pi / 2), math.sin(np.pi / 2), 0, 0]
-        cam0_orient = self._rotate_quaternion(q_x, cam0_orient)
-        cam1_orient = self._rotate_quaternion(q_x, cam1_orient)
+        cam0_orient = cam0.rotation_euler
+        cam0_orient = Rotation.from_euler('XYZ', cam0_orient)
+        cam1_orient = cam1.rotation_euler
+        cam1_orient = Rotation.from_euler('XYZ', cam1_orient)
 
-        q_rot = self._quaternion_multiply(cam0_orient, self._quaternion_conjugate(cam1_orient))
+        cam0_quat = Rotation.as_quat(cam0_orient)
+        cam1_quat = Rotation.as_quat(cam1_orient)
+
+        q_x = [math.cos(np.pi / 2), math.sin(np.pi / 2), 0, 0]
+        cam0_quat = self._rotate_quaternion(q_x, cam0_quat)
+        cam1_quat = self._rotate_quaternion(q_x, cam1_quat)
+
+        q_rot = self._quaternion_multiply(cam0_quat,
+                                          self._quaternion_conjugate(cam1_quat))
         q_rot_conj = self._quaternion_conjugate(q_rot)
-        q_rot = mathutils.Quaternion(q_rot)
-        ang = q_rot.to_euler('XYZ')
-        ang = [np.rad2deg(i) for i in ang]
+        q_rot = Rotation.from_quat(q_rot)
+        ang = Rotation.as_euler(q_rot, 'XYZ', degrees=True)
 
         # Translation of cam0 to cam1 + rotate vector to orientation of cam1
         dist = cam0.location - cam1.location
         dist[2] *= -1
         dist[1] *= -1
 
-        dist_rot =
+        dist_rot = self._rotate_vec(self._rotate_vec(dist, Rotation.as_quat(cam0_orient)), q_rot_conj)
 
+        if Path(calib_filepath).is_dir() is False:
+            Path.mkdir(calib_filepath)
+        calib_filepath = calib_filepath / 'calib.caldat'
         with open(calib_filepath, "w") as file:
-            file.write("Cam1_Fx [pixels];" + f'{cam0.data.lens/cam0["px_size"][0]}\n')
-            file.write("Cam1_Fy [pixels];" + f'{cam0.data.lens/cam0["px_size"][1]}\n')
+            file.write("Cam0_Fx [pixels];" + f'{cam0.data.lens/cam0["px_size"][0]}\n')
+            file.write("Cam0_Fy [pixels];" + f'{cam0.data.lens/cam0["px_size"][1]}\n')
+            file.write("Cam0_Fs [pixels];0\n")
+            file.write(f'Cam0_Kappa 1;{cam0["k1"]}\n')
+            file.write(f'Cam0_Kappa 2;{cam0["k2"]}\n')
+            file.write(f'Cam0_Kappa 3;{cam0["k3"]}\n')
+            file.write(f'Cam0_P1;{cam0["p1"]}\n')
+            file.write(f'Cam0_P2;{cam0["p2"]}\n')
+            file.write(f'Cam0_Cx [pixels];{cam0["c0"]}\n')
+            file.write(f'Cam0_Cy [pixels];{cam0["c1"]}\n')
+            file.write("Cam1_Fx [pixels];" + f'{cam1.data.lens/cam1["px_size"][0]}\n')
+            file.write("Cam1_Fy [pixels];" + f'{cam1.data.lens/cam1["px_size"][1]}\n')
             file.write("Cam1_Fs [pixels];0\n")
-            file.write(f'Cam1_Kappa 1;{cam0["k1"]}\n')
-            file.write(f'Cam1_Kappa 2;{cam0["k2"]}\n')
-            file.write(f'Cam1_Kappa 3;{cam0["k3"]}\n')
-            file.write(f'Cam1_P1;{cam0["p1"]}\n')
-            file.write(f'Cam1_P2;{cam0["p2"]}\n')
-            file.write(f'Cam1_Cx [pixels];{cam0["c0"]}\n')
-            file.write(f'Cam1_Cy [pixels];{cam0["c1"]}\n')
-            file.write("Cam2_Fx [pixels];" + f'{cam1.data.lens/cam1["px_size"][0]}\n')
-            file.write("Cam2_Fy [pixels];" + f'{cam1.data.lens/cam1["px_size"][1]}\n')
-            file.write("Cam2_Fs [pixels];0\n")
-            file.write(f'Cam2_Kappa 1;{cam1["k1"]}\n')
-            file.write(f'Cam2_Kappa 2;{cam1["k2"]}\n')
-            file.write(f'Cam2_Kappa 3;{cam1["k3"]}\n')
-            file.write(f'Cam2_P1;{cam1["p1"]}\n')
-            file.write(f'Cam2_P2;{cam1["p2"]}\n')
-            file.write(f'Cam2_Cx [pixels];{cam1["c0"]}\n')
-            file.write(f'Cam2_Cy [pixels];{cam1["c1"]}\n')
-            file.write(f"Tx [mm];{dist[0]}\n")
-            file.write(f"Ty [mm];{dist[1]}\n")
-            file.write(f"Tz [mm];{dist[2]}\n")
+            file.write(f'Cam1_Kappa 1;{cam1["k1"]}\n')
+            file.write(f'Cam1_Kappa 2;{cam1["k2"]}\n')
+            file.write(f'Cam1_Kappa 3;{cam1["k3"]}\n')
+            file.write(f'Cam1_P1;{cam1["p1"]}\n')
+            file.write(f'Cam1_P2;{cam1["p2"]}\n')
+            file.write(f'Cam1_Cx [pixels];{cam1["c0"]}\n')
+            file.write(f'Cam1_Cy [pixels];{cam1["c1"]}\n')
+            file.write(f"Tx [mm];{dist_rot[0]}\n")
+            file.write(f"Ty [mm];{dist_rot[1]}\n")
+            file.write(f"Tz [mm];{dist_rot[2]}\n")
             file.write(f"Theta [deg];{ang[0]}\n")
             file.write(f"Phi [deg];{ang[1]}\n")
             file.write(f"Psi [deg];{ang[2]}")
@@ -94,7 +103,7 @@ class Stereo:
         # q2 = q1.q0.conj(q0)
 
         q0_conj = self._quaternion_conjugate(q0)
-        q2 = self.quaternion_multiply(self._quaternion_multiply(q0, q1), q0_conj)
+        q2 = self._quaternion_multiply(self._quaternion_multiply(q0, q1), q0_conj)
         return q2
 
     def _quaternion_conjugate(self, q0):
@@ -119,7 +128,27 @@ class Stereo:
 
     def _rotate_vec(self, v, q):
         # v = q.v.conj(q)
-        v = self.vec_to_quaternion(v)
+        v = self._vec_to_quaternion(v)
+        q_conj = self._quaternion_conjugate(q)
+        v = self._quaternion_multiply(self._quaternion_multiply(q, v), q_conj)
+        v = v[1:]
+        return v
+
+    def _vec_to_quaternion(self, v):
+        if np.linalg.norm(v) == 0:
+            w = 1.0
+        else:
+            w = 0.0
+        if type(v) is list:
+            v.insert(0, w)
+            np.array(v)
+        elif type(v) is np.ndarray:
+            v = np.insert(v, 0, w)
+        elif type(v) is mathutils.Vector:
+            v = list(v)
+            v.insert(0, w)
+            np.array(v)
+        return v
 
 
 
