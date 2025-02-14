@@ -1,6 +1,7 @@
 from multiprocessing import cpu_count
 from enum import Enum
 from dataclasses import dataclass
+from pathlib import Path
 import bpy
 from dev_camerablender import CameraData
 
@@ -67,6 +68,9 @@ class Render:
         self._write_progress(image_count, part)
 
     def _write_progress(self, image_count: int, part):
+        if Path(self.output_path).is_dir() is False:
+            Path.mkdir(self.output_path)
+        self.output_path = self.output_path / 'output.txt'
         if image_count == 0:
             report = open(self.output_path, 'w', encoding='utf-8')
         else:
