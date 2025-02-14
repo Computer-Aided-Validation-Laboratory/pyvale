@@ -36,15 +36,6 @@ class CameraBlender():
         self.sensor_size[1] = (self.camera_data.sensor_px[1] *
                                            (self.camera_data.px_size / 1000 ))
 
-    def calc_FOV_mm(self):
-        working_dist = np.sqrt(self.camera_data.position[0]**2 +
-                               self.camera_data.position[1]**2 +
-                               self.camera_data.position[2]**2)
-        FOV_mm = (((working_dist - self.camera_data.focal_length)
-                  / self.camera_data.focal_length) *
-                  (self.camera_data.px_size / 1000) *
-                  self.camera_data.sensor_px[0])
-        return FOV_mm
 
     def _calc_mm_px_conversion(self):
         working_dist = np.sqrt(self.camera_data.position[0]**2 +
@@ -59,6 +50,7 @@ class CameraBlender():
         return mm_per_px
 
     def _calc_FOV_angle(self):
+        # Need to change to also work with stereo
         working_dist = np.sqrt(self.camera_data.position[0]**2 +
                                self.camera_data.position[1]**2 +
                                self.camera_data.position[2]**2)
@@ -103,9 +95,10 @@ class CameraBlender():
         else:
             camera['c1'] = self.camera_data.c1
 
-        new_cam.lens_unit = 'FOV' # Set using FOV instead of focal length as using focal length doesn't work
-        FOV = self._calc_FOV_angle()
-        new_cam.lens = self.sensor_size[0] / (2 * m.tan(m.radians(FOV) / 2)) # Need to set lens FOV like this as Blender recalculates
+        # new_cam.lens_unit = 'FOV' # Set using FOV instead of focal length as using focal length doesn't work
+        # FOV = self._calc_FOV_angle()
+        # new_cam.lens = self.sensor_size[0] / (2 * m.tan(m.radians(FOV) / 2)) # Need to set lens FOV like this as Blender recalculates
+        new_cam.lens = self.camera_data.focal_length
         new_cam.sensor_width = self.sensor_size[0]
         new_cam.sensor_height = self.sensor_size[1]
 
@@ -117,6 +110,18 @@ class CameraBlender():
         bpy.context.scene.camera = camera
 
         return camera
+
+def calc_FOV_mm(camera_data):
+        working_dist = np.sqrt(camera_data.position[0]**2 +
+                               camera_data.position[1]**2 +
+                               camera_data.position[2]**2)
+        FOV_x = (((working_dist - camera_data.focal_length)
+                  / camera_data.focal_length) *
+                  (camera_data.px_size / 1000) *
+                  camera_data.sensor_px[0])
+        FOV_y = (camera_data.sensor_px[1] / camera_data.sensor_px[0]) * FOV_x
+        FOV_mm = (FOV_x, FOV_y)
+        return FOV_mm
 
 
 
