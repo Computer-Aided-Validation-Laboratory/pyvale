@@ -1,28 +1,21 @@
-"""Example to create a scene in Blender and save it as a Blender file
+"""Example to render a set of calibration images
 """
 
 import os
 from pathlib import Path
 import numpy as np
-import time
 import mooseherder as mh
-import bpy
 from dev_sceneblender import BlenderScene
 from dev_partblender import *
 from dev_camerablender import CameraData
 from dev_lightingblender import LightData, LightType
 from dev_objectmaterial import MaterialData
 from dev_stereo import StereoData
-from dev_render import RenderData, Render
-from dev_deform_part import DeformMesh, DeformPart
+from dev_render import RenderData
 from dev_calibration import CalibrationData, Calibration
 
 def main() -> None:
     simcase = 'cal'
-    # if simcase in [13, 16, 17]:
-    #     data_path = Path('src/pyvale/data/case' + str(simcase) + '_out.e')
-    # else:
-    #     data_path = Path('src/pyvale/simcases/case' + str(simcase) + '_out.e')
     data_path = Path('/home/lorna/mooseherder/scripts/moose/moose-mech-simple_out.e')
     data_reader = mh.ExodusReader(data_path)
     sim_data = data_reader.read_all_sim_data()

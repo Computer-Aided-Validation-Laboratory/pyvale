@@ -1,3 +1,6 @@
+"""Example to render images of an object deforming with 2D DIC
+"""
+
 import os
 from pathlib import Path
 import numpy as np
@@ -12,7 +15,7 @@ from dev_render import RenderData, Render, RenderEngine
 from dev_deform_part import DeformMesh, DeformPart
 
 def main() -> None:
-    simcase = 17
+    simcase = 18
     if simcase in [13, 16, 17]:
         data_path = Path('src/pyvale/data/case' + str(simcase) + '_out.e')
     else:
@@ -71,7 +74,7 @@ def main() -> None:
     #---------------------------------------------------------------------------
     # Set up rendering and render reference image
     render_start_time = time.perf_counter()
-    image_path = Path.cwd() / 'dev/lsdev/rendered_images/shear_case/100x50/blender'
+    image_path = Path.cwd() / 'dev/lsdev/rendered_images/case18_deformed/blender/8bit'
     output_path = str(image_path) + '/' + name +'_report.txt'
 
 

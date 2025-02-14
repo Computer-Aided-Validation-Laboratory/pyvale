@@ -13,7 +13,7 @@ from dev_objectmaterial import MaterialData
 from dev_render import RenderData, Render
 
 def main() -> None:
-    simcase = 17
+    simcase = 18
     if simcase in [13, 16, 17]:
         data_path = Path('src/pyvale/data/case' + str(simcase) + '_out.e')
     else:
@@ -72,6 +72,7 @@ def main() -> None:
 
     # Rendering images
     # --------------------------------------------------------------------------
+    render_images = True # Set to True to render images
     image_path = Path.cwd() / 'dev/lsdev/rendered_images'
     output_path = image_path / 'output.txt'
 
@@ -79,9 +80,10 @@ def main() -> None:
     render = Render(render_data, image_path=image_path, output_path=output_path, cam_data=cam_data)
 
     render_counter = 0
-    render_name = 'case17'
+    render_name = 'case18'
 
-    render.render_image(render_name, render_counter, part)
+    if render_images is True:
+        render.render_image(render_name, render_counter, part)
 
     # Save Blender file
     # --------------------------------------------------------------------------
