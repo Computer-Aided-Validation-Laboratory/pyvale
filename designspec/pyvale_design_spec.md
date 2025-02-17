@@ -74,5 +74,5 @@ The key milestones for `pyvale` developement for 2025 include:
     - A comparison of (image rendering techniques for) rasterisation and ray tracing for DIC UQ in 2D - Exp Mech
     - Assessment of image-based validation metrics - VVUQ journal
 
-To ensure performance for the computationally intensive rendering and DIC processes above the underlying processing will be done in Cython, C and CUDA. A python interface will be provided through `pyvale` for ease of use for the engineering and scientific community.
+To ensure performance for the computationally intensive rendering and DIC processes above the underlying processing will be done in Cython, C and HIP. A python interface will be provided through `pyvale` for ease of use for the engineering and scientific community.
 
