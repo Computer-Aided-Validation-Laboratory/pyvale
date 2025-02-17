@@ -1,0 +1,3 @@
+[submodule "src/mooseherder"]
+	path = dependencies/mooseherder
+	url = git@github.com:Computer-Aided-Validation-Laboratory/mooseherder.git

@@ -37,20 +37,29 @@ source .pyvale-env/bin/activate
 
 ### Standard & Developer Installation
 
-Clone `pyvale` to your local system and `cd` to the root directory of `pyvale`. Ensure you virtual environment is activated and run the following commmand from the `pyvale` directory:
+Clone `pyvale` to your local system along with submodules using 
+
+```
+git clone --recurse-submodules git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
+```
+
+`cd` to the root directory of `pyvale`. Ensure you virtual environment is activated and run the following commmand from the `pyvale` directory:
 
 ```
 pip install .
+pip install ./dependencies/mooseherder
 ```
 
-To create an editable/developer installation of `pyvale` follow the instructions for a standard installation but run:
+To create an editable/developer installation of `pyvale` and `mooseherder` - follow the instructions for a standard installation but run:
 
 ```
 pip install -e .
+pip install -e ./dependencies/mooseherder
 ```
 
 ### Mooseherder
-`pyvale` requires `mooseherder` to be able to load exodus output files from `moose` finite element simulations. Go to the `mooseherder` github page (https://github.com/Digital-Validation-Laboratory/mooseherder) and install `mooseherder` into the same virtual environment as `pyvale`.
+`pyvale` requires `mooseherder` to be able to load exodus output files from `moose` finite element simulations. `mooseherder` is included as a submodule and can be used and edited using the installation instructions above.
+
 
 ### MOOSE
 `pyvale` come pre-packaged with example `moose` physics simulation outputs to demonstrate its functionality. If you need to run additional simulation cases we recommend `proteus` (https://github.com/aurora-multiphysics/proteus) which has build scripts of common linux distributions.

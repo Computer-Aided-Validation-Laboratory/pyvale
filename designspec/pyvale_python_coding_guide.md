@@ -1,4 +1,6 @@
-# Python coding guide for `pyvale`
+# Coding Guide for `pyvale`
+
+##  Python coding guide for `pyvale`
 - Work in your own 'feature' branch, merge into 'dev' - don't push to main (it should be protected and yell at you)!
 - Follow the PEP8 style guide: https://peps.python.org/pep-0008/
 - Use descriptive variable names, no single letter variables (double letters for iterators in numpy style are ok) single letter variables for indexs / iterators are ok.
@@ -26,3 +28,4 @@
 - Write docstrings when the code is ready for sharing and use autodocstring to help. For `pyvale` we will use `numpy` style docstrings.
 - Write some good quickstart examples so people can easily use your code.
 - Use code reviews to help each other and be nice / constructive as we are not all software engineers!
+

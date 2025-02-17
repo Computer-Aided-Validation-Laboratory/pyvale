@@ -1,0 +1,40 @@
+
+Timestep = 1
+Average error in mm: 0.000179616881882843
+Average error in std: 0.33231615519489915
+
+Timestep = 2
+Average error in mm: 0.0002677162532588655
+Average error in std: 0.49531221694517213
+
+Timestep = 3
+Average error in mm: 0.0003656896192954516
+Average error in std: 0.6765765389370058
+
+Timestep = 4
+Average error in mm: 0.0004646143395863509
+Average error in std: 0.8596009983096224
+
+Timestep = 5
+Average error in mm: 0.0005664409056836985
+Average error in std: 1.0479942750854736
+
+Timestep = 6
+Average error in mm: 0.000669500063279092
+Average error in std: 1.2386680171676079
+
+Timestep = 7
+Average error in mm: 0.0007739104573756638
+Average error in std: 1.4318417342750487
+
+Timestep = 8
+Average error in mm: 0.0008796982868723886
+Average error in std: 1.6275638980062694
+
+Timestep = 9
+Average error in mm: 0.0009824823379506178
+Average error in std: 1.8177286548577574
+
+Timestep = 10
+Average error in mm: 0.0010907195350858927
+Average error in std: 2.017982488595546
