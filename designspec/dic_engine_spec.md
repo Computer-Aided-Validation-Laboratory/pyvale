@@ -31,9 +31,9 @@ A non-exhaustive list of sub-modules is provided below including the required in
 - Save options to save the image to hard disk (note the capability to pass the image via RAM to other algorithms is also required, so save functionality should be separated from the speckle image generation)
 ### Example Workflow
 - Create a dataclass with the required options to generate the speckle pattern setting desired parameters and leaving others as defaults.
-- Call a function to generate and return the speckle pattern in memory
-- Call a function to view the speckle pattern
-- Call a function to save the speckle pattern in memory to disk
+- Generate and return the speckle pattern in memory
+- View the speckle pattern
+- Save the speckle pattern in memory to disk in *.tiff or *.bmp formate
 - Optional follow up workflows:
     - Pass the speckle pattern image to the pattern quality sub-module
     - Pass the pattern to one of the image deformation modules in `pyvale` to be directly deformed in 2D or used as texture in 3D
@@ -47,6 +47,10 @@ and/or
 ### Inputs
 - One or more grey level images of the speckle pattern to analyse
 ### Example Workflow
+- Load one or more grey level images into a numpy array
+- Calculate the speckle pattern quality statistics and return them as a dataclass
+- Calculate grey level noise as a function of grey level for a stack of reference images
+- Output the speckle pattern quality statistics to a human readable file
 ### Outputs
 - Average speckle size calculated from the image(s)
 - Black white balance calculated from the image(s)
@@ -56,12 +60,18 @@ and/or
 
 
 ## Sub-Module: Region of Interest
+Gmsh uses OpenCASCADE to perform boolean operations on shapes in 3D. We might be able to leverage this to help but the 3D engine is probably overkill for something in 2D. The easiest method is probably going to be leveraging any interactive drawing tools available in matplotlib. There may also be tools in OpenCV for auto thresholding a mask.
+
 ### Inputs
-- TODO
+- A static reference image from which the region of interest will be selected
 ### Example Workflow
-- TODO
+- Load the reference image
+- Interactively draw shapes on the image in 2D performing boolean operations between shapes to specify the region of interest, or
+- Automatically threshold the image to extract the mask
+- Determine the mask specifying the region of interest and return it as a 2D numpy array
 ### Outputs
-- TODO
+- A numpy array mask the same size as the image specifying the valid pixels for subsets to run the correlation
+- Save this mask to file as an image
 
 
 ## Sub-Module: 2D DIC
@@ -74,13 +84,19 @@ and/or
     - Step size in pixels
     - Subset shape function: at minimum rigid and affine
     - Correlation criterion: at minimum supporting Zero Normalised Sum of Square Differences (ZNSSD)
-    - Interpolation method: at minimum supporting b-splines
+    - Interpolation method: at minimum supporting cubic splines
     - Image pre-filtering: at minimum Gaussian blurring over a specified window in pixels
     - A correlation residual threshold for discarding poorly correlated subsets.
     - Parallelisation: CPU or GPU based
+    - Option to load and perform the correlation image by image to save RAM or to load all images in one shot and perform the correlation over everything
 - A pixel resolution in units of length per pixel
 ### Example Workflow
-- TODO
+- Build a dataclass specifying the correlation options and the length to pixel conversion
+- Load a region of interest mask file or specify this in code
+- Load a reference image and optionally a set of deformed images
+- Run the correlation and return the subset coordinates in world coordinates (i.e. the imaged surface shape) and the subset displacement vector components for the deformed images
+    - Allow various parallelisation options here by subset and/or image or run single threaded to allow paralleisation in an outer loop.
+- Save the subset coordinates, the displacement vector components, the correlation residual to file in either *.csv per image or an open binary format like *.hdf5
 ### Outputs
 - Coordinates of the subsets in pixel [x,y] and world coordinates [x,y]
 - Displacement vector components for each subset, [x,y] in pixel and world length units
@@ -94,6 +110,13 @@ For this module there are probably a large number of function in OpenCV that can
 - A set of images of a calibration target moved through all degrees of freedom in the image space
 - Parameters for the calibration target including dot spacing, dot size and number of dots
 ### Example Workflow
+- Input the parameters of the calibration target including dot spacing and locations of the three dots used to find the plane of the target
+- Load a stack of images of the calibration target moved through all degrees of freedom with the field of view
+- Iterate through all of the images and perform dot detection to extract the grid of dots, locating the plane detection dots
+- Knowing the parameters of the calibration target and the orientation of the plane it is in solve for the unknown stereo calibration parameters by minimising the cost function over all calibration images
+- Return the residual for each calibration image and remove any images below a given threshold
+- Repeat the cost function minimisation with poor images removed
+- Save the calibration parameters to file or pass directly to the stereo DIC sub-module
 ### Outputs
 - A set of intrinsic and extrinsic calibration constants as a dataclass which can be passed directly to the stereo DIC sub module
 - The calibration residual
@@ -115,14 +138,21 @@ and/or
     - Image pre-filtering: at minimum Gaussian blurring over a specified window in pixels
     - A correlation residual threshold for discarding poorly correlated subsets.
     - Parallelisation: CPU or GPU based
+    - Option to load an perform the correlation image by image to save RAM or to load all images in one shot and perform the correlation over everything
 - Stereo calibration parameters (intrinsic and extrinsic)
 ### Example Workflow
+- Build a dataclass specifying the stereo correlation options
+- Load a stereo calibration parameters file or specify this in code
+- Load a region of interest mask file or specify this in code
+- Load a reference image and optionally a set of deformed images
+- Run the correlation and return the subset coordinates in world coordinates (i.e. the imaged surface shape) and the subset displacement vector components for the deformed images
+    - Allow various parallelisation options here by subset and/or image or run single threaded to allow paralleisation in an outer loop.
+- Save the subset coordinates, the displacement vector components, the correlation residual and the epi-polar distance to file in either *.csv per image or an open binary format like *.hdf5
 ### Outputs
 - Coordinates of the subsets in pixel [x,y] and world coordinates [x,y,z]
 - Displacement vector components for each subset, [x,y,z] in pixel and world length units
 - Correlation residual for each subset
 - Epi-polar distance
-
 
 
 ## Sub-Module: DIC Post-Processing
@@ -132,8 +162,14 @@ and/or
 - Options for calculating strain tensors from the deformation gradient
 - Options for temporal differentiation and temporal smoothing of DIC data
 ### Example Workflow
--
+- Build a dataclass specifying the post-processing options
+- Pass in RAM or load from file the DIC displacement data
+- Post-process the displacement data with smoothing and spatial and/or temporal differentiation
+- Return the post-processed quantities of interest (e.g. strain) and optionally save to disk
 ### Outputs
+- The post processed quantities of interest (e.g. strain) as numpy arrays
+- Coordinates at which the post processed quantities of interest were evaluated
+
 
 ## DIC Benchmarks
 Analyse accuracy and correlation speed for:
@@ -144,6 +180,7 @@ Analyse accuracy and correlation speed for:
 - DIC challenge benchmarks
 
 This [repository](https://github.com/Computer-Aided-Validation-Laboratory/dicbenchmarks) can be used to generate benchmarks for cases other than the DIC challenge which is openly available elsewhere.
+
 
 ## Deliverables
 - A DIC engine module integrated into `pyvale` with the following sub-modules (note these are just suggested names and are not binding, use whatever structure makes most sense during developement):
