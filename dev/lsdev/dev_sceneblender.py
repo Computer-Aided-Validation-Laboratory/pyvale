@@ -29,7 +29,7 @@ class BlenderScene:
 
         nodes.clear()
         bg_node = nodes.new(type='ShaderNodeBackground')
-        # bg_node.inputs[0].default_value = [0.5, 0.5, 0.5, 1]
+        bg_node.inputs[0].default_value = [0.5, 0.5, 0.5, 1]
         bg_node.inputs[1].default_value = 0
 
     def add_light(self, light_data: LightData):

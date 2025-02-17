@@ -58,12 +58,12 @@ def main() -> None:
                           focal_length=focal_length,
                           part_dimension=part.dimensions)
     cam_data_1 = cam_data_0
-    calib_filepath = Path.cwd() / 'dev/lsdev/rendered_images/stereo/case18_def'
+    calib_filepath = Path.cwd() / 'dev/lsdev/rendered_images/Stereo DIC/cal'
     stereo_data = StereoData(cam_data_0=cam_data_0,
                              cam_data_1=cam_data_1,
                              base = 35.0,
                              angle_deg=7.0,
-                             calib_file=False,
+                             calib_file=True,
                              calib_filepath=calib_filepath)
     scene.add_stereo_system(stereo_data, scene)
 
@@ -93,7 +93,7 @@ def main() -> None:
     # --------------------------------------------------------------------------
     # Deform or RBM
     deform = False
-    rbm = True
+    rbm = False
 
     #---------------------------------------------------------------------------
     # Deform mesh

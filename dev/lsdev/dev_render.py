@@ -22,7 +22,7 @@ class RenderData:
 
 class Render:
     def __init__(self,
-                 render_data: RenderData | None = RenderData,
+                 render_data: RenderData | None = None,
                  image_path: str | None = None,
                  output_path: str | None = None,
                  cam_data: CameraData | None = None):
@@ -31,6 +31,8 @@ class Render:
         self.output_path = output_path
         self.cam_data = cam_data
         self.scene = bpy.data.scenes['Scene']
+
+        if render_data is None:
 
     def render_parameters(self,
                           file_name: str,
