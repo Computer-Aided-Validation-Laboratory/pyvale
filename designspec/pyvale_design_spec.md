@@ -16,6 +16,7 @@ A key focus of `pyvale` is developement of open-source scalable tools that can b
 
 ## `pyvale` Design Philosophy
 - Scientists and engineers want a python interface: Write computationally demanding algorithms in lower level languages like Cython, C or CUDA but provide a Python interface for users
+- Users want to get started quickly but have the option to customise everything: provide good defaults to simplify the interface
 
 ## Sensor Simulation Toolbox Specification
 A simulated sensor will produce a simulated measurement $M$ which is defined to be: $M = T + E_{S} + E_{R}$ where $T$ is the ground truth value taken from the given input multi-physics simulation, $E_{S}$ includes any sources of systematic measurement error (e.g. averaging, digitisation, calibration), and $E_{R}$ includes any sources of random errors (e.g. noise).
