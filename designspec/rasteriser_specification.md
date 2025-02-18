@@ -1,11 +1,10 @@
-# `pyvale` Ray-Tracing Engine: Design Specification
+# `pyvale` Rasterisation Module: Design Specification
 
 ## Motivation
 The `pyvale` python package is intended to be an all-in-one package for sensor simulation, sensor uncertainty quantication, sensor placement optimisation and simulation calibration/validation. A particular focus of `pyvale` is to develop sensor simulation methods specifically focused on cameras including infra-red thermography and digital image correlation (DIC).
 
 
 ## Aims & Objectives
-
 The objectives of this project are to develop a rasteriation engine for `pyvale` that supports:
 
 - A Python interface with underlying performant code in Cython, C and/or vendor agnostic GPU code (HIP).
