@@ -26,7 +26,7 @@ A non-exhaustive list of sub-modules is provided below including the required in
 
 
 ## Sub-Module: Scene Builder
-The user will use this sub-module to add all relevant objects, cameras, lights and physics to the scene before using a rendering submodule to create the desired images from the scene.
+This sub-module will add all relevant objects, cameras, lights and physics to the scene before using a rendering submodule to create the desired images from the scene.
 ### Inputs
 - Meshes for the objects to be present in the scene with or without physical fields as `SimData` objects
 - The position and orientation of each object in the scene with respect to a world coordinate system
@@ -42,13 +42,18 @@ The user will use this sub-module to add all relevant objects, cameras, lights a
 - An option to save the scene dataclass to file for later use
 
 
-## Sub-Module: Speckle Applicator
+## Sub-Module: Speckle Mapper
 ### Inputs
--
+- One or more geometric meshes (of various element types)
+- A high resolution speckle pattern texture image
+- A scaling factor to map the speckle pattern texture to the mesh with the desired speckle size
 ### Workflow
--
+- Load the meshes and the speckle pattern texture image
+- Specify the scaling factor, surfaces on the meshes to map the texture to and the texture mapping algorithm
+- Map the speckle texture to the image and view the result 
 ### Outputs
--
+- An interactive visualisation of the speckle texture applied to the mesh using `pyvista`
+- A mapping for the speckle texture onto the mesh
 
 
 ## Sub-Module: Infra-Red Renderer
@@ -57,9 +62,15 @@ This sub-module is part of the core functionality of the ray tracing module allo
 - A scene dataclass describing: the objects/meshes in the scene; their surface properties in the IR spectrum; their positions in world coordinates; the constant temperature or temperature field for objects in the scene radiating infra-red light; and the parameters for any infra-red cameras in the scene.
 - A dataclass specifying the rendering options such as parallelisation, CPU/GPU rendering, number of samples, number of ray bounces and wavelengths of the IR spectrum to analyse etc.
 ### Workflow
-- TODO
+- Build a scene with the desired objects/meshes, physics (nominally temperature and displacements), infra-red cameras and light sources
+- Specify the infra-red wavelength range to render, the emissivity and temperature of all objects radiating in the scene
+- Render the image sequence for the specified temperature and displacement fields to memory or optionally save image by image to disk (in a lossless bitmap format) to save memory
+- Optionally add sensor noise to the images in terms of temperature or counts
 ### Outputs
-- TODO
+- A "noise free" static reference image per camera
+- A set of "noise free" deformed images for each camera in the scene using the input displacement time history for each deformable object in the scene
+- A set of "noisy" static reference images for each camera in the scene with different copies of user defined grey level noise to allow for noise floor analysis
+- Sets of "noisy" deformed images with different copies of user defined grey level noise to allow for Monte-Carlo analysis
 
 
 ## Sub-Module: Calibration Target Renderer
@@ -71,20 +82,23 @@ This will be similar to the deformed image renderer below but will allow the use
 - A dataclass describing the calibration target (number of dots, dot spacing and location of key dots)
 - A dataclass describing the translations and rotations to perform for the
 ### Workflow
--
-### Inputs
--
+- Build a scene with the desired objects/meshes, stereo DIC camera systems (optionally paired with IR cameras for temperature mapping) and light sources
+- Create the calibration target and the sequence of translation/rotation combinations to be rendered
+- Render the image sequence of the calibration target to memory (to pass directly to the stereo calibration module) for all cameras in the scene or optionally save an image at a time to disk (in a lossles bitmap format) to save memory
+### Outputs
+- A sequence of calibration target images translating the calibration target through all degrees of freedom throughout the field of view
 
 
 ## Sub-Module: Deformed Image Renderer
 This sub-module is part of the core functionality of the ray tracing module allowing the user to create deformed speckle pattern images from a solid mechanics simulation for processing with 2D or Stereo DIC. A key functionality of this module will be to render speckle pattern images with realistic lighting effects for uncertainty quantification.
 ### Inputs
 - A scene dataclass describing: the objects/meshes in the scene; their optical properties; their positions in world coordinates; and the displacement fields for deforming objects in the scene as a function of time or an option to render a static reference image only.
-- A dataclass specifying the rendering options such as parallelisation, CPU/GPU rendering, number of samples and number of ray bounces etc.
+- A dataclass specifying the rendering options such as parallelisation, CPU/GPU rendering, number of samples, number of ray bounces and option to save images to render all images in memory or save directly to disk etc.
 ### Workflow
-- Build a scene with the desired objects/meshes and 2D or stereo DIC camera systems
-- Apply speckle patterns
-- Save the images to file
+- Build a scene with the desired objects/meshes, 2D or stereo DIC camera systems and light sources
+- Apply speckle patterns to the deforming objects in the scene scaling them to the appropiate pixel/speckle resolution
+- Render the image sequence of the deforming objects either to memory (to be passed directly to the DIC module) or one frame at a time to disk to conserve memory
+- Optionally add grey level sensor noise to the images
 ### Outputs
 - A "noise free" static reference image per camera
 - A set of "noise free" deformed images for each camera in the scene using the input displacement time history for each deformable object in the scene
@@ -94,7 +108,7 @@ This sub-module is part of the core functionality of the ray tracing module allo
 ## Deliverables
 - A ray tracing module fully integrated and merged into the main branch of `pyvale` with the following sub-modules (note these are just suggested names and are not binding, use whatever structure makes most sense during developement to achieve the desired functionality):
     - RayTrace.SceneBuilder
-    - RayTrace.SpeckleApplicator
+    - RayTrace.SpeckleMapper
     - RayTrace.CalTargetRenderer
     - RayTrace.IRRender
     - RayTrace.DICRender
