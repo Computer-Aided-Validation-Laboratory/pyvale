@@ -75,7 +75,7 @@ The Computer Aided Validation Team at UKAEA:
 - Rory Spencer, UK Atomic Energy Authority
 - Michael Atkinson, UK Atomic Energy Authority
 - Lorna Sibson, UK Atomic Energy Authority
-- John Charltion, UK Atomic Energy Authority
+- John Charlton, UK Atomic Energy Authority
 - Joel Hirst, UK Atomic Energy Authority
 
 
