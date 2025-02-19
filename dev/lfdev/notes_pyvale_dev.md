@@ -1,25 +1,52 @@
 
 # Notes: `pyvale` developement
 
-## TODO: `CameraRaster`
-- Refactor into functions and classes
+## Ideas for papers:
+- FUSION SIM: "A probabilistic analysis of residual stress in divertor monoblocks" - showcase mooseherder
+- EXP SIM: "Are point wise validation metrics suitable for image-based data?"
+- EXP SIM: "A comparison of image-based and point-wise validation metrics for DIC"
+- EXP SIM: "A comparison of image rendering techniques for DIC UQ"
+- EXP SIM: "Camera placement optimisation for 2D DIC FEMU"
+- EXP SIM: "A rendering engine for UQ of IRT sensors"
 
+# HOW TO: 2D DIC
+- Start with a simple pixel wise DIC algorithm to get a starting point
+- Start with pure numpy and scipy version then build own interp/opt
+
+- Speckle generator:
+    - Allow noise, gaussian blurring, digitisation, format saving
+- 2D image deformation:
+    - Update existing 2D image deformation in pyvale to use pyvista to do interp
+    - Update masking to remove alpha shape - use the edge function
+    - Simplify code and make core to pyvale
+    - Generate test cases for 640x480 images on rectangular ROIs
+- Shape functions:
+    - Start with rigid
+    - Then add affine
+- Correlation criteria:
+    - Implement all the different correlation criteria with good pre-calcs
+- Optimisers:
+    - Start with Nelder-Mead
+    - Implement Levenberg-Marquadt
+    - Need to return the residual
+- Interpolation
+    - Use scipy to do spline interp on image
+    - Build own spline interp in cython
+- Generate a test case run in 2D through DICE
+
+**2D DIC TEST CASE**
+- 1020x520 pixels
+- 100x50mm plate
+- 10px on the border
+- Resolution = 100mm/1000px = 0.1 mm/px
+- 10px per mm
+- 1mm displacement = 10 px
+- Need displacement cases at 0.1/10 = 1/10th of a pixel
+
+## TODO: `CameraRaster`
 - Speed up edge function calculation using stepwise optimisation on SAP
 - Try to setup tiling optimisation
-
 - Deal with quads: edge function and interpolation
-- Multi-threading over the element loop
-
-- Setup a set of performance benchmarks:
-    - How much RAM, process time per image?
-    - Single and multi-core
-    - Process time per-image for 1-8 images
-    - Anti-alias subsample: 1,2,4
-    - 1Mpx, 5Mpx, 24Mpx images
-    - 1000, 10,000, 100,000 triangles
-
-- Look into compilation with Numba etc
-- Write a Cython version
 
 `CameraRay`
 - Build a ray casting version. Only need primary rays.
@@ -36,6 +63,7 @@
 
 - BUGS!
     - Spatial averaging with rectangle or quadrature makes assumptions about sensor orientation - looks like it assumes XY orientations only. Check this.
+    - Should be able to fix this with a good old 4x4 sensor_to_world matrix.
 
 - TODO GENERAL:
     - Build Rory's simple DIC strain filter on top of the basic camera
@@ -46,11 +74,6 @@
     - Finish basic camera
 
 - TESTING/FEATURE EXAMPLES:
-    - Camera basic
-
-- TODO: EXAMPLES
-    - Example showing a basic camera
-
 - TODO: ErrorIntegrator
     - Simplify the memory efficient and non-memory efficient options
 

@@ -164,7 +164,7 @@ def main() -> None:
     print('IMAGE AND DATA PRE-PROCESSING')
     print('')
 
-    idd.plot_diag_image('Raw input image',input_im,idd.I_CMAP)
+    idd.plot_diag_image('Raw input image',input_im,idd.image_map)
 
     # Run all processes that only need to be called once before deforming the
     # images - includes image masking, cropping and upsampling
@@ -181,10 +181,10 @@ def main() -> None:
                                 id_opts,
                                 print_on = True)
 
-    idd.plot_diag_image('Pre-processed image', input_im, idd.I_CMAP)
-    idd.plot_diag_image('Upsampled Image',upsampled_image,idd.I_CMAP)
+    idd.plot_diag_image('Pre-processed image', input_im, idd.image_map)
+    idd.plot_diag_image('Upsampled Image',upsampled_image,idd.image_map)
     if image_mask is not None:
-        idd.plot_diag_image('Undef. Image Mask',image_mask,idd.I_CMAP)
+        idd.plot_diag_image('Undef. Image Mask',image_mask,idd.image_map)
 
     #---------------------------------------------------------------------------
     # DEFORM IMAGES

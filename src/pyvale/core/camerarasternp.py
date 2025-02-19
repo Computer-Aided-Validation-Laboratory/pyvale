@@ -10,6 +10,7 @@ import numpy as np
 from scipy.signal import convolve2d
 from pyvale.core.cameradata import CameraData
 import numba
+from pyvale.core.cameratools import CameraTools
 
 class RasteriserNP:
     @staticmethod
@@ -112,10 +113,10 @@ class RasteriserNP:
         # Check that min/max nodes are within the 4 edges of the camera image
         #shape=(4_edges_to_check,num_elems)
         crop_mask = np.zeros([elem_raster_coords.shape[0],4],dtype=np.int8)
-        crop_mask[elem_raster_coord_min[:,0] <= (cam_data.pixels_num[0]-1),0] = 1
-        crop_mask[elem_raster_coord_min[:,1] <= (cam_data.pixels_num[1]-1),1] = 1
-        crop_mask[elem_raster_coord_max[:,0] >= 0,2] = 1
-        crop_mask[elem_raster_coord_max[:,1] >= 0,3] = 1
+        crop_mask[elem_raster_coord_min[:,0] <= (cam_data.pixels_num[0]-1), 0] = 1
+        crop_mask[elem_raster_coord_min[:,1] <= (cam_data.pixels_num[1]-1), 1] = 1
+        crop_mask[elem_raster_coord_max[:,0] >= 0, 2] = 1
+        crop_mask[elem_raster_coord_max[:,1] >= 0, 3] = 1
         crop_mask = np.sum(crop_mask,axis=1) == 4
 
         # Get only the elements that are within the FOV
@@ -138,8 +139,6 @@ class RasteriserNP:
         elem_bound_boxes_inds[:,3] = RasteriserNP.elem_bound_box_high(
                                             elem_raster_coord_max[:,1],
                                             cam_data.pixels_num[1]-1)
-
-
 
         return (crop_mask,elem_bound_boxes_inds)
 
@@ -338,8 +337,8 @@ class RasteriserNP:
 
         #---------------------------------------------------------------------------
         # END RASTER LOOP
-        depth_buffer = average_subpixel_image(depth_buffer,cam_data.sub_samp)
-        image_buffer = average_subpixel_image(image_buffer,cam_data.sub_samp)
+        depth_buffer = CameraTools.average_subpixel_image(depth_buffer,cam_data.sub_samp)
+        image_buffer = CameraTools.average_subpixel_image(image_buffer,cam_data.sub_samp)
 
         return (image_buffer,depth_buffer,elem_raster_coords.shape[0])
 
@@ -409,8 +408,8 @@ class RasteriserNP:
 
         #---------------------------------------------------------------------------
         # END RASTER LOOP
-        depth_buffer = average_subpixel_image(depth_buffer,cam_data.sub_samp)
-        image_buffer = average_subpixel_image(image_buffer,cam_data.sub_samp)
+        depth_buffer = CameraTools.average_subpixel_image(depth_buffer,cam_data.sub_samp)
+        image_buffer = CameraTools.average_subpixel_image(image_buffer,cam_data.sub_samp)
 
         return (image_buffer,depth_buffer,num_elems_in_scene)
 
@@ -432,13 +431,3 @@ def edge_function_slice(vert_a: np.ndarray,
               - (vert_c[:,1] - vert_a[:,1]) * (vert_b[:,0] - vert_a[:,0]))
 
 
-def average_subpixel_image(subpx_image: np.ndarray,
-                           subsample: int) -> np.ndarray:
-    if subsample <= 1:
-        return subpx_image
-
-    conv_mask = np.ones((subsample,subsample))/(subsample**2)
-    subpx_image_conv = convolve2d(subpx_image,conv_mask,mode='same')
-    avg_image = subpx_image_conv[round(subsample/2)-1::subsample,
-                                round(subsample/2)-1::subsample]
-    return avg_image

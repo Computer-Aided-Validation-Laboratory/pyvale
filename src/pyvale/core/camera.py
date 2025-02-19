@@ -11,8 +11,8 @@ from pyvale.core.sensorarray import ISensorArray
 from pyvale.core.errorintegrator import ErrIntegrator
 from pyvale.core.sensordescriptor import SensorDescriptor
 from pyvale.core.fieldsampler import sample_field_with_sensor_data
-from pyvale.core.cameradata import CameraData2D
-from pyvale.core.cameratools import build_sensor_data_from_camera
+from pyvale.core.cameradata2d import CameraData2D
+from pyvale.core.cameratools import CameraTools
 
 
 # NOTE: This module is a feature under developement.
@@ -36,7 +36,7 @@ class CameraBasic2D(ISensorArray):
         if descriptor is not None:
             self._descriptor = descriptor
 
-        self._sensor_data = build_sensor_data_from_camera(self._cam_data)
+        self._sensor_data = CameraTools.build_sensor_data_from_camera_2d(self._cam_data)
 
         self._truth = None
         self._measurements = None

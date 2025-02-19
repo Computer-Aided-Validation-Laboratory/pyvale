@@ -57,7 +57,7 @@ def main() -> None:
 
     field_errs = []
     field_errs.append(pyvale.ErrSysField(disp_field,
-                                        time_error_data))
+                                         time_error_data))
     field_errs.append(pyvale.ErrSysField(disp_field,
                                         time_error_data))
 

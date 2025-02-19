@@ -27,10 +27,10 @@ def main() -> None:
 
 
     num_px = np.array((250,500))
-    leng_per_px = pyvale.calc_resolution_from_sim(num_px,
+    leng_per_px = pyvale.calc_resolution_from_sim_2d(num_px,
                                                   sim_data.coords,
-                                                  border_px=5)
-    roi_center_world = pyvale.calc_centre_from_sim(sim_data.coords)
+                                                  pixels_border=5)
+    roi_center_world = pyvale.calc_roi_cent_from_sim(sim_data.coords)
     sensor_angle = Rotation.from_euler("zyx", [180, 0, 0], degrees=True)
 
     cam_data = pyvale.CameraData2D(num_pixels=num_px,

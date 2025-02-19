@@ -1,8 +1,8 @@
 #-------------------------------------------------------------------------------
-# pyvale ignore
 # vscode / venv
 .vscode/
 .pyvale-env/
+.venv/
 
 # Output files
 *.npy
@@ -28,6 +28,7 @@ example_output/
 
 # Image deformation test cases
 *.pkl
+*.dill
 imdefcase*_*/
 deformed_images/
 src/deformed_images/

@@ -26,10 +26,10 @@ def main() -> None:
                                  spat_dims=2)
 
     num_px = np.array((500,250))
-    leng_per_px = pyvale.calc_resolution_from_sim(num_px,
+    leng_per_px = pyvale.calc_resolution_from_sim_2d(num_px,
                                                   sim_data.coords,
-                                                  border_px=5)
-    roi_center_world = pyvale.calc_centre_from_sim(sim_data.coords)
+                                                  pixels_border=5)
+    roi_center_world = pyvale.calc_roi_cent_from_sim(sim_data.coords)
 
     cam_data = pyvale.CameraData2D(num_pixels=num_px,
                                    leng_per_px=leng_per_px,

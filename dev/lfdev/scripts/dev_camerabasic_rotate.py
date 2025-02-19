@@ -27,22 +27,21 @@ def main() -> None:
 
 
     num_px = np.array((250,500))
-    leng_per_px = pyvale.calc_resolution_from_sim(num_px,
+    leng_per_px = pyvale.CameraTools.calc_resolution_from_sim_2d(num_px,
                                                   sim_data.coords,
-                                                  border_px=5)
-    roi_center_world = pyvale.calc_centre_from_sim(sim_data.coords)
+                                                  pixels_border=5)
+    roi_center_world = pyvale.CameraTools.calc_roi_cent_from_sim_2d(sim_data.coords)
     sensor_angle = Rotation.from_euler("zyx", [180, 0, 0], degrees=True)
 
-    cam_data_norot = pyvale.CameraData2D(num_pixels=num_px,
+    cam_data_norot = pyvale.CameraData2D(pixels_count=num_px,
                                    leng_per_px=leng_per_px,
-                                   roi_center_world=roi_center_world)
-    cam_data_rot = pyvale.CameraData2D(num_pixels=num_px,
+                                   roi_cent_world=roi_center_world)
+    cam_data_rot = pyvale.CameraData2D(pixels_count=num_px,
                                 leng_per_px=leng_per_px,
-                                roi_center_world=roi_center_world,
+                                roi_cent_world=roi_center_world,
                                 angle=sensor_angle)
 
-    print(f"{cam_data_norot.roi_center_world=}")
-    print(f"{cam_data_norot.roi_shift_world=}")
+    print(f"{cam_data_norot.roi_cent_world=}")
 
     camera = pyvale.CameraBasic2D(cam_data=cam_data_norot,
                                   field=disp_field,

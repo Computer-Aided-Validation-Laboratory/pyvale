@@ -80,7 +80,7 @@ class GeneratorNormal(IGeneratorRandom):
         """
         return self._rng.normal(loc = self._mean,
                                 scale = self._std,
-                                shape = shape)
+                                size = shape)
 
 
 class GeneratorLogNormal(IGeneratorRandom):
@@ -127,7 +127,7 @@ class GeneratorLogNormal(IGeneratorRandom):
         """
         return self._rng.lognormal(mean = self._mean,
                                    sigma = self._std,
-                                   shape = shape)
+                                   size = shape)
 
 
 class GeneratorUniform(IGeneratorRandom):
@@ -174,7 +174,7 @@ class GeneratorUniform(IGeneratorRandom):
         """
         return self._rng.uniform(low = self._low,
                                  high = self._high,
-                                 shape = shape)
+                                 size = shape)
 
 
 class GeneratorExponential(IGeneratorRandom):
@@ -216,7 +216,7 @@ class GeneratorExponential(IGeneratorRandom):
             Array of random numbers with the specified shape.
         """
         return self._rng.exponential(scale = self._scale,
-                                     shape = shape)
+                                     size = shape)
 
 
 class GeneratorChiSquare(IGeneratorRandom):
@@ -258,7 +258,7 @@ class GeneratorChiSquare(IGeneratorRandom):
             Array of random numbers with the specified shape.
         """
         return self._rng.chisquare(df = self._dofs,
-                                   shape = shape)
+                                   size = shape)
 
 
 class GeneratorDirichlet(IGeneratorRandom):
@@ -298,7 +298,7 @@ class GeneratorDirichlet(IGeneratorRandom):
         np.ndarray
             Array of random numbers with the specified shape.
         """
-        return self._rng.dirichlet(alpha = self._alpha, shape = shape)
+        return self._rng.dirichlet(alpha = self._alpha, size = shape)
 
 
 class GeneratorF(IGeneratorRandom):
@@ -339,7 +339,7 @@ class GeneratorF(IGeneratorRandom):
         np.ndarray
             Array of random numbers with the specified shape.
         """
-        return self._rng.f(dfnum = self._dofs, shape = shape)
+        return self._rng.f(dfnum = self._dofs, size = shape)
 
 
 class GeneratorGamma(IGeneratorRandom):
@@ -385,7 +385,7 @@ class GeneratorGamma(IGeneratorRandom):
             Array of random numbers with the specified shape.
         """
         return self._rng.gamma(scale = self._scale,
-                                     shape = shape)
+                                     size = shape)
 
 
 class GeneratorStandardT(IGeneratorRandom):
@@ -427,7 +427,7 @@ class GeneratorStandardT(IGeneratorRandom):
             Array of random numbers with the specified shape.
         """
         return self._rng.standard_t(df = self._dofs,
-                                   shape = shape)
+                                   size = shape)
 
 
 class GeneratorBeta(IGeneratorRandom):
@@ -473,7 +473,7 @@ class GeneratorBeta(IGeneratorRandom):
         """
         return self._rng.beta(a = self._a,
                               b = self._b,
-                              shape = shape)
+                              size = shape)
 
 
 class GeneratorTriangular(IGeneratorRandom):
@@ -525,4 +525,4 @@ class GeneratorTriangular(IGeneratorRandom):
         return self._rng.triangular(left = self._left,
                                     mode = self._mode,
                                     right = self._right,
-                                    shape = shape)
+                                    size = shape)

@@ -16,8 +16,6 @@ Copyright (C) 2024 The Computer Aided Validation Team
 # underlying project structure: the user should always be able to use 'pyvale.'
 # and access everything in one layer without multiple import dots
 
-from pyvale.imagesim import *
-
 from pyvale.core.dataset import *
 
 from pyvale.core.field import *
@@ -41,9 +39,12 @@ from pyvale.core.sensordata import *
 
 from pyvale.core.camera import *
 from pyvale.core.cameradata import *
+from pyvale.core.cameradata2d import *
 from pyvale.core.cameratools import *
 from pyvale.core.cameramesh import *
 from pyvale.core.camerarasternp import *
+
+from pyvale.core.imagedef2d import *
 
 from pyvale.core.errorintegrator import *
 from pyvale.core.errorrand import *
@@ -61,6 +62,7 @@ from pyvale.core.visualsimanimator import *
 from pyvale.core.visualexpplotter import *
 from pyvale.core.visualtraceplotter import *
 from pyvale.core.visualimages import *
+from pyvale.core.visualimagedef import *
 
 from pyvale.core.analyticmeshgen import *
 from pyvale.core.analyticsimdatagenerator import *

@@ -59,7 +59,7 @@ class SensorDescriptor:
 
         sensor_names = list()
         for ss in range(n_sensors):
-            num_str = f'{ss}'.zfill(z_width)
+            num_str = f'{ss+1}'.zfill(z_width)
             sensor_names.append(f'{self.tag}{num_str}')
 
         return sensor_names

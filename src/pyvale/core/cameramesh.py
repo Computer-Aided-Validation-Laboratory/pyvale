@@ -19,7 +19,7 @@ class CameraMeshData:
 
     coords: np.ndarray
     connectivity: np.ndarray
-    field_by_node: np.ndarray
+    fields_by_node: np.ndarray
 
     node_count: int = field(init=False)
     elem_count: int = field(init=False)
@@ -76,13 +76,16 @@ def create_camera_mesh(sim_path: Path,
     # Add w coord =1, shape=(num_nodes,1)
     coords_world= np.hstack((coords_world,np.ones([coords_world.shape[0],1])))
 
-    # shape=(num_nodes,num_time_steps)
-    field_by_node = np.ascontiguousarray(np.array(pv_surf[field_key]))
+    # shape=(num_nodes,num_time_steps,num_components)
+    field_shape = np.array(pv_surf[field_key]).shape
+    fields_by_node = np.zeros(field_shape+(len(components),),dtype=np.float64)
+    for ii,cc in enumerate(components):
+        fields_by_node[:,:,ii] = np.ascontiguousarray(np.array(pv_surf[cc]))
 
     image_mesh_world = CameraMeshData(name=sim_path.name,
                                       coords=coords_world,
                                       connectivity=connectivity,
-                                      field_by_node=field_by_node)
+                                      fields_by_node=fields_by_node)
 
     return image_mesh_world
 

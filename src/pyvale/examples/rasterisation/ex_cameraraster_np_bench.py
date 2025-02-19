@@ -26,12 +26,13 @@ def main() -> None:
     print(f"{case_mesh.field_by_node.shape=}")
     print(80*"-")
 
+
     print()
     print(80*"=")
     print("RENDER LOOP START")
     print(80*"=")
 
-    num_raster_loops: int = 10
+    num_raster_loops: int = 1
     frame = -1  # render the last frame
     loop_times = []
 
