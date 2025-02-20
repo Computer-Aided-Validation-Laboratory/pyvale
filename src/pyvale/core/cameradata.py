@@ -39,11 +39,23 @@ class CameraData:
 
     back_face_removal: bool = True
 
+    k1: float | None = 0.0
+    k2: float | None = 0.0
+    k3: float | None = 0.0
+    p1: float | None = 0.0
+    p2: float | None = 0.0
+    c0: float | None = None
+    c1: float | None = None
+
+    object_distance: float | None = None
+    fstop: float | None = None
+
     sensor_size: np.ndarray = field(init=False)
     image_dims: np.ndarray = field(init=False)
     image_dist: float = field(init=False)
     cam_to_world_mat: np.ndarray = field(init=False)
     world_to_cam_mat: np.ndarray = field(init=False)
+
 
     def __post_init__(self) -> None:
         self.image_dist = np.linalg.norm(self.pos_world - self.roi_cent_world)
@@ -56,6 +68,11 @@ class CameraData:
         self.cam_to_world_mat[-1,-1] = 1.0
         self.cam_to_world_mat[0:3,-1] = self.pos_world
         self.world_to_cam_mat = np.linalg.inv(self.cam_to_world_mat)
+
+        if self.c0 is None:
+            self.c0 = self.pixels_num[0] / 2
+        if self.c1 is None:
+            self.c1 = self.pixels_num[1] / 2
 
 
 @dataclass(slots=True)
