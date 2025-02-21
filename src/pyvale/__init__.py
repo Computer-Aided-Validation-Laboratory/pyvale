@@ -69,3 +69,6 @@ from pyvale.core.analyticsimdatagenerator import *
 from pyvale.core.analyticsimdatafactory import *
 
 from pyvale.core.experimentsimulator import *
+
+from pyvale.core.dicspecklegenerator import *
+from pyvale.core.dicspecklequality import *
