@@ -1,9 +1,11 @@
 import numpy as np
+from interval import Interval
 from ray import Ray
 from material import Material
+from aabb import AABB
 
 class HitRecord:
-    p: np.ndarray
+    p: np.ndarray # location in 3D space
     normal: np.ndarray
     t: float
     front_face: bool
@@ -17,7 +19,12 @@ class HitRecord:
         self.normal = outward_normal if self.front_face else -outward_normal
 
 class Hittable:
+    bbox: AABB = None
+
     def __init__(self):
+        pass
+    
+    def hit(self, r: Ray, ray_t: Interval) -> HitRecord:
         pass
 
     

@@ -17,7 +17,8 @@ class Lambertian(Material):
     def scatter(self, r_in: Ray, rec) -> Tuple[np.ndarray, np.ndarray]:
         scatter_direction = rec.normal + random_unit_vector()
 
-        #  Catch degenerate scatter direction
+        # Catch degenerate scatter direction
+        # Helps accuracy. Very slow
         if np.allclose(scatter_direction, 0):
             scatter_direction = rec.normal
         

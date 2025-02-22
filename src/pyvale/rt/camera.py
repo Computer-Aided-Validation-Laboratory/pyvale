@@ -81,7 +81,7 @@ class Camera:
 				print("Scanlines remaining: ", (self.image_height - j), "\r", file=sys.stderr)
 				for i in range(self.image_width):
 					pixel_color: np.ndarray = np.array([0.0, 0.0, 0.0])
-					for sample in range(self.samples_per_pixel):
+					for _ in range(self.samples_per_pixel):
 						r: Ray = self._get_ray(i, j)
 						pixel_color += self._ray_colour(r, self.max_depth, world)
 					
@@ -103,12 +103,8 @@ class Camera:
 		rec: HitRecord = world.hit(r, Interval(0.001, math.inf))
 
 		if rec:
-			# scattered: Ray = Ray()
-			# attenuation: np.ndarray
 			attenuation, scattered = rec.mat.scatter(r, rec)
-			# if attenuation:
 			return attenuation * self._ray_colour(scattered, depth-1, world)
-			# return np.array([0, 0, 0])
 		
 		unit_direction = unit_vector(r.direction)
 		a = 0.5*unit_direction[1] + 1

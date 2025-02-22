@@ -2,18 +2,23 @@ import math
 import numpy as np
 from ray import Ray
 from interval import Interval
-from hittable import HitRecord#, Hittable
+from hittable import HitRecord, Hittable
 from material import Material
+from aabb import AABB
 
-class Sphere:
+class Sphere(Hittable):
     centre: np.ndarray
     radius: float
     mat: Material
+    bbox: AABB
     
     def __init__(self, centre, radius: float, material: Material) -> None:
         self.centre = centre
         self.radius = max(radius,0)
         self.mat = material
+
+        rvec = np.ones(3) * self.radius
+        self.bbox = AABB(a = centre - rvec, b = centre + rvec)
     
     def hit(self, r: Ray, ray_t: Interval) -> HitRecord:
         oc = self.centre - r.origin
