@@ -3,14 +3,17 @@ import numpy as np
 from ray import Ray
 from interval import Interval
 from hittable import HitRecord#, Hittable
+from material import Material
 
 class Sphere:
     centre: np.ndarray
     radius: float
+    mat: Material
     
-    def __init__(self, centre, radius: float) -> None:
+    def __init__(self, centre, radius: float, material: Material) -> None:
         self.centre = centre
         self.radius = max(radius,0)
+        self.mat = material
     
     def hit(self, r: Ray, ray_t: Interval) -> HitRecord:
         oc = self.centre - r.origin
@@ -36,5 +39,6 @@ class Sphere:
         rec.p = r.at(rec.t)
         outward_normal = (rec.p - self.centre) / self.radius
         rec.set_face_normal(r, outward_normal)
+        rec.mat = self.mat
 
         return rec

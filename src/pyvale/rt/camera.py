@@ -57,7 +57,8 @@ class Camera:
 	def _get_ray(self, i: int, j: int) -> Ray:
 		# Construct a camera ray originating from the origin and directed at randomly sampled point around the pixel location i, j
 
-		offset = np.array([0,0,0])
+		offset = np.random.random(2) - 0.5
+
 		pixel_sample = self._pixel00_loc \
 			+ ((i + offset[0]) * self._pixel_delta_u) \
 			+ ((j + offset[1]) * self._pixel_delta_v)
@@ -102,10 +103,12 @@ class Camera:
 		rec: HitRecord = world.hit(r, Interval(0.001, math.inf))
 
 		if rec:
-			scattered: Ray = Ray()
-			attenuation: np.ndarray
-			# if rec.mat.
-			return np.array([0.5, 0.5, 0.5])
+			# scattered: Ray = Ray()
+			# attenuation: np.ndarray
+			attenuation, scattered = rec.mat.scatter(r, rec)
+			# if attenuation:
+			return attenuation * self._ray_colour(scattered, depth-1, world)
+			# return np.array([0, 0, 0])
 		
 		unit_direction = unit_vector(r.direction)
 		a = 0.5*unit_direction[1] + 1

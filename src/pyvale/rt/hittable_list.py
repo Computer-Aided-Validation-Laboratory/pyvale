@@ -1,6 +1,6 @@
 from ray import Ray
 from interval import Interval
-from hittable import HitRecord, Hittable
+from hittable import HitRecord
 from sphere import Sphere
 
 class HittableList:
