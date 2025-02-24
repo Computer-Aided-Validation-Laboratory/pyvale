@@ -8,16 +8,26 @@ class AABB:
     z: Interval
 
     def __init__(self, *, x: Interval = None, y: Interval = None, z: Interval = None, a: np.ndarray = None, b: np.ndarray = None, box0: "AABB" = None, box1: "AABB" = None) -> None:
-        # initialize using either none, (x,y,z) or (a,b) or (box0,box1), never combined.
+        # initialize using either none, Interval(x,y,z) or npArray(a,b) or AABB(box0,box1), never combined.
         assert not (x and a and box0)
         if x is not None:
             self.x = x
             self.y = y
             self.z = z
+
+            # Adjust the AABB so that no side is narrower than some delta, padding if necessary
+            delta = 0.001
+            if x.size() < delta:
+                self.x = x.expand(delta)
+            if y.size() < delta:
+                self.y = y.expand(delta)
+            if z.size() < delta:
+                self.z = z.expand(delta)
+
         elif a is not None:
             self.x = Interval(a[0], b[0]) if a[0] < b[0] else Interval(b[0], a[0])
-            self.y = Interval(a[1], b[1]) if a[1] < b[2] else Interval(b[1], a[1])
-            self.z = Interval(a[2], b[2]) if a[1] < b[2] else Interval(b[2], a[2])
+            self.y = Interval(a[1], b[1]) if a[1] < b[1] else Interval(b[1], a[1])
+            self.z = Interval(a[2], b[2]) if a[2] < b[2] else Interval(b[2], a[2])
         elif box0 is not None:
             self.x = Interval(a = box0.x, b = box1.x)
             self.y = Interval(a = box0.y, b = box1.y)

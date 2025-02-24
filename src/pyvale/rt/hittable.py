@@ -19,7 +19,7 @@ class HitRecord:
         self.normal = outward_normal if self.front_face else -outward_normal
 
 class Hittable:
-    bbox: AABB = None
+    bbox: AABB = AABB()
 
     def __init__(self):
         pass

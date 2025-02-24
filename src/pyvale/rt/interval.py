@@ -5,16 +5,16 @@ class Interval:
     max: float
 
     def __init__(self, min: float = None, max: float = None, *, a: "Interval" = None, b: "Interval" = None) -> None:
-        if min == None and max == None:
-            self.min = math.inf
-            self.max = -math.inf
-        elif min:
+        if min is not None:
             self.min = min
             self.max = max
-        elif a:
+        elif a is not None:
             # Create the interval tightly enclosing the two input intervals
             self.min = a.min if a.min < b.min else b.min
-            self.max = a.max if a.max < b.max else b.max
+            self.max = a.max if a.max > b.max else b.max
+        elif min is None and max is None:
+            self.min = math.inf
+            self.max = -math.inf
         else:
             # shouldnt hit here
             assert(False)

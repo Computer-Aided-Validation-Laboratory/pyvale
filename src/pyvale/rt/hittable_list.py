@@ -11,9 +11,9 @@ class HittableList(Hittable):
         if object:
             self.add(object)
     
-    def add(self, object: Hittable):
-        self._objects.append(object)
-        self.bbox = AABB( box0=self.bbox, box1=object.bbox)
+    def add(self, obj: Hittable):
+        self._objects.append(obj)
+        self.bbox = AABB( box0=self.bbox, box1=obj.bbox)
 
     def hit(self, r: Ray, ray_t: Interval) -> HitRecord:
         rec: HitRecord = HitRecord()

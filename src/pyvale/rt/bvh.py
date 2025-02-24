@@ -29,7 +29,7 @@ class BVH_Node(Hittable):
             self._left = objects[start]
             self._right = objects[start+1]
         else:
-            sublist = objects[start:end].sort()
+            sublist = objects[start:end]
             sublist.sort(key=comparator)
 
             mid = start + object_span/2
