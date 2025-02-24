@@ -24,6 +24,12 @@ class DICSpeckleQuality:
         self.subset_step = subset_step
         self.gray_level = gray_level
 
+        # Internal cache for speckle sizes
+        self._speckle_sizes = None
+        self._subset_average = None
+        self._xvalues = None
+        self._yvalues = None
+
         #TODO: regoin of interest for staticistics
         # this needs to be a 'sub' array of the overall image
 
@@ -33,6 +39,9 @@ class DICSpeckleQuality:
         """ 
         Mean Intensity Gradient. Based on the below: 
         https://www.sciencedirect.com/science/article/abs/pii/S0143816613001103 
+
+        Returns:
+        mean_intensity_gradient (float): float value for mean_intensity gradient
         """
 
         gradient_x, gradient_y = np.gradient(self.pattern)
@@ -56,6 +65,10 @@ class DICSpeckleQuality:
         """ 
         shannon entropy for speckle patterns. Based on the below: 
         https://www.sciencedirect.com/science/article/abs/pii/S0030402615007950 
+
+        
+        Returns:
+        shannon_entropy (float): float value for shannon entropy
         """
 
         #count occurances of each value. bincount doesn't like 2d arrays. flatten to 1d.
@@ -88,56 +101,63 @@ class DICSpeckleQuality:
         plt.grid(axis='y', linestyle='--', alpha=0.7)
         plt.show()
 
+        return None
 
 
 
-    def calculate_speckle_size(self) -> tuple[np.ndarray, np.ndarray, int]:
 
-        # Convert speckle to binary img (https://learnopencv.com/otsu-thresholding-with-opencv/)
-        #TODO: pass graylevel range to this function
-        _, binary_image = cv2.threshold(self.pattern.astype(np.uint8), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    def speckle_size(self) -> tuple[int, np.ndarray, np.ndarray]:
+        """
+        Calculates the Speckle sizes using a binary map calculaed from otsu threshholding
+        (https://learnopencv.com/otsu-thresholding-with-opencv/)
+
         
+        Returns:
+        tuple containing:
+        num_speckles                   (int): total number of speckles identified in the binary map
+        equivalent_diameters    (np.ndarray): Speckle diameter if circle with same area
+        labeled_speckles        (np.ndarray): Label of the connected elements within speckle
+        """
+
+        # calculate binary map using otsu thresholding with opencv
+        _, binary_image = cv2.threshold(self.pattern,
+                                        0,
+                                        self.gray_level - 1, 
+                                        cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
         # Label connected components (speckles)
         labeled_speckles, num_speckles = ndi.label(binary_image)
+        speckle_sizes = np.array(ndi.sum(binary_image > 0, 
+                                         labeled_speckles, 
+                                         index=np.arange(1, num_speckles + 1)))
         
-        # sizes of speckles
-        speckle_sizes = np.array(ndi.sum(binary_image > 0, labeled_speckles, index=np.arange(1, num_speckles + 1)))
-        
-        # Compute equivalent diameter (circle with same area)
         equivalent_diameters = 2 * np.sqrt(speckle_sizes / np.pi)
 
+        # assign values to cached tuple
+        self._speckle_sizes = (num_speckles, equivalent_diameters, labeled_speckles)
+
+        # Raise exception if there's no speckles
+        if num_speckles ==  0:
+            raise ValueError("No speckles identified.")
         
-        return labeled_speckles, equivalent_diameters, num_speckles
+        return self._speckle_sizes
 
 
-    def classify_speckles(self, labeled_speckles, speckle_sizes, num_speckles) -> np.ndarray:
-    
-    
-    
-        classifications = np.zeros_like(labeled_speckles, dtype=np.uint8)
-        
-        #TODO: Not sure whether to bin into three catagorories:
-        # 0-3 kinda small, 3-5 ideal, 5 < kinda big.
-        # I'm leaving the logic in to deal with this but going to assume continous is probs best
-        for i in range(1, num_speckles + 1):
-            size = speckle_sizes[i - 1]
-            if size <= 3:
-                classifications[labeled_speckles == i] = size #1 
-            elif 3 < size <= 5:
-                classifications[labeled_speckles == i] = size #3 
-            else:
-                classifications[labeled_speckles == i] = size #2 
+    def speckle_size_plot(self) -> None:
 
-        return ndi.gaussian_filter(classifications, 0.5)
-    
+        # get speckle sizes if not computed already
+        if self._speckle_sizes is None:
+            self.speckle_size()
 
+        # assign each speckle to a classification group.
+        # Group is jst the 'size' unsure whether to bin to discrete sizes
+        classifications = self._classify_speckles()
 
-
-    def plot_results(self, image_array, classifications) -> None:
-
+        # plotting
         fig, axes = plt.subplots(1, 2, figsize=(12, 6), sharex=True, sharey=True)
 
-        im1 = axes[0].imshow(image_array, cmap='gray', vmin=0, vmax=255)
+        im1 = axes[0].imshow(self.pattern, cmap='gray', vmin=0, vmax=255)
         axes[0].set_title("Speckle Pattern")
         axes[0].axis("off")
         fig.colorbar(im1,ax=axes[0],fraction=0.046, pad=0.04)
@@ -153,12 +173,39 @@ class DICSpeckleQuality:
         return None
 
 
+    def _classify_speckles(self) -> np.ndarray:
+        """
+        Calculates the Speckle sizes using a binary map calculaed from otsu threshholding
+        (https://learnopencv.com/otsu-thresholding-with-opencv/)
 
 
+        Returns:
+        classifications  (np.ndarray): speckle sizes classified by bin sizes for plots.
+                                       To discuss which bins are appropriate.
+                                       My proposed bins:
+                                       0-3 small, 3-5 ideal, 5 < big.
+        """
 
 
-    def black_white_balance(self) -> None:
+        num_speckles, speckle_sizes, labeled_speckles = self._speckle_sizes
+        classifications = np.zeros_like(labeled_speckles, dtype=np.uint8)
 
+        #TODO: Not sure whether to bin into three catagorories:
+        # 0-3 kinda small, 3-5 ideal, 5 < kinda big.
+        # I'm leaving the logic in to deal with this but going to assume continous is probs best
+        for i in range(1, num_speckles + 1):
+            size = speckle_sizes[i - 1]
+            if size <= 3:
+                classifications[labeled_speckles == i] = size #1
+            elif 3 < size <= 5:
+                classifications[labeled_speckles == i] = size #3
+            else:
+                classifications[labeled_speckles == i] = size #2 
+
+        return classifications
+
+
+    def balance_subset(self) -> np.ndarray:
 
         # dont use subsets if rows/cols < edge_cutoff
         edge_cutoff = 100
@@ -169,19 +216,17 @@ class DICSpeckleQuality:
         max_y = self.pattern.shape[0] - self.subset_size // 2
 
         # image coordiantes array containing the central pixel for each subset
-        x_values = np.arange(min_x+edge_cutoff, max_x-edge_cutoff, self.subset_step)
-        y_values = np.arange(min_y+edge_cutoff, max_y-edge_cutoff, self.subset_step)
+        self._xvalues = np.arange(min_x+edge_cutoff, max_x-edge_cutoff, self.subset_step)
+        self._yvalues = np.arange(min_y+edge_cutoff, max_y-edge_cutoff, self.subset_step)
         
         # init array to store black/white balance value
-        shape = (len(y_values), len(x_values))
-        subset_average = np.zeros(shape)
-        # ic(subset_average.shape)
-
+        shape = (len(self._yvalues), len(self._xvalues))
+        self._subset_average = np.zeros(shape)
 
 
         # looping over the subsets
-        for i, x in enumerate(x_values):
-            for j, y in enumerate(y_values):
+        for i, x in enumerate(self._xvalues):
+            for j, y in enumerate(self._yvalues):
 
                 subset = extract_subset(self.pattern, x, y, self.subset_size)
 
@@ -189,14 +234,37 @@ class DICSpeckleQuality:
                 # plt.imshow(subset)
                 # plt.show()
 
-                subset_average[j,i] = np.average(subset) / self.gray_level
-                print(subset_average[j,i])
+                self._subset_average[j,i] = np.average(subset) / self.gray_level
+
+        return self._subset_average
+    
+
+    def balance_image(self) -> float:
+
+        avg = np.mean(self.pattern) / self.gray_level
+
+        return avg
+
+    def balance_subset_avg(self) -> float:
+
+        if self._subset_average is None:
+            self.balance_subset()
+
+        subset_avg = np.mean(self._subset_average)
+
+        return subset_avg
+
+
+
+    def balance_subset_plot(self) -> None:
+
+        if self._subset_average is None:
+            self.balance_subset()
 
         plt.figure(figsize=(10, 10))
         plt.imshow(self.pattern, cmap='gray', interpolation='none')
-        extent = [x_values[0], x_values[-1], y_values[-1], y_values[0]]  # Match coordinates
-        # plt.imshow(subset_average, cmap='jet', vmin=0.0, vmax=1.0, alpha=0.3, extent=extent, interpolation='none')
-        plt.imshow(subset_average, cmap='jet', alpha=0.3, extent=extent, interpolation='none')
+        extent = [self._xvalues[0], self._xvalues[-1], self._yvalues[-1], self._yvalues[0]]  # Match coordinates
+        plt.imshow(self._subset_average, cmap='jet', alpha=0.3, extent=extent, interpolation='none')
         plt.xlim(0,self.pattern.shape[1])
         plt.ylim(self.pattern.shape[0],0)
         plt.colorbar(label='Normalized Subset Average')

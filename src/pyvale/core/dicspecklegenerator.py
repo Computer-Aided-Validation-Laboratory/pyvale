@@ -104,13 +104,13 @@ class DICSpeckleGen:
             self.array = gaussian_filter(self.array, self.smooth_stddev).astype(pattern_dtype)
 
         return None
-    
-    
+
+
     def get_array(self) -> np.ndarray:
 
         return self.array
 
-    
+
 
     def show(self) -> None:
         """
