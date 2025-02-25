@@ -7,12 +7,12 @@ from material import Material
 from aabb import AABB
 
 class Sphere(Hittable):
-    centre: np.ndarray
-    radius: float
-    mat: Material
-    bbox: AABB
+    # centre: np.ndarray
+    # radius: float
+    # mat: Material
+    # bbox: AABB
     
-    def __init__(self, centre, radius: float, material: Material) -> None:
+    def __init__(self, centre, radius: float, material: Material) -> None:       
         self.centre = centre
         self.radius = max(radius,0)
         self.mat = material
@@ -39,7 +39,7 @@ class Sphere(Hittable):
             if not ray_t.surrounds(root):
                 return None
         
-        rec: HitRecord = HitRecord()   
+        rec: HitRecord = HitRecord()
         rec.t = root
         rec.p = r.at(rec.t)
         outward_normal = (rec.p - self.centre) / self.radius

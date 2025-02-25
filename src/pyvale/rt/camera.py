@@ -78,7 +78,8 @@ class Camera:
 			f.write("255\n")
 
 			for j in range(self.image_height):
-				print("Scanlines remaining: ", (self.image_height - j), "\r", file=sys.stderr)
+				# print("Scanlines remaining: ", (self.image_height - j), file=sys.stderr)
+				print("\rScanlines remaining: ", (self.image_height - j), end="", file=sys.stderr)
 				for i in range(self.image_width):
 					pixel_color: np.ndarray = np.array([0.0, 0.0, 0.0])
 					for _ in range(self.samples_per_pixel):

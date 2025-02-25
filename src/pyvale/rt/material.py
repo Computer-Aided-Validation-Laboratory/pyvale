@@ -8,11 +8,9 @@ class Material:
         pass
 
 class Lambertian(Material):
-    albedo: np.ndarray
-
     def __init__(self, albedo: np.ndarray) -> None:
         super().__init__()
-        self.albedo = albedo
+        self.albedo: np.ndarray = albedo
     
     def scatter(self, r_in: Ray, rec) -> Tuple[np.ndarray, np.ndarray]:
         scatter_direction = rec.normal + random_unit_vector()

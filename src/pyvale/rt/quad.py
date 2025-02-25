@@ -1,21 +1,24 @@
+from math import sqrt
+from typing import Tuple
 import numpy as np
-from ray import Ray
-from interval import Interval
-from hittable import Hittable, HitRecord
-from material import Material
-from aabb import AABB
+from pyvale.rt.ray import Ray
+from pyvale.rt.interval import Interval
+from pyvale.rt.hittable import Hittable, HitRecord
+from pyvale.rt.material import Material
+from pyvale.rt.aabb import AABB
 
 class Quad(Hittable):
-    _q: np.ndarray
-    _u: np.ndarray
-    _v: np.ndarray
-    _w: np.ndarray
-    _mat: Material
-    # bbox: AABB
-    _normal: np.ndarray
-    _d: float
+    # _q: np.ndarray
+    # _u: np.ndarray
+    # _v: np.ndarray
+    # _w: np.ndarray
+    # _mat: Material
+    # # bbox: AABB
+    # _normal: np.ndarray
+    # _d: float
 
     def __init__(self, q, u, v, mat: Material):
+        # super.__init__()
         self._q = q
         self._u = u
         self._v = v
@@ -52,25 +55,40 @@ class Quad(Hittable):
         alpha = np.dot(self._w, np.cross(planar_htpt_vector, self._v))
         beta = np.dot(self._w, np.cross(self._u, planar_htpt_vector))
 
-        rec: HitRecord = self.is_interior(alpha, beta)
-        if not rec:
+        retu = self.is_interior(alpha, beta)
+        if retu is None:
             return None
-
+        
         # Ray hits the 2D shape; set the rest of the hit record and return true.
-        rec.t = t
-        rec.p = intersection
-        rec.mat = self._mat
-        rec.set_face_normal(r, self._normal)
+        rec: HitRecord = HitRecord(p = intersection, t= t, mat = self._mat, r=r, outward_normal=self._normal, u = retu[0], v = retu[1])
         return rec
 
-    def is_interior(self, a: float, b: float) -> HitRecord:
+    def is_interior(self, a: float, b: float) -> Tuple[float, float]:
         unit_interval = Interval(0,1)
-        # Given the hit point in plane coordinates, return false if it is outside the primitive, otherwise set the hit record UV coordinates and return true.
+        # Given the hit point in plane coordinates, return false if it is outside the primitive, otherwise set the hit record UV coordinates.
 
         if (not unit_interval.contains(a)) or (not unit_interval.contains(b)):
             return None
         
-        rec: HitRecord = HitRecord()
-        rec.u = a
-        rec.v = b
-        return rec
+        return (a, b)
+
+class Tri(Quad):
+    def __init__(self, q, u, v, mat: Material):
+        super().__init__(q, u, v, mat)
+    
+    def is_interior(self, a: float, b: float) -> Tuple[float, float]:
+        if a > 0 and b > 0 and a+b < 1:
+            return (a,b)
+        else:
+            return None
+
+class Disk(Quad):
+    def __init__(self, q, u, v, mat: Material, radius: float):
+        super().__init__(q, u, v, mat)
+        self.radius = radius
+    
+    def is_interior(self, a: float, b: float) -> Tuple[float, float]:
+        if sqrt(a**2 + b**2) < self.radius:
+            return (a,b)
+        else:
+            return None

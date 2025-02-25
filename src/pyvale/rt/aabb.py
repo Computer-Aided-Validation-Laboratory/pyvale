@@ -3,11 +3,12 @@ from ray import Ray
 from interval import Interval
 
 class AABB:
-    x: Interval
-    y: Interval
-    z: Interval
 
     def __init__(self, *, x: Interval = None, y: Interval = None, z: Interval = None, a: np.ndarray = None, b: np.ndarray = None, box0: "AABB" = None, box1: "AABB" = None) -> None:
+        self.x: Interval
+        self.y: Interval
+        self.z: Interval
+
         # initialize using either none, Interval(x,y,z) or npArray(a,b) or AABB(box0,box1), never combined.
         assert not (x and a and box0)
         if x is not None:

@@ -1,10 +1,10 @@
 import math
 
 class Interval:
-    min: float
-    max: float
-
     def __init__(self, min: float = None, max: float = None, *, a: "Interval" = None, b: "Interval" = None) -> None:
+        self.min: float = math.inf
+        self.max: float = -math.inf
+
         if min is not None:
             self.min = min
             self.max = max
@@ -12,12 +12,6 @@ class Interval:
             # Create the interval tightly enclosing the two input intervals
             self.min = a.min if a.min < b.min else b.min
             self.max = a.max if a.max > b.max else b.max
-        elif min is None and max is None:
-            self.min = math.inf
-            self.max = -math.inf
-        else:
-            # shouldnt hit here
-            assert(False)
     
     def size(self) -> float:
         return self.max - self.min

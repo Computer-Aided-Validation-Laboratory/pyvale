@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 import numpy as np
 from interval import Interval
 from ray import Ray
@@ -5,11 +6,15 @@ from material import Material
 from aabb import AABB
 
 class HitRecord:
-    p: np.ndarray # location in 3D space
-    normal: np.ndarray
-    t: float
-    front_face: bool
-    mat: Material
+    def __init__(self, p: np.ndarray, t: float, mat: Material, r: Ray, outward_normal: np.ndarray, u: float = None, v: float = None) -> None:
+        self.p = p
+        self.t = t
+        self.mat = mat
+        self.set_face_normal(r, outward_normal)
+        
+        # texture u v coords
+        self.u: float
+        self.v: float
 
     def set_face_normal(self, r: Ray, outward_normal):        
         #  Sets the hit record normal vector.
@@ -19,10 +24,9 @@ class HitRecord:
         self.normal = outward_normal if self.front_face else -outward_normal
 
 class Hittable:
-    bbox: AABB = AABB()
 
     def __init__(self):
-        pass
+        self.bbox: AABB = AABB()
     
     def hit(self, r: Ray, ray_t: Interval) -> HitRecord:
         pass
