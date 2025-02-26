@@ -9,6 +9,8 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 from pyvale.core.cameradata import CameraData2D
 from pyvale.core.sensordata import SensorData
+from pyvale.core.cameradata import CameraData
+from pyvale.core.blenderscene import BlenderScene
 
 # NOTE: This module is a feature under developement.
 
@@ -134,3 +136,37 @@ def image_dist_from_fov(num_pixels: np.ndarray,
     return image_dist
 
 #-------------------------------------------------------------------------------
+# Blender camera tools
+
+def symmetric_stereo(self, cam_data_0: CameraData, base, stereo_angle):
+    cam_data_1 = cam_data_0
+
+    cam_data_0.pos_world[0] -= base / 2
+    cam_data_1.pos_world[1] += base / 2
+
+    cam_0_rot = (0, -np.radians(stereo_angle / 2), 0)
+    cam_0_rot = Rotation.from_euler(cam_0_rot)
+    cam_data_0.rot_world = cam_0_rot
+
+    cam_1_rot = (0, np.radians(stereo_angle / 2), 0)
+    cam_1_rot = Rotation.from_euler(cam_1_rot)
+    cam_data_1.rot_world = cam_1_rot
+
+    cam0 = BlenderScene.add_camera(cam_data_0)
+    cam1 = BlenderScene.add_camera(cam_data_1)
+
+    return cam0, cam1
+
+
+def faceon_stereo(self, cam_data_0: CameraData, base, stereo_angle):
+    cam_data_1 = cam_data_0
+    cam_data_1.pos_world[0] += base
+
+    rotation_angle = (0, np.radians(stereo_angle), 0)
+    rotation_angle = Rotation.from_euler(rotation_angle)
+    cam_data_1.rot_world(rotation_angle)
+
+    cam0 = BlenderScene.add_camera(cam_data_0)
+    cam1 = BlenderScene.add_camera(cam_data_1)
+
+    return cam0, cam1

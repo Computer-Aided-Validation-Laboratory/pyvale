@@ -8,12 +8,16 @@ Copyright (C) 2024 The Computer Aided Validation Team
 from abc import ABC, abstractmethod
 from scipy.spatial.transform import Rotation
 import numpy as np
+from pathlib import Path
 import bpy
 import mooseherder as mh
 import pyvale
 from pyvale.core.cameradata import CameraData
 from pyvale.core.blenderlightdata import BlenderLightData
 from pyvale.core.blendertools import BlenderTools, BlenderError
+from pyvale.core.simtools import SimTools
+from pyvale.core.blendermaterialdata import BlenderMaterialData
+from pyvale.core.camerastereodata import CameraStereoData
 
 # NOTE: This module is a feature under development
 
@@ -80,6 +84,13 @@ class BlenderScene(ABC):
         return camera # Do I need this return?
 
     @abstractmethod
+    def add_stereo_system(self, cam_data_0: CameraData, cam_data_1: CameraData):
+        # Can i use method defined in this namespace?
+        cam0 = self.add_camera(cam_data_0)
+        cam1 = self.add_camera(cam_data_1)
+        return cam0, cam1
+    
+    @abstractmethod
     def add_light(self, light_data: BlenderLightData):
         # TODO: Make method compatible for different light types
         type = light_data.type.value
@@ -103,17 +114,18 @@ class BlenderScene(ABC):
 
     @abstractmethod
     def add_part(self, sim_data: mh.SimData):
-        spat_dim = BlenderTools.get_mesh_spat_dim(sim_data)
-        components = BlenderTools.get_simulation_components(sim_data)
+        spat_dim = SimTools.get_mesh_spat_dim(sim_data)
+        components = SimTools.get_simulation_components(sim_data)
         sim_data.coords = sim_data.coords * 1000 # Change from m to mm
-        sim_data.coords = BlenderTools.centre_mesh_nodes(sim_data.coords)
-        (pv_grid, pv_grid_vis) = pyvale.conv_simdata_to_pyvista(sim_data,
-                                                 components,
+        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords)
+        (pv_grid, _) = pyvale.conv_simdata_to_pyvista(sim_data,
+                                                      # TODO: Try and calculate stereo dist using only scipy Rotation
+   components,
                                                  spat_dim)
-        pv_surf = BlenderTools.conv_pvgrid_to_pvsurf(pv_grid)
+        pv_surf = SimTools.conv_pvgrid_to_pvsurf(pv_grid)
 
         vertices = pv_surf.points
-        elements_per_face = BlenderTools.surf_mesh_elements_per_face(pv_surf)
+        elements_per_face = SimTools.surf_mesh_elements_per_face(pv_surf)
         faces = pv_surf.faces.reshape(-1, elements_per_face)
         faces = np.delete(faces, 0, axis=1)
 
@@ -124,13 +136,71 @@ class BlenderScene(ABC):
 
         return part
 
+    @abstractmethod
+    def add_speckle(self,
+                    part,
+                    speckle_path: Path | None,
+                    mat_data: BlenderMaterialData | None,
+                    cam_data: CameraData):
+        BlenderTools.clear_material_nodes()
+        (FOV_x, _) = BlenderTools.calculate_FOV(cam_data)
+        if mat_data is None:
+            mat_data = BlenderMaterialData()
+        # TODO: Add option for if speckle_path is None to generate speckle pattern
+        # and add
+        BlenderTools.add_image_texture(speckle_path, mat_data)
+        BlenderTools.uv_unwrap_part(part, FOV_x)
+
+
 
 
     @abstractmethod
-    def add_speckle(self):
+    def deform_all_timesteps(self, sim_data: mh.SimData, part):
+        timesteps = sim_data.time.shape[0]
+        spat_dim = SimTools.get_mesh_spat_dim(sim_data)
+        components = SimTools.get_simulation_components(sim_data)
+        sim_data.coords = sim_data.coords * 1000 # Change from m to mm
+        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords)
+        (pv_grid, _) = pyvale.conv_simdata_to_pyvista(sim_data,
+                                                 components,
+                                                 spat_dim)
+        pv_surf = SimTools.conv_pvgrid_to_pvsurf(pv_grid)
+
+        for timestep in range(1, timesteps):
+            deformed_nodes = SimTools.get_deformed_nodes(timestep,
+                                                         pv_surf,
+                                                         spat_dim,
+                                                         components)
+            if deformed_nodes is not None:
+                BlenderTools.deform_single_timestep(part, deformed_nodes)
+                BlenderTools.set_new_frame()
+
 
     @abstractmethod
-    def render_single_image(self):
+    def render_single_image(self, save:bool):
+
+    @abstractmethod
+    def render_deformed_images(self, sim_data: mh.SimData, part, ):
+        timesteps = sim_data.time.shape[0]
+        spat_dim = SimTools.get_mesh_spat_dim(sim_data)
+        components = SimTools.get_simulation_components(sim_data)
+        sim_data.coords = sim_data.coords * 1000 # Change from m to mm
+        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords)
+        (pv_grid, _) = pyvale.conv_simdata_to_pyvista(sim_data,
+                                                 components,
+                                                 spat_dim)
+        pv_surf = SimTools.conv_pvgrid_to_pvsurf(pv_grid)
+
+        for timestep in range(1, timesteps):
+            deformed_nodes = SimTools.get_deformed_nodes(timestep,
+                                                         pv_surf,
+                                                         spat_dim,
+                                                         components)
+            if deformed_nodes is not None:
+                BlenderTools.deform_single_timestep(part, deformed_nodes)
+                BlenderTools.set_new_frame()
+
+                #Render
 
 
 

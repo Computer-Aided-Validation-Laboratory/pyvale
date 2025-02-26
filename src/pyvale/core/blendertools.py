@@ -11,8 +11,14 @@ import numpy as np
 from pathlib import Path
 import os
 from scipy.spatial.transform import Rotation
+from PIL import Image
 import bpy
 import mooseherder as mh
+from pyvale.core.cameradata import CameraData
+from pyvale.core.blendermaterialdata import BlenderMaterialData
+from pyvale.core.camerastereodata import CameraStereoData
+from pyvale.core.blenderscene import BlenderScene
+
 
 # NOTE: This module is a feature under development
 
@@ -46,50 +52,9 @@ class BlenderTools(ABC):
 
     @abstractmethod
     def rotate_blender_part(self, rot_world: Rotation, part):
-        part.rotation_mode = 'XYZ'
+        part.rotation_mode = "XYZ"
         rot_euler = Rotation.as_euler(rot_world)
         part.rotation_euler = rot_euler
-
-    @abstractmethod
-    def surf_mesh_elements_per_face(self, pv_surf: pv.PolyData) -> int:
-        elements_per_face = int((pv_surf.faces.shape[0] / pv_surf.n_cells))
-        return elements_per_face
-
-    @abstractmethod
-    def get_mesh_spat_dim(self, sim_data: mh.SimData) -> int:
-        nodes = self.sim_data.coords
-        check_if_2d = np.count_nonzero(nodes, axis=0)
-        if check_if_2d[2] == 0:
-            spat_dim = 2
-        else:
-            spat_dim = 3
-        return spat_dim
-
-    @abstractmethod
-    def get_simulation_components(self, sim_data: mh.SimData) -> tuple | None:
-        node_vars = self.sim_data.node_vars
-        node_vars_names = list(node_vars.keys())
-        components = []
-        if 'disp_x' in node_vars_names:
-            components.append('disp_x')
-        if 'disp_y' in node_vars_names:
-            components.append('disp_y')
-        if 'disp_z' in node_vars_names:
-            components.append('disp_z')
-        components = tuple(components)
-        if len(components) == 0:
-            components = None
-        return components
-
-    @abstractmethod
-    def conv_pvgrid_to_pvsurf(self, pv_grid: pv.UnstructuredGrid) -> pv.PolyData:
-        pv_surf = pv_grid.extract_surface()
-        return pv_surf
-
-    @abstractmethod
-    def triangulate_pv_surf_mesh(self, pv_surf: pv.PolyData) -> pv.PolyData:
-        tri_surf = pv_surf.triangulate()
-        return tri_surf
 
     @abstractmethod
     def centre_mesh_nodes(nodes: np.ndarray) -> np.ndarray:
@@ -98,6 +63,160 @@ class BlenderTools(ABC):
         middle = max - ((max - min) / 2)
         centred = np.subtract(nodes, middle)
         return centred
+
+    @abstractmethod
+    def set_new_frame(self, part):
+        frame_incr = 20
+        ob = bpy.context.view_layer.objects.active
+        if ob is None:
+            bpy.context.objects.active = part
+
+        current_frame = bpy.context.scene.frame_current
+        current_frame += frame_incr
+        bpy.context.scene.frame_set(current_frame)
+
+        bpy.data.shape_keys["Key"].eval_time = current_frame
+        part.data.shape_keys.keyframe_insert("eval_time", frame=current_frame)
+        bpy.context.scene.frame_end = current_frame
+
+    @abstractmethod
+    def deform_single_timestep(self, part, deformed_nodes: np.ndarray):
+        if part.data.shape_keys is None:
+            part.shape_key_add()
+            self.set_new_frame()
+        shape_key = part.shape_key_add()
+        part.data.shape_keys.use_relative = False
+
+        n_nodes_layer = int(len(part.data.vertices))
+        for i in range(len(part.data.vertices)):
+            if i < n_nodes_layer:
+                shape_key.data[i].co = deformed_nodes[i]
+        return part
+
+    @abstractmethod
+    def clear_material_nodes(self, part):
+        part.select_set(True)
+        mat = bpy.data.materials.new(name="Material")
+        mat.use_nodes = True
+        part.active_material = mat
+        tree = mat.node_tree
+        nodes = tree.nodes
+        nodes.clear()
+
+    @abstractmethod
+    def uv_unwrap_part(self, part, FOV_x: float, cal: bool = False):
+        part.select_set(True)
+        bpy.context.view_layer.objects.active = part
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        cube_size = FOV_x / 1
+        if cal is not True:
+            bpy.ops.uv.cube_project(scale_to_bounds = False,
+                                    correct_aspect=True,
+                                    cube_size = cube_size)
+        else:
+            bpy.ops.uv.cube_project(scale_to_bounds=True)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        self.object.select_set(False)
+
+    @abstractmethod
+    def add_image_texture(self,
+                          image_path: Path | None,
+                          image_array: np.ndarray | None,
+                          mat_data: BlenderMaterialData):
+        bsdf = self.nodes.new(type="ShaderNodeBsdfPrincipled")
+        bsdf.location = (0, 0)
+        bsdf.inputs["Roughness"].default_value = mat_data.roughness
+        bsdf.inputs["Metallic"].default_value = mat_data.metallic
+
+        node_tree = bpy.data.materials["Material"].node_tree
+        tex_image = node_tree.nodes.new(type="ShaderNodeTexImage")
+        tex_image.location = (0, 0)
+
+        if image_array is not None:
+            if image_path.exists:
+                tex_image.image = bpy.data.images.load(str(image_path))
+            else:
+                raise BlenderError("Image texture filepath does not exist")
+
+        if image_array is not None:
+            size = image_array.shape
+            image = Image.fromarray(image_array).convert("RGBA")
+            new_image_array = np.array(image)
+            blender_image = bpy.data.images.new("Speckle",
+                                                width=size[0],
+                                                height=size[1])
+            pixels = new_image_array.flatten()
+            blender_image.pixels = pixels
+            blender_image.update()
+            tex_image.image = blender_image
+
+
+        tex_image.interpolation = mat_data.interpolant
+
+        output = node_tree.nodes.new(type="ShaderNodeOutputMaterial")
+        output.location = (0, 0)
+
+        node_tree.links.new(tex_image.outputs["Color"], bsdf.inputs["Base Color"])
+        node_tree.links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+
+        obj = bpy.data.objects.get("Part")
+        if obj:
+            obj.active_material = bpy.data.materials["Material"]
+
+    @abstractmethod
+    def calculate_FOV(self, cam_data: CameraData):
+        FOV_x = (((cam_data.image_dist - cam_data.focal_length)
+                  / cam_data.focal_length) *
+                  (cam_data.pixels_size / 1000) *
+                  cam_data.pixels_num[0])
+        FOV_y = (cam_data.pixels_num[1] / cam_data.pixels_num[0]) * FOV_x
+        FOV_mm = (FOV_x, FOV_y)
+        return FOV_mm
+
+    @abstractmethod
+    def generate_calib_file(self,
+                            stereo_data: CameraStereoData,
+                            calib_filepath: Path):
+        # TODO: Have option to choose filename
+        if Path(calib_filepath).is_dir() is False:
+            Path.mkdir(calib_filepath)
+        calib_filepath = calib_filepath / 'calib.caldat'
+        with open(calib_filepath, "w") as file:
+            file.write("Cam0_Fx [pixels];" +
+                       f'{stereo_data.cam_data_0.focal_length/ \
+                          stereo_data.cam_data_0.pixels_size[0]}\n')
+            file.write("Cam0_Fy [pixels];" +
+                       f'{stereo_data.cam_data_0.focal_length/ \
+                          stereo_data.cam_data_0.pixels_size[1]}\n')
+            file.write("Cam0_Fs [pixels];0\n")
+            file.write(f'Cam0_Kappa 1;{stereo_data.cam_data_0.k1}\n')
+            file.write(f'Cam0_Kappa 2;{stereo_data.cam_data_0.k2}\n')
+            file.write(f'Cam0_Kappa 3;{stereo_data.cam_data_0.k3}\n')
+            file.write(f'Cam0_P1;{stereo_data.cam_data_0.p1}\n')
+            file.write(f'Cam0_P2;{stereo_data.cam_data_0.p2}\n')
+            file.write(f'Cam0_Cx [pixels];{stereo_data.cam_data_0.c0}\n')
+            file.write("Cam1_Fx [pixels];" +
+                       f'{stereo_data.cam_data_1.focal_length/ \
+                          stereo_data.cam_data_1.pixels_size[0]}\n')
+            file.write("Cam1_Fy [pixels];" +
+                       f'{stereo_data.cam_data_1.focal_length/ \
+                          stereo_data.cam_data_1.pixels_size[1]}\n')
+            file.write("Cam1_Fs [pixels];0\n")
+            file.write(f'Cam1_Kappa 1;{stereo_data.cam_data_1.k1}\n')
+            file.write(f'Cam1_Kappa 2;{stereo_data.cam_data_1.k2}\n')
+            file.write(f'Cam1_Kappa 3;{stereo_data.cam_data_1.k3}\n')
+            file.write(f'Cam1_P1;{stereo_data.cam_data_1.p1}\n')
+            file.write(f'Cam1_P2;{stereo_data.cam_data_1.p2}\n')
+            file.write(f'Cam1_Cx [pixels];{stereo_data.cam_data_1.c0}\n')
+            file.write(f'Cam1_Cy [pixels];{stereo_data.cam_data_1.c1}\n')
+            file.write(f"Tx [mm];{stereo_data.stereo_dist[0]}\n")
+            file.write(f"Ty [mm];{stereo_data.stereo_dist[1]}\n")
+            file.write(f"Tz [mm];{stereo_data.stereo_dist[2]}\n")
+            stereo_rotation = stereo_data.stereo_rotation.as_euler()
+            file.write(f"Theta [deg];{stereo_rotation[0]}\n")
+            file.write(f"Phi [deg];{stereo_rotation[1]}\n")
+            file.write(f"Psi [deg];{stereo_rotation[2]}")
 
 
 
