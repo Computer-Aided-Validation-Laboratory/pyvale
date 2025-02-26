@@ -1,17 +1,29 @@
 import math
+from dataclasses import dataclass
 
+@dataclass
 class Interval:
-    def __init__(self, min: float = None, max: float = None, *, a: "Interval" = None, b: "Interval" = None) -> None:
+    min: float = math.inf
+    max: float = -math.inf
+
+    def __init__(self) -> None:
         self.min: float = math.inf
         self.max: float = -math.inf
+      
+    @classmethod
+    def from_floats(cls, a: float, b: float) -> "Interval":
+        cls = Interval()
+        cls.min = min(a, b)
+        cls.max = max(a, b)
+        return cls
 
-        if min is not None:
-            self.min = min
-            self.max = max
-        elif a is not None:
-            # Create the interval tightly enclosing the two input intervals
-            self.min = a.min if a.min < b.min else b.min
-            self.max = a.max if a.max > b.max else b.max
+    @classmethod
+    def from_intervals(cls, a: "Interval", b: "Interval") -> "Interval":
+        # Create the interval tightly enclosing the two input intervals
+        cls = Interval()
+        cls.min = min(a.min, b.min)
+        cls.max = max(a.max, b.max)
+        return cls
     
     def size(self) -> float:
         return self.max - self.min
@@ -24,4 +36,4 @@ class Interval:
     
     def expand(self, delta: float) -> "Interval":
         padding = delta / 2
-        return Interval(self.min - padding, self.max + padding)
+        return Interval.from_floats(self.min - padding, self.max + padding)

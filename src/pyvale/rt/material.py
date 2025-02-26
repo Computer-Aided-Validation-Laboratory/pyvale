@@ -1,16 +1,15 @@
+from dataclasses import dataclass
 from typing import Tuple
 import numpy as np
 from ray import Ray
-# from hittable import HitRecord
 
 class Material:
     def scatter(self, r_in: Ray, rec) -> Tuple[np.ndarray, np.ndarray]:
         pass
 
+@dataclass
 class Lambertian(Material):
-    def __init__(self, albedo: np.ndarray) -> None:
-        super().__init__()
-        self.albedo: np.ndarray = albedo
+    albedo: np.ndarray
     
     def scatter(self, r_in: Ray, rec) -> Tuple[np.ndarray, np.ndarray]:
         scatter_direction = rec.normal + random_unit_vector()

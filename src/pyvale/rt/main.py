@@ -6,6 +6,8 @@ from sphere import Sphere
 from camera import Camera
 from quad import Disk, Quad, Tri, Disk
 
+np.random.default_rng(1)
+
 def sphere2():
     world: HittableList = HittableList()
 
@@ -20,7 +22,7 @@ def sphere2():
     cam: Camera = Camera()
     cam.image_width = 50
     cam.image_height = 40
-    cam.samples_per_pixel = 5
+    cam.samples_per_pixel = 1
     cam.max_depth = 5
 
     cam.render(world)
@@ -43,11 +45,11 @@ def quads():
     world.add(Quad(np.array([-2, 3, 1]), np.array([4, 0, 0]), np.array([0, 0, 4]), upper_orange))
     world.add(Quad(np.array([-2,-3, 5]), np.array([4, 0, 0]), np.array([0, 0,-4]), lower_teal))
 
-    # world = HittableList(BVH_Node(world._objects))
+    world = HittableList(BVH_Node(world._objects))
     
     cam: Camera = Camera()
-    cam.image_width = 50
-    cam.image_height = 40
+    cam.image_width = 500
+    cam.image_height = 400
     cam.samples_per_pixel = 5
     cam.max_depth = 5
     cam.vfov = 80
@@ -91,4 +93,4 @@ def tris():
 
 
 if __name__ == "__main__":
-    tris()
+    quads()

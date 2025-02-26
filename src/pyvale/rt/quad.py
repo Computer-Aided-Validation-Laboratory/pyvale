@@ -7,6 +7,7 @@ from pyvale.rt.hittable import Hittable, HitRecord
 from pyvale.rt.material import Material
 from pyvale.rt.aabb import AABB
 
+# A quad. Q is a corner of the quad. u is the vector to one touching corner. v is the vector to the other
 class Quad(Hittable):
     # _q: np.ndarray
     # _u: np.ndarray
@@ -17,7 +18,7 @@ class Quad(Hittable):
     # _normal: np.ndarray
     # _d: float
 
-    def __init__(self, q, u, v, mat: Material):
+    def __init__(self, q: np.ndarray, u: np.ndarray, v: np.ndarray, mat: Material):
         # super.__init__()
         self._q = q
         self._u = u
@@ -33,9 +34,9 @@ class Quad(Hittable):
 
     def set_bounding_box(self):
         # Compute the bounding box of all four vertices
-        bbox_diagonal1 = AABB(a=self._q, b=self._q+self._u, z=self._v)
-        bbox_diagonal2 = AABB(a=self._q + self._u, b=self._q + self._v)
-        self.bbox = AABB(box0=bbox_diagonal1, box1=bbox_diagonal2)
+        bbox_diagonal1 = AABB.from_arrays(a=self._q, b=self._q+self._u + self._v)
+        bbox_diagonal2 = AABB.from_arrays(a=self._q + self._u, b=self._q + self._v)
+        self.bbox = AABB.from_bbox(box0=bbox_diagonal1, box1=bbox_diagonal2)
     
     def hit(self, r: Ray, ray_t: Interval) -> HitRecord:
         denom = np.dot(self._normal, r.direction)
@@ -72,8 +73,9 @@ class Quad(Hittable):
         
         return (a, b)
 
+# A triangle 
 class Tri(Quad):
-    def __init__(self, q, u, v, mat: Material):
+    def __init__(self, q: np.ndarray, u: np.ndarray, v: np.ndarray, mat: Material):
         super().__init__(q, u, v, mat)
     
     def is_interior(self, a: float, b: float) -> Tuple[float, float]:
@@ -82,8 +84,10 @@ class Tri(Quad):
         else:
             return None
 
+
+# A flat disk with radius
 class Disk(Quad):
-    def __init__(self, q, u, v, mat: Material, radius: float):
+    def __init__(self, q: np.ndarray, u: np.ndarray, v: np.ndarray, mat: Material, radius: float):
         super().__init__(q, u, v, mat)
         self.radius = radius
     

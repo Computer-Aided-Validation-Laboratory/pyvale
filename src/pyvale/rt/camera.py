@@ -1,11 +1,13 @@
 import sys
+import time
 import numpy as np
 import math
 from pyvale.rt.hittable import HitRecord
 from pyvale.rt.hittable_list import HittableList
 from interval import Interval
-
 from ray import Ray
+
+rng = np.random.default_rng(1)
 
 class Camera:
 	# image_pixels: tuple[int, int] = (500, 400)
@@ -57,7 +59,7 @@ class Camera:
 	def _get_ray(self, i: int, j: int) -> Ray:
 		# Construct a camera ray originating from the origin and directed at randomly sampled point around the pixel location i, j
 
-		offset = np.random.random(2) - 0.5
+		offset = rng.random(2) - 0.5
 
 		pixel_sample = self._pixel00_loc \
 			+ ((i + offset[0]) * self._pixel_delta_u) \
@@ -77,12 +79,14 @@ class Camera:
 			f.write(str(self.image_width) + " " + str(self.image_height) + "\n")
 			f.write("255\n")
 
+			tic = time.perf_counter()
+
 			for j in range(self.image_height):
 				# print("Scanlines remaining: ", (self.image_height - j), file=sys.stderr)
 				print("\rScanlines remaining: ", (self.image_height - j), end="", file=sys.stderr)
 				for i in range(self.image_width):
 					pixel_color: np.ndarray = np.array([0.0, 0.0, 0.0])
-					for _ in range(self.samples_per_pixel):
+					for ran in range(self.samples_per_pixel):
 						r: Ray = self._get_ray(i, j)
 						pixel_color += self._ray_colour(r, self.max_depth, world)
 					
@@ -95,13 +99,16 @@ class Camera:
 					b = 255 if b >= 1.0 else math.floor(b*256)
 					col_str = str(r) + " " + str(g) + " " + str(b)
 					f.write(col_str + "\n")
+			toc = time.perf_counter()
+			print(f"\rRender created in {toc-tic:0.1f} seconds")
+
 	
 	def _ray_colour(self, r: Ray, depth: int, world: HittableList) -> np.ndarray:
 		# If we've exceeded the ray bounce limit, no more light is gathered.
 		if depth <= 0:
 			return np.array([0, 0, 0])
 
-		rec: HitRecord = world.hit(r, Interval(0.001, math.inf))
+		rec: HitRecord = world.hit(r, Interval.from_floats(0.001, math.inf))
 
 		if rec:
 			attenuation, scattered = rec.mat.scatter(r, rec)
