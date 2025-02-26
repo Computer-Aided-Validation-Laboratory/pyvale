@@ -55,7 +55,7 @@ def call_cpu_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
     # the the image dimensions and the number of deformed images
     cdef int px_vertical = reference_image.shape[0]
     cdef int px_horizontal = reference_image.shape[1]
-    cdef int num_def_images = deformed_images.shape[2]
+    cdef int num_def_images = deformed_images.shape[0]
     print("sorting c++ variables...")
 
 
