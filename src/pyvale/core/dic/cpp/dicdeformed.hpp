@@ -14,8 +14,8 @@
 
 
 namespace deformed {
-    void extract_image(std::vector<double> image_def,
-                       std::vector<double> &image_def_stack, 
+    void extract_image(std::vector<double> &image_def,
+                       int *image_def_stack, 
                        int image_number,
                        int px_horizontal,
                        int px_vertical);    
@@ -32,4 +32,4 @@ namespace deformed {
 
 }
 
-#endif DICDEFORMED
+#endif //DICDEFORMED

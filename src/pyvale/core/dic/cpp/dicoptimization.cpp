@@ -90,7 +90,7 @@ namespace optimization {
             p[i] = gsl_vector_get(p_gsl,i);
         }
 
-        for (int i = 0; i < subset_values.size(); ++i) {
+        for (unsigned int i = 0; i < subset_values.size(); ++i) {
             
             // Affine
             double x_new = p[0] + (1 + p[2]) * subset_coords_x[i] + p[3] * subset_coords_y[i]; // x-coordinate

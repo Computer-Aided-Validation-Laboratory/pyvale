@@ -65,19 +65,6 @@ def call_cpu_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
     cdef string interp_routine# = string(interpolation_routine.endcode('utf-8'))
     print("sorting c++ variables...")
 
-
-    # ic(&image_ref[0,0].dtype)
-    # ic(&image_def[0,0,0].dtype)
-    # ic(&image_roi[0,0].dtype)
-    # ic(px_vertical.dtype)
-    # ic(px_horizontal.dtype)
-    # ic(num_def_images.dtype)
-    # ic(subset_step.dtype)
-    # ic(subset_size.dtype)
-    # ic(corr_crit.dtype)
-    # ic(shape_func.dtype)
-    # ic(interp_routine.dtype)
-
     print("about to call cpp code...")
 
     # call c++ 2D DIC engine

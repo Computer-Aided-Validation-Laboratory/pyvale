@@ -26,14 +26,14 @@
 namespace interpolation {
 
     // interpolator object
-    gsl_spline2d* create_spline(std::string interp_type, std::vector<double> &reference_image, int px_horizontal, int px_vertical);
+    gsl_spline2d* create_spline(std::string &interp_type, std::vector<double> &image_ref_dbl, int px_horizontal, int px_vertical);
     std::vector<double> xvalues(int px_horizontal);
     std::vector<double> yvalues(int px_vertical);
 
 
 }
 
-#endif DICINTERPOLATOR_H
+#endif //DICINTERPOLATOR_H
 
 
 
