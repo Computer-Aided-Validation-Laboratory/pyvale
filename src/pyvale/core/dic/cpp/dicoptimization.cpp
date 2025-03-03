@@ -48,6 +48,7 @@ namespace optimization {
 
 
         // populate p values with defaults
+        p_arr = gsl_vector_alloc(6);
         for (int p = 0; p < p_length; p++){
             gsl_vector_set (p_arr, p, 0.0);
         }

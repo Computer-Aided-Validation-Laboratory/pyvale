@@ -43,6 +43,7 @@ namespace optimization {
     int cost_function(const gsl_vector *p_gsl, void *data, gsl_vector * f);
     int jacobian_function(const gsl_vector *p_gsl, void *data, gsl_matrix *J);
     void update_data(std::vector<double> &subset_coords_x,std::vector<double> &subset_coords_y, std::vector<double> &subset);
+    void execute()
 
 
 
