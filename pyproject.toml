@@ -44,3 +44,11 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+
+[project.optional-dependencies]
+notebook = [
+  "pyvista[all]>=0.43.3",
+  "jupyterlab",
+]
+all = ["pyvale[notebook]"]
