@@ -5,10 +5,24 @@
 // ================================================================================
 
 
+// STD library Header files
+#include <vector>
 #include <iostream>
-#include <cmath>
-#include "dicsplinec1.hpp"
-#include "diccorrelation.hpp"
+
+// GNU Scientific Library Header files
+#include <gsl/gsl_multifit_nlinear.h>
+
+// Program Header files
+#include "./dicinterpolator.hpp"
+#include "./dicimagemanip.hpp"
+#include "./dicoptimization.hpp"
+
+
+// #ifdef DEBUG
+//     #define LOG(x) std::cout << "[VERBOSE] " << x << std::endl;
+// #else
+//     #define LOG(x)  // Do nothing
+// #endif
 
 
 namespace dic2d {
@@ -22,7 +36,7 @@ namespace dic2d {
     double ssd_val;
 
     void dicengine(int* image_ref, 
-                    int* image_def, 
+                    int* image_def_stack, 
                     int* image_roi, 
                     int px_vertical, 
                     int px_horizontal, 
@@ -34,145 +48,79 @@ namespace dic2d {
                     std::string& interp_routine){
 
 
-        std::cout << "LIVE FROM THE ENGINE!" << std::endl;
-        exit(0);
+        // LOG("Running DIC Engine")
                 
-        subset_ref.resize(subset_size*subset_size,0.0);
-        subset_def.resize(subset_size*subset_size,0.0);
-        p_arr.resize(6,0.0);
+        int subset_num_px = subset_size*subset_size;
+        subset_ref.resize(subset_num_px,0.0);
+        subset_def.resize(subset_num_px,0.0);
+        // LOG("Resizing subset arrays")
 
 
+        // returns an array of pixel values for each axis
+        std::vector<double> xvals = interpolation::xvalues(px_horizontal); 
+        std::vector<double> yvals = interpolation::xvalues(px_vertical); 
 
-        //create interpolator for the reference image
+ 
+
+        // returns a pointer to an accelerator object, which is a kind of iterator for interpolation lookups. 
+        // It tracks the state of lookups, thus allowing for application of various acceleration strategies.
+        gsl_interp_accel *xacc = gsl_interp_accel_alloc();
+        gsl_interp_accel *yacc = gsl_interp_accel_alloc();
 
 
-        // or set params for brute force
-        double step = 0.1;
-        double subpx_i_min = -0.5;
-        double subpx_i_max = 0.5;
-        double subpx_j_min = -0.5;
-        double subpx_j_max = 0.5;
-        double subpx_i_num = (subpx_i_max - subpx_i_min) / step;
-        double subpx_j_num = (subpx_j_max - subpx_j_min) / step;
-        double subpx_i, subpx_j;
-        int subset_min, subset_max;
+        // define our interpolator for the reference image
+        gsl_spline2d *spline = interpolation::create_spline(interp_routine, &image_ref[0], px_horizontal, px_vertical);
+
+
+        // setup the optimizer and pass the already create spline object and accelerators.
+        optimization::init(interp_routine, shape_func, subset_size, spline, xacc, yacc);
+
+
+        // deformed image array
+        std::vector<double> image_def(px_vertical,px_horizontal,0.0);
+
+
+        std::vector<double> image_def;
+        std::vector<double> subset_def;
+        std::vector<double> subset_def_coords_x;
+        std::vector<double> subset_def_coords_y;
+
 
         // loop over deformed images
-        for (unsigned int img = 0; img < num_def_images; img++){
-
-            // loop over subsets
-            for (unsigned int ss_i = 0; ss_i < px_vertical; ss_i++){
-                for (unsigned int ss_j = 0; ss_j < px_horizontal; ss_j++){
-
-
-                    //deformed subset values
-                    int count = 0;
-                    int img_index = 0;
-                    for (int ss_xval = 0; ss_xval < subset_size; ss_xval++){
-                        for (int ss_yval = 0; ss_yval < subset_size; ss_yval++){
-
-                            img_index = ss_xval * px_horizontal + ss_yval;
-                            subset_def[count] = image_def[img_index];
-                            count++;
-
-                        }
-                    }
-
-                    // Here is it either a brute force search or a minimzation routine
-                    // for (int k = 0; k < subpx_i_num; k++){
-                    //     for (int l = 0; l < subpx_j_num; l++){
-
-                    //         double subpx_i = subpx_i_min + k * step;
-                    //         double subpx_j = subpx_j_min + l * step;
-
-                    //     }
-                    // }
-
-
-                    
-                    // minimisation()
+        for (unsigned int img_num = 0; img_num < num_def_images; img_num++){
 
 
 
+            // extract a single image from the stack
+            deformed::extract_image(&image_def[0], &image_def_stack[0], num_def_images, px_horizontal, px_vertical);
+
+            // loop over subsets within the ROI
+            int edge = 50;
+            for (unsigned int ss_y = edge; ss_y < px_vertical-edge; ss_y+=subset_step){
+                for (unsigned int ss_x = edge; ss_x < px_horizontal-edge; ss_x+=subset_step){
+
+
+
+                    // get the subset coordinates and pixel values
+                    deformed_image::extract_subset(&image_def[0], &subset_def[0],  &subset_def_coords_x[0], 
+                                                   &subset_def_coords_y[0], ss_x ss_y, subset_num_px, 
+                                                   px_horizontal, px_vertical);
+
+                    // update the optimization routine with the subset values
+                    optimization::update_data(subset, subset_def_coords_x, subset_def_coords_y);
+
+                    // execute optimization routine
+                    optimization::execute();
+
+
+                
                 }
             }
         }
+
+
+        exit(0);
+
     }
-
-
-    // void minimisations(){
-
-
-
-    // }
-
-
-
-
-    // void calculate_displacements() {
-
-
-    //     // get the interpolation of the entire reference image
-    //     interpolator = correlation.spline_interpolation_object(reference_image, 3)
-
-    //     min_x = subset_size // 2
-    //     min_y = subset_size // 2
-    //     max_x = reference_image.shape[1] - subset_size // 2
-    //     max_y = reference_image.shape[0] - subset_size // 2
-
-    //     // dont use subsets if rows/cols < 10
-    //     edge_cutoff = 50
-
-    //     x_values = np.arange(min_x+edge_cutoff, max_x-edge_cutoff, subset_step)
-    //     y_values = np.arange(min_y+edge_cutoff, max_y-edge_cutoff, subset_step)
-    //     shape = (len(y_values), len(x_values), 6) 
-
-    //     total_iterations = x_values.shape[0] * y_values.shape[0]
-
-    //     // Initialize 2D arrays
-    //     p_arr = np.zeros(shape)
-    //     ssd_arr = np.zeros((len(y_values), len(x_values)))
-
-    //     p = np.array([0.0,0.0,0.0,0.0,0.0,0.0])
-
-    //     // looping over the subsets
-    //     for i, x in enumerate(x_values):
-    //         for j, y in enumerate(y_values):
-
-    //             subset = correlation.subset(deformed_image, x, y, subset_size)
-
-    //             half_size = subset_size // 2
-
-    //             // reference image subset
-    //             x1, x2 = x - half_size, x + half_size + 1
-    //             y1, y2 = y - half_size, y + half_size + 1
-
-    //             // list of coordinates 
-    //             coords_x = np.arange(x1,x2,1)
-    //             coords_y = np.arange(y1,y2,1)
-
-    //             //pixel coordinates of reference subset
-    //             xx, yy = np.meshgrid(coords_x,coords_y)
-
-    //             sol = minimize(subset_search_affine_minimizer, p, args=(subset,interpolator,xx,yy),bounds=bounds)
-    //             p = sol.x
-    //             ssd_val = sol.fun
-
-
-    //             // value is negative because its deformed subset looking searching in reference image
-    //             p_arr[j,i,0:6]  = p
-    //             ssd_arr[j,i] = ssd_val
-
-    //             progress_bar.update(1)
-
-    // return p_arr, ssd_arr
-
-
-
-    // }
-
-
-
-
 
 }

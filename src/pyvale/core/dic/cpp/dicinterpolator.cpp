@@ -5,9 +5,6 @@
 // ================================================================================
 
 
-#ifndef DICINTERPOLATOR_H
-#define DICINTERPOLATOR_H
-
 // STD library Header files
 #include <vector>
 #include <iostream>
@@ -19,21 +16,42 @@
 
 
 // Program Header files
-#include "./dicsplinec2.hpp" 
+#include "./dicinterpolator.hpp"
 
 
 
 namespace interpolation {
 
-    // interpolator object
-    gsl_spline2d* create_spline(std::string interp_type, std::vector<double> &reference_image, int px_horizontal, int px_vertical);
-    std::vector<double> xvalues(int px_horizontal);
-    std::vector<double> yvalues(int px_vertical);
+    gsl_spline2d* create_spline(std::string interp_type, std::vector<double> &reference_image, int px_horizontal, int px_vertical){
 
+        std::vector<double> x(px_horizontal,0);
+        for (int i = 0; i < px_horizontal; ++i) {
+            x[i] = i; 
+        }
 
+        std::vector<double> y(px_vertical,0);
+        for (int i = 0; i < px_vertical; ++i) {
+            y[i] = i; 
+        }
+        
+
+        // set interpolator type
+        if (interp_type == "bicubic") const gsl_interp2d_type *Tinterp = gsl_interp2d_bicubic;
+        else if (interp_type == "bilinear") const gsl_interp2d_type *Tinterp = gsl_interp2d_bicubic;
+        else {
+            std::cerr << "Unknown Interpolator type: \'" << interp_type << "\'." << std::endl;
+            std::cerr << "Allowed values: bicubic, bilinear. " << std::endl;
+        }
+
+        // Create our interpolator object
+        gsl_spline2d *spline = gsl_spline2d_alloc(gsl_interp2d_bicubic, px_horizontal, px_vertical);
+        // initialise our interpolator with the required image
+        gsl_spline2d_init(spline, x.data(), y.data(), reference_image.data(), px_horizontal, px_vertical);
+
+        return spline;
+
+    }
 }
-
-#endif DICINTERPOLATOR_H
 
 
 

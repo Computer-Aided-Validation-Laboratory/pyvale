@@ -16,7 +16,7 @@ extensions = [
         name="diccppinterface",
         sources=["diccppinterface.pyx"],
         language="c++",
-        extra_compile_args=["-std=c++17", "-O3", "-Wunused-variable"],
+        extra_compile_args=["-std=c++17", "-O3", "-Wunused-variable", "-DDEBUG"],
         include_dirs=[np.get_include()],
     )
 ]
