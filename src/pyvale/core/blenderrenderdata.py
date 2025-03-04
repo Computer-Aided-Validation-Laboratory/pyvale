@@ -1,5 +1,6 @@
 from enum import Enum
 from dataclasses import dataclass
+from pathlib import Path
 from pyvale.core.cameradata import CameraData
 
 class RenderEngine(Enum):
@@ -11,10 +12,12 @@ class RenderEngine(Enum):
 
 @dataclass
 class RenderData:
+    cam_data: CameraData | tuple[CameraData, CameraData]
+    save_dir: Path | None
+    save_name : str | None
     samples: int | None = None
     engine: RenderEngine | None = None
     max_bounces: int | None = None
-    cam_data: CameraData | tuple[CameraData, CameraData]
 
     def __post_init__(self) -> None:
         self.max_bounces = 12

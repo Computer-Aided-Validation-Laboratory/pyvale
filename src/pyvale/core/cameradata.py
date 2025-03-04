@@ -34,7 +34,7 @@ class CameraData:
     rot_world: Rotation
     roi_cent_world: np.ndarray
 
-    focal_length: float = 50.0
+    focal_length: float | None = 50.0
     sub_samp: int = 2
 
     back_face_removal: bool = True
@@ -58,7 +58,8 @@ class CameraData:
 
 
     def __post_init__(self) -> None:
-        self.image_dist = np.linalg.norm(self.pos_world - self.roi_cent_world)
+        relative_pos = np.subtract(self.pos_world, self.roi_cent_world)
+        self.image_dist = np.linalg.norm(relative_pos)
         self.sensor_size = self.pixels_num*self.pixels_size
         self.image_dims = (self.image_dist
                            *self.sensor_size/self.focal_length)

@@ -5,7 +5,7 @@ License: MIT
 Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -16,9 +16,9 @@ class BlenderLightType(Enum):
     SPOT = 'SPOT'
     AREA = 'AREA'
 
-@dataclass(slots=True)
+@dataclass()
 class BlenderLightData():
-    type: BlenderLightType
+    type: BlenderLightType | None
     pos_world: np.ndarray
     rot_world: Rotation
     energy: int

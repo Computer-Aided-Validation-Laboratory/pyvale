@@ -10,7 +10,7 @@ import numpy as np
 import pyvista as pv
 import mooseherder as mh
 
-class SimTools(ABC):
+class SimTools():
     """Interface (abstract base class) for tools relating to simulation results
     within pyvale
 
@@ -18,14 +18,14 @@ class SimTools(ABC):
 
     """
 
-    @abstractmethod
-    def surf_mesh_elements_per_face(self, pv_surf: pv.PolyData) -> int:
+    @staticmethod
+    def surf_mesh_elements_per_face(pv_surf: pv.PolyData) -> int:
         elements_per_face = int((pv_surf.faces.shape[0] / pv_surf.n_cells))
         return elements_per_face
 
-    @abstractmethod
-    def get_mesh_spat_dim(self, sim_data: mh.SimData) -> int:
-        nodes = self.sim_data.coords
+    @staticmethod
+    def get_mesh_spat_dim(sim_data: mh.SimData) -> int:
+        nodes = sim_data.coords
         check_if_2d = np.count_nonzero(nodes, axis=0)
         if check_if_2d[2] == 0:
             spat_dim = 2
@@ -33,9 +33,9 @@ class SimTools(ABC):
             spat_dim = 3
         return spat_dim
 
-    @abstractmethod
-    def get_simulation_components(self, sim_data: mh.SimData) -> tuple | None:
-        node_vars = self.sim_data.node_vars
+    @staticmethod
+    def get_simulation_components(sim_data: mh.SimData) -> tuple | None:
+        node_vars = sim_data.node_vars
         node_vars_names = list(node_vars.keys())
         components = []
         if 'disp_x' in node_vars_names:
@@ -49,19 +49,26 @@ class SimTools(ABC):
             components = None
         return components
 
-    @abstractmethod
-    def conv_pvgrid_to_pvsurf(self, pv_grid: pv.UnstructuredGrid) -> pv.PolyData:
+    @staticmethod
+    def centre_mesh_nodes(nodes: np.ndarray) -> np.ndarray:
+        max = np.max(nodes, axis=0)
+        min = np.min(nodes, axis=0)
+        middle = max - ((max - min) / 2)
+        centred = np.subtract(nodes, middle)
+        return centred
+
+    @staticmethod
+    def conv_pvgrid_to_pvsurf(pv_grid: pv.UnstructuredGrid) -> pv.PolyData:
         pv_surf = pv_grid.extract_surface()
         return pv_surf
 
-    @abstractmethod
-    def triangulate_pv_surf_mesh(self, pv_surf: pv.PolyData) -> pv.PolyData:
+    @staticmethod
+    def triangulate_pv_surf_mesh(pv_surf: pv.PolyData) -> pv.PolyData:
         tri_surf = pv_surf.triangulate()
         return tri_surf
 
-    @abstractmethod
-    def get_deformed_nodes(self,
-                           timestep: int,
+    @staticmethod
+    def get_deformed_nodes(timestep: int,
                            pv_surf: pv.PolyData,
                            spat_dim: int,
                            components: tuple) -> np.ndarray | None:

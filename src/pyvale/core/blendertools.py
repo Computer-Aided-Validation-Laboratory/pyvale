@@ -14,6 +14,7 @@ from scipy.spatial.transform import Rotation
 from PIL import Image
 import bpy
 import mooseherder as mh
+import pyvale
 from pyvale.core.cameradata import CameraData
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.camerastereodata import CameraStereoData
@@ -24,7 +25,7 @@ from pyvale.core.camerastereodata import CameraStereoData
 class BlenderError(Exception):
     pass
 
-class BlenderTools(ABC):
+class BlenderTools():
     """Interface (abstract base class) for tools to be used within Blender
     feature of `pyvale`.
 
@@ -32,8 +33,8 @@ class BlenderTools(ABC):
 
     """
 
-    @abstractmethod
-    def save_blender_file(self, filepath: Path, override: bool = False):
+    @staticmethod
+    def save_blender_file(filepath: Path, override: bool = False):
         # Unsure whether this fits best within blendertools or blenderscene
         # TODO: Make this only use Path - .exists()
         if filepath.exists():
@@ -44,27 +45,19 @@ class BlenderTools(ABC):
         filepath = str(filepath)
         bpy.ops.wm.save_as_mainfile(filepath=filepath)
 
-    @abstractmethod
-    def move_blender_part(self, pos_world: np.ndarray, part):
+    @staticmethod
+    def move_blender_part(pos_world: np.ndarray, part):
         z_location = int(part.dimensions[2])
         part.location = (pos_world[0], pos_world[1], (pos_world[2] - z_location))
 
-    @abstractmethod
-    def rotate_blender_part(self, rot_world: Rotation, part):
+    @staticmethod
+    def rotate_blender_part(rot_world: Rotation, part):
         part.rotation_mode = "XYZ"
-        rot_euler = Rotation.as_euler(rot_world)
-        part.rotation_euler = rot_euler
+        part_rotation = rot_world.as_euler("xyz", degrees=False)
+        part.rotation_euler = part_rotation
 
-    @abstractmethod
-    def centre_mesh_nodes(nodes: np.ndarray) -> np.ndarray:
-        max = np.max(nodes, axis=0)
-        min = np.min(nodes, axis=0)
-        middle = max - ((max - min) / 2)
-        centred = np.subtract(nodes, middle)
-        return centred
-
-    @abstractmethod
-    def set_new_frame(self, part):
+    @staticmethod
+    def set_new_frame(part):
         frame_incr = 20
         ob = bpy.context.view_layer.objects.active
         if ob is None:
@@ -78,11 +71,11 @@ class BlenderTools(ABC):
         part.data.shape_keys.keyframe_insert("eval_time", frame=current_frame)
         bpy.context.scene.frame_end = current_frame
 
-    @abstractmethod
-    def deform_single_timestep(self, part, deformed_nodes: np.ndarray):
+    @staticmethod
+    def deform_single_timestep(part, deformed_nodes: np.ndarray):
         if part.data.shape_keys is None:
             part.shape_key_add()
-            self.set_new_frame()
+            BlenderTools.set_new_frame(part)
         shape_key = part.shape_key_add()
         part.data.shape_keys.use_relative = False
 
@@ -92,8 +85,8 @@ class BlenderTools(ABC):
                 shape_key.data[i].co = deformed_nodes[i]
         return part
 
-    @abstractmethod
-    def clear_material_nodes(self, part):
+    @staticmethod
+    def clear_material_nodes(part):
         part.select_set(True)
         mat = bpy.data.materials.new(name="Material")
         mat.use_nodes = True
@@ -102,13 +95,14 @@ class BlenderTools(ABC):
         nodes = tree.nodes
         nodes.clear()
 
-    @abstractmethod
-    def uv_unwrap_part(self, part, FOV_x: float, cal: bool = False):
+    @staticmethod
+    def uv_unwrap_part(part, FOV_x: float, cal: bool = False):
         part.select_set(True)
         bpy.context.view_layer.objects.active = part
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
         cube_size = FOV_x / 1
+
         if cal is not True:
             bpy.ops.uv.cube_project(scale_to_bounds = False,
                                     correct_aspect=True,
@@ -116,14 +110,14 @@ class BlenderTools(ABC):
         else:
             bpy.ops.uv.cube_project(scale_to_bounds=True)
         bpy.ops.object.mode_set(mode="OBJECT")
-        self.object.select_set(False)
+        part.select_set(False)
 
-    @abstractmethod
-    def add_image_texture(self,
-                          image_path: Path | None,
-                          image_array: np.ndarray | None,
-                          mat_data: BlenderMaterialData):
-        bsdf = self.nodes.new(type="ShaderNodeBsdfPrincipled")
+    @staticmethod
+    def add_image_texture(mat_data: BlenderMaterialData,
+                          image_path: Path | None = None,
+                          image_array: np.ndarray | None = None):
+        mat_nodes = bpy.data.materials["Material"].node_tree.nodes
+        bsdf = mat_nodes.new(type="ShaderNodeBsdfPrincipled")
         bsdf.location = (0, 0)
         bsdf.inputs["Roughness"].default_value = mat_data.roughness
         bsdf.inputs["Metallic"].default_value = mat_data.metallic
@@ -132,7 +126,7 @@ class BlenderTools(ABC):
         tex_image = node_tree.nodes.new(type="ShaderNodeTexImage")
         tex_image.location = (0, 0)
 
-        if image_array is not None:
+        if image_array is None:
             if image_path.exists:
                 tex_image.image = bpy.data.images.load(str(image_path))
             else:
@@ -163,19 +157,18 @@ class BlenderTools(ABC):
         if obj:
             obj.active_material = bpy.data.materials["Material"]
 
-    @abstractmethod
-    def calculate_FOV(self, cam_data: CameraData):
+    @staticmethod
+    def calculate_FOV(cam_data: CameraData):
         FOV_x = (((cam_data.image_dist - cam_data.focal_length)
                   / cam_data.focal_length) *
                   (cam_data.pixels_size / 1000) *
-                  cam_data.pixels_num[0])
+                  cam_data.pixels_num[0])[0]
         FOV_y = (cam_data.pixels_num[1] / cam_data.pixels_num[0]) * FOV_x
         FOV_mm = (FOV_x, FOV_y)
         return FOV_mm
 
-    @abstractmethod
-    def generate_calib_file(self,
-                            stereo_data: CameraStereoData,
+    @staticmethod
+    def generate_calib_file(stereo_data: CameraStereoData,
                             calib_filepath: Path):
         # TODO: Have option to choose filename
         if Path(calib_filepath).is_dir() is False:
