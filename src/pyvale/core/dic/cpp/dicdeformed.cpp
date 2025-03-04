@@ -37,8 +37,10 @@ namespace deformed {
 
                 int index = image_number * px_horizontal * px_vertical + px_vert * px_horizontal + px_hori;
                 image_def[count] = image_def_stack[index];
-
+                // std::cout << image_def[count] << " ";
+                count++;
             }
+            // std::cout << std::endl;
         }
     }
 

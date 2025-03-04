@@ -33,7 +33,7 @@ cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
 
 
 # A wrapper function to call the C++ function from Python
-def call_cpu_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
+def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                       np.ndarray[np.int32_t, ndim=3] deformed_images,
                       np.ndarray[np.int32_t, ndim=2] roi_mask,
                       int subset_step, 
@@ -56,13 +56,15 @@ def call_cpu_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
     cdef int px_vertical = reference_image.shape[0]
     cdef int px_horizontal = reference_image.shape[1]
     cdef int num_def_images = deformed_images.shape[0]
+    print("Number of Deformed Images: ", deformed_images.shape[0])
     print("sorting c++ variables...")
 
 
     # other arguments needed for C++ DIC routine
-    cdef string corr_crit # = string(correlation_criteria.endcode('utf-8'))
-    cdef string shape_func # = string(shape_function.endcode('utf-8'))
-    cdef string interp_routine# = string(interpolation_routine.endcode('utf-8'))
+    print(correlation_criteria,shape_function,interpolation_routine)
+    cdef string corr_crit = correlation_criteria.encode('utf-8')
+    cdef string shape_func = shape_function.encode('utf-8')
+    cdef string interp_routine = interpolation_routine.encode('utf-8')
     print("sorting c++ variables...")
 
     print("about to call cpp code...")

@@ -14,14 +14,24 @@ import numpy as np
 extensions = [
     Extension(
         name="diccppinterface",
+
         sources=["diccppinterface.pyx",
                  "../cpp/dicdeformed.cpp",
                  "../cpp/dicengine.cpp",
                  "../cpp/dicinterpolator.cpp",
                  "../cpp/dicoptimization.cpp"],
         language="c++",
+
         extra_compile_args=["-std=c++17", "-O3", "-Wunused-variable", "-DDEBUG"],
-        include_dirs=[np.get_include(), "../cpp/"],
+
+        include_dirs=[np.get_include(),
+                       "../cpp/",
+                       "/usr/local/include/gsl"],
+
+        libraries=["gsl", "blas"],
+
+        library_dirs=["/usr/local/lib"],
+
     )
 ]
 

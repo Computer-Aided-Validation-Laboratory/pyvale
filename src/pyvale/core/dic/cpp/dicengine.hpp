@@ -27,13 +27,6 @@
 
 namespace dic2d {
 
-    
-    std::vector<double> subset_ref;
-    std::vector<double> subset_def;
-    std::vector<double> subset_xvals;
-    std::vector<double> subset_yvals;
-    std::vector<double> p_arr;
-    double ssd_val;
 
     void dicengine(int* image_ref, 
                     int* image_def_stack, 

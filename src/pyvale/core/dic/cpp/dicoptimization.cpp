@@ -24,7 +24,6 @@
 namespace optimization {
 
 
-    // levenberg
     const gsl_multifit_nlinear_type *T = gsl_multifit_nlinear_trust;
     gsl_multifit_nlinear_workspace *w;
     gsl_multifit_nlinear_fdf fdf;
@@ -35,7 +34,10 @@ namespace optimization {
     int p_length;
 
 
-    void init(std::string interp_routine, std::string shape_function, int subset_size, gsl_spline2d *spline, gsl_interp_accel *xacc, gsl_interp_accel *yacc){
+    void init(std::string &interp_routine, std::string &shape_function, int subset_size, gsl_spline2d *spline){
+
+
+
 
         // resize number of paramters depending on the shape function used
         if (shape_function == "rigid") p_length = 2;
@@ -43,17 +45,29 @@ namespace optimization {
         else {
             std::cerr << "Unexpected Shape Function Value: \'" << shape_function << "\'" << std::endl;
             std::cerr << "Allowed Values: \'rigid\', \'affine\'" << std::endl;
-            exit(0);
+            exit(EXIT_FAILURE);
         }
 
 
         // populate p values with defaults
-        p_arr = gsl_vector_alloc(6);
+        p_arr = gsl_vector_alloc(p_length);
         for (int p = 0; p < p_length; p++){
             gsl_vector_set (p_arr, p, 0.0);
         }
 
+        // assign struct variables
+        optData.spline = spline;
+        
+        // returns a pointer to an accelerator object, which is a kind of iterator for interpolation lookups. 
+        // It tracks the state of lookups, thus allowing for application of various acceleration strategies.
+        optData.xacc = gsl_interp_accel_alloc();
+        optData.yacc = gsl_interp_accel_alloc();
+        optData.subset_coords_x.resize(subset_size*subset_size, 0.0);
+        optData.subset_coords_y.resize(subset_size*subset_size, 0.0);
+        optData.subset_values.resize(subset_size*subset_size, 0.0);
 
+
+        // funcs/vars for optimization routine
         fdf.f = cost_function;
         fdf.df = jacobian_function; 
         fdf.fvv = NULL;
@@ -61,50 +75,46 @@ namespace optimization {
         fdf.p = p_length;
         fdf.params = &optData;
 
+        // alloc mem for multifit
         w = gsl_multifit_nlinear_alloc(gsl_multifit_nlinear_trust, &fdf_params, subset_size*subset_size, p_length);
-
-        // Struct that holds additional data for optimization routine.
-        Data optdata;
-        optdata.spline = spline;
-        optdata.xacc = xacc;
-        optdata.yacc = yacc;
-
 
     }
 
     int cost_function(const gsl_vector *p_gsl, void *data, gsl_vector * f) {
 
-        Data* optdata = static_cast<Data*>(data);
+        Data* costdata = static_cast<Data*>(data);
 
-        std::vector<double>& subset_coords_x = optdata->subset_coords_x;
-        std::vector<double>& subset_coords_y = optdata->subset_coords_y;
-        std::vector<double>& subset_values = optdata->subset_values;
-        gsl_spline2d* spline = optdata->spline;   // Access spline
-        gsl_interp_accel* xacc = optdata->xacc;    // Access x acceleration
-        gsl_interp_accel* yacc = optdata->yacc;    // Access y acceleration
+        std::vector<double>& subset_coords_x = costdata->subset_coords_x;
+        std::vector<double>& subset_coords_y = costdata->subset_coords_y;
+        std::vector<double>& subset_values = costdata->subset_values;
+        gsl_spline2d* spline = costdata->spline;   // Access spline
+        gsl_interp_accel* xacc = costdata->xacc;    // Access x acceleration
+        gsl_interp_accel* yacc = costdata->yacc;    // Access y acceleration
         
-        double diff = 0.0;
-
         double p[p_length];
         for (int i = 0; i < p_length; i++){
             p[i] = gsl_vector_get(p_gsl,i);
         }
+        
+        const size_t n = subset_values.size();
 
-        for (unsigned int i = 0; i < subset_values.size(); ++i) {
+        for (size_t i = 0; i < n; ++i) {
+
+            double x = subset_coords_x[i];
+            double y = subset_coords_y[i];
             
             // Affine
-            double x_new = p[0] + (1 + p[2]) * subset_coords_x[i] + p[3] * subset_coords_y[i]; // x-coordinate
-            double y_new = p[1] + (1 + p[5]) * subset_coords_y[i] + p[4] * subset_coords_x[i]; // y-coordinate
+            double x_new = p[0] + (1 + p[2]) * x + p[3] * y; // x-coordinate
+            double y_new = p[1] + (1 + p[5]) * y + p[4] * x; // y-coordinate
 
             // prevent out of bounds
-            if (x_new < 0 || x_new > 399 || y_new < 0 || y_new > 399) {
+            if (x_new < 0 || x_new > 1040 || y_new < 0 || y_new > 1540) {
                 gsl_vector_set(f, i, 1.0e6);
             }
-
-            // use interpolator to get new pixel value
-            diff =  subset_values[i] - gsl_spline2d_eval(spline, x_new, y_new, xacc, yacc);
-            gsl_vector_set(f, i, diff);
-
+            else {
+                double diff =  subset_values[i] - gsl_spline2d_eval(spline, x_new, y_new, xacc, yacc);
+                gsl_vector_set(f, i, diff);
+            }
 
         }
 
@@ -114,39 +124,59 @@ namespace optimization {
 
     int jacobian_function(const gsl_vector *p_gsl, void *data, gsl_matrix *J) {
 
-        Data* optdata = static_cast<Data*>(data);
+        Data* jacdata = static_cast<Data*>(data);
 
-        std::vector<double>& subset_coords_x = optdata->subset_coords_x;
-        std::vector<double>& subset_coords_y = optdata->subset_coords_y;
-        gsl_spline2d* spline = optdata->spline;
-        gsl_interp_accel* xacc = optdata->xacc;
-        gsl_interp_accel* yacc = optdata->yacc;
+        std::vector<double>& subset_coords_x = jacdata->subset_coords_x;
+        std::vector<double>& subset_coords_y = jacdata->subset_coords_y;
+        gsl_spline2d* spline = jacdata->spline;
+        gsl_interp_accel* xacc = jacdata->xacc;
+        gsl_interp_accel* yacc = jacdata->yacc;
 
         double p[p_length];
         for (int j = 0; j < p_length; j++) {
             p[j] = gsl_vector_get(p_gsl, j);
         }
 
-        for (size_t i = 0; i < subset_coords_x.size(); ++i) {
+        const size_t n = subset_coords_y.size();
+        
+        for (size_t i = 0; i < n; ++i) {
             
-            double x_new = p[0] + (1 + p[2]) * subset_coords_x[i] + p[3] * subset_coords_y[i]; // x-coordinate
-            double y_new = p[1] + (1 + p[5]) * subset_coords_y[i] + p[4] * subset_coords_x[i]; // y-coordinate
+            double x = subset_coords_x[i];
+            double y = subset_coords_y[i];
+            
+            // Affine
+            double x_new = p[0] + (1 + p[2]) * x + p[3] * y;
+            double y_new = p[1] + (1 + p[5]) * y + p[4] * x;
 
-            // Compute spline derivatives 
-            double df_dx = gsl_spline2d_eval_deriv_x(spline, x_new, y_new, xacc, yacc);
-            double df_dy = gsl_spline2d_eval_deriv_y(spline, x_new, y_new, xacc, yacc);
+            if (x_new < 0 || x_new > 1040 || y_new < 0 || y_new > 1540) {
+                for (int j = 0; j < p_length; ++j) {
+                    gsl_matrix_set(J, i, j, 1.0e6);
+                }
+            }
+            else{                      
+                
+                // Compute spline derivatives 
+                double df_dx = gsl_spline2d_eval_deriv_x(spline, x_new, y_new, xacc, yacc);
+                double df_dy = gsl_spline2d_eval_deriv_y(spline, x_new, y_new, xacc, yacc);
 
-            // Compute partial derivatives of r_i with respect to parameters
-            gsl_matrix_set(J, i, 0, -df_dx);
-            gsl_matrix_set(J, i, 1, -df_dy);
-            gsl_matrix_set(J, i, 2, -df_dx * x_new);
-            gsl_matrix_set(J, i, 3, -df_dx * y_new);
-            gsl_matrix_set(J, i, 4, -df_dy * x_new);
-            gsl_matrix_set(J, i, 5, -df_dy * y_new);
+                // Compute partial derivatives of r_i with respect to parameters
+                gsl_matrix_set(J, i, 0, -df_dx);
+                gsl_matrix_set(J, i, 1, -df_dy);
+                gsl_matrix_set(J, i, 2, -df_dx * x_new);
+                gsl_matrix_set(J, i, 3, -df_dx * y_new);
+                gsl_matrix_set(J, i, 4, -df_dy * x_new);
+                gsl_matrix_set(J, i, 5, -df_dy * y_new);
+            }
         }
 
         return GSL_SUCCESS;
     }
+
+
+    void set_data(std::vector<double> &subset_coords_x, std::vector<double> &subset_coords_y, std::vector<double> &subset_values){
+        optData.update(subset_coords_x, subset_coords_y, subset_values);
+    }
+
 
 
     void callback(const size_t iter, void *params, const gsl_multifit_nlinear_workspace *w){
@@ -170,26 +200,30 @@ namespace optimization {
 
 
 
-    void execute(bool seed=true, 
-                 double xtol=1e-15, 
-                 double gtol=1e-20,
-                 double ftol=1e-15,
-                 int max_iter=100
-                 ){
+    void execute(bool seed, 
+                 double xtol, 
+                 double gtol,
+                 double ftol,
+                 int max_iter){
 
         // if seed has been selected as true use the previous iterations to set the values of P.
-        if (seed == true){
-            for (int i = 0; i < 6; i++){
+        if (seed){
+            for (int i = 0; i < p_length; i++){
                 gsl_vector_set (p_arr, i,gsl_vector_get(w->x, i));
             }
         }
-
-
         gsl_multifit_nlinear_init(p_arr, &fdf, w);
-        int status = gsl_multifit_nlinear_driver(max_iter, xtol, gtol, ftol, callback, NULL, &info, w);
-    
+        gsl_multifit_nlinear_driver(max_iter, xtol, gtol, ftol, NULL, NULL, &info, w);
+    }
 
-    
+    void print_results(int ss_x, int ss_y){
+        std::cout << ss_x << " " << ss_y << " ";
+        std::cout << gsl_vector_get(w->x, 0) << " ";
+        std::cout << gsl_vector_get(w->x, 1) << " ";
+        std::cout << gsl_vector_get(w->x, 2) << " ";
+        std::cout << gsl_vector_get(w->x, 3) << " ";
+        std::cout << gsl_vector_get(w->x, 4) << " ";
+        std::cout << gsl_vector_get(w->x, 5) << "\n";
     }
 
 

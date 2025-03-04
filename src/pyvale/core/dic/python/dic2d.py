@@ -24,7 +24,7 @@ class DIC2D:
                  subset_size: int=21,
                  correlation_criteria: str="ZNSSD",
                  shape_function: str="affine",
-                 interpolation_routine: str="cubic_spline"):
+                 interpolation_routine: str="bicubic"):
 
         self.image_ref = reference_image
         self.image_def = deformed_images
@@ -43,14 +43,14 @@ class DIC2D:
         """
         Executes the c++ 2D DIC routine on CPU architecture.
         """
-        diccppinterface.call_cpu_2d_dic_routine(self.image_ref,
-                                                self.image_def,
-                                                self.roi_mask,
-                                                self.subset_step,
-                                                self.subset_size,
-                                                self.corr_crit,
-                                                self.shape_func,
-                                                self.interp)
+        diccppinterface.cpp_2d_dic_routine(self.image_ref,
+                                           self.image_def,
+                                           self.roi_mask,
+                                           self.subset_step,
+                                           self.subset_size,
+                                           self.corr_crit,
+                                           self.shape_func,
+                                           self.interp)
 
 
 

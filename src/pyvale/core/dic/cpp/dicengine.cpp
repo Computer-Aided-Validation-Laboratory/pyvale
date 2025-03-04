@@ -48,37 +48,24 @@ namespace dic2d {
                     std::string& interp_routine){
 
 
-        std::cout << "Running DIC Engine" << std::endl;
+        // std::cout << "Running DIC Engine" << std::endl;
                 
+        std::cout << subset_size << std::endl;
         int subset_num_px = subset_size*subset_size;
         subset_ref.resize(subset_num_px,0.0);
         subset_def.resize(subset_num_px,0.0);
         // LOG("Resizing subset arrays")
 
 
-        // returns an array of pixel values for each axis
-        std::vector<double> xvals = interpolation::xvalues(px_horizontal); 
-        std::vector<double> yvals = interpolation::xvalues(px_vertical); 
-
- 
-
-        // returns a pointer to an accelerator object, which is a kind of iterator for interpolation lookups. 
-        // It tracks the state of lookups, thus allowing for application of various acceleration strategies.
-        gsl_interp_accel *xacc = gsl_interp_accel_alloc();
-        gsl_interp_accel *yacc = gsl_interp_accel_alloc();
-
-
         // need to make a copy of the reference image that has been converted to double for the interpolator
         std::vector<double> image_ref_dbl;
         image_ref_dbl.assign(image_ref, image_ref + px_vertical*px_horizontal);
 
-
         // define our interpolator for the reference image
         gsl_spline2d *spline = interpolation::create_spline(interp_routine, image_ref_dbl, px_horizontal, px_vertical);
 
-
         // setup the optimizer and pass the already create spline object and accelerators.
-        optimization::init(interp_routine, shape_func, subset_size, spline, xacc, yacc);
+        optimization::init(interp_routine, shape_func, subset_size, spline);
 
 
         // deformed image array
@@ -87,14 +74,12 @@ namespace dic2d {
         std::vector<double> subset_def_coords_x(subset_num_px,0.0);
         std::vector<double> subset_def_coords_y(subset_num_px,0.0);
 
-
         // loop over deformed images
         for (int img_num = 0; img_num < num_def_images; img_num++){
 
 
-
             // extract a single image from the stack
-            deformed::extract_image(image_def, image_def_stack, num_def_images, px_horizontal, px_vertical);
+            deformed::extract_image(image_def, image_def_stack, img_num, px_horizontal, px_vertical);
 
             // loop over subsets within the ROI
             int edge = 50;
@@ -105,14 +90,17 @@ namespace dic2d {
 
                     // get the subset coordinates and pixel values
                     deformed::extract_subset(image_def, subset_def,  subset_def_coords_x, 
-                                                   subset_def_coords_y, ss_x, ss_y, subset_num_px, 
+                                                   subset_def_coords_y, ss_x, ss_y, subset_size, 
                                                    px_horizontal, px_vertical);
 
                     // update the optimization routine with the subset values
-                    optimization::update_data(subset_def, subset_def_coords_x, subset_def_coords_y);
+                    optimization::set_data(subset_def_coords_x, subset_def_coords_y, subset_def);
 
                     // execute optimization routine
-                    optimization::execute();
+                    // args: seed for next subset, xtol, gtol, ftol, max_iter
+                    optimization::execute(false,1e-15, 1e-20,1e-15,1000);
+
+                    optimization::print_results(ss_x,ss_y);
 
 
                 
