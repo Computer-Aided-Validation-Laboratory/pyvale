@@ -67,3 +67,7 @@ from pyvale.core.analyticsimdatagenerator import *
 from pyvale.core.analyticsimdatafactory import *
 
 from pyvale.core.experimentsimulator import *
+
+from pyvale.core.blenderscene import *
+from pyvale.core.blendertools import *
+from pyvale.core.blenderlightdata import *
