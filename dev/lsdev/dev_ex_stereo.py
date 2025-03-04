@@ -85,8 +85,8 @@ def main() -> None:
     #---------------------------------------------------------------------------
     # Set up rendering
     render_start_time = time.perf_counter()
-    image_path = Path.cwd() / 'dev/lsdev/rendered_images/stereo/case18_rbm/'
-    output_path = Path.cwd() / 'dev/lsdev/rendered_images/stereo/case18_rbm/'
+    image_path = Path.cwd() / 'dev/lsdev/rendered_images/Stereo DIC/cal/'
+    output_path = Path.cwd() / 'dev/lsdev/rendered_images/Stereo DIC/cal/'
     render_data = RenderData(samples=4)
 
 

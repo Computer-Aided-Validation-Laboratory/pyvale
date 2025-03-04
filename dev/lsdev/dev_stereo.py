@@ -57,11 +57,18 @@ class Stereo:
         quat = Rotation.as_quat(rotation)
         quat_conj = self._quaternion_conjugate(quat)
 
-        dist = cam0.location - cam1.location
-        dist[2] *= -1
-        dist[1] *= -1
 
-        dist_rot = self._rotate_vec(self._rotate_vec(dist, Rotation.as_quat(cam0_orient)), quat_conj)
+        dist = cam0.location - cam1.location
+        # dist[2] *= -1
+        # dist[1] *= -1
+
+        dist_rot = cam0_orient.apply(dist)
+        inverse = rotation.inv().as_quat()
+        inverse[3] *= -1
+        inverse = Rotation.from_quat(inverse)
+        dist_rot = inverse.apply(dist_rot)
+
+        # dist_rot = self._rotate_vec(self._rotate_vec(dist, Rotation.as_quat(cam0_orient)), quat_conj)
 
         if Path(calib_filepath).is_dir() is False:
             Path.mkdir(calib_filepath)

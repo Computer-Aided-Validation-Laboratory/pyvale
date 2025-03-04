@@ -46,6 +46,7 @@ class PartBlender:
         (pv_grid, pv_grid_vis) = pyvale.conv_simdata_to_pyvista(self.sim_data,
                                                                 components,
                                                                 spat_dim=spat_dim)
+
         pv_surf = pv_grid.extract_surface()
         if triangulate is True:
             tri_surf = pv_surf.triangulate()
@@ -79,9 +80,32 @@ class PartBlender:
         part = bpy.context.selected_objects[0]
         return part
 
+    def import_mesh(self, pv_surf, elements_per_face):
+        vertices = pv_surf.points
+
+        faces = pv_surf.faces.reshape(-1, elements_per_face)
+        faces = np.delete(faces, 0, axis=1)
+        print(f"{faces.shape=}")
+
+        mesh = bpy.data.meshes.new('part')
+        mesh.from_pydata(vertices, [], faces)
+        part = bpy.data.objects.new('part', mesh)
+        bpy.context.scene.collection.objects.link(part)
+
+        return part
+
+    def elements_per_face(self, pv_surf):
+        elements_per_face = int((pv_surf.faces.shape[0] / pv_surf.n_cells))
+        print(f"{pv_surf.faces.shape[0]=}")
+        print(f"{pv_surf.n_cells=}")
+        return elements_per_face
+
+
 def centre_nodes(nodes):
         max = np.max(nodes, axis=0)
         min = np.min(nodes, axis=0)
         middle = max - ((max - min) / 2)
         centred = np.subtract(nodes, middle)
         return centred
+
+

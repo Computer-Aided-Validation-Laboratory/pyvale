@@ -63,6 +63,17 @@ class BlenderScene:
         set_origin(part)
         return part, pv_surf, spat_dim, components
 
+    def add_mesh_part(self, sim_data, triangulate=False):
+        partmaker = PartBlender(sim_data=sim_data)
+        spat_dim = partmaker._get_spat_dim()
+        components = partmaker._get_components()
+        pv_surf, pv_grid = partmaker._simdata_to_pvsurf(components,
+                                                        spat_dim,
+                                                        triangulate)
+        elements_per_face = partmaker.elements_per_face(pv_surf)
+        part = partmaker.import_mesh(pv_surf, elements_per_face)
+        return part
+
 
     def set_part_location(self, part, location):
         z_location = int(part.dimensions[2])

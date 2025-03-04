@@ -1,6 +1,9 @@
 import os
 from dataclasses import dataclass
 import bpy
+import numpy as np
+from PIL import Image
+import cv2
 
 @dataclass
 class MaterialData():
@@ -55,13 +58,31 @@ class MaterialBlender():
         bsdf.inputs['Roughness'].default_value = self.mat_data.roughness
         bsdf.inputs['Metallic'].default_value = self.mat_data.metallic
 
+        print(f"{self.mat=}")
         tex_image = self.nodes.new(type='ShaderNodeTexImage')
         tex_image.location = (0, 0)
 
         if os.path.exists(self.image_path):
             tex_image.image = bpy.data.images.load(self.image_path)
         else:
-            print('Failed to load image')
+            image_array = np.zeros((3000, 3000))
+            image_array[:1500] = 1
+            img = Image.fromarray(image_array).convert('RGBA')
+            new_image_array = np.array(img)
+            print(f"{new_image_array.shape=}")
+            blender_img = bpy.data.images.new('Speckle', width=3000, height=3000)
+            pixels = new_image_array.flatten()
+            blender_img.pixels = pixels
+
+
+            blender_img.pixels = pixels
+            blender_img.update()
+            tex_image.image = blender_img
+            blender_img.filepath_raw = '/home/lorna/pyvale/dev/lsdev/rendered_images/speckle.png'
+            blender_img.file_format = 'PNG'
+            # blender_img.save()  # Only sets image tex correctly if save image??
+
+
 
         tex_image.interpolation = self.mat_data.interpolant
 

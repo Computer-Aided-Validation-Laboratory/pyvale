@@ -106,7 +106,7 @@ def main() -> None:
             print(f"{part.dimensions=}")
 
             render_name = 'def_image'
-            render.render_image(render_name, timestep, part)
+            # render.render_image(render_name, timestep, part)
 
 
 

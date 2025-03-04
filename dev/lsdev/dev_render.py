@@ -2,7 +2,10 @@ from multiprocessing import cpu_count
 from enum import Enum
 from dataclasses import dataclass
 from pathlib import Path
+import numpy as np
 import bpy
+import gpu
+import bgl
 from dev_camerablender import CameraData
 
 class RenderEngine(Enum):
@@ -32,7 +35,7 @@ class Render:
         self.cam_data = cam_data
         self.scene = bpy.data.scenes['Scene']
 
-        if render_data is None:
+        # if render_data is None:
 
     def render_parameters(self,
                           file_name: str,
@@ -54,7 +57,50 @@ class Render:
 
         bpy.context.scene.render.image_settings.file_format = 'TIFF'
 
+        # bpy.context.scene.render.use_compositing = True
+        # bpy.context.scene.use_nodes = True
+        # tree = bpy.context.scene.node_tree
+        # nodes = tree.nodes
+        # links = tree.links
+
+        # for node in nodes:
+        #     nodes.remove(node)
+
+        # rl = tree.nodes.new('CompositorNodeRLayers')
+
+        # v = tree.nodes.new('CompositorNodeViewer')
+
+        # links.new(rl.outputs[0], v.inputs[0])
+
+
         bpy.ops.render.render(write_still=True)
+
+        # rl.update()
+        # v.update()
+
+        # viewer = bpy.data.images['Viewer Node']
+        # render_result = bpy.data.images['Render Result']
+
+        # viewer.filepath = '/home/lorna/pyvale/dev/lsdev/rendered_images/viewer.tiff'
+        # render_result.filepath = '/home/lorna/pyvale/dev/lsdev/rendered_images/render_result.tiff'
+
+        # viewer.save()
+        # render_result.save()
+
+        # render_result = next(image for image in bpy.data.images if image.type == "RENDER_RESULT")
+
+        render_result = bpy.data.images['Render Result']
+
+        gpu_tex = gpu.texture.from_image(render_result)
+        fbo = gpu.types.GPUFrameBuffer(color_slots=(gpu_tex,))
+
+        buffer_np = np.empty(gpu_tex.width * gpu_tex.height * 4, dtype=np.float32)
+        buffer = bgl.Buffer(bgl.GL_FLOAT, buffer_np.shape, buffer_np)
+        with fbo.bind():
+            bgl.glReadBuffer(bgl.GL_BACK)
+            bgl.glReadPixels(0, 0, gpu_tex.width, gpu_tex.height, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
+
+            print(f"{buffer_np=}")
 
     def render_image(self,
                      name: int,

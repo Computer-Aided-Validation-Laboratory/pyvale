@@ -20,14 +20,13 @@ def main() -> None:
         data_path = Path('src/pyvale/simcases/case' + str(simcase) + '_out.e')
     data_reader = mh.ExodusReader(data_path)
     sim_data = data_reader.read_all_sim_data()
+    print(f"{sim_data.connect['connect1'].shape=}")
 
     dir = Path.cwd() / 'dev/lsdev/blender_files'
     filename = 'case' + str(simcase) + '.blend'
     filepath = dir / filename
-    all_files = os.listdir(dir)
-    for ff in all_files:
-        if filename == ff:
-            os.remove(dir / ff)
+    if filepath.exists():
+        filepath.unlink()
 
     filepath = str(filepath)
 
@@ -39,11 +38,13 @@ def main() -> None:
     angle = np.radians(90)
     part_rotation = (0, 0, 0)
 
-    part, pv_surf, spat_dim, components = scene.add_part(sim_data=sim_data)
+    # part, pv_surf, spat_dim, components = scene.add_part(sim_data=sim_data)
+    part = scene.add_mesh_part(sim_data=sim_data)
     scene.set_part_location(part=part, location=part_location)
     scene.set_part_rotation(part=part, rotation=part_rotation)
 
-
+    # print(f"{pv_surf.faces.shape=}")
+    # print(f"{pv_surf.n_cells=}")
 
     sensor_px = (2464, 2056)
     cam_position = (0, 0, 250)
@@ -72,7 +73,7 @@ def main() -> None:
 
     # Rendering images
     # --------------------------------------------------------------------------
-    render_images = True # Set to True to render images
+    render_images = False # Set to True to render images
     image_path = Path.cwd() / 'dev/lsdev/rendered_images'
     output_path = image_path / 'output.txt'
 

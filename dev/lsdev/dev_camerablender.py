@@ -80,6 +80,7 @@ class CameraBlender():
         camera['sensor_px'] = self.camera_data.sensor_px
         camera['px_size'] = [i / j for i, j in zip(self.sensor_size,
                                                     self.camera_data.sensor_px)]
+
         camera['k1'] = self.camera_data.k1
         camera['k2'] = self.camera_data.k2
         camera['k3'] = self.camera_data.k3
