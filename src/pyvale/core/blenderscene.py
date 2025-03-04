@@ -10,6 +10,7 @@ from scipy.spatial.transform import Rotation
 import numpy as np
 from pathlib import Path
 import bpy
+from multiprocessing import cpu_count
 import mooseherder as mh
 import pyvale
 from pyvale.core.cameradata import CameraData
@@ -18,6 +19,7 @@ from pyvale.core.blendertools import BlenderTools, BlenderError
 from pyvale.core.simtools import SimTools
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.camerastereodata import CameraStereoData
+from pyvale.core.blenderrenderdata import RenderData, RenderEngine
 
 # NOTE: This module is a feature under development
 
@@ -89,7 +91,7 @@ class BlenderScene(ABC):
         cam0 = self.add_camera(cam_data_0)
         cam1 = self.add_camera(cam_data_1)
         return cam0, cam1
-    
+
     @abstractmethod
     def add_light(self, light_data: BlenderLightData):
         # TODO: Make method compatible for different light types
@@ -174,13 +176,55 @@ class BlenderScene(ABC):
             if deformed_nodes is not None:
                 BlenderTools.deform_single_timestep(part, deformed_nodes)
                 BlenderTools.set_new_frame()
+        # Do I need to return anything from this?
+        # Do I need this function? - Maybe for viewing in Blender?
 
 
     @abstractmethod
-    def render_single_image(self, save:bool):
+    def render_single_image(self, save: bool, render_data: RenderData, name: str):
+        bpy.context.scene.render.engine = self.render_data.engine.value
+        bpy.context.scene.render.image_settings.color_mode = "BW"
+        bpy.context.scene.render.threads_mode = "FIXED"
+        bpy.context.scene.render.threads = int(cpu_count())
+        bpy.context.scene.render.image_settings.file_format = "TIFF"
+
+        if render_data.engine == RenderEngine.CYCLES:
+            bpy.context.scene.cycles.samples = render_data.samples
+            bpy.context.scene.cycles.max_bounces = render_data.max_bounces
+            bpy.context.scene.cycles.use_denoising = False # Only turned off to make rendering faster
+        elif render_data.engine == RenderEngine.EEVEE:
+            bpy.context.scene.eevee.taa_render_samples = render_data.samples
+
+        if isinstance(render_data.cam_data, tuple):
+            cam_count = 0
+            image_count = 0
+            for cam in [obj for obj in bpy.data.objects if obj.type == "CAMERA"]:
+                bpy.context.scene.camera = cam
+                cam_data_render = render_data.cam_data[cam_count]
+                bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
+                bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
+                filename = name + "_" + str(image_count) + "_" + str(cam_count) + ".tiff"
+                bpy.context.scene.render.filepath = filename
+                if save is True:
+                    bpy.ops.render.render(write_still=True)
+                else:
+                    bpy.ops.render.render(write_still=False)
+                    # Add to this
+                cam_count += 1
+        else:
+            image_count = 0
+            bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
+            bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_num[1]
+            filename = name + "_" + str(image_count) + ".tiff"
+            bpy.context.scene.render.filepath = filename
+            if save is True:
+                bpy.ops.render.render(write_still=True)
+            else:
+                bpy.ops.render.render(write_still=False)
+                # Add to this
 
     @abstractmethod
-    def render_deformed_images(self, sim_data: mh.SimData, part, ):
+    def render_deformed_images(self, sim_data: mh.SimData, part):
         timesteps = sim_data.time.shape[0]
         spat_dim = SimTools.get_mesh_spat_dim(sim_data)
         components = SimTools.get_simulation_components(sim_data)

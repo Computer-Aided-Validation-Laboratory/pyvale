@@ -17,7 +17,6 @@ import mooseherder as mh
 from pyvale.core.cameradata import CameraData
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.camerastereodata import CameraStereoData
-from pyvale.core.blenderscene import BlenderScene
 
 
 # NOTE: This module is a feature under development
@@ -183,12 +182,8 @@ class BlenderTools(ABC):
             Path.mkdir(calib_filepath)
         calib_filepath = calib_filepath / 'calib.caldat'
         with open(calib_filepath, "w") as file:
-            file.write("Cam0_Fx [pixels];" +
-                       f'{stereo_data.cam_data_0.focal_length/ \
-                          stereo_data.cam_data_0.pixels_size[0]}\n')
-            file.write("Cam0_Fy [pixels];" +
-                       f'{stereo_data.cam_data_0.focal_length/ \
-                          stereo_data.cam_data_0.pixels_size[1]}\n')
+            file.write(f'Cam0_Fx [pixels]; {stereo_data.cam_data_0.focal_length/ stereo_data.cam_data_0.pixels_size[0]}\n')
+            file.write(f'Cam0_Fy [pixels]; {stereo_data.cam_data_0.focal_length/ stereo_data.cam_data_0.pixels_size[1]}\n')
             file.write("Cam0_Fs [pixels];0\n")
             file.write(f'Cam0_Kappa 1;{stereo_data.cam_data_0.k1}\n')
             file.write(f'Cam0_Kappa 2;{stereo_data.cam_data_0.k2}\n')
@@ -196,12 +191,8 @@ class BlenderTools(ABC):
             file.write(f'Cam0_P1;{stereo_data.cam_data_0.p1}\n')
             file.write(f'Cam0_P2;{stereo_data.cam_data_0.p2}\n')
             file.write(f'Cam0_Cx [pixels];{stereo_data.cam_data_0.c0}\n')
-            file.write("Cam1_Fx [pixels];" +
-                       f'{stereo_data.cam_data_1.focal_length/ \
-                          stereo_data.cam_data_1.pixels_size[0]}\n')
-            file.write("Cam1_Fy [pixels];" +
-                       f'{stereo_data.cam_data_1.focal_length/ \
-                          stereo_data.cam_data_1.pixels_size[1]}\n')
+            file.write(f'Cam1_Fx [pixels]; {stereo_data.cam_data_1.focal_length/ stereo_data.cam_data_1.pixels_size[0]}\n')
+            file.write(f'Cam1_Fy [pixels]; {stereo_data.cam_data_1.focal_length/ stereo_data.cam_data_1.pixels_size[1]}\n')
             file.write("Cam1_Fs [pixels];0\n")
             file.write(f'Cam1_Kappa 1;{stereo_data.cam_data_1.k1}\n')
             file.write(f'Cam1_Kappa 2;{stereo_data.cam_data_1.k2}\n')

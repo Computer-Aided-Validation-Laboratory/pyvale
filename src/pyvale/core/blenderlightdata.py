@@ -16,9 +16,9 @@ class BlenderLightType(Enum):
     SPOT = 'SPOT'
     AREA = 'AREA'
 
-@dataclass
+@dataclass(slots=True)
 class BlenderLightData():
-    type: BlenderLightType | None = None
+    type: BlenderLightType
     pos_world: np.ndarray
     rot_world: Rotation
     energy: int
