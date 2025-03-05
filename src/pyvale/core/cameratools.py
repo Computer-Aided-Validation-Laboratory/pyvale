@@ -6,6 +6,7 @@ Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
 import numpy as np
+import copy
 from scipy.spatial.transform import Rotation
 from pyvale.core.cameradata import CameraData2D
 from pyvale.core.sensordata import SensorData
@@ -138,35 +139,37 @@ def image_dist_from_fov(num_pixels: np.ndarray,
 #-------------------------------------------------------------------------------
 # Blender camera tools
 
-def symmetric_stereo(self, cam_data_0: CameraData, base, stereo_angle):
-    cam_data_1 = cam_data_0
+def blender_symmetric_stereo(cam_data_0: CameraData, base:float, stereo_angle:float):
+    cam_data_1 = copy.deepcopy(cam_data_0)
 
     cam_data_0.pos_world[0] -= base / 2
-    cam_data_1.pos_world[1] += base / 2
+    cam_data_1.pos_world[0] += base / 2
 
     cam_0_rot = (0, -np.radians(stereo_angle / 2), 0)
-    cam_0_rot = Rotation.from_euler(cam_0_rot)
+    cam_0_rot = Rotation.from_euler("xyz", cam_0_rot, degrees=False)
     cam_data_0.rot_world = cam_0_rot
 
     cam_1_rot = (0, np.radians(stereo_angle / 2), 0)
-    cam_1_rot = Rotation.from_euler(cam_1_rot)
+    cam_1_rot = Rotation.from_euler("xyz", cam_1_rot, degrees=False)
     cam_data_1.rot_world = cam_1_rot
 
     cam0 = BlenderScene.add_camera(cam_data_0)
     cam1 = BlenderScene.add_camera(cam_data_1)
 
-    return cam0, cam1
+    return cam_data_1
 
 
-def faceon_stereo(self, cam_data_0: CameraData, base, stereo_angle):
-    cam_data_1 = cam_data_0
+def blender_faceon_stereo(cam_data_0: CameraData, base, stereo_angle):
+    cam_data_1 = copy.deepcopy(cam_data_0)
     cam_data_1.pos_world[0] += base
 
     rotation_angle = (0, np.radians(stereo_angle), 0)
-    rotation_angle = Rotation.from_euler(rotation_angle)
-    cam_data_1.rot_world(rotation_angle)
+    rotation_angle = Rotation.from_euler("xyz", rotation_angle, degrees=False)
+    cam_data_1.rot_world = rotation_angle
+
+    print(f"{cam_data_0=}")
 
     cam0 = BlenderScene.add_camera(cam_data_0)
     cam1 = BlenderScene.add_camera(cam_data_1)
 
-    return cam0, cam1
+    return cam_data_1

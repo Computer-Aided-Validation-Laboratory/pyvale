@@ -5,16 +5,13 @@ License: MIT
 Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
-from abc import ABC, abstractmethod
 import pyvista as pv
 import numpy as np
 from pathlib import Path
-import os
 from scipy.spatial.transform import Rotation
 from PIL import Image
 import bpy
 import mooseherder as mh
-import pyvale
 from pyvale.core.cameradata import CameraData
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.camerastereodata import CameraStereoData
@@ -197,7 +194,7 @@ class BlenderTools():
             file.write(f"Tx [mm];{stereo_data.stereo_dist[0]}\n")
             file.write(f"Ty [mm];{stereo_data.stereo_dist[1]}\n")
             file.write(f"Tz [mm];{stereo_data.stereo_dist[2]}\n")
-            stereo_rotation = stereo_data.stereo_rotation.as_euler()
+            stereo_rotation = stereo_data.stereo_rotation.as_euler("xyz", degrees=True)
             file.write(f"Theta [deg];{stereo_rotation[0]}\n")
             file.write(f"Phi [deg];{stereo_rotation[1]}\n")
             file.write(f"Psi [deg];{stereo_rotation[2]}")

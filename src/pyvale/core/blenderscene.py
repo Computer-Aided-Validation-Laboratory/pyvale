@@ -89,8 +89,8 @@ class BlenderScene():
     @staticmethod
     def add_stereo_system(cam_data_0: CameraData, cam_data_1: CameraData):
         # Can i use method defined in this namespace?
-        cam0 = pyvale.add_camera(cam_data_0)
-        cam1 = pyvale.add_camera(cam_data_1)
+        cam0 = BlenderScene.add_camera(cam_data_0)
+        cam1 = BlenderScene.add_camera(cam_data_1)
         return cam0, cam1
 
     @staticmethod
