@@ -71,3 +71,4 @@ from pyvale.core.experimentsimulator import *
 from pyvale.core.blenderscene import *
 from pyvale.core.blendertools import *
 from pyvale.core.blenderlightdata import *
+from pyvale.core.camerastereodata import *
