@@ -7,9 +7,9 @@ from aabb import AABB
 
 class HitRecord:
     def __init__(self, p: np.ndarray, t: float, mat: Material, r: Ray, outward_normal: np.ndarray, u: float = None, v: float = None) -> None:
-        self.p = p
-        self.t = t
-        self.mat = mat
+        self.p: np.ndarray = p
+        self.t: float = t
+        self.mat: Material = mat
         self.set_face_normal(r, outward_normal)
 
         # texture u v coords

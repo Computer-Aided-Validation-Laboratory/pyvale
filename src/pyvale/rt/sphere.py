@@ -18,7 +18,7 @@ class Sphere(Hittable):
         self.mat = material
 
         rvec = np.ones(3) * self.radius
-        self.bbox = AABB(a = centre - rvec, b = centre + rvec)
+        self.bbox = AABB.from_arrays(a = centre - rvec, b = centre + rvec)
     
     def hit(self, r: Ray, ray_t: Interval) -> HitRecord:
         oc = self.centre - r.origin
@@ -39,11 +39,12 @@ class Sphere(Hittable):
             if not ray_t.surrounds(root):
                 return None
         
-        rec: HitRecord = HitRecord()
-        rec.t = root
-        rec.p = r.at(rec.t)
-        outward_normal = (rec.p - self.centre) / self.radius
-        rec.set_face_normal(r, outward_normal)
-        rec.mat = self.mat
+        rec: HitRecord = HitRecord(p = r.at(root), t= root, mat = self.mat, r=r, outward_normal=(r.at(root) - self.centre) / self.radius, u = 0, v = 0)
+        # rec: HitRecord = HitRecord()
+        # rec.t = root
+        # rec.p = r.at(rec.t)
+        # outward_normal = (rec.p - self.centre) / self.radius
+        # rec.set_face_normal(r, outward_normal)
+        # rec.mat = self.mat
 
         return rec

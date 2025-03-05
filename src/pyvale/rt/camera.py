@@ -13,13 +13,15 @@ class Camera:
 	# image_pixels: tuple[int, int] = (500, 400)
 	image_width = 500
 	image_height = 400
-	position = (0,0,0)
+	position: np.ndarray = np.array([0,0,0])
 	vfov = 90
 	look_from = np.array([0,0,0])
 	look_at = np.array([0,0,-1])
-	v_up = (0,1,0)
+	v_up: np.ndarray = np.array([0,1,0])
 	samples_per_pixel: int = 1
 	max_depth: int = 5
+	# scene background colour
+	background = np.array([0,0,0])
 
 	_u: np.ndarray
 	_v: np.ndarray
@@ -30,6 +32,7 @@ class Camera:
 	_pixel_delta_v: np.ndarray
 	_pixel_samples_scale: float
 
+	# This whole thing needs changing to be proper and allow for multiple camera. An issue is that __init__ is being called just before render, reseting any other values
 	def __init__(self):
 		self.pixel_samples_scale = 1.0 / self.samples_per_pixel
 		self._centre = self.look_from
@@ -110,13 +113,21 @@ class Camera:
 
 		rec: HitRecord = world.hit(r, Interval.from_floats(0.001, math.inf))
 
-		if rec:
-			attenuation, scattered = rec.mat.scatter(r, rec)
-			return attenuation * self._ray_colour(scattered, depth-1, world)
+		# Hits nothing
+		if rec is None:
+			return self.background
 		
-		unit_direction = unit_vector(r.direction)
-		a = 0.5*unit_direction[1] + 1
-		return (1-a)*np.array([1,1,1]) + a*np.array([0.5, 0.7, 1])
+		colour_from_emission = rec.mat.emitted(rec.u, rec.v, rec.p)
+
+		scattering = rec.mat.scatter(r, rec)
+		# no scattering
+		if scattering is None:
+			return colour_from_emission
+
+		attenuation, scattered = scattering
+		colour_from_scatter = attenuation * self._ray_colour(scattered, depth-1, world)
+
+		return colour_from_emission + colour_from_scatter
 
 
 def unit_vector(v):

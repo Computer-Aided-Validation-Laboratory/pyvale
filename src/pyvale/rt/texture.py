@@ -3,6 +3,9 @@ import numpy as np
 
 
 class Texture:
+    def __init__(self) -> None:
+        pass
+
     @abstractmethod
     def value(self, u: float, v: float, p: np.ndarray) -> np.ndarray:
         pass

@@ -65,7 +65,7 @@ class Quad(Hittable):
         return rec
 
     def is_interior(self, a: float, b: float) -> Tuple[float, float]:
-        unit_interval = Interval(0,1)
+        unit_interval = Interval.from_floats(0,1)
         # Given the hit point in plane coordinates, return false if it is outside the primitive, otherwise set the hit record UV coordinates.
 
         if (not unit_interval.contains(a)) or (not unit_interval.contains(b)):
