@@ -13,8 +13,8 @@ class HitRecord:
         self.set_face_normal(r, outward_normal)
 
         # texture u v coords
-        self.u: float
-        self.v: float
+        self.u: float = u
+        self.v: float = v
 
     def set_face_normal(self, r: Ray, outward_normal):        
         #  Sets the hit record normal vector.

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Tuple
 import numpy as np
+from texture import Texture, SolidColor
 from ray import Ray
 
 class Material:
@@ -9,7 +10,16 @@ class Material:
 
 @dataclass
 class Lambertian(Material):
-    albedo: np.ndarray
+    def __init__(self, texture: Texture) -> None:
+        super().__init__()
+        self.tex: Texture = texture
+    
+    @classmethod
+    def from_colour(cls: "Lambertian", albedo: np.ndarray) -> "Lambertian":
+        solid_tex = SolidColor(albedo)
+        cls = Lambertian(solid_tex)
+        return cls
+
     
     def scatter(self, r_in: Ray, rec) -> Tuple[np.ndarray, np.ndarray]:
         scatter_direction = rec.normal + random_unit_vector()
@@ -20,7 +30,7 @@ class Lambertian(Material):
             scatter_direction = rec.normal
         
         scattered = Ray(rec.p, scatter_direction)
-        attenuation = self.albedo
+        attenuation = self.tex.value(rec.u, rec.v, rec.p)
         return (attenuation, scattered)
 
 # class Metal(Material):

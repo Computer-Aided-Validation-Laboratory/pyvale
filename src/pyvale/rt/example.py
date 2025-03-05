@@ -128,7 +128,7 @@ def quadish():
     world: HittableList = HittableList()
 
     # Materials
-    left_red = Lambertian(np.array([1.0, 0.2, 0.2]))
+    left_red = Lambertian.from_colour(np.array([1.0, 0.2, 0.2]))
 
     tris = extract_tris()
     for t in tris:
@@ -141,8 +141,8 @@ def quadish():
     cam.image_height = 200
     cam.samples_per_pixel = 1
     cam.max_depth = 3
-    cam.vfov = 80
-    cam.look_from = np.array([0,0,30])
+    cam.vfov = 90
+    cam.look_from = np.array([0,10,45])
     cam.look_at = np.array([0,0,0])
 
     cam.render(bv)
