@@ -8,6 +8,7 @@
 // STD library Header files
 #include <vector>
 #include <iostream>
+#include <chrono>
 
 // GNU Scientific Library Header files
 #include <gsl/gsl_multifit_nlinear.h>
@@ -48,7 +49,7 @@ namespace dic2d {
                     std::string& interp_routine){
 
 
-        // std::cout << "Running DIC Engine" << std::endl;
+        auto s0 = std::chrono::high_resolution_clock::now();
                 
         std::cout << subset_size << std::endl;
         int subset_num_px = subset_size*subset_size;
@@ -74,6 +75,7 @@ namespace dic2d {
         std::vector<double> subset_def_coords_x(subset_num_px,0.0);
         std::vector<double> subset_def_coords_y(subset_num_px,0.0);
 
+
         // loop over deformed images
         for (int img_num = 0; img_num < num_def_images; img_num++){
 
@@ -88,6 +90,7 @@ namespace dic2d {
 
 
 
+
                     // get the subset coordinates and pixel values
                     deformed::extract_subset(image_def, subset_def,  subset_def_coords_x, 
                                                    subset_def_coords_y, ss_x, ss_y, subset_size, 
@@ -98,16 +101,18 @@ namespace dic2d {
 
                     // execute optimization routine
                     // args: seed for next subset, xtol, gtol, ftol, max_iter
-                    optimization::execute(false,1e-15, 1e-20,1e-15,1000);
+                    optimization::execute(false, 0.001, 0.001, 0.001, 20);
 
                     optimization::print_results(ss_x,ss_y);
-
 
                 
                 }
             }
         }
 
+        auto f0 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> e0 = f0 - s0;
+        std::cout << e0.count() << std::endl;
 
         exit(0);
 

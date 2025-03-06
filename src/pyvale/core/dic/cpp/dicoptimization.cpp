@@ -8,6 +8,7 @@
 // STD library Header files
 #include <vector>
 #include <iostream>
+#include <chrono>
 
 
 // GNU Scientific Library Header files
@@ -83,14 +84,13 @@ namespace optimization {
     int cost_function(const gsl_vector *p_gsl, void *data, gsl_vector * f) {
 
         Data* costdata = static_cast<Data*>(data);
-
         std::vector<double>& subset_coords_x = costdata->subset_coords_x;
         std::vector<double>& subset_coords_y = costdata->subset_coords_y;
         std::vector<double>& subset_values = costdata->subset_values;
         gsl_spline2d* spline = costdata->spline;   // Access spline
         gsl_interp_accel* xacc = costdata->xacc;    // Access x acceleration
         gsl_interp_accel* yacc = costdata->yacc;    // Access y acceleration
-        
+
         double p[p_length];
         for (int i = 0; i < p_length; i++){
             p[i] = gsl_vector_get(p_gsl,i);
@@ -138,7 +138,7 @@ namespace optimization {
         }
 
         const size_t n = subset_coords_y.size();
-        
+
         for (size_t i = 0; i < n; ++i) {
             
             double x = subset_coords_x[i];
@@ -217,13 +217,17 @@ namespace optimization {
     }
 
     void print_results(int ss_x, int ss_y){
+        std::cout << "results: " << " ";
         std::cout << ss_x << " " << ss_y << " ";
+        std::cout << gsl_multifit_nlinear_niter(w) << " ";
         std::cout << gsl_vector_get(w->x, 0) << " ";
         std::cout << gsl_vector_get(w->x, 1) << " ";
         std::cout << gsl_vector_get(w->x, 2) << " ";
         std::cout << gsl_vector_get(w->x, 3) << " ";
         std::cout << gsl_vector_get(w->x, 4) << " ";
         std::cout << gsl_vector_get(w->x, 5) << "\n";
+        // std::cout << gsl_multifit_nlinear_name(w) << " ";
+        // std::cout << gsl_multifit_nlinear_trs_name(w) << std::endl;
     }
 
 

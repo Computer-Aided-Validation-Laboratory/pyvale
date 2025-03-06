@@ -22,13 +22,14 @@ extensions = [
                  "../cpp/dicoptimization.cpp"],
         language="c++",
 
-        extra_compile_args=["-std=c++17", "-O3", "-Wunused-variable", "-DDEBUG"],
+        extra_compile_args=["-O3"],
 
         include_dirs=[np.get_include(),
                        "../cpp/",
                        "/usr/local/include/gsl"],
 
-        libraries=["gsl", "blas"],
+        # libraries=["gsl", "cblas"],
+        libraries=["gsl", "gslcblas"],
 
         library_dirs=["/usr/local/lib"],
 
