@@ -66,7 +66,7 @@ namespace dic2d {
         gsl_spline2d *spline = interpolation::create_spline(interp_routine, image_ref_dbl, px_horizontal, px_vertical);
 
         // setup the optimizer and pass the already create spline object and accelerators.
-        optimization::init(interp_routine, shape_func, subset_size, spline);
+        optimization::init(interp_routine, shape_func, subset_size, px_horizontal, px_vertical, spline);
 
 
         // deformed image array

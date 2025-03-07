@@ -35,7 +35,7 @@ namespace optimization {
     int p_length;
 
 
-    void init(std::string &interp_routine, std::string &shape_function, int subset_size, gsl_spline2d *spline){
+    void init(std::string &interp_routine, std::string &shape_function, int subset_size, int px_horizontal, int px_vertical, gsl_spline2d *spline){
 
 
 
@@ -66,6 +66,8 @@ namespace optimization {
         optData.subset_coords_x.resize(subset_size*subset_size, 0.0);
         optData.subset_coords_y.resize(subset_size*subset_size, 0.0);
         optData.subset_values.resize(subset_size*subset_size, 0.0);
+        optData.px_horizontal = px_horizontal;
+        optData.px_vertical = px_horizontal;
 
 
         // funcs/vars for optimization routine
@@ -90,6 +92,8 @@ namespace optimization {
         gsl_spline2d* spline = costdata->spline;   // Access spline
         gsl_interp_accel* xacc = costdata->xacc;    // Access x acceleration
         gsl_interp_accel* yacc = costdata->yacc;    // Access y acceleration
+        int px_vertical = costdata->px_vertical;
+        int px_horizontal = costdata->px_horizontal;
 
         double p[p_length];
         for (int i = 0; i < p_length; i++){
@@ -107,8 +111,9 @@ namespace optimization {
             double x_new = p[0] + (1 + p[2]) * x + p[3] * y; // x-coordinate
             double y_new = p[1] + (1 + p[5]) * y + p[4] * x; // y-coordinate
 
-            // prevent out of bounds
-            if (x_new < 0 || x_new > 1040 || y_new < 0 || y_new > 1540) {
+            // prevent out of bounds - set cost function to massive value if out of bounds
+            // this will be replaced with an ROI at some point
+            if (x_new < 0 || x_new > px_horizontal || y_new < 0 || y_new > px_vertical) {
                 gsl_vector_set(f, i, 1.0e6);
             }
             else {
@@ -131,6 +136,8 @@ namespace optimization {
         gsl_spline2d* spline = jacdata->spline;
         gsl_interp_accel* xacc = jacdata->xacc;
         gsl_interp_accel* yacc = jacdata->yacc;
+        int px_vertical = jacdata->px_vertical;
+        int px_horizontal = jacdata->px_horizontal;
 
         double p[p_length];
         for (int j = 0; j < p_length; j++) {
@@ -148,14 +155,14 @@ namespace optimization {
             double x_new = p[0] + (1 + p[2]) * x + p[3] * y;
             double y_new = p[1] + (1 + p[5]) * y + p[4] * x;
 
-            if (x_new < 0 || x_new > 1040 || y_new < 0 || y_new > 1540) {
+            if (x_new < 0 || x_new > px_horizontal || y_new < 0 || y_new > px_vertical) {
                 for (int j = 0; j < p_length; ++j) {
                     gsl_matrix_set(J, i, j, 1.0e6);
                 }
             }
             else{                      
                 
-                // Compute spline derivatives 
+                // partial derivatives derivatives 
                 double df_dx = gsl_spline2d_eval_deriv_x(spline, x_new, y_new, xacc, yacc);
                 double df_dy = gsl_spline2d_eval_deriv_y(spline, x_new, y_new, xacc, yacc);
 
