@@ -61,9 +61,8 @@ class BlenderScene():
         rotation_euler = cam_data.rot_world.as_euler("xyz", degrees=False)
         camera.rotation_euler = rotation_euler
 
-
-
-        camera['sensor_px'] = (2464, 2056)
+        pixels_num = (int(cam_data.pixels_num[0]), int(cam_data.pixels_num[1]))
+        camera['sensor_px'] = pixels_num
         camera['px_size'] = (cam_data.pixels_size / 1000)
         camera['k1'] = cam_data.k1
         camera['k2'] = cam_data.k2
@@ -73,7 +72,11 @@ class BlenderScene():
         camera['c0'] = cam_data.c0
         camera['c1'] = cam_data.c1
 
-        new_cam.lens = cam_data.focal_length
+        new_cam.lens_unit = 'FOV'
+        AFOV_x = pyvale.angular_fov(cam_data)
+        new_cam.lens = (cam_data.sensor_size[0] / 1000) / (2 * np.tan(np.radians(AFOV_x) / 2))
+        # new_cam.lens = cam_data.focal_length
+        new_cam.sensor_fit = 'HORIZONTAL'
         new_cam.sensor_width = cam_data.sensor_size[0] / 1000
         new_cam.sensor_height = cam_data.sensor_size[1] / 1000
 
@@ -147,7 +150,8 @@ class BlenderScene():
         # Add way to only take 1 of camera data
         # Work out way to get FOV if camera is not perp
         BlenderTools.clear_material_nodes(part)
-        (FOV_x, _) = BlenderTools.calculate_FOV(cam_data)
+        (FOV_x, _) = pyvale.calculate_FOV(cam_data)
+        print(f"{FOV_x=}")
         if mat_data is None:
             mat_data = BlenderMaterialData()
         # TODO: Add option for if speckle_path is None to generate speckle pattern
