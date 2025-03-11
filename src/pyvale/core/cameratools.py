@@ -139,6 +139,24 @@ def image_dist_from_fov(num_pixels: np.ndarray,
 #-------------------------------------------------------------------------------
 # Blender camera tools
 
+def calculate_FOV(cam_data: CameraData):
+        FOV_x = (((cam_data.image_dist - cam_data.focal_length)
+                  / cam_data.focal_length) *
+                  (cam_data.pixels_size / 1000) *
+                  cam_data.pixels_num[0])[0]
+        FOV_y = (cam_data.pixels_num[1] / cam_data.pixels_num[0]) * FOV_x
+        FOV_mm = (FOV_x, FOV_y)
+        return FOV_mm
+
+def angular_fov(cam_data: CameraData):
+    (FOV_x, _) = calculate_FOV(cam_data)
+    working_dist = cam_data.pos_world[2] - cam_data.roi_cent_world[2]
+    half_FOV = FOV_x / 2
+    half_AFOV = np.arctan(half_FOV / working_dist)
+    AFOV_x = np.degrees(half_AFOV) * 2
+    return AFOV_x
+
+
 def blender_symmetric_stereo(cam_data_0: CameraData, base:float, stereo_angle:float):
     cam_data_1 = copy.deepcopy(cam_data_0)
 
@@ -166,8 +184,6 @@ def blender_faceon_stereo(cam_data_0: CameraData, base, stereo_angle):
     rotation_angle = (0, np.radians(stereo_angle), 0)
     rotation_angle = Rotation.from_euler("xyz", rotation_angle, degrees=False)
     cam_data_1.rot_world = rotation_angle
-
-    print(f"{cam_data_0=}")
 
     cam0 = BlenderScene.add_camera(cam_data_0)
     cam1 = BlenderScene.add_camera(cam_data_1)
