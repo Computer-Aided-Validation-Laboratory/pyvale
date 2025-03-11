@@ -23,17 +23,25 @@ class BlenderError(Exception):
     pass
 
 class BlenderTools():
-    """Interface (abstract base class) for tools to be used within Blender
-    feature of `pyvale`.
-
-    #TODO: Add to this
-
+    """Namespace for tools used within the pyvale Blender module.
     """
 
     @staticmethod
     def save_blender_file(filepath: Path, override: bool = False):
-        # Unsure whether this fits best within blendertools or blenderscene
-        # TODO: Make this only use Path - .exists()
+        """A method to save the current Blender file to a .blend filepath
+
+        Args:
+            filepath (Path): The filepath to which the Blender file should be
+                saved
+            override (bool, optional): A flag which can be set to True or False.
+                If set to True, if the specified filepath already exists, this
+                file will automatically be overwritten. If set to False and the
+                specified filepath already exists, an error will be thrown.
+                Defaults to False.
+
+        Raises:
+            BlenderError: "A file already exists with this filepath"
+        """
         if filepath.exists():
                 if override is True:
                     filepath.unlink()
@@ -44,17 +52,39 @@ class BlenderTools():
 
     @staticmethod
     def move_blender_part(pos_world: np.ndarray, part):
+        """A method to move the part object within Blender
+
+        Args:
+            pos_world (np.ndarray): The position, as a vector, to which the part
+                should be moved to
+            part (bpy.data.objects['Part']): The Blender mesh object to be
+                moved
+        """
         z_location = int(part.dimensions[2])
         part.location = (pos_world[0], pos_world[1], (pos_world[2] - z_location))
 
     @staticmethod
     def rotate_blender_part(rot_world: Rotation, part):
+        """A method to rotate the part object within Blender
+
+        Args:
+            rot_world (Rotation): The rotation that the part should have
+            part (bpy.data.objects['Part']): The Blender mesh object to be
+                rotated
+        """
         part.rotation_mode = "XYZ"
         part_rotation = rot_world.as_euler("xyz", degrees=False)
         part.rotation_euler = part_rotation
 
     @staticmethod
     def set_new_frame(part):
+        """A method to set a new frame within Blender (needed to differenciate
+        the timesteps)
+
+        Args:
+            part (bpy.data.objects['Part']): The Blender mesh object, to ensure
+                that it is the active object
+        """
         frame_incr = 20
         ob = bpy.context.view_layer.objects.active
         if ob is None:
@@ -70,6 +100,18 @@ class BlenderTools():
 
     @staticmethod
     def deform_single_timestep(part, deformed_nodes: np.ndarray):
+        """A method to deform the part for a single timestep, given the node
+        positions the nodes will move to
+
+        Args:
+            part (bpy.data.objects['Part']): The Blender mesh object to be
+                deformed
+            deformed_nodes (np.ndarray): The deformed positions of each node in
+                the surface mesh
+
+        Returns:
+            part: The deformed Blender mesh object
+        """
         if part.data.shape_keys is None:
             part.shape_key_add()
             BlenderTools.set_new_frame(part)
@@ -84,6 +126,13 @@ class BlenderTools():
 
     @staticmethod
     def clear_material_nodes(part):
+        """A method to clear any existing material nodes from the specified
+        Blender object
+
+        Args:
+            part (bpy.data.objects['Part']): The Blender object to which a
+                material will be applied
+        """
         part.select_set(True)
         mat = bpy.data.materials.new(name="Material")
         mat.use_nodes = True
@@ -94,6 +143,18 @@ class BlenderTools():
 
     @staticmethod
     def uv_unwrap_part(part, FOV_x: float, cal: bool = False):
+        """A method to UV unwrap the Blender object, in order to apply a speckle
+        image texture
+
+        Args:
+            part (bpy.data.objects['Part']): The Blender object to be unwrapped
+            FOV_x (float): The horizontal field of view, in order to scale the
+                speckle image texture for an optimal number of pixels per speckle
+            cal (bool, optional): A flag that can set to True or False. If set
+                to True, the uv unwrap scales to the bounds of the object, which
+                is needed when applying the calibration target image texture.
+                Defaults to False.
+        """
         part.select_set(True)
         bpy.context.view_layer.objects.active = part
         bpy.ops.object.mode_set(mode="EDIT")
@@ -113,6 +174,19 @@ class BlenderTools():
     def add_image_texture(mat_data: BlenderMaterialData,
                           image_path: Path | None = None,
                           image_array: np.ndarray | None = None):
+        """A method to add an image texture to a Blender object
+
+        Args:
+            mat_data (BlenderMaterialData): A dataclass containing the material
+                parameters
+            image_path (Path | None, optional): The filepath for the speckle
+                image file. Defaults to None.
+            image_array (np.ndarray | None, optional): A speckle image array.
+                Defaults to None.
+
+        Raises:
+            BlenderError: "Image texture filepath does not exist"
+        """
         mat_nodes = bpy.data.materials["Material"].node_tree.nodes
         bsdf = mat_nodes.new(type="ShaderNodeBsdfPrincipled")
         bsdf.location = (0, 0)
@@ -156,11 +230,25 @@ class BlenderTools():
 
     @staticmethod
     def generate_calib_file(stereo_data: CameraStereoData,
-                            calib_filepath: Path):
-        # TODO: Have option to choose filename
+                            calib_filepath: Path,
+                            calib_filename: str | None = None):
+        """A method to generate a .caldat calibration file, compatible with
+        MatchID
+
+        Args:
+            stereo_data (CameraStereoData): A dataclass containing the parameters
+                of the stereo setup
+            calib_filepath (Path): The file directory to which the calibration
+                file is to be saved to
+            calib_filename (str | None, optional): The filename the calibration
+                should be saved as. Defaults to None.
+        """
         if Path(calib_filepath).is_dir() is False:
             Path.mkdir(calib_filepath)
-        calib_filepath = calib_filepath / 'calib.caldat'
+        if calib_filename is not None:
+            calib_filepath = calib_filepath / calib_filename
+        else:
+            calib_filepath = calib_filepath / 'calib.caldat'
         with open(calib_filepath, "w") as file:
             file.write(f'Cam0_Fx [pixels]; {stereo_data.cam_data_0.focal_length/ stereo_data.cam_data_0.pixels_size[0]}\n')
             file.write(f'Cam0_Fy [pixels]; {stereo_data.cam_data_0.focal_length/ stereo_data.cam_data_0.pixels_size[1]}\n')

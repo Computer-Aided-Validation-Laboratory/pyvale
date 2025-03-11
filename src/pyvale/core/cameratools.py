@@ -140,15 +140,32 @@ def image_dist_from_fov(num_pixels: np.ndarray,
 # Blender camera tools
 
 def calculate_FOV(cam_data: CameraData):
-        FOV_x = (((cam_data.image_dist - cam_data.focal_length)
-                  / cam_data.focal_length) *
-                  (cam_data.pixels_size / 1000) *
-                  cam_data.pixels_num[0])[0]
-        FOV_y = (cam_data.pixels_num[1] / cam_data.pixels_num[0]) * FOV_x
-        FOV_mm = (FOV_x, FOV_y)
-        return FOV_mm
+    """A method to calulate the camera's field of view in mm
+
+    Args:
+        cam_data (CameraData): A dataclass containing the camera parameters
+
+    Returns:
+        FOV_mm: A tuple containing the field of view in mm in both x and y
+            directions
+    """
+    FOV_x = (((cam_data.image_dist - cam_data.focal_length)
+                / cam_data.focal_length) *
+                (cam_data.pixels_size) *
+                cam_data.pixels_num[0])[0]
+    FOV_y = (cam_data.pixels_num[1] / cam_data.pixels_num[0]) * FOV_x
+    FOV_mm = (FOV_x, FOV_y)
+    return FOV_mm
 
 def angular_fov(cam_data: CameraData):
+    """A method to calculate the angular field of view of a camera in degrees
+
+    Args:
+        cam_data (CameraData): A dataclass containing the camera parameters
+
+    Returns:
+        AFOV_x: The angular field of view in the x-direction in degrees
+    """
     (FOV_x, _) = calculate_FOV(cam_data)
     working_dist = cam_data.pos_world[2] - cam_data.roi_cent_world[2]
     half_FOV = FOV_x / 2
@@ -156,9 +173,57 @@ def angular_fov(cam_data: CameraData):
     AFOV_x = np.degrees(half_AFOV) * 2
     return AFOV_x
 
+def focal_length_from_resolution(pixels_size: np.ndarray,
+                                 working_dist: float,
+                                 resolution: float) -> float:
+    focal_length = working_dist / ((resolution / (pixels_size[0] / 1000)) + 1)
+    return focal_length
 
-def blender_symmetric_stereo(cam_data_0: CameraData, base:float, stereo_angle:float):
+def blender_camera_from_resolution(pixels_num: np.ndarray,
+                                   pixels_size: np.ndarray,
+                                   working_dist: float,
+                                   resolution: float) -> CameraData:
+    """A convencience function to create a camera in Blender from its pixels,
+    the pixel size, the working distance and desired resolution.
+
+    Args:
+        pixels_num (np.ndarray): The number of pixels in the camera in the x
+            and y directions
+        pixels_size (np.ndarray): The size of the pixels in mm in the x and
+            y directions
+        working_dist (float): The working distance of the camera
+        resolution (float): The desired mm/pixel resolution
+
+    Returns:
+        CameraData: A dataclass containing the created camera's parameters
+    """
+    focal_length = focal_length_from_resolution(pixels_size, working_dist, resolution)
+
+    cam_data = CameraData(pixels_num=pixels_num,
+                          pixels_size=pixels_size,
+                          pos_world=(0, 0, working_dist),
+                          roi_cent_world=(0, 0, 0),
+                          focal_length=focal_length)
+    cam = BlenderScene.add_camera(cam_data)
+    return cam_data
+
+def blender_symmetric_stereo(cam_data_0: CameraData, stereo_angle:float) -> CameraData:
+    """A convenience function to set up a symmetric stereo camera system, given
+    an initial CameraData dataclass and a stereo angle. This assumes the basic
+    camera parameters are the same.
+
+    Args:
+        cam_data_0 (CameraData): Dataclass containing camera parameters for
+            single camera.
+        stereo_angle (float): The stereo angle between the two cameras
+
+    Returns:
+        CameraData: A CameraData dataclass for the second camera in the stereo
+            setup
+    """
+    # TODO: Make this so only stereo angle needed
     cam_data_1 = copy.deepcopy(cam_data_0)
+    base = 2 * cam_data_0.pos_world[2] * np.tan(np.radians(stereo_angle) / 2)
 
     cam_data_0.pos_world[0] -= base / 2
     cam_data_1.pos_world[0] += base / 2
@@ -177,8 +242,22 @@ def blender_symmetric_stereo(cam_data_0: CameraData, base:float, stereo_angle:fl
     return cam_data_1
 
 
-def blender_faceon_stereo(cam_data_0: CameraData, base, stereo_angle):
+def blender_faceon_stereo(cam_data_0: CameraData, stereo_angle: float) -> CameraData:
+    """A convenience function to set up a face-on stereo camera system, given
+    an initial CameraData dataclass and a stereo angle. This assumes the basic
+    camera parameters are the same.
+
+    Args:
+        cam_data_0 (CameraData): Dataclass containing camera parameters for
+            single camera.
+        stereo_angle (float): The stereo angle between the two cameras
+
+    Returns:
+        CameraData: A CameraData dataclass for the second camera in the stereo
+            setup
+    """
     cam_data_1 = copy.deepcopy(cam_data_0)
+    base = cam_data_0.pos_world[2] * np.tan(np.radians(stereo_angle))
     cam_data_1.pos_world[0] += base
 
     rotation_angle = (0, np.radians(stereo_angle), 0)

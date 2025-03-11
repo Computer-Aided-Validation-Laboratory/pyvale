@@ -15,23 +15,25 @@ import mooseherder as mh
 import pyvale
 from pyvale.core.cameradata import CameraData
 from pyvale.core.blenderlightdata import BlenderLightData
-from pyvale.core.blendertools import BlenderTools, BlenderError
+from pyvale.core.blendertools import BlenderTools
 from pyvale.core.simtools import SimTools
 from pyvale.core.blendermaterialdata import BlenderMaterialData
-from pyvale.core.camerastereodata import CameraStereoData
 from pyvale.core.blenderrenderdata import RenderData, RenderEngine
 
 # NOTE: This module is a feature under development
 
 class BlenderScene():
-    """Interface (abstract base class) for a scene within Blender.
-
-    #TODO: Add to this
-
+    """Namespace for creating scene within Blender.
+    Methods include adding an object, camera, light and adding a speckle pattern,
+    as well as deforming the object, and then rendering the scene.
     """
 
     @staticmethod
-    def reset_scene():
+    def reset_scene() -> None:
+        """This methods creates a new, empty scene.
+        The units are then set to milimetres, and all nodes are cleared from the
+        scene.
+        """
         bpy.ops.wm.read_factory_settings(use_empty=True)
 
         bpy.context.scene.unit_settings.scale_length = 0.001
@@ -50,6 +52,15 @@ class BlenderScene():
 
     @staticmethod
     def add_camera(cam_data:CameraData):
+        """Method to add a camera data-block within Blender
+
+        Args:
+            cam_data (CameraData): Dataclass containing the necessary parameters
+            to create the camera object in Blender
+
+        Returns:
+            camera: bpy.data.objects['Camera'], the Blender camera object
+        """
         new_cam = bpy.data.cameras.new('Camera')
         camera = bpy.data.objects.new('Camera', new_cam)
         bpy.context.collection.objects.link(camera)
@@ -63,7 +74,7 @@ class BlenderScene():
 
         pixels_num = (int(cam_data.pixels_num[0]), int(cam_data.pixels_num[1]))
         camera['sensor_px'] = pixels_num
-        camera['px_size'] = (cam_data.pixels_size / 1000)
+        camera['px_size'] = cam_data.pixels_size
         camera['k1'] = cam_data.k1
         camera['k2'] = cam_data.k2
         camera['k3'] = cam_data.k3
@@ -74,30 +85,49 @@ class BlenderScene():
 
         new_cam.lens_unit = 'FOV'
         AFOV_x = pyvale.angular_fov(cam_data)
-        new_cam.lens = (cam_data.sensor_size[0] / 1000) / (2 * np.tan(np.radians(AFOV_x) / 2))
-        # new_cam.lens = cam_data.focal_length
+        new_cam.lens = ((cam_data.sensor_size[0]) /
+                        (2 * np.tan(np.radians(AFOV_x) / 2)))
         new_cam.sensor_fit = 'HORIZONTAL'
-        new_cam.sensor_width = cam_data.sensor_size[0] / 1000
-        new_cam.sensor_height = cam_data.sensor_size[1] / 1000
+        new_cam.sensor_width = cam_data.sensor_size[0]
+        new_cam.sensor_height = cam_data.sensor_size[1]
 
-        if cam_data.object_distance is not None:
-            new_cam.dof.focus_distance = cam_data.object_distance
+        if cam_data.fstop is not None:
+            new_cam.dof.focus_distance = cam_data.image_dist
             new_cam.dof.use_dof = True
             new_cam.dof.aperture_fstop = cam_data.fstop
 
         bpy.context.scene.camera = camera
-
-        return camera # Do I need this return?
+        return camera
 
     @staticmethod
     def add_stereo_system(cam_data_0: CameraData, cam_data_1: CameraData):
-        # Can i use method defined in this namespace?
+        """
+        A method to add a stereo camera system within Blender, given two
+        CameraData objects (one for each camera)
+
+        Args:
+            cam_data_0 (CameraData): CameraData dataclass for camera 0
+            cam_data_1 (CameraData): CameraData dataclass for camera 1
+
+        Returns:
+            tuple(cam0, cam1): A tuple of bpy.data.objects['Camera'], Blender
+                camera objects
+        """
         cam0 = BlenderScene.add_camera(cam_data_0)
         cam1 = BlenderScene.add_camera(cam_data_1)
         return cam0, cam1
 
     @staticmethod
     def add_light(light_data: BlenderLightData):
+        """A method to add a light object within Blender
+
+        Args:
+            light_data (BlenderLightData): Dataclass containing the parameters
+            necessary to create a light object within Blender
+
+        Returns:
+            light_ob: bpy.data.objects['Light'], the Blender light object
+        """
         # TODO: Make method compatible for different light types
         type = light_data.type.value
         name = type.capitalize() + 'Light'
@@ -113,7 +143,7 @@ class BlenderScene():
         light_ob.rotation_euler = rotation_euler
 
         light.energy = light_data.energy
-        light.shadow_soft_size = 1.5 # Add to dataclass
+        light.shadow_soft_size = light_data.shadow_soft_size
 
         bpy.context.collection.objects.link(light_ob)
 
@@ -121,6 +151,17 @@ class BlenderScene():
 
     @staticmethod
     def add_part(sim_data: mh.SimData):
+        """A method to add a part mesh into Blender, given a SimData object.
+        This is done by taking the mesh information from the SimData object and
+        converting it into a form that is accepted by Blender.
+
+        Args:
+            sim_data (mh.SimData): A dataclass containing all the information
+            about the mesh and simulation
+
+        Returns:
+            part: bpy.data.objects['Part'], the Blender mesh part object
+        """
         spat_dim = SimTools.get_mesh_spat_dim(sim_data)
         components = SimTools.get_simulation_components(sim_data)
         sim_data.coords = sim_data.coords * 1000 # Change from m to mm
@@ -147,23 +188,46 @@ class BlenderScene():
                     speckle_path: Path | None,
                     mat_data: BlenderMaterialData | None,
                     cam_data: CameraData):
-        # Add way to only take 1 of camera data
-        # Work out way to get FOV if camera is not perp
+        """A method to add a speckle pattern to an existing mesh object within
+        Blender. The speckle pattern can either be passed in as an image file
+        that is saved to the disc, or can be generated dynamically (this is
+        currently not an option but this method has the capaibility to link up
+        to a speckle pattern generator)
+
+        Args:
+            part (bpy.data.objects['Part']): The Blender mesh object
+                speckle_path (Path | None): The speckle pattern image file
+            mat_data (BlenderMaterialData | None): A dataclass containing the
+                material parameters necessary
+            cam_data (CameraData): A dataclass containing the initialisation
+                parameters for the camera object. This is necessary to scale the
+                speckle pattern on the part object for an optimal number of pixels
+                per speckle
+        """
         BlenderTools.clear_material_nodes(part)
         (FOV_x, _) = pyvale.calculate_FOV(cam_data)
         print(f"{FOV_x=}")
         if mat_data is None:
             mat_data = BlenderMaterialData()
-        # TODO: Add option for if speckle_path is None to generate speckle pattern
-        # and add
-        BlenderTools.add_image_texture(mat_data=mat_data, image_path=speckle_path)
+        if speckle_path.exists():
+            BlenderTools.add_image_texture(mat_data=mat_data, image_path=speckle_path)
+        else:
+            speckle_pattern = np.array() # Generate speckle pattern array
+            BlenderTools.add_image_texture(mat_data=mat_data, image_array=speckle_pattern)
         BlenderTools.uv_unwrap_part(part, FOV_x)
-
-
-
 
     @staticmethod
     def deform_all_timesteps(sim_data: mh.SimData, part):
+        """A method to deform the Blender mesh object using the simulation results.
+        This is done by taking the displacements to the nodes, and applying it
+        in Blender
+
+        Args:
+            sim_data (mh.SimData): A dataclass containing the simulation
+                information i.e. the displacements to all the nodes in the mesh
+            part (bpy.data.objects['Part']): The Blender mesh object, which will
+                be deformed
+        """
         timesteps = sim_data.time.shape[0]
         spat_dim = SimTools.get_mesh_spat_dim(sim_data)
         components = SimTools.get_simulation_components(sim_data)
@@ -182,14 +246,23 @@ class BlenderScene():
             if deformed_nodes is not None:
                 BlenderTools.deform_single_timestep(part, deformed_nodes)
                 BlenderTools.set_new_frame(part)
-        # Do I need to return anything from this?
-        # Do I need this function? - Maybe for viewing in Blender?
-
 
     @staticmethod
-    def render_single_image(save: bool, render_data: RenderData):
+    def render_single_image(render_data: RenderData, save: bool | None = True):
+        """A method to render an images(s) of the current scene in Blender.
+        Depending on the number of cameras, either one or two images will be
+        rendered
+
+        Args:
+            save (bool | None, optional): A flag that can be set to True or
+                False to either save rendered image to disk or not.
+                Defaults to True
+            render_data (RenderData): A dataclass containing the parameters
+                needed to render an image
+        """
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
+        bpy.context.scene.render.image_settings.color_depth = '16'
         bpy.context.scene.render.threads_mode = "FIXED"
         bpy.context.scene.render.threads = int(cpu_count())
         bpy.context.scene.render.image_settings.file_format = "TIFF"
@@ -215,7 +288,7 @@ class BlenderScene():
                     bpy.ops.render.render(write_still=True)
                 else:
                     bpy.ops.render.render(write_still=False)
-                    # Add to this
+                    # TODO: Add method to convert rendered image to array
                 cam_count += 1
         else:
             image_count = 0
@@ -227,13 +300,27 @@ class BlenderScene():
                 bpy.ops.render.render(write_still=True)
             else:
                 bpy.ops.render.render(write_still=False)
-                # Add to this
+                # TODO: Add method to convert rendered image to array
 
     @staticmethod
     def render_deformed_images(sim_data: mh.SimData,
                                render_data:RenderData,
                                part,
-                               save: bool | None = False):
+                               save: bool | None = True):
+        """A method to deform the mesh object at all timesteps, and render
+        image(s) at each timestep
+
+        Args:
+            sim_data (mh.SimData): A dataclass containing simulation information
+                such as the part mesh, but also displacements
+            render_data (RenderData): A dataclass containing the parameters
+                necessary to render an image
+            part (bpy.data.objects['Part']): A Blender mesh object which will be
+                deformed
+            save (bool | None, optional): A flag that can be set to True or
+                False to either save rendered image to disk or not.
+                Defaults to True.
+        """
         timesteps = sim_data.time.shape[0]
         spat_dim = SimTools.get_mesh_spat_dim(sim_data)
         components = SimTools.get_simulation_components(sim_data)
@@ -247,6 +334,7 @@ class BlenderScene():
         # Render parameters
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
+        bpy.context.scene.render.image_settings.color_depth = '16'
         bpy.context.scene.render.threads_mode = "FIXED"
         bpy.context.scene.render.threads = int(cpu_count())
         bpy.context.scene.render.image_settings.file_format = "TIFF"
@@ -280,7 +368,7 @@ class BlenderScene():
                             bpy.ops.render.render(write_still=True)
                         else:
                             bpy.ops.render.render(write_still=False)
-                            # Add to this
+                            # TODO: Add method to convert rendered image to array
                         cam_count += 1
                 else:
                     bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
@@ -291,7 +379,7 @@ class BlenderScene():
                         bpy.ops.render.render(write_still=True)
                     else:
                         bpy.ops.render.render(write_still=False)
-                        # Add to this
+                        # TODO: Add method to convert rendered image to array
 
 
 

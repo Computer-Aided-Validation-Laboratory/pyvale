@@ -5,16 +5,12 @@ License: MIT
 Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
-from abc import ABC, abstractmethod
 import numpy as np
 import pyvista as pv
 import mooseherder as mh
 
 class SimTools():
-    """Interface (abstract base class) for tools relating to simulation results
-    within pyvale
-
-    #TODO: Add to this
+    """Namespace 
 
     """
 
