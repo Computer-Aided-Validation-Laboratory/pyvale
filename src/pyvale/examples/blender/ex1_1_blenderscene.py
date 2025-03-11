@@ -35,7 +35,7 @@ def main() -> None:
                                  pos_world=(0, 0, 250),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
-                                 focal_length=15.0)
+                                 focal_length=20.00966651)
     camera = pyvale.BlenderScene.add_camera(cam_data)
 
     # Add the light
@@ -43,7 +43,7 @@ def main() -> None:
                                          pos_world=(0, 0, 200),
                                          rot_world=Rotation.from_euler("xyz",
                                                                        [0, 0, 0]),
-                                         energy=200 * 10**3)
+                                         energy=400 * 10**3)
     light = pyvale.BlenderScene.add_light(light_data)
 
     # Apply the speckle pattern
@@ -59,7 +59,7 @@ def main() -> None:
     # Set this to True to render image of the current scene
     render_image = True
     if render_image is True:
-        save_dir = Path('/home/lorna/pyvale/dev/lsdev/rendered_images')
+        save_dir = Path.cwd() / 'src/pyvale/data/blender_images'
         save_name = 'test'
         render_data = pyvale.RenderData(cam_data=cam_data,
                                         save_dir=save_dir,
@@ -69,7 +69,7 @@ def main() -> None:
 
     # Save Blender file
     # --------------------------------------------------------------------------
-    blender_path = Path('/home/lorna/pyvale/dev/lsdev/blender_files/test_core.blend')
+    blender_path = Path.cwd() / 'src/pyvale/data/blender_files/ex1_1.blend'
     pyvale.BlenderTools.save_blender_file(blender_path, override=True)
 
 if __name__ == "__main__":
