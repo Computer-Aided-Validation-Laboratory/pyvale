@@ -47,7 +47,6 @@ class CameraData:
     c0: float | None = None
     c1: float | None = None
 
-    object_distance: float | None = None
     fstop: float | None = None
 
     sensor_size: np.ndarray = field(init=False)
