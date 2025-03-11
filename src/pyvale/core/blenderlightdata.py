@@ -22,7 +22,9 @@ class BlenderLightData():
     pos_world: np.ndarray
     rot_world: Rotation
     energy: int
+    shadow_soft_size: float | None
 
     def __post_init__(self) -> None:
         self.type = BlenderLightType.POINT
+        self.shadow_soft_size = 1.5
 
