@@ -155,16 +155,6 @@ class BlenderTools():
             obj.active_material = bpy.data.materials["Material"]
 
     @staticmethod
-    def calculate_FOV(cam_data: CameraData):
-        FOV_x = (((cam_data.image_dist - cam_data.focal_length)
-                  / cam_data.focal_length) *
-                  (cam_data.pixels_size / 1000) *
-                  cam_data.pixels_num[0])[0]
-        FOV_y = (cam_data.pixels_num[1] / cam_data.pixels_num[0]) * FOV_x
-        FOV_mm = (FOV_x, FOV_y)
-        return FOV_mm
-
-    @staticmethod
     def generate_calib_file(stereo_data: CameraStereoData,
                             calib_filepath: Path):
         # TODO: Have option to choose filename
