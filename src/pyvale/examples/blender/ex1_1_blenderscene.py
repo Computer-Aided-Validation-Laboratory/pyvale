@@ -31,11 +31,11 @@ def main() -> None:
 
     # Add the camera
     cam_data = pyvale.CameraData(pixels_num=np.array([2464, 2056]),
-                                 pixels_size=np.array([3.45, 3.45]),
-                                 pos_world=(0, 0, 250),
+                                 pixels_size=np.array([0.00345, 0.00345]),
+                                 pos_world=(0, 0, 300),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
-                                 focal_length=20.00966651)
+                                 focal_length=20)
     camera = pyvale.BlenderScene.add_camera(cam_data)
 
     # Add the light

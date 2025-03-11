@@ -31,22 +31,20 @@ def main() -> None:
 
     # Add the stereo camera system
     cam_data_0 = pyvale.CameraData(pixels_num=np.array([2464, 2056]),
-                                 pixels_size=np.array([3.45, 3.45]),
-                                 pos_world=np.array([0, 0, 250]),
+                                 pixels_size=np.array([0.00345, 0.00345]),
+                                 pos_world=np.array([0, 0, 300]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
-                                 focal_length=15.0)
+                                 focal_length=20.0)
     # Set this to "symmetric" to get a symmetric stereo system or set this to
     # "faceon" to get a face-on stereo system
     stereo_system = "symmetric"
     if stereo_system == "symmetric":
         cam_data_1 = pyvale.blender_symmetric_stereo(cam_data_0=cam_data_0,
-                                                 base=35.0,
-                                                 stereo_angle=7.0)
+                                                 stereo_angle=25.0)
     if stereo_system == "faceon":
         cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
-                                                 base=35.0,
-                                                 stereo_angle=7.0)
+                                                 stereo_angle=25.0)
     # Generate calibration file
     stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
     calib_filepath = Path.cwd() / 'src/pyvale/data/'
@@ -74,17 +72,18 @@ def main() -> None:
     # Set this to True to render image of the current scene
     render_image = True
     if render_image is True:
-        save_dir = Path('/home/lorna/pyvale/dev/lsdev/rendered_images/stereo')
-        save_name = 'test'
+        save_dir = Path.cwd() / 'src/pyvale/data/blender_images'
+        save_name = 'ex_2_1'
         render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
                                         save_dir=save_dir,
-                                        save_name=save_name)
+                                        save_name=save_name,
+                                        samples=4)
 
         pyvale.BlenderScene.render_single_image(save=True, render_data=render_data)
 
     # Save Blender file
     # --------------------------------------------------------------------------
-    blender_path = Path('/home/lorna/pyvale/dev/lsdev/blender_files/test_core.blend')
+    blender_path = Path.cwd() / 'src/pyvale/data/blender_files/ex2_1.blend'
     pyvale.BlenderTools.save_blender_file(blender_path, override=True)
 
 if __name__ == "__main__":

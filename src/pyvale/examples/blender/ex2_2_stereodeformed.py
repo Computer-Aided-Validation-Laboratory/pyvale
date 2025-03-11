@@ -31,11 +31,11 @@ def main() -> None:
 
     # Add the stereo camera system
     cam_data_0 = pyvale.CameraData(pixels_num=np.array([2464, 2056]),
-                                 pixels_size=np.array([3.45, 3.45]),
-                                 pos_world=np.array([0, 0, 250]),
+                                 pixels_size=np.array([0.00345, 0.00345]),
+                                 pos_world=np.array([0, 0, 300]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
-                                 focal_length=15.0)
+                                 focal_length=20.0)
     # Set this to "symmetric" to get a symmetric stereo system or set this to
     # "faceon" to get a face-on stereo system
     stereo_system = "symmetric"
@@ -74,7 +74,7 @@ def main() -> None:
     # Set this to True to render image of the deforming part
     render_images = True
     if render_images is True:
-        save_dir = Path('/home/lorna/pyvale/dev/lsdev/rendered_images/deform/stereo')
+        save_dir = Path.cwd() / 'src/pyvale/data/blender_images'
         save_name = 'test'
         render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
                                         save_dir=save_dir,
@@ -90,13 +90,7 @@ def main() -> None:
     # Save Blender file
     # --------------------------------------------------------------------------
     # TODO: Work out where to automatically save things
-    blender_path = Path('/home/lorna/pyvale/dev/lsdev/blender_files/test_deform_stereo.blend')
-    pyvale.BlenderTools.save_blender_file(blender_path, override=True)
-
-
-    # Save Blender file
-    # --------------------------------------------------------------------------
-    blender_path = Path('/home/lorna/pyvale/dev/lsdev/blender_files/test_core.blend')
+    blender_path = Path.cwd() / 'src/pyvale/data/blender_files/ex2_2.blend'
     pyvale.BlenderTools.save_blender_file(blender_path, override=True)
 
 if __name__ == "__main__":

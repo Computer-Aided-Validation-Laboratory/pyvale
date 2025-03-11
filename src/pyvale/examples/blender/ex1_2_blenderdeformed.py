@@ -31,11 +31,11 @@ def main() -> None:
 
     # Add the camera
     cam_data = pyvale.CameraData(pixels_num=np.array([2464, 2056]),
-                                 pixels_size=np.array([3.45, 3.45]),
-                                 pos_world=(0, 0, 250),
+                                 pixels_size=np.array([0.00345, 0.00345]),
+                                 pos_world=(0, 0, 300),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
-                                 focal_length=15.0)
+                                 focal_length=20.0)
     camera = pyvale.BlenderScene.add_camera(cam_data)
 
     # Add the light
@@ -59,7 +59,7 @@ def main() -> None:
     # Set this to True to render image of the deforming part
     render_images = True
     if render_images is True:
-        save_dir = Path('/home/lorna/pyvale/dev/lsdev/rendered_images/deform')
+        save_dir = Path.cwd() / 'src/pyvale/data/blender_images'
         save_name = 'test'
         render_data = pyvale.RenderData(cam_data=cam_data,
                                         save_dir=save_dir,
@@ -75,7 +75,7 @@ def main() -> None:
     # Save Blender file
     # --------------------------------------------------------------------------
     # TODO: Work out where to automatically save things
-    blender_path = Path('/home/lorna/pyvale/dev/lsdev/blender_files/test_deform.blend')
+    blender_path = Path.cwd() / 'src/pyvale/data/blender_files/ex1_2.blend'
     pyvale.BlenderTools.save_blender_file(blender_path, override=True)
 
 if __name__ == "__main__":
