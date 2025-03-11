@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+jupyterlab = "*"
+pyvista = {extras = ["all"], version = "*"}
+pyvale = {file = ".", editable = true}
+mooseherder = {git = "https://github.com/Computer-Aided-Validation-Laboratory/mooseherder.git"}
+numpy = "*"
+matplotlib = "*"
+scipy = "*"
+numba = "*"
+pymoo = "*"
+cython = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"
