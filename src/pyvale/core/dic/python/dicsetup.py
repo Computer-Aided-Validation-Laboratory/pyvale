@@ -19,7 +19,10 @@ extensions = [
                  "../cpp/dicdeformed.cpp",
                  "../cpp/dicengine.cpp",
                  "../cpp/dicinterpolator.cpp",
-                 "../cpp/dicoptimization.cpp"],
+                 "../cpp/diccorrelation.cpp",
+                 "../cpp/dicjacobian.cpp",
+                 "../cpp/dicoptimization.cpp",
+                 "../cpp/diclm.cpp"],
         language="c++",
 
         extra_compile_args=["-O3"],

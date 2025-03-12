@@ -4,9 +4,8 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-
-#ifndef DICCORRELATION_H
-#define DICCORRELATION_H
+#ifndef DICJACOBIAN_H
+#define DICJACOBIAN_H
 
 // STD library Header files
 
@@ -19,12 +18,12 @@
 
 
 
-namespace correlation {
+namespace jacobian {
 
-    int ssd(const gsl_vector *p_gsl, void *data, gsl_vector * f);
-    int nssd(const gsl_vector *p_gsl, void *data, gsl_vector * f);
-    int znssd(const gsl_vector *p_gsl, void *data, gsl_vector * f);
+    int ssd(const gsl_vector *p_gsl, void *data, gsl_matrix *J);
+    int nssd(const gsl_vector *p_gsl, void *data, gsl_matrix *J);
+    int znssd(const gsl_vector *p_gsl, void *data, gsl_matrix *J);
 
 }
 
-#endif //DICCORRELATION_H
+#endif //DICJACOBIAN_H

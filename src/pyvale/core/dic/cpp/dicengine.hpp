@@ -5,6 +5,10 @@
 // ================================================================================
 
 
+#ifndef DICENGINE_H
+#define DICENGINE_H
+
+
 // STD library Header files
 #include <vector>
 #include <iostream>
@@ -41,3 +45,5 @@ namespace dic2d {
                     std::string& interp_routine);
 
 }
+
+#endif //DICENGINE_H

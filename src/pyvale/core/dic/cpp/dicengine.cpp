@@ -17,6 +17,7 @@
 #include "./dicinterpolator.hpp"
 #include "./dicdeformed.hpp"
 #include "./dicoptimization.hpp"
+#include "./diclm.hpp"
 
 
 // #ifdef DEBUG
@@ -27,14 +28,6 @@
 
 
 namespace dic2d {
-
-    
-    std::vector<double> subset_ref;
-    std::vector<double> subset_def;
-    std::vector<double> subset_xvals;
-    std::vector<double> subset_yvals;
-    std::vector<double> p_arr;
-    double ssd_val;
 
     void dicengine(int* image_ref, 
                     int* image_def_stack, 
@@ -48,15 +41,8 @@ namespace dic2d {
                     std::string& shape_func,
                     std::string& interp_routine){
 
-
+        // timer for 2D DIC engine
         auto s0 = std::chrono::high_resolution_clock::now();
-                
-        std::cout << subset_size << std::endl;
-        int subset_num_px = subset_size*subset_size;
-        subset_ref.resize(subset_num_px,0.0);
-        subset_def.resize(subset_num_px,0.0);
-        // LOG("Resizing subset arrays")
-
 
         // need to make a copy of the reference image that has been converted to double for the interpolator
         std::vector<double> image_ref_dbl;
@@ -66,14 +52,18 @@ namespace dic2d {
         gsl_spline2d *spline = interpolation::create_spline(interp_routine, image_ref_dbl, px_horizontal, px_vertical);
 
         // setup the optimizer and pass the already create spline object and accelerators.
-        optimization::init(interp_routine, shape_func, subset_size, px_horizontal, px_vertical, spline);
+        optimization::init(corr_crit, interp_routine, shape_func, subset_size, px_horizontal, px_vertical, spline);
+        gsl_interp_accel *xacc = gsl_interp_accel_alloc();
+        gsl_interp_accel *yacc = gsl_interp_accel_alloc();
 
 
-        // deformed image array
+        // image and subset arrays
         std::vector<double> image_def(px_vertical*px_horizontal,0.0);
-        std::vector<double> subset_def(subset_num_px,0.0);
-        std::vector<double> subset_def_coords_x(subset_num_px,0.0);
-        std::vector<double> subset_def_coords_y(subset_num_px,0.0);
+        std::vector<double> subset_def(subset_size*subset_size,0.0);
+        std::vector<double> subset_def_coords_x(subset_size*subset_size,0.0);
+        std::vector<double> subset_def_coords_y(subset_size*subset_size,0.0);
+
+        lm::init(subset_size*subset_size);
 
 
         // loop over deformed images
@@ -96,6 +86,9 @@ namespace dic2d {
                                                    subset_def_coords_y, ss_x, ss_y, subset_size, 
                                                    px_horizontal, px_vertical);
 
+
+                    // lm::loop(subset_def, subset_def_coords_x, subset_def_coords_y, spline, xacc, yacc, subset_size*subset_size);
+
                     // update the optimization routine with the subset values
                     optimization::set_data(subset_def_coords_x, subset_def_coords_y, subset_def);
 
@@ -110,6 +103,8 @@ namespace dic2d {
             }
         }
 
+
+        // get end time and calculate DIC duration
         auto f0 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> e0 = f0 - s0;
         std::cout << e0.count() << std::endl;
