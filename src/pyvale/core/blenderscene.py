@@ -187,7 +187,8 @@ class BlenderScene():
     def add_speckle(part,
                     speckle_path: Path | None,
                     mat_data: BlenderMaterialData | None,
-                    cam_data: CameraData):
+                    cam_data: CameraData,
+                    cal: bool = False):
         """A method to add a speckle pattern to an existing mesh object within
         Blender. The speckle pattern can either be passed in as an image file
         that is saved to the disc, or can be generated dynamically (this is
@@ -214,7 +215,7 @@ class BlenderScene():
         else:
             speckle_pattern = np.array() # Generate speckle pattern array
             BlenderTools.add_image_texture(mat_data=mat_data, image_array=speckle_pattern)
-        BlenderTools.uv_unwrap_part(part, FOV_x)
+        BlenderTools.uv_unwrap_part(part, FOV_x, cal)
 
     @staticmethod
     def deform_all_timesteps(sim_data: mh.SimData, part):
