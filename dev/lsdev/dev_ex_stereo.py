@@ -23,6 +23,7 @@ def main() -> None:
         data_path = Path('src/pyvale/data/case' + str(simcase) + '_out.e')
     else:
         data_path = Path('src/pyvale/simcases/case' + str(simcase) + '_out.e')
+    # data_path = Path('/home/lorna/pyvale/dev/lsdev/stereobenchmarks/mechplate2d_hydro_out.e')
     data_reader = mh.ExodusReader(data_path)
     sim_data = data_reader.read_all_sim_data()
 
@@ -50,13 +51,15 @@ def main() -> None:
     scene.set_part_location(part=part, location=part_location)
     scene.set_part_rotation(part=part, rotation=part_rotation)
 
-    sensor_px = (2464, 2056)
-    cam_position = (0, 0, 250)
+    sensor_px = (1280, 960)
+    cam_position = (0, 0, 400)
     focal_length = 15.0
     cam_data_0 = CameraData(sensor_px=sensor_px,
                           position=cam_position,
                           focal_length=focal_length,
-                          part_dimension=part.dimensions)
+                          part_dimension=part.dimensions,
+                          px_size= 3.75)
+    print(f"{cam_data_0=}")
     cam_data_1 = cam_data_0
     calib_filepath = Path.cwd() / 'dev/lsdev/rendered_images/Stereo DIC/cal'
     stereo_data = StereoData(cam_data_0=cam_data_0,
@@ -66,6 +69,7 @@ def main() -> None:
                              calib_file=True,
                              calib_filepath=calib_filepath)
     scene.add_stereo_system(stereo_data, scene)
+    print(f"{cam_data_0=}")
 
     type = LightType.POINT
     light_position = (0, 0, 200)
@@ -85,8 +89,8 @@ def main() -> None:
     #---------------------------------------------------------------------------
     # Set up rendering
     render_start_time = time.perf_counter()
-    image_path = Path.cwd() / 'dev/lsdev/rendered_images/Stereo DIC/cal/'
-    output_path = Path.cwd() / 'dev/lsdev/rendered_images/Stereo DIC/cal/'
+    image_path = Path.cwd() / 'dev/lsdev/rendered_images/Stereo DIC/'
+    output_path = Path.cwd() / 'dev/lsdev/rendered_images/Stereo DIC/'
     render_data = RenderData(samples=4)
 
 

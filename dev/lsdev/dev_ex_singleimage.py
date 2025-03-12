@@ -39,26 +39,27 @@ def main() -> None:
     part_rotation = (0, 0, 0)
 
     # part, pv_surf, spat_dim, components = scene.add_part(sim_data=sim_data)
-    part = scene.add_mesh_part(sim_data=sim_data)
+    part = scene.add_mesh_part(sim_data=sim_data, triangulate=False)
     scene.set_part_location(part=part, location=part_location)
     scene.set_part_rotation(part=part, rotation=part_rotation)
 
     # print(f"{pv_surf.faces.shape=}")
     # print(f"{pv_surf.n_cells=}")
 
-    sensor_px = (2464, 2056)
-    cam_position = (0, 0, 250)
-    focal_length = 15.0
+    sensor_px = (2056, 2464)
+    cam_position = (0, 0, 400)
+    focal_length = 20.0
     cam_data = CameraData(sensor_px=sensor_px,
                           position=cam_position,
                           focal_length=focal_length,
-                          part_dimension=part.dimensions)
+                          part_dimension=part.dimensions,
+                          px_size=3.45)
 
     camera = scene.add_camera(cam_data)
 
     type = LightType.POINT
     light_position = (0, 0, 200)
-    energy = 200 * (10)**3
+    energy = 400 * (10)**3
     light_data = LightData(type=type,
                            position=light_position,
                            energy=energy,
@@ -73,7 +74,7 @@ def main() -> None:
 
     # Rendering images
     # --------------------------------------------------------------------------
-    render_images = False # Set to True to render images
+    render_images = True # Set to True to render images
     image_path = Path.cwd() / 'dev/lsdev/rendered_images'
     output_path = image_path / 'output.txt'
 

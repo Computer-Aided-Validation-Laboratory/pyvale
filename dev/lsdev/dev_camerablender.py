@@ -96,10 +96,11 @@ class CameraBlender():
         else:
             camera['c1'] = self.camera_data.c1
 
-        # new_cam.lens_unit = 'FOV' # Set using FOV instead of focal length as using focal length doesn't work
-        # FOV = self._calc_FOV_angle()
-        # new_cam.lens = self.sensor_size[0] / (2 * m.tan(m.radians(FOV) / 2)) # Need to set lens FOV like this as Blender recalculates
-        new_cam.lens = self.camera_data.focal_length
+        new_cam.lens_unit = 'FOV' # Set using FOV instead of focal length as using focal length doesn't work
+        FOV = self._calc_FOV_angle()
+        print(f"{FOV=}")
+        new_cam.lens = self.sensor_size[0] / (2 * m.tan(m.radians(FOV) / 2)) # Need to set lens FOV like this as Blender recalculates
+        # new_cam.lens = self.camera_data.focal_length
         new_cam.sensor_width = self.sensor_size[0]
         new_cam.sensor_height = self.sensor_size[1]
 

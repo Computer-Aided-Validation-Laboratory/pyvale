@@ -89,18 +89,18 @@ class Render:
 
         # render_result = next(image for image in bpy.data.images if image.type == "RENDER_RESULT")
 
-        render_result = bpy.data.images['Render Result']
+        # render_result = bpy.data.images['Render Result']
 
-        gpu_tex = gpu.texture.from_image(render_result)
-        fbo = gpu.types.GPUFrameBuffer(color_slots=(gpu_tex,))
+        # gpu_tex = gpu.texture.from_image(render_result)
+        # fbo = gpu.types.GPUFrameBuffer(color_slots=(gpu_tex,))
 
-        buffer_np = np.empty(gpu_tex.width * gpu_tex.height * 4, dtype=np.float32)
-        buffer = bgl.Buffer(bgl.GL_FLOAT, buffer_np.shape, buffer_np)
-        with fbo.bind():
-            bgl.glReadBuffer(bgl.GL_BACK)
-            bgl.glReadPixels(0, 0, gpu_tex.width, gpu_tex.height, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
+        # buffer_np = np.empty(gpu_tex.width * gpu_tex.height * 4, dtype=np.float32)
+        # buffer = bgl.Buffer(bgl.GL_FLOAT, buffer_np.shape, buffer_np)
+        # with fbo.bind():
+        #     bgl.glReadBuffer(bgl.GL_BACK)
+        #     bgl.glReadPixels(0, 0, gpu_tex.width, gpu_tex.height, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
 
-            print(f"{buffer_np=}")
+        #     print(f"{buffer_np=}")
 
     def render_image(self,
                      name: int,
