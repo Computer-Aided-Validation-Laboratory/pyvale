@@ -10,11 +10,15 @@ import numpy as np
 from pathlib import Path
 from scipy.spatial.transform import Rotation
 from PIL import Image
+from multiprocessing import cpu_count
 import bpy
+import pyvale
 import mooseherder as mh
 from pyvale.core.cameradata import CameraData
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.camerastereodata import CameraStereoData
+from pyvale.core.blenderrenderdata import RenderData, RenderEngine
+from pyvale.core.blendercalibration import CalibrationData
 
 
 # NOTE: This module is a feature under development
@@ -276,6 +280,73 @@ class BlenderTools():
             file.write(f"Theta [deg];{stereo_rotation[0]}\n")
             file.write(f"Phi [deg];{stereo_rotation[1]}\n")
             file.write(f"Psi [deg];{stereo_rotation[2]}")
+
+    def calibration_images(render_data: RenderData,
+                           calibration_data: CalibrationData,
+                           part):
+        # Render parameters
+        bpy.context.scene.render.engine = render_data.engine.value
+        bpy.context.scene.render.image_settings.color_mode = "BW"
+        bpy.context.scene.render.image_settings.color_depth = '16'
+        bpy.context.scene.render.threads_mode = "FIXED"
+        bpy.context.scene.render.threads = int(cpu_count())
+        bpy.context.scene.render.image_settings.file_format = "TIFF"
+
+        if render_data.engine == RenderEngine.CYCLES:
+            bpy.context.scene.cycles.samples = render_data.samples
+            bpy.context.scene.cycles.max_bounces = render_data.max_bounces
+            bpy.context.scene.cycles.use_denoising = False # Only turned off to make rendering faster
+        elif render_data.engine == RenderEngine.EEVEE:
+            bpy.context.scene.eevee.taa_render_samples = render_data.samples
+
+        render_counter = 0
+        for plunge in range(calibration_data.plunge_lims[0],
+                            calibration_data.plunge_lims[1],
+                            calibration_data.plunge_step):
+            # Plunge
+            (FOV_x, FOV_y) = pyvale.calculate_FOV(render_data.cam_data[0])
+            x_limit = int(round((FOV_x / 2) - (part.dimensions[0] / 2)))
+            print(f"{part.dimensions=}")
+            print(f"{x_limit=}")
+            y_limit = int(round((FOV_y / 2) - (part.dimensions[1] / 2)))
+
+            for x in np.arange(-1, 2):
+                x *= x_limit
+                # Move in x-dir
+                for y in np.arange(-1, 2):
+                    y *= y_limit
+                    # Move in y-dir
+                    part.location = ((x, y, plunge))
+                    part.location[2] = plunge
+                    for angle in range(calibration_data.angle_lims[0],
+                                       (calibration_data.angle_lims[1] + calibration_data.angle_step),
+                                       calibration_data.angle_step):
+                        # Rotate around x-axis
+                        rotation  = (np.radians(angle), 0, 0)
+                        part.rotation_mode = 'XYZ'
+                        part.rotation_euler = rotation
+                        for angle in range(calibration_data.angle_lims[0],
+                            calibration_data.angle_lims[1],
+                            calibration_data.angle_step):
+                            # Rotate around y-axis
+                            rotation  = (0, np.radians(angle), 0)
+                            part.rotation_mode = 'XYZ'
+                            part.rotation_euler = rotation
+
+                            if isinstance(render_data.cam_data, tuple):
+                                cam_count = 0
+                                for cam in [obj for obj in bpy.data.objects if obj.type == "CAMERA"]:
+                                    bpy.context.scene.camera = cam
+                                    cam_data_render = render_data.cam_data[cam_count]
+                                    bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
+                                    bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
+                                    filename = render_data.save_name + "_" + str(render_counter) + "_" + str(cam_count) + ".tiff"
+                                    bpy.context.scene.render.filepath = str(render_data.save_dir / filename)
+                                    bpy.ops.render.render(write_still=True)
+                                    cam_count += 1
+                            render_counter += 1
+        print('Total number of calibration images = ' + str(render_counter))
+
 
 
 
