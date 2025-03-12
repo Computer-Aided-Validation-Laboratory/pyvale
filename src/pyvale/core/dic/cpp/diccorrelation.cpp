@@ -104,45 +104,69 @@ namespace correlation {
 
     int nssd(const gsl_vector *p_gsl, void *data, gsl_vector * f) {
 
+        std::cout << "NSSD" << std::endl;
+
         optimization::Data* costdata = static_cast<optimization::Data*>(data);
+        std::vector<double>& subset_coords_x = costdata->subset_coords_x;
+        std::vector<double>& subset_coords_y = costdata->subset_coords_y;
+        std::vector<double>& subset_values = costdata->subset_values;
+        gsl_spline2d* spline = costdata->spline;   // Access spline
+        gsl_interp_accel* xacc = costdata->xacc;    // Access x acceleration
+        gsl_interp_accel* yacc = costdata->yacc;    // Access y acceleration
+        int px_vertical = costdata->px_vertical;
+        int px_horizontal = costdata->px_horizontal;
+        int p_length = costdata->p_length;
 
         // get shape function parameter values
-        double p[costdata->p_length];
-        for (int i = 0; i < costdata->p_length; i++){
+        double p[p_length];
+        for (int i = 0; i < p_length; i++){
             p[i] = gsl_vector_get(p_gsl,i);
         }
         
-        const size_t n = costdata->subset_values.size();
+        const size_t n = subset_values.size();
 
 
         // squared sum of pixel values for the deformed subset
-        double sum_squared = 0.0;
+        double sum_squared_def = 0.0;
+        double sum_squared_ref = 0.0;
+        // sum of squared values in deformed subset
         for (size_t i = 0; i < n; ++i) {
-            sum_squared += costdata->subset_values[i] * costdata->subset_values[i];
         }
 
-        // 1 over the gray level sum. Prevents multiple divisions when calculation of correlation criteria.
-        double inv_sum_squared = 1.0 / sum_squared;
-        
-        // loop over pixels in the subset
+        std::vector<double> transformed_vals(n, 0.0);
         for (size_t i = 0; i < n; ++i) {
 
-            double x = costdata->subset_coords_x[i];
-            double y = costdata->subset_coords_y[i];
-            
-            // Affine
-            double x_new = p[0] + (1 + p[2]) * x + p[3] * y; // x-coordinate
-            double y_new = p[1] + (1 + p[5]) * y + p[4] * x; // y-coordinate
+            double x = subset_coords_x[i];
+            double y = subset_coords_y[i];
+
+            double x_new = p[0] + (1 + p[2]) * x + p[3] * y;
+            double y_new = p[1] + (1 + p[5]) * y + p[4] * x;
 
             // prevent out of bounds - set cost function to massive value if out of bounds
             // this will be replaced with an ROI at some point
-            if (x_new < 0 || x_new > costdata->px_horizontal || y_new < 0 || y_new > costdata->px_vertical) {
+            if (x_new < 0 || x_new > px_horizontal || y_new < 0 || y_new > px_vertical) {
                 gsl_vector_set(f, i, 1.0e6);
+                return GSL_SUCCESS;
             }
             else {
-                double diff =  costdata->subset_values[i] - gsl_spline2d_eval(costdata->spline, x_new, y_new, costdata->xacc, costdata->yacc);
-                gsl_vector_set(f, i, (diff * inv_sum_squared));
+                transformed_vals[i] = gsl_spline2d_eval(spline, x_new, y_new, xacc, yacc);
             }
+
+            sum_squared_def += subset_values[i] * subset_values[i];
+            sum_squared_ref += transformed_vals[i] * transformed_vals[i];
+
+        }
+
+
+        // 1 over the gray level sum. Prevents multiple divisions when calculation of correlation criteria.
+        double inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
+        double inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
+
+
+        // loop over pixels in the subset
+        for (size_t i = 0; i < n; ++i) {
+            double diff =  (subset_values[i] * inv_sum_squared_def) - (transformed_vals[i] * inv_sum_squared_ref);
+            gsl_vector_set(f, i, diff);
 
         }
 
