@@ -154,94 +154,84 @@ namespace jacobian {
     }
 
 
-    int znssd(const gsl_vector *p_gsl, void *data, gsl_matrix * f) {
+    int znssd(const gsl_vector *p_gsl, void *data, gsl_matrix *J) {
 
-        std::cout << "ZNSSD jacobian doesn't work. Issues with the maths. Exiting" << std::endl;
-        exit(0);
+        optimization::Data* jacdata = static_cast<optimization::Data*>(data);
 
-        // optimization::Data* jacdata = static_cast<optimization::Data*>(data);
-
-        // // get shape function parameter values
-        // double p[jacdata->p_length];
-        // for (int i = 0; i < jacdata->p_length; i++){
-        //     p[i] = gsl_vector_get(p_gsl,i);
-        // }
-        
-        // const size_t n = jacdata->subset_values.size();
+        std::vector<double>& subset_coords_x = jacdata->subset_coords_x;
+        std::vector<double>& subset_coords_y = jacdata->subset_coords_y;
+        gsl_spline2d* spline = jacdata->spline;
+        gsl_interp_accel* xacc = jacdata->xacc;
+        gsl_interp_accel* yacc = jacdata->yacc;
+        int px_vertical = jacdata->px_vertical;
+        int px_horizontal = jacdata->px_horizontal;
+        int p_length = jacdata->p_length;
 
 
-        // // mean values of reference and deformed subset
-        // double mean_def = 0.0;
-        // double mean_ref = 0.0;
+        double p[p_length];
+        for (int j = 0; j < p_length; j++) {
+            p[j] = gsl_vector_get(p_gsl, j);
+        }
 
-        // // store the interpolated values in a std::vector<double> (need to access them multiple times)
-        // std::vector<double> transformed_vals(n, 0.0);
+        const size_t n = subset_coords_y.size();
 
-        // //get the mean values
-        // for (size_t i = 0; i < n; ++i) {
+        // squared sum of pixel values for the deformed subset
+        double mean_ref = 0.0;
+        std::vector<double> transformed_vals(n, 0.0);
+        std::vector<double> x_new(n, 0.0);
+        std::vector<double> y_new(n, 0.0);
+        std::vector<double> df_dx(n, 0.0);
+        std::vector<double> df_dy(n, 0.0);
 
-        //     double x = jacdata->subset_coords_x[i];
-        //     double y = jacdata->subset_coords_y[i];
+        for (size_t i = 0; i < n; ++i) {
 
-        //     double x_new = p[0] + (1 + p[2]) * x + p[3] * y;
-        //     double y_new = p[1] + (1 + p[5]) * y + p[4] * x;
+            double x = subset_coords_x[i];
+            double y = subset_coords_y[i];
 
-        //     transformed_vals[i] = gsl_spline2d_eval(jacdata->spline, x_new, y_new, jacdata->xacc, jacdata->yacc);
+            x_new[i] = p[0] + (1 + p[2]) * x + p[3] * y;
+            y_new[i] = p[1] + (1 + p[5]) * y + p[4] * x;
 
-        //     mean_ref += transformed_vals[i];
-        //     mean_def += jacdata->subset_values[i];
-        // }
+            // prevent out of bounds - set cost function to massive value if out of bounds
+            // this will be replaced with an ROI at some point
+            if (x_new[i] < 0 || x_new[i] > px_horizontal || y_new[i] < 0 || y_new[i] > px_vertical) {
+                for (int j = 0; j < p_length; ++j) {
+                    gsl_matrix_set(J, i, j, 1.0e6);
+                }
+                return GSL_SUCCESS;
+            }
+            else {
 
-        // // normalise the mean values
-        // mean_def /= n;
-        // mean_ref /= n;
+                transformed_vals[i] = gsl_spline2d_eval(spline, x_new[i], y_new[i], xacc, yacc);
+                mean_ref += transformed_vals[i];
 
-        // // (f(x,y) - f_mean)**2
-        // double sum_squared_ref = 0.0;
-        // double sum_squared_def = 0.0;
-        // for (size_t i = 0; i < n; ++i) {
-        //     sum_squared_def += (jacdata->subset_values[i] -  mean_def) * (jacdata->subset_values[i] -  mean_def);
-        //     sum_squared_ref += (transformed_vals[i] - mean_ref) * (transformed_vals[i] - mean_ref);
-        // }
+                df_dx[i] = gsl_spline2d_eval_deriv_x(spline, x_new[i], y_new[i], xacc, yacc);
+                df_dy[i] = gsl_spline2d_eval_deriv_y(spline, x_new[i], y_new[i], xacc, yacc);
 
-        // // 1.0 / (f(x,y) - f_mean)**2
-        // double inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
-        // double inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
+            }
+        }
 
+        mean_ref /= n;
 
-        // // loop over pixels in the subset
-        // for (size_t i = 0; i < n; ++i) {
+        double sum_squared_ref = 0.0;
+        for (size_t i = 0; i < n; ++i) {
+            sum_squared_ref += (transformed_vals[i] - mean_ref) * (transformed_vals[i] - mean_ref);
+        }
 
-        //     double x = jacdata->subset_coords_x[i];
-        //     double y = jacdata->subset_coords_y[i];
-            
-        //     // Affine
-        //     double x_new = p[0] + (1 + p[2]) * x + p[3] * y; // x-coordinate
-        //     double y_new = p[1] + (1 + p[5]) * y + p[4] * x; // y-coordinate
+        // 1 over the gray level sum. Prevents multiple divisions when calculation of correlation criteria.
+        double inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
 
-        //     // partial derivatives derivatives 
-        //     double df_dx = gsl_spline2d_eval_deriv_x(jacdata->spline, x_new, y_new, jacdata->xacc, jacdata->yacc);
-        //     double df_dy = gsl_spline2d_eval_deriv_y(jacdata->spline, x_new, y_new, jacdata->xacc, jacdata->yacc);
+        for (size_t i = 0; i < n; ++i) {
+    
+            // Compute partial derivatives of r_i with respect to parameters
+            gsl_matrix_set(J, i, 0, -df_dx[i] * inv_sum_squared_ref);
+            gsl_matrix_set(J, i, 1, -df_dy[i] * inv_sum_squared_ref);
+            gsl_matrix_set(J, i, 2, -df_dx[i] * x_new[i] * inv_sum_squared_ref);
+            gsl_matrix_set(J, i, 3, -df_dx[i] * y_new[i] * inv_sum_squared_ref);
+            gsl_matrix_set(J, i, 4, -df_dy[i] * x_new[i] * inv_sum_squared_ref);
+            gsl_matrix_set(J, i, 5, -df_dy[i] * y_new[i] * inv_sum_squared_ref);
+        }
 
-        //     double norm_def = inv_sum_squared_def * (jacdata->subset_values[i] - mean_def);
-        //     double norm_ref = inv_sum_squared_ref * (transformed_vals[i] - mean_ref);
-
-
-        //     // prevent out of bounds - set cost function to massive value if out of bounds
-        //     // this will be replaced with an ROI at some point
-        //     if (x_new < 0 || x_new > jacdata->px_horizontal || y_new < 0 || y_new >  jacdata->px_vertical) {
-        //         gsl_vector_set(f, i, 1.0e6);
-        //     }
-        //     else {
-        //         double diff =  inv_sum_squared_def * (jacdata->subset_values[i] - mean_def) -
-        //                     inv_sum_squared_ref * (transformed_vals[i] - mean_ref);
-
-        //         gsl_vector_set(f, i, (diff * diff));
-        //     }
-
-        // }
-
-        // return GSL_SUCCESS;
+        return GSL_SUCCESS;
 
     }
 
