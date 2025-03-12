@@ -18,7 +18,7 @@ from pyvale.core.cameradata import CameraData
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.camerastereodata import CameraStereoData
 from pyvale.core.blenderrenderdata import RenderData, RenderEngine
-from pyvale.core.blendercalibration import CalibrationData
+from pyvale.core.blendercalibrationdata import CalibrationData
 
 
 # NOTE: This module is a feature under development

@@ -41,12 +41,10 @@ def main() -> None:
     stereo_system = "symmetric"
     if stereo_system == "symmetric":
         cam_data_1 = pyvale.blender_symmetric_stereo(cam_data_0=cam_data_0,
-                                                 base=35.0,
-                                                 stereo_angle=7.0)
+                                                 stereo_angle=20.0)
     if stereo_system == "faceon":
         cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
-                                                 base=35.0,
-                                                 stereo_angle=7.0)
+                                                 stereo_angle=20.0)
     # Generate calibration file
     stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
     calib_filepath = Path.cwd() / 'src/pyvale/data/'

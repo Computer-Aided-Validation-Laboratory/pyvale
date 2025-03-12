@@ -60,7 +60,7 @@ def main() -> None:
     render_image = True
     if render_image is True:
         save_dir = Path.cwd() / 'src/pyvale/data/blender_images'
-        save_name = 'test'
+        save_name = 'ex_1_1'
         render_data = pyvale.RenderData(cam_data=cam_data,
                                         save_dir=save_dir,
                                         save_name=save_name)
