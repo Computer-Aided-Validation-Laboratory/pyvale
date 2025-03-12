@@ -24,7 +24,8 @@ class DIC2D:
                  subset_size: int=21,
                  correlation_criteria: str="ZNSSD",
                  shape_function: str="affine",
-                 interpolation_routine: str="bicubic"):
+                 interpolation_routine: str="bicubic",
+                 scanning_method: str="RG"):
 
         self.image_ref = reference_image
         self.image_def = deformed_images
@@ -34,6 +35,7 @@ class DIC2D:
         self.corr_crit = correlation_criteria
         self.shape_func = shape_function
         self.interp = interpolation_routine
+        self.scanning_method = scanning_method
 
 
 
@@ -50,7 +52,8 @@ class DIC2D:
                                            self.subset_size,
                                            self.corr_crit,
                                            self.shape_func,
-                                           self.interp)
+                                           self.interp,
+                                           self.scanning_method)
 
 
 

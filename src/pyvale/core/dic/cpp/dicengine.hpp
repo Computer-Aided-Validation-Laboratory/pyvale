@@ -42,7 +42,11 @@ namespace dic2d {
                     int subset_size,
                     std::string& corr_crit, 
                     std::string& shape_func,
-                    std::string& interp_routine);
+                    std::string& interp_routine,
+                    std::string& scan_method);
+
+    void image_scan(int px_horizontal, int px_vertical, int subset_size, int subset_step);
+    void reliability_guided(int px_horizontal, int px_vertical, int subset_size, int subset_step);
 
 }
 

@@ -217,8 +217,4 @@ namespace correlation {
 
     }
 
-
-  
-
-
 }

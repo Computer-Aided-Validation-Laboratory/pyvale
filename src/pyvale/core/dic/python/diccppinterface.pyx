@@ -29,7 +29,8 @@ cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
                     int subset_size,
                     string& corr_crit, 
                     string& shape_func,
-                    string& interp_routine)
+                    string& interp_routine,
+                    string& scan_method)
 
 
 # A wrapper function to call the C++ function from Python
@@ -40,7 +41,8 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                       int subset_size,                    
                       str correlation_criteria,
                       str shape_function,
-                      str interpolation_routine):
+                      str interpolation_routine,
+                      str scanning_method):
 
     print("sorting c++ variables...")
 
@@ -65,6 +67,7 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
     cdef string corr_crit = correlation_criteria.encode('utf-8')
     cdef string shape_func = shape_function.encode('utf-8')
     cdef string interp_routine = interpolation_routine.encode('utf-8')
+    cdef string scan_method = scanning_method.encode('utf-8')
     print("sorting c++ variables...")
 
     print("about to call cpp code...")
@@ -80,7 +83,8 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                subset_size,
                corr_crit, 
                shape_func,
-               interp_routine)
+               interp_routine,
+               scan_method)
 
 
 
