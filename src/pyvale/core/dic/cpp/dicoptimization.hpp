@@ -43,11 +43,12 @@ namespace optimization {
         }
     };
 
-    void init(std::string &corr_crit, std::string &interp_routine, std::string &shape_func, int subset_size, int px_horizontal, int px_vertical, gsl_spline2d *spline);
+    void init(int num_images, int num_subsets, std::string &corr_crit, std::string &interp_routine, std::string &shape_func, int subset_size, int px_horizontal, int px_vertical, gsl_spline2d *spline);
     int cost_function(const gsl_vector *p_gsl, void *data, gsl_vector * f);
     int jacobian_function(const gsl_vector *p_gsl, void *data, gsl_matrix *J);
     void set_data(std::vector<double> &subset_coords_x,std::vector<double> &subset_coords_y, std::vector<double> &subset);
     void execute(bool seed=true, double xtol=1e-15, double gtol=1e-20,double ftol=1e-15,int max_iter=100);
+    void collect_results(int n_img, int n_ss, int subset_num, int subset_x, int subset_y);
     void print_results(int ss_x, int ss_y);
 
 }

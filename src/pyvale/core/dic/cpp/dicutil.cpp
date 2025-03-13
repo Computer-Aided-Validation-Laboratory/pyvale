@@ -18,7 +18,7 @@
 
 
 
-namespace deformed {
+namespace util {
 
 
     void extract_image(std::vector<double> &image_def,
@@ -70,4 +70,16 @@ namespace deformed {
             }
         }
     }
-}
+
+
+    int get_num_subsets(int edge, int px_horizontal, int px_vertical, int subset_step){
+
+        int n_subsets = 0;
+        for (int ss_y = edge; ss_y < px_vertical-edge; ss_y+=subset_step){
+            for (int ss_x = edge; ss_x < px_horizontal-edge; ss_x+=subset_step){
+                n_subsets++;
+            }
+        }
+        return n_subsets;
+    }
+}   

@@ -16,7 +16,7 @@ extensions = [
         name="diccppinterface",
 
         sources=["diccppinterface.pyx",
-                 "../cpp/dicdeformed.cpp",
+                 "../cpp/dicutil.cpp",
                  "../cpp/dicengine.cpp",
                  "../cpp/dicinterpolator.cpp",
                  "../cpp/diccorrelation.cpp",

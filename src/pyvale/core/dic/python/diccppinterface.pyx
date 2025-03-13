@@ -17,7 +17,6 @@ from icecream import ic
 from libcpp.vector cimport vector
 
 
-# Declare a C++ function signature using `cdef extern`
 cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
     void dicengine(int* image_ref, 
                     int* image_def, 
@@ -32,6 +31,9 @@ cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
                     string& interp_routine,
                     string& scan_method)
 
+cdef extern from "../cpp/dicoptimization.hpp" namespace "optimization":
+    void collect_results(int *ss_coords, int* u, int* v, int* p)
+
 
 # A wrapper function to call the C++ function from Python
 def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
@@ -44,33 +46,23 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                       str interpolation_routine,
                       str scanning_method):
 
-    print("sorting c++ variables...")
-
-
     # typed memoryviews for the image arrays
     cdef int[:, ::1] image_ref = reference_image
     cdef int[:, ::1] image_roi = roi_mask
     cdef int[:, :, ::1] image_def = deformed_images
-    print("sorting c++ variables...")
-
 
     # the the image dimensions and the number of deformed images
     cdef int px_vertical = reference_image.shape[0]
     cdef int px_horizontal = reference_image.shape[1]
     cdef int num_def_images = deformed_images.shape[0]
-    print("Number of Deformed Images: ", deformed_images.shape[0])
-    print("sorting c++ variables...")
 
 
     # other arguments needed for C++ DIC routine
-    print(correlation_criteria,shape_function,interpolation_routine)
     cdef string corr_crit = correlation_criteria.encode('utf-8')
     cdef string shape_func = shape_function.encode('utf-8')
     cdef string interp_routine = interpolation_routine.encode('utf-8')
     cdef string scan_method = scanning_method.encode('utf-8')
-    print("sorting c++ variables...")
 
-    print("about to call cpp code...")
 
     # call c++ 2D DIC engine
     dicengine(&image_ref[0,0],
@@ -87,6 +79,26 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                scan_method)
 
 
+    # collecting the results
+    n_images = deformed_images.shape[0]
+    n_subsets = 1234
+
+
+    ss_coords = np.zeros((2,n_subsets), dtype=np.int32)
+    u_arr = np.zeros((n_images, n_subsets), dtype=np.float64)
+    v_arr = np.zeros((n_images, n_subsets), dtype=np.float64)
+    niter = np.zeros((n_images, n_subsets), dtype=np.int32)
+    p_arr = np.zeros((n_images, 6, n_subsets), dtype=np.float64)
+
+    # memoryviews
+    cdef int[:, ::1] c_ss_coords = ss_coords
+    cdef int[:, ::1] c_niter = niter
+    cdef double[:, ::1] c_u_arr = u_arr
+    cdef double[:, ::1] c_v_arr = v_arr
+    cdef double[:, :, ::1] c_p_arr = p_arr
+
+    print("here")
+    # collect_results(&c_ss_coords[0,0], &c_u[0,0], &c_v[0,0], &c_p[0,0,0], &c_niter[0,0])
 
     # # starting timer
     # time_start_loop = time.perf_counter()

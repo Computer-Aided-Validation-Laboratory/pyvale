@@ -25,7 +25,7 @@ class DIC2D:
                  correlation_criteria: str="ZNSSD",
                  shape_function: str="affine",
                  interpolation_routine: str="bicubic",
-                 scanning_method: str="RG"):
+                 scanning_method: str="image_scan"):
 
         self.image_ref = reference_image
         self.image_def = deformed_images

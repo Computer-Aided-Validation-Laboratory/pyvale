@@ -5,15 +5,16 @@
 // ================================================================================
 
 
-#ifndef DICDEFORMED_H
-#define DICDEFORMED_H
+#ifndef DICUTIL_H
+#define DICUTIL_H
 
 // STD library Header files
 #include <vector>
 
 
 
-namespace deformed {
+namespace util {
+
     void extract_image(std::vector<double> &image_def,
                        int *image_def_stack, 
                        int image_number,
@@ -30,6 +31,8 @@ namespace deformed {
                         int px_horizontal, 
                         int px_vertical);
 
+    int get_num_subsets(int edge, int px_horizontal, int px_vertical, int subset_step);
+
 }
 
-#endif //DICDEFORMED
+#endif //DICUTIL

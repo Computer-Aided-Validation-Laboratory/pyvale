@@ -18,7 +18,7 @@
 
 // Program Header files
 #include "./dicinterpolator.hpp"
-#include "./dicdeformed.hpp"
+#include "./dicutil.hpp"
 #include "./dicoptimization.hpp"
 
 
@@ -45,8 +45,8 @@ namespace dic2d {
                     std::string& interp_routine,
                     std::string& scan_method);
 
-    void image_scan(int px_horizontal, int px_vertical, int subset_size, int subset_step);
-    void reliability_guided(int px_horizontal, int px_vertical, int subset_size, int subset_step);
+    void image_scan(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step);
+    void reliability_guided(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step);
 
 }
 

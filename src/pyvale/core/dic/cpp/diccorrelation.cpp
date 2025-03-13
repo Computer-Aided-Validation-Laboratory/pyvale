@@ -46,7 +46,7 @@ namespace correlation {
 
             double x = subset_coords_x[i];
             double y = subset_coords_y[i];
-            
+
             // Affine
             double x_new = p[0] + (1 + p[2]) * x + p[3] * y; // x-coordinate
             double y_new = p[1] + (1 + p[5]) * y + p[4] * x; // y-coordinate
@@ -97,6 +97,7 @@ namespace correlation {
         }
 
         std::vector<double> transformed_vals(n, 0.0);
+        bool out_of_bounds = false;
         for (size_t i = 0; i < n; ++i) {
 
             double x = subset_coords_x[i];
@@ -108,8 +109,8 @@ namespace correlation {
             // prevent out of bounds - set cost function to massive value if out of bounds
             // this will be replaced with an ROI at some point
             if (x_new < 0 || x_new > px_horizontal || y_new < 0 || y_new > px_vertical) {
-                gsl_vector_set(f, i, 1.0e6);
-                return GSL_SUCCESS;
+                out_of_bounds = true;
+                break;
             }
             else {
                 transformed_vals[i] = gsl_spline2d_eval(spline, x_new, y_new, xacc, yacc);
@@ -120,17 +121,24 @@ namespace correlation {
 
         }
 
+        if (out_of_bounds) {
+            for (size_t i = 0; i < n; ++i) {
+                gsl_vector_set(f, i, 1.0e6);
+            }
+        }
+        else {
+        
+            // 1 over the gray level sum. Prevents multiple divisions when calculation of correlation criteria.
+            double inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
+            double inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
 
-        // 1 over the gray level sum. Prevents multiple divisions when calculation of correlation criteria.
-        double inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
-        double inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
 
+            // loop over pixels in the subset
+            for (size_t i = 0; i < n; ++i) {
+                double diff =  (subset_values[i] * inv_sum_squared_def) - (transformed_vals[i] * inv_sum_squared_ref);
+                gsl_vector_set(f, i, diff);
 
-        // loop over pixels in the subset
-        for (size_t i = 0; i < n; ++i) {
-            double diff =  (subset_values[i] * inv_sum_squared_def) - (transformed_vals[i] * inv_sum_squared_ref);
-            gsl_vector_set(f, i, diff);
-
+            }
         }
 
         return GSL_SUCCESS;
@@ -165,6 +173,7 @@ namespace correlation {
 
         // store the interpolated values in a std::vector<double> (need to access them multiple times)
         std::vector<double> transformed_vals(n, 0.0);
+        bool out_of_bounds = false;
 
         //get the mean values
         for (size_t i = 0; i < n; ++i) {
@@ -177,11 +186,11 @@ namespace correlation {
 
             // prevent out of bounds - set cost function to massive value if out of bounds
             // this will be replaced with an ROI at some point
-            if (x_new < 0 || x_new > px_horizontal || y_new < 0 || y_new >  px_vertical) {
-                gsl_vector_set(f, i, 1.0e6);
-                return GSL_SUCCESS;
+            if (x_new < 0 || x_new > px_horizontal || y_new < 0 || y_new > px_vertical) {
+                out_of_bounds = true;
+                break;
             }
-            else{
+            else {
                 transformed_vals[i] = gsl_spline2d_eval(spline, x_new, y_new, xacc, yacc);
             }
 
@@ -189,29 +198,37 @@ namespace correlation {
             mean_def += subset_values[i];
 
         }
-
-        // normalise the mean values
-        mean_def /= n;
-        mean_ref /= n;
-
-        // (f(x,y) - f_mean)**2
-        double sum_squared_ref = 0.0;
-        double sum_squared_def = 0.0;
-        for (size_t i = 0; i < n; ++i) {
-            sum_squared_def += (subset_values[i] -  mean_def) * (subset_values[i] -  mean_def);
-            sum_squared_ref += (transformed_vals[i] - mean_ref) * (transformed_vals[i] - mean_ref);
+        
+        
+        if (out_of_bounds) {
+            for (size_t i = 0; i < n; ++i) {
+                gsl_vector_set(f, i, 1.0e6);
+            }
         }
+        else {
+        
+            // normalise the mean values
+            mean_def /= n;
+            mean_ref /= n;
 
-        // 1.0 / (f(x,y) - f_mean)**2
-        double inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
-        double inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
+            // (f(x,y) - f_mean)**2
+            double sum_squared_ref = 0.0;
+            double sum_squared_def = 0.0;
+            for (size_t i = 0; i < n; ++i) {
+                sum_squared_def += (subset_values[i] -  mean_def) * (subset_values[i] -  mean_def);
+                sum_squared_ref += (transformed_vals[i] - mean_ref) * (transformed_vals[i] - mean_ref);
+            }
 
-        // loop over pixels in the subset and calculate residual 
-        for (size_t i = 0; i < n; ++i) {
-            double diff =  inv_sum_squared_def * (subset_values[i] - mean_def) - inv_sum_squared_ref * (transformed_vals[i] - mean_ref);
-            gsl_vector_set(f, i, diff);
+            // 1.0 / (f(x,y) - f_mean)**2
+            double inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
+            double inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
+
+            // loop over pixels in the subset and calculate residual 
+            for (size_t i = 0; i < n; ++i) {
+                double diff =  inv_sum_squared_def * (subset_values[i] - mean_def) - inv_sum_squared_ref * (transformed_vals[i] - mean_ref);
+                gsl_vector_set(f, i, diff);
+            }
         }
-
 
         return GSL_SUCCESS;
 

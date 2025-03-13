@@ -121,7 +121,6 @@ namespace jacobian {
                 for (int j = 0; j < p_length; ++j) {
                     gsl_matrix_set(J, i, j, 1.0e6);
                 }
-                return GSL_SUCCESS;
             }
             else {
 

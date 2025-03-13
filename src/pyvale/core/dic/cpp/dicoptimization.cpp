@@ -35,11 +35,11 @@ namespace optimization {
     int info;
     int p_length;
 
+    std::vector<double> p;
+    std::vector<int> niter;
+    std::vector<int> ss_coords;
 
-
-
-
-    void init(std::string &corr_crit, std::string &interp_routine, std::string &shape_function, int subset_size, int px_horizontal, int px_vertical, gsl_spline2d *spline){
+    void init(int num_images, int num_subsets, std::string &corr_crit, std::string &interp_routine, std::string &shape_function, int subset_size, int px_horizontal, int px_vertical, gsl_spline2d *spline){
 
         // function pointer depending on user specified correlation criteria;
         int (*costfunc_ptr)(const gsl_vector *, void *, gsl_vector *);
@@ -89,7 +89,7 @@ namespace optimization {
         optData.subset_coords_y.resize(subset_size*subset_size, 0.0);
         optData.subset_values.resize(subset_size*subset_size, 0.0);
         optData.px_horizontal = px_horizontal;
-        optData.px_vertical = px_horizontal;
+        optData.px_vertical = px_vertical;
         optData.p_length = p_length;
 
 
@@ -103,6 +103,12 @@ namespace optimization {
 
         // alloc mem for multifit
         w = gsl_multifit_nlinear_alloc(gsl_multifit_nlinear_trust, &fdf_params, subset_size*subset_size, p_length);
+
+
+        // resize output arrays
+        p.resize(num_images*num_subsets*6);
+        niter.resize(num_images*num_subsets);
+        ss_coords.resize(num_subsets);
 
     } 
 
@@ -145,11 +151,7 @@ namespace optimization {
 
 
 
-    void execute(bool seed, 
-                 double xtol, 
-                 double gtol,
-                 double ftol,
-                 int max_iter){
+    void execute(bool seed, double xtol, double gtol,double ftol,int max_iter){
 
         // if seed has been selected as true use the previous iterations to set the values of P.
         if (seed){
@@ -160,6 +162,23 @@ namespace optimization {
         gsl_multifit_nlinear_init(p_arr, &fdf, w);
         gsl_multifit_nlinear_driver(max_iter, xtol, gtol, ftol, NULL, NULL, &info, w);
     }
+
+
+    void collect_results(int n_img, int n_ss, int subset_num, int subset_x, int subset_y){
+
+        p[n_img*n_ss + subset_num*6 + 0] = gsl_vector_get(w->x, 0);
+        p[n_img*n_ss + subset_num*6 + 1] = gsl_vector_get(w->x, 1);
+        p[n_img*n_ss + subset_num*6 + 2] = gsl_vector_get(w->x, 2);
+        p[n_img*n_ss + subset_num*6 + 3] = gsl_vector_get(w->x, 3);
+        p[n_img*n_ss + subset_num*6 + 4] = gsl_vector_get(w->x, 4);
+        p[n_img*n_ss + subset_num*6 + 5] = gsl_vector_get(w->x, 5);
+        niter[n_img*n_ss] = gsl_multifit_nlinear_niter(w);
+        ss_coords[n_ss*2 + 0] = subset_x;
+        ss_coords[n_ss*2 + 1] = subset_y;
+    }
+
+
+
 
     void print_results(int ss_x, int ss_y){
         std::cout << "results: " << " ";
