@@ -8,6 +8,7 @@
 // STD library Header files
 #include <vector>
 #include <iostream>
+#include <iomanip>
 #include <chrono>
 
 
@@ -32,10 +33,13 @@ namespace lm {
     std::vector<double> subset_ref;
     std::vector<double> subset_ref_x;
     std::vector<double> subset_ref_y;
-    std::vector<double> gradient(6, 0.0);
-    std::vector<double> hessian(36,0.0);
+    std::vector<double> q(6, 0.0);
+    std::vector<std::vector<double>> H(6, std::vector<double>(6, 0.0));
+    std::vector<std::vector<double>> invH(6, std::vector<double>(6, 0.0));
     std::vector<double> dfdp(6,0.0);
-    double lambda = 0.1;
+    double lambda = 0.01;
+    double tol = 0.001;
+    double dp_mag;
 
     double inv_sum_squared_def;
     double inv_sum_squared_ref;
@@ -61,120 +65,58 @@ namespace lm {
                  gsl_interp_accel* yacc,
                  int n){
 
-            // std::cout << __FILE__ << " " << __LINE__ << std::endl;
-            std::cout << "==============================================================" << std::endl;
+        // std::cout << __FILE__ << " " << __LINE__ << std::endl;
+        // std::cout << "==============================================================" << std::endl;
 
-            // initialise p values
-            p[0] = -0.0;
-            p[1] = 0.0;
-            // p[2] = 0.0;
-            // p[3] = 0.0;
-            // p[4] = 0.0;
-            // p[5] = 0.0;
+        // initialise p values
+        // p[0] = 0.0;
+        // p[1] = 0.0;
+        // p[2] = 0.0;
+        // p[3] = 0.0;
+        // p[4] = 0.0;
+        // p[5] = 0.0;
 
-            std::cout << "p:      " << std::endl;
-            for (int i = 0; i < 6; i++){
-                std::cout << p[i] << " ";
-            }
-            std::cout << std::endl;
-            std::cout << std::endl;
+        // std::cout << "p:      " << std::endl;
+        // for (int i = 0; i < 6; i++){
+        //     std::cout << p[i] << " ";
+        // }
+        // std::cout << std::endl;
+        // std::cout << std::endl;
 
-            // std::cout << __FILE__ << " " << __LINE__ << std::endl;
-            int iter = 0;
-            // some kind of loop
-            for (int l = 0; l < 5000; l++){
-            // std::cout << __FILE__ << " " << __LINE__ << std::endl;
+        int iter = 0;
 
-            // get parameters associated with the deformed subset
+        // some kind of loop
+        for (int l = 0; l < 20; l++){
 
-            subset_def_params(subset_def, n);
-            // std::cout << __FILE__ << " " << __LINE__ << std::endl;
-
-            // get parameters assosciated with the reference subset.
-            // includes subset values and coords based on interpolation
-            subset_ref_params(p, subset_def_x, subset_def_y, spline, xacc, yacc, n);
-
-            //checking def and ref subset values
-            // for (int i = 0; i < n; i++){
-            //     std::cout << subset_def[i] << " " << subset_ref[i] << std::endl;
-            // }
-            // std::cout << std::endl;
-
-
-            // std::cout << __FILE__ << " " << __LINE__ << std::endl;
-            // calculate the gradient 
-            calculate_gradient(subset_def, spline, xacc, yacc, n);
-
-
-            std::cout << "gradient: " << std::endl;
-            for (int i = 0; i < 6; i++){
-                std::cout << gradient[i] << " ";
-            }
-            std::cout << std::endl;
-            std::cout << std::endl;
-
-
-            // std::cout << __FILE__ << " " << __LINE__ << std::endl;
-            // calculate the hessian 
+            calculate_q(subset_def, subset_def_x, subset_def_y,spline, xacc, yacc, n);
             calculate_hessian();
-
-            int count = 0;
-            std::cout << "hessian: " << std::endl;
-            for (int i = 0; i < 6; i++){
-                for (int j = 0; j < 6; j++){
-                    std::cout << hessian[count] << " ";
-                    count++;
-                }
-                std::cout << std::endl;
-            }
-            std::cout << std::endl;
-
-
-            // calculate delta p
             calculate_deltap();
-            std::cout << "dp:     ";
-            for (int i = 0; i < 6; i++){
-                std::cout << dp[i] << " ";
-            }
-            std::cout << std::endl;
-            std::cout << std::endl;
-
-
-            costfunc_p = 0.0;
             calculate_costfunc_p(subset_ref, subset_def, n);
-
-            std::cout << "costfunc_p:" << std::endl;
-            std::cout << costfunc_p << std::endl;
-            std::cout << std::endl;
-
-            costfunc_pdp = 0.0;
             calculate_costfunc_pdp(subset_def, subset_def_x, subset_def_y, spline, xacc, yacc, n);
-            std::cout << "costfunc_pdp:" << std::endl;
-            std::cout << costfunc_pdp << std::endl;
-            std::cout << std::endl;
+            
 
-            std::cout << "lambda:" << std::endl;
-            std::cout << lambda << std::endl;
-            std::cout << std::endl;
 
             if (costfunc_p < costfunc_pdp){
-                lambda *= 5.0;
-                iter++;
+                lambda *= 10.0;
             }
             else{
-                lambda *= 0.01;
-                iter++;
+                lambda *= 0.1;
                 // initialise p values
                 for (int i = 0; i < 6; i++){
                     p[i] = pdp[i];
                 }
             }
 
-
-            // std::cout << p[0] << " " << p[1] << std::endl;
-            std::cout << iter << " " << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << " " << p[4] << " " << p[5] << std::endl;
-            std::cout << "==============================================================" << std::endl;
-
+            iter++;
+            // std::cout << iter << " " << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << " " << p[4] << " " << p[5] << std::endl;
+            
+            // get magnitude of deltap
+            dp_mag = sqrt(dp[0]*dp[0] + dp[1]*dp[1] + dp[2]*dp[2] + dp[3]*dp[3] + dp[4]*dp[4] + dp[5]*dp[5]);
+            // std::cout << dp_mag << std::endl;
+            if (dp_mag < tol) {
+                std::cout << iter << " " << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << " " << p[4] << " " << p[5] << "\n";
+                break;
+            }
             
         }
 
@@ -183,168 +125,84 @@ namespace lm {
 
 
     }
-    
 
-
-    void subset_def_params(std::vector<double> &subset_def, int n){
-
-        mean_def = 0.0;
-        
-        //get the mean values
-        for (int i = 0; i < n; ++i) {
-            mean_def += subset_def[i];
-        }
-
-        // normalise the mean values
-        mean_def /= n;
-        std::cout << "mean_def:" << std::endl;
-        std::cout << mean_def << std::endl;
-        std::cout << std::endl;
-
-        // (f(x,y) - f_mean)**2
-        double sum_squared_def = 0.0;
-        for (int i = 0; i < n; ++i) {
-            sum_squared_def += (subset_def[i] -  mean_def) * (subset_def[i] -  mean_def);
-        }
-
-        // 1.0 / (d(x,y) - d_mean)**2
-        inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
-
-        std::cout << "inv_sum_squared_def:" << std::endl;
-        std::cout << inv_sum_squared_def << std::endl;       
-        std::cout << std::endl;
-
-    }
-    
-
-
-
-    void subset_ref_params(std::vector<double> &p,
-                           std::vector<double> &subset_def_x, 
-                           std::vector<double> &subset_def_y, 
-                           gsl_spline2d* spline,
-                           gsl_interp_accel* xacc,
-                           gsl_interp_accel* yacc,
-                           int n){
-
-
-        mean_ref = 0.0;
-
-        //get the mean values
-        for (int i = 0; i < n; ++i) {
-
-            double x = subset_def_x[i];
-            double y = subset_def_y[i];
-
-            subset_ref_x[i] = p[0] + (1 + p[2]) * x + p[3] * y;
-            subset_ref_y[i] = p[1] + (1 + p[5]) * y + p[4] * x;
-
-            // subset_ref_x[i] = p[0] + x;
-            // subset_ref_y[i] = p[1] + y;
-
-
-            // std::cout << x << " " << y << " " << subset_ref_x[i] << " " << subset_ref_y[i] << std::endl;
-
-            subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
-            mean_ref += subset_ref[i];
-        }
-
-        // normalise the mean values
-        mean_ref /= n;
-
-        std::cout << "mean_ref:" << std::endl;
-        std::cout << mean_ref << std::endl;
-        std::cout << std::endl;
-
-        // (f(x,y) - f_mean)**2
-        double sum_squared_ref = 0.0;
-        for (int i = 0; i < n; ++i) {
-            sum_squared_ref += (subset_ref[i] - mean_ref) * (subset_ref[i] - mean_ref);
-        }
-
-        inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
-        std::cout << "inv_sum_squared_ref:" << std::endl;
-        std::cout << inv_sum_squared_ref << std::endl;
-        std::cout << std::endl;
-
-    }
-
-
-
-    void calculate_gradient(
+    void calculate_q(
                  std::vector<double> &subset_def,
+                    std::vector<double> &subset_coords_x, 
+                    std::vector<double> &subset_coords_y, 
                  gsl_spline2d* spline,
                  gsl_interp_accel* xacc,
                  gsl_interp_accel* yacc,
                  int n){
 
         // reset gradient values
-        gradient[0] = 0.0;
-        gradient[1] = 0.0;
-        gradient[2] = 0.0;
-        gradient[3] = 0.0;
-        gradient[4] = 0.0;
-        gradient[5] = 0.0;
-        dfdp[0] = 0.0;
-        dfdp[1] = 0.0;
-        dfdp[2] = 0.0;
-        dfdp[3] = 0.0;
-        dfdp[4] = 0.0;
-        dfdp[5] = 0.0;
+        std::fill(q.begin(), q.end(), 0.0);
+        std::fill(dfdp.begin(), dfdp.end(), 0.0);
+
+        double x, y, df_dx, df_dy;
 
         // loop over the subset values
         for (int i = 0; i < n; i++){
 
-            double prefactor  = -2.0 * inv_sum_squared_ref * ((subset_def[i] - mean_def) * inv_sum_squared_def - (subset_ref[i] - mean_ref) * inv_sum_squared_ref);
-            // std::cout << i << " " << prefactor << std::endl;
+            x = subset_coords_x[i];
+            y = subset_coords_y[i];
 
-            double df_dx = gsl_spline2d_eval_deriv_x(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
-            double df_dy = gsl_spline2d_eval_deriv_y(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            subset_ref_x[i] = p[0] + (1 + p[2]) * x + p[3] * y;
+            subset_ref_y[i] = p[1] + (1 + p[5]) * y + p[4] * x;
+            subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+
+            df_dx = gsl_spline2d_eval_deriv_x(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            df_dy = gsl_spline2d_eval_deriv_y(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
             
-            dfdp[0] += df_dx;
-            dfdp[1] += df_dy;
-            dfdp[2] += df_dx * subset_ref_x[i];
-            dfdp[3] += df_dx * subset_ref_y[i];
-            dfdp[4] += df_dy * subset_ref_x[i];
-            dfdp[5] += df_dy * subset_ref_y[i];
+            dfdp[0] = df_dx;
+            dfdp[1] = df_dy;
+            dfdp[2] = df_dx * subset_ref_x[i];
+            dfdp[3] = df_dx * subset_ref_y[i];
+            dfdp[4] = df_dy * subset_ref_x[i];
+            dfdp[5] = df_dy * subset_ref_y[i];
 
-            gradient[0] += prefactor * df_dx;
-            gradient[1] += prefactor * df_dy;
-            gradient[2] += prefactor * df_dx * subset_ref_x[i];
-            gradient[3] += prefactor * df_dx * subset_ref_y[i];
-            gradient[4] += prefactor * df_dy * subset_ref_x[i];
-            gradient[5] += prefactor * df_dy * subset_ref_y[i];
+            // Update Hessian matrix - utilize symmetry
+            for (int row = 0; row < 6; row++) {
+                for (int col = row; col < 6; col++) {
+                    H[row][col] += dfdp[row] * dfdp[col];
+                    if (row != col) {
+                        H[col][row] = H[row][col];
+                    }
+                }
+            }
 
+
+            double residual = (subset_ref[i] - subset_def[i]);
+            q[0] += residual * df_dx;
+            q[1] += residual * df_dy;
+            q[2] += residual * df_dx * subset_ref_x[i];
+            q[3] += residual * df_dx * subset_ref_y[i];
+            q[4] += residual * df_dy * subset_ref_x[i];
+            q[5] += residual * df_dy * subset_ref_y[i];
+        }
+
+        // Update Hessian matrix - utilize symmetry
+        for (int diag = 0; diag < 6; diag++) {
+            H[diag][diag] += lambda * H[diag][diag];
         }
     }
 
     void calculate_hessian(){
-
-        double const_term = 2.0 * inv_sum_squared_ref * inv_sum_squared_ref;
-
-        // calculate the hessian
-        int count = 0;
-        for (int row = 0; row < 6; row++){
-            for (int col = 0; col < 6; col++){
-
-                hessian[count] =  const_term * dfdp[row] * dfdp[col];
-                
-                if (row == col){
-                    hessian[count] += lambda * hessian[count];
-                }
-
-                count++;
-            }
-        }
-    } 
+        // for (int row = 0; row < 6; row++){
+        //     for (int col = 0; col < 6; col++){
+        //         H[row][col] = dfdp[row] * dfdp[col];
+        //     }
+        // }
+    }
 
     void calculate_costfunc_p(std::vector<double> &subset_ref, std::vector<double> &subset_def, int n){
-
+        costfunc_p = 0.0;
         for (int i = 0; i < n; i++){
 
             double term_def = (subset_def[i] - mean_def) * inv_sum_squared_def;
             double term_ref = (subset_ref[i] - mean_ref) * inv_sum_squared_ref;
-            costfunc_p += (term_def - term_ref) * (term_def - term_ref);
+            // costfunc_p += (term_def - term_ref) * (term_def - term_ref);
+            costfunc_p += (subset_ref[i] - subset_def[i]) * (subset_ref[i] - subset_def[i]);
 
         }
     }
@@ -353,8 +211,8 @@ namespace lm {
                                 gsl_spline2d *spline, gsl_interp_accel* xacc, gsl_interp_accel* yacc, int n){
 
         
-        // mean values of reference and deformed subset
         mean_ref = 0.0;
+        costfunc_pdp = 0.0;
 
         //get the mean values
         for (int i = 0; i < n; ++i) {
@@ -366,49 +224,47 @@ namespace lm {
             subset_ref_x[i] = pdp[0] + (1 + pdp[2]) * x + pdp[3] * y;
             subset_ref_y[i] = pdp[1] + (1 + pdp[5]) * y + pdp[4] * x;
 
-            // rigid
-            // subset_ref_x[i] = pdp[0] + x;
-            // subset_ref_y[i] = pdp[1] + y;
-
-            // std::cout << x << " " << y << " " << subset_ref_x[i] << " " << subset_ref_y[i] << std::endl;
-
-            if (subset_ref_x[i] < 0 || subset_ref_x[i] > 199 || subset_ref_y[i] < 0 || subset_ref_y[i] > 199) {
-                    costfunc_pdp = 1.0e7;
+            if (subset_ref_x[i] < 0 || subset_ref_x[i] > 1040 || subset_ref_y[i] < 0 || subset_ref_y[i] > 1540) {
+                    costfunc_pdp = 1.0e9;
                     return;
             }
 
 
             subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
             mean_ref += subset_ref[i];
-        }
 
-        // normalise the mean values
-        mean_ref /= n;
-
-        // (f(x,y) - f_mean)**2
-        double sum_squared_ref = 0.0;
-        for (int i = 0; i < n; ++i) {
-            sum_squared_ref += (subset_ref[i] - mean_ref) * (subset_ref[i] - mean_ref);
-        }
-
-         inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
-
-        for (int i = 0; i < n; i++){
-
-            double term_def = (subset_def[i] - mean_def) * inv_sum_squared_def;
-            double term_ref = (subset_ref[i] - mean_ref) * inv_sum_squared_ref;
-
-            costfunc_pdp += (term_def - term_ref) * (term_def - term_ref);
+            costfunc_pdp += (subset_ref[i] - subset_def[i]) * (subset_ref[i] - subset_def[i]);
 
         }
     }
 
     void calculate_deltap() {
 
-        Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>> mat(hessian.data());
+        // Eigen::Matrix<double, 6, 6> mat;
+        // for (int i = 0; i < 6; i++) {
+        //     for (int j = 0; j < 6; j++) {
+        //         mat(i, j) = H[i][j];
+        //     }
+        // }
+        // Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>> mat(hessian.data());
+
 
         // Compute inverse
-        Eigen::Matrix<double, 6, 6> invMat = mat.inverse();
+        // Eigen::Matrix<double, 6, 6> invH = mat.inverse();
+
+        invertMatrix(H, invH);
+
+        // int count = 0;
+        // std::cout << "inverse H: " << std::endl;
+        // for (int i = 0; i < 6; i++){
+        //     for (int j = 0; j < 6; j++){
+        //         std::cout << invH(i,j) << " ";
+        //         // std::cout << inverse[i][j] << " ";
+        //         count++;
+        //     }
+        //     std::cout << std::endl;
+        // }
+        // std::cout << std::endl;
 
         dp[0] = 0.0;
         dp[1] = 0.0;
@@ -420,15 +276,89 @@ namespace lm {
         // multiply inverse with gradient
         for (int i = 0; i < 6; ++i) {
             for (int j = 0; j < 6; ++j) {
-                dp[i] +=  -1.0 * invMat(i,j) * gradient[j];
+                // dp[i] +=  1.0 * invH(i,j) * q[j];
+                dp[i] +=  1.0 * invH[i][j] * q[j];
             }
         }
 
         // add p to delta p
         for (int i = 0; i < 6; ++i) {
-            pdp[i] = p[i] + dp[i];
+            pdp[i] = p[i] - dp[i];
         }
 
+    }
+
+
+
+        // Function to perform matrix inversion using Gaussian elimination
+    bool invertMatrix(const std::vector<std::vector<double>>& matrix, std::vector<std::vector<double>>& inverse) {
+        int n = 6;
+
+        // Create an augmented matrix: [matrix | identity matrix]
+        std::vector<std::vector<double>> augmented(n, std::vector<double>(2 * n));
+        
+        // Initialize augmented matrix with matrix on the left and identity on the right
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                augmented[i][j] = matrix[i][j];
+                augmented[i][j + n] = (i == j) ? 1.0 : 0.0;
+            }
+        }
+
+        // Perform Gaussian elimination
+        for (int i = 0; i < n; ++i) {
+            // Search for maximum in this column (pivoting)
+            double maxEl = abs(augmented[i][i]);
+            int maxRow = i;
+            for (int k = i + 1; k < n; ++k) {
+                if (abs(augmented[k][i]) > maxEl) {
+                    maxEl = abs(augmented[k][i]);
+                    maxRow = k;
+                }
+            }
+
+            // Swap maximum row with current row
+            if (i != maxRow) {
+                swap(augmented[i], augmented[maxRow]);
+            }
+
+            // Make the pivot element 1 by dividing the row by the pivot element
+            double pivot = augmented[i][i];
+            if (pivot == 0) {
+                return false; // Singular matrix, can't invert
+            }
+
+            for (int j = 0; j < 2 * n; ++j) {
+                augmented[i][j] /= pivot;
+            }
+
+            // Make the elements below the pivot 0
+            for (int k = i + 1; k < n; ++k) {
+                double factor = augmented[k][i];
+                for (int j = 0; j < 2 * n; ++j) {
+                    augmented[k][j] -= augmented[i][j] * factor;
+                }
+            }
+        }
+
+        // Perform back substitution to eliminate entries above the pivot
+        for (int i = n - 1; i >= 0; --i) {
+            for (int k = i - 1; k >= 0; --k) {
+                double factor = augmented[k][i];
+                for (int j = 0; j < 2 * n; ++j) {
+                    augmented[k][j] -= augmented[i][j] * factor;
+                }
+            }
+        }
+
+        // Extract the inverse matrix from the augmented matrix
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                inverse[i][j] = augmented[i][j + n];
+            }
+        }
+
+        return true;
     }
 
 

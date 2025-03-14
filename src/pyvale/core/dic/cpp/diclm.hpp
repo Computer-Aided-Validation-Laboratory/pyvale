@@ -46,8 +46,10 @@ namespace lm {
                            int n);
 
 
-    void calculate_gradient(
-                 std::vector<double> &subset_def,
+    void calculate_q(
+                 std::vector<double> &subset_def,                           \
+                 std::vector<double> &subset_coords_x, 
+                 std::vector<double> &subset_coords_y, 
                  gsl_spline2d* spline,
                  gsl_interp_accel* xacc,
                  gsl_interp_accel* yacc,
@@ -60,6 +62,9 @@ namespace lm {
     void calculate_costfunc_pdp(std::vector<double> &subset_def, std::vector<double> &subset_def_x, std::vector<double> &subset_def_y,
                                 gsl_spline2d *spline, gsl_interp_accel* xacc, gsl_interp_accel* yacc, int n);
     void calculate_deltap();
+
+    bool invertMatrix(const std::vector<std::vector<double>>& matrix, std::vector<std::vector<double>>& inverse);
+
 }
 
 #endif //DICLM_H
