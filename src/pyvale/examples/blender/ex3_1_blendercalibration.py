@@ -30,9 +30,9 @@ def main() -> None:
     pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
 
     # Add the camera
-    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
+    cam_data_0 = pyvale.CameraData(pixels_num=np.array([2464, 2056]),
                                  pixels_size=np.array([0.00345, 0.00345]),
-                                 pos_world=np.array([0, 0, 400]),
+                                 pos_world=np.array([0, 0, 300]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
                                  focal_length=20)
@@ -41,10 +41,10 @@ def main() -> None:
     stereo_system = "faceon"
     if stereo_system == "symmetric":
         cam_data_1 = pyvale.blender_symmetric_stereo(cam_data_0=cam_data_0,
-                                                 stereo_angle=20.0)
+                                                 stereo_angle=15.0)
     if stereo_system == "faceon":
         cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
-                                                 stereo_angle=20.0)
+                                                 stereo_angle=15.0)
 
     # Add the light
     light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
@@ -72,7 +72,7 @@ def main() -> None:
                                     save_dir=save_dir,
                                     save_name=save_name,
                                     samples=4)
-    calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
+    calibration_data = pyvale.CalibrationData(angle_lims=(-6, 6),
                                               angle_step=10,
                                               plunge_lims=(-5, 5),
                                               plunge_step=5)
