@@ -23,48 +23,23 @@
 
 namespace lm {
 
-    void init(int n);
+    void init(std::string &, std::string &, int);
 
-    void loop(std::vector<double> &subset_def,
-                 std::vector<double> &subset_def_x,
-                 std::vector<double> &subset_def_y,
-                 gsl_spline2d *spline,
-                 gsl_interp_accel* xacc,
-                 gsl_interp_accel* yacc,
-                 int n);
-    
-
-
-    void subset_def_params(std::vector<double> &subset_def, int n);
-    
-    void subset_ref_params(std::vector<double> &p,
-                           std::vector<double> &subset_coords_x, 
-                           std::vector<double> &subset_coords_y, 
-                           gsl_spline2d* spline,
-                           gsl_interp_accel* xacc,
-                           gsl_interp_accel* yacc,
-                           int n);
-
-
-    void calculate_q(
-                 std::vector<double> &subset_def,                           \
-                 std::vector<double> &subset_coords_x, 
-                 std::vector<double> &subset_coords_y, 
-                 gsl_spline2d* spline,
-                 gsl_interp_accel* xacc,
-                 gsl_interp_accel* yacc,
-                 int n);
-
-    void calculate_hessian();
-
-    void calculate_costfunc_p(std::vector<double> &subset_ref, std::vector<double> &subset_def, int n);
-
-    void calculate_costfunc_pdp(std::vector<double> &subset_def, std::vector<double> &subset_def_x, std::vector<double> &subset_def_y,
-                                gsl_spline2d *spline, gsl_interp_accel* xacc, gsl_interp_accel* yacc, int n);
-    void calculate_deltap();
+    void  solve(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);
+    void    ssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);
+    void   nssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);
+    void  znssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);
 
     bool invertMatrix(const std::vector<std::vector<double>>& matrix, std::vector<std::vector<double>>& inverse);
+    void new_shape_func_params(std::vector<double> &pdp, std::vector<std::vector<double>> &invH, std::vector<double> &gradient);
 
+    // shape functions and their derivatives with respect to optimization parameters
+    void affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    void rigid(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    void quad(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
+    void drigid_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
+    void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
 }
 
 #endif //DICLM_H

@@ -68,14 +68,16 @@ namespace dic2d {
         std::vector<double> image_ref_dbl;
         image_ref_dbl.assign(image_ref, image_ref + px_vertical*px_horizontal);
 
-        // define our interpolator for the reference image
+        // define our interpolator for the reference imageu
         gsl_spline2d *spline = interpolation::create_spline(interp_routine, image_ref_dbl, px_horizontal, px_vertical);
 
         // setup the optimizer and pass the already create spline object and accelerators.
         optimization::init(num_def_images, n_subsets, corr_crit, interp_routine, shape_func, subset_size, px_horizontal, px_vertical, spline);
 
         // initialise the LM optimizer that I have been writing
-        // lm::init(subset_size*subset_size);
+        lm::init(corr_crit, shape_func, subset_size);
+        gsl_interp_accel *xacc = gsl_interp_accel_alloc();
+        gsl_interp_accel *yacc = gsl_interp_accel_alloc();
 
 
         // resize image and subset arrays
@@ -107,8 +109,31 @@ namespace dic2d {
             // extract a single image from the stack
             util::extract_image(image_def, image_def_stack, img_num, px_horizontal, px_vertical);
 
-            scan_function(num_def_images, n_subsets, edge, px_horizontal, px_vertical, subset_size, subset_step);
-            std::cout << "\n";
+            // scan_function(num_def_images, n_subsets, edge, px_horizontal, px_vertical, subset_size, subset_step);
+            
+            
+            
+            // -------------------------------------------------------------------------------------------
+            // TESTING HOMEMADE LM
+            // -------------------------------------------------------------------------------------------
+
+            int subset_num = 0;
+            for (int ss_y = edge; ss_y < px_vertical-edge; ss_y+=subset_step){
+                for (int ss_x = edge; ss_x < px_horizontal-edge; ss_x+=subset_step){
+
+
+                    // get the subset coordinates and pixel values
+                    util::extract_subset(image_def, subset_def,  subset_def_coords_x, 
+                                                subset_def_coords_y, ss_x, ss_y, subset_size, 
+                                                px_horizontal, px_vertical);
+
+
+                    // homemade LM optimizer
+                    lm::solve(subset_def, subset_def_coords_x, subset_def_coords_y, spline, xacc, yacc, subset_size*subset_size);
+                    
+                    subset_num++;
+                }
+            }
         }
 
         
@@ -144,14 +169,11 @@ namespace dic2d {
                                             px_horizontal, px_vertical);
 
 
-                // homemade LM optimizer
-                // lm::loop(subset_def, subset_def_coords_x, subset_def_coords_y, spline, xacc, yacc, subset_size*subset_size);
-
                 // update the optimization routine with the subset values
                 optimization::set_data(subset_def_coords_x, subset_def_coords_y, subset_def);
 
                 // execute optimization routine. args: seed for next subset, xtol, gtol, ftol, max_iter
-                optimization::execute(false, 0.00001, 0.00001, 0.00001, 20);
+                optimization::execute(subset_num, false, 0.001, 0.001, 0.001, 20);
 
                 // optimization::collect_results(n_img, n_subset, subset_num, ss_x, ss_y);
 

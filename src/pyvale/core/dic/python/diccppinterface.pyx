@@ -97,7 +97,6 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
     cdef double[:, ::1] c_v_arr = v_arr
     cdef double[:, :, ::1] c_p_arr = p_arr
 
-    print("here")
     # collect_results(&c_ss_coords[0,0], &c_u[0,0], &c_v[0,0], &c_p[0,0,0], &c_niter[0,0])
 
     # # starting timer
