@@ -263,6 +263,7 @@ class BlenderTools():
             file.write(f'Cam0_P1;{stereo_data.cam_data_0.p1}\n')
             file.write(f'Cam0_P2;{stereo_data.cam_data_0.p2}\n')
             file.write(f'Cam0_Cx [pixels];{stereo_data.cam_data_0.c0}\n')
+            file.write(f'Cam0_Cy [pixels];{stereo_data.cam_data_0.c1}\n')
             file.write(f'Cam1_Fx [pixels]; {stereo_data.cam_data_1.focal_length/ stereo_data.cam_data_1.pixels_size[0]}\n')
             file.write(f'Cam1_Fy [pixels]; {stereo_data.cam_data_1.focal_length/ stereo_data.cam_data_1.pixels_size[1]}\n')
             file.write("Cam1_Fs [pixels];0\n")
@@ -287,7 +288,7 @@ class BlenderTools():
         # Render parameters
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
-        bpy.context.scene.render.image_settings.color_depth = '16'
+        # bpy.context.scene.render.image_settings.color_depth = '16'
         bpy.context.scene.render.threads_mode = "FIXED"
         bpy.context.scene.render.threads = int(cpu_count())
         bpy.context.scene.render.image_settings.file_format = "TIFF"

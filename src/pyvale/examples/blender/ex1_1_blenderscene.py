@@ -32,7 +32,7 @@ def main() -> None:
     # Add the camera
     cam_data = pyvale.CameraData(pixels_num=np.array([2464, 2056]),
                                  pixels_size=np.array([0.00345, 0.00345]),
-                                 pos_world=(0, 0, 300),
+                                 pos_world=(0, 0, 400),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
                                  focal_length=20)
@@ -48,7 +48,8 @@ def main() -> None:
 
     # Apply the speckle pattern
     material_data = pyvale.BlenderMaterialData()
-    speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
+    # speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
+    speckle_path = Path.cwd() / 'dev/lsdev/speckle_3000.bmp'
     pyvale.BlenderScene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,

@@ -115,6 +115,7 @@ class BlenderScene():
         """
         cam0 = BlenderScene.add_camera(cam_data_0)
         cam1 = BlenderScene.add_camera(cam_data_1)
+        cam1.location = (35, 0, 250)
         return cam0, cam1
 
     @staticmethod
@@ -263,7 +264,7 @@ class BlenderScene():
         """
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
-        bpy.context.scene.render.image_settings.color_depth = '16'
+        # bpy.context.scene.render.image_settings.color_depth = '16'
         bpy.context.scene.render.threads_mode = "FIXED"
         bpy.context.scene.render.threads = int(cpu_count())
         bpy.context.scene.render.image_settings.file_format = "TIFF"
@@ -343,7 +344,7 @@ class BlenderScene():
         if render_data.engine == RenderEngine.CYCLES:
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
-            bpy.context.scene.cycles.use_denoising = False # Only turned off to make rendering faster
+            bpy.context.scene.cycles.use_denoising = True # Only turned off to make rendering faster
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
