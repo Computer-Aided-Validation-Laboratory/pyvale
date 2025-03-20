@@ -13,7 +13,7 @@ import pyvale
 
 def main() -> None:
     case_list = ib.load_case_list()
-    case_tag = case_list[0]
+    case_tag = case_list[17]
     (case_ident,case_mesh,cam_data) = ib.load_benchmark_by_tag(case_tag)
 
     print()
@@ -29,7 +29,6 @@ def main() -> None:
     print(cam_data)
     print(80*"-")
     print(cam_data.rot_world.as_matrix())
-    return
 
     print()
     print(80*"=")
@@ -51,7 +50,7 @@ def main() -> None:
                                                 cam_data,
                                                 case_mesh.coords,
                                                 case_mesh.connectivity,
-                                                case_mesh.fields_by_node)
+                                                case_mesh.fields_by_node[:,:,1])
 
         field_frame_divide_z = np.ascontiguousarray(field_divide_z[:,:,frame])
 

@@ -24,19 +24,28 @@ def main() -> None:
     print(80*"-")
 
     case_list = ib.load_case_list()
-    case_tag = case_list[17]
+    case_tag = case_list[0]
     (case_ident,case_mesh,cam_data) = ib.load_benchmark_by_tag(case_tag)
 
     print()
     print(80*"-")
     print(f"{case_ident=}")
+    print()
+    print(f"{case_mesh.coords.shape=}")
+    print(f"{case_mesh.connectivity.shape=}")
     print(80*"-")
 
     (elem_world_coords,
      field_to_render) = pyvale.slice_mesh_data_by_elem(case_mesh.coords,
                                                 case_mesh.connectivity,
-                                                case_mesh.field_by_node)
+                                                case_mesh.fields_by_node[:,:,1])
     frame_to_render = np.ascontiguousarray(field_to_render[:,:,-1])
+
+    print(f"{elem_world_coords.shape=}")
+    print(f"{field_to_render.shape=}")
+    print(f"{frame_to_render.shape=}")
+
+    return
 
     print()
     print(80*"=")

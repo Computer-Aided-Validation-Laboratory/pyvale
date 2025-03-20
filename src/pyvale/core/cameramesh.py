@@ -96,12 +96,16 @@ def slice_mesh_data_by_elem(coords_world: np.ndarray,
                             ) -> tuple[np.ndarray,np.ndarray]:
 
     # shape=(coord[X,Y,Z,W],node_per_elem,elem_num)
-    elem_world_coords = np.copy(coords_world[:,connectivity])
+    elem_world_coords = np.copy(coords_world[connectivity,:])
+
     # shape=(elem_num,nodes_per_elem,coord[X,Y,Z,W]), C memory format
     elem_world_coords = np.ascontiguousarray(np.swapaxes(elem_world_coords,0,2))
 
     # shape=(nodes_per_elem,elem_num,time_steps)
     field_by_elem = np.copy(field_by_node[connectivity,:])
+    print(80*"=")
+    print(f"{field_by_elem.shape=}")
+    print(80*"=")
     # shape=(elem_num,nodes_per_elem,time_steps), C memory format
     field_by_elem = np.ascontiguousarray(
                                np.swapaxes(field_by_elem,0,1))
