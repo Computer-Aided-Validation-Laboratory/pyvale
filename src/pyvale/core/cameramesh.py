@@ -45,7 +45,7 @@ def create_camera_mesh(sim_path: Path,
                        components: tuple[str,...],
                        spat_dim: int
                        ) -> CameraMeshData:
-
+    # TODO: fix the unit conversion here, this should probably not be done
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
     sim_data.coords = sim_data.coords*1000.0 # scale to mm
 

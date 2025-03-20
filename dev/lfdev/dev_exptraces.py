@@ -103,15 +103,26 @@ def main() -> None:
 
     #===========================================================================
     # VISUALISE RESULTS
+    save_path = Path("example_output/")
+    if not save_path.is_dir():
+        save_path.mkdir()
+
     (fig,ax) = pyvale.plot_exp_traces(exp_sim,
                                       component="temperature",
                                       sens_array_num=0,
                                       sim_num=0)
 
+    save_traces = save_path / "exp_trace_therm.png"
+    fig.savefig(save_traces, dpi=300, format="png", bbox_inches="tight")
+
     (fig,ax) = pyvale.plot_exp_traces(exp_sim,
                                     component="strain_yy",
                                     sens_array_num=1,
                                     sim_num=2)
+
+    save_traces = save_path / "exp_trace_mech.png"
+    fig.savefig(save_traces, dpi=300, format="png", bbox_inches="tight")
+
     plt.show()
 
 

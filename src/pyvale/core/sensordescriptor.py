@@ -33,7 +33,7 @@ class SensorDescriptor:
             label = label + symbol
 
         if self.units != "":
-            label = label + "\n" + rf"[${self.units}$]" + "\n"
+            label = label + "\n" + rf"[${self.units}$]"
 
         return label
 

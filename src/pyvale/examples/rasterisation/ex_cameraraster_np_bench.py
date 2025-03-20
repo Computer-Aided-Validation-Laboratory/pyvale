@@ -23,9 +23,13 @@ def main() -> None:
     print(80*"-")
     print(f"{case_mesh.connectivity.shape=}")
     print(f"{case_mesh.coords.shape=}")
-    print(f"{case_mesh.field_by_node.shape=}")
+    print(f"{case_mesh.fields_by_node.shape=}")
     print(80*"-")
-
+    print("cam_data=")
+    print(cam_data)
+    print(80*"-")
+    print(cam_data.rot_world.as_matrix())
+    return
 
     print()
     print(80*"=")
@@ -47,7 +51,7 @@ def main() -> None:
                                                 cam_data,
                                                 case_mesh.coords,
                                                 case_mesh.connectivity,
-                                                case_mesh.field_by_node)
+                                                case_mesh.fields_by_node)
 
         field_frame_divide_z = np.ascontiguousarray(field_divide_z[:,:,frame])
 

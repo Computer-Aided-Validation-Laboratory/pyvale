@@ -19,6 +19,7 @@ class PlotOptsGeneral:
     colormaps.
     """
     aspect_ratio: float = 1.62
+    # These are in inches because of matplotlib
     a4_width: float = 8.25
     a4_height: float = 11.75
     a4_margin_width: float = 0.5
@@ -41,7 +42,7 @@ class PlotOptsGeneral:
         a4_print_width*single_fig_scale/aspect_ratio
      )
 
-    resolution: int = 300
+    resolution: float = 300.0
 
     font_name: str = 'Liberation Sans'
     font_def_weight: str = 'normal'

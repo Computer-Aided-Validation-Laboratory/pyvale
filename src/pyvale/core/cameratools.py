@@ -250,13 +250,14 @@ class CameraTools:
         bb_max = np.max(coords_world,axis=0)
 
         bound_box_world_vecs = np.array([[bb_min[xx],bb_min[yy],bb_max[zz]],
-                                        [bb_max[xx],bb_min[yy],bb_max[zz]],
-                                        [bb_max[xx],bb_max[yy],bb_max[zz]],
-                                        [bb_min[xx],bb_min[yy],bb_max[zz]],
-                                        [bb_min[xx],bb_min[yy],bb_min[zz]],
-                                        [bb_max[xx],bb_min[yy],bb_min[zz]],
-                                        [bb_max[xx],bb_max[yy],bb_min[zz]],
-                                        [bb_min[xx],bb_min[yy],bb_min[zz]],])
+                                         [bb_max[xx],bb_min[yy],bb_max[zz]],
+                                         [bb_max[xx],bb_max[yy],bb_max[zz]],
+                                         [bb_min[xx],bb_max[yy],bb_max[zz]],
+
+                                         [bb_min[xx],bb_min[yy],bb_min[zz]],
+                                         [bb_max[xx],bb_min[yy],bb_min[zz]],
+                                         [bb_max[xx],bb_max[yy],bb_min[zz]],
+                                         [bb_min[xx],bb_max[yy],bb_min[zz]],])
 
         bound_box_cam_vecs = np.matmul(world_to_cam_mat,bound_box_world_vecs.T)
         boundbox_cam_leng = (np.max(bound_box_cam_vecs,axis=1)
