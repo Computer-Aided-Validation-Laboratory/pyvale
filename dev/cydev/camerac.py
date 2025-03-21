@@ -459,7 +459,7 @@ def raster_loop(field_to_render: cython.double[:,::1],
             bound_coord_y += coord_step
             bound_ind_y += 1
 
-    return (image_buffer,depth_buffer)
+    return (image_buffer,depth_buffer,elems_in_image)
 
 
 #///////////////////////////////////////////////////////////////////////////////

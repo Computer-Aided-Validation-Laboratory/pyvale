@@ -13,7 +13,7 @@ import pyvale
 
 def main() -> None:
     case_list = ib.load_case_list()
-    case_tag = case_list[17]
+    case_tag = case_list[0]
     (case_ident,case_mesh,cam_data) = ib.load_benchmark_by_tag(case_tag)
 
     print()
@@ -24,11 +24,10 @@ def main() -> None:
     print(f"{case_mesh.connectivity.shape=}")
     print(f"{case_mesh.coords.shape=}")
     print(f"{case_mesh.fields_by_node.shape=}")
+    print(f"{cam_data.back_face_removal=}")
     print(80*"-")
-    print("cam_data=")
-    print(cam_data)
-    print(80*"-")
-    print(cam_data.rot_world.as_matrix())
+
+    cam_data.back_face_removal=True
 
     print()
     print(80*"=")

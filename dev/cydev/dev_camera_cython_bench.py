@@ -23,16 +23,28 @@ def main() -> None:
     print(camerac.__file__)
     print(80*"-")
 
+    return
+
     case_list = ib.load_case_list()
     case_tag = case_list[0]
     (case_ident,case_mesh,cam_data) = ib.load_benchmark_by_tag(case_tag)
 
+    # print()
+    # print(80*"-")
+    # print(f"{case_ident=}")
+    # print()
+    # print(f"{case_mesh.coords.shape=}")
+    # print(f"{case_mesh.connectivity.shape=}")
+    # print(80*"-")
+
     print()
     print(80*"-")
+    print("BENCHMARK CASE:")
     print(f"{case_ident=}")
-    print()
-    print(f"{case_mesh.coords.shape=}")
+    print(80*"-")
     print(f"{case_mesh.connectivity.shape=}")
+    print(f"{case_mesh.coords.shape=}")
+    print(f"{case_mesh.fields_by_node.shape=}")
     print(80*"-")
 
     (elem_world_coords,
@@ -41,11 +53,11 @@ def main() -> None:
                                                 case_mesh.fields_by_node[:,:,1])
     frame_to_render = np.ascontiguousarray(field_to_render[:,:,-1])
 
+    print()
     print(f"{elem_world_coords.shape=}")
     print(f"{field_to_render.shape=}")
     print(f"{frame_to_render.shape=}")
 
-    return
 
     print()
     print(80*"=")
@@ -61,7 +73,8 @@ def main() -> None:
         print(f"Running loop {nn}")
         loop_start = time.perf_counter()
         (image_subpx_buffer,
-         depth_subpx_buffer) = camerac.raster_loop(frame_to_render,
+         depth_subpx_buffer,
+         elems_in_image) = camerac.raster_loop(frame_to_render,
                                                    elem_world_coords,
                                                    cam_data.world_to_cam_mat,
                                                    cam_data.pixels_num,
@@ -85,6 +98,7 @@ def main() -> None:
     print()
     print(80*"=")
     print("PERFORMANCE TIMERS")
+    print(f"Elements in image = {elems_in_image}")
     print(f"Avg. loop time = {np.mean(loop_times):.4f} seconds")
     print(f"Subpx avg. time = {avg_time:.6f} seconds")
     print(80*"=")
