@@ -13,12 +13,13 @@
 
 // GNU Scientific Library Header files
 #include <gsl/gsl_multifit_nlinear.h>
+#include <gsl/gsl_interp2d.h>
+#include <gsl/gsl_spline2d.h>
 #include <gsl/gsl_blas.h>
 
 
 // // Program Header files
 #include "./dicoptimization.hpp"
-#include "./dicinterpolator.hpp"
 #include "./diccorrelation.hpp"
 #include "./dicjacobian.hpp"
 
@@ -151,7 +152,7 @@ namespace optimization {
 
 
 
-    void execute(bool seed, double xtol, double gtol,double ftol,int max_iter){
+    void execute(int subset_num, bool seed, double xtol, double gtol,double ftol,int max_iter){
 
         // if seed has been selected as true use the previous iterations to set the values of P.
         if (seed){

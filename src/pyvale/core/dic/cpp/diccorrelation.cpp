@@ -7,6 +7,7 @@
 
 // STD library Header files
 #include <vector>
+#include <chrono>
 #include <iostream>
 
 
@@ -42,6 +43,8 @@ namespace correlation {
         
         const size_t n = subset_values.size();
 
+
+        auto s0 = std::chrono::high_resolution_clock::now();
         for (size_t i = 0; i < n; ++i) {
 
             double x = subset_coords_x[i];
@@ -55,13 +58,23 @@ namespace correlation {
             // this will be replaced with an ROI at some point
             if (x_new < 0 || x_new > px_horizontal || y_new < 0 || y_new > px_vertical) {
                 gsl_vector_set(f, i, 1.0e6);
+                std::cout << "OOOOOB" << std::endl;
             }
             else {
                 double diff =  subset_values[i] - gsl_spline2d_eval(spline, x_new, y_new, xacc, yacc);
+                // std::cout << diff << " ";
                 gsl_vector_set(f, i, diff);
             }
 
         }
+        std::cout << std::endl;
+        auto f0 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> e0 = f0 - s0;
+        std::cout << p[0] << " " << p[1] <<  " " << p[2] << " "; 
+        std::cout << p[3] << " " << p[4] <<  " " << p[5] << " "; 
+        std::cout << "ssd:     " << e0.count() <<  " [s]     " << std::endl;
+
+
 
         return GSL_SUCCESS;
 

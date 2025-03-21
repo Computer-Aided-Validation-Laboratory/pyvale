@@ -14,19 +14,8 @@
 #include <iostream>
 
 // GNU Scientific Library Header files
-#include <gsl/gsl_multifit_nlinear.h>
 
 // Program Header files
-#include "./dicinterpolator.hpp"
-#include "./dicutil.hpp"
-#include "./dicoptimization.hpp"
-
-
-// #ifdef DEBUG
-//     #define LOG(x) std::cout << "[VERBOSE] " << x << std::endl;
-// #else
-//     #define LOG(x)  // Do nothing
-// #endif
 
 
 namespace dic2d {

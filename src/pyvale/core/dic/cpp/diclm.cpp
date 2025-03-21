@@ -19,7 +19,7 @@
 
 // Program Header files
 #include "./diclm.hpp"
-#include "./dicinterpolator.hpp"
+#include "./dicgslinterpolator.hpp"
 
 
 namespace lm {
@@ -110,13 +110,12 @@ namespace lm {
             optimize(subset_def, subset_def_x, subset_def_y, spline, xacc, yacc, n);
 
 
-            // check tolerance condition and update parameter
+            // check tolerance
             if (costfunc_p < costfunc_pdp){
                 lambda *= 10.0;
             }
             else{
                 lambda *= 0.1;
-                // initialise p values
                 for (int i = 0; i < 6; i++){
                     p[i] = pdp[i];
                 }

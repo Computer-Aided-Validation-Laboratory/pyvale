@@ -14,7 +14,7 @@
 #include <gsl/gsl_multifit_nlinear.h>
 
 // Program Header files
-#include "./dicinterpolator.hpp"
+#include "./dicgslinterpolator.hpp"
 #include "./dicutil.hpp"
 #include "./dicoptimization.hpp"
 #include "./dicengine.hpp"
@@ -69,7 +69,7 @@ namespace dic2d {
         image_ref_dbl.assign(image_ref, image_ref + px_vertical*px_horizontal);
 
         // define our interpolator for the reference imageu
-        gsl_spline2d *spline = interpolation::create_spline(interp_routine, image_ref_dbl, px_horizontal, px_vertical);
+        gsl_spline2d *spline = gsl_interpolation::create_spline(interp_routine, image_ref_dbl, px_horizontal, px_vertical);
 
         // setup the optimizer and pass the already create spline object and accelerators.
         optimization::init(num_def_images, n_subsets, corr_crit, interp_routine, shape_func, subset_size, px_horizontal, px_vertical, spline);
@@ -129,6 +129,7 @@ namespace dic2d {
 
 
                     // homemade LM optimizer
+                    std::cout << ss_x << " " << ss_y <<  " ";
                     lm::solve(subset_def, subset_def_coords_x, subset_def_coords_y, spline, xacc, yacc, subset_size*subset_size);
                     
                     subset_num++;

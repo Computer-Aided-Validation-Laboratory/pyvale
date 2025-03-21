@@ -19,7 +19,7 @@
 #include <gsl/gsl_blas.h>
 
 // Program Header files
-#include "./dicinterpolator.hpp"
+#include "./dicgslinterpolator.hpp"
 
 namespace lm {
 
