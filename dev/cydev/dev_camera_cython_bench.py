@@ -23,8 +23,6 @@ def main() -> None:
     print(camerac.__file__)
     print(80*"-")
 
-    return
-
     case_list = ib.load_case_list()
     case_tag = case_list[0]
     (case_ident,case_mesh,cam_data) = ib.load_benchmark_by_tag(case_tag)
