@@ -43,6 +43,7 @@ namespace jacobian {
 
         const size_t n = subset_coords_y.size();
 
+        auto s0 = std::chrono::high_resolution_clock::now();
         for (size_t i = 0; i < n; ++i) {
             
             double x = subset_coords_x[i];
@@ -72,7 +73,9 @@ namespace jacobian {
                 gsl_matrix_set(J, i, 5, -df_dy * y_new);
             }
         }
-
+        auto f0 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> e0 = f0 - s0;
+        std::cout << "jac:     " << e0.count() <<  " [s]     " << std::endl;
         return GSL_SUCCESS;
 
     }
