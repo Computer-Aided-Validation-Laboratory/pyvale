@@ -83,10 +83,8 @@ class BlenderScene():
         camera['c0'] = cam_data.c0
         camera['c1'] = cam_data.c1
 
-        new_cam.lens_unit = 'FOV'
-        AFOV_x = pyvale.angular_fov(cam_data)
-        new_cam.lens = ((cam_data.sensor_size[0]) /
-                        (2 * np.tan(np.radians(AFOV_x) / 2)))
+        new_cam.lens_unit = 'MILLIMETERS'
+        new_cam.lens = cam_data.focal_length
         new_cam.sensor_fit = 'HORIZONTAL'
         new_cam.sensor_width = cam_data.sensor_size[0]
         new_cam.sensor_height = cam_data.sensor_size[1]
