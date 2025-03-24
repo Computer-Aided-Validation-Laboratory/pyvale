@@ -24,16 +24,8 @@ def main() -> None:
     print(80*"-")
 
     case_list = ib.load_case_list()
-    case_tag = case_list[0]
+    case_tag = case_list[17]
     (case_ident,case_mesh,cam_data) = ib.load_benchmark_by_tag(case_tag)
-
-    # print()
-    # print(80*"-")
-    # print(f"{case_ident=}")
-    # print()
-    # print(f"{case_mesh.coords.shape=}")
-    # print(f"{case_mesh.connectivity.shape=}")
-    # print(80*"-")
 
     print()
     print(80*"-")
