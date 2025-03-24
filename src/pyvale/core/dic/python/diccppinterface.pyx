@@ -26,6 +26,8 @@ cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
                     int num_def_images,
                     int subset_step,
                     int subset_size,
+                    int max_iter,
+                    double tol,
                     string& corr_crit, 
                     string& shape_func,
                     string& interp_routine,
@@ -40,7 +42,9 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                       np.ndarray[np.int32_t, ndim=3] deformed_images,
                       np.ndarray[np.int32_t, ndim=2] roi_mask,
                       int subset_step, 
-                      int subset_size,                    
+                      int subset_size,
+                      int max_iterations,
+                      double tolerance,       
                       str correlation_criteria,
                       str shape_function,
                       str interpolation_routine,
@@ -55,6 +59,9 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
     cdef int px_vertical = reference_image.shape[0]
     cdef int px_horizontal = reference_image.shape[1]
     cdef int num_def_images = deformed_images.shape[0]
+
+    cdef int max_iter = max_iterations
+    cdef double tol = tolerance
 
 
     # other arguments needed for C++ DIC routine
@@ -73,6 +80,8 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                num_def_images,
                subset_step,
                subset_size,
+               max_iter,
+               tol,
                corr_crit, 
                shape_func,
                interp_routine,

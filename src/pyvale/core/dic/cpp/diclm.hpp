@@ -25,7 +25,7 @@ namespace lm {
 
     void init(std::string &, std::string &, int);
 
-    void  solve(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);
+    void  solve(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n, double, int);
     void    ssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);
     void   nssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);
     void  znssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);

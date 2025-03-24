@@ -38,7 +38,6 @@ namespace lm {
     std::vector<std::vector<double>> invH(6, std::vector<double>(6, 0.0));
     std::vector<double> dfdp(6,0.0);
     double lambda = 0.01;
-    double tol = 0.001;
     double dp_mag;
 
     double inv_sum_squared_def;
@@ -47,7 +46,6 @@ namespace lm {
     double mean_ref;
     double costfunc_p;
     double costfunc_pdp;
-    int max_iter = 20;
 
 
 
@@ -85,7 +83,6 @@ namespace lm {
         }
 
 
-        lm::max_iter = max_iter;        
         subset_ref.resize(subset_size*subset_size, 0.0);
         subset_ref_x.resize(subset_size*subset_size, 0.0);
         subset_ref_y.resize(subset_size*subset_size, 0.0);
@@ -99,11 +96,13 @@ namespace lm {
                  gsl_spline2d *spline,
                  gsl_interp_accel* xacc,
                  gsl_interp_accel* yacc,
-                 int n){
+                 int n,
+                 double tol,
+                 int max_iter){
 
         int iter = 0;
 
-        for (int l = 0; l < lm::max_iter; l++){
+        for (int l = 0; l < max_iter; l++){
 
 
             // optimize
@@ -138,7 +137,7 @@ namespace lm {
         }
 
         if (iter == max_iter) {
-            std::cout << "Maximum Iterations Reached" << std::endl;
+            std::cout << iter << " " << dp_mag << " " << nan << " " << nan << " " << nan << " " << nan << " " << nan << " " << nan << "\n";
         }
     }
 

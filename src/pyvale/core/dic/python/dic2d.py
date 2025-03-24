@@ -25,6 +25,8 @@ class DIC2D:
                  correlation_criteria: str="ZNSSD",
                  shape_function: str="affine",
                  interpolation_routine: str="bicubic",
+                 max_iterations: int=100,
+                 tolerance: float=1e-4,
                  scanning_method: str="image_scan"):
 
         self.image_ref = reference_image
@@ -32,6 +34,8 @@ class DIC2D:
         self.roi_mask  = roi_mask
         self.subset_step = subset_step
         self.subset_size = subset_size
+        self.max_iterations = max_iterations
+        self.tolerance = tolerance
         self.corr_crit = correlation_criteria
         self.shape_func = shape_function
         self.interp = interpolation_routine
@@ -50,6 +54,8 @@ class DIC2D:
                                            self.roi_mask,
                                            self.subset_step,
                                            self.subset_size,
+                                           self.max_iterations,
+                                           self.tolerance,
                                            self.corr_crit,
                                            self.shape_func,
                                            self.interp,

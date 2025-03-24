@@ -46,6 +46,8 @@ namespace dic2d {
                     int num_def_images,
                     int subset_step,
                     int subset_size,
+                    int max_iter,
+                    double tol,
                     std::string& corr_crit, 
                     std::string& shape_func,
                     std::string& interp_routine,
@@ -57,7 +59,7 @@ namespace dic2d {
 
 
         // total number of subsets
-        int edge = 100;
+        int edge = 52;
         int n_subsets = util::get_num_subsets(edge, px_horizontal, px_vertical, subset_step);
 
     
@@ -130,7 +132,7 @@ namespace dic2d {
 
                     // homemade LM optimizer
                     std::cout << ss_x << " " << ss_y <<  " ";
-                    lm::solve(subset_def, subset_def_coords_x, subset_def_coords_y, spline, xacc, yacc, subset_size*subset_size);
+                    lm::solve(subset_def, subset_def_coords_x, subset_def_coords_y, spline, xacc, yacc, subset_size*subset_size, tol, max_iter);
                     
                     subset_num++;
                 }
@@ -155,7 +157,7 @@ namespace dic2d {
 
 
 
-    void image_scan(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step){
+    void image_scan(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step, int max_iter, double tol){
 
         // loop over subsets within the ROI
         int subset_num = 0;
@@ -167,14 +169,14 @@ namespace dic2d {
                 // get the subset coordinates and pixel values
                 util::extract_subset(image_def, subset_def,  subset_def_coords_x, 
                                             subset_def_coords_y, ss_x, ss_y, subset_size, 
-                                            px_horizontal, px_vertical);
+                                            px_horizontal, px_vertical);                
 
 
                 // update the optimization routine with the subset values
                 optimization::set_data(subset_def_coords_x, subset_def_coords_y, subset_def);
 
                 // execute optimization routine. args: seed for next subset, xtol, gtol, ftol, max_iter
-                optimization::execute(subset_num, false, 0.001, 0.001, 0.001, 20);
+                optimization::execute(subset_num, true, tol, tol, tol, max_iter);
 
                 // optimization::collect_results(n_img, n_subset, subset_num, ss_x, ss_y);
 

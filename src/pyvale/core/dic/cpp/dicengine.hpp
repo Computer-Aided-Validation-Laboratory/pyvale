@@ -29,6 +29,8 @@ namespace dic2d {
                     int num_def_images,
                     int subset_step,
                     int subset_size,
+                    int max_iter,
+                    double tol,
                     std::string& corr_crit, 
                     std::string& shape_func,
                     std::string& interp_routine,
