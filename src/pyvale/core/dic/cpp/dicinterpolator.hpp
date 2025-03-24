@@ -14,16 +14,13 @@
 
 // STD library Header files
 #include <vector>
-#include <cmath>
-#include <algorithm>
-
 
 namespace interpolator {
 
-    struct InterpValues {
-        double value;
-        double dx;
-        double dy;
+    struct Data {
+        double interp_value;
+        double interp_dx;
+        double interp_dy;
     };
 
     inline void coeff_calc(std::vector<double> &tridiag_solution, double dy, double dx, size_t index, double * b, double * c, double * d);
@@ -34,7 +31,7 @@ namespace interpolator {
     double eval_bicubic(double x, double y);
     double eval_bicubic_dx(double x, double y);
     double eval_bicubic_dy(double x, double y);
-    InterpValues eval_bicubic_and_derivs(double x, double y);
+    Data eval_bicubic_and_derivs(double x, double y);
 
 }
 

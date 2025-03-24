@@ -20,6 +20,7 @@
 // Program Header files
 #include "./diclm.hpp"
 #include "./dicgslinterpolator.hpp"
+#include "./dicinterpolator.hpp"
 
 
 namespace lm {
@@ -39,14 +40,11 @@ namespace lm {
     std::vector<double> dfdp(6,0.0);
     double lambda = 0.01;
     double dp_mag;
-
-    double inv_sum_squared_def;
-    double inv_sum_squared_ref;
-    double mean_def;
-    double mean_ref;
     double costfunc_p;
     double costfunc_pdp;
 
+    // interpolation data struct
+    interpolator::Data interp_data;
 
 
     // function pointer for correlation criteria
@@ -138,6 +136,7 @@ namespace lm {
 
         if (iter == max_iter) {
             std::cout << iter << " " << dp_mag << " " << nan << " " << nan << " " << nan << " " << nan << " " << nan << " " << nan << "\n";
+            exit(0);
         }
     }
 
@@ -154,24 +153,27 @@ namespace lm {
         std::fill(dfdp.begin(), dfdp.end(), 0.0);
         for (auto& row : H) std::fill(row.begin(), row.end(), 0.0);
 
-        double def_x, def_y, dfdx, dfdy;
+        double dfdx;
+        double dfdy;
 
         // loop over the subset values
         for (int i = 0; i < n; i++){
 
-            def_x = subset_def_x[i];
-            def_y = subset_def_y[i];
-
             // get subset coordinates based on shape function parameters
-            shape_function(subset_ref_x[i], subset_ref_y[i], def_x, def_y, p);
+            shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], p);
 
             double ref_x = subset_ref_x[i];
             double ref_y = subset_ref_y[i];
             
             // get the subset value and derivitives
-            subset_ref[i] = gsl_spline2d_eval(spline, ref_x, ref_y, xacc, yacc);
-            dfdx = gsl_spline2d_eval_deriv_x(spline,  ref_x, ref_y, xacc, yacc);
-            dfdy = gsl_spline2d_eval_deriv_y(spline,  ref_x, ref_y, xacc, yacc);
+            interp_data = interpolator::eval_bicubic_and_derivs(ref_x, ref_y);
+            subset_ref[i] = interp_data.interp_value;
+            dfdx = interp_data.interp_dx;
+            dfdy = interp_data.interp_dy;
+
+            // subset_ref[i] = gsl_spline2d_eval(spline, ref_x, ref_y, xacc, yacc);
+            // dfdx = gsl_spline2d_eval_deriv_x(spline,  ref_x, ref_y, xacc, yacc);
+            // dfdy = gsl_spline2d_eval_deriv_y(spline,  ref_x, ref_y, xacc, yacc);
 
             // derivative of shape function with repsect to parameters
             dshape_dp(dfdp, ref_x, ref_y, dfdx, dfdy, n);
@@ -222,8 +224,6 @@ namespace lm {
         // std::cout << "pd " << pdp[0] << " " << pdp[1] << " " << pdp[2] << " " << pdp[3] << " " << pdp[4] << " " << pdp[5] << std::endl;
 
 
-
-
         // calculate cost function for updated parameter values
         costfunc_pdp = 0.0;
         for (int i = 0; i < n; ++i) {
@@ -248,11 +248,8 @@ namespace lm {
         std::fill(dfdp.begin(), dfdp.end(), 0.0);
         for (auto& row : H) std::fill(row.begin(), row.end(), 0.0);
 
-        double def_x; 
-        double def_y;
-        double dfdx;
-        double dfdy;
-
+        std::vector<double> dfdx(n);
+        std::vector<double> dfdy(n);
 
         double sum_squared_def = 0.0;
         double sum_squared_ref = 0.0; 
@@ -260,12 +257,17 @@ namespace lm {
         double inv_sum_squared_ref;
         
         // get the normalisation values for both reference and deformed subsets
-        for (size_t i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) {
 
             shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], p);
 
-            subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            // subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            // interp_data = interpolator::eval_bicubic_and_derivs(subset_ref_x[i], subset_ref_y[i]);
 
+            interp_data = interpolator::eval_bicubic_and_derivs(subset_ref_x[i], subset_ref_y[i]);
+            subset_ref[i] = interp_data.interp_value;
+            dfdx[i] = interp_data.interp_dx;
+            dfdy[i] = interp_data.interp_dy;
             sum_squared_def += subset_def[i] * subset_def[i];
             sum_squared_ref += subset_ref[i] * subset_ref[i];
         }
@@ -277,19 +279,19 @@ namespace lm {
         // loop over the subset values
         for (int i = 0; i < n; i++){
             
-            dfdx = gsl_spline2d_eval_deriv_x(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
-            dfdy = gsl_spline2d_eval_deriv_y(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            // dfdx = gsl_spline2d_eval_deriv_x(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            // dfdy = gsl_spline2d_eval_deriv_y(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
 
             // derivative of shape function with repsect to parameters
-            dshape_dp(dfdp, subset_ref_x[i], subset_ref_y[i], dfdx, dfdy, n);
+            dshape_dp(dfdp, subset_ref_x[i], subset_ref_y[i], dfdx[i], dfdy[i], n);
 
             double dshape_df = - inv_sum_squared_ref * (subset_def[i] * inv_sum_squared_def - subset_ref[i] * inv_sum_squared_ref);
-            g[0] += dshape_df * dfdx;
-            g[1] += dshape_df * dfdy;
-            g[2] += dshape_df * dfdx * subset_ref_x[i];
-            g[3] += dshape_df * dfdx * subset_ref_y[i];
-            g[4] += dshape_df * dfdy * subset_ref_x[i];
-            g[5] += dshape_df * dfdy * subset_ref_y[i];
+            g[0] += dshape_df * dfdx[i];
+            g[1] += dshape_df * dfdy[i];
+            g[2] += dshape_df * dfdx[i] * subset_ref_x[i];
+            g[3] += dshape_df * dfdx[i] * subset_ref_y[i];
+            g[4] += dshape_df * dfdy[i] * subset_ref_x[i];
+            g[5] += dshape_df * dfdy[i] * subset_ref_y[i];
 
             // Upper triangle of Hessian Matrix
             for (int row = 0; row < 6; row++) {
@@ -336,9 +338,10 @@ namespace lm {
         // calculate cost function for updated parameter values
         costfunc_pdp = 0.0;
         sum_squared_ref = 0.0;
-        for (size_t i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) {
             shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], pdp);
-            subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            // subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            subset_ref[i] = interpolator::eval_bicubic(subset_ref_x[i], subset_ref_y[i]);
             sum_squared_ref += subset_ref[i] * subset_ref[i];
         }
 
@@ -367,20 +370,21 @@ namespace lm {
         std::fill(dfdp.begin(), dfdp.end(), 0.0);
         for (auto& row : H) std::fill(row.begin(), row.end(), 0.0);
 
-        double def_x = 0.0; 
-        double def_y = 0.0;
-        double dfdx = 0.0;
-        double dfdy = 0.0;
+        std::vector<double> dfdx(n);
+        std::vector<double> dfdy(n);
 
         double mean_ref = 0.0;
         double mean_def = 0.0;
         
         // get the normalisation values for both reference and deformed subsets
-        for (size_t i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) {
 
             shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], p);
 
-            subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            interp_data = interpolator::eval_bicubic_and_derivs(subset_ref_x[i], subset_ref_y[i]);
+            subset_ref[i] = interp_data.interp_value;
+            dfdx[i] = interp_data.interp_dx;
+            dfdy[i] = interp_data.interp_dy;
 
             mean_ref += subset_ref[i];
             mean_def += subset_def[i];
@@ -392,7 +396,7 @@ namespace lm {
 
         double sum_squared_ref = 0.0;
         double sum_squared_def = 0.0;
-        for (size_t i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) {
             sum_squared_def += (subset_def[i] - mean_def) * (subset_def[i] - mean_def);
             sum_squared_ref += (subset_ref[i] - mean_ref) * (subset_ref[i] - mean_ref);
         }
@@ -403,19 +407,16 @@ namespace lm {
         // loop over the subset values
         for (int i = 0; i < n; i++){
             
-            dfdx = gsl_spline2d_eval_deriv_x(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
-            dfdy = gsl_spline2d_eval_deriv_y(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
-
             // derivative of shape function with repsect to parameters
-            dshape_dp(dfdp, subset_ref_x[i], subset_ref_y[i], dfdx, dfdy, n);
+            dshape_dp(dfdp, subset_ref_x[i], subset_ref_y[i], dfdx[i], dfdy[i], n);
 
             double dshape_df = - inv_sum_squared_ref * ((subset_def[i] - mean_def) * inv_sum_squared_def - (subset_ref[i] - mean_ref) * inv_sum_squared_ref);
-            g[0] += dshape_df * dfdx;
-            g[1] += dshape_df * dfdy;
-            g[2] += dshape_df * dfdx * subset_ref_x[i];
-            g[3] += dshape_df * dfdx * subset_ref_y[i];
-            g[4] += dshape_df * dfdy * subset_ref_x[i];
-            g[5] += dshape_df * dfdy * subset_ref_y[i];
+            g[0] += dshape_df * dfdx[i];
+            g[1] += dshape_df * dfdy[i];
+            g[2] += dshape_df * dfdx[i] * subset_ref_x[i];
+            g[3] += dshape_df * dfdx[i] * subset_ref_y[i];
+            g[4] += dshape_df * dfdy[i] * subset_ref_x[i];
+            g[5] += dshape_df * dfdy[i] * subset_ref_y[i];
 
             // Upper triangle of Hessian Matrix
             for (int row = 0; row < 6; row++) {
@@ -426,7 +427,7 @@ namespace lm {
             }
         }
 
-        // Populate lower triangle of hessian matrix
+        // Populate lower triangle of hessian matrix and lead diagonal
         for (int row = 0; row < 6; row++) {
             for (int col = row + 1; col < 6; col++) {
                 H[col][row] = H[row][col];
@@ -459,16 +460,17 @@ namespace lm {
 
         // calculate cost function for updated parameter values
         mean_ref = 0.0;
-        for (size_t i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) {
             shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], pdp);
-            subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            // subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            subset_ref[i] = interpolator::eval_bicubic(subset_ref_x[i], subset_ref_y[i]);
             mean_ref += subset_ref[i];
         }
 
         mean_ref /= n;
 
         sum_squared_ref = 0.0;
-        for (size_t i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) {
             sum_squared_ref += (subset_ref[i] - mean_ref) * (subset_ref[i] - mean_ref);
         }
 

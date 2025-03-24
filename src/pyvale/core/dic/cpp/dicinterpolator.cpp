@@ -14,25 +14,376 @@
 #include "./dicinterpolator.hpp"
 
 
+
 #define IDX2D(i, j, w) ((j) * (w) + (i))
-std::vector<double> zx(1040*1540);
-std::vector<double> zy(1040*1540);
-std::vector<double> zxy(1040*1540);
-std::vector<double> tridiag_solution;
-std::vector<double> px_y;
-std::vector<double> px_x;
-std::vector<double> image;
-int px_vertical;
-int px_horizontal;
 
 
 namespace interpolator {
 
-    struct InterpValues {
-        double value;
-        double dx;
-        double dy;
-    };
+    std::vector<double> zx;
+    std::vector<double> zy;
+    std::vector<double> zxy;
+    std::vector<double> tridiag_solution;
+    std::vector<double> px_y;
+    std::vector<double> px_x;
+    std::vector<double> *image;
+    int px_vertical;
+    int px_horizontal;
+
+    void bicubic_init(std::vector<double> &img, int px_horizontal, int px_vertical){
+
+        // intitialise vars used globally within interpolator.
+        image = &img;
+        px_y.resize(px_vertical);
+        px_x.resize(px_horizontal);
+        zx.resize(px_vertical*px_horizontal);
+        zy.resize(px_vertical*px_horizontal);
+        zxy.resize(px_vertical*px_horizontal);
+        interpolator::px_horizontal = px_horizontal;
+        interpolator::px_vertical = px_vertical;
+
+
+        for (int i = 0; i < px_horizontal; ++i) {
+            px_x[i] = i; 
+        }
+        for (int j = 0; j < px_vertical; ++j) {
+            px_y[j] = j; 
+
+        }
+
+        std::vector<double> data(px_horizontal,0);
+        for (int j = 0; j < px_vertical; j++){
+
+            // get 1D data
+            for (int i = 0; i < px_horizontal; ++i) {
+                data[i] = (*image)[j * px_horizontal + i];
+            }
+
+            cspline_init(px_x, data);
+            for (int i = 0; i < px_horizontal; i++){
+                zx[j * px_horizontal + i] = cspline_eval_deriv(px_x, data, px_x[i], px_horizontal);
+            }
+        }
+
+        data.resize(px_vertical,0);
+        for (int i = 0; i < px_horizontal; ++i) {
+
+            // get 1D data
+            for (int j = 0; j < px_vertical; j++){
+                data[j] = (*image)[j * px_horizontal + i];
+            }
+
+            cspline_init(px_y, data);
+            for (int j = 0; j < px_vertical; j++){
+                zy[j * px_horizontal + i] = cspline_eval_deriv(px_y, data, px_y[j], px_vertical);
+            }
+        }
+
+
+        data.resize(px_horizontal,0);
+        for (int j = 0; j < px_vertical; j++){
+
+            // get 1D data
+            for (int i = 0; i < px_horizontal; ++i) {
+                data[i] = zy[j * px_horizontal + i];
+            }
+
+            cspline_init(px_x, data);
+            for (int i = 0; i < px_horizontal; i++){
+                zxy[j * px_horizontal + i] = cspline_eval_deriv(px_x, data, px_x[i], px_horizontal);
+            }
+        }
+
+
+
+
+    }
+
+    double eval_bicubic(double x, double y){
+
+        // get indices
+        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
+        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
+
+        // precompute indices of surrounding pixel values
+        size_t idx00 = IDX2D(xi, yi, px_horizontal);
+        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
+        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
+        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
+
+        /* Precompute values for the grid points */
+        double zminmin = (*image)[idx00];
+        double zminmax = (*image)[idx01];
+        double zmaxmin = (*image)[idx10];
+        double zmaxmax = (*image)[idx11];
+
+        double zxminmin = zx[idx00];
+        double zxminmax = zx[idx01];
+        double zxmaxmin = zx[idx10];
+        double zxmaxmax = zx[idx11];
+
+        double zyminmin = zy[idx00];
+        double zyminmax = zy[idx01];
+        double zymaxmin = zy[idx10];
+        double zymaxmax = zy[idx11];
+
+        double zxyminmin = zxy[idx00];
+        double zxyminmax = zxy[idx01];
+        double zxymaxmin = zxy[idx10];
+        double zxymaxmax = zxy[idx11];
+
+        // polynomial terms
+        double t0 = 1;
+        double u0 = 1;
+        double t1 = (x - px_x[xi]);
+        double u1 = (y - px_y[yi]);
+        double t2 = t1 * t1;
+        double u2 = u1 * u1;  
+        double t3 = t1 * t2;
+        double u3 = u1 * u2;
+
+        /* Perform bicubic interpolation */
+        double result = 0.0;
+        result += zminmin * t0 * u0;
+        result += zyminmin * t0 * u1;
+        result += (-3 * zminmin + 3 * zminmax - 2 * zyminmin - zyminmax) * t0 * u2;
+        result += (2 * zminmin - 2 * zminmax + zyminmin + zyminmax) * t0 * u3;
+
+        result += zxminmin * t1 * u0;
+        result += zxyminmin * t1 * u1;
+        result += (-3 * zxminmin + 3 * zxminmax - 2 * zxyminmin - zxyminmax) * t1 * u2;
+        result += (2 * zxminmin - 2 * zxminmax + zxyminmin + zxyminmax) * t1 * u3;
+
+        result += (-3 * zminmin + 3 * zmaxmin - 2 * zxminmin - zxmaxmin) * t2 * u0;
+        result += (-3 * zyminmin + 3 * zymaxmin - 2 * zxyminmin - zxymaxmin) * t2 * u1;
+        result += (9 * zminmin - 9 * zmaxmin + 9 * zmaxmax - 9 * zminmax + 6 * zxminmin + 3 * zxmaxmin - 3 * zxmaxmax - 6 * zxminmax + 6 * zyminmin - 6 * zymaxmin - 3 * zymaxmax + 3 * zyminmax + 4 * zxyminmin + 2 * zxymaxmin + zxymaxmax + 2 * zxyminmax) * t2 * u2;
+        result += (-6 * zminmin + 6 * zmaxmin - 6 * zmaxmax + 6 * zminmax - 4 * zxminmin - 2 * zxmaxmin + 2 * zxmaxmax + 4 * zxminmax - 3 * zyminmin + 3 * zymaxmin + 3 * zymaxmax - 3 * zyminmax - 2 * zxyminmin - zxymaxmin - zxymaxmax - 2 * zxyminmax) * t2 * u3;
+
+        result += (2 * zminmin - 2 * zmaxmin + zxminmin + zxmaxmin) * t3 * u0;
+        result += (2 * zyminmin - 2 * zymaxmin + zxyminmin + zxymaxmin) * t3 * u1;
+        result += (-6 * zminmin + 6 * zmaxmin - 6 * zmaxmax + 6 * zminmax - 3 * zxminmin - 3 * zxmaxmin + 3 * zxmaxmax + 3 * zxminmax - 4 * zyminmin + 4 * zymaxmin + 2 * zymaxmax - 2 * zyminmax - 2 * zxyminmin - 2 * zxymaxmin - zxymaxmax - zxyminmax) * t3 * u2;
+        result += (4 * zminmin - 4 * zmaxmin + 4 * zmaxmax - 4 * zminmax + 2 * zxminmin + 2 * zxmaxmin - 2 * zxmaxmax - 2 * zxminmax + 2 * zyminmin - 2 * zymaxmin - 2 * zymaxmax + 2 * zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t3 * u3;
+
+        return result;
+    }
+
+
+
+
+    double eval_bicubic_dx(double x, double y){
+
+        /* first compute the indices into the data arrays where we are interpolating */
+        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
+        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
+
+        // precompute indices of surrounding pixel values
+        size_t idx00 = IDX2D(xi, yi, px_horizontal);
+        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
+        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
+        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
+
+        double zminmin = (*image)[idx00];
+        double zminmax = (*image)[idx01];
+        double zmaxmin = (*image)[idx10];
+        double zmaxmax = (*image)[idx11];
+
+        double zxminmin = zx[idx00];
+        double zxminmax = zx[idx01];
+        double zxmaxmin = zx[idx10];
+        double zxmaxmax = zx[idx11];
+        double zyminmin = zy[idx00];
+        double zyminmax = zy[idx01];
+        double zymaxmin = zy[idx10];
+        double zymaxmax = zy[idx11];
+        double zxyminmin = zxy[idx00];
+        double zxyminmax = zxy[idx01];
+        double zxymaxmin = zxy[idx10];
+        double zxymaxmax = zxy[idx11];
+
+        // distance between interpolation point and pixel value 
+
+        // polynomial terms
+        double t0 = 1;
+        double u0 = 1;
+        double t1 = (x - px_x[xi]);
+        double u1 = (y - px_y[yi]);
+        double t2 = t1 * t1;
+        double u2 = u1 * u1;  
+        double u3 = u1 * u2;
+
+
+        double result = 0.0;
+        result = 0;
+        result += zxminmin *t0 * u0;
+        result += zxyminmin * t0 * u1;
+        result += (-3*zxminmin + 3*zxminmax - 2*zxyminmin - zxyminmax) *t0 * u2;
+        result += (2*zxminmin - 2*zxminmax + zxyminmin + zxyminmax) * t0 * u3;
+        result += 2 * (-3*zminmin + 3*zmaxmin - 2*zxminmin - zxmaxmin)*t1*u0;
+        result += 2 * (-3*zyminmin + 3*zymaxmin - 2*zxyminmin - zxymaxmin)*t1*u1;
+        result += 2 * (9*zminmin - 9*zmaxmin + 9*zmaxmax - 9*zminmax + 6*zxminmin + 3*zxmaxmin - 3*zxmaxmax - 6*zxminmax + 6*zyminmin - 6*zymaxmin - 3*zymaxmax + 3*zyminmax + 4*zxyminmin + 2*zxymaxmin + zxymaxmax + 2*zxyminmax)*t1*u2;
+        result += 2 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 4*zxminmin - 2*zxmaxmin + 2*zxmaxmax + 4*zxminmax - 3*zyminmin + 3*zymaxmin + 3*zymaxmax - 3*zyminmax - 2*zxyminmin - zxymaxmin - zxymaxmax - 2*zxyminmax)*t1*u3;
+        result += 3 * (2*zminmin - 2*zmaxmin + zxminmin + zxmaxmin) * t2 *u0;
+        result += 3 * (2*zyminmin - 2*zymaxmin + zxyminmin + zxymaxmin) * t2 * u1;
+        result += 3 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 3*zxminmin - 3*zxmaxmin + 3*zxmaxmax + 3*zxminmax - 4*zyminmin + 4*zymaxmin + 2*zymaxmax - 2*zyminmax - 2*zxyminmin - 2*zxymaxmin - zxymaxmax - zxyminmax) * t2 * u2;
+        result += 3 * (4*zminmin - 4*zmaxmin + 4*zmaxmax - 4*zminmax + 2*zxminmin + 2*zxmaxmin - 2*zxmaxmax - 2*zxminmax + 2*zyminmin - 2*zymaxmin - 2*zymaxmax + 2*zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t2 * u3;
+        return result;
+
+    }
+
+
+    double eval_bicubic_dy(double x, double y){
+
+        /* first compute the indices into the data arrays where we are interpolating */
+        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
+        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
+
+        // precompute indices of surrounding pixel values
+        size_t idx00 = IDX2D(xi, yi, px_horizontal);
+        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
+        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
+        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
+
+        double zminmin = (*image)[idx00];
+        double zminmax = (*image)[idx01];
+        double zmaxmin = (*image)[idx10];
+        double zmaxmax = (*image)[idx11];
+
+        double zxminmin = zx[idx00];
+        double zxminmax = zx[idx01];
+        double zxmaxmin = zx[idx10];
+        double zxmaxmax = zx[idx11];
+        double zyminmin = zy[idx00];
+        double zyminmax = zy[idx01];
+        double zymaxmin = zy[idx10];
+        double zymaxmax = zy[idx11];
+        double zxyminmin = zxy[idx00];
+        double zxyminmax = zxy[idx01];
+        double zxymaxmin = zxy[idx10];
+        double zxymaxmax = zxy[idx11];
+
+        // distance between interpolation point and pixel value 
+
+        // polynomial terms
+        double t0 = 1;
+        double u0 = 1;
+        double t1 = (x - px_x[xi]);
+        double u1 = (y - px_y[yi]);
+        double t2 = t1 * t1;
+        double u2 = u1 * u1;  
+        double t3 = t1 * t2;
+
+        double result = 0.0;
+        result += zyminmin * t0 * u0;
+        result += 2 * (-3*zminmin + 3*zminmax - 2*zyminmin - zyminmax) * t0 * u1;
+        result += 3 * (2*zminmin-2*zminmax + zyminmin + zyminmax) * t0 * u2;
+        result += zxyminmin*t1*u0;
+        result += 2 * (-3*zxminmin + 3*zxminmax - 2*zxyminmin - zxyminmax) * t1 * u1;
+        result += 3 * (2*zxminmin - 2*zxminmax + zxyminmin + zxyminmax) * t1 * u2;
+        result += (-3*zyminmin + 3*zymaxmin - 2*zxyminmin - zxymaxmin) * t2 * u0;
+        result += 2 * (9*zminmin - 9*zmaxmin + 9*zmaxmax - 9*zminmax + 6*zxminmin + 3*zxmaxmin - 3*zxmaxmax - 6*zxminmax + 6*zyminmin - 6*zymaxmin - 3*zymaxmax + 3*zyminmax + 4*zxyminmin + 2*zxymaxmin + zxymaxmax + 2*zxyminmax) * t2 * u1;
+        result += 3 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 4*zxminmin - 2*zxmaxmin + 2*zxmaxmax + 4*zxminmax - 3*zyminmin + 3*zymaxmin + 3*zymaxmax - 3*zyminmax - 2*zxyminmin - zxymaxmin - zxymaxmax - 2*zxyminmax) * t2 * u2;
+        result += (2*zyminmin - 2*zymaxmin + zxyminmin + zxymaxmin) * t3 * u0;
+        result += 2 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 3*zxminmin - 3*zxmaxmin + 3*zxmaxmax + 3*zxminmax - 4*zyminmin + 4*zymaxmin + 2*zymaxmax - 2*zyminmax - 2*zxyminmin - 2*zxymaxmin - zxymaxmax - zxyminmax) * t3 * u1;
+        result += 3 * (4*zminmin - 4*zmaxmin + 4*zmaxmax - 4*zminmax + 2*zxminmin + 2*zxmaxmin - 2*zxmaxmax - 2*zxminmax + 2*zyminmin - 2*zymaxmin - 2*zymaxmax + 2*zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t3 * u2;
+
+        return result;
+    }
+
+
+    Data eval_bicubic_and_derivs(double x, double y){
+
+        // pixel floor of x and y 
+        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
+        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
+
+        // precompute indices of surrounding pixel values
+        size_t idx00 = IDX2D(xi, yi, px_horizontal);
+        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
+        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
+        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
+
+        double zminmin = (*image)[idx00];
+        double zminmax = (*image)[idx01];
+        double zmaxmin = (*image)[idx10];
+        double zmaxmax = (*image)[idx11];
+
+        double zxminmin = zx[idx00];
+        double zxminmax = zx[idx01];
+        double zxmaxmin = zx[idx10];
+        double zxmaxmax = zx[idx11];
+        double zyminmin = zy[idx00];
+        double zyminmax = zy[idx01];
+        double zymaxmin = zy[idx10];
+        double zymaxmax = zy[idx11];
+        double zxyminmin = zxy[idx00];
+        double zxyminmax = zxy[idx01];
+        double zxymaxmin = zxy[idx10];
+        double zxymaxmax = zxy[idx11];
+
+        // distance between interpolation point and pixel value 
+
+        // polynomial terms
+        double t0 = 1;
+        double u0 = 1;
+        double t1 = (x - px_x[xi]);
+        double u1 = (y - px_y[yi]);
+        double t2 = t1 * t1;
+        double u2 = u1 * u1;  
+        double t3 = t1 * t2;
+        double u3 = u1 * u2;
+
+        double result, result_dx, result_dy;
+
+        result = 0.0;
+        result += zminmin * t0 * u0;
+        result += zyminmin * t0 * u1;
+        result += (-3 * zminmin + 3 * zminmax - 2 * zyminmin - zyminmax) * t0 * u2;
+        result += (2 * zminmin - 2 * zminmax + zyminmin + zyminmax) * t0 * u3;
+        result += zxminmin * t1 * u0;
+        result += zxyminmin * t1 * u1;
+        result += (-3 * zxminmin + 3 * zxminmax - 2 * zxyminmin - zxyminmax) * t1 * u2;
+        result += (2 * zxminmin - 2 * zxminmax + zxyminmin + zxyminmax) * t1 * u3;
+        result += (-3 * zminmin + 3 * zmaxmin - 2 * zxminmin - zxmaxmin) * t2 * u0;
+        result += (-3 * zyminmin + 3 * zymaxmin - 2 * zxyminmin - zxymaxmin) * t2 * u1;
+        result += (9 * zminmin - 9 * zmaxmin + 9 * zmaxmax - 9 * zminmax + 6 * zxminmin + 3 * zxmaxmin - 3 * zxmaxmax - 6 * zxminmax + 6 * zyminmin - 6 * zymaxmin - 3 * zymaxmax + 3 * zyminmax + 4 * zxyminmin + 2 * zxymaxmin + zxymaxmax + 2 * zxyminmax) * t2 * u2;
+        result += (-6 * zminmin + 6 * zmaxmin - 6 * zmaxmax + 6 * zminmax - 4 * zxminmin - 2 * zxmaxmin + 2 * zxmaxmax + 4 * zxminmax - 3 * zyminmin + 3 * zymaxmin + 3 * zymaxmax - 3 * zyminmax - 2 * zxyminmin - zxymaxmin - zxymaxmax - 2 * zxyminmax) * t2 * u3;
+        result += (2 * zminmin - 2 * zmaxmin + zxminmin + zxmaxmin) * t3 * u0;
+        result += (2 * zyminmin - 2 * zymaxmin + zxyminmin + zxymaxmin) * t3 * u1;
+        result += (-6 * zminmin + 6 * zmaxmin - 6 * zmaxmax + 6 * zminmax - 3 * zxminmin - 3 * zxmaxmin + 3 * zxmaxmax + 3 * zxminmax - 4 * zyminmin + 4 * zymaxmin + 2 * zymaxmax - 2 * zyminmax - 2 * zxyminmin - 2 * zxymaxmin - zxymaxmax - zxyminmax) * t3 * u2;
+        result += (4 * zminmin - 4 * zmaxmin + 4 * zmaxmax - 4 * zminmax + 2 * zxminmin + 2 * zxmaxmin - 2 * zxmaxmax - 2 * zxminmax + 2 * zyminmin - 2 * zymaxmin - 2 * zymaxmax + 2 * zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t3 * u3;
+
+        result_dx = 0;
+        result_dx += zxminmin *t0 * u0;
+        result_dx += zxyminmin * t0 * u1;
+        result_dx += (-3*zxminmin + 3*zxminmax - 2*zxyminmin - zxyminmax) *t0 * u2;
+        result_dx += (2*zxminmin - 2*zxminmax + zxyminmin + zxyminmax) * t0 * u3;
+        result_dx += 2 * (-3*zminmin + 3*zmaxmin - 2*zxminmin - zxmaxmin)*t1*u0;
+        result_dx += 2 * (-3*zyminmin + 3*zymaxmin - 2*zxyminmin - zxymaxmin)*t1*u1;
+        result_dx += 2 * (9*zminmin - 9*zmaxmin + 9*zmaxmax - 9*zminmax + 6*zxminmin + 3*zxmaxmin - 3*zxmaxmax - 6*zxminmax + 6*zyminmin - 6*zymaxmin - 3*zymaxmax + 3*zyminmax + 4*zxyminmin + 2*zxymaxmin + zxymaxmax + 2*zxyminmax)*t1*u2;
+        result_dx += 2 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 4*zxminmin - 2*zxmaxmin + 2*zxmaxmax + 4*zxminmax - 3*zyminmin + 3*zymaxmin + 3*zymaxmax - 3*zyminmax - 2*zxyminmin - zxymaxmin - zxymaxmax - 2*zxyminmax)*t1*u3;
+        result_dx += 3 * (2*zminmin - 2*zmaxmin + zxminmin + zxmaxmin) * t2 *u0;
+        result_dx += 3 * (2*zyminmin - 2*zymaxmin + zxyminmin + zxymaxmin) * t2 * u1;
+        result_dx += 3 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 3*zxminmin - 3*zxmaxmin + 3*zxmaxmax + 3*zxminmax - 4*zyminmin + 4*zymaxmin + 2*zymaxmax - 2*zyminmax - 2*zxyminmin - 2*zxymaxmin - zxymaxmax - zxyminmax) * t2 * u2;
+        result_dx += 3 * (4*zminmin - 4*zmaxmin + 4*zmaxmax - 4*zminmax + 2*zxminmin + 2*zxmaxmin - 2*zxmaxmax - 2*zxminmax + 2*zyminmin - 2*zymaxmin - 2*zymaxmax + 2*zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t2 * u3;
+
+        result_dy = 0.0;
+        result_dy += zyminmin * t0 * u0;
+        result_dy += 2 * (-3*zminmin + 3*zminmax - 2*zyminmin - zyminmax) * t0 * u1;
+        result_dy += 3 * (2*zminmin-2*zminmax + zyminmin + zyminmax) * t0 * u2;
+        result_dy += zxyminmin*t1*u0;
+        result_dy += 2 * (-3*zxminmin + 3*zxminmax - 2*zxyminmin - zxyminmax) * t1 * u1;
+        result_dy += 3 * (2*zxminmin - 2*zxminmax + zxyminmin + zxyminmax) * t1 * u2;
+        result_dy += (-3*zyminmin + 3*zymaxmin - 2*zxyminmin - zxymaxmin) * t2 * u0;
+        result_dy += 2 * (9*zminmin - 9*zmaxmin + 9*zmaxmax - 9*zminmax + 6*zxminmin + 3*zxmaxmin - 3*zxmaxmax - 6*zxminmax + 6*zyminmin - 6*zymaxmin - 3*zymaxmax + 3*zyminmax + 4*zxyminmin + 2*zxymaxmin + zxymaxmax + 2*zxyminmax) * t2 * u1;
+        result_dy += 3 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 4*zxminmin - 2*zxmaxmin + 2*zxmaxmax + 4*zxminmax - 3*zyminmin + 3*zymaxmin + 3*zymaxmax - 3*zyminmax - 2*zxyminmin - zxymaxmin - zxymaxmax - 2*zxyminmax) * t2 * u2;
+        result_dy += (2*zyminmin - 2*zymaxmin + zxyminmin + zxymaxmin) * t3 * u0;
+        result_dy += 2 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 3*zxminmin - 3*zxmaxmin + 3*zxmaxmax + 3*zxminmax - 4*zyminmin + 4*zymaxmin + 2*zymaxmax - 2*zyminmax - 2*zxyminmin - 2*zxymaxmin - zxymaxmax - zxyminmax) * t3 * u1;
+        result_dy += 3 * (4*zminmin - 4*zmaxmin + 4*zmaxmax - 4*zminmax + 2*zxminmin + 2*zxmaxmin - 2*zxmaxmax - 2*zxminmax + 2*zyminmin - 2*zymaxmin - 2*zymaxmax + 2*zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t3 * u2;
+
+        return {result, result_dx, result_dy};
+    }
+
+
 
     inline void coeff_calc(std::vector<double> &tridiag_solution, double dy, double dx, size_t index, double * b, double * c, double * d){
 
@@ -59,9 +410,9 @@ namespace interpolator {
     void cspline_init(std::vector<double> &px, std::vector<double> &data){
 
 
-        size_t num_points = px.size();
-        size_t max_index = num_points - 1;  
-        size_t sys_size = max_index - 1;
+        int num_points = px.size();
+        int max_index = num_points - 1;  
+        int sys_size = max_index - 1;
         
         std::vector<double> diagonal(num_points);
         std::vector<double> off_diagonal(num_points);
@@ -168,369 +519,6 @@ namespace interpolator {
         return dydx;
         exit(0);
 
-    }
-
-
-
-    void bicubic_init(std::vector<double> &image, int px_horizontal, int px_vertical){
-
-        px_y.resize(px_vertical);
-        px_x.resize(px_horizontal);
-
-        for (int i = 0; i < px_horizontal; ++i) {
-            px_x[i] = i; 
-        }
-        for (int j = 0; j < px_vertical; ++j) {
-            px_y[j] = j; 
-
-        }
-
-        std::vector<double> data(px_horizontal,0);
-        for (int j = 0; j < px_vertical; j++){
-
-            // get 1D data
-            for (int i = 0; i < px_horizontal; ++i) {
-                data[i] = image[j * px_horizontal + i];
-            }
-
-            cspline_init(px_x, data);
-            for (int i = 0; i < px_horizontal; i++){
-                zx[j * px_horizontal + i] = cspline_eval_deriv(px_x, data, px_x[i], px_horizontal);
-            }
-        }
-
-        data.resize(px_vertical,0);
-        for (int i = 0; i < px_horizontal; ++i) {
-
-            // get 1D data
-            for (int j = 0; j < px_vertical; j++){
-                data[j] = image[j * px_horizontal + i];
-            }
-
-            cspline_init(px_y, data);
-            for (int j = 0; j < px_vertical; j++){
-                zy[j * px_horizontal + i] = cspline_eval_deriv(px_y, data, px_y[j], px_vertical);
-            }
-        }
-
-
-        data.resize(px_horizontal,0);
-        for (int j = 0; j < px_vertical; j++){
-
-            // get 1D data
-            for (int i = 0; i < px_horizontal; ++i) {
-                data[i] = zy[j * px_horizontal + i];
-            }
-
-            cspline_init(px_x, data);
-            for (int i = 0; i < px_horizontal; i++){
-                zxy[j * px_horizontal + i] = cspline_eval_deriv(px_x, data, px_x[i], px_horizontal);
-            }
-        }
-
-
-
-
-    }
-
-    double eval_bicubic(double x, double y){
-
-        // get indices
-        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
-        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
-
-        // precompute indices of surrounding pixel values
-        size_t idx00 = IDX2D(xi, yi, px_horizontal);
-        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
-        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
-        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
-
-        /* Precompute values for the grid points */
-        double zminmin = image[idx00];
-        double zminmax = image[idx01];
-        double zmaxmin = image[idx10];
-        double zmaxmax = image[idx11];
-
-        double zxminmin = zx[idx00];
-        double zxminmax = zx[idx01];
-        double zxmaxmin = zx[idx10];
-        double zxmaxmax = zx[idx11];
-
-        double zyminmin = zy[idx00];
-        double zyminmax = zy[idx01];
-        double zymaxmin = zy[idx10];
-        double zymaxmax = zy[idx11];
-
-        double zxyminmin = zxy[idx00];
-        double zxyminmax = zxy[idx01];
-        double zxymaxmin = zxy[idx10];
-        double zxymaxmax = zxy[idx11];
-
-        // polynomial terms
-        double t0 = 1;
-        double u0 = 1;
-        double t1 = (x - px_x[xi]);
-        double u1 = (y - px_y[yi]);
-        double t2 = t1 * t1;
-        double u2 = u1 * u1;  
-        double t3 = t1 * t2;
-        double u3 = u1 * u2;
-
-        /* Perform bicubic interpolation */
-        double result = 0.0;
-        result += zminmin * t0 * u0;
-        result += zyminmin * t0 * u1;
-        result += (-3 * zminmin + 3 * zminmax - 2 * zyminmin - zyminmax) * t0 * u2;
-        result += (2 * zminmin - 2 * zminmax + zyminmin + zyminmax) * t0 * u3;
-
-        result += zxminmin * t1 * u0;
-        result += zxyminmin * t1 * u1;
-        result += (-3 * zxminmin + 3 * zxminmax - 2 * zxyminmin - zxyminmax) * t1 * u2;
-        result += (2 * zxminmin - 2 * zxminmax + zxyminmin + zxyminmax) * t1 * u3;
-
-        result += (-3 * zminmin + 3 * zmaxmin - 2 * zxminmin - zxmaxmin) * t2 * u0;
-        result += (-3 * zyminmin + 3 * zymaxmin - 2 * zxyminmin - zxymaxmin) * t2 * u1;
-        result += (9 * zminmin - 9 * zmaxmin + 9 * zmaxmax - 9 * zminmax + 6 * zxminmin + 3 * zxmaxmin - 3 * zxmaxmax - 6 * zxminmax + 6 * zyminmin - 6 * zymaxmin - 3 * zymaxmax + 3 * zyminmax + 4 * zxyminmin + 2 * zxymaxmin + zxymaxmax + 2 * zxyminmax) * t2 * u2;
-        result += (-6 * zminmin + 6 * zmaxmin - 6 * zmaxmax + 6 * zminmax - 4 * zxminmin - 2 * zxmaxmin + 2 * zxmaxmax + 4 * zxminmax - 3 * zyminmin + 3 * zymaxmin + 3 * zymaxmax - 3 * zyminmax - 2 * zxyminmin - zxymaxmin - zxymaxmax - 2 * zxyminmax) * t2 * u3;
-
-        result += (2 * zminmin - 2 * zmaxmin + zxminmin + zxmaxmin) * t3 * u0;
-        result += (2 * zyminmin - 2 * zymaxmin + zxyminmin + zxymaxmin) * t3 * u1;
-        result += (-6 * zminmin + 6 * zmaxmin - 6 * zmaxmax + 6 * zminmax - 3 * zxminmin - 3 * zxmaxmin + 3 * zxmaxmax + 3 * zxminmax - 4 * zyminmin + 4 * zymaxmin + 2 * zymaxmax - 2 * zyminmax - 2 * zxyminmin - 2 * zxymaxmin - zxymaxmax - zxyminmax) * t3 * u2;
-        result += (4 * zminmin - 4 * zmaxmin + 4 * zmaxmax - 4 * zminmax + 2 * zxminmin + 2 * zxmaxmin - 2 * zxmaxmax - 2 * zxminmax + 2 * zyminmin - 2 * zymaxmin - 2 * zymaxmax + 2 * zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t3 * u3;
-
-        return result;
-    }
-
-
-
-
-    double eval_bicubic_dx(double x, double y){
-
-        /* first compute the indices into the data arrays where we are interpolating */
-        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
-        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
-
-        // precompute indices of surrounding pixel values
-        size_t idx00 = IDX2D(xi, yi, px_horizontal);
-        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
-        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
-        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
-
-        double zminmin = image[idx00];
-        double zminmax = image[idx01];
-        double zmaxmin = image[idx10];
-        double zmaxmax = image[idx11];
-
-        double zxminmin = zx[idx00];
-        double zxminmax = zx[idx01];
-        double zxmaxmin = zx[idx10];
-        double zxmaxmax = zx[idx11];
-        double zyminmin = zy[idx00];
-        double zyminmax = zy[idx01];
-        double zymaxmin = zy[idx10];
-        double zymaxmax = zy[idx11];
-        double zxyminmin = zxy[idx00];
-        double zxyminmax = zxy[idx01];
-        double zxymaxmin = zxy[idx10];
-        double zxymaxmax = zxy[idx11];
-
-        // distance between interpolation point and pixel value 
-
-        // polynomial terms
-        double t0 = 1;
-        double u0 = 1;
-        double t1 = (x - px_x[xi]);
-        double u1 = (y - px_y[yi]);
-        double t2 = t1 * t1;
-        double u2 = u1 * u1;  
-        double t3 = t1 * t2;
-        double u3 = u1 * u2;
-
-
-        double result = 0.0;
-        result = 0;
-        result += zxminmin *t0 * u0;
-        result += zxyminmin * t0 * u1;
-        result += (-3*zxminmin + 3*zxminmax - 2*zxyminmin - zxyminmax) *t0 * u2;
-        result += (2*zxminmin - 2*zxminmax + zxyminmin + zxyminmax) * t0 * u3;
-        result += 2 * (-3*zminmin + 3*zmaxmin - 2*zxminmin - zxmaxmin)*t1*u0;
-        result += 2 * (-3*zyminmin + 3*zymaxmin - 2*zxyminmin - zxymaxmin)*t1*u1;
-        result += 2 * (9*zminmin - 9*zmaxmin + 9*zmaxmax - 9*zminmax + 6*zxminmin + 3*zxmaxmin - 3*zxmaxmax - 6*zxminmax + 6*zyminmin - 6*zymaxmin - 3*zymaxmax + 3*zyminmax + 4*zxyminmin + 2*zxymaxmin + zxymaxmax + 2*zxyminmax)*t1*u2;
-        result += 2 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 4*zxminmin - 2*zxmaxmin + 2*zxmaxmax + 4*zxminmax - 3*zyminmin + 3*zymaxmin + 3*zymaxmax - 3*zyminmax - 2*zxyminmin - zxymaxmin - zxymaxmax - 2*zxyminmax)*t1*u3;
-        result += 3 * (2*zminmin - 2*zmaxmin + zxminmin + zxmaxmin) * t2 *u0;
-        result += 3 * (2*zyminmin - 2*zymaxmin + zxyminmin + zxymaxmin) * t2 * u1;
-        result += 3 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 3*zxminmin - 3*zxmaxmin + 3*zxmaxmax + 3*zxminmax - 4*zyminmin + 4*zymaxmin + 2*zymaxmax - 2*zyminmax - 2*zxyminmin - 2*zxymaxmin - zxymaxmax - zxyminmax) * t2 * u2;
-        result += 3 * (4*zminmin - 4*zmaxmin + 4*zmaxmax - 4*zminmax + 2*zxminmin + 2*zxmaxmin - 2*zxmaxmax - 2*zxminmax + 2*zyminmin - 2*zymaxmin - 2*zymaxmax + 2*zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t2 * u3;
-        return result;
-
-    }
-
-
-    double eval_bicubic_dy(double x, double y){
-
-        /* first compute the indices into the data arrays where we are interpolating */
-        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
-        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
-
-        // precompute indices of surrounding pixel values
-        size_t idx00 = IDX2D(xi, yi, px_horizontal);
-        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
-        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
-        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
-
-
-        /* find the minimum and maximum values on the grid cell in each dimension */
-        double xmin = px_x[xi];
-        double xmax = px_x[xi + 1];
-        double ymin = px_y[yi];
-        double ymax = px_y[yi + 1];
-
-        double zminmin = image[idx00];
-        double zminmax = image[idx01];
-        double zmaxmin = image[idx10];
-        double zmaxmax = image[idx11];
-
-        double zxminmin = zx[idx00];
-        double zxminmax = zx[idx01];
-        double zxmaxmin = zx[idx10];
-        double zxmaxmax = zx[idx11];
-        double zyminmin = zy[idx00];
-        double zyminmax = zy[idx01];
-        double zymaxmin = zy[idx10];
-        double zymaxmax = zy[idx11];
-        double zxyminmin = zxy[idx00];
-        double zxyminmax = zxy[idx01];
-        double zxymaxmin = zxy[idx10];
-        double zxymaxmax = zxy[idx11];
-
-        // distance between interpolation point and pixel value 
-
-        // polynomial terms
-        double t0 = 1;
-        double u0 = 1;
-        double t1 = (x - px_x[xi]);
-        double u1 = (y - px_y[yi]);
-        double t2 = t1 * t1;
-        double u2 = u1 * u1;  
-        double t3 = t1 * t2;
-        double u3 = u1 * u2;
-
-        double result = 0.0;
-        result += zyminmin * t0 * u0;
-        result += 2 * (-3*zminmin + 3*zminmax - 2*zyminmin - zyminmax) * t0 * u1;
-        result += 3 * (2*zminmin-2*zminmax + zyminmin + zyminmax) * t0 * u2;
-        result += zxyminmin*t1*u0;
-        result += 2 * (-3*zxminmin + 3*zxminmax - 2*zxyminmin - zxyminmax) * t1 * u1;
-        result += 3 * (2*zxminmin - 2*zxminmax + zxyminmin + zxyminmax) * t1 * u2;
-        result += (-3*zyminmin + 3*zymaxmin - 2*zxyminmin - zxymaxmin) * t2 * u0;
-        result += 2 * (9*zminmin - 9*zmaxmin + 9*zmaxmax - 9*zminmax + 6*zxminmin + 3*zxmaxmin - 3*zxmaxmax - 6*zxminmax + 6*zyminmin - 6*zymaxmin - 3*zymaxmax + 3*zyminmax + 4*zxyminmin + 2*zxymaxmin + zxymaxmax + 2*zxyminmax) * t2 * u1;
-        result += 3 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 4*zxminmin - 2*zxmaxmin + 2*zxmaxmax + 4*zxminmax - 3*zyminmin + 3*zymaxmin + 3*zymaxmax - 3*zyminmax - 2*zxyminmin - zxymaxmin - zxymaxmax - 2*zxyminmax) * t2 * u2;
-        result += (2*zyminmin - 2*zymaxmin + zxyminmin + zxymaxmin) * t3 * u0;
-        result += 2 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 3*zxminmin - 3*zxmaxmin + 3*zxmaxmax + 3*zxminmax - 4*zyminmin + 4*zymaxmin + 2*zymaxmax - 2*zyminmax - 2*zxyminmin - 2*zxymaxmin - zxymaxmax - zxyminmax) * t3 * u1;
-        result += 3 * (4*zminmin - 4*zmaxmin + 4*zmaxmax - 4*zminmax + 2*zxminmin + 2*zxmaxmin - 2*zxmaxmax - 2*zxminmax + 2*zyminmin - 2*zymaxmin - 2*zymaxmax + 2*zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t3 * u2;
-
-        return result;
-    }
-
-
-    InterpValues eval_bicubic_and_derivs(double x, double y){
-
-        /* first compute the indices into the data arrays where we are interpolating */
-        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
-        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
-
-        // precompute indices of surrounding pixel values
-        size_t idx00 = IDX2D(xi, yi, px_horizontal);
-        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
-        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
-        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
-
-
-        /* find the minimum and maximum values on the grid cell in each dimension */
-        double xmin = px_x[xi];
-        double xmax = px_x[xi + 1];
-        double ymin = px_y[yi];
-        double ymax = px_y[yi + 1];
-
-        double zminmin = image[idx00];
-        double zminmax = image[idx01];
-        double zmaxmin = image[idx10];
-        double zmaxmax = image[idx11];
-
-        double zxminmin = zx[idx00];
-        double zxminmax = zx[idx01];
-        double zxmaxmin = zx[idx10];
-        double zxmaxmax = zx[idx11];
-        double zyminmin = zy[idx00];
-        double zyminmax = zy[idx01];
-        double zymaxmin = zy[idx10];
-        double zymaxmax = zy[idx11];
-        double zxyminmin = zxy[idx00];
-        double zxyminmax = zxy[idx01];
-        double zxymaxmin = zxy[idx10];
-        double zxymaxmax = zxy[idx11];
-
-        // distance between interpolation point and pixel value 
-
-        // polynomial terms
-        double t0 = 1;
-        double u0 = 1;
-        double t1 = (x - px_x[xi]);
-        double u1 = (y - px_y[yi]);
-        double t2 = t1 * t1;
-        double u2 = u1 * u1;  
-        double t3 = t1 * t2;
-        double u3 = u1 * u2;
-
-        double result, result_dx, result_dy;
-
-        result = 0.0;
-        result += zminmin * t0 * u0;
-        result += zyminmin * t0 * u1;
-        result += (-3 * zminmin + 3 * zminmax - 2 * zyminmin - zyminmax) * t0 * u2;
-        result += (2 * zminmin - 2 * zminmax + zyminmin + zyminmax) * t0 * u3;
-        result += zxminmin * t1 * u0;
-        result += zxyminmin * t1 * u1;
-        result += (-3 * zxminmin + 3 * zxminmax - 2 * zxyminmin - zxyminmax) * t1 * u2;
-        result += (2 * zxminmin - 2 * zxminmax + zxyminmin + zxyminmax) * t1 * u3;
-        result += (-3 * zminmin + 3 * zmaxmin - 2 * zxminmin - zxmaxmin) * t2 * u0;
-        result += (-3 * zyminmin + 3 * zymaxmin - 2 * zxyminmin - zxymaxmin) * t2 * u1;
-        result += (9 * zminmin - 9 * zmaxmin + 9 * zmaxmax - 9 * zminmax + 6 * zxminmin + 3 * zxmaxmin - 3 * zxmaxmax - 6 * zxminmax + 6 * zyminmin - 6 * zymaxmin - 3 * zymaxmax + 3 * zyminmax + 4 * zxyminmin + 2 * zxymaxmin + zxymaxmax + 2 * zxyminmax) * t2 * u2;
-        result += (-6 * zminmin + 6 * zmaxmin - 6 * zmaxmax + 6 * zminmax - 4 * zxminmin - 2 * zxmaxmin + 2 * zxmaxmax + 4 * zxminmax - 3 * zyminmin + 3 * zymaxmin + 3 * zymaxmax - 3 * zyminmax - 2 * zxyminmin - zxymaxmin - zxymaxmax - 2 * zxyminmax) * t2 * u3;
-        result += (2 * zminmin - 2 * zmaxmin + zxminmin + zxmaxmin) * t3 * u0;
-        result += (2 * zyminmin - 2 * zymaxmin + zxyminmin + zxymaxmin) * t3 * u1;
-        result += (-6 * zminmin + 6 * zmaxmin - 6 * zmaxmax + 6 * zminmax - 3 * zxminmin - 3 * zxmaxmin + 3 * zxmaxmax + 3 * zxminmax - 4 * zyminmin + 4 * zymaxmin + 2 * zymaxmax - 2 * zyminmax - 2 * zxyminmin - 2 * zxymaxmin - zxymaxmax - zxyminmax) * t3 * u2;
-        result += (4 * zminmin - 4 * zmaxmin + 4 * zmaxmax - 4 * zminmax + 2 * zxminmin + 2 * zxmaxmin - 2 * zxmaxmax - 2 * zxminmax + 2 * zyminmin - 2 * zymaxmin - 2 * zymaxmax + 2 * zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t3 * u3;
-
-        result_dx = 0;
-        result_dx += zxminmin *t0 * u0;
-        result_dx += zxyminmin * t0 * u1;
-        result_dx += (-3*zxminmin + 3*zxminmax - 2*zxyminmin - zxyminmax) *t0 * u2;
-        result_dx += (2*zxminmin - 2*zxminmax + zxyminmin + zxyminmax) * t0 * u3;
-        result_dx += 2 * (-3*zminmin + 3*zmaxmin - 2*zxminmin - zxmaxmin)*t1*u0;
-        result_dx += 2 * (-3*zyminmin + 3*zymaxmin - 2*zxyminmin - zxymaxmin)*t1*u1;
-        result_dx += 2 * (9*zminmin - 9*zmaxmin + 9*zmaxmax - 9*zminmax + 6*zxminmin + 3*zxmaxmin - 3*zxmaxmax - 6*zxminmax + 6*zyminmin - 6*zymaxmin - 3*zymaxmax + 3*zyminmax + 4*zxyminmin + 2*zxymaxmin + zxymaxmax + 2*zxyminmax)*t1*u2;
-        result_dx += 2 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 4*zxminmin - 2*zxmaxmin + 2*zxmaxmax + 4*zxminmax - 3*zyminmin + 3*zymaxmin + 3*zymaxmax - 3*zyminmax - 2*zxyminmin - zxymaxmin - zxymaxmax - 2*zxyminmax)*t1*u3;
-        result_dx += 3 * (2*zminmin - 2*zmaxmin + zxminmin + zxmaxmin) * t2 *u0;
-        result_dx += 3 * (2*zyminmin - 2*zymaxmin + zxyminmin + zxymaxmin) * t2 * u1;
-        result_dx += 3 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 3*zxminmin - 3*zxmaxmin + 3*zxmaxmax + 3*zxminmax - 4*zyminmin + 4*zymaxmin + 2*zymaxmax - 2*zyminmax - 2*zxyminmin - 2*zxymaxmin - zxymaxmax - zxyminmax) * t2 * u2;
-        result_dx += 3 * (4*zminmin - 4*zmaxmin + 4*zmaxmax - 4*zminmax + 2*zxminmin + 2*zxmaxmin - 2*zxmaxmax - 2*zxminmax + 2*zyminmin - 2*zymaxmin - 2*zymaxmax + 2*zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t2 * u3;
-
-        result_dy = 0.0;
-        result_dy += zyminmin * t0 * u0;
-        result_dy += 2 * (-3*zminmin + 3*zminmax - 2*zyminmin - zyminmax) * t0 * u1;
-        result_dy += 3 * (2*zminmin-2*zminmax + zyminmin + zyminmax) * t0 * u2;
-        result_dy += zxyminmin*t1*u0;
-        result_dy += 2 * (-3*zxminmin + 3*zxminmax - 2*zxyminmin - zxyminmax) * t1 * u1;
-        result_dy += 3 * (2*zxminmin - 2*zxminmax + zxyminmin + zxyminmax) * t1 * u2;
-        result_dy += (-3*zyminmin + 3*zymaxmin - 2*zxyminmin - zxymaxmin) * t2 * u0;
-        result_dy += 2 * (9*zminmin - 9*zmaxmin + 9*zmaxmax - 9*zminmax + 6*zxminmin + 3*zxmaxmin - 3*zxmaxmax - 6*zxminmax + 6*zyminmin - 6*zymaxmin - 3*zymaxmax + 3*zyminmax + 4*zxyminmin + 2*zxymaxmin + zxymaxmax + 2*zxyminmax) * t2 * u1;
-        result_dy += 3 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 4*zxminmin - 2*zxmaxmin + 2*zxmaxmax + 4*zxminmax - 3*zyminmin + 3*zymaxmin + 3*zymaxmax - 3*zyminmax - 2*zxyminmin - zxymaxmin - zxymaxmax - 2*zxyminmax) * t2 * u2;
-        result_dy += (2*zyminmin - 2*zymaxmin + zxyminmin + zxymaxmin) * t3 * u0;
-        result_dy += 2 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 3*zxminmin - 3*zxmaxmin + 3*zxmaxmax + 3*zxminmax - 4*zyminmin + 4*zymaxmin + 2*zymaxmax - 2*zyminmax - 2*zxyminmin - 2*zxymaxmin - zxymaxmax - zxyminmax) * t3 * u1;
-        result_dy += 3 * (4*zminmin - 4*zmaxmin + 4*zmaxmax - 4*zminmax + 2*zxminmin + 2*zxmaxmin - 2*zxmaxmax - 2*zxminmax + 2*zyminmin - 2*zymaxmin - 2*zymaxmax + 2*zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t3 * u2;
-
-        return {result, result_dx, result_dy};
     }
 
 }
