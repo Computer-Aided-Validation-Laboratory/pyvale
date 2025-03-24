@@ -157,7 +157,21 @@ def calculate_FOV(cam_data: CameraData):
     FOV_mm = (FOV_x, FOV_y)
     return FOV_mm
 
-def angular_fov(cam_data: CameraData):
+def blender_FOV(cam_data: CameraData) -> tuple[float, float]:
+    """A method to calculate the camera's field of view in mm using Blender's method
+
+    Args:
+        cam_data (CameraData): A dataclass containing the camera parameters
+
+    Returns:
+        tuple[float, float]: A tuple containing the FOV in x and y directionns
+    """    
+    FOV_x = (cam_data.pixels_num[0] * cam_data.pixels_size[0] * cam_data.image_dist) / cam_data.focal_length
+    FOV_y = (cam_data.pixels_size[1 / cam_data.pixels_num[0]]) * FOV_x
+    FOV_blender = (FOV_x, FOV_y)
+    return FOV_blender
+
+def angular_fov(cam_data: CameraData): # Not sure if this function is necessary
     """A method to calculate the angular field of view of a camera in degrees
 
     Args:
