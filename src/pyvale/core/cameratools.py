@@ -176,7 +176,7 @@ def angular_fov(cam_data: CameraData):
 def focal_length_from_resolution(pixels_size: np.ndarray,
                                  working_dist: float,
                                  resolution: float) -> float:
-    focal_length = working_dist / ((resolution / (pixels_size[0])) + 1)
+    focal_length = working_dist / ((resolution / pixels_size[0]))
     return focal_length
 
 def blender_camera_from_resolution(pixels_num: np.ndarray,
