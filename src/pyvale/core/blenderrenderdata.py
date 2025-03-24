@@ -20,6 +20,9 @@ class RenderData:
     max_bounces: int | None = None
 
     def __post_init__(self) -> None:
-        self.max_bounces = 12
-        self.engine = RenderEngine.CYCLES
-        self.samples = 2
+        if self.max_bounces is None:
+            self.max_bounces = 12
+        if self.engine is None:
+            self.engine = RenderEngine.CYCLES
+        if self.samples is None:
+            self.samples = 2
