@@ -8,22 +8,15 @@
 // STD library Header files
 #include <vector>
 #include <iostream>
-#include <iomanip>
-#include <chrono>
+#include <cmath>
 
-
-// GNU Scientific Library Header files
-#include <gsl/gsl_multifit_nlinear.h>
-#include <gsl/gsl_blas.h>
-#include <Eigen/Dense>
 
 // Program Header files
-#include "./diclm.hpp"
-#include "./dicgslinterpolator.hpp"
+#include "./dicoptimizer.hpp"
 #include "./dicinterpolator.hpp"
 
 
-namespace lm {
+namespace optimizer {
 
     
     // values pulled from the interpolated reference image
@@ -39,7 +32,6 @@ namespace lm {
     std::vector<std::vector<double>> invH(6, std::vector<double>(6, 0.0));
     std::vector<double> dfdp(6,0.0);
     double lambda = 0.01;
-    double dp_mag;
     double costfunc_p;
     double costfunc_pdp;
 
@@ -48,16 +40,17 @@ namespace lm {
 
 
     // function pointer for correlation criteria
-    void (*optimize)(std::vector<double> &, std::vector<double> &, std::vector<double> &, gsl_spline2d*, gsl_interp_accel*, gsl_interp_accel*, int n);
+    void (*optimize_costfunc)(std::vector<double> &, std::vector<double> &, std::vector<double> &, int n);
     void (*shape_function)(double &, double &, double , double , std::vector<double> &);
     void (*dshape_dp)(std::vector<double>&, double, double, double, double, int);
 
     void init(std::string &corr_crit, std::string &shape_func, int subset_size){
 
 
-        if (corr_crit == "SSD") optimize=ssd;
-        else if (corr_crit == "NSSD") optimize=nssd;
-        else if (corr_crit == "ZNSSD") optimize=znssd;
+        // function pointer for cost function
+        if (corr_crit == "SSD") optimize_costfunc=ssd;
+        else if (corr_crit == "NSSD") optimize_costfunc=nssd;
+        else if (corr_crit == "ZNSSD") optimize_costfunc=znssd;
         else {            
             std::cerr << "Unexpected Correlation Criteria: \'" << corr_crit << "\'" << std::endl;
             std::cerr << "Allowed Values: \'SSD\', \'NSSD\', \'ZNSSD\'. " << std::endl;
@@ -67,12 +60,12 @@ namespace lm {
 
         // function pointer for shape function
         if (shape_func == "rigid") {
-            shape_function=rigid;
-            dshape_dp=drigid_dp;
+            optimizer::shape_function=rigid;
+            optimizer::dshape_dp=drigid_dp;
         }
         else if (shape_func == "affine") {
-            shape_function=affine;
-            dshape_dp=daffine_dp;
+            optimizer::shape_function=affine;
+            optimizer::dshape_dp=daffine_dp;
         }
         else {            
             std::cerr << "Unexpected Shape Function: \'" << shape_func << "\'" << std::endl;
@@ -80,7 +73,9 @@ namespace lm {
             exit(EXIT_FAILURE);
         }
 
+        
 
+        // resize the reference subset values and coordinate vectors
         subset_ref.resize(subset_size*subset_size, 0.0);
         subset_ref_x.resize(subset_size*subset_size, 0.0);
         subset_ref_y.resize(subset_size*subset_size, 0.0);
@@ -91,32 +86,20 @@ namespace lm {
     void solve(std::vector<double> &subset_def,
                  std::vector<double> &subset_def_x,
                  std::vector<double> &subset_def_y,
-                 gsl_spline2d *spline,
-                 gsl_interp_accel* xacc,
-                 gsl_interp_accel* yacc,
                  int n,
                  double tol,
                  int max_iter){
 
         int iter = 0;
 
+        double dp_mag;
+
         for (int l = 0; l < max_iter; l++){
 
 
             // optimize
-            optimize(subset_def, subset_def_x, subset_def_y, spline, xacc, yacc, n);
-
-
-            // check tolerance
-            if (costfunc_p < costfunc_pdp){
-                lambda *= 10.0;
-            }
-            else{
-                lambda *= 0.1;
-                for (int i = 0; i < 6; i++){
-                    p[i] = pdp[i];
-                }
-            }
+            optimize_costfunc(subset_def, subset_def_x, subset_def_y, n);
+            check_tolerance(costfunc_p, costfunc_pdp, p, pdp, lambda);
 
 
             // get magnitude of deltap
@@ -143,10 +126,7 @@ namespace lm {
     void ssd(std::vector<double> &subset_def,
              std::vector<double> &subset_def_x, 
              std::vector<double> &subset_def_y, 
-                 gsl_spline2d* spline,
-                 gsl_interp_accel* xacc,
-                 gsl_interp_accel* yacc,
-                 int n){
+             int n){
 
         // reset derivative and hessian values
         std::fill(g.begin(), g.end(), 0.0);
@@ -170,10 +150,6 @@ namespace lm {
             subset_ref[i] = interp_data.interp_value;
             dfdx = interp_data.interp_dx;
             dfdy = interp_data.interp_dy;
-
-            // subset_ref[i] = gsl_spline2d_eval(spline, ref_x, ref_y, xacc, yacc);
-            // dfdx = gsl_spline2d_eval_deriv_x(spline,  ref_x, ref_y, xacc, yacc);
-            // dfdy = gsl_spline2d_eval_deriv_y(spline,  ref_x, ref_y, xacc, yacc);
 
             // derivative of shape function with repsect to parameters
             dshape_dp(dfdp, ref_x, ref_y, dfdx, dfdy, n);
@@ -215,6 +191,7 @@ namespace lm {
         invertMatrix(H, invH);
         new_shape_func_params(pdp, invH, g);
 
+        // Some useful debugging print statements
         //std::cout << df_dx << " " << df_dy << std::endl;
         // std::cout << "dfdp  " << dfdp[0] << " " << dfdp[1] << " " << dfdp[2] << " " << dfdp[3] << " " << dfdp[4] << " " << dfdp[5] << std::endl;
         // std::cout << "g  " << g[0] << " " << g[1] << " " << g[2] << " " << g[3] << " " << g[4] << " " << g[5] << std::endl;
@@ -228,7 +205,7 @@ namespace lm {
         costfunc_pdp = 0.0;
         for (int i = 0; i < n; ++i) {
             shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], pdp);
-            subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
+            subset_ref[i] = interpolator::eval_bicubic(subset_ref_x[i], subset_ref_y[i]);
             costfunc_pdp += (subset_def[i] - subset_ref[i]) * (subset_def[i] - subset_ref[i]);
         }
     }
@@ -237,10 +214,7 @@ namespace lm {
     void nssd(std::vector<double> &subset_def,
              std::vector<double> &subset_def_x, 
              std::vector<double> &subset_def_y, 
-                 gsl_spline2d* spline,
-                 gsl_interp_accel* xacc,
-                 gsl_interp_accel* yacc,
-                 int n){
+             int n){
 
 
         // reset derivative and hessian values
@@ -260,10 +234,6 @@ namespace lm {
         for (int i = 0; i < n; ++i) {
 
             shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], p);
-
-            // subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
-            // interp_data = interpolator::eval_bicubic_and_derivs(subset_ref_x[i], subset_ref_y[i]);
-
             interp_data = interpolator::eval_bicubic_and_derivs(subset_ref_x[i], subset_ref_y[i]);
             subset_ref[i] = interp_data.interp_value;
             dfdx[i] = interp_data.interp_dx;
@@ -279,9 +249,6 @@ namespace lm {
         // loop over the subset values
         for (int i = 0; i < n; i++){
             
-            // dfdx = gsl_spline2d_eval_deriv_x(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
-            // dfdy = gsl_spline2d_eval_deriv_y(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
-
             // derivative of shape function with repsect to parameters
             dshape_dp(dfdp, subset_ref_x[i], subset_ref_y[i], dfdx[i], dfdy[i], n);
 
@@ -309,8 +276,6 @@ namespace lm {
             }
             H[row][row] += lambda * H[row][row]; // diagonal
         }
-
-         
 
 
         invertMatrix(H, invH);
@@ -340,7 +305,6 @@ namespace lm {
         sum_squared_ref = 0.0;
         for (int i = 0; i < n; ++i) {
             shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], pdp);
-            // subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
             subset_ref[i] = interpolator::eval_bicubic(subset_ref_x[i], subset_ref_y[i]);
             sum_squared_ref += subset_ref[i] * subset_ref[i];
         }
@@ -359,10 +323,7 @@ namespace lm {
     void znssd(std::vector<double> &subset_def,
              std::vector<double> &subset_def_x, 
              std::vector<double> &subset_def_y, 
-                 gsl_spline2d* spline,
-                 gsl_interp_accel* xacc,
-                 gsl_interp_accel* yacc,
-                 int n){
+             int n){
 
 
         // reset derivative and hessian values
@@ -462,7 +423,6 @@ namespace lm {
         mean_ref = 0.0;
         for (int i = 0; i < n; ++i) {
             shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], pdp);
-            // subset_ref[i] = gsl_spline2d_eval(spline, subset_ref_x[i], subset_ref_y[i], xacc, yacc);
             subset_ref[i] = interpolator::eval_bicubic(subset_ref_x[i], subset_ref_y[i]);
             mean_ref += subset_ref[i];
         }
@@ -485,7 +445,7 @@ namespace lm {
 
     }
 
-    // Function to perform matrix inversion using Gaussian elimination
+    // Inv matrix using Gauss Elim.
     bool invertMatrix(const std::vector<std::vector<double>>& matrix, std::vector<std::vector<double>>& inverse) {
         int n = 6;
 
@@ -554,6 +514,20 @@ namespace lm {
         return true;
     }
 
+    
+    void check_tolerance(double costfunc_p, double costfunc_pdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda){
+
+        if (costfunc_p < costfunc_pdp){
+            lambda *= 10.0;
+        }
+        else{
+            lambda *= 0.1;
+            for (int i = 0; i < 6; i++){
+                p[i] = pdp[i];
+            }
+        }
+        
+    }
 
     void new_shape_func_params(std::vector<double> &pdp, std::vector<std::vector<double>> &invH, std::vector<double> &g){
 

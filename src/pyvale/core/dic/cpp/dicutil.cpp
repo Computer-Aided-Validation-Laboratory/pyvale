@@ -9,11 +9,6 @@
 #include <vector>
 #include <iostream>
 
-// GNU Scientific Library Header files
-#include <gsl/gsl_spline2d.h>
-#include <gsl/gsl_interp2d.h>
-
-
 // Program Header files
 
 

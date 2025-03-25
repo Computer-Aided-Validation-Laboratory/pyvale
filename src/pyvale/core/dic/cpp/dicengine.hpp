@@ -13,10 +13,6 @@
 #include <vector>
 #include <iostream>
 
-// GNU Scientific Library Header files
-
-// Program Header files
-
 
 namespace dic2d {
 
@@ -36,8 +32,8 @@ namespace dic2d {
                     std::string& interp_routine,
                     std::string& scan_method);
 
-    void image_scan(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step);
-    void reliability_guided(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step);
+    void image_scan(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step, int max_iter, double tol);
+    void reliability_guided(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step, int max_iter, double tol);
 
 }
 

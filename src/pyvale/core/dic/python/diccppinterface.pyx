@@ -33,8 +33,8 @@ cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
                     string& interp_routine,
                     string& scan_method)
 
-cdef extern from "../cpp/dicoptimization.hpp" namespace "optimization":
-    void collect_results(int *ss_coords, int* u, int* v, int* p)
+#cdef extern from "../cpp/dicoptimization.hpp" namespace "optimization":
+#    void collect_results(int *ss_coords, int* u, int* v, int* p)
 
 
 # A wrapper function to call the C++ function from Python

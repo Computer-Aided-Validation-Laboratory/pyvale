@@ -18,12 +18,8 @@ extensions = [
         sources=["diccppinterface.pyx",
                  "../cpp/dicutil.cpp",
                  "../cpp/dicengine.cpp",
-                 "../cpp/dicgslinterpolator.cpp",
                  "../cpp/dicinterpolator.cpp",
-                 "../cpp/diccorrelation.cpp",
-                 "../cpp/dicjacobian.cpp",
-                 "../cpp/dicoptimization.cpp",
-                 "../cpp/diclm.cpp"],
+                 "../cpp/dicoptimizer.cpp"],
         language="c++",
 
         extra_compile_args=["-O3"],

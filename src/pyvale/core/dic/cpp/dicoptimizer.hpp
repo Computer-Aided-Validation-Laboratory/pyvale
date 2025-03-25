@@ -13,27 +13,26 @@
 #include <iostream>
 #include <chrono>
 
-
-// GNU Scientific Library Header files
-#include <gsl/gsl_multifit_nlinear.h>
-#include <gsl/gsl_blas.h>
-
 // Program Header files
-#include "./dicgslinterpolator.hpp"
 
-namespace lm {
+
+
+namespace optimizer {
 
     void init(std::string &, std::string &, int);
 
-    void  solve(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n, double, int);
-    void    ssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);
-    void   nssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);
-    void  znssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, gsl_spline2d*, gsl_interp_accel*,  gsl_interp_accel*, int n);
+    void  solve(std::vector<double> &, std::vector<double> &,  std::vector<double> &, int, double, int);
+    void    ssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, int);
+    void   nssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, int);
+    void  znssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, int);
 
     bool invertMatrix(const std::vector<std::vector<double>>& matrix, std::vector<std::vector<double>>& inverse);
     void new_shape_func_params(std::vector<double> &pdp, std::vector<std::vector<double>> &invH, std::vector<double> &gradient);
+    void check_tolerance(double costfunc_p, double costfunc_pdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda);
+
 
     // shape functions and their derivatives with respect to optimization parameters
+
     void affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
     void rigid(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
     void quad(double &x_new, double &y_new, double x, double y, std::vector<double> &p);

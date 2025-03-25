@@ -6,27 +6,17 @@
 
 
 // STD library Header files
-#include <vector>
 #include <iostream>
+#include <vector>
 #include <chrono>
 
-// GNU Scientific Library Header files
-#include <gsl/gsl_multifit_nlinear.h>
-
 // Program Header files
-#include "./dicgslinterpolator.hpp"
 #include "./dicinterpolator.hpp"
-#include "./dicutil.hpp"
-#include "./dicoptimization.hpp"
+#include "./dicoptimizer.hpp"
 #include "./dicengine.hpp"
-#include "./diclm.hpp"
+#include "./dicutil.hpp"
 
 
-// #ifdef DEBUG
-//     #define LOG(x) std::cout << "[VERBOSE] " << x << std::endl;
-// #else
-//     #define LOG(x)  // Do nothing
-// #endif
 
 
 namespace dic2d {
@@ -59,6 +49,9 @@ namespace dic2d {
         // -------------------------------------------------------------------------------------------
 
 
+        int num_px_image = px_horizontal*px_vertical;
+        int num_px_subset = subset_size*subset_size;
+
         // total number of subsets
         int edge = 52;
         int n_subsets = util::get_num_subsets(edge, px_horizontal, px_vertical, subset_step);
@@ -69,31 +62,27 @@ namespace dic2d {
 
         // need to make a copy of the reference image that has been converted to double for the interpolator
         std::vector<double> image_ref_dbl;
-        image_ref_dbl.assign(image_ref, image_ref + px_vertical*px_horizontal);
+        image_ref_dbl.assign(image_ref, image_ref + num_px_image);
 
         // define our interpolator for the reference imageu
-        gsl_spline2d *spline = gsl_interpolation::create_spline(interp_routine, image_ref_dbl, px_horizontal, px_vertical);
         interpolator::bicubic_init(image_ref_dbl, px_horizontal, px_vertical);
 
-        // setup the optimizer and pass the already create spline object and accelerators.
-        optimization::init(num_def_images, n_subsets, corr_crit, interp_routine, shape_func, subset_size, px_horizontal, px_vertical, spline);
-
         // initialise the LM optimizer that I have been writing
-        lm::init(corr_crit, shape_func, subset_size);
-        gsl_interp_accel *xacc = gsl_interp_accel_alloc();
-        gsl_interp_accel *yacc = gsl_interp_accel_alloc();
+        optimizer::init(corr_crit, shape_func, subset_size);
+
+
 
 
         // resize image and subset arrays
-        image_def.resize(px_vertical*px_horizontal,0.0);
-        subset_def.resize(subset_size*subset_size,0.0);
-        subset_def_coords_x.resize(subset_size*subset_size,0.0);
-        subset_def_coords_y.resize(subset_size*subset_size,0.0);
+        image_def.resize(num_px_image,0.0);
+        subset_def.resize(num_px_subset,0.0);
+        subset_def_coords_x.resize(num_px_subset,0.0);
+        subset_def_coords_y.resize(num_px_subset,0.0);
 
 
 
         // function pointer for the method of scanning the subsets through the image
-        void (*scan_function)(int, int, int, int, int, int, int );
+        void (*scan_function)(int, int, int, int, int, int, int, int, double);
         if (scan_method=="image_scan") scan_function=image_scan;
         else if (scan_method=="RG") scan_function=reliability_guided;
         else {
@@ -113,39 +102,9 @@ namespace dic2d {
             // extract a single image from the stack
             util::extract_image(image_def, image_def_stack, img_num, px_horizontal, px_vertical);
 
-            // scan_function(num_def_images, n_subsets, edge, px_horizontal, px_vertical, subset_size, subset_step);
+            scan_function(num_def_images, n_subsets, edge, px_horizontal, px_vertical, subset_size, subset_step, max_iter, tol);
             
-            
-            
-            // -------------------------------------------------------------------------------------------
-            // TESTING HOMEMADE LM
-            // -------------------------------------------------------------------------------------------
-
-            int subset_num = 0;
-            for (int ss_y = edge; ss_y < px_vertical-edge; ss_y+=subset_step){
-                for (int ss_x = edge; ss_x < px_horizontal-edge; ss_x+=subset_step){
-
-
-                    // get the subset coordinates and pixel values
-                    util::extract_subset(image_def, subset_def,  subset_def_coords_x, 
-                                                subset_def_coords_y, ss_x, ss_y, subset_size, 
-                                                px_horizontal, px_vertical);
-
-
-                    // homemade LM optimizer
-                    std::cout << ss_x << " " << ss_y <<  " ";
-                    lm::solve(subset_def, subset_def_coords_x, subset_def_coords_y, spline, xacc, yacc, subset_size*subset_size, tol, max_iter);
-                    
-                    subset_num++;
-                }
-            }
         }
-
-        
-        
-        // -------------------------------------------------------------------------------------------
-        // cleanup
-        // -------------------------------------------------------------------------------------------
 
         // get end time and calculate DIC duration
         auto f0 = std::chrono::high_resolution_clock::now();
@@ -157,7 +116,9 @@ namespace dic2d {
 
 
 
-
+    // -------------------------------------------------------------------------------------------
+    // Raw image scan
+    // -------------------------------------------------------------------------------------------
 
     void image_scan(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step, int max_iter, double tol){
 
@@ -167,29 +128,27 @@ namespace dic2d {
             for (int ss_x = edge; ss_x < px_horizontal-edge; ss_x+=subset_step){
 
 
-
                 // get the subset coordinates and pixel values
-                util::extract_subset(image_def, subset_def,  subset_def_coords_x, 
-                                            subset_def_coords_y, ss_x, ss_y, subset_size, 
-                                            px_horizontal, px_vertical);                
+                util::extract_subset(image_def, subset_def,  subset_def_coords_x, subset_def_coords_y, ss_x, ss_y, subset_size, px_horizontal, px_vertical);                
 
+                std::cout << ss_x << " " << ss_y <<  " ";
+                optimizer::solve(subset_def, subset_def_coords_x, subset_def_coords_y, subset_size*subset_size, tol, max_iter);
 
-                // update the optimization routine with the subset values
-                optimization::set_data(subset_def_coords_x, subset_def_coords_y, subset_def);
-
-                // execute optimization routine. args: seed for next subset, xtol, gtol, ftol, max_iter
-                optimization::execute(subset_num, true, tol, tol, tol, max_iter);
-
-                // optimization::collect_results(n_img, n_subset, subset_num, ss_x, ss_y);
-
-                optimization::print_results(ss_x,ss_y);
-                 
                 subset_num++;
             }
         }
     }
 
-    void reliability_guided(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step){
+
+
+
+
+
+    // -------------------------------------------------------------------------------------------
+    // Reliability Guided scan of image. (NOT YET IMPLEMENTED)
+    // -------------------------------------------------------------------------------------------
+
+    void reliability_guided(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step, int max_iter, double tol){
 
         // create image masks
         std::vector<bool> mc(px_horizontal, px_vertical);
@@ -199,8 +158,8 @@ namespace dic2d {
 
         
         // need to pick an intial subset
-        int ss_x_start = 100;
-        int ss_y_start = 100;
+        //int ss_x_start = 100;
+        //int ss_y_start = 100;
 
         for (int ss_y = edge; ss_y < px_vertical-edge; ss_y+=subset_step){
             for (int ss_x = edge; ss_x < px_horizontal-edge; ss_x+=subset_step){
