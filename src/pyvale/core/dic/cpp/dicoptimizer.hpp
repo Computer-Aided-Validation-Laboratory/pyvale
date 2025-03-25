@@ -5,8 +5,8 @@
 // ================================================================================
 
 
-#ifndef DICLM_H
-#define DICLM_H
+#ifndef DICOPTIMIZER_H
+#define DICOPTIMIZER_H
 
 // STD library Header files
 #include <vector>
@@ -41,4 +41,4 @@ namespace optimizer {
     void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
 }
 
-#endif //DICLM_H
+#endif //DICOPTIMIZER_H
