@@ -7,10 +7,10 @@ Copyright (C) 2024 The Computer Aided Validation Team
 """
 from multiprocessing.pool import Pool
 import numpy as np
-from scipy.signal import convolve2d
-from pyvale.core.cameradata import CameraData
 import numba
+from pyvale.core.cameradata import CameraData
 from pyvale.core.cameratools import CameraTools
+
 
 class RasteriserNP:
     @staticmethod
@@ -59,10 +59,11 @@ class RasteriserNP:
 
         # Convert to perspective correct hyperbolic interpolation for z interp
         # shape=(num_nodes,coord[x,y,z,w])
-        coords_raster[2,:] = 1/coords_raster[2,:]
+        coords_raster[:,2] = 1/coords_raster[:,2]
 
         # shape=(num_elems,node_per_elem,coord[x,y,z,w])
-        elem_raster_coords = np.ascontiguousarray(coords_raster[connectivity,:])
+        #elem_raster_coords = np.ascontiguousarray(coords_raster[connectivity,:])
+        elem_raster_coords = coords_raster[connectivity,:]
 
         # NOTE: we have already inverted the raster z coordinate above so to divide
         # by z here we need to multiply
@@ -240,7 +241,6 @@ class RasteriserNP:
                                  cam_data.sub_samp*elem_bound_box_inds[3])
         (subpx_inds_grid_x,subpx_inds_grid_y) = np.meshgrid(subpx_inds_x,
                                                             subpx_inds_y)
-
 
 
         # We compute the edge function for all pixels in the box to determine if the

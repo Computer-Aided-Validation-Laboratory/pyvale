@@ -4,6 +4,7 @@
 simulation_cases:
   - name: case01.i
     geometry: 2D_1mat
+    mesh:
     physics: thermal
     BC: htc_heatflux
     material:
@@ -13,6 +14,7 @@ simulation_cases:
 
   - name: case02.i
     geometry: 2D_1mat
+    mesh:
     physics: mechanical
     BC: disp_disp
     material:
@@ -24,6 +26,7 @@ simulation_cases:
 
   - name: case03.i
     geometry: 2D_2mat
+    mesh:
     physics: thermal
     BC: htc_heatflux
     material:
@@ -33,6 +36,7 @@ simulation_cases:
 
   - name: case04.i
     geometry: 2D_2mat
+    mesh:
     physics: mechanical
     BC: disp_disp
     material:
