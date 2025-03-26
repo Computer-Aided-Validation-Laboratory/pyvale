@@ -17,7 +17,7 @@ def main() -> None:
     """pyvale example: visualisation tools 3D
     """
     # Use mooseherder to read the exodus and get a SimData object
-    data_path = pyvale.DataSet.thermal_3d_output_path()
+    data_path = pyvale.DataSet.thermal_3d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_name = 'temperature'
     # Scale to mm to make 3D visualisation scaling easier

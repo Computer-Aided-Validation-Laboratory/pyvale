@@ -9,7 +9,7 @@ endTime = 8
 timeStep = 1
 
 # Mechanical Loads/BCs
-topDispRate = ${fparse -1e-3 / endTime}  # m/s
+topDispRate = ${fparse 1e-3 / endTime}  # m/s
 
 # Mechanical Props: SS316L @ 20degC
 ss316LEMod = 200e9       # Pa
@@ -24,7 +24,7 @@ ss316LPRatio = 0.3      # -
 
 [Mesh]
     type = FileMesh
-    file = 'case25.msh'
+    file = 'case26.msh'
 []
 
 [Modules/TensorMechanics/Master]

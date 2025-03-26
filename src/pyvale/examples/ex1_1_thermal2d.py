@@ -22,7 +22,7 @@ def main() -> None:
       wrapper for pyvista and matplotlib.
     """
 
-    data_path = pyvale.DataSet.thermal_2d_output_path()
+    data_path = pyvale.DataSet.thermal_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_key = "temperature"
     # Scale to mm to make 3D visualisation scaling easier

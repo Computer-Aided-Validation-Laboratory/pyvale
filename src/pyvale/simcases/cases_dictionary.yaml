@@ -307,6 +307,7 @@ simulation_cases:
       - material_model:
           mechanical: temp_indep
     time_dependence: transient
+    notes: 2d image deformation test case 150x100mm plate
 
   - name: case25.i
     geometry: 3d_1mat_plate
@@ -319,4 +320,5 @@ simulation_cases:
       - material_model:
           mechanical: temp_indep
     time_dependence: transient
+    notes: simple rendering debug case
 

@@ -19,7 +19,7 @@ def main() -> None:
     - Tests that when only one sensor rotation is provided that
       all sensors are assumed to have the same rotation and batch processed.
     """
-    data_path = pyvale.DataSet.mechanical_2d_output_path()
+    data_path = pyvale.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     # Scale to mm to make 3D visualisation scaling easier
     sim_data.coords = sim_data.coords*1000.0 # type: ignore

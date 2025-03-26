@@ -21,7 +21,7 @@ def main() -> None:
     """
     # Load Simulations as mooseherder.SimData objects
     #base_path = Path("src/pyvale/data")
-    data_paths = pyvale.DataSet.thermomechanical_2d_experiment_output_paths()
+    data_paths = pyvale.DataSet.thermomechanical_2d_experiment_paths()
 
     sim_list = []
     for pp in data_paths:
