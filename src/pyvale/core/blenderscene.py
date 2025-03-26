@@ -23,7 +23,7 @@ from pyvale.core.blenderrenderdata import RenderData, RenderEngine
 # NOTE: This module is a feature under development
 
 class BlenderScene():
-    """Namespace for creating scene within Blender.
+    """Namespace for creating a scene within Blender.
     Methods include adding an object, camera, light and adding a speckle pattern,
     as well as deforming the object, and then rendering the scene.
     """
@@ -113,7 +113,6 @@ class BlenderScene():
         """
         cam0 = BlenderScene.add_camera(cam_data_0)
         cam1 = BlenderScene.add_camera(cam_data_1)
-        cam1.location = (35, 0, 250)
         return cam0, cam1
 
     @staticmethod
@@ -205,8 +204,7 @@ class BlenderScene():
                 per speckle
         """
         BlenderTools.clear_material_nodes(part)
-        (FOV_x, _) = pyvale.calculate_FOV(cam_data)
-        print(f"{FOV_x=}")
+        (FOV_x, _) = pyvale.blender_FOV(cam_data)
         if mat_data is None:
             mat_data = BlenderMaterialData()
         if speckle_path.exists():
@@ -263,7 +261,7 @@ class BlenderScene():
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
         # bpy.context.scene.render.image_settings.color_depth = '16'
-        bpy.context.scene.render.threads_mode = "FIXED"
+        # bpy.context.scene.render.threads_mode = "FIXED"
         bpy.context.scene.render.threads = int(cpu_count())
         bpy.context.scene.render.image_settings.file_format = "TIFF"
 
@@ -334,7 +332,7 @@ class BlenderScene():
         # Render parameters
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
-        bpy.context.scene.render.image_settings.color_depth = '16'
+        # bpy.context.scene.render.image_settings.color_depth = '16'
         bpy.context.scene.render.threads_mode = "FIXED"
         bpy.context.scene.render.threads = int(cpu_count())
         bpy.context.scene.render.image_settings.file_format = "TIFF"

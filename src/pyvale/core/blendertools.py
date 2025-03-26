@@ -305,11 +305,11 @@ class BlenderTools():
                             calibration_data.plunge_lims[1],
                             calibration_data.plunge_step):
             # Plunge
-            (FOV_x, FOV_y) = pyvale.calculate_FOV(render_data.cam_data[0])
+            (FOV_x, FOV_y) = pyvale.blender_FOV(render_data.cam_data[0])
             x_limit = int(round((FOV_x / 2) - (part.dimensions[0] / 2)))
-            print(f"{part.dimensions=}")
-            print(f"{x_limit=}")
+
             y_limit = int(round((FOV_y / 2) - (part.dimensions[1] / 2)))
+
 
             for x in np.arange(-1, 2):
                 x *= x_limit
@@ -319,16 +319,19 @@ class BlenderTools():
                     # Move in y-dir
                     part.location = ((x, y, plunge))
                     part.location[2] = plunge
-                    for angle in range(calibration_data.angle_lims[0],
-                                       (calibration_data.angle_lims[1] + calibration_data.angle_step),
-                                       calibration_data.angle_step):
+                    angle_steps = int(((calibration_data.angle_lims[1] -
+                                   calibration_data.angle_lims[0]) /
+                                     calibration_data.angle_step) + 1)
+                    for ii in range(angle_steps):
+                        angle = calibration_data.angle_lims[0] + calibration_data.angle_step * ii
+
                         # Rotate around x-axis
+                        print(f"{angle=}")
                         rotation  = (np.radians(angle), 0, 0)
                         part.rotation_mode = 'XYZ'
                         part.rotation_euler = rotation
-                        for angle in range(calibration_data.angle_lims[0],
-                            calibration_data.angle_lims[1],
-                            calibration_data.angle_step):
+                        for jj in range(angle_steps):
+                            angle = calibration_data.angle_lims[0] + calibration_data.angle_step * jj
                             # Rotate around y-axis
                             rotation  = (0, np.radians(angle), 0)
                             part.rotation_mode = 'XYZ'

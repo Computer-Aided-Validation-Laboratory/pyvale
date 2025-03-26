@@ -165,10 +165,11 @@ def blender_FOV(cam_data: CameraData) -> tuple[float, float]:
 
     Returns:
         tuple[float, float]: A tuple containing the FOV in x and y directionns
-    """    
+    """
     FOV_x = (cam_data.pixels_num[0] * cam_data.pixels_size[0] * cam_data.image_dist) / cam_data.focal_length
-    FOV_y = (cam_data.pixels_size[1 / cam_data.pixels_num[0]]) * FOV_x
+    FOV_y = (cam_data.pixels_num[1] / cam_data.pixels_num[0]) * FOV_x
     FOV_blender = (FOV_x, FOV_y)
+    print('Blender Method')
     return FOV_blender
 
 def angular_fov(cam_data: CameraData): # Not sure if this function is necessary
@@ -216,6 +217,7 @@ def blender_camera_from_resolution(pixels_num: np.ndarray,
     cam_data = CameraData(pixels_num=pixels_num,
                           pixels_size=pixels_size,
                           pos_world=(0, 0, working_dist),
+                          rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                           roi_cent_world=(0, 0, 0),
                           focal_length=focal_length)
     cam = BlenderScene.add_camera(cam_data)
