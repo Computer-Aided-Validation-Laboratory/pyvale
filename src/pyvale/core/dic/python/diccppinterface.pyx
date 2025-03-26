@@ -15,12 +15,12 @@ from icecream import ic
 
 # import cpp libraries
 from libcpp.vector cimport vector
-
+from libcpp cimport bool
 
 cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
     void dicengine(int* image_ref, 
                     int* image_def, 
-                    int* image_roi, 
+                    bool* image_roi, 
                     int px_vertical, 
                     int px_horizontal, 
                     int num_def_images,
@@ -40,7 +40,7 @@ cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
 # A wrapper function to call the C++ function from Python
 def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                       np.ndarray[np.int32_t, ndim=3] deformed_images,
-                      np.ndarray[np.int32_t, ndim=2] roi_mask,
+                      np.ndarray[bool, ndim=2] roi_mask,
                       int subset_step, 
                       int subset_size,
                       int max_iterations,
@@ -52,7 +52,7 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
 
     # typed memoryviews for the image arrays
     cdef int[:, ::1] image_ref = reference_image
-    cdef int[:, ::1] image_roi = roi_mask
+    cdef bool[:, ::1] image_roi = roi_mask
     cdef int[:, :, ::1] image_def = deformed_images
 
     # the the image dimensions and the number of deformed images

@@ -19,7 +19,7 @@ namespace dic2d {
 
     void dicengine(int* image_ref, 
                     int* image_def_stack, 
-                    int* image_roi, 
+                    bool* image_roi, 
                     int px_vertical, 
                     int px_horizontal, 
                     int num_def_images,
@@ -32,8 +32,8 @@ namespace dic2d {
                     std::string& interp_routine,
                     std::string& scan_method);
 
-    void image_scan(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step, int max_iter, double tol);
-    void reliability_guided(int n_img, int n_subset, int edge, int px_horizontal, int px_vertical, int subset_size, int subset_step, int max_iter, double tol);
+    void image_scan(std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol);
+    void reliability_guided(std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol);
 
 }
 

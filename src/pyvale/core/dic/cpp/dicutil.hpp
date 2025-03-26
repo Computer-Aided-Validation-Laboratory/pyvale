@@ -21,17 +21,17 @@ namespace util {
                        int px_horizontal,
                        int px_vertical);    
                        
-    void extract_subset(std::vector<double> &image_def, 
-                        std::vector<double> &subset, 
-                        std::vector<double> &subset_coords_x,
-                        std::vector<double> &subset_coords_y, 
-                        int subset_x, 
-                        int subset_y, 
-                        int subset_size, 
+    void extract_ss(std::vector<double> &image_def, 
+                        std::vector<double> &ss, 
+                        std::vector<double> &ss_coords_x,
+                        std::vector<double> &ss_coords_y, 
+                        int ss_centre_x, 
+                        int ss_centre_y, 
+                        int ss_size, 
                         int px_horizontal, 
                         int px_vertical);
 
-    int get_num_subsets(int edge, int px_horizontal, int px_vertical, int subset_step);
+    int fill_ss_coord_vects(std::vector<int> &ss_coords_x, std::vector<int> &ss_coords_y, bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step);
 
 }
 

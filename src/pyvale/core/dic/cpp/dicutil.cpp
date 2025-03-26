@@ -6,8 +6,9 @@
 
 
 // STD library Header files
-#include <vector>
 #include <iostream>
+#include <vector>
+#include <tuple>
 
 // Program Header files
 
@@ -39,27 +40,29 @@ namespace util {
         }
     }
 
-    void extract_subset(std::vector<double> &image_def, 
-                        std::vector<double> &subset, 
-                        std::vector<double> &subset_coords_x,
-                        std::vector<double> &subset_coords_y, 
-                        int subset_x, 
-                        int subset_y, 
-                        int subset_size, 
+    void extract_ss(std::vector<double> &image_def, 
+                        std::vector<double> &ss, 
+                        std::vector<double> &ss_coords_x,
+                        std::vector<double> &ss_coords_y, 
+                        int ss_x, 
+                        int ss_y, 
+                        int ss_size, 
                         int px_horizontal, 
                         int px_vertical){
 
         int count = 0;
-        for (int px_y = subset_y; px_y < subset_y+subset_size; px_y++){
-            for (int px_x = subset_x; px_x < subset_x+subset_size; px_x++){
+        int index;
+        for (int px_y = ss_y; px_y < ss_y+ss_size; px_y++){
+            for (int px_x = ss_x; px_x < ss_x+ss_size; px_x++){
 
                 // get coordinate values
-                subset_coords_x[count] = px_x; 
-                subset_coords_y[count] = px_y; 
+                ss_coords_x[count] = px_x; 
+                ss_coords_y[count] = px_y; 
 
                 // get pixel values
-                int index = px_y * px_horizontal + px_x;
-                subset[count] = image_def[index];
+                index = px_y * px_horizontal + px_x;
+                ss[count] = image_def[index];
+                // std::cout << ss_size << " " << ss_x << " " << ss_y << " " << " " << ss_coords_x[count] << " " << ss_coords_y[count] << " " << ss[count] << std::endl;
                 count++;
                 
             }
@@ -67,14 +70,41 @@ namespace util {
     }
 
 
-    int get_num_subsets(int edge, int px_horizontal, int px_vertical, int subset_step){
+    void fill_ss_coord_vects(std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step){
 
-        int n_subsets = 0;
-        for (int ss_y = edge; ss_y < px_vertical-edge; ss_y+=subset_step){
-            for (int ss_x = edge; ss_x < px_horizontal-edge; ss_x+=subset_step){
-                n_subsets++;
+        int ss_x_min, ss_x_max, ss_y_min, ss_y_max;
+        int index;
+
+        for (int ss_y = 0; ss_y < px_vertical; ss_y+=ss_step){
+            for (int ss_x = 0; ss_x < px_horizontal; ss_x+=ss_step){
+
+                ss_x_min = ss_x - ss_size / 2;
+                ss_x_max = ss_x + ss_size / 2;
+                ss_y_min = ss_y - ss_size / 2;
+                ss_y_max = ss_y + ss_size / 2;
+
+                for (int px_y = ss_y_min; px_y <= ss_y_max; px_y++){
+                    for (int px_x = ss_x_min; px_x <= ss_x_max; px_x++){
+
+                        if (px_x < 0 || px_y < 0 || px_x >= px_horizontal || px_y >= px_vertical) 
+                            goto next_ss;
+
+                        index = px_y * px_horizontal + px_x;
+                        if (image_roi[index] == false) 
+                            goto next_ss;
+
+                    }
+                }
+                ss_list_x.push_back(ss_x);
+                ss_list_y.push_back(ss_y); 
+                // std::cout << ss_x << " " << ss_y << std::endl;
+                next_ss:;
             }
         }
-        return n_subsets;
     }
+
+
+
+
+
 }   

@@ -93,6 +93,8 @@ namespace optimizer {
         int iter = 0;
 
         double dp_mag;
+        std::fill(p.begin(), p.end(), 0.0);
+
 
         for (int l = 0; l < max_iter; l++){
 
@@ -118,8 +120,8 @@ namespace optimizer {
         }
 
         if (iter == max_iter) {
-            std::cout << iter << " " << dp_mag << " " << nan << " " << nan << " " << nan << " " << nan << " " << nan << " " << nan << "\n";
-            exit(0);
+            std::cout << iter << " " << dp_mag << " " << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << " " << p[4] << " " << p[5] << "\n";
+            // std::cout << iter << " " << dp_mag << " NaN NaN NaN NaN NaN NaN" << "\n";
         }
     }
 
