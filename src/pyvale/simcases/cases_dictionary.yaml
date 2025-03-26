@@ -322,3 +322,15 @@ simulation_cases:
     time_dependence: transient
     notes: simple rendering debug case
 
+  - name: case26.i
+    geometry: 3d_1mat_plate_with_hole_tension
+    mesh: gmsh_3d_tet10
+    physics: mechanical
+    BC: disp
+    material:
+      - material_model:
+          mechanical: temp_indep
+      - material_model:
+          mechanical: temp_indep
+    time_dependence: transient
+    notes: displacement rendering packaged demo

@@ -5,7 +5,6 @@ License: MIT
 Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
-from pathlib import Path
 import time
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -13,29 +12,36 @@ import matplotlib.pyplot as plt
 import pyvale
 
 def main() -> None:
-    # data_path = pyvale.DataSet.mechanical_2d_output_path()
-    # data_path = pyvale.DataSet.thermomechanical_2d_output_path()
+    """pyvale example: rasterisation field renderer
+    ----------------------------------------------------------------------------
+    - TODO
+    """
 
-    # TODO: add a triangular dataset to pyvale
-    data_path = Path.cwd() / "dev" / "data" / "cylinder_m1_out.e"
+    # This is just a path to an exodus output file from MOOSE, this can be
+    # replaced with your own simulation file
+    data_path = pyvale.DataSet.render_mechanical_3d_path()
 
+    # Load the mesh to render and extract the surface mesh from the full 3d sim
     mesh_data = pyvale.create_camera_mesh(data_path,
                                         "disp_y",
                                         ("disp_x","disp_y","disp_z"),
                                         spat_dim=3)
 
-
     print()
     print(80*"-")
     print("MESH DATA:")
     print(80*"-")
+    print("connectivity.shape=(num_elems,num_nodes_per_elem)")
     print(f"{mesh_data.connectivity.shape=}")
+    print("coords.shape=(num_nodes,coord[x,y,z])")
     print(f"{mesh_data.coords.shape=}")
+    print("")
     print(f"{mesh_data.fields_by_node.shape=}")
     print(80*"-")
     print()
 
-    pixels_num = np.array((1280,960))
+    #
+    pixels_num = np.array((960,1280))
     pixels_size = np.array((5.3e-3,5.3e-3))
     focal_leng: float = 50
 

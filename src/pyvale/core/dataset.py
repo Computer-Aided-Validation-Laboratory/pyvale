@@ -232,5 +232,5 @@ class DataSet:
         -------
         Path
             _description_
-        """        
-        return Path(files("pyvale.data").joinpath("case18_1_out.e"))
+        """
+        return Path(files("pyvale.data").joinpath("case26_out.e"))
