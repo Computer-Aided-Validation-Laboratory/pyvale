@@ -1,5 +1,5 @@
 //==============================================================================
-// Gmsh 2D plate imaging test case
+// Gmsh 3D plate imaging test case
 // author: Lloyd Fletcher (scepticalrabbit)
 //==============================================================================
 // Always set to OpenCASCADE - circles and boolean opts are much easier!
@@ -16,16 +16,19 @@ Geometry.VolumeLabels = 0;
 
 //-------------------------------------------------------------------------
 //_* MOOSEHERDER VARIABLES - START
-file_name = "case24.msh";
+file_name = "case25.msh";
 
 // Geometric variables
-plate_height = 50e-3;
-plate_width = 100e-3;
+plate_height = 15e-3;
+plate_width = 10e-3;
+plate_thick = 5e-3;
+
+mesh_size = 5e-3/mesh_ref;
 
 // Must be an integer
+plate_thick_layers = 1;
 elem_order = 1;
 mesh_ref = 1;
-mesh_size = 5e-3/mesh_ref;
 num_threads = 4;
 //** MOOSEHERDER VARIABLES - END
 //------------------------------------------------------------------------------
@@ -47,18 +50,18 @@ MeshSize{ PointsOf{ Surface{:}; } } = mesh_size;
 Transfinite Surface{Surface{:}};
 //Recombine Surface{Surface{:}};
 
-// Extrude{0.0,0.0,plate_thick}{
-//     Surface{:}; Layers{plate_thick_layers}; Recombine;
-// }
+Extrude{0.0,0.0,plate_thick}{
+    Surface{:}; Layers{plate_thick_layers}; // Recombine;
+}
 
 //------------------------------------------------------------------------------
 // Physical Volumes and Surfaces
-Physical Surface("plate-surf") = {Surface{:}};
+Physical Volume("plate-vol") = {Volume{:}};
 
-Physical Curve("bc-top") = {3};
-Physical Curve("bc-base") = {1};
-Physical Curve("bc-left") = {4};
-Physical Curve("bc-right") = {2};
+Physical Surface("plate-surf-vis-front") = {6};
+Physical Surface("plate-surf-vis-back") = {1};
+Physical Surface("bc-top-disp") = {4};
+Physical Surface("bc-base-disp") = {2};
 
 //------------------------------------------------------------------------------
 // Global meshing
@@ -71,7 +74,7 @@ Mesh.MaxNumThreads2D = num_threads;
 Mesh.MaxNumThreads3D = num_threads;
 
 Mesh.ElementOrder = elem_order;
-Mesh 2;
+Mesh 3;
 
 //------------------------------------------------------------------------------
 // Save and exit
