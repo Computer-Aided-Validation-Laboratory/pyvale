@@ -14,7 +14,8 @@ import pyvale
 import mooseherder as mh
 
 def main() -> None:
-    data_path = Path('/home/lorna/mooseherder/scripts/moose/moose-mech-simple_out.e')
+    # TODO: Integrate path into pyvale - or make own SimData instance>
+    data_path = Path.cwd() / 'src/pyvale/data/moose-mech-simple_out.e'
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
     # Creating the scene
@@ -30,12 +31,12 @@ def main() -> None:
     pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
 
     # Add the camera
-    cam_data_0 = pyvale.CameraData(pixels_num=np.array([2464, 2056]),
+    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
                                  pixels_size=np.array([0.00345, 0.00345]),
-                                 pos_world=np.array([0, 0, 300]),
+                                 pos_world=np.array([0, 0, 400]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
-                                 focal_length=20)
+                                 focal_length=15.0)
     # Set this to "symmetric" to get a symmetric stereo system or set this to
     # "faceon" to get a face-on stereo system
     stereo_system = "faceon"
@@ -45,6 +46,11 @@ def main() -> None:
     if stereo_system == "faceon":
         cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
                                                  stereo_angle=15.0)
+
+    stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
+    # calib_filepath = Path.cwd() / 'src/pyvale/data/blender/blender_images/calibration2'
+    calib_filepath = Path(r"C:\Users\nq0347\OneDrive - UK Atomic Energy Authority\Cryo project\Computational\Pyvale\workstation/cal2")
+    pyvale.BlenderTools.generate_calib_file(stereo_data, calib_filepath)
 
     # Add the light
     light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
@@ -56,7 +62,7 @@ def main() -> None:
 
     # Apply the speckle pattern
     material_data = pyvale.BlenderMaterialData()
-    speckle_path = Path('/home/lorna/pyvale/dev/lsdev/cal_target.tiff')
+    speckle_path = Path.cwd() / 'src/pyvale/data/cal_target.tiff'
     pyvale.BlenderScene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
@@ -66,14 +72,15 @@ def main() -> None:
     # Rendering image
     # --------------------------------------------------------------------------
 
-    save_dir = Path.cwd() / 'src/pyvale/data/blender_images/calibration'
+    # save_dir = Path.cwd() / 'src/pyvale/data/blender/blender_images/calibration2'
+    save_dir = calib_filepath
     save_name = 'cal'
     render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
                                     save_dir=save_dir,
                                     save_name=save_name,
-                                    samples=4)
-    calibration_data = pyvale.CalibrationData(angle_lims=(-6, 6),
-                                              angle_step=10,
+                                    samples=1)
+    calibration_data = pyvale.CalibrationData(angle_lims=(-5, 5),
+                                              angle_step=5,
                                               plunge_lims=(-5, 5),
                                               plunge_step=5)
 
@@ -81,7 +88,7 @@ def main() -> None:
 
     # Save Blender file
     # --------------------------------------------------------------------------
-    blender_path = Path.cwd() / 'src/pyvale/data/blender_files/cal.blend'
+    blender_path = Path.cwd() / 'src/pyvale/data/blender/blender_files/cal.blend'
     pyvale.BlenderTools.save_blender_file(blender_path, override=True)
 
 if __name__ == "__main__":

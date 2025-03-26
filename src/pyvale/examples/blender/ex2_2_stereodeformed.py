@@ -30,12 +30,12 @@ def main() -> None:
     pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
 
     # Add the stereo camera system
-    cam_data_0 = pyvale.CameraData(pixels_num=np.array([2464, 2056]),
+    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
                                  pixels_size=np.array([0.00345, 0.00345]),
-                                 pos_world=np.array([0, 0, 300]),
+                                 pos_world=np.array([0, 0, 400]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
-                                 focal_length=20.0)
+                                 focal_length=15.0)
     # Set this to "symmetric" to get a symmetric stereo system or set this to
     # "faceon" to get a face-on stereo system
     stereo_system = "symmetric"
@@ -53,15 +53,17 @@ def main() -> None:
 
     # Add the light
     light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
-                                         pos_world=(0, 0, 200),
+                                         pos_world=(0, 0, 400),
                                          rot_world=Rotation.from_euler("xyz",
                                                                        [0, 0, 0]),
-                                         energy=200 * 10**3)
+                                         energy=1 * 10**6)
     light = pyvale.BlenderScene.add_light(light_data)
 
     # Apply the speckle pattern
     material_data = pyvale.BlenderMaterialData()
     speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
+    # NOTE: If you wish to use a bigger camera, you will need to generate a
+    # bigger speckle pattern generator
     pyvale.BlenderScene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
@@ -73,7 +75,7 @@ def main() -> None:
     render_images = True
     if render_images is True:
         save_dir = Path.cwd() / 'src/pyvale/data/blender_images'
-        save_name = 'test'
+        save_name = 'ex2_2'
         render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
                                         save_dir=save_dir,
                                         save_name=save_name)
@@ -87,7 +89,6 @@ def main() -> None:
 
     # Save Blender file
     # --------------------------------------------------------------------------
-    # TODO: Work out where to automatically save things
     blender_path = Path.cwd() / 'src/pyvale/data/blender_files/ex2_2.blend'
     pyvale.BlenderTools.save_blender_file(blender_path, override=True)
 
