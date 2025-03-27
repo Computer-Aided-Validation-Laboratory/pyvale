@@ -266,14 +266,47 @@ class CameraTools:
         return np.array((boundbox_cam_leng[xx],boundbox_cam_leng[yy]))
 
     @staticmethod
-    def image_dist_from_fov_3d(num_pixels: np.ndarray,
-                            pixel_size: np.ndarray,
-                            focal_leng: float,
-                            fov_leng: np.ndarray) -> np.ndarray:
+    def image_dist_from_fov_3d(pixel_num: np.ndarray,
+                               pixel_size: np.ndarray,
+                               focal_leng: float,
+                               fov_leng: np.ndarray) -> np.ndarray:
 
-        sensor_dims = num_pixels * pixel_size
+        sensor_dims = pixel_num * pixel_size
         fov_angle = 2*np.arctan(sensor_dims/(2*focal_leng))
         image_dist = fov_leng/(2*np.tan(fov_angle/2))
         return image_dist
+
+    @staticmethod
+    def pos_fill_frame_from_rotation(coords_world: np.ndarray,
+                                     pixel_num: np.ndarray,
+                                     pixel_size: np.ndarray,
+                                     focal_leng: float,
+                                     cam_rot: Rotation,
+                                     frame_fill: float = 1.0,
+                                     ) -> tuple[np.ndarray,
+                                                np.ndarray]:
+        fov_leng = CameraTools.fov_from_cam_rot_3d(
+            cam_rot=cam_rot,
+            coords_world=coords_world,
+        )
+
+        # Scales the FOV by the given factor, greater than 1.0 will zoom out
+        # making sure the mesh is wholly within the image
+        fov_leng = frame_fill*fov_leng
+
+        image_dist = CameraTools.image_dist_from_fov_3d(
+            pixel_num=pixel_num,
+            pixel_size=pixel_size,
+            focal_leng=focal_leng,
+            fov_leng=fov_leng,
+        )
+
+        roi_pos_world = (np.max(coords_world[:,:-1],axis=0)
+                         - np.min(coords_world[:,:-1],axis=0))/2.0
+        cam_z_dir_world = cam_rot.as_matrix()[:,-1]
+        cam_pos_world = (roi_pos_world + np.max(image_dist)*cam_z_dir_world)
+
+        return (roi_pos_world,cam_pos_world)
+
 
     #-------------------------------------------------------------------------------

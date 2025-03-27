@@ -377,7 +377,7 @@ def main() -> None:
     if test_case_str == "temp":
         field_key = "temperature"
         components = ("temperature",)
-        (pv_grid,_) = pyvale.conv_simdata_to_pyvista(sim_data,
+        (pv_grid,_) = pyvale.simdata_to_pyvista(sim_data,
                                                     components,
                                                     spat_dim=2)
 
@@ -386,7 +386,7 @@ def main() -> None:
     else:
         field_key = "disp_y"
         components = ("disp_x","disp_y","disp_z")
-        (pv_grid,_) = pyvale.conv_simdata_to_pyvista(sim_data,
+        (pv_grid,_) = pyvale.simdata_to_pyvista(sim_data,
                                                     components,
                                                     spat_dim=3)
     pyvale.print_dimensions(sim_data)

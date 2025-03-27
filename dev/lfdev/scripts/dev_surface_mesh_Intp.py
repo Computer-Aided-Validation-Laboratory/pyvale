@@ -12,7 +12,7 @@ def main() -> None:
     sim_data.coords = sim_data.coords*1000.0
 
     components = ("disp_x","disp_y","disp_z")
-    (pv_grid,pv_grid_vis) = pyvale.conv_simdata_to_pyvista(sim_data,
+    (pv_grid,pv_grid_vis) = pyvale.simdata_to_pyvista(sim_data,
                                                            components,
                                                            spat_dim=3)
 

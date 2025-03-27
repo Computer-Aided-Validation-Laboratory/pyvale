@@ -5,86 +5,109 @@ License: MIT
 Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
+from pathlib import Path
 import time
 import numpy as np
 from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
-import pyvale
+import mooseherder as mh
+import pyvale as pyv
+
+# TODO
+# - Fix the image averaging function to use cython
+# - Need to have deformable meshes in 2D and 3D
+# - Need to allow rendering of a set of fields
+# - Implement parallel rendering for image stacks or multiple fields
+# - Saving of the rendered images for post processing or analysis
+# - Collapse image display functions into visual to simplify code
+#
+# CAMERA:
+# - Need option to work camera rotation based on a given position
+#   - The z axis is easy as we can just do roi-cam_pos but what about x and y
+#
+# RENDER OPTIONS
+# - Parallelisation on/off, number of threads
+#   - Need to split work over: fields to render, cameras, time steps
+# - Deformable mesh: on/off
+#
+# SCENE OBJECT:
+# - Allow multiple objects in the scene with their own transformations
+# - Allow multiple cameras in the scene
+#
+#
 
 def main() -> None:
     """pyvale example: rasterisation field renderer
     ----------------------------------------------------------------------------
     - TODO
     """
+    # This a path to an exodus *.e output file from MOOSE, this can be
+    # replaced with a path to your own simulation file
+    #sim_path = pyv.DataSet.render_mechanical_3d_path()
+    sim_path = Path.cwd()/"src"/"pyvale"/"simcases"/"case25_out.e"
+    sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
+    sim_data.coords = sim_data.coords*1000.0 # scale to mm
 
-    # This is just a path to an exodus output file from MOOSE, this can be
-    # replaced with your own simulation file
-    data_path = pyvale.DataSet.render_mechanical_3d_path()
-
-    # Load the mesh to render and extract the surface mesh from the full 3d sim
-    mesh_data = pyvale.create_camera_mesh(data_path,
-                                        "disp_y",
-                                        ("disp_x","disp_y","disp_z"),
-                                        spat_dim=3)
+    # Extracts the surface mesh from a full 3d simulation for rendering
+    render_mesh = pyv.create_render_mesh(sim_data,
+                                        ("disp_y","disp_x"),
+                                        sim_spat_dim=3,
+                                        field_disp_keys=("disp_x","disp_y","disp_z"))
 
     print()
     print(80*"-")
     print("MESH DATA:")
     print(80*"-")
     print("connectivity.shape=(num_elems,num_nodes_per_elem)")
-    print(f"{mesh_data.connectivity.shape=}")
+    print(f"{render_mesh.connectivity.shape=}")
+    print()
     print("coords.shape=(num_nodes,coord[x,y,z])")
-    print(f"{mesh_data.coords.shape=}")
-    print("")
-    print(f"{mesh_data.fields_by_node.shape=}")
+    print(f"{render_mesh.coords.shape=}")
+    print()
+    print("fields.shape=(num_coords,num_time_steps,num_components)")
+    print(f"{render_mesh.fields_render.shape=}")
+    print(f"{render_mesh.fields_disp.shape=}")
     print(80*"-")
     print()
 
-    #
-    pixels_num = np.array((960,1280))
-    pixels_size = np.array((5.3e-3,5.3e-3))
+    pixel_num = np.array((960,1280))
+    pixel_size = np.array((5.3e-3,5.3e-3))
     focal_leng: float = 50
-
     cam_rot = Rotation.from_euler("zyx",(0.0,-30.0,0.0),degrees=True)
+    fov_scale_factor: float = 0.5
 
-    fov_leng = pyvale.CameraTools.fov_from_cam_rot_3d(
-        cam_rot=cam_rot,
-        coords_world=mesh_data.coords,
-    )
+    (roi_pos_world,
+     cam_pos_world) = pyv.CameraTools.pos_fill_frame_from_rotation(
+         coords_world=render_mesh.coords,
+         pixel_num=pixel_num,
+         pixel_size=pixel_size,
+         focal_leng=focal_leng,
+         cam_rot=cam_rot,
+         frame_fill=fov_scale_factor,
+     )
 
-    # Scale the field of view to make sure that the mesh is fully in frame
-    fov_leng = 1.1*fov_leng
-
-    image_dist = pyvale.CameraTools.image_dist_from_fov_3d(
-        num_pixels=pixels_num,
-        pixel_size=pixels_size,
-        focal_leng=focal_leng,
-        fov_leng=fov_leng,
-    )
-
-    roi_pos_world = mesh_data.coord_cent[:-1]
-    cam_z_dir_world = cam_rot.as_matrix()[:,-1]
-    cam_pos_world = (roi_pos_world + np.max(image_dist)*cam_z_dir_world)
-
-    cam_data = pyvale.CameraData(
-        pixels_num=pixels_num,
-        pixels_size=pixels_size,
+    cam_data = pyv.CameraData(
+        pixels_num=pixel_num,
+        pixels_size=pixel_size,
         pos_world=cam_pos_world,
         rot_world=cam_rot,
         roi_cent_world=roi_pos_world,
         focal_length=focal_leng,
         sub_samp=2,
-        back_face_removal=False,
+        back_face_removal=True,
     )
+
 
     print(80*"-")
     print("CAMERA DATA:")
     print(80*"-")
-    print(f"{fov_leng=}")
-    print(f"{image_dist=}\n")
+    print(f"{roi_pos_world=}")
+    print(f"{cam_pos_world=}")
+    print()
     print("World to camera matrix:")
     print(cam_data.world_to_cam_mat)
     print(80*"-")
+
 
     print()
     print(80*"=")
@@ -94,26 +117,39 @@ def main() -> None:
     frame = -1  # render the last frame
     loop_times = []
     time_start_loop = time.perf_counter()
+    #===========================================================================
+    (coords_raster,
+     connect_in_frame,
+     elem_bound_box_inds) = pyv.RasteriserNP.raster_setup_by_connect(cam_data,
+                                                             render_mesh.coords,
+                                                             render_mesh.connectivity,
+                                                             render_mesh.fields_disp)
 
-    (elem_raster_coords,
-    elem_bound_box_inds,
-    elem_areas,
-    field_divide_z) = pyvale.RasteriserNP.raster_setup(
-                                            cam_data,
-                                            mesh_data.coords,
-                                            mesh_data.connectivity,
-                                            mesh_data.fields_by_node[:,:,1])
 
-    field_frame_divide_z = np.ascontiguousarray(field_divide_z[:,:,frame])
 
-    (image_buffer,
-    depth_buffer,
-    num_elems_in_image) = pyvale.RasteriserNP.raster_loop(
-                                            cam_data,
-                                            elem_raster_coords,
-                                            elem_bound_box_inds,
-                                            elem_areas,
-                                            field_frame_divide_z)
+    return
+    #===========================================================================
+    # (elem_raster_coords,
+    # elem_bound_box_inds,
+    # elem_areas,
+    # render_field_div_z) = pyv.RasteriserNP.raster_setup_by_elem(
+    #                                         cam_data,
+    #                                         render_mesh.coords,
+    #                                         render_mesh.connectivity,
+    #                                         render_mesh.fields_render[:,:,1],
+    #                                         render_mesh.fields_disp[:,:,1])
+
+    # field_frame_divide_z = np.ascontiguousarray(render_field_div_z[:,:,frame])
+
+    # (image_buffer,
+    # depth_buffer,
+    # num_elems_in_image) = pyv.RasteriserNP.raster_frame_by_elem(
+    #                                         cam_data,
+    #                                         elem_raster_coords,
+    #                                         elem_bound_box_inds,
+    #                                         elem_areas,
+    #                                         field_frame_divide_z)
+
     time_end_loop = time.perf_counter()
     loop_times.append(time_end_loop - time_start_loop)
 
@@ -130,7 +166,7 @@ def main() -> None:
     image_to_plot = np.copy(image_buffer)
     image_to_plot[depth_buffer > 10*cam_data.image_dist] = np.nan
     if plot_on:
-        plot_opts = pyvale.PlotOptsGeneral()
+        plot_opts = pyv.PlotOptsGeneral()
 
         (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
                                 layout='constrained')

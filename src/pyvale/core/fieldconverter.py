@@ -12,7 +12,7 @@ from pyvista import CellType
 import mooseherder as mh
 
 
-def conv_simdata_to_pyvista(sim_data: mh.SimData,
+def simdata_to_pyvista(sim_data: mh.SimData,
                             components: tuple[str,...] | None,
                             spat_dim: int
                             ) -> tuple[pv.UnstructuredGrid,pv.UnstructuredGrid]:

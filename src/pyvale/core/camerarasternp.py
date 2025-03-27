@@ -46,12 +46,14 @@ class RasteriserNP:
 
         return coords_raster
 
+
     @staticmethod
-    def create_transformed_elem_arrays(cam_data: CameraData,
-                                       coords_world: np.ndarray,
-                                       connectivity: np.ndarray,
-                                       field_array: np.ndarray,
-                                       ) -> tuple[np.ndarray,np.ndarray]:
+    def transform_to_elem_arrays(cam_data: CameraData,
+                                 coords_world: np.ndarray,
+                                 connectivity: np.ndarray,
+                                 field_array: np.ndarray,
+                                 ) -> tuple[np.ndarray,
+                                            np.ndarray]:
 
         # Convert world coords of all elements in the scene
         # shape=(num_nodes,coord[x,y,z,w])
@@ -103,7 +105,51 @@ class RasteriserNP:
         return back_face_mask
 
     @staticmethod
-    def crop_and_bound_elements(cam_data: CameraData,
+    def crop_and_bound_by_connect(cam_data: CameraData,
+                                  coords_raster: np.ndarray,
+                                  connectivity: np.ndarray,
+                                  ) -> tuple[np.ndarray,np.ndarray]:
+
+        #shape=(num_elems,coord[x,y,z,w])
+        coords_by_elem = coords_raster[connectivity,:]
+        elem_raster_coord_min = np.min(coords_by_elem,axis=1)
+        elem_raster_coord_max = np.max(coords_by_elem,axis=1)
+
+        # Check that min/max nodes are within the 4 edges of the camera image
+        #shape=(4_edges_to_check,num_elems)
+        crop_mask = np.zeros([connectivity.shape[0],4],dtype=np.int8)
+        crop_mask[elem_raster_coord_min[:,0] <= (cam_data.pixels_num[0]-1), 0] = 1
+        crop_mask[elem_raster_coord_min[:,1] <= (cam_data.pixels_num[1]-1), 1] = 1
+        crop_mask[elem_raster_coord_max[:,0] >= 0, 2] = 1
+        crop_mask[elem_raster_coord_max[:,1] >= 0, 3] = 1
+        crop_mask = np.sum(crop_mask,axis=1) == 4
+
+        # Get only the elements that are within the FOV
+        # Mask the elem coords and the max and min elem coords for processing
+        elem_raster_coord_min = elem_raster_coord_min[crop_mask,:]
+        elem_raster_coord_max = elem_raster_coord_max[crop_mask,:]
+        num_elems_in_image = elem_raster_coord_min.shape[0]
+
+
+        # Find the indices of the bounding box that each element lies within on
+        # the image, bounded by the upper and lower edges of the image
+        elem_bound_boxes_inds = np.zeros([num_elems_in_image,4],dtype=np.int32)
+        elem_bound_boxes_inds[:,0] = RasteriserNP.elem_bound_box_low(
+                                            elem_raster_coord_min[:,0])
+        elem_bound_boxes_inds[:,1] = RasteriserNP.elem_bound_box_high(
+                                            elem_raster_coord_max[:,0],
+                                            cam_data.pixels_num[0]-1)
+        elem_bound_boxes_inds[:,2] = RasteriserNP.elem_bound_box_low(
+                                            elem_raster_coord_min[:,1])
+        elem_bound_boxes_inds[:,3] = RasteriserNP.elem_bound_box_high(
+                                            elem_raster_coord_max[:,1],
+                                            cam_data.pixels_num[1]-1)
+
+        return (crop_mask,elem_bound_boxes_inds)
+
+
+    @staticmethod
+    def crop_and_bound_by_elem(cam_data: CameraData,
                                 elem_raster_coords: np.ndarray,
                                 ) -> tuple[np.ndarray,np.ndarray]:
 
@@ -158,21 +204,161 @@ class RasteriserNP:
         bound = np.min(bound_mat,axis=0)
         return bound
 
+    #===========================================================================
     @staticmethod
-    def raster_setup(cam_data: CameraData,
-                     coords_world: np.ndarray,
-                     connectivity: np.ndarray,
-                     field_data: np.ndarray
-                     ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+    def raster_setup_by_connect(cam_data: CameraData,
+                            coords_world: np.ndarray,
+                            connectivity: np.ndarray,
+                            disp_field: np.ndarray | None = None,
+                            ) -> tuple[np.ndarray,...]:
+        connect_in_frame = np.copy(connectivity)
+        coords_to_transform = np.copy(coords_world)
+        #-----------------------------------------------------------------------
+        # DEFORM MESH WITH DISPLACEMENT
+
+        if disp_field is not None:
+            coords_to_transform = np.tile(coords_to_transform,
+                                    (disp_field.shape[1],1,1))
+            coords_to_transform = np.swapaxes(coords_raster,0,1)
+            coords_to_transform[:,:,:-1] = coords_to_transform[:,:,:-1] + disp_field
+
+
+        #-----------------------------------------------------------------------
+        # Convert world coords of all elements in the scene
+        # shape=(num_nodes,coord[x,y,z,w])
+        coords_raster = RasteriserNP.world_to_raster_coords(cam_data,
+                                                            coords_to_transform)
+
+        # Convert to perspective correct hyperbolic interpolation for z interp
+        # shape=(num_nodes,coord[x,y,z,w])
+        coords_raster[:,2] = 1/coords_raster[:,2]
+
+        #-----------------------------------------------------------------------
+        # BACKFACE REMOVAL
+        if cam_data.back_face_removal:
+            # TODO: check this for large deformations
+            # shape=(num_elems,)
+            back_face_mask = RasteriserNP.back_face_removal_mask(cam_data,
+                                                                 coords_world,
+                                                                 connect_in_frame)
+            connect_in_frame = connect_in_frame[back_face_mask,:]
+
+        #-----------------------------------------------------------------------
+        # CROPPING & BOUNDING BOX OPERATIONS
+        (crop_mask,
+         elem_bound_box_inds) = RasteriserNP.crop_and_bound_by_connect(
+            cam_data,
+            coords_raster,
+            connect_in_frame,
+        )
+        connect_in_frame = connect_in_frame[crop_mask,:]
+
+        return (coords_raster,connect_in_frame,elem_bound_box_inds)
+
+    @staticmethod
+    def raster_frame_by_elem(
+                    cam_data: CameraData,
+                    elem_raster_coords: np.ndarray,
+                    elem_bound_box_inds: np.ndarray,
+                    elem_area: float,
+                    field_divide_z: np.ndarray
+                    ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+
+        # Create the subpixel coords inside the bounding box to test with the
+        # edge function. Use the pixel indices of the bounding box.
+        bound_subpx_x = np.arange(elem_bound_box_inds[0],
+                                  elem_bound_box_inds[1],
+                                  1/cam_data.sub_samp) + 1/(2*cam_data.sub_samp)
+        bound_subpx_y = np.arange(elem_bound_box_inds[2],
+                                  elem_bound_box_inds[3],
+                                  1/cam_data.sub_samp) + 1/(2*cam_data.sub_samp)
+        (bound_subpx_grid_x,bound_subpx_grid_y) = np.meshgrid(bound_subpx_x,
+                                                              bound_subpx_y)
+        bound_coords_grid_shape = bound_subpx_grid_x.shape
+        # shape=(coord[x,y],num_subpx_in_box)
+        bound_subpx_coords_flat = np.vstack((bound_subpx_grid_x.flatten(),
+                                             bound_subpx_grid_y.flatten()))
+
+        # Create the subpixel indices for buffer slicing later
+        subpx_inds_x = np.arange(cam_data.sub_samp*elem_bound_box_inds[0],
+                                 cam_data.sub_samp*elem_bound_box_inds[1])
+        subpx_inds_y = np.arange(cam_data.sub_samp*elem_bound_box_inds[2],
+                                 cam_data.sub_samp*elem_bound_box_inds[3])
+        (subpx_inds_grid_x,subpx_inds_grid_y) = np.meshgrid(subpx_inds_x,
+                                                            subpx_inds_y)
+
+
+        # We compute the edge function for all pixels in the box to determine if the
+        # pixel is inside the element or not
+        # NOTE: first axis of element_raster_coords is the node/vertex num.
+        # shape=(num_elems_in_bound,nodes_per_elem)
+        edge = np.zeros((3,bound_subpx_coords_flat.shape[1]),dtype=np.float64)
+        edge[0,:] = edge_function(elem_raster_coords[1,:],
+                                  elem_raster_coords[2,:],
+                                  bound_subpx_coords_flat)
+        edge[1,:] = edge_function(elem_raster_coords[2,:],
+                                  elem_raster_coords[0,:],
+                                  bound_subpx_coords_flat)
+        edge[2,:] = edge_function(elem_raster_coords[0,:],
+                                  elem_raster_coords[1,:],
+                                  bound_subpx_coords_flat)
+
+        # Now we check where the edge function is above zero for all edges
+        edge_check = np.zeros_like(edge,dtype=np.int8)
+        edge_check[edge >= 0.0] = 1
+        edge_check = np.sum(edge_check, axis=0)
+        # Create a mask with the check, TODO check the 3 here for non triangles
+        edge_mask_flat = edge_check == 3
+        edge_mask_grid = np.reshape(edge_mask_flat,bound_coords_grid_shape)
+
+        # Calculate the weights for the masked pixels
+        edge_masked = edge[:,edge_mask_flat]
+        interp_weights = edge_masked / elem_area
+
+        # Compute the depth of all pixels using hyperbolic interp
+        # NOTE: second index on raster coords is Z
+        px_coord_z = 1/(elem_raster_coords[0,2] * interp_weights[0,:]
+                      + elem_raster_coords[1,2] * interp_weights[1,:]
+                      + elem_raster_coords[2,2] * interp_weights[2,:])
+
+        field_interp = ((field_divide_z[0] * interp_weights[0,:]
+                       + field_divide_z[1] * interp_weights[1,:]
+                       + field_divide_z[2] * interp_weights[2,:])
+                       * px_coord_z)
+
+        return (px_coord_z,
+                field_interp,
+                subpx_inds_grid_x[edge_mask_grid],
+                subpx_inds_grid_y[edge_mask_grid])
+
+
+    #===========================================================================
+    # RASTER BY ELEMENT
+    @staticmethod
+    def raster_setup_by_elem(cam_data: CameraData,
+                            coords_world: np.ndarray,
+                            connectivity: np.ndarray,
+                            render_field: np.ndarray,
+                            disp_field: np.ndarray | None = None,
+                            ) -> tuple[np.ndarray,
+                                       np.ndarray,
+                                       np.ndarray]:
 
 
         # elem_raster_coords.shape=(num_elems,nodes_per_elem,coord[x,y,z,w])
         # field_divide_z.shape=(num_elems,nodes_per_elem,num_time_steps)
-        (elem_raster_coords,field_divide_z) = \
-            RasteriserNP.create_transformed_elem_arrays(cam_data,
-                                                        coords_world,
-                                                        connectivity,
-                                                        field_data)
+        (elem_raster_coords,
+         render_field_div_z) = \
+            RasteriserNP.transform_to_elem_arrays(cam_data,
+                                                  coords_world,
+                                                  connectivity,
+                                                  render_field)
+        # disp_field.shape=(num_elems,nodes_per_elem,num_comps,num_time_steps)
+        disp_field = np.ascontiguousarray(disp_field[connectivity,:,:])
+
+        print(80*"=")
+        print(f"{disp_field.shape=}")
+        print(80*"=")
 
         #-----------------------------------------------------------------------
         # BACKFACE REMOVAL
@@ -182,13 +368,21 @@ class RasteriserNP:
                                                                  coords_world,
                                                                  connectivity)
             # shape=(num_elems_in_scene,nodes_per_elem,coord[X,Y,Z,W])
-            elem_raster_coords = np.ascontiguousarray(elem_raster_coords[back_face_mask,:,:])
+            elem_raster_coords = np.ascontiguousarray(
+                elem_raster_coords[back_face_mask,:,:]
+            )
             # shape=(num_elems_in_scene,nodes_per_elem,num_time_steps)
-            field_divide_z = np.ascontiguousarray(field_divide_z[back_face_mask,:,:])
+            render_field_div_z = np.ascontiguousarray(
+                render_field_div_z[back_face_mask,:,:]
+            )
+
+            disp_field = np.ascontiguousarray(
+                disp_field[back_face_mask,:,:]
+            )
 
         #-----------------------------------------------------------------------
         # CROPPING & BOUNDING BOX OPERATIONS
-        (crop_mask,elem_bound_box_inds) = RasteriserNP.crop_and_bound_elements(
+        (crop_mask,elem_bound_box_inds) = RasteriserNP.crop_and_bound_by_elem(
             cam_data,
             elem_raster_coords
         )
@@ -196,7 +390,7 @@ class RasteriserNP:
         # shape=(num_elems_in_scene,nodes_per_elem,coord[x,y,z])
         elem_raster_coords = np.ascontiguousarray(elem_raster_coords[crop_mask,:,:-1])
         # shape=(num_elems_in_scene,nodes_per_elem,num_time_steps)
-        field_divide_z = np.ascontiguousarray(field_divide_z[crop_mask,:,:])
+        render_field_div_z = np.ascontiguousarray(render_field_div_z[crop_mask,:,:])
 
         #-----------------------------------------------------------------------
         # ELEMENT AREAS FOR INTERPOLATION
@@ -207,11 +401,11 @@ class RasteriserNP:
         return (elem_raster_coords,
                 elem_bound_box_inds,
                 elem_areas,
-                field_divide_z)
+                render_field_div_z)
 
 
     @staticmethod
-    def raster_one_element(
+    def raster_frame_by_elem(
                     cam_data: CameraData,
                     elem_raster_coords: np.ndarray,
                     elem_bound_box_inds: np.ndarray,
@@ -287,15 +481,15 @@ class RasteriserNP:
                 subpx_inds_grid_y[edge_mask_grid])
 
     @staticmethod
-    def raster_loop(cam_data: CameraData,
-                    elem_raster_coords: np.ndarray,
-                    elem_bound_box_inds: np.ndarray,
-                    elem_areas: np.ndarray,
-                    field_frame_divide_z: np.ndarray
-                    ) -> tuple[np.ndarray,np.ndarray,int]:
+    def raster_one_frame(cam_data: CameraData,
+                        elem_raster_coords: np.ndarray,
+                        elem_bound_box_inds: np.ndarray,
+                        elem_areas: np.ndarray,
+                        field_frame_divide_z: np.ndarray
+                        ) -> tuple[np.ndarray,np.ndarray,int]:
 
-        # NOTE: this version cannot be run in parallel as the depth buffer is
-        # filled on the fly as we process each element. This version will be
+        # NOTE: this version cannot be parallel by element as the depth buffer
+        # is filled on the fly as we process each element. This version will be
         # more memory efficient as we do not need to store each rastered
         # element fragment in memory.
 
@@ -306,7 +500,7 @@ class RasteriserNP:
             (px_coord_z,
             field_interp,
             subpx_inds_x_in,
-            subpx_inds_y_in) = RasteriserNP.raster_one_element(
+            subpx_inds_y_in) = RasteriserNP.raster_frame_by_elem(
                                                 cam_data,
                                                 elem_raster_coords[ee,:,:],
                                                 elem_bound_box_inds[ee,:],
@@ -343,6 +537,7 @@ class RasteriserNP:
         return (image_buffer,depth_buffer,elem_raster_coords.shape[0])
 
 
+    # TODO: deprecate this, parallelism is best applied over components, frames and time steps
     @staticmethod
     def raster_loop_parallel(cam_data: CameraData,
                             elem_raster_coords: np.ndarray,
@@ -360,7 +555,7 @@ class RasteriserNP:
 
             for ee in range(num_elems_in_scene):
                 processes.append(pool.apply_async(
-                    RasteriserNP.raster_one_element,
+                    RasteriserNP.raster_frame_by_elem,
                     args=(cam_data,
                           elem_raster_coords[:,:,ee],
                           elem_bound_box_inds[:,ee],

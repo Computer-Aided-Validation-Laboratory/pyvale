@@ -5,21 +5,24 @@ License: MIT
 Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
-from pathlib import Path
 from dataclasses import dataclass, field
 import numpy as np
 import mooseherder as mh
+from pyvale.core.fieldconverter import simdata_to_pyvista
 
-from pyvale.core.fieldconverter import conv_simdata_to_pyvista
+@dataclass(slots=True)
+class RenderOpts:
+    parallel: int | None = None
 
 
 @dataclass(slots=True)
-class CameraMeshData:
-    name: str
-
+class RenderMeshData:
     coords: np.ndarray
     connectivity: np.ndarray
-    fields_by_node: np.ndarray
+    fields_render: np.ndarray
+
+    # If this is None then the mesh is not deformable
+    fields_disp: np.ndarray | None = None
 
     node_count: int = field(init=False)
     elem_count: int = field(init=False)
@@ -40,24 +43,24 @@ class CameraMeshData:
         self.coord_cent = (self.coord_bound_max + self.coord_bound_min)/2.0
 
 
-def create_camera_mesh(sim_path: Path,
-                       field_key: str,
-                       components: tuple[str,...],
-                       spat_dim: int
-                       ) -> CameraMeshData:
-    # TODO: fix the unit conversion here, this should probably not be done
-    sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
-    sim_data.coords = sim_data.coords*1000.0 # scale to mm
+def create_render_mesh(sim_data: mh.SimData,
+                       field_render_keys: tuple[str,...],
+                       sim_spat_dim: int,
+                       field_disp_keys: tuple[str,...] | None = None,
+                       ) -> RenderMeshData:
 
-    (pv_grid,_) = conv_simdata_to_pyvista(sim_data,
-                                          components,
-                                          spat_dim=spat_dim)
+    (pv_grid,_) = simdata_to_pyvista(sim_data,
+                                     field_disp_keys+field_render_keys,
+                                     spat_dim=sim_spat_dim)
 
     pv_surf = pv_grid.extract_surface()
     faces = np.array(pv_surf.faces)
 
     first_elem_nodes_per_face = faces[0]
     nodes_per_face_vec = faces[0::(first_elem_nodes_per_face+1)]
+
+    # TODO: CHECKS
+    # - Number of displacement keys match the spat_dim parameter
     assert np.all(nodes_per_face_vec == first_elem_nodes_per_face), \
     "Not all elements in the simdata object have the same number of nodes per element"
 
@@ -73,48 +76,68 @@ def create_camera_mesh(sim_path: Path,
     # shape=(num_nodes,3), C format
     coords_world = np.array(pv_surf.points)
 
-    # Add w coord =1, shape=(num_nodes,1)
+    # Add w coord=1, shape=(num_nodes,3+1)
     coords_world= np.hstack((coords_world,np.ones([coords_world.shape[0],1])))
 
     # shape=(num_nodes,num_time_steps,num_components)
-    field_shape = np.array(pv_surf[field_key]).shape
-    fields_by_node = np.zeros(field_shape+(len(components),),dtype=np.float64)
-    for ii,cc in enumerate(components):
-        fields_by_node[:,:,ii] = np.ascontiguousarray(np.array(pv_surf[cc]))
+    field_render_shape = np.array(pv_surf[field_render_keys[0]]).shape
+    fields_render_by_node = np.zeros(field_render_shape+(len(field_render_keys),),
+                                     dtype=np.float64)
+    for ii,cc in enumerate(field_render_keys):
+        fields_render_by_node[:,:,ii] = np.ascontiguousarray(
+            np.array(pv_surf[cc]))
 
-    image_mesh_world = CameraMeshData(name=sim_path.name,
-                                      coords=coords_world,
-                                      connectivity=connectivity,
-                                      fields_by_node=fields_by_node)
 
-    return image_mesh_world
+    field_disp_by_node = None
+    if field_disp_keys is not None:
+        field_disp_shape = np.array(pv_surf[field_disp_keys[0]]).shape
+        # shape=(num_nodes,num_time_steps,num_components)
+        field_disp_by_node = np.zeros(field_disp_shape+(len(field_disp_keys),),
+                                       dtype=np.float64)
+        for ii,cc in enumerate(field_disp_keys):
+            field_disp_by_node[:,:,ii] = np.ascontiguousarray(
+                np.array(pv_surf[cc]))
+
+
+
+    return RenderMeshData(coords=coords_world,
+                          connectivity=connectivity,
+                          fields_render=fields_render_by_node,
+                          fields_disp=field_disp_by_node)
 
 
 def slice_mesh_data_by_elem(coords_world: np.ndarray,
                             connectivity: np.ndarray,
                             field_by_node: np.ndarray,
                             ) -> tuple[np.ndarray,np.ndarray]:
+    """_summary_
 
-    print(80*"=")
+    Parameters
+    ----------
+    coords_world : np.ndarray
+        _description_
+    connectivity : np.ndarray
+        _description_
+    field_by_node : np.ndarray
+        _description_
+
+    Returns
+    -------
+    tuple[np.ndarray,np.ndarray]
+        _description_
+    """
     # shape=(coord[X,Y,Z,W],node_per_elem,elem_num)
     elem_world_coords = np.copy(coords_world[connectivity,:])
-    print(f"{elem_world_coords.shape=}")
 
     # shape=(elem_num,nodes_per_elem,coord[X,Y,Z,W]), C memory format
     # elem_world_coords = np.ascontiguousarray(np.swapaxes(elem_world_coords,0,2))
     elem_world_coords = np.ascontiguousarray(elem_world_coords)
-    print(f"{elem_world_coords.shape=}")
 
     # shape=(nodes_per_elem,elem_num,time_steps)
     field_by_elem = np.copy(field_by_node[connectivity,:])
 
-    print(f"{field_by_elem.shape=}")
-
     # shape=(elem_num,nodes_per_elem,time_steps), C memory format
     # field_by_elem = np.ascontiguousarray(np.swapaxes(field_by_elem,0,1))
     field_by_elem = np.ascontiguousarray(field_by_elem)
-
-    print(f"{field_by_elem.shape=}")
-    print(80*"=")
 
     return (elem_world_coords,field_by_elem)

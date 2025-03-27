@@ -13,7 +13,7 @@ import pyvista as pv
 import mooseherder as mh
 
 from pyvale.core.sensorarraypoint import SensorArrayPoint
-from pyvale.core.fieldconverter import conv_simdata_to_pyvista
+from pyvale.core.fieldconverter import simdata_to_pyvista
 from pyvale.core.visualopts import (VisOptsSimSensors,VisOptsImageSave)
 from pyvale.core.visualtools import (create_pv_plotter,
                                      get_colour_lims,
@@ -108,7 +108,7 @@ def plot_sim_mesh(sim_data: mh.SimData,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    pv_simdata = conv_simdata_to_pyvista(sim_data,
+    pv_simdata = simdata_to_pyvista(sim_data,
                                          None,
                                          sim_data.num_spat_dims)
 
@@ -131,7 +131,7 @@ def plot_sim_data(sim_data: mh.SimData,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    pv_simdata = conv_simdata_to_pyvista(sim_data,
+    pv_simdata = simdata_to_pyvista(sim_data,
                                         (component,),
                                          sim_data.num_spat_dims)
 
