@@ -9,9 +9,10 @@
 #include <iostream>
 #include <vector>
 #include <tuple>
+#include <cmath>
 
 // Program Header files
-
+#include "./dicutil.hpp"
 
 
 namespace util {
@@ -103,8 +104,19 @@ namespace util {
         }
     }
 
+    void resize_ss(std::vector<double> &ss, std::vector<double> &ss_x, std::vector<double> &ss_y, int ss_size) {
+        ss.resize(ss_size * ss_size, 0.0);
+        ss_x.resize(ss_size * ss_size, 0.0);
+        ss_y.resize(ss_size * ss_size, 0.0);
+    }
 
+    Displacement parameters_to_displacement(double ss_x, double ss_y, std::vector<double> &p){
+        
+        Displacement displacement;
+        displacement.u = ss_x - (p[0] + (1 + p[2]) * ss_x + p[3] * ss_y);
+        displacement.v = ss_y - (p[1] + (1 + p[5]) * ss_y + p[4] * ss_x);
+        displacement.mag = std::sqrt( displacement.u*displacement.u + displacement.v*displacement.v);
+        return displacement;
 
-
-
+    }
 }   

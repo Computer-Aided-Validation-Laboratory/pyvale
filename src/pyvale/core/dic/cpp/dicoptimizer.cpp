@@ -6,34 +6,44 @@
 
 
 // STD library Header files
-#include <vector>
+#include <algorithm>
 #include <iostream>
+#include <numeric>
+#include <vector>
 #include <cmath>
 
 
 // Program Header files
-#include "./dicoptimizer.hpp"
 #include "./dicinterpolator.hpp"
+#include "./dicoptimizer.hpp"
+#include "./dicutil.hpp"
 
 
 namespace optimizer {
 
     
-    // values pulled from the interpolated reference image
-    std::vector<double> p(6,0);
-    std::vector<double> dp(6,0.0);
-    std::vector<double> pdp(6,0.0);
-    std::vector<double> p_plus_deltap(6,0);
-    std::vector<double> subset_ref;
-    std::vector<double> subset_ref_x;
-    std::vector<double> subset_ref_y;
-    std::vector<double> g(6, 0.0);
-    std::vector<std::vector<double>> H(6, std::vector<double>(6, 0.0));
-    std::vector<std::vector<double>> invH(6, std::vector<double>(6, 0.0));
-    std::vector<double> dfdp(6,0.0);
-    double lambda = 0.01;
-    double costfunc_p;
-    double costfunc_pdp;
+    // parameters
+    std::vector<double> p(6,0.0); // hard coded affine parameters
+    std::vector<double> dp(6,0.0); // deltaP
+    std::vector<double> pdp(6,0.0); // P + deltaP
+
+    // reference subset values to be pulled from interpolator
+    std::vector<double> ss_ref;
+    std::vector<double> ss_ref_x;
+    std::vector<double> ss_ref_y;
+
+    // Optimization variables
+    int iter; // number of iterations for each subset optimization
+    double ftol; // tolerance for termination by the change of the cost function
+    double xtol; // tolerance for termination by the change of the independent variables
+    double lambda = 0.01; // damping
+    double costfunc_p = 0.0; // cost function for current P values
+    double costfunc_pdp = 0.0; // cost function for P+deltaP values
+    std::vector<double> g(6, 0.0); // gradient
+    std::vector<double> dfdp(6,0.0); // derivative of shape function with repsect to parameters
+    std::vector<std::vector<double>> H(6, std::vector<double>(6, 0.0)); // Hessian. Also becomes (H + lambda * diag(H))
+    std::vector<std::vector<double>> invH(6, std::vector<double>(6, 0.0)); // inverse of H + lambda * diag(H)
+
 
     // interpolation data struct
     interpolator::Data interp_data;
@@ -44,90 +54,62 @@ namespace optimizer {
     void (*shape_function)(double &, double &, double , double , std::vector<double> &);
     void (*dshape_dp)(std::vector<double>&, double, double, double, double, int);
 
-    void init(std::string &corr_crit, std::string &shape_func, int subset_size){
 
 
-        // function pointer for cost function
-        if (corr_crit == "SSD") optimize_costfunc=ssd;
-        else if (corr_crit == "NSSD") optimize_costfunc=nssd;
-        else if (corr_crit == "ZNSSD") optimize_costfunc=znssd;
-        else {            
-            std::cerr << "Unexpected Correlation Criteria: \'" << corr_crit << "\'" << std::endl;
-            std::cerr << "Allowed Values: \'SSD\', \'NSSD\', \'ZNSSD\'. " << std::endl;
-            exit(EXIT_FAILURE);
-        }
 
 
-        // function pointer for shape function
-        if (shape_func == "rigid") {
-            optimizer::shape_function=rigid;
-            optimizer::dshape_dp=drigid_dp;
-        }
-        else if (shape_func == "affine") {
-            optimizer::shape_function=affine;
-            optimizer::dshape_dp=daffine_dp;
-        }
-        else {            
-            std::cerr << "Unexpected Shape Function: \'" << shape_func << "\'" << std::endl;
-            std::cerr << "Allowed Values: \'rigid\', \'affine\' " << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        
-
-        // resize the reference subset values and coordinate vectors
-        subset_ref.resize(subset_size*subset_size, 0.0);
-        subset_ref_x.resize(subset_size*subset_size, 0.0);
-        subset_ref_y.resize(subset_size*subset_size, 0.0);
-
+    void init(std::string &corr_crit, std::string &shape_func, int ss_size){
+        setCostFunction(corr_crit);
+        setShapeFunction(shape_func);
+        util::resize_ss(ss_ref, ss_ref_x, ss_ref_y, ss_size);
     }
 
 
-    void solve(std::vector<double> &subset_def,
-                 std::vector<double> &subset_def_x,
-                 std::vector<double> &subset_def_y,
-                 int n,
-                 double tol,
-                 int max_iter){
 
-        int iter = 0;
+    void solve(std::vector<double>& ss_def,
+                    std::vector<double>& ss_def_x,
+                    std::vector<double>& ss_def_y,
+                    int n,
+                    double tol,
+                    int max_iter) {
+        
 
-        double dp_mag;
+
+        iter = 0;
         std::fill(p.begin(), p.end(), 0.0);
 
+        while (iter < max_iter) {
 
-        for (int l = 0; l < max_iter; l++){
-
-
-            // optimize
-            optimize_costfunc(subset_def, subset_def_x, subset_def_y, n);
-            check_tolerance(costfunc_p, costfunc_pdp, p, pdp, lambda);
+            // perform the optimization
+            optimize_costfunc(ss_def, ss_def_x, ss_def_y, n);
+            update_lambda(costfunc_p, costfunc_pdp, p, pdp, lambda);
 
 
-            // get magnitude of deltap
-            dp_mag = sqrt(dp[0]*dp[0] + dp[1]*dp[1] + dp[2]*dp[2] + dp[3]*dp[3] + dp[4]*dp[4] + dp[5]*dp[5]);
-            
-            //debugging
-            // std::cout << iter << " " << dp_mag << " " << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << " " << p[4] << " " << p[5] << "\n";
-            // exit(0);
 
-            if (dp_mag < tol) {
-                std::cout << iter << " " << dp_mag << " " << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << " " << p[4] << " " << p[5] << "\n";
+            ftol = std::abs(costfunc_pdp - costfunc_p) / std::abs(costfunc_p);
+            xtol = std::sqrt(std::inner_product(dp.begin(), dp.end(), dp.begin(), 0.0));
+
+            // if (xtol < tol || ftol < tol){
+            if (xtol < tol){
+                debugPrint(iter, ftol, xtol, p);
                 break;
             }
-            
             iter++;
         }
 
+        // if its a bad subset and cant reach a minimum in the max number of iterations reset p values to 0.0
         if (iter == max_iter) {
-            std::cout << iter << " " << dp_mag << " " << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << " " << p[4] << " " << p[5] << "\n";
-            // std::cout << iter << " " << dp_mag << " NaN NaN NaN NaN NaN NaN" << "\n";
+            debugPrint(iter, ftol, xtol, p);
+            // std::fill(p.begin(), p.end(), 0.0);
         }
     }
 
-    void ssd(std::vector<double> &subset_def,
-             std::vector<double> &subset_def_x, 
-             std::vector<double> &subset_def_y, 
+
+
+
+    void ssd(std::vector<double> &ss_def,
+             std::vector<double> &ss_def_x, 
+             std::vector<double> &ss_def_y, 
              int n){
 
         // reset derivative and hessian values
@@ -142,14 +124,14 @@ namespace optimizer {
         for (int i = 0; i < n; i++){
 
             // get subset coordinates based on shape function parameters
-            shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], p);
+            shape_function(ss_ref_x[i], ss_ref_y[i], ss_def_x[i], ss_def_y[i], p);
 
-            double ref_x = subset_ref_x[i];
-            double ref_y = subset_ref_y[i];
+            double ref_x = ss_ref_x[i];
+            double ref_y = ss_ref_y[i];
             
             // get the subset value and derivitives
             interp_data = interpolator::eval_bicubic_and_derivs(ref_x, ref_y);
-            subset_ref[i] = interp_data.interp_value;
+            ss_ref[i] = interp_data.interp_value;
             dfdx = interp_data.interp_dx;
             dfdy = interp_data.interp_dy;
 
@@ -164,13 +146,13 @@ namespace optimizer {
                 }
             }
 
-            double dshape_df = - (subset_def[i] - subset_ref[i]);
+            double dshape_df = - (ss_def[i] - ss_ref[i]);
             g[0] += dshape_df * dfdx;
             g[1] += dshape_df * dfdy;
-            g[2] += dshape_df * dfdx * subset_ref_x[i];
-            g[3] += dshape_df * dfdx * subset_ref_y[i];
-            g[4] += dshape_df * dfdy * subset_ref_x[i];
-            g[5] += dshape_df * dfdy * subset_ref_y[i];
+            g[2] += dshape_df * dfdx * ss_ref_x[i];
+            g[3] += dshape_df * dfdx * ss_ref_y[i];
+            g[4] += dshape_df * dfdy * ss_ref_x[i];
+            g[5] += dshape_df * dfdy * ss_ref_y[i];
 
         }
 
@@ -186,12 +168,12 @@ namespace optimizer {
         // calculate cost function for current and updated parameter values 
         costfunc_p = 0.0;
         for (int i = 0; i < n; i++){
-            costfunc_p += (subset_def[i] - subset_ref[i]) * (subset_def[i] - subset_ref[i]);
+            costfunc_p += (ss_def[i] - ss_ref[i]) * (ss_def[i] - ss_ref[i]);
         }
 
 
         invertMatrix(H, invH);
-        new_shape_func_params(pdp, invH, g);
+        update_shapefunc_parameters(pdp, invH, g);
 
         // Some useful debugging print statements
         //std::cout << df_dx << " " << df_dy << std::endl;
@@ -206,16 +188,16 @@ namespace optimizer {
         // calculate cost function for updated parameter values
         costfunc_pdp = 0.0;
         for (int i = 0; i < n; ++i) {
-            shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], pdp);
-            subset_ref[i] = interpolator::eval_bicubic(subset_ref_x[i], subset_ref_y[i]);
-            costfunc_pdp += (subset_def[i] - subset_ref[i]) * (subset_def[i] - subset_ref[i]);
+            shape_function(ss_ref_x[i], ss_ref_y[i], ss_def_x[i], ss_def_y[i], pdp);
+            ss_ref[i] = interpolator::eval_bicubic(ss_ref_x[i], ss_ref_y[i]);
+            costfunc_pdp += (ss_def[i] - ss_ref[i]) * (ss_def[i] - ss_ref[i]);
         }
     }
 
 
-    void nssd(std::vector<double> &subset_def,
-             std::vector<double> &subset_def_x, 
-             std::vector<double> &subset_def_y, 
+    void nssd(std::vector<double> &ss_def,
+             std::vector<double> &ss_def_x, 
+             std::vector<double> &ss_def_y, 
              int n){
 
 
@@ -235,13 +217,13 @@ namespace optimizer {
         // get the normalisation values for both reference and deformed subsets
         for (int i = 0; i < n; ++i) {
 
-            shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], p);
-            interp_data = interpolator::eval_bicubic_and_derivs(subset_ref_x[i], subset_ref_y[i]);
-            subset_ref[i] = interp_data.interp_value;
+            shape_function(ss_ref_x[i], ss_ref_y[i], ss_def_x[i], ss_def_y[i], p);
+            interp_data = interpolator::eval_bicubic_and_derivs(ss_ref_x[i], ss_ref_y[i]);
+            ss_ref[i] = interp_data.interp_value;
             dfdx[i] = interp_data.interp_dx;
             dfdy[i] = interp_data.interp_dy;
-            sum_squared_def += subset_def[i] * subset_def[i];
-            sum_squared_ref += subset_ref[i] * subset_ref[i];
+            sum_squared_def += ss_def[i] * ss_def[i];
+            sum_squared_ref += ss_ref[i] * ss_ref[i];
         }
 
         inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
@@ -252,15 +234,15 @@ namespace optimizer {
         for (int i = 0; i < n; i++){
             
             // derivative of shape function with repsect to parameters
-            dshape_dp(dfdp, subset_ref_x[i], subset_ref_y[i], dfdx[i], dfdy[i], n);
+            dshape_dp(dfdp, ss_ref_x[i], ss_ref_y[i], dfdx[i], dfdy[i], n);
 
-            double dshape_df = - inv_sum_squared_ref * (subset_def[i] * inv_sum_squared_def - subset_ref[i] * inv_sum_squared_ref);
+            double dshape_df = - inv_sum_squared_ref * (ss_def[i] * inv_sum_squared_def - ss_ref[i] * inv_sum_squared_ref);
             g[0] += dshape_df * dfdx[i];
             g[1] += dshape_df * dfdy[i];
-            g[2] += dshape_df * dfdx[i] * subset_ref_x[i];
-            g[3] += dshape_df * dfdx[i] * subset_ref_y[i];
-            g[4] += dshape_df * dfdy[i] * subset_ref_x[i];
-            g[5] += dshape_df * dfdy[i] * subset_ref_y[i];
+            g[2] += dshape_df * dfdx[i] * ss_ref_x[i];
+            g[3] += dshape_df * dfdx[i] * ss_ref_y[i];
+            g[4] += dshape_df * dfdy[i] * ss_ref_x[i];
+            g[5] += dshape_df * dfdy[i] * ss_ref_y[i];
 
             // Upper triangle of Hessian Matrix
             for (int row = 0; row < 6; row++) {
@@ -281,7 +263,7 @@ namespace optimizer {
 
 
         invertMatrix(H, invH);
-        new_shape_func_params(pdp, invH, g);
+        update_shapefunc_parameters(pdp, invH, g);
 
 
         //std::cout << df_dx << " " << df_dy << std::endl;
@@ -296,8 +278,8 @@ namespace optimizer {
         // calculate cost function for current parameter values
         costfunc_p = 0.0;
         for (int i = 0; i < n; i++){
-            double def_norm = subset_def[i] * inv_sum_squared_def;
-            double ref_norm = subset_ref[i] * inv_sum_squared_ref;
+            double def_norm = ss_def[i] * inv_sum_squared_def;
+            double ref_norm = ss_ref[i] * inv_sum_squared_ref;
             costfunc_p += (def_norm - ref_norm) * (def_norm - ref_norm);
         }
 
@@ -306,25 +288,25 @@ namespace optimizer {
         costfunc_pdp = 0.0;
         sum_squared_ref = 0.0;
         for (int i = 0; i < n; ++i) {
-            shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], pdp);
-            subset_ref[i] = interpolator::eval_bicubic(subset_ref_x[i], subset_ref_y[i]);
-            sum_squared_ref += subset_ref[i] * subset_ref[i];
+            shape_function(ss_ref_x[i], ss_ref_y[i], ss_def_x[i], ss_def_y[i], pdp);
+            ss_ref[i] = interpolator::eval_bicubic(ss_ref_x[i], ss_ref_y[i]);
+            sum_squared_ref += ss_ref[i] * ss_ref[i];
         }
 
         inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
 
         for (int i = 0; i < n; ++i) {
-            double def_norm = subset_def[i] * inv_sum_squared_def;
-            double ref_norm = subset_ref[i] * inv_sum_squared_ref;
+            double def_norm = ss_def[i] * inv_sum_squared_def;
+            double ref_norm = ss_ref[i] * inv_sum_squared_ref;
             costfunc_pdp += (def_norm - ref_norm) * (def_norm - ref_norm);        
         }
 
     }
 
 
-    void znssd(std::vector<double> &subset_def,
-             std::vector<double> &subset_def_x, 
-             std::vector<double> &subset_def_y, 
+    void znssd(std::vector<double> &ss_def,
+             std::vector<double> &ss_def_x, 
+             std::vector<double> &ss_def_y, 
              int n){
 
 
@@ -342,15 +324,15 @@ namespace optimizer {
         // get the normalisation values for both reference and deformed subsets
         for (int i = 0; i < n; ++i) {
 
-            shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], p);
+            shape_function(ss_ref_x[i], ss_ref_y[i], ss_def_x[i], ss_def_y[i], p);
 
-            interp_data = interpolator::eval_bicubic_and_derivs(subset_ref_x[i], subset_ref_y[i]);
-            subset_ref[i] = interp_data.interp_value;
+            interp_data = interpolator::eval_bicubic_and_derivs(ss_ref_x[i], ss_ref_y[i]);
+            ss_ref[i] = interp_data.interp_value;
             dfdx[i] = interp_data.interp_dx;
             dfdy[i] = interp_data.interp_dy;
 
-            mean_ref += subset_ref[i];
-            mean_def += subset_def[i];
+            mean_ref += ss_ref[i];
+            mean_def += ss_def[i];
 
         }
 
@@ -360,8 +342,8 @@ namespace optimizer {
         double sum_squared_ref = 0.0;
         double sum_squared_def = 0.0;
         for (int i = 0; i < n; ++i) {
-            sum_squared_def += (subset_def[i] - mean_def) * (subset_def[i] - mean_def);
-            sum_squared_ref += (subset_ref[i] - mean_ref) * (subset_ref[i] - mean_ref);
+            sum_squared_def += (ss_def[i] - mean_def) * (ss_def[i] - mean_def);
+            sum_squared_ref += (ss_ref[i] - mean_ref) * (ss_ref[i] - mean_ref);
         }
 
         double inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
@@ -371,15 +353,15 @@ namespace optimizer {
         for (int i = 0; i < n; i++){
             
             // derivative of shape function with repsect to parameters
-            dshape_dp(dfdp, subset_ref_x[i], subset_ref_y[i], dfdx[i], dfdy[i], n);
+            dshape_dp(dfdp, ss_ref_x[i], ss_ref_y[i], dfdx[i], dfdy[i], n);
 
-            double dshape_df = - inv_sum_squared_ref * ((subset_def[i] - mean_def) * inv_sum_squared_def - (subset_ref[i] - mean_ref) * inv_sum_squared_ref);
+            double dshape_df = - inv_sum_squared_ref * ((ss_def[i] - mean_def) * inv_sum_squared_def - (ss_ref[i] - mean_ref) * inv_sum_squared_ref);
             g[0] += dshape_df * dfdx[i];
             g[1] += dshape_df * dfdy[i];
-            g[2] += dshape_df * dfdx[i] * subset_ref_x[i];
-            g[3] += dshape_df * dfdx[i] * subset_ref_y[i];
-            g[4] += dshape_df * dfdy[i] * subset_ref_x[i];
-            g[5] += dshape_df * dfdy[i] * subset_ref_y[i];
+            g[2] += dshape_df * dfdx[i] * ss_ref_x[i];
+            g[3] += dshape_df * dfdx[i] * ss_ref_y[i];
+            g[4] += dshape_df * dfdy[i] * ss_ref_x[i];
+            g[5] += dshape_df * dfdy[i] * ss_ref_y[i];
 
             // Upper triangle of Hessian Matrix
             for (int row = 0; row < 6; row++) {
@@ -400,7 +382,7 @@ namespace optimizer {
 
 
         invertMatrix(H, invH);
-        new_shape_func_params(pdp, invH, g);
+        update_shapefunc_parameters(pdp, invH, g);
 
 
         //std::cout << df_dx << " " << df_dy << std::endl;
@@ -415,8 +397,8 @@ namespace optimizer {
         // calculate cost function for current parameter values
         costfunc_p = 0.0;
         for (int i = 0; i < n; i++){
-            double def_norm = (subset_def[i] - mean_def) * inv_sum_squared_def;
-            double ref_norm = (subset_ref[i] - mean_ref) * inv_sum_squared_ref;
+            double def_norm = (ss_def[i] - mean_def) * inv_sum_squared_def;
+            double ref_norm = (ss_ref[i] - mean_ref) * inv_sum_squared_ref;
             costfunc_p += (def_norm - ref_norm) * (def_norm - ref_norm);
         }
 
@@ -424,24 +406,24 @@ namespace optimizer {
         // calculate cost function for updated parameter values
         mean_ref = 0.0;
         for (int i = 0; i < n; ++i) {
-            shape_function(subset_ref_x[i], subset_ref_y[i], subset_def_x[i], subset_def_y[i], pdp);
-            subset_ref[i] = interpolator::eval_bicubic(subset_ref_x[i], subset_ref_y[i]);
-            mean_ref += subset_ref[i];
+            shape_function(ss_ref_x[i], ss_ref_y[i], ss_def_x[i], ss_def_y[i], pdp);
+            ss_ref[i] = interpolator::eval_bicubic(ss_ref_x[i], ss_ref_y[i]);
+            mean_ref += ss_ref[i];
         }
 
         mean_ref /= n;
 
         sum_squared_ref = 0.0;
         for (int i = 0; i < n; ++i) {
-            sum_squared_ref += (subset_ref[i] - mean_ref) * (subset_ref[i] - mean_ref);
+            sum_squared_ref += (ss_ref[i] - mean_ref) * (ss_ref[i] - mean_ref);
         }
 
         inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
 
         costfunc_pdp = 0.0;
         for (int i = 0; i < n; ++i) {
-            double def_norm = (subset_def[i] - mean_def) * inv_sum_squared_def;
-            double ref_norm = (subset_ref[i] - mean_ref) * inv_sum_squared_ref;
+            double def_norm = (ss_def[i] - mean_def) * inv_sum_squared_def;
+            double ref_norm = (ss_ref[i] - mean_ref) * inv_sum_squared_ref;
             costfunc_pdp += (def_norm - ref_norm) * (def_norm - ref_norm);        
         }
 
@@ -517,7 +499,7 @@ namespace optimizer {
     }
 
     
-    void check_tolerance(double costfunc_p, double costfunc_pdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda){
+    void update_lambda(double costfunc_p, double costfunc_pdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda){
 
         if (costfunc_p < costfunc_pdp){
             lambda *= 10.0;
@@ -531,7 +513,7 @@ namespace optimizer {
         
     }
 
-    void new_shape_func_params(std::vector<double> &pdp, std::vector<std::vector<double>> &invH, std::vector<double> &g){
+    void update_shapefunc_parameters(std::vector<double> &pdp, std::vector<std::vector<double>> &invH, std::vector<double> &g){
 
         // multiply inverse with gradient
         for (int i = 0; i < 6; ++i) {
@@ -585,7 +567,41 @@ namespace optimizer {
 
     }
 
+    void setCostFunction(const std::string& corr_crit) {
+        if (corr_crit == "SSD") optimize_costfunc = ssd;
+        else if (corr_crit == "NSSD") optimize_costfunc = nssd;
+        else if (corr_crit == "ZNSSD") optimize_costfunc = znssd;
+        else {
+            std::cerr << "Unexpected Correlation Criteria: '" << corr_crit << "'" << std::endl;
+            std::cerr << "Allowed Values: 'SSD', 'NSSD', 'ZNSSD'." << std::endl;
+            exit(EXIT_FAILURE);
+        }
+    }
 
+    void setShapeFunction(const std::string& shape_func) {
+        if (shape_func == "rigid") {
+            shape_function = rigid;
+            dshape_dp = drigid_dp;
+        } else if (shape_func == "affine") {
+            shape_function = affine;
+            dshape_dp = daffine_dp;
+        } else {
+            std::cerr << "Unexpected Shape Function: '" << shape_func << "'" << std::endl;
+            std::cerr << "Allowed Values: 'rigid', 'affine'." << std::endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    void debugPrint(int iter, double ftol, double xtol, const std::vector<double>& p) {
+        std::cout << iter << " " << ftol << " " << xtol << " ";
+        std::cout << p[0] << " ";
+        std::cout << p[1] << " ";
+        std::cout << p[2] << " ";
+        std::cout << p[3] << " ";
+        std::cout << p[4] << " ";
+        std::cout << p[5] << " ";
+        std::cout << "\n";
+    }
 
 
 }

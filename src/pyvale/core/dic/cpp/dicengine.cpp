@@ -23,7 +23,6 @@ namespace dic2d {
 
 
     // image and subset arrays
-    std::vector<double> image_def;
     std::vector<double> ss_def;
     std::vector<double> ss_def_coords_x;
     std::vector<double> ss_def_coords_y;
@@ -52,12 +51,11 @@ namespace dic2d {
         int num_px_image = px_horizontal*px_vertical;
         int num_px_ss = ss_size*ss_size;
 
-        // total number of subsets
+        // get a list of ss coordinates within RIO.
         std::vector<int> ss_list_x;
         std::vector<int> ss_list_y;
         util::fill_ss_coord_vects(ss_list_x, ss_list_y, image_roi, px_horizontal, px_vertical, ss_size, ss_step);
         int n_ss = ss_list_x.size();
-        std::cout << "Number of subset: " << n_ss << std::endl;
 
     
         // timer for 2D DIC engine
@@ -70,22 +68,19 @@ namespace dic2d {
         // define our interpolator for the reference imageu
         interpolator::bicubic_init(image_ref_dbl, px_horizontal, px_vertical);
 
-        // initialise the LM optimizer that I have been writing
+        // initialise the LM optimizer and the output struct
         optimizer::init(corr_crit, shape_func, ss_size);
 
+        // for extraction of deformed image from stack
+        std::vector<double> image_def(num_px_image,0.0);
 
-
-
-        // resize image and subset arrays
-        image_def.resize(num_px_image,0.0);
-        ss_def.resize(num_px_ss,0.0);
-        ss_def_coords_x.resize(num_px_ss,0.0);
-        ss_def_coords_y.resize(num_px_ss,0.0);
+        // resize the deformed subset vectors
+        util::resize_ss(ss_def, ss_def_coords_x, ss_def_coords_y, ss_size);
 
 
 
         // function pointer for the method of scanning the subsets through the image
-        void (*scan_function)(std::vector<int> &, std::vector<int> &, int, int, int, int, int, double);
+        void (*scan_function)(std::vector<double> &, std::vector<int> &, std::vector<int> &, int, int, int, int, int, double);
         if (scan_method=="image_scan") scan_function=image_scan;
         else if (scan_method=="RG") scan_function=reliability_guided;
         else {
@@ -105,7 +100,7 @@ namespace dic2d {
             // extract a single image from the stack
             util::extract_image(image_def, image_def_stack, img_num, px_horizontal, px_vertical);
 
-            scan_function(ss_list_x, ss_list_y, px_horizontal, px_vertical, n_ss, ss_size, max_iter, tol);
+            scan_function(image_def, ss_list_x, ss_list_y, px_horizontal, px_vertical, n_ss, ss_size, max_iter, tol);
             
         }
 
@@ -123,11 +118,12 @@ namespace dic2d {
     // Raw image scan
     // -------------------------------------------------------------------------------------------
 
-    void image_scan(std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
+    void image_scan(std::vector<double> &image_def, std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
 
 
         int ss_x;
         int ss_y;
+        util::Displacement displacement;
 
         // loop over subsets within the ROI
         for (int ss = 0; ss < n_ss; ss++){
@@ -143,6 +139,9 @@ namespace dic2d {
 
             std::cout << ss_list_x[ss] << " " << ss_list_y[ss] <<  " ";
             optimizer::solve(ss_def, ss_def_coords_x, ss_def_coords_y, ss_size*ss_size, tol, max_iter);
+            displacement = util::parameters_to_displacement(ss_x,ss_y, optimizer::p);
+            // std::cout << ss_list_x[ss] << " " << ss_list_y[ss] << " " << displacement.u << " " << displacement.v << " " << displacement.mag << "\n";
+
         }
 
     }
@@ -156,7 +155,7 @@ namespace dic2d {
     // Reliability Guided scan of image. (NOT YET IMPLEMENTED)
     // -------------------------------------------------------------------------------------------
 
-    void reliability_guided(std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
+    void reliability_guided(std::vector<double> &image_def, std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
 
         // // create image masks
         // std::vector<bool> mc(px_horizontal, px_vertical);

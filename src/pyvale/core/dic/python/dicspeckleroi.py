@@ -80,6 +80,7 @@ class DICRegionOfInterest:
         """
 
         cv2.namedWindow("ROI Selection", cv2.WINDOW_GUI_NORMAL)
+        cv2.resizeWindow("ROI Selection", 800,800)
         cv2.setMouseCallback("ROI Selection", self.__mouse_callback)
         self.__update_display()
         while True:
@@ -122,7 +123,7 @@ class DICRegionOfInterest:
                 if self.__mask_history:
                     self.mask = self.__mask_history.pop()
                     self.__update_display()
-            
+
             elif key == ord('q'):
                 break
 
@@ -131,7 +132,7 @@ class DICRegionOfInterest:
 
     def reset_mask(self, image_shape: np.ndarray) -> np.ndarray:
         return np.zeros(image_shape[:2], dtype=bool)
-    
+
     def rect_boundary(self, left: int, right: int, top: int, bottom: int) -> None:
         """
         Defines a rectangular region of interest (ROI) by setting a rectangular mask.
@@ -162,7 +163,7 @@ class DICRegionOfInterest:
         overlay[self.mask] = (0, 255, 0)
         result = cv2.addWeighted(self.image, 0.7, overlay, 0.3, 0)
         cv2.imwrite(filename, result)
-    
+
 
 
     def imshow(self) -> None:
@@ -188,12 +189,12 @@ class DICRegionOfInterest:
             point (tuple): The point to check.
             start_point (tuple): The starting point of the polygon.
             threshold (int, optional): The distance threshold to consider a point near the start. Defaults to 20.
-        
+
         Returns:
             bool: True if the point is within the threshold distance from the start point, otherwise False.
         """
         return np.linalg.norm(np.array(point) - np.array(start_point)) < threshold
-        
+
 
 
     def __get_operation_color(self) -> None:
@@ -228,13 +229,13 @@ class DICRegionOfInterest:
 
         # create colour mask for after defining shape
         colored_mask = np.zeros_like(self.image)
-        
+
         # Apply color based on mask values
         colored_mask[self.mask] = self.__COLOR_ADD  # Green for added regions
-        
+
         # Combine with original image
         display = cv2.addWeighted(self.image, 0.7, colored_mask, 0.3, 0)
-        
+
         # Status text
         mode_text = "Rectangle" if self.__shape_mode == self.__DRAW_RECTANGLE else ("Circle" if self.__shape_mode == self.__DRAW_CIRCLE else "Polygon")
         operation_text = "Add" if self.__operation_mode == self.__ADD_MODE else "Subtract"
@@ -255,7 +256,7 @@ class DICRegionOfInterest:
             "q=quit",
             f"Mode: {mode_text}",
             f"Operation: {operation_text}",
-        
+
         ]
 
         # Start position for the first line
@@ -266,12 +267,12 @@ class DICRegionOfInterest:
         for i, line in enumerate(status_lines):
             y_position = y_start + i * line_spacing  # Adjust y position for each line
             cv2.putText(display, line, (10, y_position), cv2.FONT_HERSHEY_COMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
-        
+
         # Store this as the preview image for future updates
         self.__preview_image = display.copy()
-        
+
         cv2.imshow("ROI Selection", display)
-    
+
 
 
     def __mouse_callback(self, event, x, y, flags, params):
@@ -298,22 +299,22 @@ class DICRegionOfInterest:
         # Polygon drawing mode
         if self.__shape_mode == self.__DRAW_POLYGON:
             if event == cv2.EVENT_LBUTTONDOWN:
-                # Check if this is the first point or if near the start point to close the polygon
+                # Check if click is near shape start
                 if not self.__polygon_points or (len(self.__polygon_points) > 2 and self.__is_point_near_start((x, y), self.__polygon_points[0])):
                     # finish polygon if near start
                     if len(self.__polygon_points) > 2 and self.__is_point_near_start((x, y), self.__polygon_points[0]):
-                        
+
                         # save mask state
                         temp_mask = (self.mask.astype(np.uint8)).copy() * 255
                         poly_points = np.array(self.__polygon_points, np.int32)                        
                         self.__save_mask_state(self.mask)
-                        
+
                         # Add or subtract mask based on mode
                         if self.__operation_mode == self.__ADD_MODE:
                             cv2.fillPoly(temp_mask, [poly_points], 255)
                         else:
                             cv2.fillPoly(temp_mask, [poly_points], 0)
-                        
+
                         self.mask = temp_mask == 255
                         self.__polygon_points = []
                         self.__update_display()
@@ -323,29 +324,29 @@ class DICRegionOfInterest:
                 else:
                     # Add point to polygon
                     self.__polygon_points.append((x, y))
-                
+
                 self.__current_point = (x, y)
 
             elif event == cv2.EVENT_MOUSEMOVE and self.__polygon_points:
                 # Update current point for preview
                 self.__current_point = (x, y)
-                
+
                 # Create temporary visualization
                 temp_img = self.__preview_image.copy()
                 color = self.__get_operation_color()
-                
+
                 # Draw polygon points and lines
                 for i in range(len(self.__polygon_points) - 1):
                     cv2.line(temp_img, self.__polygon_points[i], self.__polygon_points[i+1], color, 2)
-                
+
                 # Draw line to current point
                 if self.__polygon_points:
                     cv2.line(temp_img, self.__polygon_points[-1], self.__current_point, color, 2)
-                
+
                 # If more than 2 points, show potential closing line
                 if len(self.__polygon_points) > 2:
                     cv2.line(temp_img, self.__current_point, self.__polygon_points[0], color, 2)
-                
+
                 cv2.imshow("ROI Selection", temp_img)
 
         # Rectangle and Circle drawing mode
@@ -359,28 +360,30 @@ class DICRegionOfInterest:
                     # complete shape with second click
                     self.__first_click = False
                     temp_mask = (self.mask.astype(np.uint8)).copy() * 255
-                    
+
                     # Save current state before modification (incase user wants to undo)
                     self.__save_mask_state(self.mask)
-                    
+
                     if self.__shape_mode == self.__DRAW_RECTANGLE:
                         if self.__operation_mode == self.__ADD_MODE:
                             cv2.rectangle(temp_mask, self.__start_point, (x, y), 255, -1)
                         else:
                             cv2.rectangle(temp_mask, self.__start_point, (x, y), 0, -1)
-                            
+  
                     elif  self.__shape_mode == self.__DRAW_CIRCLE:
+                        
+                        #draw circle based on diameter values.
                         diameter_left  = self.__start_point
                         diameter_right = (x, y)
                         radius = int(np.linalg.norm(np.array(diameter_right) - np.array(diameter_left)) / 2)
                         centre = (int(diameter_left[0] + (diameter_right[0] - diameter_left[0])/2), 
                                 int(diameter_left[1] + (diameter_right[1] - diameter_left[1])/2))
-                        
+
                         if  self.__operation_mode == self.__ADD_MODE:
                             cv2.circle(temp_mask, centre, radius, 255, -1)
                         else:
                             cv2.circle(temp_mask, centre, radius, 0, -1)
-                    
+
                     self.mask = temp_mask == 255
                     self.__start_point = None
                     self.__current_point = None
@@ -391,9 +394,10 @@ class DICRegionOfInterest:
                 # Create temporary visualization
                 temp_img = self.__preview_image.copy()
                 color = self.__get_operation_color()
-                
+
                 if  self.__shape_mode == self.__DRAW_RECTANGLE:
                     cv2.rectangle(temp_img, self.__start_point, self.__current_point, color, 2)
+
                 elif self.__shape_mode == self.__DRAW_CIRCLE:
                     diameter_left  = self.__start_point
                     diameter_right = self.__current_point
@@ -401,5 +405,5 @@ class DICRegionOfInterest:
                     centre = (int(diameter_left[0] + (diameter_right[0] - diameter_left[0])/2), 
                             int(diameter_left[1] + (diameter_right[1] - diameter_left[1])/2))
                     cv2.circle(temp_img, centre, radius, color, 2)
-                
+
                 cv2.imshow("ROI Selection", temp_img)
