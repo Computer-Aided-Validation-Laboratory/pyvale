@@ -49,8 +49,12 @@ def create_render_mesh(sim_data: mh.SimData,
                        field_disp_keys: tuple[str,...] | None = None,
                        ) -> RenderMeshData:
 
+    extract_keys = field_render_keys
+    if field_disp_keys is not None:
+        extract_keys = field_render_keys+field_disp_keys
+
     (pv_grid,_) = simdata_to_pyvista(sim_data,
-                                     field_disp_keys+field_render_keys,
+                                     extract_keys,
                                      spat_dim=sim_spat_dim)
 
     pv_surf = pv_grid.extract_surface()

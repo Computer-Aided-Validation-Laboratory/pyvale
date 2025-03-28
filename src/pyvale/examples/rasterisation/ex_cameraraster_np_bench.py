@@ -80,7 +80,7 @@ def main() -> None:
         (elem_raster_coords,
         elem_bound_box_inds,
         elem_areas,
-        field_divide_z) = pyvale.RasteriserNP.raster_setup_by_elem(
+        field_divide_z) = pyvale.RasteriserNP.setup_frame_by_elem(
                                                 cam_data,
                                                 case_mesh.coords,
                                                 case_mesh.connectivity,
@@ -90,7 +90,7 @@ def main() -> None:
 
         (image_buffer,
          depth_buffer,
-         num_elems_in_image) = pyvale.RasteriserNP.raster_one_frame(
+         num_elems_in_image) = pyvale.RasteriserNP.raster_frame_by_elem(
                                                     cam_data,
                                                     elem_raster_coords,
                                                     elem_bound_box_inds,
