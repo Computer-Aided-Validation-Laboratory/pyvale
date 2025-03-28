@@ -1,5 +1,5 @@
 //==============================================================================
-// Gmsh 3D plate imaging test case
+// Gmsh 3D simple block imaging test case
 // author: Lloyd Fletcher (scepticalrabbit)
 //==============================================================================
 // Always set to OpenCASCADE - circles and boolean opts are much easier!

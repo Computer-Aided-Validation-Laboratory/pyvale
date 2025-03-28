@@ -234,3 +234,7 @@ class DataSet:
             _description_
         """
         return Path(files("pyvale.data").joinpath("case26_out.e"))
+
+    @staticmethod
+    def render_simple_block_path() -> Path:
+        return Path(files("pyvale.data").joinpath("case25_out.e"))

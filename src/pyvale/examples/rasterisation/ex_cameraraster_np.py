@@ -33,8 +33,7 @@ import pyvale as pyv
 # SCENE OBJECT:
 # - Allow multiple objects in the scene with their own transformations
 # - Allow multiple cameras in the scene
-#
-#
+
 
 def main() -> None:
     """pyvale example: rasterisation field renderer
@@ -74,7 +73,7 @@ def main() -> None:
     pixel_size = np.array((5.3e-3,5.3e-3))
     focal_leng: float = 50
     cam_rot = Rotation.from_euler("zyx",(0.0,-30.0,0.0),degrees=True)
-    fov_scale_factor: float = 0.5
+    fov_scale_factor: float = 1.1
 
     (roi_pos_world,
      cam_pos_world) = pyv.CameraTools.pos_fill_frame_from_rotation(
@@ -97,7 +96,6 @@ def main() -> None:
         back_face_removal=True,
     )
 
-
     print(80*"-")
     print("CAMERA DATA:")
     print(80*"-")
@@ -108,11 +106,9 @@ def main() -> None:
     print(cam_data.world_to_cam_mat)
     print(80*"-")
 
-
     print()
     print(80*"=")
     print("RASTER LOOP START")
-
 
     frame = -1  # render the last frame
     loop_times = []
