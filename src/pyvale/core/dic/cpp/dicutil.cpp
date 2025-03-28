@@ -18,6 +18,13 @@
 namespace util {
 
 
+
+    // displacements that can be accesses from anywhere
+    double u;
+    double v;
+    double mag;
+
+
     void extract_image(std::vector<double> &image_def,
                        int *image_def_stack, 
                        int image_number,
@@ -71,7 +78,7 @@ namespace util {
     }
 
 
-    void fill_ss_coord_vects(std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step){
+    void fill_ss_coord_vects(std::vector<int> &ss_coord_list, bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step){
 
         int ss_x_min, ss_x_max, ss_y_min, ss_y_max;
         int index;
@@ -96,8 +103,8 @@ namespace util {
 
                     }
                 }
-                ss_list_x.push_back(ss_x);
-                ss_list_y.push_back(ss_y); 
+                ss_coord_list.push_back(ss_x);
+                ss_coord_list.push_back(ss_y); 
                 // std::cout << ss_x << " " << ss_y << std::endl;
                 next_ss:;
             }
@@ -110,13 +117,7 @@ namespace util {
         ss_y.resize(ss_size * ss_size, 0.0);
     }
 
-    Displacement parameters_to_displacement(double ss_x, double ss_y, std::vector<double> &p){
-        
-        Displacement displacement;
-        displacement.u = ss_x - (p[0] + (1 + p[2]) * ss_x + p[3] * ss_y);
-        displacement.v = ss_y - (p[1] + (1 + p[5]) * ss_y + p[4] * ss_x);
-        displacement.mag = std::sqrt( displacement.u*displacement.u + displacement.v*displacement.v);
-        return displacement;
+    // void update_output_arrays()
 
-    }
+
 }   

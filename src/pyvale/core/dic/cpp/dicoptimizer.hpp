@@ -22,6 +22,8 @@ namespace optimizer {
 
     // externally accessible varaibles
     extern std::vector<double> p;
+    extern double u;
+    extern double v;
     extern double ftol;
     extern double xtol;
     extern int iter;
@@ -48,7 +50,7 @@ namespace optimizer {
     void update_shapefunc_parameters(std::vector<double> &pdp, std::vector<std::vector<double>> &invH, std::vector<double> &gradient);
     void update_lambda(double costfunc_p, double costfunc_pdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda);
     double computeMagnitude(const std::vector<double>& vec);
-
+    void affine_parameters_to_displacement(double ss_x, double ss_y);
 
     // shape functions and their derivatives with respect to optimization parameters
     void affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p);

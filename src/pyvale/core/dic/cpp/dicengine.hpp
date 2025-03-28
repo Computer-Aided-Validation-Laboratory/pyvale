@@ -16,6 +16,13 @@
 
 namespace dic2d {
 
+    // result arrays. Not using std::vector because harder to handle with cython
+    extern std::vector<int> ss_coord_list;
+    extern std::vector<int> niter_arr;
+    extern std::vector<double> u_arr;
+    extern std::vector<double> v_arr;
+    extern std::vector<double> p_arr;
+
 
     void dicengine(int* image_ref, 
                     int* image_def_stack, 
@@ -32,9 +39,9 @@ namespace dic2d {
                     std::string& interp_routine,
                     std::string& scan_method);
 
-    void image_scan(std::vector<double> &image_def, std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol);
-    void reliability_guided(std::vector<double> &image_def, std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol);
-
+    void image_scan(std::vector<double> &image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol);
+    void reliability_guided(std::vector<double> &image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol);
+    void append_results(int num_def_images, int img_num, int ss);
 }
 
 #endif //DICENGINE_H

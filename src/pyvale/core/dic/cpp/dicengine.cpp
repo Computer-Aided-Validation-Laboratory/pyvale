@@ -28,6 +28,17 @@ namespace dic2d {
     std::vector<double> ss_def_coords_y;
 
 
+    // result arrays. Not using std::vector because harder to handle with cython
+    std::vector<int> ss_coord_list;
+    std::vector<int> niter_arr;
+    std::vector<double> u_arr;
+    std::vector<double> v_arr;
+    std::vector<double> p_arr;
+    std::vector<double> ftol_arr;
+    std::vector<double> xtol_arr;
+    int n_ss;
+
+
     void dicengine(int* image_ref, 
                     int* image_def_stack, 
                     bool* image_roi, 
@@ -48,14 +59,12 @@ namespace dic2d {
         // -------------------------------------------------------------------------------------------
 
 
-        int num_px_image = px_horizontal*px_vertical;
-        int num_px_ss = ss_size*ss_size;
+        const int num_px_image = px_horizontal*px_vertical;
+        const int num_px_ss = ss_size*ss_size;
 
         // get a list of ss coordinates within RIO.
-        std::vector<int> ss_list_x;
-        std::vector<int> ss_list_y;
-        util::fill_ss_coord_vects(ss_list_x, ss_list_y, image_roi, px_horizontal, px_vertical, ss_size, ss_step);
-        int n_ss = ss_list_x.size();
+        util::fill_ss_coord_vects(ss_coord_list, image_roi, px_horizontal, px_vertical, ss_size, ss_step);
+        n_ss = ss_coord_list.size() / 2;
 
     
         // timer for 2D DIC engine
@@ -77,10 +86,18 @@ namespace dic2d {
         // resize the deformed subset vectors
         util::resize_ss(ss_def, ss_def_coords_x, ss_def_coords_y, ss_size);
 
+        // resize results
+        niter_arr.resize(num_def_images * n_ss);
+        u_arr.resize(num_def_images * n_ss);
+        v_arr.resize(num_def_images * n_ss);
+        p_arr.resize(num_def_images * n_ss * 6);
+        ftol_arr.resize(num_def_images * n_ss);
+        xtol_arr.resize(num_def_images * n_ss);
+
 
 
         // function pointer for the method of scanning the subsets through the image
-        void (*scan_function)(std::vector<double> &, std::vector<int> &, std::vector<int> &, int, int, int, int, int, double);
+        void (*scan_function)(std::vector<double> &, std::vector<int> &, int, int, int, int, int, int, int, double);
         if (scan_method=="image_scan") scan_function=image_scan;
         else if (scan_method=="RG") scan_function=reliability_guided;
         else {
@@ -100,7 +117,7 @@ namespace dic2d {
             // extract a single image from the stack
             util::extract_image(image_def, image_def_stack, img_num, px_horizontal, px_vertical);
 
-            scan_function(image_def, ss_list_x, ss_list_y, px_horizontal, px_vertical, n_ss, ss_size, max_iter, tol);
+            scan_function(image_def, ss_coord_list, num_def_images, img_num, px_horizontal, px_vertical, n_ss, ss_size, max_iter, tol);
             
         }
 
@@ -118,30 +135,36 @@ namespace dic2d {
     // Raw image scan
     // -------------------------------------------------------------------------------------------
 
-    void image_scan(std::vector<double> &image_def, std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
+    void image_scan(std::vector<double> &image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
 
 
         int ss_x;
         int ss_y;
-        util::Displacement displacement;
 
         // loop over subsets within the ROI
         for (int ss = 0; ss < n_ss; ss++){
 
-            //convert to corner coordinates
-            ss_x = ss_list_x[ss] - ss_size / 2;
-            ss_y = ss_list_y[ss] - ss_size / 2;
+            // subset coordinate list takes central locations. Converting to top left corner for optimization routine
+            ss_x = ss_coord_list[ss*2] - ss_size / 2;
+            ss_y = ss_coord_list[ss*2+1] - ss_size / 2;
 
-            // get the subset coordinates and pixel values
+            // get the deformed subset coordinates and pixel values
             util::extract_ss(image_def, ss_def,  ss_def_coords_x, ss_def_coords_y, ss_x, ss_y, ss_size, px_horizontal, px_vertical);    
 
-
-
-            std::cout << ss_list_x[ss] << " " << ss_list_y[ss] <<  " ";
+            // perform optimization on subset from deformed image
             optimizer::solve(ss_def, ss_def_coords_x, ss_def_coords_y, ss_size*ss_size, tol, max_iter);
-            displacement = util::parameters_to_displacement(ss_x,ss_y, optimizer::p);
-            // std::cout << ss_list_x[ss] << " " << ss_list_y[ss] << " " << displacement.u << " " << displacement.v << " " << displacement.mag << "\n";
+            
+            // convert shape function parameters to horizontal and vertical displacement
+            optimizer::affine_parameters_to_displacement(ss_x,ss_y);
 
+            // append the results for the current subset to result vectors
+            append_results(num_def_images, img_num, ss);
+
+
+            std::cout << ss_coord_list[ss*2] << " " << ss_coord_list[ss*2+1] <<  " ";
+
+
+        
         }
 
     }
@@ -155,7 +178,7 @@ namespace dic2d {
     // Reliability Guided scan of image. (NOT YET IMPLEMENTED)
     // -------------------------------------------------------------------------------------------
 
-    void reliability_guided(std::vector<double> &image_def, std::vector<int> &ss_list_x, std::vector<int> &ss_list_y, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
+    void reliability_guided(std::vector<double> &image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
 
         // // create image masks
         // std::vector<bool> mc(px_horizontal, px_vertical);
@@ -184,4 +207,22 @@ namespace dic2d {
     }
 
 
+
+    void append_results(int num_def_images, int img_num, int ss){
+
+            int index = img_num * num_def_images + ss;
+            int index_p = 6*index;
+
+            niter_arr[index] = optimizer::iter;
+            p_arr[index_p+0] = optimizer::p[0];
+            p_arr[index_p+1] = optimizer::p[1];
+            p_arr[index_p+2] = optimizer::p[2];
+            p_arr[index_p+3] = optimizer::p[3];
+            p_arr[index_p+4] = optimizer::p[4];
+            p_arr[index_p+5] = optimizer::p[5];
+            u_arr[index] = optimizer::u;
+            v_arr[index] = optimizer::v;
+            ftol_arr[index] = optimizer::ftol;
+            xtol_arr[index] = optimizer::xtol;
+    }
 }

@@ -33,9 +33,15 @@ cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
                     string& interp_routine,
                     string& scan_method)
 
-#cdef extern from "../cpp/dicoptimization.hpp" namespace "optimization":
-#    void collect_results(int *ss_coords, int* u, int* v, int* p)
 
+    # Declare the result arrays 
+    extern vector[int] ss_coord_list
+    extern vector[int] niter_arr
+    extern vector[double] u_arr
+    extern vector[double] v_arr
+    extern vector[double] p_arr
+    # extern vector[double] ftol_arr
+    # extern vector[double] xtol_arr
 
 # A wrapper function to call the C++ function from Python
 def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
@@ -53,7 +59,7 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
     # typed memoryviews for the image arrays
     cdef int[:, ::1] image_ref = reference_image
     cdef bool[:, ::1] image_roi = roi_mask
-    cdef int[:, :, ::1] image_def = deformed_images
+    cdef int[:, :, ::1] image_def_stack = deformed_images
 
     # the the image dimensions and the number of deformed images
     cdef int px_vertical = reference_image.shape[0]
@@ -73,7 +79,7 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
 
     # call c++ 2D DIC engine
     dicengine(&image_ref[0,0],
-               &image_def[0,0,0],
+               &image_def_stack[0,0,0],
                &image_roi[0,0],
                px_vertical,
                px_horizontal,
@@ -88,48 +94,23 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                scan_method)
 
 
-    # collecting the results
-    n_images = deformed_images.shape[0]
-    n_subsets = 1234
+    # Expose C++ result arrays as NumPy arrays (zero-copy)
+    cdef int[::1] ss_list_view = <int [:ss_coord_list.size()]>ss_coord_list.data()
+    cdef int[::1] niter_arr_view = <int [:niter_arr.size()]>niter_arr.data()
+    cdef double[::1] u_arr_view = <double [:u_arr.size()]>u_arr.data()
+    cdef double[::1] p_arr_view = <double [:p_arr.size()]>p_arr.data()
+    cdef double[::1] v_arr_view = <double [:v_arr.size()]>v_arr.data()
+    
+    u_1d = np.frombuffer(u_arr_view, dtype=np.float64)
+    v_1d = np.frombuffer(v_arr_view, dtype=np.float64)
+    p_1d = np.frombuffer(p_arr_view, dtype=np.float64)
+    niter_1d = np.frombuffer(niter_arr_view, dtype=np.int32)
+    subsets_1d = np.frombuffer(ss_list_view, dtype=np.int32)
 
-
-    ss_coords = np.zeros((2,n_subsets), dtype=np.int32)
-    u_arr = np.zeros((n_images, n_subsets), dtype=np.float64)
-    v_arr = np.zeros((n_images, n_subsets), dtype=np.float64)
-    niter = np.zeros((n_images, n_subsets), dtype=np.int32)
-    p_arr = np.zeros((n_images, 6, n_subsets), dtype=np.float64)
-
-    # memoryviews
-    cdef int[:, ::1] c_ss_coords = ss_coords
-    cdef int[:, ::1] c_niter = niter
-    cdef double[:, ::1] c_u_arr = u_arr
-    cdef double[:, ::1] c_v_arr = v_arr
-    cdef double[:, :, ::1] c_p_arr = p_arr
-
-    # collect_results(&c_ss_coords[0,0], &c_u[0,0], &c_v[0,0], &c_p[0,0,0], &c_niter[0,0])
-
-    # # starting timer
-    # time_start_loop = time.perf_counter()
-
-
-    # # std::vector to np.ndarray coercion. See here for more info on syntax: 
-    # #       https://github.com/cython/cython/issues/4487
-    # #       https://stackoverflow.com/questions/59666307/convert-c-vector-to-numpy-array-in-cython-without-copying
-
-    # cdef double[::1] test1 = <double [:image_buffer_c.size()]>image_buffer_c.data()
-    # cdef double[::1] test2 = <double [:depth_buffer_c.size()]>depth_buffer_c.data()
-
-    # np_image_buffer = np.asarray(test1).copy()
-    # np_depth_buffer = np.asarray(test2).copy()
-
-    # # convert back to a 2d array for easy integration back into python code. suprisingly quick!
-    # image_buffer_2d = np_image_buffer.reshape(buffer_height,buffer_width)
-    # depth_buffer_2d = np_depth_buffer.reshape(buffer_height,buffer_width)
-
-    # #ending timer
-    # time_end_loop = time.perf_counter()
-    # time_cpp_loop = time_end_loop - time_start_loop
-    # print(f"{'Cython coercion of vector to np.array time':75}" + f"{time_cpp_loop:.8f}" + " [s]")
+    niter = niter_1d.reshape(num_def_images, ss_coord_list.size()//2)
+    subsets = subsets_1d.reshape(ss_coord_list.size()//2, 2)
+    u = u_1d.reshape(num_def_images, ss_coord_list.size()//2)
+    v = v_1d.reshape(num_def_images, ss_coord_list.size()//2)
+    p = p_1d.reshape(num_def_images, 6 * ss_coord_list.size()//2)
 
     
-    # return depth_buffer_2d

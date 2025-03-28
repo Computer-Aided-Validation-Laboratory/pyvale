@@ -44,6 +44,11 @@ namespace optimizer {
     std::vector<std::vector<double>> H(6, std::vector<double>(6, 0.0)); // Hessian. Also becomes (H + lambda * diag(H))
     std::vector<std::vector<double>> invH(6, std::vector<double>(6, 0.0)); // inverse of H + lambda * diag(H)
 
+    // displacements
+    double u;
+    double v;
+    double mag;
+
 
     // interpolation data struct
     interpolator::Data interp_data;
@@ -566,6 +571,13 @@ namespace optimizer {
     void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
 
     }
+
+    void affine_parameters_to_displacement(double ss_x, double ss_y){
+        u = ss_x - (p[0] + (1 + p[2]) * ss_x + p[3] * ss_y);
+        v = ss_y - (p[1] + (1 + p[5]) * ss_y + p[4] * ss_x);
+        mag = std::sqrt(u*u + v*v);
+    }
+
 
     void setCostFunction(const std::string& corr_crit) {
         if (corr_crit == "SSD") optimize_costfunc = ssd;
