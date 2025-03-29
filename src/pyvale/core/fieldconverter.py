@@ -118,3 +118,14 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
     return cell_type
 
 
+def scale_length_units(sim_data: mh.SimData,
+                       disp_comps: tuple[str,...],
+                       scale: float) -> mh.SimData:
+
+    sim_data.coords = sim_data.coords*scale
+    for cc in disp_comps:
+        sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
+
+    return sim_data
+
+

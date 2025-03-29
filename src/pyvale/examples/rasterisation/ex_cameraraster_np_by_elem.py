@@ -126,58 +126,27 @@ def main() -> None:
     loop_times = []
     time_start_loop = time.perf_counter()
 
-    by_connect = True
+    (elem_raster_coords,
+    elem_bound_box_inds,
+    elem_areas,
+    render_field_div_z) = pyv.RasteriserNP.setup_frame_by_elem(
+                                            cam_data,
+                                            render_mesh.coords,
+                                            render_mesh.connectivity,
+                                            render_mesh.fields_render[:,:,comp])
 
-    #===========================================================================
-    if by_connect:
-        #---------------------------------------------------------------------------
-        # LOOP: over frames, over components here = collapse to one loop
-        #---------------------------------------------------------------------------
+    field_frame_divide_z = np.ascontiguousarray(render_field_div_z[:,:,frame])
 
-        # coords_raster.shape=(num_coords,coord[x,y,z,w])
-        # connect_in_frame.shape=(num_elems_in_scene,nodes_per_elem)
-        # elem_bound_box_inds.shape=(num_elems_in_scene,4[x_min,x_max,y_min,y_max])
-        (coords_raster,
-        connect_in_frame,
-        elem_bound_box_inds,
-        elem_areas) = pyv.RasteriserNP.setup_frame_by_connect(
-            cam_data,
-            render_mesh.coords,
-            render_mesh.connectivity,
-        )
+    return
 
-        num_elems_in_image = connect_in_frame.shape[0]
-        render_field_div_z = render_mesh.fields_render[:,frame,comp]*coords_raster[:,2]
-
-        (image_buffer,
-        depth_buffer) = pyv.RasteriserNP.raster_frame_by_connect(
-                                                cam_data,
-                                                connect_in_frame,
-                                                coords_raster,
-                                                elem_bound_box_inds,
-                                                elem_areas,
-                                                render_field_div_z)
-        #===========================================================================
-    else:
-        (elem_raster_coords,
-        elem_bound_box_inds,
-        elem_areas,
-        render_field_div_z) = pyv.RasteriserNP.setup_frame_by_elem(
-                                                cam_data,
-                                                render_mesh.coords,
-                                                render_mesh.connectivity,
-                                                render_mesh.fields_render[:,:,comp])
-
-        field_frame_divide_z = np.ascontiguousarray(render_field_div_z[:,:,frame])
-
-        (image_buffer,
-        depth_buffer,
-        num_elems_in_image) = pyv.RasteriserNP.raster_frame_by_elem(
-                                                cam_data,
-                                                elem_raster_coords,
-                                                elem_bound_box_inds,
-                                                elem_areas,
-                                                field_frame_divide_z)
+    (image_buffer,
+    depth_buffer,
+    num_elems_in_image) = pyv.RasteriserNP.raster_frame_by_elem(
+                                            cam_data,
+                                            elem_raster_coords,
+                                            elem_bound_box_inds,
+                                            elem_areas,
+                                            field_frame_divide_z)
 
     #===========================================================================
     time_end_loop = time.perf_counter()

@@ -9,7 +9,7 @@ endTime = 8
 timeStep = 1
 
 # Mechanical Loads/BCs
-topDispRate = ${fparse -1e-3 / endTime}  # m/s
+topDispRate = ${fparse -3.0e-3 / endTime}  # m/s
 
 # Mechanical Props: SS316L @ 20degC
 ss316LEMod = 200e9       # Pa

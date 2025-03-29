@@ -5,14 +5,23 @@ License: MIT
 Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
+from enum import Enum
 from dataclasses import dataclass, field
 import numpy as np
 import mooseherder as mh
 from pyvale.core.fieldconverter import simdata_to_pyvista
 
-@dataclass(slots=True)
-class RenderOpts:
-    parallel: int | None = None
+
+# class ImageFormat(Enum):
+#     NPY = 0
+#     TIFF = 1
+
+# @dataclass(slots=True)
+# class RenderOpts:
+#     image_tag: str = "image"
+#     image_formats: tuple[ImageFormat,...]
+#     bits_per_unit: int = 1
+#     parallel: int | None = None
 
 
 @dataclass(slots=True)

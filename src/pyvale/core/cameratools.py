@@ -302,7 +302,7 @@ class CameraTools:
         )
 
         roi_pos_world = (np.max(coords_world[:,:-1],axis=0)
-                         - np.min(coords_world[:,:-1],axis=0))/2.0
+                         + np.min(coords_world[:,:-1],axis=0))/2.0
         cam_z_dir_world = cam_rot.as_matrix()[:,-1]
         cam_pos_world = (roi_pos_world + np.max(image_dist)*cam_z_dir_world)
 
