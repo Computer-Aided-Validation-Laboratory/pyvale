@@ -109,6 +109,13 @@ def main() -> None:
     print("World to camera matrix:")
     print(cam_data.world_to_cam_mat)
     print(80*"-")
+    print()
+
+    print(80*"-")
+    print(f"Time steps to render: {render_mesh.fields_render.shape[1]}")
+    print(f"Fields to render: {render_mesh.fields_render.shape[2]}")
+    print(f"Total frames to render: {render_mesh.fields_render.shape[1]*render_mesh.fields_render.shape[2]}")
+    print(80*"-")
 
     print()
     print(80*"=")
@@ -116,7 +123,7 @@ def main() -> None:
 
     #save_path = Path.cwd()/"example_output"
     save_path = None
-    static_mesh = True
+    static_mesh = False
 
     render_static_time = 0.0
     render_def_time = 0.0
@@ -124,14 +131,14 @@ def main() -> None:
     if static_mesh:
         time_start_loop = time.perf_counter()
         images = pyv.RasteriserNP.raster_static_mesh(
-            cam_data,render_mesh,save_path
+            cam_data,render_mesh,save_path,parallel=8
         )
         time_end_loop = time.perf_counter()
         render_static_time = time_end_loop - time_start_loop
     else:
         time_start_loop = time.perf_counter()
         images = pyv.RasteriserNP.raster_deformed_mesh(
-            cam_data,render_mesh,save_path
+            cam_data,render_mesh,save_path,parallel=8
         )
         time_end_loop = time.perf_counter()
         render_def_time = time_end_loop - time_start_loop

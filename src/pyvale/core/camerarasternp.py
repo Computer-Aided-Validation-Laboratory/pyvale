@@ -327,12 +327,12 @@ class RasteriserNP:
         #elem_areas.shape=(num_elems,)
         #field_frame_divide_z=(num_coords,)
 
-        depth_buffer = 1e6*np.ones(cam_data.sub_samp*cam_data.pixels_num).T
+        depth_buffer = 1e5*cam_data.image_dist*np.ones(
+            cam_data.sub_samp*cam_data.pixels_num).T
         image_buffer = np.full(cam_data.sub_samp*cam_data.pixels_num,0.0).T
 
         # elem_raster_coords.shape=(num_elems,nodes_per_elem,coord[x,y,z,w])
         # field_divide_z.shape=(num_elems,nodes_per_elem,num_time_steps)
-
         # elem_raster_coords.shape=(nodes_per_elem,coord[x,y,z,w])
 
         for ee in range(connect_in_frame.shape[0]):
@@ -394,15 +394,15 @@ class RasteriserNP:
 
         if save_path is None:
             images = np.empty((cam_data.pixels_num[1],
-                               cam_data.pixels_num[0],
-                               frames_num,
-                               field_num))
+                            cam_data.pixels_num[0],
+                            frames_num,
+                            field_num))
         else:
+            images = None
             if not save_path.is_dir():
                 save_path.mkdir()
 
-
-         # DO THIS ONCE: for non deforming meshes
+        # DO THIS ONCE: for non deforming meshes
         # coords_raster.shape=(num_coords,coord[x,y,z,w])
         # connect_in_frame.shape=(num_elems_in_scene,nodes_per_elem)
         # elem_bound_box_inds.shape=(num_elems_in_scene,4[x_min,x_max,y_min,y_max])
@@ -416,46 +416,94 @@ class RasteriserNP:
             render_mesh.connectivity,
         )
 
-        for ff in range(0,frames.shape[0]):
-            # print(80*"-")
-            # print(f"Rastering, frame {frames[ff]}, field {fields[ff]}.")
-            # print(80*"-")
-            # print()
-            # num_elems_in_image = connect_in_frame.shape[0]
-            # NOTE: the z coord has already been inverted in setup so we multiply here
-            render_field_div_z = (render_mesh.fields_render[:,frames[ff],fields[ff]]
-                                *coords_raster[:,2])
+        if parallel is None:
+            for ff in range(0,frames.shape[0]):
+                image = RasteriserNP._static_mesh_frame_loop(
+                    frames[ff],
+                    fields[ff],
+                    cam_data,
+                    coords_raster,
+                    connect_in_frame,
+                    elem_bound_box_inds,
+                    elem_areas,
+                    render_mesh.fields_render[:,frames[ff],fields[ff]],
+                    save_path
+                )
 
+                if images is not None:
+                    images[:,:,frames[ff],fields[ff]] = image
+        else:
+            with Pool(parallel) as pool:
+                processes_with_id = []
 
-            # LOOP HERE: over time steps and render fields - parallel
-            (image_buffer,
-            depth_buffer) = RasteriserNP.raster_frame(
-                                        cam_data,
-                                        connect_in_frame,
-                                        coords_raster,
-                                        elem_bound_box_inds,
-                                        elem_areas,
-                                        render_field_div_z)
+                for ff in range(0,frames.shape[0]):
+                    args = (frames[ff],
+                            fields[ff],
+                            cam_data,
+                            coords_raster,
+                            connect_in_frame,
+                            elem_bound_box_inds,
+                            elem_areas,
+                            render_mesh.fields_render[:,frames[ff],fields[ff]],
+                            save_path)
 
-            # TODO: make this configurable
-            # image_buffer[depth_buffer > 10*cam_data.image_dist] = np.nan
+                    process = pool.apply_async(
+                            RasteriserNP._static_mesh_frame_loop, args=args
+                    )
+                    processes_with_id.append({"process": process,
+                                              "frame": frames[ff],
+                                              "field": fields[ff]})
 
-            if save_path is None:
-                images[:,:,frames[ff],fields[ff]] = image_buffer
-            else:
-                image_file = save_path/f"image_frame{frames[ff]}_field{fields[ff]}"
-                np.save(image_file,image_buffer)
+                for pp in processes_with_id:
+                    image = pp["process"].get()
+                    images[:,:,pp["frame"],pp["field"]] = image
 
-        if save_path is None:
+        if images is not None:
             return images
 
         return None
+
+    @staticmethod
+    def _static_mesh_frame_loop(frame_ind: int,
+                                field_ind: int,
+                                cam_data: CameraData,
+                                coords_raster: np.ndarray,
+                                connect_in_frame: np.ndarray,
+                                elem_bound_box_inds: np.ndarray,
+                                elem_areas: np.ndarray,
+                                field_to_render: np.ndarray,
+                                save_path: Path | None,
+                                ) -> np.ndarray | None:
+
+        # NOTE: the z coord has already been inverted in setup so we multiply here
+        render_field_div_z = field_to_render*coords_raster[:,2]
+
+        (image_buffer,
+        depth_buffer) = RasteriserNP.raster_frame(
+                                    cam_data,
+                                    connect_in_frame,
+                                    coords_raster,
+                                    elem_bound_box_inds,
+                                    elem_areas,
+                                    render_field_div_z)
+
+        # TODO: make this configurable
+        image_buffer[depth_buffer > 1000*cam_data.image_dist] = np.nan
+
+        if save_path is None:
+            return image_buffer
+
+        image_file = save_path/f"image_frame{frame_ind}_field{field_ind}"
+        np.save(image_file,image_buffer)
+        return None
+
 
 
     @staticmethod
     def raster_deformed_mesh(cam_data: CameraData,
                              render_mesh: RenderMeshData,
                              save_path: Path | None = None,
+                             parallel: int | None = None
                              ) -> np.ndarray | None:
 
         frames_num = render_mesh.fields_render.shape[1]
@@ -472,55 +520,96 @@ class RasteriserNP:
                                frames_num,
                                field_num))
         else:
+            images = None
             if not save_path.is_dir():
                 save_path.mkdir()
 
 
-        for ff in range(0,frames.shape[0]):
-            # coords_raster.shape=(num_coords,coord[x,y,z,w])
-            # connect_in_frame.shape=(num_elems_in_scene,nodes_per_elem)
-            # elem_bound_box_inds.shape=(num_elems_in_scene,4[x_min,x_max,y_min,y_max])
-            # elem_areas.shape=(num_elems,)
-            (coords_raster,
-            connect_in_frame,
-            elem_bound_box_inds,
-            elem_areas) = RasteriserNP.setup_frame(
-                cam_data,
-                render_mesh.coords,
-                render_mesh.connectivity,
-                render_mesh.fields_disp[:,frames[ff],:],
-            )
+        if parallel is None:
+            for ff in range(0,frames.shape[0]):
+                image = RasteriserNP._deformed_mesh_frame_loop(
+                    frames[ff],
+                    fields[ff],
+                    cam_data,
+                    render_mesh,
+                    save_path,
+                )
 
-            # NOTE: the z coord has already been inverted in setup so we multiply here
-            render_field_div_z = (render_mesh.fields_render[:,frames[ff],fields[ff]]
-                                *coords_raster[:,2])
+                if images is not None:
+                    images[:,:,frames[ff],fields[ff]] = image
+        else:
+            with Pool(parallel) as pool:
+                processes_with_id = []
 
-            # image_buffer.shape=(num_px_y,num_px_x)
-            # depth_buffer.shape=(num_px_y,num_px_x)
-            (image_buffer,
-            depth_buffer) = RasteriserNP.raster_frame(
-                                        cam_data,
-                                        connect_in_frame,
-                                        coords_raster,
-                                        elem_bound_box_inds,
-                                        elem_areas,
-                                        render_field_div_z)
+                for ff in range(0,frames.shape[0]):
+                    args = (frames[ff],
+                            fields[ff],
+                            cam_data,
+                            render_mesh,
+                            save_path)
 
-            # TODO: make this configurable
-            image_buffer[depth_buffer > 10*cam_data.image_dist] = np.nan
+                    process = pool.apply_async(
+                            RasteriserNP._deformed_mesh_frame_loop, args=args
+                    )
+                    processes_with_id.append({"process": process,
+                                              "frame": frames[ff],
+                                              "field": fields[ff]})
 
-            if save_path is None:
-                images[:,:,frames[ff],fields[ff]] = image_buffer
-            else:
-                image_file = save_path/f"image_frame{frames[ff]}_field{fields[ff]}"
-                np.save(image_file.with_suffix(".npy"),image_buffer)
+                for pp in processes_with_id:
+                    image = pp["process"].get()
+                    images[:,:,pp["frame"],pp["field"]] = image
 
-        if save_path is None:
+        if images is not None:
             return images
 
         return None
 
 
+    @staticmethod
+    def _deformed_mesh_frame_loop(frame_ind: int,
+                                  field_ind: int,
+                                  cam_data: CameraData,
+                                  render_mesh: RenderMeshData,
+                                  save_path: Path | None
+                                  ) -> np.ndarray | None:
+        # coords_raster.shape=(num_coords,coord[x,y,z,w])
+        # connect_in_frame.shape=(num_elems_in_scene,nodes_per_elem)
+        # elem_bound_box_inds.shape=(num_elems_in_scene,4[x_min,x_max,y_min,y_max])
+        # elem_areas.shape=(num_elems,)
+        (coords_raster,
+        connect_in_frame,
+        elem_bound_box_inds,
+        elem_areas) = RasteriserNP.setup_frame(
+            cam_data,
+            render_mesh.coords,
+            render_mesh.connectivity,
+            render_mesh.fields_disp[:,frame_ind,:],
+        )
+
+        # NOTE: the z coord has already been inverted in setup so we multiply here
+        render_field_div_z = (render_mesh.fields_render[:,frame_ind,field_ind]
+                            *coords_raster[:,2])
+
+        # image_buffer.shape=(num_px_y,num_px_x)
+        # depth_buffer.shape=(num_px_y,num_px_x)
+        (image_buffer,
+        depth_buffer) = RasteriserNP.raster_frame(
+                                    cam_data,
+                                    connect_in_frame,
+                                    coords_raster,
+                                    elem_bound_box_inds,
+                                    elem_areas,
+                                    render_field_div_z)
+
+        # TODO: make this configurable
+        image_buffer[depth_buffer > 1000*cam_data.image_dist] = np.nan
+
+        if save_path is None:
+            return image_buffer
+
+        image_file = save_path/f"image_frame{frame_ind}_field{field_ind}"
+        np.save(image_file.with_suffix(".npy"),image_buffer)
+        return None
 
 
 #-------------------------------------------------------------------------------
