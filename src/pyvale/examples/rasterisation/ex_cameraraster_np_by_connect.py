@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from pathlib import Path
@@ -130,14 +130,14 @@ def main() -> None:
 
     if static_mesh:
         time_start_loop = time.perf_counter()
-        images = pyv.RasteriserNP.raster_static_mesh(
+        images = pyv.RasterNP.raster_static_mesh(
             cam_data,render_mesh,save_path,parallel=8
         )
         time_end_loop = time.perf_counter()
         render_static_time = time_end_loop - time_start_loop
     else:
         time_start_loop = time.perf_counter()
-        images = pyv.RasteriserNP.raster_deformed_mesh(
+        images = pyv.RasterNP.raster_deformed_mesh(
             cam_data,render_mesh,save_path,parallel=8
         )
         time_end_loop = time.perf_counter()

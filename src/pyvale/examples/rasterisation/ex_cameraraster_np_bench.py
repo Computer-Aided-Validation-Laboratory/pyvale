@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 import time
@@ -80,7 +80,7 @@ def main() -> None:
         (elem_raster_coords,
         elem_bound_box_inds,
         elem_areas,
-        field_divide_z) = pyvale.RasteriserNP.setup_frame_by_elem(
+        field_divide_z) = pyvale.RasterNP.setup_frame_by_elem(
                                                 cam_data,
                                                 case_mesh.coords,
                                                 case_mesh.connectivity,
@@ -90,7 +90,7 @@ def main() -> None:
 
         (image_buffer,
          depth_buffer,
-         num_elems_in_image) = pyvale.RasteriserNP.raster_frame_by_elem(
+         num_elems_in_image) = pyvale.RasterNP.raster_frame_by_elem(
                                                     cam_data,
                                                     elem_raster_coords,
                                                     elem_bound_box_inds,

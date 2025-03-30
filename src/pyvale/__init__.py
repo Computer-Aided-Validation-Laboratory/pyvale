@@ -9,7 +9,7 @@ testing simulation validation metrics and testing digital shadows/twins.
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 # NOTE: this simplifies and decouples how the user calls pyvale from the
@@ -42,7 +42,7 @@ from pyvale.core.cameradata import *
 from pyvale.core.cameradata2d import *
 from pyvale.core.cameratools import *
 from pyvale.core.rendermesh import *
-from pyvale.core.camerarasternp import *
+from pyvale.core.rasternp import *
 
 from pyvale.core.imagedef2d import *
 

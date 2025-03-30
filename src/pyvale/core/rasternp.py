@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from pathlib import Path
@@ -14,7 +14,7 @@ from pyvale.core.cameratools import CameraTools
 from pyvale.core.rendermesh import RenderMeshData
 
 
-class RasteriserNP:
+class RasterNP:
     @staticmethod
     def world_to_raster_coords(cam_data: CameraData,
                                coords_world: np.ndarray) -> np.ndarray:
@@ -110,14 +110,14 @@ class RasteriserNP:
         # Find the indices of the bounding box that each element lies within on
         # the image, bounded by the upper and lower edges of the image
         elem_bound_boxes_inds = np.zeros([num_elems_in_image,4],dtype=np.int32)
-        elem_bound_boxes_inds[:,0] = RasteriserNP.elem_bound_box_low(
+        elem_bound_boxes_inds[:,0] = RasterNP.elem_bound_box_low(
                                             elem_raster_coord_min[:,0])
-        elem_bound_boxes_inds[:,1] = RasteriserNP.elem_bound_box_high(
+        elem_bound_boxes_inds[:,1] = RasterNP.elem_bound_box_high(
                                             elem_raster_coord_max[:,0],
                                             cam_data.pixels_num[0]-1)
-        elem_bound_boxes_inds[:,2] = RasteriserNP.elem_bound_box_low(
+        elem_bound_boxes_inds[:,2] = RasterNP.elem_bound_box_low(
                                             elem_raster_coord_min[:,1])
-        elem_bound_boxes_inds[:,3] = RasteriserNP.elem_bound_box_high(
+        elem_bound_boxes_inds[:,3] = RasterNP.elem_bound_box_high(
                                             elem_raster_coord_max[:,1],
                                             cam_data.pixels_num[1]-1)
 
@@ -152,14 +152,14 @@ class RasteriserNP:
         # Find the indices of the bounding box that each element lies within on
         # the image, bounded by the upper and lower edges of the image
         elem_bound_boxes_inds = np.zeros([num_elems_in_image,4],dtype=np.int32)
-        elem_bound_boxes_inds[:,0] = RasteriserNP.elem_bound_box_low(
+        elem_bound_boxes_inds[:,0] = RasterNP.elem_bound_box_low(
                                             elem_raster_coord_min[:,0])
-        elem_bound_boxes_inds[:,1] = RasteriserNP.elem_bound_box_high(
+        elem_bound_boxes_inds[:,1] = RasterNP.elem_bound_box_high(
                                             elem_raster_coord_max[:,0],
                                             cam_data.pixels_num[0]-1)
-        elem_bound_boxes_inds[:,2] = RasteriserNP.elem_bound_box_low(
+        elem_bound_boxes_inds[:,2] = RasterNP.elem_bound_box_low(
                                             elem_raster_coord_min[:,1])
-        elem_bound_boxes_inds[:,3] = RasteriserNP.elem_bound_box_high(
+        elem_bound_boxes_inds[:,3] = RasterNP.elem_bound_box_high(
                                             elem_raster_coord_max[:,1],
                                             cam_data.pixels_num[1]-1)
 
@@ -200,7 +200,7 @@ class RasteriserNP:
         #-----------------------------------------------------------------------
         # Convert world coords of all elements in the scene
         # shape=(num_nodes,coord[x,y,z,w])
-        coords_raster = RasteriserNP.world_to_raster_coords(cam_data,
+        coords_raster = RasterNP.world_to_raster_coords(cam_data,
                                                             coords_deform)
 
         # Convert to perspective correct hyperbolic interpolation for z interp
@@ -212,7 +212,7 @@ class RasteriserNP:
         #-----------------------------------------------------------------------
         # BACKFACE REMOVAL
         # shape=(num_elems,)
-        back_face_mask = RasteriserNP.back_face_removal_mask(cam_data,
+        back_face_mask = RasterNP.back_face_removal_mask(cam_data,
                                                              coords_deform,
                                                              connect_in_frame)
         connect_in_frame = connect_in_frame[back_face_mask,:]
@@ -220,7 +220,7 @@ class RasteriserNP:
         #-----------------------------------------------------------------------
         # CROPPING & BOUNDING BOX OPERATIONS
         (crop_mask,
-         elem_bound_box_inds) = RasteriserNP.crop_and_bound_by_connect(
+         elem_bound_box_inds) = RasterNP.crop_and_bound_by_connect(
             cam_data,
             coords_raster,
             connect_in_frame,
@@ -341,7 +341,7 @@ class RasteriserNP:
             (px_coord_z,
             field_interp,
             subpx_inds_x_in,
-            subpx_inds_y_in) = RasteriserNP.raster_elem(
+            subpx_inds_y_in) = RasterNP.raster_elem(
                                                 cam_data,
                                                 coords_raster[cc,:],
                                                 elem_bound_box_inds[ee,:],
@@ -410,7 +410,7 @@ class RasteriserNP:
         (coords_raster,
         connect_in_frame,
         elem_bound_box_inds,
-        elem_areas) = RasteriserNP.setup_frame(
+        elem_areas) = RasterNP.setup_frame(
             cam_data,
             render_mesh.coords,
             render_mesh.connectivity,
@@ -418,7 +418,7 @@ class RasteriserNP:
 
         if parallel is None:
             for ff in range(0,frames.shape[0]):
-                image = RasteriserNP._static_mesh_frame_loop(
+                image = RasterNP._static_mesh_frame_loop(
                     frames[ff],
                     fields[ff],
                     cam_data,
@@ -448,7 +448,7 @@ class RasteriserNP:
                             save_path)
 
                     process = pool.apply_async(
-                            RasteriserNP._static_mesh_frame_loop, args=args
+                            RasterNP._static_mesh_frame_loop, args=args
                     )
                     processes_with_id.append({"process": process,
                                               "frame": frames[ff],
@@ -479,7 +479,7 @@ class RasteriserNP:
         render_field_div_z = field_to_render*coords_raster[:,2]
 
         (image_buffer,
-        depth_buffer) = RasteriserNP.raster_frame(
+        depth_buffer) = RasterNP.raster_frame(
                                     cam_data,
                                     connect_in_frame,
                                     coords_raster,
@@ -527,7 +527,7 @@ class RasteriserNP:
 
         if parallel is None:
             for ff in range(0,frames.shape[0]):
-                image = RasteriserNP._deformed_mesh_frame_loop(
+                image = RasterNP._deformed_mesh_frame_loop(
                     frames[ff],
                     fields[ff],
                     cam_data,
@@ -549,7 +549,7 @@ class RasteriserNP:
                             save_path)
 
                     process = pool.apply_async(
-                            RasteriserNP._deformed_mesh_frame_loop, args=args
+                            RasterNP._deformed_mesh_frame_loop, args=args
                     )
                     processes_with_id.append({"process": process,
                                               "frame": frames[ff],
@@ -579,7 +579,7 @@ class RasteriserNP:
         (coords_raster,
         connect_in_frame,
         elem_bound_box_inds,
-        elem_areas) = RasteriserNP.setup_frame(
+        elem_areas) = RasterNP.setup_frame(
             cam_data,
             render_mesh.coords,
             render_mesh.connectivity,
@@ -593,7 +593,7 @@ class RasteriserNP:
         # image_buffer.shape=(num_px_y,num_px_x)
         # depth_buffer.shape=(num_px_y,num_px_x)
         (image_buffer,
-        depth_buffer) = RasteriserNP.raster_frame(
+        depth_buffer) = RasterNP.raster_frame(
                                     cam_data,
                                     connect_in_frame,
                                     coords_raster,

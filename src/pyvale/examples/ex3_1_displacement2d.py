@@ -4,7 +4,7 @@ example: displacement sensors on a 2d plate
 
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 '''
 import matplotlib.pyplot as plt
