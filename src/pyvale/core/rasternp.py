@@ -125,52 +125,12 @@ class RasterNP:
 
 
     @staticmethod
-    def crop_and_bound_by_elem(cam_data: CameraData,
-                                elem_raster_coords: np.ndarray,
-                                ) -> tuple[np.ndarray,np.ndarray]:
-
-        #shape=(num_elems,coord[x,y,z,w])
-        elem_raster_coord_min = np.min(elem_raster_coords,axis=1)
-        elem_raster_coord_max = np.max(elem_raster_coords,axis=1)
-
-        # Check that min/max nodes are within the 4 edges of the camera image
-        #shape=(4_edges_to_check,num_elems)
-        crop_mask = np.zeros([elem_raster_coords.shape[0],4],dtype=np.int8)
-        crop_mask[elem_raster_coord_min[:,0] <= (cam_data.pixels_num[0]-1), 0] = 1
-        crop_mask[elem_raster_coord_min[:,1] <= (cam_data.pixels_num[1]-1), 1] = 1
-        crop_mask[elem_raster_coord_max[:,0] >= 0, 2] = 1
-        crop_mask[elem_raster_coord_max[:,1] >= 0, 3] = 1
-        crop_mask = np.sum(crop_mask,axis=1) == 4
-
-        # Get only the elements that are within the FOV
-        # Mask the elem coords and the max and min elem coords for processing
-        elem_raster_coord_min = elem_raster_coord_min[crop_mask,:]
-        elem_raster_coord_max = elem_raster_coord_max[crop_mask,:]
-        num_elems_in_image = elem_raster_coord_min.shape[0]
-
-
-        # Find the indices of the bounding box that each element lies within on
-        # the image, bounded by the upper and lower edges of the image
-        elem_bound_boxes_inds = np.zeros([num_elems_in_image,4],dtype=np.int32)
-        elem_bound_boxes_inds[:,0] = RasterNP.elem_bound_box_low(
-                                            elem_raster_coord_min[:,0])
-        elem_bound_boxes_inds[:,1] = RasterNP.elem_bound_box_high(
-                                            elem_raster_coord_max[:,0],
-                                            cam_data.pixels_num[0]-1)
-        elem_bound_boxes_inds[:,2] = RasterNP.elem_bound_box_low(
-                                            elem_raster_coord_min[:,1])
-        elem_bound_boxes_inds[:,3] = RasterNP.elem_bound_box_high(
-                                            elem_raster_coord_max[:,1],
-                                            cam_data.pixels_num[1]-1)
-
-        return (crop_mask,elem_bound_boxes_inds)
-
-    @staticmethod
     def elem_bound_box_low(coord_min: np.ndarray) -> np.ndarray:
         bound_elem = np.floor(coord_min).astype(np.int32)
         bound_low = np.zeros_like(coord_min,dtype=np.int32)
         bound_mat = np.vstack((bound_elem,bound_low))
         return np.max(bound_mat,axis=0)
+
 
     @staticmethod
     def elem_bound_box_high(coord_max: np.ndarray,image_px: int) -> np.ndarray:
@@ -463,39 +423,6 @@ class RasterNP:
 
         return None
 
-    @staticmethod
-    def _static_mesh_frame_loop(frame_ind: int,
-                                field_ind: int,
-                                cam_data: CameraData,
-                                coords_raster: np.ndarray,
-                                connect_in_frame: np.ndarray,
-                                elem_bound_box_inds: np.ndarray,
-                                elem_areas: np.ndarray,
-                                field_to_render: np.ndarray,
-                                save_path: Path | None,
-                                ) -> np.ndarray | None:
-
-        # NOTE: the z coord has already been inverted in setup so we multiply here
-        render_field_div_z = field_to_render*coords_raster[:,2]
-
-        (image_buffer,
-        depth_buffer) = RasterNP.raster_frame(
-                                    cam_data,
-                                    connect_in_frame,
-                                    coords_raster,
-                                    elem_bound_box_inds,
-                                    elem_areas,
-                                    render_field_div_z)
-
-        # TODO: make this configurable
-        image_buffer[depth_buffer > 1000*cam_data.image_dist] = np.nan
-
-        if save_path is None:
-            return image_buffer
-
-        image_file = save_path/f"image_frame{frame_ind}_field{field_ind}"
-        np.save(image_file,image_buffer)
-        return None
 
 
 
@@ -566,6 +493,41 @@ class RasterNP:
 
 
     @staticmethod
+    def _static_mesh_frame_loop(frame_ind: int,
+                                field_ind: int,
+                                cam_data: CameraData,
+                                coords_raster: np.ndarray,
+                                connect_in_frame: np.ndarray,
+                                elem_bound_box_inds: np.ndarray,
+                                elem_areas: np.ndarray,
+                                field_to_render: np.ndarray,
+                                save_path: Path | None,
+                                ) -> np.ndarray | None:
+
+        # NOTE: the z coord has already been inverted in setup so we multiply here
+        render_field_div_z = field_to_render*coords_raster[:,2]
+
+        (image_buffer,
+        depth_buffer) = RasterNP.raster_frame(
+                                    cam_data,
+                                    connect_in_frame,
+                                    coords_raster,
+                                    elem_bound_box_inds,
+                                    elem_areas,
+                                    render_field_div_z)
+
+        # TODO: make this configurable
+        image_buffer[depth_buffer > 1000*cam_data.image_dist] = np.nan
+
+        if save_path is None:
+            return image_buffer
+
+        image_file = save_path/f"image_frame{frame_ind}_field{field_ind}"
+        np.save(image_file,image_buffer)
+        return None
+
+
+    @staticmethod
     def _deformed_mesh_frame_loop(frame_ind: int,
                                   field_ind: int,
                                   cam_data: CameraData,
@@ -624,7 +586,7 @@ def edge_function(vert_a: np.ndarray,
 @numba.jit(nopython=True)
 def edge_function_slice(vert_a: np.ndarray,
                         vert_b: np.ndarray,
-                       vert_c: np.ndarray) -> np.ndarray:
+                        vert_c: np.ndarray) -> np.ndarray:
 
     return  ((vert_c[:,0] - vert_a[:,0]) * (vert_b[:,1] - vert_a[:,1])
               - (vert_c[:,1] - vert_a[:,1]) * (vert_b[:,0] - vert_a[:,0]))
