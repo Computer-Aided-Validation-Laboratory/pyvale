@@ -40,8 +40,8 @@ cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
     extern vector[double] u_arr
     extern vector[double] v_arr
     extern vector[double] p_arr
-    # extern vector[double] ftol_arr
-    # extern vector[double] xtol_arr
+    extern vector[double] ftol_arr
+    extern vector[double] xtol_arr
 
 # A wrapper function to call the C++ function from Python
 def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
@@ -100,17 +100,25 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
     cdef double[::1] u_arr_view = <double [:u_arr.size()]>u_arr.data()
     cdef double[::1] p_arr_view = <double [:p_arr.size()]>p_arr.data()
     cdef double[::1] v_arr_view = <double [:v_arr.size()]>v_arr.data()
-    
+    cdef double[::1] ftol_arr_view = <double [:ftol_arr.size()]>ftol_arr.data()
+    cdef double[::1] xtol_arr_view = <double [:xtol_arr.size()]>xtol_arr.data()
+
+    # get 1d arrays without copying
     u_1d = np.frombuffer(u_arr_view, dtype=np.float64)
     v_1d = np.frombuffer(v_arr_view, dtype=np.float64)
     p_1d = np.frombuffer(p_arr_view, dtype=np.float64)
     niter_1d = np.frombuffer(niter_arr_view, dtype=np.int32)
     subsets_1d = np.frombuffer(ss_list_view, dtype=np.int32)
+    ftol_1d = np.frombuffer(ftol_arr_view, dtype=np.float64)
+    xtol_1d = np.frombuffer(xtol_arr_view, dtype=np.float64)
 
+    # reshape to desired dimension
     niter = niter_1d.reshape(num_def_images, ss_coord_list.size()//2)
     subsets = subsets_1d.reshape(ss_coord_list.size()//2, 2)
     u = u_1d.reshape(num_def_images, ss_coord_list.size()//2)
     v = v_1d.reshape(num_def_images, ss_coord_list.size()//2)
     p = p_1d.reshape(num_def_images, 6 * ss_coord_list.size()//2)
+    ftol = ftol_1d.reshape(num_def_images, ss_coord_list.size()//2)
+    xtol = xtol_1d.reshape(num_def_images, ss_coord_list.size()//2)
 
-    
+    return subsets, niter, u, v, p, ftol, xtol

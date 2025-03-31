@@ -16,7 +16,8 @@
 #include "./dicengine.hpp"
 #include "./dicutil.hpp"
 
-
+// cuda Header files
+#include "../cuda/malloc.hpp"
 
 
 namespace dic2d {
@@ -65,6 +66,9 @@ namespace dic2d {
         // get a list of ss coordinates within RIO.
         util::fill_ss_coord_vects(ss_coord_list, image_roi, px_horizontal, px_vertical, ss_size, ss_step);
         n_ss = ss_coord_list.size() / 2;
+
+        // cuglobal::device_info(n_ss);
+        // exit(0);
 
     
         // timer for 2D DIC engine

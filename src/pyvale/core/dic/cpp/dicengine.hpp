@@ -22,7 +22,8 @@ namespace dic2d {
     extern std::vector<double> u_arr;
     extern std::vector<double> v_arr;
     extern std::vector<double> p_arr;
-
+    extern std::vector<double> ftol_arr;
+    extern std::vector<double> xtol_arr;
 
     void dicengine(int* image_ref, 
                     int* image_def_stack, 

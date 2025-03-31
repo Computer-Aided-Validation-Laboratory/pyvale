@@ -74,4 +74,5 @@ from pyvale.core.dic.python.dicspecklegenerator import *
 from pyvale.core.dic.python.dicspecklequality import *
 from pyvale.core.dic.python.dicspeckleroi import *
 from pyvale.core.dic.python.dic2d import *
+from pyvale.core.dic.python.dicresults import *
 from pyvale.core.dic.python.diccppinterface import *

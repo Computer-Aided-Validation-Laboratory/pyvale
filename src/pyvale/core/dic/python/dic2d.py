@@ -11,6 +11,7 @@ import numpy as np
 
 # import cython module
 from pyvale.core.dic.python import diccppinterface
+from pyvale.core.dic.python.dicresults import DICResults
 
 
 class DIC2D:
@@ -45,11 +46,11 @@ class DIC2D:
 
 
 
-    def execute_cpu(self):
+    def execute_cpu(self) -> DICResults:
         """
         Executes the c++ 2D DIC routine on CPU architecture.
         """
-        diccppinterface.cpp_2d_dic_routine(self.image_ref,
+        results = diccppinterface.cpp_2d_dic_routine(self.image_ref,
                                            self.image_def,
                                            self.roi_mask,
                                            self.subset_step,
@@ -60,6 +61,8 @@ class DIC2D:
                                            self.shape_func,
                                            self.interp,
                                            self.scanning_method)
+
+        # return dicresults.DICResults(subsets, niter, u, v, p, ftol, xtol)
 
 
 
