@@ -230,8 +230,6 @@ def world_to_raster_coords(coords_world: cython.double[:],
 
     return coords_raster
 
-
-
 @cython.cfunc
 @cython.nogil
 @cython.boundscheck(False)
@@ -273,7 +271,7 @@ def average_image(subpx_image: cython.double[:,:],
                   ) -> cython.double[:,:]:
 
     if sub_samp <= 1:
-        return subpx_image
+        return subpx_image[:,:]
 
     num_subpx_y: cython.size_t = subpx_image.shape[0]
     num_subpx_x: cython.size_t = subpx_image.shape[1]
@@ -299,7 +297,7 @@ def average_image(subpx_image: cython.double[:,:],
 
             image_buffer[iy,ix] = px_sum / subpx_per_px
 
-    return image_buffer
+    return image_buffer[:,:]
 
 #///////////////////////////////////////////////////////////////////////////////
 @cython.ccall # python+C or cython.cfunc for C only
@@ -307,14 +305,54 @@ def average_image(subpx_image: cython.double[:,:],
 @cython.wraparound(False)  # Turn off negative indexing
 @cython.cdivision(True)    # Turn off divide by zero check
 def raster_frame(coords: cython.double[:,::1],
-                connect: cython.size_t[:,::1],
-                fields_to_render: cython.double[:,::1],
-                world_to_cam_mat: cython.double[:,:],
-                num_pixels: cython.int[:],
-                image_dims: cython.double[:],
-                image_dist: cython.double,
-                sub_samp: cython.int,
-                ) -> tuple[np.ndarray,np.ndarray,int]:
+                 connect: cython.size_t[:,::1],
+                 fields_to_render: cython.double[:,::1],
+                 world_to_cam_mat: cython.double[:,:],
+                 num_pixels: cython.int[:],
+                 image_dims: cython.double[:],
+                 image_dist: cython.double,
+                 sub_samp: cython.int,
+                 ) -> tuple[np.ndarray,np.ndarray,int]:
+
+    fields_num: cython.size_t = fields_to_render.shape[1]
+    elems_in_image: cython.size_t = 0
+
+    image_buff_avg_np = np.full((num_pixels[1],num_pixels[0],fields_num),0.0,dtype=np.float64)
+    image_buff_avg: cython.double[:,:,:] = image_buff_avg_np
+
+    depth_buff_avg_np = np.full((num_pixels[1],num_pixels[0]),0.0,dtype=np.float64)
+    depth_buff_avg: cython.double[:,:] = depth_buff_avg_np
+
+    elems_in_image = _raster_frame(coords,
+                                    connect,
+                                    fields_to_render,
+                                    world_to_cam_mat,
+                                    num_pixels,
+                                    image_dims,
+                                    image_dist,
+                                    sub_samp,
+                                    image_buff_avg,
+                                    depth_buff_avg)
+
+    return (image_buff_avg,depth_buff_avg,elems_in_image)
+
+
+#///////////////////////////////////////////////////////////////////////////////
+@cython.ccall # python+C or cython.cfunc for C only
+@cython.boundscheck(False) # Turn off array bounds checking
+@cython.wraparound(False)  # Turn off negative indexing
+@cython.cdivision(True)    # Turn off divide by zero check
+def _raster_frame(coords: cython.double[:,::1],
+                 connect: cython.size_t[:,::1],
+                 fields_to_render: cython.double[:,::1],
+                 world_to_cam_mat: cython.double[:,:],
+                 num_pixels: cython.int[:],
+                 image_dims: cython.double[:],
+                 image_dist: cython.double,
+                 sub_samp: cython.int,
+                 image_buff_avg: cython.double[:,:,:],
+                 depth_buff_avg: cython.double[:,:]
+                 ) -> cython.size_t:
 
     # coords.shape=(num_nodes,coords[x,y,z,w])
     # coonect.shape=(num_elems,nodes_per_elem)
@@ -334,7 +372,7 @@ def raster_frame(coords: cython.double[:,::1],
     tol: cython.double = 1e-12
 
     #elem_count: cython.size_t = 1
-    elems_in_image: cython.int = 0
+    elems_in_image: cython.size_t = 0
 
     sub_pix_x: cython.int = num_pixels[0]*sub_samp
     sub_pix_y: cython.int = num_pixels[1]*sub_samp
@@ -477,7 +515,6 @@ def raster_frame(coords: cython.double[:,::1],
                 # We only need one depth buffer for all fields
                 depth_buffer[bound_ind_y,bound_ind_x] = px_coord_z
 
-
                 for ff in range(fields_num):
                     for nn in range(nodes_per_elem):
                         field_raster[nn] = (fields_to_render[connect[ee,nn],ff]
@@ -497,20 +534,33 @@ def raster_frame(coords: cython.double[:,::1],
             bound_coord_y += coord_step
             bound_ind_y += 1
 
-
-    if sub_samp > 1:
-        image_buff_avg_np = np.full((num_pixels[1],num_pixels[0],fields_num),0.0,dtype=np.float64)
-        depth_buff_avg_np = np.full((num_pixels[1],num_pixels[0]),0.0,dtype=np.float64)
-
-        image_buff_avg: cython.double[:,:,::1] = image_buff_avg_np
-        depth_buff_avg: cython.double[:,::1] = depth_buff_avg_np
-
-        average_image(depth_buffer,sub_samp,depth_buff_avg)
+    if sub_samp == 1:
+        depth_buff_avg[:,:] = depth_buffer[:,:]
+        image_buff_avg[:,:,:] = image_buffer[:,:,:]
+    else:
+        depth_buff_avg = average_image(depth_buffer,sub_samp,depth_buff_avg)
 
         for ff in range(fields_num):
-            average_image(image_buffer[:,:,ff],sub_samp,image_buff_avg[:,:,ff])
+            image_buff_avg[:,:,ff] = average_image(image_buffer[:,:,ff],
+                                                sub_samp,
+                                                image_buff_avg[:,:,ff])
 
-        return(image_buff_avg,depth_buff_avg,elems_in_image)
+    return elems_in_image
 
-    return (image_buffer,depth_buffer,elems_in_image)
 
+
+
+# @cython.ccall # python+C or cython.cfunc for C only
+# @cython.boundscheck(False) # Turn off array bounds checking
+# @cython.wraparound(False)  # Turn off negative indexing
+# @cython.cdivision(True)    # Turn off divide by zero check
+# def raster_static_mesh(coords: cython.double[:,::1],
+#                         connect: cython.size_t[:,::1],
+#                         fields_to_render: cython.double[:,::1],
+#                         world_to_cam_mat: cython.double[:,:],
+#                         num_pixels: cython.int[:],
+#                         image_dims: cython.double[:],
+#                         image_dist: cython.double,
+#                         sub_samp: cython.int,
+#                         ) -> tuple[np.ndarray,np.ndarray,int]:
+#     pass
