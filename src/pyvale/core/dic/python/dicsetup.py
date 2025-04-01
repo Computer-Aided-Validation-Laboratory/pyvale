@@ -89,9 +89,10 @@ ext = Extension(
     libraries=["cudart", "curand"],
     runtime_library_dirs=[CUDA['lib64'], np.get_include()],
     extra_compile_args={
-        'g++': ['-O3'],
+        'g++': ['-O3', '-fopenmp'],
         'nvcc': ['-arch=sm_60', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'", '-O3', '-lcurand']
     },
+    extra_link_args=['-fopenmp'],
     include_dirs=[np.get_include(), CUDA['include']]
 )
 
