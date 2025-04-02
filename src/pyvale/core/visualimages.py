@@ -6,13 +6,14 @@ Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from typing import Any
+import numpy as np
 import matplotlib.pyplot as plt
 from pyvale.core.camera import CameraBasic2D
 from pyvale.core.visualopts import PlotOptsGeneral
 
-# NOTE: This module is a feature under developement. Linked to the basic camera
-# class.
+# NOTE: This module is a feature under developement.
 
+# TODO: this only works for a 2D camera, maybe this should be deprecated
 def plot_measurement_image(camera: CameraBasic2D,
                            component: str,
                            time_step: int = -1,
@@ -46,3 +47,27 @@ def plot_measurement_image(camera: CameraBasic2D,
                 fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
 
     return (fig,ax)
+
+
+def plot_field_image(image: np.ndarray,
+                     plot_opts: PlotOptsGeneral | None = None
+                     ) -> tuple[Any,Any]:
+
+    if plot_opts is None:
+        plot_opts = PlotOptsGeneral()
+
+        (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
+                                layout='constrained')
+        fig.set_dpi(plot_opts.resolution)
+        cset = plt.imshow(image,
+                          cmap=plt.get_cmap(plot_opts.cmap_seq))
+                          #origin='lower')
+        ax.set_aspect('equal','box')
+        fig.colorbar(cset)
+        ax.set_title("Field Image",fontsize=plot_opts.font_head_size)
+        ax.set_xlabel(r"x ($px$)",
+                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+        ax.set_ylabel(r"y ($px$)",
+                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+
+        return (fig,ax)

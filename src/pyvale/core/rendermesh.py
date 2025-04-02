@@ -84,7 +84,7 @@ def create_render_mesh(sim_data: mh.SimData,
     # number of nodes per element and should be the same for all elements
     connectivity = np.reshape(faces,(num_faces,nodes_per_face+1))
     # shape=(num_elems,nodes_per_elem), C format
-    connectivity = connectivity[:,1:]
+    connectivity = np.ascontiguousarray(connectivity[:,1:],dtype=np.uintp)
 
     # shape=(num_nodes,3), C format
     coords_world = np.array(pv_surf.points)

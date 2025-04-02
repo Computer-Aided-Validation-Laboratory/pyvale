@@ -15,20 +15,12 @@ import pyvale as pyv
 
 # TODO
 # - Fix the image averaging function to use cython
-# - Need to have deformable meshes in 2D and 3D
-# - Need to allow rendering of a set of fields
-# - Implement parallel rendering for image stacks or multiple fields
 # - Saving of the rendered images for post processing or analysis
 # - Collapse image display functions into visual to simplify code
 #
 # CAMERA:
 # - Need option to work camera rotation based on a given position
 #   - The z axis is easy as we can just do roi-cam_pos but what about x and y
-#
-# RENDER OPTIONS
-# - Parallelisation on/off, number of threads
-#   - Need to split work over: fields to render, cameras, time steps
-# - Deformable mesh: on/off
 #
 # SCENE OBJECT:
 # - Allow multiple objects in the scene with their own transformations
@@ -44,7 +36,7 @@ def main() -> None:
     # replaced with a path to your own simulation file
     #sim_path = pyv.DataSet.render_mechanical_3d_path()
     disp_comps = ("disp_x","disp_y","disp_z")
-    sim_path = Path.cwd()/"src"/"pyvale"/"simcases"/"case21_out.e"
+    sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
     # Scale m -> mm
@@ -73,10 +65,11 @@ def main() -> None:
     print(80*"-")
     print()
 
+
     pixel_num = np.array((960,1280))
     pixel_size = np.array((5.3e-3,5.3e-3))
     focal_leng: float = 50
-    cam_rot = Rotation.from_euler("zyx",(0.0,0.0,0.0),degrees=True)
+    cam_rot = Rotation.from_euler("zyx",(0.0,0.0,-30.0),degrees=True)
     fov_scale_factor: float = 1.1
 
     (roi_pos_world,
@@ -112,9 +105,10 @@ def main() -> None:
     print()
 
     print(80*"-")
+    total_frames = render_mesh.fields_render.shape[1]*render_mesh.fields_render.shape[2]
     print(f"Time steps to render: {render_mesh.fields_render.shape[1]}")
     print(f"Fields to render: {render_mesh.fields_render.shape[2]}")
-    print(f"Total frames to render: {render_mesh.fields_render.shape[1]*render_mesh.fields_render.shape[2]}")
+    print(f"Total frames to render: {total_frames}")
     print(80*"-")
 
     print()
@@ -125,36 +119,28 @@ def main() -> None:
     save_path = None
     static_mesh = False
 
-    render_static_time = 0.0
-    render_def_time = 0.0
-
+    time_start_loop = time.perf_counter()
     if static_mesh:
-        time_start_loop = time.perf_counter()
         images = pyv.RasterNP.raster_static_mesh(
             cam_data,render_mesh,save_path,parallel=8
         )
-        time_end_loop = time.perf_counter()
-        render_static_time = time_end_loop - time_start_loop
     else:
         time_start_loop = time.perf_counter()
         images = pyv.RasterNP.raster_deformed_mesh(
             cam_data,render_mesh,save_path,parallel=8
         )
-        time_end_loop = time.perf_counter()
-        render_def_time = time_end_loop - time_start_loop
+
+    time_end_loop = time.perf_counter()
+    render_time = time_end_loop - time_start_loop
 
 
     print("RASTER LOOP END")
     print(80*"=")
     print("PERFORMANCE")
-    print(f"Render static time = {render_static_time:.4f} seconds")
-    print(f"Render deformed time = {render_def_time:.4f} seconds")
+    print(f"Total frames = {total_frames}")
+    print(f"Total render time = {render_time:.4f} seconds")
+    print(f"Time per frame = {(render_time/total_frames):.4f} seconds")
     print(80*"=")
-
-
-    # depth_to_plot = np.copy(depth_buffer)
-    # depth_to_plot[depth_buffer > 10*cam_data.image_dist] = np.nan
-    image_to_plot = images[:,:,-1,0]
 
     # save_buffers = False
     # if save_buffers:
@@ -167,36 +153,7 @@ def main() -> None:
 
     plot_on = True
     if plot_on:
-        plot_opts = pyv.PlotOptsGeneral()
-
-        # (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
-        #                         layout='constrained')
-        # fig.set_dpi(plot_opts.resolution)
-        # cset = plt.imshow(depth_to_plot,
-        #                 cmap=plt.get_cmap(plot_opts.cmap_seq))
-        #                 #origin='lower')
-        # ax.set_aspect('equal','box')
-        # fig.colorbar(cset)
-        # ax.set_title("Depth buffer",fontsize=plot_opts.font_head_size)
-        # ax.set_xlabel(r"x ($px$)",
-        #             fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
-        # ax.set_ylabel(r"y ($px$)",
-        #             fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
-
-        (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
-                                layout='constrained')
-        fig.set_dpi(plot_opts.resolution)
-        cset = plt.imshow(image_to_plot,
-                        cmap=plt.get_cmap(plot_opts.cmap_seq))
-                        #origin='lower')
-        ax.set_aspect('equal','box')
-        fig.colorbar(cset)
-        ax.set_title("Field Image",fontsize=plot_opts.font_head_size)
-        ax.set_xlabel(r"x ($px$)",
-                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
-        ax.set_ylabel(r"y ($px$)",
-                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
-
+        pyv.plot_field_image(images[:,:,-1,0])
         plt.show()
 
 if __name__ == "__main__":

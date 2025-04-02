@@ -12,6 +12,7 @@ import numba
 from pyvale.core.cameradata import CameraData
 from pyvale.core.cameratools import CameraTools
 from pyvale.core.rendermesh import RenderMeshData
+import pyvale.core.cython.rastercyth as rastercyth
 
 
 class RasterNP:
@@ -332,10 +333,16 @@ class RasterNP:
 
         #---------------------------------------------------------------------------
         # END RASTER LOOP
-        depth_buffer = CameraTools.average_subpixel_image(depth_buffer,cam_data.sub_samp)
-        image_buffer = CameraTools.average_subpixel_image(image_buffer,cam_data.sub_samp)
+        
+        # depth_buff = CameraTools.average_subpixel_image(depth_buffer,cam_data.sub_samp)
+        # image_buff = CameraTools.average_subpixel_image(image_buffer,cam_data.sub_samp)
 
-        return (image_buffer,depth_buffer)
+        image_buff = np.empty((cam_data.pixels_num[1],cam_data.pixels_num[0]),dtype=np.float64)
+        depth_buff = np.empty((cam_data.pixels_num[1],cam_data.pixels_num[0]),dtype=np.float64)
+        rastercyth.average_image(depth_buffer,cam_data.sub_samp,depth_buff)
+        rastercyth.average_image(image_buffer,cam_data.sub_samp,image_buff)
+
+        return (image_buff,depth_buff)
 
 
     @staticmethod

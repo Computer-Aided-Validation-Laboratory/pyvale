@@ -41,6 +41,9 @@ from pyvale.core.camera import *
 from pyvale.core.cameradata import *
 from pyvale.core.cameradata2d import *
 from pyvale.core.cameratools import *
+
+import pyvale.core.cython.rastercyth as rastercyth
+
 from pyvale.core.rendermesh import *
 from pyvale.core.rasternp import *
 

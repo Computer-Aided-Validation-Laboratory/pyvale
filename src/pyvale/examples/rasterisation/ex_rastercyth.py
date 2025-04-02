@@ -13,53 +13,39 @@ import matplotlib.pyplot as plt
 import mooseherder as mh
 import pyvale as pyv
 
-# TODO
-# - Fix the image averaging function to use cython
-# - Need to have deformable meshes in 2D and 3D
-# - Need to allow rendering of a set of fields
-# - Implement parallel rendering for image stacks or multiple fields
-# - Saving of the rendered images for post processing or analysis
-# - Collapse image display functions into visual to simplify code
-#
-# CAMERA:
-# - Need option to work camera rotation based on a given position
-#   - The z axis is easy as we can just do roi-cam_pos but what about x and y
-#
-# RENDER OPTIONS
-# - Parallelisation on/off, number of threads
-#   - Need to split work over: fields to render, cameras, time steps
-# - Deformable mesh: on/off
-#
-# SCENE OBJECT:
-# - Allow multiple objects in the scene with their own transformations
-# - Allow multiple cameras in the scene
-
-
 def main() -> None:
     """pyvale example: rasterisation field renderer
     ----------------------------------------------------------------------------
     - TODO
     """
+    print()
+    print(80*"=")
+    print("RASTER CYTHON FILE (should be *.so on Linux):")
+    print(pyv.rastercyth.__file__)
+    print(80*"=")
+    print()
+
     # This a path to an exodus *.e output file from MOOSE, this can be
     # replaced with a path to your own simulation file
     #sim_path = pyv.DataSet.render_mechanical_3d_path()
-    sim_path = Path.cwd()/"src"/"pyvale"/"simcases"/"case25_out.e"
+    disp_comps = ("disp_x","disp_y","disp_z")
+    sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
-    sim_data.coords = sim_data.coords*1000.0 # scale to mm
 
-    # TODO: scale displacements to mm
+    # Scale m -> mm
+    sim_data = pyv.scale_length_units(sim_data,disp_comps,1000.0)
+
+    print()
+    print(f"{np.max(np.abs(sim_data.node_vars['disp_x']))=}")
+    print(f"{np.max(np.abs(sim_data.node_vars['disp_y']))=}")
+    print(f"{np.max(np.abs(sim_data.node_vars['disp_z']))=}")
+    print()
 
     # Extracts the surface mesh from a full 3d simulation for rendering
-    # render_mesh = pyv.create_render_mesh(sim_data,
-    #                                     ("disp_y","disp_x"),
-    #                                     sim_spat_dim=3,
-    #                                     field_disp_keys=("disp_x","disp_y","disp_z"))
-
     render_mesh = pyv.create_render_mesh(sim_data,
-                                        ("disp_y",),
+                                        ("disp_y","disp_x","disp_z"),
                                         sim_spat_dim=3,
-                                        field_disp_keys=None)
-
+                                        field_disp_keys=disp_comps)
 
     print()
     print(80*"-")
@@ -78,10 +64,11 @@ def main() -> None:
     print(80*"-")
     print()
 
-    pixel_num = np.array((960,1280))
-    pixel_size = np.array((5.3e-3,5.3e-3))
+
+    pixel_num = np.array((960,1280),dtype=np.int32)
+    pixel_size = np.array((5.3e-3,5.3e-3),dtype=np.float64)
     focal_leng: float = 50
-    cam_rot = Rotation.from_euler("zyx",(0.0,-30.0,0.0),degrees=True)
+    cam_rot = Rotation.from_euler("zyx",(0.0,0.0,-30.0),degrees=True)
     fov_scale_factor: float = 1.1
 
     (roi_pos_world,
@@ -114,56 +101,64 @@ def main() -> None:
     print("World to camera matrix:")
     print(cam_data.world_to_cam_mat)
     print(80*"-")
+    print()
+
+    print(80*"-")
+    total_frames = render_mesh.fields_render.shape[1]*render_mesh.fields_render.shape[2]
+    print(f"Time steps to render: {render_mesh.fields_render.shape[1]}")
+    print(f"Fields to render: {render_mesh.fields_render.shape[2]}")
+    print(f"Total frames to render: {total_frames}")
+    print(80*"-")
+
+    fields_to_render = render_mesh.fields_render
+    fields_to_render = np.ascontiguousarray(fields_to_render[:,-1,:])
+
+    print(80*"=")
+    print("RASTER ELEMENT LOOP START")
+    print(80*"=")
+
+    num_loops = 1
+    loop_times = np.zeros((num_loops,),dtype=np.float64)
+    cam_data.sub_samp = 1
+
+    print()
+    print("Running raster loop.")
+    for nn in range(num_loops):
+        print(f"Running loop {nn}")
+        loop_start = time.perf_counter()
+
+        (image_buffer,
+         depth_buffer,
+         elems_in_image) = pyv.rastercyth.raster_frame(
+                                                render_mesh.coords,
+                                                render_mesh.connectivity,
+                                                fields_to_render,
+                                                cam_data.world_to_cam_mat,
+                                                cam_data.pixels_num,
+                                                cam_data.image_dims,
+                                                cam_data.image_dist,
+                                                cam_data.sub_samp)
+
+        loop_times[nn] = time.perf_counter() - loop_start
 
     print()
     print(80*"=")
-    print("RASTER LOOP START")
-
-    # LOOP INDICES
-    frame = -1  # render the last frame
-    comp = 0
-
-    loop_times = []
-    time_start_loop = time.perf_counter()
-
-    (elem_raster_coords,
-    elem_bound_box_inds,
-    elem_areas,
-    render_field_div_z) = pyv.RasterNP.setup_frame_by_elem(
-                                            cam_data,
-                                            render_mesh.coords,
-                                            render_mesh.connectivity,
-                                            render_mesh.fields_render[:,:,comp])
-
-    field_frame_divide_z = np.ascontiguousarray(render_field_div_z[:,:,frame])
-
-    return
-
-    (image_buffer,
-    depth_buffer,
-    num_elems_in_image) = pyv.RasterNP.raster_frame_by_elem(
-                                            cam_data,
-                                            elem_raster_coords,
-                                            elem_bound_box_inds,
-                                            elem_areas,
-                                            field_frame_divide_z)
+    print("PERFORMANCE TIMERS")
+    print(f"Elements in image = {elems_in_image}")
+    print(f"Image buffer shape = {image_buffer.shape}")
+    print(f"Avg. render time = {np.mean(loop_times):.4f} seconds")
+    print(80*"=")
 
     #===========================================================================
-    time_end_loop = time.perf_counter()
-    loop_times.append(time_end_loop - time_start_loop)
-
-    print("RASTER LOOP END")
-    print(80*"=")
-    print("PERFORMANCE")
-    print(f"Elements in image: {num_elems_in_image}")
-    print(f"Render time = {np.mean(loop_times):.6f} seconds")
-    print(80*"=")
-
+    # PLOTTING
     plot_on = True
-    depth_to_plot = np.copy(depth_buffer)
+    plot_field = 0
+
+    depth_to_plot = np.copy(np.array(depth_buffer))
     depth_to_plot[depth_buffer > 10*cam_data.image_dist] = np.nan
-    image_to_plot = np.copy(image_buffer)
+    image_to_plot = np.copy(np.array(image_buffer[:,:,plot_field]))
     image_to_plot[depth_buffer > 10*cam_data.image_dist] = np.nan
+
     if plot_on:
         plot_opts = pyv.PlotOptsGeneral()
 
@@ -196,6 +191,7 @@ def main() -> None:
                     fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
 
         plt.show()
+
 
 if __name__ == "__main__":
     main()
