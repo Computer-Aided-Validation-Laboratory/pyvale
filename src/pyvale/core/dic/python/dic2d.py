@@ -41,6 +41,13 @@ class DIC2D:
         self.shape_func = shape_function
         self.interp = interpolation_routine
         self.scanning_method = scanning_method
+        self.subsets = None
+        self.u = None
+        self.v = None
+        self.p = None
+        self.ftol = None
+        self.xtol = None
+        self.niter = None
 
 
 
@@ -62,7 +69,13 @@ class DIC2D:
                                            self.interp,
                                            self.scanning_method)
 
-        # return dicresults.DICResults(subsets, niter, u, v, p, ftol, xtol)
+        self.subsets = results[0]
+        self.niter = results[1]
+        self.u = results[2]
+        self.v = results[3]
+        self.p = results[4]
+        self.ftol = results[5]
+        self.xtol = results[6]
 
 
 

@@ -13,6 +13,9 @@
 #include <vector>
 #include <iostream>
 
+// Program Header files
+#include "./dicoptimizer.hpp"
+
 
 namespace dic2d {
 
@@ -42,7 +45,7 @@ namespace dic2d {
 
     void image_scan(std::vector<double> &image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol);
     void reliability_guided(std::vector<double> &image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol);
-    void append_results(int num_def_images, int img_num, int ss);
+    void append_results(int num_def_images, int img_num, int ss, optimizer::Results *results);
 }
 
 #endif //DICENGINE_H
