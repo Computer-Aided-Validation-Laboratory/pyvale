@@ -54,7 +54,7 @@ namespace optimizer {
 
 
     // intitialisation and debugging
-    void init(std::string &, std::string &, int);
+    void init(std::string &, std::string &);
     void setCostFunction(const std::string& corr_crit);
     void setShapeFunction(const std::string& shape_func);
     void debugPrint(int iter, double ftol, double xtol, const std::vector<double>& p);

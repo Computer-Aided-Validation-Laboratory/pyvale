@@ -36,8 +36,7 @@ namespace util {
                         int px_horizontal, 
                         int px_vertical);
 
-    void fill_ss_coord_vects(std::vector<int> &ss_coord_list, bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step);
-
+    std::vector<int> generate_ss_coord_list(bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step);
     void resize_ss(std::vector<double> &ss, std::vector<double> &ss_x, std::vector<double> &ss_y, int ss_size);
     void parameters_to_displacement(double ss_x, double ss_y, std::vector<double> &p);
 }

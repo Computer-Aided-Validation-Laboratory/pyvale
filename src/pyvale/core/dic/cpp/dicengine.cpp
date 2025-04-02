@@ -34,7 +34,6 @@ namespace dic2d {
     std::vector<double> p_arr;
     std::vector<double> ftol_arr;
     std::vector<double> xtol_arr;
-    int n_ss;
 
 
     void dicengine(int* image_ref, 
@@ -75,8 +74,8 @@ namespace dic2d {
         const int num_px_ss = ss_size*ss_size;
 
         // get a list of ss coordinates within RIO.
-        util::fill_ss_coord_vects(ss_coord_list, image_roi, px_horizontal, px_vertical, ss_size, ss_step);
-        n_ss = ss_coord_list.size() / 2;
+        ss_coord_list = util::generate_ss_coord_list(image_roi, px_horizontal, px_vertical, ss_size, ss_step);
+        int n_ss = ss_coord_list.size() / 2;
 
         // INFO_OUT("Total number of subsets: ", n_ss);
         // INFO_OUT("Number of OMP threads:", omp_get_max_threads());
@@ -89,17 +88,15 @@ namespace dic2d {
         std::vector<double> image_ref_dbl;
         image_ref_dbl.assign(image_ref, image_ref + num_px_image);
 
-        // define our interpolator for the reference imageu
+        // define our interpolator for the reference image
         interpolator::bicubic_init(image_ref_dbl, px_horizontal, px_vertical);
 
-        // initialise the LM optimizer and the output struct
-        optimizer::init(corr_crit, shape_func, ss_size);
+        // initialise the LM optimizer to use the desired correlation criterion and shape func.
+        optimizer::init(corr_crit, shape_func);
 
         // for extraction of deformed image from stack
         std::vector<double> image_def(num_px_image,0.0);
 
-        // resize the deformed subset vectors
-        // util::resize_ss(ss_def, ss_def_coords_x, ss_def_coords_y, ss_size);
 
         // resize results
         niter_arr.resize(num_def_images * n_ss);
@@ -122,7 +119,7 @@ namespace dic2d {
         // get end time and calculate DIC duration
         auto f0 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> e0 = f0 - s0;
-        // INFO_OUT("Time taken to Initialize C++ DIC Engine: ", e0.count() << " [s]");
+        INFO_OUT("Time taken to Initialize C++ DIC Engine: ", e0.count() << " [s]");
 
 
 
@@ -146,8 +143,7 @@ namespace dic2d {
         // get end time and calculate DIC duration
         auto f1 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> e1 = f1 - s1;
-        // INFO_OUT("Time taken to Run C++ DIC Engine: ", e1.count() << " [s]")
-        std::cout << e1.count() << std::endl;
+        INFO_OUT("Time taken to Run C++ DIC Engine: ", e1.count() << " [s]")
 
     }
 
@@ -159,6 +155,44 @@ namespace dic2d {
     // -------------------------------------------------------------------------------------------
 
     void image_scan(std::vector<double> &image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
+
+        // 
+        std::vector<double> ss_def(ss_size*ss_size, 0.0);
+        std::vector<double> ss_def_coords_x(ss_size*ss_size, 0.0);
+        std::vector<double> ss_def_coords_y(ss_size*ss_size, 0.0);
+
+        optimizer::Parameters params;
+        optimizer::init_parameters(&params, ss_size);
+
+        // loop over subsets within the ROI
+        #pragma omp parallel for firstprivate(ss_def, ss_def_coords_x, ss_def_coords_y, params)
+        for (int ss = 0; ss < n_ss; ss++){
+
+            // subset coordinate list takes central locations. Converting to top left corner for optimization routine
+            int ss_x = ss_coord_list[ss*2] - ss_size / 2;
+            int ss_y = ss_coord_list[ss*2+1] - ss_size / 2;
+
+
+            // get the deformed subset coordinates and pixel values from the deformed image
+            util::extract_ss(image_def, ss_def,  ss_def_coords_x, ss_def_coords_y, ss_x, ss_y, ss_size, px_horizontal, px_vertical); 
+
+            // perform optimization on subset from deformed image
+            optimizer::Results results;
+            results = optimizer::solve(ss_x, ss_y, ss_def, ss_def_coords_x, ss_def_coords_y, ss_size*ss_size, tol, max_iter, &params);
+
+            // append the results for the current subset to result vectors
+            append_results(num_def_images, img_num, ss, &results);    
+        }
+    }
+
+
+
+
+    // -------------------------------------------------------------------------------------------
+    // Raw image scan with a brute force to find rigid parameters. Good for large displacements
+    // -------------------------------------------------------------------------------------------
+
+    void image_scan_with_brute_force(std::vector<double> &image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
 
         // image and subset arrays
         std::vector<double> ss_def(ss_size*ss_size, 0.0);
@@ -179,6 +213,11 @@ namespace dic2d {
 
             // get the deformed subset coordinates and pixel values
             util::extract_ss(image_def, ss_def,  ss_def_coords_x, ss_def_coords_y, ss_x, ss_y, ss_size, px_horizontal, px_vertical); 
+
+
+            // brute force scan
+            // util::brute_force_scan(range, tol)
+
 
             // perform optimization on subset from deformed image
             optimizer::Results results;

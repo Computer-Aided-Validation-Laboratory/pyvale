@@ -33,10 +33,9 @@ namespace optimizer {
 
 
 
-    void init(std::string &corr_crit, std::string &shape_func, int ss_size){
+    void init(std::string &corr_crit, std::string &shape_func){
         setCostFunction(corr_crit);
         setShapeFunction(shape_func);
-        // util::resize_ss(ss_ref, ss_ref_x, ss_ref_y, ss_size);
     }
 
 

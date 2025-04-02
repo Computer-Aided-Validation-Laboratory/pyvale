@@ -78,8 +78,9 @@ namespace util {
     }
 
 
-    void fill_ss_coord_vects(std::vector<int> &ss_coord_list, bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step){
+    std::vector<int> generate_ss_coord_list(bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step){
 
+        std::vector<int> ss_coord_list;
         int ss_x_min, ss_x_max, ss_y_min, ss_y_max;
         int index;
 
@@ -109,6 +110,8 @@ namespace util {
                 next_ss:;
             }
         }
+
+        return ss_coord_list;
     }
 
     void resize_ss(std::vector<double> &ss, std::vector<double> &ss_x, std::vector<double> &ss_y, int ss_size) {
@@ -117,7 +120,7 @@ namespace util {
         ss_y.resize(ss_size * ss_size, 0.0);
     }
 
-    // void update_output_arrays()
+    
 
 
 }   
