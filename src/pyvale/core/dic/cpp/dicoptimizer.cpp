@@ -393,6 +393,58 @@ namespace optimizer {
 
     }
 
+
+
+    
+    void brute_force_ssd(int ss_x, int ss_y, std::vector<double> &ss_def, std::vector<double> &ss_def_coords_x, std::vector<double> &ss_def_coords_y, int *image_ref, int px_vertical, int px_horizontal, int num_px_ss, int range, double tol){
+        
+        int u_at_costmin;
+        int v_at_costmin;
+        int costp_min = 1e6;
+
+        for (int v = -range; v < range; v++){
+            for (int u = -range; u < range; u++){
+
+                // reset cost function for new translation
+                double costp = 0.0;
+                int ss_ref_x;
+                int ss_ref_y;
+                int ss_ref;
+
+                for (int i = 0; i < num_px_ss; i++){
+                    
+
+                    // integer coordinates of the subset in the reference image
+                    ss_ref_x = ss_def_coords_x[i] + u;
+                    ss_ref_y = ss_def_coords_y[i] + v;
+                    
+                    // extract subset value from reference image
+                    ss_ref = image_ref[ss_ref_y * px_horizontal + ss_ref_x];
+
+                    // calculate cost function
+                    costp += (ss_def[i] - ss_ref) * (ss_def[i] - ss_ref);
+
+                }
+
+                if (costp < costp_min) {
+                    costp_min = costp;
+                }
+                // check if the cost is below the tolerance value
+                if (costp_min < tol){
+                    u_at_costmin = u;
+                    v_at_costmin = v;
+                    goto end;
+                }
+            }
+        }
+        end:;
+        
+        std::cout << u_at_costmin << " " << v_at_costmin <<  " " << costp_min << std::endl;
+
+
+    }
+
+
     // Inv matrix using Gauss Elim.
     bool invertMatrix(const std::vector<double>& matrix, std::vector<double>& inverse) {
             int n = 6;

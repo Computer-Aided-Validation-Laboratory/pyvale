@@ -70,6 +70,12 @@ namespace optimizer {
     void znssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, int, Parameters *params);
 
 
+    // brute force optimizations
+    void   brute_force_ssd(int ss_x, int ss_y, std::vector<double> &ss_def, std::vector<double> &ss_def_coords_x, std::vector<double> &ss_def_coords_y, int *image_ref, int px_vertical, int px_horizontal, int num_px_ss, int range, double tol);
+    void  brute_force_nssd(int ss_x, int ss_y, std::vector<double> &ss_def, std::vector<double> &ss_def_coords_x, std::vector<double> &ss_def_coords_y, int *image_ref, int px_vertical, int px_horizontal, int num_px_ss, int range, double tol);
+    void brute_force_znssd(int ss_x, int ss_y, std::vector<double> &ss_def, std::vector<double> &ss_def_coords_x, std::vector<double> &ss_def_coords_y, int *image_ref, int px_vertical, int px_horizontal, int num_px_ss, int range, double tol);
+
+
     // optimizer functions
     bool invertMatrix(const std::vector<double>& matrix, std::vector<double>& inverse);
     void update_shapefunc_parameters(std::vector<double> &pdp, std::vector<double> &p, std::vector<double> &dp, std::vector<double> &invH, std::vector<double> &gradient);

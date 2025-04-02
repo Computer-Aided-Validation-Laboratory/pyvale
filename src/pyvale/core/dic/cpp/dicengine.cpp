@@ -192,7 +192,7 @@ namespace dic2d {
     // Raw image scan with a brute force to find rigid parameters. Good for large displacements
     // -------------------------------------------------------------------------------------------
 
-    void image_scan_with_brute_force(std::vector<double> &image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
+    void image_scan_with_brute_force(int *image_ref, std::vector<double> &image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int px_horizontal, int px_vertical, int n_ss, int ss_size, int max_iter, double tol){
 
         // image and subset arrays
         std::vector<double> ss_def(ss_size*ss_size, 0.0);
@@ -216,7 +216,8 @@ namespace dic2d {
 
 
             // brute force scan
-            // util::brute_force_scan(range, tol)
+            int range = 50;
+            optimizer::brute_force_ssd(ss_x, ss_y, ss_def, ss_def_coords_x, ss_def_coords_y, image_ref, px_vertical, px_horizontal, ss_size*ss_size, range, tol);
 
 
             // perform optimization on subset from deformed image

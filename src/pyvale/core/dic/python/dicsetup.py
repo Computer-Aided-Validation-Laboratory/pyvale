@@ -10,7 +10,6 @@ import os
 from os.path import join as pjoin
 from setuptools import setup, Extension
 from Cython.Build import build_ext  # Use setuptools' build_ext
-from icecream import ic
 import numpy as np
 
 
