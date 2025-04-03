@@ -1,4 +1,4 @@
-A good site: https://enccs.github.io
+A good site covering a range of GPU programming choices: https://enccs.github.io/gpu-programming
 Jargon
 - Host - CPU
 - Device - GPU
@@ -8,7 +8,9 @@ Jargon
 ## Directive-based 
 Annotate existing serial code with hints for how the compiler should parralelise. 
 Uses a fork-join execution model:
-![[threads.png]]
+
+![Serial-parralel region model diagram](https://enccs.github.io/gpu-programming/_images/threads.png)
+
 Serial until a parallel region is requests. Multiple threads are spawned, and the mast thread is in charge of the threads.
 Implicit barrier at the end of parallel regions, where threads wait until all threads are complete. (If there is imbalanced workload, many threads will sit idle doing nothing.)
 The same annotations can be used for compiling to CPU multithread or GPU easily (though performance will vary)
@@ -23,6 +25,7 @@ Pros:
 - Same code for device and host, just use compiler flags
 - Low learning curve
 - Good portability
+
 Cons:
 - Need to be mindful on underlying memory movement and what your commands are actually doing for performance.
 - Lacks architecture-specific control (like local memory or const cache)
@@ -319,6 +322,7 @@ Pros:
 - Cross compatible with different GPUs, CPUs, accellerators
 - Can optimise over workers/threads/cores online, so more optimised performance across different devices
 - Works on CPU, GPU, FPGA and more
+
 Cons:
 - Text string kernels?!!?
 - Complex learning curve
@@ -460,10 +464,12 @@ My thoughts: I like the vendor-agnostic implementation of SYCL. Tries to moderni
 Used in:
 - Self-driving cars
 - A lot of backing from Intel
+
 Pros:
 - C++
 - Community driven (adaptivecpp) or intensive industry backing (OneAPI)
 - Portable to multitude of architectures, like OpenCL
+
 Cons:
 - C++
 - Newer technology compared to CUDA and OpenCL (but similar to HIP)
