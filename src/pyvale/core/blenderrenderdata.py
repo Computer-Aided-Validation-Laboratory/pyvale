@@ -18,6 +18,7 @@ class RenderData:
     samples: int | None = None
     engine: RenderEngine | None = None
     max_bounces: int | None = None
+    bit_size: int | None = None
 
     def __post_init__(self) -> None:
         if self.max_bounces is None:
@@ -26,3 +27,5 @@ class RenderData:
             self.engine = RenderEngine.CYCLES
         if self.samples is None:
             self.samples = 2
+        if self.bit_size is None:
+            self.bit_size = 8

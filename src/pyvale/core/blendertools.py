@@ -31,7 +31,7 @@ class BlenderTools():
     """
 
     @staticmethod
-    def save_blender_file(filepath: Path, override: bool = False):
+    def save_blender_file(filepath: Path, override: bool = False) -> None:
         """A method to save the current Blender file to a .blend filepath
 
         Args:
@@ -55,7 +55,7 @@ class BlenderTools():
         bpy.ops.wm.save_as_mainfile(filepath=filepath)
 
     @staticmethod
-    def move_blender_part(pos_world: np.ndarray, part):
+    def move_blender_part(pos_world: np.ndarray, part) -> None:
         """A method to move the part object within Blender
 
         Args:
@@ -68,7 +68,7 @@ class BlenderTools():
         part.location = (pos_world[0], pos_world[1], (pos_world[2] - z_location))
 
     @staticmethod
-    def rotate_blender_part(rot_world: Rotation, part):
+    def rotate_blender_part(rot_world: Rotation, part) -> None:
         """A method to rotate the part object within Blender
 
         Args:
@@ -81,8 +81,8 @@ class BlenderTools():
         part.rotation_euler = part_rotation
 
     @staticmethod
-    def set_new_frame(part):
-        """A method to set a new frame within Blender (needed to differenciate
+    def set_new_frame(part) -> None:
+        """A method to set a new frame within Blender (needed to differentiate
         the timesteps)
 
         Args:
@@ -129,7 +129,7 @@ class BlenderTools():
         return part
 
     @staticmethod
-    def clear_material_nodes(part):
+    def clear_material_nodes(part) -> None:
         """A method to clear any existing material nodes from the specified
         Blender object
 
@@ -146,7 +146,7 @@ class BlenderTools():
         nodes.clear()
 
     @staticmethod
-    def uv_unwrap_part(part, FOV_x: float, cal: bool = False):
+    def uv_unwrap_part(part, resolution: float, cal: bool = False) -> None:
         """A method to UV unwrap the Blender object, in order to apply a speckle
         image texture
 
@@ -163,7 +163,7 @@ class BlenderTools():
         bpy.context.view_layer.objects.active = part
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
-        cube_size = FOV_x / 1
+        cube_size = resolution * 2500 #TODO: Change this back
 
         if cal is not True:
             bpy.ops.uv.cube_project(scale_to_bounds = False,
@@ -177,7 +177,7 @@ class BlenderTools():
     @staticmethod
     def add_image_texture(mat_data: BlenderMaterialData,
                           image_path: Path | None = None,
-                          image_array: np.ndarray | None = None):
+                          image_array: np.ndarray | None = None) -> None:
         """A method to add an image texture to a Blender object
 
         Args:
@@ -233,9 +233,16 @@ class BlenderTools():
             obj.active_material = bpy.data.materials["Material"]
 
     @staticmethod
+    def save_render_as_array(filepath: Path) -> np.ndarray:
+        image = Image.open(filepath)
+        image_array = np.asarray(image)
+        filepath.unlink()
+        return image_array
+
+    @staticmethod
     def generate_calib_file(stereo_data: CameraStereoData,
                             calib_filepath: Path,
-                            calib_filename: str | None = None):
+                            calib_filename: str | None = None) -> None:
         """A method to generate a .caldat calibration file, compatible with
         MatchID
 
@@ -288,7 +295,7 @@ class BlenderTools():
         # Render parameters
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
-        # bpy.context.scene.render.image_settings.color_depth = '16'
+        bpy.context.scene.render.image_settings.color_depth = render_data.bit_size
         bpy.context.scene.render.threads_mode = "FIXED"
         bpy.context.scene.render.threads = int(cpu_count())
         bpy.context.scene.render.image_settings.file_format = "TIFF"
@@ -296,7 +303,6 @@ class BlenderTools():
         if render_data.engine == RenderEngine.CYCLES:
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
-            bpy.context.scene.cycles.use_denoising = False # Only turned off to make rendering faster
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 

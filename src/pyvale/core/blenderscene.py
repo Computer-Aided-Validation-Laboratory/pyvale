@@ -20,6 +20,8 @@ from pyvale.core.simtools import SimTools
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.blenderrenderdata import RenderData, RenderEngine
 
+import matplotlib.pyplot as plt
+
 # NOTE: This module is a feature under development
 
 class BlenderScene():
@@ -126,7 +128,7 @@ class BlenderScene():
         Returns:
             light_ob: bpy.data.objects['Light'], the Blender light object
         """
-        # TODO: Make method compatible for different light types
+        # TODO: Make method more compatible for different light types
         type = light_data.type.value
         name = type.capitalize() + 'Light'
         light = bpy.data.lights.new(name=name, type=type)
@@ -140,7 +142,7 @@ class BlenderScene():
         rotation_euler = light_data.rot_world.as_euler("xyz", degrees=False)
         light_ob.rotation_euler = rotation_euler
 
-        light.energy = light_data.energy
+        light.energy = light_data.energy * 10**6
         light.shadow_soft_size = light_data.shadow_soft_size
 
         bpy.context.collection.objects.link(light_ob)
@@ -163,11 +165,12 @@ class BlenderScene():
         spat_dim = SimTools.get_mesh_spat_dim(sim_data)
         components = SimTools.get_simulation_components(sim_data)
         sim_data.coords = sim_data.coords * 1000 # Change from m to mm
-        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords)
+        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords, spat_dim)
         (pv_grid, _) = pyvale.conv_simdata_to_pyvista(sim_data,
                                                       components,
                                                       spat_dim)
         pv_surf = SimTools.conv_pvgrid_to_pvsurf(pv_grid)
+
 
         vertices = pv_surf.points
         elements_per_face = SimTools.surf_mesh_elements_per_face(pv_surf)
@@ -177,6 +180,7 @@ class BlenderScene():
         mesh = bpy.data.meshes.new("Part")
         mesh.from_pydata(vertices, [], faces)
         part = bpy.data.objects.new("Part", mesh)
+
         bpy.context.scene.collection.objects.link(part)
 
         return part
@@ -186,7 +190,7 @@ class BlenderScene():
                     speckle_path: Path | None,
                     mat_data: BlenderMaterialData | None,
                     cam_data: CameraData,
-                    cal: bool = False):
+                    cal: bool = False) -> None:
         """A method to add a speckle pattern to an existing mesh object within
         Blender. The speckle pattern can either be passed in as an image file
         that is saved to the disc, or can be generated dynamically (this is
@@ -205,6 +209,7 @@ class BlenderScene():
         """
         BlenderTools.clear_material_nodes(part)
         (FOV_x, _) = pyvale.blender_FOV(cam_data)
+        resolution = FOV_x / cam_data.pixels_num[0]
         if mat_data is None:
             mat_data = BlenderMaterialData()
         if speckle_path.exists():
@@ -212,10 +217,10 @@ class BlenderScene():
         else:
             speckle_pattern = np.array() # Generate speckle pattern array
             BlenderTools.add_image_texture(mat_data=mat_data, image_array=speckle_pattern)
-        BlenderTools.uv_unwrap_part(part, FOV_x, cal)
+        BlenderTools.uv_unwrap_part(part, resolution, cal)
 
     @staticmethod
-    def deform_all_timesteps(sim_data: mh.SimData, part):
+    def deform_all_timesteps(sim_data: mh.SimData, part) -> None:
         """A method to deform the Blender mesh object using the simulation results.
         This is done by taking the displacements to the nodes, and applying it
         in Blender
@@ -230,7 +235,7 @@ class BlenderScene():
         spat_dim = SimTools.get_mesh_spat_dim(sim_data)
         components = SimTools.get_simulation_components(sim_data)
         sim_data.coords = sim_data.coords
-        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords)
+        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords, spat_dim)
         (pv_grid, _) = pyvale.conv_simdata_to_pyvista(sim_data,
                                                  components,
                                                  spat_dim)
@@ -246,7 +251,7 @@ class BlenderScene():
                 BlenderTools.set_new_frame(part)
 
     @staticmethod
-    def render_single_image(render_data: RenderData, save: bool | None = True):
+    def render_single_image(render_data: RenderData, save: bool | None = True) -> None | np.ndarray:
         """A method to render an images(s) of the current scene in Blender.
         Depending on the number of cameras, either one or two images will be
         rendered
@@ -257,54 +262,65 @@ class BlenderScene():
                 Defaults to True
             render_data (RenderData): A dataclass containing the parameters
                 needed to render an image
+
+        Returns:
+            None | np.ndarray: Either nothing is returned if the image is saved
+                to disc or a stack of image arrays are returned
         """
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
-        # bpy.context.scene.render.image_settings.color_depth = '16'
-        # bpy.context.scene.render.threads_mode = "FIXED"
+        bpy.context.scene.render.image_settings.color_depth = str(render_data.bit_size)
+        bpy.context.scene.render.threads_mode = "FIXED"
         bpy.context.scene.render.threads = int(cpu_count())
         bpy.context.scene.render.image_settings.file_format = "TIFF"
 
         if render_data.engine == RenderEngine.CYCLES:
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
-            bpy.context.scene.cycles.use_denoising = False # Only turned off to make rendering faster
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
         if isinstance(render_data.cam_data, tuple):
             cam_count = 0
             image_count = 0
+            image_arrays = []
             for cam in [obj for obj in bpy.data.objects if obj.type == "CAMERA"]:
                 bpy.context.scene.camera = cam
                 cam_data_render = render_data.cam_data[cam_count]
                 bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
                 bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
                 filename = render_data.save_name + "_" + str(image_count) + "_" + str(cam_count) + ".tiff"
-                bpy.context.scene.render.filepath = str(render_data.save_dir / filename)
+                filepath = render_data.save_dir / filename
+                bpy.context.scene.render.filepath = str(filepath)
                 if save is True:
                     bpy.ops.render.render(write_still=True)
                 else:
-                    bpy.ops.render.render(write_still=False)
-                    # TODO: Add method to convert rendered image to array
+                    bpy.ops.render.render(write_still=True)
+                    image_array = BlenderTools.save_render_as_array(filepath)
+                    image_arrays.append(image_array)
                 cam_count += 1
+            if save is not True:
+                image_arrays = np.dstack(image_arrays)
+                return image_arrays
         else:
             image_count = 0
             bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
             bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_num[1]
             filename = render_data.save_name + "_" + str(image_count) + ".tiff"
-            bpy.context.scene.render.filepath = str(render_data.save_dir / filename)
+            filepath = render_data.save_dir / filename
+            bpy.context.scene.render.filepath = str(filepath)
             if save is True:
                 bpy.ops.render.render(write_still=True)
             else:
-                bpy.ops.render.render(write_still=False)
-                # TODO: Add method to convert rendered image to array
+                bpy.ops.render.render(write_still=True)
+                image_array = BlenderTools.save_render_as_array(filepath)
+                return image_array
 
     @staticmethod
     def render_deformed_images(sim_data: mh.SimData,
                                render_data:RenderData,
                                part,
-                               save: bool | None = True):
+                               save: bool | None = True) -> None | np.ndarray:
         """A method to deform the mesh object at all timesteps, and render
         image(s) at each timestep
 
@@ -318,12 +334,16 @@ class BlenderScene():
             save (bool | None, optional): A flag that can be set to True or
                 False to either save rendered image to disk or not.
                 Defaults to True.
+
+        Returns:
+            None | np.ndarray: Either nothing is returned if the image is saved
+                to disc or a stack of image arrays are returned
         """
         timesteps = sim_data.time.shape[0]
         spat_dim = SimTools.get_mesh_spat_dim(sim_data)
         components = SimTools.get_simulation_components(sim_data)
         sim_data.coords = sim_data.coords
-        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords)
+        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords, spat_dim)
         (pv_grid, _) = pyvale.conv_simdata_to_pyvista(sim_data,
                                                  components,
                                                  spat_dim)
@@ -332,7 +352,7 @@ class BlenderScene():
         # Render parameters
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
-        # bpy.context.scene.render.image_settings.color_depth = '16'
+        bpy.context.scene.render.image_settings.color_depth = str(render_data.bit_size)
         bpy.context.scene.render.threads_mode = "FIXED"
         bpy.context.scene.render.threads = int(cpu_count())
         bpy.context.scene.render.image_settings.file_format = "TIFF"
@@ -340,10 +360,10 @@ class BlenderScene():
         if render_data.engine == RenderEngine.CYCLES:
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
-            bpy.context.scene.cycles.use_denoising = True # Only turned off to make rendering faster
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
+        image_arrays = []
         for timestep in range(0, timesteps):
             deformed_nodes = SimTools.get_deformed_nodes(timestep,
                                                          pv_surf,
@@ -361,23 +381,30 @@ class BlenderScene():
                         bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
                         bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
                         filename = render_data.save_name + "_" + str(timestep) + "_" + str(cam_count) + ".tiff"
-                        bpy.context.scene.render.filepath = str(render_data.save_dir / filename)
+                        filepath = render_data.save_dir / filename
+                        bpy.context.scene.render.filepath = str(filepath)
                         if save is True:
                             bpy.ops.render.render(write_still=True)
                         else:
-                            bpy.ops.render.render(write_still=False)
-                            # TODO: Add method to convert rendered image to array
+                            bpy.ops.render.render(write_still=True)
+                            image_array = BlenderTools.save_render_as_array(filepath)
+                            image_arrays.append(image_array)
                         cam_count += 1
                 else:
                     bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
                     bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_num[1]
                     filename = render_data.save_name + "_" + str(timestep) + ".tiff"
-                    bpy.context.scene.render.filepath = str(render_data.save_dir / filename)
+                    filepath = render_data.save_dir / filename
+                    bpy.context.scene.render.filepath = str(filepath)
                     if save is True:
                         bpy.ops.render.render(write_still=True)
                     else:
-                        bpy.ops.render.render(write_still=False)
-                        # TODO: Add method to convert rendered image to array
+                        bpy.ops.render.render(write_still=True)
+                        image_array = BlenderTools.save_render_as_array(filepath)
+                        image_arrays.append(image_array)
+        if save is not True:
+            image_arrays = np.dstack(image_arrays)
+            return image_arrays
 
 
 

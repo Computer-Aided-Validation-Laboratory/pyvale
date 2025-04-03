@@ -139,14 +139,14 @@ def image_dist_from_fov(num_pixels: np.ndarray,
 #-------------------------------------------------------------------------------
 # Blender camera tools
 
-def calculate_FOV(cam_data: CameraData):
+def calculate_FOV(cam_data: CameraData) -> tuple[float, float]:
     """A method to calulate the camera's field of view in mm
 
     Args:
         cam_data (CameraData): A dataclass containing the camera parameters
 
     Returns:
-        FOV_mm: A tuple containing the field of view in mm in both x and y
+        tuple[float, float]: A tuple containing the field of view in mm in both x and y
             directions
     """
     FOV_x = (((cam_data.image_dist - cam_data.focal_length)
@@ -169,17 +169,16 @@ def blender_FOV(cam_data: CameraData) -> tuple[float, float]:
     FOV_x = (cam_data.pixels_num[0] * cam_data.pixels_size[0] * cam_data.image_dist) / cam_data.focal_length
     FOV_y = (cam_data.pixels_num[1] / cam_data.pixels_num[0]) * FOV_x
     FOV_blender = (FOV_x, FOV_y)
-    print('Blender Method')
     return FOV_blender
 
-def angular_fov(cam_data: CameraData): # Not sure if this function is necessary
+def angular_fov(cam_data: CameraData) -> float: # Not sure if this function is necessary
     """A method to calculate the angular field of view of a camera in degrees
 
     Args:
         cam_data (CameraData): A dataclass containing the camera parameters
 
     Returns:
-        AFOV_x: The angular field of view in the x-direction in degrees
+        AFOV_x (float): The angular field of view in the x-direction in degrees
     """
     (FOV_x, _) = calculate_FOV(cam_data)
     working_dist = cam_data.pos_world[2] - cam_data.roi_cent_world[2]
@@ -191,6 +190,16 @@ def angular_fov(cam_data: CameraData): # Not sure if this function is necessary
 def focal_length_from_resolution(pixels_size: np.ndarray,
                                  working_dist: float,
                                  resolution: float) -> float:
+    """_summary_
+
+    Args:
+        pixels_size (np.ndarray): The camera pixels size in the x and y directions
+        working_dist (float): The working distance of the camera to the sample
+        resolution (float): The desired resolution in mm/px
+
+    Returns:
+        float: The focal length required to obtain the desired image resolution
+    """
     focal_length = working_dist / ((resolution / pixels_size[0]))
     return focal_length
 
@@ -237,7 +246,6 @@ def blender_symmetric_stereo(cam_data_0: CameraData, stereo_angle:float) -> Came
         CameraData: A CameraData dataclass for the second camera in the stereo
             setup
     """
-    # TODO: Make this so only stereo angle needed
     cam_data_1 = copy.deepcopy(cam_data_0)
     base = 2 * cam_data_0.pos_world[2] * np.tan(np.radians(stereo_angle) / 2)
 
