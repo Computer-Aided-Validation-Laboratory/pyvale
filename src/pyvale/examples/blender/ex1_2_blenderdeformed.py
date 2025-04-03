@@ -43,7 +43,7 @@ def main() -> None:
                                          pos_world=(0, 0, 400),
                                          rot_world=Rotation.from_euler("xyz",
                                                                        [0, 0, 0]),
-                                         energy=1 * 10**6)
+                                         energy=1)
     light = pyvale.BlenderScene.add_light(light_data)
 
     # Apply the speckle pattern
@@ -71,6 +71,7 @@ def main() -> None:
                                                    render_data=render_data,
                                                    part=part,
                                                    save=True)
+
     elif render_images is False:
         pyvale.BlenderScene.deform_all_timesteps(sim_data, part)
 

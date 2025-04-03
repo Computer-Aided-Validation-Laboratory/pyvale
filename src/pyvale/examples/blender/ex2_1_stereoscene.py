@@ -59,7 +59,7 @@ def main() -> None:
                                          pos_world=(0, 0, 200),
                                          rot_world=Rotation.from_euler("xyz",
                                                                        [0, 0, 0]),
-                                         energy=400 * 10**3)
+                                         energy=1)
     light = pyvale.BlenderScene.add_light(light_data)
 
     # Apply the speckle pattern

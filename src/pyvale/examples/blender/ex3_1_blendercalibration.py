@@ -48,8 +48,7 @@ def main() -> None:
                                                  stereo_angle=15.0)
 
     stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
-    # calib_filepath = Path.cwd() / 'src/pyvale/data/blender/blender_images/calibration2'
-    calib_filepath = Path(r"C:\Users\nq0347\OneDrive - UK Atomic Energy Authority\Cryo project\Computational\Pyvale\workstation/cal2")
+    calib_filepath = Path.cwd() / 'src/pyvale/data/blender/blender_images/calibration2'
     pyvale.BlenderTools.generate_calib_file(stereo_data, calib_filepath)
 
     # Add the light
@@ -57,7 +56,7 @@ def main() -> None:
                                          pos_world=(0, 0, 200),
                                          rot_world=Rotation.from_euler("xyz",
                                                                        [0, 0, 0]),
-                                         energy=400 * 10**3)
+                                         energy=1)
     light = pyvale.BlenderScene.add_light(light_data)
 
     # Apply the speckle pattern
@@ -79,10 +78,10 @@ def main() -> None:
                                     save_dir=save_dir,
                                     save_name=save_name,
                                     samples=1)
-    calibration_data = pyvale.CalibrationData(angle_lims=(-5, 5),
+    calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
                                               angle_step=5,
-                                              plunge_lims=(-5, 5),
-                                              plunge_step=5)
+                                              plunge_lims=(-10, 10),
+                                              plunge_step=10)
 
     pyvale.BlenderTools.calibration_images(render_data, calibration_data, part)
 
