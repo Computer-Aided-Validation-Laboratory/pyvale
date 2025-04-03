@@ -103,6 +103,8 @@ def main() -> None:
     print(80*"-")
     print()
 
+
+
     print(80*"-")
     total_frames = render_mesh.fields_render.shape[1]*render_mesh.fields_render.shape[2]
     print(f"Time steps to render: {render_mesh.fields_render.shape[1]}")
@@ -110,16 +112,13 @@ def main() -> None:
     print(f"Total frames to render: {total_frames}")
     print(80*"-")
 
-    fields_to_render = render_mesh.fields_render
-    fields_to_render = np.ascontiguousarray(fields_to_render[:,-1,:])
-
     print(80*"=")
     print("RASTER ELEMENT LOOP START")
     print(80*"=")
 
     num_loops = 1
     loop_times = np.zeros((num_loops,),dtype=np.float64)
-    cam_data.sub_samp = 1
+    cam_data.sub_samp = 2
 
     print()
     print("Running raster loop.")
@@ -129,15 +128,16 @@ def main() -> None:
 
         (image_buffer,
          depth_buffer,
-         elems_in_image) = pyv.rastercyth.raster_frame(
+         elems_in_image) = pyv.rastercyth.raster_static_mesh(
                                                 render_mesh.coords,
                                                 render_mesh.connectivity,
-                                                fields_to_render,
+                                                render_mesh.fields_render,
                                                 cam_data.world_to_cam_mat,
                                                 cam_data.pixels_num,
                                                 cam_data.image_dims,
                                                 cam_data.image_dist,
-                                                cam_data.sub_samp)
+                                                cam_data.sub_samp,
+                                                0)
 
         loop_times[nn] = time.perf_counter() - loop_start
 
@@ -146,18 +146,21 @@ def main() -> None:
     print("PERFORMANCE TIMERS")
     print(f"Elements in image = {elems_in_image}")
     print(f"Image buffer shape = {image_buffer.shape}")
-    print(f"Avg. render time = {np.mean(loop_times):.4f} seconds")
+    print(f"Avg. total render time = {np.mean(loop_times):.4f} seconds")
+    print(f"Avg. render time per frame = {(np.mean(loop_times)/total_frames):.4f} seconds")
     print(80*"=")
+
 
     #===========================================================================
     # PLOTTING
     plot_on = True
+    plot_frame = -1
     plot_field = 0
 
-    depth_to_plot = np.copy(np.array(depth_buffer))
-    depth_to_plot[depth_buffer > 10*cam_data.image_dist] = np.nan
-    image_to_plot = np.copy(np.array(image_buffer[:,:,plot_field]))
-    image_to_plot[depth_buffer > 10*cam_data.image_dist] = np.nan
+    depth_to_plot = np.copy(np.array(depth_buffer[:,:,plot_frame]))
+    depth_to_plot[depth_buffer[:,:,plot_frame] > 10*cam_data.image_dist] = np.nan
+    image_to_plot = np.copy(np.array(image_buffer[:,:,plot_frame,plot_field]))
+    image_to_plot[depth_buffer[:,:,plot_frame]> 10*cam_data.image_dist] = np.nan
 
     if plot_on:
         plot_opts = pyv.PlotOptsGeneral()

@@ -37,6 +37,8 @@ def main() -> None:
     #sim_path = pyv.DataSet.render_mechanical_3d_path()
     disp_comps = ("disp_x","disp_y","disp_z")
     sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
+    #sim_path = pyv.DataSet.render_mechanical_3d_path()
+
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
     # Scale m -> mm
@@ -153,7 +155,10 @@ def main() -> None:
 
     plot_on = True
     if plot_on:
-        pyv.plot_field_image(images[:,:,-1,0])
+        (fig,ax) = pyv.plot_field_image(images[:,:,-1,0],
+                                        title_str="Disp. y, [mm]")
+        image_save_path = Path.home()/"pyvale"/"exampleoutput"/"raster_field_image.png"
+        fig.savefig(image_save_path, dpi=300, format="png", bbox_inches="tight")
         plt.show()
 
 if __name__ == "__main__":

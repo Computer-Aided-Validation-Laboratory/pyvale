@@ -50,6 +50,7 @@ def plot_measurement_image(camera: CameraBasic2D,
 
 
 def plot_field_image(image: np.ndarray,
+                     title_str: str | None = None,
                      plot_opts: PlotOptsGeneral | None = None
                      ) -> tuple[Any,Any]:
 
@@ -64,7 +65,8 @@ def plot_field_image(image: np.ndarray,
                           #origin='lower')
         ax.set_aspect('equal','box')
         fig.colorbar(cset)
-        ax.set_title("Field Image",fontsize=plot_opts.font_head_size)
+        if title_str is not None:
+            ax.set_title(title_str,fontsize=plot_opts.font_head_size)
         ax.set_xlabel(r"x ($px$)",
                     fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
         ax.set_ylabel(r"y ($px$)",
