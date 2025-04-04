@@ -163,7 +163,7 @@ class BlenderTools():
         bpy.context.view_layer.objects.active = part
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
-        cube_size = resolution * 2500 #TODO: Change this back
+        cube_size = resolution * 1500 #TODO: Change this back
 
         if cal is not True:
             bpy.ops.uv.cube_project(scale_to_bounds = False,
