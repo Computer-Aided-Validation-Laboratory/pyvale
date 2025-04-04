@@ -50,6 +50,8 @@ def main() -> None:
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
 
+
+
     print()
     print(80*"-")
     print("MESH DATA:")

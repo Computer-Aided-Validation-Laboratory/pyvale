@@ -266,16 +266,21 @@ def edge_function_pt(vert_0: cython.double[:],
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def average_image(subpx_image: cython.double[:,:],
+def average_image(image_subpx: cython.double[:,:],
                   sub_samp: cython.int,
-                  image_buffer: cython.double[:,:]
                   ) -> cython.double[:,:]:
 
     if sub_samp <= 1:
-        return subpx_image[:,:]
+        return np.asarray(image_subpx[:,:])
 
-    num_subpx_y: cython.size_t = subpx_image.shape[0]
-    num_subpx_x: cython.size_t = subpx_image.shape[1]
+    px_num_y: cython.size_t = int(ceil(image_subpx.shape[0]/sub_samp))
+    px_num_x: cython.size_t = int(ceil(image_subpx.shape[1]/sub_samp))
+
+    image_buff_avg_np = np.full((px_num_y,px_num_x),0.0,dtype=np.float64)
+    image_buff_avg: cython.double[:,:] = image_buff_avg_np
+
+    num_subpx_y: cython.size_t = image_subpx.shape[0]
+    num_subpx_x: cython.size_t = image_subpx.shape[1]
     subpx_per_px: cython.double = float(sub_samp*sub_samp)
     ss_size: cython.size_t = sub_samp
 
@@ -294,11 +299,11 @@ def average_image(subpx_image: cython.double[:,:],
             px_sum = 0.0
             for sy in range(ss_size):
                 for sx in range(ss_size):
-                    px_sum += subpx_image[ss_size*iy+sy,ss_size*ix+sx]
+                    px_sum += image_subpx[ss_size*iy+sy,ss_size*ix+sx]
 
-            image_buffer[iy,ix] = px_sum / subpx_per_px
+            image_buff_avg[iy,ix] = px_sum / subpx_per_px
 
-    return image_buffer[:,:]
+    return image_buff_avg
 
 @cython.nogil
 @cython.cfunc
@@ -306,16 +311,13 @@ def average_image(subpx_image: cython.double[:,:],
 @cython.wraparound(False)
 @cython.cdivision(True)
 @cython.exceptval(check=False)
-def _average_image(subpx_image: cython.double[:,:],
-                  sub_samp: cython.int,
-                  image_buffer: cython.double[:,:]
-                  ) -> cython.double[:,:]:
+def _average_image(image_buff_subpx_in: cython.double[:,:],
+                   sub_samp: cython.int,
+                   image_buff_avg_out: cython.double[:,:]
+                   ) -> cython.int:
 
-    if sub_samp <= 1:
-        return subpx_image[:,:]
-
-    num_subpx_y: cython.size_t = subpx_image.shape[0]
-    num_subpx_x: cython.size_t = subpx_image.shape[1]
+    num_subpx_y: cython.size_t = image_buff_subpx_in.shape[0]
+    num_subpx_x: cython.size_t = image_buff_subpx_in.shape[1]
     subpx_per_px: cython.double = float(sub_samp*sub_samp)
     ss_size: cython.size_t = sub_samp
 
@@ -334,11 +336,12 @@ def _average_image(subpx_image: cython.double[:,:],
             px_sum = 0.0
             for sy in range(ss_size):
                 for sx in range(ss_size):
-                    px_sum += subpx_image[ss_size*iy+sy,ss_size*ix+sx]
+                    px_sum += image_buff_subpx_in[ss_size*iy+sy,ss_size*ix+sx]
 
-            image_buffer[iy,ix] = px_sum / subpx_per_px
+            image_buff_avg_out[iy,ix] = px_sum / subpx_per_px
 
-    return image_buffer[:,:]
+    return 0
+
 
 # #///////////////////////////////////////////////////////////////////////////////
 # @cython.ccall # python+C or cython.cfunc for C only
@@ -436,14 +439,54 @@ def _raster_frame(coords: cython.double[:,:],
                  px_coord_buff: cython.double[:],
                  weights_buff: cython.double[:],
                  ) -> cython.size_t:
+    """Rasters a single frame and all associated fields into the image and depth
+    buffer provided as inputs to the function. This is a pure cython function
+    with the GIL released for parallelisation. All fields (textures) are
+    rendered in a sub-loop so that the depth buffer and inside/outside test is
+    only performed once for all fields to be rendered.
 
-    # coords.shape=(num_nodes,coords[x,y,z,w])
-    # coonect.shape=(num_elems,nodes_per_elem)
-    # fields_to_render.shape=(num_nodes,num_fields)
-    # world_to_cam_mat.shape = (4,4)
-    # num_pixels.shape=(2,) (num_px_x,num_px_y)
-    # image_buff_avg.shape=(num_px_y,num_px_x,num_frames)
-    # depth_buff_avg.shape=(num_px_y,num_px_x)
+    Parameters
+    ----------
+    coords : cython.double[:,:]
+        Input. shape=(num_nodes,coords[x,y,z,w])
+    connect : cython.size_t[:,:]
+        Input. shape=(num_elems,nodes_per_elem)
+    fields_to_render : cython.double[:,:]
+        Input. shape=(num_nodes,num_fields)
+    world_to_cam_mat : cython.double[:,:]
+        Input. Homogeneous coordinate transformation matrix from world to camera
+         coordinates. shape=(4,4).
+    num_pixels : cython.int[:]
+        Input. shape=(2 [num_px_x,num_px_y],)
+    image_dims : cython.double[:]
+        Input. shape=(2 [fov_size_x,fov_size_y],)
+    image_dist : cython.double
+        Input. Distance from the camera to the region of interest in the image
+        in length units consistent with the image dimensions and coordinates.
+    sub_samp : cython.int
+        Number of subsamples per pixel for anti-aliasing.
+    image_buff_avg : cython.double[:,:,:]
+        Output buffer. shape=(num_px_y,num_px_x,num_fields)
+    depth_buff_avg : cython.double[:,:]
+        Output buffer. shape=(num_px_y,num_px_x)
+    image_buff_subpx : cython.double[:,:,:]
+        Processing buffer (output). shape=(num_subpx_y,num_subpx_x,num_fields)
+    depth_buff_subpx : cython.double[:,:]
+        Processing buffer (output). shape=(num_subpx_y,num_subpx_x)
+    nodes_raster_buff : cython.double[:,:]
+        Processing buffer (output). shape=(nodes_per_elem, 4 coord[x,y,z,w])
+    field_raster_buff : cython.double[:]
+        Processing buffer (output). shape=(nodes_per_elem,)
+    px_coord_buff : cython.double[:]
+        Processing buffer (output). shape=(nodes_per_elem,)
+    weights_buff : cython.double[:]
+        Processing buffer (output). shape=(nodes_per_elem,)
+
+    Returns
+    -------
+    cython.size_t
+        Number of rendered elements after backface culling and cropping.
+    """
 
     xx: cython.size_t = 0
     yy: cython.size_t = 1
@@ -610,16 +653,17 @@ def _raster_frame(coords: cython.double[:,:],
             bound_coord_y += coord_step
             bound_ind_y += 1
 
-    if sub_samp == 1:
-        depth_buff_avg[:,:] = depth_buff_subpx[:,:]
-        image_buff_avg[:,:,:] = image_buff_subpx[:,:,:]
-    else:
-        depth_buff_avg = _average_image(depth_buff_subpx,sub_samp,depth_buff_avg)
+    # if sub_samp == 1:
+    #     depth_buff_avg[:,:] = depth_buff_subpx[:,:]
+    #     image_buff_avg[:,:,:] = image_buff_subpx[:,:,:]
+    # else:
 
-        for ff in range(fields_num):
-            image_buff_avg[:,:,ff] = _average_image(image_buff_subpx[:,:,ff],
-                                                sub_samp,
-                                                image_buff_avg[:,:,ff])
+    _average_image(depth_buff_subpx,sub_samp,depth_buff_avg)
+
+    for ff in range(fields_num):
+        _average_image(image_buff_subpx[:,:,ff],
+                        sub_samp,
+                        image_buff_avg[:,:,ff])
 
     return elems_in_image
 

@@ -43,7 +43,7 @@ def main() -> None:
 
     # Extracts the surface mesh from a full 3d simulation for rendering
     render_mesh = pyv.create_render_mesh(sim_data,
-                                        ("disp_y","disp_x","disp_z"),
+                                        ("disp_y","disp_x"),
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
 
@@ -103,8 +103,6 @@ def main() -> None:
     print(80*"-")
     print()
 
-
-
     print(80*"-")
     total_frames = render_mesh.fields_render.shape[1]*render_mesh.fields_render.shape[2]
     print(f"Time steps to render: {render_mesh.fields_render.shape[1]}")
@@ -118,7 +116,7 @@ def main() -> None:
 
     num_loops = 1
     loop_times = np.zeros((num_loops,),dtype=np.float64)
-    cam_data.sub_samp = 2
+    cam_data.sub_samp = 1
 
     print()
     print("Running raster loop.")
@@ -154,44 +152,45 @@ def main() -> None:
     #===========================================================================
     # PLOTTING
     plot_on = True
-    plot_frame = -1
-    plot_field = 0
+    plot_frame = 3
+    plot_field = 1
 
-    depth_to_plot = np.copy(np.array(depth_buffer[:,:,plot_frame]))
-    depth_to_plot[depth_buffer[:,:,plot_frame] > 10*cam_data.image_dist] = np.nan
-    image_to_plot = np.copy(np.array(image_buffer[:,:,plot_frame,plot_field]))
-    image_to_plot[depth_buffer[:,:,plot_frame]> 10*cam_data.image_dist] = np.nan
+    # depth_to_plot = np.copy(np.asarray(depth_buffer[:,:,plot_frame]))
+    # depth_to_plot[depth_buffer[:,:,plot_frame] > 10*cam_data.image_dist] = np.nan
+    # image_to_plot = np.copy(np.asarray(image_buffer[:,:,plot_frame,plot_field]))
+    # image_to_plot[depth_buffer[:,:,plot_frame] > 10*cam_data.image_dist] = np.nan
 
     if plot_on:
         plot_opts = pyv.PlotOptsGeneral()
 
-        (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
-                                layout='constrained')
-        fig.set_dpi(plot_opts.resolution)
-        cset = plt.imshow(depth_to_plot,
-                        cmap=plt.get_cmap(plot_opts.cmap_seq))
-                        #origin='lower')
-        ax.set_aspect('equal','box')
-        fig.colorbar(cset)
-        ax.set_title("Depth buffer",fontsize=plot_opts.font_head_size)
-        ax.set_xlabel(r"x ($px$)",
-                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
-        ax.set_ylabel(r"y ($px$)",
-                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+        for ff in range(plot_frame):
+            (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
+                                    layout='constrained')
+            fig.set_dpi(plot_opts.resolution)
+            cset = plt.imshow(depth_buffer[:,:,ff],
+                            cmap=plt.get_cmap(plot_opts.cmap_seq))
+                            #origin='lower')
+            ax.set_aspect('equal','box')
+            fig.colorbar(cset)
+            ax.set_title(f"Depth buffer: {ff}",fontsize=plot_opts.font_head_size)
+            ax.set_xlabel(r"x ($px$)",
+                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+            ax.set_ylabel(r"y ($px$)",
+                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
 
-        (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
-                                layout='constrained')
-        fig.set_dpi(plot_opts.resolution)
-        cset = plt.imshow(image_to_plot,
-                        cmap=plt.get_cmap(plot_opts.cmap_seq))
-                        #origin='lower')
-        ax.set_aspect('equal','box')
-        fig.colorbar(cset)
-        ax.set_title("Field Image",fontsize=plot_opts.font_head_size)
-        ax.set_xlabel(r"x ($px$)",
-                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
-        ax.set_ylabel(r"y ($px$)",
-                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+            (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
+                                    layout='constrained')
+            fig.set_dpi(plot_opts.resolution)
+            cset = plt.imshow(image_buffer[:,:,ff,plot_field],
+                            cmap=plt.get_cmap(plot_opts.cmap_seq))
+                            #origin='lower')
+            ax.set_aspect('equal','box')
+            fig.colorbar(cset)
+            ax.set_title(f"Field Image: {ff}",fontsize=plot_opts.font_head_size)
+            ax.set_xlabel(r"x ($px$)",
+                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+            ax.set_ylabel(r"y ($px$)",
+                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
 
         plt.show()
 
