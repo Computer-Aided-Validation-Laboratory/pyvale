@@ -190,7 +190,7 @@ def mult_mat44_by_vec3(mat44: cython.double[:,:], vec3_in: cython.double[:],
     return vec3_out
 
 
-@cython.nogil
+#@cython.nogil
 @cython.cfunc # python+C or cython.cfunc for C only
 @cython.boundscheck(False) # Turn off array bounds checking
 @cython.wraparound(False)  # Turn off negative indexing
@@ -509,7 +509,6 @@ def _raster_frame(coords: cython.double[:,:],
 
     for ee in range(elem_count):
 
-        print(f"nodes_raster_buff[{ee},:] = ")
         for nn in range(nodes_per_elem):
             # shape=(nodes_per_elem, coord[X,Y,Z,W])
             nodes_raster_buff[nn,:] = world_to_raster_coords(coords[connect[ee,nn],:],
@@ -519,8 +518,6 @@ def _raster_frame(coords: cython.double[:,:],
                                                         num_pixels,
                                                         nodes_raster_buff[nn,:])
 
-            print(f"nn={nn},[{nodes_raster_buff[nn,0]},{nodes_raster_buff[nn,1]},{nodes_raster_buff[nn,2]}]")
-        print()
 
         elem_area: cython.double = edge_function(nodes_raster_buff[0,:],
                                                  nodes_raster_buff[1,:],
@@ -528,6 +525,10 @@ def _raster_frame(coords: cython.double[:,:],
 
         if elem_area < -tol: # Backface culling
             continue
+
+        print(80*"-")
+        print(f"{ee} ELEM AREA = {elem_area}")
+        print(80*"-")
 
         x_min: cython.double = vec_min_double(nodes_raster_buff[:,xx])
         x_max: cython.double = vec_max_double(nodes_raster_buff[:,xx])
