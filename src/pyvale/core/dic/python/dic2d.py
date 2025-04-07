@@ -90,3 +90,11 @@ class DIC2D:
         print("This is a work in progress...")
 
         return None
+
+
+    def build_info(self):
+        """
+        Returns the build information of the diccppinterface module.
+        """
+        build = diccppinterface.build_info();
+        return build;

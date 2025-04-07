@@ -19,28 +19,19 @@ namespace util {
 
 
 
-    // displacements that can be accesses from anywhere
-    double u;
-    double v;
-    double mag;
-
-
-    void extract_image(std::vector<double> &image_def,
+    void extract_image(util::Image *image_def,
                        int *image_def_stack, 
-                       int image_number,
-                       int px_horizontal,
-                       int px_vertical){
+                       int image_number){
 
         // extract a single image
-        std::vector<double> img(px_horizontal * px_vertical);
+        std::vector<double> img(image_def->px_horizontal * image_def->px_vertical);
         int count = 0;
 
+        for (int px_vert = 0; px_vert < image_def->px_vertical; px_vert++){
+            for (int px_hori = 0; px_hori < image_def->px_horizontal; px_hori++){
 
-        for (int px_vert = 0; px_vert < px_vertical; px_vert++){
-            for (int px_hori = 0; px_hori < px_horizontal; px_hori++){
-
-                int index = image_number * px_horizontal * px_vertical + px_vert * px_horizontal + px_hori;
-                image_def[count] = image_def_stack[index];
+                int index = image_number * image_def->px_horizontal * image_def->px_vertical + px_vert * image_def->px_horizontal + px_hori;
+                image_def->vals[count] = image_def_stack[index];
                 // std::cout << image_def[count] << " ";
                 count++;
             }
@@ -48,29 +39,24 @@ namespace util {
         }
     }
 
-    void extract_ss(std::vector<double> &image_def, 
-                        std::vector<double> &ss, 
-                        std::vector<double> &ss_coords_x,
-                        std::vector<double> &ss_coords_y, 
-                        int ss_x, 
-                        int ss_y, 
-                        int ss_size, 
-                        int px_horizontal, 
-                        int px_vertical){
+
+
+
+    void extract_ss(int ss_x, int ss_y, util::Image *image_def, util::Subset *ss_def){
 
         int count = 0;
         int index;
-        for (int px_y = ss_y; px_y < ss_y+ss_size; px_y++){
-            for (int px_x = ss_x; px_x < ss_x+ss_size; px_x++){
+
+        for (int px_y = ss_y; px_y < ss_y+ss_def->size; px_y++){
+            for (int px_x = ss_x; px_x < ss_x+ss_def->size; px_x++){
 
                 // get coordinate values
-                ss_coords_x[count] = px_x; 
-                ss_coords_y[count] = px_y; 
+                ss_def->x[count] = px_x; 
+                ss_def->y[count] = px_y; 
 
                 // get pixel values
-                index = px_y * px_horizontal + px_x;
-                ss[count] = image_def[index];
-                // std::cout << ss_size << " " << ss_x << " " << ss_y << " " << " " << ss_coords_x[count] << " " << ss_coords_y[count] << " " << ss[count] << std::endl;
+                index = px_y * image_def->px_horizontal + px_x;
+                ss_def->vals[count] = image_def->vals[index];
                 count++;
                 
             }
@@ -110,17 +96,7 @@ namespace util {
                 next_ss:;
             }
         }
-
         return ss_coord_list;
-    }
-
-    void resize_ss(std::vector<double> &ss, std::vector<double> &ss_x, std::vector<double> &ss_y, int ss_size) {
-        ss.resize(ss_size * ss_size, 0.0);
-        ss_x.resize(ss_size * ss_size, 0.0);
-        ss_y.resize(ss_size * ss_size, 0.0);
-    }
-
-    
-
+    }    
 
 }   

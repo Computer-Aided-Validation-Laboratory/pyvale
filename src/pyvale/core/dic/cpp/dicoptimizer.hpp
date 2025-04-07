@@ -12,9 +12,10 @@
 #include <vector>
 #include <iostream>
 #include <chrono>
+#include <array>
 
 // Program Header files
-
+#include "./dicutil.hpp"
 
 
 namespace optimizer {
@@ -29,15 +30,34 @@ namespace optimizer {
         double costp; // cost function for current P values
         double costpdp; // cost function for P+deltaP values
         std::vector<double> g; // gradient
-        std::vector<double> dfdp; // derivative of shape function with repsect to parameters
+        std::vector<double> dfdp; // derivative of shape function with respect to parameters
         std::vector<double> H; // Hessian ( becomes (H + lambda * diag(H)) )
         std::vector<double> invH; // Used for inverse of (H + lambda * diag(H))
-        std::vector<double> ss_ref; // gray level values in reference subset
-        std::vector<double> ss_ref_x; // x coordinate values of ref susbet
-        std::vector<double> ss_ref_y; // y coordinate values of ref subset
         std::vector<double> p; // hard coded affine parameters
         std::vector<double> dp; // deltaP
         std::vector<double> pdp; // P + deltaP
+        int max_iter;
+        double tol;
+
+
+        // Constructor to initialize vectors and other parameters
+        Parameters(int max_iter_, double tol_)
+            : iter(0),
+            ftol(0.0),
+            xtol(0.0),
+            lambda(0.01),
+            costp(0.0),
+            costpdp(0.0),
+            g(6, 0.0),
+            dfdp(6, 0.0),
+            H(36, 0.0),
+            invH(36, 0.0),
+            p(6, 0.0),
+            dp(6, 0.0),
+            pdp(6, 0.0),
+            max_iter(max_iter_),
+            tol(tol_)
+        {}
     };
 
 
@@ -57,30 +77,23 @@ namespace optimizer {
     void init(std::string &, std::string &);
     void setCostFunction(const std::string& corr_crit);
     void setShapeFunction(const std::string& shape_func);
-    void debugPrint(int iter, double ftol, double xtol, const std::vector<double>& p);
-    void init_parameters(Parameters *params, int ss_size);
+    void debugPrint(int ss_x, int ss_y, int iter, double ftol, double xtol, const std::vector<double>& p);
+    void init_parameters(optimizer::Parameters *opt, int ss_size);
 
 
     // Optimization routine
-    Results solve(double, double, std::vector<double> &, std::vector<double> &,  std::vector<double> &, int, double, int, Parameters *params);
+    Results solve(double ss_x, double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
 
     // choice of cost function
-    void   ssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, int, Parameters *params);
-    void  nssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, int, Parameters *params);
-    void znssd(std::vector<double> &, std::vector<double> &,  std::vector<double> &, int, Parameters *params);
-
-
-    // brute force optimizations
-    void   brute_force_ssd(int ss_x, int ss_y, std::vector<double> &ss_def, std::vector<double> &ss_def_coords_x, std::vector<double> &ss_def_coords_y, int *image_ref, int px_vertical, int px_horizontal, int num_px_ss, int range, double tol);
-    void  brute_force_nssd(int ss_x, int ss_y, std::vector<double> &ss_def, std::vector<double> &ss_def_coords_x, std::vector<double> &ss_def_coords_y, int *image_ref, int px_vertical, int px_horizontal, int num_px_ss, int range, double tol);
-    void brute_force_znssd(int ss_x, int ss_y, std::vector<double> &ss_def, std::vector<double> &ss_def_coords_x, std::vector<double> &ss_def_coords_y, int *image_ref, int px_vertical, int px_horizontal, int num_px_ss, int range, double tol);
+    void   ssd(double ss_x, double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
+    void  nssd(double ss_x, double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
+    void znssd(double ss_x, double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
 
 
     // optimizer functions
     bool invertMatrix(const std::vector<double>& matrix, std::vector<double>& inverse);
     void update_shapefunc_parameters(std::vector<double> &pdp, std::vector<double> &p, std::vector<double> &dp, std::vector<double> &invH, std::vector<double> &gradient);
     void update_lambda(double costfunc_p, double costfunc_pdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda);
-    double computeMagnitude(const std::vector<double>& vec);
     void populate_hessian_lower_tri(std::vector<double> &H, double lambda);
     void affine_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p);
 

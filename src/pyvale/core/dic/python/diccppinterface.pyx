@@ -11,14 +11,32 @@ cimport numpy as np
 from libcpp.string cimport string
 import numpy as np
 import time
-from icecream import ic
 
 # import cpp libraries
 from libcpp.vector cimport vector
 from libcpp cimport bool
 
-cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
-    void dicengine(int* image_ref, 
+
+cdef extern from "../cpp/dicbuildinfo.hpp" namespace "dic":
+    const char* get_cpu_comp()
+    const char* get_git_info()
+    const char* get_git_dirty()
+    const char* get_hostname()
+    const char* get_build_time()
+
+
+def build_info():
+    return {
+        "g++ Compiler Version": get_cpu_comp().decode("utf-8"),
+        "Git Commit": get_git_info().decode("utf-8"),
+        "No. of C++ files with uncommited changes": int(get_git_dirty()),
+        "host": get_hostname().decode("utf-8"),
+        "build_time": get_build_time().decode("utf-8")
+    }
+
+
+cdef extern from "../cpp/dicmain.hpp" namespace "dic":
+    void engine_2d(int* image_ref, 
                     int* image_def, 
                     bool* image_roi, 
                     int px_vertical, 
@@ -42,6 +60,8 @@ cdef extern from "../cpp/dicengine.hpp" namespace "dic2d":
     extern vector[double] p_arr
     extern vector[double] ftol_arr
     extern vector[double] xtol_arr
+
+    
 
 # A wrapper function to call the C++ function from Python
 def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
@@ -78,7 +98,7 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
 
 
     # call c++ 2D DIC engine
-    dicengine(&image_ref[0,0],
+    engine_2d(&image_ref[0,0],
                &image_def_stack[0,0,0],
                &image_roi[0,0],
                px_vertical,

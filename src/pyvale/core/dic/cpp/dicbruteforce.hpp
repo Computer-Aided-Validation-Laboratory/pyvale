@@ -1,0 +1,165 @@
+   // ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
+
+
+#ifndef DICBRUTEFORCE_H
+#define DICBRUTEFORCE_H
+
+// STD library Header files
+#include <vector>
+#include <array>
+
+// Program Header files
+#include "./dicoptimizer.hpp"
+#include "./dicutil.hpp"
+
+namespace brute {
+
+    struct Parameters {
+        std::array<int, 2> p_rigid; // translation vector
+        int range;
+        int tol;
+
+    };
+    
+    /**
+     * @brief Initializes the cost function and search method.
+     * 
+     * Sets cost function and search method based on the provided string values.
+     * If an unrecognized value is provided, default 'SSD' and 'SPIRAL' values are used.
+     * 
+     * @param cost_function Reference to a string representing the cost function ("SSD", "NSSD", "ZNSSD").
+     * @param search_method Reference to a string representing the search method ("EXHAUSTIVE", "SPIRAL").
+     */
+    void init(std::string &cost_function, std::string &search_method);
+
+
+    /**
+     * @brief Performs a spiral search for the optimal translation.
+     * 
+     * Searches for the best rigid subset translation by following a spiral path from a starting point.
+     * The search stops when the cost function value is below a specified tolerance.
+     * 
+     * @param ss_x Horizontal coordinate of the starting point.
+     * @param ss_y Vertical coordinate of the starting point.
+     * @param image_ref Pointer to the reference image.
+     * @param px_vertical Vertical size of the image.
+     * @param px_horizontal Horizontal size of the image.
+     * @param ss_def Pointer to the subset definition.
+     * @param ss_ref Pointer to the reference subset.
+     * @param brute Pointer to the brute force parameters.
+     * @return A 2-element array containing the best translation (u, v).
+     */
+    std::array<int, 2> spiral_search(const int ss_x, 
+                                  const int ss_y, 
+                                  const int *image_ref, 
+                                  const int px_vertical, 
+                                  const int px_horizontal, 
+                                  util::Subset *ss_def, 
+                                  util::Subset *ss_ref, 
+                                  brute::Parameters *brute)
+
+    /**
+     * @brief Performs an exhaustive search for the optimal translation.
+     * 
+     * Searches all possible rigid subset translations within a specified range to cost function minimum.
+     * 
+     * @param ss_x Horizontal coordinate of the starting point.
+     * @param ss_y Vertical coordinate of the starting point.
+     * @param image_ref Pointer to the reference image.
+     * @param px_vertical Vertical size of the image.
+     * @param px_horizontal Horizontal size of the image.
+     * @param ss_def Pointer to the subset definition.
+     * @param ss_ref Pointer to the reference subset.
+     * @param brute Pointer to the brute force parameters.
+     * @return A 2-element array containing the best translation (u, v).
+     */
+    std::array<int, 2> exhaustive(const int ss_x, 
+                                  const int ss_y, 
+                                  const int *image_ref, 
+                                  const int px_vertical, 
+                                  const int px_horizontal, 
+                                  util::Subset *ss_def, 
+                                  util::Subset *ss_ref, 
+                                  brute::Parameters *brute)
+
+
+    /**
+     * @brief Computes the Sum of Squared Differences (SSD) cost function.
+     * 
+     * This function calculates the SSD between the subset in the reference image and the target subset.
+     * 
+     * @param ss_x Horizontal coordinate of the starting point.
+     * @param ss_y Vertical coordinate of the starting point.
+     * @param image_ref Pointer to the reference image.
+     * @param px_vertical Vertical size of the image.
+     * @param px_horizontal Horizontal size of the image.
+     * @param ss_def Pointer to the subset definition.
+     * @param ss_ref Pointer to the reference subset.
+     * @param brute Pointer to the brute force parameters.
+     * @return The computed SSD value.
+     */
+    double ssd(const int ss_x, 
+               const int ss_y, 
+               const int *image_ref, 
+               const int px_vertical, 
+               const int px_horizontal, 
+               util::Subset *ss_def, 
+               util::Subset *ss_ref,
+               brute::Parameters *brute)
+
+    /**
+     * @brief Computes the Normalized Sum of Squared Differences (NSSD) cost function.
+     * 
+     * This function calculates the NSSD between the subset in the reference image and the target subset.
+     * The cost is normalized by the sum of squared pixel values in the reference and target subsets.
+     * 
+     * @param ss_x Horizontal coordinate of the starting point.
+     * @param ss_y Vertical coordinate of the starting point.
+     * @param image_ref Pointer to the reference image.
+     * @param px_vertical Vertical size of the image.
+     * @param px_horizontal Horizontal size of the image.
+     * @param ss_def Pointer to the subset definition.
+     * @param ss_ref Pointer to the reference subset.
+     * @param brute Pointer to the brute force parameters.
+     * @return The computed NSSD value.
+     */
+    double nssd(const int ss_x, 
+                const int ss_y, 
+                const int *image_ref, 
+                const int px_vertical, 
+                const int px_horizontal, 
+                util::Subset *ss_def,
+                util::Subset *ss_ref,
+                brute::Parameters *brute)
+
+    /**
+     * @brief Computes the Zero-Mean Normalized Sum of Squared Differences (ZNSSD) cost function.
+     * 
+     * This function calculates the ZNSSD between the subset in the reference image and the target subset.
+     * The pixel values are normalized by their mean and the cost is computed based on the squared differences.
+     * 
+     * @param ss_x Horizontal coordinate of the starting point.
+     * @param ss_y Vertical coordinate of the starting point.
+     * @param image_ref Pointer to the reference image.
+     * @param px_vertical Vertical size of the image.
+     * @param px_horizontal Horizontal size of the image.
+     * @param ss_def Pointer to the subset definition.
+     * @param ss_ref Pointer to the reference subset.
+     * @param brute Pointer to the brute force parameters.
+     * @return The computed ZNSSD value.
+     */
+    double znssd(const int ss_x, 
+                 const int ss_y, 
+                 const int *image_ref, 
+                 const int px_vertical, 
+                 const int px_horizontal, 
+                 util::Subset *ss_def, 
+                 util::Subset *ss_ref,
+                 brute::Parameters *brute)
+}
+
+#endif //BRUTEFORCE

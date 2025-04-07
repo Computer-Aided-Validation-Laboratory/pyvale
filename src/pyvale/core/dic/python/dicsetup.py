@@ -11,9 +11,17 @@ from os.path import join as pjoin
 from setuptools import setup, Extension
 from Cython.Build import build_ext  # Use setuptools' build_ext
 import numpy as np
-
+import subprocess
+import socket
+import datetime
 
 os.environ["CC"] = "g++"
+
+cpu_comp = subprocess.getoutput("g++ --version | head -n 1 | cut -b 5-")
+git_commit = subprocess.getoutput("git rev-parse HEAD")
+git_dirty = subprocess.getoutput("git status -s | grep -v '?' | grep -E 'cpp/' | wc -l")
+hostname = socket.gethostname()
+build_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def find_in_path(name, path):
@@ -73,18 +81,26 @@ class custom_build_ext(build_ext):
 
 
 CUDA = locate_cuda()
-ic(CUDA)
 
 ext = Extension(
     'diccppinterface',
     sources=["diccppinterface.pyx",
                  "../cpp/dicutil.cpp",
-                 "../cpp/dicengine.cpp",
+                 "../cpp/dicmain.cpp",
                  "../cpp/dicinterpolator.cpp",
                  "../cpp/dicoptimizer.cpp",
+                 "../cpp/dicbruteforce.cpp",
+                 "../cpp/dicbuildinfo.cpp",
                  "../cuda/malloc.cu"],
     library_dirs=[CUDA['lib64']],
     language="c++",
+    define_macros=[
+        ("CPUCOMP", f'"{cpu_comp}"'),
+        ("GITINFO", f'"{git_commit}"'),
+        ("GITDIRTY", f'"{git_dirty}"'),
+        ("HOSTNAME", f'"{hostname}"'),
+        ("BUILDTIME", f'"{build_time}"'),
+    ],
     libraries=["cudart", "curand"],
     runtime_library_dirs=[CUDA['lib64'], np.get_include()],
     extra_compile_args={
@@ -116,7 +132,7 @@ setup(
 
 #         sources=["diccppinterface.pyx",
 #                  "../cpp/dicutil.cpp",
-#                  "../cpp/dicengine.cpp",
+#                  "../cpp/dicmain.cpp",
 #                  "../cpp/dicinterpolator.cpp",
 #                  "../cpp/dicoptimizer.cpp"],
 #         language="c++",

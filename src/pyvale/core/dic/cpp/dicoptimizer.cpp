@@ -11,12 +11,15 @@
 #include <numeric>
 #include <vector>
 #include <cmath>
+#include <array>
+
 
 
 // Program Header files
 #include "./dicinterpolator.hpp"
 #include "./dicoptimizer.hpp"
 #include "./dicutil.hpp"
+#include "./defines.hpp"
 
 
 namespace optimizer {
@@ -25,7 +28,7 @@ namespace optimizer {
 
 
     // function pointer for correlation criteria
-    void (*optimize_cost)(std::vector<double> &, std::vector<double> &, std::vector<double> &, int n, Parameters *params);
+    void (*optimize_cost)(double, double, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
     void (*shape_function)(double &, double &, double , double , std::vector<double> &);
     void (*dshape_dp)(std::vector<double>&, double, double, double, double, int);
 
@@ -40,46 +43,40 @@ namespace optimizer {
 
 
 
-    Results solve(double ss_x, double ss_y, std::vector<double>& ss_def,
-                    std::vector<double>& ss_def_x,
-                    std::vector<double>& ss_def_y,
-                    int n,
-                    double tol,
-                    int max_iter,
-                    Parameters *params) {
+    Results solve(const double ss_x, const double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt) {
 
-        params->iter = 0;
+        opt->iter = 0;
 
-        while (params->iter < max_iter) {
+        while (opt->iter < opt->max_iter) {
 
             // perform the optimization
-            optimize_cost(ss_def, ss_def_x, ss_def_y, n, params);
-            update_lambda(params->costp, params->costpdp, params->p, params->pdp, params->lambda);
+            optimize_cost(ss_x, ss_y, ss_def, ss_ref, opt);
+            update_lambda(opt->costp, opt->costpdp, opt->p, opt->pdp, opt->lambda);
 
 
 
-            params->ftol = std::abs(params->costpdp - params->costp) / std::abs(params->costp);
-            params->xtol = std::sqrt(std::inner_product(params->dp.begin(), params->dp.end(), params->dp.begin(), 0.0));
+            opt->ftol = std::abs(opt->costpdp - opt->costp) / (std::abs(opt->costp) + std::numeric_limits<double>::epsilon());
+            opt->xtol = std::sqrt(std::inner_product(opt->dp.begin(), opt->dp.end(), opt->dp.begin(), 0.0));
 
-            if (params->xtol < tol || params->ftol < tol){
-                // debugPrint(params->iter, params->ftol, params->xtol, params->p);
+            if ((opt->xtol < opt->tol) || (opt->ftol < opt->tol)){
+                // debugPrint(ss_x, ss_y, opt->iter, opt->ftol, opt->xtol, opt->p);
                 break;
             }
-            params->iter++;
+            opt->iter++;
         }
 
         // if its a bad subset and hits max_iterations then reset p values to 0.0 to prevent bad seeding.
-        if (params->iter == max_iter) {
-            debugPrint(params->iter, params->ftol, params->xtol, params->p);
-            std::fill(params->p.begin(), params->p.end(), 0.0);
+        if (opt->iter == opt->max_iter) {
+            // debugPrint(ss_x, ss_y, opt->iter, opt->ftol, opt->xtol, opt->p);
+            std::fill(opt->p.begin(), opt->p.end(), 0.0);
         }
 
         Results results;
-        affine_parameters_to_displacement(&results, ss_x, ss_y, params->p);
-        results.iter = params->iter;
-        results.ftol = params->ftol;
-        results.xtol = params->xtol;
-        results.p = params->p;
+        affine_parameters_to_displacement(&results, ss_x, ss_y, opt->p);
+        results.iter = opt->iter;
+        results.ftol = opt->ftol;
+        results.xtol = opt->xtol;
+        results.p = opt->p;
 
         return results;
     }
@@ -87,12 +84,13 @@ namespace optimizer {
 
 
 
-    void ssd(std::vector<double> &ss_def,
-             std::vector<double> &ss_def_x, 
-             std::vector<double> &ss_def_y, 
-             int n,
-             Parameters *params){
+    void ssd(const double ss_x,
+             const double ss_y, 
+             util::Subset *ss_def,
+             util::Subset *ss_ref,
+             optimizer::Parameters *opt){
 
+        const int n = ss_def->num_px;
         double dfdx;
         double dfdy;
 
@@ -100,79 +98,86 @@ namespace optimizer {
         interpolator::Data interp_data;
 
         // reset derivative and hessian values
-        std::fill(params->g.begin(), params->g.end(), 0.0);
-        std::fill(params->H.begin(), params->H.end(), 0.0);
+        std::fill(opt->g.begin(), opt->g.end(), 0.0);
+        std::fill(opt->H.begin(), opt->H.end(), 0.0);
 
         // loop over the subset values
         for (int i = 0; i < n; i++){
 
             // get subset coordinates based on shape function parameters
-            shape_function(params->ss_ref_x[i], params->ss_ref_y[i], ss_def_x[i], ss_def_y[i], params->p);
+            shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->p);
 
-            double ref_x = params->ss_ref_x[i];
-            double ref_y = params->ss_ref_y[i];
-            
+            double ref_x = ss_ref->x[i];
+            double ref_y = ss_ref->y[i];
+
+            // check if outside of image bounds
+            // if (ref_x < 0 || ref_x > 399 || ref_y < 0 || ref_y > 399) {
+            //     opt->costp = 1e8;
+            //     return;
+            // }
+
             // get the subset value and derivitives
             interp_data = interpolator::eval_bicubic_and_derivs(ref_x, ref_y);
-            params->ss_ref[i] = interp_data.interp_value;
-            double ref = params->ss_ref[i];
+            ss_ref->vals[i] = interp_data.interp_value;
+            double ref = ss_ref->vals[i];
 
             dfdx = interp_data.interp_dx;
             dfdy = interp_data.interp_dy;
 
             // derivative of shape function with repsect to parameters
-            dshape_dp(params->dfdp, ref_x, ref_y, dfdx, dfdy, n);
+            dshape_dp(opt->dfdp, ref_x, ref_y, dfdx, dfdy, n);
             
             // Upper triangle of Hessian Matrix
             for (int row = 0; row < 6; row++) {
-                double dfdp_row = params->dfdp[row];
+                double dfdp_row = opt->dfdp[row];
                 for (int col = row; col < 6; col++) {
-                    params->H[row * 6 + col] += dfdp_row * params->dfdp[col];
+                    opt->H[row * 6 + col] += dfdp_row * opt->dfdp[col];
                 }
             }
 
-            double dshape_df = - (ss_def[i] - ref);
-            params->g[0] += dshape_df * dfdx;
-            params->g[1] += dshape_df * dfdy;
-            params->g[2] += dshape_df * dfdx * ref_x;
-            params->g[3] += dshape_df * dfdx * ref_y;
-            params->g[4] += dshape_df * dfdy * ref_x;
-            params->g[5] += dshape_df * dfdy * ref_y;
+            double dshape_df = - (ss_def->vals[i] - ref);
+            opt->g[0] += dshape_df * dfdx;
+            opt->g[1] += dshape_df * dfdy;
+            opt->g[2] += dshape_df * dfdx * ref_x;
+            opt->g[3] += dshape_df * dfdx * ref_y;
+            opt->g[4] += dshape_df * dfdy * ref_x;
+            opt->g[5] += dshape_df * dfdy * ref_y;
 
         }
 
-        populate_hessian_lower_tri(params->H, params->lambda);
-        invertMatrix(params->H, params->invH);
-        update_shapefunc_parameters(params->pdp, params->p, params->dp, params->invH, params->g);
+        populate_hessian_lower_tri(opt->H, opt->lambda);
+        invertMatrix(opt->H, opt->invH);
+        update_shapefunc_parameters(opt->pdp, opt->p, opt->dp, opt->invH, opt->g);
 
         // calculate cost function for current and updated parameter values 
-        params->costp = 0.0;
+        opt->costp = 0.0;
         for (int i = 0; i < n; i++){
-            params->costp += (ss_def[i] - params->ss_ref[i]) * (ss_def[i] - params->ss_ref[i]);
+            opt->costp += (ss_def->vals[i] - ss_ref->vals[i]) * (ss_def->vals[i] - ss_ref->vals[i]);
         }
 
 
         // calculate cost function for updated parameter values
-        params->costpdp = 0.0;
+        opt->costpdp = 0.0;
         for (int i = 0; i < n; ++i) {
-            shape_function(params->ss_ref_x[i], params->ss_ref_y[i], ss_def_x[i], ss_def_y[i], params->pdp);
-            params->ss_ref[i] = interpolator::eval_bicubic(params->ss_ref_x[i], params->ss_ref_y[i]);
-            params->costpdp += (ss_def[i] - params->ss_ref[i]) * (ss_def[i] - params->ss_ref[i]);
+            shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->pdp);
+            ss_ref->vals[i] = interpolator::eval_bicubic(ss_ref->x[i], ss_ref->y[i]);
+            opt->costpdp += (ss_def->vals[i] - ss_ref->vals[i]) * (ss_def->vals[i] - ss_ref->vals[i]);
         }
     }
 
 
-    void nssd(std::vector<double> &ss_def,
-             std::vector<double> &ss_def_x, 
-             std::vector<double> &ss_def_y, 
-             int n,
-            Parameters *params){
+    void nssd(const double ss_x,
+              const double ss_y,
+              util::Subset *ss_def,
+              util::Subset *ss_ref,
+              optimizer::Parameters *opt){
 
 
         // reset derivative and hessian values
-        std::fill(params->g.begin(), params->g.end(), 0.0);
-        std::fill(params->H.begin(), params->H.end(), 0.0);
+        std::fill(opt->g.begin(), opt->g.end(), 0.0);
+        std::fill(opt->H.begin(), opt->H.end(), 0.0);
 
+        const int n = ss_def->num_px;
         std::vector<double> dfdx(n);
         std::vector<double> dfdy(n);
 
@@ -188,13 +193,20 @@ namespace optimizer {
         // get the normalisation values for both reference and deformed subsets
         for (int i = 0; i < n; ++i) {
 
-            shape_function(params->ss_ref_x[i], params->ss_ref_y[i], ss_def_x[i], ss_def_y[i], params->p);
-            interp_data = interpolator::eval_bicubic_and_derivs(params->ss_ref_x[i], params->ss_ref_y[i]);
-            params->ss_ref[i] = interp_data.interp_value;
+            shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->p);
+            
+            // check if outside of image bounds
+            // if (ss_ref->x[i] < 0 || ss_ref->x[i] > 399 || ss_ref->y[i] < 0 || ss_ref->y[i] > 399) {
+            //     opt->costp = 1e8;
+            //     return;
+            // }
+
+            interp_data = interpolator::eval_bicubic_and_derivs(ss_ref->x[i], ss_ref->y[i]);
+            ss_ref->vals[i] = interp_data.interp_value;
             dfdx[i] = interp_data.interp_dx;
             dfdy[i] = interp_data.interp_dy;
-            sum_squared_def += ss_def[i] * ss_def[i];
-            sum_squared_ref += params->ss_ref[i] * params->ss_ref[i];
+            sum_squared_def += ss_def->vals[i] * ss_def->vals[i];
+            sum_squared_ref += ss_ref->vals[i] * ss_ref->vals[i];
         }
 
         inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
@@ -205,79 +217,71 @@ namespace optimizer {
         for (int i = 0; i < n; i++){
             
             // derivative of shape function with repsect to parameters
-            dshape_dp(params->dfdp, params->ss_ref_x[i], params->ss_ref_y[i], dfdx[i], dfdy[i], n);
+            dshape_dp(opt->dfdp, ss_ref->x[i], ss_ref->y[i], dfdx[i], dfdy[i], n);
 
-            double dshape_df = - inv_sum_squared_ref * (ss_def[i] * inv_sum_squared_def - params->ss_ref[i] * inv_sum_squared_ref);
-            params->g[0] += dshape_df * dfdx[i];
-            params->g[1] += dshape_df * dfdy[i];
-            params->g[2] += dshape_df * dfdx[i] * params->ss_ref_x[i];
-            params->g[3] += dshape_df * dfdx[i] * params->ss_ref_y[i];
-            params->g[4] += dshape_df * dfdy[i] * params->ss_ref_x[i];
-            params->g[5] += dshape_df * dfdy[i] * params->ss_ref_y[i];
+            double dshape_df = - inv_sum_squared_ref * (ss_def->vals[i] * inv_sum_squared_def - ss_ref->vals[i] * inv_sum_squared_ref);
+            opt->g[0] += dshape_df * dfdx[i];
+            opt->g[1] += dshape_df * dfdy[i];
+            opt->g[2] += dshape_df * dfdx[i] * ss_ref->x[i];
+            opt->g[3] += dshape_df * dfdx[i] * ss_ref->y[i];
+            opt->g[4] += dshape_df * dfdy[i] * ss_ref->x[i];
+            opt->g[5] += dshape_df * dfdy[i] * ss_ref->y[i];
 
             // Upper triangle of Hessian Matrix
             for (int row = 0; row < 6; row++) {
-                double dfdp_row = params->dfdp[row];
+                double dfdp_row = opt->dfdp[row];
                 for (int col = row; col < 6; col++) {
-                    params->H[row * 6 + col] += inv_sum_squared_ref * inv_sum_squared_ref * dfdp_row * params->dfdp[col];
+                    opt->H[row * 6 + col] += inv_sum_squared_ref * inv_sum_squared_ref * dfdp_row * opt->dfdp[col];
                 }
             }
         }
 
-        populate_hessian_lower_tri(params->H, params->lambda);
-        invertMatrix(params->H, params->invH);
-        update_shapefunc_parameters(params->pdp, params->p, params->dp, params->invH, params->g);
-
-
-        //std::cout << df_dx << " " << df_dy << std::endl;
-        // std::cout << "dfdp  " << dfdp[0] << " " << dfdp[1] << " " << dfdp[2] << " " << dfdp[3] << " " << dfdp[4] << " " << dfdp[5] << std::endl;
-        // std::cout << "g  " << g[0] << " " << g[1] << " " << g[2] << " " << g[3] << " " << g[4] << " " << g[5] << std::endl;
-        // std::cout << "H  " << H[0][0] << " " << H[1][0] << " " << H[2][0] << " " << H[3][0] << " " << H[4][0] << " " << H[5][0] << std::endl;
-        // std::cout << "Hi " << invH[0][0] << " " << invH[1][0] << " " << invH[2][0] << " " << invH[3][0] << " " << invH[4][0] << " " << invH[5][0] << std::endl;
-        // std::cout << "p  " << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << " " << p[4] << " " << p[5] << std::endl;
-        // std::cout << "pd " << pdp[0] << " " << pdp[1] << " " << pdp[2] << " " << pdp[3] << " " << pdp[4] << " " << pdp[5] << std::endl;
+        populate_hessian_lower_tri(opt->H, opt->lambda);
+        invertMatrix(opt->H, opt->invH);
+        update_shapefunc_parameters(opt->pdp, opt->p, opt->dp, opt->invH, opt->g);
 
 
         // calculate cost function for current parameter values
-        params->costp = 0.0;
+        opt->costp = 0.0;
         for (int i = 0; i < n; i++){
-            double def_norm = ss_def[i] * inv_sum_squared_def;
-            double ref_norm = params->ss_ref[i] * inv_sum_squared_ref;
-            params->costp += (def_norm - ref_norm) * (def_norm - ref_norm);
+            double def_norm = ss_def->vals[i] * inv_sum_squared_def;
+            double ref_norm = ss_ref->vals[i] * inv_sum_squared_ref;
+            opt->costp += (def_norm - ref_norm) * (def_norm - ref_norm);
         }
 
 
         // calculate cost function for updated parameter values
-        params->costpdp = 0.0;
+        opt->costpdp = 0.0;
         sum_squared_ref = 0.0;
         for (int i = 0; i < n; ++i) {
-            shape_function(params->ss_ref_x[i], params->ss_ref_y[i], ss_def_x[i], ss_def_y[i], params->pdp);
-            params->ss_ref[i] = interpolator::eval_bicubic(params->ss_ref_x[i], params->ss_ref_y[i]);
-            sum_squared_ref += params->ss_ref[i] * params->ss_ref[i];
+            shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->pdp);
+            ss_ref->vals[i] = interpolator::eval_bicubic(ss_ref->x[i], ss_ref->y[i]);
+            sum_squared_ref += ss_ref->vals[i] * ss_ref->vals[i];
         }
 
         inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
 
         for (int i = 0; i < n; ++i) {
-            double def_norm = ss_def[i] * inv_sum_squared_def;
-            double ref_norm = params->ss_ref[i] * inv_sum_squared_ref;
-            params->costpdp += (def_norm - ref_norm) * (def_norm - ref_norm);        
+            double def_norm = ss_def->vals[i] * inv_sum_squared_def;
+            double ref_norm = ss_ref->vals[i] * inv_sum_squared_ref;
+            opt->costpdp += (def_norm - ref_norm) * (def_norm - ref_norm);        
         }
 
     }
 
 
-    void znssd(std::vector<double> &ss_def,
-             std::vector<double> &ss_def_x, 
-             std::vector<double> &ss_def_y, 
-             int n,
-             Parameters *params){
+    void znssd(const double ss_x,
+               const double ss_y,
+               util::Subset *ss_def,
+               util::Subset *ss_ref,
+               optimizer::Parameters *opt){
 
 
         // reset derivative and hessian values
-        std::fill(params->g.begin(), params->g.end(), 0.0);
-        std::fill(params->H.begin(), params->H.end(), 0.0);
+        std::fill(opt->g.begin(), opt->g.end(), 0.0);
+        std::fill(opt->H.begin(), opt->H.end(), 0.0);
 
+        const int n = ss_def->num_px;
         std::vector<double> dfdx(n);
         std::vector<double> dfdy(n);
 
@@ -288,17 +292,26 @@ namespace optimizer {
         interpolator::Data interp_data;
 
         // get the normalisation values for both reference and deformed subsets
+        // std::cout << ss_x << " " << ss_y << " ";
+
         for (int i = 0; i < n; ++i) {
 
-            shape_function(params->ss_ref_x[i], params->ss_ref_y[i], ss_def_x[i], ss_def_y[i], params->p);
+            shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->p);
 
-            interp_data = interpolator::eval_bicubic_and_derivs(params->ss_ref_x[i], params->ss_ref_y[i]);
-            params->ss_ref[i] = interp_data.interp_value;
+            // if (ss_ref->x[i] < 0 || ss_ref->x[i] > 399 || ss_ref->y[i] < 0 || ss_ref->y[i] > 399) {
+            //     opt->costp = 1e8;
+            //     return;
+            // }
+            // std::cout << opt->p[0] << " " << opt->p[1] << " " << opt->p[2] << " " << opt->p[3] << " " << opt->p[4] << " " << opt->p[5] << std::endl;
+            // std::cout << "ss_def " << ss_def->x[i] << " " << ss_def->y[i] << std::endl;
+            // std::cout << "ss_ref " << ss_ref->x[i] << " " << ss_ref->y[i] << std::endl;
+            interp_data = interpolator::eval_bicubic_and_derivs(ss_ref->x[i], ss_ref->y[i]);
+            ss_ref->vals[i] = interp_data.interp_value;
             dfdx[i] = interp_data.interp_dx;
             dfdy[i] = interp_data.interp_dy;
 
-            mean_ref += params->ss_ref[i];
-            mean_def += ss_def[i];
+            mean_ref += ss_ref->vals[i];
+            mean_def += ss_def->vals[i];
 
         }
 
@@ -308,8 +321,8 @@ namespace optimizer {
         double sum_squared_ref = 0.0;
         double sum_squared_def = 0.0;
         for (int i = 0; i < n; ++i) {
-            sum_squared_def += (ss_def[i] - mean_def) * (ss_def[i] - mean_def);
-            sum_squared_ref += (params->ss_ref[i] - mean_ref) * (params->ss_ref[i] - mean_ref);
+            sum_squared_def += (ss_def->vals[i] - mean_def) * (ss_def->vals[i] - mean_def);
+            sum_squared_ref += (ss_ref->vals[i] - mean_ref) * (ss_ref->vals[i] - mean_ref);
         }
 
         double inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
@@ -319,131 +332,79 @@ namespace optimizer {
         for (int i = 0; i < n; i++){
             
             // derivative of shape function with repsect to parameters
-            dshape_dp(params->dfdp, params->ss_ref_x[i], params->ss_ref_y[i], dfdx[i], dfdy[i], n);
+            dshape_dp(opt->dfdp, ss_ref->x[i], ss_ref->y[i], dfdx[i], dfdy[i], n);
 
-            double dshape_df = - inv_sum_squared_ref * ((ss_def[i] - mean_def) * inv_sum_squared_def - (params->ss_ref[i] - mean_ref) * inv_sum_squared_ref);
-            params->g[0] += dshape_df * dfdx[i];
-            params->g[1] += dshape_df * dfdy[i];
-            params->g[2] += dshape_df * dfdx[i] * params->ss_ref_x[i];
-            params->g[3] += dshape_df * dfdx[i] * params->ss_ref_y[i];
-            params->g[4] += dshape_df * dfdy[i] * params->ss_ref_x[i];
-            params->g[5] += dshape_df * dfdy[i] * params->ss_ref_y[i];
+            double dshape_df = - inv_sum_squared_ref * ((ss_def->vals[i] - mean_def) * inv_sum_squared_def - (ss_ref->vals[i] - mean_ref) * inv_sum_squared_ref);
+            opt->g[0] += dshape_df * dfdx[i];
+            opt->g[1] += dshape_df * dfdy[i];
+            opt->g[2] += dshape_df * dfdx[i] * ss_ref->x[i];
+            opt->g[3] += dshape_df * dfdx[i] * ss_ref->y[i];
+            opt->g[4] += dshape_df * dfdy[i] * ss_ref->x[i];
+            opt->g[5] += dshape_df * dfdy[i] * ss_ref->y[i];
 
             // Upper triangle of Hessian Matrix
             for (int row = 0; row < 6; row++) {
-                double dfdp_row = params->dfdp[row];
+                double dfdp_row = opt->dfdp[row];
                 for (int col = row; col < 6; col++) {
-                    params->H[row * 6 + col] += inv_sum_squared_ref * inv_sum_squared_ref * dfdp_row * params->dfdp[col];
+                    opt->H[row * 6 + col] += inv_sum_squared_ref * inv_sum_squared_ref * dfdp_row * opt->dfdp[col];
                 }
             }
         }
 
 
 
-        populate_hessian_lower_tri(params->H, params->lambda);
-        invertMatrix(params->H, params->invH);
-        update_shapefunc_parameters(params->pdp, params->p, params->dp, params->invH, params->g);
+        populate_hessian_lower_tri(opt->H, opt->lambda);
+        invertMatrix(opt->H, opt->invH);
+        update_shapefunc_parameters(opt->pdp, opt->p, opt->dp, opt->invH, opt->g);
 
         // #pragma omp critical
         // {
-        //     if (ss_def[0] == 17){
-        //         std::cout << "invs " << inv_sum_squared_def << " " << inv_sum_squared_ref << std::endl;
-        //         std::cout << "dfdx " << dfdx[0] << " " << dfdy[0] << std::endl;
-        //         std::cout << "dfdp " << params->dfdp[0] << " " << params->dfdp[1] << " " << params->dfdp[2] << " " << params->dfdp[3] << " " <<params->dfdp[4] << " " << params->dfdp[5] << std::endl;
-        //         std::cout << "g   " << params->g[0] << " " << params->g[1] << " " << params->g[2] << " " << params->g[3] << " " << params->g[4] << " " << params->g[5] << std::endl;
-        //         std::cout << "H   " << params->H[0] << " " << params->H[1] << " " << params->H[2] << " " << params->H[3] << " " << params->H[4] << " " << params->H[5] << std::endl;
-        //         std::cout << "Hi  " << params->invH[0] << " " << params->invH[1] << " " << params->invH[2] << " " << params->invH[3] << " " << params->invH[4] << " " << params->invH[5] << std::endl;
-        //         std::cout << "p   " << params->p[0] << " " << params->p[1] << " " << params->p[2] << " " << params->p[3] << " " << params->p[4] << " " << params->p[5] << std::endl;
-        //         std::cout << "pdp " << params->pdp[0] << " " << params->pdp[1] << " " << params->pdp[2] << " " << params->pdp[3] << " " << params->pdp[4] << " " << params->pdp[5] << std::endl;
-        //     }
+            // if (ss_def->vals[0] == 17){
+                // std::cout << "invs " << inv_sum_squared_def << " " << inv_sum_squared_ref << std::endl;
+                // std::cout << "dfdx " << dfdx[0] << " " << dfdy[0] << std::endl;
+                // std::cout << "dfdp " << opt->dfdp[0] << " " << opt->dfdp[1] << " " << opt->dfdp[2] << " " << opt->dfdp[3] << " " <<opt->dfdp[4] << " " << opt->dfdp[5] << std::endl;
+                // std::cout << "g   " << opt->g[0] << " " << opt->g[1] << " " << opt->g[2] << " " << opt->g[3] << " " << opt->g[4] << " " << opt->g[5] << std::endl;
+                // std::cout << "H   " << opt->H[0] << " " << opt->H[1] << " " << opt->H[2] << " " << opt->H[3] << " " << opt->H[4] << " " << opt->H[5] << std::endl;
+                // std::cout << "Hi  " << opt->invH[0] << " " << opt->invH[1] << " " << opt->invH[2] << " " << opt->invH[3] << " " << opt->invH[4] << " " << opt->invH[5] << std::endl;
+                // std::cout << "p   " << opt->p[0] << " " << opt->p[1] << " " << opt->p[2] << " " << opt->p[3] << " " << opt->p[4] << " " << opt->p[5] << std::endl;
+                // std::cout << "pdp " << opt->pdp[0] << " " << opt->pdp[1] << " " << opt->pdp[2] << " " << opt->pdp[3] << " " << opt->pdp[4] << " " << opt->pdp[5] << std::endl;
+            // }
         // }
 
         // calculate cost function for current parameter values
-        params->costp = 0.0;
+        opt->costp = 0.0;
         for (int i = 0; i < n; i++){
-            double def_norm = (ss_def[i] - mean_def) * inv_sum_squared_def;
-            double ref_norm = (params->ss_ref[i] - mean_ref) * inv_sum_squared_ref;
-            params->costp += (def_norm - ref_norm) * (def_norm - ref_norm);
+            double def_norm = (ss_def->vals[i] - mean_def) * inv_sum_squared_def;
+            double ref_norm = (ss_ref->vals[i] - mean_ref) * inv_sum_squared_ref;
+            opt->costp += (def_norm - ref_norm) * (def_norm - ref_norm);
         }
 
 
         // calculate cost function for updated parameter values
         mean_ref = 0.0;
         for (int i = 0; i < n; ++i) {
-            shape_function(params->ss_ref_x[i], params->ss_ref_y[i], ss_def_x[i], ss_def_y[i], params->pdp);
-            params->ss_ref[i] = interpolator::eval_bicubic(params->ss_ref_x[i], params->ss_ref_y[i]);
-            mean_ref += params->ss_ref[i];
+            shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->pdp);
+            ss_ref->vals[i] = interpolator::eval_bicubic(ss_ref->x[i], ss_ref->y[i]);
+            mean_ref += ss_ref->vals[i];
         }
 
         mean_ref /= n;
 
         sum_squared_ref = 0.0;
         for (int i = 0; i < n; ++i) {
-            sum_squared_ref += (params->ss_ref[i] - mean_ref) * (params->ss_ref[i] - mean_ref);
+            sum_squared_ref += (ss_ref->vals[i] - mean_ref) * (ss_ref->vals[i] - mean_ref);
         }
 
         inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
 
-        params->costpdp = 0.0;
+        opt->costpdp = 0.0;
         for (int i = 0; i < n; ++i) {
-            double def_norm = (ss_def[i] - mean_def) * inv_sum_squared_def;
-            double ref_norm = (params->ss_ref[i] - mean_ref) * inv_sum_squared_ref;
-            params->costpdp += (def_norm - ref_norm) * (def_norm - ref_norm);        
+            double def_norm = (ss_def->vals[i] - mean_def) * inv_sum_squared_def;
+            double ref_norm = (ss_ref->vals[i] - mean_ref) * inv_sum_squared_ref;
+            opt->costpdp += (def_norm - ref_norm) * (def_norm - ref_norm);        
         }
 
     }
-
-
-
-    
-    void brute_force_ssd(int ss_x, int ss_y, std::vector<double> &ss_def, std::vector<double> &ss_def_coords_x, std::vector<double> &ss_def_coords_y, int *image_ref, int px_vertical, int px_horizontal, int num_px_ss, int range, double tol){
-        
-        int u_at_costmin;
-        int v_at_costmin;
-        int costp_min = 1e6;
-
-        for (int v = -range; v < range; v++){
-            for (int u = -range; u < range; u++){
-
-                // reset cost function for new translation
-                double costp = 0.0;
-                int ss_ref_x;
-                int ss_ref_y;
-                int ss_ref;
-
-                for (int i = 0; i < num_px_ss; i++){
-                    
-
-                    // integer coordinates of the subset in the reference image
-                    ss_ref_x = ss_def_coords_x[i] + u;
-                    ss_ref_y = ss_def_coords_y[i] + v;
-                    
-                    // extract subset value from reference image
-                    ss_ref = image_ref[ss_ref_y * px_horizontal + ss_ref_x];
-
-                    // calculate cost function
-                    costp += (ss_def[i] - ss_ref) * (ss_def[i] - ss_ref);
-
-                }
-
-                if (costp < costp_min) {
-                    costp_min = costp;
-                }
-                // check if the cost is below the tolerance value
-                if (costp_min < tol){
-                    u_at_costmin = u;
-                    v_at_costmin = v;
-                    goto end;
-                }
-            }
-        }
-        end:;
-        
-        std::cout << u_at_costmin << " " << v_at_costmin <<  " " << costp_min << std::endl;
-
-
-    }
-
 
     // Inv matrix using Gauss Elim.
     bool invertMatrix(const std::vector<double>& matrix, std::vector<double>& inverse) {
@@ -627,7 +588,8 @@ namespace optimizer {
         }
     }
 
-    void debugPrint(int iter, double ftol, double xtol, const std::vector<double>& p) {
+    void debugPrint(int ss_x, int ss_y, int iter, double ftol, double xtol, const std::vector<double>& p) {
+        std::cout << ss_x << " " << ss_y << " ";
         std::cout << iter << " " << ftol << " " << xtol << " ";
         std::cout << p[0] << " ";
         std::cout << p[1] << " ";
@@ -636,23 +598,6 @@ namespace optimizer {
         std::cout << p[4] << " ";
         std::cout << p[5] << " ";
         std::cout << "\n";
-    }
-
-    void init_parameters(Parameters *params, int ss_size){
-        params->g.resize(6,0.0); 
-        params->dfdp.resize(6,0.0);
-        params->H.resize(36,0.0);
-        params->invH.resize(36,0.0); 
-        params->ss_ref.resize(ss_size*ss_size,0.0); 
-        params->ss_ref_x.resize(ss_size*ss_size,0.0);
-        params->ss_ref_y.resize(ss_size*ss_size,0.0); 
-        params->p.resize(6,0.0); 
-        params->dp.resize(6,0.0); 
-        params->pdp.resize(6,0.0);
-        params->iter = 0;
-        params->lambda = 0.01;
-        params->ftol = 0.0;
-        params->xtol = 0.0;
     }
 
 

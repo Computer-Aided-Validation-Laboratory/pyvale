@@ -12,6 +12,7 @@
 
 // Program Header files
 #include "./dicinterpolator.hpp"
+#include "./dicutil.hpp"
 
 
 
@@ -30,17 +31,21 @@ namespace interpolator {
     int px_vertical;
     int px_horizontal;
 
-    void bicubic_init(std::vector<double> &img, int px_horizontal, int px_vertical){
+    void bicubic_init(util::Image *img){
 
         // intitialise vars used globally within interpolator.
-        image = &img;
+        image = &img->vals;
+        px_vertical = img->px_vertical;
+        px_horizontal = img->px_horizontal;
+
+        // allocate memory for pixel coordinate arrays
         px_y.resize(px_vertical);
         px_x.resize(px_horizontal);
+
+        // allocate memory for image derivatives
         zx.resize(px_vertical*px_horizontal);
         zy.resize(px_vertical*px_horizontal);
         zxy.resize(px_vertical*px_horizontal);
-        interpolator::px_horizontal = px_horizontal;
-        interpolator::px_vertical = px_vertical;
 
 
         for (int i = 0; i < px_horizontal; ++i) {
