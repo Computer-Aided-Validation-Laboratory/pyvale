@@ -263,6 +263,17 @@ class CameraTools:
         boundbox_cam_leng = (np.max(bound_box_cam_vecs,axis=1)
                             - np.min(bound_box_cam_vecs,axis=1))
 
+        print(80*"-")
+        print(f"{bb_min=}")
+        print(f"{bb_max=}")
+        print()
+        print("Cam to world mat:")
+        print(cam_to_world_mat)
+        print()
+        print("World to cam mat:")
+        print(world_to_cam_mat)
+        print(80*"-")
+
         return np.array((boundbox_cam_leng[xx],boundbox_cam_leng[yy]))
 
     @staticmethod
@@ -305,6 +316,11 @@ class CameraTools:
                          + np.min(coords_world[:,:-1],axis=0))/2.0
         cam_z_dir_world = cam_rot.as_matrix()[:,-1]
         cam_pos_world = (roi_pos_world + np.max(image_dist)*cam_z_dir_world)
+
+        print(80*"-")
+        print(f"{fov_leng=}")
+        print(f"{image_dist=}")
+        print(80*"-")
 
         return (roi_pos_world,cam_pos_world)
 

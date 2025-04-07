@@ -27,9 +27,10 @@ def main() -> None:
 
     # This a path to an exodus *.e output file from MOOSE, this can be
     # replaced with a path to your own simulation file
-    #sim_path = pyv.DataSet.render_mechanical_3d_path()
     disp_comps = ("disp_x","disp_y","disp_z")
-    sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
+    #sim_path = pyv.DataSet.render_mechanical_3d_path()
+    sim_path = pyv.DataSet.render_simple_block_path()
+    #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
     # Scale m -> mm
@@ -67,8 +68,8 @@ def main() -> None:
 
     pixel_num = np.array((960,1280),dtype=np.int32)
     pixel_size = np.array((5.3e-3,5.3e-3),dtype=np.float64)
-    focal_leng: float = 50
-    cam_rot = Rotation.from_euler("zyx",(0.0,0.0,-30.0),degrees=True)
+    focal_leng: float = 50.0
+    cam_rot = Rotation.from_euler("zyx",(0.0,-30.0,-10.0),degrees=True)
     fov_scale_factor: float = 1.1
 
     (roi_pos_world,
@@ -95,8 +96,9 @@ def main() -> None:
     print(80*"-")
     print("CAMERA DATA:")
     print(80*"-")
-    print(f"{roi_pos_world=}")
-    print(f"{cam_pos_world=}")
+    print(f"{cam_data.image_dist=}")
+    print(f"{cam_data.roi_cent_world=}")
+    print(f"{cam_data.pos_world=}")
     print()
     print("World to camera matrix:")
     print(cam_data.world_to_cam_mat)
@@ -152,8 +154,8 @@ def main() -> None:
     #===========================================================================
     # PLOTTING
     plot_on = True
-    plot_frame = 3
-    plot_field = 1
+    plot_frames = (-1,)#range(3)
+    plot_field = 0
 
     # depth_to_plot = np.copy(np.asarray(depth_buffer[:,:,plot_frame]))
     # depth_to_plot[depth_buffer[:,:,plot_frame] > 10*cam_data.image_dist] = np.nan
@@ -163,7 +165,7 @@ def main() -> None:
     if plot_on:
         plot_opts = pyv.PlotOptsGeneral()
 
-        for ff in range(plot_frame):
+        for ff in plot_frames:
             (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
                                     layout='constrained')
             fig.set_dpi(plot_opts.resolution)

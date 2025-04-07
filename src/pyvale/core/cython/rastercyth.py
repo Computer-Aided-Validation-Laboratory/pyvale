@@ -190,7 +190,7 @@ def mult_mat44_by_vec3(mat44: cython.double[:,:], vec3_in: cython.double[:],
     return vec3_out
 
 
-#@cython.nogil
+@cython.nogil
 @cython.cfunc # python+C or cython.cfunc for C only
 @cython.boundscheck(False) # Turn off array bounds checking
 @cython.wraparound(False)  # Turn off negative indexing
@@ -414,7 +414,7 @@ def raster_frame(coords: cython.double[:,:],
 
 
 #///////////////////////////////////////////////////////////////////////////////
-#@cython.nogil
+@cython.nogil
 @cython.cfunc # python+C or cython.cfunc for C only
 @cython.boundscheck(False) # Turn off array bounds checking
 @cython.wraparound(False)  # Turn off negative indexing
@@ -526,10 +526,6 @@ def _raster_frame(coords: cython.double[:,:],
         if elem_area < -tol: # Backface culling
             continue
 
-        print(80*"-")
-        print(f"{ee} ELEM AREA = {elem_area}")
-        print(80*"-")
-
         x_min: cython.double = vec_min_double(nodes_raster_buff[:,xx])
         x_max: cython.double = vec_max_double(nodes_raster_buff[:,xx])
 
@@ -628,23 +624,6 @@ def _raster_frame(coords: cython.double[:,:],
                     px_field: cython.double = (vec_dot_double(field_raster_buff,
                                                               weights_buff)
                                                               *px_coord_z)
-                    # print(80*"-")
-                    # print(f"{ff=}")
-                    # print(f"{ee=}")
-                    # print(f"{connect[ee,0]=}")
-                    # print(f"{connect[ee,1]=}")
-                    # print(f"{connect[ee,2]=}")
-                    # print(f"{fields_to_render[connect[ee,0],0]=}")
-                    # print(f"{fields_to_render[connect[ee,1],0]=}")
-                    # print(f"{fields_to_render[connect[ee,2],0]=}")
-                    # print(f"{nodes_raster_buff[0,zz]=}")
-                    # print(f"{nodes_raster_buff[1,zz]=}")
-                    # print(f"{nodes_raster_buff[2,zz]=}")
-                    # print(f"{field_raster_buff[0]=}")
-                    # print(f"{field_raster_buff[1]=}")
-                    # print(f"{field_raster_buff[2]=}")
-                    # print(f"{px_field=}")
-                    # print(80*"-")
 
                     image_buff_subpx[bound_ind_y,bound_ind_x,ff] = px_field
 
@@ -727,12 +706,6 @@ def raster_static_mesh(coords: cython.double[:,:],
     weights_np = np.zeros((nodes_per_elem,frames_num),np.float64)
     weights_buff: cython.double[:,:] = weights_np
     #---------------------------------------------------------------------------
-
-    # print(80*"-")
-    # print(f"{frames_num=}")
-    # print(f"{fields_num=}")
-    # print(f"{nodes_per_elem=}")
-    # print(80*"-")
 
     tt: cython.size_t = 0
     for tt in range(frames_num):
