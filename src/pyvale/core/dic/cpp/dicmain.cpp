@@ -214,10 +214,12 @@ namespace dic {
         brute.range = 30;
         brute.p_rigid[0] = 0.0;
         brute.p_rigid[1] = 0.0;
-        DEBUGGER;
 
-        // // loop over subsets within the ROI
-        #pragma omp parallel for firstprivate(ss_def, ss_ref, opt, brute)
+        // counter for each thread
+        int ss_thread_num = 0;        
+
+        // loop over subsets within the ROI
+        #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute)
         for (int ss = 0; ss < ss_coord_list.size()/2; ss++){
 
             // subset coordinate list takes central locations. Converting to top left corner for optimization routine
@@ -227,16 +229,14 @@ namespace dic {
             // get the deformed subset coordinates and pixel values
             util::extract_ss(ss_x, ss_y, image_def, &ss_def); 
 
-            // seed optimization with rigid parameters from brute force scan
-            brute.p_rigid[0] = opt.p[0];
-            brute.p_rigid[1] = opt.p[1];
 
-            // brute force scan
-            brute::expanding_wavefront(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &ss_ref, &brute);
-
-            // seed optimization with rigid parameters from brute force scan
-            opt.p[0] = brute.p_rigid[0];
-            opt.p[1] = brute.p_rigid[1];
+            // if this is the first subset in the loop, or, if last subset was a poor match
+            // Kick off the next search with a brute force
+            if ((ss_thread_num == 0) || (opt.iter == opt.max_iter)){
+                brute::expanding_wavefront(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &ss_ref, &brute);
+                opt.p[0] = brute.p_rigid[0];
+                opt.p[1] = brute.p_rigid[1];
+            }
 
             // perform optimization on subset from deformed image
             optimizer::Results results;
@@ -244,6 +244,8 @@ namespace dic {
 
             // append the results for the current subset to result vectors
             append_results(num_def_images, img_num, ss, &results);    
+
+            ss_thread_num++;
 
         }
     }
