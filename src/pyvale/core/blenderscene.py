@@ -186,7 +186,7 @@ class BlenderScene():
         return part
 
     @staticmethod
-    def add_speckle(part,
+    def add_speckle(part: bpy.data.objects,
                     speckle_path: Path | None,
                     mat_data: BlenderMaterialData | None,
                     cam_data: CameraData,
@@ -198,7 +198,7 @@ class BlenderScene():
         to a speckle pattern generator)
 
         Args:
-            part (bpy.data.objects['Part']): The Blender mesh object
+            part (bpy.data.objects): The Blender mesh object
                 speckle_path (Path | None): The speckle pattern image file
             mat_data (BlenderMaterialData | None): A dataclass containing the
                 material parameters necessary
@@ -220,7 +220,7 @@ class BlenderScene():
         BlenderTools.uv_unwrap_part(part, resolution, cal)
 
     @staticmethod
-    def deform_all_timesteps(sim_data: mh.SimData, part) -> None:
+    def deform_all_timesteps(sim_data: mh.SimData, part: bpy.data.objects) -> None:
         """A method to deform the Blender mesh object using the simulation results.
         This is done by taking the displacements to the nodes, and applying it
         in Blender
@@ -228,7 +228,7 @@ class BlenderScene():
         Args:
             sim_data (mh.SimData): A dataclass containing the simulation
                 information i.e. the displacements to all the nodes in the mesh
-            part (bpy.data.objects['Part']): The Blender mesh object, which will
+            part (bpy.data.objects): The Blender mesh object, which will
                 be deformed
         """
         timesteps = sim_data.time.shape[0]
@@ -319,7 +319,7 @@ class BlenderScene():
     @staticmethod
     def render_deformed_images(sim_data: mh.SimData,
                                render_data:RenderData,
-                               part,
+                               part: bpy.data.objects,
                                save: bool | None = True) -> None | np.ndarray:
         """A method to deform the mesh object at all timesteps, and render
         image(s) at each timestep
@@ -329,7 +329,7 @@ class BlenderScene():
                 such as the part mesh, but also displacements
             render_data (RenderData): A dataclass containing the parameters
                 necessary to render an image
-            part (bpy.data.objects['Part']): A Blender mesh object which will be
+            part (bpy.data.objects): A Blender mesh object which will be
                 deformed
             save (bool | None, optional): A flag that can be set to True or
                 False to either save rendered image to disk or not.
@@ -404,6 +404,8 @@ class BlenderScene():
                         image_arrays.append(image_array)
         if save is not True:
             image_arrays = np.dstack(image_arrays)
+            # TODO: Potentially change the way images are stacked for stereo systems
+            # Change it so it suits Joel's code
             return image_arrays
 
 

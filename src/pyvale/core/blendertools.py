@@ -55,25 +55,25 @@ class BlenderTools():
         bpy.ops.wm.save_as_mainfile(filepath=filepath)
 
     @staticmethod
-    def move_blender_part(pos_world: np.ndarray, part) -> None:
+    def move_blender_part(pos_world: np.ndarray, part: bpy.data.objects) -> None:
         """A method to move the part object within Blender
 
         Args:
             pos_world (np.ndarray): The position, as a vector, to which the part
                 should be moved to
-            part (bpy.data.objects['Part']): The Blender mesh object to be
+            part (bpy.data.objects): The Blender mesh object to be
                 moved
         """
         z_location = int(part.dimensions[2])
         part.location = (pos_world[0], pos_world[1], (pos_world[2] - z_location))
 
     @staticmethod
-    def rotate_blender_part(rot_world: Rotation, part) -> None:
+    def rotate_blender_part(rot_world: Rotation, part: bpy.data.objects) -> None:
         """A method to rotate the part object within Blender
 
         Args:
             rot_world (Rotation): The rotation that the part should have
-            part (bpy.data.objects['Part']): The Blender mesh object to be
+            part (bpy.data.objects): The Blender mesh object to be
                 rotated
         """
         part.rotation_mode = "XYZ"
@@ -81,12 +81,12 @@ class BlenderTools():
         part.rotation_euler = part_rotation
 
     @staticmethod
-    def set_new_frame(part) -> None:
+    def set_new_frame(part: bpy.data.objects) -> None:
         """A method to set a new frame within Blender (needed to differentiate
         the timesteps)
 
         Args:
-            part (bpy.data.objects['Part']): The Blender mesh object, to ensure
+            part (bpy.data.objects): The Blender mesh object, to ensure
                 that it is the active object
         """
         frame_incr = 20
@@ -103,12 +103,12 @@ class BlenderTools():
         bpy.context.scene.frame_end = current_frame
 
     @staticmethod
-    def deform_single_timestep(part, deformed_nodes: np.ndarray):
+    def deform_single_timestep(part: bpy.data.objects, deformed_nodes: np.ndarray):
         """A method to deform the part for a single timestep, given the node
         positions the nodes will move to
 
         Args:
-            part (bpy.data.objects['Part']): The Blender mesh object to be
+            part (bpy.data.objects): The Blender mesh object to be
                 deformed
             deformed_nodes (np.ndarray): The deformed positions of each node in
                 the surface mesh
@@ -129,12 +129,12 @@ class BlenderTools():
         return part
 
     @staticmethod
-    def clear_material_nodes(part) -> None:
+    def clear_material_nodes(part: bpy.data.objects) -> None:
         """A method to clear any existing material nodes from the specified
         Blender object
 
         Args:
-            part (bpy.data.objects['Part']): The Blender object to which a
+            part (bpy.data.objects): The Blender object to which a
                 material will be applied
         """
         part.select_set(True)
@@ -146,12 +146,14 @@ class BlenderTools():
         nodes.clear()
 
     @staticmethod
-    def uv_unwrap_part(part, resolution: float, cal: bool = False) -> None:
+    def uv_unwrap_part(part: bpy.data.objects,
+                       resolution: float,
+                       cal: bool = False) -> None:
         """A method to UV unwrap the Blender object, in order to apply a speckle
         image texture
 
         Args:
-            part (bpy.data.objects['Part']): The Blender object to be unwrapped
+            part (bpy.data.objects): The Blender object to be unwrapped
             FOV_x (float): The horizontal field of view, in order to scale the
                 speckle image texture for an optimal number of pixels per speckle
             cal (bool, optional): A flag that can set to True or False. If set
@@ -163,7 +165,7 @@ class BlenderTools():
         bpy.context.view_layer.objects.active = part
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
-        cube_size = resolution * 1500 #TODO: Change this back
+        cube_size = resolution * 1500
 
         if cal is not True:
             bpy.ops.uv.cube_project(scale_to_bounds = False,
@@ -291,7 +293,7 @@ class BlenderTools():
 
     def calibration_images(render_data: RenderData,
                            calibration_data: CalibrationData,
-                           part):
+                           part: bpy.data.objects):
         # Render parameters
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
