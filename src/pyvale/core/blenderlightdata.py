@@ -5,7 +5,7 @@ License: MIT
 Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import numpy as np
 from scipy.spatial.transform import Rotation

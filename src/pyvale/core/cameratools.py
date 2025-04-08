@@ -142,12 +142,15 @@ def image_dist_from_fov(num_pixels: np.ndarray,
 def calculate_FOV(cam_data: CameraData) -> tuple[float, float]:
     """A method to calulate the camera's field of view in mm
 
-    Args:
-        cam_data (CameraData): A dataclass containing the camera parameters
+    Parameters
+    ----------
+    cam_data : CameraData
+        A dataclass containing the camera parameters
 
-    Returns:
-        tuple[float, float]: A tuple containing the field of view in mm in both x and y
-            directions
+    Returns
+    -------
+    tuple[float, float]
+         A tuple containing the field of view in mm in both x and y directions
     """
     FOV_x = (((cam_data.image_dist - cam_data.focal_length)
                 / cam_data.focal_length) *
@@ -158,13 +161,18 @@ def calculate_FOV(cam_data: CameraData) -> tuple[float, float]:
     return FOV_mm
 
 def blender_FOV(cam_data: CameraData) -> tuple[float, float]:
-    """A method to calculate the camera's field of view in mm using Blender's method
+    """A method to calculate the camera's field of view in mm using Blender's
+    method. This method differs due to one simplification.
 
-    Args:
-        cam_data (CameraData): A dataclass containing the camera parameters
+    Parameters
+    ----------
+    cam_data : CameraData
+        A dataclass containing the camera parameters
 
-    Returns:
-        tuple[float, float]: A tuple containing the FOV in x and y directionns
+    Returns
+    -------
+    tuple[float, float]
+        A tuple containing the FOV in x and y directions
     """
     FOV_x = (cam_data.pixels_num[0] * cam_data.pixels_size[0] * cam_data.image_dist) / cam_data.focal_length
     FOV_y = (cam_data.pixels_num[1] / cam_data.pixels_num[0]) * FOV_x
@@ -174,11 +182,15 @@ def blender_FOV(cam_data: CameraData) -> tuple[float, float]:
 def angular_fov(cam_data: CameraData) -> float: # Not sure if this function is necessary
     """A method to calculate the angular field of view of a camera in degrees
 
-    Args:
-        cam_data (CameraData): A dataclass containing the camera parameters
+    Parameters
+    ----------
+    cam_data : CameraData
+        A dataclass containing the camera parameters
 
-    Returns:
-        AFOV_x (float): The angular field of view in the x-direction in degrees
+    Returns
+    -------
+    float
+        The angular field of view in the x-direction in degrees
     """
     (FOV_x, _) = calculate_FOV(cam_data)
     working_dist = cam_data.pos_world[2] - cam_data.roi_cent_world[2]
@@ -190,15 +202,23 @@ def angular_fov(cam_data: CameraData) -> float: # Not sure if this function is n
 def focal_length_from_resolution(pixels_size: np.ndarray,
                                  working_dist: float,
                                  resolution: float) -> float:
-    """_summary_
+    """A method to calculate the required focal length to achieve a certain
+    resolution. This is calculated given the pixel size and working distance.
+    This method can be used for a 2D setup or for camera 0 for a stereo setup.
 
-    Args:
-        pixels_size (np.ndarray): The camera pixels size in the x and y directions
-        working_dist (float): The working distance of the camera to the sample
-        resolution (float): The desired resolution in mm/px
+    Parameters
+    ----------
+    pixels_size : np.ndarray
+        The camera pixel size in the x and y directions (in mm).
+    working_dist : float
+        The working distance of the camera to the sample.
+    resolution : float
+        The desired resolution in mm/px.
 
-    Returns:
-        float: The focal length required to obtain the desired image resolution
+    Returns
+    -------
+    float
+        The focal length required to obtain the desired image resolution.
     """
     focal_length = working_dist / ((resolution / pixels_size[0]))
     return focal_length
@@ -207,19 +227,24 @@ def blender_camera_from_resolution(pixels_num: np.ndarray,
                                    pixels_size: np.ndarray,
                                    working_dist: float,
                                    resolution: float) -> CameraData:
-    """A convencience function to create a camera in Blender from its pixels,
+    """A convenience function to create a camera object in Blender from its pixels,
     the pixel size, the working distance and desired resolution.
 
-    Args:
-        pixels_num (np.ndarray): The number of pixels in the camera in the x
-            and y directions
-        pixels_size (np.ndarray): The size of the pixels in mm in the x and
-            y directions
-        working_dist (float): The working distance of the camera
-        resolution (float): The desired mm/pixel resolution
+    Parameters
+    ----------
+    pixels_num : np.ndarray
+        The number of pixels in the camera, in the x and y directions.
+    pixels_size : np.ndarray
+        The camera pixels size in mm, in the x and y directions.
+    working_dist : float
+        The working distance of the camera.
+    resolution : float
+        The desired mm/px resolution
 
-    Returns:
-        CameraData: A dataclass containing the created camera's parameters
+    Returns
+    -------
+    CameraData
+        A dataclass containing the created camera's parameters.
     """
     focal_length = focal_length_from_resolution(pixels_size, working_dist, resolution)
 
@@ -237,14 +262,18 @@ def blender_symmetric_stereo(cam_data_0: CameraData, stereo_angle:float) -> Came
     an initial CameraData dataclass and a stereo angle. This assumes the basic
     camera parameters are the same.
 
-    Args:
-        cam_data_0 (CameraData): Dataclass containing camera parameters for
-            single camera.
-        stereo_angle (float): The stereo angle between the two cameras
+    Parameters
+    ----------
+    cam_data_0 : CameraData
+        A dataclass containing the camera parameters for a single camera, which
+        will be camera 0.
+    stereo_angle : float
+        The stereo angle between the two cameras.
 
-    Returns:
-        CameraData: A CameraData dataclass for the second camera in the stereo
-            setup
+    Returns
+    -------
+    CameraData
+        A dataclass for the created camera, camera 1 in the stereo setup.
     """
     cam_data_1 = copy.deepcopy(cam_data_0)
     base = 2 * cam_data_0.pos_world[2] * np.tan(np.radians(stereo_angle) / 2)
@@ -271,14 +300,18 @@ def blender_faceon_stereo(cam_data_0: CameraData, stereo_angle: float) -> Camera
     an initial CameraData dataclass and a stereo angle. This assumes the basic
     camera parameters are the same.
 
-    Args:
-        cam_data_0 (CameraData): Dataclass containing camera parameters for
-            single camera.
-        stereo_angle (float): The stereo angle between the two cameras
+    Parameters
+    ----------
+    cam_data_0 : CameraData
+        A dataclass containing the camera parameters for a single camera, which
+        will be camera 0.
+    stereo_angle : float
+        The stereo angle between the two cameras.
 
-    Returns:
-        CameraData: A CameraData dataclass for the second camera in the stereo
-            setup
+    Returns
+    -------
+    CameraData
+        A dataclass for the created camera, camera 1 in the stereo setup.
     """
     cam_data_1 = copy.deepcopy(cam_data_0)
     base = cam_data_0.pos_world[2] * np.tan(np.radians(stereo_angle))

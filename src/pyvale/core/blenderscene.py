@@ -5,8 +5,6 @@ License: MIT
 Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
-from abc import ABC, abstractmethod
-from scipy.spatial.transform import Rotation
 import numpy as np
 from pathlib import Path
 import bpy
@@ -19,8 +17,6 @@ from pyvale.core.blendertools import BlenderTools
 from pyvale.core.simtools import SimTools
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.blenderrenderdata import RenderData, RenderEngine
-
-import matplotlib.pyplot as plt
 
 # NOTE: This module is a feature under development
 
@@ -53,15 +49,19 @@ class BlenderScene():
         bg_node.inputs[1].default_value = 0
 
     @staticmethod
-    def add_camera(cam_data:CameraData):
-        """Method to add a camera data-block within Blender
+    def add_camera(cam_data:CameraData) -> bpy.data.objects:
+        """Method to add a camera object within Blender.
 
-        Args:
-            cam_data (CameraData): Dataclass containing the necessary parameters
-            to create the camera object in Blender
+        Parameters
+        ----------
+        cam_data : CameraData
+            A dataclass containing the necessary parameters to create the camera
+            object in Blender.
 
-        Returns:
-            camera: bpy.data.objects['Camera'], the Blender camera object
+        Returns
+        -------
+        bpy.data.objects
+            The Blender camera object that is created.
         """
         new_cam = bpy.data.cameras.new('Camera')
         camera = bpy.data.objects.new('Camera', new_cam)
@@ -100,33 +100,42 @@ class BlenderScene():
         return camera
 
     @staticmethod
-    def add_stereo_system(cam_data_0: CameraData, cam_data_1: CameraData):
-        """
-        A method to add a stereo camera system within Blender, given two
-        CameraData objects (one for each camera)
+    def add_stereo_system(cam_data_0: CameraData,
+                          cam_data_1: CameraData) -> tuple[bpy.data.objects,
+                                                           bpy.data.objects]:
+        """A method to add a stereo camera system within Blender, given two
+        CameraData objects (one for each camera).
 
-        Args:
-            cam_data_0 (CameraData): CameraData dataclass for camera 0
-            cam_data_1 (CameraData): CameraData dataclass for camera 1
+        Parameters
+        ----------
+        cam_data_0 : CameraData
+            A dataclass containing the necessary parameters for camera 0.
+        cam_data_1 : CameraData
+            A dataclass containing the necessary parameters for camera 1.
 
-        Returns:
-            tuple(cam0, cam1): A tuple of bpy.data.objects['Camera'], Blender
-                camera objects
+        Returns
+        -------
+        tuple[bpy.data.objects, bpy.data.objects]
+            A tuple of the Blender camera objects: camera 0 and camera 1.
         """
         cam0 = BlenderScene.add_camera(cam_data_0)
         cam1 = BlenderScene.add_camera(cam_data_1)
         return cam0, cam1
 
     @staticmethod
-    def add_light(light_data: BlenderLightData):
-        """A method to add a light object within Blender
+    def add_light(light_data: BlenderLightData) -> bpy.data.objects:
+        """A method to add a light object within Blender.
 
-        Args:
-            light_data (BlenderLightData): Dataclass containing the parameters
-            necessary to create a light object within Blender
+        Parameters
+        ----------
+        light_data : BlenderLightData
+            A dataclass contain the necessary parameters to create a Blender
+            light object.
 
-        Returns:
-            light_ob: bpy.data.objects['Light'], the Blender light object
+        Returns
+        -------
+        bpy.data.objects
+            The Blender light object that is created.
         """
         # TODO: Make method more compatible for different light types
         type = light_data.type.value
@@ -150,17 +159,21 @@ class BlenderScene():
         return light_ob
 
     @staticmethod
-    def add_part(sim_data: mh.SimData):
+    def add_part(sim_data: mh.SimData) -> bpy.data.objects:
         """A method to add a part mesh into Blender, given a SimData object.
         This is done by taking the mesh information from the SimData object and
         converting it into a form that is accepted by Blender.
 
-        Args:
-            sim_data (mh.SimData): A dataclass containing all the information
-            about the mesh and simulation
+        Parameters
+        ----------
+        sim_data : mh.SimData
+            A dataclass containing all the information about the mesh and
+            simulation
 
-        Returns:
-            part: bpy.data.objects['Part'], the Blender mesh part object
+        Returns
+        -------
+        bpy.data.objects
+            The Blender part object that is created.
         """
         spat_dim = SimTools.get_mesh_spat_dim(sim_data)
         components = SimTools.get_simulation_components(sim_data)
@@ -197,15 +210,25 @@ class BlenderScene():
         currently not an option but this method has the capaibility to link up
         to a speckle pattern generator)
 
-        Args:
-            part (bpy.data.objects): The Blender mesh object
-                speckle_path (Path | None): The speckle pattern image file
-            mat_data (BlenderMaterialData | None): A dataclass containing the
-                material parameters necessary
-            cam_data (CameraData): A dataclass containing the initialisation
-                parameters for the camera object. This is necessary to scale the
-                speckle pattern on the part object for an optimal number of pixels
-                per speckle
+        Parameters
+        ----------
+        part : bpy.data.objects
+            The Blender part object, to which the speckle is to be applied.
+        speckle_path : Path | None
+            The filepath containing the speckle pattern image. If this is None,
+            there will be capability to generate a speckle pattern.
+        mat_data : BlenderMaterialData | None
+            A dataclass containin the material parameters. If this is None, it
+            is initialised within the method.
+        cam_data : CameraData
+            A dataclass containing the initialisation parameters for the camera
+            object. This is necessary to scale the speckle pattern on the part
+            object for an optimal number of pixels per speckle (this method outputs
+            around 4 pixels per speckle).
+        cal : bool, optional
+            A flag that can be set if a calibration target image is added to
+            a Blender part object. When set to True, the part object is UV
+            unwrapped differently to ensure the correct scaling, by default False
         """
         BlenderTools.clear_material_nodes(part)
         (FOV_x, _) = pyvale.blender_FOV(cam_data)
@@ -223,13 +246,16 @@ class BlenderScene():
     def deform_all_timesteps(sim_data: mh.SimData, part: bpy.data.objects) -> None:
         """A method to deform the Blender mesh object using the simulation results.
         This is done by taking the displacements to the nodes, and applying it
-        in Blender
+        in Blender.
 
-        Args:
-            sim_data (mh.SimData): A dataclass containing the simulation
-                information i.e. the displacements to all the nodes in the mesh
-            part (bpy.data.objects): The Blender mesh object, which will
-                be deformed
+        Parameters
+        ----------
+        sim_data : mh.SimData
+            A dataclass containing the simulation information i.e. the displacements
+            to all the nodes in the mesh.
+        part : bpy.data.objects
+            The Blender part object which is to be deformed, normally as sample
+            object.
         """
         timesteps = sim_data.time.shape[0]
         spat_dim = SimTools.get_mesh_spat_dim(sim_data)
@@ -251,21 +277,29 @@ class BlenderScene():
                 BlenderTools.set_new_frame(part)
 
     @staticmethod
-    def render_single_image(render_data: RenderData, save: bool | None = True) -> None | np.ndarray:
+    def render_single_image(render_data: RenderData,
+                            save: bool | None = True) -> None | np.ndarray:
         """A method to render an images(s) of the current scene in Blender.
         Depending on the number of cameras, either one or two images will be
-        rendered
+        rendered.
 
-        Args:
-            save (bool | None, optional): A flag that can be set to True or
-                False to either save rendered image to disk or not.
-                Defaults to True
-            render_data (RenderData): A dataclass containing the parameters
-                needed to render an image
+        Parameters
+        ----------
+        render_data : RenderData
+            A dataclass containing the parameters needed to render an image.
+        save : bool | None, optional
+            A flag that can be set to either save the rendered to disk or not.
+            If set to False, an array of the image or stack of images will be
+            returned, by default True
 
-        Returns:
-            None | np.ndarray: Either nothing is returned if the image is saved
-                to disc or a stack of image arrays are returned
+        Returns
+        -------
+        None | np.ndarray
+            Nothing is returned if the image(s) is saved to disk (when save set
+            to True). When save is set to False, the image array is returned.
+            For a 2D system, an array with shape=(pixels_num_y, pixels_num_x) is
+            returned. For a 3D system, a stack of arrays with
+            shape=(pixels_num_y, pixels_num_x, 2) is returned.
         """
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
@@ -324,20 +358,29 @@ class BlenderScene():
         """A method to deform the mesh object at all timesteps, and render
         image(s) at each timestep
 
-        Args:
-            sim_data (mh.SimData): A dataclass containing simulation information
-                such as the part mesh, but also displacements
-            render_data (RenderData): A dataclass containing the parameters
-                necessary to render an image
-            part (bpy.data.objects): A Blender mesh object which will be
-                deformed
-            save (bool | None, optional): A flag that can be set to True or
-                False to either save rendered image to disk or not.
-                Defaults to True.
+        Parameters
+        ----------
+        sim_data : mh.SimData
+            A dataclass containing simulation information such as the part mesh,
+            but also displacement information.
+        render_data : RenderData
+            A dataclass containing the parameters necessary to render an image.
+        part : bpy.data.objects
+            The Blender part object to be deformed.
+        save : bool | None, optional
+            A flag that can be set to save the rendered image to disk or not,
+            by default True
 
-        Returns:
-            None | np.ndarray: Either nothing is returned if the image is saved
-                to disc or a stack of image arrays are returned
+        Returns
+        -------
+        None | np.ndarray
+            Either nothing is returned if the image is saved
+                to disk or a stack of image arrays are returned with the following
+                dimensions: shape=(pixels_num_y, pixels_num_x, (num_timesteps + 1)
+                for 2D setups and shape=(pixels_num_y, pixels_num_x, (num_timesteps + 1)*2)
+                for 3D setups. The additional image is the reference image. For
+                3D setups, the images in the stack alternate between camera 0 and
+                camera 1.
         """
         timesteps = sim_data.time.shape[0]
         spat_dim = SimTools.get_mesh_spat_dim(sim_data)
@@ -407,6 +450,7 @@ class BlenderScene():
             # TODO: Potentially change the way images are stacked for stereo systems
             # Change it so it suits Joel's code
             return image_arrays
+
 
 
 

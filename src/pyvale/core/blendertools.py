@@ -5,7 +5,6 @@ License: MIT
 Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
-import pyvista as pv
 import numpy as np
 from pathlib import Path
 from scipy.spatial.transform import Rotation
@@ -13,13 +12,10 @@ from PIL import Image
 from multiprocessing import cpu_count
 import bpy
 import pyvale
-import mooseherder as mh
-from pyvale.core.cameradata import CameraData
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.camerastereodata import CameraStereoData
 from pyvale.core.blenderrenderdata import RenderData, RenderEngine
 from pyvale.core.blendercalibrationdata import CalibrationData
-
 
 # NOTE: This module is a feature under development
 
@@ -32,19 +28,25 @@ class BlenderTools():
 
     @staticmethod
     def save_blender_file(filepath: Path, override: bool = False) -> None:
-        """A method to save the current Blender file to a .blend filepath
+        """A method to save the current Blender scene to a Blender .blend filepath
 
-        Args:
-            filepath (Path): The filepath to which the Blender file should be
-                saved
-            override (bool, optional): A flag which can be set to True or False.
-                If set to True, if the specified filepath already exists, this
-                file will automatically be overwritten. If set to False and the
-                specified filepath already exists, an error will be thrown.
-                Defaults to False.
+        Parameters
+        ----------
+        filepath : Path
+            The filepath to which the Blender file should be saved.
+        override : bool, optional
+            A flag which can be set to True or False. If set to True, if the
+            specified filepath already exists, this file will be automatically
+            overwritten. If set to False and the specified filepath already exists
+            an error will be thrown. If the specified filepath does not exist,
+            the file will be saved normally, by default False
 
-        Raises:
-            BlenderError: "A file already exists with this filepath"
+        Raises
+        ------
+        BlenderError
+            "A file already exists with this filepath". This error is thrown
+            when override is set to False, and the specified filepath already
+            exists.
         """
         if filepath.exists():
                 if override is True:
@@ -56,25 +58,29 @@ class BlenderTools():
 
     @staticmethod
     def move_blender_part(pos_world: np.ndarray, part: bpy.data.objects) -> None:
-        """A method to move the part object within Blender
+        """A method to move the part object within Blender.
 
-        Args:
-            pos_world (np.ndarray): The position, as a vector, to which the part
-                should be moved to
-            part (bpy.data.objects): The Blender mesh object to be
-                moved
+        Parameters
+        ----------
+        pos_world : np.ndarray
+            A array describing the vector position to which the part should be
+            moved to.
+        part : bpy.data.objects
+            The Blender part object to be moved.
         """
         z_location = int(part.dimensions[2])
         part.location = (pos_world[0], pos_world[1], (pos_world[2] - z_location))
 
     @staticmethod
     def rotate_blender_part(rot_world: Rotation, part: bpy.data.objects) -> None:
-        """A method to rotate the part object within Blender
+        """A method to rotate the part object within Blender.
 
-        Args:
-            rot_world (Rotation): The rotation that the part should have
-            part (bpy.data.objects): The Blender mesh object to be
-                rotated
+        Parameters
+        ----------
+        rot_world : Rotation
+            The rotation that is to be applied to the part object.
+        part : bpy.data.objects
+            The Blender part object to be rotated.
         """
         part.rotation_mode = "XYZ"
         part_rotation = rot_world.as_euler("xyz", degrees=False)
@@ -82,12 +88,14 @@ class BlenderTools():
 
     @staticmethod
     def set_new_frame(part: bpy.data.objects) -> None:
-        """A method to set a new frame within Blender (needed to differentiate
-        the timesteps)
+        """A method to set a new frame within Blender (needed to differenciate
+        the timesteps).
 
-        Args:
-            part (bpy.data.objects): The Blender mesh object, to ensure
-                that it is the active object
+        Parameters
+        ----------
+        part : bpy.data.objects
+            The Blender part object, normally the sample object. This is passed
+            in to ensure it is the active object within the scene.
         """
         frame_incr = 20
         ob = bpy.context.view_layer.objects.active
@@ -103,18 +111,22 @@ class BlenderTools():
         bpy.context.scene.frame_end = current_frame
 
     @staticmethod
-    def deform_single_timestep(part: bpy.data.objects, deformed_nodes: np.ndarray):
+    def deform_single_timestep(part: bpy.data.objects,
+                               deformed_nodes: np.ndarray) -> bpy.data.objects:
         """A method to deform the part for a single timestep, given the node
-        positions the nodes will move to
+        positions the nodes will move to.
 
-        Args:
-            part (bpy.data.objects): The Blender mesh object to be
-                deformed
-            deformed_nodes (np.ndarray): The deformed positions of each node in
-                the surface mesh
+        Parameters
+        ----------
+        part : bpy.data.objects
+            The Blender part object to be deformed, normally the sample object.
+        deformed_nodes : np.ndarray
+            An array of the deformed positions of each node in the surface mesh.
 
-        Returns:
-            part: The deformed Blender mesh object
+        Returns
+        -------
+        bpy.data.objects
+            The deformed Blender part object.
         """
         if part.data.shape_keys is None:
             part.shape_key_add()
@@ -131,11 +143,12 @@ class BlenderTools():
     @staticmethod
     def clear_material_nodes(part: bpy.data.objects) -> None:
         """A method to clear any existing material nodes from the specified
-        Blender object
+        Blender object.
 
-        Args:
-            part (bpy.data.objects): The Blender object to which a
-                material will be applied
+        Parameters
+        ----------
+        part : bpy.data.objects
+            The Blender part object to which a material will be applied.
         """
         part.select_set(True)
         mat = bpy.data.materials.new(name="Material")
@@ -150,23 +163,24 @@ class BlenderTools():
                        resolution: float,
                        cal: bool = False) -> None:
         """A method to UV unwrap the Blender object, in order to apply a speckle
-        image texture
+        image texture.
 
-        Args:
-            part (bpy.data.objects): The Blender object to be unwrapped
-            FOV_x (float): The horizontal field of view, in order to scale the
-                speckle image texture for an optimal number of pixels per speckle
-            cal (bool, optional): A flag that can set to True or False. If set
-                to True, the uv unwrap scales to the bounds of the object, which
-                is needed when applying the calibration target image texture.
-                Defaults to False.
+        Parameters
+        ----------
+        part : bpy.data.objects
+            The Blender part object to be unwrapped, normally the sample object.
+        resolution : float
+            The mm/px resolution of the rendered image, used to size the UV unwrapping.
+        cal : bool, optional
+            A flag that can be set when UV unwrapping a calibration target as the
+            sizing differs, by default False
         """
         part.select_set(True)
         bpy.context.view_layer.objects.active = part
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
         cube_size = resolution * 1500
-
+        # TODO: Add capability here to uv unwrap non-rectangular objects
         if cal is not True:
             bpy.ops.uv.cube_project(scale_to_bounds = False,
                                     correct_aspect=True,
@@ -180,18 +194,25 @@ class BlenderTools():
     def add_image_texture(mat_data: BlenderMaterialData,
                           image_path: Path | None = None,
                           image_array: np.ndarray | None = None) -> None:
-        """A method to add an image texture to a Blender object
+        """A method to add an image texture to a Blender object, this will
+        primarily be used for applying a speckle pattern to a sample object.
 
-        Args:
-            mat_data (BlenderMaterialData): A dataclass containing the material
-                parameters
-            image_path (Path | None, optional): The filepath for the speckle
-                image file. Defaults to None.
-            image_array (np.ndarray | None, optional): A speckle image array.
-                Defaults to None.
+        Parameters
+        ----------
+        mat_data : BlenderMaterialData
+            A dataclass containing the material parameters, including roughness
+        image_path : Path | None, optional
+            The filepath for the speckle image file. If provided, that image will
+            be used, by default None
+        image_array : np.ndarray | None, optional
+            An 2D array of a speckle image. If provided, this image will be used,
+            by default None
 
-        Raises:
-            BlenderError: "Image texture filepath does not exist"
+        Raises
+        ------
+        BlenderError
+            "Image texture filepath does not exist". This error is thrown when
+            neither a filepath nor an image array have been provided
         """
         mat_nodes = bpy.data.materials["Material"].node_tree.nodes
         bsdf = mat_nodes.new(type="ShaderNodeBsdfPrincipled")
@@ -236,6 +257,20 @@ class BlenderTools():
 
     @staticmethod
     def save_render_as_array(filepath: Path) -> np.ndarray:
+        """Method to save a rendered image as an array. This method write the
+        image to the disk and then extracts it
+
+        Parameters
+        ----------
+        filepath : Path
+            The filepath to which the image is saved
+
+        Returns
+        -------
+        np.ndarray
+            The rendered image as an array with the following dimensions:
+            shape=(pixels_num_y, pixels_num_x)
+        """
         image = Image.open(filepath)
         image_array = np.asarray(image)
         filepath.unlink()
@@ -246,15 +281,19 @@ class BlenderTools():
                             calib_filepath: Path,
                             calib_filename: str | None = None) -> None:
         """A method to generate a .caldat calibration file, compatible with
-        MatchID
+        MatchID. The intrinsic and extrinsic parameters are calculated directly
+        from Blender
 
-        Args:
-            stereo_data (CameraStereoData): A dataclass containing the parameters
-                of the stereo setup
-            calib_filepath (Path): The file directory to which the calibration
-                file is to be saved to
-            calib_filename (str | None, optional): The filename the calibration
-                should be saved as. Defaults to None.
+        Parameters
+        ----------
+        stereo_data : CameraStereoData
+            A dataclass containing the parameters of the stereo setup, most
+            importantly the individual CameraData classes
+        calib_filepath : Path
+            The file directory to which the calibration file is to be saved to
+        calib_filename : str | None, optional
+            The filename the calibration file should be saved as. If None then
+            filename is saved as calib.caldat, by default None
         """
         if Path(calib_filepath).is_dir() is False:
             Path.mkdir(calib_filepath)
@@ -294,7 +333,30 @@ class BlenderTools():
     def calibration_images(render_data: RenderData,
                            calibration_data: CalibrationData,
                            part: bpy.data.objects,
-                           render: bool = True):
+                           render: bool = True) -> int:
+        """A method to render a set of calibration images, which can be used to
+        calculate the intrinsic and extrinsic parameters.
+
+        Parameters
+        ----------
+        render_data : RenderData
+            The
+        calibration_data : CalibrationData
+            A dataclass containing the parameters by which to move the calibration
+            target. These inclcude the plungle depth and rotation angle.
+        part : bpy.data.objects
+            The Blender part object, in this instance the calibration target.
+        render : bool, optional
+            A flag that can be set to render/not render the images. This can be
+            set to False to just return the number of calibration images that
+            will be rendered, by default True.
+
+        Returns
+        -------
+        int
+            The number of calibration images that will be rendered. This is
+            dependant on the values set within the CalibrationData dataclass.
+        """
         # Render parameters
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
