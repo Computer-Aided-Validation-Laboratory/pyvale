@@ -12,7 +12,6 @@ from scipy.spatial.transform import Rotation
 from pathlib import Path
 import pyvale
 import mooseherder as mh
-import sys
 
 def main() -> None:
     data_path = pyvale.DataSet.thermomechanical_2d_output_path()
@@ -31,7 +30,7 @@ def main() -> None:
     pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
 
     # Add the stereo camera system
-    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1040, 1540]),
+    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
                                  pixels_size=np.array([0.00345, 0.00345]),
                                  pos_world=np.array([0, 0, 400]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
@@ -84,7 +83,9 @@ def main() -> None:
                                         save_dir=save_dir,
                                         save_name=save_name)
 
-        pyvale.BlenderScene.render_single_image(save=True, render_data=render_data)
+        array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+        print(f"{array.shape=}")
+
     # Save Blender file
     # --------------------------------------------------------------------------
     blender_path = Path.cwd() / 'src/pyvale/data/blender_files/ex2_1.blend'

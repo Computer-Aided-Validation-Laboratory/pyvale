@@ -30,7 +30,7 @@ def main() -> None:
     pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
 
     # Add the stereo camera system
-    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1040, 1540]),
+    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
                                  pixels_size=np.array([0.00345, 0.00345]),
                                  pos_world=np.array([0, 0, 400]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
@@ -74,7 +74,7 @@ def main() -> None:
     # Set this to True to render image of the deforming part
     render_images = True
     if render_images is True:
-        save_dir = Path.cwd() / 'src/pyvale/data/blender_images'
+        save_dir = Path.cwd() / 'src/pyvale/data/blender/blender_images'
         save_name = 'ex2_2'
         render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
                                         save_dir=save_dir,

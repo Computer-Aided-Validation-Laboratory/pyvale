@@ -31,7 +31,7 @@ def main() -> None:
     pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
 
     # Add the camera
-    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1040, 1540]),
+    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
                                  pixels_size=np.array([0.00345, 0.00345]),
                                  pos_world=np.array([0, 0, 400]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
@@ -48,7 +48,7 @@ def main() -> None:
                                                  stereo_angle=15.0)
 
     stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
-    calib_filepath = Path.cwd() / 'src/pyvale/data/blender/blender_images/calibration2'
+    calib_filepath = Path.cwd() / 'src/pyvale/data/blender/blender_images/calibration'
     pyvale.BlenderTools.generate_calib_file(stereo_data, calib_filepath)
 
     # Add the light
@@ -71,7 +71,7 @@ def main() -> None:
     # Rendering image
     # --------------------------------------------------------------------------
 
-    # save_dir = Path.cwd() / 'src/pyvale/data/blender/blender_images/calibration2'
+    save_dir = Path.cwd() / 'src/pyvale/data/blender/blender_images/calibration'
     save_dir = calib_filepath
     save_name = 'cal'
     render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
