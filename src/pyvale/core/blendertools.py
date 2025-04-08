@@ -293,11 +293,12 @@ class BlenderTools():
 
     def calibration_images(render_data: RenderData,
                            calibration_data: CalibrationData,
-                           part: bpy.data.objects):
+                           part: bpy.data.objects,
+                           render: bool = True):
         # Render parameters
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
-        bpy.context.scene.render.image_settings.color_depth = render_data.bit_size
+        bpy.context.scene.render.image_settings.color_depth = str(render_data.bit_size)
         bpy.context.scene.render.threads_mode = "FIXED"
         bpy.context.scene.render.threads = int(cpu_count())
         bpy.context.scene.render.image_settings.file_format = "TIFF"
@@ -309,15 +310,16 @@ class BlenderTools():
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
         render_counter = 0
-        for plunge in range(calibration_data.plunge_lims[0],
-                            calibration_data.plunge_lims[1],
-                            calibration_data.plunge_step):
+        plunge_steps = int(((calibration_data.plunge_lims[1] -
+                             calibration_data.plunge_lims[0]) /
+                             calibration_data.plunge_step) + 1)
+        for ii in range(plunge_steps):
+            plunge = calibration_data.plunge_lims[0] + calibration_data.plunge_step * ii
             # Plunge
             (FOV_x, FOV_y) = pyvale.blender_FOV(render_data.cam_data[0])
             x_limit = int(round((FOV_x / 2) - (part.dimensions[0] / 2)))
 
             y_limit = int(round((FOV_y / 2) - (part.dimensions[1] / 2)))
-
 
             for x in np.arange(-1, 2):
                 x *= x_limit
@@ -330,16 +332,15 @@ class BlenderTools():
                     angle_steps = int(((calibration_data.angle_lims[1] -
                                    calibration_data.angle_lims[0]) /
                                      calibration_data.angle_step) + 1)
-                    for ii in range(angle_steps):
-                        angle = calibration_data.angle_lims[0] + calibration_data.angle_step * ii
+                    for jj in range(angle_steps):
+                        angle = calibration_data.angle_lims[0] + calibration_data.angle_step * jj
 
                         # Rotate around x-axis
-                        print(f"{angle=}")
                         rotation  = (np.radians(angle), 0, 0)
                         part.rotation_mode = 'XYZ'
                         part.rotation_euler = rotation
-                        for jj in range(angle_steps):
-                            angle = calibration_data.angle_lims[0] + calibration_data.angle_step * jj
+                        for kk in range(angle_steps):
+                            angle = calibration_data.angle_lims[0] + calibration_data.angle_step * kk
                             # Rotate around y-axis
                             rotation  = (0, np.radians(angle), 0)
                             part.rotation_mode = 'XYZ'
@@ -354,10 +355,12 @@ class BlenderTools():
                                     bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
                                     filename = render_data.save_name + "_" + str(render_counter) + "_" + str(cam_count) + ".tiff"
                                     bpy.context.scene.render.filepath = str(render_data.save_dir / filename)
-                                    bpy.ops.render.render(write_still=True)
+                                    if render is True:
+                                        bpy.ops.render.render(write_still=True)
                                     cam_count += 1
                             render_counter += 1
         print('Total number of calibration images = ' + str(render_counter))
+        return render_counter
 
 
 
