@@ -55,7 +55,7 @@ def sample_stereo_scene(sample_scene_no_cam):
         pytest.param("faceon", "stereo_faceon", id="Face-on convenience function")
     ]
 )
-def test_stereo_convenience_cameras(placement, output, request, sample_scene_no_cam):
+def test_stereo_convenience_cameras(placement, output, request, sample_scene_no_cam, tmp_path):
     (cam_data_0, _, _) = sample_scene_no_cam
     if placement == "symmetric":
         cam_data_1 = pyvale.blender_symmetric_stereo(cam_data_0=cam_data_0,
@@ -64,17 +64,17 @@ def test_stereo_convenience_cameras(placement, output, request, sample_scene_no_
         cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
                                                   stereo_angle=15.0)
     render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
-                                    save_dir=Path.cwd()/'src/pyvale/tests/blender',
+                                    save_dir=tmp_path,
                                     save_name="test")
     image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
     output = request.getfixturevalue(output)
 
     npt.assert_array_equal(image_array, output)
 
-def test_stereo_deformation(sample_stereo_scene, deformed_images):
+def test_stereo_deformation(sample_stereo_scene, deformed_images, tmp_path):
     (cam_data_0, cam_data_1, part, sim_data) = sample_stereo_scene
     render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
-                                    save_dir = Path.cwd()/'tests/blender',
+                                    save_dir =tmp_path,
                                     save_name='test')
     image_arrays = pyvale.BlenderScene.render_deformed_images(sim_data=sim_data,
                                                               render_data=render_data,
@@ -83,10 +83,10 @@ def test_stereo_deformation(sample_stereo_scene, deformed_images):
 
     npt.assert_array_equal(image_arrays, deformed_images)
 
-def test_cal_images(sample_stereo_scene, tmpdir):
+def test_cal_images(sample_stereo_scene, tmp_path):
     (cam_data_0, cam_data_1, part, _) = sample_stereo_scene
     render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
-                                    save_dir=tmpdir,
+                                    save_dir=tmp_path,
                                     save_name="test")
     calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
                                               angle_step=5,
@@ -99,14 +99,14 @@ def test_cal_images(sample_stereo_scene, tmpdir):
 
     assert number_cal_images == 675
 
-def test_calib_file(tmpdir, sample_stereo_scene):
+def test_calib_file(tmp_path, sample_stereo_scene):
     (cam_data_0, cam_data_1, _, _) = sample_stereo_scene
     stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
-    calib_filepath = tmpdir
+    calib_filepath = tmp_path
     pyvale.BlenderTools.generate_calib_file(stereo_data, calib_filepath)
 
     expected = Path.cwd() / 'tests/blender/calib.caldat'
-    output = tmpdir.join("calib.caldat")
+    output = tmp_path / "calib.caldat"
 
     assert filecmp.cmp(output, expected) is True
 

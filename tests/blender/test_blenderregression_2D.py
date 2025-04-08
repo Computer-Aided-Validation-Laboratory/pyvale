@@ -12,7 +12,6 @@ from scipy.spatial.transform import Rotation
 from pathlib import Path
 import pyvale
 import mooseherder as mh
-import matplotlib.pyplot as plt
 
 @pytest.fixture
 def sample_scene():
@@ -44,7 +43,7 @@ def sample_scene():
 
 @pytest.fixture
 def sample_scene_no_light():
-    data_path = pyvale.DataSet.thermomechanical_2d_output_path()
+    data_path = Path.cwd() / 'tests/blender/test_out.e'
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
     pyvale.BlenderScene.reset_scene()
@@ -87,7 +86,7 @@ def sample_scene_no_cam():
         pytest.param(3, "three_watt_lighting", id="Normal lighting - 3W")
     ]
 )
-def test_lighting_energy(energy, output, sample_scene_no_light, request):
+def test_lighting_energy(energy, output, sample_scene_no_light, request, tmp_path):
     cam_data = sample_scene_no_light
     light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
                                          pos_world=(0, 0, 400),
@@ -96,7 +95,7 @@ def test_lighting_energy(energy, output, sample_scene_no_light, request):
                                          energy=energy)
     light = pyvale.BlenderScene.add_light(light_data)
     render_data = pyvale.RenderData(cam_data=cam_data,
-                                    save_dir=Path.cwd()/'tests/blender',
+                                    save_dir=tmp_path,
                                     save_name='test')
     image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
     output = request.getfixturevalue(output)
@@ -110,7 +109,7 @@ def test_lighting_energy(energy, output, sample_scene_no_light, request):
         pytest.param(np.array([20, 10]), "horizontal_cam", id="Horizontal camera orientation")
     ]
 )
-def test_camera_shape(pixels_num, output, request, sample_scene_no_cam):
+def test_camera_shape(pixels_num, output, request, sample_scene_no_cam, tmp_path):
     part = sample_scene_no_cam
     cam_data = pyvale.CameraData(pixels_num=pixels_num,
                                  pixels_size=np.array([0.00345, 0.00345]),
@@ -126,14 +125,14 @@ def test_camera_shape(pixels_num, output, request, sample_scene_no_cam):
                                     mat_data=material_data,
                                     cam_data=cam_data)
     render_data = pyvale.RenderData(cam_data=cam_data,
-                                    save_dir=Path.cwd()/'tests/blender',
+                                    save_dir=tmp_path,
                                     save_name='test')
     image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
     output = request.getfixturevalue(output)
 
     npt.assert_array_equal(image_array, output)
 
-def test_camera_from_resolution(sample_scene_no_cam, cam_from_resolution):
+def test_camera_from_resolution(sample_scene_no_cam, cam_from_resolution, tmp_path):
     part = sample_scene_no_cam
     pixels_num = np.array([20, 20])
     pixels_size = np.array([0.00345, 0.00345])
@@ -150,16 +149,16 @@ def test_camera_from_resolution(sample_scene_no_cam, cam_from_resolution):
                                     mat_data=material_data,
                                     cam_data=cam_data)
     render_data = pyvale.RenderData(cam_data=cam_data,
-                                    save_dir=Path.cwd()/'tests/blender',
+                                    save_dir=tmp_path,
                                     save_name='test')
     image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
 
     npt.assert_array_equal(image_array, cam_from_resolution)
 
-def test_deformation(sample_scene, deformed_images):
+def test_deformation(sample_scene, deformed_images, tmp_path):
     (sim_data, part, cam_data) = sample_scene
     render_data = pyvale.RenderData(cam_data=cam_data,
-                                    save_dir = Path.cwd()/'tests/blender',
+                                    save_dir = tmp_path,
                                     save_name='test')
     image_arrays = pyvale.BlenderScene.render_deformed_images(sim_data=sim_data,
                                                               render_data=render_data,
@@ -175,10 +174,10 @@ def test_deformation(sample_scene, deformed_images):
         pytest.param(12, "samples_twelve", id="Normal sample number - 12")
     ],
 )
-def test_samples_happy(samples, output, request, sample_scene):
+def test_samples_happy(samples, output, request, sample_scene, tmp_path):
     (_, _, cam_data) = sample_scene
     render_data = pyvale.RenderData(cam_data=cam_data,
-                                    save_dir=Path.cwd()/'tests/blender',
+                                    save_dir=tmp_path,
                                     save_name='test',
                                     samples=samples)
     image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
@@ -186,11 +185,11 @@ def test_samples_happy(samples, output, request, sample_scene):
 
     npt.assert_array_equal(image_array, output)
 
-def test_samples_unhappy(sample_scene):
+def test_samples_unhappy(sample_scene, tmp_path):
     samples = 2.5
     (_, _, cam_data) = sample_scene
     render_data = pyvale.RenderData(cam_data=cam_data,
-                                    save_dir=Path.cwd()/'tests/blender',
+                                    save_dir=tmp_path,
                                     save_name='test',
                                     samples=samples)
     with pytest.raises(TypeError):
@@ -204,10 +203,10 @@ def test_samples_unhappy(sample_scene):
         pytest.param(100, "bounces_hundred", id="Normal bounces number -100")
     ]
 )
-def test_max_bounces_happy(bounces, output, request, sample_scene):
+def test_max_bounces_happy(bounces, output, request, sample_scene, tmp_path):
     (_, _, cam_data) = sample_scene
     render_data = pyvale.RenderData(cam_data=cam_data,
-                                    save_dir=Path.cwd()/'tests/blender',
+                                    save_dir=tmp_path,
                                     save_name='test',
                                     max_bounces=bounces)
     image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
@@ -215,11 +214,11 @@ def test_max_bounces_happy(bounces, output, request, sample_scene):
 
     npt.assert_array_equal(image_array, output)
 
-def test_max_bounces_unhappy(sample_scene):
+def test_max_bounces_unhappy(sample_scene, tmp_path):
     bounces = 2.5
     (_, _, cam_data) = sample_scene
     render_data = pyvale.RenderData(cam_data=cam_data,
-                                    save_dir=Path.cwd()/'tests/blender',
+                                    save_dir=tmp_path,
                                     save_name='test',
                                     max_bounces=bounces)
     with pytest.raises(TypeError):
@@ -232,10 +231,10 @@ def test_max_bounces_unhappy(sample_scene):
             pytest.param(pyvale.RenderEngine.EEVEE, "eevee_engine", id="Eevee render engine")
         ]
 )
-def test_render_engine(engine, output, request, sample_scene):
+def test_render_engine(engine, output, request, sample_scene, tmp_path):
     (_, _, cam_data) = sample_scene
     render_data = pyvale.RenderData(cam_data=cam_data,
-                                    save_dir=Path.cwd()/'tests/blender',
+                                    save_dir=tmp_path,
                                     save_name='test',
                                     engine=engine)
     image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
