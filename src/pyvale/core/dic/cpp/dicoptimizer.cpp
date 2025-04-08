@@ -58,17 +58,11 @@ namespace optimizer {
             opt->ftol = std::abs(opt->costpdp - opt->costp) / (std::abs(opt->costp) + std::numeric_limits<double>::epsilon());
             opt->xtol = std::sqrt(std::inner_product(opt->dp.begin(), opt->dp.end(), opt->dp.begin(), 0.0));
 
-            if ((opt->xtol < opt->tol) || (opt->ftol < opt->tol)){
-                // debugPrint(ss_x, ss_y, opt->iter, opt->ftol, opt->xtol, opt->p);
+            if ((opt->xtol < opt->tol) && (opt->costp < 0.1)){
+                debugPrint(ss_x, ss_y, opt->iter, opt->ftol, opt->xtol, opt->p);
                 break;
             }
             opt->iter++;
-        }
-
-        // if its a bad subset and hits max_iterations then reset p values to 0.0 to prevent bad seeding.
-        if (opt->iter == opt->max_iter) {
-            // debugPrint(ss_x, ss_y, opt->iter, opt->ftol, opt->xtol, opt->p);
-            std::fill(opt->p.begin(), opt->p.end(), 0.0);
         }
 
         Results results;
@@ -77,6 +71,12 @@ namespace optimizer {
         results.ftol = opt->ftol;
         results.xtol = opt->xtol;
         results.p = opt->p;
+
+        // if its a bad subset and hits max_iterations then reset p values to 0.0 to prevent bad seeding.
+        if (opt->iter == opt->max_iter) {
+            debugPrint(ss_x, ss_y, opt->iter, opt->ftol, opt->xtol, opt->p);
+            std::fill(opt->p.begin(), opt->p.end(), 0.0);
+        }
 
         return results;
     }
@@ -110,10 +110,20 @@ namespace optimizer {
             double ref_x = ss_ref->x[i];
             double ref_y = ss_ref->y[i];
 
-            // check if outside of image bounds
-            // if (ref_x < 0 || ref_x > 399 || ref_y < 0 || ref_y > 399) {
-            //     opt->costp = 1e8;
-            //     return;
+            // // Inside ssd function before interpolation
+            // if (ref_x < 0 || ref_x > opt->px_horizontal-1 || ref_y < 0 || ref_y > opt->px_vertical-1) {
+            //     // Apply a penalty proportional to how far outside the bounds
+            //     double penalty = 0;
+            //     if (ref_x < 0) penalty += std::abs(ref_x);
+            //     if (ref_x > opt->px_horizontal-1) penalty += ref_x - (opt->px_horizontal-1);
+            //     if (ref_y < 0) penalty += std::abs(ref_y);
+            //     if (ref_y > opt->px_vertical-1) penalty += ref_y - (opt->px_vertical-1);
+                
+            //     // Add this penalty to the cost function
+            //     opt->costp += penalty * penalty;
+                
+            //     // Skip this point for derivative calculations
+            //     continue;
             // }
 
             // get the subset value and derivitives
@@ -189,16 +199,29 @@ namespace optimizer {
         // interpolation data struct
         interpolator::Data interp_data;
 
+        // reset cost function
+        opt->costp = 0.0;
+        opt->costpdp = 0.0;
         
         // get the normalisation values for both reference and deformed subsets
         for (int i = 0; i < n; ++i) {
 
             shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->p);
             
-            // check if outside of image bounds
-            // if (ss_ref->x[i] < 0 || ss_ref->x[i] > 399 || ss_ref->y[i] < 0 || ss_ref->y[i] > 399) {
-            //     opt->costp = 1e8;
-            //     return;
+            // // Inside ssd function before interpolation
+            // if (ss_ref->x[i] < 0 || ss_ref->x[i] > opt->px_horizontal-1 || ss_ref->y[i] < 0 || ss_ref->y[i] > opt->px_vertical-1) {
+            //     // Apply a penalty proportional to how far outside the bounds
+            //     double penalty = 0;
+            //     if (ss_ref->x[i] < 0) penalty += std::abs(ss_ref->x[i]);
+            //     if (ss_ref->x[i] > opt->px_horizontal-1) penalty += ss_ref->x[i] - (opt->px_horizontal-1);
+            //     if (ss_ref->y[i] < 0) penalty += std::abs(ss_ref->y[i]);
+            //     if (ss_ref->y[i] > opt->px_vertical-1) penalty += ss_ref->y[i] - (opt->px_vertical-1);
+                
+            //     // Add this penalty to the cost function
+            //     opt->costp += 10000.0 * penalty * penalty;
+                
+            //     // Skip this point for derivative calculations
+            //     continue;
             // }
 
             interp_data = interpolator::eval_bicubic_and_derivs(ss_ref->x[i], ss_ref->y[i]);
@@ -242,7 +265,6 @@ namespace optimizer {
 
 
         // calculate cost function for current parameter values
-        opt->costp = 0.0;
         for (int i = 0; i < n; i++){
             double def_norm = ss_def->vals[i] * inv_sum_squared_def;
             double ref_norm = ss_ref->vals[i] * inv_sum_squared_ref;
@@ -251,7 +273,6 @@ namespace optimizer {
 
 
         // calculate cost function for updated parameter values
-        opt->costpdp = 0.0;
         sum_squared_ref = 0.0;
         for (int i = 0; i < n; ++i) {
             shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->pdp);
@@ -291,6 +312,10 @@ namespace optimizer {
         // interpolation data struct
         interpolator::Data interp_data;
 
+        // reset cost function
+        opt->costp = 0.0;
+        opt->costpdp = 0.0;
+
         // get the normalisation values for both reference and deformed subsets
         // std::cout << ss_x << " " << ss_y << " ";
 
@@ -298,13 +323,23 @@ namespace optimizer {
 
             shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->p);
 
-            // if (ss_ref->x[i] < 0 || ss_ref->x[i] > 399 || ss_ref->y[i] < 0 || ss_ref->y[i] > 399) {
-            //     opt->costp = 1e8;
-            //     return;
+            // // Inside ssd function before interpolation
+            // if (ss_ref->x[i] < 0 || ss_ref->x[i] > opt->px_horizontal-1 || ss_ref->y[i] < 0 || ss_ref->y[i] > opt->px_vertical-1) {
+            //     // Apply a penalty proportional to how far outside the bounds
+            //     double penalty = 0;
+            //     if (ss_ref->x[i] < 0) penalty += std::abs(ss_ref->x[i]);
+            //     if (ss_ref->x[i] > opt->px_horizontal-1) penalty += ss_ref->x[i] - (opt->px_horizontal-1);
+            //     if (ss_ref->y[i] < 0) penalty += std::abs(ss_ref->y[i]);
+            //     if (ss_ref->y[i] > opt->px_vertical-1) penalty += ss_ref->y[i] - (opt->px_vertical-1);
+                
+            //     // Add this penalty to the cost function
+            //     opt->costp += 10000.0 * penalty * penalty;
+                
+            //     // Skip this point for derivative calculations
+            //     continue;
             // }
-            // std::cout << opt->p[0] << " " << opt->p[1] << " " << opt->p[2] << " " << opt->p[3] << " " << opt->p[4] << " " << opt->p[5] << std::endl;
-            // std::cout << "ss_def " << ss_def->x[i] << " " << ss_def->y[i] << std::endl;
-            // std::cout << "ss_ref " << ss_ref->x[i] << " " << ss_ref->y[i] << std::endl;
+
+
             interp_data = interpolator::eval_bicubic_and_derivs(ss_ref->x[i], ss_ref->y[i]);
             ss_ref->vals[i] = interp_data.interp_value;
             dfdx[i] = interp_data.interp_dx;
@@ -372,7 +407,6 @@ namespace optimizer {
         // }
 
         // calculate cost function for current parameter values
-        opt->costp = 0.0;
         for (int i = 0; i < n; i++){
             double def_norm = (ss_def->vals[i] - mean_def) * inv_sum_squared_def;
             double ref_norm = (ss_ref->vals[i] - mean_ref) * inv_sum_squared_ref;
@@ -397,7 +431,7 @@ namespace optimizer {
 
         inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
 
-        opt->costpdp = 0.0;
+
         for (int i = 0; i < n; ++i) {
             double def_norm = (ss_def->vals[i] - mean_def) * inv_sum_squared_def;
             double ref_norm = (ss_ref->vals[i] - mean_ref) * inv_sum_squared_ref;

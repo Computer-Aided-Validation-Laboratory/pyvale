@@ -21,7 +21,7 @@ namespace brute {
     struct Parameters {
         std::array<int, 2> p_rigid; // translation vector
         int range;
-        int tol;
+        double tol;
 
     };
     
@@ -31,8 +31,8 @@ namespace brute {
      * Sets cost function and search method based on the provided string values.
      * If an unrecognized value is provided, default 'SSD' and 'SPIRAL' values are used.
      * 
-     * @param cost_function Reference to a string representing the cost function ("SSD", "NSSD", "ZNSSD").
-     * @param search_method Reference to a string representing the search method ("EXHAUSTIVE", "SPIRAL").
+     * @param cost_function String reference representing the cost function ("SSD", "NSSD", "ZNSSD").
+     * @param search_method String reference representing the search method ("EXHAUSTIVE", "SPIRAL").
      */
     void init(std::string &cost_function, std::string &search_method);
 
@@ -51,16 +51,16 @@ namespace brute {
      * @param ss_def Pointer to the subset definition.
      * @param ss_ref Pointer to the reference subset.
      * @param brute Pointer to the brute force parameters.
-     * @return A 2-element array containing the best translation (u, v).
+     * @return result is populated in brute.p_rigid.
      */
-    std::array<int, 2> spiral_search(const int ss_x, 
+    void expanding_wavefront(const int ss_x, 
                                   const int ss_y, 
                                   const int *image_ref, 
                                   const int px_vertical, 
                                   const int px_horizontal, 
                                   util::Subset *ss_def, 
                                   util::Subset *ss_ref, 
-                                  brute::Parameters *brute)
+                                  brute::Parameters *brute);
 
     /**
      * @brief Performs an exhaustive search for the optimal translation.
@@ -75,16 +75,16 @@ namespace brute {
      * @param ss_def Pointer to the subset definition.
      * @param ss_ref Pointer to the reference subset.
      * @param brute Pointer to the brute force parameters.
-     * @return A 2-element array containing the best translation (u, v).
+     * @return result is populated in brute.p_rigid.
      */
-    std::array<int, 2> exhaustive(const int ss_x, 
+    void exhaustive(const int ss_x, 
                                   const int ss_y, 
                                   const int *image_ref, 
                                   const int px_vertical, 
                                   const int px_horizontal, 
                                   util::Subset *ss_def, 
                                   util::Subset *ss_ref, 
-                                  brute::Parameters *brute)
+                                  brute::Parameters *brute);
 
 
     /**
@@ -99,7 +99,8 @@ namespace brute {
      * @param px_horizontal Horizontal size of the image.
      * @param ss_def Pointer to the subset definition.
      * @param ss_ref Pointer to the reference subset.
-     * @param brute Pointer to the brute force parameters.
+     * @param p0 int value for the x-coordinate of the translation.
+     * @param p1 int value for the y-coordinate of the translation.
      * @return The computed SSD value.
      */
     double ssd(const int ss_x, 
@@ -109,7 +110,8 @@ namespace brute {
                const int px_horizontal, 
                util::Subset *ss_def, 
                util::Subset *ss_ref,
-               brute::Parameters *brute)
+               const int p0,
+               const int p1);
 
     /**
      * @brief Computes the Normalized Sum of Squared Differences (NSSD) cost function.
@@ -124,7 +126,8 @@ namespace brute {
      * @param px_horizontal Horizontal size of the image.
      * @param ss_def Pointer to the subset definition.
      * @param ss_ref Pointer to the reference subset.
-     * @param brute Pointer to the brute force parameters.
+     * @param p0 int value for the x-coordinate of the translation.
+     * @param p1 int value for the y-coordinate of the translation.
      * @return The computed NSSD value.
      */
     double nssd(const int ss_x, 
@@ -134,7 +137,8 @@ namespace brute {
                 const int px_horizontal, 
                 util::Subset *ss_def,
                 util::Subset *ss_ref,
-                brute::Parameters *brute)
+                const int p0,
+                const int p1);
 
     /**
      * @brief Computes the Zero-Mean Normalized Sum of Squared Differences (ZNSSD) cost function.
@@ -149,7 +153,8 @@ namespace brute {
      * @param px_horizontal Horizontal size of the image.
      * @param ss_def Pointer to the subset definition.
      * @param ss_ref Pointer to the reference subset.
-     * @param brute Pointer to the brute force parameters.
+     * @param p0 int value for the x-coordinate of the translation.
+     * @param p1 int value for the y-coordinate of the translation.
      * @return The computed ZNSSD value.
      */
     double znssd(const int ss_x, 
@@ -159,7 +164,8 @@ namespace brute {
                  const int px_horizontal, 
                  util::Subset *ss_def, 
                  util::Subset *ss_ref,
-                 brute::Parameters *brute)
+                 const int p0,
+                 const int p1);
 }
 
 #endif //BRUTEFORCE

@@ -38,10 +38,12 @@ namespace optimizer {
         std::vector<double> pdp; // P + deltaP
         int max_iter;
         double tol;
+        int px_vertical;
+        int px_horizontal;
 
 
         // Constructor to initialize vectors and other parameters
-        Parameters(int max_iter_, double tol_)
+        Parameters(int max_iter_, double tol_, int px_vertical_, int px_horizontal_)
             : iter(0),
             ftol(0.0),
             xtol(0.0),
@@ -56,7 +58,9 @@ namespace optimizer {
             dp(6, 0.0),
             pdp(6, 0.0),
             max_iter(max_iter_),
-            tol(tol_)
+            tol(tol_),
+            px_vertical(px_vertical_),
+            px_horizontal(px_horizontal_)
         {}
     };
 

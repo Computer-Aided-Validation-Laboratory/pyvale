@@ -14,13 +14,13 @@
 #include "./dicbruteforce.hpp"
 
 
-namespace bruteforce {
+namespace brute {
 
 
 
-
-    std::vector<int> dirs = {1,  0, //left 
-                             0,  1, //right
+    // directions of spiral.
+    std::vector<int> dirs = {1,  0,  
+                             0,  1,
                             -1,  0, 
                              0, -1}; 
 
@@ -33,145 +33,125 @@ namespace bruteforce {
                const int px_horizontal, 
                util::Subset *ss_def, 
                util::Subset *ss_ref,
-               brute::Parameters *brute);
+               const int p0,
+               const int p1);
 
-    std::array<int, 2> (*find_min)(const int ss_x, 
-                                  const int ss_y, 
-                                  const int *image_ref, 
-                                  const int px_vertical, 
-                                  const int px_horizontal, 
-                                  util::Subset *ss_def, 
-                                  util::Subset *ss_ref, 
-                                  brute::Parameters *brute);
+    void (*find_min)(const int ss_x, 
+                     const int ss_y, 
+                     const int *image_ref, 
+                     const int px_vertical, 
+                     const int px_horizontal, 
+                     util::Subset *ss_def, 
+                     util::Subset *ss_ref, 
+                     brute::Parameters *brute);
 
-    void init(std::string &cost_function, std::string &search_method){
+
+
+
+    void init(std::string &corr_crit, std::string &search_method){
 
         // set brute force cost function
-        if (cost_function == "SSD") {
-            cost_function = ssd;
-        } else if (cost_function == "NSSD") {
-            cost_function = nssd;
-        } else if (cost_function == "ZNSSD") {
-            cost_function = znssd;
+        if (corr_crit == "SSD") {
+            cost_function = brute::ssd;
+        } else if (corr_crit == "NSSD") {
+            cost_function = brute::nssd;
+        } else if (corr_crit == "ZNSSD") {
+            cost_function = brute::znssd;
         } else {
             std::cerr << "Error: cost function not recognised. Using SSD." << std::endl;
-            cost_function = ssd;
+            cost_function = brute::ssd;
         }
 
         // set brute force search method
         if (search_method == "EXHAUSTIVE") {
             find_min = exhaustive;
-        } else if (search_method == "SPIRAL") {
-            find_min = spiral_search;
+        } else if (search_method == "EXPANDING_WAVEFRONT") {
+            find_min = expanding_wavefront;
         } else {
-            std::cerr << "Error: search method not recognised. Using SPIRAL." << std::endl;
-            find_min = spiral_search;
+            std::cerr << "Error: search method not recognised. Using EXPANDING_WAVEFRONT." << std::endl;
+            find_min = expanding_wavefront;
         }
     }
 
 
-    std::array<int, 2> spiral_search(const int ss_x, 
-                                  const int ss_y, 
-                                  const int *image_ref, 
-                                  const int px_vertical, 
-                                  const int px_horizontal, 
-                                  util::Subset *ss_def, 
-                                  util::Subset *ss_ref, 
-                                  brute::Parameters *brute){
+    void expanding_wavefront(const int ss_x, 
+                         const int ss_y, 
+                         const int *image_ref, 
+                         const int px_vertical, 
+                         const int px_horizontal, 
+                         util::Subset *ss_def, 
+                         util::Subset *ss_ref, 
+                         brute::Parameters *brute) {
 
-        const int range = brute->range;
-
-        const int ymin = ss_y - range;
-        const int ymax = ss_y + range;
-        const int xmin = ss_x - range;
-        const int xmax = ss_x + range;
-
-        const int px_in_search_area = (range*2+1) * (range*2+1); // number of pixels in the search area
         
-        // seed the start of the brute force search with the rigid parameters from the last subset
-        int u = ss_x + brute->p_rigid[0];
-        int v = ss_y + brute->p_rigid[1];
 
-        int steps = 1;
-        int step_in_dir = 0;
-        int turns = 0;
-        int dir_idx = 0;
+        const int range = brute->range;
+        double cost_min = 1.0e6;
 
-        std::array<int, 2> p;
+        for (int r = 0; r <= range; r++) {
 
-        for (int i = 0; i < px_in_search_area; i++){
+            // Go around the current ring at radius r
+            for (int dy = -r; dy <= r; dy++) {
+                for (int dx = -r; dx <= r; dx++) {
+            
+                    // Only process the points on the perimeter of the square
+                    if (std::abs(dx) != r && std::abs(dy) != r) continue;
 
-            // reset cost function for new translation
-            double cost_min = 1.0e6;
-            p = {0,0};
+                    int p0 = ss_x + dx;
+                    int p1 = ss_y + dy;
 
-            double cost = cost_function(ss_x, ss_y, image_ref, px_vertical, px_horizontal, ss_def, ss_ref, brute);
+                    // Check bounds
+                    if (p0 < 0 || p0 >= px_horizontal || p1 < 0 || p1 >= px_vertical) continue;
 
-            // update minumum value. If Below tolerance then return.
-            if (std::abs(cost) < cost_min) {
-                cost_min = cost;
-                p = {u,v};
-                if (cost_min < brute->tol) return p;
-            }
-
-            // if we've not found a suitable match, update u,v from spiral path.
-            u += dirs[2*dir_idx];
-            v += dirs[2*dir_idx+1];
-            ++step_in_dir;
-
-            if (step_in_dir == steps) {
-                // Change direction
-                dir_idx = (dir_idx + 1) % 4;
-                step_in_dir = 0;
-                ++turns;
-
-                // Every two turns, increase step size
-                if (turns % 2 == 0) ++steps;
+                    double cost = cost_function(ss_x, ss_y, image_ref, px_vertical, px_horizontal, ss_def, ss_ref, dx, dy);
+                    if (std::abs(cost) < cost_min) {
+                        cost_min = cost;
+                        brute->p_rigid[0] = dx;
+                        brute->p_rigid[1] = dy;
+                        if (cost_min < brute->tol) return;
+                    }
+                }
             }
         }
+        // std::cout << ss_x << " " << ss_y << " " << brute->p_rigid[0] << " " << brute->p_rigid[1] << " " << cost_min << std::endl;
 
-
-        // if we dont go below tolerance return min value of P at end of search
-        return p; 
     }
 
 
-    std::array<int, 2> exhaustive(const int ss_x, 
-                                  const int ss_y, 
-                                  const int *image_ref, 
-                                  const int px_vertical, 
-                                  const int px_horizontal, 
-                                  util::Subset *ss_def, 
-                                  util::Subset *ss_ref, 
-                                  brute::Parameters *brute){
+        void exhaustive(const int ss_x, 
+                        const int ss_y, 
+                        const int *image_ref, 
+                        const int px_vertical, 
+                        const int px_horizontal, 
+                        util::Subset *ss_def, 
+                        util::Subset *ss_ref, 
+                        brute::Parameters *brute){
 
         const int range = brute->range;
-        std::array<int, 2> p;
+        double cost_min = 1.0e6;
+        
+        // clamp search area to within image bounds
+        const int xmin = std::max(0, ss_x - range);
+        const int ymin = std::max(0, ss_y - range);
+        const int xmax = std::min(px_horizontal, ss_x + range);
+        const int ymax = std::min(px_vertical, ss_y + range);
 
 
-        for (int v = -range; v <= range; v++){
-            for (int u = -range; u <= range; u++){
+        for (int p1 = -ymin; p1 <= ymax; p1++){
+            for (int p0 = -xmin; p0 <= xmax; p0++){                
 
-                // reset cost function for new translation
-                double cost_min = 1.0e6;
-                p = {0,0};
-
-                double cost = cost_function(ss_x, ss_y, image_ref, px_vertical, px_horizontal, ss_def,ss_ref,brute);
-
+                double cost = cost_function(ss_x, ss_y, image_ref, px_vertical, px_horizontal, ss_def,ss_ref,p0,p1);
 
                 // update minumum value. If Below tolerance then return.
                 if (std::abs(cost) < cost_min) {
                     cost_min = cost;
-                    p = {u,v};
-                    if (cost_min < brute->tol) return p;
+                    brute->p_rigid[0] = p0;
+                    brute->p_rigid[1] = p1;
+                    if (cost_min < brute->tol) return;
                 }
 
             }
         }
-
-        // if we dont go below tolerance return min value of P at end of search
-        return p; 
-
     }
 
 
@@ -183,21 +163,31 @@ namespace bruteforce {
                const int px_horizontal, 
                util::Subset *ss_def, 
                util::Subset *ss_ref,
-               brute::Parameters *brute){
+               const int p0,
+               const int p1){
         
         const int num_px = ss_def->num_px;
         double cost = 0.0;
+
         for (int i = 0; i < num_px; i++){
 
              // integer coordinates of the subset in the reference image and extract pixel value
-            ss_ref->x[i] = ss_def->x[i] + brute->p_rigid[0];
-            ss_ref->y[i] = ss_def->y[i] + brute->p_rigid[1];
-            ss_ref[i] = image_ref[ss_ref->y[i] * px_horizontal + ss_ref->x[i]];
+            ss_ref->x[i] = ss_def->x[i] + p0;
+            ss_ref->y[i] = ss_def->y[i] + p1;
+
+            const int ss_ref_x_int = static_cast<int>(ss_ref->x[i]);
+            const int ss_ref_y_int = static_cast<int>(ss_ref->y[i]);
+            const int idx = ss_ref_y_int * px_horizontal + ss_ref_x_int;
+
+            ss_ref[i] = image_ref[idx];
             
             cost += (ss_def->vals[i] - ss_ref->vals[i]) *
                     (ss_def->vals[i] - ss_ref->vals[i]);      
 
         }
+
+        return cost;
+
     }
 
 
@@ -208,7 +198,8 @@ namespace bruteforce {
                 const int px_horizontal, 
                 util::Subset *ss_def,
                 util::Subset *ss_ref,
-                brute::Parameters *brute){
+                const int p0,
+                const int p1){
 
 
         const int num_px = ss_def->num_px;
@@ -220,14 +211,20 @@ namespace bruteforce {
         for (int i = 0; i < num_px; i++){
         
             // integer coordinates of the subset in the reference image and extract pixel value
-            ss_ref->x[i] = ss_def->x[i] + brute->p_rigid[0];
-            ss_ref->y[i] = ss_def->y[i] + brute->p_rigid[1];
-            ss_ref->vals[i] = image_ref[ss_ref->y[i] * px_horizontal + ss_ref->x[i]];
+            ss_ref->x[i] = ss_def->x[i] + p0;
+            ss_ref->y[i] = ss_def->y[i] + p1;
+
+            const int ss_ref_x_int = static_cast<int>(ss_ref->x[i]);
+            const int ss_ref_y_int = static_cast<int>(ss_ref->y[i]);
+            const int idx = ss_ref_y_int * px_horizontal + ss_ref_x_int;
+
+            ss_ref->vals[i] = image_ref[idx];
 
             sum_squared_ref += ss_ref->vals[i] * ss_ref->vals[i];
             sum_squared_def += ss_def->vals[i] * ss_def->vals[i];
 
         }
+
         double inv_sum_squared_ref = 1.0 / std::sqrt(sum_squared_ref);
         double inv_sum_squared_def = 1.0 / std::sqrt(sum_squared_def);
 
@@ -242,17 +239,17 @@ namespace bruteforce {
 
         return cost;
 
-        
     }
 
     double znssd(const int ss_x, 
-                 const int ss_y, 
-                 const int *image_ref, 
-                 const int px_vertical, 
-                 const int px_horizontal, 
-                 util::Subset *ss_def, 
-                 util::Subset *ss_ref,
-                 brute::Parameters *brute){
+                const int ss_y, 
+                const int *image_ref, 
+                const int px_vertical, 
+                const int px_horizontal, 
+                util::Subset *ss_def,
+                util::Subset *ss_ref,
+                const int p0,
+                const int p1){
 
         const int num_px = ss_def->num_px;
         double cost = 0.0;
@@ -263,12 +260,18 @@ namespace bruteforce {
         for (int i = 0; i < num_px; i++){
 
             // integer coordinates of the subset in the reference image and extract pixel value
-            ss_ref->x[i] = ss_def->x[i] + brute->p_rigid[0];
-            ss_ref->y[i] = ss_def->y[i] + brute->p_rigid[1];
-            ss_ref->vals[i] = image_ref[ss_ref->y[i] * px_horizontal + ss_ref->x[i]];
+            ss_ref->x[i] = ss_def->x[i] + p0;
+            ss_ref->y[i] = ss_def->y[i] + p1;
+
+            const int ss_ref_x_int = static_cast<int>(ss_ref->x[i]);
+            const int ss_ref_y_int = static_cast<int>(ss_ref->y[i]);
+            const int idx = ss_ref_y_int * px_horizontal + ss_ref_x_int;
+
+            ss_ref->vals[i] = image_ref[idx];
             mean_ref += ss_ref->vals[i];
-            mean_def += ss_def[i];
+            mean_def += ss_def->vals[i];
         }
+
         mean_ref /= num_px;
         mean_def /= num_px;
 

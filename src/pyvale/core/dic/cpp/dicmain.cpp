@@ -73,7 +73,6 @@ namespace dic {
         // INFO_OUT("Image Scan Method: ", scan_method);
 
         const int num_px_image = px_horizontal*px_vertical;
-        const int num_px_ss = ss_size*ss_size;
 
         // get a list of ss coordinates within RIO.
         ss_coord_list = util::generate_ss_coord_list(image_roi, px_horizontal, px_vertical, ss_size, ss_step);
@@ -117,7 +116,6 @@ namespace dic {
         if (scan_method=="image_scan") scan_function=image_scan;
         else if (scan_method=="image_scan_with_brute_force") {
             scan_function=image_scan_with_bf;
-            // bruteforce::init(corr_crit, "SPIRAL");
         }
         else if (scan_method=="RG") scan_function=reliability_guided;
         else {
@@ -145,10 +143,8 @@ namespace dic {
 
             // extract a single image from the stack
             util::extract_image(&image_def, image_def_stack, img_num);  
-                    DEBUGGER;
           
             scan_function(image_ref, &image_def, ss_coord_list, num_def_images, img_num, ss_size, max_iter, tol);
-                    DEBUGGER;
 
 
         }
@@ -171,7 +167,7 @@ namespace dic {
 
         util::Subset ss_def(ss_size);
         util::Subset ss_ref(ss_size);
-        optimizer::Parameters opt(max_iter, tol);
+        optimizer::Parameters opt(max_iter, tol, image_def->px_vertical, image_def->px_horizontal);
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, opt)
@@ -210,7 +206,7 @@ namespace dic {
         util::Subset ss_ref(ss_size);
         
         // optimization parameters
-        optimizer::Parameters opt(max_iter, tol);
+        optimizer::Parameters opt(max_iter, tol, image_def->px_vertical, image_def->px_horizontal);
         
         // brute force scan parameters
         brute::Parameters brute;
@@ -218,10 +214,11 @@ namespace dic {
         brute.range = 30;
         brute.p_rigid[0] = 0.0;
         brute.p_rigid[1] = 0.0;
+        DEBUGGER;
 
         // // loop over subsets within the ROI
-        #pragma omp parallel for firstprivate(ss_def, ss_ref, opt)
-        for (int ss = 0; ss < ss_coord_list.size(); ss++){
+        #pragma omp parallel for firstprivate(ss_def, ss_ref, opt, brute)
+        for (int ss = 0; ss < ss_coord_list.size()/2; ss++){
 
             // subset coordinate list takes central locations. Converting to top left corner for optimization routine
             int ss_x = ss_coord_list[ss*2] - ss_size / 2;
@@ -230,8 +227,12 @@ namespace dic {
             // get the deformed subset coordinates and pixel values
             util::extract_ss(ss_x, ss_y, image_def, &ss_def); 
 
+            // seed optimization with rigid parameters from brute force scan
+            brute.p_rigid[0] = opt.p[0];
+            brute.p_rigid[1] = opt.p[1];
+
             // brute force scan
-            brute::znssd(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &brute);
+            brute::expanding_wavefront(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &ss_ref, &brute);
 
             // seed optimization with rigid parameters from brute force scan
             opt.p[0] = brute.p_rigid[0];
@@ -243,7 +244,7 @@ namespace dic {
 
             // append the results for the current subset to result vectors
             append_results(num_def_images, img_num, ss, &results);    
-            exit(0);
+
         }
     }
 

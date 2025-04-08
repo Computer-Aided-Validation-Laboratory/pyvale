@@ -9,6 +9,7 @@
 #include <vector>
 #include <iostream>
 #include <chrono>
+#include <algorithm>
 
 // Program Header files
 #include "./dicinterpolator.hpp"
@@ -399,7 +400,22 @@ namespace interpolator {
     }
 
     inline int index_lookup(std::vector<double> &px, double x, size_t index_lo, size_t index_hi){
+        
+        // Clamp coordinates to valid range
+        // double clamped_x = std::max(static_cast<double>(index_lo), std::min(static_cast<double>(index_hi), x));
 
+        // if (x >= px[index_lo] && x <= px[index_hi]) {
+        //     // return static_cast<int>(x); // Return x as the index
+        // }
+        // else {
+        //     // std::cout << "ERROR in \'" << __FILE__ << "\' at line \'" << __LINE__ << "\' \n";
+        //     // std::cout << "value is out of bounds. value = " << x << std::endl;
+        //     // exit(EXIT_FAILURE);
+        // }
+        // return static_cast<int>(clamped_x);
+
+        
+        
         if (x >= px[index_lo] && x <= px[index_hi]) {
             return static_cast<int>(x); // Return x as the index
         }
