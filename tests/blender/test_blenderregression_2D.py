@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 
 @pytest.fixture
 def sample_scene():
-    # data_path = pyvale.DataSet.thermomechanical_2d_output_path()
     data_path = Path.cwd() / 'tests/blender/test_out.e'
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 

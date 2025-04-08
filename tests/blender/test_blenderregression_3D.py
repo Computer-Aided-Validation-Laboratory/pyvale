@@ -16,7 +16,7 @@ import mooseherder as mh
 
 @pytest.fixture
 def sample_scene_no_cam():
-    data_path = pyvale.DataSet.thermomechanical_2d_output_path()
+    data_path = Path.cwd() / 'tests/blender/test_out.e'
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
     pyvale.BlenderScene.reset_scene()
@@ -39,15 +39,76 @@ def sample_scene_no_cam():
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
                                     cam_data=cam_data_0)
-    return cam_data_0
+    return cam_data_0, part, sim_data
 
 @pytest.fixture
 def sample_stereo_scene(sample_scene_no_cam):
-    cam_data_0 = sample_scene_no_cam
-    cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=sample_scene_no_cam,
+    cam_data_0, part, sim_data = sample_scene_no_cam
+    cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
                                                   stereo_angle=15.0)
-    return (cam_data_0, cam_data_1)
+    return (cam_data_0, cam_data_1, part, sim_data)
 
+@pytest.mark.parametrize(
+    "placement, output",
+    [
+        pytest.param("symmetric", "stereo_symmetric", id="Symmetric convenience function"),
+        pytest.param("faceon", "stereo_faceon", id="Face-on convenience function")
+    ]
+)
+def test_stereo_convenience_cameras(placement, output, request, sample_scene_no_cam):
+    (cam_data_0, _, _) = sample_scene_no_cam
+    if placement == "symmetric":
+        cam_data_1 = pyvale.blender_symmetric_stereo(cam_data_0=cam_data_0,
+                                                     stereo_angle=15.0)
+    if placement == "faceon":
+        cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
+                                                  stereo_angle=15.0)
+    render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
+                                    save_dir=Path.cwd()/'src/pyvale/tests/blender',
+                                    save_name="test")
+    image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+    output = request.getfixturevalue(output)
+
+    npt.assert_array_equal(image_array, output)
+
+def test_stereo_deformation(sample_stereo_scene, deformed_images):
+    (cam_data_0, cam_data_1, part, sim_data) = sample_stereo_scene
+    render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
+                                    save_dir = Path.cwd()/'tests/blender',
+                                    save_name='test')
+    image_arrays = pyvale.BlenderScene.render_deformed_images(sim_data=sim_data,
+                                                              render_data=render_data,
+                                                              part=part,
+                                                              save=False)
+
+    npt.assert_array_equal(image_arrays, deformed_images)
+
+def test_cal_images(sample_stereo_scene, tmpdir):
+    (cam_data_0, cam_data_1, part, _) = sample_stereo_scene
+    render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
+                                    save_dir=tmpdir,
+                                    save_name="test")
+    calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
+                                              angle_step=5,
+                                              plunge_lims=(-5, 5),
+                                              plunge_step=5)
+    number_cal_images = pyvale.BlenderTools.calibration_images(render_data,
+                                                               calibration_data,
+                                                               part,
+                                                               render = False)
+
+    assert number_cal_images == 675
+
+def test_calib_file(tmpdir, sample_stereo_scene):
+    (cam_data_0, cam_data_1, _, _) = sample_stereo_scene
+    stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
+    calib_filepath = tmpdir
+    pyvale.BlenderTools.generate_calib_file(stereo_data, calib_filepath)
+
+    expected = Path.cwd() / 'tests/blender/calib.caldat'
+    output = tmpdir.join("calib.caldat")
+
+    assert filecmp.cmp(output, expected) is True
 
 @pytest.fixture
 def stereo_symmetric():
@@ -893,41 +954,426 @@ def stereo_faceon():
         [ 1,  1],
         [ 1,  1]]])
 
-@pytest.mark.parametrize(
-    "placement, output",
-    [
-        pytest.param("symmetric", "stereo_symmetric", id="Symmetric convenience function"),
-        pytest.param("faceon", "stereo_faceon", id="Face-on convenience function")
-    ]
-)
-def test_stereo_convenience_cameras(placement, output, request, sample_scene_no_cam):
-    if placement == "symmetric":
-        cam_data_1 = pyvale.blender_symmetric_stereo(cam_data_0=sample_scene_no_cam,
-                                                     stereo_angle=15.0)
-    if placement == "faceon":
-        cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=sample_scene_no_cam,
-                                                  stereo_angle=15.0)
-    render_data = pyvale.RenderData(cam_data=(sample_scene_no_cam, cam_data_1),
-                                    save_dir=Path.cwd()/'src/pyvale/tests/blender',
-                                    save_name="test")
-    image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
-    output = request.getfixturevalue(output)
+@pytest.fixture
+def deformed_images():
+    return np.array([[[ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1]],
 
-    npt.assert_array_equal(image_array, output)
+       [[ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1]],
 
-# def test_stereo_deformation(sample_stereo_scene):
+       [[ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 8,  1,  8,  1],
+        [22,  5, 22,  5],
+        [25, 12, 25, 12],
+        [33, 20, 33, 20],
+        [30, 17, 30, 17],
+        [28,  7, 28,  8],
+        [28,  1, 28,  1],
+        [23,  0, 23,  0],
+        [18,  1, 18,  1],
+        [15,  1, 15,  1],
+        [11,  0, 11,  0],
+        [ 6,  0,  6,  0]],
 
-def test_cal_images
+       [[37, 25, 37, 25],
+        [47, 51, 47, 51],
+        [46, 56, 46, 56],
+        [53, 58, 53, 58],
+        [56, 58, 56, 58],
+        [54, 57, 54, 57],
+        [57, 57, 57, 57],
+        [61, 58, 61, 58],
+        [63, 58, 63, 58],
+        [61, 59, 61, 59],
+        [61, 59, 61, 59],
+        [59, 60, 59, 60],
+        [60, 61, 60, 61],
+        [57, 57, 57, 57],
+        [55, 49, 55, 49],
+        [51, 46, 51, 46],
+        [52, 42, 52, 42],
+        [55, 41, 55, 41],
+        [53, 40, 53, 40],
+        [43, 30, 43, 30]],
 
+       [[61, 42, 61, 42],
+        [55, 57, 55, 57],
+        [53, 57, 53, 57],
+        [56, 56, 56, 56],
+        [55, 56, 55, 56],
+        [56, 56, 55, 56],
+        [61, 56, 61, 56],
+        [65, 56, 65, 57],
+        [59, 58, 59, 58],
+        [57, 62, 57, 62],
+        [60, 63, 60, 63],
+        [63, 63, 63, 63],
+        [64, 62, 64, 62],
+        [66, 60, 66, 60],
+        [67, 59, 67, 59],
+        [60, 56, 60, 56],
+        [62, 53, 62, 53],
+        [67, 52, 67, 52],
+        [68, 50, 68, 50],
+        [58, 41, 58, 41]],
 
-def test_calib_file(tmpdir, sample_stereo_scene):
-    cam_data_0, cam_data_1 = sample_stereo_scene
-    stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
-    calib_filepath = tmpdir
-    pyvale.BlenderTools.generate_calib_file(stereo_data, calib_filepath)
+       [[67, 45, 67, 45],
+        [63, 56, 63, 56],
+        [61, 57, 61, 57],
+        [63, 58, 63, 58],
+        [63, 57, 63, 57],
+        [59, 55, 59, 55],
+        [68, 57, 68, 57],
+        [64, 57, 64, 57],
+        [57, 57, 57, 57],
+        [57, 57, 57, 57],
+        [61, 57, 61, 56],
+        [61, 58, 61, 58],
+        [57, 56, 57, 56],
+        [68, 55, 68, 55],
+        [70, 55, 70, 55],
+        [60, 53, 60, 53],
+        [63, 52, 63, 52],
+        [72, 52, 72, 52],
+        [72, 51, 72, 50],
+        [64, 43, 64, 42]],
 
-    expected = Path.cwd() / 'tests/blender/calib.caldat'
-    output = tmpdir.join("calib.caldat")
+       [[67, 49, 67, 49],
+        [63, 55, 63, 55],
+        [67, 56, 67, 56],
+        [64, 57, 64, 57],
+        [58, 55, 58, 55],
+        [59, 53, 59, 53],
+        [71, 55, 71, 55],
+        [60, 55, 60, 55],
+        [59, 57, 59, 57],
+        [61, 55, 61, 55],
+        [66, 56, 66, 56],
+        [56, 55, 56, 55],
+        [55, 54, 55, 54],
+        [67, 53, 67, 53],
+        [69, 52, 69, 52],
+        [56, 51, 56, 50],
+        [64, 49, 64, 49],
+        [70, 49, 70, 49],
+        [70, 49, 70, 49],
+        [63, 43, 63, 43]],
 
-    assert filecmp.cmp(output, expected) is True
+       [[64, 51, 64, 51],
+        [59, 54, 59, 54],
+        [63, 55, 63, 55],
+        [66, 56, 66, 56],
+        [64, 55, 64, 55],
+        [64, 53, 64, 53],
+        [73, 53, 73, 53],
+        [60, 56, 60, 56],
+        [59, 56, 59, 56],
+        [64, 56, 64, 56],
+        [63, 56, 63, 56],
+        [52, 56, 52, 56],
+        [60, 58, 60, 59],
+        [67, 57, 67, 58],
+        [67, 56, 67, 56],
+        [54, 53, 54, 53],
+        [64, 50, 64, 50],
+        [66, 49, 66, 49],
+        [68, 46, 68, 46],
+        [60, 41, 60, 40]],
+
+       [[65, 48, 65, 48],
+        [60, 53, 60, 53],
+        [62, 56, 62, 56],
+        [62, 56, 62, 56],
+        [60, 55, 60, 55],
+        [59, 54, 59, 54],
+        [70, 54, 70, 54],
+        [59, 55, 59, 55],
+        [63, 56, 63, 56],
+        [70, 58, 71, 58],
+        [63, 57, 63, 57],
+        [58, 59, 58, 59],
+        [67, 62, 67, 62],
+        [69, 62, 69, 62],
+        [63, 59, 63, 59],
+        [52, 55, 52, 55],
+        [62, 55, 62, 55],
+        [66, 57, 66, 57],
+        [70, 51, 70, 51],
+        [54, 41, 54, 40]],
+
+       [[63, 50, 63, 50],
+        [60, 54, 60, 54],
+        [62, 57, 62, 57],
+        [61, 57, 61, 57],
+        [58, 56, 58, 56],
+        [59, 55, 59, 55],
+        [70, 54, 70, 54],
+        [65, 55, 65, 55],
+        [66, 57, 66, 57],
+        [68, 57, 68, 57],
+        [52, 56, 52, 56],
+        [60, 59, 60, 59],
+        [67, 62, 67, 62],
+        [67, 61, 67, 61],
+        [60, 61, 60, 61],
+        [53, 57, 52, 57],
+        [60, 56, 60, 56],
+        [64, 55, 64, 55],
+        [67, 53, 67, 53],
+        [49, 43, 49, 43]],
+
+       [[63, 55, 63, 55],
+        [60, 58, 60, 58],
+        [63, 59, 63, 59],
+        [59, 58, 59, 58],
+        [60, 61, 60, 61],
+        [65, 59, 65, 59],
+        [72, 57, 72, 57],
+        [63, 57, 63, 57],
+        [63, 57, 63, 57],
+        [56, 55, 56, 55],
+        [52, 56, 52, 56],
+        [62, 59, 62, 59],
+        [67, 61, 67, 62],
+        [68, 63, 68, 63],
+        [61, 64, 61, 64],
+        [53, 60, 53, 60],
+        [60, 56, 61, 56],
+        [65, 54, 65, 54],
+        [69, 51, 69, 51],
+        [48, 41, 48, 41]],
+
+       [[58, 58, 58, 58],
+        [64, 58, 64, 58],
+        [72, 60, 72, 60],
+        [69, 60, 69, 60],
+        [69, 60, 69, 60],
+        [74, 60, 74, 60],
+        [78, 59, 78, 59],
+        [61, 55, 61, 55],
+        [61, 57, 61, 57],
+        [56, 59, 56, 59],
+        [58, 58, 58, 58],
+        [61, 58, 61, 58],
+        [65, 62, 65, 62],
+        [70, 65, 70, 65],
+        [66, 66, 66, 66],
+        [58, 66, 58, 66],
+        [61, 62, 61, 62],
+        [64, 60, 64, 60],
+        [67, 51, 67, 51],
+        [51, 40, 51, 40]],
+
+       [[57, 53, 57, 53],
+        [67, 57, 67, 57],
+        [73, 58, 73, 58],
+        [68, 59, 68, 59],
+        [69, 60, 69, 60],
+        [76, 61, 76, 61],
+        [77, 60, 77, 60],
+        [57, 56, 57, 56],
+        [59, 56, 59, 56],
+        [62, 57, 63, 57],
+        [63, 58, 63, 58],
+        [62, 60, 62, 60],
+        [59, 58, 59, 58],
+        [64, 60, 64, 60],
+        [65, 61, 65, 61],
+        [59, 63, 59, 64],
+        [58, 64, 58, 64],
+        [63, 62, 63, 62],
+        [66, 54, 66, 54],
+        [54, 39, 54, 39]],
+
+       [[54, 50, 54, 50],
+        [57, 56, 57, 56],
+        [61, 60, 61, 60],
+        [54, 58, 54, 58],
+        [50, 55, 50, 55],
+        [58, 55, 58, 55],
+        [65, 55, 65, 55],
+        [56, 57, 56, 57],
+        [56, 60, 57, 59],
+        [61, 57, 61, 57],
+        [63, 58, 63, 58],
+        [63, 62, 63, 62],
+        [57, 56, 58, 56],
+        [62, 59, 62, 59],
+        [62, 62, 62, 62],
+        [54, 66, 54, 66],
+        [56, 68, 56, 68],
+        [61, 65, 61, 65],
+        [63, 65, 63, 65],
+        [49, 50, 50, 50]],
+
+       [[56, 45, 56, 45],
+        [59, 53, 59, 53],
+        [61, 60, 61, 60],
+        [57, 62, 57, 62],
+        [52, 59, 52, 59],
+        [63, 60, 63, 60],
+        [63, 59, 63, 59],
+        [50, 61, 50, 61],
+        [50, 63, 50, 63],
+        [58, 62, 58, 62],
+        [62, 61, 62, 61],
+        [63, 59, 63, 59],
+        [60, 57, 60, 57],
+        [62, 60, 62, 60],
+        [59, 64, 60, 64],
+        [54, 66, 54, 66],
+        [62, 69, 62, 69],
+        [66, 69, 66, 69],
+        [67, 68, 67, 68],
+        [48, 58, 49, 58]],
+
+       [[55, 43, 55, 43],
+        [59, 51, 59, 51],
+        [61, 63, 61, 63],
+        [59, 65, 59, 65],
+        [55, 64, 55, 64],
+        [61, 60, 61, 60],
+        [64, 55, 64, 55],
+        [55, 54, 55, 54],
+        [55, 55, 55, 55],
+        [65, 59, 65, 59],
+        [64, 61, 64, 61],
+        [63, 58, 63, 58],
+        [58, 58, 58, 58],
+        [56, 61, 56, 61],
+        [57, 62, 57, 62],
+        [57, 62, 57, 62],
+        [61, 65, 61, 65],
+        [65, 64, 65, 64],
+        [63, 63, 63, 63],
+        [39, 59, 39, 59]],
+
+       [[39, 33, 39, 33],
+        [50, 46, 50, 46],
+        [51, 58, 51, 58],
+        [51, 60, 51, 60],
+        [47, 60, 47, 60],
+        [50, 61, 50, 61],
+        [56, 58, 56, 58],
+        [52, 58, 52, 58],
+        [55, 59, 55, 59],
+        [63, 59, 63, 59],
+        [62, 53, 62, 53],
+        [62, 47, 62, 46],
+        [55, 41, 55, 41],
+        [51, 39, 51, 39],
+        [54, 37, 54, 36],
+        [54, 36, 54, 36],
+        [54, 36, 54, 35],
+        [56, 34, 56, 34],
+        [49, 36, 49, 36],
+        [23, 37, 23, 37]],
+
+       [[ 6,  5,  6,  5],
+        [11, 11, 11, 11],
+        [17, 21, 17, 21],
+        [19, 24, 19, 24],
+        [17, 23, 17, 23],
+        [19, 23, 19, 23],
+        [23, 20, 23, 20],
+        [23, 17, 23, 17],
+        [26, 13, 26, 13],
+        [32, 10, 33, 10],
+        [35,  5, 36,  5],
+        [33,  3, 33,  3],
+        [25,  1, 25,  1],
+        [24,  1, 24,  1],
+        [25,  2, 25,  2],
+        [25,  2, 25,  2],
+        [22,  1, 22,  1],
+        [20,  1, 20,  1],
+        [13,  2, 13,  2],
+        [ 2,  3,  2,  3]],
+
+       [[ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0]],
+
+       [[ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 0,  0,  0,  0],
+        [ 0,  0,  0,  0],
+        [ 1,  1,  1,  1],
+        [ 1,  1,  1,  1]]])
+
 
