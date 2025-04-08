@@ -8,8 +8,10 @@ Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 import numpy as np
+import sys
 from scipy.spatial.transform import Rotation
 from pathlib import Path
+import matplotlib.pyplot as plt
 import pyvale
 import mooseherder as mh
 
@@ -35,7 +37,7 @@ def main() -> None:
                                  pos_world=(0, 0, 400),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
-                                 focal_length=15)
+                                 focal_length=15.0)
     camera = pyvale.BlenderScene.add_camera(cam_data)
 
     # Add the light
@@ -65,8 +67,7 @@ def main() -> None:
         save_name = 'ex_1_1'
         render_data = pyvale.RenderData(cam_data=cam_data,
                                         save_dir=save_dir,
-                                        save_name=save_name,
-                                        samples=1)
+                                        save_name=save_name)
 
         pyvale.BlenderScene.render_single_image(save=True, render_data=render_data)
 

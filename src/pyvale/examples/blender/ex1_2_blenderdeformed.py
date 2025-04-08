@@ -12,6 +12,7 @@ from scipy.spatial.transform import Rotation
 from pathlib import Path
 import pyvale
 import mooseherder as mh
+import sys
 
 def main() -> None:
     data_path = pyvale.DataSet.thermomechanical_2d_output_path()
@@ -30,7 +31,7 @@ def main() -> None:
     pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
 
     # Add the camera
-    cam_data = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
+    cam_data = pyvale.CameraData(pixels_num=np.array([1040, 1540]),
                                  pixels_size=np.array([0.00345, 0.00345]),
                                  pos_world=(0, 0, 400),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),

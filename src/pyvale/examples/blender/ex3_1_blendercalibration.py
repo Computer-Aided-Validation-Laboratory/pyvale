@@ -14,7 +14,7 @@ import pyvale
 import mooseherder as mh
 
 def main() -> None:
-    # TODO: Integrate path into pyvale - or make own SimData instance>
+    # TODO: Integrate path into pyvale - or make own SimData instance
     data_path = Path.cwd() / 'src/pyvale/data/moose-mech-simple_out.e'
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
@@ -31,7 +31,7 @@ def main() -> None:
     pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
 
     # Add the camera
-    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
+    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1040, 1540]),
                                  pixels_size=np.array([0.00345, 0.00345]),
                                  pos_world=np.array([0, 0, 400]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
@@ -80,8 +80,8 @@ def main() -> None:
                                     samples=1)
     calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
                                               angle_step=5,
-                                              plunge_lims=(-10, 10),
-                                              plunge_step=10)
+                                              plunge_lims=(-5, 5),
+                                              plunge_step=5)
 
     pyvale.BlenderTools.calibration_images(render_data, calibration_data, part)
 

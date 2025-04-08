@@ -30,7 +30,7 @@ def main() -> None:
     pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
 
     # Add the stereo camera system
-    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
+    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1040, 1540]),
                                  pixels_size=np.array([0.00345, 0.00345]),
                                  pos_world=np.array([0, 0, 400]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
@@ -41,10 +41,10 @@ def main() -> None:
     stereo_system = "symmetric"
     if stereo_system == "symmetric":
         cam_data_1 = pyvale.blender_symmetric_stereo(cam_data_0=cam_data_0,
-                                                 stereo_angle=20.0)
+                                                 stereo_angle=15.0)
     if stereo_system == "faceon":
         cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
-                                                 stereo_angle=20.0)
+                                                 stereo_angle=15.0)
     # Generate calibration file
     stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
     calib_filepath = Path.cwd() / 'src/pyvale/data/'
