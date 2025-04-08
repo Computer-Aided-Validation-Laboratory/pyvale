@@ -17,7 +17,8 @@ def main() -> None:
     """pyvale example: thermocouples on a 3D divertor monoblock heatsink
     ----------------------------------------------------------------------------
     """
-    data_path = pyvale.DataSet.thermal_3d_path()
+    #data_path = pyvale.DataSet.thermal_3d_path()
+    data_path = Path.cwd()/"src"/"pyvale"/"simcases"/"case16_out.e"
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_name = 'temperature'
     # Scale to mm to make 3D visualisation scaling easier

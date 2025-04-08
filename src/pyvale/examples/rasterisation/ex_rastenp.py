@@ -34,10 +34,10 @@ def main() -> None:
     """
     # This a path to an exodus *.e output file from MOOSE, this can be
     # replaced with a path to your own simulation file
-    #sim_path = pyv.DataSet.render_mechanical_3d_path()
+    #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
+    sim_path = pyv.DataSet.render_mechanical_3d_path()
+
     disp_comps = ("disp_x","disp_y","disp_z")
-    sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
-    #sim_path = pyv.DataSet.render_mechanical_3d_path()
 
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
@@ -49,8 +49,6 @@ def main() -> None:
                                         ("disp_y","disp_x"),
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
-
-
 
     print()
     print(80*"-")
@@ -73,7 +71,7 @@ def main() -> None:
     pixel_num = np.array((960,1280))
     pixel_size = np.array((5.3e-3,5.3e-3))
     focal_leng: float = 50
-    cam_rot = Rotation.from_euler("zyx",(0.0,0.0,-30.0),degrees=True)
+    cam_rot = Rotation.from_euler("zyx",(0.0,-30.0,-10.0),degrees=True)
     fov_scale_factor: float = 1.1
 
     (roi_pos_world,
@@ -146,21 +144,10 @@ def main() -> None:
     print(f"Time per frame = {(render_time/total_frames):.4f} seconds")
     print(80*"=")
 
-    # save_buffers = False
-    # if save_buffers:
-    #     save_path = Path().cwd()/"example_output"
-    #     im_buff_path = save_path / "image_buffer_connect.npy"
-    #     depth_buff_path = save_path / "depth_buffer_connect.npy"
-    #     np.save(im_buff_path,image_buffer)
-    #     np.save(depth_buff_path,depth_buffer)
-
-
     plot_on = True
     if plot_on:
         (fig,ax) = pyv.plot_field_image(images[:,:,-1,0],
                                         title_str="Disp. y, [mm]")
-        image_save_path = Path.home()/"pyvale"/"exampleoutput"/"raster_field_image.png"
-        fig.savefig(image_save_path, dpi=300, format="png", bbox_inches="tight")
         plt.show()
 
 if __name__ == "__main__":

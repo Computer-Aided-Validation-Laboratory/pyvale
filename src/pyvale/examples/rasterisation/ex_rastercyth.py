@@ -27,11 +27,12 @@ def main() -> None:
 
     # This a path to an exodus *.e output file from MOOSE, this can be
     # replaced with a path to your own simulation file
-    disp_comps = ("disp_x","disp_y","disp_z")
-    #sim_path = pyv.DataSet.render_mechanical_3d_path()
-    sim_path = pyv.DataSet.render_simple_block_path()
+    sim_path = pyv.DataSet.render_mechanical_3d_path()
+    #sim_path = pyv.DataSet.render_simple_block_path()
     #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
+
+    disp_comps = ("disp_x","disp_y","disp_z")
 
     # Scale m -> mm
     sim_data = pyv.scale_length_units(sim_data,disp_comps,1000.0)

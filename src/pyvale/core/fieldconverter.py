@@ -46,9 +46,11 @@ def simdata_to_pyvista(sim_data: mh.SimData,
 
         temp_connect = temp_connect.T.flatten()
         idxs = np.arange(0,n_elems*nodes_per_elem,nodes_per_elem,dtype=np.int64)
-        temp_connect = np.insert(temp_connect,idxs,nodes_per_elem)
 
         this_cell_type = _get_pyvista_cell_type(nodes_per_elem,spat_dim)
+        temp_connect = np.insert(temp_connect,idxs,nodes_per_elem)
+        #temp_connect = np.insert(temp_connect,idxs,this_cell_type)
+
         cell_types = np.hstack((cell_types,np.full(n_elems,this_cell_type)))
         flat_connect = np.hstack((flat_connect,temp_connect),dtype=np.int64)
 
@@ -114,6 +116,11 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
             warnings.warn(f"Cell type 3D with {nodes_per_elem} "
                 + "nodes not recognised. Defaulting to 8 node HEX")
             cell_type = CellType.HEXAHEDRON
+
+    print(80*"=")
+    print(f"{nodes_per_elem=}")
+    print(f"{cell_type=}")
+    print(80*"=")
 
     return cell_type
 

@@ -333,14 +333,15 @@ class RasterNP:
 
         #---------------------------------------------------------------------------
         # END RASTER LOOP
-        
-        # depth_buff = CameraTools.average_subpixel_image(depth_buffer,cam_data.sub_samp)
-        # image_buff = CameraTools.average_subpixel_image(image_buffer,cam_data.sub_samp)
-
-        image_buff = np.empty((cam_data.pixels_num[1],cam_data.pixels_num[0]),dtype=np.float64)
-        depth_buff = np.empty((cam_data.pixels_num[1],cam_data.pixels_num[0]),dtype=np.float64)
-        rastercyth.average_image(depth_buffer,cam_data.sub_samp,depth_buff)
-        rastercyth.average_image(image_buffer,cam_data.sub_samp,image_buff)
+        # TODO: fix this for windows
+        if Path(rastercyth.__file__).suffix == ".so":
+            depth_buff = np.empty((cam_data.pixels_num[1],cam_data.pixels_num[0]),dtype=np.float64)
+            depth_buff = np.array(rastercyth.average_image(depth_buffer,cam_data.sub_samp))
+            image_buff = np.empty((cam_data.pixels_num[1],cam_data.pixels_num[0]),dtype=np.float64)
+            image_buff = np.array(rastercyth.average_image(image_buffer,cam_data.sub_samp))
+        else:
+            depth_buff = CameraTools.average_subpixel_image(depth_buffer,cam_data.sub_samp)
+            image_buff = CameraTools.average_subpixel_image(image_buffer,cam_data.sub_samp)
 
         return (image_buff,depth_buff)
 
