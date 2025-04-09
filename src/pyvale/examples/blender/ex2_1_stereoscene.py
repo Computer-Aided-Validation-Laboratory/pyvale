@@ -83,8 +83,7 @@ def main() -> None:
                                         save_dir=save_dir,
                                         save_name=save_name)
 
-        array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
-        print(f"{array.shape=}")
+        pyvale.BlenderScene.render_single_image(save=True, render_data=render_data)
 
     # Save Blender file
     # --------------------------------------------------------------------------
