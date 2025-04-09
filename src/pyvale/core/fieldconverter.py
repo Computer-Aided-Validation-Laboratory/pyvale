@@ -41,13 +41,27 @@ def simdata_to_pyvista(sim_data: mh.SimData,
 
     for cc in sim_data.connect:
         # NOTE: need the -1 here to make element numbers 0 indexed!
-        temp_connect = sim_data.connect[cc]-1
+        temp_connect = np.copy(sim_data.connect[cc])-1
+        view_connect = np.copy(temp_connect)
         (nodes_per_elem,n_elems) = temp_connect.shape
+
+        this_cell_type = _get_pyvista_cell_type(nodes_per_elem,spat_dim)
+
+        # VTK and exodus have different winding for 3D higher order quads
+        if this_cell_type == CellType.QUADRATIC_HEXAHEDRON:
+            temp_connect[12:16,:] = view_connect[16:20,:]
+            temp_connect[16:20,:] = view_connect[12:16,:]
+        elif this_cell_type == CellType.TRIQUADRATIC_HEXAHEDRON:
+            temp_connect[12:16,:] = view_connect[16:20,:]
+            temp_connect[16:20,:] = view_connect[12:16,:]
+            temp_connect[20:24,:] = view_connect[23:27,:]
+            temp_connect[24,:] = view_connect[21,:]
+            temp_connect[25,:] = view_connect[22,:]
+            temp_connect[26,:] = view_connect[20,:]
 
         temp_connect = temp_connect.T.flatten()
         idxs = np.arange(0,n_elems*nodes_per_elem,nodes_per_elem,dtype=np.int64)
 
-        this_cell_type = _get_pyvista_cell_type(nodes_per_elem,spat_dim)
         temp_connect = np.insert(temp_connect,idxs,nodes_per_elem)
         #temp_connect = np.insert(temp_connect,idxs,this_cell_type)
 
@@ -116,11 +130,6 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
             warnings.warn(f"Cell type 3D with {nodes_per_elem} "
                 + "nodes not recognised. Defaulting to 8 node HEX")
             cell_type = CellType.HEXAHEDRON
-
-    print(80*"=")
-    print(f"{nodes_per_elem=}")
-    print(f"{cell_type=}")
-    print(80*"=")
 
     return cell_type
 
