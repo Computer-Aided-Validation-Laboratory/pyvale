@@ -27,7 +27,10 @@ class DIC2D:
                  shape_function: str="affine",
                  interpolation_routine: str="bicubic",
                  max_iterations: int=100,
-                 tolerance: float=1e-4,
+                 precision: float=0.001,
+                 threshold_levenberg: float=0.1,
+                 threshold_bruteforce: float=0.2,
+                 range_bruteforce: int=10,
                  scanning_method: str="image_scan"):
 
         self.image_ref = reference_image
@@ -36,7 +39,10 @@ class DIC2D:
         self.subset_step = subset_step
         self.subset_size = subset_size
         self.max_iterations = max_iterations
-        self.tolerance = tolerance
+        self.precision = precision
+        self.threshold_levenberg = threshold_levenberg
+        self.threshold_bruteforce = threshold_bruteforce
+        self.range_bruteforce = range_bruteforce
         self.corr_crit = correlation_criteria
         self.shape_func = shape_function
         self.interp = interpolation_routine
@@ -63,7 +69,10 @@ class DIC2D:
                                            self.subset_step,
                                            self.subset_size,
                                            self.max_iterations,
-                                           self.tolerance,
+                                           self.precision,
+                                           self.threshold_levenberg,
+                                           self.threshold_bruteforce,
+                                           self.range_bruteforce,
                                            self.corr_crit,
                                            self.shape_func,
                                            self.interp,

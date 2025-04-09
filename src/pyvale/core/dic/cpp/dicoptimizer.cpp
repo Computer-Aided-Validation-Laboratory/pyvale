@@ -45,9 +45,10 @@ namespace optimizer {
 
     Results solve(const double ss_x, const double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt) {
 
-        opt->iter = 0;
+        int iter = 0;
+        double ftol, xtol;
 
-        while (opt->iter < opt->max_iter) {
+        while (iter < opt->max_iter) {
 
             // perform the optimization
             optimize_cost(ss_x, ss_y, ss_def, ss_ref, opt);
@@ -55,28 +56,43 @@ namespace optimizer {
 
 
 
-            opt->ftol = std::abs(opt->costpdp - opt->costp) / (std::abs(opt->costp) + std::numeric_limits<double>::epsilon());
-            opt->xtol = std::sqrt(std::inner_product(opt->dp.begin(), opt->dp.end(), opt->dp.begin(), 0.0));
+            // relative change of all parameters
+            xtol = std::sqrt(std::inner_product(opt->dp.begin(), opt->dp.end(), opt->dp.begin(), 0.0)) / 
+                          std::sqrt(std::inner_product( opt->p.begin(),  opt->p.end(),  opt->p.begin(), 0.0));
 
-            if ((opt->xtol < opt->tol) && (opt->costp < 0.1)){
-                debugPrint(ss_x, ss_y, opt->iter, opt->ftol, opt->xtol, opt->p);
+
+
+            // variation on correlation coefficient
+            ftol = std::abs(opt->costpdp - opt->costp);
+
+
+            // convergence criteria
+            // - rel change in parameters is less than user precision
+            // - change in corr coeff is less than precision
+            // - corr is less than threshold
+            if ((xtol < opt->precision) && (ftol < opt->precision) && (opt->costp < opt->threshold_lm)) {
+                debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
                 break;
             }
-            opt->iter++;
+
+
+            iter++;
         }
+
+        // if its a bad subset and hits max_iterations then reset p values to 0.0 to prevent bad seeding.
+        if (iter == opt->max_iter) {
+            debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
+            std::fill(opt->p.begin(), opt->p.end(), 0.0);
+        }
+
+        
 
         Results results;
         affine_parameters_to_displacement(&results, ss_x, ss_y, opt->p);
-        results.iter = opt->iter;
-        results.ftol = opt->ftol;
-        results.xtol = opt->xtol;
+        results.iter = iter;
+        results.ftol = ftol;
+        results.xtol = xtol;
         results.p = opt->p;
-
-        // if its a bad subset and hits max_iterations then reset p values to 0.0 to prevent bad seeding.
-        if (opt->iter == opt->max_iter) {
-            debugPrint(ss_x, ss_y, opt->iter, opt->ftol, opt->xtol, opt->p);
-            std::fill(opt->p.begin(), opt->p.end(), 0.0);
-        }
 
         return results;
     }
@@ -622,9 +638,9 @@ namespace optimizer {
         }
     }
 
-    void debugPrint(int ss_x, int ss_y, int iter, double ftol, double xtol, const std::vector<double>& p) {
+    void debugPrint(int ss_x, int ss_y, int iter, double costp, double ftol, double xtol, const std::vector<double>& p) {
         std::cout << ss_x << " " << ss_y << " ";
-        std::cout << iter << " " << ftol << " " << xtol << " ";
+        std::cout << iter << " " << costp << " " << ftol << " " << xtol << " ";
         std::cout << p[0] << " ";
         std::cout << p[1] << " ";
         std::cout << p[2] << " ";

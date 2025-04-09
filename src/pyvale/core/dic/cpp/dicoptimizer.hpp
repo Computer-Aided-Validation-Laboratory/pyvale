@@ -23,9 +23,6 @@ namespace optimizer {
 
 
     struct Parameters {
-        int iter; // number of iterations for each subset optimization
-        double ftol; // tolerance for termination by the change of the cost function
-        double xtol; // tolerance for termination by the change of the independent variables
         double lambda; // damping
         double costp; // cost function for current P values
         double costpdp; // cost function for P+deltaP values
@@ -37,16 +34,15 @@ namespace optimizer {
         std::vector<double> dp; // deltaP
         std::vector<double> pdp; // P + deltaP
         int max_iter;
-        double tol;
+        double precision;
+        double threshold_lm;
         int px_vertical;
         int px_horizontal;
 
 
         // Constructor to initialize vectors and other parameters
-        Parameters(int max_iter_, double tol_, int px_vertical_, int px_horizontal_)
-            : iter(0),
-            ftol(0.0),
-            xtol(0.0),
+        Parameters(int max_iter_, double precision_, double threshold_lm_, int px_vertical_, int px_horizontal_)
+            :
             lambda(0.01),
             costp(0.0),
             costpdp(0.0),
@@ -58,10 +54,10 @@ namespace optimizer {
             dp(6, 0.0),
             pdp(6, 0.0),
             max_iter(max_iter_),
-            tol(tol_),
+            precision(precision_),
+            threshold_lm(threshold_lm_),
             px_vertical(px_vertical_),
-            px_horizontal(px_horizontal_)
-        {}
+            px_horizontal(px_horizontal_) {}
     };
 
 
@@ -81,7 +77,7 @@ namespace optimizer {
     void init(std::string &, std::string &);
     void setCostFunction(const std::string& corr_crit);
     void setShapeFunction(const std::string& shape_func);
-    void debugPrint(int ss_x, int ss_y, int iter, double ftol, double xtol, const std::vector<double>& p);
+    void debugPrint(int ss_x, int ss_y, int iter, double costp, double ftol, double xtol, const std::vector<double>& p);
     void init_parameters(optimizer::Parameters *opt, int ss_size);
 
 

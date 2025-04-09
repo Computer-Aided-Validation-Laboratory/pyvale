@@ -45,7 +45,10 @@ cdef extern from "../cpp/dicmain.hpp" namespace "dic":
                     int subset_step,
                     int subset_size,
                     int max_iter,
-                    double tol,
+                    double precision,
+                    double threshold_lm,
+                    double threshold_bf,
+                    int range_bf,
                     string& corr_crit, 
                     string& shape_func,
                     string& interp_routine,
@@ -70,7 +73,10 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                       int subset_step, 
                       int subset_size,
                       int max_iterations,
-                      double tolerance,       
+                      double precision,       
+                      double threshold_levenberg,       
+                      double threshold_bruteforce,   
+                      int range_bruteforce,    
                       str correlation_criteria,
                       str shape_function,
                       str interpolation_routine,
@@ -87,8 +93,10 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
     cdef int num_def_images = deformed_images.shape[0]
 
     cdef int max_iter = max_iterations
-    cdef double tol = tolerance
-
+    cdef double precision_ = precision
+    cdef double threshold_lm = threshold_levenberg
+    cdef double threshold_bf = threshold_bruteforce
+    cdef int range_bf = range_bruteforce
 
     # other arguments needed for C++ DIC routine
     cdef string corr_crit = correlation_criteria.encode('utf-8')
@@ -107,7 +115,10 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                subset_step,
                subset_size,
                max_iter,
-               tol,
+               precision_,
+               threshold_lm,
+               threshold_bf,
+               range_bf,
                corr_crit, 
                shape_func,
                interp_routine,

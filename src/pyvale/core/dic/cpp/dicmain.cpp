@@ -47,7 +47,10 @@ namespace dic {
                     int ss_step,
                     int ss_size,
                     int max_iter,
-                    double tol,
+                    double precision,
+                    double threshold_lm,
+                    double threshold_bf,
+                    int range_bf,
                     std::string& corr_crit, 
                     std::string& shape_func,
                     std::string& interp_routine,
@@ -112,7 +115,9 @@ namespace dic {
         xtol_arr.resize(num_def_images * n_ss);
 
         // function pointer for the method of scanning the subsets through the image
-        void (*scan_function)(int *, util::Image *, std::vector<int> &, int, int, int, int, double);
+        void (*scan_function)(int *, util::Image *, std::vector<int> &, int, int, int, int, double, double, double, double);
+
+        // set the scan_function pointer based on the scan method specified by user.
         if (scan_method=="image_scan") scan_function=image_scan;
         else if (scan_method=="image_scan_with_brute_force") {
             scan_function=image_scan_with_bf;
@@ -144,7 +149,7 @@ namespace dic {
             // extract a single image from the stack
             util::extract_image(&image_def, image_def_stack, img_num);  
           
-            scan_function(image_ref, &image_def, ss_coord_list, num_def_images, img_num, ss_size, max_iter, tol);
+            scan_function(image_ref, &image_def, ss_coord_list, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf);
 
 
         }
@@ -163,11 +168,25 @@ namespace dic {
     // Raw image scan
     // -------------------------------------------------------------------------------------------
 
-    void image_scan(int *image_ref, util::Image *image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int ss_size, int max_iter, double tol){
+    void image_scan(int *image_ref, 
+                    util::Image *image_def, 
+                    std::vector<int> &ss_coord_list, 
+                    int num_def_images, 
+                    int img_num, 
+                    int ss_size, 
+                    int max_iter, 
+                    double precision,
+                    double threshold_lm,
+                    double threshold_bf,
+                    double range_bf){
 
+
+        // initialise subsets
         util::Subset ss_def(ss_size);
         util::Subset ss_ref(ss_size);
-        optimizer::Parameters opt(max_iter, tol, image_def->px_vertical, image_def->px_horizontal);
+
+        // optimization parameters
+        optimizer::Parameters opt(max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, opt)
@@ -199,30 +218,40 @@ namespace dic {
     // Raw image scan with a brute force to find rigid parameters. Good for large displacements
     // -------------------------------------------------------------------------------------------
 
-    void image_scan_with_bf(int *image_ref, util::Image *image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int ss_size, int max_iter, double tol){
+    void image_scan_with_bf(int *image_ref, 
+                            util::Image *image_def, 
+                            std::vector<int> &ss_coord_list, 
+                            int num_def_images, 
+                            int img_num, 
+                            int ss_size, 
+                            int max_iter, 
+                            double precision,
+                            double threshold_lm,
+                            double threshold_bf,
+                            double range_bf){
 
         // subsets
         util::Subset ss_def(ss_size);
         util::Subset ss_ref(ss_size);
         
         // optimization parameters
-        optimizer::Parameters opt(max_iter, tol, image_def->px_vertical, image_def->px_horizontal);
+        optimizer::Parameters opt(max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
         
         // brute force scan parameters
-        brute::Parameters brute;
-        brute.tol = 0.1;
-        brute.range = 30;
-        brute.p_rigid[0] = 0.0;
-        brute.p_rigid[1] = 0.0;
+        brute::Parameters brute(threshold_bf, range_bf);
+
+        // perform optimization on subset from deformed image
+        optimizer::Results results;
+        results.iter = 0;
 
         // counter for each thread
-        int ss_thread_num = 0;        
+        int ss_thread_num = 0;      
 
         // loop over subsets within the ROI
-        #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute)
+        #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, results)
         for (int ss = 0; ss < ss_coord_list.size()/2; ss++){
 
-            // subset coordinate list takes central locations. Converting to top left corner for optimization routine
+            // subset coordinate list contains central locations. Converting to top left corner for optimization routine
             int ss_x = ss_coord_list[ss*2] - ss_size / 2;
             int ss_y = ss_coord_list[ss*2+1] - ss_size / 2;
 
@@ -232,14 +261,14 @@ namespace dic {
 
             // if this is the first subset in the loop, or, if last subset was a poor match
             // Kick off the next search with a brute force
-            if ((ss_thread_num == 0) || (opt.iter == opt.max_iter)){
+            if ((ss_thread_num == 0) || (results.iter == opt.max_iter)){
+                // std::cout << results.iter << brute.p_rigid[0] << " " << brute.p_rigid[1] << std::endl;
                 brute::expanding_wavefront(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &ss_ref, &brute);
+                // std::cout << results.iter << " " << brute.p_rigid[0] << " " << brute.p_rigid[1] << std::endl;
                 opt.p[0] = brute.p_rigid[0];
                 opt.p[1] = brute.p_rigid[1];
             }
 
-            // perform optimization on subset from deformed image
-            optimizer::Results results;
             results = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
 
             // append the results for the current subset to result vectors
@@ -259,7 +288,17 @@ namespace dic {
     // Reliability Guided scan of image. (NOT YET IMPLEMENTED)
     // -------------------------------------------------------------------------------------------
 
-    void reliability_guided(int *image_ref, util::Image *image_def, std::vector<int> &ss_coord_list, int num_def_images, int img_num, int ss_size, int max_iter, double tol){
+    void reliability_guided(int *image_ref, 
+                            util::Image *image_def, 
+                            std::vector<int> &ss_coord_list, 
+                            int num_def_images, 
+                            int img_num, 
+                            int ss_size, 
+                            int max_iter, 
+                            double precision,
+                            double threshold_lm,
+                            double threshold_bf,
+                            double range_bf){
 
         // // create image masks
         // std::vector<bool> mc(px_horizontal, px_vertical);

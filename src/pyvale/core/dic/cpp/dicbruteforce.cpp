@@ -91,24 +91,28 @@ namespace brute {
         for (int r = 0; r <= range; r++) {
 
             // Go around the current ring at radius r
-            for (int dy = -r; dy <= r; dy++) {
-                for (int dx = -r; dx <= r; dx++) {
+            for (int p1 = -r; p1 <= r; p1++) {
+                for (int p0 = -r; p0 <= r; p0++) {
             
                     // Only process the points on the perimeter of the square
-                    if (std::abs(dx) != r && std::abs(dy) != r) continue;
+                    if (std::abs(p0) != r && std::abs(p1) != r) continue;
 
-                    int p0 = ss_x + dx;
-                    int p1 = ss_y + dy;
+                    
+                    // get the min and max values of the 'new' subset
+                    int ss_xmin = ss_x + p0;
+                    int ss_ymin = ss_y + p1;
+                    int ss_xmax = ss_x + p0 + ss_def->size;
+                    int ss_ymax = ss_y + p1 + ss_def->size;
 
-                    // Check bounds
-                    if (p0 < 0 || p0 >= px_horizontal || p1 < 0 || p1 >= px_vertical) continue;
+                    // if the 'new' subset is outside the image bounds then skip it.
+                    if (ss_xmin < 0 || ss_xmax >= px_horizontal || ss_ymin < 0 || ss_ymax >= px_vertical) continue;
 
-                    double cost = cost_function(ss_x, ss_y, image_ref, px_vertical, px_horizontal, ss_def, ss_ref, dx, dy);
+                    double cost = cost_function(ss_x, ss_y, image_ref, px_vertical, px_horizontal, ss_def, ss_ref, p0, p1);
                     if (std::abs(cost) < cost_min) {
                         cost_min = cost;
-                        brute->p_rigid[0] = dx;
-                        brute->p_rigid[1] = dy;
-                        if (cost_min < brute->tol) return;
+                        brute->p_rigid[0] = p0;
+                        brute->p_rigid[1] = p1;
+                        if (cost_min < brute->threshold_bf) return;
                     }
                 }
             }
@@ -147,7 +151,7 @@ namespace brute {
                     cost_min = cost;
                     brute->p_rigid[0] = p0;
                     brute->p_rigid[1] = p1;
-                    if (cost_min < brute->tol) return;
+                    if (cost_min < brute->threshold_bf) return;
                 }
 
             }

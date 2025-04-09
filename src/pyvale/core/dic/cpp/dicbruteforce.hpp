@@ -21,7 +21,12 @@ namespace brute {
     struct Parameters {
         std::array<int, 2> p_rigid; // translation vector
         int range;
-        double tol;
+        double threshold_bf;
+        
+        Parameters(int threshold_bf_, double range_bf_)
+            : p_rigid{0, 0},
+              range(range_bf_),
+              threshold_bf(threshold_bf_) {}
 
     };
     
