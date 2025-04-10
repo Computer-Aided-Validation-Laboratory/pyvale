@@ -10,6 +10,9 @@ import cython
 from cython.parallel import prange, parallel
 from cython.cimports.libc.math import floor, ceil
 
+from pyvale.core.rendermesh import RenderMeshData
+from pyvale.core.cameradata import CameraData
+
 
 # @cython.nogil
 # @cython.cfunc # python+C or cython.cfunc for C only
@@ -350,25 +353,27 @@ def _average_image(image_buff_subpx_in: cython.double[:,:],
 def raster_frame(coords: cython.double[:,:],
                  connect: cython.size_t[:,:],
                  fields_to_render: cython.double[:,:],
-                 world_to_cam_mat: cython.double[:,:],
-                 num_pixels: cython.int[:],
-                 image_dims: cython.double[:],
-                 image_dist: cython.double,
-                 sub_samp: cython.int,
+                 cam_data: CameraData,
                  ) -> tuple[np.ndarray,np.ndarray,int]:
 
 
+    world_to_cam_mat: cython.double[:,:] = cam_data.world_to_cam_mat
+    pixels_num: cython.int[:] = cam_data.pixels_num
+    image_dims: cython.double[:] = cam_data.image_dims
+    image_dist: cython.double = cam_data.image_dist
+    sub_samp: cython.int = cam_data.sub_samp
+
     nodes_per_elem: cython.size_t = connect.shape[1]
     fields_num: cython.size_t = fields_to_render.shape[1]
-    sub_pix_x: cython.int = num_pixels[0]*sub_samp
-    sub_pix_y: cython.int = num_pixels[1]*sub_samp
+    sub_pix_x: cython.int = pixels_num[0]*sub_samp
+    sub_pix_y: cython.int = pixels_num[1]*sub_samp
 
     #---------------------------------------------------------------------------
     # Final image buffer memory allocation
-    image_buff_avg_np = np.full((num_pixels[1],num_pixels[0],fields_num),0.0,dtype=np.float64)
+    image_buff_avg_np = np.full((pixels_num[1],pixels_num[0],fields_num),0.0,dtype=np.float64)
     image_buff_avg: cython.double[:,:,:] = image_buff_avg_np
 
-    depth_buff_avg_np = np.full((num_pixels[1],num_pixels[0]),0.0,dtype=np.float64)
+    depth_buff_avg_np = np.full((pixels_num[1],pixels_num[0]),0.0,dtype=np.float64)
     depth_buff_avg: cython.double[:,:] = depth_buff_avg_np
 
     #---------------------------------------------------------------------------
@@ -397,7 +402,7 @@ def raster_frame(coords: cython.double[:,:],
                                                 connect[:,:],
                                                 fields_to_render[:,:],
                                                 world_to_cam_mat[:,:],
-                                                num_pixels[:],
+                                                pixels_num[:],
                                                 image_dims[:],
                                                 image_dist,
                                                 sub_samp,
@@ -635,11 +640,6 @@ def _raster_frame(coords: cython.double[:,:],
             bound_coord_y += coord_step
             bound_ind_y += 1
 
-    # if sub_samp == 1:
-    #     depth_buff_avg[:,:] = depth_buff_subpx[:,:]
-    #     image_buff_avg[:,:,:] = image_buff_subpx[:,:,:]
-    # else:
-
     _average_image(depth_buff_subpx,sub_samp,depth_buff_avg)
 
     for ff in range(fields_num):
@@ -654,25 +654,26 @@ def _raster_frame(coords: cython.double[:,:],
 @cython.boundscheck(False) # Turn off array bounds checking
 @cython.wraparound(False)  # Turn off negative indexing
 @cython.cdivision(True)    # Turn off divide by zero check
-def raster_static_mesh(coords: cython.double[:,:],
-                        connect: cython.size_t[:,:],
-                        fields_to_render: cython.double[:,:,:],
-                        world_to_cam_mat: cython.double[:,:],
-                        num_pixels: cython.int[:],
-                        image_dims: cython.double[:],
-                        image_dist: cython.double,
-                        sub_samp: cython.int,
-                        threads_num: cython.int,
-                        ) -> tuple[np.ndarray,np.ndarray,np.ndarray]:
+def raster_static_mesh(render_mesh: RenderMeshData,
+                       cam_data: CameraData,
+                       threads_num: cython.int
+                       ) -> tuple[np.ndarray,np.ndarray,np.ndarray]:
 
+    coords: cython.double[:,:] = render_mesh.coords
+    connect: cython.size_t[:,:] = render_mesh.connectivity
+    fields_to_render: cython.double[:,:,:] = render_mesh.fields_render
 
+    world_to_cam_mat: cython.double[:,:] = cam_data.world_to_cam_mat
+    num_pixels: cython.int[:] = cam_data.pixels_num
+    image_dims: cython.double[:] = cam_data.image_dims
+    image_dist: cython.double = cam_data.image_dist
+    sub_samp: cython.int = cam_data.sub_samp
 
     frames_num: cython.size_t = fields_to_render.shape[1]
     fields_num: cython.size_t = fields_to_render.shape[2]
     nodes_per_elem: cython.size_t = connect.shape[1]
     sub_pix_x: cython.int = num_pixels[0]*sub_samp
     sub_pix_y: cython.int = num_pixels[1]*sub_samp
-
 
     #---------------------------------------------------------------------------
     # Final image buffer memory allocation: allocate over frames
@@ -687,43 +688,68 @@ def raster_static_mesh(coords: cython.double[:,:],
 
     #---------------------------------------------------------------------------
     # Per-thread scratch memory allocations
-    image_buffer_np = np.full((sub_pix_y,sub_pix_x,frames_num,fields_num),0.0,dtype=np.float64)
-    image_buff_subpx: cython.double[:,:,:,:] = image_buffer_np
+    image_buffer_np = np.full((sub_pix_y,sub_pix_x,fields_num),0.0,dtype=np.float64)
+    image_buff_subpx: cython.double[:,:,:] = image_buffer_np
 
-    depth_buffer_np = np.full((sub_pix_y,sub_pix_x,frames_num),1.0e6,dtype=np.float64)
-    depth_buff_subpx: cython.double[:,:,:] = depth_buffer_np
+    depth_buffer_np = np.full((sub_pix_y,sub_pix_x),1.0e6,dtype=np.float64)
+    depth_buff_subpx: cython.double[:,:] = depth_buffer_np
 
     # shape=(nodes_per_elem, coord[X,Y,Z,W])
-    nodes_raster_np = np.empty((nodes_per_elem,4,frames_num),dtype=np.float64)
-    nodes_raster_buff: cython.double[:,:,:] = nodes_raster_np
+    nodes_raster_np = np.empty((nodes_per_elem,4),dtype=np.float64)
+    nodes_raster_buff: cython.double[:,:] = nodes_raster_np
 
-    field_raster_np = np.empty((nodes_per_elem,frames_num),dtype=np.float64)
-    field_raster_buff: cython.double[:,:] = field_raster_np
+    field_raster_np = np.empty((nodes_per_elem,),dtype=np.float64)
+    field_raster_buff: cython.double[:] = field_raster_np
 
-    px_coord_np = np.zeros((nodes_per_elem,frames_num),np.float64)
-    px_coord_buff: cython.double[:,:] = px_coord_np
+    px_coord_np = np.zeros((nodes_per_elem,),np.float64)
+    px_coord_buff: cython.double[:] = px_coord_np
 
-    weights_np = np.zeros((nodes_per_elem,frames_num),np.float64)
-    weights_buff: cython.double[:,:] = weights_np
+    weights_np = np.zeros((nodes_per_elem,),np.float64)
+    weights_buff: cython.double[:] = weights_np
     #---------------------------------------------------------------------------
 
     tt: cython.size_t = 0
-    for tt in range(frames_num):
-        elems_in_image[tt] = _raster_frame(coords[:,:],
-                                           connect[:,:],
-                                           fields_to_render[:,tt,:],
-                                           world_to_cam_mat[:,:],
-                                           num_pixels[:],
-                                           image_dims[:],
-                                           image_dist,
-                                           sub_samp,
-                                           image_buff_avg[:,:,tt,:],
-                                           depth_buff_avg[:,:,tt],
-                                           image_buff_subpx[:,:,tt,:],
-                                           depth_buff_subpx[:,:,tt],
-                                           nodes_raster_buff[:,:,tt],
-                                           field_raster_buff[:,tt],
-                                           px_coord_buff[:,tt],
-                                           weights_buff[:,tt])
+
+    if threads_num > 1:
+        for tt in prange(frames_num,
+                         nogil=True,
+                         num_threads=threads_num,
+                         schedule="static"):
+
+            elems_in_image[tt] = _raster_frame(coords[:,:],
+                                            connect[:,:],
+                                            fields_to_render[:,tt,:],
+                                            world_to_cam_mat[:,:],
+                                            num_pixels[:],
+                                            image_dims[:],
+                                            image_dist,
+                                            sub_samp,
+                                            image_buff_avg[:,:,tt,:],
+                                            depth_buff_avg[:,:,tt],
+                                            image_buff_subpx[:,:,:],
+                                            depth_buff_subpx[:,:],
+                                            nodes_raster_buff[:,:],
+                                            field_raster_buff[:],
+                                            px_coord_buff[:],
+                                            weights_buff[:])
+
+    else:
+        for tt in range(frames_num):
+            elems_in_image[tt] = _raster_frame(coords[:,:],
+                                            connect[:,:],
+                                            fields_to_render[:,tt,:],
+                                            world_to_cam_mat[:,:],
+                                            num_pixels[:],
+                                            image_dims[:],
+                                            image_dist,
+                                            sub_samp,
+                                            image_buff_avg[:,:,tt,:],
+                                            depth_buff_avg[:,:,tt],
+                                            image_buff_subpx[:,:,:],
+                                            depth_buff_subpx[:,:],
+                                            nodes_raster_buff[:,:],
+                                            field_raster_buff[:],
+                                            px_coord_buff[:],
+                                            weights_buff[:])
 
     return (image_buff_avg_np,depth_buff_avg_np,elems_in_image_np)
