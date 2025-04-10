@@ -350,7 +350,7 @@ class RasterNP:
     def raster_static_mesh(cam_data: CameraData,
                            render_mesh: RenderMeshData,
                            save_path: Path | None = None,
-                           parallel: int | None = None,
+                           threads_num: int | None = None,
                            ) -> np.ndarray | None:
 
         frames_num = render_mesh.fields_render.shape[1]
@@ -384,7 +384,7 @@ class RasterNP:
             render_mesh.connectivity,
         )
 
-        if parallel is None:
+        if threads_num is None:
             for ff in range(0,frames.shape[0]):
                 image = RasterNP._static_mesh_frame_loop(
                     frames[ff],
@@ -401,7 +401,7 @@ class RasterNP:
                 if images is not None:
                     images[:,:,frames[ff],fields[ff]] = image
         else:
-            with Pool(parallel) as pool:
+            with Pool(threads_num) as pool:
                 processes_with_id = []
 
                 for ff in range(0,frames.shape[0]):

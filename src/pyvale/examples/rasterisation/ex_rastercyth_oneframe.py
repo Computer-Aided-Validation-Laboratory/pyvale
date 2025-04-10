@@ -27,9 +27,9 @@ def main() -> None:
 
     # This a path to an exodus *.e output file from MOOSE, this can be
     # replaced with a path to your own simulation file
-    sim_path = pyv.DataSet.render_mechanical_3d_path()
+    #sim_path = pyv.DataSet.render_mechanical_3d_path()
     #sim_path = pyv.DataSet.render_simple_block_path()
-    #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
+    sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
     disp_comps = ("disp_x","disp_y","disp_z")
@@ -45,7 +45,7 @@ def main() -> None:
 
     # Extracts the surface mesh from a full 3d simulation for rendering
     render_mesh = pyv.create_render_mesh(sim_data,
-                                        ("disp_y","disp_x"),
+                                        ("disp_y","disp_x","disp_z"),
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
 
@@ -65,7 +65,6 @@ def main() -> None:
         print(f"{render_mesh.fields_disp.shape=}")
     print(80*"-")
     print()
-
 
     pixel_num = np.array((960,1280),dtype=np.int32)
     pixel_size = np.array((5.3e-3,5.3e-3),dtype=np.float64)
@@ -118,8 +117,12 @@ def main() -> None:
     print(80*"=")
 
     num_loops = 1
+
     loop_times = np.zeros((num_loops,),dtype=np.float64)
-    cam_data.sub_samp = 1
+
+    frame = -1
+    fields_render = render_mesh.fields_render[:,frame,:]
+    total_frames = fields_render.shape[1]
 
     print()
     print("Running raster loop.")
@@ -129,16 +132,11 @@ def main() -> None:
 
         (image_buffer,
          depth_buffer,
-         elems_in_image) = pyv.rastercyth.raster_static_mesh(
+         elems_in_image) = pyv.rastercyth.raster_frame(
                                                 render_mesh.coords,
                                                 render_mesh.connectivity,
-                                                render_mesh.fields_render,
-                                                cam_data.world_to_cam_mat,
-                                                cam_data.pixels_num,
-                                                cam_data.image_dims,
-                                                cam_data.image_dist,
-                                                cam_data.sub_samp,
-                                                0)
+                                                fields_render,
+                                                cam_data)
 
         loop_times[nn] = time.perf_counter() - loop_start
 
@@ -155,7 +153,6 @@ def main() -> None:
     #===========================================================================
     # PLOTTING
     plot_on = True
-    plot_frames = (-1,)#range(3)
     plot_field = 0
 
     # depth_to_plot = np.copy(np.asarray(depth_buffer[:,:,plot_frame]))
@@ -166,34 +163,34 @@ def main() -> None:
     if plot_on:
         plot_opts = pyv.PlotOptsGeneral()
 
-        for ff in plot_frames:
-            (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
-                                    layout='constrained')
-            fig.set_dpi(plot_opts.resolution)
-            cset = plt.imshow(depth_buffer[:,:,ff],
-                            cmap=plt.get_cmap(plot_opts.cmap_seq))
-                            #origin='lower')
-            ax.set_aspect('equal','box')
-            fig.colorbar(cset)
-            ax.set_title(f"Depth buffer: {ff}",fontsize=plot_opts.font_head_size)
-            ax.set_xlabel(r"x ($px$)",
-                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
-            ax.set_ylabel(r"y ($px$)",
-                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
 
-            (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
-                                    layout='constrained')
-            fig.set_dpi(plot_opts.resolution)
-            cset = plt.imshow(image_buffer[:,:,ff,plot_field],
-                            cmap=plt.get_cmap(plot_opts.cmap_seq))
-                            #origin='lower')
-            ax.set_aspect('equal','box')
-            fig.colorbar(cset)
-            ax.set_title(f"Field Image: {ff}",fontsize=plot_opts.font_head_size)
-            ax.set_xlabel(r"x ($px$)",
-                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
-            ax.set_ylabel(r"y ($px$)",
-                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+        (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
+                                layout='constrained')
+        fig.set_dpi(plot_opts.resolution)
+        cset = plt.imshow(depth_buffer[:,:],
+                        cmap=plt.get_cmap(plot_opts.cmap_seq))
+                        #origin='lower')
+        ax.set_aspect('equal','box')
+        fig.colorbar(cset)
+        ax.set_title(f"Depth buffer",fontsize=plot_opts.font_head_size)
+        ax.set_xlabel(r"x ($px$)",
+                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+        ax.set_ylabel(r"y ($px$)",
+                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+
+        (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
+                                layout='constrained')
+        fig.set_dpi(plot_opts.resolution)
+        cset = plt.imshow(image_buffer[:,:,plot_field],
+                        cmap=plt.get_cmap(plot_opts.cmap_seq))
+                        #origin='lower')
+        ax.set_aspect('equal','box')
+        fig.colorbar(cset)
+        ax.set_title(f"Field Image",fontsize=plot_opts.font_head_size)
+        ax.set_xlabel(r"x ($px$)",
+                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+        ax.set_ylabel(r"y ($px$)",
+                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
 
         plt.show()
 
