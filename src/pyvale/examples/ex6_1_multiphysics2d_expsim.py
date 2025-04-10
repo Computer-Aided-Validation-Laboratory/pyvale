@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import mooseherder as mh
-import pyvale
+import pyvale as pyv
 
 def main() -> None:
     """pyvale example: thermo-mechanical multi-physics sensors on a 2D plate
@@ -21,7 +21,7 @@ def main() -> None:
     """
     # Load Simulations as mooseherder.SimData objects
     #base_path = Path("src/pyvale/data")
-    data_paths = pyvale.DataSet.thermomechanical_2d_experiment_paths()
+    data_paths = pyv.DataSet.thermomechanical_2d_experiment_paths()
 
     sim_list = []
     for pp in data_paths:
@@ -38,7 +38,7 @@ def main() -> None:
     x_lims = (0.0,100.0)
     y_lims = (0.0,50.0)
     z_lims = (0.0,0.0)
-    sens_pos = pyvale.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
     use_sim_time = True
     if use_sim_time:
@@ -46,11 +46,11 @@ def main() -> None:
     else:
         sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-    sens_data = pyvale.SensorData(positions=sens_pos,
+    sens_data = pyv.SensorData(positions=sens_pos,
                                   sample_times=sample_times)
 
     tc_field = 'temperature'
-    tc_array = pyvale.SensorArrayFactory \
+    tc_array = pyv.SensorArrayFactory \
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
                                   tc_field,
@@ -58,7 +58,7 @@ def main() -> None:
                                   errs_pc=1.0)
 
     sg_field = 'strain'
-    sg_array = pyvale.SensorArrayFactory \
+    sg_array = pyv.SensorArrayFactory \
         .strain_gauges_basic_errs(sim_data,
                                   sens_data,
                                   sg_field,
@@ -69,7 +69,7 @@ def main() -> None:
 
     #===========================================================================
     # Create and run the simulated experiment
-    exp_sim = pyvale.ExperimentSimulator(sim_list,
+    exp_sim = pyv.ExperimentSimulator(sim_list,
                                          sensor_arrays,
                                          num_exp_per_sim=1000)
 
@@ -103,12 +103,12 @@ def main() -> None:
 
     #===========================================================================
     # VISUALISE RESULTS
-    (fig,ax) = pyvale.plot_exp_traces(exp_sim,
+    (fig,ax) = pyv.plot_exp_traces(exp_sim,
                                       component="temperature",
                                       sens_array_num=0,
                                       sim_num=0)
 
-    (fig,ax) = pyvale.plot_exp_traces(exp_sim,
+    (fig,ax) = pyv.plot_exp_traces(exp_sim,
                                     component="strain_yy",
                                     sens_array_num=1,
                                     sim_num=2)

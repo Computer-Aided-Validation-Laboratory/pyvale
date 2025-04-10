@@ -517,7 +517,7 @@ class ErrRandGenerator(IErrCalculator):
             sensor data object as it is not modified by this class. The returned
             error array has the same shape as the input error basis.
         """
-        rand_errs = self._generator.generate(size=err_basis.shape)
+        rand_errs = self._generator.generate(shape=err_basis.shape)
 
         return (rand_errs,sens_data)
 
@@ -609,6 +609,6 @@ class ErrRandGenPercent(IErrCalculator):
             error array has the same shape as the input error basis.
         """
         rand_errs = err_basis \
-            * self._generator.generate(size=err_basis.shape)/100
+            * self._generator.generate(shape=err_basis.shape)/100
 
         return (rand_errs,sens_data)

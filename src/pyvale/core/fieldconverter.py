@@ -13,9 +13,9 @@ import mooseherder as mh
 
 
 def simdata_to_pyvista(sim_data: mh.SimData,
-                            components: tuple[str,...] | None,
-                            spat_dim: int
-                            ) -> tuple[pv.UnstructuredGrid,pv.UnstructuredGrid]:
+                        components: tuple[str,...] | None,
+                        spat_dim: int
+                        ) -> tuple[pv.UnstructuredGrid,pv.UnstructuredGrid]:
     """Converts the mesh and field data in a `SimData` object into a pyvista
     UnstructuredGrid for sampling (interpolating) the data and visualisation.
 
@@ -53,7 +53,6 @@ def simdata_to_pyvista(sim_data: mh.SimData,
         idxs = np.arange(0,n_elems*nodes_per_elem,nodes_per_elem,dtype=np.int64)
 
         this_connect = np.insert(this_connect,idxs,nodes_per_elem)
-        #temp_connect = np.insert(temp_connect,idxs,this_cell_type)
 
         cell_types = np.hstack((cell_types,np.full(n_elems,this_cell_type)))
         flat_connect = np.hstack((flat_connect,this_connect),dtype=np.int64)
@@ -123,9 +122,12 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
 
     return cell_type
 
+from pyvista import CellType
+
 def _exodus_to_pyvista_connect(cell_type: CellType, connect: np.ndarray) -> np.ndarray:
     copy_connect = np.copy(connect)
-    
+
+    # NOTE: it looks like VTK does not support TET14
     # VTK and exodus have different winding for 3D higher order quads
     if cell_type == CellType.QUADRATIC_HEXAHEDRON:
         connect[12:16,:] = copy_connect[16:20,:]
