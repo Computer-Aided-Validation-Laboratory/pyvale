@@ -45,7 +45,7 @@ def main() -> None:
 
     # Extracts the surface mesh from a full 3d simulation for rendering
     render_mesh = pyv.create_render_mesh(sim_data,
-                                        ("disp_y","disp_x","disp_z"),
+                                        ("disp_y","disp_x"),
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
 
@@ -130,7 +130,7 @@ def main() -> None:
          elems_in_image) = pyv.rastercyth.raster_static_mesh(
                                                 render_mesh,
                                                 cam_data,
-                                                9)
+                                                16)
 
         loop_times[nn] = time.perf_counter() - loop_start
 
