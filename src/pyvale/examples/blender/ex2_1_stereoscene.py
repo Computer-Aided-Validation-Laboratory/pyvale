@@ -5,7 +5,7 @@ Example: Simple Blender scene with no deformation
 pyvale: the python validation engine
 License: MIT
 Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
+=======================================================conv_simdata=========================
 """
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -14,7 +14,7 @@ import pyvale
 import mooseherder as mh
 
 def main() -> None:
-    data_path = pyvale.DataSet.thermomechanical_2d_output_path()
+    data_path = pyvale.DataSet.thermomechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
     # Creating the scene

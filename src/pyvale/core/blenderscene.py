@@ -179,7 +179,7 @@ class BlenderScene():
         components = SimTools.get_simulation_components(sim_data)
         sim_data.coords = sim_data.coords * 1000 # Change from m to mm
         sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords, spat_dim)
-        (pv_grid, _) = pyvale.conv_simdata_to_pyvista(sim_data,
+        (pv_grid, _) = pyvale.simdata_to_pyvista(sim_data,
                                                       components,
                                                       spat_dim)
         pv_surf = SimTools.conv_pvgrid_to_pvsurf(pv_grid)
@@ -262,7 +262,7 @@ class BlenderScene():
         components = SimTools.get_simulation_components(sim_data)
         sim_data.coords = sim_data.coords
         sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords, spat_dim)
-        (pv_grid, _) = pyvale.conv_simdata_to_pyvista(sim_data,
+        (pv_grid, _) = pyvale.simdata_to_pyvista(sim_data,
                                                  components,
                                                  spat_dim)
         pv_surf = SimTools.conv_pvgrid_to_pvsurf(pv_grid)
@@ -387,7 +387,7 @@ class BlenderScene():
         components = SimTools.get_simulation_components(sim_data)
         sim_data.coords = sim_data.coords
         sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords, spat_dim)
-        (pv_grid, _) = pyvale.conv_simdata_to_pyvista(sim_data,
+        (pv_grid, _) = pyvale.simdata_to_pyvista(sim_data,
                                                  components,
                                                  spat_dim)
         pv_surf = SimTools.conv_pvgrid_to_pvsurf(pv_grid)
