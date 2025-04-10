@@ -12,8 +12,8 @@
 *.mp4
 *.gif
 *.tiff
-test_output/
-example_output/
+testoutput/
+exampleoutput/
 
 # MOOSE / gmsh
 *-opt

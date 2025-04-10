@@ -3,9 +3,9 @@
 ## Motivation
 The `pyvale` python package is intended to be an all-in-one package for sensor simulation, sensor uncertainty quantication, sensor placement optimisation and simulation calibration/validation. A particular focus of `pyvale` is to develop sensor simulation methods specifically focused on cameras including infra-red thermography (IRT) and digital image correlation (DIC) allowing for uncertainty quantification of these systems. The computer graphics field has undertaken extensive research in rendering and camera simulation methods.
 
-There are open-source graphics libraries that support ray tracing, a notable example being Blender. However, computer graphics libraries are targeted at cases where the geometry is defined by high element count surface meshes and typically only support linear triangular elements. For solid mechanics finite element simulations in engineering higher order elements (quadratic with midside nodes) are preferred and surface element counts are low given that the full 3D geometry is meshed for displacment, strain and stress calculations. Computer graphics engines will typically triangulate higher order meshes which can lead to interpolation errors.
-
 There are two main methods in computer graphics for rendering scenes onto simulated cameras, this includes rasterisation and ray tracing. Rasterisation is faster and can be performed in real time for video game applications. Ray tracing is more computationally intensive but has the benefit that it can more accurately simulate lighting effects such as shadows and reflections. Given that lighting can have a significant impact on measurements made with DIC systems it is desirable for `pyvale` to be able to replicate these effects.
+
+There are open-source graphics libraries that support ray tracing, a notable example being Blender. However, computer graphics libraries are targeted at cases where the geometry is defined by high element count surface meshes and typically only support linear triangular elements. For solid mechanics finite element simulations in engineering higher order elements (quadratic with midside nodes) are preferred and surface element counts are low given that the full 3D geometry is meshed for displacment, strain and stress calculations. Computer graphics engines will typically triangulate higher order meshes which can lead to interpolation errors.
 
 
 ## Aims & Objectives
@@ -50,7 +50,7 @@ This sub-module will add all relevant objects, cameras, lights and physics to th
 ### Workflow
 - Load the meshes and the speckle pattern texture image
 - Specify the scaling factor, surfaces on the meshes to map the texture to and the texture mapping algorithm
-- Map the speckle texture to the image and view the result 
+- Map the speckle texture to the image and view the result
 ### Outputs
 - An interactive visualisation of the speckle texture applied to the mesh using `pyvista`
 - A mapping for the speckle texture onto the mesh

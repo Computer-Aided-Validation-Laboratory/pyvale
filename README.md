@@ -1,6 +1,5 @@
 # pyvale
-
-A python validation engine (`pyvale`). Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and testing digital shadows/twins.
+The python validation engine (`pyvale`): An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation.​ Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and testing digital shadows/twins.
 
 ## Installation: Ubuntu
 ### Managing Python Versions
@@ -37,7 +36,7 @@ source .pyvale-env/bin/activate
 
 ### Standard & Developer Installation
 
-Clone `pyvale` to your local system along with submodules using 
+Clone `pyvale` to your local system along with submodules using
 
 ```
 git clone --recurse-submodules git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git

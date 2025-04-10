@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 import time
@@ -14,7 +14,7 @@ from scipy.interpolate import griddata
 from scipy.interpolate import RectBivariateSpline
 from scipy import ndimage
 
-from pyvale.core.camerarasternp import edge_function, RasteriserNP
+from pyvale.core.rasternp import edge_function, RasterNP
 from pyvale.core.cameradata2d import CameraData2D
 from pyvale.core.cameratools import CameraTools
 
@@ -104,14 +104,14 @@ class ImageDef2D:
         # Find the indices of the bounding box that each element lies within on
         # the image, bounded by the upper and lower edges of the image
         elem_bound_boxes_inds = np.zeros([num_elems_in_image,4],dtype=np.int32)
-        elem_bound_boxes_inds[:,0] = RasteriserNP.elem_bound_box_low(
+        elem_bound_boxes_inds[:,0] = RasterNP.elem_bound_box_low(
                                             elem_coord_min[:,0])
-        elem_bound_boxes_inds[:,1] = RasteriserNP.elem_bound_box_high(
+        elem_bound_boxes_inds[:,1] = RasterNP.elem_bound_box_high(
                                             elem_coord_max[:,0],
                                             cam_data.pixels_count[0]-1)
-        elem_bound_boxes_inds[:,2] = RasteriserNP.elem_bound_box_low(
+        elem_bound_boxes_inds[:,2] = RasterNP.elem_bound_box_low(
                                             elem_coord_min[:,1])
-        elem_bound_boxes_inds[:,3] = RasteriserNP.elem_bound_box_high(
+        elem_bound_boxes_inds[:,3] = RasterNP.elem_bound_box_high(
                                             elem_coord_max[:,1],
                                             cam_data.pixels_count[1]-1)
 

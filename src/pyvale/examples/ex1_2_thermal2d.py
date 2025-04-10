@@ -4,12 +4,12 @@ Example: thermocouples on a 2d plate
 
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 import matplotlib.pyplot as plt
 import mooseherder as mh
-import pyvale
+import pyvale as pyv
 
 
 def main() -> None:
@@ -25,7 +25,7 @@ def main() -> None:
     - Calling the "calc" methods will generate a new
       experiment by sampling/calculating the systematic and random errors.
     """
-    data_path = pyvale.DataSet.thermal_2d_output_path()
+    data_path = pyv.DataSet.thermal_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_key = list(sim_data.node_vars.keys())[0] # type: ignore
     # Scale to mm to make 3D visualisation scaling easier
@@ -35,10 +35,10 @@ def main() -> None:
     x_lims = (0.0,100.0)
     y_lims = (0.0,50.0)
     z_lims = (0.0,0.0)
-    sens_pos = pyvale.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
-    sens_data = pyvale.SensorData(positions=sens_pos)
+    sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_data = pyv.SensorData(positions=sens_pos)
 
-    tc_array = pyvale.SensorArrayFactory \
+    tc_array = pyv.SensorArrayFactory \
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
                                   field_key,
@@ -56,7 +56,7 @@ def main() -> None:
 
     print(80*"-")
     print("Looking at the last 5 time steps (measurements) of sensor 0:")
-    pyvale.print_measurements(tc_array,
+    pyv.print_measurements(tc_array,
                               (0,1),
                               (0,1),
                               (measurements.shape[2]-5,measurements.shape[2]))
@@ -65,13 +65,13 @@ def main() -> None:
           "(re)calculated or sampled.")
     measurements = tc_array.calc_measurements()
 
-    pyvale.print_measurements(tc_array,
+    pyv.print_measurements(tc_array,
                               (0,1),
                               (0,1),
                               (measurements.shape[2]-5,measurements.shape[2]))
 
 
-    (_,ax) = pyvale.plot_time_traces(tc_array,field_key)
+    (_,ax) = pyv.plot_time_traces(tc_array,field_key)
     ax.set_title("Exp 1: called calc_measurements()")
 
     print(80*"-")
@@ -79,12 +79,12 @@ def main() -> None:
           "same:")
     measurements = tc_array.get_measurements()
 
-    pyvale.print_measurements(tc_array,
+    pyv.print_measurements(tc_array,
                               (0,1),
                               (0,1),
                               (measurements.shape[2]-5,measurements.shape[2]))
 
-    (_,ax) = pyvale.plot_time_traces(tc_array,field_key)
+    (_,ax) = pyv.plot_time_traces(tc_array,field_key)
     ax.set_title("Exp 2: called get_measurements()")
 
     print(80*"-")
@@ -92,12 +92,12 @@ def main() -> None:
            "new errors:")
     measurements = tc_array.calc_measurements()
 
-    pyvale.print_measurements(tc_array,
+    pyv.print_measurements(tc_array,
                               (0,1),
                               (0,1),
                               (measurements.shape[2]-5,measurements.shape[2]))
 
-    (_,ax) = pyvale.plot_time_traces(tc_array,field_key)
+    (_,ax) = pyv.plot_time_traces(tc_array,field_key)
     ax.set_title("Exp 3: called calc_measurements()")
 
     print(80*"-")

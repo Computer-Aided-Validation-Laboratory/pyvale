@@ -4,20 +4,21 @@ Example: 3d thermocouples on a monoblock
 
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 '''
 from pathlib import Path
 import matplotlib.pyplot as plt
 import mooseherder as mh
-import pyvale
+import pyvale as pyv
 
 
 def main() -> None:
     """pyvale example: thermocouples on a 3D divertor monoblock heatsink
     ----------------------------------------------------------------------------
     """
-    data_path = pyvale.DataSet.thermal_3d_output_path()
+    #data_path = pyv.DataSet.thermal_3d_path()
+    data_path = Path.cwd()/"src"/"pyvale"/"simcases"/"case16_out.e"
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_name = 'temperature'
     # Scale to mm to make 3D visualisation scaling easier
@@ -27,11 +28,11 @@ def main() -> None:
     x_lims = (12.5,12.5)
     y_lims = (0.0,33.0)
     z_lims = (0.0,12.0)
-    sens_pos = pyvale.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
-    sens_data = pyvale.SensorData(positions=sens_pos)
+    sens_data = pyv.SensorData(positions=sens_pos)
 
-    tc_array = pyvale.SensorArrayFactory \
+    tc_array = pyv.SensorArrayFactory \
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
                                   field_name,
@@ -40,7 +41,7 @@ def main() -> None:
     measurements = tc_array.get_measurements()
     print(f'\nMeasurements for sensor at top of block:\n{measurements[-1,0,:]}\n')
 
-    pv_plot = pyvale.plot_point_sensors_on_sim(tc_array,field_name)
+    pv_plot = pyv.plot_point_sensors_on_sim(tc_array,field_name)
 
     # Set this to 'interactive' to get an interactive 3D plot of the simulation
     # and labelled sensor locations, set to 'save_fig' to create a vector
@@ -73,7 +74,7 @@ def main() -> None:
     # to file.
     trace_plot_mode = 'interactive'
 
-    (fig,_) = pyvale.plot_time_traces(tc_array,field_name)
+    (fig,_) = pyv.plot_time_traces(tc_array,field_name)
 
     if trace_plot_mode == 'interactive':
         plt.show()

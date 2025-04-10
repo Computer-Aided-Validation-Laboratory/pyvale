@@ -4,7 +4,7 @@ Example: 3d thermocouples on a monoblock
 
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 '''
 from pathlib import Path
@@ -17,7 +17,7 @@ def main() -> None:
     """pyvale example: visualisation tools 3D
     """
     # Use mooseherder to read the exodus and get a SimData object
-    data_path = pyvale.DataSet.thermal_3d_output_path()
+    data_path = pyvale.DataSet.thermal_3d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_name = 'temperature'
     # Scale to mm to make 3D visualisation scaling easier
@@ -48,13 +48,15 @@ def main() -> None:
                                          (-2.858, 13.189, 4.523),
                                          (-0.215, 0.948, -0.233)])
 
-    vis_mode = "animate"
+    vis_mode = "vector"
+    save_dir = Path.cwd() / "exampleoutput"
+    if not save_dir.is_dir():
+        save_dir.mkdir()
+
     if vis_mode == "animate":
         anim_opts = pyvale.VisOptsAnimation()
 
-        anim_opts.save_path = Path.cwd() / "test_output" / "test_animation"
-        if not anim_opts.save_path.is_dir():
-            anim_opts.save_path.mkdir()
+        anim_opts.save_path = save_dir / "test_animation"
         anim_opts.save_animation = pyvale.EAnimationType.MP4
 
         pv_anim = pyvale.animate_sim_with_sensors(tc_array,
@@ -66,9 +68,7 @@ def main() -> None:
     else:
         image_save_opts = pyvale.VisOptsImageSave()
 
-        image_save_opts.path = Path.cwd() / "test_output" / "test_image"
-        if not image_save_opts.path.is_dir():
-            image_save_opts.path.mkdir()
+        image_save_opts.path = save_dir / "test_vector_graphics"
         image_save_opts.image_type = pyvale.EImageType.SVG
 
         pv_plot = pyvale.plot_point_sensors_on_sim(tc_array,
