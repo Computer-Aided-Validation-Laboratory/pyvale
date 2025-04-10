@@ -90,14 +90,9 @@ namespace brute {
         const int range = brute->range;
         double cost_min = 1.0e6;
 
-        int r_xmin = ss_x - range;
-        int r_ymin = ss_y - range;
-        int r_xmax = ss_x + range;
-        int r_ymax = ss_y + range;
 
-
-        int offset_x = brute->p_rigid[0];
-        int offset_y = brute->p_rigid[1];
+        int offset_x = brute->p_rigid_prevmatch[0];
+        int offset_y = brute->p_rigid_prevmatch[1];
         int count = 0;
 
         for (int r = 0; r <= range; r++) {
@@ -122,14 +117,20 @@ namespace brute {
                     if (ss_xmin < 0 || ss_xmax >= px_horizontal || ss_ymin < 0 || ss_ymax >= px_vertical) continue;
 
                     // if the 'new' subset is outside the range bounds then skip it.
-                    if (p0 < r_xmin || p0 >= r_xmax || p1 < r_ymin || p1 >= r_ymax) continue;
+                    if (p0 < -range || p0 >= range || p1 < -range || p1 >= range) continue;
 
                     double cost = cost_function(ss_x, ss_y, image_ref, px_vertical, px_horizontal, ss_def, ss_ref, p0, p1);
                     if (std::abs(cost) < cost_min) {
                         cost_min = cost;
                         brute->p_rigid[0] = p0;
                         brute->p_rigid[1] = p1;
-                        if (cost_min < brute->threshold_bf) return;
+
+                        // if its below our threshold and considered a good match. we'll use these values for the next brute force.
+                        if (cost_min < brute->threshold_bf) {
+                            brute->p_rigid_prevmatch[0] = brute->p_rigid[0];
+                            brute->p_rigid_prevmatch[1] = brute->p_rigid[1];
+                            return;
+                        }
                     }
                 }
             }
