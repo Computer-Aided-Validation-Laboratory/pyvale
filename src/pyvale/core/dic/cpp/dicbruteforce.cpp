@@ -9,9 +9,11 @@
 #include <vector>
 #include <cmath>
 #include <array>
+#include <chrono>
 
 // Program Header files
 #include "./dicbruteforce.hpp"
+#include "./defines.hpp"
 
 
 namespace brute {
@@ -88,16 +90,28 @@ namespace brute {
         const int range = brute->range;
         double cost_min = 1.0e6;
 
+        int r_xmin = ss_x - range;
+        int r_ymin = ss_y - range;
+        int r_xmax = ss_x + range;
+        int r_ymax = ss_y + range;
+
+
+        int offset_x = brute->p_rigid[0];
+        int offset_y = brute->p_rigid[1];
+        int count = 0;
+
         for (int r = 0; r <= range; r++) {
 
             // Go around the current ring at radius r
-            for (int p1 = -r; p1 <= r; p1++) {
-                for (int p0 = -r; p0 <= r; p0++) {
+            for (int dy = -r; dy <= r; dy++) {
+                for (int dx = -r; dx <= r; dx++) {
             
                     // Only process the points on the perimeter of the square
-                    if (std::abs(p0) != r && std::abs(p1) != r) continue;
+                    if (std::abs(dx) != r && std::abs(dy) != r) continue;
 
-                    
+                    int p0 = dx + offset_x;
+                    int p1 = dy + offset_y;
+
                     // get the min and max values of the 'new' subset
                     int ss_xmin = ss_x + p0;
                     int ss_ymin = ss_y + p1;
@@ -106,6 +120,9 @@ namespace brute {
 
                     // if the 'new' subset is outside the image bounds then skip it.
                     if (ss_xmin < 0 || ss_xmax >= px_horizontal || ss_ymin < 0 || ss_ymax >= px_vertical) continue;
+
+                    // if the 'new' subset is outside the range bounds then skip it.
+                    if (p0 < r_xmin || p0 >= r_xmax || p1 < r_ymin || p1 >= r_ymax) continue;
 
                     double cost = cost_function(ss_x, ss_y, image_ref, px_vertical, px_horizontal, ss_def, ss_ref, p0, p1);
                     if (std::abs(cost) < cost_min) {
@@ -118,7 +135,7 @@ namespace brute {
             }
         }
         // std::cout << ss_x << " " << ss_y << " " << brute->p_rigid[0] << " " << brute->p_rigid[1] << " " << cost_min << std::endl;
-
+        exit(0);
     }
 
 
