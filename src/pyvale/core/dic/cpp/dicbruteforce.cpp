@@ -134,8 +134,6 @@ namespace brute {
                 }
             }
         }
-        // std::cout << ss_x << " " << ss_y << " " << brute->p_rigid[0] << " " << brute->p_rigid[1] << " " << cost_min << std::endl;
-        exit(0);
     }
 
 
