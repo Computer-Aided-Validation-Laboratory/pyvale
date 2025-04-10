@@ -41,32 +41,22 @@ def simdata_to_pyvista(sim_data: mh.SimData,
 
     for cc in sim_data.connect:
         # NOTE: need the -1 here to make element numbers 0 indexed!
-        temp_connect = np.copy(sim_data.connect[cc])-1
-        view_connect = np.copy(temp_connect)
-        (nodes_per_elem,n_elems) = temp_connect.shape
+        this_connect = np.copy(sim_data.connect[cc])-1
+        (nodes_per_elem,n_elems) = this_connect.shape
 
         this_cell_type = _get_pyvista_cell_type(nodes_per_elem,spat_dim)
 
         # VTK and exodus have different winding for 3D higher order quads
-        if this_cell_type == CellType.QUADRATIC_HEXAHEDRON:
-            temp_connect[12:16,:] = view_connect[16:20,:]
-            temp_connect[16:20,:] = view_connect[12:16,:]
-        elif this_cell_type == CellType.TRIQUADRATIC_HEXAHEDRON:
-            temp_connect[12:16,:] = view_connect[16:20,:]
-            temp_connect[16:20,:] = view_connect[12:16,:]
-            temp_connect[20:24,:] = view_connect[23:27,:]
-            temp_connect[24,:] = view_connect[21,:]
-            temp_connect[25,:] = view_connect[22,:]
-            temp_connect[26,:] = view_connect[20,:]
+        this_connect = _exodus_to_pyvista_connect(this_cell_type,this_connect)
 
-        temp_connect = temp_connect.T.flatten()
+        this_connect = this_connect.T.flatten()
         idxs = np.arange(0,n_elems*nodes_per_elem,nodes_per_elem,dtype=np.int64)
 
-        temp_connect = np.insert(temp_connect,idxs,nodes_per_elem)
+        this_connect = np.insert(this_connect,idxs,nodes_per_elem)
         #temp_connect = np.insert(temp_connect,idxs,this_cell_type)
 
         cell_types = np.hstack((cell_types,np.full(n_elems,this_cell_type)))
-        flat_connect = np.hstack((flat_connect,temp_connect),dtype=np.int64)
+        flat_connect = np.hstack((flat_connect,this_connect),dtype=np.int64)
 
     cells = flat_connect
 
@@ -133,6 +123,22 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
 
     return cell_type
 
+def _exodus_to_pyvista_connect(cell_type: CellType, connect: np.ndarray) -> np.ndarray:
+    copy_connect = np.copy(connect)
+    
+    # VTK and exodus have different winding for 3D higher order quads
+    if cell_type == CellType.QUADRATIC_HEXAHEDRON:
+        connect[12:16,:] = copy_connect[16:20,:]
+        connect[16:20,:] = copy_connect[12:16,:]
+    elif cell_type == CellType.TRIQUADRATIC_HEXAHEDRON:
+        connect[12:16,:] = copy_connect[16:20,:]
+        connect[16:20,:] = copy_connect[12:16,:]
+        connect[20:24,:] = copy_connect[23:27,:]
+        connect[24,:] = copy_connect[21,:]
+        connect[25,:] = copy_connect[22,:]
+        connect[26,:] = copy_connect[20,:]
+
+    return connect
 
 def scale_length_units(sim_data: mh.SimData,
                        disp_comps: tuple[str,...],
