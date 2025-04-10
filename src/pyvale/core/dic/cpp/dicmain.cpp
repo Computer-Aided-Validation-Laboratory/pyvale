@@ -258,13 +258,22 @@ namespace dic {
             // get the deformed subset coordinates and pixel values
             util::extract_ss(ss_x, ss_y, image_def, &ss_def); 
 
+            int good_p0 = 0;
+            int good_p1 = 0;
 
             // if this is the first subset in the loop, or, if last subset was a poor match
             // Kick off the next search with a brute force
             if ((ss_thread_num == 0) || (results.iter == opt.max_iter)){
+                brute.p_rigid[0] = good_p0;
+                brute.p_rigid[1] = good_p1;
                 brute::expanding_wavefront(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &ss_ref, &brute);
                 opt.p[0] = brute.p_rigid[0];
                 opt.p[1] = brute.p_rigid[1];
+            }
+
+            if (results.iter == opt.max_iter){
+                good_p0 = opt.p[0];
+                good_p1 = opt.p[1];
             }
 
             results = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
