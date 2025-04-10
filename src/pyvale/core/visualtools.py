@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from pathlib import Path
@@ -69,7 +69,10 @@ def set_animation_writer(pv_plot: pv.Plotter,
                          fps=anim_opts.frames_per_second)
 
     elif anim_opts.save_animation == EAnimationType.MP4:
-        anim_opts.save_path =anim_opts.save_path.with_suffix(".mp4")
+        anim_opts.save_path = anim_opts.save_path.with_suffix(".mp4")
+        print(80*"=")
+        print(f"{anim_opts.save_path=}")
+        print(80*"=")
         pv_plot.open_movie(anim_opts.save_path,
                            anim_opts.frames_per_second)
 

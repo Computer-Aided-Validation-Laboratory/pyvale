@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 import warnings
@@ -12,10 +12,10 @@ from pyvista import CellType
 import mooseherder as mh
 
 
-def conv_simdata_to_pyvista(sim_data: mh.SimData,
-                            components: tuple[str,...] | None,
-                            spat_dim: int
-                            ) -> tuple[pv.UnstructuredGrid,pv.UnstructuredGrid]:
+def simdata_to_pyvista(sim_data: mh.SimData,
+                        components: tuple[str,...] | None,
+                        spat_dim: int
+                        ) -> tuple[pv.UnstructuredGrid,pv.UnstructuredGrid]:
     """Converts the mesh and field data in a `SimData` object into a pyvista
     UnstructuredGrid for sampling (interpolating) the data and visualisation.
 
@@ -41,16 +41,21 @@ def conv_simdata_to_pyvista(sim_data: mh.SimData,
 
     for cc in sim_data.connect:
         # NOTE: need the -1 here to make element numbers 0 indexed!
-        temp_connect = sim_data.connect[cc]-1
-        (nodes_per_elem,n_elems) = temp_connect.shape
-
-        temp_connect = temp_connect.T.flatten()
-        idxs = np.arange(0,n_elems*nodes_per_elem,nodes_per_elem,dtype=np.int64)
-        temp_connect = np.insert(temp_connect,idxs,nodes_per_elem)
+        this_connect = np.copy(sim_data.connect[cc])-1
+        (nodes_per_elem,n_elems) = this_connect.shape
 
         this_cell_type = _get_pyvista_cell_type(nodes_per_elem,spat_dim)
+
+        # VTK and exodus have different winding for 3D higher order quads
+        this_connect = _exodus_to_pyvista_connect(this_cell_type,this_connect)
+
+        this_connect = this_connect.T.flatten()
+        idxs = np.arange(0,n_elems*nodes_per_elem,nodes_per_elem,dtype=np.int64)
+
+        this_connect = np.insert(this_connect,idxs,nodes_per_elem)
+
         cell_types = np.hstack((cell_types,np.full(n_elems,this_cell_type)))
-        flat_connect = np.hstack((flat_connect,temp_connect),dtype=np.int64)
+        flat_connect = np.hstack((flat_connect,this_connect),dtype=np.int64)
 
     cells = flat_connect
 
@@ -116,5 +121,35 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
             cell_type = CellType.HEXAHEDRON
 
     return cell_type
+
+from pyvista import CellType
+
+def _exodus_to_pyvista_connect(cell_type: CellType, connect: np.ndarray) -> np.ndarray:
+    copy_connect = np.copy(connect)
+
+    # NOTE: it looks like VTK does not support TET14
+    # VTK and exodus have different winding for 3D higher order quads
+    if cell_type == CellType.QUADRATIC_HEXAHEDRON:
+        connect[12:16,:] = copy_connect[16:20,:]
+        connect[16:20,:] = copy_connect[12:16,:]
+    elif cell_type == CellType.TRIQUADRATIC_HEXAHEDRON:
+        connect[12:16,:] = copy_connect[16:20,:]
+        connect[16:20,:] = copy_connect[12:16,:]
+        connect[20:24,:] = copy_connect[23:27,:]
+        connect[24,:] = copy_connect[21,:]
+        connect[25,:] = copy_connect[22,:]
+        connect[26,:] = copy_connect[20,:]
+
+    return connect
+
+def scale_length_units(sim_data: mh.SimData,
+                       disp_comps: tuple[str,...],
+                       scale: float) -> mh.SimData:
+
+    sim_data.coords = sim_data.coords*scale
+    for cc in disp_comps:
+        sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
+
+    return sim_data
 
 

@@ -3,7 +3,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from dataclasses import dataclass
@@ -33,7 +33,7 @@ class SensorDescriptor:
             label = label + symbol
 
         if self.units != "":
-            label = label + "\n" + rf"[${self.units}$]" + "\n"
+            label = label + "\n" + rf"[${self.units}$]"
 
         return label
 
@@ -59,7 +59,7 @@ class SensorDescriptor:
 
         sensor_names = list()
         for ss in range(n_sensors):
-            num_str = f'{ss}'.zfill(z_width)
+            num_str = f'{ss+1}'.zfill(z_width)
             sensor_names.append(f'{self.tag}{num_str}')
 
         return sensor_names

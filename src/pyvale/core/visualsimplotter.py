@@ -2,10 +2,10 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
-#import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
+# import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 # See: https://github.com/pyvista/pyvista/discussions/2928
 #NOTE: causes output to console to be suppressed unfortunately
 import pyvista as pv
@@ -13,7 +13,7 @@ import pyvista as pv
 import mooseherder as mh
 
 from pyvale.core.sensorarraypoint import SensorArrayPoint
-from pyvale.core.fieldconverter import conv_simdata_to_pyvista
+from pyvale.core.fieldconverter import simdata_to_pyvista
 from pyvale.core.visualopts import (VisOptsSimSensors,VisOptsImageSave)
 from pyvale.core.visualtools import (create_pv_plotter,
                                      get_colour_lims,
@@ -108,7 +108,7 @@ def plot_sim_mesh(sim_data: mh.SimData,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    pv_simdata = conv_simdata_to_pyvista(sim_data,
+    pv_simdata = simdata_to_pyvista(sim_data,
                                          None,
                                          sim_data.num_spat_dims)
 
@@ -131,7 +131,7 @@ def plot_sim_data(sim_data: mh.SimData,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    pv_simdata = conv_simdata_to_pyvista(sim_data,
+    pv_simdata = simdata_to_pyvista(sim_data,
                                         (component,),
                                          sim_data.num_spat_dims)
 

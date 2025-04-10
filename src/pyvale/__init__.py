@@ -9,14 +9,12 @@ testing simulation validation metrics and testing digital shadows/twins.
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 # NOTE: this simplifies and decouples how the user calls pyvale from the
-# underlying project structure: the user should always be able to use 'pyvale.'
+# underlying project structure: the user should be able to use 'pyvale.'
 # and access everything in one layer without multiple import dots
-
-from pyvale.imagesim import *
 
 from pyvale.core.dataset import *
 
@@ -41,9 +39,15 @@ from pyvale.core.sensordata import *
 
 from pyvale.core.camera import *
 from pyvale.core.cameradata import *
+from pyvale.core.cameradata2d import *
 from pyvale.core.cameratools import *
-from pyvale.core.cameramesh import *
-from pyvale.core.camerarasternp import *
+
+import pyvale.core.cython.rastercyth as rastercyth
+
+from pyvale.core.rendermesh import *
+from pyvale.core.rasternp import *
+
+from pyvale.core.imagedef2d import *
 
 from pyvale.core.errorintegrator import *
 from pyvale.core.errorrand import *
@@ -61,6 +65,7 @@ from pyvale.core.visualsimanimator import *
 from pyvale.core.visualexpplotter import *
 from pyvale.core.visualtraceplotter import *
 from pyvale.core.visualimages import *
+from pyvale.core.visualimagedef import *
 
 from pyvale.core.analyticmeshgen import *
 from pyvale.core.analyticsimdatagenerator import *

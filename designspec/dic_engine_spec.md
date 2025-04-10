@@ -1,13 +1,13 @@
-# `pyvale` Digital Image Correlation Engine: Design Specification
+# `pyvale` Digital Image Correlation Module: Design Specification
 
 ## Motivation
 Most digital image correlation (DIC) software packages are commercial with restrictive license that prevent deployment on supercomputing clusters. Open source alternative are available however, many of these only support 2D digital image correlation and not stereo correlation. A notable exception to this is the DICe package developed by Sandia National Laboratory. However, DICe requires installation of the Sandia software stack and is mainly targeted at Redhat Enterprise Linux distributions preventing portability across operating systems. Given the prevalence of Python in the scientific and engineering communities it would be desirable to have a DIC software package with a Python interface and underlying performant code in Cython, C and GPU languages for use across operating systems and on supercomputing clusters.
 
-The `pyvale` python package is intended to be an all-in-one package for sensor simulation, sensor uncertainty quantication, sensor placement optimisation and simulation calibration/validation. A particular focus of `pyvale` is to develop sensor simulation methods specifically focused on cameras including infra-red thermography and DIC. Testing camera simulation methods such as rasterisation and ray-tracing for DIC requires a DIC engine for verification. Therefore, we intend to build and integrate a DIC engine into `pyvale` supporting both 2D and stereo DIC.
+The `pyvale` python package is intended to be an all-in-one package for sensor simulation, sensor uncertainty quantication, sensor placement optimisation and simulation calibration/validation. A particular focus of `pyvale` is to develop sensor simulation methods specifically focused on cameras including infra-red thermography and DIC. Testing camera simulation methods such as rasterisation and ray-tracing for DIC requires a DIC module for verification. Therefore, we intend to build and integrate a DIC module into `pyvale` supporting both 2D and stereo DIC.
 
 
 ## Aims & Objectives
-The aim of this project is to develop a performant DIC engine with a Python interface that is fully integrated with the `pyvale` sensor simulation package. The objectives of this project are to develop a DIC engine that supports:
+The aim of this project is to develop a performant DIC module with a Python interface that is fully integrated with the `pyvale` sensor simulation package. The objectives of this project are to develop a DIC module that supports:
 
 - A Python interface with underlying performant code in Cython, C and/or vendor agnostic GPU code (HIP).
 - A set of tools for speckle pattern generation and speckle quality analysis
@@ -15,8 +15,9 @@ The aim of this project is to develop a performant DIC engine with a Python inte
 - Stereo calibration
 - Subset based stereo DIC
 - Functions for performing convergence studies for the DIC parameters
+- Parallelisation options for CPU and GPU to increase performance and scalability
 
-A non-exhaustive list of sub-modules is provided below including the required inputs, processing and outputs for each. Note that these requirements may change as the DIC engine module is developed.
+A non-exhaustive list of sub-modules is provided below including the required inputs, processing and outputs for each. Note that the specific organisation of sub-modules will change as the project develops, it most important that the key functionality and workflows are supported.
 
 ## Sub-Module: Speckle Pattern Generator
 ### Inputs
@@ -29,7 +30,7 @@ A non-exhaustive list of sub-modules is provided below including the required in
 - Any other options required to specify the 'randomness' of the speckle pattern
 - Option to return the image as a numpy array of `np.float64` or to apply digitisation error and return as a `np.uint16` or similar supporting the bit depth of the image
 - Save options to save the image to hard disk (note the capability to pass the image via RAM to other algorithms is also required, so save functionality should be separated from the speckle image generation)
-### Example Workflow
+### Workflow
 - Create a dataclass with the required options to generate the speckle pattern setting desired parameters and leaving others as defaults.
 - Generate and return the speckle pattern in memory
 - View the speckle pattern
@@ -46,7 +47,7 @@ and/or
 ## Sub-Module: Speckle Pattern Quality
 ### Inputs
 - One or more grey level images of the speckle pattern to analyse
-### Example Workflow
+### Workflow
 - Load one or more grey level images into a numpy array
 - Calculate the speckle pattern quality statistics and return them as a dataclass
 - Calculate grey level noise as a function of grey level for a stack of reference images
@@ -64,7 +65,7 @@ Gmsh uses OpenCASCADE to perform boolean operations on shapes in 3D. We might be
 
 ### Inputs
 - A static reference image from which the region of interest will be selected
-### Example Workflow
+### Workflow
 - Load the reference image
 - Interactively draw shapes on the image in 2D performing boolean operations between shapes to specify the region of interest, or
 - Automatically threshold the image to extract the mask
@@ -90,7 +91,7 @@ Gmsh uses OpenCASCADE to perform boolean operations on shapes in 3D. We might be
     - Parallelisation: CPU or GPU based
     - Option to load and perform the correlation image by image to save RAM or to load all images in one shot and perform the correlation over everything
 - A pixel resolution in units of length per pixel
-### Example Workflow
+### Workflow
 - Build a dataclass specifying the correlation options and the length to pixel conversion
 - Load a region of interest mask file or specify this in code
 - Load a reference image and optionally a set of deformed images
@@ -109,7 +110,7 @@ For this module there are probably a large number of function in OpenCV that can
 ### Inputs
 - A set of images of a calibration target moved through all degrees of freedom in the image space
 - Parameters for the calibration target including dot spacing, dot size and number of dots
-### Example Workflow
+### Workflow
 - Input the parameters of the calibration target including dot spacing and locations of the three dots used to find the plane of the target
 - Load a stack of images of the calibration target moved through all degrees of freedom with the field of view
 - Iterate through all of the images and perform dot detection to extract the grid of dots, locating the plane detection dots
@@ -140,7 +141,7 @@ and/or
     - Parallelisation: CPU or GPU based
     - Option to load an perform the correlation image by image to save RAM or to load all images in one shot and perform the correlation over everything
 - Stereo calibration parameters (intrinsic and extrinsic)
-### Example Workflow
+### Workflow
 - Build a dataclass specifying the stereo correlation options
 - Load a stereo calibration parameters file or specify this in code
 - Load a region of interest mask file or specify this in code
@@ -161,7 +162,7 @@ and/or
 - Options for spatial differentiation and spatial smoothing of DIC data to calculate the deformation gradient
 - Options for calculating strain tensors from the deformation gradient
 - Options for temporal differentiation and temporal smoothing of DIC data
-### Example Workflow
+### Workflow
 - Build a dataclass specifying the post-processing options
 - Pass in RAM or load from file the DIC displacement data
 - Post-process the displacement data with smoothing and spatial and/or temporal differentiation
@@ -183,7 +184,7 @@ This [repository](https://github.com/Computer-Aided-Validation-Laboratory/dicben
 
 
 ## Deliverables
-- A DIC engine module integrated into `pyvale` with the following sub-modules (note these are just suggested names and are not binding, use whatever structure makes most sense during developement):
+- A DIC module module fully integrated and merged into the main branch of `pyvale` with the following sub-modules (note these are just suggested names and are not binding, use whatever structure makes most sense during developement):
     - DICSpeckleQuality
     - DICSpeckleGen
     - DICRegionOfInterest
@@ -193,6 +194,6 @@ This [repository](https://github.com/Computer-Aided-Validation-Laboratory/dicben
     - DICPost including DICStrain, DICTempDiff
 - Full doc-strings and auto generated documentation
 - A pragmatic suite of software tests including unit and regression tests
-- Example/tutorial scripts demonstrating the functionality of the DIC engine module with increasing complexity of use
+- Example/tutorial scripts demonstrating the functionality of the DIC module module with increasing complexity of use
 - A short markdown report analysing the benchmarks in the DIC challenge
-- A short markdown report benchmarking the DIC engine against anonymised data from commercial DIC software as well as the open source DICe
+- A short markdown report benchmarking the DIC module against anonymised data from commercial DIC software as well as the open source DICe

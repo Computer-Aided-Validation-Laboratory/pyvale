@@ -3,7 +3,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 import time
@@ -29,14 +29,25 @@ def main() -> None:
 
     print()
     print(80*"-")
+    print("BENCHMARK CASE:")
     print(f"{case_ident=}")
+    print(80*"-")
+    print(f"{case_mesh.connectivity.shape=}")
+    print(f"{case_mesh.coords.shape=}")
+    print(f"{case_mesh.fields_by_node.shape=}")
     print(80*"-")
 
     (elem_world_coords,
      field_to_render) = pyvale.slice_mesh_data_by_elem(case_mesh.coords,
                                                 case_mesh.connectivity,
-                                                case_mesh.field_by_node)
+                                                case_mesh.fields_by_node[:,:,1])
     frame_to_render = np.ascontiguousarray(field_to_render[:,:,-1])
+
+    print()
+    print(f"{elem_world_coords.shape=}")
+    print(f"{field_to_render.shape=}")
+    print(f"{frame_to_render.shape=}")
+
 
     print()
     print(80*"=")
@@ -52,7 +63,8 @@ def main() -> None:
         print(f"Running loop {nn}")
         loop_start = time.perf_counter()
         (image_subpx_buffer,
-         depth_subpx_buffer) = camerac.raster_loop(frame_to_render,
+         depth_subpx_buffer,
+         elems_in_image) = camerac.raster_loop(frame_to_render,
                                                    elem_world_coords,
                                                    cam_data.world_to_cam_mat,
                                                    cam_data.pixels_num,
@@ -76,6 +88,7 @@ def main() -> None:
     print()
     print(80*"=")
     print("PERFORMANCE TIMERS")
+    print(f"Elements in image = {elems_in_image}")
     print(f"Avg. loop time = {np.mean(loop_times):.4f} seconds")
     print(f"Subpx avg. time = {avg_time:.6f} seconds")
     print(80*"=")

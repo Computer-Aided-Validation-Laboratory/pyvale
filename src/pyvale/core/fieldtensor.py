@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 import numpy as np
@@ -11,7 +11,7 @@ from scipy.spatial.transform import Rotation
 import mooseherder as mh
 
 from pyvale.core.field import IField
-from pyvale.core.fieldconverter import conv_simdata_to_pyvista
+from pyvale.core.fieldconverter import simdata_to_pyvista
 from pyvale.core.fieldsampler import sample_pyvista_grid
 from pyvale.core.fieldtransform import (transform_tensor_2d,
                                    transform_tensor_2d_batch,
@@ -58,7 +58,7 @@ class FieldTensor(IField):
         # based on the spatial dimensions
 
         self._sim_data = sim_data
-        (self._pyvista_grid,self._pyvista_vis) = conv_simdata_to_pyvista(
+        (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
             self._sim_data,
             self._norm_components+self._dev_components,
             self._spat_dims
@@ -76,7 +76,7 @@ class FieldTensor(IField):
             physical field.
         """
         self._sim_data = sim_data
-        (self._pyvista_grid,self._pyvista_vis) = conv_simdata_to_pyvista(
+        (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
             sim_data,
             self._norm_components+self._dev_components,
             self._spat_dims

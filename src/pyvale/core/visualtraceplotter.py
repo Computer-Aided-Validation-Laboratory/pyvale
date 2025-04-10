@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from typing import Any
@@ -40,7 +40,9 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         trace_opts = TraceOptsSensor()
 
     if trace_opts.sensors_to_plot is None:
-        trace_opts.sensors_to_plot = np.arange(0,n_sensors)
+        sensors_to_plot = range(n_sensors)
+    else:
+        sensors_to_plot = trace_opts.sensors_to_plot
 
     #---------------------------------------------------------------------------
     # Figure canvas setup
@@ -56,41 +58,38 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                                       None,
                                       sensor_array.sensor_data.angles)
 
-        for ss in range(n_sensors):
-            if ss in trace_opts.sensors_to_plot:
-                ax.plot(sim_time,
-                        sim_vals[ss,comp_ind,:],
-                        trace_opts.sim_line,
-                        lw=plot_opts.lw,
-                        ms=plot_opts.ms,
-                        color=plot_opts.colors[ss % plot_opts.n_colors])
+        for ii,ss in enumerate(sensors_to_plot):
+            ax.plot(sim_time,
+                    sim_vals[ss,comp_ind,:],
+                    trace_opts.sim_line,
+                    lw=plot_opts.lw,
+                    ms=plot_opts.ms,
+                    color=plot_opts.colors[ii % plot_opts.n_colors])
 
     if trace_opts.truth_line is not None:
         truth = sensor_array.get_truth()
-        for ss in range(n_sensors):
-            if ss in trace_opts.sensors_to_plot:
-                ax.plot(samp_time,
-                        truth[ss,comp_ind,:],
-                        trace_opts.truth_line,
-                        lw=plot_opts.lw,
-                        ms=plot_opts.ms,
-                        color=plot_opts.colors[ss % plot_opts.n_colors])
-
-    sensor_tags = descriptor.create_sensor_tags(n_sensors)
-    for ss in range(n_sensors):
-        if ss in trace_opts.sensors_to_plot:
-            sensor_time = samp_time
-            if sensors_perturbed is not None:
-                if sensors_perturbed.sample_times is not None:
-                    sensor_time = sensors_perturbed.sample_times
-
-            ax.plot(sensor_time,
-                    measurements[ss,comp_ind,:],
-                    trace_opts.meas_line,
-                    label=sensor_tags[ss],
+        for ii,ss in enumerate(sensors_to_plot):
+            ax.plot(samp_time,
+                    truth[ss,comp_ind,:],
+                    trace_opts.truth_line,
                     lw=plot_opts.lw,
                     ms=plot_opts.ms,
-                    color=plot_opts.colors[ss % plot_opts.n_colors])
+                    color=plot_opts.colors[ii % plot_opts.n_colors])
+
+    sensor_tags = descriptor.create_sensor_tags(n_sensors)
+    for ii,ss in enumerate(sensors_to_plot):
+        sensor_time = samp_time
+        if sensors_perturbed is not None:
+            if sensors_perturbed.sample_times is not None:
+                sensor_time = sensors_perturbed.sample_times
+
+        ax.plot(sensor_time,
+                measurements[ss,comp_ind,:],
+                trace_opts.meas_line,
+                label=sensor_tags[ss],
+                lw=plot_opts.lw,
+                ms=plot_opts.ms,
+                color=plot_opts.colors[ii % plot_opts.n_colors])
 
     #---------------------------------------------------------------------------
     # Axis / legend labels and options
@@ -121,18 +120,21 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
                     sim_num: int,
                     trace_opts: TraceOptsExperiment | None = None,
                     plot_opts: PlotOptsGeneral | None = None) -> tuple[Any,Any]:
+    #---------------------------------------------------------------------------
+    n_sensors = exp_sim.sensor_arrays[sens_array_num].sensor_data.positions.shape[0]
+    descriptor = exp_sim.sensor_arrays[sens_array_num].descriptor
+    comp_ind = exp_sim.sensor_arrays[sens_array_num].field.get_component_index(component)
+    samp_time = exp_sim.sensor_arrays[sens_array_num].get_sample_times()
+    num_sens = exp_sim.sensor_arrays[sens_array_num].get_measurement_shape()[0]
 
+    #---------------------------------------------------------------------------
     if trace_opts is None:
         trace_opts = TraceOptsExperiment()
 
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
 
-    descriptor = exp_sim.sensor_arrays[sens_array_num].descriptor
-    comp_ind = exp_sim.sensor_arrays[sens_array_num].field.get_component_index(component)
-    samp_time = exp_sim.sensor_arrays[sens_array_num].get_sample_times()
-    num_sens = exp_sim.sensor_arrays[sens_array_num].get_measurement_shape()[0]
-
+    #---------------------------------------------------------------------------
     exp_data = exp_sim.get_data()
     exp_stats = exp_sim.get_stats()
 
@@ -150,30 +152,34 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     #---------------------------------------------------------------------------
     # Plot all simulated experimental points
     if trace_opts.plot_all_exp_points:
-        for ss in sensors_to_plot:
+        for ii,ss in enumerate(sensors_to_plot):
             for ee in range(exp_sim.num_exp_per_sim):
                 ax.plot(samp_time,
                         exp_data[sens_array_num][sim_num,ee,ss,comp_ind,:],
                         "+",
                         lw=plot_opts.lw,
                         ms=plot_opts.ms,
-                        color=plot_opts.colors[ss % plot_opts.n_colors])
+                        color=plot_opts.colors[ii % plot_opts.n_colors])
 
-    for ss in sensors_to_plot:
+    #---------------------------------------------------------------------------
+    sensor_tags = descriptor.create_sensor_tags(n_sensors)
+    for ii,ss in enumerate(sensors_to_plot):
         if trace_opts.centre == "median":
             ax.plot(samp_time,
                     exp_stats[sens_array_num].median[sim_num,ss,comp_ind,:],
                     trace_opts.exp_mean_line,
+                    label=sensor_tags[ss],
                     lw=plot_opts.lw,
                     ms=plot_opts.ms,
-                    color=plot_opts.colors[ss % plot_opts.n_colors])
+                    color=plot_opts.colors[ii % plot_opts.n_colors])
         else:
             ax.plot(samp_time,
                     exp_stats[sens_array_num].mean[sim_num,ss,comp_ind,:],
                     trace_opts.exp_mean_line,
+                    label=sensor_tags[ss],
                     lw=plot_opts.lw,
                     ms=plot_opts.ms,
-                    color=plot_opts.colors[ss % plot_opts.n_colors])
+                    color=plot_opts.colors[ii % plot_opts.n_colors])
 
         if trace_opts is not None:
             upper = np.zeros_like(exp_stats[sens_array_num].min)
@@ -202,7 +208,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
             ax.fill_between(samp_time,
                 upper[sim_num,ss,comp_ind,:],
                 lower[sim_num,ss,comp_ind,:],
-                color=plot_opts.colors[ss % plot_opts.n_colors],
+                color=plot_opts.colors[ii % plot_opts.n_colors],
                 alpha=0.2)
 
     #---------------------------------------------------------------------------
@@ -227,7 +233,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
                     trace_opts.truth_line,
                     lw=plot_opts.lw,
                     ms=plot_opts.ms,
-                    color=plot_opts.colors[ss % plot_opts.n_colors])
+                    color=plot_opts.colors[ii % plot_opts.n_colors])
 
     #---------------------------------------------------------------------------
     # Axis / legend labels and options
@@ -241,7 +247,6 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     else:
         ax.set_xlim(trace_opts.time_min_max)
 
-    trace_opts.legend = False
     if trace_opts.legend:
         ax.legend(prop={"size":plot_opts.font_leg_size},loc='best')
 

@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from typing import Any
@@ -43,7 +43,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
 
     #---------------------------------------------------------------------------
     # Figure canvas setup
-    fig, ax = plt.subplots(figsize=plot_opts.single_fig_size_landscape,
+    fig, ax = plt.subplots(figsize=plot_opts.single_fig_size_portrait,
                            layout='constrained')
     fig.set_dpi(plot_opts.resolution)
 

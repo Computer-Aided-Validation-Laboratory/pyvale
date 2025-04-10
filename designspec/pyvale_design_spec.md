@@ -8,14 +8,17 @@ A key parameter of validation experiments is the deployment of sensor arrays to 
 ## Aims & Objectives
 The aim of this project is to develop a software engine that can use an input multi-physics simulation to produce a set of simulated sensor dataset with realistic uncertainties to be used for optimisation. This software engine will be developed as a python package to allow for ease of use by the scientific and engineering community. The package will be called the python validation engine, `pyvale`. Furthermore, `pyvale` is made open-source with an MIT license allowing for commercial use. The main objectives of `pyvale` are to:
 
-1. Provide a library of sensor models with realistic uncertainties which can be applied to an input multi-physics simulation with a particular focus on camera-based sensors.
+1. Provide a toolbox of sensor simulation models with realistic uncertainties which can be applied to an input multi-physics simulation with a particular focus on camera-based sensors.
 2. Create an experimental design and sensor placement optimisation workflow that utilises the sensor model library.
 3. Develop a simulation calibration and validation framework that can be used with the sensor model library or with real experimental data.
 
 A key focus of `pyvale` is developement of open-source scalable tools that can be used to simulate uncertainties for camera-based sensors. Current commercial solutions for simulating DIC have restrictive licenses that do not allow deployment on clusters for large optimisation analyses.
 
+## `pyvale` Design Philosophy
+- Scientists and engineers want a python interface: Write computationally demanding algorithms in lower level languages like Cython, C or CUDA but provide a Python interface for users
+- Users want to get started quickly but have the option to customise everything: provide good defaults to simplify the interface
 
-## Sensor Library Specification
+## Sensor Simulation Toolbox Specification
 A simulated sensor will produce a simulated measurement $M$ which is defined to be: $M = T + E_{S} + E_{R}$ where $T$ is the ground truth value taken from the given input multi-physics simulation, $E_{S}$ includes any sources of systematic measurement error (e.g. averaging, digitisation, calibration), and $E_{R}$ includes any sources of random errors (e.g. noise).
 
 The models in the sensor simulation library should provide:
@@ -38,11 +41,14 @@ The models in the sensor simulation library should provide:
 - A camera simulation engine for uncertainty quantification of infra-red thermography (IRT) and digital image correlation (DIC) systems supporting:
     - Rasterisation and ray tracing using a custom engine and/or Blender's EEVEE or Cycles.
     - Direct projection of physical fields onto the camera (e.g. temperature or displacement) or texture warping of speckle patterns for DIC.
-- A DIC engine including:
+- A 2D DIC engine including:
     - Speckle size analysis tools, speckle pattern quality assessment and speckle pattern generation.
     - Length calibration and region of interest selection tools.
-    - 2D DIC: supporting affine shape functions, spline interpolation and ZNSSD correlation criteria
-    - Extension: stereo calibration and stereo DIC
+    - 2D DIC: supporting affine shape functions, spline interpolation and the ZNSSD correlation criteria.
+- A stereo DIC engine including:
+    - A stereo calibration module supporting various distortion models
+    - Calculation of correlation quality statistics such as the epi-polar distance
+    - Stereo correlation for shape reconstruction, displacement and strain calculation
 
 ## Experimental Design & Sensor Placement Optimisation Specification
 TODO

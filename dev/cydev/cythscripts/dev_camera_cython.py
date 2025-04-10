@@ -3,7 +3,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 import time
@@ -32,10 +32,10 @@ def main() -> None:
 
     field_key = "disp_y"
     components = ("disp_x","disp_y","disp_z")
-    mesh_world: pyvale.CameraMeshData = pyvale.create_camera_mesh(data_path,
+    mesh_world: pyvale.RenderMeshData = pyvale.create_render_mesh(data_path,
                                                                   field_key,
                                                                   components,
-                                                                  spat_dim=3)
+                                                                  sim_spat_dim=3)
 
     print()
     print(80*"-")
@@ -74,8 +74,8 @@ def main() -> None:
 
 
     cam_z_world = cam_rot.as_matrix()[:,-1]
-    fov_leng = pyvale.fov_from_cam_rot(cam_rot,mesh_world.coords)*border_factor
-    image_dist = pyvale.image_dist_from_fov(np.array([2464,2056]),
+    fov_leng = pyvale.fov_from_cam_rot_3d(cam_rot,mesh_world.coords)*border_factor
+    image_dist = pyvale.image_dist_from_fov_3d(np.array([2464,2056]),
                                             np.array([3.45e-3,3.45e-3]),
                                             50.0,
                                             fov_len)

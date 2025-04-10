@@ -3,7 +3,8 @@
 
 simulation_cases:
   - name: case01.i
-    geometry: 2D_1mat
+    geometry: 2d_1mat
+    mesh: moose_2d_quad4
     physics: thermal
     BC: htc_heatflux
     material:
@@ -12,7 +13,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case02.i
-    geometry: 2D_1mat
+    geometry: 2d_1mat
+    mesh: moose_2d_quad8
     physics: mechanical
     BC: disp_disp
     material:
@@ -23,7 +25,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case03.i
-    geometry: 2D_2mat
+    geometry: 2d_2mat
+    mesh: moose_2d_quad4
     physics: thermal
     BC: htc_heatflux
     material:
@@ -32,7 +35,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case04.i
-    geometry: 2D_2mat
+    geometry: 2d_2mat
+    mesh: moose_2d_quad8
     physics: mechanical
     BC: disp_disp
     material:
@@ -43,7 +47,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case05.i
-    geometry: 2D_1mat
+    geometry: 2d_1mat
+    mesh: moose_2d_quad4
     physics: thermo_mechanical
     BC: htc_heatflux_disp
     material:
@@ -56,7 +61,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case06.i
-    geometry: 2D_2mat
+    geometry: 2d_2mat
+    mesh: moose_2d_quad4
     physics: thermo_mechanical
     BC: uniformtemp_disp
     material:
@@ -69,7 +75,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case07.i
-    geometry: 2D_1mat_gmsh_plateWHole
+    geometry: 2d_1mat_plate_with_hole
+    mesh: gmsh_2d_quad8
     physics: thermal
     BC: htc_heatflux
     material:
@@ -82,7 +89,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case08.i
-    geometry: 3D_1mat_gmsh_plateWHole
+    geometry: 3d_1mat_plate_with_hole
+    mesh: gmsh_3d_quad20
     physics: mechanical
     BC: disp_disp
     material:
@@ -95,7 +103,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case09.i
-    geometry: 3D_1mat_gmsh_stc
+    geometry: 3d_1mat_stc_no_pipe
+    mesh: gmsh_3d_tet10
     physics: thermal
     BC: htc_heatflux
     material:
@@ -108,7 +117,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case10.i
-    geometry: 3D_1mat_gmsh_stc
+    geometry: 3d_1mat_stc_no_pipe
+    mesh: gmsh_3d_tet10
     physics: thermo_mechanical
     BC: htc_heatflux_disp_disp_disp
     material:
@@ -121,7 +131,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case11.i
-    geometry: 3D_3mat_gmsh_monoblock
+    geometry: 3d_3mat_monoblock
+    mesh: gmsh_3d_quad20
     physics: thermal
     BC: htc_heatflux
     material:
@@ -134,7 +145,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case12.i
-    geometry: 3D_3mat_gmsh_monoblock
+    geometry: 3d_3mat_monoblock
+    mesh: gmsh_3d_quad20
     physics: thermo_mechanical
     BC: htc_heatflux_disp_disp_disp
     material:
@@ -147,7 +159,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case13.i
-    geometry: 2D_1mat
+    geometry: 2d_1mat
+    mesh: moose_2d_quad4
     physics: thermal
     BC: htc_heatflux
     material:
@@ -156,7 +169,8 @@ simulation_cases:
     time_dependence: transient
 
   - name: case14.i
-    geometry: 2D_1mat
+    geometry: 2d_1mat
+    mesh: moose_2d_quad8
     physics: mechanical
     BC: disp_disp
     material:
@@ -167,7 +181,8 @@ simulation_cases:
     time_dependence: transient
 
   - name: case15.i
-    geometry: 3D_3mat_gmsh_monoblock
+    geometry: 3d_3mat_monoblock
+    mesh: gmsh_3d_quad20
     physics: thermal
     BC: htc_heatflux
     material:
@@ -178,7 +193,8 @@ simulation_cases:
     time_dependence: transient
 
   - name: case16.i
-    geometry: 3D_3mat_gmsh_monoblock
+    geometry: 3d_3mat_monoblock
+    mesh: gmsh_3d_quad20
     physics: thermal_mechanical
     BC: htc_heatflux_sym_mechanical
     material:
@@ -191,7 +207,8 @@ simulation_cases:
     time_dependence: transient
 
   - name: case17.i
-    geometry: 2D_1mat_platewithhole
+    geometry: 2d_1mat_plate_with_hole
+    mesh: gmsh_2d_quad8
     physics: mechanical
     BC: disp_disp
     material:
@@ -202,7 +219,8 @@ simulation_cases:
     time_dependence: transient
 
   - name: case18.i
-    geometry: 2D_1mat
+    geometry: 2d_1mat
+    mesh: moose_2d_quad4
     physics: thermo_mechanical
     BC: htc_heatflux_disp
     material:
@@ -215,7 +233,8 @@ simulation_cases:
     time_dependence: transient
 
   - name: case19.i
-    geometry: 3D_1mat_stc_full_with_rad
+    geometry: 3d_1mat_stc_full_with_rad
+    mesh: gmsh_3d_tet10
     physics: thermal
     BC: htc_heatflux
     material:
@@ -228,7 +247,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case20.i
-    geometry: 3D_1mat_stc_full_with_rad
+    geometry: 3d_1mat_stc_full_with_rad
+    mesh: gmsh_3d_tet10
     physics: thermal_mechanical
     BC: htc_heatflux_disp
     material:
@@ -241,7 +261,8 @@ simulation_cases:
     time_dependence: steady
 
   - name: case21.i
-    geometry: 3D_1mat_cylinder_compression
+    geometry: 3d_1mat_cylinder_compression
+    mesh: gmsh_3d_tet10
     physics: mechanical
     BC: disp
     material:
@@ -252,7 +273,8 @@ simulation_cases:
     time_dependence: transient
 
   - name: case22.i
-    geometry: 3D_1mat_plate_tension
+    geometry: 3d_1mat_plate_tension
+    mesh: gmsh_3d_quad8
     physics: mechanical
     BC: disp
     material:
@@ -262,8 +284,9 @@ simulation_cases:
           mechanical: temp_indep
     time_dependence: transient
 
-  - name: case22.i
-    geometry: 3D_1mat_plate_with_hole_tension
+  - name: case23.i
+    geometry: 3d_1mat_plate_with_hole_tension
+    mesh: gmsh_3d_quad8
     physics: mechanical
     BC: disp
     material:
@@ -273,4 +296,41 @@ simulation_cases:
           mechanical: temp_indep
     time_dependence: transient
 
+  - name: case24.i
+    geometry: 2d_1mat_plate
+    mesh: gmsh_2d_tri3
+    physics: thermal
+    BC: htc_htc_heatflux_heatflux
+    material:
+      - material_model:
+          mechanical: temp_indep
+      - material_model:
+          mechanical: temp_indep
+    time_dependence: transient
+    notes: 2d image deformation test case 150x100mm plate
 
+  - name: case25.i
+    geometry: 3d_1mat_plate
+    mesh: gmsh_2d_tri3
+    physics: mechanical
+    BC: disp
+    material:
+      - material_model:
+          mechanical: temp_indep
+      - material_model:
+          mechanical: temp_indep
+    time_dependence: transient
+    notes: simple rendering debug case
+
+  - name: case26.i
+    geometry: 3d_1mat_plate_with_hole_tension
+    mesh: gmsh_3d_tet10
+    physics: mechanical
+    BC: disp
+    material:
+      - material_model:
+          mechanical: temp_indep
+      - material_model:
+          mechanical: temp_indep
+    time_dependence: transient
+    notes: displacement rendering packaged demo
