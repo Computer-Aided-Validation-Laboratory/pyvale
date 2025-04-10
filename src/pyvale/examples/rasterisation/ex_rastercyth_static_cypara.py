@@ -130,7 +130,7 @@ def main() -> None:
          elems_in_image) = pyv.rastercyth.raster_static_mesh(
                                                 render_mesh,
                                                 cam_data,
-                                                16)
+                                                4)
 
         loop_times[nn] = time.perf_counter() - loop_start
 
@@ -146,8 +146,8 @@ def main() -> None:
 
     #===========================================================================
     # PLOTTING
-    plot_on = False
-    plot_frames = (-1,)#range(3)
+    plot_on = True
+    plot_frames = (1,)#range(3)
     plot_field = 0
 
     # depth_to_plot = np.copy(np.asarray(depth_buffer[:,:,plot_frame]))

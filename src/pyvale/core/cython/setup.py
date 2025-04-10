@@ -11,7 +11,7 @@ ext_modules = [
     Extension(
         "rastercyth",
         ["rastercyth.py"],
-        extra_compile_args=["-ffast-math",openmp_arg,"-O3"],
+        extra_compile_args=["-ffast-math",openmp_arg],
         extra_link_args=[openmp_arg],
     ),
 ]
