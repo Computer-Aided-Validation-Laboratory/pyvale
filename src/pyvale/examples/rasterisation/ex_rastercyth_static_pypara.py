@@ -27,9 +27,9 @@ def main() -> None:
 
     # This a path to an exodus *.e output file from MOOSE, this can be
     # replaced with a path to your own simulation file
-    #sim_path = pyv.DataSet.render_mechanical_3d_path()
+    sim_path = pyv.DataSet.render_mechanical_3d_path()
     #sim_path = pyv.DataSet.render_simple_block_path()
-    sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
+    #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
     disp_comps = ("disp_x","disp_y","disp_z")
@@ -45,7 +45,7 @@ def main() -> None:
 
     # Extracts the surface mesh from a full 3d simulation for rendering
     render_mesh = pyv.create_render_mesh(sim_data,
-                                        ("disp_y","disp_x","disp_z"),
+                                        ("disp_y","disp_x"),
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
 
