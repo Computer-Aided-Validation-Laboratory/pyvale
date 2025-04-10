@@ -17,7 +17,7 @@ lengZ = 10e-3   # m
 nElemX = 1
 nElemY = 1
 nElemZ = 1
-eType = TET10 # TET10, TET11, HEX20, HEX27
+eType = HEX20 # TET10, TET11, HEX20, HEX27
 
 # Thermal BCs
 coolantTemp=100.0      # degC
