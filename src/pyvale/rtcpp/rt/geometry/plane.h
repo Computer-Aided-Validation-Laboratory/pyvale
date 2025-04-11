@@ -109,6 +109,23 @@ class Quad : public Hittable {
       double area;
   };
 
+
+class Tri : public Quad {
+    public:
+        Tri(const point3& Q, const vec3& u, const vec3& v, shared_ptr<Material> mat)
+        : Quad(Q, u, v, mat) {};
+
+        bool is_interior(double a, double b, Hit_record& rec) const override{
+            if (a > 0 && b > 0 && a+b < 1){
+                rec.u = a;
+                rec.v = b;
+                return true;
+            }
+            return false;
+        }
+};
+
+
 class Plane_xy: public Hittable {
     public:
 
