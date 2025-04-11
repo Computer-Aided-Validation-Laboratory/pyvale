@@ -4,6 +4,110 @@
 
 #include "hittable.h"
 
+#include "aabb.h"
+
+#include "../interval.h"
+
+class Quad : public Hittable {
+    public:
+      Quad(const point3& Q, const vec3& u, const vec3& v, shared_ptr<Material> mat)
+        : Q(Q), u(u), v(v), mat(mat)
+      {
+          auto n = cross(u, v);
+          normal = normalize(n);
+          D = dot(normal, Q);
+          w = n / dot(n,n);
+  
+          area = n.length();
+  
+          set_bounding_box();
+      }
+  
+      virtual void set_bounding_box() {
+          // Compute the bounding box of all four vertices.
+          auto bbox_diagonal1 = aabb(Q, Q + u + v);
+          auto bbox_diagonal2 = aabb(Q + u, Q + v);
+          bbox = aabb(bbox_diagonal1, bbox_diagonal2);
+      }
+  
+    //   aabb bounding_box() const override { return bbox; }
+        bool bounding_box(double dis_min, double dis_max, aabb& output_box) const override
+        {
+            output_box = bbox;
+            return true;
+        }
+  
+      bool hit(const Ray& r, double dis_min, double dis_max, Hit_record& hit) const override {
+          auto denom = dot(normal, r.get_direction());
+  
+          // No hit if the ray is parallel to the plane.
+          if (std::fabs(denom) < 1e-8)
+              return false;
+  
+          // Return false if the hit point parameter t is outside the ray interval.
+          auto t = (D - dot(normal, r.get_origin())) / denom;
+        //   if (!ray_t.contains(t))
+        //       return false;
+        if (t < dis_min || t > dis_max)
+            return false;
+  
+          // Determine if the hit point lies within the planar shape using its plane coordinates.
+          auto intersection = r.at(t);
+          vec3 planar_hitpt_vector = intersection - Q;
+          auto alpha = dot(w, cross(planar_hitpt_vector, v));
+          auto beta = dot(w, cross(u, planar_hitpt_vector));
+  
+          if (!is_interior(alpha, beta, hit))
+              return false;
+  
+          // Ray hits the 2D shape; set the rest of the hit record and return true.
+          hit.distance = t;
+          hit.position = intersection;
+          hit.material_ptr = mat;
+          hit.set_face_normal(r, normal);
+  
+          return true;
+      }
+  
+      virtual bool is_interior(double a, double b, Hit_record& rec) const {
+          Interval unit_interval = Interval(0, 1);
+          // Given the hit point in plane coordinates, return false if it is outside the
+          // primitive, otherwise set the hit record UV coordinates and return true.
+  
+          if (!unit_interval.contains(a) || !unit_interval.contains(b))
+              return false;
+  
+          rec.u = a;
+          rec.v = b;
+          return true;
+      }
+  
+      double pdf_value(const point3& origin, const vec3& direction) const override {
+          Hit_record hit;
+          if (!this->hit(Ray(origin, direction, 1, 0.), 0.001, infinity, hit))
+              return 0;
+  
+          auto distance_squared = hit.distance * hit.distance * direction.length_squared();
+          auto cosine = std::fabs(dot(direction, hit.normal) / direction.length());
+  
+          return distance_squared / (cosine * area);
+      }
+  
+      vec3 random(const point3& origin) const override {
+          auto p = Q + (random_double() * u) + (random_double() * v);
+          return p - origin;
+      }
+  
+    private:
+      point3 Q;
+      vec3 u, v;
+      vec3 w;
+      shared_ptr<Material> mat;
+      aabb bbox;
+      vec3 normal;
+      double D;
+      double area;
+  };
 
 class Plane_xy: public Hittable {
     public:

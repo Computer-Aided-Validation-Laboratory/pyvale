@@ -1,5 +1,7 @@
+#include "geometry/hittable.h"
 #include "util.h"
 #include <math.h>
+#include <memory>
 
 
 #include "ray.h"
@@ -218,7 +220,9 @@ PYBIND11_MODULE(render, m) {
         .def(py::init<double, double, double, double, double, shared_ptr<Material>>(), 
          py::arg("y0"), py::arg("y1"), py::arg("z0") ,py::arg("z1"),py::arg("x"), py::arg("Material")); 
 
-
+    py::class_<Quad,Hittable,shared_ptr<Quad>>(m, "Quad")
+        .def(py::init<point3, vec3, vec3, shared_ptr<Material>>(),
+         py::arg("Q"), py::arg("u"), py::arg("v"), py::arg("Material"));
 
 
     py::class_<BVH_node,Hittable,shared_ptr<BVH_node>>(m, "BVH_node")

@@ -27,6 +27,7 @@ box1 = Box(point3(265, 0, 295), point3(430, 330, 460), white)
 scene.add(box1)
 scene.add(Sphere(vec3(160, 165/2, +65+185/2), 165/2, Refractive(1.5)))
 
+scene.add(Quad(point3(10, 10, 10), vec3(500,0,0), vec3(0,500,0), green))
 
 
 

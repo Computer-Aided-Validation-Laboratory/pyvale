@@ -1,12 +1,23 @@
 #ifndef AABB_H
 #define AABB_H
 #include "../util.h"
+#include <endian.h>
 
 
 class aabb {
     public:
         aabb() {}
         aabb(const point3& a, const point3& b) { _min = a; _max = b; }
+        aabb(const aabb& box0, const aabb& box1) {
+            double min_x = std::min(box0.min().x(), box1.min().x());
+            double min_y = std::min(box0.min().y(), box1.min().y());
+            double min_z = std::min(box0.min().z(), box1.min().z());
+            double max_x = std::max(box0.max().x(), box1.max().x());
+            double max_y = std::max(box0.max().y(), box1.max().y());
+            double max_z = std::max(box0.max().z(), box1.max().z());
+            _min = vec3(min_x, min_y, min_z);
+            _max = vec3(max_x, max_y, max_z);
+        }
 
         point3 min() const {return _min; }
         point3 max() const {return _max; }
