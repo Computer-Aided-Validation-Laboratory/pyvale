@@ -1,6 +1,37 @@
 
 # Notes: `pyvale` developement
 
+
+
+## TODO: `Raster`
+--------------------
+- Speed up edge function calculation using stepwise optimisation on SAP
+- Try to setup tiling optimisation
+- Deal with quads: edge function and interpolation
+
+**NOTE**: should we just have a single `IRenderer` or `IImager` interface and unify everything including: Blender, rasteriser, ray tracer?
+
+### `Raster` Core/Interface
+- Manages parallelisation?
+- Need to split out parallelisation from numpy version
+- Numpy/Cython using `multiprocessing.pool`
+- Zig will have it's own parallelisation
+
+### `Raster` Numpy
+- Need to be able to actually save images as *.tiff/*.bmp greyscale/colour or other format
+- Fix the cython vs no cython image averaging looking at *.so
+
+### `Raster` Cython
+- Saving and parallelisation will be managed by `RasterCore`
+- Render all single frame / render all frames
+- Implement static/deformed meshes
+
+### `Raster` Zig
+- Continue building it to match the Cython version
+
+
+
+
 ## Ideas for papers:
 - FUSION SIM: "A probabilistic analysis of residual stress in divertor monoblocks" - showcase mooseherder
 - EXP SIM: "Are point wise validation metrics suitable for image-based data?"
@@ -8,51 +39,6 @@
 - EXP SIM: "A comparison of image rendering techniques for DIC UQ"
 - EXP SIM: "Camera placement optimisation for 2D DIC FEMU"
 - EXP SIM: "A rendering engine for UQ of IRT sensors"
-
-# HOW TO: 2D DIC
-- Start with a simple pixel wise DIC algorithm to get a starting point
-- Start with pure numpy and scipy version then build own interp/opt
-
-- Speckle generator:
-    - Allow noise, gaussian blurring, digitisation, format saving
-- 2D image deformation:
-    - Update existing 2D image deformation in pyvale to use pyvista to do interp
-    - Update masking to remove alpha shape - use the edge function
-    - Simplify code and make core to pyvale
-    - Generate test cases for 640x480 images on rectangular ROIs
-- Shape functions:
-    - Start with rigid
-    - Then add affine
-- Correlation criteria:
-    - Implement all the different correlation criteria with good pre-calcs
-- Optimisers:
-    - Start with Nelder-Mead
-    - Implement Levenberg-Marquadt
-    - Need to return the residual
-- Interpolation
-    - Use scipy to do spline interp on image
-    - Build own spline interp in cython
-- Generate a test case run in 2D through DICE
-
-**2D DIC TEST CASE**
-- 1020x520 pixels
-- 100x50mm plate
-- 10px on the border
-- Resolution = 100mm/1000px = 0.1 mm/px
-- 10px per mm
-- 1mm displacement = 10 px
-- Need displacement cases at 0.1/10 = 1/10th of a pixel
-
-## TODO: `CameraRaster`
-- Speed up edge function calculation using stepwise optimisation on SAP
-- Try to setup tiling optimisation
-- Deal with quads: edge function and interpolation
-
-`CameraRay`
-- Build a ray casting version. Only need primary rays.
-- Interpolation can be done in world coords using primary ray intersection.
-- Still have the problem of dealing with quads
-
 
 ## TODO: `pyvale`
 - TODO PRIORITY:
@@ -190,3 +176,39 @@ mprof run --python PATH/TO/MAIN.py
 
 Plot the output and save to png:
 mprof plot -o memory_profile.png
+
+## ARCHIVE
+-------------------------------------------------------------------
+# HOW TO: 2D DIC
+- Start with a simple pixel wise DIC algorithm to get a starting point
+- Start with pure numpy and scipy version then build own interp/opt
+
+- Speckle generator:
+    - Allow noise, gaussian blurring, digitisation, format saving
+- 2D image deformation:
+    - Update existing 2D image deformation in pyvale to use pyvista to do interp
+    - Update masking to remove alpha shape - use the edge function
+    - Simplify code and make core to pyvale
+    - Generate test cases for 640x480 images on rectangular ROIs
+- Shape functions:
+    - Start with rigid
+    - Then add affine
+- Correlation criteria:
+    - Implement all the different correlation criteria with good pre-calcs
+- Optimisers:
+    - Start with Nelder-Mead
+    - Implement Levenberg-Marquadt
+    - Need to return the residual
+- Interpolation
+    - Use scipy to do spline interp on image
+    - Build own spline interp in cython
+- Generate a test case run in 2D through DICE
+
+**2D DIC TEST CASE**
+- 1020x520 pixels
+- 100x50mm plate
+- 10px on the border
+- Resolution = 100mm/1000px = 0.1 mm/px
+- 10px per mm
+- 1mm displacement = 10 px
+- Need displacement cases at 0.1/10 = 1/10th of a pixel

@@ -130,7 +130,7 @@ def main() -> None:
          elems_in_image) = pyv.rastercyth.raster_static_mesh(
                                                 render_mesh,
                                                 cam_data,
-                                                4)
+                                                0)
 
         loop_times[nn] = time.perf_counter() - loop_start
 

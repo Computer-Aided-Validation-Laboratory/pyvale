@@ -122,7 +122,6 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
 
     return cell_type
 
-from pyvista import CellType
 
 def _exodus_to_pyvista_connect(cell_type: CellType, connect: np.ndarray) -> np.ndarray:
     copy_connect = np.copy(connect)

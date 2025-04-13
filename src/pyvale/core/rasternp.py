@@ -15,6 +15,9 @@ from pyvale.core.rendermesh import RenderMeshData
 import pyvale.core.cython.rastercyth as rastercyth
 
 
+# NOTE: This module is a feature under developement.
+
+
 class RasterNP:
     @staticmethod
     def world_to_raster_coords(cam_data: CameraData,
@@ -199,8 +202,7 @@ class RasterNP:
 
 
     @staticmethod
-    def raster_elem(
-                    cam_data: CameraData,
+    def raster_elem(cam_data: CameraData,
                     elem_raster_coords: np.ndarray,
                     elem_bound_box_inds: np.ndarray,
                     elem_area: float,

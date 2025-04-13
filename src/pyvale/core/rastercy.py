@@ -12,6 +12,8 @@ from pyvale.core.cameradata import CameraData
 from pyvale.core.rendermesh import RenderMeshData
 import pyvale.core.cython.rastercyth as rastercyth
 
+# NOTE: This module is a feature under developement.
+
 class RasterCY:
     @staticmethod
     def raster_static_mesh(cam_data: CameraData,
