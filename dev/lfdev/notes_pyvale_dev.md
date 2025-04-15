@@ -30,6 +30,24 @@
 - Continue building it to match the Cython version
 
 
+## Cython Packaging:
+https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#basic-setup-py
+
+[tool.setuptools]
+ext-modules = [
+  {name = "example", sources = ["example.pyx"]}
+]
+
+[tool.setuptools]
+ext-modules = [
+    {name = "pyvale.core.cython.rastercyth", sources = ["src/pyvale/core/cython/rastercyth.py"]}
+]
+
+## Validation Metrics:
+- Multi-physics
+- Multi-fidelity sensing
+- Hidden vs non hidden key point: max temp vs imaging a hole with DIC
+    - Inference methods / GPs?
 
 
 ## Ideas for papers:

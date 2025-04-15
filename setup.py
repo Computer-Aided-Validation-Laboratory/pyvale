@@ -1,6 +1,7 @@
 import pathlib
 from setuptools import  setup, find_packages, Extension
 from Cython.Build import cythonize
+import numpy
 import sys
 
 here = pathlib.Path(__file__).parent.resolve()
@@ -13,8 +14,9 @@ else:
 
 ext_modules = [
     Extension(
-        "rastercyth",
+        "pyvale.core.cython.rastercyth",
         ["src/pyvale/core/cython/rastercyth.py",],
+        include_dirs=[numpy.get_include()],
         extra_compile_args=["-ffast-math",openmp_arg],
         extra_link_args=[openmp_arg],
     ),
@@ -42,7 +44,7 @@ setup(
     packages=find_packages(where="src"),
 
     # Locked to 3.11 for blender python interface
-    python_requires="==3.11",
+    python_requires="==3.11.*",
 
     install_requires=[
         "numpy>=2.0.0",
@@ -65,7 +67,7 @@ setup(
         "pyvale.simcases" : ["*.i","*.geo"],
     },
 
-    project_urls={ 
+    project_urls={
         "Repository" : "https://github.com/Digital-Validation-Laboratory/pyvale",
         "Issue Tracker" : "https://github.com/Digital-Validation-Laboratory/pyvale/issues",
     },
