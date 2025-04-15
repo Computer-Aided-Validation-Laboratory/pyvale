@@ -29,7 +29,7 @@ def main() -> None:
     # replaced with a path to your own simulation file
     sim_path = pyv.DataSet.render_mechanical_3d_path()
     #sim_path = pyv.DataSet.render_simple_block_path()
-    #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
+    #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
     disp_comps = ("disp_x","disp_y","disp_z")
@@ -65,7 +65,6 @@ def main() -> None:
         print(f"{render_mesh.fields_disp.shape=}")
     print(80*"-")
     print()
-
 
     pixel_num = np.array((960,1280),dtype=np.int32)
     pixel_size = np.array((5.3e-3,5.3e-3),dtype=np.float64)
@@ -119,7 +118,6 @@ def main() -> None:
 
     num_loops = 1
     loop_times = np.zeros((num_loops,),dtype=np.float64)
-    cam_data.sub_samp = 1
 
     print()
     print("Running raster loop.")
@@ -130,14 +128,8 @@ def main() -> None:
         (image_buffer,
          depth_buffer,
          elems_in_image) = pyv.rastercyth.raster_static_mesh(
-                                                render_mesh.coords,
-                                                render_mesh.connectivity,
-                                                render_mesh.fields_render,
-                                                cam_data.world_to_cam_mat,
-                                                cam_data.pixels_num,
-                                                cam_data.image_dims,
-                                                cam_data.image_dist,
-                                                cam_data.sub_samp,
+                                                render_mesh,
+                                                cam_data,
                                                 0)
 
         loop_times[nn] = time.perf_counter() - loop_start
@@ -155,7 +147,7 @@ def main() -> None:
     #===========================================================================
     # PLOTTING
     plot_on = True
-    plot_frames = (-1,)#range(3)
+    plot_frames = (1,)#range(3)
     plot_field = 0
 
     # depth_to_plot = np.copy(np.asarray(depth_buffer[:,:,plot_frame]))
