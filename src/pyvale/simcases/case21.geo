@@ -24,7 +24,7 @@ cyl_diam = 25e-3;
 
 // Must be an integer
 elem_order = 1;
-mesh_ref = 1;
+mesh_ref = 4;
 mesh_size = 2.5e-3/mesh_ref;
 num_threads = 4;
 //** MOOSEHERDER VARIABLES - END

@@ -1,5 +1,5 @@
 //==============================================================================
-// Gmsh 2D parametric plate mesh
+// Gmsh 3D parametric plate with hole mesh
 // author: Lloyd Fletcher (scepticalrabbit)
 //==============================================================================
 // Always set to OpenCASCADE - circles and boolean opts are much easier!

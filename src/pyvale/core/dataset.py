@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from pathlib import Path
@@ -111,7 +111,7 @@ class DataSet:
                     .joinpath("optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff"))
 
     @staticmethod
-    def thermal_2d_output_path() -> Path:
+    def thermal_2d_path() -> Path:
         """Path to a MOOSE simulation output in exodus format. This case is a
         thermal problem solving for a scalar temperature field. The geometry is
         a 2D plate (in x,y) with a heat flux applied on one edge and a heat
@@ -135,7 +135,7 @@ class DataSet:
         return Path(files("pyvale.data").joinpath("case13_out.e"))
 
     @staticmethod
-    def thermal_3d_output_path() -> Path:
+    def thermal_3d_path() -> Path:
         """Path to a MOOSE simulation output in exodus format. This case is a 3D
         thermal problem solving for a scalar temperature field. The model is a
         divertor armour monoblock composed of a tungsten block bonded to a
@@ -158,7 +158,7 @@ class DataSet:
         return Path(files("pyvale.data").joinpath("case16_out.e"))
 
     @staticmethod
-    def mechanical_2d_output_path() -> Path:
+    def mechanical_2d_path() -> Path:
         """Path to a MOOSE simulation output in exodus format. This case is a 2D
         plate with a hole in the center with the bottom edge fixed and a
         displacement applied to the top edge. This is a mechanical problem and
@@ -177,7 +177,7 @@ class DataSet:
         return Path(files("pyvale.data").joinpath("case17_out.e"))
 
     @staticmethod
-    def thermomechanical_2d_output_path() -> Path:
+    def thermomechanical_2d_path() -> Path:
         """Path to a MOOSE simulation output in exodus format. This case is a
         thermo-mechanical analysis of a 2D plate with a heat flux applied on one
         edge and a heat transfer coefficient applied on the opposing edge. The
@@ -200,7 +200,7 @@ class DataSet:
         return Path(files("pyvale.data").joinpath("case18_1_out.e"))
 
     @staticmethod
-    def thermomechanical_2d_experiment_output_paths() -> list[Path]:
+    def thermomechanical_2d_experiment_paths() -> list[Path]:
         """Path to a MOOSE simulation output in exodus format. This case is a
         thermo-mechanical analysis of a 2D plate with a heat flux applied on one
         edge and a heat transfer coefficient applied on the opposing edge. The
@@ -224,3 +224,17 @@ class DataSet:
                 Path(files("pyvale.data").joinpath("case18_2_out.e")),
                 Path(files("pyvale.data").joinpath("case18_3_out.e"))]
 
+    @staticmethod
+    def render_mechanical_3d_path() -> Path:
+        """_summary_
+
+        Returns
+        -------
+        Path
+            _description_
+        """
+        return Path(files("pyvale.data").joinpath("case26_out.e"))
+
+    @staticmethod
+    def render_simple_block_path() -> Path:
+        return Path(files("pyvale.data").joinpath("case25_out.e"))

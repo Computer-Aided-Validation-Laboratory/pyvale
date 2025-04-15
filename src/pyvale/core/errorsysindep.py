@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from typing import Callable
@@ -680,7 +680,7 @@ class ErrSysGenerator(IErrCalculator):
         err_shape = np.array(err_basis.shape)
         err_shape[-1] = 1
 
-        sys_errs = self._generator.generate(size=err_shape)
+        sys_errs = self._generator.generate(shape=err_shape)
 
         tile_shape = np.array(err_basis.shape)
         tile_shape[0:-1] = 1

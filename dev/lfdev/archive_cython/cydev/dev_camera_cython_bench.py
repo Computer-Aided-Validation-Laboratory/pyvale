@@ -3,17 +3,14 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 import time
-from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.spatial.transform import Rotation
-
+import imagebenchmarks as ib
 import pyvale
-import mooseherder as mh
 
 # CYTHON MODULE
 import camerac
@@ -26,79 +23,32 @@ def main() -> None:
     print(camerac.__file__)
     print(80*"-")
 
-    # 3D cylinder, mechanical, tets
-    data_path = Path.home() / "pyvale" / "dev" / "lfdev" / "rastermeshbenchmarks"
-    data_path = data_path / "case21_m5_out.e"
-
-    field_key = "disp_y"
-    components = ("disp_x","disp_y","disp_z")
-    mesh_world: pyvale.CameraMeshData = pyvale.create_camera_mesh(data_path,
-                                                                  field_key,
-                                                                  components,
-                                                                  spat_dim=3)
+    case_list = ib.load_case_list()
+    case_tag = case_list[17]
+    (case_ident,case_mesh,cam_data) = ib.load_benchmark_by_tag(case_tag)
 
     print()
     print(80*"-")
-    print("EXTRACTED SURFACE MESH DATA")
-    print(f"{mesh_world.name=}")
-    print()
-    print(f"node_count =     {mesh_world.node_count}")
-    print(f"elem_count =     {mesh_world.elem_count}")
-    print(f"nodes_per_elem = {mesh_world.nodes_per_elem}")
-    print()
-    print(f"{mesh_world.coords.shape=}")
-    print(f"{mesh_world.connectivity.shape=}")
-    print()
-    print(f"{mesh_world.elem_coords.shape=}")
-    print()
-    print(f"{mesh_world.field_by_node.shape=}")
-    print(f"{mesh_world.field_by_elem.shape=}")
-    print()
-    print(f"{mesh_world.coord_bound_min=}")
-    print(f"{mesh_world.coord_bound_max=}")
-    print(f"{mesh_world.coord_cent=}")
+    print("BENCHMARK CASE:")
+    print(f"{case_ident=}")
+    print(80*"-")
+    print(f"{case_mesh.connectivity.shape=}")
+    print(f"{case_mesh.coords.shape=}")
+    print(f"{case_mesh.fields_by_node.shape=}")
     print(80*"-")
 
-    #---------------------------------------------------------------------------
-    (xx,yy,zz,ww) = (0,1,2,3)
-    frame_to_render: int = -1
-
-    pixels_num = np.array([2464,2056],dtype=np.int32)
-    pixels_size = np.array([3.45e-3,3.45e-3],dtype=np.float64)
-    focal_leng: float = 50.0
-    sub_samp: int = 2
-    border_factor: float = 1.05
-    cam_rot = Rotation.from_euler("zyx",
-                                  [0.0, 0.0, -60.0],
-                                  degrees=True)
-
-
-    cam_z_world = cam_rot.as_matrix()[:,-1]
-    fov_leng = pyvale.fov_from_cam_rot_3d(cam_rot,mesh_world.coords)*border_factor
-    image_dist = pyvale.image_dist_from_fov_3d(np.array([2464,2056]),
-                                            np.array([3.45e-3,3.45e-3]),
-                                            50.0,
-                                            fov_len)
-
-    roi_pos_world = mesh_world.coord_cent[:-1]
-    cam_pos_world = roi_pos_world + np.max(image_dist)*cam_z_world
-
-    cam_data = pyvale.CameraData(pixels_num=pixels_num,
-                                 pixels_size=pixels_size,
-                                 pos_world=cam_pos_world,
-                                 rot_world=cam_rot,
-                                 roi_cent_world=roi_pos_world,
-                                 focal_length=focal_leng,
-                                 sub_samp=sub_samp)
-
-    field_to_render = np.ascontiguousarray(mesh_world.field_by_elem[:,:,frame_to_render])
+    (elem_world_coords,
+     field_to_render) = pyvale.slice_mesh_data_by_elem(case_mesh.coords,
+                                                case_mesh.connectivity,
+                                                case_mesh.fields_by_node[:,:,1])
+    frame_to_render = np.ascontiguousarray(field_to_render[:,:,-1])
 
     print()
-    print(f"{cam_pos_world=}")
-    print(f"{roi_pos_world=}")
-    print()
+    print(f"{elem_world_coords.shape=}")
+    print(f"{field_to_render.shape=}")
+    print(f"{frame_to_render.shape=}")
 
-    #---------------------------------------------------------------------------
+
     print()
     print(80*"=")
     print("RASTER ELEMENT LOOP START")
@@ -113,8 +63,9 @@ def main() -> None:
         print(f"Running loop {nn}")
         loop_start = time.perf_counter()
         (image_subpx_buffer,
-         depth_subpx_buffer) = camerac.raster_loop(field_to_render,
-                                                   mesh_world.elem_coords,
+         depth_subpx_buffer,
+         elems_in_image) = camerac.raster_loop(frame_to_render,
+                                                   elem_world_coords,
                                                    cam_data.world_to_cam_mat,
                                                    cam_data.pixels_num,
                                                    cam_data.image_dims,
@@ -137,6 +88,7 @@ def main() -> None:
     print()
     print(80*"=")
     print("PERFORMANCE TIMERS")
+    print(f"Elements in image = {elems_in_image}")
     print(f"Avg. loop time = {np.mean(loop_times):.4f} seconds")
     print(f"Subpx avg. time = {avg_time:.6f} seconds")
     print(80*"=")

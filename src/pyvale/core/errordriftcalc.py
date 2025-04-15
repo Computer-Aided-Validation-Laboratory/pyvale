@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from abc import ABC, abstractmethod
@@ -18,7 +18,7 @@ class IDriftCalculator(ABC):
 
     @abstractmethod
     def calc_drift(self, drift_var: np.ndarray) -> np.ndarray:
-        """Abstract method. Used to calculate the drift function based on the 
+        """Abstract method. Used to calculate the drift function based on the
         input drift variable (useually the time steps).
 
         Parameters
@@ -48,7 +48,7 @@ class DriftConstant(IDriftCalculator):
         ----------
         offset : float
             Constant drift offset.
-        """        
+        """
         self._offset = offset
 
     def calc_drift(self, drift_var: np.ndarray) -> np.ndarray:
@@ -74,7 +74,7 @@ class DriftLinear(IDriftCalculator):
 
     Implements the IDriftCalculator interface.
     """
-    
+
     def __init__(self, slope: float, offset: float = 0.0) -> None:
         """Initialiser for the `DriftLinear` class.
 
@@ -84,7 +84,7 @@ class DriftLinear(IDriftCalculator):
             Slope of the drift error function.
         offset : float, optional
             Offset (intercept) of the drift error function, by default 0.0.
-        """        
+        """
         self._slope = slope
         self._offset = offset
 
@@ -102,18 +102,18 @@ class DriftLinear(IDriftCalculator):
         np.ndarray
             Array of drift errors having the same shape as the input drift_var
             array.
-        """     
+        """
         return self._slope*drift_var + self._offset
-    
+
 
 class DriftPolynomial(IDriftCalculator):
-    """Class for applying a polynomial drift error over time. The coefficients 
-    of the polynomial are specified with a numpy array from constant term to 
-    highest power. 
+    """Class for applying a polynomial drift error over time. The coefficients
+    of the polynomial are specified with a numpy array from constant term to
+    highest power.
 
     Implements the IDriftCalculator interface.
     """
-    
+
     def __init__(self, coeffs: np.ndarray) -> None:
         """Initialiser for the `DriftPolynomial` class.
 
@@ -121,9 +121,9 @@ class DriftPolynomial(IDriftCalculator):
         ----------
         coeffs : np.ndarray
             Array of polynomial coefficients from constant to highest power.
-        """  
+        """
         self._coeffs = coeffs
-        
+
     def calc_drift(self, drift_var: np.ndarray) -> np.ndarray:
         """Calculates the drift errors based on the input drift variable array.
 
@@ -142,5 +142,5 @@ class DriftPolynomial(IDriftCalculator):
         poly = np.zeros_like(drift_var)
         for ii,cc in enumerate(self._coeffs):
             poly += cc*drift_var**ii
-        
+
         return poly

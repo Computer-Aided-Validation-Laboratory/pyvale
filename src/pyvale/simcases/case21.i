@@ -99,11 +99,26 @@ ss316LPRatio = 0.3      # -
 
 [Executioner]
     type = Transient
-    solve_type = 'PJFNK'
+
+    solve_type = 'NEWTON'
+    petsc_options = '-snes_converged_reason'
     petsc_options_iname = '-pc_type -pc_hypre_type'
     petsc_options_value = 'hypre boomeramg'
+
+    l_max_its = 500
+    l_tol = 1e-6
+
+    nl_max_its = 100
+    nl_rel_tol = 1e-6
+    nl_abs_tol = 1e-6
+
     end_time= ${endTime}
     dt = ${timeStep}
+
+    [Predictor]
+        type = SimplePredictor
+        scale = 1
+    []
 []
 
 

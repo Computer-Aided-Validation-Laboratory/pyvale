@@ -2,7 +2,7 @@
 ================================================================================
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from pathlib import Path
@@ -19,6 +19,7 @@ class PlotOptsGeneral:
     colormaps.
     """
     aspect_ratio: float = 1.62
+    # These are in inches because of matplotlib
     a4_width: float = 8.25
     a4_height: float = 11.75
     a4_margin_width: float = 0.5
@@ -41,15 +42,15 @@ class PlotOptsGeneral:
         a4_print_width*single_fig_scale/aspect_ratio
      )
 
-    resolution: int = 300
+    resolution: float = 300.0
 
     font_name: str = 'Liberation Sans'
     font_def_weight: str = 'normal'
-    font_def_size: float = 10.0
-    font_tick_size: float = 9.0
-    font_head_size: float = 10.0
-    font_ax_size: float = 10.0
-    font_leg_size: float = 9.0
+    font_def_size: float = 8.0
+    font_tick_size: float = 8.0
+    font_head_size: float = 9.0
+    font_ax_size: float = 8.0
+    font_leg_size: float = 8.0
 
     ms: float = 3.2
     lw: float = 0.8
@@ -59,6 +60,10 @@ class PlotOptsGeneral:
 
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     n_colors = len(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+
+    def __post_init__(self) -> None:
+        plt.rc('font', size=self.font_def_size)
+        plt.rc('axes', titlesize=self.font_def_size)
 
 
 @dataclass(slots=True)
