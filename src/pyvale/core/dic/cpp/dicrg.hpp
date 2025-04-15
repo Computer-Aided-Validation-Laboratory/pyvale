@@ -1,0 +1,96 @@
+// ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
+
+
+#ifndef DICRG_H
+#define DICRG_H
+
+// STD library Header files
+#include <vector>
+#include <iostream>
+
+// Program Header files
+#include "./dicutil.hpp"
+#include "./defines.hpp"
+
+
+namespace rg {
+
+    /**
+     * @brief 
+     * 
+     */
+    struct CorrelationPoint {
+        int x;
+        int y;
+        double val;
+        
+        // Constructor
+        CorrelationPoint(int x_coord, int y_coord, double _val) : 
+            x(x_coord), y(y_coord), val(_val) {}
+        
+        // Comparison operator for priority queue (higher ZNCC first)
+        bool operator<(const CorrelationPoint& other) const {
+            return val < other.val;  // Note: priority_queue puts largest elements on top
+        }
+    };
+
+
+
+
+
+
+    /**
+     * @brief 
+     * 
+     * @param image_ref 
+     * @param image_def 
+     * @param seed_x
+     * @param seed_y 
+     * @param num_def_images 
+     * @param img_num 
+     * @param ss_size 
+     * @param max_iter 
+     * @param precision 
+     * @param threshold_lm 
+     * @param threshold_bf 
+     * @param range_bf 
+     */
+    void reliability_guided_dic_single_seed(
+        const int *image_ref,
+        util::Image *image_def,
+        const bool *image_roi,
+        const int seed_x, const int seed_y,  // Single seed point coordinates
+        const int num_def_images,
+        const int img_num,
+        const int ss_size,
+        const int max_iter,
+        const double precision,
+        const double threshold_lm,
+        const double threshold_bf,
+        const double range_bf);
+
+
+    /**
+     * @brief 
+     * 
+     * @param x 
+     * @param y 
+     * @param px_horizontal 
+     * @param px_vertical 
+     * @param ss_size 
+     * @return true 
+     * @return false 
+     */
+    inline bool is_valid_point(int x, int y, const bool *image_roi, int px_horizontal, int px_vertical, int ss_size);
+
+
+
+
+}
+
+
+#endif // DICRG_H

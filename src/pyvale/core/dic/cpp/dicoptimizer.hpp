@@ -43,7 +43,7 @@ namespace optimizer {
         // Constructor to initialize vectors and other parameters
         Parameters(int max_iter_, double precision_, double threshold_lm_, int px_vertical_, int px_horizontal_)
             :
-            lambda(0.01),
+            lambda(0.001),
             costp(0.0),
             costpdp(0.0),
             g(6, 0.0),
@@ -70,6 +70,7 @@ namespace optimizer {
         double ftol;
         double xtol;
         int iter;
+        double cost;
     };
 
 

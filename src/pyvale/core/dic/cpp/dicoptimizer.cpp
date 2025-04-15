@@ -12,6 +12,7 @@
 #include <vector>
 #include <cmath>
 #include <array>
+#include <omp.h>
 
 
 
@@ -47,6 +48,14 @@ namespace optimizer {
 
         int iter = 0;
         double ftol, xtol;
+
+        double p0_good = opt->p[0];
+        double p1_good = opt->p[1];
+        double p2_good = opt->p[2];
+        double p3_good = opt->p[3];
+        double p4_good = opt->p[4];
+        double p5_good = opt->p[5];
+
 
         while (iter < opt->max_iter) {
 
@@ -93,6 +102,7 @@ namespace optimizer {
         results.ftol = ftol;
         results.xtol = xtol;
         results.p = opt->p;
+        results.cost = opt->costp;
 
         return results;
     }
@@ -639,15 +649,19 @@ namespace optimizer {
     }
 
     void debugPrint(int ss_x, int ss_y, int iter, double costp, double ftol, double xtol, const std::vector<double>& p) {
-        std::cout << ss_x << " " << ss_y << " ";
-        std::cout << iter << " " << costp << " " << ftol << " " << xtol << " ";
-        std::cout << p[0] << " ";
-        std::cout << p[1] << " ";
-        std::cout << p[2] << " ";
-        std::cout << p[3] << " ";
-        std::cout << p[4] << " ";
-        std::cout << p[5] << " ";
-        std::cout << "\n";
+        #pragma omp critical
+        {
+            std::cout << omp_get_thread_num() << " ";
+            std::cout << ss_x << " " << ss_y << " ";
+            std::cout << iter << " " << costp << " " << ftol << " " << xtol << " ";
+            std::cout << p[0] << " ";
+            std::cout << p[1] << " ";
+            std::cout << p[2] << " ";
+            std::cout << p[3] << " ";
+            std::cout << p[4] << " ";
+            std::cout << p[5] << " ";
+            std::cout << "\n";
+        }
     }
 
 

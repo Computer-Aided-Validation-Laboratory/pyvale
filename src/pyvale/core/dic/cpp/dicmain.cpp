@@ -11,6 +11,7 @@
 #include <vector>
 #include <chrono>
 #include <array>
+#include <omp.h>
 
 // Program Header files
 #include "./dicinterpolator.hpp"
@@ -19,10 +20,10 @@
 #include "./dicmain.hpp"
 #include "./defines.hpp"
 #include "./dicutil.hpp"
+#include "./dicrg.hpp"
 
 // cuda Header files
 #include "../cuda/malloc.hpp"
-#include <omp.h>
 
 
 namespace dic {
@@ -115,13 +116,11 @@ namespace dic {
         xtol_arr.resize(num_def_images * n_ss);
 
         // function pointer for the method of scanning the subsets through the image
-        void (*scan_function)(int *, util::Image *, std::vector<int> &, int, int, int, int, double, double, double, double);
+        void (*scan_function)(int *, util::Image *, bool *, std::vector<int> &, int, int, int, int, double, double, double, double);
 
         // set the scan_function pointer based on the scan method specified by user.
         if (scan_method=="image_scan") scan_function=image_scan;
-        else if (scan_method=="image_scan_with_brute_force") {
-            scan_function=image_scan_with_bf;
-        }
+        else if (scan_method=="image_scan_with_brute_force") scan_function=image_scan_with_bf;
         else if (scan_method=="RG") scan_function=reliability_guided;
         else {
             std::cerr << "Unknown subset scan type: \'" << scan_method << "\'." << std::endl;
@@ -149,7 +148,7 @@ namespace dic {
             // extract a single image from the stack
             util::extract_image(&image_def, image_def_stack, img_num);  
           
-            scan_function(image_ref, &image_def, ss_coord_list, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf);
+            scan_function(image_ref, &image_def, image_roi, ss_coord_list, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf);
 
 
         }
@@ -170,6 +169,7 @@ namespace dic {
 
     void image_scan(int *image_ref, 
                     util::Image *image_def, 
+                    bool *image_roi,
                     std::vector<int> &ss_coord_list, 
                     int num_def_images, 
                     int img_num, 
@@ -220,6 +220,7 @@ namespace dic {
 
     void image_scan_with_bf(int *image_ref, 
                             util::Image *image_def, 
+                            bool *image_roi,
                             std::vector<int> &ss_coord_list, 
                             int num_def_images, 
                             int img_num, 
@@ -261,8 +262,9 @@ namespace dic {
 
             // if this is the first subset in the loop, or, if last subset was a poor match
             // Kick off the next search with a brute force from the last set of brute force parameters that gave a good match.
-            if ((ss_thread_num == 0) || (results.iter == opt.max_iter)){
+            if ((ss_thread_num == 0)) { // || (results.iter == opt.max_iter)){
                 brute::expanding_wavefront(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &ss_ref, &brute);
+                // std::cout << brute.p_rigid[0] << " " << brute.p_rigid[1] << std::endl;
                 opt.p[0] = brute.p_rigid[0];
                 opt.p[1] = brute.p_rigid[1];
                 opt.p[2] = 0.0;
@@ -272,7 +274,7 @@ namespace dic {
             }
 
             results = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
-
+            exit(0);
             // append the results for the current subset to result vectors
             append_results(num_def_images, img_num, ss, &results);    
 
@@ -292,6 +294,7 @@ namespace dic {
 
     void reliability_guided(int *image_ref, 
                             util::Image *image_def, 
+                            bool *image_roi,
                             std::vector<int> &ss_coord_list, 
                             int num_def_images, 
                             int img_num, 
@@ -302,29 +305,11 @@ namespace dic {
                             double threshold_bf,
                             double range_bf){
 
-        // // create image masks
-        // std::vector<bool> mc(px_horizontal, px_vertical);
-        // std::vector<bool> mv(px_horizontal, px_vertical);
 
-        // std::vector<int> neigh(4,0);
+        int seed_x = 500;
+        int seed_y = 500;
 
-        
-        // // need to pick an intial subset
-        // //int ss_x_start = 100;
-        // //int ss_y_start = 100;
-
-
-
-        // // get the subset coordinates and pixel values
-        // util::extract_ss(image_def, ss_def,  ss_def_coords_x, 
-        //                             ss_def_coords_y, ss_x, ss_y, ss_size, 
-        //                             px_horizontal, px_vertical);
-
-        // // get neighbour indexes
-        // neigh[0] = (ss_y + 1)  * px_horizontal + ss_x;
-        // neigh[1] = (ss_y - 1)  * px_horizontal + ss_x;
-        // neigh[2] = (ss_y) * px_horizontal + ss_x + 1;
-        // neigh[3] = (ss_y) * px_horizontal + ss_x - 1;
+        rg::reliability_guided_dic_single_seed(image_ref, image_def, image_roi, seed_x, seed_y, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf);
                 
     }
 
