@@ -26,6 +26,8 @@ def main() -> None:
     print(80*"=")
     print()
 
+    return
+
     benchmark = True
     if not benchmark:
 

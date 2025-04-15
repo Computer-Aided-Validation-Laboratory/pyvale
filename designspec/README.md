@@ -1,6 +1,22 @@
 # Developer Guide for `pyvale`
 
-##  Python coding guide for `pyvale`
+## Coding Languages
+All user interfaces in `pyvale` should be written in Python to allow ease of use for the general engineering and scientific community. Code where performance is required should be written in a compiled language. A list of preferred coding languages for `pyvale` is given below:
+- Python
+- Cython
+- C/C++
+- Zig
+
+The following can be used for linking compiled code to a python interface:
+- Cython
+- Pybind
+
+GPU programming must be vendor agnostic. The following can be used for GPU programming:
+- [HIP](https://github.com/ROCm/hip)
+
+##  Python coding guide
+We have non-software engineers and scientists working on the project so these guidelines are directed at a non-specialist:
+
 - Work in your own 'feature' branch, merge into 'dev' - don't push to main (it should be protected and yell at you)!
 - Follow the PEP8 style guide: https://peps.python.org/pep-0008/
 - Use descriptive variable names, no single letter variables (double letters for iterators in numpy style are ok) single letter variables for indexs / iterators are ok.
@@ -29,5 +45,5 @@
 - Write some good quickstart examples so people can easily use your code.
 - Use code reviews to help each other and be nice / constructive as we are not all software engineers!
 
-##
+
 
