@@ -13,14 +13,15 @@ from scipy.spatial.transform import Rotation
 import mooseherder as mh
 import pyvale as pyv
 
+
 def main() -> None:
     """pyvale example: displacement sensors on a 2D plate with a hole
     ----------------------------------------------------------------------------
     """
     data_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+    # Scale m to mm to make 3D visualisation scaling correct for pyvista
+    sim_data = pyv.scale_length_units(1000.0,sim_data)
 
     descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
 
@@ -35,9 +36,9 @@ def main() -> None:
     y_lims = (0.0,150.0)
     z_lims = (0.0,0.0)
     sensor_positions = pyv.create_sensor_pos_array(n_sens,
-                                                      x_lims,
-                                                      y_lims,
-                                                      z_lims)
+                                                    x_lims,
+                                                    y_lims,
+                                                    z_lims)
 
     use_sim_time = False
     if use_sim_time:

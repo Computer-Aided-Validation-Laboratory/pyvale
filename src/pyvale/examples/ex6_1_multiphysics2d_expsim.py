@@ -7,11 +7,11 @@ License: MIT
 Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 '''
-from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import mooseherder as mh
 import pyvale as pyv
+
 
 def main() -> None:
     """pyvale example: thermo-mechanical multi-physics sensors on a 2D plate
@@ -20,14 +20,12 @@ def main() -> None:
       experiments and statistically analysing the results.
     """
     # Load Simulations as mooseherder.SimData objects
-    #base_path = Path("src/pyvale/data")
     data_paths = pyv.DataSet.thermomechanical_2d_experiment_paths()
 
     sim_list = []
     for pp in data_paths:
         sim_data = mh.ExodusReader(pp).read_all_sim_data()
-        # Scale to mm to make 3D visualisation scaling easier
-        sim_data.coords = sim_data.coords*1000.0 # type: ignore
+        sim_data = pyv.scale_length_units(1000.0,sim_data)
         sim_list.append(sim_data)
 
     #===========================================================================

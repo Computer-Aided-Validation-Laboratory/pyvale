@@ -141,13 +141,16 @@ def _exodus_to_pyvista_connect(cell_type: CellType, connect: np.ndarray) -> np.n
 
     return connect
 
-def scale_length_units(sim_data: mh.SimData,
-                       disp_comps: tuple[str,...],
-                       scale: float) -> mh.SimData:
+def scale_length_units(scale: float,
+                       sim_data: mh.SimData,
+                       disp_comps: tuple[str,...] | None = None,
+                       ) -> mh.SimData:
 
     sim_data.coords = sim_data.coords*scale
-    for cc in disp_comps:
-        sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
+
+    if disp_comps is not None:
+        for cc in disp_comps:
+            sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
 
     return sim_data
 

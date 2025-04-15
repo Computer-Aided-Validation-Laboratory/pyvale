@@ -10,26 +10,26 @@ Copyright (C) 2025 The Computer Aided Validation Team
 import numpy as np
 import matplotlib.pyplot as plt
 import mooseherder as mh
-import pyvale
+import pyvale as pyv
 
 def main() -> None:
-    data_path = pyvale.DataSet.mechanical_2d_path()
+    data_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+    # Scale m to mm to make 3D visualisation scaling correct for pyvista
+    sim_data = pyv.scale_length_units(1000.0,sim_data)
 
-    descriptor = pyvale.SensorDescriptorFactory.displacement_descriptor()
+    descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
 
     spat_dims = 2
     field_key = "disp"
     components = ("disp_x","disp_y")
-    disp_field = pyvale.FieldVector(sim_data,field_key,components,spat_dims)
+    disp_field = pyv.FieldVector(sim_data,field_key,components,spat_dims)
 
     n_sens = (2,3,1)
     x_lims = (0.0,100.0)
     y_lims = (0.0,150.0)
     z_lims = (0.0,0.0)
-    sensor_positions = pyvale.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sensor_positions = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
     use_sim_time = True
     if use_sim_time:
@@ -37,43 +37,43 @@ def main() -> None:
     else:
         sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-    sensor_data = pyvale.SensorData(positions=sensor_positions,
+    sensor_data = pyv.SensorData(positions=sensor_positions,
                                     sample_times=sample_times)
 
-    disp_sens_array = pyvale.SensorArrayPoint(sensor_data,
+    disp_sens_array = pyv.SensorArrayPoint(sensor_data,
                                               disp_field,
                                               descriptor)
 
     pos_offset = -1.0*np.ones_like(sensor_positions)
     pos_offset[:,2] = 0 # in 2d we only have offset in x and y so zero z
-    pos_error_data = pyvale.ErrFieldData(pos_offset_xyz=pos_offset)
+    pos_error_data = pyv.ErrFieldData(pos_offset_xyz=pos_offset)
 
     angle_offset = np.zeros_like(sensor_positions)
     angle_offset[:,0] = 1.0 # only rotate about z in 2D
-    angle_error_data = pyvale.ErrFieldData(ang_offset_zyx=angle_offset)
+    angle_error_data = pyv.ErrFieldData(ang_offset_zyx=angle_offset)
 
     time_offset = 2.0*np.ones_like(disp_sens_array.get_sample_times())
-    time_error_data = pyvale.ErrFieldData(time_offset=time_offset)
+    time_error_data = pyv.ErrFieldData(time_offset=time_offset)
 
     field_errs = []
-    field_errs.append(pyvale.ErrSysField(disp_field,
+    field_errs.append(pyv.ErrSysField(disp_field,
                                          time_error_data))
-    field_errs.append(pyvale.ErrSysField(disp_field,
+    field_errs.append(pyv.ErrSysField(disp_field,
                                         time_error_data))
 
-    field_errs.append(pyvale.ErrSysField(disp_field,
+    field_errs.append(pyv.ErrSysField(disp_field,
                                         pos_error_data))
-    field_errs.append(pyvale.ErrSysField(disp_field,
+    field_errs.append(pyv.ErrSysField(disp_field,
                                         pos_error_data))
 
-    field_errs.append(pyvale.ErrSysField(disp_field,
+    field_errs.append(pyv.ErrSysField(disp_field,
                                         angle_error_data))
-    field_errs.append(pyvale.ErrSysField(disp_field,
+    field_errs.append(pyv.ErrSysField(disp_field,
                                         angle_error_data))
 
-    err_int_opts = pyvale.ErrIntOpts(force_dependence=True,
+    err_int_opts = pyv.ErrIntOpts(force_dependence=True,
                                      store_all_errs=True)
-    error_int = pyvale.ErrIntegrator(field_errs,
+    error_int = pyv.ErrIntegrator(field_errs,
                                      sensor_data,
                                      disp_sens_array.get_measurement_shape(),
                                      err_int_opts)
@@ -117,7 +117,7 @@ def main() -> None:
     print(80*"-")
     sens_num = 4
     print("The last 5 time steps (measurements) of sensor {sens_num}:")
-    pyvale.print_measurements(disp_sens_array,
+    pyv.print_measurements(disp_sens_array,
                               (sens_num-1,sens_num),
                               (0,1),
                               (measurements.shape[2]-5,measurements.shape[2]))
@@ -126,14 +126,14 @@ def main() -> None:
     plot_field = "disp_x"
 
     if plot_field == "disp_x":
-        pv_plot = pyvale.plot_point_sensors_on_sim(disp_sens_array,"disp_x")
+        pv_plot = pyv.plot_point_sensors_on_sim(disp_sens_array,"disp_x")
         pv_plot.show()
     elif plot_field == "disp_y":
-        pv_plot = pyvale.plot_point_sensors_on_sim(disp_sens_array,"disp_y")
+        pv_plot = pyv.plot_point_sensors_on_sim(disp_sens_array,"disp_y")
         pv_plot.show()
 
-    pyvale.plot_time_traces(disp_sens_array,"disp_x")
-    pyvale.plot_time_traces(disp_sens_array,"disp_y")
+    pyv.plot_time_traces(disp_sens_array,"disp_x")
+    pyv.plot_time_traces(disp_sens_array,"disp_y")
     plt.show()
 
 

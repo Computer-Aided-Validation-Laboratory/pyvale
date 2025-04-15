@@ -7,11 +7,11 @@ License: MIT
 Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 '''
-from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import mooseherder as mh
 import pyvale as pyv
+
 
 def main() -> None:
     """pyvale example: strain sensors on a 2D plate with a hole
@@ -19,8 +19,8 @@ def main() -> None:
     """
     data_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+    # Scale m to mm to make 3D visualisation scaling correct for pyvista
+    sim_data = pyv.scale_length_units(1000.0,sim_data)
 
     n_sens = (2,3,1)
     x_lims = (0.0,100.0)

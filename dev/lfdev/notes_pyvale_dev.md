@@ -2,7 +2,6 @@
 # Notes: `pyvale` developement
 
 
-
 ## TODO: `Raster`
 --------------------
 - Speed up edge function calculation using stepwise optimisation on SAP

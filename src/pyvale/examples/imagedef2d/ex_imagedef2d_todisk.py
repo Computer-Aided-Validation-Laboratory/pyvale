@@ -22,7 +22,9 @@ def main() -> None:
     image_path = pyv.DataSet.dic_pattern_5mpx_path()
     image_speckle = pyv.CameraTools.load_image(image_path)
 
-    save_path = Path.cwd()/"exampleoutput"
+    save_path = Path.cwd()/"pyvale-output"
+    if not save_path.is_dir():
+        save_path.mkdir(parents=True, exist_ok=True)
 
     coords = sim_data.coords
     connectivity = (sim_data.connect["connect1"]-1).T # Beware 0 indexing here
