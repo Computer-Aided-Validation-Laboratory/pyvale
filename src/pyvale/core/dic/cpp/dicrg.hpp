@@ -71,7 +71,8 @@ namespace rg {
         const double precision,
         const double threshold_lm,
         const double threshold_bf,
-        const double range_bf);
+        const double range_bf,
+        const std::string &shape_func);
 
 
     /**

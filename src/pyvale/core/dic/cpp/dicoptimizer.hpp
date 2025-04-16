@@ -23,6 +23,7 @@ namespace optimizer {
 
 
     struct Parameters {
+        int num_params;
         double lambda; // damping
         double costp; // cost function for current P values
         double costpdp; // cost function for P+deltaP values
@@ -33,6 +34,7 @@ namespace optimizer {
         std::vector<double> p; // hard coded affine parameters
         std::vector<double> dp; // deltaP
         std::vector<double> pdp; // P + deltaP
+        std::vector<double> augmented;
         int max_iter;
         double precision;
         double threshold_lm;
@@ -41,18 +43,20 @@ namespace optimizer {
 
 
         // Constructor to initialize vectors and other parameters
-        Parameters(int max_iter_, double precision_, double threshold_lm_, int px_vertical_, int px_horizontal_)
+        Parameters(int num_params_, int max_iter_, double precision_, double threshold_lm_, int px_vertical_, int px_horizontal_)
             :
+            num_params(num_params_),
             lambda(0.001),
             costp(0.0),
             costpdp(0.0),
-            g(6, 0.0),
-            dfdp(6, 0.0),
-            H(36, 0.0),
-            invH(36, 0.0),
-            p(6, 0.0),
-            dp(6, 0.0),
-            pdp(6, 0.0),
+            g(num_params, 0.0),
+            dfdp(num_params, 0.0),
+            H(num_params*num_params, 0.0),
+            invH(num_params*num_params, 0.0),
+            p(num_params, 0.0),
+            dp(num_params, 0.0),
+            pdp(num_params, 0.0),
+            augmented(num_params*num_params*2, 0.0),
             max_iter(max_iter_),
             precision(precision_),
             threshold_lm(threshold_lm_),
@@ -92,11 +96,10 @@ namespace optimizer {
 
 
     // optimizer functions
-    bool invertMatrix(const std::vector<double>& matrix, std::vector<double>& inverse);
-    void update_shapefunc_parameters(std::vector<double> &pdp, std::vector<double> &p, std::vector<double> &dp, std::vector<double> &invH, std::vector<double> &gradient);
-    void update_lambda(double costfunc_p, double costfunc_pdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda);
-    void populate_hessian_lower_tri(std::vector<double> &H, double lambda);
-    void affine_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p);
+    bool invertMatrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params);
+    void update_shapefunc_parameters(std::vector<double> &pdp, std::vector<double> &p, std::vector<double> &dp, std::vector<double> &invH, std::vector<double> &g, int num_params);
+    void update_lambda(double costp, double costpdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda, int num_params);
+    void populate_hessian_lower_tri(std::vector<double> &H, double lambda, int num_params);
 
     // shape functions and their derivatives with respect to optimization parameters
     void affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
@@ -105,6 +108,9 @@ namespace optimizer {
     void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
     void drigid_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
     void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    void affine_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p);
+    void rigid_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p);
+
 }
 
 #endif //DICOPTIMIZER_H

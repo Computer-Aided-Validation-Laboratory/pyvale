@@ -93,7 +93,8 @@ namespace dic {
                     double precision,
                     double threshold_lm,
                     double threshold_bf,
-                    double range_bf);
+                    double range_bf,
+                    std::string& shape_func);
 
 
     /**
@@ -122,7 +123,9 @@ namespace dic {
                     double precision,
                     double threshold_lm,
                     double threshold_bf,
-                    double range_bf);
+                    double range_bf,
+                    std::string& shape_func);
+
 
     /**
      * @brief 
@@ -150,7 +153,9 @@ namespace dic {
                     double precision,
                     double threshold_lm,
                     double threshold_bf,
-                    double range_bf);
+                    double range_bf,
+                    std::string& shape_func);
+
 
 
     /**

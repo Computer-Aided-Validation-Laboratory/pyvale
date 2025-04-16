@@ -20,6 +20,7 @@
 // Program Header files
 #include "./dicoptimizer.hpp"
 #include "./dicinterpolator.hpp"
+#include "./dicbruteforce.hpp"
 #include "./dicutil.hpp"
 #include "./defines.hpp"
 #include "./dicrg.hpp"
@@ -39,7 +40,8 @@ namespace rg {
         const double precision,
         const double threshold_lm,
         const double threshold_bf,
-        const double range_bf) {
+        const double range_bf,
+        const std::string &shape_func) {
         
         // Get image dimensions
         const int px_horizontal = image_def->px_horizontal;
@@ -58,9 +60,11 @@ namespace rg {
         // SHARED QUEUE
         std::priority_queue<CorrelationPoint> shared_queue;
         std::mutex queue_mutex;
-                
+                      
         // Optimization parameters
-        optimizer::Parameters opt(max_iter, precision, threshold_lm, px_vertical, px_horizontal);
+        optimizer::Parameters opt(0, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
+        if (shape_func == "affine") opt = optimizer::Parameters(6, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
+        else if (shape_func == "rigid") opt = optimizer::Parameters(2, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
         
         // Initialize shared priority queue for all threads
         std::priority_queue<CorrelationPoint> point_queue;
@@ -95,7 +99,9 @@ namespace rg {
         const int dx[4] = {10, 0, -10, 0};  // Right, Up, Left, Down
         const int dy[4] = {0, 10, 0, -10};
         
-        // manually popualte the queue with enough points for each local queue
+        // temp p values for copy from brute force to optimization.
+        double ptemp[6] = {0,0,0,0,0,0};
+
 
         for (int i = 0; i < 4; i++) {
 
@@ -107,7 +113,22 @@ namespace rg {
 
 
                 util::extract_ss(neigh_x, neigh_y, image_def, &ss_def);
-                std::cout << omp_get_thread_num() << " ";
+
+                brute::Parameters brute(threshold_bf, range_bf);
+                brute::expanding_wavefront(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &ss_ref, &brute);
+                // std::cout << brute.p_rigid[0] << " " << brute.p_rigid[1] << std::endl;
+
+                ptemp[0] = brute.p_rigid[0];
+                ptemp[1] = brute.p_rigid[1];
+                ptemp[2] = 0.0;
+                ptemp[3] = 0.0;
+                ptemp[4] = 0.0;
+                ptemp[5] = 0.0;
+
+                for (int i = 0; i < opt.num_params; i++){
+                    opt.p[i] = ptemp[i];
+                }
+
                 optimizer::Results neigh_results = optimizer::solve(neigh_x, neigh_y, &ss_def, &ss_ref, &opt);
                 
                 // Add to priority queue
@@ -127,13 +148,9 @@ namespace rg {
         }
 
         // LOCAL QUEUE PROCESSING
-        std::cout << "TOTAL NUMBER OF THREADS " << omp_get_max_threads() << std::endl;
-        #pragma omp parallel
+        #pragma omp parallel firstprivate(ss_def, ss_ref, opt)
         {
-            // init subsets and optimization parameters for each subset
-            util::Subset ss_def(ss_size);
-            util::Subset ss_ref(ss_size);
-            optimizer::Parameters local_opt = opt;
+
 
             
             auto& my_queue = local_queues[omp_get_thread_num()];
@@ -194,7 +211,7 @@ namespace rg {
                         if (!computed_mask[neigh_y * px_horizontal + neigh_x].exchange(true)) {
                             util::extract_ss(neigh_x, neigh_y, image_def, &ss_def);
                             // std::cout << "thread : " << omp_get_thread_num() << ", queue size: " << my_queue.size() << " ";
-                            optimizer::Results neigh_results = optimizer::solve(neigh_x, neigh_y, &ss_def, &ss_ref, &local_opt);
+                            optimizer::Results neigh_results = optimizer::solve(neigh_x, neigh_y, &ss_def, &ss_ref, &opt);
                             temp_neighbors.emplace_back(neigh_x, neigh_y, 1.0 - 0.5 * neigh_results.cost);
                         }
                     }

@@ -116,7 +116,7 @@ namespace dic {
         xtol_arr.resize(num_def_images * n_ss);
 
         // function pointer for the method of scanning the subsets through the image
-        void (*scan_function)(int *, util::Image *, bool *, std::vector<int> &, int, int, int, int, double, double, double, double);
+        void (*scan_function)(int *, util::Image *, bool *, std::vector<int> &, int, int, int, int, double, double, double, double, std::string &);
 
         // set the scan_function pointer based on the scan method specified by user.
         if (scan_method=="image_scan") scan_function=image_scan;
@@ -148,7 +148,7 @@ namespace dic {
             // extract a single image from the stack
             util::extract_image(&image_def, image_def_stack, img_num);  
           
-            scan_function(image_ref, &image_def, image_roi, ss_coord_list, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf);
+            scan_function(image_ref, &image_def, image_roi, ss_coord_list, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf, shape_func);
 
 
         }
@@ -178,7 +178,8 @@ namespace dic {
                     double precision,
                     double threshold_lm,
                     double threshold_bf,
-                    double range_bf){
+                    double range_bf,
+                    std::string& shape_func){
 
 
         // initialise subsets
@@ -186,7 +187,11 @@ namespace dic {
         util::Subset ss_ref(ss_size);
 
         // optimization parameters
-        optimizer::Parameters opt(max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
+        optimizer::Parameters opt(0, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
+        if (shape_func == "affine") opt = optimizer::Parameters(6, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
+        else if (shape_func == "rigid") opt = optimizer::Parameters(2, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
+
+
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, opt)
@@ -229,14 +234,17 @@ namespace dic {
                             double precision,
                             double threshold_lm,
                             double threshold_bf,
-                            double range_bf){
+                            double range_bf,
+                            std::string& shape_func){
 
         // subsets
         util::Subset ss_def(ss_size);
         util::Subset ss_ref(ss_size);
         
         // optimization parameters
-        optimizer::Parameters opt(max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
+        optimizer::Parameters opt(0, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
+        if (shape_func == "affine") opt = optimizer::Parameters(6, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
+        else if (shape_func == "rigid") opt = optimizer::Parameters(2, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
         
         // brute force scan parameters
         brute::Parameters brute(threshold_bf, range_bf);
@@ -247,6 +255,10 @@ namespace dic {
 
         // counter for each thread
         int ss_thread_num = 0;      
+
+        // temp p values for copy from brute force to optimization.
+        double ptemp[6] = {0,0,0,0,0,0};
+
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, results)
@@ -265,16 +277,21 @@ namespace dic {
             if ((ss_thread_num == 0)) { // || (results.iter == opt.max_iter)){
                 brute::expanding_wavefront(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &ss_ref, &brute);
                 // std::cout << brute.p_rigid[0] << " " << brute.p_rigid[1] << std::endl;
-                opt.p[0] = brute.p_rigid[0];
-                opt.p[1] = brute.p_rigid[1];
-                opt.p[2] = 0.0;
-                opt.p[3] = 0.0;
-                opt.p[4] = 0.0;
-                opt.p[5] = 0.0;
+
+                ptemp[0] = brute.p_rigid[0];
+                ptemp[1] = brute.p_rigid[1];
+                ptemp[2] = 0.0;
+                ptemp[3] = 0.0;
+                ptemp[4] = 0.0;
+                ptemp[5] = 0.0;
+
+                for (int i = 0; i < opt.num_params; i++){
+                    opt.p[i] = ptemp[i];
+                }
             }
 
             results = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
-            exit(0);
+
             // append the results for the current subset to result vectors
             append_results(num_def_images, img_num, ss, &results);    
 
@@ -303,13 +320,14 @@ namespace dic {
                             double precision,
                             double threshold_lm,
                             double threshold_bf,
-                            double range_bf){
+                            double range_bf,
+                            std::string& shape_func){
 
 
         int seed_x = 500;
         int seed_y = 500;
 
-        rg::reliability_guided_dic_single_seed(image_ref, image_def, image_roi, seed_x, seed_y, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf);
+        rg::reliability_guided_dic_single_seed(image_ref, image_def, image_roi, seed_x, seed_y, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf, shape_func);
                 
     }
 

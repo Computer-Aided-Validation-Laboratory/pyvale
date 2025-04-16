@@ -14,6 +14,14 @@ import numpy as np
 import subprocess
 import socket
 import datetime
+import sys
+
+import sys
+
+debug_mode = '-g' in sys.argv
+if debug_mode:
+    sys.argv.remove('-g')  # Remove so setup() doesn't get confused
+
 
 os.environ["CC"] = "g++"
 
@@ -104,11 +112,25 @@ ext = Extension(
     ],
     libraries=["cudart", "curand"],
     runtime_library_dirs=[CUDA['lib64'], np.get_include()],
+
+
     extra_compile_args={
-        'g++': ['-O3', '-fopenmp'],
-        'nvcc': ['-arch=sm_60', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'", '-O3', '-lcurand']
+        'g++': ['-g', '-O0', '-fopenmp'] if debug_mode else ['-O3', '-fopenmp'],
+        'nvcc': ([
+            '-arch=sm_60',
+            '--ptxas-options=-v',
+            '-G',  # NVCC debug flag
+            '-c',
+            '--compiler-options', '-fPIC', '-g'
+        ] if debug_mode else [
+            '-arch=sm_60',
+            '--ptxas-options=-v',
+            '-c',
+            '--compiler-options', "'-fPIC'",
+            '-O3'
+        ])
     },
-    extra_link_args=['-fopenmp'],
+    extra_link_args=['-fopenmp'] + (['-g'] if debug_mode else []),
     include_dirs=[np.get_include(), CUDA['include']]
 )
 
