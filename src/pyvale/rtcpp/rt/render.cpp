@@ -232,13 +232,16 @@ PYBIND11_MODULE(render, m) {
     py::class_<BVH_node,Hittable,shared_ptr<BVH_node>>(m, "BVH_node")
         .def(py::init<Hittable_list&, double, double>());  
 
-
+    py::class_<Translate, Hittable, shared_ptr<Translate>>(m, "Translate")
+        .def(py::init<shared_ptr<Hittable>, vec3>());
 
 
     py::class_<Camera>(m, "Camera")
         .def(py::init<vec3, vec3,
             double, 
             double, double, double, vec3>());
+
+
 
 
 }

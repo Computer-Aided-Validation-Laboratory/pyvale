@@ -37,7 +37,41 @@ class Hittable {
         }
 };
 
+class Translate : public Hittable {
+    public:
+    Translate(shared_ptr<Hittable> object, const vec3& offset)
+                                    : object(object), offset(offset)
+            {
+                aabb b;
+                object->bounding_box(0, 0, b);
+                bbox = b + offset;
+            }
 
+      bool hit(const Ray& r, double dis_min, double dis_max, Hit_record& rec) const override {
+          // Move the ray backwards by the offset
+          Ray offset_r(r.get_origin() - offset, r.get_direction(), r.get_depth(), r.get_time());
+  
+          // Determine whether an intersection exists along the offset ray (and if so, where)
+          if (!object->hit(offset_r, dis_min, dis_max, rec))
+              return false;
+  
+          // Move the intersection point forwards by the offset
+          rec.position += offset;
+  
+          return true;
+      }
+
+        bool bounding_box(double dis_min, double dis_max, aabb& output_box) const override
+        { 
+            output_box = bbox;
+            return true;
+        }
+  
+    private:
+      shared_ptr<Hittable> object;
+      vec3 offset;
+      aabb bbox;
+  };
 
 
 

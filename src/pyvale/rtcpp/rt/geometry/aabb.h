@@ -72,4 +72,13 @@ aabb get_surrounding_box(aabb box0, aabb box1) {
     return aabb(small,big);
 }
 
+
+aabb operator+(const aabb& bbox, const vec3& offset) {
+    return aabb(bbox.min() + offset, bbox.max() + offset);
+}
+
+aabb operator+(const vec3& offset, const aabb& bbox) {
+    return bbox + offset;
+}
+
 #endif
