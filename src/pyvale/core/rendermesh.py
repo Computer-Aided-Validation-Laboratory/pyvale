@@ -5,31 +5,22 @@ License: MIT
 Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
-from enum import Enum
+#from enum import Enum
 from dataclasses import dataclass, field
 import numpy as np
 import mooseherder as mh
 from pyvale.core.fieldconverter import simdata_to_pyvista
 
+# NOTE: This module is a feature under developement.
 
-# class ImageFormat(Enum):
-#     NPY = 0
-#     TIFF = 1
-
-# @dataclass(slots=True)
-# class RenderOpts:
-#     image_tag: str = "image"
-#     image_formats: tuple[ImageFormat,...]
-#     bits_per_unit: int = 1
-#     parallel: int | None = None
-
+# TODO:
+# - Store the render field keys and match them between meshes?
 
 @dataclass(slots=True)
 class RenderMeshData:
     coords: np.ndarray
     connectivity: np.ndarray
     fields_render: np.ndarray
-
     # If this is None then the mesh is not deformable
     fields_disp: np.ndarray | None = None
 
@@ -50,6 +41,10 @@ class RenderMeshData:
         self.coord_bound_min = np.min(self.coords,axis=0)
         self.coord_bound_max = np.max(self.coords,axis=0)
         self.coord_cent = (self.coord_bound_max + self.coord_bound_min)/2.0
+
+        if self.fields_disp is None:
+            self.fields_disp = np.zeros((self.node_count,),dtype=np.float64)
+
 
 
 def create_render_mesh(sim_data: mh.SimData,
@@ -111,46 +106,8 @@ def create_render_mesh(sim_data: mh.SimData,
             field_disp_by_node[:,:,ii] = np.ascontiguousarray(
                 np.array(pv_surf[cc]))
 
-
-
     return RenderMeshData(coords=coords_world,
                           connectivity=connectivity,
                           fields_render=fields_render_by_node,
                           fields_disp=field_disp_by_node)
 
-
-def slice_mesh_data_by_elem(coords_world: np.ndarray,
-                            connectivity: np.ndarray,
-                            field_by_node: np.ndarray,
-                            ) -> tuple[np.ndarray,np.ndarray]:
-    """_summary_
-
-    Parameters
-    ----------
-    coords_world : np.ndarray
-        _description_
-    connectivity : np.ndarray
-        _description_
-    field_by_node : np.ndarray
-        _description_
-
-    Returns
-    -------
-    tuple[np.ndarray,np.ndarray]
-        _description_
-    """
-    # shape=(coord[X,Y,Z,W],node_per_elem,elem_num)
-    elem_world_coords = np.copy(coords_world[connectivity,:])
-
-    # shape=(elem_num,nodes_per_elem,coord[X,Y,Z,W]), C memory format
-    # elem_world_coords = np.ascontiguousarray(np.swapaxes(elem_world_coords,0,2))
-    elem_world_coords = np.ascontiguousarray(elem_world_coords)
-
-    # shape=(nodes_per_elem,elem_num,time_steps)
-    field_by_elem = np.copy(field_by_node[connectivity,:])
-
-    # shape=(elem_num,nodes_per_elem,time_steps), C memory format
-    # field_by_elem = np.ascontiguousarray(np.swapaxes(field_by_elem,0,1))
-    field_by_elem = np.ascontiguousarray(field_by_elem)
-
-    return (elem_world_coords,field_by_elem)

@@ -26,9 +26,7 @@ def main() -> None:
     print(80*"=")
     print()
 
-    return
-
-    benchmark = True
+    benchmark = False
     if not benchmark:
 
         # This a path to an exodus *.e output file from MOOSE, this can be
@@ -42,7 +40,7 @@ def main() -> None:
         disp_comps = ("disp_x","disp_y","disp_z")
 
         # Scale m -> mm
-        sim_data = pyv.scale_length_units(sim_data,disp_comps,1000.0)
+        sim_data = pyv.scale_length_units(1000.0,sim_data,disp_comps)
 
         print()
         print(f"{np.max(np.abs(sim_data.node_vars['disp_x']))=}")
@@ -125,6 +123,7 @@ def main() -> None:
     print(80*"-")
     print()
 
+    return
 
     print(80*"-")
     total_frames = render_mesh.fields_render.shape[1]*render_mesh.fields_render.shape[2]
@@ -153,7 +152,7 @@ def main() -> None:
 
         (image_buffer,
          depth_buffer,
-         elems_in_image) = pyv.rastercyth.raster_frame(
+         elems_in_image) = pyv.rastercyth.raster_static_frame(
                                                 render_mesh.coords,
                                                 render_mesh.connectivity,
                                                 fields_render,

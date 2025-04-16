@@ -7,10 +7,9 @@ Copyright (C) 2025 The Computer Aided Validation Team
 """
 import numpy as np
 import cython
-from cython.parallel import prange, parallel, threadid
+#from cython.parallel import prange, parallel, threadid
 from cython.cimports.libc.math import floor, ceil
-
-from pyvale.core.rendermesh import RenderMeshData
+#from pyvale.core.rendermesh import RenderMeshData
 from pyvale.core.cameradata import CameraData
 
 
@@ -330,11 +329,11 @@ def _average_image(image_buff_subpx_in: cython.double[:,:],
 @cython.boundscheck(False) # Turn off array bounds checking
 @cython.wraparound(False)  # Turn off negative indexing
 @cython.cdivision(True)    # Turn off divide by zero check
-def raster_frame(coords: cython.double[:,:],
-                 connect: cython.size_t[:,:],
-                 fields_to_render: cython.double[:,:],
-                 cam_data: CameraData,
-                 ) -> tuple[np.ndarray,np.ndarray,int]:
+def raster_static_frame(coords: cython.double[:,:],
+                        connect: cython.size_t[:,:],
+                        fields_to_render: cython.double[:,:],
+                        cam_data: CameraData,
+                        ) -> tuple[np.ndarray,np.ndarray,int]:
 
 
     world_to_cam_mat: cython.double[:,:] = cam_data.world_to_cam_mat
@@ -397,6 +396,18 @@ def raster_frame(coords: cython.double[:,:],
 
     return (image_buff_avg_np,depth_buff_avg_np,elems_in_image)
 
+#///////////////////////////////////////////////////////////////////////////////
+@cython.ccall # python+C or cython.cfunc for C only
+@cython.boundscheck(False) # Turn off array bounds checking
+@cython.wraparound(False)  # Turn off negative indexing
+@cython.cdivision(True)    # Turn off divide by zero check
+def raster_deform_frame(coords: cython.double[:,:],
+                        connect: cython.size_t[:,:],
+                        fields_to_render: cython.double[:,:],
+                        cam_data: CameraData,
+                        field_disp: cython.double[:,:],
+                        ) -> tuple[np.ndarray,np.ndarray,int]:
+    pass
 
 #///////////////////////////////////////////////////////////////////////////////
 #@cython.nogil
@@ -511,11 +522,11 @@ def _raster_frame(coords: cython.double[:,:],
         if elem_area < -tol: # Backface culling
             continue
 
-        print(f"{nodes_raster_buff[0,0]},{nodes_raster_buff[0,1]},{nodes_raster_buff[0,2]}")
-        print(f"{nodes_raster_buff[1,0]},{nodes_raster_buff[1,1]},{nodes_raster_buff[1,2]}")
-        print(f"{nodes_raster_buff[2,0]},{nodes_raster_buff[2,1]},{nodes_raster_buff[2,2]}")
-        print(f"{ee} ELEM AREA : {elem_area}")
-        print()
+        # print(f"{nodes_raster_buff[0,0]},{nodes_raster_buff[0,1]},{nodes_raster_buff[0,2]}")
+        # print(f"{nodes_raster_buff[1,0]},{nodes_raster_buff[1,1]},{nodes_raster_buff[1,2]}")
+        # print(f"{nodes_raster_buff[2,0]},{nodes_raster_buff[2,1]},{nodes_raster_buff[2,2]}")
+        # print(f"{ee} ELEM AREA : {elem_area}")
+        # print()
 
         x_min: cython.double = vec_min_double(nodes_raster_buff[:,xx])
         x_max: cython.double = vec_max_double(nodes_raster_buff[:,xx])

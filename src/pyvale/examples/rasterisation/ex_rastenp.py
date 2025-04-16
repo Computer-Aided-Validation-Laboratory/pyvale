@@ -117,7 +117,11 @@ def main() -> None:
     print(80*"=")
     print("RASTER LOOP START")
 
-    #save_path = Path.cwd()/"example_output"
+    save_path = Path.cwd()/"pyvale-output"
+    if not save_path.is_dir():
+        save_path.mkdir(parents=True, exist_ok=True)
+
+
     save_path = None
     static_mesh = False
 
