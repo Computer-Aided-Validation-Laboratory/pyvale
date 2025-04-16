@@ -105,6 +105,7 @@ scene.add(Plane_xy(0, 555, 0, 555, 555, white))
 
 
 box1 = Box(point3(265, 0, 295), point3(430, 330, 460), white)
+box1 = Rotate_y(box1, -15)
 scene.add(box1)
 
 s = Sphere(vec3(160, 165/2, +65+185/2), 165/2, Refractive(1.5))
@@ -112,7 +113,9 @@ s2 = Translate(s, vec3(130, 0, 65))
 scene.add(s2)
 
 for t in tri_dicts:
-    scene.add(Tri(t["Q"], t["u"], t["v"], green))
+    t = Tri(t["Q"], t["u"], t["v"], green)
+    t = Rotate_y(t, 45)
+    scene.add(t)
 
 
 

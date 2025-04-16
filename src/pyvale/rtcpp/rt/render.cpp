@@ -234,6 +234,8 @@ PYBIND11_MODULE(render, m) {
 
     py::class_<Translate, Hittable, shared_ptr<Translate>>(m, "Translate")
         .def(py::init<shared_ptr<Hittable>, vec3>());
+    py::class_<Rotate_y, Hittable, shared_ptr<Rotate_y>>(m, "Rotate_y")
+        .def(py::init<shared_ptr<Hittable>, double>());
 
 
     py::class_<Camera>(m, "Camera")
