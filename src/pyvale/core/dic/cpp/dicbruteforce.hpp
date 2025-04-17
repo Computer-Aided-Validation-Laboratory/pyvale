@@ -93,7 +93,29 @@ namespace brute {
                                   util::Subset *ss_ref, 
                                   brute::Parameters *brute);
 
+    /**
+     * @brief 
+     * 
+     * @param ss_x 
+     * @param ss_y 
+     * @param image_ref 
+     * @param px_vertical 
+     * @param px_horizontal 
+     * @param ss_def 
+     * @param ss_ref 
+     * @param brute 
+     */
+    //void cross_correlation(const int ss_x, 
+    //                     const int ss_y, 
+    //                     const int *image_ref, 
+    //                     const int px_vertical, 
+    //                     const int px_horizontal, 
+    //                     util::Subset *ss_def, 
+    //                     util::Subset *ss_ref, 
+    //                     brute::Parameters *brute);
 
+
+                         
     /**
      * @brief Computes the Sum of Squared Differences (SSD) cost function.
      * 

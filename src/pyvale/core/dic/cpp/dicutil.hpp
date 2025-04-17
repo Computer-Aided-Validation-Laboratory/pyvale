@@ -10,11 +10,39 @@
 
 // STD library Header files
 #include <vector>
+#include <unordered_map>
 
 // program Header files
 
 
 namespace util {
+
+
+    // Custom hash from above
+    struct PairHash {
+        std::size_t operator()(const std::pair<int, int>& p) const {
+            return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
+        }
+    };
+
+    struct SubsetList {
+        int n_ss;
+        std::vector<int> coords;
+        std::unordered_map<std::pair<int, int>, int, PairHash> coords_to_index;
+        std::unordered_map<int, std::vector<int>> neighbours;
+    };
+
+
+    // result arrays.
+    extern std::vector<int> ss_coord_list;
+    extern std::vector<int> niter_arr;
+    extern std::vector<double> u_arr; 
+    extern std::vector<double> v_arr;
+    extern std::vector<double> p_arr;
+    extern std::vector<double> ftol_arr;
+    extern std::vector<double> xtol_arr;
+    extern std::vector<double> cost_arr;
+
 
 
     /**
@@ -95,26 +123,45 @@ namespace util {
 
 
     /**
-     * @brief Generates a list of valid subset center coordinates within a region of interest (ROI).
+     * @brief Generates a list of subsets based on the provided image ROI and parameters.
      * 
-     * Scans over an image at intervals defined by `ss_step`, testing whether a square 
-     * subset of size `ss_size` centered at each position falls entirely within the bounds of the 
-     * image and the specified region of interest (`image_roi`). If the entire subset lies within the 
-     * ROI, the coordinates of the subset center are added to the output list.
+     * This function creates a list of subsets (defined by their coordinates) from a binary mask 
+     * (`image_roi`) that indicates the region of interest in the image. The subsets are generated 
+     * with specified size and step values.
      * 
-     * @param image_roi     Boolean mask representing the region of interest (ROI) in the image. 
-     *                      Should have `px_horizontal * px_vertical` elements, with `true` indicating 
-     *                      valid ROI pixels.
-     * @param px_horizontal Width of the image in pixels.
-     * @param px_vertical   Height of the image in pixels.
-     * @param ss_size       Size (width and height) of the square subset (assumed to be odd).
-     * @param ss_step       Step size (in pixels) used to move the subset window across the image.
-     * 
-     * @return std::vector<int> A flat list of valid (x, y) coordinates where subsets can be extracted. 
-     *                          Each coordinate pair is stored consecutively (e.g., [x0, y0, x1, y1, ...]).
+     * @param image_roi    Pointer to a binary mask indicating the region of interest in the image.
+     * @param px_horizontal Number of horizontal pixels in the image.
+     * @param px_vertical   Number of vertical pixels in the image.
+     * @param ss_size      Size of each subset (in pixels).
+     * @param ss_step      Step size for generating subsets.
+     * @return            A SubsetList object containing the generated subsets and their neighbours.
      */
-    std::vector<int> generate_ss_coord_list(bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step);
+    SubsetList generate_ss_list(bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step, int num_def_images, int num_params);
 
+    
+    /**
+     * @brief 
+     * 
+     * @param num_def_images 
+     * @param img_num 
+     * @param ss 
+     * @param iter 
+     * @param ftol 
+     * @param xtol 
+     * @param u 
+     * @param v 
+     * @param p 
+     */
+    void append_results(const int num_def_images, 
+                            const int img_num, 
+                            const int ss, 
+                            const int iter, 
+                            const double ftol, 
+                            const double xtol, 
+                            const double u, 
+                            const double v, 
+                            const double cost,
+                            const std::vector<double> &p);
 
 }
 

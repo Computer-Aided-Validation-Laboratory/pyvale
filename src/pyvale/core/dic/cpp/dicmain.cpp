@@ -28,17 +28,6 @@
 
 namespace dic {
 
-
-    // result arrays. Not using std::vector because harder to handle with cython
-    std::vector<int> ss_coord_list;
-    std::vector<int> niter_arr;
-    std::vector<double> u_arr;
-    std::vector<double> v_arr;
-    std::vector<double> p_arr;
-    std::vector<double> ftol_arr;
-    std::vector<double> xtol_arr;
-
-
     void engine_2d(int* image_ref, 
                     int* image_def_stack, 
                     bool* image_roi, 
@@ -63,6 +52,23 @@ namespace dic {
         
         auto s0 = std::chrono::high_resolution_clock::now();
 
+        const int num_px_image = px_horizontal*px_vertical;
+
+        // number of parameters for the shape function
+        int num_params;
+        if (shape_func == "rigid") num_params = 2;
+        else if (shape_func == "affine") num_params = 6;
+        else {
+            std::cerr << "Unknown shape function: \'" << shape_func << "\'." << std::endl;
+            std::cerr << "Allowed values: \'affine\', \'rigid\'. " << std::endl;
+            return;
+        }
+
+
+        // get a list of ss coordinates within RIO.
+        util::SubsetList ss_list = util::generate_ss_list(image_roi, px_horizontal, px_vertical, ss_size, ss_step, num_def_images, num_params);
+
+
         // TITLE("DIC INITIALISATION");
         // INFO_OUT("Height of Images: ", px_vertical << " [px]");
         // INFO_OUT("Width of Images: ", px_horizontal << " [px]");
@@ -75,14 +81,7 @@ namespace dic {
         // INFO_OUT("Shape Function: ", shape_func);
         // INFO_OUT("Interpolation Routine: ", interp_routine);
         // INFO_OUT("Image Scan Method: ", scan_method);
-
-        const int num_px_image = px_horizontal*px_vertical;
-
-        // get a list of ss coordinates within RIO.
-        ss_coord_list = util::generate_ss_coord_list(image_roi, px_horizontal, px_vertical, ss_size, ss_step);
-        int n_ss = ss_coord_list.size() / 2;
-
-        // INFO_OUT("Total number of subsets: ", n_ss);
+        // INFO_OUT("Total number of subsets: ", ss_list.n_ss);
         // INFO_OUT("Number of OMP threads:", omp_get_max_threads());
 
 
@@ -106,17 +105,8 @@ namespace dic {
         // for extraction of deformed image from stack
         util::Image image_def(px_horizontal, px_vertical);
 
-
-        // resize results
-        niter_arr.resize(num_def_images * n_ss);
-        u_arr.resize(num_def_images * n_ss);
-        v_arr.resize(num_def_images * n_ss);
-        p_arr.resize(num_def_images * n_ss * 6);
-        ftol_arr.resize(num_def_images * n_ss);
-        xtol_arr.resize(num_def_images * n_ss);
-
         // function pointer for the method of scanning the subsets through the image
-        void (*scan_function)(int *, util::Image *, bool *, std::vector<int> &, int, int, int, int, double, double, double, double, std::string &);
+        void (*scan_function)(int*, util::Image*, bool*, util::SubsetList*, int, int, int, int, double, double, double, double, int);
 
         // set the scan_function pointer based on the scan method specified by user.
         if (scan_method=="image_scan") scan_function=image_scan;
@@ -148,7 +138,7 @@ namespace dic {
             // extract a single image from the stack
             util::extract_image(&image_def, image_def_stack, img_num);  
           
-            scan_function(image_ref, &image_def, image_roi, ss_coord_list, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf, shape_func);
+            scan_function(image_ref, &image_def, image_roi, &ss_list, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf, num_params);
 
 
         }
@@ -170,7 +160,7 @@ namespace dic {
     void image_scan(int *image_ref, 
                     util::Image *image_def, 
                     bool *image_roi,
-                    std::vector<int> &ss_coord_list, 
+                    util::SubsetList *ss_list, 
                     int num_def_images, 
                     int img_num, 
                     int ss_size, 
@@ -179,7 +169,7 @@ namespace dic {
                     double threshold_lm,
                     double threshold_bf,
                     double range_bf,
-                    std::string& shape_func){
+                    int num_params){
 
 
         // initialise subsets
@@ -187,19 +177,15 @@ namespace dic {
         util::Subset ss_ref(ss_size);
 
         // optimization parameters
-        optimizer::Parameters opt(0, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
-        if (shape_func == "affine") opt = optimizer::Parameters(6, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
-        else if (shape_func == "rigid") opt = optimizer::Parameters(2, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
-
-
+        optimizer::Parameters opt(num_params, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, opt)
-        for (int ss = 0; ss < ss_coord_list.size()/2; ss++){
+        for (int ss = 0; ss < ss_list->n_ss; ss++){
 
             // subset coordinate list takes central locations. Converting to top left corner for optimization routine
-            int ss_x = ss_coord_list[ss*2] - ss_size / 2;
-            int ss_y = ss_coord_list[ss*2+1] - ss_size / 2;
+            int ss_x = ss_list->coords[ss*2];
+            int ss_y = ss_list->coords[ss*2+1];
 
             // get the deformed subset coordinates and pixel values from the deformed image
             util::extract_ss(ss_x, ss_y, image_def, &ss_def); 
@@ -211,7 +197,7 @@ namespace dic {
 
 
             // append the results for the current subset to result vectors
-            append_results(num_def_images, img_num, ss, &results);    
+            // append_results(num_def_images, img_num, ss, &results);    
             // exit(0);
         }
     }
@@ -226,7 +212,7 @@ namespace dic {
     void image_scan_with_bf(int *image_ref, 
                             util::Image *image_def, 
                             bool *image_roi,
-                            std::vector<int> &ss_coord_list, 
+                            util::SubsetList *ss_list, 
                             int num_def_images, 
                             int img_num, 
                             int ss_size, 
@@ -235,16 +221,14 @@ namespace dic {
                             double threshold_lm,
                             double threshold_bf,
                             double range_bf,
-                            std::string& shape_func){
+                            int num_params){
 
         // subsets
         util::Subset ss_def(ss_size);
         util::Subset ss_ref(ss_size);
         
         // optimization parameters
-        optimizer::Parameters opt(0, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
-        if (shape_func == "affine") opt = optimizer::Parameters(6, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
-        else if (shape_func == "rigid") opt = optimizer::Parameters(2, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
+        optimizer::Parameters opt(num_params, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
         
         // brute force scan parameters
         brute::Parameters brute(threshold_bf, range_bf);
@@ -262,11 +246,11 @@ namespace dic {
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, results)
-        for (int ss = 0; ss < ss_coord_list.size()/2; ss++){
+        for (int ss = 0; ss < ss_list->n_ss; ss++){
 
             // subset coordinate list contains central locations. Converting to top left corner for optimization routine
-            int ss_x = ss_coord_list[ss*2] - ss_size / 2;
-            int ss_y = ss_coord_list[ss*2+1] - ss_size / 2;
+            int ss_x = ss_list->coords[ss*2];
+            int ss_y = ss_list->coords[ss*2+1];
 
             // get the deformed subset coordinates and pixel values
             util::extract_ss(ss_x, ss_y, image_def, &ss_def); 
@@ -274,7 +258,7 @@ namespace dic {
 
             // if this is the first subset in the loop, or, if last subset was a poor match
             // Kick off the next search with a brute force from the last set of brute force parameters that gave a good match.
-            if ((ss_thread_num == 0)) { // || (results.iter == opt.max_iter)){
+            if ((ss_thread_num == 0) || (results.iter == opt.max_iter)){
                 brute::expanding_wavefront(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &ss_ref, &brute);
                 // std::cout << brute.p_rigid[0] << " " << brute.p_rigid[1] << std::endl;
 
@@ -293,7 +277,7 @@ namespace dic {
             results = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
 
             // append the results for the current subset to result vectors
-            append_results(num_def_images, img_num, ss, &results);    
+            // append_results(num_def_images, img_num, ss, &results);    
 
             ss_thread_num++;
 
@@ -312,7 +296,7 @@ namespace dic {
     void reliability_guided(int *image_ref, 
                             util::Image *image_def, 
                             bool *image_roi,
-                            std::vector<int> &ss_coord_list, 
+                            util::SubsetList *ss_list,
                             int num_def_images, 
                             int img_num, 
                             int ss_size, 
@@ -321,32 +305,13 @@ namespace dic {
                             double threshold_lm,
                             double threshold_bf,
                             double range_bf,
-                            std::string& shape_func){
+                            int num_params){
 
 
-        int seed_x = 500;
-        int seed_y = 500;
+        int seed_x = 500; // in corner coordinates
+        int seed_y = 500; // in corner coodinates
 
-        rg::reliability_guided_dic_single_seed(image_ref, image_def, image_roi, seed_x, seed_y, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf, shape_func);
+        rg::reliability_guided_dic_single_seed(image_ref, image_def, image_roi, seed_x, seed_y, ss_list, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf, num_params);
                 
-    }
-
-
-
-    void append_results(const int num_def_images, const int img_num, const int ss, optimizer::Results *results){
-
-            int index = img_num * num_def_images + ss;
-            int index_p = 6*index;
-            niter_arr[index] = results->iter;
-            p_arr[index_p+0] = results->p[0];
-            p_arr[index_p+1] = results->p[1];
-            p_arr[index_p+2] = results->p[2];
-            p_arr[index_p+3] = results->p[3];
-            p_arr[index_p+4] = results->p[4];
-            p_arr[index_p+5] = results->p[5];
-            u_arr[index] = results->u;
-            v_arr[index] = results->v;
-            ftol_arr[index] = results->ftol;
-            xtol_arr[index] = results->xtol;
     }
 }

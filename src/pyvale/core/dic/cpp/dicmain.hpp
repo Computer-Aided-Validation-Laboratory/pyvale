@@ -20,13 +20,13 @@
 namespace dic {
 
     // result arrays. Not using std::vector because harder to handle with cython
-    extern std::vector<int> ss_coord_list;
-    extern std::vector<int> niter_arr;
-    extern std::vector<double> u_arr;
-    extern std::vector<double> v_arr;
-    extern std::vector<double> p_arr;
-    extern std::vector<double> ftol_arr;
-    extern std::vector<double> xtol_arr;
+    // extern std::vector<int> ss_coord_list;
+    // extern std::vector<int> niter_arr;
+    // extern std::vector<double> u_arr;
+    // extern std::vector<double> v_arr;
+    // extern std::vector<double> p_arr;
+    // extern std::vector<double> ftol_arr;
+    // extern std::vector<double> xtol_arr;
 
     /**
      * @brief 
@@ -85,7 +85,7 @@ namespace dic {
     void image_scan(int *image_ref, 
                     util::Image *image_def, 
                     bool *image_roi,
-                    std::vector<int> &ss_coord_list, 
+                    util::SubsetList *ss_list, 
                     int num_def_images, 
                     int img_num, 
                     int ss_size, 
@@ -94,7 +94,7 @@ namespace dic {
                     double threshold_lm,
                     double threshold_bf,
                     double range_bf,
-                    std::string& shape_func);
+                    int num_params);
 
 
     /**
@@ -115,7 +115,7 @@ namespace dic {
     void image_scan_with_bf(int *image_ref, 
                     util::Image *image_def, 
                     bool *image_roi,
-                    std::vector<int> &ss_coord_list, 
+                    util::SubsetList *ss_list, 
                     int num_def_images, 
                     int img_num, 
                     int ss_size, 
@@ -124,7 +124,7 @@ namespace dic {
                     double threshold_lm,
                     double threshold_bf,
                     double range_bf,
-                    std::string& shape_func);
+                    int num_params);
 
 
     /**
@@ -145,7 +145,7 @@ namespace dic {
     void reliability_guided(int *image_ref, 
                     util::Image *image_def, 
                     bool *image_roi,
-                    std::vector<int> &ss_coord_list, 
+                    util::SubsetList *ss_list, 
                     int num_def_images, 
                     int img_num, 
                     int ss_size, 
@@ -154,7 +154,7 @@ namespace dic {
                     double threshold_lm,
                     double threshold_bf,
                     double range_bf,
-                    std::string& shape_func);
+                    int num_params);
 
 
 

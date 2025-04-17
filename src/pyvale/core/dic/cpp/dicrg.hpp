@@ -64,6 +64,7 @@ namespace rg {
         util::Image *image_def,
         const bool *image_roi,
         const int seed_x, const int seed_y,  // Single seed point coordinates
+        util::SubsetList *ss_list,
         const int num_def_images,
         const int img_num,
         const int ss_size,
@@ -72,7 +73,7 @@ namespace rg {
         const double threshold_lm,
         const double threshold_bf,
         const double range_bf,
-        const std::string &shape_func);
+        const int num_params);
 
 
     /**
@@ -86,7 +87,7 @@ namespace rg {
      * @return true 
      * @return false 
      */
-    inline bool is_valid_point(int x, int y, const bool *image_roi, int px_horizontal, int px_vertical, int ss_size);
+    inline bool is_valid_point(int x, int y, util::SubsetList *ss_list);
 
 
 
