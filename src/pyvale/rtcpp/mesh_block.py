@@ -5,25 +5,6 @@ import numpy as np
 
 point3 = vec3
 
-# tests if angle abc is a right angle
-def IsOrthogonal(a, b, c) -> bool:
-    return (b[0] - a[0]) * (b[0] - c[0]) + (b[1] - a[1]) * (b[1] - c[1]) + (b[2] - a[2]) * (b[2] - c[2]) == 0
-
-def IsRectangle(a, b, c, d) -> bool:
-    return IsOrthogonal(a, b, c) and IsOrthogonal(b, c, d) and IsOrthogonal(c, d, a)
-
-def IsRectangleAnyOrder(a, b, c, d):
-    # returns the ordering which makes a rectangle if there is one
-    if IsRectangle(a, b, c, d):
-        return (a, b, c, d)
-    if IsRectangle(b, c, a, d):
-        return (b, c, a, d)
-    if IsRectangle(c, a, b, d):
-        return (c, a, b, d)
-    else:
-        return None
-    # return IsRectangle(a, b, c, d) or IsRectangle(b, c, a, d) or IsRectangle(c, a, b, d)
-
 def get_mesh_spat_dim(sim_data: mh.SimData) -> int:
     spat_dim = 2 # all values in z are 0
     nodes = sim_data.coords
