@@ -20,6 +20,8 @@ from pyvale.core.rendermesh import RenderMeshData
 # - How do we match render fields between meshes?
 # - How do we check displacement fields are the same between meshes?
 # - Eventually this will need to take render times and do the field interpolations
+# - Need to have position and orientation for each object as well as transformation
+#   matrix.
 
 @dataclass(slots=True)
 class RenderScene:

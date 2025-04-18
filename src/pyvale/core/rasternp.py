@@ -9,11 +9,13 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 import numba
+import matplotlib.pyplot as plt
 from pyvale.core.cameradata import CameraData
 from pyvale.core.cameratools import CameraTools
 from pyvale.core.rendermesh import RenderMeshData
 from pyvale.core.renderer import IRenderEngine, RenderScene
 from pyvale.core.rasteropts import RasterOpts
+from pyvale.core.visualimages import plot_field_image
 import pyvale.core.cython.rastercyth as rastercyth
 
 
@@ -182,17 +184,19 @@ class RasterNP:
                         image_buff_subpx: np.ndarray,
                         depth_buff_subpx: np.ndarray) -> tuple[np.ndarray,np.ndarray]:
 
-        if Path(rastercyth.__file__).suffix in (".so",".dll",".dylib"):
-            depth_buff_avg = np.empty((cam_data.pixels_num[1],cam_data.pixels_num[0]),
+        depth_buff_avg = np.empty((cam_data.pixels_num[1],cam_data.pixels_num[0]),
+                                    dtype=np.float64)
+        image_buff_avg = np.empty((cam_data.pixels_num[1],cam_data.pixels_num[0]),
                                       dtype=np.float64)
+
+        if Path(rastercyth.__file__).suffix in (".so",".dll",".dylib"):
             depth_buff_avg = np.array(
                 rastercyth.average_image(depth_buff_subpx,cam_data.sub_samp))
 
-            image_buff_avg = np.empty((cam_data.pixels_num[1],cam_data.pixels_num[0]),
-                                      dtype=np.float64)
+
             image_buff_avg = np.array(
                 rastercyth.average_image(image_buff_subpx,cam_data.sub_samp))
-            
+
         else:
             depth_buff_avg = CameraTools.average_subpixel_image(
                 depth_buff_subpx,cam_data.sub_samp)
@@ -347,9 +351,7 @@ class RasterNP:
                           coords_raster: np.ndarray,
                           elem_bound_box_inds: np.ndarray,
                           elem_areas: np.ndarray,
-                          field_frame_div_z: list[np.ndarray],
-                          pixels_num: np.ndarray,
-                          image_dist: float,
+                          field_frame_div_z: np.ndarray,
                           sub_samp: int,
                           image_buff_subpx: np.ndarray,
                           depth_buff_subpx: np.ndarray,
@@ -359,8 +361,6 @@ class RasterNP:
         #elem_bound_box_inds.shape=(num_elems,[min_x,max_x,min_y,max_y])
         #elem_areas.shape=(num_elems,)
         #field_frame_divide_z=(num_coords,)
-
-
 
         for ee in range(connect_in_frame.shape[0]):
             cc = connect_in_frame[ee,:]
@@ -413,7 +413,7 @@ class RasterNP:
                                 connect_in_frame: list[np.ndarray],
                                 elem_bound_box_inds: list[np.ndarray],
                                 elem_areas: list[np.ndarray],
-                                field_to_render: list[np.ndarray],
+                                fields_div_z: list[np.ndarray],
                                 save_path: Path | None,
                                 ) -> np.ndarray | None:
 
@@ -421,101 +421,103 @@ class RasterNP:
         depth_buff_subpx = 1e5*cam_data.image_dist*np.ones(cam_data.sub_samp*cam_data.pixels_num).T
         image_buff_subpx = np.full(cam_data.sub_samp*cam_data.pixels_num,0.0).T
 
-        # NOTE: the z coord has already been inverted in setup so we multiply here
-        render_field_div_z = []
-        for ii,ff in enumerate(field_to_render):
-            render_field_div_z.append(ff*coords_raster[ii][:,2])
-
         # LOOP over meshes here
         for mm in range(num_meshes):
-
             (image_buff_subpx,
-            depth_buff_subpx) = RasterNP.raster_one_mesh(connect_in_frame[mm],
+             depth_buff_subpx) = RasterNP.raster_one_mesh(connect_in_frame[mm],
                                                         coords_raster[mm],
                                                         elem_bound_box_inds[mm],
                                                         elem_areas[mm],
-                                                        render_field_div_z[mm],
-                                                        cam_data.pixels_num,
-                                                        cam_data.image_dist,
+                                                        fields_div_z[mm][:,frame_ind,field_ind],
                                                         cam_data.sub_samp,
                                                         image_buff_subpx,
                                                         depth_buff_subpx)
 
-
-        if Path(rastercyth.__file__).suffix in (".so",".dll",".dylib"):
-            depth_buff_avg = np.empty((pixels_num[1],pixels_num[0]),dtype=np.float64)
-            depth_buff_avg = np.array(rastercyth.average_image(depth_buff_subpx,sub_samp))
-            image_buff_avg = np.empty((pixels_num[1],pixels_num[0]),dtype=np.float64)
-            image_buff = np.array(rastercyth.average_image(image_buffer,sub_samp))
-        else:
-            depth_buff = CameraTools.average_subpixel_image(depth_buffer,sub_samp)
-            image_buff = CameraTools.average_subpixel_image(image_buffer,sub_samp)
-
         # TODO: make this configurable
-        image_buffer[depth_buffer > 1000*cam_data.image_dist] = np.nan
+        image_buff_subpx[depth_buff_subpx > 1000*cam_data.image_dist] = np.nan
+        depth_buff_subpx[depth_buff_subpx > 1000*cam_data.image_dist] = np.nan
+
+        # Average buffers
+        (image_buff_avg,
+         depth_buff_avg) = RasterNP.average_buffers(cam_data,
+                                                    image_buff_subpx,
+                                                    depth_buff_subpx)
 
         if save_path is None:
-            return image_buffer
+            return image_buff_avg
 
         image_file = save_path/f"image_frame{frame_ind}_field{field_ind}"
-        np.save(image_file,image_buffer)
+        np.save(image_file,image_buff_avg)
         return None
 
 
-    # TODO
-    # - Create the image/depth buffers here, pass them in and out
-    # - In this function loop of meshes
+
     @staticmethod
     def _deformed_meshes_frame_loop(frame_ind: int,
-                                  field_ind: int,
-                                  cam_data: CameraData,
-                                  render_mesh: RenderMeshData,
-                                  save_path: Path | None
-                                  ) -> np.ndarray | None:
-        # coords_raster.shape=(num_coords,coord[x,y,z,w])
-        # connect_in_frame.shape=(num_elems_in_scene,nodes_per_elem)
-        # elem_bound_box_inds.shape=(num_elems_in_scene,4[x_min,x_max,y_min,y_max])
-        # elem_areas.shape=(num_elems,)
-        (coords_raster,
-        connect_in_frame,
-        elem_bound_box_inds,
-        elem_areas) = RasterNP.setup_frame(
-            cam_data.world_to_cam_mat,
-            cam_data.pixels_num,
-            cam_data.image_dims,
-            cam_data.image_dist,
-            render_mesh.coords,
-            render_mesh.connectivity,
-            render_mesh.fields_disp[:,frame_ind,:],
-        )
+                                    field_ind: int,
+                                    cam_data: CameraData,
+                                    meshes: list[RenderMeshData],
+                                    save_path: Path | None
+                                    ) -> np.ndarray | None:
 
-        # NOTE: the z coord has already been inverted in setup so we multiply here
-        render_field_div_z = (render_mesh.fields_render[:,frame_ind,field_ind]
-                             *coords_raster[:,2])
+        num_meshes = len(meshes)
+        depth_buff_subpx = 1e5*cam_data.image_dist*np.ones(cam_data.sub_samp*cam_data.pixels_num).T
+        image_buff_subpx = np.full(cam_data.sub_samp*cam_data.pixels_num,0.0).T
 
-        # image_buffer.shape=(num_px_y,num_px_x)
-        # depth_buffer.shape=(num_px_y,num_px_x)
-        # TODO
-        (image_buffer,
-        depth_buffer) = RasterNP.raster_one_mesh(connect_in_frame,
-                                              coords_raster,
-                                              elem_bound_box_inds,
-                                              elem_areas,
-                                              render_field_div_z,
-                                              cam_data.pixels_num,
-                                              cam_data.image_dist,
-                                              cam_data.sub_samp)
+
+        for mm in range(num_meshes):
+            # coords_raster.shape=(num_coords,coord[x,y,z,w])
+            # connect_in_frame.shape=(num_elems_in_scene,nodes_per_elem)
+            # elem_bound_box_inds.shape=(num_elems_in_scene,4[x_min,x_max,y_min,y_max])
+            # elem_areas.shape=(num_elems,)
+            (coords_raster,
+            connect_in_frame,
+            elem_bound_box_inds,
+            elem_areas) = RasterNP.setup_frame(
+                cam_data.world_to_cam_mat,
+                cam_data.pixels_num,
+                cam_data.image_dims,
+                cam_data.image_dist,
+                meshes[mm].coords,
+                meshes[mm].connectivity,
+                meshes[mm].fields_disp[:,frame_ind,:],
+            )
+
+            # NOTE: the z coord has already been inverted in setup so we multiply here
+            render_field_div_z = (meshes[mm].fields_render[:,frame_ind,field_ind]
+                                 *coords_raster[:,2])
+
+            # image_buffer.shape=(num_px_y,num_px_x)
+            # depth_buffer.shape=(num_px_y,num_px_x)
+            (image_buff_subpx,
+            depth_buff_subpx) = RasterNP.raster_one_mesh(connect_in_frame,
+                                                coords_raster,
+                                                elem_bound_box_inds,
+                                                elem_areas,
+                                                render_field_div_z,
+                                                cam_data.sub_samp,
+                                                image_buff_subpx,
+                                                depth_buff_subpx)
+
 
         # TODO: make this configurable
-        image_buffer[depth_buffer > 1000*cam_data.image_dist] = np.nan
+        image_buff_subpx[depth_buff_subpx > 1000*cam_data.image_dist] = np.nan
+        depth_buff_subpx[depth_buff_subpx > 1000*cam_data.image_dist] = np.nan
+
+        # Average buffers
+        (image_buff_avg,
+         depth_buff_avg) = RasterNP.average_buffers(cam_data,
+                                                    image_buff_subpx,
+                                                    depth_buff_subpx)
 
         if save_path is None:
-            return image_buffer
+            return image_buff_avg
 
         image_file = save_path/f"image_frame{frame_ind}_field{field_ind}"
-        np.save(image_file.with_suffix(".npy"),image_buffer)
+        np.save(image_file.with_suffix(".npy"),image_buff_avg)
         return None
 
+    #---------------------------------------------------------------------------
     @staticmethod
     def raster_static_mesh(cam_data: CameraData,
                            meshes: list[RenderMeshData],
@@ -546,16 +548,17 @@ class RasterNP:
         # elem_bound_box_inds.shape=(num_elems_in_scene,4[x_min,x_max,y_min,y_max])
         # elem_areas.shape=(num_elems,)
 
-        coords_raster = []
-        connect_in_frame = []
-        elem_bound_box_inds = []
-        elem_areas = []
+        coords_raster_list = []
+        connect_in_frame_list = []
+        elem_bound_box_inds_list = []
+        elem_areas_list = []
+        field_div_z_list = []
 
-        for mm in meshes:
-            (coords_raster_mm,
-            connect_in_frame_mm,
-            elem_bound_box_inds_mm,
-            elem_areas_mm) = RasterNP.setup_frame(
+        for ii,mm in enumerate(meshes):
+            (coords_raster,
+            connect_in_frame,
+            elem_bound_box_inds,
+            elem_areas) = RasterNP.setup_frame(
                 cam_data.world_to_cam_mat,
                 cam_data.pixels_num,
                 cam_data.image_dims,
@@ -564,10 +567,15 @@ class RasterNP:
                 mm.connectivity,
             )
 
-            coords_raster.append(coords_raster_mm)
-            connect_in_frame.append(connect_in_frame_mm)
-            elem_bound_box_inds.append(elem_bound_box_inds_mm)
-            elem_areas.append(elem_areas_mm)
+            coords_raster_list.append(coords_raster)
+            connect_in_frame_list.append(connect_in_frame)
+            elem_bound_box_inds_list.append(elem_bound_box_inds)
+            elem_areas_list.append(elem_areas)
+
+            coord_num = coords_raster_list[ii].shape[0]
+            coord_mult = coords_raster_list[ii][:,2].reshape(coord_num,1,1)
+            field_div_z_list.append(mm.fields_render*coord_mult)
+
 
         # Loop over frames
         if threads_num is None:
@@ -576,11 +584,11 @@ class RasterNP:
                     frames[ff],
                     fields[ff],
                     cam_data,
-                    coords_raster,
-                    connect_in_frame,
-                    elem_bound_box_inds,
-                    elem_areas,
-                    render_mesh.fields_render[:,frames[ff],fields[ff]],
+                    coords_raster_list,
+                    connect_in_frame_list,
+                    elem_bound_box_inds_list,
+                    elem_areas_list,
+                    field_div_z_list,
                     save_path
                 )
 
@@ -591,15 +599,16 @@ class RasterNP:
             with Pool(threads_num) as pool:
                 processes_with_id = []
 
+
                 for ff in range(0,frames.shape[0]):
                     args = (frames[ff],
                             fields[ff],
                             cam_data,
-                            coords_raster,
-                            connect_in_frame,
-                            elem_bound_box_inds,
-                            elem_areas,
-                            render_mesh.fields_render[:,frames[ff],fields[ff]],
+                            coords_raster_list,
+                            connect_in_frame_list,
+                            elem_bound_box_inds_list,
+                            elem_areas_list,
+                            field_div_z_list,
                             save_path)
 
                     process = pool.apply_async(
@@ -621,13 +630,13 @@ class RasterNP:
 
     @staticmethod
     def raster_deformed_mesh(cam_data: CameraData,
-                             render_mesh: RenderMeshData,
+                             meshes: list[RenderMeshData],
                              save_path: Path | None = None,
                              parallel: int | None = None
                              ) -> np.ndarray | None:
 
-        frames_num = render_mesh.fields_render.shape[1]
-        field_num = render_mesh.fields_render.shape[2]
+        frames_num = meshes[0].fields_render.shape[1]
+        field_num = meshes[0].fields_render.shape[2]
         (frames,fields) = np.meshgrid(np.arange(0,frames_num),
                                        np.arange(0,field_num))
         frames = frames.flatten()
@@ -651,7 +660,7 @@ class RasterNP:
                     frames[ff],
                     fields[ff],
                     cam_data,
-                    render_mesh,
+                    meshes,
                     save_path,
                 )
 
@@ -665,7 +674,7 @@ class RasterNP:
                     args = (frames[ff],
                             fields[ff],
                             cam_data,
-                            render_mesh,
+                            meshes,
                             save_path)
 
                     process = pool.apply_async(

@@ -2,6 +2,11 @@
 # Notes: `pyvale` developement
 
 
+```python
+save_path = Path.home()/"test"/"pyvale-check"
+np.save
+```
+
 ## TODO: `Renderer`
 --------------------
 - Speed up edge function calculation using stepwise optimisation on SAP
