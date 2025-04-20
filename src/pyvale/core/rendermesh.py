@@ -6,8 +6,8 @@ Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 #from enum import Enum
-from dataclasses import dataclass, field
 import numpy as np
+from scipy.spatial.transform import Rotation
 import mooseherder as mh
 from pyvale.core.fieldconverter import simdata_to_pyvista
 
@@ -16,34 +16,53 @@ from pyvale.core.fieldconverter import simdata_to_pyvista
 # TODO:
 # - Store the render field keys and match them between meshes?
 
-@dataclass(slots=True)
-class RenderMeshData:
-    coords: np.ndarray
-    connectivity: np.ndarray
-    fields_render: np.ndarray
-    # If this is None then the mesh is not deformable
-    fields_disp: np.ndarray | None = None
 
-    node_count: int = field(init=False)
-    elem_count: int = field(init=False)
-    nodes_per_elem: int = field(init=False)
+class RenderMesh:
+    __slots__ = ("coords","connectivity","fields_render","fields_disp",
+                 "pos_world","rot_world","node_count","elem_count",
+                 "nodes_per_elem","mesh_to_world_mat","world_to_mesh_mat")
 
-    coord_cent: np.ndarray = field(init=False)
-    coord_bound_min: np.ndarray = field(init=False)
-    coord_bound_max: np.ndarray = field(init=False)
+    def __init__(self,
+                 coords: np.ndarray,
+                 connectivity: np.ndarray,
+                 fields_render: np.ndarray,
+                 fields_disp: np.ndarray | None = None,
+                 pos_world: np.ndarray | None = None,
+                 rot_world: Rotation | None = None) -> None:
 
-    def __post_init__(self) -> None:
-        # C format: num_nodes/num_elems first as it is the largest dimension
+        self.coords = coords
+        self.connectivity = connectivity
+        self.fields_render = fields_render
+        self.fields_disp = fields_disp
+
         self.node_count = self.coords.shape[0]
         self.elem_count = self.connectivity.shape[0]
         self.nodes_per_elem = self.connectivity.shape[1]
 
-        self.coord_bound_min = np.min(self.coords,axis=0)
-        self.coord_bound_max = np.max(self.coords,axis=0)
-        self.coord_cent = (self.coord_bound_max + self.coord_bound_min)/2.0
+        if pos_world is None:
+            self.pos_world = np.array((0.0,0.0,0.0),dtype=np.float64)
 
-        if self.fields_disp is None:
-            self.fields_disp = np.zeros((self.node_count,),dtype=np.float64)
+        if rot_world is None:
+            self.rot_world = Rotation.from_euler("zyx",(0.0,0.0,0.0),degrees=True)
+
+        self.mesh_to_world_mat = np.zeros((4,4),dtype=np.float64)
+        self.world_to_mesh_mat = np.zeros((4,4),dtype=np.float64)
+        self._build_transform_mats()
+
+    def _build_transform_mats(self) -> None:
+        self.mesh_to_world_mat = np.zeros((4,4))
+        self.mesh_to_world_mat[0:3,0:3] = self.rot_world.as_matrix()
+        self.mesh_to_world_mat[-1,-1] = 1.0
+        self.mesh_to_world_mat[0:3,-1] = self.pos_world
+        self.world_to_mesh_mat = np.linalg.inv(self.mesh_to_world_mat)
+
+    def set_pos(self, pos_world: np.ndarray) -> None:
+        self.pos_world = pos_world
+        self._build_transform_mats()
+
+    def set_rot(self, rot_world: Rotation) -> None:
+        self.rot_world = rot_world
+        self._build_transform_mats()
 
 
 
@@ -51,7 +70,9 @@ def create_render_mesh(sim_data: mh.SimData,
                        field_render_keys: tuple[str,...],
                        sim_spat_dim: int,
                        field_disp_keys: tuple[str,...] | None = None,
-                       ) -> RenderMeshData:
+                       pos_world: np.ndarray | None  = None,
+                       rot_world: Rotation | None = None
+                       ) -> RenderMesh:
 
     extract_keys = field_render_keys
     if field_disp_keys is not None:
@@ -106,8 +127,10 @@ def create_render_mesh(sim_data: mh.SimData,
             field_disp_by_node[:,:,ii] = np.ascontiguousarray(
                 np.array(pv_surf[cc]))
 
-    return RenderMeshData(coords=coords_world,
+    return RenderMesh(coords=coords_world,
                           connectivity=connectivity,
                           fields_render=fields_render_by_node,
-                          fields_disp=field_disp_by_node)
+                          fields_disp=field_disp_by_node,
+                          pos_world=pos_world,
+                          rot_world=rot_world)
 

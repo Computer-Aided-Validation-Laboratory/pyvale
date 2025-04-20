@@ -10,7 +10,7 @@ import cython
 from cython.parallel import prange, parallel, threadid
 from cython.cimports.libc.math import floor, ceil
 
-from pyvale.core.rendermesh import RenderMeshData
+from pyvale.core.rendermesh import RenderMesh
 from pyvale.core.cameradata import CameraData
 
 

@@ -9,42 +9,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
-from pyvale.core.cameradata import CameraData
-from pyvale.core.rendermesh import RenderMeshData
+from pyvale.core.renderscene import RenderScene
 
 # NOTE: This module is a feature under developement.
-
-
-#===============================================================================
-# TODO
-# - How do we match render fields between meshes?
-# - How do we check displacement fields are the same between meshes?
-# - Eventually this will need to take render times and do the field interpolations
-# - Need to have position and orientation for each object as well as transformation
-#   matrix.
-
-@dataclass(slots=True)
-class RenderScene:
-    # TODO: use this class to mash things into numpy arrays from the lists
-
-    # We will need to mash this into numpy arrays as well
-    cameras: list[CameraData] | None = None
-
-    # - This is not the best way to store this - we need to store numpy arrays of
-    # elements of the same type even if they belong to different bodies
-    # - We can have a single coordinate list regardless
-    # - We can then use connectivity tables to index into the list
-    # - What happens if we do or do not have displacements for all coords?
-    #   - This can be solved by just having zeros for displacement and always adding it
-    #   - This adds extra work but simplifies things
-    meshes: list[RenderMeshData] | None = None
-
-    def __post_init__(self) -> None:
-        if self.cameras is None:
-            self.cameras = []
-        if self.meshes is None:
-            self.meshes = []
-
 
 #===============================================================================
 class IRenderEngine(ABC):

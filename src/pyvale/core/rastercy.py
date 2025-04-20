@@ -9,7 +9,7 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 from pyvale.core.cameradata import CameraData
-from pyvale.core.rendermesh import RenderMeshData
+from pyvale.core.rendermesh import RenderMesh
 from pyvale.core.renderer import IRenderEngine
 from pyvale.core.rasteropts import RasterOpts
 import pyvale.core.cython.rastercyth as rastercyth
@@ -45,7 +45,7 @@ import pyvale.core.cython.rastercyth as rastercyth
 class RasterCY:
     @staticmethod
     def raster_static_mesh(cam_data: CameraData,
-                           render_mesh: RenderMeshData,
+                           render_mesh: RenderMesh,
                            threads_num: int | None = None,
                            ) -> tuple[np.ndarray,np.ndarray,np.ndarray] | None:
 

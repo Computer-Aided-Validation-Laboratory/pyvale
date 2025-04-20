@@ -32,7 +32,7 @@ def main() -> None:
 
     field_key = "disp_y"
     components = ("disp_x","disp_y","disp_z")
-    mesh_world: pyvale.RenderMeshData = pyvale.create_render_mesh(data_path,
+    mesh_world: pyvale.RenderMesh = pyvale.create_render_mesh(data_path,
                                                                   field_key,
                                                                   components,
                                                                   sim_spat_dim=3)

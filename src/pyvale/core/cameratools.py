@@ -263,17 +263,6 @@ class CameraTools:
         boundbox_cam_leng = (np.max(bound_box_cam_vecs,axis=1)
                             - np.min(bound_box_cam_vecs,axis=1))
 
-        print(80*"-")
-        print(f"{bb_min=}")
-        print(f"{bb_max=}")
-        print()
-        print("Cam to world mat:")
-        print(cam_to_world_mat)
-        print()
-        print("World to cam mat:")
-        print(world_to_cam_mat)
-        print(80*"-")
-
         return np.array((boundbox_cam_leng[xx],boundbox_cam_leng[yy]))
 
     @staticmethod
@@ -288,14 +277,14 @@ class CameraTools:
         return image_dist
 
     @staticmethod
-    def pos_fill_frame_from_rotation(coords_world: np.ndarray,
-                                     pixel_num: np.ndarray,
-                                     pixel_size: np.ndarray,
-                                     focal_leng: float,
-                                     cam_rot: Rotation,
-                                     frame_fill: float = 1.0,
-                                     ) -> tuple[np.ndarray,
-                                                np.ndarray]:
+    def pos_fill_frame(coords_world: np.ndarray,
+                        pixel_num: np.ndarray,
+                        pixel_size: np.ndarray,
+                        focal_leng: float,
+                        cam_rot: Rotation,
+                        frame_fill: float = 1.0,
+                        ) -> tuple[np.ndarray,np.ndarray]:
+
         fov_leng = CameraTools.fov_from_cam_rot_3d(
             cam_rot=cam_rot,
             coords_world=coords_world,
@@ -317,12 +306,18 @@ class CameraTools:
         cam_z_dir_world = cam_rot.as_matrix()[:,-1]
         cam_pos_world = (roi_pos_world + np.max(image_dist)*cam_z_dir_world)
 
-        print(80*"-")
-        print(f"{fov_leng=}")
-        print(f"{image_dist=}")
-        print(80*"-")
-
         return (roi_pos_world,cam_pos_world)
+
+    @staticmethod
+    def pos_fill_frame_all(coords_world_list: list[np.ndarray],
+                            pixel_num: np.ndarray,
+                            pixel_size: np.ndarray,
+                            focal_leng: float,
+                            cam_rot: Rotation,
+                            frame_fill: float = 1.0,
+                            ) -> tuple[np.ndarray,np.ndarray]:
+        pass
+
 
 
     #-------------------------------------------------------------------------------

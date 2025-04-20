@@ -6,16 +6,17 @@ Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from pathlib import Path
+import time
 from multiprocessing.pool import Pool
 import numpy as np
 import numba
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from pyvale.core.cameradata import CameraData
 from pyvale.core.cameratools import CameraTools
-from pyvale.core.rendermesh import RenderMeshData
+from pyvale.core.rendermesh import RenderMesh
 from pyvale.core.renderer import IRenderEngine, RenderScene
 from pyvale.core.rasteropts import RasterOpts
-from pyvale.core.visualimages import plot_field_image
+#from pyvale.core.visualimages import plot_field_image
 import pyvale.core.cython.rastercyth as rastercyth
 
 
@@ -207,31 +208,32 @@ class RasterNP:
 
 
     @staticmethod
-    def setup_frame(world_to_cam_mat: np.ndarray,
-                    pixels_num: np.ndarray,
-                    image_dims: np.ndarray,
-                    image_dist: float,
-                    coords_world: np.ndarray,
-                    connectivity: np.ndarray,
-                    disp_field_frame: np.ndarray | None = None,
+    def setup_frame(camera: CameraData,
+                    mesh: RenderMesh,
+                    frame_ind: int = 0,
                     ) -> tuple[np.ndarray,np.ndarray,np.ndarray]:
 
-        connect_in_frame = np.copy(connectivity)
-        coords_deform = np.copy(coords_world)
+        connect_in_frame = np.copy(mesh.connectivity)
+        coords_deform = np.copy(mesh.coords)
 
         #-----------------------------------------------------------------------
         # DEFORM MESH WITH DISPLACEMENT
-        if disp_field_frame is not None:
+        if mesh.fields_disp is not None:
             # Exclude w coord from mesh deformation
-            coords_deform[:,:-1] = coords_deform[:,:-1] + disp_field_frame
+            coords_deform[:,:-1] = (coords_deform[:,:-1]
+                                    + mesh.fields_disp[:,frame_ind,:])
+
+        #-----------------------------------------------------------------------
+        # Convert all meshes from local to world coords
+        coords_deform = np.matmul(coords_deform,mesh.mesh_to_world_mat.T)
 
         #-----------------------------------------------------------------------
         # Convert world coords of all elements in the scene
         # shape=(num_nodes,coord[x,y,z,w])
-        coords_raster = RasterNP.world_to_raster_coords(world_to_cam_mat,
-                                                        pixels_num,
-                                                        image_dims,
-                                                        image_dist,
+        coords_raster = RasterNP.world_to_raster_coords(camera.world_to_cam_mat,
+                                                        camera.pixels_num,
+                                                        camera.image_dims,
+                                                        camera.image_dist,
                                                         coords_deform)
 
         # Convert to perspective correct hyperbolic interpolation for z interp
@@ -243,7 +245,7 @@ class RasterNP:
         #-----------------------------------------------------------------------
         # BACKFACE REMOVAL
         # shape=(num_elems,)
-        back_face_mask = RasterNP.back_face_removal_mask(world_to_cam_mat,
+        back_face_mask = RasterNP.back_face_removal_mask(camera.world_to_cam_mat,
                                                          coords_deform,
                                                          connect_in_frame)
         connect_in_frame = connect_in_frame[back_face_mask,:]
@@ -252,7 +254,7 @@ class RasterNP:
         # CROPPING & BOUNDING BOX OPERATIONS
         (crop_mask,
          elem_bound_box_inds) = RasterNP.crop_and_bound_by_connect(
-            pixels_num,
+            camera.pixels_num,
             coords_raster,
             connect_in_frame,
         )
@@ -456,16 +458,14 @@ class RasterNP:
     def _deformed_meshes_frame_loop(frame_ind: int,
                                     field_ind: int,
                                     cam_data: CameraData,
-                                    meshes: list[RenderMeshData],
+                                    meshes: list[RenderMesh],
                                     save_path: Path | None
                                     ) -> np.ndarray | None:
 
-        num_meshes = len(meshes)
         depth_buff_subpx = 1e5*cam_data.image_dist*np.ones(cam_data.sub_samp*cam_data.pixels_num).T
         image_buff_subpx = np.full(cam_data.sub_samp*cam_data.pixels_num,0.0).T
 
-
-        for mm in range(num_meshes):
+        for mm in meshes:
             # coords_raster.shape=(num_coords,coord[x,y,z,w])
             # connect_in_frame.shape=(num_elems_in_scene,nodes_per_elem)
             # elem_bound_box_inds.shape=(num_elems_in_scene,4[x_min,x_max,y_min,y_max])
@@ -474,17 +474,13 @@ class RasterNP:
             connect_in_frame,
             elem_bound_box_inds,
             elem_areas) = RasterNP.setup_frame(
-                cam_data.world_to_cam_mat,
-                cam_data.pixels_num,
-                cam_data.image_dims,
-                cam_data.image_dist,
-                meshes[mm].coords,
-                meshes[mm].connectivity,
-                meshes[mm].fields_disp[:,frame_ind,:],
+                cam_data,
+                mm,
+                frame_ind,
             )
 
             # NOTE: the z coord has already been inverted in setup so we multiply here
-            render_field_div_z = (meshes[mm].fields_render[:,frame_ind,field_ind]
+            render_field_div_z = (mm.fields_render[:,frame_ind,field_ind]
                                  *coords_raster[:,2])
 
             # image_buffer.shape=(num_px_y,num_px_x)
@@ -519,108 +515,143 @@ class RasterNP:
 
     #---------------------------------------------------------------------------
     @staticmethod
-    def raster_static_mesh(cam_data: CameraData,
-                           meshes: list[RenderMeshData],
-                           save_path: Path | None = None,
-                           threads_num: int | None = None,
-                           ) -> np.ndarray | None:
+    def raster_static_scene(scene: RenderScene,
+                            save_path: Path | None = None,
+                            threads_num: int | None = None,
+                            ) -> list[np.ndarray] | None:
 
-        frames_num = meshes[0].fields_render.shape[1]
-        field_num = meshes[0].fields_render.shape[2]
-        (frames,fields) = np.meshgrid(np.arange(0,frames_num),
-                                       np.arange(0,field_num))
-        frames = frames.flatten()
-        fields = fields.flatten()
+        # TODO: we assume the number of frames and fields is the same per camera
+        # Fix this
+        frames_num = scene.meshes[0].fields_render.shape[1]
+        field_num = scene.meshes[0].fields_render.shape[2]
+
+        (cam_inds,
+         frame_inds,
+         field_inds) = np.meshgrid(np.arange(0,len(scene.cameras)),
+                                    np.arange(0,frames_num),
+                                    np.arange(0,field_num))
+
+        cam_inds = cam_inds.flatten()
+        frame_inds = frame_inds.flatten()
+        field_inds = field_inds.flatten()
+        frames_total = cam_inds.shape[0]
+
 
         if save_path is None:
-            images = np.empty((cam_data.pixels_num[1],
-                               cam_data.pixels_num[0],
-                               frames_num,
-                               field_num))
+            images = []
+            for cc in scene.cameras:
+                images.append(np.empty((cc.pixels_num[1],
+                                        cc.pixels_num[0],
+                                        frames_num,
+                                        field_num)))
         else:
             images = None
             if not save_path.is_dir():
                 save_path.mkdir()
 
+        #-----------------------------------------------------------------------
+        # FRAME SETUP
+        setup_start = time.perf_counter()
         # DO THIS ONCE: for non deforming meshes
         # coords_raster.shape=(num_coords,coord[x,y,z,w])
         # connect_in_frame.shape=(num_elems_in_scene,nodes_per_elem)
         # elem_bound_box_inds.shape=(num_elems_in_scene,4[x_min,x_max,y_min,y_max])
         # elem_areas.shape=(num_elems,)
 
-        coords_raster_list = []
-        connect_in_frame_list = []
-        elem_bound_box_inds_list = []
-        elem_areas_list = []
-        field_div_z_list = []
+        coords_raster_lists = []
+        connect_in_frame_lists = []
+        elem_bound_box_inds_lists = []
+        elem_areas_lists = []
+        field_div_z_lists = []
 
-        for ii,mm in enumerate(meshes):
-            (coords_raster,
-            connect_in_frame,
-            elem_bound_box_inds,
-            elem_areas) = RasterNP.setup_frame(
-                cam_data.world_to_cam_mat,
-                cam_data.pixels_num,
-                cam_data.image_dims,
-                cam_data.image_dist,
-                mm.coords,
-                mm.connectivity,
-            )
+        for cc in scene.cameras:
+            coords_raster_list = []
+            connect_in_frame_list = []
+            elem_bound_box_inds_list = []
+            elem_areas_list = []
+            field_div_z_list = []
 
-            coords_raster_list.append(coords_raster)
-            connect_in_frame_list.append(connect_in_frame)
-            elem_bound_box_inds_list.append(elem_bound_box_inds)
-            elem_areas_list.append(elem_areas)
+            for ii,mm in enumerate(scene.meshes):
+                (coords_raster,
+                connect_in_frame,
+                elem_bound_box_inds,
+                elem_areas) = RasterNP.setup_frame(cc,mm)
 
-            coord_num = coords_raster_list[ii].shape[0]
-            coord_mult = coords_raster_list[ii][:,2].reshape(coord_num,1,1)
-            field_div_z_list.append(mm.fields_render*coord_mult)
+                coords_raster_list.append(coords_raster)
+                connect_in_frame_list.append(connect_in_frame)
+                elem_bound_box_inds_list.append(elem_bound_box_inds)
+                elem_areas_list.append(elem_areas)
+
+                coord_num = coords_raster_list[ii].shape[0]
+                coord_mult = coords_raster_list[ii][:,2].reshape(coord_num,1,1)
+                field_div_z_list.append(scene.meshes[ii].fields_render*coord_mult)
+
+            coords_raster_lists.append(coords_raster_list)
+            connect_in_frame_lists.append(connect_in_frame_list)
+            elem_bound_box_inds_lists.append(elem_bound_box_inds_list)
+            elem_areas_lists.append(elem_areas_list)
+            field_div_z_lists.append(field_div_z_list)
+
+        end_setup = time.perf_counter()
+        setup_time = end_setup - setup_start#
+        print(80*"-")
+        print(f"Setup time: {setup_time:.4f} s")
+        print(80*"-")
 
 
-        # Loop over frames
+        #-----------------------------------------------------------------------
+        # RASTER OVER FRAMES
+        loop_start = time.perf_counter()
+
         if threads_num is None:
-            for ff in range(0,frames.shape[0]):
+            for ff in range(0,frames_total):
                 image = RasterNP._static_meshes_frame_loop(
-                    frames[ff],
-                    fields[ff],
-                    cam_data,
-                    coords_raster_list,
-                    connect_in_frame_list,
-                    elem_bound_box_inds_list,
-                    elem_areas_list,
-                    field_div_z_list,
+                    frame_inds[ff],
+                    field_inds[ff],
+                    scene.cameras[cam_inds[ff]],
+                    coords_raster_lists[cam_inds[ff]],
+                    connect_in_frame_lists[cam_inds[ff]],
+                    elem_bound_box_inds_lists[cam_inds[ff]],
+                    elem_areas_lists[cam_inds[ff]],
+                    field_div_z_lists[cam_inds[ff]],
                     save_path
                 )
 
                 if images is not None:
-                    images[:,:,frames[ff],fields[ff]] = image
+                    images[cam_inds[ff]][:,:,frame_inds[ff],field_inds[ff]] = image
 
         else:
             with Pool(threads_num) as pool:
                 processes_with_id = []
 
-
-                for ff in range(0,frames.shape[0]):
-                    args = (frames[ff],
-                            fields[ff],
-                            cam_data,
-                            coords_raster_list,
-                            connect_in_frame_list,
-                            elem_bound_box_inds_list,
-                            elem_areas_list,
-                            field_div_z_list,
+                for ff in range(0,frames_total):
+                    args = (frame_inds[ff],
+                            field_inds[ff],
+                            scene.cameras[cam_inds[ff]],
+                            coords_raster_lists[cam_inds[ff]],
+                            connect_in_frame_lists[cam_inds[ff]],
+                            elem_bound_box_inds_lists[cam_inds[ff]],
+                            elem_areas_lists[cam_inds[ff]],
+                            field_div_z_lists[cam_inds[ff]],
                             save_path)
 
                     process = pool.apply_async(
                             RasterNP._static_meshes_frame_loop, args=args
                     )
                     processes_with_id.append({"process": process,
-                                              "frame": frames[ff],
-                                              "field": fields[ff]})
+                                              "camera": cam_inds[ff],
+                                              "frame": frame_inds[ff],
+                                              "field": field_inds[ff]})
 
                 for pp in processes_with_id:
                     image = pp["process"].get()
-                    images[:,:,pp["frame"],pp["field"]] = image
+                    images[pp["camera"]][:,:,pp["frame"],pp["field"]] = image
+
+        loop_end = time.perf_counter()
+        loop_time = loop_end-loop_start
+        print(80*"-")
+        print(f"Loop time: {loop_time:.4f} s")
+        print(80*"-")
 
         if images is not None:
             return images
@@ -629,25 +660,35 @@ class RasterNP:
 
 
     @staticmethod
-    def raster_deformed_mesh(cam_data: CameraData,
-                             meshes: list[RenderMeshData],
-                             save_path: Path | None = None,
-                             parallel: int | None = None
-                             ) -> np.ndarray | None:
+    def raster_deformed_scene(scene: RenderScene,
+                              save_path: Path | None = None,
+                              parallel: int | None = None
+                              ) -> np.ndarray | None:
 
-        frames_num = meshes[0].fields_render.shape[1]
-        field_num = meshes[0].fields_render.shape[2]
-        (frames,fields) = np.meshgrid(np.arange(0,frames_num),
-                                       np.arange(0,field_num))
-        frames = frames.flatten()
-        fields = fields.flatten()
+        # TODO: we assume the number of frames and fields is the same per camera
+        # Fix this
+        frames_num = scene.meshes[0].fields_render.shape[1]
+        field_num = scene.meshes[0].fields_render.shape[2]
+
+        (cam_inds,
+         frame_inds,
+         field_inds) = np.meshgrid(np.arange(0,len(scene.cameras)),
+                                    np.arange(0,frames_num),
+                                    np.arange(0,field_num))
+
+        cam_inds = cam_inds.flatten()
+        frame_inds = frame_inds.flatten()
+        field_inds = field_inds.flatten()
+        frames_total = cam_inds.shape[0]
 
 
         if save_path is None:
-            images = np.empty((cam_data.pixels_num[1],
-                               cam_data.pixels_num[0],
-                               frames_num,
-                               field_num))
+            images = []
+            for cc in scene.cameras:
+                images.append(np.empty((cc.pixels_num[1],
+                                        cc.pixels_num[0],
+                                        frames_num,
+                                        field_num)))
         else:
             images = None
             if not save_path.is_dir():
@@ -655,38 +696,40 @@ class RasterNP:
 
 
         if parallel is None:
-            for ff in range(0,frames.shape[0]):
+            for ff in range(0,frames_total):
                 image = RasterNP._deformed_meshes_frame_loop(
-                    frames[ff],
-                    fields[ff],
-                    cam_data,
-                    meshes,
+                    frame_inds[ff],
+                    field_inds[ff],
+                    scene.cameras[cam_inds[ff]],
+                    scene.meshes,
                     save_path,
                 )
 
                 if images is not None:
-                    images[:,:,frames[ff],fields[ff]] = image
+                    images[cam_inds[ff]][:,:,frame_inds[ff],field_inds[ff]] = image
+
         else:
             with Pool(parallel) as pool:
                 processes_with_id = []
 
-                for ff in range(0,frames.shape[0]):
-                    args = (frames[ff],
-                            fields[ff],
-                            cam_data,
-                            meshes,
+                for ff in range(0,frames_total):
+                    args = (frame_inds[ff],
+                            field_inds[ff],
+                            scene.cameras[cam_inds[ff]],
+                            scene.meshes,
                             save_path)
 
                     process = pool.apply_async(
                             RasterNP._deformed_meshes_frame_loop, args=args
                     )
                     processes_with_id.append({"process": process,
-                                              "frame": frames[ff],
-                                              "field": fields[ff]})
+                                              "camera": cam_inds[ff],
+                                              "frame": frame_inds[ff],
+                                              "field": field_inds[ff]})
 
                 for pp in processes_with_id:
                     image = pp["process"].get()
-                    images[:,:,pp["frame"],pp["field"]] = image
+                    images[cam_inds[ff]][:,:,pp["frame"],pp["field"]] = image
 
         if images is not None:
             return images

@@ -6,6 +6,7 @@ Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 """
 from pathlib import Path
+import copy
 import time
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -51,9 +52,15 @@ def main() -> None:
                                         field_disp_keys=disp_comps)
 
     #===========================================================================
-    # render_mesh.fields_render = render_mesh.fields_render[:,-2:-1,:]
-    # render_mesh.fields_disp = render_mesh.fields_disp[:,-2:-1,:]
+    render_mesh.fields_render = render_mesh.fields_render[:,-2:-1,:]
+    render_mesh.fields_disp = render_mesh.fields_disp[:,-2:-1,:]
+    #render_mesh.fields_disp = None
     #===========================================================================
+
+    meshes = [render_mesh,copy.deepcopy(render_mesh)]
+    meshes[1].set_pos(np.array((-12.0,-12.0,-12.0)))
+    meshes[1].set_rot(Rotation.from_euler("zyx",(-45.0, 0.0, 0.0),degrees=True))
+    coords_all = pyv.get_all_coords_world(meshes)
 
     print()
     print(80*"-")
@@ -72,16 +79,15 @@ def main() -> None:
     print(80*"-")
     print()
 
-
     pixel_num = np.array((960,1280))
     pixel_size = np.array((5.3e-3,5.3e-3))
     focal_leng: float = 50
     cam_rot = Rotation.from_euler("zyx",(0.0, 0.0,-30.0),degrees=True)
-    fov_scale_factor: float = 1.1
+    fov_scale_factor: float = 1.05
 
     (roi_pos_world,
-     cam_pos_world) = pyv.CameraTools.pos_fill_frame_from_rotation(
-         coords_world=render_mesh.coords,
+     cam_pos_world) = pyv.CameraTools.pos_fill_frame(
+         coords_world=coords_all,
          pixel_num=pixel_num,
          pixel_size=pixel_size,
          focal_leng=focal_leng,
@@ -109,19 +115,29 @@ def main() -> None:
     print("World to camera matrix:")
     print(cam_data.world_to_cam_mat)
     print(80*"-")
-    print()
+
+    scene = pyv.RenderScene([cam_data,cam_data],meshes)
+
+    frames_per_camera = (scene.meshes[0].fields_render.shape[1]
+                        *scene.meshes[0].fields_render.shape[2])
+    frames_total = frames_per_camera*len(scene.cameras)
 
     print(80*"-")
-    total_frames = render_mesh.fields_render.shape[1]*render_mesh.fields_render.shape[2]
-    print(f"Time steps to render: {render_mesh.fields_render.shape[1]}")
-    print(f"Fields to render: {render_mesh.fields_render.shape[2]}")
-    print(f"Total frames to render: {total_frames}")
+    print("RENDER SCENE:")
+    print(f"Cameras #: {len(scene.cameras)}")
+    print(f"Meshes #:  {len(scene.meshes)}")
+    print()
+    print(f"Time steps: {scene.meshes[0].fields_render.shape[1]}")
+    print(f"Field #:    {scene.meshes[0].fields_render.shape[2]}")
+    print()
+    print(f"Frames per camera: {frames_per_camera}")
+    print(f"Frames total:      {frames_total}")
     print(80*"-")
+
 
     print()
     print(80*"=")
     print("RASTER LOOP START")
-
 
     save_path = Path.cwd()/"pyvale-output"
     if not save_path.is_dir():
@@ -132,31 +148,33 @@ def main() -> None:
     static_mesh = False
 
     time_start_loop = time.perf_counter()
+
     if static_mesh:
-        images = pyv.RasterNP.raster_static_mesh(
-            cam_data,[render_mesh,],save_path,threads_num=8
+        images = pyv.RasterNP.raster_static_scene(
+            scene,save_path,threads_num=8
         )
     else:
-        time_start_loop = time.perf_counter()
-        images = pyv.RasterNP.raster_deformed_mesh(
-            cam_data,[render_mesh,],save_path,parallel=12
+        images = pyv.RasterNP.raster_deformed_scene(
+            scene,save_path,parallel=None
         )
 
     time_end_loop = time.perf_counter()
     render_time = time_end_loop - time_start_loop
 
+    print(f"{images[0].shape=}")
+    print(f"{images[1].shape=}")
 
     print("RASTER LOOP END")
     print(80*"=")
     print("PERFORMANCE")
-    print(f"Total frames = {total_frames}")
+    print(f"Total frames = {frames_total}")
     print(f"Total render time = {render_time:.4f} seconds")
-    print(f"Time per frame = {(render_time/total_frames):.4f} seconds")
+    print(f"Time per frame = {(render_time/frames_total):.4f} seconds")
     print(80*"=")
 
     plot_on = True
     if plot_on:
-        (fig,ax) = pyv.plot_field_image(images[:,:,-1,0],
+        (fig,ax) = pyv.plot_field_image(images[1][:,:,-1,0],
                                         title_str="Disp. y, [mm]")
 
     plt.show()
