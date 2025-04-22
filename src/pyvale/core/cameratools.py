@@ -16,7 +16,6 @@ from PIL import Image
 from pyvale.core.cameradata2d import CameraData2D
 from pyvale.core.sensordata import SensorData
 from pyvale.core.cameradata import CameraData
-from pyvale.core.blenderscene import BlenderScene
 from pyvale.core.camerastereodata import CameraStereoData
 
 # NOTE: This module is a feature under developement.
@@ -449,7 +448,6 @@ class CameraTools:
                             rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                             roi_cent_world=(0, 0, 0),
                             focal_length=focal_length)
-        cam = BlenderScene.add_camera(cam_data)
         return cam_data
 
     @staticmethod

@@ -422,7 +422,7 @@ class BlenderScene():
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
         image_arrays = []
-        for timestep in range(1, timesteps):
+        for timestep in range(0, timesteps):
             deformed_nodes = SimTools.get_deformed_nodes(timestep,
                                                          render_mesh)
             if deformed_nodes is not None:
