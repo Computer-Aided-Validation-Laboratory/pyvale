@@ -18,9 +18,15 @@ import mooseherder as mh
 def sample_scene_no_cam():
     data_path = Path.cwd() / 'tests/blender/test_out.e'
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    disp_comps = ("disp_x","disp_y")
+    sim_data = pyvale.scale_length_units(sim_data,disp_comps,1000.0)
+    render_mesh = pyvale.create_render_mesh(sim_data,
+                                        ("disp_y","disp_x"),
+                                        sim_spat_dim=3,
+                                        field_disp_keys=disp_comps)
 
     pyvale.BlenderScene.reset_scene()
-    part = pyvale.BlenderScene.add_part(sim_data)
+    part = pyvale.BlenderScene.add_part(render_mesh, sim_spat_dim=3)
     light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
                                          pos_world=(0, 0, 400),
                                          rot_world=Rotation.from_euler("xyz",
@@ -35,18 +41,20 @@ def sample_scene_no_cam():
                                  focal_length=10)
     material_data = pyvale.BlenderMaterialData()
     speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
+    mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data_0)
     pyvale.BlenderScene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
-                                    cam_data=cam_data_0)
-    return cam_data_0, part, sim_data
+                                    mm_px_resolution=mm_px_resolution)
+    return cam_data_0, part, render_mesh
 
 @pytest.fixture
 def sample_stereo_scene(sample_scene_no_cam):
-    cam_data_0, part, sim_data = sample_scene_no_cam
-    cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
+    cam_data_0, part, render_mesh = sample_scene_no_cam
+    stereo_data = pyvale.CameraTools.faceon_stereo_cameras(cam_data_0=cam_data_0,
                                                   stereo_angle=15.0)
-    return (cam_data_0, cam_data_1, part, sim_data)
+    cam0, cam1 = pyvale.BlenderScene.add_stereo_system(stereo_data)
+    return (stereo_data, part, render_mesh)
 
 @pytest.mark.parametrize(
     "placement, output",
@@ -58,50 +66,48 @@ def sample_stereo_scene(sample_scene_no_cam):
 def test_stereo_convenience_cameras(placement, output, request, sample_scene_no_cam, tmp_path):
     (cam_data_0, _, _) = sample_scene_no_cam
     if placement == "symmetric":
-        cam_data_1 = pyvale.blender_symmetric_stereo(cam_data_0=cam_data_0,
-                                                     stereo_angle=15.0)
+        stereo_data = pyvale.CameraTools.symmetric_stereo_cameras(
+            cam_data_0=cam_data_0,
+            stereo_angle=15.0)
     if placement == "faceon":
-        cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
-                                                  stereo_angle=15.0)
-    render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
+        stereo_data = pyvale.CameraTools.faceon_stereo_cameras(
+            cam_data_0=cam_data_0,
+            stereo_angle=15.0)
+    cam0, cam1 = pyvale.BlenderScene.add_stereo_system(stereo_data)
+    render_data = pyvale.RenderData(cam_data=(stereo_data.cam_data_0,
+                                              stereo_data.cam_data_1),
                                     save_dir=tmp_path,
                                     save_name="test")
-    image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+    image_array = pyvale.BlenderScene.render_single_image(bounce_image=True,
+                                                          render_data=render_data)
     output = request.getfixturevalue(output)
 
     npt.assert_array_equal(image_array, output)
 
 def test_stereo_deformation(sample_stereo_scene, deformed_images, tmp_path):
-    (cam_data_0, cam_data_1, part, sim_data) = sample_stereo_scene
-    render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
-                                    save_dir =tmp_path,
+    (stereo_data, part, render_mesh) = sample_stereo_scene
+    render_data = pyvale.RenderData(cam_data=(stereo_data.cam_data_0,
+                                              stereo_data.cam_data_1),
+                                    save_dir=tmp_path,
                                     save_name='test')
-    image_arrays = pyvale.BlenderScene.render_deformed_images(sim_data=sim_data,
+    image_arrays = pyvale.BlenderScene.render_deformed_images(render_mesh,
+                                                              sim_spat_dim=3,
                                                               render_data=render_data,
                                                               part=part,
-                                                              save=False)
-
+                                                              bounce_image=True)
     npt.assert_array_equal(image_arrays, deformed_images)
 
-def test_cal_images(sample_stereo_scene, tmp_path):
-    (cam_data_0, cam_data_1, part, _) = sample_stereo_scene
-    render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
-                                    save_dir=tmp_path,
-                                    save_name="test")
+def test_cal_images(sample_stereo_scene):
     calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
                                               angle_step=5,
                                               plunge_lims=(-5, 5),
                                               plunge_step=5)
-    number_cal_images = pyvale.BlenderTools.calibration_images(render_data,
-                                                               calibration_data,
-                                                               part,
-                                                               render = False)
+    number_cal_images = pyvale.BlenderTools.number_calibration_images(calibration_data)
 
     assert number_cal_images == 675
 
 def test_calib_file(tmp_path, sample_stereo_scene):
-    (cam_data_0, cam_data_1, _, _) = sample_stereo_scene
-    stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
+    (stereo_data, _, _) = sample_stereo_scene
     calib_filepath = tmp_path
     pyvale.BlenderTools.generate_calib_file(stereo_data, calib_filepath)
 

@@ -17,9 +17,15 @@ import mooseherder as mh
 def sample_scene():
     data_path = Path.cwd() / 'tests/blender/test_out.e'
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    disp_comps = ("disp_x","disp_y")
+    sim_data = pyvale.scale_length_units(sim_data,disp_comps,1000.0)
+    render_mesh = pyvale.create_render_mesh(sim_data,
+                                        ("disp_y","disp_x"),
+                                        sim_spat_dim=3,
+                                        field_disp_keys=disp_comps)
 
     pyvale.BlenderScene.reset_scene()
-    part = pyvale.BlenderScene.add_part(sim_data)
+    part = pyvale.BlenderScene.add_part(render_mesh, sim_spat_dim=3)
     cam_data = pyvale.CameraData(pixels_num=np.array([20, 20]),
                                  pixels_size=np.array([0.00345, 0.00345]),
                                  pos_world=(0, 0, 700),
@@ -35,19 +41,26 @@ def sample_scene():
     light = pyvale.BlenderScene.add_light(light_data)
     material_data = pyvale.BlenderMaterialData()
     speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
+    mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data)
     pyvale.BlenderScene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
-                                    cam_data=cam_data)
-    return sim_data, part, cam_data
+                                    mm_px_resolution=mm_px_resolution)
+    return render_mesh, part, cam_data
 
 @pytest.fixture
 def sample_scene_no_light():
     data_path = Path.cwd() / 'tests/blender/test_out.e'
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    disp_comps = ("disp_x","disp_y")
+    sim_data = pyvale.scale_length_units(sim_data,disp_comps,1000.0)
+    render_mesh = pyvale.create_render_mesh(sim_data,
+                                        ("disp_y","disp_x"),
+                                        sim_spat_dim=3,
+                                        field_disp_keys=disp_comps)
 
     pyvale.BlenderScene.reset_scene()
-    part = pyvale.BlenderScene.add_part(sim_data)
+    part = pyvale.BlenderScene.add_part(render_mesh, sim_spat_dim=3)
     cam_data = pyvale.CameraData(pixels_num=np.array([20, 20]),
                                  pixels_size=np.array([0.00345, 0.00345]),
                                  pos_world=(0, 0, 700),
@@ -57,19 +70,26 @@ def sample_scene_no_light():
     camera = pyvale.BlenderScene.add_camera(cam_data)
     material_data = pyvale.BlenderMaterialData()
     speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
+    mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data)
     pyvale.BlenderScene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
-                                    cam_data=cam_data)
+                                    mm_px_resolution=mm_px_resolution)
     return cam_data
 
 @pytest.fixture
 def sample_scene_no_cam():
     data_path = Path.cwd() / 'tests/blender/test_out.e'
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    disp_comps = ("disp_x","disp_y")
+    sim_data = pyvale.scale_length_units(sim_data,disp_comps,1000.0)
+    render_mesh = pyvale.create_render_mesh(sim_data,
+                                        ("disp_y","disp_x"),
+                                        sim_spat_dim=3,
+                                        field_disp_keys=disp_comps)
 
     pyvale.BlenderScene.reset_scene()
-    part = pyvale.BlenderScene.add_part(sim_data)
+    part = pyvale.BlenderScene.add_part(render_mesh, sim_spat_dim=3)
     light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
                                          pos_world=(0, 0, 400),
                                          rot_world=Rotation.from_euler("xyz",
@@ -97,7 +117,8 @@ def test_lighting_energy(energy, output, sample_scene_no_light, request, tmp_pat
     render_data = pyvale.RenderData(cam_data=cam_data,
                                     save_dir=tmp_path,
                                     save_name='test')
-    image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+    image_array = pyvale.BlenderScene.render_single_image(bounce_image=True,
+                                                          render_data=render_data)
     output = request.getfixturevalue(output)
 
     npt.assert_array_equal(image_array, output)
@@ -120,14 +141,16 @@ def test_camera_shape(pixels_num, output, request, sample_scene_no_cam, tmp_path
     camera = pyvale.BlenderScene.add_camera(cam_data)
     material_data = pyvale.BlenderMaterialData()
     speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
+    mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data)
     pyvale.BlenderScene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
-                                    cam_data=cam_data)
+                                    mm_px_resolution=mm_px_resolution)
     render_data = pyvale.RenderData(cam_data=cam_data,
                                     save_dir=tmp_path,
                                     save_name='test')
-    image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+    image_array = pyvale.BlenderScene.render_single_image(bounce_image=True,
+                                                          render_data=render_data)
     output = request.getfixturevalue(output)
 
     npt.assert_array_equal(image_array, output)
@@ -138,32 +161,35 @@ def test_camera_from_resolution(sample_scene_no_cam, cam_from_resolution, tmp_pa
     pixels_size = np.array([0.00345, 0.00345])
     working_dist = 700
     resolution = 0.1
-    cam_data = pyvale.blender_camera_from_resolution(pixels_num,
+    cam_data = pyvale.CameraTools.blender_camera_from_resolution(pixels_num,
                                                      pixels_size,
                                                      working_dist,
                                                      resolution)
+    cam = pyvale.BlenderScene.add_camera(cam_data)
     material_data = pyvale.BlenderMaterialData()
     speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
+    mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data)
     pyvale.BlenderScene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
-                                    cam_data=cam_data)
+                                    mm_px_resolution=mm_px_resolution)
     render_data = pyvale.RenderData(cam_data=cam_data,
                                     save_dir=tmp_path,
                                     save_name='test')
-    image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+    image_array = pyvale.BlenderScene.render_single_image(bounce_image=True, render_data=render_data)
 
     npt.assert_array_equal(image_array, cam_from_resolution)
 
 def test_deformation(sample_scene, deformed_images, tmp_path):
-    (sim_data, part, cam_data) = sample_scene
+    (render_mesh, part, cam_data) = sample_scene
     render_data = pyvale.RenderData(cam_data=cam_data,
                                     save_dir = tmp_path,
                                     save_name='test')
-    image_arrays = pyvale.BlenderScene.render_deformed_images(sim_data=sim_data,
+    image_arrays = pyvale.BlenderScene.render_deformed_images(render_mesh,
+                                                              sim_spat_dim=3,
                                                               render_data=render_data,
                                                               part=part,
-                                                              save=False)
+                                                              bounce_image=True)
 
     npt.assert_array_equal(image_arrays, deformed_images)
 
@@ -180,7 +206,8 @@ def test_samples_happy(samples, output, request, sample_scene, tmp_path):
                                     save_dir=tmp_path,
                                     save_name='test',
                                     samples=samples)
-    image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+    image_array = pyvale.BlenderScene.render_single_image(bounce_image=True,
+                                                          render_data=render_data)
     output = request.getfixturevalue(output)
 
     npt.assert_array_equal(image_array, output)
@@ -193,7 +220,8 @@ def test_samples_unhappy(sample_scene, tmp_path):
                                     save_name='test',
                                     samples=samples)
     with pytest.raises(TypeError):
-        image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+        image_array = pyvale.BlenderScene.render_single_image(bounce_image=True,
+                                                              render_data=render_data)
 
 
 @pytest.mark.parametrize(
@@ -209,7 +237,8 @@ def test_max_bounces_happy(bounces, output, request, sample_scene, tmp_path):
                                     save_dir=tmp_path,
                                     save_name='test',
                                     max_bounces=bounces)
-    image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+    image_array = pyvale.BlenderScene.render_single_image(bounce_image=True,
+                                                          render_data=render_data)
     output = request.getfixturevalue(output)
 
     npt.assert_array_equal(image_array, output)
@@ -222,7 +251,8 @@ def test_max_bounces_unhappy(sample_scene, tmp_path):
                                     save_name='test',
                                     max_bounces=bounces)
     with pytest.raises(TypeError):
-        image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+        image_array = pyvale.BlenderScene.render_single_image(bounce_image=True,
+                                                              render_data=render_data)
 
 @pytest.mark.parametrize(
         "engine, output",
@@ -237,7 +267,8 @@ def test_render_engine(engine, output, request, sample_scene, tmp_path):
                                     save_dir=tmp_path,
                                     save_name='test',
                                     engine=engine)
-    image_array = pyvale.BlenderScene.render_single_image(save=False, render_data=render_data)
+    image_array = pyvale.BlenderScene.render_single_image(bounce_image=True,
+                                                          render_data=render_data)
     output = request.getfixturevalue(output)
 
     npt.assert_array_equal(image_array, output)
