@@ -13,19 +13,18 @@ class RenderEngine(Enum):
 @dataclass
 class RenderData:
     cam_data: CameraData | tuple[CameraData, CameraData]
-    save_dir: Path | None
-    save_name : str | None
-    samples: int | None = None
-    engine: RenderEngine | None = None
-    max_bounces: int | None = None
-    bit_size: int | None = None
+    save_dir: Path | None = None
+    save_name: str| None = None
+    samples: int = 2
+    engine: RenderEngine = RenderEngine.CYCLES
+    max_bounces: int = 12
+    bit_size: int = 8
+    threads:int = 4
 
     def __post_init__(self) -> None:
-        if self.max_bounces is None:
-            self.max_bounces = 12
-        if self.engine is None:
-            self.engine = RenderEngine.CYCLES
-        if self.samples is None:
-            self.samples = 2
-        if self.bit_size is None:
-            self.bit_size = 8
+        if self.save_dir is None:
+            self.save_dir = Path.cwd() / "blenderimages"
+            if not self.save_dir.is_dir():
+                self.save_dir.mkdir(parents=True, exist_ok=True)
+        if self.save_name is None:
+            self.save_name = "blenderimage"
