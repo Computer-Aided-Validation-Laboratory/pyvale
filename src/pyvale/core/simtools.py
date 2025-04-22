@@ -6,8 +6,6 @@ Copyright (C) 2024 The Computer Aided Validation Team
 ================================================================================
 """
 import numpy as np
-import pyvista as pv
-import mooseherder as mh
 from pyvale.core.rendermesh import RenderMeshData
 
 class SimTools():
@@ -49,19 +47,14 @@ class SimTools():
         ----------
         timestep : int
             The timestep at which to find the deformed nodes.
-        pv_surf : pv.PolyData
-            A pyvista surface mesh.
-        spat_dim : int
-            The spatial dimension of the mesh.
-        components : tuple
-            The simulated component variable names e.g. disp_x.
+        render_mesh: RenderMeshData
+            A dataclass containing the skinned mesh and simulation results.
 
         Returns
         -------
         np.ndarray | None
             An array containing the deformed values of all the components at
-            each node location. Returns None if the simulation results do not
-            contain the given components.
+            each node location. Returns None if there are no deformation values.
         """
         if render_mesh.fields_disp is not None:
             added_disp = render_mesh.fields_disp[:, timestep]

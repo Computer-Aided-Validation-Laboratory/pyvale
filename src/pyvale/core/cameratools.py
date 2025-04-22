@@ -376,13 +376,7 @@ class CameraTools:
 
     @staticmethod
     def calculate_mm_px_resolution(cam_data: CameraData) -> float:
-        FOV_mm = CameraTools.blender_FOV(cam_data)
-        resolution = FOV_mm[0] / cam_data.pixels_num[0]
-        return resolution
-
-    @staticmethod
-    def angular_fov(cam_data: CameraData) -> float: # Not sure if this function is necessary
-        """A method to calculate the angular field of view of a camera in degrees
+        """Function to calculate the mm/px resolution of a camera
 
         Parameters
         ----------
@@ -392,14 +386,11 @@ class CameraTools:
         Returns
         -------
         float
-            The angular field of view in the x-direction in degrees
+            The mm/px resolution
         """
-        (FOV_x, _) = CameraTools.calculate_FOV(cam_data)
-        working_dist = cam_data.pos_world[2] - cam_data.roi_cent_world[2]
-        half_FOV = FOV_x / 2
-        half_AFOV = np.arctan(half_FOV / working_dist)
-        AFOV_x = np.degrees(half_AFOV) * 2
-        return AFOV_x
+        FOV_mm = CameraTools.blender_FOV(cam_data)
+        resolution = FOV_mm[0] / cam_data.pixels_num[0]
+        return resolution
 
     @staticmethod
     def focal_length_from_resolution(pixels_size: np.ndarray,

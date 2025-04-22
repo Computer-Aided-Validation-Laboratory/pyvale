@@ -158,15 +158,17 @@ class BlenderScene():
     @staticmethod
     def add_part(render_mesh: RenderMeshData,
                  sim_spat_dim: int) -> bpy.data.objects:
-        """A method to add a part mesh into Blender, given a SimData object.
-        This is done by taking the mesh information from the SimData object and
-        converting it into a form that is accepted by Blender.
+        """A method to add a part mesh into Blender, given a RenderMeshData object.
+        This is done by taking the mesh information from the RenderMeshData
+        object and converting it into a form that is accepted by Blender.
 
         Parameters
         ----------
-        sim_data : mh.SimData
-            A dataclass containing all the information about the mesh and
-            simulation
+        render_mesh: RenderMeshData
+            A dataclass containing the mesh information of the skinned
+            simulation mesh.
+        sim_spat_dim: int
+            The spatial dimension of the simulation mesh.
 
         Returns
         -------
@@ -188,6 +190,19 @@ class BlenderScene():
 
     @staticmethod
     def add_cal_target(target_size: np.ndarray) -> bpy.data.objects:
+        """A function to add a calibration target object to a Blender scene.
+
+        Parameters
+        ----------
+        target_size : np.ndarray
+            The dimensions of the calibration target, with the
+            shape=(width, height, depth).
+
+        Returns
+        -------
+        bpy.data.objects
+            A Blender part object of the calibration target.
+        """
         nodes = [
             (-target_size[0] / 2, target_size[1] / 2, 0),
             (-target_size[0] / 2, -target_size[1] / 2, 0),
@@ -362,9 +377,11 @@ class BlenderScene():
 
         Parameters
         ----------
-        sim_data : mh.SimData
-            A dataclass containing simulation information such as the part mesh,
-            but also displacement information.
+        render_mesh : RenderMeshData
+            A dataclass containing the skimmed mesh and simulation information
+            needed to deform the sample.
+        sim_spat_dim: int
+            The spatial dimension of the simulation.
         render_data : RenderData
             A dataclass containing the parameters necessary to render an image.
         part : bpy.data.objects

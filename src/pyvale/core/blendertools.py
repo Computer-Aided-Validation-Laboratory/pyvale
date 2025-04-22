@@ -9,9 +9,8 @@ import numpy as np
 from pathlib import Path
 from scipy.spatial.transform import Rotation
 from PIL import Image
-from multiprocessing import cpu_count
 import bpy
-import pyvale
+from pyvale.core.cameratools import CameraTools
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.camerastereodata import CameraStereoData
 from pyvale.core.blenderrenderdata import RenderData, RenderEngine
@@ -58,7 +57,7 @@ class BlenderTools():
 
     @staticmethod
     def move_blender_obj(pos_world: np.ndarray, part: bpy.data.objects) -> None:
-        """A method to move the part object within Blender.
+        """A method to move an object within Blender.
 
         Parameters
         ----------
@@ -73,7 +72,7 @@ class BlenderTools():
 
     @staticmethod
     def rotate_blender_obj(rot_world: Rotation, part: bpy.data.objects) -> None:
-        """A method to rotate the part object within Blender.
+        """A method to rotate an object within Blender.
 
         Parameters
         ----------
@@ -330,7 +329,23 @@ class BlenderTools():
             file.write(f"Phi [deg];{stereo_rotation[1]}\n")
             file.write(f"Psi [deg];{stereo_rotation[2]}")
 
+    @staticmethod
     def number_calibration_images(calibration_data: CalibrationData) -> int:
+        """A function to calculate the number of calibration images that will
+        be rendered, given the calibration target's movement limits.
+
+        Parameters
+        ----------
+        calibration_data : CalibrationData
+            A dataclass detailing the movement the calibration target will have
+            throughout the calibration
+
+        Returns
+        -------
+        int
+            The number of calibration images that will be rendered with the
+            given settings
+        """
         number_plunge_steps = (((calibration_data.plunge_lims[1] -
                                calibration_data.plunge_lims[0]) /
                                calibration_data.plunge_step) + 1)
@@ -352,7 +367,7 @@ class BlenderTools():
         Parameters
         ----------
         render_data : RenderData
-            The
+            A dataclass containing the parameters needed to render the images
         calibration_data : CalibrationData
             A dataclass containing the parameters by which to move the calibration
             target. These inclcude the plungle depth and rotation angle.
@@ -374,7 +389,7 @@ class BlenderTools():
         bpy.context.scene.render.image_settings.color_mode = "BW"
         bpy.context.scene.render.image_settings.color_depth = str(render_data.bit_size)
         bpy.context.scene.render.threads_mode = "FIXED"
-        bpy.context.scene.render.threads = int(cpu_count())
+        bpy.context.scene.render.threads = render_data.threads
         bpy.context.scene.render.image_settings.file_format = "TIFF"
 
         if render_data.engine == RenderEngine.CYCLES:
@@ -390,7 +405,7 @@ class BlenderTools():
         for ii in range(plunge_steps):
             plunge = calibration_data.plunge_lims[0] + calibration_data.plunge_step * ii
             # Plunge
-            (FOV_x, FOV_y) = pyvale.CameraTools.blender_FOV(render_data.cam_data[0])
+            (FOV_x, FOV_y) = CameraTools.blender_FOV(render_data.cam_data[0])
             x_limit = int(round((FOV_x / 2) - (part.dimensions[0] / 2)))
 
             y_limit = int(round((FOV_y / 2) - (part.dimensions[1] / 2)))
