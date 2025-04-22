@@ -17,6 +17,8 @@ from pyvale.core.blendertools import BlenderTools
 from pyvale.core.simtools import SimTools
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.blenderrenderdata import RenderData, RenderEngine
+from pyvale.core.camerastereodata import CameraStereoData
+from pyvale.core.rendermesh import RenderMeshData
 
 # NOTE: This module is a feature under development
 
@@ -100,26 +102,24 @@ class BlenderScene():
         return camera
 
     @staticmethod
-    def add_stereo_system(cam_data_0: CameraData,
-                          cam_data_1: CameraData) -> tuple[bpy.data.objects,
+    def add_stereo_system(stereo_data: CameraStereoData) -> tuple[bpy.data.objects,
                                                            bpy.data.objects]:
         """A method to add a stereo camera system within Blender, given two
         CameraData objects (one for each camera).
 
         Parameters
         ----------
-        cam_data_0 : CameraData
-            A dataclass containing the necessary parameters for camera 0.
-        cam_data_1 : CameraData
-            A dataclass containing the necessary parameters for camera 1.
+        stereo_data : CameraSteroData
+            A dataclass containing each camera's individual CameraData dataclass,
+            as well as the extrinsic parameters present in the stereo setup.
 
         Returns
         -------
         tuple[bpy.data.objects, bpy.data.objects]
             A tuple of the Blender camera objects: camera 0 and camera 1.
         """
-        cam0 = BlenderScene.add_camera(cam_data_0)
-        cam1 = BlenderScene.add_camera(cam_data_1)
+        cam0 = BlenderScene.add_camera(stereo_data.cam_data_0)
+        cam1 = BlenderScene.add_camera(stereo_data.cam_data_1)
         return cam0, cam1
 
     @staticmethod
@@ -159,7 +159,8 @@ class BlenderScene():
         return light_ob
 
     @staticmethod
-    def add_part(sim_data: mh.SimData) -> bpy.data.objects:
+    def add_part(render_mesh: RenderMeshData,
+                 sim_spat_dim: int) -> bpy.data.objects:
         """A method to add a part mesh into Blender, given a SimData object.
         This is done by taking the mesh information from the SimData object and
         converting it into a form that is accepted by Blender.
@@ -175,20 +176,10 @@ class BlenderScene():
         bpy.data.objects
             The Blender part object that is created.
         """
-        spat_dim = SimTools.get_mesh_spat_dim(sim_data)
-        components = SimTools.get_simulation_components(sim_data)
-        sim_data.coords = sim_data.coords * 1000 # Change from m to mm
-        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords, spat_dim)
-        (pv_grid, _) = pyvale.simdata_to_pyvista(sim_data,
-                                                      components,
-                                                      spat_dim)
-        pv_surf = SimTools.conv_pvgrid_to_pvsurf(pv_grid)
-
-
-        vertices = pv_surf.points
-        elements_per_face = SimTools.surf_mesh_elements_per_face(pv_surf)
-        faces = pv_surf.faces.reshape(-1, elements_per_face)
-        faces = np.delete(faces, 0, axis=1)
+        nodes_centred = SimTools.centre_mesh_nodes(render_mesh.coords,
+                                              sim_spat_dim)
+        vertices = np.delete(nodes_centred, 3, axis=1)
+        faces = render_mesh.connectivity
 
         mesh = bpy.data.meshes.new("Part")
         mesh.from_pydata(vertices, [], faces)
@@ -199,10 +190,29 @@ class BlenderScene():
         return part
 
     @staticmethod
+    def add_cal_target(target_size: np.ndarray) -> bpy.data.objects:
+        nodes = [
+            (-target_size[0] / 2, target_size[1] / 2, 0),
+            (-target_size[0] / 2, -target_size[1] / 2, 0),
+            (target_size[0] / 2, -target_size[1] / 2, 0),
+            (target_size[0] / 2, target_size[1] / 2, 0),
+        ]
+        elements = [(0, 1, 2, 3)]
+        thickness = target_size[2]
+        mesh = bpy.data.meshes.new("part")
+        mesh.from_pydata(nodes, [], elements)
+        target = bpy.data.objects.new("specimen", mesh)
+        bpy.context.scene.collection.objects.link(target)
+        target.modifiers.new(name="solidify", type="SOLIDIFY")
+        target.modifiers["solidify"].thickness = thickness
+        target.location = (0, 0, -target_size[2])
+        return target
+
+    @staticmethod
     def add_speckle(part: bpy.data.objects,
                     speckle_path: Path | None,
                     mat_data: BlenderMaterialData | None,
-                    cam_data: CameraData,
+                    mm_px_resolution: float,
                     cal: bool = False) -> None:
         """A method to add a speckle pattern to an existing mesh object within
         Blender. The speckle pattern can either be passed in as an image file
@@ -220,19 +230,15 @@ class BlenderScene():
         mat_data : BlenderMaterialData | None
             A dataclass containin the material parameters. If this is None, it
             is initialised within the method.
-        cam_data : CameraData
-            A dataclass containing the initialisation parameters for the camera
-            object. This is necessary to scale the speckle pattern on the part
-            object for an optimal number of pixels per speckle (this method outputs
-            around 4 pixels per speckle).
+        mm_px_resolution: float
+            The mm/px resolution of the camera. This is required in order to
+            scale the speckle image.
         cal : bool, optional
             A flag that can be set if a calibration target image is added to
             a Blender part object. When set to True, the part object is UV
             unwrapped differently to ensure the correct scaling, by default False
         """
         BlenderTools.clear_material_nodes(part)
-        (FOV_x, _) = pyvale.blender_FOV(cam_data)
-        resolution = FOV_x / cam_data.pixels_num[0]
         if mat_data is None:
             mat_data = BlenderMaterialData()
         if speckle_path.exists():
@@ -240,13 +246,16 @@ class BlenderScene():
         else:
             speckle_pattern = np.array() # Generate speckle pattern array
             BlenderTools.add_image_texture(mat_data=mat_data, image_array=speckle_pattern)
-        BlenderTools.uv_unwrap_part(part, resolution, cal)
+        BlenderTools.uv_unwrap_part(part, mm_px_resolution, cal)
 
     @staticmethod
-    def deform_all_timesteps(sim_data: mh.SimData, part: bpy.data.objects) -> None:
+    def debug_deform(render_mesh: RenderMeshData,
+                     sim_spat_dim:int,
+                     part: bpy.data.objects) -> None:
         """A method to deform the Blender mesh object using the simulation results.
         This is done by taking the displacements to the nodes, and applying it
-        in Blender.
+        in Blender. It should be noted that this only deforms the mesh without
+        rendering any images, mainly useful for debugging code.
 
         Parameters
         ----------
@@ -257,28 +266,21 @@ class BlenderScene():
             The Blender part object which is to be deformed, normally as sample
             object.
         """
-        timesteps = sim_data.time.shape[0]
-        spat_dim = SimTools.get_mesh_spat_dim(sim_data)
-        components = SimTools.get_simulation_components(sim_data)
-        sim_data.coords = sim_data.coords
-        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords, spat_dim)
-        (pv_grid, _) = pyvale.simdata_to_pyvista(sim_data,
-                                                 components,
-                                                 spat_dim)
-        pv_surf = SimTools.conv_pvgrid_to_pvsurf(pv_grid)
+        render_mesh.coords = SimTools.centre_mesh_nodes(render_mesh.coords,
+                                                        sim_spat_dim)
+        timesteps = render_mesh.fields_render.shape[1]
+
 
         for timestep in range(1, timesteps):
             deformed_nodes = SimTools.get_deformed_nodes(timestep,
-                                                         pv_surf,
-                                                         spat_dim,
-                                                         components)
+                                                         render_mesh)
             if deformed_nodes is not None:
                 BlenderTools.deform_single_timestep(part, deformed_nodes)
                 BlenderTools.set_new_frame(part)
 
     @staticmethod
     def render_single_image(render_data: RenderData,
-                            save: bool | None = True) -> None | np.ndarray:
+                            bounce_image: bool | None = True) -> None | np.ndarray:
         """A method to render an images(s) of the current scene in Blender.
         Depending on the number of cameras, either one or two images will be
         rendered.
@@ -287,10 +289,12 @@ class BlenderScene():
         ----------
         render_data : RenderData
             A dataclass containing the parameters needed to render an image.
-        save : bool | None, optional
+        bounce_image : bool | None, optional
             A flag that can be set to either save the rendered to disk or not.
             If set to False, an array of the image or stack of images will be
-            returned, by default True
+            returned, by default True. In order to output these images as an
+            array, the image will first be saved to the disk and then bounced
+            back as an array.
 
         Returns
         -------
@@ -326,14 +330,14 @@ class BlenderScene():
                 filename = render_data.save_name + "_" + str(image_count) + "_" + str(cam_count) + ".tiff"
                 filepath = render_data.save_dir / filename
                 bpy.context.scene.render.filepath = str(filepath)
-                if save is True:
-                    bpy.ops.render.render(write_still=True)
-                else:
+                if bounce_image:
                     bpy.ops.render.render(write_still=True)
                     image_array = BlenderTools.save_render_as_array(filepath)
                     image_arrays.append(image_array)
+                else:
+                    bpy.ops.render.render(write_still=True)
                 cam_count += 1
-            if save is not True:
+            if bounce_image:
                 image_arrays = np.dstack(image_arrays)
                 return image_arrays
         else:
@@ -343,18 +347,19 @@ class BlenderScene():
             filename = render_data.save_name + "_" + str(image_count) + ".tiff"
             filepath = render_data.save_dir / filename
             bpy.context.scene.render.filepath = str(filepath)
-            if save is True:
-                bpy.ops.render.render(write_still=True)
-            else:
+            if bounce_image:
                 bpy.ops.render.render(write_still=True)
                 image_array = BlenderTools.save_render_as_array(filepath)
                 return image_array
+            else:
+                bpy.ops.render.render(write_still=True)
 
     @staticmethod
-    def render_deformed_images(sim_data: mh.SimData,
+    def render_deformed_images(render_mesh: RenderMeshData,
+                               sim_spat_dim: int,
                                render_data:RenderData,
                                part: bpy.data.objects,
-                               save: bool | None = True) -> None | np.ndarray:
+                               bounce_image: bool | None = True) -> None | np.ndarray:
         """A method to deform the mesh object at all timesteps, and render
         image(s) at each timestep
 
@@ -367,9 +372,11 @@ class BlenderScene():
             A dataclass containing the parameters necessary to render an image.
         part : bpy.data.objects
             The Blender part object to be deformed.
-        save : bool | None, optional
+        bouce_image : bool | None, optional
             A flag that can be set to save the rendered image to disk or not,
-            by default True
+            by default True. In order to output these images as an
+            array, the image will first be saved to the disk and then bounced
+            back as an array.
 
         Returns
         -------
@@ -382,22 +389,16 @@ class BlenderScene():
                 3D setups, the images in the stack alternate between camera 0 and
                 camera 1.
         """
-        timesteps = sim_data.time.shape[0]
-        spat_dim = SimTools.get_mesh_spat_dim(sim_data)
-        components = SimTools.get_simulation_components(sim_data)
-        sim_data.coords = sim_data.coords
-        sim_data.coords = SimTools.centre_mesh_nodes(sim_data.coords, spat_dim)
-        (pv_grid, _) = pyvale.simdata_to_pyvista(sim_data,
-                                                 components,
-                                                 spat_dim)
-        pv_surf = SimTools.conv_pvgrid_to_pvsurf(pv_grid)
+        render_mesh.coords = SimTools.centre_mesh_nodes(render_mesh.coords,
+                                                        sim_spat_dim)
+        timesteps = render_mesh.fields_render.shape[1]
 
         # Render parameters
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
         bpy.context.scene.render.image_settings.color_depth = str(render_data.bit_size)
         bpy.context.scene.render.threads_mode = "FIXED"
-        bpy.context.scene.render.threads = int(cpu_count())
+        bpy.context.scene.render.threads = int(cpu_count()) # Change this
         bpy.context.scene.render.image_settings.file_format = "TIFF"
 
         if render_data.engine == RenderEngine.CYCLES:
@@ -407,11 +408,9 @@ class BlenderScene():
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
         image_arrays = []
-        for timestep in range(0, timesteps):
+        for timestep in range(1, timesteps):
             deformed_nodes = SimTools.get_deformed_nodes(timestep,
-                                                         pv_surf,
-                                                         spat_dim,
-                                                         components)
+                                                         render_mesh)
             if deformed_nodes is not None:
                 BlenderTools.deform_single_timestep(part, deformed_nodes)
                 BlenderTools.set_new_frame(part)
@@ -426,12 +425,12 @@ class BlenderScene():
                         filename = render_data.save_name + "_" + str(timestep) + "_" + str(cam_count) + ".tiff"
                         filepath = render_data.save_dir / filename
                         bpy.context.scene.render.filepath = str(filepath)
-                        if save is True:
-                            bpy.ops.render.render(write_still=True)
-                        else:
+                        if bounce_image:
                             bpy.ops.render.render(write_still=True)
                             image_array = BlenderTools.save_render_as_array(filepath)
                             image_arrays.append(image_array)
+                        else:
+                            bpy.ops.render.render(write_still=True)
                         cam_count += 1
                 else:
                     bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
@@ -439,13 +438,13 @@ class BlenderScene():
                     filename = render_data.save_name + "_" + str(timestep) + ".tiff"
                     filepath = render_data.save_dir / filename
                     bpy.context.scene.render.filepath = str(filepath)
-                    if save is True:
+                    if bounce_image:
                         bpy.ops.render.render(write_still=True)
                     else:
                         bpy.ops.render.render(write_still=True)
                         image_array = BlenderTools.save_render_as_array(filepath)
                         image_arrays.append(image_array)
-        if save is not True:
+        if bounce_image:
             image_arrays = np.dstack(image_arrays)
             # TODO: Potentially change the way images are stacked for stereo systems
             # Change it so it suits Joel's code
