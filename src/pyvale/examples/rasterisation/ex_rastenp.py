@@ -124,7 +124,7 @@ def main() -> None:
     time_start_loop = time.perf_counter()
     if static_mesh:
         images = pyv.RasterNP.raster_static_mesh(
-            cam_data,render_mesh,save_path,parallel=8
+            cam_data,render_mesh,save_path,threads_num=8
         )
     else:
         time_start_loop = time.perf_counter()
