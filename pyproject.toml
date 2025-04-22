@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel","numpy","cython"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvale"
-version = "0.0.1"
+version = "0.0.2"
 description = "A python validation engine (pyvale) for simulating sensors and measurement uncertainties on physical fields."
 authors = [
   { name = "scepticalrabbit", email = "thescepticalrabbit@gmail.com" },
