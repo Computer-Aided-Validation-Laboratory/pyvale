@@ -60,6 +60,7 @@ setup(
         "numba>=0.59.1",
         "pymoo>=0.6.1.3",
         "Cython>=3.0.0",
+        "bpy>=4.2.2",
     ],
 
     package_data={
