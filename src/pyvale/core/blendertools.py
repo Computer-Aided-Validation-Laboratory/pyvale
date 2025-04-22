@@ -72,7 +72,7 @@ class BlenderTools():
         part.location = (pos_world[0], pos_world[1], (pos_world[2] - z_location))
 
     @staticmethod
-    def rotate_blender_part(rot_world: Rotation, part: bpy.data.objects) -> None:
+    def rotate_blender_obj(rot_world: Rotation, part: bpy.data.objects) -> None:
         """A method to rotate the part object within Blender.
 
         Parameters
@@ -330,7 +330,19 @@ class BlenderTools():
             file.write(f"Phi [deg];{stereo_rotation[1]}\n")
             file.write(f"Psi [deg];{stereo_rotation[2]}")
 
-    def calibration_images(render_data: RenderData,
+    def number_calibration_images(calibration_data: CalibrationData) -> int:
+        number_plunge_steps = (((calibration_data.plunge_lims[1] -
+                               calibration_data.plunge_lims[0]) /
+                               calibration_data.plunge_step) + 1)
+        number_angle_steps = (((calibration_data.angle_lims[1] -
+                               calibration_data.angle_lims[0]) /
+                               calibration_data.angle_step) + 1)
+
+        number_cal_images = int(number_angle_steps * number_angle_steps * number_plunge_steps * 9)
+        return number_cal_images
+
+
+    def render_calibration_images(render_data: RenderData,
                            calibration_data: CalibrationData,
                            part: bpy.data.objects,
                            render: bool = True) -> int:
@@ -378,7 +390,7 @@ class BlenderTools():
         for ii in range(plunge_steps):
             plunge = calibration_data.plunge_lims[0] + calibration_data.plunge_step * ii
             # Plunge
-            (FOV_x, FOV_y) = pyvale.blender_FOV(render_data.cam_data[0])
+            (FOV_x, FOV_y) = pyvale.CameraTools.blender_FOV(render_data.cam_data[0])
             x_limit = int(round((FOV_x / 2) - (part.dimensions[0] / 2)))
 
             y_limit = int(round((FOV_y / 2) - (part.dimensions[1] / 2)))
@@ -417,7 +429,7 @@ class BlenderTools():
                                     bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
                                     filename = render_data.save_name + "_" + str(render_counter) + "_" + str(cam_count) + ".tiff"
                                     bpy.context.scene.render.filepath = str(render_data.save_dir / filename)
-                                    if render is True:
+                                    if render:
                                         bpy.ops.render.render(write_still=True)
                                     cam_count += 1
                             render_counter += 1
