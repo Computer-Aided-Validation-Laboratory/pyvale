@@ -1,6 +1,6 @@
 """
 ================================================================================
-Example: Simple Blender scene with no deformation
+Example: Blender calibration example
 
 pyvale: the python validation engine
 License: MIT
@@ -11,24 +11,19 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
 import pyvale
-import mooseherder as mh
 
 def main() -> None:
-    # TODO: Integrate path into pyvale - or make own SimData instance
-    data_path = Path.cwd() / 'src/pyvale/data/moose-mech-simple_out.e'
-    sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    #NOTE: All lengths are to be specified in mm
 
     # Creating the scene
     # --------------------------------------------------------------------------
+    # When Blender is started, default objects are present within the scene
+    # The following function is used to clear the scene
     pyvale.BlenderScene.reset_scene()
 
-    part = pyvale.BlenderScene.add_part(sim_data)
-    # Set the part location
-    part_location = np.array([0, 0, 0])
-    pyvale.BlenderTools.move_blender_part(part=part, pos_world=part_location)
-    # Set part rotation
-    part_rotation = Rotation.from_euler("xyz", [0, 0, 0])
-    pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
+    # Add the calibration target
+    # A rectangular calibration target of the specified size is added to the scene
+    target = pyvale.BlenderScene.add_cal_target(target_size=np.array([150, 100, 10]))
 
     # Add the camera
     cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
@@ -41,14 +36,18 @@ def main() -> None:
     # "faceon" to get a face-on stereo system
     stereo_system = "faceon"
     if stereo_system == "symmetric":
-        cam_data_1 = pyvale.blender_symmetric_stereo(cam_data_0=cam_data_0,
-                                                 stereo_angle=15.0)
+        stereo_data = pyvale.CameraTools.symmetric_stereo_cameras(
+            cam_data_0=cam_data_0,
+            stereo_angle=15.0)
     if stereo_system == "faceon":
-        cam_data_1 = pyvale.blender_faceon_stereo(cam_data_0=cam_data_0,
-                                                 stereo_angle=15.0)
+        stereo_data = pyvale.CameraTools.faceon_stereo_cameras(
+            cam_data_0=cam_data_0,
+            stereo_angle=15.0)
 
-    stereo_data = pyvale.CameraStereoData(cam_data_0, cam_data_1)
-    calib_filepath = Path.cwd() / 'src/pyvale/data/blender/blender_images/calibration'
+    pyvale.BlenderScene.add_stereo_system(stereo_data)
+
+    # Generate calibration file
+    calib_filepath = Path.cwd() / "blenderimages"
     pyvale.BlenderTools.generate_calib_file(stereo_data, calib_filepath)
 
     # Add the light
@@ -58,36 +57,63 @@ def main() -> None:
                                                                        [0, 0, 0]),
                                          energy=1)
     light = pyvale.BlenderScene.add_light(light_data)
+    # The light can be moved and rotated:
+    light.location = (0, 0, 210)
+    light.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
 
-    # Apply the speckle pattern
+    # Apply the calibration target pattern
     material_data = pyvale.BlenderMaterialData()
-    speckle_path = Path.cwd() / 'src/pyvale/data/cal_target.tiff'
-    pyvale.BlenderScene.add_speckle(part=part,
+    speckle_path = Path.cwd() / "src/pyvale/data/cal_target.tiff"
+    mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data_0)
+    pyvale.BlenderScene.add_speckle(part=target,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
-                                    cam_data=cam_data_0,
+                                    mm_px_resolution=mm_px_resolution,
                                     cal=True)
+    # NOTE: The `cal` flag has to be set to True in order to scale the
+    # calibration target pattern correctly
 
-    # Rendering image
+    # Rendering calibration images
     # --------------------------------------------------------------------------
-
-    save_dir = Path.cwd() / 'src/pyvale/data/blender/blender_images/calibration'
-    save_dir = calib_filepath
-    save_name = 'cal'
-    render_data = pyvale.RenderData(cam_data=(cam_data_0, cam_data_1),
+    save_dir = Path.cwd() / "blenderimages"
+    save_name = "cal"
+    render_data = pyvale.RenderData(cam_data=(stereo_data.cam_data_0,
+                                              stereo_data.cam_data_1),
                                     save_dir=save_dir,
-                                    save_name=save_name,
-                                    samples=1)
+                                    save_name=save_name)
+    # NOTE: The number of threads used to render the images is set within
+    # RenderData, it is defaulted to 4 threads
+
+    # The desired limits for the calibration target movement are to be set within
+    # the CalibrationData dataclass
     calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
                                               angle_step=5,
                                               plunge_lims=(-5, 5),
                                               plunge_step=5)
 
-    pyvale.BlenderTools.calibration_images(render_data, calibration_data, part)
+    # The number of calibration images that will be rendered can be calculated
+    number_calibration_images = pyvale.BlenderTools.number_calibration_images(calibration_data)
+    print()
+    print(80*"-")
+    print("Number of calibration images to be rendered:", number_calibration_images)
+    print(80*"-")
+
+    # The calibration images can then be rendered
+    pyvale.BlenderTools.render_calibration_images(render_data,
+                                                  calibration_data,
+                                                  target)
+
+    print()
+    print(80*"-")
+    print("Save directory of the images:", render_data.save_dir)
+    print(80*"-")
+    print()
 
     # Save Blender file
     # --------------------------------------------------------------------------
-    blender_path = Path.cwd() / 'src/pyvale/data/blender/blender_files/cal.blend'
+    # The file that will be saved is a Blender project file. This can be opened
+    # with the Blender GUI to view the scene.
+    blender_path = Path.cwd() / "blenderfiles/cal.blend"
     pyvale.BlenderTools.save_blender_file(blender_path, override=True)
 
 if __name__ == "__main__":

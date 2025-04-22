@@ -1,6 +1,6 @@
 """
 ================================================================================
-Example: Simple Blender scene with no deformation
+Example: Simple 2D Blender scene with deformation
 
 pyvale: the python validation engine
 License: MIT
@@ -14,20 +14,34 @@ import pyvale
 import mooseherder as mh
 
 def main() -> None:
-    data_path = pyvale.DataSet.thermomechanical_2d_path()
+    data_path = pyvale.DataSet.render_mechanical_3d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+
+    disp_comps = ("disp_x","disp_y", "disp_z")
+
+    # Scale m -> mm
+    sim_data = pyvale.scale_length_units(sim_data,disp_comps,1000.0)
+
+    render_mesh = pyvale.create_render_mesh(sim_data,
+                                        ("disp_y","disp_x"),
+                                        sim_spat_dim=3,
+                                        field_disp_keys=disp_comps)
 
     # Creating the scene
     # --------------------------------------------------------------------------
+    # When Blender is started, default objects are present within the scene
+    # The following function is used to clear the scene
     pyvale.BlenderScene.reset_scene()
 
-    part = pyvale.BlenderScene.add_part(sim_data)
+    # It should be noted that the mesh will be centred to allow for the cameras
+    # to be centred on the mesh.
+    part = pyvale.BlenderScene.add_part(render_mesh, sim_spat_dim=3)
     # Set the part location
     part_location = np.array([0, 0, 0])
-    pyvale.BlenderTools.move_blender_part(part=part, pos_world=part_location)
+    pyvale.BlenderTools.move_blender_obj(part=part, pos_world=part_location)
     # Set part rotation
     part_rotation = Rotation.from_euler("xyz", [0, 0, 0])
-    pyvale.BlenderTools.rotate_blender_part(part=part, rot_world=part_rotation)
+    pyvale.BlenderTools.rotate_blender_obj(part=part, rot_world=part_rotation)
 
     # Add the camera
     cam_data = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
@@ -38,6 +52,10 @@ def main() -> None:
                                  focal_length=15.0)
     camera = pyvale.BlenderScene.add_camera(cam_data)
 
+    # The camera can be moved and rotated this:
+    camera.location = (0, 0, 410)
+    camera.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
+
     # Add the light
     light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
                                          pos_world=(0, 0, 400),
@@ -46,39 +64,62 @@ def main() -> None:
                                          energy=1)
     light = pyvale.BlenderScene.add_light(light_data)
 
+    # The light can also be moved and rotated:
+    light.location = (0, 0, 410)
+    light.rotation_euler = (0, 0, 0)
+
     # Apply the speckle pattern
     material_data = pyvale.BlenderMaterialData()
     speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
     # NOTE: If you wish to use a bigger camera, you will need to generate a
     # bigger speckle pattern generator
+    mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data)
     pyvale.BlenderScene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
-                                    cam_data=cam_data)
+                                    mm_px_resolution=mm_px_resolution)
 
     # Deform and render images
     # --------------------------------------------------------------------------
     # Set this to True to render image of the deforming part
-    render_images = True
-    if render_images is True:
-        save_dir = Path.cwd() / 'src/pyvale/data/blender/blender_images'
-        save_name = 'ex1_2'
+    render_opts = True
+    if render_opts:
+        save_dir = Path.cwd() / "blenderimages"
+        # NOTE: If no save directory is specified, this is where the images will
+        # be saved
+        save_name = "ex1_2"
         render_data = pyvale.RenderData(cam_data=cam_data,
                                         save_dir=save_dir,
-                                        save_name=save_name)
+                                        save_name=save_name,
+                                        threads=8)
+        # NOTE: The number of threads used to render the images is set within
+        # RenderData, it is defaulted to 4 threads
 
-        pyvale.BlenderScene.render_deformed_images(sim_data=sim_data,
+        image = pyvale.BlenderScene.render_deformed_images(render_mesh,
+                                                   sim_spat_dim=3,
                                                    render_data=render_data,
                                                    part=part,
-                                                   save=True)
+                                                   bounce_image=False)
+        # NOTE: If bounce_image is set to True, the image will be saved to disk,
+        # converted to an array, deleted and the image array will be returned.
 
-    elif render_images is False:
-        pyvale.BlenderScene.deform_all_timesteps(sim_data, part)
+        print()
+        print(80*"-")
+        print("Save directory of the image:", render_data.save_dir)
+        print(80*"-")
+        print()
 
     # Save Blender file
     # --------------------------------------------------------------------------
-    blender_path = Path.cwd() / 'src/pyvale/data/blender_files/ex1_2.blend'
-    pyvale.BlenderTools.save_blender_file(blender_path, override=True)
+    # The file that will be saved is a Blender project file. This can be opened
+    # with the Blender GUI to view the scene.
+    blender_path = Path.cwd() / "blenderfiles/ex1_2.blend"
+    pyvale.BlenderTools.save_blender_file(blender_path)
+
+    print()
+    print(80*"-")
+    print("Save directory of Blender project file:", blender_path)
+    print(80*"-")
 
 if __name__ == "__main__":
     main()
