@@ -8,9 +8,6 @@ Copyright (C) 2024 The Computer Aided Validation Team
 import numpy as np
 from pathlib import Path
 import bpy
-from multiprocessing import cpu_count
-import mooseherder as mh
-import pyvale
 from pyvale.core.cameradata import CameraData
 from pyvale.core.blenderlightdata import BlenderLightData
 from pyvale.core.blendertools import BlenderTools
@@ -309,7 +306,7 @@ class BlenderScene():
         bpy.context.scene.render.image_settings.color_mode = "BW"
         bpy.context.scene.render.image_settings.color_depth = str(render_data.bit_size)
         bpy.context.scene.render.threads_mode = "FIXED"
-        bpy.context.scene.render.threads = int(cpu_count())
+        bpy.context.scene.render.threads = render_data.threads
         bpy.context.scene.render.image_settings.file_format = "TIFF"
 
         if render_data.engine == RenderEngine.CYCLES:
@@ -398,7 +395,7 @@ class BlenderScene():
         bpy.context.scene.render.image_settings.color_mode = "BW"
         bpy.context.scene.render.image_settings.color_depth = str(render_data.bit_size)
         bpy.context.scene.render.threads_mode = "FIXED"
-        bpy.context.scene.render.threads = int(cpu_count()) # Change this
+        bpy.context.scene.render.threads = render_data.threads
         bpy.context.scene.render.image_settings.file_format = "TIFF"
 
         if render_data.engine == RenderEngine.CYCLES:
@@ -440,10 +437,10 @@ class BlenderScene():
                     bpy.context.scene.render.filepath = str(filepath)
                     if bounce_image:
                         bpy.ops.render.render(write_still=True)
-                    else:
-                        bpy.ops.render.render(write_still=True)
                         image_array = BlenderTools.save_render_as_array(filepath)
                         image_arrays.append(image_array)
+                    else:
+                        bpy.ops.render.render(write_still=True)
         if bounce_image:
             image_arrays = np.dstack(image_arrays)
             # TODO: Potentially change the way images are stacked for stereo systems

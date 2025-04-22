@@ -57,7 +57,7 @@ class BlenderTools():
         bpy.ops.wm.save_as_mainfile(filepath=filepath)
 
     @staticmethod
-    def move_blender_part(pos_world: np.ndarray, part: bpy.data.objects) -> None:
+    def move_blender_obj(pos_world: np.ndarray, part: bpy.data.objects) -> None:
         """A method to move the part object within Blender.
 
         Parameters
