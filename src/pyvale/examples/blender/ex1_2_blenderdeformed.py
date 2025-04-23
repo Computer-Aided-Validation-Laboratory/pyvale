@@ -95,7 +95,7 @@ def main() -> None:
         # NOTE: The number of threads used to render the images is set within
         # RenderData, it is defaulted to 4 threads
 
-        image = pyvale.BlenderScene.render_deformed_images(render_mesh,
+        pyvale.BlenderScene.render_deformed_images(render_mesh,
                                                    sim_spat_dim=3,
                                                    render_data=render_data,
                                                    part=part,
