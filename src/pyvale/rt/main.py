@@ -6,6 +6,7 @@ from pyvale.rt.material import DiffuseLight
 from pyvale.rt.sphere import Sphere
 from pyvale.rt.camera import Camera
 from pyvale.rt.quad import Disk, Quad, Tri, Disk
+from pyvale.rt.shape import ShapeQuad
 
 np.random.default_rng(1)
 
@@ -109,9 +110,9 @@ def simple_light():
     world = HittableList(BVH_Node(world._objects))
 
     cam: Camera = Camera()
-    cam.image_width = 500
-    cam.image_height = 400
-    cam.samples_per_pixel = 50
+    cam.image_width = 200
+    cam.image_height = 200
+    cam.samples_per_pixel = 3
     cam.max_depth = 5
     cam.background = np.array([0, 0, 0])
 
@@ -153,5 +154,46 @@ def cornell_box():
 
     cam.render(world)
 
+def shape_test():
+    world: HittableList = HittableList()
+
+    red   = Lambertian.from_colour(np.array([.65, .05, .05]))
+    white = Lambertian.from_colour(np.array([.73, .73, .73]))
+    green = Lambertian.from_colour(np.array([.12, .45, .15]))
+    light = DiffuseLight.from_colour(np.array([15, 15, 15]))
+
+    nodes = np.array([
+        [-1, 0, -1],   # Node 1
+        [1, 0, -1],   # Node 2
+        [1, 0, 1],   # Node 3
+        [-1, 0, 1]    # Node 4
+    ])
+
+    # Define displacements at each node
+    displacements = np.array([
+        [0, -1, 0],       # Node 1
+        [0, -1, 0],     # Node 2
+        [0, 1, 0],     # Node 3
+        [0, 1, 0]      # Node 4
+    ])
+
+
+    world.add(ShapeQuad(nodes, displacements, red))
+
+    world = HittableList(BVH_Node(world._objects))
+
+    cam: Camera = Camera()
+    cam.image_width = 200
+    cam.image_height = 200
+    cam.samples_per_pixel = 5
+    cam.max_depth = 5
+    cam.background = np.array([0.70, 0.80, 1.00])
+    cam.look_from = np.array([0,0,5])
+    cam.look_at = np.array([0,0,0])
+
+
+    cam.render(world)
+
+
 if __name__ == "__main__":
-    simple_light()
+    shape_test()
