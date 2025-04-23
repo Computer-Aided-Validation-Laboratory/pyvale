@@ -75,7 +75,6 @@ namespace dic {
      * @param ss_coord_list 
      * @param num_def_images 
      * @param img_num 
-     * @param ss_size 
      * @param max_iter 
      * @param precision 
      * @param threshold_lm 
@@ -85,10 +84,9 @@ namespace dic {
     void image_scan(int *image_ref, 
                     util::Image *image_def, 
                     bool *image_roi,
-                    util::SubsetList *ss_list, 
+                    util::SubsetData *ssdata, 
                     int num_def_images, 
                     int img_num, 
-                    int ss_size, 
                     int max_iter, 
                     double precision,
                     double threshold_lm,
@@ -105,7 +103,6 @@ namespace dic {
      * @param ss_coord_list 
      * @param num_def_images 
      * @param img_num 
-     * @param ss_size 
      * @param max_iter 
      * @param precision 
      * @param threshold_lm 
@@ -115,10 +112,9 @@ namespace dic {
     void image_scan_with_bf(int *image_ref, 
                     util::Image *image_def, 
                     bool *image_roi,
-                    util::SubsetList *ss_list, 
+                    util::SubsetData *ssdata, 
                     int num_def_images, 
                     int img_num, 
-                    int ss_size, 
                     int max_iter, 
                     double precision,
                     double threshold_lm,
@@ -135,7 +131,6 @@ namespace dic {
      * @param ss_coord_list 
      * @param num_def_images 
      * @param img_num 
-     * @param ss_size 
      * @param max_iter 
      * @param precision 
      * @param threshold_lm 
@@ -145,10 +140,9 @@ namespace dic {
     void reliability_guided(int *image_ref, 
                     util::Image *image_def, 
                     bool *image_roi,
-                    util::SubsetList *ss_list, 
+                    util::SubsetData *ssdata, 
                     int num_def_images, 
                     int img_num, 
-                    int ss_size, 
                     int max_iter, 
                     double precision,
                     double threshold_lm,

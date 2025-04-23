@@ -66,7 +66,7 @@ namespace dic {
 
 
         // get a list of ss coordinates within RIO.
-        util::SubsetList ss_list = util::generate_ss_list(image_roi, px_horizontal, px_vertical, ss_size, ss_step, num_def_images, num_params);
+        util::SubsetData ssdata = util::generate_ss_list(image_roi, px_horizontal, px_vertical, ss_size, ss_step, num_def_images, num_params);
 
 
         // TITLE("DIC INITIALISATION");
@@ -81,11 +81,11 @@ namespace dic {
         // INFO_OUT("Shape Function: ", shape_func);
         // INFO_OUT("Interpolation Routine: ", interp_routine);
         // INFO_OUT("Image Scan Method: ", scan_method);
-        // INFO_OUT("Total number of subsets: ", ss_list.n_ss);
+        // INFO_OUT("Total number of subsets: ", ssdata.num);
         // INFO_OUT("Number of OMP threads:", omp_get_max_threads());
 
 
-        // cuglobal::device_info(n_ss);
+        // cuglobal::device_info(ssdata->num);
         // exit(0);
 
         // need to make a copy of the reference image that has been converted to double for the interpolator
@@ -106,7 +106,7 @@ namespace dic {
         util::Image image_def(px_horizontal, px_vertical);
 
         // function pointer for the method of scanning the subsets through the image
-        void (*scan_function)(int*, util::Image*, bool*, util::SubsetList*, int, int, int, int, double, double, double, double, int);
+        void (*scan_function)(int*, util::Image*, bool*, util::SubsetData*, int, int, int, double, double, double, double, int);
 
         // set the scan_function pointer based on the scan method specified by user.
         if (scan_method=="image_scan") scan_function=image_scan;
@@ -138,7 +138,7 @@ namespace dic {
             // extract a single image from the stack
             util::extract_image(&image_def, image_def_stack, img_num);  
           
-            scan_function(image_ref, &image_def, image_roi, &ss_list, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf, num_params);
+            scan_function(image_ref, &image_def, image_roi, &ssdata, num_def_images, img_num, max_iter, precision, threshold_lm, threshold_bf, range_bf, num_params);
 
 
         }
@@ -160,10 +160,9 @@ namespace dic {
     void image_scan(int *image_ref, 
                     util::Image *image_def, 
                     bool *image_roi,
-                    util::SubsetList *ss_list, 
+                    util::SubsetData *ssdata, 
                     int num_def_images, 
                     int img_num, 
-                    int ss_size, 
                     int max_iter, 
                     double precision,
                     double threshold_lm,
@@ -173,19 +172,19 @@ namespace dic {
 
 
         // initialise subsets
-        util::Subset ss_def(ss_size);
-        util::Subset ss_ref(ss_size);
+        util::Subset ss_def(ssdata->size);
+        util::Subset ss_ref(ssdata->size);
 
         // optimization parameters
         optimizer::Parameters opt(num_params, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, opt)
-        for (int ss = 0; ss < ss_list->n_ss; ss++){
+        for (int ss = 0; ss < ssdata->num; ss++){
 
             // subset coordinate list takes central locations. Converting to top left corner for optimization routine
-            int ss_x = ss_list->coords[ss*2];
-            int ss_y = ss_list->coords[ss*2+1];
+            int ss_x = ssdata->coords[ss*2];
+            int ss_y = ssdata->coords[ss*2+1];
 
             // get the deformed subset coordinates and pixel values from the deformed image
             util::extract_ss(ss_x, ss_y, image_def, &ss_def); 
@@ -212,10 +211,9 @@ namespace dic {
     void image_scan_with_bf(int *image_ref, 
                             util::Image *image_def, 
                             bool *image_roi,
-                            util::SubsetList *ss_list, 
+                            util::SubsetData *ssdata, 
                             int num_def_images, 
                             int img_num, 
-                            int ss_size, 
                             int max_iter, 
                             double precision,
                             double threshold_lm,
@@ -224,8 +222,8 @@ namespace dic {
                             int num_params){
 
         // subsets
-        util::Subset ss_def(ss_size);
-        util::Subset ss_ref(ss_size);
+        util::Subset ss_def(ssdata->size);
+        util::Subset ss_ref(ssdata->size);
         
         // optimization parameters
         optimizer::Parameters opt(num_params, max_iter, precision, threshold_lm, image_def->px_vertical, image_def->px_horizontal);
@@ -246,11 +244,11 @@ namespace dic {
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, results)
-        for (int ss = 0; ss < ss_list->n_ss; ss++){
+        for (int ss = 0; ss < ssdata->num; ss++){
 
             // subset coordinate list contains central locations. Converting to top left corner for optimization routine
-            int ss_x = ss_list->coords[ss*2];
-            int ss_y = ss_list->coords[ss*2+1];
+            int ss_x = ssdata->coords[ss*2];
+            int ss_y = ssdata->coords[ss*2+1];
 
             // get the deformed subset coordinates and pixel values
             util::extract_ss(ss_x, ss_y, image_def, &ss_def); 
@@ -296,10 +294,9 @@ namespace dic {
     void reliability_guided(int *image_ref, 
                             util::Image *image_def, 
                             bool *image_roi,
-                            util::SubsetList *ss_list,
+                            util::SubsetData *ssdata,
                             int num_def_images, 
                             int img_num, 
-                            int ss_size, 
                             int max_iter, 
                             double precision,
                             double threshold_lm,
@@ -311,7 +308,14 @@ namespace dic {
         int seed_x = 500; // in corner coordinates
         int seed_y = 500; // in corner coodinates
 
-        rg::reliability_guided_dic_single_seed(image_ref, image_def, image_roi, seed_x, seed_y, ss_list, num_def_images, img_num, ss_size, max_iter, precision, threshold_lm, threshold_bf, range_bf, num_params);
+
+        //util::Subset ss_def(ssdata->size);
+        //util::Subset ss_ref(ssdata->size);
+        //brute::Parameters brute(threshold_bf, range_bf);
+        //util::extract_ss(seed_x, seed_y, image_def, &ss_def); 
+        //brute::cross_correlation(seed_x, seed_y, image_ref, image_def->px_vertical, image_def->px_horizontal,&ss_def, &ss_ref, &brute);
+        DEBUGGER;
+        rg::reliability_guided_dic_single_seed(image_ref, image_def, image_roi, seed_x, seed_y, ssdata, num_def_images, img_num, max_iter, precision, threshold_lm, threshold_bf, range_bf, num_params);
                 
     }
 }

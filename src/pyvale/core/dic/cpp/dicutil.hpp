@@ -19,22 +19,25 @@ namespace util {
 
 
     // Custom hash from above
-    struct PairHash {
-        std::size_t operator()(const std::pair<int, int>& p) const {
-            return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
-        }
-    };
+    // struct PairHash {
+    //     std::size_t operator()(const std::pair<int, int>& p) const {
+    //         return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
+    //     }
+    // };
 
-    struct SubsetList {
-        int n_ss;
+    struct SubsetData {
+        int num;
+        int step;
+        int size;
+        int num_ss_x;
+        int num_ss_y;
         std::vector<int> coords;
-        std::unordered_map<std::pair<int, int>, int, PairHash> coords_to_index;
-        std::unordered_map<int, std::vector<int>> neighbours;
+        std::vector<bool> mask;
+
     };
 
 
     // result arrays.
-    extern std::vector<int> ss_coord_list;
     extern std::vector<int> niter_arr;
     extern std::vector<double> u_arr; 
     extern std::vector<double> v_arr;
@@ -134,9 +137,9 @@ namespace util {
      * @param px_vertical   Number of vertical pixels in the image.
      * @param ss_size      Size of each subset (in pixels).
      * @param ss_step      Step size for generating subsets.
-     * @return            A SubsetList object containing the generated subsets and their neighbours.
+     * @return            A SubsetData object containing the generated subsets and their neighbours.
      */
-    SubsetList generate_ss_list(bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step, int num_def_images, int num_params);
+     SubsetData generate_ss_list(bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step, int num_def_images, int num_params);
 
     
     /**

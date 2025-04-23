@@ -9,8 +9,8 @@
 #define DICRG_H
 
 // STD library Header files
-#include <vector>
-#include <iostream>
+
+
 
 // Program Header files
 #include "./dicutil.hpp"
@@ -64,10 +64,9 @@ namespace rg {
         util::Image *image_def,
         const bool *image_roi,
         const int seed_x, const int seed_y,  // Single seed point coordinates
-        util::SubsetList *ss_list,
+        util::SubsetData *ssdata,
         const int num_def_images,
         const int img_num,
-        const int ss_size,
         const int max_iter,
         const double precision,
         const double threshold_lm,
@@ -87,7 +86,7 @@ namespace rg {
      * @return true 
      * @return false 
      */
-    inline bool is_valid_point(int x, int y, util::SubsetList *ss_list);
+    inline bool is_valid_point(int ss_x, int ss_y, util::SubsetData *ssdata);
 
 
 

@@ -6,9 +6,7 @@
 
 
 // STD library Header files
-#include <iostream>
 #include <vector>
-#include <tuple>
 #include <cmath>
 
 // Program Header files
@@ -18,7 +16,6 @@
 namespace util {
 
 
-    std::vector<int> ss_coord_list;
     std::vector<int> niter_arr;
     std::vector<double> u_arr;
     std::vector<double> v_arr;
@@ -76,26 +73,42 @@ namespace util {
     }
 
 
-    SubsetList generate_ss_list(bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step, int num_def_images, int num_params) {
+    SubsetData generate_ss_list(bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step, int num_def_images, int num_params) {
 
-        SubsetList result;
+        SubsetData ssdata;
         int index;
         int dx[4] = {ss_step, 0, -ss_step, 0};
         int dy[4] = {0, ss_step, 0, -ss_step};
 
         int subset_counter = 0;
 
+        
+        int num_ss_x = px_horizontal / ss_step;
+        int num_ss_y = px_vertical / ss_step;
+        ssdata.mask.resize(num_ss_x*num_ss_y, false);
+        ssdata.num_ss_x = num_ss_x;
+        ssdata.num_ss_y = num_ss_y;
+        ssdata.num = num_ss_x * num_ss_y;
+        ssdata.step = ss_step;
+        ssdata.size = ss_size;
+
+
         // First pass: collect valid subset centers and index them
-        for (int ss_y = 0; ss_y < px_vertical; ss_y += ss_step) {
-            for (int ss_x = 0; ss_x < px_horizontal; ss_x += ss_step) {
+        for (int j = 0; j < num_ss_y; j++) {
+            for (int i = 0; i < num_ss_x; i++) {
                 
 
-                // b
+                // calculate the coordinates of the subset
+                int ss_x = i * ss_step;
+                int ss_y = j * ss_step;
+
+                // pixel range of subset
                 int ss_x_min = ss_x;
                 int ss_y_min = ss_y;
                 int ss_x_max = ss_x + ss_size;
                 int ss_y_max = ss_y + ss_size;
 
+                // check if subset is within image and ROI.
                 bool valid = true;
                 for (int px_y = ss_y_min; px_y <= ss_y_max && valid; px_y++) {
                     for (int px_x = ss_x_min; px_x <= ss_x_max && valid; px_x++) {
@@ -111,71 +124,72 @@ namespace util {
                     }
                 }
 
+                // if its a valid subset. add it to a list of coordinates
                 if (valid) {
-                    result.coords.push_back(ss_x);
-                    result.coords.push_back(ss_y);
-                    result.coords_to_index[{ss_x, ss_y}] = subset_counter;
+                    ssdata.coords.push_back(ss_x);
+                    ssdata.coords.push_back(ss_y);
+                    ssdata.mask[j * num_ss_x + i] = true;
                     subset_counter++;
                 }
             }
         }
         
-        result.n_ss = subset_counter;
+        //ssdata.num = subset_counter;
 
-        // neighbours for each of the above subset
-        for (const auto& kv : result.coords_to_index) {
-            const std::pair<int, int>& coord = kv.first;
-            int center_idx = kv.second;
+        // // neighbours for each of the above subset
+        // for (const auto& kv : ssdata.coords_to_index) {
+        //     const std::pair<int, int>& coord = kv.first;
+        //     int center_idx = kv.second;
 
-            std::vector<int> temp_neigh;
+        //     std::vector<int> temp_neigh;
 
-            for (int i = 0; i < 4; ++i) {
-                int neigh_x = coord.first + dx[i];
-                int neigh_y = coord.second + dy[i];
+        //     for (int i = 0; i < 4; ++i) {
+        //         int neigh_x = coord.first + dx[i];
+        //         int neigh_y = coord.second + dy[i];
 
-                int x_min = neigh_x;
-                int y_min = neigh_y;
-                int x_max = neigh_x + ss_size;
-                int y_max = neigh_y + ss_size;
+        //         int x_min = neigh_x;
+        //         int y_min = neigh_y;
+        //         int x_max = neigh_x + ss_size;
+        //         int y_max = neigh_y + ss_size;
 
-                bool valid = true;
+        //         bool valid = true;
 
-                // checking if the neigbour is valid (in image bounds and within ROI)
-                for (int y = y_min; y <= y_max && valid; ++y) {
-                    for (int x = x_min; x <= x_max && valid; ++x) {
-                        if (x < 0 || y < 0 || x >= px_horizontal || y >= px_vertical) {
-                            valid = false;
-                            break;
-                        }
-                        int idx = y * px_horizontal + x;
-                        if (!image_roi[idx]) {
-                            valid = false;
-                            break;
-                        }
-                    }
-                }
+        //         // checking if the neigbour is valid (in image bounds and within ROI)
+        //         for (int y = y_min; y <= y_max && valid; ++y) {
+        //             for (int x = x_min; x <= x_max && valid; ++x) {
+        //                 if (x < 0 || y < 0 || x >= px_horizontal || y >= px_vertical) {
+        //                     valid = false;
+        //                     break;
+        //                 }
+        //                 int idx = y * px_horizontal + x;
+        //                 if (!image_roi[idx]) {
+        //                     valid = false;
+        //                     break;
+        //                 }
+        //             }
+        //         }
 
-                if (valid) {
-                    auto it = result.coords_to_index.find({neigh_x, neigh_y});
-                    if (it != result.coords_to_index.end()) {
-                        temp_neigh.push_back(it->second);
-                    }
-                }
-            }
+        //         if (valid) {
+        //             auto it = ssdata.coords_to_index.find({neigh_x, neigh_y});
+        //             if (it != ssdata.coords_to_index.end()) {
+        //                 temp_neigh.push_back(it->second);
+        //             }
+        //         }
+        //     }
 
-            result.neighbours[center_idx] = std::move(temp_neigh);
-        }
+        //     ssdata.neighbours[center_idx] = std::move(temp_neigh);
+        // }
 
 
         // resize results
-        niter_arr.resize(num_def_images * result.n_ss);
-        u_arr.resize(num_def_images * result.n_ss);
-        v_arr.resize(num_def_images * result.n_ss);
-        p_arr.resize(num_def_images * result.n_ss * num_params);
-        ftol_arr.resize(num_def_images * result.n_ss);
-        xtol_arr.resize(num_def_images * result.n_ss);
-        cost_arr.resize(num_def_images * result.n_ss);
-        return result;
+        niter_arr.resize(num_def_images * ssdata.num);
+        u_arr.resize(num_def_images * ssdata.num);
+        v_arr.resize(num_def_images * ssdata.num);
+        p_arr.resize(num_def_images * ssdata.num * num_params);
+        ftol_arr.resize(num_def_images * ssdata.num);
+        xtol_arr.resize(num_def_images * ssdata.num);
+        cost_arr.resize(num_def_images * ssdata.num);
+        return ssdata;
     }    
 
 
@@ -192,19 +206,16 @@ namespace util {
                             const std::vector<double> &p) {
 
             int index = img_num * num_def_images + ss;
-            int index_p = 6*index;
+            int index_p = p.size()*index;
             niter_arr[index] = iter;
-            p_arr[index_p+0] = p[0];
-            p_arr[index_p+1] = p[1];
-            p_arr[index_p+2] = p[2];
-            p_arr[index_p+3] = p[3];
-            p_arr[index_p+4] = p[4];
-            p_arr[index_p+5] = p[5];
             u_arr[index] = u;
             v_arr[index] = v;
             ftol_arr[index] = ftol;
             xtol_arr[index] = xtol;
             cost_arr[index] = costp;
+            for (int i = 0; i < p.size(); i++){
+                p_arr[index_p+i] = p[i];
+            }
     }
 
 }   

@@ -29,7 +29,7 @@ namespace optimizer {
 
 
     // function pointer for correlation criteria
-    void (*optimize_cost)(double, double, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
+    void (*optimize_cost)(util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
     void (*shape_function)(double &, double &, double , double , std::vector<double> &);
     void (*dshape_dp)(std::vector<double>&, double, double, double, double, int);
     void (*params_to_displacement)(Results *results, double ss_x, double ss_y, std::vector<double> &p);
@@ -55,7 +55,7 @@ namespace optimizer {
         while (iter < opt->max_iter) {
 
             // perform the optimization
-            optimize_cost(ss_x, ss_y, ss_def, ss_ref, opt);
+            optimize_cost(ss_def, ss_ref, opt);
             update_lambda(opt->costp, opt->costpdp, opt->p, opt->pdp, opt->lambda, opt->num_params);
 
 
@@ -103,9 +103,7 @@ namespace optimizer {
 
 
 
-    void ssd(const double ss_x,
-             const double ss_y, 
-             util::Subset *ss_def,
+    void ssd(util::Subset *ss_def,
              util::Subset *ss_ref,
              optimizer::Parameters *opt){
 
@@ -204,9 +202,7 @@ namespace optimizer {
     }
 
 
-    void nssd(const double ss_x,
-              const double ss_y,
-              util::Subset *ss_def,
+    void nssd(util::Subset *ss_def,
               util::Subset *ss_ref,
               optimizer::Parameters *opt){
 
@@ -329,9 +325,7 @@ namespace optimizer {
     }
 
 
-    void znssd(const double ss_x,
-               const double ss_y,
-               util::Subset *ss_def,
+    void znssd(util::Subset *ss_def,
                util::Subset *ss_ref,
                optimizer::Parameters *opt){
 

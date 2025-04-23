@@ -90,9 +90,9 @@ namespace optimizer {
     Results solve(double ss_x, double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
 
     // choice of cost function
-    void   ssd(double ss_x, double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
-    void  nssd(double ss_x, double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
-    void znssd(double ss_x, double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
+    void   ssd(util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
+    void  nssd(util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
+    void znssd(util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
 
 
     // optimizer functions

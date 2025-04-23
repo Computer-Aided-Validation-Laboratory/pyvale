@@ -12,9 +12,9 @@
 #include <chrono>
 
 // opencv header files
-//#include "opencv2/imgcodecs.hpp"
-//#include "opencv2/highgui.hpp"
-//#include "opencv2/imgproc.hpp"
+#include "opencv2/imgcodecs.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
 
 // Program Header files
 #include "./dicbruteforce.hpp"
@@ -33,9 +33,7 @@ namespace brute {
 
 
     // function pointers
-    double (*cost_function)(const int ss_x, 
-               const int ss_y, 
-               const int *image_ref, 
+    double (*cost_function)(const int *image_ref, 
                const int px_vertical, 
                const int px_horizontal, 
                util::Subset *ss_def, 
@@ -124,7 +122,7 @@ namespace brute {
                     // if the 'new' subset is outside the range bounds then skip it.
                     if (p0 < -range || p0 >= range || p1 < -range || p1 >= range) continue;
 
-                    double cost = cost_function(ss_x, ss_y, image_ref, px_vertical, px_horizontal, ss_def, ss_ref, p0, p1);
+                    double cost = cost_function(image_ref, px_vertical, px_horizontal, ss_def, ss_ref, p0, p1);
                     if (std::abs(cost) < cost_min) {
                         cost_min = cost;
                         brute->p_rigid[0] = p0;
@@ -142,50 +140,39 @@ namespace brute {
         }
     }
 
-    //void cross_correlation(const int ss_x, 
-    //                     const int ss_y, 
-    //                     const int *image_ref, 
-    //                     const int px_vertical, 
-    //                     const int px_horizontal, 
-    //                     util::Subset *ss_def, 
-    //                     util::Subset *ss_ref, 
-    //                     brute::Parameters *brute) {
+    void cross_correlation(const int ss_x, 
+                        const int ss_y, 
+                        const int *image_ref, 
+                        const int px_vertical, 
+                        const int px_horizontal, 
+                        util::Subset *ss_def, 
+                        util::Subset *ss_ref, 
+                        brute::Parameters *brute) {
 
-    //    
+        cv::Mat image(px_vertical, px_horizontal, CV_32S, const_cast<int*>(image_ref));
+        cv::Mat ss(ss_def->size, ss_def->size, CV_64F, ss_def->vals.data());
 
-    //    const int range = brute->range;
-    //    double cost_min = 1.0e6;
-
-
-    //    int offset_x = brute->p_rigid_prevmatch[0];
-    //    int offset_y = brute->p_rigid_prevmatch[1];
-    //    int count = 0;
-
-    //    // perform cross correlation of subset within range
-    //    cv::Mat image(px_vertical, px_horizontal, CV_32S, const_cast<int*>(image_ref));
-    //    cv::Mat ss(ss_def->size, ss_def->size, CV_64F, ss_def->vals.data());
-
-    //    cv::Mat image_float;
-    //    cv::Mat ss_float;
-    //    image.convertTo(image_float, CV_32F);
-    //    ss.convertTo(ss_float, CV_32F);
+        cv::Mat image_float;
+        cv::Mat ss_float;
+        image.convertTo(image_float, CV_32F);
+        ss.convertTo(ss_float, CV_32F);
 
 
-    //    cv::Mat result;
-    //    cv::matchTemplate(image_float, ss_float, result, cv::TM_CCOEFF_NORMED);
-    //    
-    //    double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
-    //    cv::Point matchLoc;
-    //    
-    //    cv::minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, cv::Mat());
+        cv::Mat result;
+        cv::matchTemplate(image_float, ss_float, result, cv::TM_CCOEFF_NORMED);
+        
+        double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
+        cv::Point matchLoc;
+        
+        cv::minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, cv::Mat());
 
-    //    // std::cout << "minVal: " << minVal << std::endl;
-    //    // std::cout << "maxVal: " << maxVal << std::endl;
-    //    // std::cout << "minLoc: " << minLoc.x << ", " << minLoc.y << std::endl;
-    //    // std::cout << "maxLoc: " << maxLoc.x << ", " << maxLoc.y << std::endl;
-    //    brute->p_rigid[0] = maxLoc.x - ss_x;
-    //    brute->p_rigid[1] = maxLoc.y - ss_y;
-    //}
+        std::cout << "minVal: " << minVal << std::endl;
+        std::cout << "maxVal: " << maxVal << std::endl;
+        std::cout << "minLoc: " << minLoc.x << ", " << minLoc.y << std::endl;
+        std::cout << "maxLoc: " << maxLoc.x << ", " << maxLoc.y << std::endl;
+        brute->p_rigid[0] = maxLoc.x - ss_x;
+        brute->p_rigid[1] = maxLoc.y - ss_y;
+    }
 
 
     void exhaustive(const int ss_x, 
@@ -210,7 +197,7 @@ namespace brute {
         for (int p1 = -ymin; p1 <= ymax; p1++){
             for (int p0 = -xmin; p0 <= xmax; p0++){                
 
-                double cost = cost_function(ss_x, ss_y, image_ref, px_vertical, px_horizontal, ss_def,ss_ref,p0,p1);
+                double cost = cost_function(image_ref, px_vertical, px_horizontal, ss_def,ss_ref,p0,p1);
 
                 // update minumum value. If Below tolerance then return.
                 if (std::abs(cost) < cost_min) {
@@ -226,9 +213,7 @@ namespace brute {
 
 
 
-    double ssd(const int ss_x, 
-               const int ss_y, 
-               const int *image_ref, 
+    double ssd(const int *image_ref, 
                const int px_vertical, 
                const int px_horizontal, 
                util::Subset *ss_def, 
@@ -261,9 +246,7 @@ namespace brute {
     }
 
 
-    double nssd(const int ss_x, 
-                const int ss_y, 
-                const int *image_ref, 
+    double nssd(const int *image_ref, 
                 const int px_vertical, 
                 const int px_horizontal, 
                 util::Subset *ss_def,
@@ -311,9 +294,7 @@ namespace brute {
 
     }
 
-    double znssd(const int ss_x, 
-                const int ss_y, 
-                const int *image_ref, 
+    double znssd(const int *image_ref, 
                 const int px_vertical, 
                 const int px_horizontal, 
                 util::Subset *ss_def,
