@@ -37,10 +37,12 @@ from pyvale.core.sensorarrayfactory import *
 from pyvale.core.sensorarraypoint import *
 from pyvale.core.sensordata import *
 
-from pyvale.core.camera import *
+from pyvale.core.camerasensor import *
 from pyvale.core.cameradata import *
 from pyvale.core.cameradata2d import *
 from pyvale.core.cameratools import *
+
+from pyvale.core.imagetools import ImageTools
 
 import pyvale.core.cython.rastercyth as rastercyth
 from pyvale.core.rastercy import *

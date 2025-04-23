@@ -18,43 +18,7 @@ from pyvale.core.sensordata import SensorData
 # NOTE: This module is a feature under developement.
 
 class CameraTools:
-    #-------------------------------------------------------------------------------
-    @staticmethod
-    def load_image(im_path: Path) -> np.ndarray:
 
-        input_im = mplim.imread(im_path).astype(np.float64)
-        # If we have RGB then get rid of it
-        # TODO: make sure this is collapsing RGB to grey scale coorectly
-        if input_im.ndim > 2:
-            input_im = input_im[:,:,0]
-
-        return input_im
-
-    @staticmethod
-    def save_image(save_file: Path,
-                image: np.ndarray,
-                n_bits: int = 16) -> None:
-
-        # Need to flip image so coords are top left with Y down
-        # TODO check this
-        image = image[::-1,:]
-
-        if n_bits > 8:
-            im = Image.fromarray(image.astype(np.uint16))
-        else:
-            im = Image.fromarray(image.astype(np.uint8))
-
-        im.save(save_file)
-
-    @staticmethod
-    def image_num_str(im_num: int, width: int , cam_num: int = -1) -> str:
-        num_str = str(im_num)
-        num_str = num_str.zfill(width)
-
-        if cam_num >= 0:
-            num_str = num_str+'_'+str(cam_num)
-
-        return num_str
 
     #-------------------------------------------------------------------------------
     @staticmethod
@@ -258,6 +222,10 @@ class CameraTools:
                                          [bb_max[xx],bb_min[yy],bb_min[zz]],
                                          [bb_max[xx],bb_max[yy],bb_min[zz]],
                                          [bb_min[xx],bb_max[yy],bb_min[zz]],])
+
+        print(80*"-")
+        print(bound_box_world_vecs)
+        print(80*"-")
 
         bound_box_cam_vecs = np.matmul(world_to_cam_mat,bound_box_world_vecs.T)
         boundbox_cam_leng = (np.max(bound_box_cam_vecs,axis=1)

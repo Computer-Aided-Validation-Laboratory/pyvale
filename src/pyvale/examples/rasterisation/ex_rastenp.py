@@ -52,14 +52,15 @@ def main() -> None:
                                         field_disp_keys=disp_comps)
 
     #===========================================================================
-    render_mesh.fields_render = render_mesh.fields_render[:,-2:-1,:]
-    render_mesh.fields_disp = render_mesh.fields_disp[:,-2:-1,:]
+    # render_mesh.fields_render = render_mesh.fields_render[:,-2:-1,:]
+    # render_mesh.fields_disp = render_mesh.fields_disp[:,-2:-1,:]
     #render_mesh.fields_disp = None
     #===========================================================================
 
     meshes = [render_mesh,copy.deepcopy(render_mesh)]
-    meshes[1].set_pos(np.array((-12.0,-12.0,-12.0)))
-    meshes[1].set_rot(Rotation.from_euler("zyx",(-45.0, 0.0, 0.0),degrees=True))
+    meshes[1].set_pos(np.array((0.0,12.5,0.0)))
+    meshes[1].set_rot(Rotation.from_euler("zyx",(0.0, 0.0, 0.0),degrees=True))
+    meshes[1].fields_disp = None
     coords_all = pyv.get_all_coords_world(meshes)
 
     print()
@@ -82,8 +83,8 @@ def main() -> None:
     pixel_num = np.array((960,1280))
     pixel_size = np.array((5.3e-3,5.3e-3))
     focal_leng: float = 50
-    cam_rot = Rotation.from_euler("zyx",(0.0, 0.0,-30.0),degrees=True)
-    fov_scale_factor: float = 1.05
+    cam_rot = Rotation.from_euler("zyx",(0.0, 0.0, 0.0),degrees=True)
+    fov_scale_factor: float = 1.0
 
     (roi_pos_world,
      cam_pos_world) = pyv.CameraTools.pos_fill_frame(
@@ -155,7 +156,7 @@ def main() -> None:
         )
     else:
         images = pyv.RasterNP.raster_deformed_scene(
-            scene,save_path,parallel=None
+            scene,save_path,parallel=8
         )
 
     time_end_loop = time.perf_counter()

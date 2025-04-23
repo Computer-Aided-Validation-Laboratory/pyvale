@@ -622,7 +622,7 @@ class RasterNP:
 
         else:
             with Pool(threads_num) as pool:
-                processes_with_id = []
+                processes = []
 
                 for ff in range(0,frames_total):
                     args = (frame_inds[ff],
@@ -638,12 +638,12 @@ class RasterNP:
                     process = pool.apply_async(
                             RasterNP._static_meshes_frame_loop, args=args
                     )
-                    processes_with_id.append({"process": process,
-                                              "camera": cam_inds[ff],
-                                              "frame": frame_inds[ff],
-                                              "field": field_inds[ff]})
+                    processes.append({"process": process,
+                                      "camera": cam_inds[ff],
+                                      "frame": frame_inds[ff],
+                                      "field": field_inds[ff]})
 
-                for pp in processes_with_id:
+                for pp in processes:
                     image = pp["process"].get()
                     images[pp["camera"]][:,:,pp["frame"],pp["field"]] = image
 
