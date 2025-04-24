@@ -25,6 +25,8 @@ exampleoutput/
 !src/pyvale/data/*.e
 !reports/images/*.png
 !reports/images/*.svg
+!images/*.png
+!images/*.svg
 
 # Image deformation test cases
 *.pkl
