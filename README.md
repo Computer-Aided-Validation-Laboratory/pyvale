@@ -68,9 +68,6 @@ pip install -e .
 pip install -e ./dependencies/mooseherder
 ```
 
-### Mooseherder
-`pyvale` requires `mooseherder` to be able to load exodus output files from `moose` finite element simulations. `mooseherder` is included as a submodule and can be used and edited using the installation instructions above. You can find the `mooseherder` repo [here](https://github.com/Computer-Aided-Validation-Laboratory/mooseherder):
-
 ### MOOSE
 `pyvale` come pre-packaged with example `moose` physics simulation outputs (as *.e exodus files) to demonstrate its functionality. If you need to run additional simulation cases we recommend `proteus` (https://github.com/aurora-multiphysics/proteus) which has build scripts for common linux distributions.
 
