@@ -14,9 +14,8 @@ import mooseherder as mh
 import pyvale as pyv
 
 def main() -> None:
-    """pyvale example: TODO
+    """pyvale example: 3D thermo-mechanical with thermocouples & strain gauges
     ----------------------------------------------------------------------------
-    - TODO
     """
     # Load Simulations as mooseherder.SimData objects
     sim_path = pyv.DataSet.thermomechanical_3d_path()
@@ -100,7 +99,7 @@ def main() -> None:
 
     exp_sim = pyv.ExperimentSimulator(sim_list,
                                       sensor_arrays,
-                                      num_exp_per_sim=1000)
+                                      num_exp_per_sim=100)
 
     exp_data = exp_sim.run_experiments()
     exp_stats = exp_sim.calc_stats()
