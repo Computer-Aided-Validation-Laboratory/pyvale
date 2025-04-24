@@ -11,11 +11,6 @@ authors = [
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: MIT",
-    "Operating System :: OS Independent",
-]
 requires-python = "==3.11.*"
 dependencies = [
   "mooseherder>=0.1.0",
