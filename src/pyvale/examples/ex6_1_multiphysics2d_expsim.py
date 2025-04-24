@@ -1,6 +1,6 @@
 '''
 ================================================================================
-Example: thermo-mechanical multiphysics on a divertor armour heatsink
+Example: thermo-mechanical multiphysics on a 2D plate
 
 pyvale: the python validation engine
 License: MIT

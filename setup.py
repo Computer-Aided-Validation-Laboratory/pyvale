@@ -47,7 +47,8 @@ setup(
     python_requires="==3.11.*",
 
     install_requires=[
-        "numpy>=2.0.0",
+        "mooseherder>=0.1.0",
+        "numpy<2.0.0",
         "scipy>=1.14.0",
         "netCDF4>=1.6.5",
         "pyvista>=0.43.3",
@@ -60,6 +61,7 @@ setup(
         "numba>=0.59.1",
         "pymoo>=0.6.1.3",
         "Cython>=3.0.0",
+        "bpy>=4.2.0",
     ],
 
     package_data={

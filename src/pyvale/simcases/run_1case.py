@@ -15,7 +15,11 @@ from mooseherder import (MooseConfig,
 
 #===============================================================================
 # Change this to run a different case
+<<<<<<< HEAD
 CASE_STR = 'case21'
+=======
+CASE_STR = 'case16'
+>>>>>>> deploy
 #===============================================================================
 
 CASE_FILES = (CASE_STR+'.geo',CASE_STR+'.i')
@@ -33,8 +37,8 @@ def main() -> None:
         gmsh_run_time = time.perf_counter()-gmsh_start
 
     config = {'main_path': USER_DIR / 'moose',
-            'app_path': USER_DIR / 'proteus',
-            'app_name': 'proteus-opt'}
+              'app_path': USER_DIR / 'proteus',
+              'app_name': 'proteus-opt'}
 
     print(config['main_path'])
 
@@ -42,7 +46,7 @@ def main() -> None:
     moose_runner = MooseRunner(moose_config)
 
     moose_runner.set_run_opts(n_tasks = 1,
-                              n_threads = 16,
+                              n_threads = 8,
                               redirect_out = False)
 
     moose_start_time = time.perf_counter()
