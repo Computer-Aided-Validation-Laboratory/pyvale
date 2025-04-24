@@ -1,13 +1,12 @@
 '''
 ================================================================================
-Example: thermo-mechanical multiphysics on a divertor armour heatsink
+Example: thermo-mechanical multiphysics on a 2D plate
 
 pyvale: the python validation engine
 License: MIT
 Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 '''
-from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import mooseherder as mh
