@@ -8,9 +8,9 @@
 endTime = 20
 timeStep = 1
 
-coolantTemp=100.0      # degC
-heatTransCoeff=125.0e3 # W.m^-2.K^-1
-surfHeatFlux=4.67e6    # W.m^-2, taken from Adel's first paper
+coolantTemp= 150.0      # degC
+heatTransCoeff= 125.0e3 # W.m^-2.K^-1
+surfHeatFlux= 4.67e6    # W.m^-2, taken from Adel's first paper
 timeConst = 1   # s
 
 # Material Properties:
@@ -42,7 +42,7 @@ wEMod = 387e9       # Pa
 wPRatio = 0.29      # -
 
 # Thermo-mechanical coupling
-stressFreeTemp = 20 # degC
+stressFreeTemp = ${coolantTemp} # degC
 cucrzrThermExp =  17.7e-6 # 1/degC
 cuThermExp = 17.8e-6 # 1/degC
 wThermExp = 4.72e-6 # 1/degC

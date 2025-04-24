@@ -131,6 +131,7 @@ def print_dimensions(sim_data: mh.SimData) -> None:
         Simulation data objects containing the nodal coordinates.
     """
     print(80*"-")
+    print("SimData Dimensions:")
     print(f"x [min,max] = [{np.min(sim_data.coords[:,0])}," + \
           f"{np.max(sim_data.coords[:,0])}]")
     print(f"y [min,max] = [{np.min(sim_data.coords[:,1])}," + \
