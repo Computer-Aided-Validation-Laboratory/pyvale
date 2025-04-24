@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvale"
-version = "0.0.2"
-description = "A python validation engine (pyvale) for simulating sensors and measurement uncertainties on physical fields."
+version = "0.1.0"
+description = "An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation.."
 authors = [
   { name = "scepticalrabbit", email = "thescepticalrabbit@gmail.com" },
 ]
@@ -18,7 +18,7 @@ classifiers = [
 ]
 requires-python = "==3.11.*"
 dependencies = [
-  "numpy>=2.0.0",
+  "numpy<2.0.0",
   "scipy>=1.14.0",
   "netCDF4>=1.6.5",
   "pyvista>=0.43.3",

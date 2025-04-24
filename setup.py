@@ -25,7 +25,7 @@ ext_modules = [
 setup(
     name="pyvale",
 
-    version="0.0.2",
+    version="0.1.0",
 
     description="An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration or validation.",
 
