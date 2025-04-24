@@ -47,6 +47,7 @@ setup(
     python_requires="==3.11.*",
 
     install_requires=[
+        "mooseherder>=0.1.0",
         "numpy<2.0.0",
         "scipy>=1.14.0",
         "netCDF4>=1.6.5",

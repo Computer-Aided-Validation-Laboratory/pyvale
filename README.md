@@ -1,7 +1,7 @@
 # pyvale
 The python validation engine (`pyvale`): An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation.​ Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
 
-## Quick Example: Simulated Point Sensors on a Fusion Armour Heatsink
+## Quick Demo: Simulating Point Sensors
 Here we demonstrate how `pyvale` can be used to simulate thermocouples and strain gauges applied to a [MOOSE](https://mooseframework.inl.gov/index.html) thermo-mechanical simulation of a fusion divertor armour heatsink. The figures below show visualisations of the virtual thermocouple and strain gauge locations on the simualtion mesh as well as time traces for each sensor over a series of simulated experiments. The code to run the simulated experiments and produce the output shown here comes from [this example](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/src/pyvale/examples/ex6_2_multiphysics3d_expsim.py).
 
 |![fig_thermomech3d_tc_vis](images/thermomech3d_tc_vis.svg)|![fig_thermomech3d_sg_vis](images/thermomech3d_sg_vis.svg)|
