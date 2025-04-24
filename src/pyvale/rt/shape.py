@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import root
+from scipy.optimize import root, minimize
 
 from pyvale.rt.hittable import Hittable, HitRecord
 from pyvale.rt.material import Material
@@ -7,27 +7,29 @@ from pyvale.rt.ray import Ray
 from pyvale.rt.interval import Interval
 from pyvale.rt.aabb import AABB
 
+# Shape function elements.
+
 # Define shape functions for a 4-node quadrilateral element
-def shape_functions(xi, eta):
-    N = np.array([
-        0.25 * (1 - xi) * (1 - eta),
-        0.25 * (1 + xi) * (1 - eta),
-        0.25 * (1 + xi) * (1 + eta),
-        0.25 * (1 - xi) * (1 + eta)
-    ])
-    return N
+# def shape_functions(xi, eta):
+#     N = np.array([
+#         0.25 * (1 - xi) * (1 - eta),
+#         0.25 * (1 + xi) * (1 - eta),
+#         0.25 * (1 + xi) * (1 + eta),
+#         0.25 * (1 - xi) * (1 + eta)
+#     ])
+#     return N
 
-# Compute the position on the deformed surface given (xi, eta)
-def deformed_surface(xi, eta, nodes, displacements):
-    N = shape_functions(xi, eta)
-    return np.dot(N, nodes + displacements)
+# # Compute the position on the deformed surface given (xi, eta)
+# def deformed_surface(xi, eta, nodes, displacements):
+#     N = shape_functions(xi, eta)
+#     return np.dot(N, nodes + displacements)
 
-# Residual function: difference between point on surface and point on line
-def residual(vars, nodes, displacements, r0, d):
-    xi, eta, t = vars
-    surface_point = deformed_surface(xi, eta, nodes, displacements)
-    line_point = r0 + t * d
-    return surface_point - line_point
+# # Residual function: difference between point on surface and point on line
+# def residual(vars, nodes, displacements, r0, d):
+#     xi, eta, t = vars
+#     surface_point = deformed_surface(xi, eta, nodes, displacements)
+#     line_point = r0 + t * d
+#     return surface_point - line_point
 
 if __name__ == "__main()__":
     # Define node coordinates (quad)
@@ -65,14 +67,49 @@ if __name__ == "__main()__":
 
     print(intersection_found, solution.x, intersection_point)
 
+class ShapeFunctionShape(Hittable):
+    # Compute the position on the deformed surface given (xi, eta)
+    def deformed_surface(self, xi, eta):
+        N = self.shape_functions(xi, eta)
+        return np.dot(N, self.nodes + self.displacements)
+
+    # Residual function: difference between point on surface and point on line
+    def residual(self, vars, r0, d):
+        xi, eta, t = vars
+        surface_point = self.deformed_surface(xi, eta)
+        line_point = r0 + t * d
+        return surface_point - line_point
 
 # A triangle 
-class ShapeQuad(Hittable):
+class ShapeLinQuad(ShapeFunctionShape):
     def __init__(self, nodes: np.ndarray, displacements: np.ndarray, mat: Material):
+        assert len(nodes) == 4
+        assert len(displacements) == 4
         self.nodes = nodes
         self.displacements = displacements
         self.mat = mat
-        self.bbox = AABB(Interval.from_floats(-1, 1), Interval.from_floats(-1, 1), Interval.from_floats(-1, 1))
+        self.set_bounding_box()
+    
+    def set_bounding_box(self):
+        # Linear shape, so the extreme points will be nodes themselves
+        points = self.nodes + self.displacements
+        min_values = points.min(axis=0)
+        max_values = points.max(axis=0)
+        x_inter = Interval.from_floats(min_values[0], max_values[0])
+        y_inter = Interval.from_floats(min_values[1], max_values[1])
+        z_inter = Interval.from_floats(min_values[2], max_values[2])
+
+        self.bbox = AABB(x_inter, y_inter, z_inter)
+
+    # Define shape functions for a 4-node quadrilateral element
+    def shape_functions(self, xi, eta):
+        N = np.array([
+            0.25 * (1 - xi) * (1 - eta),
+            0.25 * (1 + xi) * (1 - eta),
+            0.25 * (1 + xi) * (1 + eta),
+            0.25 * (1 - xi) * (1 + eta)
+        ])
+        return N
 
     def hit(self, r: Ray, ray_t: Interval) -> HitRecord:
         initial_guess = [0, 0, 5] #in xi, eta, t
@@ -81,28 +118,161 @@ class ShapeQuad(Hittable):
         d = r.direction
 
         # Solve the nonlinear system
-        solution = root(residual, initial_guess, args=(self.nodes, self.displacements, r0, d))
+        solution = root(self.residual, initial_guess, args=(r0, d))
 
         # Extract solution
         intersection_found = solution.success
         intersection_point = None
         if intersection_found:
             xi_sol, eta_sol, t_sol = solution.x
-            intersection_point = deformed_surface(xi_sol, eta_sol, self.nodes, self.displacements)
+            intersection_point = self.deformed_surface(xi_sol, eta_sol)
 
             # Invalid solution
             if t_sol < 0 or abs(xi_sol) > 1 or abs(eta_sol) > 1:
                 return None 
 
-            rec: HitRecord = HitRecord(p = intersection_point, t= solution.x[2], mat = self.mat, r=r, outward_normal=np.array([0, -1, 0]))
+            # Fix the normal to reality.
+            outward_normal = self.surface_normal(xi_sol, eta_sol)
+            rec: HitRecord = HitRecord(p = intersection_point, t= solution.x[2], mat = self.mat, r=r, outward_normal=outward_normal)
+            return rec
+        else:
+            return None
+    
+    # Differentiate shape functions w.r.t. xi
+    def dN_dxi(self, xi, eta):
+        return np.array([
+            -0.25 * (1 - eta),
+             0.25 * (1 - eta),
+             0.25 * (1 + eta),
+            -0.25 * (1 + eta)
+        ])
+
+    # Differentiate shape functions w.r.t. eta
+    def dN_deta(self, xi, eta):
+        return np.array([
+            -0.25 * (1 - xi),
+            -0.25 * (1 + xi),
+             0.25 * (1 + xi),
+             0.25 * (1 - xi)
+        ])
+
+    def surface_normal(self, xi, eta):
+        coords = self.nodes + self.displacements
+
+        dxdxi = np.sum(self.dN_dxi(xi, eta)[:, np.newaxis] * coords, axis=0)
+        dxdeta = np.sum(self.dN_deta(xi, eta)[:, np.newaxis] * coords, axis=0)
+
+        normal = np.cross(dxdxi, dxdeta)
+        norm = np.linalg.norm(normal)
+        return normal / norm if norm > 0 else normal
+
+
+class ShapeQuadQuad(ShapeFunctionShape):
+    def __init__(self, nodes: np.ndarray, displacements: np.ndarray, mat: Material):
+        assert len(nodes) == 8
+        assert len(displacements) == 8
+        self.nodes = nodes
+        self.displacements = displacements
+        self.mat = mat
+        self.set_bounding_box()
+    
+    def set_bounding_box(self):
+        # Quadratic, so extreme points might not be nodes. Minimize to find.
+
+        # Choose a non-symetric starting point to guess
+        initial_guess = [0.1, 0.1]
+        bounds = [(-1, 1), (-1, 1)]
+
+        # maximizations are a minimization of the negative function
+        min_x = minimize(lambda x: self.deformed_surface(x[0], x[1])[0], initial_guess, bounds=bounds)
+        max_x = minimize(lambda x: -self.deformed_surface(x[0], x[1])[0], initial_guess, bounds=bounds)
+        min_y = minimize(lambda x: self.deformed_surface(x[0], x[1])[1], initial_guess, bounds=bounds)
+        max_y = minimize(lambda x: -self.deformed_surface(x[0], x[1])[1], initial_guess, bounds=bounds)
+        min_z = minimize(lambda x: self.deformed_surface(x[0], x[1])[2], initial_guess, bounds=bounds)
+        max_z = minimize(lambda x: -self.deformed_surface(x[0], x[1])[2], initial_guess, bounds=bounds)
+
+        # negate the max again to get the true max value.
+        x_inter = Interval.from_floats(min_x.fun, -max_x.fun)
+        y_inter = Interval.from_floats(min_y.fun, -max_y.fun)
+        z_inter = Interval.from_floats(min_z.fun, -max_z.fun)
+
+        self.bbox = AABB(x_inter, y_inter, z_inter)
+        print(self.bbox)
+    
+
+
+    # Define shape functions for a 4-node quadrilateral element
+    def shape_functions(self, xi, eta):
+        N = np.array([
+            0.25 * (1 - xi) * (1 - eta) * (-1 - xi - eta),
+            0.25 * (1 + xi) * (1 - eta) * (-1 + xi - eta),
+            0.25 * (1 + xi) * (1 + eta) * (-1 + xi + eta),
+            0.25 * (1 - xi) * (1 + eta) * (-1 - xi + eta),
+            0.5  * (1 - xi ** 2) * (1 - eta),
+            0.5  * (1 + xi)      * (1 - eta ** 2),
+            0.5  * (1 - xi ** 2) * (1 + eta),
+            0.5  * (1 - xi)      * (1 - eta ** 2)
+        ])
+        return N
+
+    def hit(self, r: Ray, ray_t: Interval) -> HitRecord:
+        initial_guess = [0, 0, 0] #in xi, eta, t
+
+        r0 = r.origin
+        d = r.direction
+
+        # Solve the nonlinear system
+        solution = root(self.residual, initial_guess, args=(r0, d))
+
+        # Extract solution
+        intersection_found = solution.success
+        intersection_point = None
+        if intersection_found:
+            xi_sol, eta_sol, t_sol = solution.x
+            intersection_point = self.deformed_surface(xi_sol, eta_sol)
+
+            # Invalid solution
+            if t_sol < 0 or abs(xi_sol) > 1 or abs(eta_sol) > 1:
+                return None 
+
+            # Fix the normal to reality.
+            outward_normal = self.surface_normal(xi_sol, eta_sol)
+            rec: HitRecord = HitRecord(p = intersection_point, t= solution.x[2], mat = self.mat, r=r, outward_normal=outward_normal)
             return rec
         else:
             return None
 
 
-    
-    # def is_interior(self, a: float, b: float) -> Tuple[float, float]:
-    #     if a > 0 and b > 0 and a+b < 1:
-    #         return (a,b)
-    #     else:
-    #         return None
+    def dN_dxi(self, xi, eta):
+        return np.array([
+            0.25 * (1 - eta) * (-1 - 2 * xi - eta),
+            0.25 * (1 - eta) * (-1 + 2 * xi - eta),
+            0.25 * (1 + eta) * (-1 + 2 * xi + eta),
+            0.25 * (1 + eta) * (-1 - 2 * xi + eta),
+            -xi * (1 - eta),
+            0.5 * (1 - eta**2),
+            -xi * (1 + eta),
+            -0.5 * (1 - eta**2)
+        ])
+
+    def dN_deta(self, xi, eta):
+        return np.array([
+            0.25 * (1 - xi) * (-1 - xi - 2 * eta),
+            0.25 * (1 + xi) * (-1 + xi - 2 * eta),
+            0.25 * (1 + xi) * (-1 + xi + 2 * eta),
+            0.25 * (1 - xi) * (-1 - xi + 2 * eta),
+            -0.5 * (1 - xi**2),
+            -eta * (1 + xi),
+            0.5 * (1 - xi**2),
+            -eta * (1 - xi)
+        ])
+
+    def surface_normal(self, xi, eta):
+        coords = self.nodes + self.displacements
+
+        dxdxi = np.sum(self.dN_dxi(xi, eta)[:, np.newaxis] * coords, axis=0)
+        dxdeta = np.sum(self.dN_deta(xi, eta)[:, np.newaxis] * coords, axis=0)
+
+        normal = np.cross(dxdxi, dxdeta)
+        norm = np.linalg.norm(normal)
+        return normal / norm if norm > 0 else normal

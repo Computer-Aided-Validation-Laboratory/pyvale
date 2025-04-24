@@ -6,7 +6,7 @@ from pyvale.rt.material import DiffuseLight
 from pyvale.rt.sphere import Sphere
 from pyvale.rt.camera import Camera
 from pyvale.rt.quad import Disk, Quad, Tri, Disk
-from pyvale.rt.shape import ShapeQuad
+from pyvale.rt.shape import ShapeLinQuad, ShapeQuadQuad
 
 np.random.default_rng(1)
 
@@ -154,7 +154,9 @@ def cornell_box():
 
     cam.render(world)
 
-def shape_test():
+def shape_lin():
+    # linear quadratic using shape functions
+
     world: HittableList = HittableList()
 
     red   = Lambertian.from_colour(np.array([.65, .05, .05]))
@@ -171,14 +173,14 @@ def shape_test():
 
     # Define displacements at each node
     displacements = np.array([
-        [0, -1, 0],       # Node 1
-        [0, -1, 0],     # Node 2
-        [0, 1, 0],     # Node 3
-        [0, 1, 0]      # Node 4
+        [0, 0, 0],       # Node 1
+        [0, 0, 0],     # Node 2
+        [0, 3, 0],     # Node 3
+        [0, 3, 0]      # Node 4
     ])
 
 
-    world.add(ShapeQuad(nodes, displacements, red))
+    world.add(ShapeLinQuad(nodes, displacements, red))
 
     world = HittableList(BVH_Node(world._objects))
 
@@ -194,6 +196,56 @@ def shape_test():
 
     cam.render(world)
 
+def shape_quad():
+    # quadratic quadrateral using shape functions
+
+    world: HittableList = HittableList()
+
+    red   = Lambertian.from_colour(np.array([.65, .05, .05]))
+    white = Lambertian.from_colour(np.array([.73, .73, .73]))
+    green = Lambertian.from_colour(np.array([.12, .45, .15]))
+    light = DiffuseLight.from_colour(np.array([15, 15, 15]))
+
+    nodes = np.array([
+        [-1, -1, 0],   # Node 1
+        [1, -1, 0],   # Node 2
+        [1, 1, 0],   # Node 3
+        [-1, 1, 0],    # Node 4
+        [0, -1, 0], # 5
+        [1, 0, 0], #6
+        [0, 1, 0],  #7
+        [-1, 0, 0]  #8
+    ])
+
+    # Define displacements at each node
+    displacements = np.array([
+        [-1, -1, 0],       # Node 1
+        [1, -1, 0],     # Node 2
+        [1, 1, 0],     # Node 3
+        [-1, 1, 0],      # Node 4
+        [0, 0, 0],  # 5
+        [0, 0, 0],  # 6
+        [0, 0, 0],  # 7
+        [0, 0, 0],  #8
+    ])
+
+
+    world.add(ShapeQuadQuad(nodes, displacements, red))
+
+    world = HittableList(BVH_Node(world._objects))
+
+    cam: Camera = Camera()
+    cam.image_width = 150
+    cam.image_height = 150
+    cam.samples_per_pixel = 15
+    cam.max_depth = 5
+    cam.background = np.array([0.70, 0.80, 1.00])
+    cam.look_from = np.array([0,0,4])
+    cam.look_at = np.array([0,0,0])
+
+
+    cam.render(world)
+
 
 if __name__ == "__main__":
-    shape_test()
+    shape_quad()
