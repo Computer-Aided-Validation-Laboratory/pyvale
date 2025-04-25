@@ -4,11 +4,11 @@ The python validation engine (`pyvale`): An all-in-one package for sensor simula
 ## Quick Demo: Simulating Point Sensors
 Here we demonstrate how `pyvale` can be used to simulate thermocouples and strain gauges applied to a [MOOSE](https://mooseframework.inl.gov/index.html) thermo-mechanical simulation of a fusion divertor armour heatsink. The figures below show visualisations of the virtual thermocouple and strain gauge locations on the simualtion mesh as well as time traces for each sensor over a series of simulated experiments. The code to run the simulated experiments and produce the output shown here comes from [this example](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/src/pyvale/examples/ex6_2_multiphysics3d_expsim.py).
 
-|![fig_thermomech3d_tc_vis](images/thermomech3d_tc_vis.svg)|![fig_thermomech3d_sg_vis](images/thermomech3d_sg_vis.svg)|
+|![fig_thermomech3d_tc_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_sg_vis.svg)|![fig_thermomech3d_sg_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_sg_vis.svg)|
 |--|--|
 |*Visualisation of the thermcouple locations.*|*Visualisation of the strain gauge locations.*|
 
-|![fig_thermomech3d_tc_traces](images/thermomech3d_tc_traces.png)|![fig_thermomech3d_sg_traces](images/thermomech3d_sg_traces.png)|
+|![fig_thermomech3d_tc_traces](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_tc_traces.png)|![fig_thermomech3d_sg_traces](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_sg_traces.png)|
 |--|--|
 |*Thermocouples time traces over a series of simulated experiments.*|*Strain gauge time traces over a series of simulated experiments.*|
 
