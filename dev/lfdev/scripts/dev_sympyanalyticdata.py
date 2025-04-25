@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sympy
 import pyvale
-import pyvale.core.visualisation.visualplotters
+import pyvale.visualisation.visualplotters
 
 def main() -> None:
 

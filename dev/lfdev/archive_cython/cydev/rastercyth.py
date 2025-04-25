@@ -1,17 +1,15 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 import numpy as np
 import cython
 from cython.parallel import prange, parallel, threadid
 from cython.cimports.libc.math import floor, ceil
 
-from pyvale.core.rendermesh import RenderMesh
-from pyvale.core.cameradata import CameraData
+from pyvale.rendermesh import RenderMesh
+from pyvale.cameradata import CameraData
 
 
 # @cython.nogil

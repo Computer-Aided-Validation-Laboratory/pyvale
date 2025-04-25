@@ -275,7 +275,7 @@ class SphereWithConstraint(Problem):
 https://pymoo.org/problems/parallelization.html
 Example:
 ```python
-from pymoo.core.problem import Problem
+from pymoo.problem import Problem
 
 pool = ThreadPool(8)
 

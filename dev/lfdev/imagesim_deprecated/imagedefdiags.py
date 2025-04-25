@@ -1,14 +1,12 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pyvale.core.visualopts import PlotOptsGeneral
+from pyvale.visualopts import PlotOptsGeneral
 
 
 def plot_diag_image(
