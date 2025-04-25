@@ -7,13 +7,7 @@ name = "pyvale"
 version = "2025.4.1"
 description = "An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
-  { name = "scepticalrabbit", email = "thescepticalrabbit@gmail.com" },
-  { name = "lornasibson"},
-  { name = "joelphys"},
-  { name = "coolmule0"},
-  { name = "3adelTayeb"},
-  { name = "alexmarsh2"},
-  { name = "fusmatrs"},
+  { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
