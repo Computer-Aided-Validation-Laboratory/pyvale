@@ -56,14 +56,14 @@ class SimTools():
             An array containing the deformed values of all the components at
             each node location. Returns None if there are no deformation values.
         """
-        if render_mesh.fields_disp is not None:
-            added_disp = render_mesh.fields_disp[:, timestep]
-            if added_disp.shape[1] == 2:
-                added_disp = np.hstack((added_disp,np.zeros([added_disp.shape[0],1])))
-            coords = np.delete(render_mesh.coords, 3, axis=1)
-            deformed_nodes = coords + added_disp
-            return deformed_nodes
-        else:
+        if render_mesh.fields_disp is None:
             return None
+
+        added_disp = render_mesh.fields_disp[:, timestep]
+        if added_disp.shape[1] == 2:
+            added_disp = np.hstack((added_disp,np.zeros([added_disp.shape[0],1])))
+        coords = np.delete(render_mesh.coords, 3, axis=1)
+        deformed_nodes = coords + added_disp
+        return deformed_nodes
 
 
