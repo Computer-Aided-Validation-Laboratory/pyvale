@@ -31,7 +31,6 @@ import pyvale as pyv
 def main() -> None:
     """pyvale example: rasterisation field renderer
     ----------------------------------------------------------------------------
-    - TODO
     """
     # This a path to an exodus *.e output file from MOOSE, this can be
     # replaced with a path to your own simulation file
@@ -54,7 +53,7 @@ def main() -> None:
     #===========================================================================
     # render_mesh.fields_render = render_mesh.fields_render[:,-2:-1,:]
     # render_mesh.fields_disp = render_mesh.fields_disp[:,-2:-1,:]
-    #render_mesh.fields_disp = None
+    # render_mesh.fields_disp = None
     #===========================================================================
 
     meshes = [render_mesh,copy.deepcopy(render_mesh)]
