@@ -16,17 +16,11 @@ class BlenderLightType(Enum):
     SPOT = 'SPOT'
     AREA = 'AREA'
 
-@dataclass()
+@dataclass(slots=True)
 class BlenderLightData():
-    type: BlenderLightType | None
     pos_world: np.ndarray
     rot_world: Rotation
     energy: int # NOTE: In Watts
-    shadow_soft_size: float | None = None
-
-    def __post_init__(self) -> None:
-        if self.type is None:
-            self.type = BlenderLightType.POINT
-        if self.shadow_soft_size is None:
-            self.shadow_soft_size = 1.5
+    type: BlenderLightType = BlenderLightType.POINT
+    shadow_soft_size: float = 1.5
 

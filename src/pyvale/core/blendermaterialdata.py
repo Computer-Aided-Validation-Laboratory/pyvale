@@ -7,13 +7,9 @@ Copyright (C) 2024 The Computer Aided Validation Team
 """
 from dataclasses import dataclass
 
-@dataclass
+@dataclass(slots=True)
 class BlenderMaterialData():
     # TODO: Add other material properties here
-    roughness: float | None = None
-    metallic: float | None = None
-    interpolant = 'Cubic'
-
-    def __post_init__(self) -> None:
-        self.roughness = 1
-        self.metallic = 0
+    roughness: float = 1.0
+    metallic: float = 0.0
+    interpolant: int = 'Cubic'
