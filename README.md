@@ -13,9 +13,14 @@ Here we demonstrate how `pyvale` can be used to simulate thermocouples and strai
 |*Thermocouples time traces over a series of simulated experiments.*|*Strain gauge time traces over a series of simulated experiments.*|
 
 
-## Installation: Ubuntu
-### Managing Python Versions
+## Quick Install
+`pyvale` can be installed from pypi:
+```shell
+pip install pyvale
+```
 
+## Detailed Install: Ubuntu
+### Managing Python Versions
 To be compatible with `bpy` (the Blender python interface), `pyvale` uses python 3.11. To install python 3.11 without corrupting your operating systems python installation first add the deadsnakes repository to apt:
 ```shell
 sudo add-apt-repository ppa:deadsnakes/ppa
@@ -46,24 +51,21 @@ python3.11 -m venv .pyvale-env
 source .pyvale-env/bin/activate
 ```
 
-### Standard & Developer Installation
+### Standard Installation
+`pyvale` can be installed from pypi. Ensure you virtual environment is activated and run:
+```shell
+pip install pyvale
+```
+
+### Developer Installation
 
 Clone `pyvale` to your local system along with submodules using
-
-```
+```shell
 git clone --recurse-submodules git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
 ```
 
 `cd` to the root directory of `pyvale`. Ensure you virtual environment is activated and run the following commmand from the `pyvale` directory:
-
-```
-pip install .
-pip install ./dependencies/mooseherder
-```
-
-To create an editable/developer installation of `pyvale` and `mooseherder` - follow the instructions for a standard installation but run:
-
-```
+```shell
 pip install -e .
 pip install -e ./dependencies/mooseherder
 ```
@@ -72,18 +74,18 @@ pip install -e ./dependencies/mooseherder
 `pyvale` come pre-packaged with example `moose` physics simulation outputs (as *.e exodus files) to demonstrate its functionality. If you need to run additional simulation cases we recommend `proteus` (https://github.com/aurora-multiphysics/proteus) which has build scripts for common linux distributions.
 
 ## Getting Started
-The examples folder in "src/pyvale/examples" includes a sequence of examples of increasing complexity that demonstrate the functionality of `pyvale`.
+The examples folder in "pyvale/examples" includes a sequence of examples of increasing complexity that demonstrate the functionality of `pyvale`.
 
 ## Contributors
 The Computer Aided Validation Team at UKAEA:
 - Lloyd Fletcher (ScepticalRabbit), UK Atomic Energy Authority
-- John Charlton, UK Atomic Energy Authority
-- Joel Hirst, UK Atomic Energy Authority
-- Lorna Sibson, UK Atomic Energy Authority
-- Adel Tayeb, UK Atomic Energy Authority
-- Alex Marsh, UK Atomic Energy Authority
-- Rory Spencer, UK Atomic Energy Authority
-- Michael Atkinson, UK Atomic Energy Authority
+- John Charlton (coolmule0), UK Atomic Energy Authority
+- Joel Hirst (JoelPhys), UK Atomic Energy Authority
+- Lorna Sibson (lornasibson), UK Atomic Energy Authority
+- Adel Tayeb (3adelTayeb), UK Atomic Energy Authority
+- Alex Marsh (alexmarsh2), UK Atomic Energy Authority
+- Rory Spencer (fusmatrs), UK Atomic Energy Authority
+
 
 
 
