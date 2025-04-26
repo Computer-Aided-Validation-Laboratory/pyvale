@@ -14,21 +14,21 @@ from pyvale.renderscene import RenderScene
 #===============================================================================
 class IRenderEngine(ABC):
     @abstractmethod
-    def render_frame(self, frame_ind: int = 0) -> list[np.ndarray]:
+    def render(self, frame_ind: int = 0) -> list[np.ndarray]:
         pass
 
     @abstractmethod
-    def render_frame_to_disk(self,
+    def render_to_disk(self,
                           save_path: Path | None = None,
                           frame_ind: int = 0) -> None:
         pass
 
     @abstractmethod
-    def render_all_frames(self) -> list[np.ndarray]:
+    def render_all(self) -> list[np.ndarray]:
         pass
 
     @abstractmethod
-    def render_all_frames_to_disk(self, save_path: Path | None = None) -> None:
+    def render_allto_disk(self, save_path: Path | None = None) -> None:
         pass
 
 
@@ -70,10 +70,10 @@ class Renderer:
         self.engine = engine
         self.opts = opts
 
-    def render_one_frame(self, frame_ind: int = 0) -> None:
+    def render_one(self, frame_ind: int = 0) -> None:
         pass
 
-    def render_all_frames(self, parallel: int | None = None) -> None:
+    def render_all(self, parallel: int | None = None) -> None:
         pass
 
 

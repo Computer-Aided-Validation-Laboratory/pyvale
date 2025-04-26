@@ -56,7 +56,7 @@ def main() -> None:
 
     meshes = [render_mesh,copy.deepcopy(render_mesh)]
     meshes[1].set_pos(np.array((0.0,12.5,0.0)))
-    meshes[1].set_rot(Rotation.from_euler("zyx",(0.0, 0.0, 0.0),degrees=True))
+    meshes[1].set_rot(Rotation.from_euler("zyx",(0.0, -30.0, 0.0),degrees=True))
     meshes[1].fields_disp = None
     coords_all = pyv.get_all_coords_world(meshes)
 
@@ -149,7 +149,7 @@ def main() -> None:
 
     if static_mesh:
         images = pyv.RasterNP.raster_static_scene(
-            scene,save_path,threads_num=8
+            scene,save_path,parallel=8
         )
     else:
         images = pyv.RasterNP.raster_deformed_scene(

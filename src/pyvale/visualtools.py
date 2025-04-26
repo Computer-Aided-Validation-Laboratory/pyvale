@@ -10,10 +10,10 @@ import numpy as np
 #NOTE: causes output to console to be suppressed unfortunately
 import pyvista as pv
 from pyvale.visualopts import (VisOptsSimSensors,
-                                    VisOptsImageSave,
-                                    EImageType,
-                                    VisOptsAnimation,
-                                    EAnimationType)
+                                VisOptsImageSave,
+                                EImageType,
+                                VisOptsAnimation,
+                                EAnimationType)
 
 #TODO: Docstrings
 

@@ -13,6 +13,7 @@ from pyvale.rendermesh import RenderMesh
 # - How do we match render fields between meshes?
 # - How do we check displacement fields are the same between meshes?
 # - Eventually this will need to take render times and do the field interpolations
+# - Check all render meshes to see if any are deformable
 
 
 class RenderScene:
@@ -31,6 +32,13 @@ class RenderScene:
             self.meshes = []
         else:
             self.meshes = meshes
+
+    def is_deformable(self) -> bool:
+        for mm in self.meshes:
+            if mm.fields_disp is not None:
+                return True
+
+        return False
 
 def get_all_coords_world(meshes: list[RenderMesh]) -> np.ndarray:
     coords_all = []
