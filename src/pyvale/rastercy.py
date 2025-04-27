@@ -8,7 +8,7 @@ from multiprocessing.pool import Pool
 import numpy as np
 from pyvale.cameradata import CameraData
 from pyvale.rendermesh import RenderMesh
-from pyvale.renderer import IRenderEngine
+from pyvale.renderer import IRenderer
 from pyvale.rasteropts import RasterOpts
 import pyvale.cython.rastercyth as rastercyth
 

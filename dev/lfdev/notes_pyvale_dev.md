@@ -1,11 +1,12 @@
 
 # Notes: `pyvale` developement
 
-
-```python
-save_path = Path.home()/"test"/"pyvale-check"
-np.save
-```
+## TODO: `Raster`
+- Fix numpy raster to raster all fields in one step
+- Fix numpy raster to make sure the background is set correctly for averaging
+- Fix image saving to use a certain number of bits per unit instead of scaling the images
+- Add checks to image scale function to avoid divide 0
+- Make sure saved images saturate correctly
 
 ## TODO: `Renderer`
 --------------------

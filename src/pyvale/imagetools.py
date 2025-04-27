@@ -67,12 +67,12 @@ class ImageTools:
     def scale(image: np.ndarray, min_frac: float = 0.0, max_frac: float = 1.0) -> np.ndarray:
 
         im_scale = np.copy(image)
-        im_max = np.max(np.max(image,axis=0),axis=0)
-        im_min = np.min(np.min(image,axis=0),axis=0)
+        im_max = np.nanmax(np.nanmax(image,axis=0),axis=0)
+        im_min = np.nanmin(np.nanmin(image,axis=0),axis=0)
 
         # Scale image 0->1
         im_scale = (im_scale - im_min)/(im_max-im_min)
-
+        
         # Scale to between min->max
         im_scale = im_scale*(max_frac-min_frac) + min_frac
 

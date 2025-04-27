@@ -56,7 +56,7 @@ def main() -> None:
 
     meshes = [render_mesh,copy.deepcopy(render_mesh)]
     meshes[1].set_pos(np.array((0.0,12.5,0.0)))
-    meshes[1].set_rot(Rotation.from_euler("zyx",(0.0, -30.0, 0.0),degrees=True))
+    meshes[1].set_rot(Rotation.from_euler("zyx",(0.0, 0.0, 0.0),degrees=True))
     meshes[1].fields_disp = None
     coords_all = pyv.get_all_coords_world(meshes)
 
@@ -80,7 +80,7 @@ def main() -> None:
     pixel_num = np.array((960,1280))
     pixel_size = np.array((5.3e-3,5.3e-3))
     focal_leng: float = 50
-    cam_rot = Rotation.from_euler("zyx",(0.0, 0.0, 0.0),degrees=True)
+    cam_rot = Rotation.from_euler("zyx",(0.0, 0.0, -30.0),degrees=True)
     fov_scale_factor: float = 1.0
 
     (roi_pos_world,
@@ -133,42 +133,52 @@ def main() -> None:
     print(80*"-")
 
 
+    #===========================================================================
     print()
     print(80*"=")
-    print("RASTER LOOP START")
+    print("IN MEM: Raster Loop start")
 
+    raster_opts = pyv.RasterOpts(parallel=8)
+    renderer = pyv.RasterNumpy(raster_opts)
+
+    time_start_loop = time.perf_counter()
+
+    images = renderer.render_all(scene)
+
+    time_end_loop = time.perf_counter()
+    time_inmem = time_end_loop - time_start_loop
+
+    print(f"{images[0].shape=}")
+    print(f"{images[1].shape=}")
+    print("IN MEM: Raster Loop End")
+    print(80*"=")
+
+
+    print(80*"=")
+    print("TO DISK: Raster Loop start")
     save_path = Path.cwd()/"pyvale-output"
     if not save_path.is_dir():
         save_path.mkdir(parents=True, exist_ok=True)
 
-
-    save_path = None
-    static_mesh = False
-
     time_start_loop = time.perf_counter()
 
-    if static_mesh:
-        images = pyv.RasterNP.raster_static_scene(
-            scene,save_path,parallel=8
-        )
-    else:
-        images = pyv.RasterNP.raster_deformed_scene(
-            scene,save_path,parallel=8
-        )
+    renderer.render_all_to_disk(scene,save_path)
 
     time_end_loop = time.perf_counter()
-    render_time = time_end_loop - time_start_loop
+    time_to_disk = time_end_loop - time_start_loop
 
-    print(f"{images[0].shape=}")
-    print(f"{images[1].shape=}")
-
-    print("RASTER LOOP END")
+    print("TO DISK: Raster Loop End")
     print(80*"=")
+
+
     print("PERFORMANCE")
     print(f"Total frames = {frames_total}")
-    print(f"Total render time = {render_time:.4f} seconds")
-    print(f"Time per frame = {(render_time/frames_total):.4f} seconds")
+    print(f"IN MEM: Total render time = {time_inmem:.4f} s")
+    print(f"IN MEM: Time per frame = {(time_inmem/frames_total):.4f} s")
+    print(f"TO DISK: Total render time = {time_to_disk:.4f} s")
+    print(f"TO DISK: Time per frame = {(time_to_disk/frames_total):.4f} s")
     print(80*"=")
+
 
     plot_on = True
     if plot_on:

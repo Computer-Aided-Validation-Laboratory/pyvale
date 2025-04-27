@@ -13,7 +13,7 @@ from pyvale.dataset import DataSet
 from pyvale.cameradata import CameraData
 from pyvale.cameratools import CameraTools
 from pyvale.rendermesh import RenderMesh
-from pyvale.renderer import IRenderEngine, RenderScene
+from pyvale.renderer import IRenderer, RenderScene
 from pyvale.rasteropts import RasterOpts, save_raster
 from pyvale.imagetools import ImageTools
 #from pyvale.visualimages import plot_field_image
@@ -23,7 +23,7 @@ import pyvale.cython.rastercyth as rastercyth
 # NOTE: This module is a feature under developement.
 
 #===============================================================================
-class RasterNumpy(IRenderEngine):
+class RasterNumpy(IRenderer):
     __slots__ = ("scene","opts",)
 
     def __init__(self, opts: RasterOpts) -> None:
@@ -33,99 +33,68 @@ class RasterNumpy(IRenderEngine):
     def render(self,
                scene: RenderScene,
                cam_ind: int = 0,
-               frame_ind: int = 0) -> np.ndarray:
+               frame_ind: int = 0,
+               field_ind: int = 0) -> np.ndarray:
 
-        if not self.opts.force_static and scene.is_deformable():
-            image = RasterNP.raster_deformed_frame(
-                cam_ind=cam_ind,
-                frame_ind=frame_ind,
-                field_ind=0,
-                cam_data=scene.cameras[cam_ind],
-                meshes=scene.meshes,
-                opts=self.opts,
-                save_path=None,
-            )
-        else:
-            image = RasterNP.raster_static_frame(
-                cam_ind=cam_ind,
-                frame_ind=frame_ind,
-                field_ind=0,
-                cam_data=scene.cameras[cam_ind],
-                meshes=scene.meshes,
-                opts=self.opts,
-                save_path=None,
-            )
+        image = RasterNP.raster_frame(
+            cam_ind=cam_ind,
+            frame_ind=frame_ind,
+            field_ind=field_ind,
+            cam_data=scene.cameras[cam_ind],
+            meshes=scene.meshes,
+            opts=self.opts,
+            save_path=None,
+        )
 
         return image
 
 
     def render_to_disk(self,
                        scene: RenderScene,
-                       save_path: Path | None = None,
                        cam_ind: int = 0,
-                       frame_ind: int = 0) -> None:
+                       frame_ind: int = 0,
+                       field_ind: int = 0,
+                       save_path: Path | None = None) -> None:
+
         if save_path is None:
             save_path = DataSet.create_output_path()
 
         if not save_path.is_dir():
             raise FileExistsError(f"Save path for render images does not exist:\n{save_path}")
 
-        if not self.opts.force_static and scene.is_deformable():
-            RasterNP.raster_deformed_frame(
-                cam_ind=cam_ind,
-                frame_ind=frame_ind,
-                field_ind=0,
-                cam_data=scene.cameras[cam_ind],
-                meshes=scene.meshes,
-                opts=self.opts,
-                save_path=save_path,
-            )
-        else:
-            RasterNP.raster_static_frame(
-                cam_ind=cam_ind,
-                frame_ind=frame_ind,
-                field_ind=0,
-                cam_data=scene.cameras[cam_ind],
-                meshes=scene.meshes,
-                opts=self.opts,
-                save_path=save_path,
-            )
+        RasterNP.raster_frame(
+            cam_ind=cam_ind,
+            frame_ind=frame_ind,
+            field_ind=field_ind,
+            cam_data=scene.cameras[cam_ind],
+            meshes=scene.meshes,
+            opts=self.opts,
+            save_path=save_path,
+        )
 
 
     def render_all(self, scene: RenderScene) -> list[np.ndarray]:
-        if not self.opts.force_static and scene.is_deformable():
-            images = RasterNP.raster_deformed_scene(
-                scene=scene,
-                save_path=None,
-                parallel=self.opts.parallel
-            )
-        else:
-            images = RasterNP.raster_static_scene(
-                scene=scene,
-                save_path=None,
-                parallel=self.opts.parallel
-            )
+
+        images = RasterNP.raster_scene(
+            scene=scene,
+            opts=self.opts,
+            save_path=None,
+        )
+
         return images
 
 
     def render_all_to_disk(self,
                            scene: RenderScene,
                            save_path: Path | None = None) -> None:
+
         if save_path is None:
             save_path = DataSet.create_output_path()
 
         if not save_path.is_dir():
             raise FileExistsError(f"Save path for render images does not exist:\n{save_path}")
 
-
-        if not self.opts.force_static and scene.is_deformable():
-            RasterNP.raster_deformed_scene(
-                scene,save_path,parallel=self.opts.parallel
-            )
-        else:
-            RasterNP.raster_static_scene(
-                scene,save_path,parallel=self.opts.parallel
-            )
+        RasterNP.raster_scene(scene=scene,opts=self.opts,save_path=save_path)
 
 
 
@@ -356,6 +325,9 @@ class RasterNP:
                     field_divide_z: np.ndarray,
                     sub_samp: int,
                     ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+        # elem_raster_coords.shape=()
+        # elem_bound_box_inds.shape=()
+        # field_divide_z.shape=()
 
         # Create the subpixel coords inside the bounding box to test with the
         # edge function. Use the pixel indices of the bounding box.
@@ -479,66 +451,15 @@ class RasterNP:
         # END RASTER LOOP
         return (image_buff_subpx,depth_buff_subpx)
 
-
     @staticmethod
-    def raster_static_frame(cam_ind: int,
-                            frame_ind: int,
-                            field_ind: int,
-                            cam_data: CameraData,
-                            coords_raster: list[np.ndarray],
-                            connect_in_frame: list[np.ndarray],
-                            elem_bound_box_inds: list[np.ndarray],
-                            elem_areas: list[np.ndarray],
-                            fields_div_z: list[np.ndarray],
-                            opts: RasterOpts,
-                            save_path: Path | None,
-                            ) -> np.ndarray | None:
-
-        num_meshes = len(coords_raster)
-        depth_buff_subpx = 1e5*cam_data.image_dist*np.ones(cam_data.sub_samp*cam_data.pixels_num).T
-        image_buff_subpx = np.full(cam_data.sub_samp*cam_data.pixels_num,0.0).T
-
-        # LOOP over meshes here
-        for mm in range(num_meshes):
-            (image_buff_subpx,
-             depth_buff_subpx) = RasterNP.raster_one_mesh(connect_in_frame[mm],
-                                                        coords_raster[mm],
-                                                        elem_bound_box_inds[mm],
-                                                        elem_areas[mm],
-                                                        fields_div_z[mm][:,frame_ind,field_ind],
-                                                        cam_data.sub_samp,
-                                                        image_buff_subpx,
-                                                        depth_buff_subpx)
-
-        # TODO: make this configurable
-        image_buff_subpx[depth_buff_subpx > 1000*cam_data.image_dist] = np.nan
-        depth_buff_subpx[depth_buff_subpx > 1000*cam_data.image_dist] = np.nan
-
-        # Average buffers
-        (image_buff_avg,
-         depth_buff_avg) = RasterNP.average_buffers(cam_data,
-                                                    image_buff_subpx,
-                                                    depth_buff_subpx)
-
-        if save_path is None:
-            return image_buff_avg
-
-
-        save_name = ImageTools.get_save_name(cam_ind,frame_ind,field_ind)
-        image_save_file = save_path/save_name
-        save_raster(image_save_file,image_buff_avg,depth_buff_avg,opts)
-        return None
-
-
-    @staticmethod
-    def raster_deformed_frame(cam_ind: int,
-                              frame_ind: int,
-                              field_ind: int,
-                              cam_data: CameraData,
-                              meshes: list[RenderMesh],
-                              opts: RasterOpts,
-                              save_path: Path | None
-                              ) -> np.ndarray | None:
+    def raster_frame(cam_ind: int,
+                     frame_ind: int,
+                     field_ind: int,
+                     cam_data: CameraData,
+                     meshes: list[RenderMesh],
+                     opts: RasterOpts,
+                     save_path: Path | None
+                     ) -> np.ndarray | None:
 
         depth_buff_subpx = 1e5*cam_data.image_dist*np.ones(cam_data.sub_samp*cam_data.pixels_num).T
         image_buff_subpx = np.full(cam_data.sub_samp*cam_data.pixels_num,0.0).T
@@ -564,14 +485,16 @@ class RasterNP:
             # image_buffer.shape=(num_px_y,num_px_x)
             # depth_buffer.shape=(num_px_y,num_px_x)
             (image_buff_subpx,
-            depth_buff_subpx) = RasterNP.raster_one_mesh(connect_in_frame,
-                                                coords_raster,
-                                                elem_bound_box_inds,
-                                                elem_areas,
-                                                render_field_div_z,
-                                                cam_data.sub_samp,
-                                                image_buff_subpx,
-                                                depth_buff_subpx)
+            depth_buff_subpx) = RasterNP.raster_one_mesh(
+                connect_in_frame,
+                coords_raster,
+                elem_bound_box_inds,
+                elem_areas,
+                render_field_div_z,
+                cam_data.sub_samp,
+                image_buff_subpx,
+                depth_buff_subpx
+            )
 
 
         # TODO: make this configurable
@@ -592,163 +515,13 @@ class RasterNP:
         save_raster(image_save_file,image_buff_avg,depth_buff_avg,opts)
         return None
 
-    #---------------------------------------------------------------------------
-    @staticmethod
-    def raster_static_scene(scene: RenderScene,
-                            opts: RasterOpts,
-                            save_path: Path | None = None,
-                            parallel: int | None = None,
-                            ) -> list[np.ndarray] | None:
-
-        # TODO: we assume the number of frames and fields is the same per camera
-        # Fix this
-        frames_num = scene.meshes[0].fields_render.shape[1]
-        field_num = scene.meshes[0].fields_render.shape[2]
-
-        (cam_inds,
-         frame_inds,
-         field_inds) = np.meshgrid(np.arange(0,len(scene.cameras)),
-                                    np.arange(0,frames_num),
-                                    np.arange(0,field_num))
-
-        cam_inds = cam_inds.flatten()
-        frame_inds = frame_inds.flatten()
-        field_inds = field_inds.flatten()
-        frames_total = cam_inds.shape[0]
-
-
-        if save_path is None:
-            images = []
-            for cc in scene.cameras:
-                images.append(np.empty((cc.pixels_num[1],
-                                        cc.pixels_num[0],
-                                        frames_num,
-                                        field_num)))
-        else:
-            images = None
-            if not save_path.is_dir():
-                save_path.mkdir()
-
-        #-----------------------------------------------------------------------
-        # FRAME SETUP
-        setup_start = time.perf_counter()
-        # DO THIS ONCE: for non deforming meshes
-        # coords_raster.shape=(num_coords,coord[x,y,z,w])
-        # connect_in_frame.shape=(num_elems_in_scene,nodes_per_elem)
-        # elem_bound_box_inds.shape=(num_elems_in_scene,4[x_min,x_max,y_min,y_max])
-        # elem_areas.shape=(num_elems,)
-
-        coords_raster_lists = []
-        connect_in_frame_lists = []
-        elem_bound_box_inds_lists = []
-        elem_areas_lists = []
-        field_div_z_lists = []
-
-        for cc in scene.cameras:
-            coords_raster_list = []
-            connect_in_frame_list = []
-            elem_bound_box_inds_list = []
-            elem_areas_list = []
-            field_div_z_list = []
-
-            for ii,mm in enumerate(scene.meshes):
-                (coords_raster,
-                connect_in_frame,
-                elem_bound_box_inds,
-                elem_areas) = RasterNP.setup_frame(cc,mm)
-
-                coords_raster_list.append(coords_raster)
-                connect_in_frame_list.append(connect_in_frame)
-                elem_bound_box_inds_list.append(elem_bound_box_inds)
-                elem_areas_list.append(elem_areas)
-
-                coord_num = coords_raster_list[ii].shape[0]
-                coord_mult = coords_raster_list[ii][:,2].reshape(coord_num,1,1)
-                field_div_z_list.append(scene.meshes[ii].fields_render*coord_mult)
-
-            coords_raster_lists.append(coords_raster_list)
-            connect_in_frame_lists.append(connect_in_frame_list)
-            elem_bound_box_inds_lists.append(elem_bound_box_inds_list)
-            elem_areas_lists.append(elem_areas_list)
-            field_div_z_lists.append(field_div_z_list)
-
-        end_setup = time.perf_counter()
-        setup_time = end_setup - setup_start#
-        print(80*"-")
-        print(f"Setup time: {setup_time:.4f} s")
-        print(80*"-")
-
-
-        #-----------------------------------------------------------------------
-        # RASTER OVER FRAMES
-        loop_start = time.perf_counter()
-
-        if parallel is None:
-            for ff in range(0,frames_total):
-                image = RasterNP.raster_static_frame(
-                    cam_inds[ff],
-                    frame_inds[ff],
-                    field_inds[ff],
-                    scene.cameras[cam_inds[ff]],
-                    coords_raster_lists[cam_inds[ff]],
-                    connect_in_frame_lists[cam_inds[ff]],
-                    elem_bound_box_inds_lists[cam_inds[ff]],
-                    elem_areas_lists[cam_inds[ff]],
-                    field_div_z_lists[cam_inds[ff]],
-                    opts,
-                    save_path
-                )
-
-                if images is not None:
-                    images[cam_inds[ff]][:,:,frame_inds[ff],field_inds[ff]] = image
-
-        else:
-            with Pool(parallel) as pool:
-                processes = []
-
-                for ff in range(0,frames_total):
-                    args = (cam_inds[ff],
-                            frame_inds[ff],
-                            field_inds[ff],
-                            scene.cameras[cam_inds[ff]],
-                            coords_raster_lists[cam_inds[ff]],
-                            connect_in_frame_lists[cam_inds[ff]],
-                            elem_bound_box_inds_lists[cam_inds[ff]],
-                            elem_areas_lists[cam_inds[ff]],
-                            field_div_z_lists[cam_inds[ff]],
-                            opts,
-                            save_path)
-
-                    process = pool.apply_async(
-                            RasterNP.raster_static_frame, args=args
-                    )
-                    processes.append({"process": process,
-                                      "camera": cam_inds[ff],
-                                      "frame": frame_inds[ff],
-                                      "field": field_inds[ff]})
-
-                for pp in processes:
-                    image = pp["process"].get()
-                    images[pp["camera"]][:,:,pp["frame"],pp["field"]] = image
-
-        loop_end = time.perf_counter()
-        loop_time = loop_end-loop_start
-        print(80*"-")
-        print(f"Loop time: {loop_time:.4f} s")
-        print(80*"-")
-
-        if images is not None:
-            return images
-
-        return None
 
 
     @staticmethod
-    def raster_deformed_scene(scene: RenderScene,
-                              opts: RasterOpts,
-                              save_path: Path | None = None,
-                              parallel: int | None = None
-                              ) -> list[np.ndarray] | None:
+    def raster_scene(scene: RenderScene,
+                    opts: RasterOpts,
+                    save_path: Path | None = None,
+                    ) -> list[np.ndarray] | None:
 
         # TODO: we assume the number of frames and fields is the same per camera
         # Fix this
@@ -780,9 +553,9 @@ class RasterNP:
                 save_path.mkdir()
 
 
-        if parallel is None:
+        if opts.parallel is None:
             for ff in range(0,frames_total):
-                image = RasterNP.raster_deformed_frame(
+                image = RasterNP.raster_frame(
                     cam_inds[ff],
                     frame_inds[ff],
                     field_inds[ff],
@@ -796,7 +569,7 @@ class RasterNP:
                     images[cam_inds[ff]][:,:,frame_inds[ff],field_inds[ff]] = image
 
         else:
-            with Pool(parallel) as pool:
+            with Pool(opts.parallel) as pool:
                 processes_with_id = []
 
                 for ff in range(0,frames_total):
@@ -809,7 +582,7 @@ class RasterNP:
                             save_path)
 
                     process = pool.apply_async(
-                            RasterNP.raster_deformed_frame, args=args
+                            RasterNP.raster_frame, args=args
                     )
                     processes_with_id.append({"process": process,
                                               "camera": cam_inds[ff],
@@ -818,7 +591,8 @@ class RasterNP:
 
                 for pp in processes_with_id:
                     image = pp["process"].get()
-                    images[cam_inds[ff]][:,:,pp["frame"],pp["field"]] = image
+                    if images is not None:
+                        images[cam_inds[ff]][:,:,pp["frame"],pp["field"]] = image
 
         if images is not None:
             return images
