@@ -9,6 +9,7 @@ from multiprocessing.pool import Pool
 import numpy as np
 import numba
 #import matplotlib.pyplot as plt
+from pyvale.dataset import DataSet
 from pyvale.cameradata import CameraData
 from pyvale.cameratools import CameraTools
 from pyvale.rendermesh import RenderMesh
@@ -25,50 +26,105 @@ import pyvale.cython.rastercyth as rastercyth
 class RasterNumpy(IRenderEngine):
     __slots__ = ("scene","opts",)
 
-    def __init__(self, scene: RenderScene, opts: RasterOpts) -> None:
-        self.scene = scene
+    def __init__(self, opts: RasterOpts) -> None:
         self.opts = opts
 
 
-    def render(self, frame_ind: int = 0) -> list[np.ndarray]:
+    def render(self,
+               scene: RenderScene,
+               cam_ind: int = 0,
+               frame_ind: int = 0) -> np.ndarray:
 
-        if not self.opts.force_static and self.scene.is_deformable():
-            pass
+        if not self.opts.force_static and scene.is_deformable():
+            image = RasterNP.raster_deformed_frame(
+                cam_ind=cam_ind,
+                frame_ind=frame_ind,
+                field_ind=0,
+                cam_data=scene.cameras[cam_ind],
+                meshes=scene.meshes,
+                opts=self.opts,
+                save_path=None,
+            )
         else:
-            pass
+            image = RasterNP.raster_static_frame(
+                cam_ind=cam_ind,
+                frame_ind=frame_ind,
+                field_ind=0,
+                cam_data=scene.cameras[cam_ind],
+                meshes=scene.meshes,
+                opts=self.opts,
+                save_path=None,
+            )
+
+        return image
 
 
     def render_to_disk(self,
+                       scene: RenderScene,
                        save_path: Path | None = None,
+                       cam_ind: int = 0,
                        frame_ind: int = 0) -> None:
-        pass
+        if save_path is None:
+            save_path = DataSet.create_output_path()
+
+        if not save_path.is_dir():
+            raise FileExistsError(f"Save path for render images does not exist:\n{save_path}")
+
+        if not self.opts.force_static and scene.is_deformable():
+            RasterNP.raster_deformed_frame(
+                cam_ind=cam_ind,
+                frame_ind=frame_ind,
+                field_ind=0,
+                cam_data=scene.cameras[cam_ind],
+                meshes=scene.meshes,
+                opts=self.opts,
+                save_path=save_path,
+            )
+        else:
+            RasterNP.raster_static_frame(
+                cam_ind=cam_ind,
+                frame_ind=frame_ind,
+                field_ind=0,
+                cam_data=scene.cameras[cam_ind],
+                meshes=scene.meshes,
+                opts=self.opts,
+                save_path=save_path,
+            )
 
 
-    def render_all(self) -> list[np.ndarray]:
-        if not self.opts.force_static and self.scene.is_deformable():
+    def render_all(self, scene: RenderScene) -> list[np.ndarray]:
+        if not self.opts.force_static and scene.is_deformable():
             images = RasterNP.raster_deformed_scene(
-                self.scene,None,parallel=self.opts.parallel
+                scene=scene,
+                save_path=None,
+                parallel=self.opts.parallel
             )
         else:
             images = RasterNP.raster_static_scene(
-                self.scene,None,parallel=self.opts.parallel
+                scene=scene,
+                save_path=None,
+                parallel=self.opts.parallel
             )
         return images
 
 
-    def render_all_to_disk(self, save_path: Path | None = None) -> None:
+    def render_all_to_disk(self,
+                           scene: RenderScene,
+                           save_path: Path | None = None) -> None:
         if save_path is None:
-            save_path = Path.cwd()/"render_output"
+            save_path = DataSet.create_output_path()
+
+        if not save_path.is_dir():
+            raise FileExistsError(f"Save path for render images does not exist:\n{save_path}")
 
 
-
-        if not self.opts.force_static and self.scene.is_deformable():
+        if not self.opts.force_static and scene.is_deformable():
             RasterNP.raster_deformed_scene(
-                self.scene,save_path,parallel=self.opts.parallel
+                scene,save_path,parallel=self.opts.parallel
             )
         else:
             RasterNP.raster_static_scene(
-                self.scene,save_path,parallel=self.opts.parallel
+                scene,save_path,parallel=self.opts.parallel
             )
 
 

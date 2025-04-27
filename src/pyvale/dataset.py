@@ -6,6 +6,7 @@
 from pathlib import Path
 from importlib.resources import files
 
+# TODO: finish doc strings for last functions
 
 SIM_CASE_COUNT = 26
 
@@ -246,3 +247,11 @@ class DataSet:
     @staticmethod
     def render_simple_block_path() -> Path:
         return Path(files("pyvale.data").joinpath("case25_out.e"))
+
+    @staticmethod
+    def create_output_path() -> Path:
+        output_path = Path.cwd()/"pyvale-output"
+        if not output_path.is_dir():
+            output_path.mkdir(parents=True, exist_ok=True)
+
+        return output_path
