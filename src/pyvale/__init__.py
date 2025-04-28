@@ -5,13 +5,11 @@ uncertainties. Useful for experimental design, sensor placement optimisation,
 testing simulation validation metrics and testing digital shadows/twins.
 """
 
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 # NOTE: this simplifies and decouples how the user calls pyvale from the
 # underlying project structure: the user should be able to use 'pyvale.'
 # and access everything in one layer without multiple import dots
