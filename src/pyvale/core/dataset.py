@@ -3,8 +3,21 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
+from enum import Enum
 from pathlib import Path
 from importlib.resources import files
+
+
+class EElemTest(Enum):
+    TET4 = "TET4"
+    TET10 = "TET10"
+    TET14 = "TET14"
+    HEX8 = "HEX8"
+    HEX20 = "HEX20"
+    HEX27 = "HEX27"
+
+    def __str__(self):
+        return self.value
 
 
 SIM_CASE_COUNT = 26
@@ -246,3 +259,7 @@ class DataSet:
     @staticmethod
     def render_simple_block_path() -> Path:
         return Path(files("pyvale.data").joinpath("case25_out.e"))
+
+    @staticmethod
+    def element_case_path(elem_type: EElemTest) -> Path:
+        return Path(files("pyvale.data").joinpath(f"case00_{elem_type.value}_out.e"))
