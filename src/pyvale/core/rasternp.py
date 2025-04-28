@@ -12,9 +12,7 @@ from pyvale.core.cameratools import CameraTools
 from pyvale.core.rendermesh import RenderMeshData
 import pyvale.core.cython.rastercyth as rastercyth
 
-
 # NOTE: This module is a feature under developement.
-
 
 class RasterNP:
     @staticmethod

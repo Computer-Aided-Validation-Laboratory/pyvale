@@ -3,7 +3,6 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
-
 from dataclasses import dataclass, field
 import numpy as np
 from scipy.spatial.transform import Rotation
