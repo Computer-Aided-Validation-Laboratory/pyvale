@@ -133,7 +133,9 @@ class ShapeLinQuad(ShapeFunctionShape):
 
             # Fix the normal to reality.
             outward_normal = self.surface_normal(xi_sol, eta_sol)
-            rec: HitRecord = HitRecord(p = intersection_point, t= solution.x[2], mat = self.mat, r=r, outward_normal=outward_normal)
+            u = (xi_sol + 1) / 2
+            v = (eta_sol + 1) / 2
+            rec: HitRecord = HitRecord(p = intersection_point, t= solution.x[2], mat = self.mat, r=r, outward_normal=outward_normal, u=u, v = v)
             return rec
         else:
             return None
@@ -237,7 +239,9 @@ class ShapeQuadQuad(ShapeFunctionShape):
 
             # Fix the normal to reality.
             outward_normal = self.surface_normal(xi_sol, eta_sol)
-            rec: HitRecord = HitRecord(p = intersection_point, t= solution.x[2], mat = self.mat, r=r, outward_normal=outward_normal)
+            u = (xi_sol + 1) / 2
+            v = (eta_sol + 1) / 2
+            rec: HitRecord = HitRecord(p = intersection_point, t= solution.x[2], mat = self.mat, r=r, outward_normal=outward_normal, u=u, v=v)
             return rec
         else:
             return None
