@@ -100,28 +100,28 @@ def add_sensor_points_pert(pv_plot: pv.Plotter,
 
 
 def plot_sim_mesh(sim_data: mh.SimData,
+                  elem_dims: int,
                   vis_opts: VisOptsSimSensors | None = None,
                   ) -> pv.Plotter:
 
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    pv_simdata = simdata_to_pyvista(sim_data,
-                                         None,
-                                         sim_data.num_spat_dims)
+    (_,sim_vis) = simdata_to_pyvista(sim_data=sim_data,
+                                    components=None,
+                                    elem_dims=elem_dims)
 
     pv_plot = create_pv_plotter(vis_opts)
-
-    pv_plot.add_mesh(pv_simdata,
-                     label='sim-data',
-                     show_edges=True,
-                     show_scalar_bar=False)
-
+    pv_plot.add_mesh(sim_vis,
+                     label="sim-data",
+                     show_edges=vis_opts.show_edges,
+                     lighting=False)
     return pv_plot
 
 
 def plot_sim_data(sim_data: mh.SimData,
                   component: str,
+                  elem_dims: int,
                   time_step: int = -1,
                   vis_opts: VisOptsSimSensors | None = None
                   ) -> pv.Plotter:
@@ -129,19 +129,20 @@ def plot_sim_data(sim_data: mh.SimData,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    pv_simdata = simdata_to_pyvista(sim_data,
-                                        (component,),
-                                         sim_data.num_spat_dims)
+    (_,sim_vis) = simdata_to_pyvista(sim_data,
+                                              (component,),
+                                              elem_dims)
+
+    sim_vis[component] = sim_data.node_vars[component][:,time_step]
 
     pv_plot = create_pv_plotter(vis_opts)
-
-    pv_plot.add_mesh(pv_simdata,
-                     scalars=pv_simdata[component][:,time_step],
+    pv_plot.add_mesh(sim_vis,
+                     scalars=component,
                      label="sim-data",
-                     show_edges=True,
-                     show_scalar_bar=True,
-                     scalar_bar_args={"title":component},)
-
+                     show_edges=vis_opts.show_edges,
+                     show_scalar_bar=vis_opts.colour_bar_show,
+                     lighting=False,
+                     clim=vis_opts.colour_bar_lims)
 
     return pv_plot
 

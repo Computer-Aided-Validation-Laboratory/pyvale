@@ -50,7 +50,7 @@ def create_render_mesh(sim_data: mh.SimData,
 
     (pv_grid,_) = simdata_to_pyvista(sim_data,
                                      extract_keys,
-                                     spat_dim=sim_spat_dim)
+                                     elem_dims=sim_spat_dim)
 
     pv_surf = pv_grid.extract_surface()
     faces = np.array(pv_surf.faces)

@@ -12,7 +12,7 @@ import mooseherder as mh
 
 def simdata_to_pyvista(sim_data: mh.SimData,
                         components: tuple[str,...] | None,
-                        spat_dim: int
+                        elem_dims: int
                         ) -> tuple[pv.UnstructuredGrid,pv.UnstructuredGrid]:
     """Converts the mesh and field data in a `SimData` object into a pyvista
     UnstructuredGrid for sampling (interpolating) the data and visualisation.
@@ -24,7 +24,7 @@ def simdata_to_pyvista(sim_data: mh.SimData,
     components : tuple[str,...] | None
         String keys for the components of the field to extract from the
         simulation data.
-    spat_dim : int
+    elem_dim : int
         Number of spatial dimensions (2 or 3) used to determine the element
         types in the mesh from the number of nodes per element.
 
@@ -42,7 +42,7 @@ def simdata_to_pyvista(sim_data: mh.SimData,
         this_connect = np.copy(sim_data.connect[cc])-1
         (nodes_per_elem,n_elems) = this_connect.shape
 
-        this_cell_type = _get_pyvista_cell_type(nodes_per_elem,spat_dim)
+        this_cell_type = _get_pyvista_cell_type(nodes_per_elem,elem_dims)
 
         # VTK and exodus have different winding for 3D higher order quads
         this_connect = _exodus_to_pyvista_connect(this_cell_type,this_connect)
