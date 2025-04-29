@@ -1,10 +1,8 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2024 The Computer Aided Validation Team
+# ==============================================================================
 from dataclasses import dataclass, field
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -39,11 +37,11 @@ class CameraData:
 
     back_face_removal: bool = True
 
-    k1: float | None = 0.0
-    k2: float | None = 0.0
-    k3: float | None = 0.0
-    p1: float | None = 0.0
-    p2: float | None = 0.0
+    k1: float = 0.0
+    k2: float = 0.0
+    k3: float = 0.0
+    p1: float = 0.0
+    p2: float = 0.0
     c0: float | None = None
     c1: float | None = None
 

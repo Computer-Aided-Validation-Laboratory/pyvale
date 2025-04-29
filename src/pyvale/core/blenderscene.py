@@ -1,10 +1,8 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
-================================================================================
-"""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2024 The Computer Aided Validation Team
+# ==============================================================================
 import numpy as np
 from pathlib import Path
 import bpy
@@ -14,10 +12,9 @@ from pyvale.core.blendertools import BlenderTools
 from pyvale.core.simtools import SimTools
 from pyvale.core.blendermaterialdata import BlenderMaterialData
 from pyvale.core.blenderrenderdata import RenderData, RenderEngine
-from pyvale.core.camerastereodata import CameraStereoData
+from pyvale.core.camerastereo import CameraStereo
 from pyvale.core.rendermesh import RenderMeshData
-
-# NOTE: This module is a feature under development
+from pyvale.core.pyvaleexceptions import BlenderError
 
 class BlenderScene():
     """Namespace for creating a scene within Blender.
@@ -25,11 +22,13 @@ class BlenderScene():
     as well as deforming the object, and then rendering the scene.
     """
 
-    @staticmethod
-    def reset_scene() -> None:
-        """This methods creates a new, empty scene.
+    def __init__(self):
+        self.reset_scene()
+
+    def reset_scene(self) -> None:
+        """This method creates a new, empty scene.
         The units are then set to milimetres, and all nodes are cleared from the
-        scene.
+        scene. This method will be called when the class is initialised.
         """
         bpy.ops.wm.read_factory_settings(use_empty=True)
 
@@ -47,8 +46,7 @@ class BlenderScene():
         bg_node.inputs[0].default_value = [0.5, 0.5, 0.5, 1]
         bg_node.inputs[1].default_value = 0
 
-    @staticmethod
-    def add_camera(cam_data:CameraData) -> bpy.data.objects:
+    def add_camera(self, cam_data:CameraData) -> bpy.data.objects:
         """Method to add a camera object within Blender.
 
         Parameters
@@ -98,29 +96,27 @@ class BlenderScene():
         bpy.context.scene.camera = camera
         return camera
 
-    @staticmethod
-    def add_stereo_system(stereo_data: CameraStereoData) -> tuple[bpy.data.objects,
+    def add_stereo_system(self, stereo_system: CameraStereo) -> tuple[bpy.data.objects,
                                                            bpy.data.objects]:
-        """A method to add a stereo camera system within Blender, given two
-        CameraData objects (one for each camera).
+        # TODO: Correct docstring
+        """A method to add a stereo camera system within Blender, given an
+        instance of the CameraStereo class (that describes a stereo system).
 
         Parameters
         ----------
-        stereo_data : CameraSteroData
-            A dataclass containing each camera's individual CameraData dataclass,
-            as well as the extrinsic parameters present in the stereo setup.
+        stereo_system: CameraStereo
+            An instance of the CameraStereo class, describing a stereo system.
 
         Returns
         -------
         tuple[bpy.data.objects, bpy.data.objects]
             A tuple of the Blender camera objects: camera 0 and camera 1.
         """
-        cam0 = BlenderScene.add_camera(stereo_data.cam_data_0)
-        cam1 = BlenderScene.add_camera(stereo_data.cam_data_1)
+        cam0 = self.add_camera(stereo_system.cam_data_0)
+        cam1 = self.add_camera(stereo_system.cam_data_1)
         return cam0, cam1
 
-    @staticmethod
-    def add_light(light_data: BlenderLightData) -> bpy.data.objects:
+    def add_light(self, light_data: BlenderLightData) -> bpy.data.objects:
         """A method to add a light object within Blender.
 
         Parameters
@@ -134,7 +130,6 @@ class BlenderScene():
         bpy.data.objects
             The Blender light object that is created.
         """
-        # TODO: Make method more compatible for different light types
         type = light_data.type.value
         name = type.capitalize() + 'Light'
         light = bpy.data.lights.new(name=name, type=type)
@@ -155,12 +150,14 @@ class BlenderScene():
 
         return light_ob
 
-    @staticmethod
-    def add_part(render_mesh: RenderMeshData,
+    def add_part(self,
+                 render_mesh: RenderMeshData,
                  sim_spat_dim: int) -> bpy.data.objects:
         """A method to add a part mesh into Blender, given a RenderMeshData object.
         This is done by taking the mesh information from the RenderMeshData
-        object and converting it into a form that is accepted by Blender.
+        object and converting it into a form that is accepted by Blender. It
+        should be noted that the object is placed at the origin and centred
+        around its geometric centroid.
 
         Parameters
         ----------
@@ -188,8 +185,7 @@ class BlenderScene():
 
         return part
 
-    @staticmethod
-    def add_cal_target(target_size: np.ndarray) -> bpy.data.objects:
+    def add_cal_target(self, target_size: np.ndarray) -> bpy.data.objects:
         """A function to add a calibration target object to a Blender scene.
 
         Parameters
@@ -220,8 +216,8 @@ class BlenderScene():
         target.location = (0, 0, -target_size[2])
         return target
 
-    @staticmethod
-    def add_speckle(part: bpy.data.objects,
+    def add_speckle(self,
+                    part: bpy.data.objects,
                     speckle_path: Path | None,
                     mat_data: BlenderMaterialData | None,
                     mm_px_resolution: float,
@@ -260,8 +256,8 @@ class BlenderScene():
             BlenderTools.add_image_texture(mat_data=mat_data, image_array=speckle_pattern)
         BlenderTools.uv_unwrap_part(part, mm_px_resolution, cal)
 
-    @staticmethod
-    def debug_deform(render_mesh: RenderMeshData,
+    def _debug_deform(self,
+                      render_mesh: RenderMeshData,
                      sim_spat_dim:int,
                      part: bpy.data.objects) -> None:
         """A method to deform the Blender mesh object using the simulation results.
@@ -290,9 +286,9 @@ class BlenderScene():
                 BlenderTools.deform_single_timestep(part, deformed_nodes)
                 BlenderTools.set_new_frame(part)
 
-    @staticmethod
-    def render_single_image(render_data: RenderData,
-                            bounce_image: bool | None = True) -> None | np.ndarray:
+    def render_single_image(self,
+                            render_data: RenderData,
+                            stage_image: bool | None = True) -> None | np.ndarray:
         """A method to render an images(s) of the current scene in Blender.
         Depending on the number of cameras, either one or two images will be
         rendered.
@@ -301,7 +297,7 @@ class BlenderScene():
         ----------
         render_data : RenderData
             A dataclass containing the parameters needed to render an image.
-        bounce_image : bool | None, optional
+        stage_image : bool | None, optional
             A flag that can be set to either save the rendered to disk or not.
             If set to False, an array of the image or stack of images will be
             returned, by default True. In order to output these images as an
@@ -330,6 +326,13 @@ class BlenderScene():
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
+        if not render_data.base_dir.is_dir():
+            raise BlenderError("The specified save directory does not exist")
+
+        save_dir = render_data.base_dir / "blenderimages"
+        if not save_dir.is_dir():
+            save_dir.mkdir(parents=True, exist_ok=True)
+
         if isinstance(render_data.cam_data, tuple):
             cam_count = 0
             image_count = 0
@@ -339,39 +342,39 @@ class BlenderScene():
                 cam_data_render = render_data.cam_data[cam_count]
                 bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
                 bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
-                filename = render_data.save_name + "_" + str(image_count) + "_" + str(cam_count) + ".tiff"
-                filepath = render_data.save_dir / filename
+                filename = "blenderimage_" + str(image_count) + "_" + str(cam_count) + ".tiff"
+                filepath = save_dir / filename
                 bpy.context.scene.render.filepath = str(filepath)
-                if bounce_image:
+                if stage_image:
                     bpy.ops.render.render(write_still=True)
                     image_array = BlenderTools.save_render_as_array(filepath)
                     image_arrays.append(image_array)
                 else:
                     bpy.ops.render.render(write_still=True)
                 cam_count += 1
-            if bounce_image:
+            if stage_image:
                 image_arrays = np.dstack(image_arrays)
                 return image_arrays
         else:
             image_count = 0
             bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
             bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_num[1]
-            filename = render_data.save_name + "_" + str(image_count) + ".tiff"
-            filepath = render_data.save_dir / filename
+            filename = "blenderimage_" + str(image_count) + ".tiff"
+            filepath = save_dir / filename
             bpy.context.scene.render.filepath = str(filepath)
-            if bounce_image:
+            if stage_image:
                 bpy.ops.render.render(write_still=True)
                 image_array = BlenderTools.save_render_as_array(filepath)
                 return image_array
             else:
                 bpy.ops.render.render(write_still=True)
 
-    @staticmethod
-    def render_deformed_images(render_mesh: RenderMeshData,
+    def render_deformed_images(self,
+                               render_mesh: RenderMeshData,
                                sim_spat_dim: int,
                                render_data:RenderData,
                                part: bpy.data.objects,
-                               bounce_image: bool | None = True) -> None | np.ndarray:
+                               stage_image: bool | None = True) -> None | np.ndarray:
         """A method to deform the mesh object at all timesteps, and render
         image(s) at each timestep
 
@@ -386,7 +389,7 @@ class BlenderScene():
             A dataclass containing the parameters necessary to render an image.
         part : bpy.data.objects
             The Blender part object to be deformed.
-        bouce_image : bool | None, optional
+        stage_image : bool | None, optional
             A flag that can be set to save the rendered image to disk or not,
             by default True. In order to output these images as an
             array, the image will first be saved to the disk and then bounced
@@ -421,6 +424,13 @@ class BlenderScene():
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
+        if not render_data.base_dir.is_dir():
+            raise BlenderError("The specified save directory does not exist")
+
+        save_dir = render_data.base_dir / "blenderimages"
+        if not save_dir.is_dir():
+            save_dir.mkdir(parents=True, exist_ok=True)
+
         image_arrays = []
         for timestep in range(0, timesteps):
             deformed_nodes = SimTools.get_deformed_nodes(timestep,
@@ -436,10 +446,10 @@ class BlenderScene():
                         cam_data_render = render_data.cam_data[cam_count]
                         bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
                         bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
-                        filename = render_data.save_name + "_" + str(timestep) + "_" + str(cam_count) + ".tiff"
-                        filepath = render_data.save_dir / filename
+                        filename = "blenderimage_" + str(timestep) + "_" + str(cam_count) + ".tiff"
+                        filepath = save_dir / filename
                         bpy.context.scene.render.filepath = str(filepath)
-                        if bounce_image:
+                        if stage_image:
                             bpy.ops.render.render(write_still=True)
                             image_array = BlenderTools.save_render_as_array(filepath)
                             image_arrays.append(image_array)
@@ -449,16 +459,16 @@ class BlenderScene():
                 else:
                     bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
                     bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_num[1]
-                    filename = render_data.save_name + "_" + str(timestep) + ".tiff"
-                    filepath = render_data.save_dir / filename
+                    filename = "blenderimage_" + str(timestep) + ".tiff"
+                    filepath = save_dir / filename
                     bpy.context.scene.render.filepath = str(filepath)
-                    if bounce_image:
+                    if stage_image:
                         bpy.ops.render.render(write_still=True)
                         image_array = BlenderTools.save_render_as_array(filepath)
                         image_arrays.append(image_array)
                     else:
                         bpy.ops.render.render(write_still=True)
-        if bounce_image:
+        if stage_image:
             image_arrays = np.dstack(image_arrays)
             # TODO: Potentially change the way images are stacked for stereo systems
             # Change it so it suits Joel's code

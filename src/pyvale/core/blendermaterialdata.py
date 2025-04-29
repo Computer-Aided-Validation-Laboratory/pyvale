@@ -1,10 +1,8 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
-================================================================================
-"""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2024 The Computer Aided Validation Team
+# ==============================================================================
 from dataclasses import dataclass
 
 @dataclass(slots=True)

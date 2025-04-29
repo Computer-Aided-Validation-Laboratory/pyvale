@@ -1,10 +1,8 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
-================================================================================
-"""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2024 The Computer Aided Validation Team
+# ==============================================================================
 import numpy as np
 from pathlib import Path
 from scipy.spatial.transform import Rotation
@@ -12,27 +10,26 @@ from PIL import Image
 import bpy
 from pyvale.core.cameratools import CameraTools
 from pyvale.core.blendermaterialdata import BlenderMaterialData
-from pyvale.core.camerastereodata import CameraStereoData
+from pyvale.core.camerastereo import CameraStereo
 from pyvale.core.blenderrenderdata import RenderData, RenderEngine
 from pyvale.core.blendercalibrationdata import CalibrationData
-
-# NOTE: This module is a feature under development
-
-class BlenderError(Exception):
-    pass
+from pyvale.core.output import Outputs
+from pyvale.core.pyvaleexceptions import BlenderError
 
 class BlenderTools():
     """Namespace for tools used within the pyvale Blender module.
     """
 
     @staticmethod
-    def save_blender_file(filepath: Path, override: bool = False) -> None:
+    def save_blender_file(base_dir: Path = Outputs.base_dir,
+                          override: bool = False) -> None:
         """A method to save the current Blender scene to a Blender .blend filepath
 
         Parameters
         ----------
-        filepath : Path
-            The filepath to which the Blender file should be saved.
+        base_dir : Path
+            The base directory to which the Blender file will be saved to. The
+            file will be saved in a subfolder of this directory named blenderfiles.
         override : bool, optional
             A flag which can be set to True or False. If set to True, if the
             specified filepath already exists, this file will be automatically
@@ -43,17 +40,33 @@ class BlenderTools():
         Raises
         ------
         BlenderError
+            "The specified save directory does not exist".
+        BlenderError
             "A file already exists with this filepath". This error is thrown
             when override is set to False, and the specified filepath already
             exists.
+
         """
-        if filepath.exists():
-                if override is True:
-                    filepath.unlink()
-                else:
-                    raise BlenderError("A file already exists with this filepath")
-        filepath = str(filepath)
-        bpy.ops.wm.save_as_mainfile(filepath=filepath)
+        if not base_dir.is_dir():
+            raise BlenderError("The specified save directory does not exist")
+
+        save_dir = base_dir / "blenderfiles"
+        if not save_dir.is_dir():
+            save_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = str(base_dir / "projectfile.blend")
+        if override is False:
+            if filename.exists():
+                raise BlenderError("A file already exists with this filepath")
+
+        bpy.ops.wm.save_as_mainfile(filepath=filename)
+
+
+        print()
+        print(80*"-")
+        print("Save directory of the project file:", filename)
+        print(80*"-")
+        print()
 
     @staticmethod
     def move_blender_obj(pos_world: np.ndarray, part: bpy.data.objects) -> None:
@@ -276,60 +289,6 @@ class BlenderTools():
         return image_array
 
     @staticmethod
-    def generate_calib_file(stereo_data: CameraStereoData,
-                            calib_filepath: Path,
-                            calib_filename: str | None = None) -> None:
-        """A method to generate a .caldat calibration file, compatible with
-        MatchID. The intrinsic and extrinsic parameters are calculated directly
-        from Blender
-
-        Parameters
-        ----------
-        stereo_data : CameraStereoData
-            A dataclass containing the parameters of the stereo setup, most
-            importantly the individual CameraData classes
-        calib_filepath : Path
-            The file directory to which the calibration file is to be saved to
-        calib_filename : str | None, optional
-            The filename the calibration file should be saved as. If None then
-            filename is saved as calib.caldat, by default None
-        """
-        if Path(calib_filepath).is_dir() is False:
-            Path.mkdir(calib_filepath)
-        if calib_filename is not None:
-            calib_filepath = calib_filepath / calib_filename
-        else:
-            calib_filepath = calib_filepath / 'calib.caldat'
-        with open(calib_filepath, "w") as file:
-            file.write(f'Cam0_Fx [pixels]; {stereo_data.cam_data_0.focal_length/ stereo_data.cam_data_0.pixels_size[0]}\n')
-            file.write(f'Cam0_Fy [pixels]; {stereo_data.cam_data_0.focal_length/ stereo_data.cam_data_0.pixels_size[1]}\n')
-            file.write("Cam0_Fs [pixels];0\n")
-            file.write(f'Cam0_Kappa 1;{stereo_data.cam_data_0.k1}\n')
-            file.write(f'Cam0_Kappa 2;{stereo_data.cam_data_0.k2}\n')
-            file.write(f'Cam0_Kappa 3;{stereo_data.cam_data_0.k3}\n')
-            file.write(f'Cam0_P1;{stereo_data.cam_data_0.p1}\n')
-            file.write(f'Cam0_P2;{stereo_data.cam_data_0.p2}\n')
-            file.write(f'Cam0_Cx [pixels];{stereo_data.cam_data_0.c0}\n')
-            file.write(f'Cam0_Cy [pixels];{stereo_data.cam_data_0.c1}\n')
-            file.write(f'Cam1_Fx [pixels]; {stereo_data.cam_data_1.focal_length/ stereo_data.cam_data_1.pixels_size[0]}\n')
-            file.write(f'Cam1_Fy [pixels]; {stereo_data.cam_data_1.focal_length/ stereo_data.cam_data_1.pixels_size[1]}\n')
-            file.write("Cam1_Fs [pixels];0\n")
-            file.write(f'Cam1_Kappa 1;{stereo_data.cam_data_1.k1}\n')
-            file.write(f'Cam1_Kappa 2;{stereo_data.cam_data_1.k2}\n')
-            file.write(f'Cam1_Kappa 3;{stereo_data.cam_data_1.k3}\n')
-            file.write(f'Cam1_P1;{stereo_data.cam_data_1.p1}\n')
-            file.write(f'Cam1_P2;{stereo_data.cam_data_1.p2}\n')
-            file.write(f'Cam1_Cx [pixels];{stereo_data.cam_data_1.c0}\n')
-            file.write(f'Cam1_Cy [pixels];{stereo_data.cam_data_1.c1}\n')
-            file.write(f"Tx [mm];{stereo_data.stereo_dist[0]}\n")
-            file.write(f"Ty [mm];{stereo_data.stereo_dist[1]}\n")
-            file.write(f"Tz [mm];{stereo_data.stereo_dist[2]}\n")
-            stereo_rotation = stereo_data.stereo_rotation.as_euler("xyz", degrees=True)
-            file.write(f"Theta [deg];{stereo_rotation[0]}\n")
-            file.write(f"Phi [deg];{stereo_rotation[1]}\n")
-            file.write(f"Psi [deg];{stereo_rotation[2]}")
-
-    @staticmethod
     def number_calibration_images(calibration_data: CalibrationData) -> int:
         """A function to calculate the number of calibration images that will
         be rendered, given the calibration target's movement limits.
@@ -442,7 +401,7 @@ class BlenderTools():
                                     cam_data_render = render_data.cam_data[cam_count]
                                     bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
                                     bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
-                                    filename = render_data.save_name + "_" + str(render_counter) + "_" + str(cam_count) + ".tiff"
+                                    filename = "blendercal_" + str(render_counter) + "_" + str(cam_count) + ".tiff"
                                     bpy.context.scene.render.filepath = str(render_data.save_dir / filename)
                                     if render:
                                         bpy.ops.render.render(write_still=True)

@@ -1,10 +1,8 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2024 The Computer Aided Validation Team
+# ==============================================================================
 import warnings
 from pathlib import Path
 import numpy as np
@@ -16,7 +14,7 @@ from PIL import Image
 from pyvale.core.cameradata2d import CameraData2D
 from pyvale.core.sensordata import SensorData
 from pyvale.core.cameradata import CameraData
-from pyvale.core.camerastereodata import CameraStereoData
+from pyvale.core.camerastereo import CameraStereo
 
 # NOTE: This module is a feature under developement.
 
@@ -452,7 +450,7 @@ class CameraTools:
 
     @staticmethod
     def symmetric_stereo_cameras(cam_data_0: CameraData,
-                                stereo_angle:float) -> CameraStereoData:
+                                stereo_angle:float) -> CameraStereo:
         """A convenience function to set up a symmetric stereo camera system, given
         an initial CameraData dataclass and a stereo angle. This assumes the basic
         camera parameters are the same.
@@ -467,10 +465,10 @@ class CameraTools:
 
         Returns
         -------
-        CameraStereoData
-            A dataclass for the stereo camera setup. After initialisation, this
-            dataclass will also calculate the extrinsic parameters in the stereo
-            setup.
+        CameraStereo
+            An instance of the CameraStereo class. This class contains
+            information about each of the cameras, as well as the extrinsic
+            parameters between them.
         """
         cam_data_1 = copy.deepcopy(cam_data_0)
         base = 2 * cam_data_0.pos_world[2] * np.tan(np.radians(stereo_angle) / 2)
@@ -486,13 +484,14 @@ class CameraTools:
         cam_1_rot = Rotation.from_euler("xyz", cam_1_rot, degrees=False)
         cam_data_1.rot_world = cam_1_rot
 
-        stereo_data = CameraStereoData(cam_data_0, cam_data_1)
+        stereo_system = CameraStereo(cam_data_0, cam_data_1)
 
-        return stereo_data
+        return stereo_system
 
     @staticmethod
     def faceon_stereo_cameras(cam_data_0: CameraData,
-                            stereo_angle: float) -> CameraStereoData:
+                            stereo_angle: float) -> CameraStereo:
+        # TODO: Correct docstring
         """A convenience function to set up a face-on stereo camera system, given
         an initial CameraData dataclass and a stereo angle. This assumes the basic
         camera parameters are the same.
@@ -507,10 +506,10 @@ class CameraTools:
 
         Returns
         -------
-        CameraStereoData
-            A dataclass for the stereo camera setup. After initialisation, this
-            dataclass will also calculate the extrinsic parameters in the stereo
-            setup.
+        CameraStereo
+            An instance of the CameraStereo class. This class contains
+            information about each of the cameras, as well as the extrinsic
+            parameters between them.
         """
         cam_data_1 = copy.deepcopy(cam_data_0)
         base = cam_data_0.pos_world[2] * np.tan(np.radians(stereo_angle))
@@ -520,6 +519,6 @@ class CameraTools:
         rotation_angle = Rotation.from_euler("xyz", rotation_angle, degrees=False)
         cam_data_1.rot_world = rotation_angle
 
-        stereo_data = CameraStereoData(cam_data_0, cam_data_1)
+        stereo_system = CameraStereo(cam_data_0, cam_data_1)
 
-        return stereo_data
+        return stereo_system
