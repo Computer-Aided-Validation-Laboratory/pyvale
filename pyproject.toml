@@ -33,6 +33,9 @@ dependencies = [
   "Cython>=3.0.0",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [project.urls]
 "Repository" = "https://github.com/Digital-Validation-Laboratory/pyvale"
 "Issue Tracker" = "https://github.com/Digital-Validation-Laboratory/pyvale/issues"
