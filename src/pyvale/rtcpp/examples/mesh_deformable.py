@@ -1,4 +1,4 @@
-from rt import *
+from pyvale.rtcpp.rt import *
 import pyvale
 import mooseherder as mh
 import numpy as np
@@ -134,6 +134,7 @@ def cornel_scene():
 for i, _ in enumerate(times):
     green = Diffuse(solid_color(.12, .45, .15))
 
+    # just pick a start, middle, and end timestep to render
     if i == 0 or i == 30 or i == 60:
         scene = cornel_scene()
 
