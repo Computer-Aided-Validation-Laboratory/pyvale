@@ -16,6 +16,7 @@
 #include "geometry/plane.h"
 #include "geometry/sphere.h"
 #include "geometry/box.h"
+#include "geometry/shape.h"
 
 struct Scene_info {
     color background;
@@ -58,7 +59,11 @@ color get_raycolor(const Ray& ray, const Scene_info& scene) {
 }
 
 
+// #include <Eigen/Dense>
 
+// Eigen::MatrixXd add_matrices(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b) {
+//     return a + b;
+// }
 
 
 
@@ -243,7 +248,8 @@ PYBIND11_MODULE(render, m) {
             double, 
             double, double, double, vec3>());
 
-
+    py::class_<ShapeQuadLin,Hittable,shared_ptr<ShapeQuadLin>>(m, "ShapeQuadLin")
+        .def(py::init<Eigen::Matrix<double, 4, 3>, Eigen::Matrix<double, 4, 3>, shared_ptr<Material>>());
 
 
 }

@@ -1,5 +1,5 @@
 #include <iostream>
-#include "Eigen/Dense"
+#include <Eigen/Dense>
 // #include <functional>
 
 // Shape functions for a 4-node quadrilateral
@@ -74,19 +74,19 @@ bool findIntersection(const Eigen::Matrix<double, 4, 3>& nodes,
 int main() {
     // Define quad nodes
     Eigen::Matrix<double, 4, 3> nodes;
-    nodes << -1, -1, 0,
-             1, -1, 0,
-             1, 1, 0,
-             -1, 1, 0;
+    nodes << -2, -2, 0,
+             2, -2, 0,
+             2, 2, 0,
+             -2, 2, 0;
 
     // Displacements
     Eigen::Matrix<double, 4, 3> displacements;
-    displacements << 0, 0, 0,
-                     0, 0, 0.2,
-                     0, 0, 0.4,
-                     0, 0, 0.2;
+    displacements << 0, 0, -2,
+                     0, 0, -2,
+                     0, 0, 2,
+                     0, 0, 2;
 
-    // Line definition
+    // Ray definition
     Eigen::Vector3d r0(0.5, 0.5, 1.0);
     Eigen::Vector3d d(0.0, 0.0, -1.0);
 
