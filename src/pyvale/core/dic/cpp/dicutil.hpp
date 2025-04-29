@@ -10,6 +10,7 @@
 
 // STD library Header files
 #include <vector>
+#include <string>
 #include <unordered_map>
 
 // program Header files
@@ -19,11 +20,11 @@ namespace util {
 
 
     // Custom hash from above
-    // struct PairHash {
-    //     std::size_t operator()(const std::pair<int, int>& p) const {
-    //         return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
-    //     }
-    // };
+    struct PairHash {
+        std::size_t operator()(const std::pair<int, int>& p) const {
+            return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
+        }
+    };
 
     struct SubsetData {
         int num;
@@ -31,8 +32,22 @@ namespace util {
         int size;
         int num_ss_x;
         int num_ss_y;
+        int num_in_mask;
         std::vector<int> coords;
         std::vector<bool> mask;
+        std::unordered_map<std::pair<int, int>, int, PairHash> coords_to_idx;
+        std::unordered_map<int, std::vector<int>> neighbours;
+    };
+
+    struct SaveConfig {
+
+        std::string format;
+        std::string layout;
+        std::string base_path;
+        std::string prefix;
+        std::string delimiter;
+        bool save_at_end = true;
+
 
     };
 
@@ -165,6 +180,9 @@ namespace util {
                             const double v, 
                             const double cost,
                             const std::vector<double> &p);
+
+
+    void save_to_disk(util::SaveConfig *saveconf, const int num_def_images, util::SubsetData *ssdata, const int num_params);
 
 }
 

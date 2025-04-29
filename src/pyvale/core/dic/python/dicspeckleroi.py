@@ -1,10 +1,8 @@
-"""
-================================================================================
-pyvale: the python validation engine
-license: mit
-copyright (c) 2025 the computer aided validation team
-================================================================================
-"""
+# ================================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ================================================================================
 
 
 import cv2

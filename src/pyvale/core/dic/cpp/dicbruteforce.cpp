@@ -6,15 +6,15 @@
 
 
 // STD library Header files
+#include <iostream>
 #include <vector>
 #include <cmath>
 #include <array>
-#include <chrono>
 
 // opencv header files
-#include "opencv2/imgcodecs.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/imgproc.hpp"
+//#include "opencv2/imgcodecs.hpp"
+//#include "opencv2/highgui.hpp"
+//#include "opencv2/imgproc.hpp"
 
 // Program Header files
 #include "./dicbruteforce.hpp"
@@ -96,7 +96,6 @@ namespace brute {
 
         int offset_x = brute->p_rigid_prevmatch[0];
         int offset_y = brute->p_rigid_prevmatch[1];
-        int count = 0;
 
         for (int r = 0; r <= range; r++) {
 
@@ -149,29 +148,29 @@ namespace brute {
                         util::Subset *ss_ref, 
                         brute::Parameters *brute) {
 
-        cv::Mat image(px_vertical, px_horizontal, CV_32S, const_cast<int*>(image_ref));
-        cv::Mat ss(ss_def->size, ss_def->size, CV_64F, ss_def->vals.data());
+        //cv::Mat image(px_vertical, px_horizontal, CV_32S, const_cast<int*>(image_ref));
+        //cv::Mat ss(ss_def->size, ss_def->size, CV_64F, ss_def->vals.data());
 
-        cv::Mat image_float;
-        cv::Mat ss_float;
-        image.convertTo(image_float, CV_32F);
-        ss.convertTo(ss_float, CV_32F);
+        //cv::Mat image_float;
+        //cv::Mat ss_float;
+        //image.convertTo(image_float, CV_32F);
+        //ss.convertTo(ss_float, CV_32F);
 
 
-        cv::Mat result;
-        cv::matchTemplate(image_float, ss_float, result, cv::TM_CCOEFF_NORMED);
-        
-        double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
-        cv::Point matchLoc;
-        
-        cv::minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, cv::Mat());
+        //cv::Mat result;
+        //cv::matchTemplate(image_float, ss_float, result, cv::TM_CCOEFF_NORMED);
+        //
+        //double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
+        //cv::Point matchLoc;
+        //
+        //cv::minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, cv::Mat());
 
-        std::cout << "minVal: " << minVal << std::endl;
-        std::cout << "maxVal: " << maxVal << std::endl;
-        std::cout << "minLoc: " << minLoc.x << ", " << minLoc.y << std::endl;
-        std::cout << "maxLoc: " << maxLoc.x << ", " << maxLoc.y << std::endl;
-        brute->p_rigid[0] = maxLoc.x - ss_x;
-        brute->p_rigid[1] = maxLoc.y - ss_y;
+        //std::cout << "minVal: " << minVal << std::endl;
+        //std::cout << "maxVal: " << maxVal << std::endl;
+        //std::cout << "minLoc: " << minLoc.x << ", " << minLoc.y << std::endl;
+        //std::cout << "maxLoc: " << maxLoc.x << ", " << maxLoc.y << std::endl;
+        //brute->p_rigid[0] = maxLoc.x - ss_x;
+        //brute->p_rigid[1] = maxLoc.y - ss_y;
     }
 
 
@@ -195,7 +194,7 @@ namespace brute {
 
 
         for (int p1 = -ymin; p1 <= ymax; p1++){
-            for (int p0 = -xmin; p0 <= xmax; p0++){                
+            for (int p0 = -xmin; p0 <= xmax; p0++){
 
                 double cost = cost_function(image_ref, px_vertical, px_horizontal, ss_def,ss_ref,p0,p1);
 
@@ -237,7 +236,7 @@ namespace brute {
             ss_ref[i] = image_ref[idx];
             
             cost += (ss_def->vals[i] - ss_ref->vals[i]) *
-                    (ss_def->vals[i] - ss_ref->vals[i]);      
+                    (ss_def->vals[i] - ss_ref->vals[i]);
 
         }
 
@@ -342,7 +341,7 @@ namespace brute {
         for (int i = 0; i < num_px; i++){
             double def_norm = ss_def->vals[i] * inv_sum_squared_def;
             double ref_norm = ss_ref->vals[i] * inv_sum_squared_ref;
-            cost += (def_norm - ref_norm) * (def_norm - ref_norm);        
+            cost += (def_norm - ref_norm) * (def_norm - ref_norm);
         }
 
         return cost;

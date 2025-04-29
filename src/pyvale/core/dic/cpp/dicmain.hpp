@@ -10,14 +10,26 @@
 
 
 // STD library Header files
-#include <vector>
-#include <iostream>
+#include <string>
 
 // Program Header files
-#include "./dicoptimizer.hpp"
-
+#include "./dicutil.hpp"
 
 namespace dic {
+
+    struct Config {
+        int ss_step;
+        int ss_size;
+        int max_iter;
+        double precision;
+        double threshold_lm;
+        double threshold_bf;
+        int range_bf;
+        std::string corr_crit;
+        std::string shape_func;
+        std::string interp_routine;
+        std::string scan_method;
+    };
 
     // result arrays. Not using std::vector because harder to handle with cython
     // extern std::vector<int> ss_coord_list;
@@ -55,17 +67,8 @@ namespace dic {
                     int px_vertical, 
                     int px_horizontal, 
                     int num_def_images,
-                    int subset_step,
-                    int subset_size,
-                    int max_iter,
-                    double precision,
-                    double threshold_lm,
-                    double threshold_bf,
-                    int range_bf,
-                    std::string& corr_crit, 
-                    std::string& shape_func,
-                    std::string& interp_routine,
-                    std::string& scan_method);
+                    Config &config,
+                    util::SaveConfig &saveconfig);
 
     /**
      * @brief 
@@ -150,17 +153,6 @@ namespace dic {
                     double range_bf,
                     int num_params);
 
-
-
-    /**
-     * @brief 
-     * 
-     * @param num_def_images 
-     * @param img_num 
-     * @param ss 
-     * @param results 
-     */
-    void append_results(int num_def_images, int img_num, int ss, optimizer::Results *results);
 }
 
 #endif //DICENGINE_H

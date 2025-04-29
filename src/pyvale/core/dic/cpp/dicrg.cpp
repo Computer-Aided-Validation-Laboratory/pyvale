@@ -40,18 +40,22 @@ namespace rg {
         const double range_bf,
         const int num_params) {
         
-        // Get image dimensions
+        // assign some consts for readability
         const int px_horizontal = image_def->px_horizontal;
         const int px_vertical = image_def->px_vertical;
+        const int ss_step = ssdata->step;
+        const int ss_size = ssdata->size;
+        
 
+        // orthogonal directions
         int idx_dx[4] = {1, 0, -1, 0};
         int idx_dy[4] = {0, 1, 0, -1};
-        int ss_dx[4]  = {ssdata->step, 0, -ssdata->step, 0};
-        int ss_dy[4]  = {0, ssdata->step, 0, -ssdata->step};
+        int ss_dx[4]  = {ss_step, 0, -ss_step, 0};
+        int ss_dy[4]  = {0, ss_step, 0, -ss_step};
         
         // Initialize binary mask for computed points (initialized to 0)
         std::vector<std::atomic<bool>> computed_mask(ssdata->mask.size());
-        for (int i = 0; i < computed_mask.size(); ++i) {
+        for (size_t i = 0; i < computed_mask.size(); ++i) {
             computed_mask[i] = false;
         }
 
@@ -73,24 +77,24 @@ namespace rg {
             return;
         }
 
-        int ss_x = seed_x;
-        int ss_y = seed_y;
-        int ss_x_idx  = seed_x / ssdata->step;
-        int ss_y_idx  = seed_y / ssdata->step;
+        // in
+        int seed_x_idx  = seed_x / ss_step;
+        int seed_y_idx  = seed_y / ss_step;
+        
 
         // Initialize subsets
-        util::Subset ss_def(ssdata->size);
-        util::Subset ss_ref(ssdata->size);
+        util::Subset ss_def(ss_size);
+        util::Subset ss_ref(ss_size);
 
         // temp p values for copy from brute force to optimization.
         double ptemp[6] = {0,0,0,0,0,0};
         
         // Extract subset and solve for starting seed point
-        util::extract_ss(ss_x, ss_y, image_def, &ss_def);
+        util::extract_ss(seed_x, seed_y, image_def, &ss_def);
 
         // brute force for initial subset
         brute::Parameters brute(threshold_bf, range_bf);
-        brute::expanding_wavefront(ss_x, ss_y, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
+        brute::expanding_wavefront(seed_x, seed_y, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
 
         ptemp[0] = brute.p_rigid[0];
         ptemp[1] = brute.p_rigid[1];
@@ -104,11 +108,16 @@ namespace rg {
             opt.p[i] = ptemp[i];
         }
 
-        optimizer::Results seed_results = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
+        optimizer::Results seed_results = optimizer::solve(seed_x, seed_y, &ss_def, &ss_ref, &opt);
 
                 
+
         //mark seed as computed
-        int idx = (ss_y_idx * ssdata->num_ss_x + ss_x_idx);
+        // int idx = (seed_y_idx * ssdata->num_ss_x + seed_x_idx);
+        std::cout << seed_x << " " << seed_y << std::endl;
+        int idx = ssdata->coords_to_idx.find({seed_x, seed_y})->second;
+
+        util::append_results(num_def_images, img_num, idx, seed_results.iter, seed_results.ftol, seed_results.xtol, seed_results.u, seed_results.v, seed_results.cost, seed_results.p);
         computed_mask[idx] = true;                     
 
         
@@ -116,19 +125,21 @@ namespace rg {
         // util::append_results(num_def_images, img_num, 0, &seed_results);
         
         // loop over seed subset neighbours
-        for (int i = 0; i < 4; ++i) {
+        // for (int i = 0; i < 4; ++i) {
 
-            int neigh_x_ss = seed_x + ss_dx[i];
-            int neigh_y_ss = seed_y + ss_dy[i];
-            int neigh_x_idx = seed_x / ssdata->step + idx_dx[i];
-            int neigh_y_idx = seed_y / ssdata->step + idx_dy[i];
-            int neigh_idx = neigh_y_idx*ssdata->num_ss_x + neigh_x_idx;
+        for (int neigh_idx : ssdata->neighbours[idx]) {
+
+            // int neigh_x_ss = seed_x + ss_dx[i];
+            // int neigh_y_ss = seed_y + ss_dy[i];
+            // int neigh_x_idx = seed_x / ss_step + idx_dx[i];
+            // int neigh_y_idx = seed_y / ss_step + idx_dy[i];
+            // int neigh_idx = neigh_y_idx*ssdata->num_ss_x + neigh_x_idx;
+
+            int neigh_x_ss = ssdata->coords[neigh_idx*2];
+            int neigh_y_ss = ssdata->coords[neigh_idx*2+1];
 
             util::extract_ss(neigh_x_ss, neigh_y_ss, image_def, &ss_def);
-
-            brute::Parameters brute(threshold_bf, range_bf);
-            brute::expanding_wavefront(ss_x, ss_y, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
-
+            brute::expanding_wavefront(neigh_x_ss, neigh_y_ss, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
             ptemp[0] = brute.p_rigid[0];
             ptemp[1] = brute.p_rigid[1];
             ptemp[2] = 0.0;
@@ -148,7 +159,8 @@ namespace rg {
             computed_mask[neigh_idx] = true;
 
             // LOCAL QUEUE
-            local_queues[0].push(CorrelationPoint(neigh_x_idx, neigh_y_idx, 1.0 - 0.5*neigh_results.cost));
+            // local_queues[0].push(CorrelationPoint(neigh_x_idx, neigh_y_idx, 1.0 - 0.5*neigh_results.cost));
+            local_queues[0].push(CorrelationPoint(neigh_x_ss, neigh_y_ss, 1.0 - 0.5*neigh_results.cost));
 
             // SHARED QUEUE
             // shared_queue.push(CorrelationPoint(neigh_x, neigh_y, 1 - 0.5 * neigh_results.cost));
@@ -163,14 +175,13 @@ namespace rg {
             auto& my_queue = local_queues[omp_get_thread_num()];
             std::vector<CorrelationPoint> temp_neighbours;
             temp_neighbours.reserve(4);
-            int debug_count = 0;
 
             const int max_idle_iters = 100;
+            CorrelationPoint current(0, 0, 0);
 
             while (true) {
 
                 // reset correlation values and got_point
-                CorrelationPoint current(0, 0, 0);
                 bool got_point = false;
                 int idle_iters = 0;
 
@@ -183,7 +194,7 @@ namespace rg {
                 else {
                     // Try to steal from queue with retries.
                     while (!got_point && idle_iters < max_idle_iters) {
-                        for (int i = 0; i < local_queues.size(); ++i) {
+                        for (size_t i = 0; i < local_queues.size(); ++i) {
                             if (!local_queues[i].empty()) {
                                 current = local_queues[i].top();
                                 local_queues[i].pop();
@@ -206,33 +217,53 @@ namespace rg {
 
                 temp_neighbours.clear();
 
-                int idx_x = current.x;
-                int idx_y = current.y;
-                int idx = idx_y * ssdata->num_ss_x + idx_x;
+                // MASK index
+                // int idx_x = current.x;
+                // int idx_y = current.y;
+                // int idx = idx_y * ssdata->num_ss_x + idx_x;
+                // int idx_results = (img_num * num_def_images + idx);
+                // int idx_resultsp = idx_results*opt.num_params;
 
-                // loop over subset neighbours
-                for (int i = 0; i < 4; ++i) {
+                // LIST subset
+                int curr_x = current.x;
+                int curr_y = current.y;
 
-                    int neigh_x_idx = idx_x + idx_dx[i];
-                    int neigh_y_idx = idx_y + idx_dy[i];
-                    int neigh_x_ss = neigh_x_idx * ssdata->step;
-                    int neigh_y_ss = neigh_y_idx * ssdata->step;
-                    int neigh_idx = neigh_y_idx * ssdata->num_ss_x + neigh_x_idx;
+
+                // MASK loop over subset neighbours
+                // for (int i = 0; i < 4; ++i) {
+
+                // LIST loop
+                int idx = ssdata->coords_to_idx.find({curr_x, curr_y})->second;
+                int idx_results = (img_num * num_def_images + idx);
+                int idx_resultsp = idx_results*opt.num_params;
+
+                for (int neigh_idx : ssdata->neighbours[idx]) {
+
+                    // MASK get coordinates
+                    // int neigh_x_idx = idx_x + idx_dx[i];
+                    // int neigh_y_idx = idx_y + idx_dy[i];
+                    // int neigh_x_ss = neigh_x_idx * ss_step;
+                    // int neigh_y_ss = neigh_y_idx * ss_step;
+                    // int neigh_idx = neigh_y_idx * ssdata->num_ss_x + neigh_x_idx;
+
+                    // LIST get coordiantes
+                    int neigh_x_ss = ssdata->coords[neigh_idx*2];
+                    int neigh_y_ss = ssdata->coords[neigh_idx*2+1];
 
                     // if its a valid subset and its not already been computed
-                    if ((ssdata->mask[neigh_idx]) && (!computed_mask[neigh_idx].exchange(true))) {
+                    // if ((ssdata->mask[neigh_idx]) && (!computed_mask[neigh_idx].exchange(true))) {
+
+                    // LIST
+                    if (!computed_mask[neigh_idx].exchange(true)) {
 
                         // extract subset
                         util::extract_ss(neigh_x_ss, neigh_y_ss, image_def, &ss_def);
 
-                        // array index in results arrays
-                        int results_index  = (img_num * num_def_images + idx);
-                        int results_indexp = results_index*opt.num_params;
-
                         // if the neighbouring subset reached the maximum number of iterations, try again from a brute force
-                        if (util::niter_arr[results_index] == opt.max_iter && util::cost_arr[results_index] > opt.threshold_lm){
+                        // if (util::niter_arr[idx_results] == opt.max_iter && util::cost_arr[idx_results] > opt.threshold_lm){
+                        if (util::niter_arr[idx] == opt.max_iter && util::cost_arr[idx] > opt.threshold_lm){
 
-                            brute::expanding_wavefront(ss_x, ss_y, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
+                            brute::expanding_wavefront(neigh_x_ss, neigh_y_ss, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
                             ptemp[0] = brute.p_rigid[0];
                             ptemp[1] = brute.p_rigid[1];
                             ptemp[2] = 0.0;
@@ -247,7 +278,7 @@ namespace rg {
                         }
                         else {
                             for (int i = 0; i < opt.num_params; i++){
-                                opt.p[i] = util::p_arr[results_indexp+i];
+                                opt.p[i] = util::p_arr[idx_resultsp+i];
                             }
 
                         }
@@ -259,16 +290,14 @@ namespace rg {
                         util::append_results(num_def_images, img_num, neigh_idx, neigh_results.iter, neigh_results.ftol, neigh_results.xtol, neigh_results.u, neigh_results.v, neigh_results.cost, neigh_results.p);
 
                         // // add results to temp neighbour results
-                        temp_neighbours.emplace_back(neigh_x_idx, neigh_y_idx, 1.0 - 0.5 * neigh_results.cost);
+                        // temp_neighbours.emplace_back(neigh_x_idx, neigh_y_idx, 1.0 - 0.5 * neigh_results.cost);
+                        temp_neighbours.emplace_back(neigh_x_ss, neigh_y_ss, 1.0 - 0.5 * neigh_results.cost);
                     }
                 }
 
                 for (const auto& neighbour : temp_neighbours) {
                     my_queue.push(neighbour);
                 }
-
-                // debug_count++;
-                // if (debug_count == 4) exit(0);
             }
         }
 
@@ -339,35 +368,35 @@ namespace rg {
 
     inline bool is_valid_point(int ss_x, int ss_y, util::SubsetData *ssdata) {
 
-        int x = ss_x / ssdata-> step;
-        int y = ss_y / ssdata-> step;
+        // int x = ss_x / ssdata->step;
+        // int y = ss_y / ssdata->step;
 
-        int idx = y * ssdata->num_ss_x + x;
+        // int idx = y * ssdata->num_ss_x + x;
 
-        if ((ss_x % ssdata->step) || (ss_y % ssdata->step)){
-            std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
-            std::cerr << "Subset step size: " << ssdata->step << std::endl;
-            return false;
-            exit(EXIT_FAILURE);
-        }
-        else if (!ssdata->mask[idx]){
-            std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
-            std::cerr << "subset mask index: " << idx << std::endl;
-            std::cerr << "subset mask value: " << idx << std::endl;
-            return false;
-            exit(EXIT_FAILURE);
+        // if ((ss_x % ssdata->step) || (ss_y % ssdata->step)){
+        //     std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
+        //     std::cerr << "Subset ss_step size: " << ssdata->step << std::endl;
+        //     return false;
+        //     exit(EXIT_FAILURE);
+        // }
+        // else if (!ssdata->mask[idx]){
+        //     std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
+        //     std::cerr << "subset mask index: " << idx << std::endl;
+        //     std::cerr << "subset mask value: " << idx << std::endl;
+        //     return false;
+        //     exit(EXIT_FAILURE);
+        // }
+        // else return true;
+
+        auto it = ssdata->coords_to_idx.find({ss_x, ss_y});
+
+        // check if coordinates are in the coordinate list
+        if (it == ssdata->coords_to_idx.end()) {
+           std::cerr << "Error: coordinates not found in the coordinate list." << std::endl;
+           std::cerr << "Coordinates: " << ss_x << ", " << ss_y << std::endl;
+           exit(EXIT_FAILURE);
         }
         else return true;
-
-        //auto it = ssdata->coords_to_index.find({x, y});
-
-        //// check if coordinates are in the coordinate list
-        //if (it == ssdata->coords_to_index.end()) {
-        //    std::cerr << "Error: coordinates not found in the coordinate list." << std::endl;
-        //    std::cerr << "Coordinates: " << x << ", " << y << std::endl;
-        //    exit(EXIT_FAILURE);
-        //}
-        //else return true;
     }
 
 }

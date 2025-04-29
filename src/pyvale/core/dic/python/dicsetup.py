@@ -1,10 +1,8 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+# ================================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ================================================================================
 
 import os
 from os.path import join as pjoin
@@ -110,7 +108,8 @@ ext = Extension(
         ("HOSTNAME", f'"{hostname}"'),
         ("BUILDTIME", f'"{build_time}"'),
     ],
-    libraries=["cudart", "curand"],
+    libraries=["cudart", "curand", 
+               "opencv_core","opencv_imgproc", "opencv_highgui"],
     runtime_library_dirs=[CUDA['lib64'], np.get_include()],
 
 

@@ -34,17 +34,8 @@ namespace dic {
                     int px_vertical, 
                     int px_horizontal, 
                     int num_def_images,
-                    int ss_step,
-                    int ss_size,
-                    int max_iter,
-                    double precision,
-                    double threshold_lm,
-                    double threshold_bf,
-                    int range_bf,
-                    std::string& corr_crit, 
-                    std::string& shape_func,
-                    std::string& interp_routine,
-                    std::string& scan_method){
+                    Config &conf,
+                    util::SaveConfig &saveconf){
 
         // -------------------------------------------------------------------------------------------
         // Initialisation
@@ -56,31 +47,31 @@ namespace dic {
 
         // number of parameters for the shape function
         int num_params;
-        if (shape_func == "rigid") num_params = 2;
-        else if (shape_func == "affine") num_params = 6;
+        if (conf.shape_func == "rigid") num_params = 2;
+        else if (conf.shape_func == "affine") num_params = 6;
         else {
-            std::cerr << "Unknown shape function: \'" << shape_func << "\'." << std::endl;
+            std::cerr << "Unknown shape function: \'" << conf.shape_func << "\'." << std::endl;
             std::cerr << "Allowed values: \'affine\', \'rigid\'. " << std::endl;
             return;
         }
 
 
         // get a list of ss coordinates within RIO.
-        util::SubsetData ssdata = util::generate_ss_list(image_roi, px_horizontal, px_vertical, ss_size, ss_step, num_def_images, num_params);
+        util::SubsetData ssdata = util::generate_ss_list(image_roi, px_horizontal, px_vertical, conf.ss_size, conf.ss_step, num_def_images, num_params);
 
 
         // TITLE("DIC INITIALISATION");
         // INFO_OUT("Height of Images: ", px_vertical << " [px]");
         // INFO_OUT("Width of Images: ", px_horizontal << " [px]");
         // INFO_OUT("Number of Deformed Images: ", num_def_images);
-        // INFO_OUT("Subset Step: ", ss_step);
-        // INFO_OUT("Subset Size: ", ss_size);
+        // INFO_OUT("Subset Step: ", conf.ss_step);
+        // INFO_OUT("Subset Size: ", conf.ss_size);
         // INFO_OUT("Max number of solver iterations: ", max_iter);
         // INFO_OUT("Tolerance cutoff: ", tol);
-        // INFO_OUT("Correlation Criterion: ", corr_crit);
-        // INFO_OUT("Shape Function: ", shape_func);
+        // INFO_OUT("Correlation Criterion: ", conf.corr_crit);
+        // INFO_OUT("Shape Function: ", conf.shape_func);
         // INFO_OUT("Interpolation Routine: ", interp_routine);
-        // INFO_OUT("Image Scan Method: ", scan_method);
+        // INFO_OUT("Image Scan Method: ", conf.scan_method);
         // INFO_OUT("Total number of subsets: ", ssdata.num);
         // INFO_OUT("Number of OMP threads:", omp_get_max_threads());
 
@@ -96,11 +87,11 @@ namespace dic {
         interpolator::bicubic_init(&image_ref_dbl);
 
         // initialise the LM optimizer to use the desired correlation criterion and shape func.
-        optimizer::init(corr_crit, shape_func);
+        optimizer::init(conf.corr_crit, conf.shape_func);
 
         // initialise the brute force scan
         std::string brute_method = "SPIRAL";
-        brute::init(corr_crit, brute_method);
+        brute::init(conf.corr_crit, brute_method);
 
         // for extraction of deformed image from stack
         util::Image image_def(px_horizontal, px_vertical);
@@ -109,12 +100,12 @@ namespace dic {
         void (*scan_function)(int*, util::Image*, bool*, util::SubsetData*, int, int, int, double, double, double, double, int);
 
         // set the scan_function pointer based on the scan method specified by user.
-        if (scan_method=="image_scan") scan_function=image_scan;
-        else if (scan_method=="image_scan_with_brute_force") scan_function=image_scan_with_bf;
-        else if (scan_method=="RG") scan_function=reliability_guided;
+        if (conf.scan_method=="image_scan") scan_function=image_scan;
+        else if (conf.scan_method=="image_scan_with_brute_force") scan_function=image_scan_with_bf;
+        else if (conf.scan_method=="RG") scan_function=reliability_guided;
         else {
-            std::cerr << "Unknown subset scan type: \'" << scan_method << "\'." << std::endl;
-            std::cerr << "Allowed values: \'image_scan\', \'RG\'. " << std::endl;
+            std::cerr << "Unknown subset scan type: \'" << conf.scan_method << "\'." << std::endl;
+            std::cerr << "Allowed values: \'image_scan\', \'image_scan_with_brute_force\', \'RG\'. " << std::endl;
             return;
         } 
         
@@ -138,8 +129,7 @@ namespace dic {
             // extract a single image from the stack
             util::extract_image(&image_def, image_def_stack, img_num);  
           
-            scan_function(image_ref, &image_def, image_roi, &ssdata, num_def_images, img_num, max_iter, precision, threshold_lm, threshold_bf, range_bf, num_params);
-
+            scan_function(image_ref, &image_def, image_roi, &ssdata, num_def_images, img_num, conf.max_iter, conf.precision, conf.threshold_lm, conf. threshold_bf, conf.range_bf, num_params);
 
         }
 
@@ -147,6 +137,10 @@ namespace dic {
         auto f1 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> e1 = f1 - s1;
         INFO_OUT("Time taken to Run C++ DIC Engine: ", e1.count() << " [s]")
+
+        // save data
+        saveconf.save_at_end = true;
+        util::save_to_disk(&saveconf, 1, &ssdata, num_params);
 
     }
 

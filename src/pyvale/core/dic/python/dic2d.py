@@ -31,7 +31,12 @@ class DIC2D:
                  threshold_levenberg: float=0.1,
                  threshold_bruteforce: float=0.2,
                  range_bruteforce: int=10,
-                 scanning_method: str="image_scan"):
+                 scanning_method: str="image_scan",
+                 out_format: str=".dat",
+                 out_layout: str="col",
+                 out_base_path: str="./",
+                 out_prefix: str="image",
+                 out_delimiter: str=" "):
 
         self.image_ref = reference_image
         self.image_def = deformed_images
@@ -47,6 +52,13 @@ class DIC2D:
         self.shape_func = shape_function
         self.interp = interpolation_routine
         self.scanning_method = scanning_method
+        self.out_format = out_format
+        self.out_layout = out_layout
+        self.out_base_path = out_base_path
+        self.out_prefix = out_prefix
+        self.out_delimiter = out_delimiter
+
+
         self.subsets = None
         self.u = None
         self.v = None
@@ -76,15 +88,20 @@ class DIC2D:
                                            self.corr_crit,
                                            self.shape_func,
                                            self.interp,
-                                           self.scanning_method)
+                                           self.scanning_method,
+                                           self.out_format,
+                                           self.out_layout,
+                                           self.out_base_path,
+                                           self.out_prefix,
+                                           self.out_delimiter)
 
-        self.subsets = results[0]
-        self.niter = results[1]
-        self.u = results[2]
-        self.v = results[3]
-        self.p = results[4]
-        self.ftol = results[5]
-        self.xtol = results[6]
+        #self.subsets = results[0]
+        self.niter = results[0]
+        self.u = results[1]
+        self.v = results[2]
+        self.p = results[3]
+        self.ftol = results[4]
+        self.xtol = results[5]
 
 
 

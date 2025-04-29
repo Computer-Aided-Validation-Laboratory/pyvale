@@ -10,9 +10,6 @@
 
 // STD library Header files
 #include <vector>
-#include <iostream>
-#include <chrono>
-#include <array>
 
 // Program Header files
 #include "./dicutil.hpp"
