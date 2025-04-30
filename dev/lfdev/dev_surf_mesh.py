@@ -19,7 +19,7 @@ def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
     assert "connect2" not in sim_data.connect, \
         "Multiple connectivity tables not supported yet."
 
-    # Get the mapping of node numbers to faces for each element face
+    # Mapping of node numbers to faces for each element face
     face_map = _get_surf_map(nodes_per_elem=connect.shape[0])
     faces_per_elem = face_map.shape[0]
     nodes_per_face = face_map.shape[1]
@@ -31,8 +31,9 @@ def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
 
     # Create an array of all faces with shape=(total_faces,nodes_per_face)
     faces_total = faces_per_elem*num_elems
-    faces_flat_wound = np.copy(faces_wound.reshape((faces_total,nodes_per_face)))
-    faces_flat_sorted = np.copy(np.sort(faces_flat_wound,axis=1)) # Sort the rows so nodes are in the same order
+    faces_flat_wound = faces_wound.reshape((faces_total,nodes_per_face))
+    # Sort the rows so nodes are in the same order when comparing them
+    faces_flat_sorted = np.copy(np.sort(faces_flat_wound,axis=1))
 
     # Count each unique face in the list of faces, faces that appear only once
     # must be external faces
@@ -132,6 +133,7 @@ def _get_surf_map(nodes_per_elem: int) -> np.ndarray:
 
 def main() -> None:
     sim_path = pyv.DataSet.element_case_path(pyv.EElemTest.HEX27)
+    #sim_path = pyv.DataSet.thermomechanical_3d_path()
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
     print(80*"-")
@@ -161,59 +163,6 @@ def main() -> None:
     face_data = pyv.scale_length_units(face_data,("disp_x","disp_y","disp_z"),1000.0)
     pv_plot = pyv.plot_sim_data(face_data,"disp_y",elem_dims=2)
     pv_plot.show()
-
-    return
-    # print(80*"-")
-    # print("MAPPING")
-    # print(faces_coord_inds)
-    # print(np.arange(0,faces_coord_inds.shape[0]))
-    # print(80*"-")
-    # print(faces_ext_wound[:8,:])
-    # print()
-    # print(faces_ext_remap[:4,:])
-    # print()
-    # print(check_mesh.connectivity[:4,:])
-    # print()
-    # print()
-    # print(80*"-")
-    # print(coords)
-    # print(sim_data.coords)
-    # print()
-    # print(faces_coords)
-    # print()
-    # print(check_mesh.coords)
-    # print()
-
-    # print(80*"-")
-    # print(f"{coords.shape=}")
-    # print(f"{num_elems=}")
-    # print(f"{connect.shape=}")
-    # print(f"{faces_wound.shape=}")
-    # print(f"{faces_all.shape=}")
-    # print(f"{faces_flat_wound.shape=}")
-    # print()
-    # print(f"{faces_unique.shape=}")
-    # print(f"{faces_unique_counts.shape=}")
-    # print(f"{faces_unique_counts=}")
-    # print()
-    # print(f"{faces_unique_inds.shape=}")
-    # print(f"{faces_unique_inds=}")
-    # print()
-    # print(f"{faces_ext.shape=}")
-    # print(f"{faces_ext_inds.shape=}")
-    # print(f"{faces_ext_inds=}")
-    # print()
-    # print(f"{faces_coord_inds.shape=}")
-    # print(f"{faces_coords.shape=}")
-    # print(80*"-")
-
-    # print(faces_coord_inds)
-    # print(face_coord_remap)
-
-
-
-
-
 
 
 
