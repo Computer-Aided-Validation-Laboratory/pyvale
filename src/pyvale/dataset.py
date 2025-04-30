@@ -3,6 +3,7 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
+
 from enum import Enum
 from pathlib import Path
 from importlib.resources import files

@@ -1,10 +1,10 @@
-#===============================================================================
+# ================================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-#===============================================================================
-from typing import Any
+# ================================================================================
 
+from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
 from pyvale.visualopts import (PlotOptsGeneral,

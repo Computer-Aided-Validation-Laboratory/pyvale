@@ -1,8 +1,9 @@
-#===============================================================================
+# ================================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-#===============================================================================
+# ================================================================================
+
 import numpy as np
 from pyvale.sensordata import SensorData
 from pyvale.errorcalculator import (IErrCalculator,
