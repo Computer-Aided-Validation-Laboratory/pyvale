@@ -28,13 +28,19 @@ def main() -> None:
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
 
+    # Set the save path
+    # --------------------------------------------------------------------------
+    # All the files saved will be saved to a subfolder within this specified
+    # base directory.
+    # This base directory can be specified by:
+    base_dir = "./"
+    # If no base directory is specified, it will be set as your home directory
+
     # Creating the scene
     # --------------------------------------------------------------------------
-    # When Blender is started, default objects are present within the scene
-    # The following function is used to clear the scene
-    pyvale.BlenderScene.reset_scene()
+    scene = pyvale.BlenderScene()
 
-    part = pyvale.BlenderScene.add_part(render_mesh, sim_spat_dim=3)
+    part = scene.add_part(render_mesh, sim_spat_dim=3)
     # Set the part location
     part_location = np.array([0, 0, 0])
     pyvale.BlenderTools.move_blender_obj(part=part, pos_world=part_location)
@@ -51,22 +57,20 @@ def main() -> None:
                                  focal_length=15.0)
     # Set this to "symmetric" to get a symmetric stereo system or set this to
     # "faceon" to get a face-on stereo system
-    stereo_system = "symmetric"
-    if stereo_system == "symmetric":
-        stereo_data = pyvale.CameraTools.symmetric_stereo_cameras(
+    stereo_setup = "symmetric"
+    if stereo_setup == "symmetric":
+        stereo_system = pyvale.CameraTools.symmetric_stereo_cameras(
             cam_data_0=cam_data_0,
             stereo_angle=15.0)
-    if stereo_system == "faceon":
-        stereo_data = pyvale.CameraTools.faceon_stereo_cameras(
+    if stereo_setup == "faceon":
+        stereo_system = pyvale.CameraTools.faceon_stereo_cameras(
             cam_data_0=cam_data_0,
             stereo_angle=15.0)
 
-    cam0, cam1 = pyvale.BlenderScene.add_stereo_system(stereo_data)
+    cam0, cam1 = scene.add_stereo_system(stereo_system)
 
     # Generate calibration file
-    calib_filepath = Path.cwd() / "blenderimages"
-    pyvale.BlenderTools.generate_calib_file(stereo_data, calib_filepath)
-
+    stereo_system.save_calibration(base_dir)
 
     # Add the light
     light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
@@ -74,7 +78,7 @@ def main() -> None:
                                          rot_world=Rotation.from_euler("xyz",
                                                                        [0, 0, 0]),
                                          energy=1)
-    light = pyvale.BlenderScene.add_light(light_data)
+    light = scene.add_light(light_data)
 
     # The light can also be moved and rotated:
     light.location = (0, 0, 410)
@@ -87,7 +91,7 @@ def main() -> None:
     # bigger speckle pattern generator
 
     mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data_0)
-    pyvale.BlenderScene.add_speckle(part=part,
+    scene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
                                     mm_px_resolution=mm_px_resolution)
@@ -97,29 +101,26 @@ def main() -> None:
     # Set this to True to render image of the deforming part
     render_opts = True
     if render_opts:
-        save_dir = Path.cwd() / "blenderimages"
         # NOTE: If no save directory is specified, this is where the images will
         # be saved
-        save_name = "ex2_2"
-        render_data = pyvale.RenderData(cam_data=(stereo_data.cam_data_0,
-                                                  stereo_data.cam_data_1),
-                                        save_dir=save_dir,
-                                        save_name=save_name,
+        render_data = pyvale.RenderData(cam_data=(stereo_system.cam_data_0,
+                                                  stereo_system.cam_data_1),
+                                        base_dir=base_dir,
                                         threads=8)
         # NOTE: The number of threads used to render the images is set within
         # RenderData, it is defaulted to 4 threads
 
-        pyvale.BlenderScene.render_deformed_images(render_mesh=render_mesh,
-                                                   sim_spat_dim=3,
-                                                   render_data=render_data,
-                                                   part=part,
-                                                   bounce_image=False)
+        scene.render_deformed_images(render_mesh=render_mesh,
+                                     sim_spat_dim=3,
+                                     render_data=render_data,
+                                     part=part,
+                                     stage_image=False)
         # NOTE: If bounce_image is set to True, the image will be saved to disk,
         # converted to an array, deleted and the image array will be returned.
 
         print()
         print(80*"-")
-        print("Save directory of the image:", render_data.save_dir)
+        print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
         print(80*"-")
         print()
 
@@ -127,13 +128,7 @@ def main() -> None:
     # --------------------------------------------------------------------------
     # The file that will be saved is a Blender project file. This can be opened
     # with the Blender GUI to view the scene.
-    blender_path = Path.cwd() / "blenderfiles"
-    pyvale.BlenderTools.save_blender_file(blender_path)
-
-    print()
-    print(80*"-")
-    print("Save directory of Blender project file:", blender_path)
-    print(80*"-")
+    pyvale.BlenderTools.save_blender_file(base_dir)
 
 if __name__ == "__main__":
     main()
