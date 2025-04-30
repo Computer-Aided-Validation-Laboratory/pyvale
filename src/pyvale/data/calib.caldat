@@ -1,0 +1,26 @@
+Cam0_Fx [pixels]; 4347.826086956522
+Cam0_Fy [pixels]; 4347.826086956522
+Cam0_Fs [pixels];0
+Cam0_Kappa 1;0.0
+Cam0_Kappa 2;0.0
+Cam0_Kappa 3;0.0
+Cam0_P1;0.0
+Cam0_P2;0.0
+Cam0_Cx [pixels];770.0
+Cam0_Cy [pixels];520.0
+Cam1_Fx [pixels]; 4347.826086956522
+Cam1_Fy [pixels]; 4347.826086956522
+Cam1_Fs [pixels];0
+Cam1_Kappa 1;0.0
+Cam1_Kappa 2;0.0
+Cam1_Kappa 3;0.0
+Cam1_P1;0.0
+Cam1_P2;0.0
+Cam1_Cx [pixels];770.0
+Cam1_Cy [pixels];520.0
+Tx [mm];-103.11026558287628
+Ty [mm];0.0
+Tz [mm];13.574723990885373
+Theta [deg];0.0
+Phi [deg];15.000000000000009
+Psi [deg];0.0
