@@ -17,6 +17,7 @@ Copyright (C) 2025 The Computer Aided Validation Team
 # and access everything in one layer without multiple import dots
 
 from pyvale.core.dataset import *
+from pyvale.core.output import *
 
 from pyvale.core.field import *
 from pyvale.core.fieldscalar import *
@@ -77,5 +78,6 @@ from pyvale.core.experimentsimulator import *
 from pyvale.core.blenderscene import *
 from pyvale.core.blendertools import *
 from pyvale.core.blenderlightdata import *
-from pyvale.core.camerastereodata import *
+from pyvale.core.camerastereo import *
 from pyvale.core.blendercalibrationdata import *
+
