@@ -8,9 +8,9 @@ Copyright (C) 2025 The Computer Aided Validation Team
 from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
-from pyvale.core.cameradata import CameraData
-from pyvale.core.rendermesh import RenderMeshData
-import pyvale.core.cython.rastercyth as rastercyth
+from pyvale.cameradata import CameraData
+from pyvale.rendermesh import RenderMeshData
+import pyvale.cython.rastercyth as rastercyth
 
 # NOTE: This module is a feature under developement.
 

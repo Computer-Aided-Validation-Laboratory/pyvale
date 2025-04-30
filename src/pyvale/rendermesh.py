@@ -9,7 +9,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 import numpy as np
 import mooseherder as mh
-from pyvale.core.fieldconverter import simdata_to_pyvista
+from pyvale.fieldconverter import simdata_to_pyvista
 
 
 # class ImageFormat(Enum):

@@ -42,6 +42,7 @@ from pyvale.camera import *
 from pyvale.cameradata import *
 from pyvale.cameradata2d import *
 from pyvale.cameratools import *
+from pyvale.camerastereo import *
 
 import pyvale.cython.rastercyth as rastercyth
 from pyvale.rastercy import *

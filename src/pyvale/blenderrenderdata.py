@@ -6,8 +6,8 @@
 from enum import Enum
 from dataclasses import dataclass
 from pathlib import Path
-from pyvale.core.cameradata import CameraData
-from pyvale.core.output import Outputs
+from pyvale.cameradata import CameraData
+from pyvale.output import Outputs
 
 class RenderEngine(Enum):
     """Different render engines on Blender

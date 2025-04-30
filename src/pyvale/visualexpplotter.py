@@ -9,9 +9,9 @@ from typing import Any
 
 import numpy as np
 import matplotlib.pyplot as plt
-from pyvale.core.visualopts import (PlotOptsGeneral,
+from pyvale.visualopts import (PlotOptsGeneral,
                                    TraceOptsExperiment)
-from pyvale.core.experimentsimulator import ExperimentSimulator
+from pyvale.experimentsimulator import ExperimentSimulator
 
 #TODO: Docstrings
 

@@ -8,10 +8,10 @@ Copyright (C) 2025 The Computer Aided Validation Team
 import copy
 from dataclasses import dataclass
 import numpy as np
-from pyvale.core.errorcalculator import (IErrCalculator,
+from pyvale.errorcalculator import (IErrCalculator,
                                         EErrType,
                                         EErrDependence)
-from pyvale.core.sensordata import SensorData
+from pyvale.sensordata import SensorData
 
 
 @dataclass(slots=True)

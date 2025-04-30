@@ -7,7 +7,7 @@ Copyright (C) 2025 The Computer Aided Validation Team
 """
 import numpy as np
 import mooseherder as mh
-from pyvale.core.sensorarray import ISensorArray
+from pyvale.sensorarray import ISensorArray
 
 
 def create_sensor_pos_array(num_sensors: tuple[int,int,int],

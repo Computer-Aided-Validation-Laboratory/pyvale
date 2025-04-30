@@ -10,10 +10,10 @@ import pyvista as pv
 from scipy.spatial.transform import Rotation
 import mooseherder as mh
 
-from pyvale.core.field import IField
-from pyvale.core.fieldconverter import simdata_to_pyvista
-from pyvale.core.fieldsampler import sample_pyvista_grid
-from pyvale.core.fieldtransform import (transform_tensor_2d,
+from pyvale.field import IField
+from pyvale.fieldconverter import simdata_to_pyvista
+from pyvale.fieldsampler import sample_pyvista_grid
+from pyvale.fieldtransform import (transform_tensor_2d,
                                    transform_tensor_2d_batch,
                                    transform_tensor_3d,
                                    transform_tensor_3d_batch)

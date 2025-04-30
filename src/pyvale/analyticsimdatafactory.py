@@ -8,7 +8,7 @@ Copyright (C) 2025 The Computer Aided Validation Team
 import numpy as np
 import sympy
 import mooseherder as mh
-from pyvale.core.analyticsimdatagenerator import (AnalyticCaseData2D,
+from pyvale.analyticsimdatagenerator import (AnalyticCaseData2D,
                                                   AnalyticSimDataGenerator)
 
 # NOTE: This module is a feature under developement.

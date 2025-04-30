@@ -9,8 +9,8 @@ from pathlib import Path
 import numpy as np
 import yaml
 from scipy.spatial.transform import Rotation
-from pyvale.core.cameradata import CameraData
-from pyvale.core.pyvaleexceptions import BlenderError
+from pyvale.cameradata import CameraData
+from pyvale.pyvaleexceptions import BlenderError
 
 class CameraStereo:
     __slots__ = ("cam_data_0","cam_data_1","stereo_dist","stereo_rotation")

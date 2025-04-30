@@ -7,9 +7,9 @@ Copyright (C) 2025 The Computer Aided Validation Team
 """
 import numpy as np
 import pyvista as pv
-from pyvale.core.field import IField
-from pyvale.core.sensordata import SensorData
-from pyvale.core.integratorfactory import build_spatial_averager
+from pyvale.field import IField
+from pyvale.sensordata import SensorData
+from pyvale.integratorfactory import build_spatial_averager
 
 
 def sample_field_with_sensor_data(field: IField, sensor_data: SensorData

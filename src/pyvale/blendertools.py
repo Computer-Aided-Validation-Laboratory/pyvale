@@ -8,13 +8,13 @@ from pathlib import Path
 from scipy.spatial.transform import Rotation
 from PIL import Image
 import bpy
-from pyvale.core.cameratools import CameraTools
-from pyvale.core.blendermaterialdata import BlenderMaterialData
-from pyvale.core.camerastereo import CameraStereo
-from pyvale.core.blenderrenderdata import RenderData, RenderEngine
-from pyvale.core.blendercalibrationdata import CalibrationData
-from pyvale.core.output import Outputs
-from pyvale.core.pyvaleexceptions import BlenderError
+from pyvale.cameratools import CameraTools
+from pyvale.blendermaterialdata import BlenderMaterialData
+from pyvale.camerastereo import CameraStereo
+from pyvale.blenderrenderdata import RenderData, RenderEngine
+from pyvale.blendercalibrationdata import CalibrationData
+from pyvale.output import Outputs
+from pyvale.pyvaleexceptions import BlenderError
 
 class BlenderTools():
     """Namespace for tools used within the pyvale Blender module.

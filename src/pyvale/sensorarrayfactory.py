@@ -9,15 +9,15 @@ import numpy as np
 
 import mooseherder as mh
 
-from pyvale.core.fieldscalar import FieldScalar
-from pyvale.core.fieldvector import FieldVector
-from pyvale.core.fieldtensor import FieldTensor
-from pyvale.core.sensordescriptor import SensorDescriptorFactory
-from pyvale.core.sensorarraypoint import SensorArrayPoint, SensorData
-from pyvale.core.errorintegrator import ErrIntegrator
-from pyvale.core.errorsysindep import ErrSysUniformPercent
-from pyvale.core.errorrand import ErrRandNormPercent
-from pyvale.core.errorsysdep import (ErrSysDigitisation,
+from pyvale.fieldscalar import FieldScalar
+from pyvale.fieldvector import FieldVector
+from pyvale.fieldtensor import FieldTensor
+from pyvale.sensordescriptor import SensorDescriptorFactory
+from pyvale.sensorarraypoint import SensorArrayPoint, SensorData
+from pyvale.errorintegrator import ErrIntegrator
+from pyvale.errorsysindep import ErrSysUniformPercent
+from pyvale.errorrand import ErrRandNormPercent
+from pyvale.errorsysdep import (ErrSysDigitisation,
                                      ErrSysSaturation)
 
 #TODO: Docstrings

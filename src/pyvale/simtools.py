@@ -4,7 +4,7 @@
 # Copyright (C) 2024 The Computer Aided Validation Team
 # ==========================================================================================================================================================
 import numpy as np
-from pyvale.core.rendermesh import RenderMeshData
+from pyvale.rendermesh import RenderMeshData
 
 class SimTools():
     """Namespace for tools required for handling simulation results.

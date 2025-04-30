@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import sympy
 import mooseherder as mh
-from pyvale.core.analyticmeshgen import rectangle_mesh_2d, fill_dims
+from pyvale.analyticmeshgen import rectangle_mesh_2d, fill_dims
 
 # NOTE: This module is a feature under developement.
 

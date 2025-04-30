@@ -8,7 +8,7 @@ Copyright (C) 2025 The Computer Aided Validation Team
 from dataclasses import dataclass
 import numpy as np
 from scipy.spatial.transform import Rotation
-from pyvale.core.integratortype import EIntSpatialType
+from pyvale.integratortype import EIntSpatialType
 
 
 @dataclass(slots=True)

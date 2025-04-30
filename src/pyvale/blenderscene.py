@@ -6,15 +6,15 @@
 import numpy as np
 from pathlib import Path
 import bpy
-from pyvale.core.cameradata import CameraData
-from pyvale.core.blenderlightdata import BlenderLightData
-from pyvale.core.blendertools import BlenderTools
-from pyvale.core.simtools import SimTools
-from pyvale.core.blendermaterialdata import BlenderMaterialData
-from pyvale.core.blenderrenderdata import RenderData, RenderEngine
-from pyvale.core.camerastereo import CameraStereo
-from pyvale.core.rendermesh import RenderMeshData
-from pyvale.core.pyvaleexceptions import BlenderError
+from pyvale.cameradata import CameraData
+from pyvale.blenderlightdata import BlenderLightData
+from pyvale.blendertools import BlenderTools
+from pyvale.simtools import SimTools
+from pyvale.blendermaterialdata import BlenderMaterialData
+from pyvale.blenderrenderdata import RenderData, RenderEngine
+from pyvale.camerastereo import CameraStereo
+from pyvale.rendermesh import RenderMeshData
+from pyvale.pyvaleexceptions import BlenderError
 
 class BlenderScene():
     """Namespace for creating a scene within Blender.

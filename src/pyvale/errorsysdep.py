@@ -8,8 +8,8 @@ Copyright (C) 2025 The Computer Aided Validation Team
 import enum
 from typing import Callable
 import numpy as np
-from pyvale.core.sensordata import SensorData
-from pyvale.core.errorcalculator import (IErrCalculator,
+from pyvale.sensordata import SensorData
+from pyvale.errorcalculator import (IErrCalculator,
                                          EErrType,
                                          EErrDependence)
 
