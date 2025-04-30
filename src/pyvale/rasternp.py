@@ -7,10 +7,10 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 import numba
-from pyvale.core.cameradata import CameraData
-from pyvale.core.cameratools import CameraTools
-from pyvale.core.rendermesh import RenderMeshData
-import pyvale.core.cython.rastercyth as rastercyth
+from pyvale.cameradata import CameraData
+from pyvale.cameratools import CameraTools
+from pyvale.rendermesh import RenderMeshData
+import pyvale.cython.rastercyth as rastercyth
 
 # NOTE: This module is a feature under developement.
 

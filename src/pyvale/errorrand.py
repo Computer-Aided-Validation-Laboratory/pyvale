@@ -4,11 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 import numpy as np
-from pyvale.core.sensordata import SensorData
-from pyvale.core.errorcalculator import (IErrCalculator,
+from pyvale.sensordata import SensorData
+from pyvale.errorcalculator import (IErrCalculator,
                                          EErrType,
                                          EErrDependence)
-from pyvale.core.generatorsrandom import IGeneratorRandom
+from pyvale.generatorsrandom import IGeneratorRandom
 
 
 class ErrRandUniform(IErrCalculator):

@@ -14,7 +14,7 @@ else:
 
 ext_modules = [
     Extension(
-        "pyvale.core.cython.rastercyth",
+        "pyvale.cython.rastercyth",
         ["src/pyvale/core/cython/rastercyth.py",],
         include_dirs=[numpy.get_include()],
         extra_compile_args=["-ffast-math",openmp_arg],

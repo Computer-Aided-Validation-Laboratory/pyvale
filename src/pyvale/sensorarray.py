@@ -5,7 +5,7 @@
 #===============================================================================
 from abc import ABC, abstractmethod
 import numpy as np
-from pyvale.core.field import IField
+from pyvale.field import IField
 
 
 class ISensorArray(ABC):

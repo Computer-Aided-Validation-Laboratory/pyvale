@@ -4,12 +4,12 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 import numpy as np
-from pyvale.core.field import IField
-from pyvale.core.sensorarray import ISensorArray
-from pyvale.core.errorintegrator import ErrIntegrator
-from pyvale.core.sensordescriptor import SensorDescriptor
-from pyvale.core.sensordata import SensorData
-from pyvale.core.fieldsampler import sample_field_with_sensor_data
+from pyvale.field import IField
+from pyvale.sensorarray import ISensorArray
+from pyvale.errorintegrator import ErrIntegrator
+from pyvale.sensordescriptor import SensorDescriptor
+from pyvale.sensordata import SensorData
+from pyvale.fieldsampler import sample_field_with_sensor_data
 
 
 class SensorArrayPoint(ISensorArray):

@@ -6,7 +6,7 @@
 import enum
 from abc import ABC, abstractmethod
 import numpy as np
-from pyvale.core.sensordata import SensorData
+from pyvale.sensordata import SensorData
 
 
 class EErrType(enum.Enum):

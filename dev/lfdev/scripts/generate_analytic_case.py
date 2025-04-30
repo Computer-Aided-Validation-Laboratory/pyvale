@@ -13,7 +13,7 @@ import sympy as sym
 import scipy.integrate
 import mooseherder as mh
 import pyvale
-import pyvale.core.visualisation.visualplotters
+import pyvale.visualisation.visualplotters
 
 
 def rectangle_mesh_2d(leng_x: float,
@@ -148,7 +148,7 @@ def main() -> None:
     plt.axis('scaled')
     #plt.show()
 
-    pv_plot = pyvale.core.visualisation.visualplotters.plot_sim_data(sim_data,
+    pv_plot = pyvale.visualisation.visualplotters.plot_sim_data(sim_data,
                                                           field_key,
                                                           time_step=-1)
     #pv_plot.show(cpos="xy")

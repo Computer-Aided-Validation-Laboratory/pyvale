@@ -5,7 +5,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Cython: rastercyth.py</title>
     <style type="text/css">
-    
+
 body.cython { font-family: courier; font-size: 12; }
 
 .cython.tag  {  }
@@ -315,7 +315,7 @@ body.cython { font-family: courier; font-size: 12; }
 <pre class="cython line score-0">&#xA0;<span class="">010</span>: from cython.parallel import prange, parallel, threadid</pre>
 <pre class="cython line score-0">&#xA0;<span class="">011</span>: from cython.cimports.libc.math import floor, ceil</pre>
 <pre class="cython line score-0">&#xA0;<span class="">012</span>: </pre>
-<pre class="cython line score-20" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">013</span>: from pyvale.core.rendermesh import RenderMeshData</pre>
+<pre class="cython line score-20" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">013</span>: from pyvale.rendermesh import RenderMeshData</pre>
 <pre class='cython code score-20 '>  __pyx_t_7 = <span class='py_c_api'>PyList_New</span>(1);<span class='error_goto'> if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 13, __pyx_L1_error)</span>
   <span class='refnanny'>__Pyx_GOTREF</span>(__pyx_t_7);
   <span class='pyx_macro_api'>__Pyx_INCREF</span>(__pyx_n_s_RenderMeshData);
@@ -329,7 +329,7 @@ body.cython { font-family: courier; font-size: 12; }
   if (<span class='py_c_api'>PyDict_SetItem</span>(__pyx_d, __pyx_n_s_RenderMeshData, __pyx_t_7) &lt; 0) <span class='error_goto'>__PYX_ERR(0, 13, __pyx_L1_error)</span>
   <span class='pyx_macro_api'>__Pyx_DECREF</span>(__pyx_t_7); __pyx_t_7 = 0;
   <span class='pyx_macro_api'>__Pyx_DECREF</span>(__pyx_t_4); __pyx_t_4 = 0;
-</pre><pre class="cython line score-20" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">014</span>: from pyvale.core.cameradata import CameraData</pre>
+</pre><pre class="cython line score-20" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">014</span>: from pyvale.cameradata import CameraData</pre>
 <pre class='cython code score-20 '>  __pyx_t_4 = <span class='py_c_api'>PyList_New</span>(1);<span class='error_goto'> if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 14, __pyx_L1_error)</span>
   <span class='refnanny'>__Pyx_GOTREF</span>(__pyx_t_4);
   <span class='pyx_macro_api'>__Pyx_INCREF</span>(__pyx_n_s_CameraData);
@@ -381,7 +381,7 @@ body.cython { font-family: courier; font-size: 12; }
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_t_7, 1);
   __pyx_r.data = NULL;
   __pyx_r.memview = NULL;
-  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.core.cython.rastercyth.vec_range_int", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.cython.rastercyth.vec_range_int", __pyx_clineno, __pyx_lineno, __pyx_filename);
   goto __pyx_L2;
   __pyx_L0:;
   if (unlikely(!__pyx_r.memview)) {
@@ -790,7 +790,7 @@ __pyx_r = __pyx_t_7;
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_t_1, 1);
   __pyx_r.data = NULL;
   __pyx_r.memview = NULL;
-  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.core.cython.rastercyth.world_to_raster_coords", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.cython.rastercyth.world_to_raster_coords", __pyx_clineno, __pyx_lineno, __pyx_filename);
   goto __pyx_L2;
   __pyx_L0:;
   if (unlikely(!__pyx_r.memview)) {
@@ -969,7 +969,7 @@ __pyx_r = __pyx_t_7;
 </pre><pre class="cython line score-0">&#xA0;<span class="">244</span>: </pre>
 <pre class="cython line score-0">&#xA0;<span class="">245</span>: </pre>
 <pre class="cython line score-111" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">246</span>: @cython.ccall</pre>
-<pre class='cython code score-111 '>static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_1average_image(PyObject *__pyx_self, 
+<pre class='cython code score-111 '>static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_1average_image(PyObject *__pyx_self,
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -1004,7 +1004,7 @@ static __Pyx_memviewslice __pyx_f_6pyvale_4core_6cython_10rastercyth_average_ima
   <span class='pyx_macro_api'>__Pyx_XDECREF</span>(__pyx_t_8);
   __pyx_r.data = NULL;
   __pyx_r.memview = NULL;
-  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.core.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
   goto __pyx_L2;
   __pyx_L0:;
   if (unlikely(!__pyx_r.memview)) {
@@ -1018,7 +1018,7 @@ static __Pyx_memviewslice __pyx_f_6pyvale_4core_6cython_10rastercyth_average_ima
 }
 
 /* Python wrapper */
-static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_1average_image(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_1average_image(PyObject *__pyx_self,
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -1026,7 +1026,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
 static PyMethodDef __pyx_mdef_6pyvale_4core_6cython_10rastercyth_1average_image = {"average_image", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_6pyvale_4core_6cython_10rastercyth_1average_image, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_1average_image(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_1average_image(PyObject *__pyx_self,
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -1109,7 +1109,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
     }
   }
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_v_image_subpx, 1);
-  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.core.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
   <span class='refnanny'>__Pyx_RefNannyFinishContext</span>();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
@@ -1154,7 +1154,7 @@ static PyObject *__pyx_pf_6pyvale_4core_6cython_10rastercyth_average_image(CYTHO
   __pyx_L1_error:;
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_t_1, 1);
   <span class='pyx_macro_api'>__Pyx_XDECREF</span>(__pyx_t_2);
-  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.core.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   <span class='refnanny'>__Pyx_XGIVEREF</span>(__pyx_r);
@@ -1446,7 +1446,7 @@ static PyObject *__pyx_pf_6pyvale_4core_6cython_10rastercyth_average_image(CYTHO
 <pre class="cython line score-0">&#xA0;<span class="">327</span>: </pre>
 <pre class="cython line score-0">&#xA0;<span class="">328</span>: #///////////////////////////////////////////////////////////////////////////////</pre>
 <pre class="cython line score-162" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">329</span>: @cython.ccall # python+C or cython.cfunc for C only</pre>
-<pre class='cython code score-162 '>static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_3raster_frame(PyObject *__pyx_self, 
+<pre class='cython code score-162 '>static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_3raster_frame(PyObject *__pyx_self,
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -1493,7 +1493,7 @@ static PyObject *__pyx_f_6pyvale_4core_6cython_10rastercyth_raster_frame(__Pyx_m
   <span class='pyx_macro_api'>__Pyx_XDECREF</span>(__pyx_t_10);
   <span class='pyx_macro_api'>__Pyx_XDECREF</span>(__pyx_t_11);
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_t_12, 1);
-  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.core.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_v_world_to_cam_mat, 1);
@@ -1521,7 +1521,7 @@ static PyObject *__pyx_f_6pyvale_4core_6cython_10rastercyth_raster_frame(__Pyx_m
 }
 
 /* Python wrapper */
-static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_3raster_frame(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_3raster_frame(PyObject *__pyx_self,
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -1529,7 +1529,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
 static PyMethodDef __pyx_mdef_6pyvale_4core_6cython_10rastercyth_3raster_frame = {"raster_frame", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_6pyvale_4core_6cython_10rastercyth_3raster_frame, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_3raster_frame(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_6pyvale_4core_6cython_10rastercyth_3raster_frame(PyObject *__pyx_self,
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -1644,7 +1644,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_v_coords, 1);
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_v_connect, 1);
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_v_fields_to_render, 1);
-  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.core.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
   <span class='refnanny'>__Pyx_RefNannyFinishContext</span>();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
@@ -1695,7 +1695,7 @@ static PyObject *__pyx_pf_6pyvale_4core_6cython_10rastercyth_2raster_frame(CYTHO
   /* function exit code */
   __pyx_L1_error:;
   <span class='pyx_macro_api'>__Pyx_XDECREF</span>(__pyx_t_1);
-  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.core.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("pyvale.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   <span class='refnanny'>__Pyx_XGIVEREF</span>(__pyx_r);
@@ -2259,7 +2259,7 @@ static PyObject *__pyx_pf_6pyvale_4core_6cython_10rastercyth_2raster_frame(CYTHO
   <span class='pyx_macro_api'>__Pyx_XDECREF</span>(__pyx_t_19);
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_t_35, 1);
   __PYX_XCLEAR_MEMVIEW(&amp;__pyx_t_36, 1);
-  <span class='pyx_c_api'>__Pyx_WriteUnraisable</span>("pyvale.core.cython.rastercyth._raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename, 1, 0);
+  <span class='pyx_c_api'>__Pyx_WriteUnraisable</span>("pyvale.cython.rastercyth._raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename, 1, 0);
   __pyx_r = 0;
   __pyx_L0:;
   <span class='refnanny'>__Pyx_RefNannyFinishContext</span>();

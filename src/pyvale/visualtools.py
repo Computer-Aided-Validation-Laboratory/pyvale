@@ -9,7 +9,7 @@ import numpy as np
 # See: https://github.com/pyvista/pyvista/discussions/2928
 #NOTE: causes output to console to be suppressed unfortunately
 import pyvista as pv
-from pyvale.core.visualopts import (VisOptsSimSensors,
+from pyvale.visualopts import (VisOptsSimSensors,
                                     VisOptsImageSave,
                                     EImageType,
                                     VisOptsAnimation,

@@ -6,7 +6,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pyvale.core.visualopts import PlotOptsGeneral
+from pyvale.visualopts import PlotOptsGeneral
 
 
 def plot_diag_image(

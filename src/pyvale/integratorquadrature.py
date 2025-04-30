@@ -5,10 +5,10 @@
 #===============================================================================
 from typing import Callable
 import numpy as np
-from pyvale.core.field import IField
-from pyvale.core.integratorspatial import (IIntegratorSpatial,
+from pyvale.field import IField
+from pyvale.integratorspatial import (IIntegratorSpatial,
                                            create_int_pt_array)
-from pyvale.core.sensordata import SensorData
+from pyvale.sensordata import SensorData
 
 #TODO: Docstrings
 

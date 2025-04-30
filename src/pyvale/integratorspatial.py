@@ -5,7 +5,7 @@
 #===============================================================================
 from abc import ABC, abstractmethod
 import numpy as np
-from pyvale.core.sensordata import SensorData
+from pyvale.sensordata import SensorData
 
 
 def create_int_pt_array(sens_data: SensorData,

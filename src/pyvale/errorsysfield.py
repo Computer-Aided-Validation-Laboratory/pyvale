@@ -8,15 +8,15 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from pyvale.core.field import IField
-from pyvale.core.fieldsampler import sample_field_with_sensor_data
-from pyvale.core.sensordata import SensorData
-from pyvale.core.integratortype import EIntSpatialType
-from pyvale.core.errorcalculator import (IErrCalculator,
+from pyvale.field import IField
+from pyvale.fieldsampler import sample_field_with_sensor_data
+from pyvale.sensordata import SensorData
+from pyvale.integratortype import EIntSpatialType
+from pyvale.errorcalculator import (IErrCalculator,
                                     EErrType,
                                     EErrDependence)
-from pyvale.core.errordriftcalc import IDriftCalculator
-from pyvale.core.generatorsrandom import IGeneratorRandom
+from pyvale.errordriftcalc import IDriftCalculator
+from pyvale.generatorsrandom import IGeneratorRandom
 
 
 @dataclass(slots=True)

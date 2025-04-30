@@ -6,7 +6,7 @@
 import numpy as np
 import sympy
 import mooseherder as mh
-from pyvale.core.analyticsimdatagenerator import (AnalyticCaseData2D,
+from pyvale.analyticsimdatagenerator import (AnalyticCaseData2D,
                                                   AnalyticSimDataGenerator)
 
 

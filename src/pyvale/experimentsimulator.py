@@ -5,7 +5,7 @@
 #===============================================================================
 from dataclasses import dataclass
 import numpy as np
-from pyvale.core.sensorarray import ISensorArray
+from pyvale.sensorarray import ISensorArray
 import mooseherder as mh
 
 # NOTE: This module is a feature under developement.

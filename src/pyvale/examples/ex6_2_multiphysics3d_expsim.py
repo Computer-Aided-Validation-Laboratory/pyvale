@@ -33,6 +33,7 @@ def main() -> None:
     else:
         sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
+    save_figs = False
     save_tag = "thermomech3d"
     fig_save_path = Path.cwd()/"images"
     if not fig_save_path.is_dir():
@@ -62,7 +63,8 @@ def main() -> None:
     pv_plot.camera_position = [(59.354, 43.428, 69.946),
                                (-2.858, 13.189, 4.523),
                                (-0.215, 0.948, -0.233)]
-    pv_plot.save_graphic(fig_save_path/(save_tag+"_tc_vis.svg"))
+    if save_figs:
+        pv_plot.save_graphic(fig_save_path/(save_tag+"_tc_vis.svg"))
     pv_plot.show()
 
     #---------------------------------------------------------------------------
@@ -90,7 +92,8 @@ def main() -> None:
     pv_plot.camera_position = [(59.354, 43.428, 69.946),
                                (-2.858, 13.189, 4.523),
                                (-0.215, 0.948, -0.233)]
-    pv_plot.save_graphic(fig_save_path/(save_tag+"_sg_vis.svg"))
+    if save_figs:
+        pv_plot.save_graphic(fig_save_path/(save_tag+"_sg_vis.svg"))
     pv_plot.show()
 
     #---------------------------------------------------------------------------
@@ -141,7 +144,8 @@ def main() -> None:
                                    sens_array_num=0,
                                    sim_num=0,
                                    trace_opts=trace_opts)
-    fig.savefig(fig_save_path/(save_tag+"_tc_traces.png"),
+    if save_figs:
+        fig.savefig(fig_save_path/(save_tag+"_tc_traces.png"),
                 dpi=300, format='png', bbox_inches='tight')
 
     (fig,ax) = pyv.plot_exp_traces(exp_sim,
@@ -149,7 +153,8 @@ def main() -> None:
                                    sens_array_num=1,
                                    sim_num=0,
                                    trace_opts=trace_opts)
-    fig.savefig(fig_save_path/(save_tag+"_sg_traces.png"),
+    if save_figs:
+        fig.savefig(fig_save_path/(save_tag+"_sg_traces.png"),
                 dpi=300, format='png', bbox_inches='tight')
     plt.show()
 

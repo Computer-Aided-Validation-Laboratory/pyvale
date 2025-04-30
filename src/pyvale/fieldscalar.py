@@ -8,9 +8,9 @@ import pyvista as pv
 from scipy.spatial.transform import Rotation
 import mooseherder as mh
 
-from pyvale.core.field import IField
-from pyvale.core.fieldconverter import simdata_to_pyvista
-from pyvale.core.fieldsampler import sample_pyvista_grid
+from pyvale.field import IField
+from pyvale.fieldconverter import simdata_to_pyvista
+from pyvale.fieldsampler import sample_pyvista_grid
 
 class FieldScalar(IField):
     """Class for sampling (interpolating) scalar fields from simulations to

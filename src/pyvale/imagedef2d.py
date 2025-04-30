@@ -12,9 +12,9 @@ from scipy.interpolate import griddata
 from scipy.interpolate import RectBivariateSpline
 from scipy import ndimage
 
-from pyvale.core.rasternp import edge_function, RasterNP
-from pyvale.core.cameradata2d import CameraData2D
-from pyvale.core.cameratools import CameraTools
+from pyvale.rasternp import edge_function, RasterNP
+from pyvale.cameradata2d import CameraData2D
+from pyvale.cameratools import CameraTools
 
 
 @dataclass(slots=True)

@@ -10,8 +10,8 @@ from scipy.signal import convolve2d
 from scipy.spatial.transform import Rotation
 import matplotlib.image as mplim
 from PIL import Image
-from pyvale.core.cameradata2d import CameraData2D
-from pyvale.core.sensordata import SensorData
+from pyvale.cameradata2d import CameraData2D
+from pyvale.sensordata import SensorData
 
 # NOTE: This module is a feature under developement.
 
