@@ -21,7 +21,7 @@ class BlenderTools():
     """
 
     @staticmethod
-    def save_blender_file(base_dir: Path = Outputs.base_dir,
+    def save_blender_file(base_dir: Path | None = Outputs.base_dir,
                           override: bool = False) -> None:
         """A method to save the current Blender scene to a Blender .blend filepath
 
@@ -52,14 +52,15 @@ class BlenderTools():
 
         save_dir = base_dir / "blenderfiles"
         if not save_dir.is_dir():
+            print("Yes")
             save_dir.mkdir(parents=True, exist_ok=True)
 
-        filename = str(base_dir / "projectfile.blend")
+        filename = save_dir / "projectfile.blend"
         if override is False:
             if filename.exists():
                 raise BlenderError("A file already exists with this filepath")
 
-        bpy.ops.wm.save_as_mainfile(filepath=filename)
+        bpy.ops.wm.save_as_mainfile(filepath=str(filename))
 
 
         print()
@@ -318,8 +319,7 @@ class BlenderTools():
 
     def render_calibration_images(render_data: RenderData,
                            calibration_data: CalibrationData,
-                           part: bpy.data.objects,
-                           render: bool = True) -> int:
+                           part: bpy.data.objects) -> int:
         """A method to render a set of calibration images, which can be used to
         calculate the intrinsic and extrinsic parameters.
 
@@ -332,10 +332,6 @@ class BlenderTools():
             target. These inclcude the plungle depth and rotation angle.
         part : bpy.data.objects
             The Blender part object, in this instance the calibration target.
-        render : bool, optional
-            A flag that can be set to render/not render the images. This can be
-            set to False to just return the number of calibration images that
-            will be rendered, by default True.
 
         Returns
         -------
@@ -356,6 +352,13 @@ class BlenderTools():
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
+
+        if not render_data.base_dir.is_dir():
+            raise BlenderError("The specified save directory does not exist")
+
+        save_dir = render_data.base_dir / "calimages"
+        if not save_dir.is_dir():
+            save_dir.mkdir(parents=True, exist_ok=True)
 
         render_counter = 0
         plunge_steps = int(((calibration_data.plunge_lims[1] -
@@ -402,9 +405,8 @@ class BlenderTools():
                                     bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
                                     bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
                                     filename = "blendercal_" + str(render_counter) + "_" + str(cam_count) + ".tiff"
-                                    bpy.context.scene.render.filepath = str(render_data.save_dir / filename)
-                                    if render:
-                                        bpy.ops.render.render(write_still=True)
+                                    bpy.context.scene.render.filepath = str(save_dir / filename)
+                                    bpy.ops.render.render(write_still=True)
                                     cam_count += 1
                             render_counter += 1
         print('Total number of calibration images = ' + str(render_counter))
