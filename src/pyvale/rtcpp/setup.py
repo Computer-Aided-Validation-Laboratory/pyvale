@@ -31,7 +31,8 @@ ext_modules = [
             "../../../dependencies", # relative folders is terrible approach
         ],
         extra_compile_args=[
-            "-w"  # GCC/Clang: suppress all warnings
+            "-w",  # GCC/Clang: suppress all warnings
+            "-g", # debug symbols
         ],
         language='c++'
     ),

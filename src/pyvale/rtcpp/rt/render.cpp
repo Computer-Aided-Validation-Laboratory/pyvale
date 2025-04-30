@@ -34,6 +34,8 @@ struct Scene_info {
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
 #include <pybind11/numpy.h>
+#include <pybind11/eigen.h>
+
 namespace py = pybind11;
 
 #define MAX_THREADS 16
@@ -110,7 +112,7 @@ void render_image(py::array_t<double>& r_arr, py::array_t<double>& g_arr, py::ar
 
     const int image_height = (const int)r_arr.shape(0),  image_width = (const int)r_arr.shape(1);
     const int processor_count = std::thread::hardware_concurrency();
-    const int number_of_threads = (processor_count > MAX_THREADS) ? MAX_THREADS : processor_count;
+    const int number_of_threads = 1;//(processor_count > MAX_THREADS) ? MAX_THREADS : processor_count;
 
 
 

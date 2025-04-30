@@ -1,3 +1,4 @@
+// An example script to test quads in c++
 #include <iostream>
 #include <Eigen/Dense>
 // #include <functional>
@@ -29,7 +30,8 @@ bool findIntersection(const Eigen::Matrix<double, 4, 3>& nodes,
                       const Eigen::Matrix<double, 4, 3>& displacements,
                       const Eigen::Vector3d& r0,
                       const Eigen::Vector3d& d,
-                      Eigen::Vector3d& intersection) {
+                      Eigen::Vector3d& intersection,
+                      Eigen::Vector3d& paramvars) {
     Eigen::Vector3d vars(0.0, 0.0, 0.5); // Initial guess: xi, eta, t
 
     const double tol = 1e-8;
@@ -45,6 +47,7 @@ bool findIntersection(const Eigen::Matrix<double, 4, 3>& nodes,
 
         if (F.norm() < tol) {
             intersection = surface;
+            paramvars = vars;
             return true;
         }
 
@@ -62,9 +65,11 @@ bool findIntersection(const Eigen::Matrix<double, 4, 3>& nodes,
         // Solve for update
         Eigen::Vector3d deltaVars = J.fullPivLu().solve(-F);
         vars += deltaVars;
+        std::cout << "vars: " << vars.transpose() << std::endl; 
 
         if (deltaVars.norm() < tol) {
             intersection = deformedSurface(vars(0), vars(1), nodes, displacements);
+            paramvars = vars;
             return true;
         }
     }
@@ -87,12 +92,14 @@ int main() {
                      0, 0, 2;
 
     // Ray definition
-    Eigen::Vector3d r0(0.5, 0.5, 1.0);
+    Eigen::Vector3d r0(0.5, 3.5, 1.0);
     Eigen::Vector3d d(0.0, 0.0, -1.0);
 
     Eigen::Vector3d intersection;
-    if (findIntersection(nodes, displacements, r0, d, intersection)) {
+    Eigen::Vector3d paramvars;
+    if (findIntersection(nodes, displacements, r0, d, intersection, paramvars)) {
         std::cout << "Intersection found at: " << intersection.transpose() << std::endl;
+        std::cout << "Vars: " << paramvars.transpose() << std::endl;
     } else {
         std::cout << "No intersection found." << std::endl;
     }

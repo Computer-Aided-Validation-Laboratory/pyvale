@@ -7,79 +7,81 @@
 
 
 
-// Shape functions for a 4-node quadrilateral
-Eigen::Vector4d shapeFunctions(double xi, double eta) {
-    Eigen::Vector4d N;
-    N(0) = 0.25 * (1 - xi) * (1 - eta);
-    N(1) = 0.25 * (1 + xi) * (1 - eta);
-    N(2) = 0.25 * (1 + xi) * (1 + eta);
-    N(3) = 0.25 * (1 - xi) * (1 + eta);
-    return N;
-}
+// // Shape functions for a 4-node quadrilateral
+// Eigen::Vector4d shapeFunctions(double xi, double eta) {
+//     Eigen::Vector4d N;
+//     N(0) = 0.25 * (1 - xi) * (1 - eta);
+//     N(1) = 0.25 * (1 + xi) * (1 - eta);
+//     N(2) = 0.25 * (1 + xi) * (1 + eta);
+//     N(3) = 0.25 * (1 - xi) * (1 + eta);
+//     return N;
+// }
 
-// Compute deformed surface point
-Eigen::Vector3d deformedSurface(double xi, double eta,
-                                const Eigen::Matrix<double, 4, 3>& nodes,
-                                const Eigen::Matrix<double, 4, 3>& displacements) {
-    Eigen::Vector4d N = shapeFunctions(xi, eta);
-    Eigen::Vector3d point = Eigen::Vector3d::Zero();
-    for (int i = 0; i < 4; ++i) {
-        point += N(i) * (nodes.row(i) + displacements.row(i));
-    }
-    return point;
-}
+// // Compute deformed surface point
+// Eigen::Vector3d deformedSurface(double xi, double eta,
+//                                 const Eigen::Matrix<double, 4, 3>& nodes,
+//                                 const Eigen::Matrix<double, 4, 3>& displacements) {
+//     Eigen::Vector4d N = shapeFunctions(xi, eta);
+//     Eigen::Vector3d point = Eigen::Vector3d::Zero();
+//     for (int i = 0; i < 4; ++i) {
+//         point += N(i) * (nodes.row(i) + displacements.row(i));
+//     }
+//     return point;
+// }
 
-// Newton-Raphson to solve the nonlinear system
-bool findIntersection(const Eigen::Matrix<double, 4, 3>& nodes,
-                      const Eigen::Matrix<double, 4, 3>& displacements,
-                      const Eigen::Vector3d& r0,
-                      const Eigen::Vector3d& d,
-                      Eigen::Vector3d& intersection) {
-    Eigen::Vector3d vars(0.0, 0.0, 0.5); // Initial guess: xi, eta, t
+// // Newton-Raphson to solve the nonlinear system
+// bool findIntersection(const Eigen::Matrix<double, 4, 3>& nodes,
+//                       const Eigen::Matrix<double, 4, 3>& displacements,
+//                       const Eigen::Vector3d& r0,
+//                       const Eigen::Vector3d& d,
+//                       Eigen::Vector3d& intersection) {
+//     Eigen::Vector3d vars(0.0, 0.0, 0.5); // Initial guess: xi, eta, t
 
-    const double tol = 1e-8;
-    const int maxIter = 50;
+//     const double tol = 1e-8;
+//     const int maxIter = 50;
 
-    for (int iter = 0; iter < maxIter; ++iter) {
-        double xi = vars(0), eta = vars(1), t = vars(2);
+//     for (int iter = 0; iter < maxIter; ++iter) {
+//         double xi = vars(0), eta = vars(1), t = vars(2);
 
-        // Compute residual
-        Eigen::Vector3d surface = deformedSurface(xi, eta, nodes, displacements);
-        Eigen::Vector3d line = r0 + t * d;
-        Eigen::Vector3d F = surface - line;
+//         // Compute residual
+//         Eigen::Vector3d surface = deformedSurface(xi, eta, nodes, displacements);
+//         Eigen::Vector3d line = r0 + t * d;
+//         Eigen::Vector3d F = surface - line;
 
-        if (F.norm() < tol) {
-            intersection = surface;
-            return true;
-        }
+//         if (F.norm() < tol) {
+//             intersection = surface;
+//             return true;
+//         }
 
-        // Numerical Jacobian
-        const double h = 1e-6;
-        Eigen::Matrix3d J;
-        for (int i = 0; i < 3; ++i) {
-            Eigen::Vector3d delta = Eigen::Vector3d::Zero();
-            delta(i) = h;
-            Eigen::Vector3d F1 = deformedSurface(xi + delta(0), eta + delta(1), nodes, displacements)
-                                 - (r0 + (t + delta(2)) * d);
-            J.col(i) = (F1 - F) / h;
-        }
+//         // Numerical Jacobian
+//         const double h = 1e-6;
+//         Eigen::Matrix3d J;
+//         for (int i = 0; i < 3; ++i) {
+//             Eigen::Vector3d delta = Eigen::Vector3d::Zero();
+//             delta(i) = h;
+//             Eigen::Vector3d F1 = deformedSurface(xi + delta(0), eta + delta(1), nodes, displacements)
+//                                  - (r0 + (t + delta(2)) * d);
+//             J.col(i) = (F1 - F) / h;
+//         }
 
-        // Solve for update
-        Eigen::Vector3d deltaVars = J.fullPivLu().solve(-F);
-        vars += deltaVars;
+//         // Solve for update
+//         Eigen::Vector3d deltaVars = J.fullPivLu().solve(-F);
+//         vars += deltaVars;
 
-        if (deltaVars.norm() < tol) {
-            intersection = deformedSurface(vars(0), vars(1), nodes, displacements);
-            return true;
-        }
-    }
-    return false;
-}
+//         if (deltaVars.norm() < tol) {
+//             intersection = deformedSurface(vars(0), vars(1), nodes, displacements);
+//             return true;
+//         }
+//     }
+//     return false;
+// }
 
 class ShapeQuad: public Hittable {
     public:
         ShapeQuad(Eigen::Matrix<double, Eigen::Dynamic, 3> nodes, Eigen::Matrix<double, Eigen::Dynamic, 3> displacements, shared_ptr<Material> mat ) :
-            nodes(nodes), displacements(displacements), mp(mat) {};
+            nodes(nodes), displacements(displacements), mp(mat) {
+                std::cout << nodes << "\n" << displacements;
+            };
 
         virtual Eigen::VectorXd shapeFunctions(double xi, double eta) const = 0;
 
@@ -96,8 +98,10 @@ class ShapeQuad: public Hittable {
         // Newton-Raphson to solve the nonlinear system
         bool findIntersection(const Eigen::Vector3d& r0,
                             const Eigen::Vector3d& d,
-                            Eigen::Vector3d& intersection) const {
-            Eigen::Vector3d vars(0.0, 0.0, 0); // Initial guess: xi, eta, t
+                            Eigen::Vector3d& intersection,
+                            Eigen::Vector3d& variables // xi, eta, t
+                        ) const {
+            Eigen::Vector3d vars(0.0, 0.0, 0.0); // Initial guess: xi, eta, t
 
             const double tol = 1e-8;
             const int maxIter = 50;
@@ -112,6 +116,7 @@ class ShapeQuad: public Hittable {
 
                 if (F.norm() < tol) {
                     intersection = surface;
+                    variables = vars;
                     return true;
                 }
 
@@ -132,6 +137,7 @@ class ShapeQuad: public Hittable {
 
                 if (deltaVars.norm() < tol) {
                     intersection = deformedSurface(vars(0), vars(1));
+                    variables = vars;
                     return true;
                 }
             }
@@ -145,13 +151,51 @@ class ShapeQuad: public Hittable {
             Eigen::Vector3d d;
             d << r.get_direction().x(), r.get_direction().y(), r.get_direction().z();
             Eigen::Vector3d intersection;
-            if (findIntersection(r0, d, intersection)) {
-                // hit.distance = ;
+            Eigen::Vector3d vars;
+            // std::cout << "Here\n";
+            if (findIntersection(r0, d, intersection, vars)) {
+                bool outside_bounds = false;
+                if (vars(0) < -1.0 || vars[0] > 1.0) {outside_bounds = true;}
+                if (vars[1] < -1.0 || vars[1] > 1.0) {outside_bounds = true;}
+                if (vars[2] < dis_min || vars[2] > dis_max) {outside_bounds = true;}
+                if (outside_bounds){
+                    return false;
+                }
+                
+
+                std::cout << "hit at " << intersection << "\n";
+                std::cout << "vars are " << vars << "\n";
+                // vars are => (xi, eta, t)
+                double u = (vars[0] + 1) / 2.0;
+                double v = (vars[1] + 1) / 2.0;
+                hit.distance = vars[2];
                 hit.position = vec3(intersection[0], intersection[1], intersection[2]);
                 hit.material_ptr = mp;
-                // hit.set_face_normal(r, outward_normal)
+                hit.normal = vec3(0.0, 1.0, 0.0);
+                // hit.set_face_normal(r, surface_normal(vars[0], vars[1]));
+                hit.u = u;
+                hit.v = v;
+                return true;
             }
-            return true;
+            return false;
+        }
+
+        virtual Eigen::VectorXd dN_dxi(double xi, double eta) const = 0;
+        virtual Eigen::VectorXd dN_deta(double xi, double eta) const = 0;
+        
+        // The surface normal at a given local coordinate
+        Eigen::Vector3d surface_normal(double xi, double eta) const
+        {
+            Eigen::Matrix<double, Eigen::Dynamic, 3> coords = nodes + displacements;
+            Eigen::Vector3d dxdxi = dN_dxi(xi, eta).transpose() * coords;
+            Eigen::Vector3d dxdeta = dN_deta(xi,eta).transpose() * coords;
+
+            Eigen::Vector3d cross = dxdxi.cross(dxdeta);
+            Eigen::Vector3d cross_normalized = cross.normalized();
+
+            return cross_normalized; 
+
+
         }
 
         // virtual bool bounding_box(double dis_min, double dis_max, aabb& output_box) const{
@@ -227,7 +271,25 @@ class ShapeQuadLin : public ShapeQuad {
             return true;
         }
 
+        Eigen::VectorXd dN_dxi(double xi, double eta) const override
+        {
+            Eigen::Vector4d N;
+            N(0) = -0.25 * (1 - eta);
+            N(1) =  0.25 * (1 - eta);
+            N(2) =  0.25 * (1 + eta);
+            N(3) = -0.25 * (1 + eta);
+            return N;
+        }
 
+        Eigen::VectorXd dN_deta(double xi, double eta) const override
+        {
+            Eigen::Vector4d N;
+            N(0) = -0.25 * (1 - xi);
+            N(1) = -0.25 * (1 + xi);
+            N(2) =  0.25 * (1 + xi);
+            N(3) =  0.25 * (1 - xi);
+            return N;
+        }
 };
 
 
