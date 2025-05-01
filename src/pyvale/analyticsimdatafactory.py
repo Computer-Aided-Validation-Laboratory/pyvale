@@ -10,9 +10,18 @@ import mooseherder as mh
 from pyvale.analyticsimdatagenerator import (AnalyticCaseData2D,
                                                   AnalyticSimDataGenerator)
 
-# NOTE: This module is a feature under developement.
+
 
 def standard_case_2d() -> AnalyticCaseData2D:
+    """Created the standard 2D analytic test case which is a plate with
+    dimensions 10x7.5 (x,y), number of elements 40x30 (x,y), and time steps of
+    0 to 10 in increments of 1.
+
+    Returns
+    -------
+    AnalyticCaseData2D
+        _description_
+    """
     case_data = AnalyticCaseData2D()
     case_data.length_x = 10.0
     case_data.length_y = 7.5
@@ -24,10 +33,19 @@ def standard_case_2d() -> AnalyticCaseData2D:
 
 
 class AnalyticCaseFactory:
+    """Builds pre-defined 2D meshes and fields based on analytic functions for
+    testing the sensor simulation functionality of pyvale.
+    """
 
     @staticmethod
     def scalar_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGenerator]:
+        """_summary_
 
+        Returns
+        -------
+        tuple[mh.SimData,AnalyticSimDataGenerator]
+            _description_
+        """
         case_data = standard_case_2d()
         (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
         case_data.funcs_x = (20.0/case_data.length_x * sym_x,)
@@ -44,7 +62,13 @@ class AnalyticCaseFactory:
 
     @staticmethod
     def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGenerator]:
+        """_summary_
 
+        Returns
+        -------
+        tuple[mh.SimData,AnalyticSimDataGenerator]
+            _description_
+        """
         case_data = standard_case_2d()
         (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
         case_data.funcs_x = (sym_x*(sym_x - case_data.length_x),)

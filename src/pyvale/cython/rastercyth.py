@@ -12,6 +12,7 @@ from cython.cimports.libc.math import floor, ceil
 from pyvale.rendermesh import RenderMeshData
 from pyvale.cameradata import CameraData
 
+# NOTE: This module is a feature under developement.
 
 @cython.nogil
 @cython.cfunc # python+C or cython.cfunc for C only

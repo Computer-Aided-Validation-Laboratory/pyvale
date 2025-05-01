@@ -1,10 +1,8 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 from dataclasses import dataclass, field
 import time
 from pathlib import Path
@@ -149,7 +147,7 @@ def main() -> None:
     components = ("disp_x","disp_y","disp_z")
     (pv_grid,_) = pyvale.simdata_to_pyvista(sim_data,
                                                 components,
-                                                spat_dim=3)
+                                                elem_dims=3)
     pyvale.print_dimensions(sim_data)
 
     time_start_setup = time.perf_counter()

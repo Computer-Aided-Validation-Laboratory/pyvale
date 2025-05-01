@@ -4,8 +4,6 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
-
-
 """
 `pyvale`: the python validation engine. Used to simulate experimental data from
 an input multi-physics simulation by explicitly modelling sensors with realistic

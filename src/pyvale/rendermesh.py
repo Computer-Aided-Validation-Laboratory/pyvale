@@ -11,18 +11,6 @@ import mooseherder as mh
 from pyvale.fieldconverter import simdata_to_pyvista
 
 
-# class ImageFormat(Enum):
-#     NPY = 0
-#     TIFF = 1
-
-# @dataclass(slots=True)
-# class RenderOpts:
-#     image_tag: str = "image"
-#     image_formats: tuple[ImageFormat,...]
-#     bits_per_unit: int = 1
-#     parallel: int | None = None
-
-
 @dataclass(slots=True)
 class RenderMeshData:
     coords: np.ndarray
@@ -63,7 +51,7 @@ def create_render_mesh(sim_data: mh.SimData,
 
     (pv_grid,_) = simdata_to_pyvista(sim_data,
                                      extract_keys,
-                                     spat_dim=sim_spat_dim)
+                                     elem_dims=sim_spat_dim)
 
     pv_surf = pv_grid.extract_surface()
     faces = np.array(pv_surf.faces)

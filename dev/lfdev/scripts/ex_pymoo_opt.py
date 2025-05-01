@@ -2,13 +2,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pymoo.core.problem import Problem
+from pymoo.problem import Problem
 from pymoo.algorithms.soo.nonconvex.pso import PSO
 from pymoo.algorithms.soo.nonconvex.ga import GA
 from pymoo.termination.default import DefaultSingleObjectiveTermination
 from pymoo.optimize import minimize
 
-from pyvale.core.visualopts import PlotOptsGeneral
+from pyvale.visualopts import PlotOptsGeneral
 import pyvale.optimcheckfuncs as cf
 
 #-------------------------------------------------------------------------------

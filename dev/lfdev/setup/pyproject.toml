@@ -1,13 +1,13 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel","numpy","cython"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvale"
-version = "2025.4.1"
+version = "0.1.0"
 description = "An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
-  { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
+  { name = "scepticalrabbit", email = "thescepticalrabbit@gmail.com" },
 ]
 license = { file = "LICENSE" }
 readme = "README.md"

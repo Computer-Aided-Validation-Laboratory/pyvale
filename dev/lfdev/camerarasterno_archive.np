@@ -1,17 +1,15 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 import numba
-from pyvale.core.cameradata import CameraData
-from pyvale.core.cameratools import CameraTools
-from pyvale.core.rendermesh import RenderMeshData
+from pyvale.cameradata import CameraData
+from pyvale.cameratools import CameraTools
+from pyvale.rendermesh import RenderMeshData
 
 
 class RasteriserNP:

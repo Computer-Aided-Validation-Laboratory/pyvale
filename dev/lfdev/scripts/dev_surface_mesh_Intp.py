@@ -14,7 +14,7 @@ def main() -> None:
     components = ("disp_x","disp_y","disp_z")
     (pv_grid,pv_grid_vis) = pyvale.simdata_to_pyvista(sim_data,
                                                            components,
-                                                           spat_dim=3)
+                                                           elem_dims=3)
 
     pv_surf = pv_grid.extract_surface()
     #pv_surf.plot()
