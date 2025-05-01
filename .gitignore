@@ -12,6 +12,7 @@
 *.mp4
 *.gif
 *.tiff
+*.blend
 testoutput/
 exampleoutput/
 
