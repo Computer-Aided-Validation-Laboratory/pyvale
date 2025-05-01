@@ -1,15 +1,14 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+# ================================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ================================================================================
+
 from pathlib import Path
 from importlib.resources import files
 
 
-SIM_CASE_COUNT = 24
+SIM_CASE_COUNT = 26
 
 
 class DataSetError(Exception):
@@ -183,14 +182,7 @@ class DataSet:
         edge and a heat transfer coefficient applied on the opposing edge. The
         mechanical deformation results from thermal expansion due to the imposed
         temperature gradient. This model is solved for the scalar temperature
-        field, vector temperature and tensor strain field._summary_
-
-    Parameters
-    ----------
-    Exception : _type_
-        _description_responding MOOSE input
-        file: case18.i which can be retrieved using `sim_case_input_file_path`
-        in this class.
+        field, vector displacement and tensor strain field.
 
         Returns
         -------
@@ -198,6 +190,23 @@ class DataSet:
             Path to the exodus (*.e) output file for this simulation case.
         """
         return Path(files("pyvale.data").joinpath("case18_1_out.e"))
+
+    @staticmethod
+    def thermomechanical_3d_path() -> Path:
+        """Path to a MOOSE simulation output in exodus format. This case is a
+        thermo-mechanical analysis of a 3D monoblock divertor armour with a heat
+        flux applied on the top surface and a heat transfer coefficient applied
+        on the inner surface of the pipe. The mechanical deformation results
+        from thermal expansion due to the imposed temperature gradient.
+        This model is solved for the scalar temperature field, vector
+        displacement and tensor strain field.
+
+        Returns
+        -------
+        Path
+            Path to the exodus (*.e) output file for this simulation case.
+        """
+        return Path(files("pyvale.data").joinpath("case16_out.e"))
 
     @staticmethod
     def thermomechanical_2d_experiment_paths() -> list[Path]:

@@ -1,10 +1,9 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+# ================================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ================================================================================
+
 import numpy as np
 import mooseherder as mh
 from pyvale.sensorarray import ISensorArray
@@ -131,6 +130,7 @@ def print_dimensions(sim_data: mh.SimData) -> None:
         Simulation data objects containing the nodal coordinates.
     """
     print(80*"-")
+    print("SimData Dimensions:")
     print(f"x [min,max] = [{np.min(sim_data.coords[:,0])}," + \
           f"{np.max(sim_data.coords[:,0])}]")
     print(f"y [min,max] = [{np.min(sim_data.coords[:,1])}," + \
