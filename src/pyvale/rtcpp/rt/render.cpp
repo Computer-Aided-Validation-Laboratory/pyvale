@@ -252,6 +252,8 @@ PYBIND11_MODULE(render, m) {
 
     py::class_<ShapeQuadLin,Hittable,shared_ptr<ShapeQuadLin>>(m, "ShapeQuadLin")
         .def(py::init<Eigen::Matrix<double, 4, 3>, Eigen::Matrix<double, 4, 3>, shared_ptr<Material>>());
+    py::class_<ShapeQuadQuad,Hittable,shared_ptr<ShapeQuadQuad>>(m, "ShapeQuadQuad")
+        .def(py::init<Eigen::Matrix<double, 8, 3>, Eigen::Matrix<double, 8, 3>, shared_ptr<Material>>());
 
 
 }

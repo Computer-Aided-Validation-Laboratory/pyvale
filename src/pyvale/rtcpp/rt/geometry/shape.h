@@ -4,84 +4,15 @@
 #include "hittable.h"
 // #include "../materials/material.h"
 #include <Eigen/Dense>
+#include <cassert>
+#include <cmath>
 
 
-
-// // Shape functions for a 4-node quadrilateral
-// Eigen::Vector4d shapeFunctions(double xi, double eta) {
-//     Eigen::Vector4d N;
-//     N(0) = 0.25 * (1 - xi) * (1 - eta);
-//     N(1) = 0.25 * (1 + xi) * (1 - eta);
-//     N(2) = 0.25 * (1 + xi) * (1 + eta);
-//     N(3) = 0.25 * (1 - xi) * (1 + eta);
-//     return N;
-// }
-
-// // Compute deformed surface point
-// Eigen::Vector3d deformedSurface(double xi, double eta,
-//                                 const Eigen::Matrix<double, 4, 3>& nodes,
-//                                 const Eigen::Matrix<double, 4, 3>& displacements) {
-//     Eigen::Vector4d N = shapeFunctions(xi, eta);
-//     Eigen::Vector3d point = Eigen::Vector3d::Zero();
-//     for (int i = 0; i < 4; ++i) {
-//         point += N(i) * (nodes.row(i) + displacements.row(i));
-//     }
-//     return point;
-// }
-
-// // Newton-Raphson to solve the nonlinear system
-// bool findIntersection(const Eigen::Matrix<double, 4, 3>& nodes,
-//                       const Eigen::Matrix<double, 4, 3>& displacements,
-//                       const Eigen::Vector3d& r0,
-//                       const Eigen::Vector3d& d,
-//                       Eigen::Vector3d& intersection) {
-//     Eigen::Vector3d vars(0.0, 0.0, 0.5); // Initial guess: xi, eta, t
-
-//     const double tol = 1e-8;
-//     const int maxIter = 50;
-
-//     for (int iter = 0; iter < maxIter; ++iter) {
-//         double xi = vars(0), eta = vars(1), t = vars(2);
-
-//         // Compute residual
-//         Eigen::Vector3d surface = deformedSurface(xi, eta, nodes, displacements);
-//         Eigen::Vector3d line = r0 + t * d;
-//         Eigen::Vector3d F = surface - line;
-
-//         if (F.norm() < tol) {
-//             intersection = surface;
-//             return true;
-//         }
-
-//         // Numerical Jacobian
-//         const double h = 1e-6;
-//         Eigen::Matrix3d J;
-//         for (int i = 0; i < 3; ++i) {
-//             Eigen::Vector3d delta = Eigen::Vector3d::Zero();
-//             delta(i) = h;
-//             Eigen::Vector3d F1 = deformedSurface(xi + delta(0), eta + delta(1), nodes, displacements)
-//                                  - (r0 + (t + delta(2)) * d);
-//             J.col(i) = (F1 - F) / h;
-//         }
-
-//         // Solve for update
-//         Eigen::Vector3d deltaVars = J.fullPivLu().solve(-F);
-//         vars += deltaVars;
-
-//         if (deltaVars.norm() < tol) {
-//             intersection = deformedSurface(vars(0), vars(1), nodes, displacements);
-//             return true;
-//         }
-//     }
-//     return false;
-// }
-
+// Base class of shapes with shape function displacements
 class ShapeQuad: public Hittable {
     public:
         ShapeQuad(Eigen::Matrix<double, Eigen::Dynamic, 3> nodes, Eigen::Matrix<double, Eigen::Dynamic, 3> displacements, shared_ptr<Material> mat ) :
-            nodes(nodes), displacements(displacements), mp(mat) {
-                std::cout << nodes << "\n" << displacements;
-            };
+            nodes(nodes), displacements(displacements), mp(mat) {};
 
         virtual Eigen::VectorXd shapeFunctions(double xi, double eta) const = 0;
 
@@ -152,7 +83,6 @@ class ShapeQuad: public Hittable {
             d << r.get_direction().x(), r.get_direction().y(), r.get_direction().z();
             Eigen::Vector3d intersection;
             Eigen::Vector3d vars;
-            // std::cout << "Here\n";
             if (findIntersection(r0, d, intersection, vars)) {
                 bool outside_bounds = false;
                 if (vars(0) < -1.0 || vars[0] > 1.0) {outside_bounds = true;}
@@ -162,9 +92,6 @@ class ShapeQuad: public Hittable {
                     return false;
                 }
                 
-
-                std::cout << "hit at " << intersection << "\n";
-                std::cout << "vars are " << vars << "\n";
                 // vars are => (xi, eta, t)
                 double u = (vars[0] + 1) / 2.0;
                 double v = (vars[1] + 1) / 2.0;
@@ -215,6 +142,7 @@ class ShapeQuad: public Hittable {
         shared_ptr<Material> mp;
 };
 
+// Linear quadrangles (4 points)
 class ShapeQuadLin : public ShapeQuad {
     public:
         ShapeQuadLin(Eigen::Matrix<double, 4, 3> nodes, Eigen::Matrix<double, 4, 3> displacements, shared_ptr<Material> mat ) :
@@ -241,32 +169,6 @@ class ShapeQuadLin : public ShapeQuad {
             point3 mins = vec3(min_vals[0], min_vals[1], min_vals[2]);
             point3 maxs = vec3(max_vals[0], max_vals[1], max_vals[2]);
 
-            // point3 mins = vec3(9999, 9999, 9999);
-            // point3 maxs = vec3(-999, -999, -999);
-            
-            // for (int i = 0; i < nodes.size(); ++i) {
-            //     Eigen::Vector3<double> loc_e = nodes.row(i) + displacements.row(i);
-                
-            //     if (loc.x() < mins.x()) {
-            //         mins = vec3(loc.x(), mins.y(), mins.z());
-            //     }
-            //     if (loc.x() > maxs.x()) {
-            //         maxs = vec3(loc.x(), maxs.y(), maxs.z());
-            //     }
-            //     if (loc.y() < mins.y()) {
-            //         mins = vec3(mins.x(), loc.y(), mins.z());
-            //     }
-            //     if (loc.y() > maxs.y()) {
-            //         maxs = vec3(maxs.x(), loc.y(), maxs.z());
-            //     }
-            //     if (loc.z() < mins.z()) {
-            //         mins = vec3(mins.x(), mins.y(), loc.z());
-            //     }
-            //     if (loc.z() > maxs.z()) {
-            //         maxs = vec3(maxs.x(), maxs.y(), loc.z());
-            //     }
-            // }
-
             output_box = aabb(mins, maxs);
             return true;
         }
@@ -292,5 +194,69 @@ class ShapeQuadLin : public ShapeQuad {
         }
 };
 
+// Quadratic quadrangles (4 corner points and 4 mid-side nodes, see VTK 8-node quad for node ordering details)
+class ShapeQuadQuad : public ShapeQuad {
+    public:
+    ShapeQuadQuad(Eigen::Matrix<double, 8, 3> nodes, Eigen::Matrix<double, 8, 3> displacements, shared_ptr<Material> mat ) :
+            ShapeQuad( nodes, displacements, mat) {};
+
+        Eigen::VectorXd shapeFunctions(double xi, double eta) const override
+        {
+            Eigen::VectorXd N;
+            N(0) = 0.25 * (1 - xi) * (1 - eta) * (-1 - xi - eta);
+            N(1) = 0.25 * (1 + xi) * (1 - eta) * (-1 + xi - eta);
+            N(2) = 0.25 * (1 + xi) * (1 + eta) * (-1 + xi + eta);
+            N(3) = 0.25 * (1 - xi) * (1 + eta) * (-1 - xi + eta);
+            N(4) = 0.5  * (1 - pow(xi, 2))* (1 - eta);
+            N(5) = 0.5  * (1 + xi)             * (1 - pow(eta, 2));
+            N(6) = 0.5  * (1 - pow(xi, 2))* (1 + eta);
+            N(7) = 0.5  * (1 - xi)             * (1 - pow(eta, 2));
+            assert(N.size() == 8);
+            return N;        
+        }
+
+        // Simple get the nodes that are the smallest and largest in the 3 directions
+        bool bounding_box(double dis_min, double dis_max, aabb& output_box) const override
+        {
+            Eigen::Matrix<double, 8, 3> locations = nodes + displacements;
+
+            Eigen::Vector3d min_vals = locations.colwise().minCoeff(); // [min_x, min_y, min_z]
+            Eigen::Vector3d max_vals = locations.colwise().maxCoeff(); // [max_x, max_y, max_z]
+
+            point3 mins = vec3(min_vals[0], min_vals[1], min_vals[2]);
+            point3 maxs = vec3(max_vals[0], max_vals[1], max_vals[2]);
+
+            output_box = aabb(mins, maxs);
+            return true;
+        }
+
+        Eigen::VectorXd dN_dxi(double xi, double eta) const override
+        {
+            Eigen::VectorXd N;
+            N(0) =  0.25 * (1 - eta) * (-1 - 2 * xi - eta);
+            N(1) =  0.25 * (1 - eta) * (-1 + 2 * xi - eta);
+            N(2) =  0.25 * (1 + eta) * (-1 + 2 * xi + eta);
+            N(3) =  0.25 * (1 + eta) * (-1 - 2 * xi + eta);
+            N(4) =  -xi  * (1 - eta);
+            N(5) =   0.5 * (1 - pow(eta, 2));
+            N(6) =   -xi * (1 + eta);
+            N(7) =  -0.5 * (1 - pow(eta, 2));
+            return N;
+        }
+
+        Eigen::VectorXd dN_deta(double xi, double eta) const override
+        {
+            Eigen::VectorXd N;
+            N(0) = 0.25 * (1 - xi) * (-1 - xi - 2 * eta);
+            N(1) = 0.25 * (1 + xi) * (-1 + xi - 2 * eta);
+            N(2) = 0.25 * (1 + xi) * (-1 + xi + 2 * eta);
+            N(3) = 0.25 * (1 - xi) * (-1 - xi + 2 * eta);
+            N(4) = -0.5 * (1 - pow(xi, 2));
+            N(5) = -eta * (1 + xi);
+            N(6) =  0.5 * (1 - pow(xi, 2));
+            N(7) = -eta * (1 - xi);
+            return N;
+        }
+};
 
 #endif
