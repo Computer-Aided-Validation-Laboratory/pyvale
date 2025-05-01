@@ -11,7 +11,7 @@ light = Diffuse_light(solid_color(13, 13, 13))
 glass = Refractive(1.5)
 
 nodes = np.array([
-    [200, 300, 200],   # Node 1
+    [200, 300, 100],   # Node 1
     [250, 300, 200],   # Node 2
     [250, 350, 200],   # Node 3
     [200, 350, 200]    # Node 4
@@ -27,8 +27,35 @@ displacements = np.array([
     [0, 0, 0],     # Node 3
     [0, 0, 0]      # Node 4
 ])
-
 scene.add(ShapeQuadLin(nodes, displacements, red))
+
+
+nodes = np.array([
+    [200, 300, 200],   # Node 1
+    [250, 300, 200],   # Node 2
+    [250, 350, 200],   # Node 3
+    [200, 350, 200],    # Node 4
+    [225, 300, 200],
+    [250, 325, 200],
+    [225, 350, 200],
+    [200, 325, 200]
+])
+        # [-5, 0, -5],   # Node 1
+        # [5, 0, -5],   # Node 2
+        # [5, 0, 5],   # Node 3
+        # [-5, 0, 5]    # Node 4
+# Define displacements at each node
+displacements = np.array([
+    [0, 0, 0],       # Node 1
+    [0, 0, 0],     # Node 2
+    [0, 0, 0],     # Node 3
+    [0, 0, 0],      # Node 4
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0]
+])
+# scene.add(ShapeQuadQuad(nodes, displacements, green))
 
 scene.add(Plane_yz(0, 555, 0, 555, 555, green))
 scene.add(Plane_yz(0, 555, 0, 555, 0, red))

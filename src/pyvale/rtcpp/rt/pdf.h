@@ -121,19 +121,22 @@ class Mixture_PDF : public PDF {
 
 class Hittable_PDF : public PDF {
     public:
-        Hittable_PDF(shared_ptr<Hittable> p, const point3& origin) : ptr(p), o(origin) {}
+        Hittable_PDF(const Hittable& objects, const point3& origin)
+                : objects(objects), origin(origin) {}
+        // Hittable_PDF(shared_ptr<Hittable> p, const point3& origin) : ptr(p), origin(origin) {}
 
-        virtual double value(const vec3& direction) const {
-            return ptr->pdf_value(o, direction);
+        double value(const vec3& direction) const {
+            return objects.pdf_value(origin, direction);
         }
 
         virtual vec3 generate() const {
-            return ptr->random(o);
+            return objects.random(origin);
         }
 
     public:
-        point3 o;
-        shared_ptr<Hittable> ptr;
+        point3 origin;
+        // shared_ptr<Hittable> ptr;
+        const Hittable& objects;
 };
 
 

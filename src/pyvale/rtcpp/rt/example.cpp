@@ -25,6 +25,7 @@
 
 int main(int, char**) {
     Hittable_list scene;
+    Hittable_list lights;
 
     // Materials
     auto red   = std::make_shared<Lambertian>(color(0.65, 0.05, 0.05));
@@ -41,7 +42,7 @@ int main(int, char**) {
               200, 350, 200;
     Eigen::Matrix<double, 4, 3> displacements1 = Eigen::Matrix<double, 4, 3>::Zero();
 
-    scene.add(std::make_shared<ShapeQuadLin>(nodes1, displacements1, red));
+    // scene.add(std::make_shared<ShapeQuadLin>(nodes1, displacements1, red));
 
     // Second quad (quadratic)
     Eigen::Matrix<double, 8, 3> nodes2;
@@ -55,12 +56,12 @@ int main(int, char**) {
               200, 325, 200;
     Eigen::Matrix<double, 8, 3> displacements2 = Eigen::Matrix<double, 8, 3>::Zero();
 
-    scene.add(std::make_shared<ShapeQuadQuad>(nodes2, displacements2, green));
+    // scene.add(std::make_shared<ShapeQuadQuad>(nodes2, displacements2, green));
 
     // Walls and light
     scene.add(std::make_shared<Plane_yz>(0, 555, 0, 555, 555, green));
     scene.add(std::make_shared<Plane_yz>(0, 555, 0, 555, 0, red));
-    scene.add(std::make_shared<Plane_xz>(213, 343, 227, 332, 554, light)); // should make this importance sampled
+    lights.add(std::make_shared<Plane_xz>(213, 343, 227, 332, 554, light)); // should make this importance sampled
     scene.add(std::make_shared<Plane_xz>(0, 555, 0, 555, 0, white));
     scene.add(std::make_shared<Plane_xz>(0, 555, 0, 555, 555, white));
     scene.add(std::make_shared<Plane_xy>(0, 555, 0, 555, 555, white));
@@ -69,13 +70,14 @@ int main(int, char**) {
     // Camera
     Camera camera = Camera(point3(278, 278, -800),
                             point3(278, 278, 0),
-                            200.0 / 200.0,
                             40.0,
-                            10.0,
+                            200.0 / 200.0,
                             0.01,
+                            10.0,
                             vec3(0.,1.,0.)
                     );
 
+    camera.render(scene, lights);
     // self.screen_width = screen_width
     // self.screen_height = screen_height
 
