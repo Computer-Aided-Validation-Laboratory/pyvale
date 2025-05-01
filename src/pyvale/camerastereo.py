@@ -39,7 +39,7 @@ class CameraStereo:
         """A method to initialise the CameraStereo using a calibration file and
         some additional parameters. This creates an instance of the CameraStereo
         class from the calibration parameters.
-_description_
+
         Parameters
         ----------
         calib_path : Path
@@ -56,11 +56,11 @@ _description_
         Self
             An instance of the CameraStereo class, given the specified parameters.
         """
-        calib_params = yaml.safe_load(calib_path)
-        pixels_num_cam0 = np.array(calib_params['Cam0_Cx [pixels]']*2,
-                           calib_params['Cam0_Cy [pixels]']*2)
-        pixels_num_cam1 = np.array(calib_params['Cam1_Cx [pixels]']*2,
-                           calib_params['Cam1_Cy [pixels]']*2)
+        calib_params = yaml.safe_load(calib_path.read_text())
+        pixels_num_cam0 = np.array([calib_params['Cam0_Cx [pixels]']*2,
+                           calib_params['Cam0_Cy [pixels]']*2])
+        pixels_num_cam1 = np.array([calib_params['Cam1_Cx [pixels]']*2,
+                           calib_params['Cam1_Cy [pixels]']*2])
         pixels_size = focal_length / calib_params["Cam0_Fx [pixels]"]
         stereo_rotation = Rotation.from_euler("xyz", ([calib_params['Theta [deg]'],
                                     calib_params['Phi [deg]'],
