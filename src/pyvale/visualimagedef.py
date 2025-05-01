@@ -59,12 +59,12 @@ class ImageDefDiags:
         vector_map = "plasma"
 
         if def_mask is not None:
-            ImageDefDiags.plot_image('Def. Mask',def_mask,image_map)
+            ImageDefDiags.plot_speckle_image('Def. Mask',def_mask,image_map)
 
-        ImageDefDiags.plot_image('Subpx Def. Image',def_image_subpx,image_map)
-        ImageDefDiags.plot_image('Def. Image',def_image,image_map)
+        ImageDefDiags.plot_speckle_image('Subpx Def. Image',def_image_subpx,image_map)
+        ImageDefDiags.plot_speckle_image('Def. Image',def_image,image_map)
 
         ext = tuple(np.array([subpx_grid_xm.min(),subpx_grid_xm.max(),
                         subpx_grid_ym.min(),subpx_grid_ym.max()])*10**3)
-        ImageDefDiags.plot_image_xy('Sub Pixel Disp X',subpx_disp_x,ext,V_CMAP)
-        ImageDefDiags.plot_image_xy('Sub Pixel Disp Y',subpx_disp_y,ext,V_CMAP)
+        ImageDefDiags.plot_image_xy('Sub Pixel Disp X',subpx_disp_x,ext,vector_map)
+        ImageDefDiags.plot_image_xy('Sub Pixel Disp Y',subpx_disp_y,ext,vector_map)
