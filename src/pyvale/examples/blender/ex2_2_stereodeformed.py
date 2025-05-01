@@ -33,7 +33,7 @@ def main() -> None:
     # All the files saved will be saved to a subfolder within this specified
     # base directory.
     # This base directory can be specified by:
-    base_dir = "./"
+    base_dir = Path.cwd()
     # If no base directory is specified, it will be set as your home directory
 
     # Creating the scene
@@ -51,13 +51,13 @@ def main() -> None:
     # Add the stereo camera system
     cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
                                  pixels_size=np.array([0.00345, 0.00345]),
-                                 pos_world=np.array([0, 0, 400]),
+                                 pos_world=np.array([0, 0, 400s]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
                                  focal_length=15.0)
     # Set this to "symmetric" to get a symmetric stereo system or set this to
     # "faceon" to get a face-on stereo system
-    stereo_setup = "symmetric"
+    stereo_setup = "faceon"
     if stereo_setup == "symmetric":
         stereo_system = pyvale.CameraTools.symmetric_stereo_cameras(
             cam_data_0=cam_data_0,
@@ -92,9 +92,9 @@ def main() -> None:
 
     mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data_0)
     scene.add_speckle(part=part,
-                                    speckle_path=speckle_path,
-                                    mat_data=material_data,
-                                    mm_px_resolution=mm_px_resolution)
+                      speckle_path=speckle_path,
+                      mat_data=material_data,
+                      mm_px_resolution=mm_px_resolution)
 
     # Deform and render images
     # --------------------------------------------------------------------------

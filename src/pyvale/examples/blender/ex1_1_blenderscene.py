@@ -110,7 +110,7 @@ def main() -> None:
 
         print()
         print(80*"-")
-        # print("Save directory of the image:", render_data.save_dir)
+        print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
         print(80*"-")
         print()
 
