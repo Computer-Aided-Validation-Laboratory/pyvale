@@ -1,6 +1,7 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 #include "util.h"
+#include "pdf.h"
 
 
 class Camera {
