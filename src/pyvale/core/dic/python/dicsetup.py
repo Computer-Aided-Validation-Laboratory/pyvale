@@ -98,6 +98,8 @@ ext = Extension(
                  "../cpp/dicbruteforce.cpp",
                  "../cpp/dicbuildinfo.cpp",
                  "../cpp/dicrg.cpp",
+                 "../cpp/dicsmooth.cpp",
+                 "../cpp/dicstrain.cpp",
                  "../cuda/malloc.cu"],
     library_dirs=[CUDA['lib64']],
     language="c++",

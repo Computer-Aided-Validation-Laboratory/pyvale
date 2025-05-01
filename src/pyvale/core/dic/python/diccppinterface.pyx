@@ -80,6 +80,13 @@ cdef extern from "../cpp/dicmain.hpp" namespace "dic":
                     const SaveConfig &saveconfig)
 
 
+cdef extern from "../cpp/dicstrain.hpp" namespace "strain":
+
+    void engine(int *ss_x, int *ss_y, 
+                double* u, double* v,
+                int num_ss_x, int num_ss_y, 
+                int sw_size, int q, string &formulation)
+
 
 
 # A wrapper function to call the C++ function from Python
@@ -89,8 +96,8 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
                       int subset_step, 
                       int subset_size,
                       int max_iterations,
-                      double precision,       
-                      double threshold_levenberg,       
+                      double precision,
+                      double threshold_levenberg,
                       double threshold_bruteforce,   
                       int range_bruteforce,    
                       str correlation_criteria,
@@ -150,31 +157,58 @@ def cpp_2d_dic_routine(np.ndarray[np.int32_t, ndim=2] reference_image,
 
     # Expose C++ result arrays as NumPy arrays (zero-copy)
     #cdef int[::1] ss_list_view = <int [:ss_coord_list.size()]>ss_coord_list.data()
-    cdef int[::1] niter_arr_view = <int [:niter_arr.size()]>niter_arr.data()
-    cdef double[::1] u_arr_view = <double [:u_arr.size()]>u_arr.data()
-    cdef double[::1] p_arr_view = <double [:p_arr.size()]>p_arr.data()
-    cdef double[::1] v_arr_view = <double [:v_arr.size()]>v_arr.data()
-    cdef double[::1] ftol_arr_view = <double [:ftol_arr.size()]>ftol_arr.data()
-    cdef double[::1] xtol_arr_view = <double [:xtol_arr.size()]>xtol_arr.data()
+    # cdef int[::1] niter_arr_view = <int [:niter_arr.size()]>niter_arr.data()
+    # cdef double[::1] u_arr_view = <double [:u_arr.size()]>u_arr.data()
+    # cdef double[::1] p_arr_view = <double [:p_arr.size()]>p_arr.data()
+    # cdef double[::1] v_arr_view = <double [:v_arr.size()]>v_arr.data()
+    # cdef double[::1] ftol_arr_view = <double [:ftol_arr.size()]>ftol_arr.data()
+    # cdef double[::1] xtol_arr_view = <double [:xtol_arr.size()]>xtol_arr.data()
 
-    # get 1d arrays without copying
-    u_1d = np.frombuffer(u_arr_view, dtype=np.float64)
-    v_1d = np.frombuffer(v_arr_view, dtype=np.float64)
-    p_1d = np.frombuffer(p_arr_view, dtype=np.float64)
-    niter_1d = np.frombuffer(niter_arr_view, dtype=np.int32)
-    #subsets_1d = np.frombuffer(ss_list_view, dtype=np.int32)
-    ftol_1d = np.frombuffer(ftol_arr_view, dtype=np.float64)
-    xtol_1d = np.frombuffer(xtol_arr_view, dtype=np.float64)
+    # # get 1d arrays without copying
+    # u_1d = np.frombuffer(u_arr_view, dtype=np.float64)
+    # v_1d = np.frombuffer(v_arr_view, dtype=np.float64)
+    # p_1d = np.frombuffer(p_arr_view, dtype=np.float64)
+    # niter_1d = np.frombuffer(niter_arr_view, dtype=np.int32)
+    # #subsets_1d = np.frombuffer(ss_list_view, dtype=np.int32)
+    # ftol_1d = np.frombuffer(ftol_arr_view, dtype=np.float64)@
+    # xtol_1d = np.frombuffer(xtol_arr_view, dtype=np.float64)
 
     
-    # reshape to desired dimension
-    niter = niter_1d.reshape(num_def_images, px_horizontal//subset_step, px_vertical//subset_step)
-    #subsets = subsets_1d.reshape(px_horizontal//subset_step, px_vertical//subset_step, 2)
-    u = u_1d.reshape(num_def_images, px_vertical//subset_step, px_horizontal//subset_step)
-    v = v_1d.reshape(num_def_images, px_horizontal//subset_step, px_vertical//subset_step)
-    p = p_1d.reshape(num_def_images, 6 * px_horizontal//subset_step, px_vertical//subset_step)
-    ftol = ftol_1d.reshape(num_def_images, px_horizontal//subset_step, px_vertical//subset_step)
-    xtol = xtol_1d.reshape(num_def_images, px_horizontal//subset_step, px_vertical//subset_step)
+    # # reshape to desired dimension
+    # niter = niter_1d.reshape(num_def_images, px_horizontal//subset_step, px_vertical//subset_step)
+    # #subsets = subsets_1d.reshape(px_horizontal//subset_step, px_vertical//subset_step, 2)
+    # u = u_1d.reshape(num_def_images, px_vertical//subset_step, px_horizontal//subset_step)
+    # v = v_1d.reshape(num_def_images, px_horizontal//subset_step, px_vertical//subset_step)
+    # p = p_1d.reshape(num_def_images, 6 * px_horizontal//subset_step, px_vertical//subset_step)
+    # ftol = ftol_1d.reshape(num_def_images, px_horizontal//subset_step, px_vertical//subset_step)
+    # xtol = xtol_1d.reshape(num_def_images, px_horizontal//subset_step, px_vertical//subset_step)
 
-    #return subsets, niter, u, v, p, ftol, xtol
-    return niter, u, v, p, ftol, xtol
+    # return niter, u, v, p, ftol, xtol
+
+
+
+
+def cpp_2d_strain_routine(np.ndarray[np.int32_t, ndim=2] ss_x,
+                          np.ndarray[np.int32_t, ndim=2] ss_y,
+                          np.ndarray[np.float64_t, ndim=2] u,
+                          np.ndarray[np.float64_t, ndim=2] v,
+                          int window_size,
+                          int window_element,
+                          str strain_formulation):
+
+    # typed memoryviews for the subset meshgrids
+    cdef int[:, ::1] ss_x_cpp = ss_x
+    cdef int[:, ::1] ss_y_cpp = ss_y
+    cdef double[:, ::1] u_cpp = u
+    cdef double[:, ::1] v_cpp = v
+
+    # the the image dimensions and the number of subsets
+    cdef int num_ss_x = u.shape[1]
+    cdef int num_ss_y = u.shape[0]
+
+    # call c++ 2D strain engine
+    engine(&ss_x_cpp[0,0], &ss_y_cpp[0,0], 
+           &u_cpp[0,0], &v_cpp[0,0], 
+           num_ss_x, num_ss_y, 
+           window_size, window_element, 
+           strain_formulation.encode('utf-8'))

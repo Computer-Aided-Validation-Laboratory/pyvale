@@ -43,45 +43,31 @@ namespace dic {
         
         auto s0 = std::chrono::high_resolution_clock::now();
 
-        const int num_px_image = px_horizontal*px_vertical;
-
         // number of parameters for the shape function
-        int num_params;
-        if (conf.shape_func == "rigid") num_params = 2;
-        else if (conf.shape_func == "affine") num_params = 6;
-        else {
-            std::cerr << "Unknown shape function: \'" << conf.shape_func << "\'." << std::endl;
-            std::cerr << "Allowed values: \'affine\', \'rigid\'. " << std::endl;
-            return;
-        }
-
+        int num_params = util::get_num_params(conf.shape_func);
 
         // get a list of ss coordinates within RIO.
         util::SubsetData ssdata = util::generate_ss_list(image_roi, px_horizontal, px_vertical, conf.ss_size, conf.ss_step, num_def_images, num_params);
 
 
         // TITLE("DIC INITIALISATION");
-        // INFO_OUT("Height of Images: ", px_vertical << " [px]");
-        // INFO_OUT("Width of Images: ", px_horizontal << " [px]");
-        // INFO_OUT("Number of Deformed Images: ", num_def_images);
-        // INFO_OUT("Subset Step: ", conf.ss_step);
-        // INFO_OUT("Subset Size: ", conf.ss_size);
-        // INFO_OUT("Max number of solver iterations: ", max_iter);
-        // INFO_OUT("Tolerance cutoff: ", tol);
-        // INFO_OUT("Correlation Criterion: ", conf.corr_crit);
-        // INFO_OUT("Shape Function: ", conf.shape_func);
-        // INFO_OUT("Interpolation Routine: ", interp_routine);
-        // INFO_OUT("Image Scan Method: ", conf.scan_method);
-        // INFO_OUT("Total number of subsets: ", ssdata.num);
-        // INFO_OUT("Number of OMP threads:", omp_get_max_threads());
+        INFO_OUT("Height of Images: ", px_vertical << " [px]");
+        INFO_OUT("Width of Images: ", px_horizontal << " [px]");
+        INFO_OUT("Number of Deformed Images: ", num_def_images);
+        INFO_OUT("Subset Step: ", conf.ss_step);
+        INFO_OUT("Subset Size: ", conf.ss_size);
+        INFO_OUT("Max number of solver iterations: ", conf.max_iter);
+        INFO_OUT("Correlation Criterion: ", conf.corr_crit);
+        INFO_OUT("Shape Function: ", conf.shape_func);
+        INFO_OUT("Interpolation Routine: ", conf.interp_routine);
+        INFO_OUT("Image Scan Method: ", conf.scan_method);
+        INFO_OUT("Total number of subsets: ", ssdata.num);
+        INFO_OUT("Number of OMP threads:", omp_get_max_threads());
 
-
-        // cuglobal::device_info(ssdata->num);
-        // exit(0);
 
         // need to make a copy of the reference image that has been converted to double for the interpolator
         util::Image image_ref_dbl(px_horizontal, px_vertical);
-        image_ref_dbl.vals.assign(image_ref, image_ref + num_px_image);
+        image_ref_dbl.vals.assign(image_ref, image_ref + px_vertical*px_horizontal);
 
         // define our interpolator for the reference image
         interpolator::bicubic_init(&image_ref_dbl);
@@ -140,7 +126,7 @@ namespace dic {
 
         // save data
         saveconf.save_at_end = true;
-        util::save_to_disk(&saveconf, 1, &ssdata, num_params);
+        util::save_to_disk(&saveconf, num_def_images, &ssdata, num_params);
 
     }
 
@@ -190,7 +176,7 @@ namespace dic {
 
 
             // append the results for the current subset to result vectors
-            // append_results(num_def_images, img_num, ss, &results);    
+            util::append_results(num_def_images, img_num, ssdata->num, ss, results.iter, results.ftol, results.xtol, results.u, results.v, results.cost, results.p);
             // exit(0);
         }
     }
@@ -252,7 +238,6 @@ namespace dic {
             // Kick off the next search with a brute force from the last set of brute force parameters that gave a good match.
             if ((ss_thread_num == 0) || (results.iter == opt.max_iter)){
                 brute::expanding_wavefront(ss_x, ss_y, image_ref, image_def->px_vertical, image_def->px_horizontal, &ss_def, &ss_ref, &brute);
-                // std::cout << brute.p_rigid[0] << " " << brute.p_rigid[1] << std::endl;
 
                 ptemp[0] = brute.p_rigid[0];
                 ptemp[1] = brute.p_rigid[1];
@@ -269,7 +254,7 @@ namespace dic {
             results = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
 
             // append the results for the current subset to result vectors
-            // append_results(num_def_images, img_num, ss, &results);    
+            util::append_results(num_def_images, img_num, ssdata->num, ss, results.iter, results.ftol, results.xtol, results.u, results.v, results.cost, results.p);
 
             ss_thread_num++;
 
@@ -303,12 +288,6 @@ namespace dic {
         int seed_y = 500; // in corner coodinates
 
 
-        //util::Subset ss_def(ssdata->size);
-        //util::Subset ss_ref(ssdata->size);
-        //brute::Parameters brute(threshold_bf, range_bf);
-        //util::extract_ss(seed_x, seed_y, image_def, &ss_def); 
-        //brute::cross_correlation(seed_x, seed_y, image_ref, image_def->px_vertical, image_def->px_horizontal,&ss_def, &ss_ref, &brute);
-        DEBUGGER;
         rg::reliability_guided_dic_single_seed(image_ref, image_def, image_roi, seed_x, seed_y, ssdata, num_def_images, img_num, max_iter, precision, threshold_lm, threshold_bf, range_bf, num_params);
                 
     }

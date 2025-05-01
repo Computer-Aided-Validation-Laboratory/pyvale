@@ -139,6 +139,9 @@ namespace util {
      */            
     void extract_ss(int ss_x, int ss_y, util::Image *image_def, util::Subset *ss_def);
 
+    /**
+     */
+    int get_num_params(std::string &shape_func);
 
     /**
      * @brief Generates a list of subsets based on the provided image ROI and parameters.
@@ -172,6 +175,7 @@ namespace util {
      */
     void append_results(const int num_def_images, 
                             const int img_num, 
+                            const int num_ss,
                             const int ss, 
                             const int iter, 
                             const double ftol, 

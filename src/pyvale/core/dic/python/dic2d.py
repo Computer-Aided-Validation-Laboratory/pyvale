@@ -8,6 +8,9 @@ Copyright (C) 2025 The Computer Aided Validation Team
 
 
 import numpy as np
+import os
+import sys
+
 
 # import cython module
 from pyvale.core.dic.python import diccppinterface
@@ -75,6 +78,32 @@ class DIC2D:
         """
         Executes the c++ 2D DIC routine on CPU architecture.
         """
+
+        # check if there is any output files in the output directory
+        # if so, check user wants to proceed and overwrite these files
+        try:
+            files = os.listdir(self.out_base_path)
+        except FileNotFoundError:
+            print(f"Output path '{self.out_base_path}' does not exist.")
+            sys.exit(1)
+
+        # Check for any matching files
+        conflicting_files = [
+            f for f in files 
+            if f.startswith(self.out_prefix) and f.endswith(self.out_format)
+        ]
+
+        if conflicting_files:
+            print("The following files already exist:")
+            for f in conflicting_files:
+                print(f"  - {os.path.join(self.out_base_path, f)}")
+
+            user_input = input("Do you want to continue and overwrite these files? (y/n): ").strip().lower()
+
+            if user_input not in ("y", "yes"):
+                print("Aborting to avoid overwriting data.")
+                return
+    
         results = diccppinterface.cpp_2d_dic_routine(self.image_ref,
                                            self.image_def,
                                            self.roi_mask,
@@ -96,12 +125,12 @@ class DIC2D:
                                            self.out_delimiter)
 
         #self.subsets = results[0]
-        self.niter = results[0]
-        self.u = results[1]
-        self.v = results[2]
-        self.p = results[3]
-        self.ftol = results[4]
-        self.xtol = results[5]
+        # self.niter = results[0]
+        # self.u = results[1]
+        # self.v = results[2]
+        # self.p = results[3]
+        # self.ftol = results[4]
+        # self.xtol = results[5]
 
 
 

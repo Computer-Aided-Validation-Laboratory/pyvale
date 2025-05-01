@@ -117,7 +117,7 @@ namespace rg {
         std::cout << seed_x << " " << seed_y << std::endl;
         int idx = ssdata->coords_to_idx.find({seed_x, seed_y})->second;
 
-        util::append_results(num_def_images, img_num, idx, seed_results.iter, seed_results.ftol, seed_results.xtol, seed_results.u, seed_results.v, seed_results.cost, seed_results.p);
+        util::append_results(num_def_images, img_num, ssdata->num, idx, seed_results.iter, seed_results.ftol, seed_results.xtol, seed_results.u, seed_results.v, seed_results.cost, seed_results.p);
         computed_mask[idx] = true;                     
 
         
@@ -153,7 +153,7 @@ namespace rg {
 
             optimizer::Results neigh_results = optimizer::solve(neigh_x_ss, neigh_y_ss, &ss_def, &ss_ref, &opt);
 
-            util::append_results(num_def_images, img_num, neigh_idx, neigh_results.iter, neigh_results.ftol, neigh_results.xtol, neigh_results.u, neigh_results.v, neigh_results.cost, neigh_results.p);
+            util::append_results(num_def_images, img_num, ssdata->num, neigh_idx, neigh_results.iter, neigh_results.ftol, neigh_results.xtol, neigh_results.u, neigh_results.v, neigh_results.cost, neigh_results.p);
             
             // Add to priority queue
             computed_mask[neigh_idx] = true;
@@ -287,7 +287,7 @@ namespace rg {
                         optimizer::Results neigh_results = optimizer::solve(neigh_x_ss, neigh_y_ss, &ss_def, &ss_ref, &opt);
 
                         // append results
-                        util::append_results(num_def_images, img_num, neigh_idx, neigh_results.iter, neigh_results.ftol, neigh_results.xtol, neigh_results.u, neigh_results.v, neigh_results.cost, neigh_results.p);
+                        util::append_results(num_def_images, img_num, ssdata->num, neigh_idx, neigh_results.iter, neigh_results.ftol, neigh_results.xtol, neigh_results.u, neigh_results.v, neigh_results.cost, neigh_results.p);
 
                         // // add results to temp neighbour results
                         // temp_neighbours.emplace_back(neigh_x_idx, neigh_y_idx, 1.0 - 0.5 * neigh_results.cost);

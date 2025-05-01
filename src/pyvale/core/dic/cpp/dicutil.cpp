@@ -9,10 +9,12 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <chrono>
 #include <vector>
 #include <cmath>
 
 // Program Header files
+#include "./defines.hpp"
 #include "./dicutil.hpp"
 
 
@@ -49,6 +51,17 @@ namespace util {
         }
     }
 
+    int get_num_params(std::string &shape_func){
+        int num_params;
+        if (shape_func == "rigid") num_params = 2;
+        else if (shape_func == "affine") num_params = 6;
+        else {
+            std::cerr << "Unknown shape function: \'" << shape_func << "\'." << std::endl;
+            std::cerr << "Allowed values: \'affine\', \'rigid\'. " << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        return num_params;
+    }
 
 
 
@@ -185,14 +198,13 @@ namespace util {
 
 
         // resize results
-        niter_arr.resize(num_def_images * ssdata.num_in_mask);
-        u_arr.resize(num_def_images * ssdata.num_in_mask);
-        v_arr.resize(num_def_images * ssdata.num_in_mask);
-        p_arr.resize(num_def_images * ssdata.num_in_mask * num_params);
-        ftol_arr.resize(num_def_images * ssdata.num_in_mask);
-        xtol_arr.resize(num_def_images * ssdata.num_in_mask);
-        cost_arr.resize(num_def_images * ssdata.num_in_mask);
-        std::cout << "NITER SIZE " << niter_arr.size() << std::endl;
+        niter_arr.resize(num_def_images * ssdata.num);
+        u_arr.resize(num_def_images * ssdata.num);
+        v_arr.resize(num_def_images * ssdata.num);
+        p_arr.resize(num_def_images * ssdata.num * num_params);
+        ftol_arr.resize(num_def_images * ssdata.num);
+        xtol_arr.resize(num_def_images * ssdata.num);
+        cost_arr.resize(num_def_images * ssdata.num);
         return ssdata;
     }
 
@@ -200,6 +212,7 @@ namespace util {
 
     void append_results(const int num_def_images, 
                         const int img_num, 
+                        const int num_ss,
                         const int ss, 
                         const int iter, 
                         const double ftol, 
@@ -209,7 +222,7 @@ namespace util {
                         const double costp,
                         const std::vector<double> &p) {
 
-        int idx = img_num * num_def_images + ss;
+        int idx = img_num * num_ss + ss;
         int idx_p = p.size()*idx;
         niter_arr[idx] = iter;
         u_arr[idx] = u;
@@ -225,13 +238,11 @@ namespace util {
 
     void save_to_disk(util::SaveConfig *saveconf, const int num_def_images, util::SubsetData *ssdata, const int num_params){
 
+
+        auto s0 = std::chrono::high_resolution_clock::now();
+
         // readability
         const std::string delimiter = saveconf->delimiter;        
-        std::cout << saveconf->delimiter << std::endl;
-        std::cout << saveconf->base_path << std::endl;
-        std::cout << saveconf->format << std::endl;
-        std::cout << saveconf->layout << std::endl;
-        std::cout << saveconf->save_at_end << std::endl;
 
         // loop over images 
         for (int img = 0; img < num_def_images; img++){
@@ -250,7 +261,7 @@ namespace util {
                     outfile.open(outfile_str.str(), std::ios::binary);
 
                      for (size_t i = 0; i < ssdata->num; ++i) {
-                        int idx = img * num_def_images + i;
+                        int idx = img * ssdata->num + i;
                         int idx_p = num_params*idx;
                         double magnitude = std::sqrt(u_arr[idx] * u_arr[idx] + v_arr[idx] * v_arr[idx]);
 
@@ -267,6 +278,8 @@ namespace util {
                         outfile.write(reinterpret_cast<const char*>(&xtol_arr[idx]), sizeof(double));
                         outfile.write(reinterpret_cast<const char*>(&niter_arr[idx]), sizeof(int));
                     }
+
+                    outfile.close();
                 }
 
 
@@ -274,9 +287,9 @@ namespace util {
                 else if (saveconf->format == ".dat"){
 
                     outfile.open(outfile_str.str());
-                    for (size_t i = 0; i < ssdata->num; ++i) {
+                    for (size_t i = 0; i < ssdata->num; i++) {
                         
-                        int idx = img * num_def_images + i;
+                        int idx = img * ssdata->num + i;
                         int idx_p = num_params*idx;
 
                         outfile << ssdata->coords[2*i] << delimiter;
@@ -292,9 +305,18 @@ namespace util {
                         outfile << xtol_arr[idx] << delimiter;
                         outfile << niter_arr[idx] << "\n";
                     }
+                    outfile.close();
                 }
             }
         }
+
+
+        // get end time and calculate DIC duration
+        auto f0 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> e0 = f0 - s0;
+        INFO_OUT("Time taken to save DIC data: ", e0.count() << " [s]")
+
+
     }
 
 }   
