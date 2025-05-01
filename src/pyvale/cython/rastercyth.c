@@ -13,12 +13,12 @@
         "include_dirs": [
             "/home/lloydf/pyvale/.venv/lib/python3.11/site-packages/numpy/_core/include"
         ],
-        "name": "pyvale.cython.rastercyth",
+        "name": "pyvale.core.cython.rastercyth",
         "sources": [
             "src/pyvale/core/cython/rastercyth.py"
         ]
     },
-    "module_name": "pyvale.cython.rastercyth"
+    "module_name": "pyvale.core.cython.rastercyth"
 }
 END: Cython Metadata */
 
@@ -2754,7 +2754,7 @@ static PyObject *__pyx_memoryviewslice__get_base(struct __pyx_memoryviewslice_ob
 
 /* Module declarations from "libc.math" */
 
-/* Module declarations from "pyvale.cython.rastercyth" */
+/* Module declarations from "pyvale.core.cython.rastercyth" */
 static PyObject *__pyx_collections_abc_Sequence = 0;
 static PyObject *generic = 0;
 static PyObject *strided = 0;
@@ -2815,11 +2815,11 @@ static __Pyx_TypeInfo __Pyx_TypeInfo_double = { "double", NULL, sizeof(double), 
 static __Pyx_TypeInfo __Pyx_TypeInfo_size_t = { "size_t", NULL, sizeof(size_t), { 0 }, 0, __PYX_IS_UNSIGNED(size_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(size_t), 0 };
 static __Pyx_TypeInfo __Pyx_TypeInfo_int = { "int", NULL, sizeof(int), { 0 }, 0, __PYX_IS_UNSIGNED(int) ? 'U' : 'I', __PYX_IS_UNSIGNED(int), 0 };
 /* #### Code section: before_global_var ### */
-#define __Pyx_MODULE_NAME "pyvale.cython.rastercyth"
+#define __Pyx_MODULE_NAME "pyvale.core.cython.rastercyth"
 extern int __pyx_module_is_main_pyvale__core__cython__rastercyth;
 int __pyx_module_is_main_pyvale__core__cython__rastercyth = 0;
 
-/* Implementation of "pyvale.cython.rastercyth" */
+/* Implementation of "pyvale.core.cython.rastercyth" */
 /* #### Code section: global_var ### */
 static PyObject *__pyx_builtin_range;
 static PyObject *__pyx_builtin_print;
@@ -2953,15 +2953,15 @@ static const char __pyx_k_Invalid_shape_in_axis[] = "Invalid shape in axis ";
 static const char __pyx_k_contiguous_and_direct[] = "<contiguous and direct>";
 static const char __pyx_k_Cannot_index_with_type[] = "Cannot index with type '";
 static const char __pyx_k_MemoryView_of_r_object[] = "<MemoryView of %r object>";
-static const char __pyx_k_pyvale_core_cameradata[] = "pyvale.cameradata";
-static const char __pyx_k_pyvale_core_rendermesh[] = "pyvale.rendermesh";
+static const char __pyx_k_pyvale_core_cameradata[] = "pyvale.core.cameradata";
+static const char __pyx_k_pyvale_core_rendermesh[] = "pyvale.core.rendermesh";
 static const char __pyx_k_MemoryView_of_r_at_0x_x[] = "<MemoryView of %r at 0x%x>";
 static const char __pyx_k_contiguous_and_indirect[] = "<contiguous and indirect>";
 static const char __pyx_k_Dimension_d_is_not_direct[] = "Dimension %d is not direct";
 static const char __pyx_k_Index_out_of_bounds_axis_d[] = "Index out of bounds (axis %d)";
 static const char __pyx_k_Step_may_not_be_zero_axis_d[] = "Step may not be zero (axis %d)";
 static const char __pyx_k_itemsize_0_for_cython_array[] = "itemsize <= 0 for cython.array";
-static const char __pyx_k_pyvale_core_cython_rastercyth[] = "pyvale.cython.rastercyth";
+static const char __pyx_k_pyvale_core_cython_rastercyth[] = "pyvale.core.cython.rastercyth";
 static const char __pyx_k_unable_to_allocate_array_data[] = "unable to allocate array data.";
 static const char __pyx_k_strided_and_direct_or_indirect[] = "<strided and direct or indirect>";
 static const char __pyx_k_pyvale_the_python_validation_en[] = "\n================================================================================\npyvale: the python validation engine\nLicense: MIT\nCopyright (C) 2025 The Computer Aided Validation Team\n================================================================================\n";
@@ -17689,7 +17689,7 @@ __pyx_r = __pyx_t_7;
   __PYX_XCLEAR_MEMVIEW(&__pyx_t_7, 1);
   __pyx_r.data = NULL;
   __pyx_r.memview = NULL;
-  __Pyx_AddTraceback("pyvale.cython.rastercyth.vec_range_int", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyvale.core.cython.rastercyth.vec_range_int", __pyx_clineno, __pyx_lineno, __pyx_filename);
   #ifdef WITH_THREAD
   __Pyx_PyGILState_Release(__pyx_gilstate_save);
   #endif
@@ -18734,7 +18734,7 @@ static __Pyx_memviewslice __pyx_f_6pyvale_4core_6cython_10rastercyth_world_to_ra
   __PYX_XCLEAR_MEMVIEW(&__pyx_t_1, 1);
   __pyx_r.data = NULL;
   __pyx_r.memview = NULL;
-  __Pyx_AddTraceback("pyvale.cython.rastercyth.world_to_raster_coords", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyvale.core.cython.rastercyth.world_to_raster_coords", __pyx_clineno, __pyx_lineno, __pyx_filename);
   #ifdef WITH_THREAD
   __Pyx_PyGILState_Release(__pyx_gilstate_save);
   #endif
@@ -19299,7 +19299,7 @@ static __Pyx_memviewslice __pyx_f_6pyvale_4core_6cython_10rastercyth_average_ima
   __Pyx_XDECREF(__pyx_t_8);
   __pyx_r.data = NULL;
   __pyx_r.memview = NULL;
-  __Pyx_AddTraceback("pyvale.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyvale.core.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
   goto __pyx_L2;
   __pyx_L0:;
   if (unlikely(!__pyx_r.memview)) {
@@ -19407,7 +19407,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
     }
   }
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_image_subpx, 1);
-  __Pyx_AddTraceback("pyvale.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyvale.core.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
@@ -19456,7 +19456,7 @@ static PyObject *__pyx_pf_6pyvale_4core_6cython_10rastercyth_average_image(CYTHO
   __pyx_L1_error:;
   __PYX_XCLEAR_MEMVIEW(&__pyx_t_1, 1);
   __Pyx_XDECREF(__pyx_t_2);
-  __Pyx_AddTraceback("pyvale.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyvale.core.cython.rastercyth.average_image", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -20422,7 +20422,7 @@ static PyObject *__pyx_f_6pyvale_4core_6cython_10rastercyth_raster_frame(__Pyx_m
   __Pyx_XDECREF(__pyx_t_10);
   __Pyx_XDECREF(__pyx_t_11);
   __PYX_XCLEAR_MEMVIEW(&__pyx_t_12, 1);
-  __Pyx_AddTraceback("pyvale.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyvale.core.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_world_to_cam_mat, 1);
@@ -20576,7 +20576,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_coords, 1);
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_connect, 1);
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_fields_to_render, 1);
-  __Pyx_AddTraceback("pyvale.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyvale.core.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
@@ -20630,7 +20630,7 @@ static PyObject *__pyx_pf_6pyvale_4core_6cython_10rastercyth_2raster_frame(CYTHO
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("pyvale.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyvale.core.cython.rastercyth.raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -22308,7 +22308,7 @@ __pyx_t_36.strides[1] = __pyx_v_image_buff_avg.strides[1];
   __Pyx_XDECREF(__pyx_t_19);
   __PYX_XCLEAR_MEMVIEW(&__pyx_t_35, 1);
   __PYX_XCLEAR_MEMVIEW(&__pyx_t_36, 1);
-  __Pyx_WriteUnraisable("pyvale.cython.rastercyth._raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename, 1, 0);
+  __Pyx_WriteUnraisable("pyvale.core.cython.rastercyth._raster_frame", __pyx_clineno, __pyx_lineno, __pyx_filename, 1, 0);
   __pyx_r = 0;
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();
@@ -22452,7 +22452,7 @@ static PyType_Slot __pyx_type___pyx_array_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_array_spec = {
-  "pyvale.cython.rastercyth.array",
+  "pyvale.core.cython.rastercyth.array",
   sizeof(struct __pyx_array_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_SEQUENCE,
@@ -22498,7 +22498,7 @@ static PyBufferProcs __pyx_tp_as_buffer_array = {
 
 static PyTypeObject __pyx_type___pyx_array = {
   PyVarObject_HEAD_INIT(0, 0)
-  "pyvale.cython.rastercyth.""array", /*tp_name*/
+  "pyvale.core.cython.rastercyth.""array", /*tp_name*/
   sizeof(struct __pyx_array_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_array, /*tp_dealloc*/
@@ -22661,7 +22661,7 @@ static PyType_Slot __pyx_type___pyx_MemviewEnum_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_MemviewEnum_spec = {
-  "pyvale.cython.rastercyth.Enum",
+  "pyvale.core.cython.rastercyth.Enum",
   sizeof(struct __pyx_MemviewEnum_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC,
@@ -22671,7 +22671,7 @@ static PyType_Spec __pyx_type___pyx_MemviewEnum_spec = {
 
 static PyTypeObject __pyx_type___pyx_MemviewEnum = {
   PyVarObject_HEAD_INIT(0, 0)
-  "pyvale.cython.rastercyth.""Enum", /*tp_name*/
+  "pyvale.core.cython.rastercyth.""Enum", /*tp_name*/
   sizeof(struct __pyx_MemviewEnum_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_Enum, /*tp_dealloc*/
@@ -22971,7 +22971,7 @@ static PyType_Slot __pyx_type___pyx_memoryview_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_memoryview_spec = {
-  "pyvale.cython.rastercyth.memoryview",
+  "pyvale.core.cython.rastercyth.memoryview",
   sizeof(struct __pyx_memoryview_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC,
@@ -23017,7 +23017,7 @@ static PyBufferProcs __pyx_tp_as_buffer_memoryview = {
 
 static PyTypeObject __pyx_type___pyx_memoryview = {
   PyVarObject_HEAD_INIT(0, 0)
-  "pyvale.cython.rastercyth.""memoryview", /*tp_name*/
+  "pyvale.core.cython.rastercyth.""memoryview", /*tp_name*/
   sizeof(struct __pyx_memoryview_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_memoryview, /*tp_dealloc*/
@@ -23172,7 +23172,7 @@ static PyType_Slot __pyx_type___pyx_memoryviewslice_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_memoryviewslice_spec = {
-  "pyvale.cython.rastercyth._memoryviewslice",
+  "pyvale.core.cython.rastercyth._memoryviewslice",
   sizeof(struct __pyx_memoryviewslice_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC|Py_TPFLAGS_SEQUENCE,
@@ -23182,7 +23182,7 @@ static PyType_Spec __pyx_type___pyx_memoryviewslice_spec = {
 
 static PyTypeObject __pyx_type___pyx_memoryviewslice = {
   PyVarObject_HEAD_INIT(0, 0)
-  "pyvale.cython.rastercyth.""_memoryviewslice", /*tp_name*/
+  "pyvale.core.cython.rastercyth.""_memoryviewslice", /*tp_name*/
   sizeof(struct __pyx_memoryviewslice_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc__memoryviewslice, /*tp_dealloc*/
@@ -24150,8 +24150,8 @@ if (!__Pyx_RefNanny) {
   #if PY_MAJOR_VERSION >= 3
   {
     PyObject *modules = PyImport_GetModuleDict(); if (unlikely(!modules)) __PYX_ERR(0, 1, __pyx_L1_error)
-    if (!PyDict_GetItemString(modules, "pyvale.cython.rastercyth")) {
-      if (unlikely((PyDict_SetItemString(modules, "pyvale.cython.rastercyth", __pyx_m) < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
+    if (!PyDict_GetItemString(modules, "pyvale.core.cython.rastercyth")) {
+      if (unlikely((PyDict_SetItemString(modules, "pyvale.core.cython.rastercyth", __pyx_m) < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
     }
   }
   #endif
@@ -24700,8 +24700,8 @@ if (!__Pyx_RefNanny) {
   /* "pyvale/core/cython/rastercyth.py":13
  * from cython.cimports.libc.math import floor, ceil
  *
- * from pyvale.rendermesh import RenderMeshData             # <<<<<<<<<<<<<<
- * from pyvale.cameradata import CameraData
+ * from pyvale.core.rendermesh import RenderMeshData             # <<<<<<<<<<<<<<
+ * from pyvale.core.cameradata import CameraData
  *
  */
   __pyx_t_7 = PyList_New(1); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 13, __pyx_L1_error)
@@ -24720,8 +24720,8 @@ if (!__Pyx_RefNanny) {
 
   /* "pyvale/core/cython/rastercyth.py":14
  *
- * from pyvale.rendermesh import RenderMeshData
- * from pyvale.cameradata import CameraData             # <<<<<<<<<<<<<<
+ * from pyvale.core.rendermesh import RenderMeshData
+ * from pyvale.core.cameradata import CameraData             # <<<<<<<<<<<<<<
  *
  *
  */
@@ -24796,7 +24796,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_XDECREF(__pyx_t_7);
   if (__pyx_m) {
     if (__pyx_d && stringtab_initialized) {
-      __Pyx_AddTraceback("init pyvale.cython.rastercyth", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      __Pyx_AddTraceback("init pyvale.core.cython.rastercyth", __pyx_clineno, __pyx_lineno, __pyx_filename);
     }
     #if !CYTHON_USE_MODULE_STATE
     Py_CLEAR(__pyx_m);
@@ -24810,7 +24810,7 @@ if (!__Pyx_RefNanny) {
     }
     #endif
   } else if (!PyErr_Occurred()) {
-    PyErr_SetString(PyExc_ImportError, "init pyvale.cython.rastercyth");
+    PyErr_SetString(PyExc_ImportError, "init pyvale.core.cython.rastercyth");
   }
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();
