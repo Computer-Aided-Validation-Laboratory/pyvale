@@ -5,7 +5,9 @@ project(raytrace VERSION 0.1.0 LANGUAGES C CXX)
 get_filename_component(PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../" ABSOLUTE)
 
 # Add Eigen include directory
-include_directories("${PROJECT_ROOT}/dependencies")
+include_directories(
+    "${PROJECT_ROOT}/dependencies",
+    "${PROJECT_ROOT}/src/pyvale/rtcpp/rt") # i.e. this very folder
 
 add_executable(raytrace example.cpp)
 

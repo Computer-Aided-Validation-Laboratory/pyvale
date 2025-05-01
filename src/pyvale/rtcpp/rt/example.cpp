@@ -27,10 +27,10 @@ int main(int, char**) {
     Hittable_list scene;
 
     // Materials
-    auto red   = std::make_shared<Diffuse>(solid_color(0.65, 0.05, 0.05));
-    auto white = std::make_shared<Diffuse>(solid_color(0.73, 0.73, 0.73));
-    auto green = std::make_shared<Diffuse>(solid_color(0.12, 0.45, 0.15));
-    auto light = std::make_shared<Diffuse_light>(solid_color(13, 13, 13));
+    auto red   = std::make_shared<Lambertian>(color(0.65, 0.05, 0.05));
+    auto white = std::make_shared<Lambertian>(color(0.73, 0.73, 0.73));
+    auto green = std::make_shared<Lambertian>(color(0.12, 0.45, 0.15));
+    auto light = std::make_shared<Diffuse_light>(color(13, 13, 13));
     // auto glass = std::make_shared<Refractive>(1.5);
 
     // First quad
@@ -93,7 +93,7 @@ int main(int, char**) {
     // Render
     // Image img = scene.render(20, 5); // samples per pixel, max depth
     // img.save("output.png");          // Save output to file
-    // std::cout << "Rendered to output.png" << std::endl;
-
+    std::cout << "Rendered to output.png" << std::endl;
+                
     return 0;
 }
