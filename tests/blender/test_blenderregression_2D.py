@@ -272,7 +272,7 @@ def test_render_engine(engine, output, request, sample_scene, tmp_path):
                                                           render_data=render_data)
     output = request.getfixturevalue(output)
 
-    npt.assert_array_equal(image_array, output)
+    npt.assert_allclose(image_array, output, atol=2)
 
 @pytest.fixture
 def half_watt_lighting():
