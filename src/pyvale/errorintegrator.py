@@ -8,8 +8,8 @@ import copy
 from dataclasses import dataclass
 import numpy as np
 from pyvale.errorcalculator import (IErrCalculator,
-                                        EErrType,
-                                        EErrDependence)
+                                    EErrType,
+                                    EErrDependence)
 from pyvale.sensordata import SensorData
 
 

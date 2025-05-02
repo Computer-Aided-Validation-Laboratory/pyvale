@@ -8,9 +8,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-
 # NOTE: This module is a feature under developement.
-
 
 @dataclass(slots=True)
 class CameraData:

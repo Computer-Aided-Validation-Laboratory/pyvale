@@ -10,6 +10,9 @@ from pyvale.sensorarray import ISensorArray
 import mooseherder as mh
 
 # NOTE: This module is a feature under developement.
+# TODO:
+# - Doc strings
+# - Print feature
 
 @dataclass(slots=True)
 class ExperimentStats:

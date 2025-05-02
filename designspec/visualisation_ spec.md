@@ -3,7 +3,19 @@
 ## NOTES:
 
 - What is done?
-    - Visualisation of point sensors on single mesh
+    - Visualisation of point sensors on single mesh, including perturbed sensor locations
+    - Visualisation of point sensor traces for a single physics and experiment
+
+- What is not done?
+    - Visualisation of sensor area + integration points
+    - Visualisation of sensor angles
+    - Subplots for traces of multi-physics point sensors
+    - Animation/video for trace/mesh vis
+    - Animation/video of camera image stacks
+    - Extract point trace for pixels in an image
+    - Extract line plot for pixels in an image
+    - Extract area average for image data
+
 
 TODO:
 - Subplots for multiple sensors and multi-physics cases (e.g. temperature and strain)

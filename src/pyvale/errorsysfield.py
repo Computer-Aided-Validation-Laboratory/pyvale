@@ -19,6 +19,7 @@ from pyvale.errorcalculator import (IErrCalculator,
 from pyvale.errordriftcalc import IDriftCalculator
 from pyvale.generatorsrandom import IGeneratorRandom
 
+# TODO: implement locking coords/angs in ErrFieldData
 
 @dataclass(slots=True)
 class ErrFieldData:
