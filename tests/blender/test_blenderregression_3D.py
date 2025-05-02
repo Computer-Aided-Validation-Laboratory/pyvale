@@ -13,6 +13,16 @@ import yaml
 import pyvale
 import mooseherder as mh
 
+# NOTE: These test may fail if you are not running bpy 4.4.0
+# It is a known issue that the render outputs between bpy 4.2.0 and 4.4.0 slightly
+# differ. If you are running bpy 4.2.0, the following tests will fail:
+# - test_camera_from_resolution
+# - test_render_engine[Eeeve render engine]
+# - test_stereo_convenience_cameras[Symmetric convenience function]
+# - test_stereo_deformation
+# These tests simply fail due to the version difference of bpy and the consequential
+# difference in rendering.
+
 @pytest.fixture
 def sample_scene_no_cam():
     data_path = pyvale.DataSet.mechanical_2d_path()
@@ -139,7 +149,7 @@ def stereo_symmetric():
         [62, 65],
         [57, 68],
         [76, 71],
-        [79, 74],
+        [79, 75],
         [67, 72],
         [61, 70],
         [60, 67],
@@ -1002,7 +1012,7 @@ def deformed_images():
        [[61, 68],
         [57, 75],
         [63, 66],
-        [68, 60],
+        [69, 60],
         [68, 64],
         [65, 62],
         [57, 62],
