@@ -1,15 +1,14 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
 import numpy as np
 import sympy
 import mooseherder as mh
 from pyvale.analyticsimdatagenerator import (AnalyticCaseData2D,
                                                   AnalyticSimDataGenerator)
-
 
 
 def standard_case_2d() -> AnalyticCaseData2D:
