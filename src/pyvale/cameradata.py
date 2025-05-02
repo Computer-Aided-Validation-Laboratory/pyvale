@@ -9,18 +9,6 @@ from scipy.spatial.transform import Rotation
 
 
 # NOTE: This module is a feature under developement.
-#
-# - Camera Local Coords: Pixel positions in pixels/meters
-# - Global Sim Coords: Transform from local pixel positions to sim coords in meters
-# - For this transformation we need user to specify center of ROI in sim coords
-# - There are going to be different ways to specify the camera properties
-
-# For thin lens theory will need to know some combination of:
-#   - The focal length of the lense
-#   - The working distance
-
-# Will need to create different ways for the user to automatically position the
-# camera
 
 
 @dataclass(slots=True)

@@ -40,7 +40,7 @@ ext-modules = [
 
 [tool.setuptools]
 ext-modules = [
-    {name = "pyvale.core.cython.rastercyth", sources = ["src/pyvale/core/cython/rastercyth.py"]}
+    {name = "pyvale.cython.rastercyth", sources = ["src/pyvale/core/cython/rastercyth.py"]}
 ]
 
 ## Validation Metrics:

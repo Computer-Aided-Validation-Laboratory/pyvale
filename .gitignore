@@ -15,6 +15,7 @@
 *.blend
 testoutput/
 exampleoutput/
+pyvale-output/
 
 # MOOSE / gmsh
 *-opt

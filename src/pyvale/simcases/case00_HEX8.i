@@ -17,7 +17,7 @@ lengZ = 10e-3   # m
 nElemX = 2
 nElemY = 2
 nElemZ = 2
-eType = HEX20 # TET10, TET11, HEX20, HEX27
+eType = HEX8 # TET4, TET10, TET11, HEX8, HEX20, HEX27
 
 # Thermal BCs
 coolantTemp=100.0      # degC
@@ -65,7 +65,7 @@ ThermExp = 17.8e-6 # 1/degC
 [Variables]
     [temperature]
       family = LAGRANGE
-      order = SECOND
+      order = FIRST
       initial_condition = ${coolantTemp}
     []
 []
