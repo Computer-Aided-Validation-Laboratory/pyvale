@@ -63,6 +63,7 @@ setup(
         "Cython>=3.0.0",
         "bpy>=4.2.0",
         "pyyaml>=6.0.2",
+        "pytest>=8.3.5",
     ],
 
     package_data={
