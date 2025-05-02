@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel", "Cython", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -29,7 +29,7 @@ dependencies = [
   "Cython>=3.0.0",
   "bpy>=4.2.0",
   "pyyaml>=6.0.2",
-  "pytes>8.3.5",
+  "pytest>=8.3.5",
 ]
 
 [project.urls]
