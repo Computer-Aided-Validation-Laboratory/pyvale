@@ -12,8 +12,9 @@
 *.mp4
 *.gif
 *.tiff
-test_output/
-example_output/
+*.blend
+testoutput/
+exampleoutput/
 
 # MOOSE / gmsh
 *-opt
@@ -25,6 +26,8 @@ example_output/
 !src/pyvale/data/*.e
 !reports/images/*.png
 !reports/images/*.svg
+!images/*.png
+!images/*.svg
 
 # Image deformation test cases
 *.pkl

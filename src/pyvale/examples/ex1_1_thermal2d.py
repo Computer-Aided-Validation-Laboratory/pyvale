@@ -1,16 +1,13 @@
-"""
-================================================================================
-Example: thermocouples on a 2d plate
+# ================================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ================================================================================
 
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
-================================================================================
-"""
 from pathlib import Path
 import matplotlib.pyplot as plt
 import mooseherder as mh
-import pyvale
+import pyvale as pyv
 
 
 def main() -> None:
@@ -22,7 +19,7 @@ def main() -> None:
       wrapper for pyvista and matplotlib.
     """
 
-    data_path = pyvale.DataSet.thermal_2d_output_path()
+    data_path = pyv.DataSet.thermal_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_key = "temperature"
     # Scale to mm to make 3D visualisation scaling easier
@@ -32,10 +29,10 @@ def main() -> None:
     x_lims = (0.0,100.0)
     y_lims = (0.0,50.0)
     z_lims = (0.0,0.0)
-    sens_pos = pyvale.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
-    sens_data = pyvale.SensorData(positions=sens_pos)
+    sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_data = pyv.SensorData(positions=sens_pos)
 
-    tc_array = pyvale.SensorArrayFactory \
+    tc_array = pyv.SensorArrayFactory \
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
                                   field_key,
@@ -44,7 +41,7 @@ def main() -> None:
     measurements = tc_array.get_measurements()
     print(f"\nMeasurements for last sensor:\n{measurements[-1,0,:]}\n")
 
-    pv_plot = pyvale.plot_point_sensors_on_sim(tc_array,field_key)
+    pv_plot = pyv.plot_point_sensors_on_sim(tc_array,field_key)
     # Set this to "interactive" to get an interactive 3D plot of the simulation
     # and labelled sensor locations, set to "save_fig" to create a vector
     # graphic using a specified camera position.
@@ -76,7 +73,7 @@ def main() -> None:
     # to file.
     trace_plot_mode = "interactive"
 
-    (fig,_) = pyvale.plot_time_traces(tc_array,field_key)
+    (fig,_) = pyv.plot_time_traces(tc_array,field_key)
 
     if trace_plot_mode == "interactive":
         plt.show()

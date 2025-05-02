@@ -8,9 +8,9 @@
 endTime = 20
 timeStep = 1
 
-coolantTemp=100.0      # degC
-heatTransCoeff=125.0e3 # W.m^-2.K^-1
-surfHeatFlux=4.67e6    # W.m^-2, taken from Adel's first paper
+coolantTemp= 150.0      # degC
+heatTransCoeff= 125.0e3 # W.m^-2.K^-1
+surfHeatFlux= 4.67e6    # W.m^-2, taken from Adel's first paper
 timeConst = 1   # s
 
 # Material Properties:
@@ -42,7 +42,7 @@ wEMod = 387e9       # Pa
 wPRatio = 0.29      # -
 
 # Thermo-mechanical coupling
-stressFreeTemp = 20 # degC
+stressFreeTemp = ${coolantTemp} # degC
 cucrzrThermExp =  17.7e-6 # 1/degC
 cuThermExp = 17.8e-6 # 1/degC
 wThermExp = 4.72e-6 # 1/degC
@@ -290,15 +290,18 @@ mesh_file = 'case16.msh'
 [Executioner]
   type = Transient
 
-  solve_type = PJFNK   # PJNFK or NEWTON
-  l_max_its = 100       # default = 1000
-  l_tol = 1e-6          # default = 1e-5, set 1e-6
-  nl_abs_tol = 1e-6     # default = 1e-50, set 1e-6
-  nl_rel_tol = 1e-6     # default = 1e-8, set 1e-6
-
-  line_search = none # TODO: check this helps
+  solve_type = 'NEWTON'   # PJNFK or NEWTON
+  petsc_options = '-snes_converged_reason'
   petsc_options_iname = '-pc_type -pc_hypre_type'
   petsc_options_value = 'hypre boomeramg'
+  line_search = 'none'
+
+  l_max_its = 1000
+  l_tol = 1e-6
+
+  nl_max_its = 50
+  nl_rel_tol = 1e-6
+  nl_abs_tol = 1e-6
 
   start_time=0.0
   end_time = ${endTime}

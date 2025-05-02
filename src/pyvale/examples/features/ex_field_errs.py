@@ -4,7 +4,7 @@ Example: thermocouples on a 2d plate
 
 pyvale: the python validation engine
 License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
+Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 '''
 import numpy as np
@@ -17,7 +17,7 @@ def main() -> None:
     """pyvale example: point sensors on a 2D thermal simulation
     ----------------------------------------------------------------------------
     """
-    data_path = pyvale.DataSet.thermal_2d_output_path()
+    data_path = pyvale.DataSet.thermal_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_key = list(sim_data.node_vars.keys())[0] # type: ignore
     # Scale to mm to make 3D visualisation scaling easier

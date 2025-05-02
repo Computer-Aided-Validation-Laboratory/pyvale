@@ -1,25 +1,21 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "wheel","numpy","cython"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvale"
-version = "0.0.1"
-description = "A python validation engine (pyvale) for simulating sensors and measurement uncertainties on physical fields."
+version = "0.1.0"
+description = "An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
   { name = "scepticalrabbit", email = "thescepticalrabbit@gmail.com" },
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: MIT",
-    "Operating System :: OS Independent",
-]
 requires-python = "==3.11.*"
 dependencies = [
-  "numpy>=1.26.0",
-  "scipy==1.11.3",
+  "mooseherder>=0.1.0",
+  "numpy<2.0.0",
+  "scipy>=1.14.0",
   "netCDF4>=1.6.5",
   "pyvista>=0.43.3",
   "matplotlib>=3.8",
@@ -31,12 +27,12 @@ dependencies = [
   "numba>=0.59.1",
   "pymoo>=0.6.1.3",
   "Cython>=3.0.0",
+  "bpy>=4.2.0",
 ]
 
 [project.urls]
 "Repository" = "https://github.com/Digital-Validation-Laboratory/pyvale"
 "Issue Tracker" = "https://github.com/Digital-Validation-Laboratory/pyvale/issues"
-
 
 [tool.setuptools.package-data]
 "pyvale.data" = ["*.e","*.tiff"]

@@ -23,7 +23,7 @@ Geometry.VolumeLabels = 0;
 //------------------------------------------------------------------------------
 //_* MOOSEHERDER VARIABLES - START
 file_name = "case16.msh";
-num_threads = 7;
+num_threads = 8;
 
 // Specified Geometry variables
 pipe_rad_int = 6e-3;
@@ -38,6 +38,7 @@ monoblock_arm_height = 8e-3;
 // Specified Mesh variables
 base_divs = 1;
 mesh_ref = 1; //  Set to 1 for testing, Must be an integer greater than 0
+elem_order = 2;
 
 //_* MOOSEHERDER VARIABLES - END
 //------------------------------------------------------------------------------
@@ -377,7 +378,8 @@ Mesh.MaxNumThreads1D = num_threads;
 Mesh.MaxNumThreads2D = num_threads;
 Mesh.MaxNumThreads3D = num_threads;
 
-Mesh.ElementOrder = 2;
+Mesh.SecondOrderIncomplete = 1;
+Mesh.ElementOrder = elem_order;
 
 Mesh 3;
 
