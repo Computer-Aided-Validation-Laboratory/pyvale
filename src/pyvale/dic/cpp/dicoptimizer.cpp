@@ -603,21 +603,21 @@ namespace optimizer {
 
 
 
-    void affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
+    inline void affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
         x_new = p[0] + (1 + p[2]) * x + p[3] * y;
         y_new = p[1] + (1 + p[5]) * y + p[4] * x;
     }
 
-    void rigid(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
+    inline void rigid(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
         x_new = p[0] + x;
         y_new = p[1] + y;
     }
 
-    void quad(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
+    inline void quad(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
 
     }
 
-    void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n){
+    inline void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n){
 
         dfdp[0] = dfdx;
         dfdp[1] = dfdy;
@@ -629,23 +629,23 @@ namespace optimizer {
 
     }
 
-    void drigid_dp(std::vector<double> &dfdp, double x, double y,  double dfdx, double dfdy, int n){
+    inline void drigid_dp(std::vector<double> &dfdp, double x, double y,  double dfdx, double dfdy, int n){
 
             dfdp[0] = dfdx;
             dfdp[1] = dfdy;
     }
 
-    void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
+    inline void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
 
     }
 
-    void affine_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p){
+    inline void affine_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p){
         results->u = ss_x - (p[0] + (1 + p[2]) * ss_x + p[3] * ss_y);
         results->v = ss_y - (p[1] + (1 + p[5]) * ss_y + p[4] * ss_x);
         results->mag = std::sqrt(results->u*results->u + results->v*results->v);
     }
 
-    void rigid_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p){
+    inline void rigid_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p){
         results->u = ss_x - p[0];
         results->v = ss_y - p[1];
         results->mag = std::sqrt(results->u*results->u + results->v*results->v);
@@ -665,17 +665,17 @@ namespace optimizer {
     }
 
     void setShapeFunction(const std::string& shape_func) {
-        if (shape_func == "rigid") {
+        if (shape_func == "RIGID") {
             shape_function = rigid;
             dshape_dp = drigid_dp;
             params_to_displacement = rigid_parameters_to_displacement;
-        } else if (shape_func == "affine") {
+        } else if (shape_func == "AFFINE") {
             shape_function = affine;
             dshape_dp = daffine_dp;
             params_to_displacement = affine_parameters_to_displacement;
         } else {
             std::cerr << "Unexpected Shape Function: '" << shape_func << "'" << std::endl;
-            std::cerr << "Allowed Values: 'rigid', 'affine'." << std::endl;
+            std::cerr << "Allowed Values: 'RIGID', 'AFFINE'." << std::endl;
             exit(EXIT_FAILURE);
         }
     }

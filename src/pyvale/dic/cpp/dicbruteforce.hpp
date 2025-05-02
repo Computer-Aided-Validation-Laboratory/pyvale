@@ -62,7 +62,7 @@ namespace brute {
      */
     void expanding_wavefront(const int ss_x, 
                                   const int ss_y, 
-                                  const int *image_ref, 
+                                  const double *image_ref, 
                                   const int px_vertical, 
                                   const int px_horizontal, 
                                   util::Subset *ss_def, 
@@ -86,7 +86,7 @@ namespace brute {
      */
     void exhaustive(const int ss_x, 
                                   const int ss_y, 
-                                  const int *image_ref, 
+                                  const double *image_ref, 
                                   const int px_vertical, 
                                   const int px_horizontal, 
                                   util::Subset *ss_def, 
@@ -107,7 +107,7 @@ namespace brute {
      */
     void cross_correlation(const int ss_x, 
                         const int ss_y, 
-                        const int *image_ref, 
+                        const double *image_ref, 
                         const int px_vertical, 
                         const int px_horizontal, 
                         util::Subset *ss_def, 
@@ -132,7 +132,7 @@ namespace brute {
      * @param p1 int value for the y-coordinate of the translation.
      * @return The computed SSD value.
      */
-    double ssd(const int *image_ref, 
+    double ssd(const double *image_ref, 
                const int px_vertical, 
                const int px_horizontal, 
                util::Subset *ss_def, 
@@ -157,7 +157,7 @@ namespace brute {
      * @param p1 int value for the y-coordinate of the translation.
      * @return The computed NSSD value.
      */
-    double nssd(const int *image_ref, 
+    double nssd(const double *image_ref, 
                 const int px_vertical, 
                 const int px_horizontal, 
                 util::Subset *ss_def,
@@ -182,7 +182,7 @@ namespace brute {
      * @param p1 int value for the y-coordinate of the translation.
      * @return The computed ZNSSD value.
      */
-    double znssd(const int *image_ref, 
+    double znssd(const double *image_ref, 
                  const int px_vertical, 
                  const int px_horizontal, 
                  util::Subset *ss_def, 

@@ -15,32 +15,31 @@
 // Program Header files
 #include "./dicutil.hpp"
 
-namespace dic {
 
-    struct Config {
-        int ss_step;
-        int ss_size;
-        int max_iter;
-        double precision;
-        double threshold_lm;
-        double threshold_bf;
-        int range_bf;
-        std::string corr_crit;
-        std::string shape_func;
-        std::string interp_routine;
-        std::string scan_method;
-    };
+struct Config {
+    int ss_step;
+    int ss_size;
+    int max_iter;
+    double precision;
+    double threshold_lm;
+    double threshold_bf;
+    int range_bf;
+    std::string corr_crit;
+    std::string shape_func;
+    std::string interp_routine;
+    std::string scan_method;
+};
 
-    // result arrays. Not using std::vector because harder to handle with cython
-    // extern std::vector<int> ss_coord_list;
-    // extern std::vector<int> niter_arr;
-    // extern std::vector<double> u_arr;
-    // extern std::vector<double> v_arr;
-    // extern std::vector<double> p_arr;
-    // extern std::vector<double> ftol_arr;
-    // extern std::vector<double> xtol_arr;
+// result arrays. Not using std::vector because harder to handle with cython
+// extern std::vector<int> ss_coord_list;
+// extern std::vector<int> niter_arr;
+// extern std::vector<double> u_arr;
+// extern std::vector<double> v_arr;
+// extern std::vector<double> p_arr;
+// extern std::vector<double> ftol_arr;
+// extern std::vector<double> xtol_arr;
 
-    /**
+/**
      * @brief 
      * 
      * @param image_ref 
@@ -61,16 +60,16 @@ namespace dic {
      * @param interp_routine 
      * @param scan_method 
      */
-    void engine_2d(int* image_ref, 
-                    int* image_def_stack, 
-                    bool* image_roi, 
-                    int px_vertical, 
-                    int px_horizontal, 
-                    int num_def_images,
-                    Config &config,
-                    util::SaveConfig &saveconfig);
+void engine_2d(int* image_ref, 
+               int* image_def_stack, 
+               bool* image_roi, 
+               int px_vertical, 
+               int px_horizontal, 
+               int num_def_images,
+               Config &config,
+               util::SaveConfig &saveconfig);
 
-    /**
+/**
      * @brief 
      * 
      * @param image_ref 
@@ -84,21 +83,21 @@ namespace dic {
      * @param threshold_bf 
      * @param range_bf 
      */
-    void image_scan(int *image_ref, 
-                    util::Image *image_def, 
-                    bool *image_roi,
-                    util::SubsetData *ssdata, 
-                    int num_def_images, 
-                    int img_num, 
-                    int max_iter, 
-                    double precision,
-                    double threshold_lm,
-                    double threshold_bf,
-                    double range_bf,
-                    int num_params);
+void image_scan(double *image_ref, 
+                util::Image *image_def, 
+                bool *image_roi,
+                util::SubsetData *ssdata, 
+                int num_def_images, 
+                int img_num, 
+                int max_iter, 
+                double precision,
+                double threshold_lm,
+                double threshold_bf,
+                double range_bf,
+                int num_params);
 
 
-    /**
+/**
      * @brief 
      * 
      * @param image_ref 
@@ -112,21 +111,21 @@ namespace dic {
      * @param threshold_bf 
      * @param range_bf 
      */
-    void image_scan_with_bf(int *image_ref, 
-                    util::Image *image_def, 
-                    bool *image_roi,
-                    util::SubsetData *ssdata, 
-                    int num_def_images, 
-                    int img_num, 
-                    int max_iter, 
-                    double precision,
-                    double threshold_lm,
-                    double threshold_bf,
-                    double range_bf,
-                    int num_params);
+void image_scan_with_bf(double *image_ref, 
+                        util::Image *image_def, 
+                        bool *image_roi,
+                        util::SubsetData *ssdata, 
+                        int num_def_images, 
+                        int img_num, 
+                        int max_iter, 
+                        double precision,
+                        double threshold_lm,
+                        double threshold_bf,
+                        double range_bf,
+                        int num_params);
 
 
-    /**
+/**
      * @brief 
      * 
      * @param image_ref 
@@ -140,19 +139,17 @@ namespace dic {
      * @param threshold_bf 
      * @param range_bf 
      */
-    void reliability_guided(int *image_ref, 
-                    util::Image *image_def, 
-                    bool *image_roi,
-                    util::SubsetData *ssdata, 
-                    int num_def_images, 
-                    int img_num, 
-                    int max_iter, 
-                    double precision,
-                    double threshold_lm,
-                    double threshold_bf,
-                    double range_bf,
-                    int num_params);
-
-}
+void reliability_guided(double *image_ref, 
+                        util::Image *image_def, 
+                        bool *image_roi,
+                        util::SubsetData *ssdata, 
+                        int num_def_images, 
+                        int img_num, 
+                        int max_iter, 
+                        double precision,
+                        double threshold_lm,
+                        double threshold_bf,
+                        double range_bf,
+                        int num_params);
 
 #endif //DICENGINE_H

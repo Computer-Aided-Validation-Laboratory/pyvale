@@ -33,7 +33,7 @@ namespace brute {
 
 
     // function pointers
-    double (*cost_function)(const int *image_ref, 
+    double (*cost_function)(const double *image_ref, 
                const int px_vertical, 
                const int px_horizontal, 
                util::Subset *ss_def, 
@@ -43,7 +43,7 @@ namespace brute {
 
     void (*find_min)(const int ss_x, 
                      const int ss_y, 
-                     const int *image_ref, 
+                     const double *image_ref, 
                      const int px_vertical, 
                      const int px_horizontal, 
                      util::Subset *ss_def, 
@@ -81,7 +81,7 @@ namespace brute {
 
     void expanding_wavefront(const int ss_x, 
                          const int ss_y, 
-                         const int *image_ref, 
+                         const double *image_ref, 
                          const int px_vertical, 
                          const int px_horizontal, 
                          util::Subset *ss_def, 
@@ -141,7 +141,7 @@ namespace brute {
 
     void cross_correlation(const int ss_x, 
                         const int ss_y, 
-                        const int *image_ref, 
+                        const double *image_ref, 
                         const int px_vertical, 
                         const int px_horizontal, 
                         util::Subset *ss_def, 
@@ -176,7 +176,7 @@ namespace brute {
 
     void exhaustive(const int ss_x, 
                     const int ss_y, 
-                    const int *image_ref, 
+                    const double *image_ref, 
                     const int px_vertical, 
                     const int px_horizontal, 
                     util::Subset *ss_def, 
@@ -212,7 +212,7 @@ namespace brute {
 
 
 
-    double ssd(const int *image_ref, 
+    double ssd(const double *image_ref, 
                const int px_vertical, 
                const int px_horizontal, 
                util::Subset *ss_def, 
@@ -245,7 +245,7 @@ namespace brute {
     }
 
 
-    double nssd(const int *image_ref, 
+    double nssd(const double *image_ref, 
                 const int px_vertical, 
                 const int px_horizontal, 
                 util::Subset *ss_def,
@@ -293,7 +293,7 @@ namespace brute {
 
     }
 
-    double znssd(const int *image_ref, 
+    double znssd(const double *image_ref, 
                 const int px_vertical, 
                 const int px_horizontal, 
                 util::Subset *ss_def,

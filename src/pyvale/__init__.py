@@ -87,12 +87,12 @@ from pyvale.simtools import *
 from pyvale.output import *
 from pyvale.pyvaleexceptions import *
 
-from pyvale.core.experimentsimulator import *
+from pyvale.experimentsimulator import *
 
-from pyvale.core.dic.python.dicspecklegenerator import *
-from pyvale.core.dic.python.dicspecklequality import *
-from pyvale.core.dic.python.dicspeckleroi import *
-from pyvale.core.dic.python.dic2d import *
-from pyvale.core.dic.python.dicresults import *
-from pyvale.core.dic.python.diccppinterface import *
-from pyvale.core.dic.python.dicstrain import *
+from pyvale.dic.dicspecklegenerator import *
+from pyvale.dic.dicspecklequality import *
+from pyvale.dic.dicspeckleroi import *
+from pyvale.dic.dic2d import *
+from pyvale.dic.dicresults import *
+from pyvale.dic.dic2dcpp import *
+from pyvale.dic.dicstrain import *

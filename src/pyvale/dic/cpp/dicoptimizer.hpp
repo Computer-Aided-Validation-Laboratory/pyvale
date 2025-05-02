@@ -40,7 +40,8 @@ namespace optimizer {
 
 
         // Constructor to initialize vectors and other parameters
-        Parameters(int num_params_, int max_iter_, double precision_, double threshold_lm_, int px_vertical_, int px_horizontal_)
+        Parameters(int num_params_, int max_iter_, double precision_, 
+                   double threshold_lm_, int px_vertical_, int px_horizontal_)
             :
             num_params(num_params_),
             lambda(0.001),
@@ -99,12 +100,12 @@ namespace optimizer {
     void populate_hessian_lower_tri(std::vector<double> &H, double lambda, int num_params);
 
     // shape functions and their derivatives with respect to optimization parameters
-    void affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
-    void rigid(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
-    void quad(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
-    void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
-    void drigid_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
-    void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    inline void affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    inline void rigid(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    inline void quad(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    inline void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
+    inline void drigid_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
+    inline void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
     void affine_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p);
     void rigid_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p);
 

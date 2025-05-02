@@ -26,7 +26,7 @@
 namespace rg {
 
     void reliability_guided_dic_single_seed(
-        const int *image_ref,
+        const double *image_ref,
         util::Image *image_def,
         const bool *image_roi,
         const int seed_x, const int seed_y,  // Single seed point coordinates

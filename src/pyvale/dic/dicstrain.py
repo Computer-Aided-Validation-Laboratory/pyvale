@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from icecream import ic
 
-from pyvale.core.dic.python import diccppinterface
+from pyvale.dic import dic2dcpp
 
 
 def dic_import_data(path, prefix: str="results", format: str=".dat", delim: str=" "):

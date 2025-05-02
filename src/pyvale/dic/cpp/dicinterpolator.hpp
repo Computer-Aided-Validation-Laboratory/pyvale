@@ -16,7 +16,6 @@
 #include <vector>
 
 // Program Header files
-#include "./dicutil.hpp"
 
 namespace interpolator {
 
@@ -30,7 +29,7 @@ namespace interpolator {
     inline int index_lookup(std::vector<double> &px, double x, size_t index_lo, size_t index_hi);
     void cspline_init(std::vector<double> &px, std::vector<double> &data);
     double cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data, double value, int length);
-    void bicubic_init(util::Image *image);
+    void bicubic_init(double *image_ref, int px_horizontal, int px_vertical);
     double eval_bicubic(double x, double y);
     double eval_bicubic_dx(double x, double y);
     double eval_bicubic_dy(double x, double y);

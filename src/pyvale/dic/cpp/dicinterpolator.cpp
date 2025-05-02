@@ -28,16 +28,16 @@ namespace interpolator {
     std::vector<double> tridiag_solution;
     std::vector<double> px_y;
     std::vector<double> px_x;
-    std::vector<double> *image;
+    double *image;
     int px_vertical;
     int px_horizontal;
 
-    void bicubic_init(util::Image *img){
+    void bicubic_init(double * img, int px_horizontal, int px_vertical){
 
         // intitialise vars used globally within interpolator.
-        image = &img->vals;
-        px_vertical = img->px_vertical;
-        px_horizontal = img->px_horizontal;
+        interpolator::image = img;
+        interpolator::px_vertical = px_vertical;
+        interpolator::px_horizontal = px_horizontal;
 
         // allocate memory for pixel coordinate arrays
         px_y.resize(px_vertical);
@@ -62,7 +62,7 @@ namespace interpolator {
 
             // get 1D data
             for (int i = 0; i < px_horizontal; ++i) {
-                data[i] = (*image)[j * px_horizontal + i];
+                data[i] = image[j * px_horizontal + i];
             }
 
             cspline_init(px_x, data);
@@ -76,7 +76,7 @@ namespace interpolator {
 
             // get 1D data
             for (int j = 0; j < px_vertical; j++){
-                data[j] = (*image)[j * px_horizontal + i];
+                data[j] = image[j * px_horizontal + i];
             }
 
             cspline_init(px_y, data);
@@ -118,10 +118,10 @@ namespace interpolator {
         size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
 
         /* Precompute values for the grid points */
-        double zminmin = (*image)[idx00];
-        double zminmax = (*image)[idx01];
-        double zmaxmin = (*image)[idx10];
-        double zmaxmax = (*image)[idx11];
+        double zminmin = image[idx00];
+        double zminmax = image[idx01];
+        double zmaxmin = image[idx10];
+        double zmaxmax = image[idx11];
 
         double zxminmin = zx[idx00];
         double zxminmax = zx[idx01];
@@ -188,10 +188,10 @@ namespace interpolator {
         size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
         size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
 
-        double zminmin = (*image)[idx00];
-        double zminmax = (*image)[idx01];
-        double zmaxmin = (*image)[idx10];
-        double zmaxmax = (*image)[idx11];
+        double zminmin = image[idx00];
+        double zminmax = image[idx01];
+        double zmaxmin = image[idx10];
+        double zmaxmax = image[idx11];
 
         double zxminmin = zx[idx00];
         double zxminmax = zx[idx01];
@@ -249,10 +249,10 @@ namespace interpolator {
         size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
         size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
 
-        double zminmin = (*image)[idx00];
-        double zminmax = (*image)[idx01];
-        double zmaxmin = (*image)[idx10];
-        double zmaxmax = (*image)[idx11];
+        double zminmin = image[idx00];
+        double zminmax = image[idx01];
+        double zmaxmin = image[idx10];
+        double zmaxmax = image[idx11];
 
         double zxminmin = zx[idx00];
         double zxminmax = zx[idx01];
@@ -308,10 +308,10 @@ namespace interpolator {
         size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
         size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
 
-        double zminmin = (*image)[idx00];
-        double zminmax = (*image)[idx01];
-        double zmaxmin = (*image)[idx10];
-        double zmaxmax = (*image)[idx11];
+        double zminmin = image[idx00];
+        double zminmax = image[idx01];
+        double zmaxmin = image[idx10];
+        double zmaxmax = image[idx11];
 
         double zxminmin = zx[idx00];
         double zxminmax = zx[idx01];

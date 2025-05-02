@@ -53,11 +53,11 @@ namespace util {
 
     int get_num_params(std::string &shape_func){
         int num_params;
-        if (shape_func == "rigid") num_params = 2;
-        else if (shape_func == "affine") num_params = 6;
+        if (shape_func == "RIGID") num_params = 2;
+        else if (shape_func == "AFFINE") num_params = 6;
         else {
             std::cerr << "Unknown shape function: \'" << shape_func << "\'." << std::endl;
-            std::cerr << "Allowed values: \'affine\', \'rigid\'. " << std::endl;
+            std::cerr << "Allowed values: \'AFFINE\', \'RIGID\'. " << std::endl;
             exit(EXIT_FAILURE);
         }
         return num_params;

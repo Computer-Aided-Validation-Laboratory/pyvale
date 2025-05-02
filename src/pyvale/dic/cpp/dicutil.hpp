@@ -93,17 +93,10 @@ namespace util {
      * dimensions. The pixel data is stored in row-major order.
      */
     struct Image {
-        std::vector<double> vals;
+        double *vals;
         int px_horizontal;
         int px_vertical;
-
-        // Constructor to initialize the vectors with ss_size
-        Image(int px_h, int px_v) 
-            : vals(px_h * px_v, 0.0),
-            px_horizontal(px_h), 
-            px_vertical(px_v)
-        {}
-
+        int num;
     };
 
 
