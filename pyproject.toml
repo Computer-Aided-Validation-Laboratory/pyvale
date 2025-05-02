@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvale"
-version = "2025.4.1"
+version = "2025.5.1"
 description = "An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
