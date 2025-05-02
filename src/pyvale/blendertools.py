@@ -10,7 +10,6 @@ from PIL import Image
 import bpy
 from pyvale.cameratools import CameraTools
 from pyvale.blendermaterialdata import BlenderMaterialData
-from pyvale.camerastereo import CameraStereo
 from pyvale.blenderrenderdata import RenderData, RenderEngine
 from pyvale.blendercalibrationdata import CalibrationData
 from pyvale.output import Outputs
@@ -56,9 +55,13 @@ class BlenderTools():
             save_dir.mkdir(parents=True, exist_ok=True)
 
         filename = save_dir / "projectfile.blend"
-        if override is False:
-            if filename.exists():
+
+        if filename.exists():
+            if override:
+                filename.unlink()
+            else:
                 raise BlenderError("A file already exists with this filepath")
+
 
         bpy.ops.wm.save_as_mainfile(filepath=str(filename))
 
