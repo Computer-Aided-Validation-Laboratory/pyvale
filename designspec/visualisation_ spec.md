@@ -9,7 +9,6 @@
 
 
 Principles:
-- Formatting for print quality: 300dpi, vector graphics where possible, suitable for single or two column journal papers
 
 
 ## Motivation
@@ -28,76 +27,102 @@ The aim of this project is to develop the visualisation toolbox for `pyvale` tha
 - Producing print quality graphics suitable for journal publications
 
 
-## Summary of Visualisation Tools
-This functionality exists in `pyvale` for visualisation:
+## Overview Visualisation Tool Requirements
+This functionality already exists in `pyvale` for visualisation:
 - Visualisation of point sensors on single mesh, including perturbed sensor locations
 - Visualisation of point sensor traces for a single physics and experiment
 
-TODO
 These are new visualisation features to be developed:
 - Visualisation of multiple sensor types on a single mesh
-- Visualisation of sensor area + integration points
-- Visualisation of sensor angles for vector ad tensor field
+- Visualisation of sensor area and integration points
+- Visualisation of sensor angles for vector ad tensor fields
 - Subplots for traces of multi-physics point sensors
-- Animation/video for trace/mesh vis
+- Animation/video for simultaneous time traces and mesh sensor visualisation
 - Animation/video of camera image stacks
-- Extract point trace for pixels in an image
-- Extract line plot for pixels in an image
-- Extract area average for image data
-- Scene visualisation for camera rendering
+- Extract and plot point trace for pixels in an image
+- Extract and produce line plots for pixels in an image
+- Extract and plot time trace of an area average for image data
+- Scene visualisation for camera rendering including: visualisation of any meshes in the scene; any cameras in the scene as well as their orientation and view frustrum.
+- Display digital image correlation data (e.g. displacement fiels, strain fields, correlation criterion, ) including: tranparent overlays on the raw images
 
-## Sub-Module: VisTimeTraces
-This sub-module will print time traces of physical variables for point sensors or extracted groups of pixel data from camera sensors.
-
-This sub-module will use `matplotlib` for plotting sensor traces.
-
-### Inputs
-- A list of `SensorArray` objects that have been used
-### Workflow
-- TODO
-### Outputs
-- Interactive display of a plot or subplots of sensor traces
+All visualisation modules should support:
+- It is the users responsibility to display the figure in interactive mode (i.e. calling `.show()` for `matplotlib` and `pyvista`) or to save the figure using a method provided by the `pyvale` visualisation toolbox. Therefore all plot functions should return a handle to the created figure to allow the user to show and/or save the figure.
+- Formatting for print quality: 300dp for raster formats, vector graphics where possible (*.svg), suitable for single or two column journal papers.
 
 
-
-
-## Sub-Module: VisExpTraces
-This sub-module will print time traces of physical variables for point sensors or extracted groups of pixel data from camera sensors.
-
-This sub-module will use `matplotlib` for plotting sensor traces.
+## Sub-Module: VisTraces
+This sub-module plots time or other user defined traces (e.g. force/displacement) of physical variables for point sensors or extracted groups of pixel data from camera sensors. This sub-module uses `matplotlib` for plotting sensor traces.
 
 ### Inputs
-- A list of `SensorArray` objects that have been used
+- An options dataclass (with set defaults) that includes general visualisation parameters (e.g. fonts, figure sizes/resolution etc.)
+- An options dataclass (with set defaults) that controls specific parameters for plotting sensor time traces (e.g. line styles and colours, axis labels, legend parameters etc.)
+- A list of `SensorArray` objects to be plotted
+- Data to configure subplots for multiple sensor arrays applied to multi-physics cases (e.g side by side plots of thermocouples and strain gauges)
+
 ### Workflow
-- TODO
+- Define and configure the figure canvas and subplots using the general or user specified parameters, defaults should size figures for single column journal articles
+- Default the horizontal axis to time unless user specified (for example the user might want to plot a load/displacement curve from a tensile test)
+- Label axes using the `SensorDescriptor` information from the `SensorArray`
+- Loop over the sensors in the array and plot all traces OR use the user specified sensor numbers
+- For each trace plot the truth from the simulation as a solid line and the simulated sensor values as dashed lines (line styles should also be user configurable using the appropriate dataclass)
+- For large sensor arrays (more than ~10 or whatever looks best) automatically split the sensors into subplots so the traces are clear
+- For extremely large sensor arrays (~1000's) plot every n'th sensor and warn the user
+- Create a legend with the sensor tag for each trace
+- Configure multiple subplots assigning different sensor arrays and sensor numbers to each subplot.
+
 ### Outputs
-- Interactive display of a plot or subplots of sensor traces
+- Return figure and axis handles to the user to allow for additional user defined configuration with `matplotlib`
+- Interactive display of a plot or subplots of sensor traces if the user calls `.show()` on the returned handle
+- Function to save the plot as a vector graphic (.svg) or raster graphic (.png)
 
 
 
 
-## Sub-Module: VisAnimateTraces
-This sub-module will print time traces of physical variables for point sensors or extracted groups of pixel data from camera sensors.
-
-This sub-module will use `matplotlib` for plotting sensor traces.
+## Sub-Module: VisTracesExp
+This sub-module plots time traces of physical variables for point sensors or extracted groups of pixel data from camera sensors. This sub-module uses `matplotlib` for plotting sensor traces.
 
 ### Inputs
-- A list of `SensorArray` objects that have been used
+- An options dataclass (with set defaults) that includes general visualisation parameters (e.g. fonts, figure sizes/resolution etc.)
+- An options dataclass (with set defaults) that controls specific parameters for plotting sensor time traces (e.g. line styles and colours, axis labels, legend parameters etc.)
+- A list of `SensorArray` objects to be plotted
+- Data to configure subplots for multiple sensor arrays applied to multi-physics cases (e.g side by side plots of thermocouples and strain gauges)
+
 ### Workflow
-- TODO
+The workflow for this sub-module is the same as for `VisTraces` above but applied over N Monte-Carlo simulations for each sensor requiring mean sensor traces and shaded uncertainty bounds to be plotted.
+
 ### Outputs
-- Interactive display of a plot or subplots of sensor traces
+NOTE: the outputs are the same as for `VisTraces` above.
+- Return figure and axis handles to the user to allow for additional user defined configuration with `matplotlib`
+- Interactive display of a plot or subplots of sensor traces if the user calls `.show()` on the returned handle
+- Function to save the plot as a vector graphic (.svg) or raster graphic (.png)
+
+
+
+
+## Sub-Module: VisTracesAnimate
+This sub-module plots animated time traces of physical variables for point sensors or extracted groups of pixel data from camera sensors. This sub-module uses `matplotlib` for plotting sensor traces.
+
+### Inputs
+The same as for the `VisTraces` witht the addition of:
+- A dataclass specifying the animation options (e.g. frames per second etc.)
+
+### Workflow
+The workflow for this sub-module is the same as for `VisTraces` above but provides an animation highlighting the data point at each time step.
+
+### Outputs
+- An image sequence of raster graphics (.jpg or .png)
+AND/OR
+- A animation/video with configurable quality in at least mp4 and/or gif format
 
 
 
 
 ## Sub-Module: VisSimSensors
-This sub-module will
-
-This sub-module will utilise `pyvista` for visualising the simulation fields as well as the sensor parameters.
+This sub-module shows the simulation mesh and displays labelled virtual sensor locations to the user. This sub-module utilises `pyvista` for visualising the simulation fields as well as the sensor parameters (location, orientation and sensor area).
 
 ### Inputs
-- A list of `SensorArray` objects that have been used
+- A configuration dataclass that includes the parameters to control the plotting behaviour (e.g. colour bar parameters, subplots and fonts)
+- A list of `SensorArray` objects to visualise including: `Field` objects for
 ### Workflow
 - TODO
 ### Outputs
@@ -106,7 +131,7 @@ This sub-module will utilise `pyvista` for visualising the simulation fields as 
 
 
 
-## Sub-Module: VisAnimateSim
+## Sub-Module: VisSimAnimate
 This sub-module will
 
 This sub-module will utilise `pyvista` for visualising the simulation fields as well as the sensor parameters.
@@ -122,9 +147,7 @@ This sub-module will utilise `pyvista` for visualising the simulation fields as 
 
 
 ## Sub-Module: VisRenderScene
-This sub-module will
-
-This sub-module will utilise `pyvista` for visualising the simulation fields as well as the sensor parameters.
+This sub-module utilisse `pyvista` for visualising...
 
 ### Inputs
 - A `RenderScene` object containing a list of cameras, meshes, lights and any other objects to be displayed
@@ -135,10 +158,8 @@ This sub-module will utilise `pyvista` for visualising the simulation fields as 
 
 
 
-## Sub-Module: VisDIC
-This sub-module will
-
-This sub-module will utilise a combination of `matplotlib` and `pyvista` for visualising DIC data.
+## Sub-Module: VisRenderData
+This sub-module utilises a combination of `matplotlib` and `pyvista` for visualising renderer camera data (e.g. infra-red camera or digital image correlation data).
 
 ### Inputs
 - TODO
@@ -156,7 +177,7 @@ This sub-module will utilise a combination of `matplotlib` and `pyvista` for vis
     - VisAnimateTraces
     - VisSimSensors
     - VisRenderScene
-    - VisDIC
+    - VisRenderData
 - Full doc-strings and auto generated documentation for all modules and sub-modules
 - A pragmatic suite of software tests including unit and regression tests for all modules and sub-modules
 - Example/tutorial scripts demonstrating the functionality of the visualisation module
