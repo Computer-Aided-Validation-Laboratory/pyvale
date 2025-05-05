@@ -40,6 +40,7 @@ from pyvale.camera import *
 from pyvale.cameradata import *
 from pyvale.cameradata2d import *
 from pyvale.cameratools import *
+from pyvale.camerastereo import *
 
 import pyvale.cython.rastercyth as rastercyth
 from pyvale.rastercy import *
@@ -72,3 +73,15 @@ from pyvale.analyticsimdatagenerator import *
 from pyvale.analyticsimdatafactory import *
 
 from pyvale.experimentsimulator import *
+
+from pyvale.blendercalibrationdata import *
+from pyvale.blenderlightdata import *
+from pyvale.blendermaterialdata import *
+from pyvale.blenderrenderdata import *
+from pyvale.blenderscene import *
+from pyvale.blendertools import *
+from pyvale.simtools import *
+
+from pyvale.output import *
+from pyvale.pyvaleexceptions import *
+
