@@ -23,17 +23,17 @@ namespace rg {
      * @brief 
      * 
      */
-    struct CorrelationPoint {
+    struct Point {
         int x;
         int y;
         double val;
         
         // Constructor
-        CorrelationPoint(int x_coord, int y_coord, double _val) : 
+        Point(int x_coord, int y_coord, double _val) : 
             x(x_coord), y(y_coord), val(_val) {}
         
         // Comparison operator for priority queue (higher ZNCC first)
-        bool operator<(const CorrelationPoint& other) const {
+        bool operator<(const Point& other) const {
             return val < other.val;  // Note: priority_queue puts largest elements on top
         }
     };
@@ -61,7 +61,7 @@ namespace rg {
      */
     void reliability_guided_dic_single_seed(
         const double *image_ref,
-        util::Image *image_def,
+        const double *image_def,
         const bool *image_roi,
         const int seed_x, const int seed_y,  // Single seed point coordinates
         util::SubsetData *ssdata,
@@ -86,7 +86,7 @@ namespace rg {
      * @return true 
      * @return false 
      */
-    inline bool is_valid_point(int ss_x, int ss_y, util::SubsetData *ssdata);
+     bool is_valid_point(int ss_x, int ss_y, util::SubsetData &ssdata);
 
 
 

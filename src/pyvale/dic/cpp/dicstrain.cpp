@@ -18,7 +18,8 @@
 namespace strain {
 
     
-    void engine(int *ss_x, int *ss_y, double *u, double *v, int num_ss_x, int num_ss_y, int sw_size, int q, std::string &formulation){
+    void engine(int *ss_x, int *ss_y, double *u, double *v, 
+                int num_ss_x, int num_ss_y, int sw_size, int q, std::string &formulation){
 
         int sw_radius = sw_size / 2;
 

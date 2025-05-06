@@ -34,21 +34,21 @@ namespace brute {
 
     // function pointers
     double (*cost_function)(const double *image_ref, 
-               const int px_vertical, 
                const int px_horizontal, 
-               util::Subset *ss_def, 
-               util::Subset *ss_ref,
+               const int px_vertical, 
+               util::Subset &ss_def, 
+               util::Subset &ss_ref,
                const int p0,
                const int p1);
 
-    void (*find_min)(const int ss_x, 
-                     const int ss_y, 
+    void (*find_min)(const int ss_x,
+                     const int ss_y,
                      const double *image_ref, 
-                     const int px_vertical, 
                      const int px_horizontal, 
-                     util::Subset *ss_def, 
-                     util::Subset *ss_ref, 
-                     brute::Parameters *brute);
+                     const int px_vertical, 
+                     util::Subset &ss_def, 
+                     util::Subset &ss_ref, 
+                     brute::Parameters &brute);
 
 
 
@@ -82,20 +82,19 @@ namespace brute {
     void expanding_wavefront(const int ss_x, 
                          const int ss_y, 
                          const double *image_ref, 
-                         const int px_vertical, 
                          const int px_horizontal, 
-                         util::Subset *ss_def, 
-                         util::Subset *ss_ref, 
-                         brute::Parameters *brute) {
+                         const int px_vertical, 
+                         util::Subset &ss_def, 
+                         util::Subset &ss_ref, 
+                         brute::Parameters &brute) {
 
         
 
-        const int range = brute->range;
+        const int range = brute.range;
         double cost_min = 1.0e6;
 
-
-        int offset_x = brute->p_rigid_prevmatch[0];
-        int offset_y = brute->p_rigid_prevmatch[1];
+        int offset_x = brute.p_rigid_prevmatch[0];
+        int offset_y = brute.p_rigid_prevmatch[1];
 
         for (int r = 0; r <= range; r++) {
 
@@ -103,34 +102,37 @@ namespace brute {
             for (int dy = -r; dy <= r; dy++) {
                 for (int dx = -r; dx <= r; dx++) {
             
-                    // Only process the points on the perimeter of the square
-                    if (std::abs(dx) != r && std::abs(dy) != r) continue;
+                    if (!is_perimeter_point(dx, dy, r)) 
+                        continue;
 
                     int p0 = dx + offset_x;
                     int p1 = dy + offset_y;
 
-                    // get the min and max values of the 'new' subset
+                    if (!is_within_range(p0, p1, range))
+                        continue;
+
                     int ss_xmin = ss_x + p0;
                     int ss_ymin = ss_y + p1;
-                    int ss_xmax = ss_x + p0 + ss_def->size;
-                    int ss_ymax = ss_y + p1 + ss_def->size;
+                    int ss_xmax = ss_x + p0 + ss_def.size;
+                    int ss_ymax = ss_y + p1 + ss_def.size;
 
-                    // if the 'new' subset is outside the image bounds then skip it.
-                    if (ss_xmin < 0 || ss_xmax >= px_horizontal || ss_ymin < 0 || ss_ymax >= px_vertical) continue;
+                    if (!is_within_image(ss_xmin, ss_ymin, ss_xmax, ss_ymax, 
+                                         px_horizontal, px_vertical))
+                        continue;
 
-                    // if the 'new' subset is outside the range bounds then skip it.
-                    if (p0 < -range || p0 >= range || p1 < -range || p1 >= range) continue;
+                    double cost = cost_function(image_ref, px_vertical, 
+                                                px_horizontal, ss_def, 
+                                                ss_ref, p0, p1);
 
-                    double cost = cost_function(image_ref, px_vertical, px_horizontal, ss_def, ss_ref, p0, p1);
                     if (std::abs(cost) < cost_min) {
                         cost_min = cost;
-                        brute->p_rigid[0] = p0;
-                        brute->p_rigid[1] = p1;
+                        brute.p_rigid[0] = p0;
+                        brute.p_rigid[1] = p1;
 
                         // if its below our threshold and considered a good match. we'll use these values for the next brute force.
-                        if (cost_min < brute->threshold_bf) {
-                            brute->p_rigid_prevmatch[0] = brute->p_rigid[0];
-                            brute->p_rigid_prevmatch[1] = brute->p_rigid[1];
+                        if (cost_min < brute.threshold_bf) {
+                            brute.p_rigid_prevmatch[0] = brute.p_rigid[0];
+                            brute.p_rigid_prevmatch[1] = brute.p_rigid[1];
                             return;
                         }
                     }
@@ -146,10 +148,10 @@ namespace brute {
                         const int px_horizontal, 
                         util::Subset *ss_def, 
                         util::Subset *ss_ref, 
-                        brute::Parameters *brute) {
+                        brute::Parameters &brute) {
 
         //cv::Mat image(px_vertical, px_horizontal, CV_32S, const_cast<int*>(image_ref));
-        //cv::Mat ss(ss_def->size, ss_def->size, CV_64F, ss_def->vals.data());
+        //cv::Mat ss(ss_def.size, ss_def.size, CV_64F, ss_def.vals.data());
 
         //cv::Mat image_float;
         //cv::Mat ss_float;
@@ -169,8 +171,8 @@ namespace brute {
         //std::cout << "maxVal: " << maxVal << std::endl;
         //std::cout << "minLoc: " << minLoc.x << ", " << minLoc.y << std::endl;
         //std::cout << "maxLoc: " << maxLoc.x << ", " << maxLoc.y << std::endl;
-        //brute->p_rigid[0] = maxLoc.x - ss_x;
-        //brute->p_rigid[1] = maxLoc.y - ss_y;
+        //brute.p_rigid[0] = maxLoc.x - ss_x;
+        //brute.p_rigid[1] = maxLoc.y - ss_y;
     }
 
 
@@ -179,11 +181,11 @@ namespace brute {
                     const double *image_ref, 
                     const int px_vertical, 
                     const int px_horizontal, 
-                    util::Subset *ss_def, 
-                    util::Subset *ss_ref, 
-                    brute::Parameters *brute){
+                    util::Subset &ss_def, 
+                    util::Subset &ss_ref, 
+                    brute::Parameters &brute){
 
-        const int range = brute->range;
+        const int range = brute.range;
         double cost_min = 1.0e6;
         
         // clamp search area to within image bounds
@@ -201,9 +203,9 @@ namespace brute {
                 // update minumum value. If Below tolerance then return.
                 if (std::abs(cost) < cost_min) {
                     cost_min = cost;
-                    brute->p_rigid[0] = p0;
-                    brute->p_rigid[1] = p1;
-                    if (cost_min < brute->threshold_bf) return;
+                    brute.p_rigid[0] = p0;
+                    brute.p_rigid[1] = p1;
+                    if (cost_min < brute.threshold_bf) return;
                 }
 
             }
@@ -215,28 +217,27 @@ namespace brute {
     double ssd(const double *image_ref, 
                const int px_vertical, 
                const int px_horizontal, 
-               util::Subset *ss_def, 
-               util::Subset *ss_ref,
+               util::Subset &ss_def, 
+               util::Subset &ss_ref,
                const int p0,
                const int p1){
         
-        const int num_px = ss_def->num_px;
+        const int num_px = ss_def.num_px;
         double cost = 0.0;
 
         for (int i = 0; i < num_px; i++){
 
-             // integer coordinates of the subset in the reference image and extract pixel value
-            ss_ref->x[i] = ss_def->x[i] + p0;
-            ss_ref->y[i] = ss_def->y[i] + p1;
+            ss_ref.x[i] = ss_def.x[i] + p0;
+            ss_ref.y[i] = ss_def.y[i] + p1;
 
-            const int ss_ref_x_int = static_cast<int>(ss_ref->x[i]);
-            const int ss_ref_y_int = static_cast<int>(ss_ref->y[i]);
+            const int ss_ref_x_int = static_cast<int>(ss_ref.x[i]);
+            const int ss_ref_y_int = static_cast<int>(ss_ref.y[i]);
             const int idx = ss_ref_y_int * px_horizontal + ss_ref_x_int;
 
-            ss_ref[i] = image_ref[idx];
+            ss_ref.vals[i] = image_ref[idx];
             
-            cost += (ss_def->vals[i] - ss_ref->vals[i]) *
-                    (ss_def->vals[i] - ss_ref->vals[i]);
+            cost += (ss_def.vals[i] - ss_ref.vals[i]) *
+                    (ss_def.vals[i] - ss_ref.vals[i]);
 
         }
 
@@ -248,13 +249,13 @@ namespace brute {
     double nssd(const double *image_ref, 
                 const int px_vertical, 
                 const int px_horizontal, 
-                util::Subset *ss_def,
-                util::Subset *ss_ref,
+                util::Subset &ss_def,
+                util::Subset &ss_ref,
                 const int p0,
                 const int p1){
 
 
-        const int num_px = ss_def->num_px;
+        const int num_px = ss_def.num_px;
         double cost = 0.0;
         double sum_squared_ref = 0.0;
         double sum_squared_def = 0.0;
@@ -262,18 +263,17 @@ namespace brute {
         // get subset values and cost function denominators
         for (int i = 0; i < num_px; i++){
         
-            // integer coordinates of the subset in the reference image and extract pixel value
-            ss_ref->x[i] = ss_def->x[i] + p0;
-            ss_ref->y[i] = ss_def->y[i] + p1;
+            ss_ref.x[i] = ss_def.x[i] + p0;
+            ss_ref.y[i] = ss_def.y[i] + p1;
 
-            const int ss_ref_x_int = static_cast<int>(ss_ref->x[i]);
-            const int ss_ref_y_int = static_cast<int>(ss_ref->y[i]);
+            const int ss_ref_x_int = static_cast<int>(ss_ref.x[i]);
+            const int ss_ref_y_int = static_cast<int>(ss_ref.y[i]);
             const int idx = ss_ref_y_int * px_horizontal + ss_ref_x_int;
 
-            ss_ref->vals[i] = image_ref[idx];
+            ss_ref.vals[i] = image_ref[idx];
 
-            sum_squared_ref += ss_ref->vals[i] * ss_ref->vals[i];
-            sum_squared_def += ss_def->vals[i] * ss_def->vals[i];
+            sum_squared_ref += ss_ref.vals[i] * ss_ref.vals[i];
+            sum_squared_def += ss_def.vals[i] * ss_def.vals[i];
 
         }
 
@@ -283,8 +283,8 @@ namespace brute {
 
         // calculate cost
         for (int i = 0; i < num_px; i++){
-            double def_norm = ss_def->vals[i] * inv_sum_squared_def;
-            double ref_norm = ss_ref->vals[i] * inv_sum_squared_ref;
+            double def_norm = ss_def.vals[i] * inv_sum_squared_def;
+            double ref_norm = ss_ref.vals[i] * inv_sum_squared_ref;
             cost += (def_norm - ref_norm) *
                     (def_norm - ref_norm);        
         }
@@ -296,12 +296,12 @@ namespace brute {
     double znssd(const double *image_ref, 
                 const int px_vertical, 
                 const int px_horizontal, 
-                util::Subset *ss_def,
-                util::Subset *ss_ref,
+                util::Subset &ss_def,
+                util::Subset &ss_ref,
                 const int p0,
                 const int p1){
 
-        const int num_px = ss_def->num_px;
+        const int num_px = ss_def.num_px;
         double cost = 0.0;
         double mean_ref = 0.0;
         double mean_def = 0.0;
@@ -309,17 +309,16 @@ namespace brute {
         // loop over pixel values in reference image
         for (int i = 0; i < num_px; i++){
 
-            // integer coordinates of the subset in the reference image and extract pixel value
-            ss_ref->x[i] = ss_def->x[i] + p0;
-            ss_ref->y[i] = ss_def->y[i] + p1;
+            ss_ref.x[i] = ss_def.x[i] + p0;
+            ss_ref.y[i] = ss_def.y[i] + p1;
 
-            const int ss_ref_x_int = static_cast<int>(ss_ref->x[i]);
-            const int ss_ref_y_int = static_cast<int>(ss_ref->y[i]);
+            const int ss_ref_x_int = static_cast<int>(ss_ref.x[i]);
+            const int ss_ref_y_int = static_cast<int>(ss_ref.y[i]);
             const int idx = ss_ref_y_int * px_horizontal + ss_ref_x_int;
 
-            ss_ref->vals[i] = image_ref[idx];
-            mean_ref += ss_ref->vals[i];
-            mean_def += ss_def->vals[i];
+            ss_ref.vals[i] = image_ref[idx];
+            mean_ref += ss_ref.vals[i];
+            mean_def += ss_def.vals[i];
         }
 
         mean_ref /= num_px;
@@ -329,8 +328,10 @@ namespace brute {
         double sum_squared_ref = 0.0;
         double sum_squared_def = 0.0;
         for (int i = 0; i < num_px; ++i) {
-            sum_squared_ref += (ss_ref->vals[i] - mean_ref) * (ss_ref->vals[i] - mean_ref);
-            sum_squared_def += (ss_def->vals[i] - mean_def) * (ss_def->vals[i] - mean_def);
+            sum_squared_ref += (ss_ref.vals[i] - mean_ref)*
+                               (ss_ref.vals[i] - mean_ref);
+            sum_squared_def += (ss_def.vals[i] - mean_def)*
+                               (ss_def.vals[i] - mean_def);
         }
         double inv_sum_squared_ref = 1.0 / std::sqrt(sum_squared_ref);
         double inv_sum_squared_def = 1.0 / std::sqrt(sum_squared_def);
@@ -339,14 +340,28 @@ namespace brute {
 
         // calcualte cost 
         for (int i = 0; i < num_px; i++){
-            double def_norm = ss_def->vals[i] * inv_sum_squared_def;
-            double ref_norm = ss_ref->vals[i] * inv_sum_squared_ref;
+            double def_norm = ss_def.vals[i] * inv_sum_squared_def;
+            double ref_norm = ss_ref.vals[i] * inv_sum_squared_ref;
             cost += (def_norm - ref_norm) * (def_norm - ref_norm);
         }
 
         return cost;
     }
 
+
+
+    inline bool is_perimeter_point(int dx, int dy, int r) {
+        return std::abs(dx) == r || std::abs(dy) == r;
+    }
+
+    inline bool is_within_image(int xmin, int ymin, int xmax, int ymax,
+                         int width, int height) {
+        return xmin >= 0 && xmax < width && ymin >= 0 && ymax < height;
+    }
+
+    inline bool is_within_range(int p0, int p1, int range) {
+        return p0 >= -range && p0 < range && p1 >= -range && p1 < range;
+    }
 
     // end of namespace
 }

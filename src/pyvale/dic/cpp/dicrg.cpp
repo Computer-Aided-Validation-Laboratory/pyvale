@@ -25,281 +25,271 @@
 
 namespace rg {
 
-    void reliability_guided_dic_single_seed(
-        const double *image_ref,
-        util::Image *image_def,
-        const bool *image_roi,
-        const int seed_x, const int seed_y,  // Single seed point coordinates
-        util::SubsetData *ssdata,
-        const int num_def_images,
-        const int img_num,
-        const int max_iter,
-        const double precision,
-        const double threshold_lm,
-        const double threshold_bf,
-        const double range_bf,
-        const int num_params) {
-        
-        // assign some consts for readability
-        const int px_horizontal = image_def->px_horizontal;
-        const int px_vertical = image_def->px_vertical;
-        const int ss_step = ssdata->step;
-        const int ss_size = ssdata->size;
-        
-
-        // orthogonal directions
-        int idx_dx[4] = {1, 0, -1, 0};
-        int idx_dy[4] = {0, 1, 0, -1};
-        int ss_dx[4]  = {ss_step, 0, -ss_step, 0};
-        int ss_dy[4]  = {0, ss_step, 0, -ss_step};
-        
-        // Initialize binary mask for computed points (initialized to 0)
-        std::vector<std::atomic<bool>> computed_mask(ssdata->mask.size());
-        for (size_t i = 0; i < computed_mask.size(); ++i) {
-            computed_mask[i] = false;
-        }
-
-        // LOCAL QUEUE
-        std::vector<std::priority_queue<CorrelationPoint>> local_queues(omp_get_max_threads());
-
-        // SHARED QUEUE
-        std::priority_queue<CorrelationPoint> shared_queue;
-        std::mutex queue_mutex;
-                      
-        // Optimization parameters
-        optimizer::Parameters opt(num_params, max_iter, precision, threshold_lm, px_vertical, px_horizontal);
-
-        // Initialize shared priority queue for all threads
-        std::priority_queue<CorrelationPoint> point_queue;
-
-        // quick check for the initial seed point
-        if (!is_valid_point(seed_x, seed_y, ssdata)) {
-            return;
-        }
-
-        // in
-        int seed_x_idx  = seed_x / ss_step;
-        int seed_y_idx  = seed_y / ss_step;
-        
-
-        // Initialize subsets
-        util::Subset ss_def(ss_size);
-        util::Subset ss_ref(ss_size);
-
-        // temp p values for copy from brute force to optimization.
-        double ptemp[6] = {0,0,0,0,0,0};
-        
-        // Extract subset and solve for starting seed point
-        util::extract_ss(seed_x, seed_y, image_def, &ss_def);
-
-        // brute force for initial subset
-        brute::Parameters brute(threshold_bf, range_bf);
-        brute::expanding_wavefront(seed_x, seed_y, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
-
-        ptemp[0] = brute.p_rigid[0];
-        ptemp[1] = brute.p_rigid[1];
-        ptemp[2] = 0.0;
-        ptemp[3] = 0.0;
-        ptemp[4] = 0.0;
-        ptemp[5] = 0.0;
-
-
-        for (int i = 0; i < opt.num_params; i++){
-            opt.p[i] = ptemp[i];
-        }
-
-        optimizer::Results seed_results = optimizer::solve(seed_x, seed_y, &ss_def, &ss_ref, &opt);
-
-                
-
-        //mark seed as computed
-        // int idx = (seed_y_idx * ssdata->num_ss_x + seed_x_idx);
-        std::cout << seed_x << " " << seed_y << std::endl;
-        int idx = ssdata->coords_to_idx.find({seed_x, seed_y})->second;
-
-        util::append_results(num_def_images, img_num, ssdata->num, idx, seed_results.iter, seed_results.ftol, seed_results.xtol, seed_results.u, seed_results.v, seed_results.cost, seed_results.p);
-        computed_mask[idx] = true;                     
-
-        
-        // Append results for the seed point
-        // util::append_results(num_def_images, img_num, 0, &seed_results);
-        
-        // loop over seed subset neighbours
-        // for (int i = 0; i < 4; ++i) {
-
-        for (int neigh_idx : ssdata->neighbours[idx]) {
-
-            // int neigh_x_ss = seed_x + ss_dx[i];
-            // int neigh_y_ss = seed_y + ss_dy[i];
-            // int neigh_x_idx = seed_x / ss_step + idx_dx[i];
-            // int neigh_y_idx = seed_y / ss_step + idx_dy[i];
-            // int neigh_idx = neigh_y_idx*ssdata->num_ss_x + neigh_x_idx;
-
-            int neigh_x_ss = ssdata->coords[neigh_idx*2];
-            int neigh_y_ss = ssdata->coords[neigh_idx*2+1];
-
-            util::extract_ss(neigh_x_ss, neigh_y_ss, image_def, &ss_def);
-            brute::expanding_wavefront(neigh_x_ss, neigh_y_ss, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
-            ptemp[0] = brute.p_rigid[0];
-            ptemp[1] = brute.p_rigid[1];
-            ptemp[2] = 0.0;
-            ptemp[3] = 0.0;
-            ptemp[4] = 0.0;
-            ptemp[5] = 0.0;
-
-            for (int i = 0; i < opt.num_params; i++){
-                opt.p[i] = ptemp[i];
-            }
-
-            optimizer::Results neigh_results = optimizer::solve(neigh_x_ss, neigh_y_ss, &ss_def, &ss_ref, &opt);
-
-            util::append_results(num_def_images, img_num, ssdata->num, neigh_idx, neigh_results.iter, neigh_results.ftol, neigh_results.xtol, neigh_results.u, neigh_results.v, neigh_results.cost, neigh_results.p);
-            
-            // Add to priority queue
-            computed_mask[neigh_idx] = true;
-
-            // LOCAL QUEUE
-            // local_queues[0].push(CorrelationPoint(neigh_x_idx, neigh_y_idx, 1.0 - 0.5*neigh_results.cost));
-            local_queues[0].push(CorrelationPoint(neigh_x_ss, neigh_y_ss, 1.0 - 0.5*neigh_results.cost));
-
-            // SHARED QUEUE
-            // shared_queue.push(CorrelationPoint(neigh_x, neigh_y, 1 - 0.5 * neigh_results.cost));
-                                 
-
-        }
-
-        // LOCAL QUEUE PROCESSING
-        #pragma omp parallel firstprivate(ss_def, ss_ref, opt)
-        {
-
-            auto& my_queue = local_queues[omp_get_thread_num()];
-            std::vector<CorrelationPoint> temp_neighbours;
-            temp_neighbours.reserve(4);
-
-            const int max_idle_iters = 100;
-            CorrelationPoint current(0, 0, 0);
-
-            while (true) {
-
-                // reset correlation values and got_point
-                bool got_point = false;
-                int idle_iters = 0;
-
-                // Try threads own queue
-                if (!my_queue.empty()) {
-                    current = my_queue.top();
-                    my_queue.pop();
-                    got_point = true;
-                } 
-                else {
-                    // Try to steal from queue with retries.
-                    while (!got_point && idle_iters < max_idle_iters) {
-                        for (size_t i = 0; i < local_queues.size(); ++i) {
-                            if (!local_queues[i].empty()) {
-                                current = local_queues[i].top();
-                                local_queues[i].pop();
-                                got_point = true;
-                                break;
-                            }
-                        }
-
-                        if (!got_point) {
-                            ++idle_iters;
-                            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                        }
-                    }
-                }
-
-                if (!got_point) {
-                    std::cerr << "Thread " << omp_get_thread_num() << " exiting. Can't find a point to process." << std::endl;
-                    break;
-                }
-
-                temp_neighbours.clear();
-
-                // MASK index
-                // int idx_x = current.x;
-                // int idx_y = current.y;
-                // int idx = idx_y * ssdata->num_ss_x + idx_x;
-                // int idx_results = (img_num * num_def_images + idx);
-                // int idx_resultsp = idx_results*opt.num_params;
-
-                // LIST subset
-                int curr_x = current.x;
-                int curr_y = current.y;
-
-
-                // MASK loop over subset neighbours
-                // for (int i = 0; i < 4; ++i) {
-
-                // LIST loop
-                int idx = ssdata->coords_to_idx.find({curr_x, curr_y})->second;
-                int idx_results = (img_num * num_def_images + idx);
-                int idx_resultsp = idx_results*opt.num_params;
-
-                for (int neigh_idx : ssdata->neighbours[idx]) {
-
-                    // MASK get coordinates
-                    // int neigh_x_idx = idx_x + idx_dx[i];
-                    // int neigh_y_idx = idx_y + idx_dy[i];
-                    // int neigh_x_ss = neigh_x_idx * ss_step;
-                    // int neigh_y_ss = neigh_y_idx * ss_step;
-                    // int neigh_idx = neigh_y_idx * ssdata->num_ss_x + neigh_x_idx;
-
-                    // LIST get coordiantes
-                    int neigh_x_ss = ssdata->coords[neigh_idx*2];
-                    int neigh_y_ss = ssdata->coords[neigh_idx*2+1];
-
-                    // if its a valid subset and its not already been computed
-                    // if ((ssdata->mask[neigh_idx]) && (!computed_mask[neigh_idx].exchange(true))) {
-
-                    // LIST
-                    if (!computed_mask[neigh_idx].exchange(true)) {
-
-                        // extract subset
-                        util::extract_ss(neigh_x_ss, neigh_y_ss, image_def, &ss_def);
-
-                        // if the neighbouring subset reached the maximum number of iterations, try again from a brute force
-                        // if (util::niter_arr[idx_results] == opt.max_iter && util::cost_arr[idx_results] > opt.threshold_lm){
-                        if (util::niter_arr[idx] == opt.max_iter && util::cost_arr[idx] > opt.threshold_lm){
-
-                            brute::expanding_wavefront(neigh_x_ss, neigh_y_ss, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
-                            ptemp[0] = brute.p_rigid[0];
-                            ptemp[1] = brute.p_rigid[1];
-                            ptemp[2] = 0.0;
-                            ptemp[3] = 0.0;
-                            ptemp[4] = 0.0;
-                            ptemp[5] = 0.0;
-
-                            for (int i = 0; i < opt.num_params; i++){
-                                opt.p[i] = ptemp[i];
-                            }
-
-                        }
-                        else {
-                            for (int i = 0; i < opt.num_params; i++){
-                                opt.p[i] = util::p_arr[idx_resultsp+i];
-                            }
-
-                        }
-
-                        // optimize
-                        optimizer::Results neigh_results = optimizer::solve(neigh_x_ss, neigh_y_ss, &ss_def, &ss_ref, &opt);
-
-                        // append results
-                        util::append_results(num_def_images, img_num, ssdata->num, neigh_idx, neigh_results.iter, neigh_results.ftol, neigh_results.xtol, neigh_results.u, neigh_results.v, neigh_results.cost, neigh_results.p);
-
-                        // // add results to temp neighbour results
-                        // temp_neighbours.emplace_back(neigh_x_idx, neigh_y_idx, 1.0 - 0.5 * neigh_results.cost);
-                        temp_neighbours.emplace_back(neigh_x_ss, neigh_y_ss, 1.0 - 0.5 * neigh_results.cost);
-                    }
-                }
-
-                for (const auto& neighbour : temp_neighbours) {
-                    my_queue.push(neighbour);
-                }
-            }
-        }
+    // void reliability_guided_dic_single_seed(
+    //     const double *image_ref,
+    //     util::Image *image_def,
+    //     const bool *image_roi,
+    //     const int seed_x, const int seed_y,  // Single seed point coordinates
+    //     util::SubsetData *ssdata,
+    //     const int num_def_images,
+    //     const int img_num,
+    //     const int max_iter,
+    //     const double precision,
+    //     const double threshold_lm,
+    //     const double threshold_bf,
+    //     const double range_bf,
+    //     const int num_params) {
+    //
+    //     // assign some consts for readability
+    //     const int px_horizontal = image_def->px_horizontal;
+    //     const int px_vertical = image_def->px_vertical;
+    //     const int ss_step = ssdata->step;
+    //     const int ss_size = ssdata->size;
+    //
+    //
+    //     // orthogonal directions
+    //     int idx_dx[4] = {1, 0, -1, 0};
+    //     int idx_dy[4] = {0, 1, 0, -1};
+    //     int ss_dx[4]  = {ss_step, 0, -ss_step, 0};
+    //     int ss_dy[4]  = {0, ss_step, 0, -ss_step};
+    //
+    //     // Initialize binary mask for computed points (initialized to 0)
+    //     std::vector<std::atomic<bool>> computed_mask(ssdata->mask.size());
+    //     for (size_t i = 0; i < computed_mask.size(); ++i) {
+    //         computed_mask[i] = false;
+    //     }
+    //
+    //     // LOCAL QUEUE
+    //     std::vector<std::priority_queue<CorrelationPoint>> local_queues(omp_get_max_threads());
+    //
+    //     // SHARED QUEUE
+    //     std::priority_queue<CorrelationPoint> shared_queue;
+    //     std::mutex queue_mutex;
+    //
+    //     // Optimization parameters
+    //     optimizer::Parameters opt(num_params, max_iter, precision, threshold_lm, px_vertical, px_horizontal);
+    //
+    //     // Initialize shared priority queue for all threads
+    //     std::priority_queue<CorrelationPoint> point_queue;
+    //
+    //     // quick check for the initial seed point
+    //     if (!is_valid_point(seed_x, seed_y, ssdata)) {
+    //         return;
+    //     }
+    //
+    //     // in
+    //     int seed_x_idx  = seed_x / ss_step;
+    //     int seed_y_idx  = seed_y / ss_step;
+    //
+    //
+    //     // Initialize subsets
+    //     util::Subset ss_def(ss_size);
+    //     util::Subset ss_ref(ss_size);
+    //
+    //     // temp p values for copy from brute force to optimization.
+    //     double ptemp[6] = {0,0,0,0,0,0};
+    //
+    //     // Extract subset and solve for starting seed point
+    //     util::extract_ss(seed_x, seed_y, image_def, &ss_def);
+    //
+    //     // brute force for initial subset
+    //     brute::Parameters brute(threshold_bf, range_bf);
+    //     brute::expanding_wavefront(seed_x, seed_y, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
+    //     ptemp[0] = brute.p_rigid[0];
+    //     ptemp[1] = brute.p_rigid[1];
+    //
+    //
+    //     for (int i = 0; i < opt.num_params; i++){
+    //         opt.p[i] = ptemp[i];
+    //     }
+    //
+    //     optimizer::Results seed_results = optimizer::solve(seed_x, seed_y, &ss_def, &ss_ref, &opt);
+    //
+    //
+    //
+    //     //mark seed as computed
+    //     // int idx = (seed_y_idx * ssdata->num_ss_x + seed_x_idx);
+    //     std::cout << seed_x << " " << seed_y << std::endl;
+    //     int idx = ssdata->coords_to_idx.find({seed_x, seed_y})->second;
+    //
+    //     util::append_results(num_def_images, img_num, ssdata->num, idx, seed_results.iter, seed_results.ftol, seed_results.xtol, seed_results.u, seed_results.v, seed_results.cost, seed_results.p);
+    //     computed_mask[idx] = true;
+    //
+    //
+    //     // Append results for the seed point
+    //     // util::append_results(num_def_images, img_num, 0, &seed_results);
+    //
+    //     // loop over seed subset neighbours
+    //     // for (int i = 0; i < 4; ++i) {
+    //
+    //     for (int neigh_idx : ssdata->neighbours[idx]) {
+    //
+    //         // int neigh_x_ss = seed_x + ss_dx[i];
+    //         // int neigh_y_ss = seed_y + ss_dy[i];
+    //         // int neigh_x_idx = seed_x / ss_step + idx_dx[i];
+    //         // int neigh_y_idx = seed_y / ss_step + idx_dy[i];
+    //         // int neigh_idx = neigh_y_idx*ssdata->num_ss_x + neigh_x_idx;
+    //
+    //         int neigh_x_ss = ssdata->coords[neigh_idx*2];
+    //         int neigh_y_ss = ssdata->coords[neigh_idx*2+1];
+    //
+    //         util::extract_ss(neigh_x_ss, neigh_y_ss, image_def, &ss_def);
+    //         brute::expanding_wavefront(neigh_x_ss, neigh_y_ss, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
+    //         ptemp[0] = brute.p_rigid[0];
+    //         ptemp[1] = brute.p_rigid[1];
+    //
+    //         for (int i = 0; i < opt.num_params; i++){
+    //             opt.p[i] = ptemp[i];
+    //         }
+    //
+    //         optimizer::Results neigh_results = optimizer::solve(neigh_x_ss, neigh_y_ss, &ss_def, &ss_ref, &opt);
+    //
+    //         util::append_results(num_def_images, img_num, ssdata->num, neigh_idx, neigh_results.iter, neigh_results.ftol, neigh_results.xtol, neigh_results.u, neigh_results.v, neigh_results.cost, neigh_results.p);
+    //
+    //         // Add to priority queue
+    //         computed_mask[neigh_idx] = true;
+    //
+    //         // LOCAL QUEUE
+    //         // local_queues[0].push(CorrelationPoint(neigh_x_idx, neigh_y_idx, 1.0 - 0.5*neigh_results.cost));
+    //         local_queues[0].push(CorrelationPoint(neigh_x_ss, neigh_y_ss, 1.0 - 0.5*neigh_results.cost));
+    //
+    //         // SHARED QUEUE
+    //         // shared_queue.push(CorrelationPoint(neigh_x, neigh_y, 1 - 0.5 * neigh_results.cost));
+    //
+    //
+    //     }
+    //
+    //     // LOCAL QUEUE PROCESSING
+    //     #pragma omp parallel firstprivate(ss_def, ss_ref, opt)
+    //     {
+    //
+    //         auto& my_queue = local_queues[omp_get_thread_num()];
+    //         std::vector<CorrelationPoint> temp_neighbours;
+    //         temp_neighbours.reserve(4);
+    //
+    //         const int max_idle_iters = 100;
+    //         CorrelationPoint current(0, 0, 0);
+    //
+    //         while (true) {
+    //
+    //             // reset correlation values and got_point
+    //             bool got_point = false;
+    //             int idle_iters = 0;
+    //
+    //             // Try threads own queue
+    //             if (!my_queue.empty()) {
+    //                 current = my_queue.top();
+    //                 my_queue.pop();
+    //                 got_point = true;
+    //             } 
+    //             else {
+    //                 // Try to steal from queue with retries.
+    //                 while (!got_point && idle_iters < max_idle_iters) {
+    //                     for (size_t i = 0; i < local_queues.size(); ++i) {
+    //                         if (!local_queues[i].empty()) {
+    //                             current = local_queues[i].top();
+    //                             local_queues[i].pop();
+    //                             got_point = true;
+    //                             break;
+    //                         }
+    //                     }
+    //
+    //                     if (!got_point) {
+    //                         ++idle_iters;
+    //                         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    //                     }
+    //                 }
+    //             }
+    //
+    //             if (!got_point) {
+    //                 std::cerr << "Thread " << omp_get_thread_num() << " exiting. Can't find a point to process." << std::endl;
+    //                 break;
+    //             }
+    //
+    //             temp_neighbours.clear();
+    //
+    //             // MASK index
+    //             // int idx_x = current.x;
+    //             // int idx_y = current.y;
+    //             // int idx = idx_y * ssdata->num_ss_x + idx_x;
+    //             // int idx_results = (img_num * num_def_images + idx);
+    //             // int idx_resultsp = idx_results*opt.num_params;
+    //
+    //             // LIST subset
+    //             int curr_x = current.x;
+    //             int curr_y = current.y;
+    //
+    //
+    //             // MASK loop over subset neighbours
+    //             // for (int i = 0; i < 4; ++i) {
+    //
+    //             // LIST loop
+    //             int idx = ssdata->coords_to_idx.find({curr_x, curr_y})->second;
+    //             int idx_results = (img_num * num_def_images + idx);
+    //             int idx_resultsp = idx_results*opt.num_params;
+    //
+    //             for (int neigh_idx : ssdata->neighbours[idx]) {
+    //
+    //                 // MASK get coordinates
+    //                 // int neigh_x_idx = idx_x + idx_dx[i];
+    //                 // int neigh_y_idx = idx_y + idx_dy[i];
+    //                 // int neigh_x_ss = neigh_x_idx * ss_step;
+    //                 // int neigh_y_ss = neigh_y_idx * ss_step;
+    //                 // int neigh_idx = neigh_y_idx * ssdata->num_ss_x + neigh_x_idx;
+    //
+    //                 // LIST get coordiantes
+    //                 int neigh_x_ss = ssdata->coords[neigh_idx*2];
+    //                 int neigh_y_ss = ssdata->coords[neigh_idx*2+1];
+    //
+    //                 // if its a valid subset and its not already been computed
+    //                 // if ((ssdata->mask[neigh_idx]) && (!computed_mask[neigh_idx].exchange(true))) {
+    //
+    //                 // LIST
+    //                 if (!computed_mask[neigh_idx].exchange(true)) {
+    //
+    //                     // extract subset
+    //                     util::extract_ss(neigh_x_ss, neigh_y_ss, image_def, &ss_def);
+    //
+    //                     // if the neighbouring subset reached the maximum number of iterations, try again from a brute force
+    //                     if (util::niter_arr[idx] == opt.max_iter && util::cost_arr[idx] > opt.threshold_lm){
+    //
+    //                         brute::expanding_wavefront(neigh_x_ss, neigh_y_ss, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
+    //                         ptemp[0] = brute.p_rigid[0];
+    //                         ptemp[1] = brute.p_rigid[1];
+    //                         ptemp[2] = 0.0;
+    //                         ptemp[3] = 0.0;
+    //                         ptemp[4] = 0.0;
+    //                         ptemp[5] = 0.0;
+    //
+    //                         for (int i = 0; i < opt.num_params; i++){
+    //                             opt.p[i] = ptemp[i];
+    //                         }
+    //
+    //                     }
+    //                     else {
+    //                         for (int i = 0; i < opt.num_params; i++){
+    //                             opt.p[i] = util::p_arr[idx_resultsp+i];
+    //                         }
+    //
+    //                     }
+    //
+    //                     // optimize
+    //                     optimizer::Results neigh_results = optimizer::solve(neigh_x_ss, neigh_y_ss, &ss_def, &ss_ref, &opt);
+    //
+    //                     // append results
+    //                     util::append_results(num_def_images, img_num, ssdata->num, neigh_idx, neigh_results.iter, neigh_results.ftol, neigh_results.xtol, neigh_results.u, neigh_results.v, neigh_results.cost, neigh_results.p);
+    //
+    //                     // // add results to temp neighbour results
+    //                     // temp_neighbours.emplace_back(neigh_x_idx, neigh_y_idx, 1.0 - 0.5 * neigh_results.cost);
+    //                     temp_neighbours.emplace_back(neigh_x_ss, neigh_y_ss, 1.0 - 0.5 * neigh_results.cost);
+    //                 }
+    //             }
+    //
+    //             for (const auto& neighbour : temp_neighbours) {
+    //                 my_queue.push(neighbour);
+    //             }
+    //         }
+    //     }
 
 
 
@@ -364,9 +354,9 @@ namespace rg {
 
 
 
-    }
+    //}
 
-    inline bool is_valid_point(int ss_x, int ss_y, util::SubsetData *ssdata) {
+    bool is_valid_point(int ss_x, int ss_y, util::SubsetData &ssdata) {
 
         // int x = ss_x / ssdata->step;
         // int y = ss_y / ssdata->step;
@@ -388,10 +378,10 @@ namespace rg {
         // }
         // else return true;
 
-        auto it = ssdata->coords_to_idx.find({ss_x, ss_y});
+        auto it = ssdata.coords_to_idx.find({ss_x, ss_y});
 
         // check if coordinates are in the coordinate list
-        if (it == ssdata->coords_to_idx.end()) {
+        if (it == ssdata.coords_to_idx.end()) {
            std::cerr << "Error: coordinates not found in the coordinate list." << std::endl;
            std::cerr << "Coordinates: " << ss_x << ", " << ss_y << std::endl;
            exit(EXIT_FAILURE);

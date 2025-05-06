@@ -31,8 +31,6 @@ namespace util {
 
 
 
-
-
     void extract_image(util::Image *image_def,
                        int *image_def_stack, 
                        int image_number){
@@ -65,21 +63,25 @@ namespace util {
 
 
 
-    void extract_ss(int ss_x, int ss_y, util::Image *image_def, util::Subset *ss_def){
+    void extract_ss(util::Subset &ss_def, 
+                    int ss_x, int ss_y, 
+                    int px_horizontal,
+                    int px_vertical,
+                    double *image_def){
 
         int count = 0;
         int idx;
 
-        for (int px_y = ss_y; px_y < ss_y+ss_def->size; px_y++){
-            for (int px_x = ss_x; px_x < ss_x+ss_def->size; px_x++){
+        for (int px_y = ss_y; px_y < ss_y+ss_def.size; px_y++){
+            for (int px_x = ss_x; px_x < ss_x+ss_def.size; px_x++){
 
                 // get coordinate values
-                ss_def->x[count] = px_x; 
-                ss_def->y[count] = px_y; 
+                ss_def.x[count] = px_x; 
+                ss_def.y[count] = px_y; 
 
                 // get pixel values
-                idx = px_y * image_def->px_horizontal + px_x;
-                ss_def->vals[count] = image_def->vals[idx];
+                idx = px_y * px_horizontal + px_x;
+                ss_def.vals[count] = image_def[idx];
                 count++;
                 
             }
@@ -87,9 +89,14 @@ namespace util {
     }
 
 
-    SubsetData generate_ss_list(bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step, int num_def_images, int num_params) {
+    SubsetData generate_ss_list(bool *image_roi, Config &conf) {
+        
+        Timer timer("generate subset list");
 
         SubsetData ssdata;
+        const int ss_step = conf.ss_step;
+        const int ss_size = conf.ss_size;
+
         int idx;
         int dx[4] = {ss_step, 0, -ss_step, 0};
         int dy[4] = {0, ss_step, 0, -ss_step};
@@ -97,8 +104,8 @@ namespace util {
         int subset_counter = 0;
 
         
-        int num_ss_x = px_horizontal / ss_step;
-        int num_ss_y = px_vertical / ss_step;
+        int num_ss_x = conf.px_horizontal / ss_step;
+        int num_ss_y = conf.px_vertical / ss_step;
         ssdata.mask.resize(num_ss_x*num_ss_y, false);
         ssdata.num_ss_x = num_ss_x;
         ssdata.num_ss_y = num_ss_y;
@@ -111,31 +118,27 @@ namespace util {
         // First pass: collect valid subset centers and idx them
         for (int j = 0; j < num_ss_y; j++) {
             for (int i = 0; i < num_ss_x; i++) {
-                
 
                 // calculate the coordinates of the subset
                 int ss_x = i * ss_step;
                 int ss_y = j * ss_step;
 
                 // pixel range of subset
-                int ss_x_min = ss_x;
-                int ss_y_min = ss_y;
-                int ss_x_max = ss_x + ss_size;
-                int ss_y_max = ss_y + ss_size;
+                int xmin = ss_x;
+                int ymin = ss_y;
+                int xmax = ss_x + ss_size;
+                int ymax = ss_y + ss_size;
 
                 // check if subset is within image and ROI.
                 bool valid = true;
-                for (int px_y = ss_y_min; px_y <= ss_y_max && valid; px_y++) {
-                    for (int px_x = ss_x_min; px_x <= ss_x_max && valid; px_x++) {
-                        if (px_x < 0 || px_y < 0 || px_x >= px_horizontal || px_y >= px_vertical) {
+                for (int px_y = ymin; px_y <= ymax && valid; px_y++) {
+                    for (int px_x = xmin; px_x <= xmax && valid; px_x++) {
+
+                       if(!is_valid_pixel(px_x,px_y,conf,image_roi)){
                             valid = false;
                             break;
                         }
-                        idx = px_y * px_horizontal + px_x;
-                        if (!image_roi[idx]) {
-                            valid = false;
-                            break;
-                        }
+
                     }
                 }
 
@@ -163,25 +166,22 @@ namespace util {
                 int neigh_x = coord.first + dx[i];
                 int neigh_y = coord.second + dy[i];
 
-                int x_min = neigh_x;
-                int y_min = neigh_y;
-                int x_max = neigh_x + ss_size;
-                int y_max = neigh_y + ss_size;
+                int xmin = neigh_x;
+                int ymin = neigh_y;
+                int xmax = neigh_x + ss_size;
+                int ymax = neigh_y + ss_size;
 
                 bool valid = true;
 
-                // checking if the neigbour is valid (in image bounds and within ROI)
-                for (int y = y_min; y <= y_max && valid; ++y) {
-                    for (int x = x_min; x <= x_max && valid; ++x) {
-                        if (x < 0 || y < 0 || x >= px_horizontal || y >= px_vertical) {
+                // checking if the neigbour is valid
+                for (int y = ymin; y <= ymax && valid; ++y) {
+                    for (int x = xmin; x <= xmax && valid; ++x) {
+
+                        if(!is_valid_pixel(x,y,conf,image_roi)){
                             valid = false;
                             break;
                         }
-                        int idx = y * px_horizontal + x;
-                        if (!image_roi[idx]) {
-                            valid = false;
-                            break;
-                        }
+
                     }
                 }
 
@@ -198,13 +198,13 @@ namespace util {
 
 
         // resize results
-        niter_arr.resize(num_def_images * ssdata.num);
-        u_arr.resize(num_def_images * ssdata.num);
-        v_arr.resize(num_def_images * ssdata.num);
-        p_arr.resize(num_def_images * ssdata.num * num_params);
-        ftol_arr.resize(num_def_images * ssdata.num);
-        xtol_arr.resize(num_def_images * ssdata.num);
-        cost_arr.resize(num_def_images * ssdata.num);
+        niter_arr.resize(conf.num_def_images * ssdata.num);
+        u_arr.resize(conf.num_def_images * ssdata.num);
+        v_arr.resize(conf.num_def_images * ssdata.num);
+        p_arr.resize(conf.num_def_images * ssdata.num * conf.num_params);
+        ftol_arr.resize(conf.num_def_images * ssdata.num);
+        xtol_arr.resize(conf.num_def_images * ssdata.num);
+        cost_arr.resize(conf.num_def_images * ssdata.num);
         return ssdata;
     }
 
@@ -236,10 +236,11 @@ namespace util {
     }
 
 
-    void save_to_disk(util::SaveConfig *saveconf, const int num_def_images, util::SubsetData *ssdata, const int num_params){
+    void save_to_disk(util::SaveConfig *saveconf, const int num_def_images, 
+                      util::SubsetData *ssdata, const int num_params){
 
+        util::Timer timer("save to disk");
 
-        auto s0 = std::chrono::high_resolution_clock::now();
 
         // readability
         const std::string delimiter = saveconf->delimiter;        
@@ -253,8 +254,8 @@ namespace util {
                 std::ofstream outfile;
     
                 // filename
-                outfile_str << saveconf->base_path << "/" << saveconf->prefix << img << saveconf->format;
-                
+                outfile_str << saveconf->base_path << "/" <<
+                saveconf->prefix << img << saveconf->format;
 
                 // save in binary format
                 if (saveconf->format == ".bin"){
@@ -296,7 +297,8 @@ namespace util {
                         outfile << ssdata->coords[2*i+1] << delimiter;
                         outfile << u_arr[idx] << delimiter;
                         outfile << v_arr[idx] << delimiter;
-                        outfile << sqrt(u_arr[idx]*u_arr[idx] + v_arr[idx]*v_arr[idx]) << delimiter;
+                        outfile << sqrt(u_arr[idx]*u_arr[idx]+
+                                        v_arr[idx]*v_arr[idx]) << delimiter;
                         for (int p = 0; p < num_params; p++){
                             outfile << p_arr[idx_p+p] << delimiter;
                         }
@@ -309,14 +311,20 @@ namespace util {
                 }
             }
         }
-
-
-        // get end time and calculate DIC duration
-        auto f0 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> e0 = f0 - s0;
-        INFO_OUT("Time taken to save DIC data: ", e0.count() << " [s]")
-
-
     }
+
+    bool is_valid_pixel(int px_x, int px_y, Config& conf, 
+                        bool *image_roi) {
+        if (px_x < 0 || px_y < 0 ||
+            px_x >= conf.px_horizontal || px_y >= conf.px_vertical) {
+            return false;
+        }
+        int idx = px_y * conf.px_horizontal + px_x;
+        if (!image_roi[idx]) {
+            return false;
+        }
+        return true;
+    }
+
 
 }   

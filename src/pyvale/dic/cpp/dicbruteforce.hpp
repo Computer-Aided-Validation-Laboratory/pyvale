@@ -65,9 +65,9 @@ namespace brute {
                                   const double *image_ref, 
                                   const int px_vertical, 
                                   const int px_horizontal, 
-                                  util::Subset *ss_def, 
-                                  util::Subset *ss_ref, 
-                                  brute::Parameters *brute);
+                                  util::Subset &ss_def, 
+                                  util::Subset &ss_ref, 
+                                  brute::Parameters &brute);
 
     /**
      * @brief Performs an exhaustive search for the optimal translation.
@@ -89,9 +89,9 @@ namespace brute {
                                   const double *image_ref, 
                                   const int px_vertical, 
                                   const int px_horizontal, 
-                                  util::Subset *ss_def, 
-                                  util::Subset *ss_ref, 
-                                  brute::Parameters *brute);
+                                  util::Subset &ss_def, 
+                                  util::Subset &ss_ref, 
+                                  brute::Parameters &brute);
 
     /**
      * @brief 
@@ -135,8 +135,8 @@ namespace brute {
     double ssd(const double *image_ref, 
                const int px_vertical, 
                const int px_horizontal, 
-               util::Subset *ss_def, 
-               util::Subset *ss_ref,
+               util::Subset &ss_def, 
+               util::Subset &ss_ref,
                const int p0,
                const int p1);
 
@@ -160,8 +160,8 @@ namespace brute {
     double nssd(const double *image_ref, 
                 const int px_vertical, 
                 const int px_horizontal, 
-                util::Subset *ss_def,
-                util::Subset *ss_ref,
+                util::Subset &ss_def,
+                util::Subset &ss_ref,
                 const int p0,
                 const int p1);
 
@@ -185,10 +185,17 @@ namespace brute {
     double znssd(const double *image_ref, 
                  const int px_vertical, 
                  const int px_horizontal, 
-                 util::Subset *ss_def, 
-                 util::Subset *ss_ref,
+                 util::Subset &ss_def, 
+                 util::Subset &ss_ref,
                  const int p0,
                  const int p1);
+
+    inline bool is_perimeter_point(int dx, int dy, int r);
+    inline bool is_within_image(int xmin, int ymin, int xmax, int ymax,
+                                int width, int height);
+    inline bool is_within_range(int p0, int p1, int range);
+
+
 }
 
 #endif //BRUTEFORCE

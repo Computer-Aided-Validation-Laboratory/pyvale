@@ -5,7 +5,6 @@
 // ================================================================================
 
 // STD library Header files
-#include <iostream>
 #include <vector>
 #include <Eigen/Dense>
 

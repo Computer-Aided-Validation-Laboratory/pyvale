@@ -39,12 +39,12 @@ def DIC2D(reference: np.ndarray,
         
         # do var checks in python land
         check_correlation_criteria(correlation_criteria)
-        check_shape_function(shape_function)
         check_interpolation(interpolation_routine)
         check_scanning_method(scanning_method)
         check_thresholds(threshold_levenberg, threshold_levenberg, precision)
         check_subset_size(subset_size)
-
+        check_image_sizes(reference,deformed,roi_mask)
+        num_params = check_shape_function(shape_function)
 
         # Assign values to config struct
         config = dic2dcpp.Config()
@@ -59,7 +59,10 @@ def DIC2D(reference: np.ndarray,
         config.shape_func = shape_function
         config.interp_routine = interpolation_routine
         config.scan_method = scanning_method
-
+        config.px_horizontal = reference.shape[1]
+        config.px_vertical = reference.shape[0]
+        config.num_def_images = deformed.shape[0]
+        config.num_params = num_params
 
 
         results = dic2dcpp.engine(reference,
@@ -134,11 +137,16 @@ def check_correlation_criteria(correlation_criteria: str) -> None:
 
 
 
-def check_shape_function(shape_function: str) -> None:
-    allowed_values = {"RIGID", "AFFINE"}
+def check_shape_function(shape_function: str) -> int:
 
-    if shape_function not in allowed_values:
-        raise ValueError(f"Invalid shape_function: {shape_function}. Allowed values are: {', '.join(allowed_values)}")
+    if (shape_function=="RIGID"):
+        num_params = 2
+    elif (shape_function=="AFFINE"): 
+        num_params = 6
+    else:
+        raise ValueError(f"Invalid shape_function: {shape_function}. Allowed values are: 'AFFINE', 'RIGID'.")
+
+    return num_params
 
 
 
@@ -172,5 +180,18 @@ def check_thresholds(threshold_levenberg: float, threshold_bruteforce: float, pr
 def check_subset_size(subset_size: int):
     if subset_size % 2 == 0:
         raise ValueError("subset_size must be an odd number.")
+
+def check_image_sizes(reference: np.ndarray,
+                      deformed: np.ndarray, 
+                      roi: np.ndarray) -> None:
+
+    if reference.shape != deformed[0].shape or reference.shape != roi.shape:
+        raise ValueError(f"Difference in image dimensions: "
+                         f"reference {reference.shape}, "
+                         f"deformed[0] {deformed[0].shape}, "
+                         f"roi {roi.shape}")
+
+
+
 
 

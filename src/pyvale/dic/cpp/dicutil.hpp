@@ -9,12 +9,14 @@
 #define DICUTIL_H
 
 // STD library Header files
+#include <chrono>
 #include <vector>
 #include <string>
+#include <iostream>
 #include <unordered_map>
 
 // program Header files
-
+#include "./defines.hpp"
 
 namespace util {
 
@@ -25,6 +27,41 @@ namespace util {
             return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
         }
     };
+
+    class Timer {
+    public:
+        Timer(const std::string& label)
+            : label_(label), start_(std::chrono::high_resolution_clock::now()) {}
+
+        ~Timer() {
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> elapsed = end - start_;
+            INFO_OUT("Time taken for " << label_, elapsed.count() << " [s]");
+        }
+
+    private:
+        std::string label_;
+        std::chrono::high_resolution_clock::time_point start_;
+    };
+
+    struct Config {
+        int ss_step;
+        int ss_size;
+        int max_iter;
+        int px_horizontal;
+        int px_vertical;
+        int num_def_images;
+        int num_params;
+        double precision;
+        double threshold_lm;
+        double threshold_bf;
+        int range_bf;
+        std::string corr_crit;
+        std::string shape_func;
+        std::string interp_routine;
+        std::string scan_method;
+    };
+
 
     struct SubsetData {
         int num;
@@ -130,7 +167,11 @@ namespace util {
      * @param ss_def      Pointer to the destination subset (`util::Subset`) where extracted pixel 
      *                    values and coordinates are stored.
      */            
-    void extract_ss(int ss_x, int ss_y, util::Image *image_def, util::Subset *ss_def);
+    void extract_ss(util::Subset &ss_def, 
+                    int ss_x, int ss_y, 
+                    int px_horizontal,
+                    int px_vertical,
+                    double *image_def);
 
     /**
      */
@@ -150,7 +191,7 @@ namespace util {
      * @param ss_step      Step size for generating subsets.
      * @return            A SubsetData object containing the generated subsets and their neighbours.
      */
-     SubsetData generate_ss_list(bool *image_roi, int px_horizontal, int px_vertical, int ss_size, int ss_step, int num_def_images, int num_params);
+     SubsetData generate_ss_list(bool *image_roi, Config &conf);
 
     
     /**
@@ -179,8 +220,11 @@ namespace util {
                             const std::vector<double> &p);
 
 
-    void save_to_disk(util::SaveConfig *saveconf, const int num_def_images, util::SubsetData *ssdata, const int num_params);
+    void save_to_disk(util::SaveConfig *saveconf, const int num_def_images, 
+                      util::SubsetData *ssdata, const int num_params);
 
+
+    bool is_valid_pixel(int px_x, int px_y, Config& conf, bool *image_roi);
 }
 
 #endif //DICUTIL
