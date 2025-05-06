@@ -57,7 +57,7 @@ class Camera {
             );
         }
 
-        void render(const Hittable& world, const Hittable& lights) const {
+        void render(const Hittable& world, const Hittable& lights, std::ostream& stream = std::cout) const {
             auto image_width = width_pixels;
             auto image_height = int(width_pixels * ar);
             // auto theta = degrees_to_radians(fov);
@@ -66,7 +66,7 @@ class Camera {
             // auto screen_width = aspect_ratio * screen_height;
             double pixel_samples_scale = double(1.0 / samples_per_pixel);
 
-            std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+            stream << "P3\n" << image_width << ' ' << image_height << "\n255\n";
 
             for (int j = 0; j < image_height; j++) {
                 std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
@@ -76,7 +76,7 @@ class Camera {
                         Ray r = get_ray(i, j, max_depth);
                         pixel_color += ray_color(r, max_depth, world, lights);
                     }
-                    write_color(std::cout, pixel_samples_scale * pixel_color);
+                    write_color(stream, pixel_samples_scale * pixel_color);
                 }
             }
     

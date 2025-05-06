@@ -1,3 +1,5 @@
+// A script to set up a scene and get ray tracing, all within cpp
+
 // #include <iostream>
 // #include <Eigen/Dense>
 
@@ -8,7 +10,7 @@
 // }
 
 
-// #include <iostream>
+#include <iostream>
 #include <memory>
 // #include "scene.hpp"
 #include "materials/material.h"
@@ -20,8 +22,9 @@
 #include "camera.h"
 // #include "render.cpp"
 
-// #include <Eigen/Dense>
-
+#include <Eigen/Dense>
+#include <opencv2/opencv.hpp>
+#include <sstream>
 
 int main(int, char**) {
     Hittable_list scene;
@@ -59,13 +62,13 @@ int main(int, char**) {
     // scene.add(std::make_shared<ShapeQuadQuad>(nodes2, displacements2, green));
 
     // Walls and light
-    scene.add(std::make_shared<Plane_yz>(0, 555, 0, 555, 555, green));
-    scene.add(std::make_shared<Plane_yz>(0, 555, 0, 555, 0, red));
-    lights.add(std::make_shared<Plane_xz>(213, 343, 227, 332, 554, light)); // should make this importance sampled
-    scene.add(std::make_shared<Plane_xz>(0, 555, 0, 555, 0, white));
-    scene.add(std::make_shared<Plane_xz>(0, 555, 0, 555, 555, white));
-    scene.add(std::make_shared<Plane_xy>(0, 555, 0, 555, 555, white));
-    scene.add(std::make_shared<Sphere>(point3(278, 100, 250), 100, green));
+    // scene.add(std::make_shared<Plane_yz>(0, 555, 0, 555, 555, green));
+    // scene.add(std::make_shared<Plane_yz>(0, 555, 0, 555, 0, red));
+    // lights.add(std::make_shared<Plane_xz>(213, 343, 227, 332, 554, light)); // should make this importance sampled
+    // scene.add(std::make_shared<Plane_xz>(0, 555, 0, 555, 0, white));
+    // scene.add(std::make_shared<Plane_xz>(0, 555, 0, 555, 555, white));
+    // scene.add(std::make_shared<Plane_xy>(0, 555, 0, 555, 555, white));
+    // scene.add(std::make_shared<Sphere>(point3(278, 100, 250), 100, green));
 
     // Camera
     Camera camera = Camera(point3(278, 278, -800),
@@ -77,7 +80,26 @@ int main(int, char**) {
                             vec3(0.,1.,0.)
                     );
 
-    camera.render(scene, lights);
+    std::ostringstream oss(std::ios::binary);
+    camera.render(scene, lights, oss);
+    std::string ppm_data = oss.str();
+
+    // 2. Convert to vector<uchar> for imdecode
+    std::vector<uchar> buffer(ppm_data.begin(), ppm_data.end());
+
+    // 3. Decode PPM image to cv::Mat
+    cv::Mat image = cv::imdecode(buffer, cv::IMREAD_COLOR);
+    if (image.empty()) {
+        std::cerr << "Failed to decode PPM image.\n";
+        return 1;
+    }
+
+    // 4. Display the image
+    cv::imshow("PPM Image", image);
+    cv::waitKey(0);
+
+    return 0;
+
     // self.screen_width = screen_width
     // self.screen_height = screen_height
 
