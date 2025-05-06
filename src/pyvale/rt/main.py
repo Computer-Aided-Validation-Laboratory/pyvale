@@ -1,12 +1,12 @@
 import numpy as np
 from pyvale.rt.hittable_list import HittableList
 from pyvale.rt.bvh import BVH_Node
-from pyvale.rt.material import Lambertian, Material
-from pyvale.rt.material import DiffuseLight
+from pyvale.rt.material import Lambertian, Material, DiffuseLight
 from pyvale.rt.sphere import Sphere
 from pyvale.rt.camera import Camera
 from pyvale.rt.quad import Disk, Quad, Tri, Disk
 from pyvale.rt.shape import ShapeLinQuad, ShapeQuadQuad
+from pyvale.rt.texture import NoiseTexture
 
 np.random.default_rng(1)
 
@@ -165,10 +165,10 @@ def shape_lin():
     light = DiffuseLight.from_colour(np.array([15, 15, 15]))
 
     nodes = np.array([
-        [-1, 0, -1],   # Node 1
-        [1, 0, -1],   # Node 2
-        [1, 0, 1],   # Node 3
-        [-1, 0, 1]    # Node 4
+        [-5, 0, -5],   # Node 1
+        [5, 0, -5],   # Node 2
+        [5, 0, 5],   # Node 3
+        [-5, 0, 5]    # Node 4
     ])
 
     # Define displacements at each node
@@ -176,7 +176,7 @@ def shape_lin():
         [0, 0, 0],       # Node 1
         [0, 0, 0],     # Node 2
         [0, 3, 0],     # Node 3
-        [0, 3, 0]      # Node 4
+        [0, 3, -3]      # Node 4
     ])
 
 
@@ -190,7 +190,7 @@ def shape_lin():
     cam.samples_per_pixel = 5
     cam.max_depth = 5
     cam.background = np.array([0.70, 0.80, 1.00])
-    cam.look_from = np.array([0,0,5])
+    cam.look_from = np.array([0,0,15])
     cam.look_at = np.array([0,0,0])
 
 
@@ -246,6 +246,28 @@ def shape_quad():
 
     cam.render(world)
 
+def noise():
+    world: HittableList = HittableList()
+
+    noise_texture = NoiseTexture(5)
+    material_2: Material = Lambertian(noise_texture)
+    world.add(Sphere(np.array([0,0,-1]), 0.5, material_2))
+
+    ground_noise_texture = NoiseTexture(1)
+    ground_mat: Material = Lambertian(ground_noise_texture)
+    world.add(Sphere(np.array([0,-100.5,-1]), 100, ground_mat))
+
+    world = HittableList(BVH_Node(world._objects))
+
+    cam: Camera = Camera()
+    cam.image_width = 200
+    cam.image_height = 200
+    cam.samples_per_pixel = 1
+    cam.max_depth = 5
+    cam.background = np.array([0.70, 0.80, 1.00])
+
+    cam.render(world)
+
 
 if __name__ == "__main__":
-    shape_quad()
+    noise()
