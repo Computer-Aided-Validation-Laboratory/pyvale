@@ -57,10 +57,10 @@ class CameraStereo:
             An instance of the CameraStereo class, given the specified parameters.
         """
         calib_params = yaml.safe_load(calib_path.read_text())
-        pixels_num_cam0 = np.array([calib_params['Cam0_Cx [pixels]']*2,
-                           calib_params['Cam0_Cy [pixels]']*2])
-        pixels_num_cam1 = np.array([calib_params['Cam1_Cx [pixels]']*2,
-                           calib_params['Cam1_Cy [pixels]']*2])
+        pixels_num_cam0 = np.array([int(calib_params['Cam0_Cx [pixels]']*2),
+                           int(calib_params['Cam0_Cy [pixels]']*2)])
+        pixels_num_cam1 = np.array([int(calib_params['Cam1_Cx [pixels]']*2),
+                           int(calib_params['Cam1_Cy [pixels]']*2)])
         pixels_size = focal_length / calib_params["Cam0_Fx [pixels]"]
         stereo_rotation = Rotation.from_euler("xyz", ([calib_params['Theta [deg]'],
                                     calib_params['Phi [deg]'],
