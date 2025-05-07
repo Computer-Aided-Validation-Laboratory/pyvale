@@ -35,11 +35,11 @@ def main() -> None:
         .thermocouples_no_errs(sim_data,
                                sensor_data,
                                field_key,
-                               spat_dims=2)
+                               elem_dims=2)
 
     #---------------------------------------------------------------------------
     # Standard independent systematic errors
-    pos_rand = pyvale.GeneratorNormal(std=1.0) # mm
+    pos_rand = pyvale.GenNormal(std=1.0) # mm
     pos_lock = np.full_like(sensor_data.positions,False,dtype=bool)
     pos_lock[:,2] = True
     field_err_data = pyvale.ErrFieldData(

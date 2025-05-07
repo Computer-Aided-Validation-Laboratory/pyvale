@@ -37,7 +37,7 @@ def main() -> None:
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
                                   field_key,
-                                  spat_dims=2)
+                                  elem_dims=2)
 
     err_int = pyv.ErrIntegrator([pyv.ErrSysOffset(offset=-5.0)],
                                      sens_data,

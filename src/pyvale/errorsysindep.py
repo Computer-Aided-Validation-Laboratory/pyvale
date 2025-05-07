@@ -9,7 +9,7 @@ import numpy as np
 from pyvale.errorcalculator import (IErrCalculator,
                                          EErrType,
                                          EErrDependence)
-from pyvale.generatorsrandom import IGeneratorRandom
+from pyvale.generatorsrandom import IGenRandom
 from pyvale.sensordata import SensorData
 
 
@@ -187,7 +187,7 @@ class ErrSysOffsetPercent(IErrCalculator):
                 sens_data)
 
 
-class ErrSysUniform(IErrCalculator):
+class ErrSysUnif(IErrCalculator):
     """Systematic error calculator for applying an offset to each sensor that is
     sampled from a uniform probability distribution specified by its upper and
     lower bounds. Implements the `IErrCalculator` interface.
@@ -296,7 +296,7 @@ class ErrSysUniform(IErrCalculator):
         return (sys_errs,sens_data)
 
 
-class ErrSysUniformPercent(IErrCalculator):
+class ErrSysUnifPercent(IErrCalculator):
     """Systematic error calculator for applying a percentage offset to each
     sensor that is sampled from a uniform probability distribution specified by
     its upper and lower bounds.
@@ -403,7 +403,7 @@ class ErrSysUniformPercent(IErrCalculator):
         return (err_basis*sys_errs,sens_data)
 
 
-class ErrSysNormal(IErrCalculator):
+class ErrSysNorm(IErrCalculator):
     """Systematic error calculator for applying an offset to each individual
     sensor in the array based on sampling from a normal distribution specified
     by its standard deviation and mean. Note that the offset is constant for
@@ -573,12 +573,6 @@ class ErrSysNormPercent(IErrCalculator):
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
-
-        err_shape = np.array(err_basis.shape)
-        err_shape[-1] = 1
-        sys_errs = self._rng.normal(loc=0.0,
-                                    scale=self._std,
-                                    size=err_shape)
         """Calculates the error array based on the size of the input.
 
         Parameters
@@ -596,6 +590,13 @@ class ErrSysNormPercent(IErrCalculator):
             sensor data object as it is not modified by this class. The returned
             error array has the same shape as the input error basis.
         """
+
+        err_shape = np.array(err_basis.shape)
+        err_shape[-1] = 1
+        sys_errs = self._rng.normal(loc=0.0,
+                                    scale=self._std,
+                                    size=err_shape)
+
         tile_shape = np.array(err_basis.shape)
         tile_shape[0:-1] = 1
         sys_errs = np.tile(sys_errs,tuple(tile_shape))
@@ -603,7 +604,7 @@ class ErrSysNormPercent(IErrCalculator):
         return (err_basis*sys_errs,sens_data)
 
 
-class ErrSysGenerator(IErrCalculator):
+class ErrSysGen(IErrCalculator):
     """Systematic error calculator for applying a unique offset to each sensor
     by sample from a user specified probability distribution (an implementation
     of the `IGeneratorRandom` interface).
@@ -613,7 +614,7 @@ class ErrSysGenerator(IErrCalculator):
     __slots__ = ("_generator","_err_dep")
 
     def __init__(self,
-                 generator: IGeneratorRandom,
+                 generator: IGenRandom,
                  err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
 
         self._generator = generator
@@ -704,7 +705,7 @@ class ErrSysGenPercent(IErrCalculator):
     __slots__ = ("_generator","_err_dep")
 
     def __init__(self,
-                 generator: IGeneratorRandom,
+                 generator: IGenRandom,
                  err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
 
         self._generator = generator
@@ -770,7 +771,9 @@ class ErrSysGenPercent(IErrCalculator):
         err_shape = np.array(err_basis.shape)
         err_shape[-1] = 1
 
-        sys_errs = self._generator.generate(size=err_shape)
+        sys_errs = self._generator.generate(shape=err_shape)
+        # Convert percent to decimal
+        sys_errs = sys_errs/100.0
 
         tile_shape = np.array(err_basis.shape)
         tile_shape[0:-1] = 1

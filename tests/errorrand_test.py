@@ -106,7 +106,7 @@ def test_ErrRandNormPercent(check_data: CheckData) -> None:
 def test_ErrRandGenerator(check_data: CheckData) -> None:
     std = 5.0
 
-    rand_gen = pyvale.GeneratorNormal(std=std,mean=0.0,seed=check_data.seed)
+    rand_gen = pyvale.GenNormal(std=std,mean=0.0,seed=check_data.seed)
 
     err_calc = pyvale.ErrRandGenerator(rand_gen)
 

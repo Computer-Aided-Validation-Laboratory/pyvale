@@ -66,7 +66,7 @@ def main() -> None:
 
     if errors_on['indep_sys']:
         indep_sys_err1 = pyvale.ErrSysOffset(offset=-5.0)
-        indep_sys_err2 = pyvale.ErrSysUniform(low=-10.0,
+        indep_sys_err2 = pyvale.ErrSysUnif(low=-10.0,
                                             high=10.0)
         indep_sys_err_int = pyvale.ErrIntegrator([indep_sys_err1,indep_sys_err2],
                                             tc_array.get_measurement_shape())

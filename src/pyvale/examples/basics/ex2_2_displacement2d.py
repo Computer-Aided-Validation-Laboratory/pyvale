@@ -11,9 +11,7 @@ import mooseherder as mh
 import pyvale as pyv
 
 def main() -> None:
-    """pyvale example: displacement sensors on a 2D plate with a hole
-    ----------------------------------------------------------------------------
-    """
+
     data_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     # Scale to mm to make 3D visualisation scaling easier
@@ -51,7 +49,7 @@ def main() -> None:
                                               descriptor)
 
     error_chain = []
-    error_chain.append(pyv.ErrSysUniform(low=-0.01e-3,high=0.01e-3))
+    error_chain.append(pyv.ErrSysUnif(low=-0.01e-3,high=0.01e-3))
     error_chain.append(pyv.ErrRandNorm(std=0.01e-3))
     error_int = pyv.ErrIntegrator(error_chain,
                                        sens_data,

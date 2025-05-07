@@ -31,7 +31,7 @@ def main() -> None:
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
                                   field_name,
-                                  spat_dims=3)
+                                  elem_dims=3)
 
 
     measurements = tc_array.get_measurements()

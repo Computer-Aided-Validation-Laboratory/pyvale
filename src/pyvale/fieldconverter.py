@@ -44,6 +44,8 @@ def simdata_to_pyvista(sim_data: mh.SimData,
         (nodes_per_elem,n_elems) = this_connect.shape
 
         this_cell_type = _get_pyvista_cell_type(nodes_per_elem,elem_dims)
+        assert this_cell_type is not None, ("Cell type with dimension " +
+            f"{elem_dims} and {nodes_per_elem} noder per element not recognised.")
 
         # VTK and exodus have different winding for 3D higher order quads
         this_connect = _exodus_to_pyvista_connect(this_cell_type,this_connect)
@@ -75,7 +77,7 @@ def scale_length_units(scale: float,
                        ) -> mh.SimData:
 
     sim_data.coords = sim_data.coords*scale
-    
+
     if disp_comps is not None:
         for cc in disp_comps:
             sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
@@ -165,7 +167,7 @@ def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
     return face_data
 
 
-def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
+def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType | None:
     """Helper function to identify the pyvista element type in the mesh.
 
     Parameters
@@ -177,10 +179,10 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
 
     Returns
     -------
-    CellType
+    CellType | None
         Enumeration describing the element type in pyvista.
     """
-    cell_type = 0
+    cell_type = None
 
     if spat_dim == 2:
         if nodes_per_elem == 4:
@@ -195,10 +197,6 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
             cell_type = CellType.QUADRATIC_QUAD
         elif nodes_per_elem == 9:
             cell_type = CellType.BIQUADRATIC_QUAD
-        else:
-            warnings.warn(f"Cell type 2D with {nodes_per_elem} "
-                          + "nodes not recognised. Defaulting to 4 node QUAD")
-            cell_type = CellType.QUAD
     else:
         if nodes_per_elem == 8:
             cell_type =  CellType.HEXAHEDRON
@@ -210,10 +208,6 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
             cell_type = CellType.QUADRATIC_HEXAHEDRON
         elif nodes_per_elem == 27:
             cell_type = CellType.TRIQUADRATIC_HEXAHEDRON
-        else:
-            warnings.warn(f"Cell type 3D with {nodes_per_elem} "
-                + "nodes not recognised. Defaulting to 8 node HEX")
-            cell_type = CellType.HEXAHEDRON
 
     return cell_type
 

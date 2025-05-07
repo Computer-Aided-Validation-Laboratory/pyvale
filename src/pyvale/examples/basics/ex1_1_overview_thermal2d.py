@@ -59,7 +59,7 @@ def main() -> None:
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
                                   field_key,
-                                  spat_dims=2)
+                                  elem_dims=2)
 
     # We have built our sensor array so now we can call `calc_measurements()` to
     # generate simulated sensor traces.
@@ -93,7 +93,7 @@ def main() -> None:
 
     # This allows us to save a vector graphic and raster graphic showing the
     # sensor locations on the simulation mesh
-    save_render = output_path / "basics_ex1_1_sensor_locations.svg"
+    save_render = output_path / "basics_ex1_1_sensorlocs.svg"
     pv_plot.save_graphic(save_render) # only for .svg .eps .ps .pdf .tex
     pv_plot.screenshot(save_render.with_suffix(".png"))
 
@@ -114,7 +114,7 @@ def main() -> None:
     (fig,ax) = pyv.plot_time_traces(tc_array,field_key)
 
     # We can also save the sensor trace plot as a vector and raster graphic
-    save_traces = output_path/"basics_ex1_1_sensor_traces.png"
+    save_traces = output_path/"basics_ex1_1_sensortraces.png"
     fig.savefig(save_traces, dpi=300, bbox_inches="tight")
     fig.savefig(save_traces.with_suffix(".svg"), dpi=300, bbox_inches="tight")
 

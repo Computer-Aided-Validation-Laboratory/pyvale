@@ -8,11 +8,13 @@
 Pyvale example: Building a point sensor array from scratch with custom errors
 --------------------------------------------------------------------------------
 Here we build a custom point sensor array from scratch that is similar to the
-pre-built thermocouple array from example 1.1.
+pre-built thermocouple array from example 1.1. For this example we switch to a
+3D thermal simulation of a fusion heatsink component.
 
-Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
+Test case: Scalar field point sensors (thermocouples) on a 3D thermal simulation
 """
 
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import mooseherder as mh
@@ -30,7 +32,7 @@ def main() -> None:
     # based on the same thermal example we have used in the last two examples so
     # we start by loading our simulation data:
 
-    data_path = pyv.DataSet.thermal_2d_path()
+    data_path = pyv.DataSet.thermal_3d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     # Scale to mm to make 3D visualisation scaling easier as pyvista scales
     # everything to unity
@@ -41,19 +43,19 @@ def main() -> None:
     # We are going to build a custom temperature sensor so we need a scalar
     # field object to perform interpolation to the sensor locations at the
     # desired sampling times.
-    field_key = "temperature"
+    field_key: str = "temperature"
     t_field = pyv.FieldScalar(sim_data,
                               field_key=field_key,
-                              elem_dims=2)
+                              elem_dims=3)
 
 
     # Next we need to create our `SensorData` object which will set the position
     # and sampling times of our sensors. We use the same helper function we used
     # previously to create a uniformly spaced grid of sensors in space
-    n_sens = (4,1,1)
-    x_lims = (0.0,100.0)
-    y_lims = (0.0,50.0)
-    z_lims = (0.0,0.0)
+    n_sens = (1,4,1)
+    x_lims = (12.5,12.5)
+    y_lims = (0.0,33.0)
+    z_lims = (0.0,12.0)
     sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
     # We are also going to specify the times at which we would like to simulate
@@ -86,6 +88,27 @@ def main() -> None:
                                     t_field,
                                     descriptor)
 
+    # This is a new 3D simulation we are analysing so we should visualise the
+    # sensor locations before we run our measurement simulation. We use the same
+    # code as we did in example 1.1 to display the sensor locations.
+
+    # We are also going to save some figures to disk as well as displaying them
+    # interactively so we create a directory for this:
+    output_path = Path.cwd() / "pyvale-output"
+    if not output_path.is_dir():
+        output_path.mkdir(parents=True, exist_ok=True)
+
+    pv_plot = pyv.plot_point_sensors_on_sim(tc_array,field_key)
+
+    pv_plot.camera_position = [(59.354, 43.428, 69.946),
+                               (-2.858, 13.189, 4.523),
+                               (-0.215, 0.948, -0.233)]
+
+    save_render = output_path / "customsensors_ex1_3_sensorlocs.svg"
+    pv_plot.save_graphic(save_render) # only for .svg .eps .ps .pdf .tex
+    pv_plot.screenshot(save_render.with_suffix(".png"))
+
+    pv_plot.show()
 
     # If we want to simulate sources of uncertainty for our sensor array we need
     # to add an `ErrIntegrator` to our sensor array using the method
@@ -94,8 +117,10 @@ def main() -> None:
     #
     # In pyvale errors have a type specified as: random / systematic
     # (`EErrorType`) and a dependence `EErrDependence` as: independent /
-    # dependent. When analysing errors all randomall systematic errors are
-    # grouped and summed together.The error dependence determines if an error is
+    # dependent. When analysing errors all random all systematic errors are
+    # grouped and summed together.
+    #
+    # The error dependence determines if an error is
     # calculated based on the truth (independent) or the accumulated measurement
     # based on all previous errors in the chain (dependent). Some errors are
     # purely independent such as random noise with a normal distribution with a
@@ -109,44 +134,36 @@ def main() -> None:
     # common error types. Try experimenting with the code below to turn the
     # different error types off and on to see how it changes the virtual sensor
     # measurements.
-    errors_on = {"indep_sys": True,
-                 "rand": True,
-                 "dep_sys": True}
+    errors_on = {"sys": True,
+                 "rand": True}
 
     error_chain = []
-    if errors_on["indep_sys"]:
+    if errors_on["sys"]:
         # This systematic error is just a constant offset of -5 to all simulated
         # measurements. Note that error values should be specified in the same
         # units as the simulation.
-        error_chain.append(pyv.ErrSysOffset(offset=-5.0))
+        error_chain.append(pyv.ErrSysOffset(offset=-10.0))
 
         # This systematic error samples from a uniform probability distribution.
-        error_chain.append(pyv.ErrSysUniform(low=-5.0,
-                                             high=5.0))
+        error_chain.append(pyv.ErrSysUnif(low=-10.0,
+                                             high=10.0))
 
     if errors_on["rand"]:
         # This random error is generated by sampling from a normal distribution
         # with the given standard deviation in simulation units.
-        error_chain.append(pyv.ErrRandNorm(std=1.0))
+        error_chain.append(pyv.ErrRandNorm(std=5.0))
 
         # This random error is generated as a percentage sampled from uniform
         # probability distribution
-        error_chain.append(pyv.ErrRandUnifPercent(low_percent=-1.0,
-                                                  high_percent=1.0))
-
-    if errors_on["dep_sys"]:
-        error_chain.append(pyv.ErrSysDigitisation(bits_per_unit=2**8/100))
-        error_chain.append(pyv.ErrSysSaturation(meas_min=0.0,meas_max=300.0))
+        error_chain.append(pyv.ErrRandUnifPercent(low_percent=-5.0,
+                                                  high_percent=5.0))
 
 
     # By default pyvale does not store all individual error source
     # calculations (i.e. only the total random and total systematic error are
     # stored) to save memory but this can be changed using `ErrIntOpts`. This
     # can also be used to force all errors to behave if they
-    #
-    # ADVANCED USERS: it is also possible to write custom errors by writing your
-    # own class that implements the `IErrCalculator` abstract base class and
-    # then add them to your error chain.
+
     if len(error_chain) > 0:
         err_int_opts = pyv.ErrIntOpts()
         error_integrator = pyv.ErrIntegrator(error_chain,

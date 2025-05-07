@@ -9,7 +9,7 @@ from pyvale.sensordata import SensorData
 from pyvale.errorcalculator import (IErrCalculator,
                                          EErrType,
                                          EErrDependence)
-from pyvale.generatorsrandom import IGeneratorRandom
+from pyvale.generatorsrandom import IGenRandom
 
 
 class ErrRandUnif(IErrCalculator):
@@ -441,7 +441,7 @@ class ErrRandGenerator(IErrCalculator):
     __slots__ = ("_generator","_err_dep")
 
     def __init__(self,
-                 generator: IGeneratorRandom,
+                 generator: IGenRandom,
                  err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
         """Initiliaser for the `ErrRandGenerator` class.
 
@@ -536,7 +536,7 @@ class ErrRandGenPercent(IErrCalculator):
     __slots__ = ("_generator","_err_dep")
 
     def __init__(self,
-                 generator: IGeneratorRandom,
+                 generator: IGenRandom,
                  err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
         """Initiliaser for the `ErrRandGenerator` class.
 
@@ -608,6 +608,6 @@ class ErrRandGenPercent(IErrCalculator):
             error array has the same shape as the input error basis.
         """
         rand_errs = err_basis \
-            * self._generator.generate(shape=err_basis.shape)/100
+            * self._generator.generate(shape=err_basis.shape)/100.0
 
         return (rand_errs,sens_data)

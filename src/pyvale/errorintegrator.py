@@ -123,7 +123,7 @@ class ErrIntegrator:
         """
         self._err_chain = err_chain
 
-        if self._err_int_opts is not None:
+        if self._err_int_opts.force_dependence is not None:
             for ee in self._err_chain:
                 ee.set_error_dep(self._err_int_opts.force_dependence)
 

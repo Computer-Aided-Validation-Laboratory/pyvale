@@ -26,7 +26,6 @@ def main() -> None:
     components = ("disp_x","disp_y")
     disp_field = pyv.FieldVector(sim_data,field_key,components,spat_dims)
 
-    #---------------------------------------------------------------------------
     n_sens = (2,2,1)
     x_lims = (0.0,100.0)
     y_lims = (0.0,150.0)

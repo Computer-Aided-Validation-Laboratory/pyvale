@@ -44,9 +44,9 @@ def main() -> None:
     error_chain = []
     if errors_on['indep_sys']:
         error_chain.append(pyvale.ErrSysOffset(offset=-5.0))
-        error_chain.append(pyvale.ErrSysUniform(low=-5.0,
+        error_chain.append(pyvale.ErrSysUnif(low=-5.0,
                                             high=5.0))
-        gen_norm = pyvale.GeneratorNormal(std=1.0)
+        gen_norm = pyvale.GenNormal(std=1.0)
 
     if errors_on['rand']:
         error_chain.append(pyvale.ErrRandNormPercent(std_percent=1.0))

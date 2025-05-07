@@ -52,7 +52,7 @@ def main() -> None:
         .thermocouples_basic_errs(sim_data,
                                   tc_sens_data,
                                   tc_field,
-                                  spat_dims=3,
+                                  elem_dims=3,
                                   errs_pc=1.0)
 
     # Visualise the thermocouple locations:
@@ -81,7 +81,7 @@ def main() -> None:
         .strain_gauges_basic_errs(sim_data,
                                   sg_sens_data,
                                   sg_field,
-                                  spat_dims=3,
+                                  elem_dims=3,
                                   errs_pc=1.0)
 
     # Visualise the strain gauge locations:

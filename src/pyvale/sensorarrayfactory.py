@@ -14,7 +14,7 @@ from pyvale.fieldtensor import FieldTensor
 from pyvale.sensordescriptor import SensorDescriptorFactory
 from pyvale.sensorarraypoint import SensorArrayPoint, SensorData
 from pyvale.errorintegrator import ErrIntegrator
-from pyvale.errorsysindep import ErrSysUniformPercent
+from pyvale.errorsysindep import ErrSysUnifPercent
 from pyvale.errorrand import ErrRandNormPercent
 from pyvale.errorsysdep import (ErrSysDigitisation,
                                      ErrSysSaturation)
@@ -30,7 +30,7 @@ class SensorArrayFactory:
     def thermocouples_no_errs(sim_data: mh.SimData,
                               sensor_data: SensorData,
                               field_name: str = "temperature",
-                              spat_dims: int = 3,
+                              elem_dims: int = 3,
                               ) -> SensorArrayPoint:
         """Builds and returns a point sensor array with common parameters used
         for thermocouples applied to a temperature field without any simulated
@@ -47,7 +47,7 @@ class SensorArrayFactory:
             _description_
         field_name : str, optional
             _description_, by default "temperature"
-        spat_dims : int, optional
+        elem_dims : int, optional
             , by default 3
 
         Returns
@@ -57,7 +57,7 @@ class SensorArrayFactory:
         """
         descriptor = SensorDescriptorFactory.temperature_descriptor()
 
-        t_field = FieldScalar(sim_data,field_name,spat_dims)
+        t_field = FieldScalar(sim_data,field_name,elem_dims)
 
         sens_array = SensorArrayPoint(sensor_data,
                                       t_field,
@@ -69,14 +69,14 @@ class SensorArrayFactory:
     def thermocouples_basic_errs(sim_data: mh.SimData,
                                  sensor_data: SensorData,
                                  field_name: str = "temperature",
-                                 spat_dims: int = 3,
+                                 elem_dims: int = 3,
                                  errs_pc: float = 1.0
                                  ) -> SensorArrayPoint:
 
         sens_array = SensorArrayFactory.thermocouples_no_errs(sim_data,
                                                               sensor_data,
                                                               field_name,
-                                                              spat_dims)
+                                                              elem_dims)
 
         err_int = basic_err_integrator(sens_array.get_measurement_shape(),
                                        sensor_data,
@@ -96,7 +96,7 @@ class SensorArrayFactory:
     def disp_sensors_no_errs(sim_data: mh.SimData,
                             sensor_data: SensorData,
                             field_name: str = "displacement",
-                            spat_dims: int = 3,
+                            elem_dims: int = 3,
                             ) -> SensorArrayPoint:
 
         descriptor = SensorDescriptorFactory.displacement_descriptor()
@@ -104,7 +104,7 @@ class SensorArrayFactory:
         disp_field = FieldVector(sim_data,
                                  field_name,
                                  ('disp_x','disp_y'),
-                                 spat_dims)
+                                 elem_dims)
 
         sens_array = SensorArrayPoint(sensor_data,
                                       disp_field,
@@ -116,14 +116,14 @@ class SensorArrayFactory:
     def disp_sensors_basic_errs(sim_data: mh.SimData,
                                 sensor_data: SensorData,
                                 field_name: str = "displacement",
-                                spat_dims: int = 3,
+                                elem_dims: int = 3,
                                 errs_pc: float = 1
                                 ) -> SensorArrayPoint:
 
         sens_array = SensorArrayFactory.disp_sensors_no_errs(sim_data,
                                                             sensor_data,
                                                             field_name,
-                                                            spat_dims)
+                                                            elem_dims)
         err_int = basic_err_integrator(sens_array.get_measurement_shape(),
                                        sensor_data,
                                        sys_err_pc=errs_pc,
@@ -164,14 +164,14 @@ class SensorArrayFactory:
     def strain_gauges_basic_errs(sim_data: mh.SimData,
                                 sensor_data: SensorData,
                                 field_name: str = "strain",
-                                spat_dims: int = 3,
+                                elem_dims: int = 3,
                                 errs_pc: float = 1.0
                                 ) -> SensorArrayPoint:
 
         sens_array = SensorArrayFactory.strain_gauges_no_errs(sim_data,
                                                               sensor_data,
                                                               field_name,
-                                                              spat_dims)
+                                                              elem_dims)
 
         err_int = basic_err_integrator(sens_array.get_measurement_shape(),
                                        sensor_data,
@@ -208,7 +208,7 @@ def basic_err_integrator(meas_shape: np.ndarray,
         a normal percentage random error.
     """
     err_chain = []
-    err_chain.append(ErrSysUniformPercent(-sys_err_pc,sys_err_pc))
+    err_chain.append(ErrSysUnifPercent(-sys_err_pc,sys_err_pc))
     err_chain.append(ErrRandNormPercent(rand_err_pc))
     err_int = ErrIntegrator(err_chain,sensor_data,meas_shape)
     return err_int

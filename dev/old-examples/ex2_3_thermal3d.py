@@ -65,7 +65,7 @@ def main() -> None:
     error_chain = []
     if errors_on["indep_sys"]:
         error_chain.append(pyv.ErrSysOffset(offset=-5.0))
-        error_chain.append(pyv.ErrSysUniform(low=-10.0,
+        error_chain.append(pyv.ErrSysUnif(low=-10.0,
                                                    high=10.0))
 
     if errors_on["rand"]:
