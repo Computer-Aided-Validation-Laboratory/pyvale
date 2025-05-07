@@ -19,12 +19,9 @@ class ErrIntOpts:
     errors are calculated and stored in memory for later use.
     """
 
-    force_dependence: bool = False
-    """Forces all errors to be calculated as dependent if True. Otherwise errors
-    will use individual dependence set in the errors initialiser. Independent
-    errors are calculated based on the ground truth whereas dependent errors are
-    calculated based on the accumulated sensor measurement at that stage in the
-    error chain.
+    force_dependence: EErrDependence | None = None
+    """Forces all errors to be calculated with the specified dependence. If set
+    to None then all errors will use their default/preset dependence.
 
     Note that some errors are inherently independent so will not change. For
     example: `ErrRandNormal` is purely independent whereas `ErrRandNormPercent`
@@ -117,7 +114,7 @@ class ErrIntegrator:
         """Sets the error chain that will be looped over to calculate the sensor
         measurement errors. If the error integration options are forcing error
         dependence then all errors in the chain will have their dependence set
-        to `EErrDependence.DEPENDENT`.
+        to the specified value.
 
         Parameters
         ----------
@@ -126,9 +123,9 @@ class ErrIntegrator:
         """
         self._err_chain = err_chain
 
-        if self._err_int_opts.force_dependence:
+        if self._err_int_opts is not None:
             for ee in self._err_chain:
-                ee.set_error_dep(EErrDependence.DEPENDENT)
+                ee.set_error_dep(self._err_int_opts.force_dependence)
 
 
     def calc_errors_from_chain(self, truth: np.ndarray) -> np.ndarray:

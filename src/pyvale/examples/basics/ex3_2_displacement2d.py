@@ -52,7 +52,7 @@ def main() -> None:
 
     error_chain = []
     error_chain.append(pyv.ErrSysUniform(low=-0.01e-3,high=0.01e-3))
-    error_chain.append(pyv.ErrRandNormal(std=0.01e-3))
+    error_chain.append(pyv.ErrRandNorm(std=0.01e-3))
     error_int = pyv.ErrIntegrator(error_chain,
                                        sens_data,
                                        disp_sens_array.get_measurement_shape())

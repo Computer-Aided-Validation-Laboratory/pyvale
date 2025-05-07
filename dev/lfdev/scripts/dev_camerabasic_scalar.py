@@ -21,7 +21,7 @@ def main() -> None:
     field_key = 'temperature'
     t_field = pyvale.FieldScalar(sim_data,
                                  field_key=field_key,
-                                 spat_dims=2)
+                                 elem_dims=2)
 
     num_px = np.array((500,250))
     leng_per_px = pyvale.calc_resolution_from_sim_2d(num_px,

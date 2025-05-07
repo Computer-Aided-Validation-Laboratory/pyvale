@@ -30,7 +30,7 @@ class ErrSysOffset(IErrCalculator):
             Constant offset to apply to all simulated measurements from the
             sensor array.
         err_dep : EErrDependence, optional
-            Error , by default EErrDependence.INDEPENDENT
+            Error calculation dependence, by default EErrDependence.INDEPENDENT.
         """
         self._offset = offset
         self._err_dep = err_dep

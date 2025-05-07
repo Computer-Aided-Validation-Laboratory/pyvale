@@ -16,7 +16,7 @@ def main() -> None:
     field_key = 'scalar'
     t_field = pyvale.FieldScalar(sim_data,
                                  field_key=field_key,
-                                 spat_dims=2)
+                                 elem_dims=2)
 
     n_sens = (4,1,1)
     x_lims = (0.0,10.0)

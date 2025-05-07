@@ -46,7 +46,7 @@ def check_err_calc_rand(err_calc: pyvale.IErrCalculator,
 def test_ErrRandUniform(check_data: CheckData) -> None:
     low = 1.0
     high = 1.0
-    err_calc = pyvale.ErrRandUniform(low=low,
+    err_calc = pyvale.ErrRandUnif(low=low,
                                      high=high,
                                      err_dep=pyvale.EErrDependence.INDEPENDENT,
                                      seed=check_data.seed)
@@ -77,7 +77,7 @@ def test_ErrRandUnifPercent(check_data: CheckData) -> None:
 
 def test_ErrRandNormal(check_data: CheckData) -> None:
     std = 5.0
-    err_calc = pyvale.ErrRandNormal(std=std,
+    err_calc = pyvale.ErrRandNorm(std=std,
                                     err_dep=pyvale.EErrDependence.INDEPENDENT,
                                     seed=check_data.seed)
 

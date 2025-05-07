@@ -12,7 +12,7 @@ from pyvale.errorcalculator import (IErrCalculator,
 from pyvale.generatorsrandom import IGeneratorRandom
 
 
-class ErrRandUniform(IErrCalculator):
+class ErrRandUnif(IErrCalculator):
     """Random error calculator based on uniform sampling of an interval
     specified by its upper and lower bound.
 
@@ -234,7 +234,7 @@ class ErrRandUnifPercent(IErrCalculator):
         return (err_basis*norm_rand,sens_data)
 
 
-class ErrRandNormal(IErrCalculator):
+class ErrRandNorm(IErrCalculator):
     """Random error calculator based on sampling of a normal (Gaussian)
     distribution specified using the standard deviation with an assumed zero
     mean. A non-zero mean is a systematic error and should be specified using

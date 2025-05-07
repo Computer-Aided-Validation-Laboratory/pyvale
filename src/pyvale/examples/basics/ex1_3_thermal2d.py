@@ -4,6 +4,15 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+Pyvale example: Building a point sensor array from scratch with custom errors
+--------------------------------------------------------------------------------
+Here we build a custom point sensor array from scratch that is similar to the
+pre-built thermocouple array from example 1.1.
+
+Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import mooseherder as mh
@@ -11,82 +20,149 @@ import pyvale as pyv
 
 
 def main() -> None:
-    """pyvale example: Point sensors on a 2D thermal simulation
-    ----------------------------------------------------------------------------
-    - Full construction of a point sensor array from scratch
-    - Explanation of the different types of error models
-    - There are flags throughout the example allowing the user to toggle on/off
-      parts of the sensor array construction
-    """
+    # To build our custom point sensor array we need to at minimum provide a
+    # `IField` (i.e. `FieldScaler`, `FieldVector`, `FieldTensor`) and a
+    # `SensorData` object. For labelling visualisations (e.g. axis labels and
+    # unit labels) we can also provide a `SensorDescriptor` object.
+    # Once we have built our `SensorArrayPoint` object from these we can then
+    # attach custom chains of different types of random and systematic errors
+    # to be evaluated when we run our measurement simulation. This example is
+    # based on the same thermal example we have used in the last two examples so
+    # we start by loading our simulation data:
+
     data_path = pyv.DataSet.thermal_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+    # Scale to mm to make 3D visualisation scaling easier as pyvista scales
+    # everything to unity
+    sim_data = pyv.scale_length_units(scale=1000.0,
+                                      sim_data=sim_data,
+                                      disp_comps=None)
 
-    use_auto_descriptor = "blank"
-    if use_auto_descriptor == "factory":
-        descriptor = pyv.SensorDescriptorFactory.temperature_descriptor()
-    elif use_auto_descriptor == "manual":
-        descriptor = pyv.SensorDescriptor()
-        descriptor.name = "Temperature"
-        descriptor.symbol = "T"
-        descriptor.units = r"^{\circ}C"
-        descriptor.tag = "TC"
-    else:
-        descriptor = pyv.SensorDescriptor()
-
-    field_key = "temperature" # ("disp_x","disp_y")
+    # We are going to build a custom temperature sensor so we need a scalar
+    # field object to perform interpolation to the sensor locations at the
+    # desired sampling times.
+    field_key = "temperature"
     t_field = pyv.FieldScalar(sim_data,
-                                 field_key=field_key,
-                                 spat_dims=2)
+                              field_key=field_key,
+                              elem_dims=2)
 
+
+    # Next we need to create our `SensorData` object which will set the position
+    # and sampling times of our sensors. We use the same helper function we used
+    # previously to create a uniformly spaced grid of sensors in space
     n_sens = (4,1,1)
     x_lims = (0.0,100.0)
     y_lims = (0.0,50.0)
     z_lims = (0.0,0.0)
     sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
-    use_sim_time = False
-    if use_sim_time:
-        sample_times = None
-    else:
-        sample_times = np.linspace(0.0,np.max(sim_data.time),50)
+    # We are also going to specify the times at which we would like to simulate
+    # measurements. Setting this to `None` will default the measurements times
+    # to match the simulation time steps.
+    sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
     sensor_data = pyv.SensorData(positions=sens_pos,
-                                   sample_times=sample_times)
+                                 sample_times=sample_times)
 
+    # Finally, we can create a `SensorDescriptor` which will be used to label
+    # the visualisation and sensor trace plots we have seen in previous
+    # examples.
+    use_auto_descriptor: str = "blank"
+    if use_auto_descriptor == "manual":
+        descriptor = pyv.SensorDescriptor(name="Temperature",
+                                          symbol="T",
+                                          units = r"^{\circ}C",
+                                          tag = "TC")
+    elif use_auto_descriptor == "factory":
+        descriptor = pyv.SensorDescriptorFactory.temperature_descriptor()
+    else:
+        descriptor = pyv.SensorDescriptor()
+
+
+    # We can now build our custom point sensor array. This sensor array has no
+    # errors so if we call `get_measurements()` or `calc_measurements()` we will
+    # be able to extract the simulation truth values at the sensor locations.
     tc_array = pyv.SensorArrayPoint(sensor_data,
-                                       t_field,
-                                       descriptor)
+                                    t_field,
+                                    descriptor)
 
+
+    # If we want to simulate sources of uncertainty for our sensor array we need
+    # to add an `ErrIntegrator` to our sensor array using the method
+    # `set_error_integrator()`. We provide our `ErrIntegrator` a list of error
+    # objects which will be evaluated in the order specified in the list.
+    #
+    # In pyvale errors have a type specified as: random / systematic
+    # (`EErrorType`) and a dependence `EErrDependence` as: independent /
+    # dependent. When analysing errors all randomall systematic errors are
+    # grouped and summed together.The error dependence determines if an error is
+    # calculated based on the truth (independent) or the accumulated measurement
+    # based on all previous errors in the chain (dependent). Some errors are
+    # purely independent such as random noise with a normal distribution with a
+    # set standard devitation. An example of an error that is dependent would be
+    # saturation which must be place last in the error chain and will clamp the
+    # final sensor value to be within the specified bounds.
+    #
+    # pyvale provides a library of different random `ErrRand*` and systematic
+    # `ErrSys*` errors which can be found listed in the docs. In the next
+    # example we will explore the error library but for now we will specify some
+    # common error types. Try experimenting with the code below to turn the
+    # different error types off and on to see how it changes the virtual sensor
+    # measurements.
     errors_on = {"indep_sys": True,
                  "rand": True,
                  "dep_sys": True}
 
     error_chain = []
     if errors_on["indep_sys"]:
+        # This systematic error is just a constant offset of -5 to all simulated
+        # measurements. Note that error values should be specified in the same
+        # units as the simulation.
         error_chain.append(pyv.ErrSysOffset(offset=-5.0))
+
+        # This systematic error samples from a uniform probability distribution.
         error_chain.append(pyv.ErrSysUniform(low=-5.0,
-                                                high=5.0))
+                                             high=5.0))
 
     if errors_on["rand"]:
-        error_chain.append(pyv.ErrRandNormPercent(std_percent=1.0))
+        # This random error is generated by sampling from a normal distribution
+        # with the given standard deviation in simulation units.
+        error_chain.append(pyv.ErrRandNorm(std=1.0))
+
+        # This random error is generated as a percentage sampled from uniform
+        # probability distribution
         error_chain.append(pyv.ErrRandUnifPercent(low_percent=-1.0,
-                                            high_percent=1.0))
+                                                  high_percent=1.0))
 
     if errors_on["dep_sys"]:
         error_chain.append(pyv.ErrSysDigitisation(bits_per_unit=2**8/100))
         error_chain.append(pyv.ErrSysSaturation(meas_min=0.0,meas_max=300.0))
 
+
+    # By default pyvale does not store all individual error source
+    # calculations (i.e. only the total random and total systematic error are
+    # stored) to save memory but this can be changed using `ErrIntOpts`. This
+    # can also be used to force all errors to behave if they
+    #
+    # ADVANCED USERS: it is also possible to write custom errors by writing your
+    # own class that implements the `IErrCalculator` abstract base class and
+    # then add them to your error chain.
     if len(error_chain) > 0:
+        err_int_opts = pyv.ErrIntOpts()
         error_integrator = pyv.ErrIntegrator(error_chain,
-                                                  sensor_data,
-                                                  tc_array.get_measurement_shape())
+                                             sensor_data,
+                                             tc_array.get_measurement_shape(),
+                                             err_int_opts=err_int_opts)
         tc_array.set_error_integrator(error_integrator)
 
 
-    measurements = tc_array.get_measurements()
+    # Now that we have added our error chain we can run a simulation to sample
+    # from all our error sources.
+    measurements = tc_array.calc_measurements()
 
+    # We display the simulation results by printing to the console and by
+    # plotting the sensor times traces. Try experimenting with the errors above
+    # to see how the results change.
     print("\n"+80*"-")
     print("For a sensor: measurement = truth + sysematic error + random error")
     print(f"measurements.shape = {measurements.shape} = "+
@@ -95,11 +171,15 @@ def main() -> None:
           "shape.")
 
     print(80*"-")
-    print("Looking at the last 5 time steps (measurements) of sensor 0:")
+    sens_num: int = 0
+    time_steps: int = 5
+    print(f"Looking at the last {time_steps} time steps (measurements)"+
+          f" of sensor {sens_num}:")
     pyv.print_measurements(tc_array,
-                              (0,1),
-                              (0,1),
-                              (measurements.shape[2]-5,measurements.shape[2]))
+                           (sens_num,sens_num+1),
+                           (sens_num,sens_num+1),
+                           (measurements.shape[2]-
+                            time_steps,measurements.shape[2]))
     print(80*"-")
 
     pyv.plot_time_traces(tc_array,field_key)

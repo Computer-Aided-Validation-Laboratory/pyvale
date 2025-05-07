@@ -37,7 +37,7 @@ def main() -> None:
     field_key = "temperature"
     t_field = pyv.FieldScalar(sim_data,
                                  field_key=field_key,
-                                 spat_dims=3)
+                                 elem_dims=3)
 
     n_sens = (1,4,1)
     x_lims = (12.5,12.5)

@@ -4,17 +4,18 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""pyvale example: point sensors on a 2D thermal simulation
-----------------------------------------------------------------------------
-- Explanation of the usage of "get_measurements()" and "calc_measurements()".
+"""
+Pyvale example: Sensor model & `get_measurements()` vs `calc_measurements`
+--------------------------------------------------------------------------------
+In this example we explain the pyvale virtual sensor measurement model. For a
+virtual sensor in pyvale a measurement is defined as measurement = truth +
+systematic error + random error. We then explain and demonstrate the difference
+between the `get_measurements()` and `calc_measurements()` methods for a sensor
+array. Calling `get_measurements()` retrieves the results for the current
+simulated experiment whereas calling `calc_measurements()` will generate a new
+simulated experiment by sampling / calculating the systematic and random errors.
 
-Notes:
-- In pyvale a virtual sensor measurement is defined as:
-  measurement = truth + systematic error + random error.
-- Calling the "get" method of the sensor array will retrieve the results for
-  the current experiment.
-- Calling the "calc" method will generate a new experiment by sampling /
-  calculating the systematic and random errors.
+Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 """
 
 import matplotlib.pyplot as plt

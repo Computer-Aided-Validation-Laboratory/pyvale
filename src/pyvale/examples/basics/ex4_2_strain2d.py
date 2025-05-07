@@ -56,7 +56,7 @@ def main() -> None:
 
     error_chain = []
     error_chain.append(pyv.ErrSysUniform(low=-0.1e-3,high=0.1e-3))
-    error_chain.append(pyv.ErrRandNormal(std=0.1e-3))
+    error_chain.append(pyv.ErrRandNorm(std=0.1e-3))
     error_int = pyv.ErrIntegrator(error_chain,
                                        sens_data,
                                        straingauge_array.get_measurement_shape())
