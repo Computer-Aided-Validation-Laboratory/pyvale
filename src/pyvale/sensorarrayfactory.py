@@ -80,7 +80,8 @@ class SensorArrayFactory:
 
         err_int = basic_err_integrator(sens_array.get_measurement_shape(),
                                        sensor_data,
-                                       errs_pc)
+                                       sys_err_pc=errs_pc,
+                                       rand_err_pc=errs_pc)
 
         # Normal thermcouple amp = 5mV / K
         err_int._err_chain.append(ErrSysDigitisation(bits_per_unit=2**16/1000))
@@ -88,6 +89,8 @@ class SensorArrayFactory:
 
         sens_array.set_error_integrator(err_int)
         return sens_array
+
+
 
     @staticmethod
     def disp_sensors_no_errs(sim_data: mh.SimData,
@@ -123,7 +126,8 @@ class SensorArrayFactory:
                                                             spat_dims)
         err_int = basic_err_integrator(sens_array.get_measurement_shape(),
                                        sensor_data,
-                                       errs_pc)
+                                       sys_err_pc=errs_pc,
+                                       rand_err_pc=errs_pc)
         sens_array.set_error_integrator(err_int)
 
         return sens_array
@@ -171,7 +175,8 @@ class SensorArrayFactory:
 
         err_int = basic_err_integrator(sens_array.get_measurement_shape(),
                                        sensor_data,
-                                       errs_pc)
+                                       sys_err_pc=errs_pc,
+                                       rand_err_pc=errs_pc)
         sens_array.set_error_integrator(err_int)
 
         return sens_array

@@ -25,7 +25,7 @@ def main() -> None:
     # a bi-directional temperature gradient.
     data_path = pyv.DataSet.thermal_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    field_key = "temperature"
+    field_key: str = "temperature"
     # Scale to mm to make 3D visualisation scaling easier as pyvista scales
     # everything to unity
     sim_data = pyv.scale_length_units(scale=1000.0,
