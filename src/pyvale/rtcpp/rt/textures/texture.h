@@ -2,6 +2,7 @@
 #define TEXTURE_H
 #include "../util.h"
 #include <iostream>
+#include "materials/perlin.h"
 
 
 class texture  {
@@ -44,6 +45,20 @@ class checker_texture : public texture {
         shared_ptr<texture> even;
 };
 
+class Noise_texture : public texture {
+    public:
+        Noise_texture(double scale) : scale(scale) {}
+
+        color value(double u, double v, const point3& p) const override {
+            Eigen::Vector3d pe;
+            pe << p.x(), p.y(), p.z();
+            return color(.5, .5, .5) * (1 + std::sin(scale * p.z() + 10 * noise.turb(pe, 7)));
+        }
+
+    private:
+        Perlin noise;
+        double scale;
+};
 
 
 #endif

@@ -23,6 +23,7 @@
 // #include "render.cpp"
 
 #include <Eigen/Dense>
+#include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <sstream>
 
@@ -37,29 +38,46 @@ int main(int, char**) {
     auto light = std::make_shared<Diffuse_light>(color(13, 13, 13));
     // auto glass = std::make_shared<Refractive>(1.5);
 
+
+    Camera camera = Camera(point3(0, 1, 5),
+                    point3(0, 1, 0),
+                    40.0,
+                    200.0 / 200.0,
+                    0.01,
+                    10.0,
+                    vec3(0.,1.,0.),
+                    600
+    );
+
+    // scene.add(std::make_shared<Sphere>(point3(0, 1, 0), 3, green));
+    scene.add(std::make_shared<Sphere>(point3(0, -152, 0), 150, red));
+
+    lights.add(std::make_shared<Quad>(point3(0, 5, 0), vec3(1,0,0), vec3(0,0,1), red));
+                
+
     // First quad
     Eigen::Matrix<double, 4, 3> nodes1;
-    nodes1 << 200, 300, 100,
-              250, 300, 200,
-              250, 350, 200,
-              200, 350, 200;
+    nodes1 << -2, -2, 0,
+              2, -2, 0,
+              2, 2, 0,
+              -2, 2, 0;
     Eigen::Matrix<double, 4, 3> displacements1 = Eigen::Matrix<double, 4, 3>::Zero();
 
-    // scene.add(std::make_shared<ShapeQuadLin>(nodes1, displacements1, red));
+    // scene.add(std::make_shared<ShapeQuadLin>(nodes1, displacements1, green));
 
     // Second quad (quadratic)
     Eigen::Matrix<double, 8, 3> nodes2;
-    nodes2 << 200, 300, 200,
-              250, 300, 200,
-              250, 350, 200,
-              200, 350, 200,
-              225, 300, 200,
-              250, 325, 200,
-              225, 350, 200,
-              200, 325, 200;
+    nodes2 << -2, -2, 0,
+              2, -2, 0,
+              2, 2, 0,
+              -2, 2, 0,
+              0, -2, 0,
+              2, 0, 0,
+              0, 2, 0,
+              -2, 0, 0;
     Eigen::Matrix<double, 8, 3> displacements2 = Eigen::Matrix<double, 8, 3>::Zero();
 
-    // scene.add(std::make_shared<ShapeQuadQuad>(nodes2, displacements2, green));
+    scene.add(std::make_shared<ShapeQuadQuad>(nodes2, displacements2, green));
 
     // Walls and light
     // scene.add(std::make_shared<Plane_yz>(0, 555, 0, 555, 555, green));
@@ -71,23 +89,21 @@ int main(int, char**) {
     // scene.add(std::make_shared<Sphere>(point3(278, 100, 250), 100, green));
 
     // Camera
-    Camera camera = Camera(point3(278, 278, -800),
-                            point3(278, 278, 0),
-                            40.0,
-                            200.0 / 200.0,
-                            0.01,
-                            10.0,
-                            vec3(0.,1.,0.)
-                    );
+    // Camera camera = Camera(point3(278, 278, -800),
+    //                         point3(278, 278, 0),
+    //                         40.0,
+    //                         200.0 / 200.0,
+    //                         0.01,
+    //                         10.0,
+    //                         vec3(0.,1.,0.)
+    //                 );
 
     std::ostringstream oss(std::ios::binary);
     camera.render(scene, lights, oss);
     std::string ppm_data = oss.str();
 
-    // 2. Convert to vector<uchar> for imdecode
+    // Decode PPM image to cv::Mat
     std::vector<uchar> buffer(ppm_data.begin(), ppm_data.end());
-
-    // 3. Decode PPM image to cv::Mat
     cv::Mat image = cv::imdecode(buffer, cv::IMREAD_COLOR);
     if (image.empty()) {
         std::cerr << "Failed to decode PPM image.\n";
@@ -95,7 +111,8 @@ int main(int, char**) {
     }
 
     // 4. Display the image
-    cv::imshow("PPM Image", image);
+    cv::namedWindow("image", cv::WINDOW_NORMAL); //namedWindow('image',WINDOW_NORMAL)
+    cv::imshow("image", image);
     cv::waitKey(0);
 
     return 0;

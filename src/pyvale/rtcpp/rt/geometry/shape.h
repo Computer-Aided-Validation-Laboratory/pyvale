@@ -202,7 +202,7 @@ class ShapeQuadQuad : public ShapeQuad {
 
         Eigen::VectorXd shapeFunctions(double xi, double eta) const override
         {
-            Eigen::VectorXd N;
+            Eigen::VectorXd N(8);
             N(0) = 0.25 * (1 - xi) * (1 - eta) * (-1 - xi - eta);
             N(1) = 0.25 * (1 + xi) * (1 - eta) * (-1 + xi - eta);
             N(2) = 0.25 * (1 + xi) * (1 + eta) * (-1 + xi + eta);

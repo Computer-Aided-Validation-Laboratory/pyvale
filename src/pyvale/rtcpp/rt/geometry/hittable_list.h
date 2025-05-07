@@ -70,9 +70,15 @@ double Hittable_list::pdf_value(const point3& o, const vec3& v) const {
 }
 
 
-vec3 Hittable_list::random(const vec3& o) const {
+vec3 Hittable_list::random(const vec3& origin) const {
     auto int_size = static_cast<int>(objects.size());
-    return objects[random_int(0, int_size - 1)]->random(o);
+    if (int_size > 0) {
+        return objects[random_int(0, int_size - 1)]->random(origin);
+    }
+    else {
+        // not sure what is best to return here
+        return vec3(0, 1, 0);
+    }
 }
 
 

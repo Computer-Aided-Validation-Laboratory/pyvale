@@ -58,6 +58,6 @@ inline int random_int(int min, int max) {
 
 #include "ray.h"
 #include "vec3.h"
-
+// Bad practice. Remove these when possible, and link them explicitly each time
 
 #endif
