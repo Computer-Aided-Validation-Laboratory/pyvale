@@ -1,10 +1,9 @@
 # ==============================================================================
-# Example: Simple stereo Blender scene with no deformation
-#
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path

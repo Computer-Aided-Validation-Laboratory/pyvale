@@ -1,12 +1,9 @@
-"""
-================================================================================
-Example: Blender calibration example
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
 import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
