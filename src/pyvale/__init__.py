@@ -55,6 +55,7 @@ from pyvale.errorrand import *
 from pyvale.errorsysindep import *
 from pyvale.errorsysdep import *
 from pyvale.errorsysfield import *
+from pyvale.errorsyscalib import *
 from pyvale.errordriftcalc import *
 
 from pyvale.generatorsrandom import *
