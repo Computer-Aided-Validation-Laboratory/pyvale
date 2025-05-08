@@ -44,7 +44,7 @@ void engine(const py::array_t<double>& img_ref_arr,
     bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
     double* img_ref = static_cast<double*>(img_ref_arr.request().ptr);
     double* img_def_stack = static_cast<double*>(img_def_stack_arr.request().ptr);
-    
+
     // get a list of ss coordinates within RIO.
     util::SubsetData ssdata = util::generate_ss_list(img_roi, conf, saveconf);
 

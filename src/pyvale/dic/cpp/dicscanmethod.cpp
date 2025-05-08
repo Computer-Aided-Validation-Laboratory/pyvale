@@ -122,8 +122,8 @@ void image_with_bf(double *image_ref,
         if ((ss_thread_num == 0) || (res.iter == opt.max_iter)){
 
             brute::expanding_wavefront(ss_x, ss_y, image_ref, 
-                                       conf.px_vertical, 
                                        conf.px_horizontal, 
+                                       conf.px_vertical, 
                                        ss_def, ss_ref, brute);
 
             ptemp[0] = brute.p_rigid[0];
@@ -196,7 +196,7 @@ void image_with_bf(double *image_ref,
                                 conf.range_bf);
 
         brute::expanding_wavefront(seed_x, seed_y, image_ref, 
-                                   px_vertical, px_horizontal, 
+                                   px_horizontal, px_vertical, 
                                    ss_def, ss_ref, brute);
 
         // Optimization parameters
@@ -234,8 +234,8 @@ void image_with_bf(double *image_ref,
                              px_horizontal, px_vertical,
                              image_def);
 
-            brute::expanding_wavefront(nx, ny, image_ref, 
-                                       px_vertical, px_horizontal, 
+            brute::expanding_wavefront(nx, ny, image_ref,
+                                       px_horizontal, px_vertical,
                                        ss_def, ss_ref, brute);
 
             ptemp[0] = brute.p_rigid[0];
@@ -337,9 +337,9 @@ void image_with_bf(double *image_ref,
                         if (util::niter_arr[idx] == opt.max_iter && 
                             util::cost_arr[idx] > opt.threshold_lm){
 
-                            brute::expanding_wavefront(nx, ny,
-                                                       image_ref, px_vertical, 
-                                                       px_horizontal, ss_def, 
+                            brute::expanding_wavefront(nx, ny, image_ref, 
+                                                       px_horizontal,
+                                                       px_vertical, ss_def,
                                                        ss_ref, brute);
 
                             ptemp[0] = brute.p_rigid[0];

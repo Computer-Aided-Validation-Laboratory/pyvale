@@ -67,8 +67,8 @@ namespace brute {
     void expanding_wavefront(const int ss_x, 
                                   const int ss_y, 
                                   const double *image_ref, 
-                                  const int px_vertical, 
                                   const int px_horizontal, 
+                                  const int px_vertical, 
                                   util::Subset &ss_def, 
                                   util::Subset &ss_ref, 
                                   brute::Parameters &brute);
@@ -89,12 +89,12 @@ namespace brute {
      * @return result is populated in brute.p_rigid.
      */
     void exhaustive(const int ss_x, 
-                                  const int ss_y, 
-                                  const double *image_ref, 
-                                  const int px_vertical, 
-                                  const int px_horizontal, 
-                                  util::Subset &ss_def, 
-                                  util::Subset &ss_ref, 
+                                  const int ss_y,
+                                  const double *image_ref,
+                                  const int px_horizontal,
+                                  const int px_vertical,
+                                  util::Subset &ss_def,
+                                  util::Subset &ss_ref,
                                   brute::Parameters &brute);
 
     // /**
@@ -137,8 +137,8 @@ namespace brute {
      * @return The computed SSD value.
      */
     double ssd(const double *image_ref, 
-               const int px_vertical, 
                const int px_horizontal, 
+               const int px_vertical, 
                util::Subset &ss_def, 
                util::Subset &ss_ref,
                const int p0,
@@ -162,8 +162,8 @@ namespace brute {
      * @return The computed NSSD value.
      */
     double nssd(const double *image_ref, 
-                const int px_vertical, 
                 const int px_horizontal, 
+                const int px_vertical, 
                 util::Subset &ss_def,
                 util::Subset &ss_ref,
                 const int p0,
@@ -187,8 +187,8 @@ namespace brute {
      * @return The computed ZNSSD value.
      */
     double znssd(const double *image_ref, 
-                 const int px_vertical, 
                  const int px_horizontal, 
+                 const int px_vertical, 
                  util::Subset &ss_def, 
                  util::Subset &ss_ref,
                  const int p0,

@@ -78,13 +78,13 @@ namespace brute {
     }
 
 
-    void expanding_wavefront(const int ss_x, 
-                         const int ss_y, 
-                         const double *image_ref, 
-                         const int px_horizontal, 
-                         const int px_vertical, 
-                         util::Subset &ss_def, 
-                         util::Subset &ss_ref, 
+    void expanding_wavefront(const int ss_x,
+                         const int ss_y,
+                         const double *image_ref,
+                         const int px_horizontal,
+                         const int px_vertical,
+                         util::Subset &ss_def,
+                         util::Subset &ss_ref,
                          brute::Parameters &brute) {
 
 
@@ -100,6 +100,7 @@ namespace brute {
             // Go around the current ring at radius r
             for (int dy = -r; dy <= r; dy++) {
                 for (int dx = -r; dx <= r; dx++) {
+
 
                     if (!is_perimeter_point(dx, dy, r)) 
                         continue;
@@ -119,8 +120,8 @@ namespace brute {
                                          px_horizontal, px_vertical))
                         continue;
 
-                    double cost = cost_function(image_ref, px_vertical, 
-                                                px_horizontal, ss_def, 
+                    double cost = cost_function(image_ref, px_horizontal, 
+                                                px_vertical, ss_def, 
                                                 ss_ref, p0, p1);
 
                     if (std::abs(cost) < cost_min) {
@@ -144,8 +145,8 @@ namespace brute {
     void exhaustive(const int ss_x, 
                     const int ss_y, 
                     const double *image_ref, 
-                    const int px_vertical, 
                     const int px_horizontal, 
+                    const int px_vertical, 
                     util::Subset &ss_def, 
                     util::Subset &ss_ref, 
                     brute::Parameters &brute){
@@ -163,7 +164,7 @@ namespace brute {
         for (int p1 = -ymin; p1 <= ymax; p1++){
             for (int p0 = -xmin; p0 <= xmax; p0++){
 
-                double cost = cost_function(image_ref, px_vertical, px_horizontal, ss_def,ss_ref,p0,p1);
+                double cost = cost_function(image_ref, px_horizontal, px_vertical, ss_def,ss_ref,p0,p1);
 
                 // update minumum value. If Below tolerance then return.
                 if (std::abs(cost) < cost_min) {
@@ -180,8 +181,8 @@ namespace brute {
 
 
     double ssd(const double *image_ref, 
-               const int px_vertical, 
                const int px_horizontal, 
+               const int px_vertical, 
                util::Subset &ss_def, 
                util::Subset &ss_ref,
                const int p0,
@@ -212,8 +213,8 @@ namespace brute {
 
 
     double nssd(const double *image_ref, 
-                const int px_vertical, 
                 const int px_horizontal, 
+                const int px_vertical, 
                 util::Subset &ss_def,
                 util::Subset &ss_ref,
                 const int p0,
@@ -251,7 +252,7 @@ namespace brute {
             double def_norm = ss_def.vals[i] * inv_sum_squared_def;
             double ref_norm = ss_ref.vals[i] * inv_sum_squared_ref;
             cost += (def_norm - ref_norm) *
-                    (def_norm - ref_norm);        
+                    (def_norm - ref_norm);
         }
 
         return cost;
@@ -259,8 +260,8 @@ namespace brute {
     }
 
     double znssd(const double *image_ref, 
-                const int px_vertical, 
                 const int px_horizontal, 
+                const int px_vertical, 
                 util::Subset &ss_def,
                 util::Subset &ss_ref,
                 const int p0,

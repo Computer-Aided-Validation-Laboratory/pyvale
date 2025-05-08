@@ -280,8 +280,8 @@ namespace util {
                 int idx = img * ssdata.num + i;
                 int idx_p = num_params*idx;
 
-                double mag = std::sqrt(u_arr[idx] * u_arr[idx]+
-                                                v_arr[idx] * v_arr[idx]);
+                double mag = std::sqrt(u_arr[idx]*u_arr[idx]+
+                                       v_arr[idx]*v_arr[idx]);
 
                 write_int(outfile, ssdata.coords[2*i]);
                 write_int(outfile, ssdata.coords[2*i+1]);

@@ -302,7 +302,7 @@ def DICdata_import(layout: str="column",
                     cost  = np.frombuffer(row[32:40], dtype=np.float64)[0]
                     ftol  = np.frombuffer(row[40:48], dtype=np.float64)[0]
                     xtol  = np.frombuffer(row[48:56], dtype=np.float64)[0]
-                    niter = np.frombuffer(row[56:64], dtype=np.int32)[0]
+                    niter = np.frombuffer(row[56:60], dtype=np.int32)[0]
 
                     # Combine coords, u, and v into one row
                     ss_x_tmp.append(ss_x)
@@ -322,7 +322,6 @@ def DICdata_import(layout: str="column",
                 assert np.array_equal(ss_x_arr, ss_x_tmp)
                 assert np.array_equal(ss_y_arr, ss_y_tmp)
 
-            print(len(u_tmp))
             u_list.append(u_tmp)
             v_list.append(v_tmp)
             m_list.append(m_tmp)
@@ -369,7 +368,6 @@ def DICdata_import(layout: str="column",
     ftol_arr  = np.array(ftol_list)
     xtol_arr  = np.array(xtol_list)
     niter_arr = np.array(niter_list)
-    print(u_arr.shape)
 
     if layout == "matrix":
         x_unique = np.unique(ss_x_arr)
