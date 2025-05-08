@@ -181,25 +181,34 @@ def main() -> None:
     # plotting the sensor times traces. Try experimenting with the errors above
     # to see how the results change.
     print("\n"+80*"-")
-    print("For a sensor: measurement = truth + sysematic error + random error")
+    print("For a virtual sensor: measurement = truth + sysematic error + random error")
     print(f"measurements.shape = {measurements.shape} = "+
           "(n_sensors,n_field_components,n_timesteps)\n")
     print("The truth, systematic error and random error arrays have the same "+
           "shape.")
 
     print(80*"-")
-    sens_num: int = 0
-    time_steps: int = 5
-    print(f"Looking at the last {time_steps} time steps (measurements)"+
-          f" of sensor {sens_num}:")
-    pyv.print_measurements(tc_array,
-                           (sens_num,sens_num+1),
-                           (sens_num,sens_num+1),
-                           (measurements.shape[2]-
-                            time_steps,measurements.shape[2]))
+
+    sens_print: int = 0
+    time_print: int = 5
+    comp_print: int = 0
+
+    print(f"These are the last {time_print} virtual measurements of sensor "
+          + f"{sens_print}:")
+
+    pyv.print_measurements(sens_array=tc_array,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
     print(80*"-")
 
-    pyv.plot_time_traces(tc_array,field_key)
+    (fig,ax) = pyv.plot_time_traces(tc_array,field_key)
+
+    save_traces = output_path/"customsensors_ex1_3_sensortraces.png"
+    fig.savefig(save_traces, dpi=300, bbox_inches="tight")
+    fig.savefig(save_traces.with_suffix(".svg"), dpi=300, bbox_inches="tight")
+
     plt.show()
 
 

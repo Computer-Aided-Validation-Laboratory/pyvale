@@ -19,7 +19,11 @@ from pyvale.errorcalculator import (IErrCalculator,
 from pyvale.errordriftcalc import IDriftCalculator
 from pyvale.generatorsrandom import IGenRandom
 
-# TODO: implement locking coords/angs in ErrFieldData
+# TODO:
+# - Implement different perturbed sampling times for each sensor or allow all
+#   to lock to the same time step as it works now.
+# - Need to check that we perform field rotations correctly for sensor angles.
+
 
 @dataclass(slots=True)
 class ErrFieldData:
@@ -81,10 +85,6 @@ class ErrFieldData:
     the purpose of calculating field errors. Only used if spatial averager is
     specified above. shape=(3,)
     """
-
-    # DEV FEATURE: locks the coordinate even if offsets and random generators are specified
-    pos_lock_xyz: np.ndarray | None = None
-    ang_lock_zyx: np.ndarray | None = None
 
     #TODO: implement drift for other dimensions, pos/angle
     time_drift: IDriftCalculator | None = None
@@ -203,7 +203,6 @@ class ErrSysField(IErrCalculator):
             self._sensor_data_perturbed.positions,
             self._field_err_data.pos_offset_xyz,
             self._field_err_data.pos_rand_xyz,
-            self._field_err_data.pos_lock_xyz,
         )
 
         self._sensor_data_perturbed.sample_times = _perturb_sample_times(
@@ -219,7 +218,6 @@ class ErrSysField(IErrCalculator):
             self._sensor_data_perturbed.angles,
             self._field_err_data.ang_offset_zyx,
             self._field_err_data.ang_rand_zyx,
-            self._field_err_data.ang_lock_zyx,
         )
 
         sys_errs = sample_field_with_sensor_data(
@@ -234,8 +232,7 @@ def _perturb_sensor_positions(sens_pos_nominal: np.ndarray,
                              pos_offset_xyz: np.ndarray | None,
                              pos_rand_xyz: tuple[IGenRandom | None,
                                                  IGenRandom | None,
-                                                 IGenRandom | None] | None,
-                             pos_loc_xyz: np.ndarray | None,
+                                                 IGenRandom | None] | None
                             ) -> np.ndarray:
     """Helper function for perturbing the sensor positions from their nominal
     positions based on the user specified offset and random generators for each
@@ -276,8 +273,8 @@ def _perturb_sensor_positions(sens_pos_nominal: np.ndarray,
                 sens_pos_perturbed[:,ii] = sens_pos_perturbed[:,ii] + \
                     rng.generate(shape=sens_pos_perturbed.shape[0])
 
-    if pos_loc_xyz is not None:
-        sens_pos_perturbed[pos_loc_xyz] = sens_pos_nominal[pos_loc_xyz]
+    # if pos_loc_xyz is not None:
+    #     sens_pos_perturbed[pos_loc_xyz] = sens_pos_nominal[pos_loc_xyz]
 
     return sens_pos_perturbed
 
@@ -339,8 +336,7 @@ def _perturb_sensor_angles(n_sensors: int,
                           angle_offsets_zyx: np.ndarray | None,
                           rand_ang_zyx: tuple[IGenRandom | None,
                                               IGenRandom | None,
-                                              IGenRandom | None] | None,
-                          angle_loc_zyx: np.ndarray | None,
+                                              IGenRandom | None] | None
                           ) -> tuple[Rotation,...] | None:
     """Helper function for perturbing sensor angles for the purpose of
     calculating field based systematic errors.
@@ -396,9 +392,9 @@ def _perturb_sensor_angles(n_sensors: int,
                     sensor_rot_angs[jj] = sensor_rot_angs[jj] + \
                         rand_ang.generate(shape=1)
 
-        if angle_loc_zyx is not None:
-            # No rotation about locked axes using mask
-            sensor_rot_angs[angle_loc_zyx[ii,:]] = 0.0
+        # if angle_loc_zyx is not None:
+        #     # No rotation about locked axes using mask
+        #     sensor_rot_angs[angle_loc_zyx[ii,:]] = 0.0
 
         sensor_rot = Rotation.from_euler("zyx",sensor_rot_angs, degrees=True)
         angles_perturbed[ii] = sensor_rot*rot_nom

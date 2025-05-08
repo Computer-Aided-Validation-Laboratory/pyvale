@@ -78,55 +78,65 @@ def main() -> None:
     # statements below.
 
     print("\n"+80*"-")
-    print("For a sensor array: measurement = truth + sysematic error + random error")
-    print(f"\nmeasurements.shape = {measurements.shape} = "+
-          "(n_sensors,n_field_components,n_timesteps)\n")
+    print("For a sensor array: "
+          + "measurement = truth + sysematic error + random error")
+    print(f"\nmeasurements.shape = {measurements.shape} = "
+          + "(n_sensors,n_field_components,n_timesteps)\n")
     print("Here we have a scalar temperature field so only 1 field component.")
-    print("The truth, systematic error and random error arrays all have the same "+
-          "shape.")
+    print("The truth, systematic error and random error arrays all have the "+
+          "same shape.")
+
+    sens_print: int = 0
+    time_print: int = 5
+    comp_print: int = 0
 
     print(80*"-")
-    print("Looking at the last 5 time steps (measurements) of sensor 0:")
-    pyv.print_measurements(tc_array,
-                            (0,1),
-                            (0,1),
-                            (measurements.shape[2]-5,measurements.shape[2]))
+    print(f"Looking at the last {time_print} virtual measurements" +
+          f" of sensor {sens_print}:")
+
+    pyv.print_measurements(sens_array=tc_array,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
     print(80*"-")
-    print("If we call the `calc_measurements()` method then the errors are "+
-          "re-calculated.")
+    print("If we call the `calc_measurements()` method then the errors are "
+          + "re-calculated.")
     measurements = tc_array.calc_measurements()
 
-    pyv.print_measurements(tc_array,
-                              (0,1),
-                              (0,1),
-                              (measurements.shape[2]-5,measurements.shape[2]))
-
+    pyv.print_measurements(sens_array=tc_array,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
 
     (fig,ax) = pyv.plot_time_traces(tc_array,field_key)
     ax.set_title("Exp 1: called calc_measurements()")
 
     print(80*"-")
-    print("If we call the `get_measurements()` method then the errors are the "+
-          "same:")
+    print("If we call the `get_measurements()` method then the errors are the "
+          + "same:")
     measurements = tc_array.get_measurements()
 
-    pyv.print_measurements(tc_array,
-                              (0,1),
-                              (0,1),
-                              (measurements.shape[2]-5,measurements.shape[2]))
+    pyv.print_measurements(sens_array=tc_array,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
 
     (fig,ax) = pyv.plot_time_traces(tc_array,field_key)
     ax.set_title("Exp 2: called get_measurements()")
 
     print(80*"-")
-    print("If we call the `calc_measurements()` method again we generate/sample"+
-           "new errors:")
+    print("If we call the `calc_measurements()` method again we generate / "
+          "sample new errors:")
     measurements = tc_array.calc_measurements()
 
-    pyv.print_measurements(tc_array,
-                              (0,1),
-                              (0,1),
-                              (measurements.shape[2]-5,measurements.shape[2]))
+    pyv.print_measurements(sens_array=tc_array,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
 
     (fig,ax) = pyv.plot_time_traces(tc_array,field_key)
     ax.set_title("Exp 3: called calc_measurements()")

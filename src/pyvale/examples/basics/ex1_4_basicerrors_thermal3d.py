@@ -66,7 +66,7 @@ def main() -> None:
     # For probability sampling systematic errors the distribution is sampled to
     # provide an offset which is assumed to be constant over all sensor sampling
     # times. This is different to random errors which are sampled to provide a
-    # different error for each sensor and time step/
+    # different error for each sensor and time step.
 
     # These systematic errors provide a constant offset to all measurements in
     # simulation units or as a percentage.
@@ -83,7 +83,7 @@ def main() -> None:
     err_chain.append(pyv.ErrSysNormPercent(std_percent=1.0))
 
     # pyvale includes a series of random number generator objects that wrap the
-    # random number generators from nummpy. These are named `Gen*` and can be
+    # random number generators from numpy. These are named `Gen*` and can be
     # used with an `ErrSysGen` or an `ErrSysGenPercent` object to create custom
     # probability distribution sampling errors:
     sys_gen = pyv.GenTriangular(left=-1.0,
@@ -129,14 +129,21 @@ def main() -> None:
     # different error sources as we have done in previous examples.
     measurements = tc_array.calc_measurements()
 
-    print(80*'-')
-    sens_num = 4
-    print('The last 5 time steps (measurements) of sensor {sens_num}:')
-    pyv.print_measurements(tc_array,
-                              (sens_num-1,sens_num),
-                              (0,1),
-                              (measurements.shape[2]-5,measurements.shape[2]))
-    print(80*'-')
+    print(80*"-")
+
+    sens_print: int = 0
+    time_print: int = 5
+    comp_print: int = 0
+
+    print(f"These are the last {time_print} virtual measurements of sensor "
+          + f"{sens_print}:")
+
+    pyv.print_measurements(sens_array=tc_array,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
+    print(80*"-")
 
     pyv.plot_time_traces(tc_array,field_key)
     plt.show()

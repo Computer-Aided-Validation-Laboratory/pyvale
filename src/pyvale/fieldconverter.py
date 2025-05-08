@@ -4,12 +4,12 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-import warnings
 import numpy as np
 import pyvista as pv
 from pyvista import CellType
 import mooseherder as mh
 
+# TODO: docstrings
 
 def simdata_to_pyvista(sim_data: mh.SimData,
                         components: tuple[str,...] | None,
@@ -45,7 +45,7 @@ def simdata_to_pyvista(sim_data: mh.SimData,
 
         this_cell_type = _get_pyvista_cell_type(nodes_per_elem,elem_dims)
         assert this_cell_type is not None, ("Cell type with dimension " +
-            f"{elem_dims} and {nodes_per_elem} noder per element not recognised.")
+            f"{elem_dims} and {nodes_per_elem} nodes per element not recognised.")
 
         # VTK and exodus have different winding for 3D higher order quads
         this_connect = _exodus_to_pyvista_connect(this_cell_type,this_connect)
