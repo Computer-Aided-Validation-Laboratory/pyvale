@@ -6,12 +6,12 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from icecream import ic
 
 from pyvale.dic import dic2dcpp
 
 
-def dic_import_data(path, prefix: str="results", format: str=".dat", delim: str=" "):
+def import_displacement_data(path: str="./", prefix: str="results", 
+                             format: str=".dat", delim: str=" "):
     """
     Import data from a file. The format of the file is determined by the extension.
     Only reads coords, u, and v values.
@@ -124,7 +124,7 @@ def dic_calculate_strain(dic_data,
                          f"Must be an odd number.")
 
 
-    diccppinterface.cpp_2d_strain_routine(x,y,u_mesh,v_mesh, window_size,
+    dic2dcpp.cpp_2d_strain_routine(x,y,u_mesh,v_mesh, window_size,
                                           window_element, strain_formulation)
 
 

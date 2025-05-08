@@ -14,19 +14,17 @@
 namespace scanmethod {
 
 /**
-     * @brief 
-     * 
-     * @param image_ref 
-     * @param image_def 
-     * @param ss_coord_list 
-     * @param num_def_images 
-     * @param img_num 
-     * @param max_iter 
-     * @param precision 
-     * @param threshold_lm 
-     * @param threshold_bf 
-     * @param range_bf 
-     */
+ * @brief straightforward image scan method. 
+     * Loops over the subsets as a raster across the image.
+     * initial subset locations are distrubuted evenly across the image
+ * 
+ * @param image_ref pointer to reference image
+ * @param image_def pointer to deformed image
+ * @param image_roi pointer to image roi
+ * @param ssdata pointer to subset information
+ * @param conf pointer to DIC config struct
+ * @param img_num current image number
+ */
 void image(double *image_ref, 
                 double *image_def, 
                 bool *image_roi,
@@ -36,19 +34,19 @@ void image(double *image_ref,
 
 
 /**
-     * @brief 
-     * 
-     * @param image_ref 
-     * @param image_def 
-     * @param ss_coord_list 
-     * @param num_def_images 
-     * @param img_num 
-     * @param max_iter 
-     * @param precision 
-     * @param threshold_lm 
-     * @param threshold_bf 
-     * @param range_bf 
-     */
+ * @brief Image scan with a brute force search method 
+ * to handle large displacements or poor images. 
+ * initial subset locations are distrubuted evenly across the image
+ * and then a brute force search is performed to find the best match
+ * for the first subset and any other poorly correlated subsets.
+ * 
+ * @param image_ref pointer to reference image
+ * @param image_def pointer to deformed image
+ * @param image_roi pointer to image roi
+ * @param ssdata pointer to subset information
+ * @param conf pointer to DIC config struct
+ * @param img_num current image number
+ */
 void image_with_bf(double *image_ref, 
                         double *image_def, 
                         bool *image_roi,
@@ -58,19 +56,19 @@ void image_with_bf(double *image_ref,
 
 
 /**
-     * @brief 
-     * 
-     * @param image_ref 
-     * @param image_def 
-     * @param ss_coord_list 
-     * @param num_def_images 
-     * @param img_num 
-     * @param max_iter 
-     * @param precision 
-     * @param threshold_lm 
-     * @param threshold_bf 
-     * @param range_bf 
-     */
+ * @brief reliability guided scan method. 
+ * correlation is calculated for initial seed point and nearest neighbours.image
+ * Scan proceeds along path with better matching subsets. 
+ * A full indepth outline of the method can be found here:
+ * https://opg.optica.org/ao/abstract.cfm?uri=ao-48-8-1535
+ * 
+ * @param image_ref pointer to reference image
+ * @param image_def pointer to deformed image
+ * @param image_roi pointer to image roi
+ * @param ssdata pointer to subset information
+ * @param conf pointer to DIC config struct
+ * @param img_num current image number
+ */
 void reliability_guided(double *image_ref, 
                         double *image_def, 
                         bool *image_roi,

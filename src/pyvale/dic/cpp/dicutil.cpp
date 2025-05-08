@@ -7,6 +7,7 @@
 
 // STD library Header files
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -28,25 +29,26 @@ namespace util {
     std::vector<double> ftol_arr;
     std::vector<double> xtol_arr;
     std::vector<double> cost_arr;
+    bool at_end;
 
 
 
-    void extract_image(util::Image *image_def,
-                       int *image_def_stack, 
-                       int image_number){
-
-        // readability
-        const int px_horizontal = image_def->px_horizontal;
-        const int px_vertical = image_def->px_vertical;
+    void extract_image(double *image_def_stack, 
+                       int image_number,
+                       int px_horizontal,
+                       int px_vertical){
 
         int count = 0;
         for (int px_y = 0; px_y < px_vertical; px_y++){
             for (int px_x = 0; px_x < px_horizontal; px_x++){
                 int idx = image_number * px_horizontal * px_vertical + px_y * px_horizontal + px_x;
-                image_def->vals[count] = image_def_stack[idx];
+                std::cout << image_def_stack[idx] << " ";
+                //image_def->vals[count] = image_def_stack[idx];
                 count++;
             }
+            std::cout << std::endl;
         }
+        exit(0);
     }
 
     int get_num_params(std::string &shape_func){
@@ -89,7 +91,8 @@ namespace util {
     }
 
 
-    SubsetData generate_ss_list(bool *image_roi, Config &conf) {
+    SubsetData generate_ss_list(bool *image_roi, Config &conf, 
+                                SaveConfig &saveconf) {
         
         Timer timer("generate subset list");
 
@@ -193,122 +196,134 @@ namespace util {
                 }
             }
 
-            ssdata.neighbours[center_idx] = std::move(temp_neigh);
+            ssdata.neigh[center_idx] = std::move(temp_neigh);
         }
 
 
-        // resize results
-        niter_arr.resize(conf.num_def_images * ssdata.num);
-        u_arr.resize(conf.num_def_images * ssdata.num);
-        v_arr.resize(conf.num_def_images * ssdata.num);
-        p_arr.resize(conf.num_def_images * ssdata.num * conf.num_params);
-        ftol_arr.resize(conf.num_def_images * ssdata.num);
-        xtol_arr.resize(conf.num_def_images * ssdata.num);
-        cost_arr.resize(conf.num_def_images * ssdata.num);
+        // update size of master result vectors
+        util::at_end = saveconf.at_end;
+        resize_results(conf.num_def_img, ssdata.num, conf.num_params);
+
         return ssdata;
     }
 
+    void resize_results(int num_def_img, 
+                        int num_ss, int num_params){
 
-
-    void append_results(const int num_def_images, 
-                        const int img_num, 
-                        const int num_ss,
-                        const int ss, 
-                        const int iter, 
-                        const double ftol, 
-                        const double xtol, 
-                        const double u, 
-                        const double v, 
-                        const double costp,
-                        const std::vector<double> &p) {
-
-        int idx = img_num * num_ss + ss;
-        int idx_p = p.size()*idx;
-        niter_arr[idx] = iter;
-        u_arr[idx] = u;
-        v_arr[idx] = v;
-        ftol_arr[idx] = ftol;
-        xtol_arr[idx] = xtol;
-        cost_arr[idx] = costp;
-        for (size_t i = 0; i < p.size(); i++){
-            p_arr[idx_p+i] = p[i];
+        if (at_end){
+            niter_arr.resize(num_def_img * num_ss);
+            u_arr.resize(num_def_img * num_ss);
+            v_arr.resize(num_def_img * num_ss);
+            p_arr.resize(num_def_img * num_ss * num_params);
+            ftol_arr.resize(num_def_img * num_ss);
+            xtol_arr.resize(num_def_img * num_ss);
+            cost_arr.resize(num_def_img * num_ss);
+        }
+        else {
+            niter_arr.resize(num_ss);
+            u_arr.resize(num_ss);
+            v_arr.resize(num_ss);
+            p_arr.resize(num_ss * num_params);
+            ftol_arr.resize(num_ss);
+            xtol_arr.resize(num_ss);
+            cost_arr.resize(num_ss);
         }
     }
 
 
-    void save_to_disk(util::SaveConfig *saveconf, const int num_def_images, 
-                      util::SubsetData *ssdata, const int num_params){
+    void append_results(int img_num, int ss, util::Results &res, 
+                        int num_ss) {
+        int idx;
+        if (util::at_end) idx = img_num * num_ss + ss;
+        else idx = ss;
 
-        util::Timer timer("save to disk");
+        int idx_p = res.p.size()*idx;
+        niter_arr[idx] = res.iter;
+        u_arr[idx] = res.u;
+        v_arr[idx] = res.v;
+        ftol_arr[idx] = res.ftol;
+        xtol_arr[idx] = res.xtol;
+        cost_arr[idx] = res.cost;
+        for (size_t i = 0; i < res.p.size(); i++){
+            p_arr[idx_p+i] = res.p[i];
+        }
+    }
 
 
-        // readability
-        const std::string delimiter = saveconf->delimiter;        
+    void save_to_disk(int img, util::SaveConfig &saveconf,
+                      util::SubsetData &ssdata, int num_def_img,
+                      int num_params){
 
-        // loop over images 
-        for (int img = 0; img < num_def_images; img++){
+        const std::string delimiter = saveconf.delimiter;
 
-            if (saveconf->layout == "col"){
+        // open the file
+        std::stringstream outfile_str;
+        std::ofstream outfile;
 
-                std::stringstream outfile_str;
-                std::ofstream outfile;
-    
-                // filename
-                outfile_str << saveconf->base_path << "/" <<
-                saveconf->prefix << img << saveconf->format;
+        if (saveconf.layout == "col"){
 
-                // save in binary format
-                if (saveconf->format == ".bin"){
-                    outfile.open(outfile_str.str(), std::ios::binary);
+            // filename
+            outfile_str << saveconf.basepath << "/" <<
+            saveconf.prefix << std::setw(4) << std::setfill('0') << 
+            img << saveconf.format;
 
-                     for (size_t i = 0; i < ssdata->num; ++i) {
-                        int idx = img * ssdata->num + i;
-                        int idx_p = num_params*idx;
-                        double magnitude = std::sqrt(u_arr[idx] * u_arr[idx] + v_arr[idx] * v_arr[idx]);
+            // set the img var to 0 after opening file if not saving at end
+            if (!saveconf.at_end) img = 0;
 
-                        outfile.write(reinterpret_cast<const char*>(&ssdata->coords[2*i]), sizeof(int));
-                        outfile.write(reinterpret_cast<const char*>(&ssdata->coords[2*i+1]), sizeof(int));
-                        outfile.write(reinterpret_cast<const char*>(&u_arr[idx]), sizeof(double));
-                        outfile.write(reinterpret_cast<const char*>(&v_arr[idx]), sizeof(double));
-                        outfile.write(reinterpret_cast<const char*>(&magnitude), sizeof(double));
-                        for (int p = 0; p < num_params; p++){
-                            outfile.write(reinterpret_cast<const char*>(&p_arr[idx_p+p]), sizeof(double));
-                        }
-                        outfile.write(reinterpret_cast<const char*>(&cost_arr[idx]), sizeof(double));
-                        outfile.write(reinterpret_cast<const char*>(&ftol_arr[idx]), sizeof(double));
-                        outfile.write(reinterpret_cast<const char*>(&xtol_arr[idx]), sizeof(double));
-                        outfile.write(reinterpret_cast<const char*>(&niter_arr[idx]), sizeof(int));
+            // save in binary format
+            if (saveconf.format == ".bin"){
+                outfile.open(outfile_str.str(), std::ios::binary);
+
+                for (size_t i = 0; i < ssdata.num; ++i) {
+
+                    int idx = img * ssdata.num + i;
+                    int idx_p = num_params*idx;
+
+                    double mag = std::sqrt(u_arr[idx] * u_arr[idx]+
+                                                 v_arr[idx] * v_arr[idx]);
+
+                    outfile.write(reinterpret_cast<const char*>(&ssdata.coords[2*i]), sizeof(int));
+                    outfile.write(reinterpret_cast<const char*>(&ssdata.coords[2*i+1]), sizeof(int));
+                    outfile.write(reinterpret_cast<const char*>(&u_arr[idx]), sizeof(double));
+                    outfile.write(reinterpret_cast<const char*>(&v_arr[idx]), sizeof(double));
+                    outfile.write(reinterpret_cast<const char*>(&mag), sizeof(double));
+                    for (int p = 0; p < num_params; p++){
+                        outfile.write(reinterpret_cast<const char*>(&p_arr[idx_p+p]), sizeof(double));
                     }
-
-                    outfile.close();
+                    outfile.write(reinterpret_cast<const char*>(&cost_arr[idx]), sizeof(double));
+                    outfile.write(reinterpret_cast<const char*>(&ftol_arr[idx]), sizeof(double));
+                    outfile.write(reinterpret_cast<const char*>(&xtol_arr[idx]), sizeof(double));
+                    outfile.write(reinterpret_cast<const char*>(&niter_arr[idx]), sizeof(int));
                 }
 
+                outfile.close();
+            }
 
-                // save in human readable format
-                else if (saveconf->format == ".dat"){
 
-                    outfile.open(outfile_str.str());
-                    for (size_t i = 0; i < ssdata->num; i++) {
-                        
-                        int idx = img * ssdata->num + i;
-                        int idx_p = num_params*idx;
+            // save in human readable format
+            else if (saveconf.format == ".dat"){
 
-                        outfile << ssdata->coords[2*i] << delimiter;
-                        outfile << ssdata->coords[2*i+1] << delimiter;
-                        outfile << u_arr[idx] << delimiter;
-                        outfile << v_arr[idx] << delimiter;
-                        outfile << sqrt(u_arr[idx]*u_arr[idx]+
-                                        v_arr[idx]*v_arr[idx]) << delimiter;
-                        for (int p = 0; p < num_params; p++){
-                            outfile << p_arr[idx_p+p] << delimiter;
-                        }
-                        outfile << cost_arr[idx] << delimiter;
-                        outfile << ftol_arr[idx] << delimiter;
-                        outfile << xtol_arr[idx] << delimiter;
-                        outfile << niter_arr[idx] << "\n";
+                outfile.open(outfile_str.str());
+                for (size_t i = 0; i < ssdata.num; i++) {
+
+                    int idx = img * ssdata.num + i;
+                    int idx_p = num_params*idx;
+
+                    outfile << ssdata.coords[2*i] << delimiter;
+                    outfile << ssdata.coords[2*i+1] << delimiter;
+                    outfile << u_arr[idx] << delimiter;
+                    outfile << v_arr[idx] << delimiter;
+                    outfile << sqrt(u_arr[idx]*u_arr[idx]+
+                                    v_arr[idx]*v_arr[idx]) << delimiter;
+                    for (int p = 0; p < num_params; p++){
+                        outfile << p_arr[idx_p+p] << delimiter;
                     }
-                    outfile.close();
+                    outfile << cost_arr[idx] << delimiter;
+                    outfile << ftol_arr[idx] << delimiter;
+                    outfile << xtol_arr[idx] << delimiter;
+                    outfile << niter_arr[idx] << "\n";
                 }
+                outfile.close();
             }
         }
     }

@@ -43,29 +43,27 @@ namespace scanmethod {
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, opt)
         for (int ss = 0; ss < ssdata.num; ss++){
-    
+
             // subset coordinate list takes central locations. 
             // Converting to top left corner for optimization routine
             int ss_x = ssdata.coords[ss*2];
             int ss_y = ssdata.coords[ss*2+1];
-    
+
             // get the deformed subset
             util::extract_ss(ss_def, ss_x, ss_y, 
                              conf.px_horizontal,
                              conf.px_vertical,
                              image_def); 
-    
-    
+
+
             // perform optimization on subset from deformed image
-            optimizer::Results results;
-            results = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
-    
-    
+            util::Results res;
+            res = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
+
+
             // append the results for the current subset to result vectors
-            util::append_results(conf.num_def_images, img_num, ssdata.num, ss, 
-                                 results.iter, results.ftol, results.xtol, 
-                                 results.u, results.v, results.cost, results.p);
-    
+            util::append_results(img_num, ss, res, ssdata.num);
+
         }
     }
 
@@ -92,18 +90,18 @@ void image_with_bf(double *image_ref,
     brute::Parameters brute(conf.threshold_bf, conf.range_bf);
 
     // perform optimization on subset from deformed image
-    optimizer::Results results;
-    results.iter = 0;
+    util::Results res;
+    res.iter = 0;
 
     // counter for each thread
-    int ss_thread_num = 0;      
+    int ss_thread_num = 0;
 
     // temp p values for copy from brute force to optimization.
     double ptemp[6] = {0,0,0,0,0,0};
 
 
     // loop over subsets within the ROI
-    #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, results)
+    #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, res)
     for (int ss = 0; ss < ssdata.num; ss++){
 
         // subset coordinate list contains central locations.
@@ -121,7 +119,7 @@ void image_with_bf(double *image_ref,
         // if first subset in the loop or prev subset was a poor match
         // start search with a brute force scan using the last set of 
         // brute force params that gave a good match.
-        if ((ss_thread_num == 0) || (results.iter == opt.max_iter)){
+        if ((ss_thread_num == 0) || (res.iter == opt.max_iter)){
 
             brute::expanding_wavefront(ss_x, ss_y, image_ref, 
                                        conf.px_vertical, 
@@ -136,12 +134,10 @@ void image_with_bf(double *image_ref,
             }
         }
 
-        results = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
+        res = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
 
         // append the results for the current subset to result vectors
-        util::append_results(conf.num_def_images, img_num, ssdata.num, ss, 
-                             results.iter, results.ftol, results.xtol,
-                             results.u, results.v, results.cost, results.p);
+        util::append_results(img_num, ss, res, ssdata.num);
 
         ss_thread_num++;
 
@@ -168,7 +164,6 @@ void image_with_bf(double *image_ref,
             return;
         }
 
-
         // assign some consts for readability
         const int px_horizontal = conf.px_horizontal;
         const int px_vertical = conf.px_vertical;
@@ -181,7 +176,7 @@ void image_with_bf(double *image_ref,
 
         // queue for each thread
         int max_threads = omp_get_max_threads();
-        std::vector<std::priority_queue<rg::Point>> local_queues(max_threads);
+        std::vector<std::priority_queue<rg::Point>> local_q(max_threads);
 
         // Initialize ref and def subsets
         util::Subset ss_def(ssdata.size);
@@ -191,7 +186,6 @@ void image_with_bf(double *image_ref,
         util::extract_ss(ss_def, seed_x, seed_y, 
                          px_horizontal, px_vertical,
                          image_def);
-
 
 
         // temp p values for copy from brute force to optimization.
@@ -217,24 +211,21 @@ void image_with_bf(double *image_ref,
                 opt.p[i] = ptemp[i];
         }
 
-        optimizer::Results seed_results = optimizer::solve(seed_x, seed_y, 
-                                                           &ss_def, &ss_ref, &opt);
+        util::Results seed_res = optimizer::solve(seed_x, seed_y, 
+                                                  &ss_def, &ss_ref, &opt);
 
 
 
         //mark seed as computed
         int idx = ssdata.coords_to_idx.find({seed_x, seed_y})->second;
 
-        util::append_results(conf.num_def_images, img_num, 
-                             ssdata.num, idx, seed_results.iter, 
-                             seed_results.ftol, seed_results.xtol, 
-                             seed_results.u, seed_results.v, 
-                             seed_results.cost, seed_results.p);
+        // append the results for the current subset to result vectors
+        util::append_results(img_num, idx, seed_res, ssdata.num);
 
         computed_mask[idx] = true;
 
-        // loop over seed neighbours
-        for (int nidx : ssdata.neighbours[idx]) {
+        // loop over seed neigh
+        for (int nidx : ssdata.neigh[idx]) {
 
             int nx = ssdata.coords[nidx*2];
             int ny = ssdata.coords[nidx*2+1];
@@ -254,29 +245,26 @@ void image_with_bf(double *image_ref,
                 opt.p[i] = ptemp[i];
             }
 
-            optimizer::Results nresults = optimizer::solve(nx, ny,
-                                                                &ss_def, &ss_ref, &opt);
+            util::Results nres = optimizer::solve(nx, ny, &ss_def, 
+                                                  &ss_ref, &opt);
 
-            util::append_results(conf.num_def_images, img_num, 
-                                 ssdata.num, nidx, nresults.iter, 
-                                 nresults.ftol, nresults.xtol, 
-                                 nresults.u, nresults.v, 
-                                 nresults.cost, nresults.p);
+            // append the results for the current subset to result vectors
+            util::append_results(img_num, nidx, nres, ssdata.num);
 
-            // Add to priority queue
+            // update mask
             computed_mask[nidx] = true;
 
-            // LOCAL QUEUE
-            local_queues[0].push(rg::Point(nx, ny, 1.0 - 0.5*nresults.cost));
+            // add point to queue
+            local_q[0].push(rg::Point(nx, ny, 1.0 - 0.5*nres.cost));
         }
 
         // LOCAL QUEUE PROCESSING
         #pragma omp parallel firstprivate(ss_def, ss_ref, opt, brute)
         {
 
-            auto& my_queue = local_queues[omp_get_thread_num()];
-            std::vector<rg::Point> temp_neighbours;
-            temp_neighbours.reserve(4);
+            auto& my_q = local_q[omp_get_thread_num()];
+            std::vector<rg::Point> temp_neigh;
+            temp_neigh.reserve(4);
             double ptemp[6] = {0,0,0,0,0,0};
 
             const int max_idle_iters = 100;
@@ -289,18 +277,18 @@ void image_with_bf(double *image_ref,
                 int idle_iters = 0;
 
                 // Try threads own queue
-                if (!my_queue.empty()) {
-                    current = my_queue.top();
-                    my_queue.pop();
+                if (!my_q.empty()) {
+                    current = my_q.top();
+                    my_q.pop();
                     got_point = true;
                 } 
                 else {
-                    // Try to steal from queue with retries.
+                    // Try to steal from top of other local queues
                     while (!got_point && idle_iters < max_idle_iters) {
-                        for (size_t i = 0; i < local_queues.size(); ++i) {
-                            if (!local_queues[i].empty()) {
-                                current = local_queues[i].top();
-                                local_queues[i].pop();
+                        for (size_t i = 0; i < local_q.size(); ++i) {
+                            if (!local_q[i].empty()) {
+                                current = local_q[i].top();
+                                local_q[i].pop();
                                 got_point = true;
                                 break;
                             }
@@ -314,29 +302,28 @@ void image_with_bf(double *image_ref,
                 }
 
                 if (!got_point) {
-                    std::cerr << "Thread " << omp_get_thread_num() << " exiting. Can't find a point to process." << std::endl;
                     break;
                 }
 
-                temp_neighbours.clear();
+                temp_neigh.clear();
 
-                // LIST subset
+                // cooridnates of point taken frmo queue
                 int curr_x = current.x;
                 int curr_y = current.y;
 
 
-                // LIST loop
+                // get the idx of point in subset list
                 int idx = ssdata.coords_to_idx.find({curr_x, curr_y})->second;
-                int idx_results = (img_num * ssdata.num + idx);
-                int idx_resultsp = idx_results*opt.num_params;
+                int idx_res = (img_num * ssdata.num + idx);
+                int idx_resp = idx_res*opt.num_params;
 
-                for (int nidx : ssdata.neighbours[idx]) {
+                // loop over neighbouring points
+                for (int nidx : ssdata.neigh[idx]) {
 
-                    // LIST get coordiantes
+                    // coords of neigh
                     int nx = ssdata.coords[nidx*2];
                     int ny = ssdata.coords[nidx*2+1];
 
-                    // LIST
                     if (!computed_mask[nidx].exchange(true)) {
 
                         // extract subset
@@ -344,8 +331,11 @@ void image_with_bf(double *image_ref,
                                          px_horizontal, px_vertical,
                                          image_def);
 
-                        // if the neighbouring subset reached the maximum number of iterations, try again from a brute force
-                        if (util::niter_arr[idx] == opt.max_iter && util::cost_arr[idx] > opt.threshold_lm){
+                        // if the neighbouring subset reached the max
+                        // num of iterations or prev subset had not reached
+                        // threshold, start brute force again
+                        if (util::niter_arr[idx] == opt.max_iter && 
+                            util::cost_arr[idx] > opt.threshold_lm){
 
                             brute::expanding_wavefront(nx, ny,
                                                        image_ref, px_vertical, 
@@ -362,31 +352,26 @@ void image_with_bf(double *image_ref,
                         }
                         else {
                             for (int i = 0; i < opt.num_params; i++){
-                                opt.p[i] = util::p_arr[idx_resultsp+i];
+                                opt.p[i] = util::p_arr[idx_resp+i];
                             }
                         }
 
                         // optimize
-                        optimizer::Results nresults = optimizer::solve(nx, ny, &ss_def, &ss_ref, &opt);
+                        util::Results nres = optimizer::solve(nx, ny, 
+                                                                   &ss_def, 
+                                                                   &ss_ref, 
+                                                                   &opt);
 
                         // append results
-                        util::append_results(conf.num_def_images, img_num, 
-                                             ssdata.num, nidx, 
-                                             nresults.iter, 
-                                             nresults.ftol, 
-                                             nresults.xtol, 
-                                             nresults.u, 
-                                             nresults.v, 
-                                             nresults.cost, 
-                                             nresults.p);
+                        util::append_results(img_num, nidx, nres, ssdata.num);
 
                         // // add results to temp neighbour results
-                        temp_neighbours.emplace_back(nx, ny, 1.0 - 0.5 * nresults.cost);
+                        temp_neigh.emplace_back(nx, ny, 1.0-0.5*nres.cost);
                     }
                 }
 
-                for (const auto& neighbour : temp_neighbours) {
-                    my_queue.push(neighbour);
+                for (const auto& neigh : temp_neigh) {
+                    my_q.push(neigh);
                 }
             }
         }

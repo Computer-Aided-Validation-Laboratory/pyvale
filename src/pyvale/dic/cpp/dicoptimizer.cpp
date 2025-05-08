@@ -32,7 +32,7 @@ namespace optimizer {
     void (*optimize_cost)(util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
     void (*shape_function)(double &, double &, double , double , std::vector<double> &);
     void (*dshape_dp)(std::vector<double>&, double, double, double, double, int);
-    void (*params_to_displacement)(Results *results, double ss_x, double ss_y, std::vector<double> &p);
+    void (*params_to_displacement)(util::Results *results, double ss_x, double ss_y, std::vector<double> &p);
 
 
 
@@ -46,7 +46,7 @@ namespace optimizer {
 
 
 
-    Results solve(const double ss_x, const double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt) {
+    util::Results solve(const double ss_x, const double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt) {
 
         int iter = 0;
         double ftol = 0;
@@ -75,7 +75,7 @@ namespace optimizer {
             // - change in corr coeff is less than precision
             // - corr is less than threshold
             if ((xtol < opt->precision) && (ftol < opt->precision) && (opt->costp < opt->threshold_lm)) {
-                //debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
+                debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
                 break;
             }
 
@@ -85,19 +85,19 @@ namespace optimizer {
 
         // if its a bad subset and hits max_iterations then reset p values to 0.0 to prevent bad seeding.
         if (iter == opt->max_iter) {
-            //debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
+            debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
             std::fill(opt->p.begin(), opt->p.end(), 0.0);
         }
 
-        Results results;
-        params_to_displacement(&results, ss_x, ss_y, opt->p);
-        results.iter = iter;
-        results.ftol = ftol;
-        results.xtol = xtol;
-        results.p = opt->p;
-        results.cost = opt->costp;
+        util::Results res;
+        params_to_displacement(&res, ss_x, ss_y, opt->p);
+        res.iter = iter;
+        res.ftol = ftol;
+        res.xtol = xtol;
+        res.p = opt->p;
+        res.cost = opt->costp;
 
-        return results;
+        return res;
     }
 
 
@@ -639,16 +639,16 @@ namespace optimizer {
 
     }
 
-    inline void affine_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p){
-        results->u = ss_x - (p[0] + (1 + p[2]) * ss_x + p[3] * ss_y);
-        results->v = ss_y - (p[1] + (1 + p[5]) * ss_y + p[4] * ss_x);
-        results->mag = std::sqrt(results->u*results->u + results->v*results->v);
+    inline void affine_parameters_to_displacement(util::Results *res, double ss_x, double ss_y, std::vector<double> &p){
+        res->u = ss_x - (p[0] + (1 + p[2]) * ss_x + p[3] * ss_y);
+        res->v = ss_y - (p[1] + (1 + p[5]) * ss_y + p[4] * ss_x);
+        res->mag = std::sqrt(res->u*res->u + res->v*res->v);
     }
 
-    inline void rigid_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p){
-        results->u = ss_x - p[0];
-        results->v = ss_y - p[1];
-        results->mag = std::sqrt(results->u*results->u + results->v*results->v);
+    inline void rigid_parameters_to_displacement(util::Results *res, double ss_x, double ss_y, std::vector<double> &p){
+        res->u = ss_x - p[0];
+        res->v = ss_y - p[1];
+        res->mag = std::sqrt(res->u*res->u + res->v*res->v);
     }
 
 

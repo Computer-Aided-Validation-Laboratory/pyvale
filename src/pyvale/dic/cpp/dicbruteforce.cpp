@@ -52,7 +52,6 @@ namespace brute {
 
 
 
-
     void init(std::string &corr_crit, std::string &search_method){
 
         // set brute force cost function
@@ -88,7 +87,7 @@ namespace brute {
                          util::Subset &ss_ref, 
                          brute::Parameters &brute) {
 
-        
+
 
         const int range = brute.range;
         double cost_min = 1.0e6;
@@ -101,7 +100,7 @@ namespace brute {
             // Go around the current ring at radius r
             for (int dy = -r; dy <= r; dy++) {
                 for (int dx = -r; dx <= r; dx++) {
-            
+
                     if (!is_perimeter_point(dx, dy, r)) 
                         continue;
 
@@ -139,40 +138,6 @@ namespace brute {
                 }
             }
         }
-    }
-
-    void cross_correlation(const int ss_x, 
-                        const int ss_y, 
-                        const double *image_ref, 
-                        const int px_vertical, 
-                        const int px_horizontal, 
-                        util::Subset *ss_def, 
-                        util::Subset *ss_ref, 
-                        brute::Parameters &brute) {
-
-        //cv::Mat image(px_vertical, px_horizontal, CV_32S, const_cast<int*>(image_ref));
-        //cv::Mat ss(ss_def.size, ss_def.size, CV_64F, ss_def.vals.data());
-
-        //cv::Mat image_float;
-        //cv::Mat ss_float;
-        //image.convertTo(image_float, CV_32F);
-        //ss.convertTo(ss_float, CV_32F);
-
-
-        //cv::Mat result;
-        //cv::matchTemplate(image_float, ss_float, result, cv::TM_CCOEFF_NORMED);
-        //
-        //double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
-        //cv::Point matchLoc;
-        //
-        //cv::minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, cv::Mat());
-
-        //std::cout << "minVal: " << minVal << std::endl;
-        //std::cout << "maxVal: " << maxVal << std::endl;
-        //std::cout << "minLoc: " << minLoc.x << ", " << minLoc.y << std::endl;
-        //std::cout << "maxLoc: " << maxLoc.x << ", " << maxLoc.y << std::endl;
-        //brute.p_rigid[0] = maxLoc.x - ss_x;
-        //brute.p_rigid[1] = maxLoc.y - ss_y;
     }
 
 
@@ -363,5 +328,42 @@ namespace brute {
         return p0 >= -range && p0 < range && p1 >= -range && p1 < range;
     }
 
+
+
+    // void cross_correlation(const int ss_x, 
+    //                     const int ss_y, 
+    //                     const double *image_ref, 
+    //                     const int px_vertical, 
+    //                     const int px_horizontal, 
+    //                     util::Subset *ss_def, 
+    //                     util::Subset *ss_ref, 
+    //                     brute::Parameters &brute) {
+
+    //     cv::Mat image(px_vertical, px_horizontal, CV_32S, const_cast<int*>(image_ref));
+    //     cv::Mat ss(ss_def.size, ss_def.size, CV_64F, ss_def.vals.data());
+
+    //     cv::Mat image_float;
+    //     cv::Mat ss_float;
+    //     image.convertTo(image_float, CV_32F);
+    //     ss.convertTo(ss_float, CV_32F);
+
+
+    //     cv::Mat result;
+    //     cv::matchTemplate(image_float, ss_float, result, cv::TM_CCOEFF_NORMED);
+        
+    //     double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
+    //     cv::Point matchLoc;
+        
+    //     cv::minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, cv::Mat());
+
+    //     std::cout << "minVal: " << minVal << std::endl;
+    //     std::cout << "maxVal: " << maxVal << std::endl;
+    //     std::cout << "minLoc: " << minLoc.x << ", " << minLoc.y << std::endl;
+    //     std::cout << "maxLoc: " << maxLoc.x << ", " << maxLoc.y << std::endl;
+    //     brute.p_rigid[0] = maxLoc.x - ss_x;
+    //     brute.p_rigid[1] = maxLoc.y - ss_y;
+    // }
+
+    
     // end of namespace
 }

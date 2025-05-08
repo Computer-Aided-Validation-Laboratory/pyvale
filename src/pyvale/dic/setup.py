@@ -8,6 +8,7 @@ import os
 from setuptools import setup
 import numpy as np
 import subprocess
+import platform
 import socket
 import datetime
 import sys
@@ -22,9 +23,11 @@ if debug_mode:
 os.environ["CC"] = "g++"
 
 cpu_comp = subprocess.getoutput("g++ --version | head -n 1 | cut -b 5-")
+comp_path = subprocess.getoutput("which g++")
 git_commit = subprocess.getoutput("git rev-parse HEAD")
 git_dirty = subprocess.getoutput("git status -s | grep -v '?' | grep -E 'cpp/' | wc -l")
 hostname = socket.gethostname()
+os_name = platform.system()
 build_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 class custom_build_ext(build_ext):
@@ -37,9 +40,11 @@ ext = Pybind11Extension(
     language="c++",
     define_macros=[
         ("CPUCOMP", f'"{cpu_comp}"'),
+        ("COMPPATH", f'"{comp_path}"'),
         ("GITINFO", f'"{git_commit}"'),
         ("GITDIRTY", f'"{git_dirty}"'),
         ("HOSTNAME", f'"{hostname}"'),
+        ("OSNAME", f'"{os_name}"'),
         ("BUILDTIME", f'"{build_time}"'),
     ],
     extra_compile_args=['-g', '-O0', '-fopenmp'] if debug_mode else ['-O3', '-fopenmp'],

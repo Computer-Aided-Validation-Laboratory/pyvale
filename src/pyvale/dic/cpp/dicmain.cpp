@@ -29,10 +29,11 @@
 namespace py = pybind11;
 
 
-void engine(const py::array_t<double>& image_ref_arr,
-            const py::array_t<double>& image_def_stack_arr,
-            const py::array_t<bool>&   image_roi_arr, 
-            util::Config &conf){
+void engine(const py::array_t<double>& img_ref_arr,
+            const py::array_t<double>& img_def_stack_arr,
+            const py::array_t<bool>&   img_roi_arr, 
+            util::Config &conf,
+            util::SaveConfig &saveconf){
 
     // -------------------------------------------------------------------------------------------
     // Initialisation
@@ -40,18 +41,17 @@ void engine(const py::array_t<double>& image_ref_arr,
 
 
     // get raw pointers
-    bool* image_roi = static_cast<bool*>(image_roi_arr.request().ptr);
-    double* image_ref = static_cast<double*>(image_ref_arr.request().ptr);
-    double* image_def_stack = static_cast<double*>(image_def_stack_arr.request().ptr);
+    bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
+    double* img_ref = static_cast<double*>(img_ref_arr.request().ptr);
+    double* img_def_stack = static_cast<double*>(img_def_stack_arr.request().ptr);
     
     // get a list of ss coordinates within RIO.
-    util::SubsetData ssdata = util::generate_ss_list(image_roi, conf);
-
+    util::SubsetData ssdata = util::generate_ss_list(img_roi, conf, saveconf);
 
     // TITLE("DIC INITIALISATION");
     INFO_OUT("Width of Images: ", conf.px_horizontal << " [px]");
     INFO_OUT("Height of Images: ", conf.px_vertical << " [px]");
-    INFO_OUT("Number of Deformed Images: ", conf.num_def_images);
+    INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
     INFO_OUT("Subset Step: ", conf.ss_step);
     INFO_OUT("Subset Size: ", conf.ss_size);
     INFO_OUT("Max number of solver iterations: ", conf.max_iter);
@@ -63,61 +63,78 @@ void engine(const py::array_t<double>& image_ref_arr,
     INFO_OUT("Number of OMP threads:", omp_get_max_threads());
 
     // define our interpolator for the reference image
-    interpolator::bicubic_init(image_ref, conf.px_horizontal, conf.px_vertical);
+    interpolator::bicubic_init(img_ref, conf.px_horizontal, conf.px_vertical);
 
-    // initialise the LM optimizer to use the desired correlation criterion and shape func.
+    // initialise the LM optimizer with shape func and corr crit
     optimizer::init(conf.corr_crit, conf.shape_func);
 
     // initialise the brute force scan
     std::string brute_method = "SPIRAL";
     brute::init(conf.corr_crit, brute_method);
 
-    // function pointer for the method of scanning the subsets through the image
-    void (*scan_ptr)(double *, double *, bool *, util::SubsetData &, util::Config &, int);
 
-    // set the scan_function pointer based on the scan method specified by user.
-    if (conf.scan_method=="IMAGE_SCAN") scan_ptr=scanmethod::image;
-    else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") scan_ptr=scanmethod::image_with_bf;
-    else if (conf.scan_method=="RG") scan_ptr=scanmethod::reliability_guided;
+    // function pointer for scanning method
+    void (*scan_ptr)(double *, double *, bool *, 
+                     util::SubsetData &, util::Config &, int);
+
+    // set pointer based on the scan method specified by user.
+    if (conf.scan_method=="IMAGE_SCAN") 
+        scan_ptr=scanmethod::image;
+    else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") 
+        scan_ptr=scanmethod::image_with_bf;
+    else if (conf.scan_method=="RG") 
+        scan_ptr=scanmethod::reliability_guided;
     else {
-        std::cerr << "Unknown subset scan type: \'" << conf.scan_method << "\'." << std::endl;
-        std::cerr << "Allowed values: \'IMAGE_SCAN\', \'IMAGE_SCAN_WITH_BF\', \'RG\'. " << std::endl;
+        std::cerr << "Unknown subset scan type: \'";
+        std::cerr << conf.scan_method << "\'." << " ";
+        std::cerr << "Allowed values: \'IMAGE_SCAN\', ";
+        std::cerr << "\'img_SCAN_WITH_BF\', \'RG\'." << std::endl;
         return;
-    } 
+    }
 
     // -----------------------------------------------------------------------
     // loop over deformed images and perform DIC
     // -----------------------------------------------------------------------
     util::Timer timer("DIC Engine");
 
-    for (int img_num = 0; img_num < conf.num_def_images; img_num++){
+    for (int img_num = 0; img_num < conf.num_def_img; img_num++){
 
 
         // pointer to starting location of image
         int num_px_in_image = conf.px_horizontal * conf.px_vertical;
-        double *image_def = image_def_stack + img_num*num_px_in_image;
+        double *img_def = img_def_stack + img_num*num_px_in_image;
 
-        scan_ptr(image_ref, image_def, image_roi, ssdata, conf, img_num);
+        scan_ptr(img_ref, img_def, img_roi, ssdata, conf, img_num);
+
+        if (!saveconf.at_end){
+            std::cout << "SAVING IMAGE" << std::endl;
+            util::save_to_disk(img_num, saveconf, ssdata,
+                               conf.num_def_img, conf.num_params);
+        }
 
     }
 
-    // save data
-    util::SaveConfig saveconf;
-    saveconf.base_path = "./output/";
-    saveconf.delimiter = " ";
-    saveconf.format = ".dat";
-    saveconf.prefix = "results";
-    saveconf.layout = "col";
-    saveconf.save_at_end = true;
-
-    util::save_to_disk(&saveconf,
-                       conf.num_def_images, 
-                       &ssdata, conf.num_params);
+    if (saveconf.at_end){
+        for (int img_num = 0; img_num < conf.num_def_img; img_num++){
+            util::save_to_disk(img_num, saveconf, ssdata,
+                               conf.num_def_img, conf.num_params);
+        }
+    }
 
 }
 
 
+void build_info(){
+        std::cout << "Buld Information:" << std::endl;
+        INFO_OUT("- g++ version:", CPUCOMP);
+        INFO_OUT("- Compiler directory:", COMPPATH);
+        INFO_OUT("- Git SHA:", GITINFO);
+        INFO_OUT("- Number of dirty files:", GITDIRTY);
+        INFO_OUT("- Compiled on Machine:", HOSTNAME);
+        INFO_OUT("- Compiled on OS:", OSNAME);
+        INFO_OUT("- Compiled at:", BUILDTIME);
 
+}
 
 
 
@@ -137,10 +154,20 @@ PYBIND11_MODULE(dic2dcpp, m) {
         .def_readwrite("scan_method", &util::Config::scan_method)
         .def_readwrite("px_horizontal", &util::Config::px_horizontal)
         .def_readwrite("px_vertical", &util::Config::px_vertical)
-        .def_readwrite("num_def_images", &util::Config::num_def_images)
+        .def_readwrite("num_def_img", &util::Config::num_def_img)
         .def_readwrite("num_params", &util::Config::num_params);
 
+    py::class_<util::SaveConfig>(m, "SaveConfig")
+        .def(py::init<>())
+        .def_readwrite("basepath", &util::SaveConfig::basepath)
+        .def_readwrite("format", &util::SaveConfig::format)
+        .def_readwrite("layout", &util::SaveConfig::layout)
+        .def_readwrite("prefix", &util::SaveConfig::prefix)
+        .def_readwrite("delimiter", &util::SaveConfig::delimiter)
+        .def_readwrite("at_end", &util::SaveConfig::at_end);
+
     // Bind the engine function
+    m.def("build_info", &build_info, "build information");
     m.def("engine", &engine, "Run 2D analysis on input images with config");
 }
 

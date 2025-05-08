@@ -50,7 +50,7 @@ namespace util {
         int max_iter;
         int px_horizontal;
         int px_vertical;
-        int num_def_images;
+        int num_def_img;
         int num_params;
         double precision;
         double threshold_lm;
@@ -73,17 +73,17 @@ namespace util {
         std::vector<int> coords;
         std::vector<bool> mask;
         std::unordered_map<std::pair<int, int>, int, PairHash> coords_to_idx;
-        std::unordered_map<int, std::vector<int>> neighbours;
+        std::unordered_map<int, std::vector<int>> neigh;
     };
 
     struct SaveConfig {
 
         std::string format;
         std::string layout;
-        std::string base_path;
+        std::string basepath;
         std::string prefix;
         std::string delimiter;
-        bool save_at_end = true;
+        bool at_end;
 
 
     };
@@ -122,6 +122,18 @@ namespace util {
         {}
     };
 
+    struct Results {
+        std::vector<double> p;
+        double u;
+        double v;
+        double mag;
+        double ftol;
+        double xtol;
+        int iter;
+        double cost;
+    };
+
+
 
     /**
      * @brief Represents an image with pixel data and dimensions.
@@ -149,7 +161,10 @@ namespace util {
      *                         (row-major order).
      * @param image_number     Index of the image to extract from the stack (0-based).
      */
-    void extract_image(util::Image *image_def, int *image_def_stack,  int image_number);
+    void extract_image(double *image_def_stack, 
+                       int image_number,
+                       int px_horizontal,
+                       int px_vertical);
 
 
            
@@ -191,37 +206,20 @@ namespace util {
      * @param ss_step      Step size for generating subsets.
      * @return            A SubsetData object containing the generated subsets and their neighbours.
      */
-     SubsetData generate_ss_list(bool *image_roi, Config &conf);
-
-    
-    /**
-     * @brief 
-     * 
-     * @param num_def_images 
-     * @param img_num 
-     * @param ss 
-     * @param iter 
-     * @param ftol 
-     * @param xtol 
-     * @param u 
-     * @param v 
-     * @param p 
-     */
-    void append_results(const int num_def_images, 
-                            const int img_num, 
-                            const int num_ss,
-                            const int ss, 
-                            const int iter, 
-                            const double ftol, 
-                            const double xtol, 
-                            const double u, 
-                            const double v, 
-                            const double cost,
-                            const std::vector<double> &p);
+     SubsetData generate_ss_list(bool *image_roi, Config &conf,
+                                 SaveConfig &saveconf);
 
 
-    void save_to_disk(util::SaveConfig *saveconf, const int num_def_images, 
-                      util::SubsetData *ssdata, const int num_params);
+
+    void append_results(int img_num, int ss, util::Results &res, 
+                        int num_ss);
+
+
+    void resize_results(int num_def_img, int num_ss, int num_params);
+
+    void save_to_disk(int img, util::SaveConfig &saveconf,
+                      util::SubsetData &ssdata, int num_def_img,
+                      int num_params);
 
 
     bool is_valid_pixel(int px_x, int px_y, Config& conf, bool *image_roi);

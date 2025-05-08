@@ -62,20 +62,6 @@ namespace optimizer {
             px_horizontal(px_horizontal_) {}
     };
 
-
-
-    struct Results {
-        std::vector<double> p;
-        double u;
-        double v;
-        double mag;
-        double ftol;
-        double xtol;
-        int iter;
-        double cost;
-    };
-
-
     // intitialisation and debugging
     void init(std::string &, std::string &);
     void setCostFunction(const std::string& corr_crit);
@@ -85,7 +71,7 @@ namespace optimizer {
 
 
     // Optimization routine
-    Results solve(double ss_x, double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
+    util::Results solve(double ss_x, double ss_y, util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
 
     // choice of cost function
     void   ssd(util::Subset *ss_def, util::Subset *ss_ref, optimizer::Parameters *opt);
@@ -106,8 +92,8 @@ namespace optimizer {
     inline void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
     inline void drigid_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
     inline void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
-    void affine_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p);
-    void rigid_parameters_to_displacement(Results *results, double ss_x, double ss_y, std::vector<double> &p);
+    void affine_parameters_to_displacement(util::Results *results, double ss_x, double ss_y, std::vector<double> &p);
+    void rigid_parameters_to_displacement(util::Results *results, double ss_x, double ss_y, std::vector<double> &p);
 
 }
 

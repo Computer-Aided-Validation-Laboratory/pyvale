@@ -18,6 +18,10 @@
 
 namespace brute {
 
+    /**
+     * @brief Parameters for the brute force search method.
+     * 
+     */
     struct Parameters {
         std::array<int, 2> p_rigid; // translation vector
         std::array<int, 2> p_rigid_prevmatch; // translation vector
@@ -38,8 +42,8 @@ namespace brute {
      * Sets cost function and search method based on the provided string values.
      * If an unrecognized value is provided, default 'SSD' and 'SPIRAL' values are used.
      * 
-     * @param cost_function String reference representing the cost function ("SSD", "NSSD", "ZNSSD").
-     * @param search_method String reference representing the search method ("EXHAUSTIVE", "SPIRAL").
+     * @param cost_function (std::string) reference representing the cost function ("SSD", "NSSD", "ZNSSD").
+     * @param search_method (std::string) reference representing the search method ("EXHAUSTIVE", "SPIRAL").
      */
     void init(std::string &cost_function, std::string &search_method);
 
@@ -93,31 +97,31 @@ namespace brute {
                                   util::Subset &ss_ref, 
                                   brute::Parameters &brute);
 
-    /**
-     * @brief 
-     * 
-     * @param ss_x 
-     * @param ss_y 
-     * @param image_ref 
-     * @param px_vertical 
-     * @param px_horizontal 
-     * @param ss_def 
-     * @param ss_ref 
-     * @param brute 
-     */
-    void cross_correlation(const int ss_x, 
-                        const int ss_y, 
-                        const double *image_ref, 
-                        const int px_vertical, 
-                        const int px_horizontal, 
-                        util::Subset *ss_def, 
-                        util::Subset *ss_ref, 
-                        brute::Parameters *brute);
+    // /**
+    //  * @brief 
+    //  * 
+    //  * @param ss_x 
+    //  * @param ss_y 
+    //  * @param image_ref 
+    //  * @param px_vertical 
+    //  * @param px_horizontal 
+    //  * @param ss_def 
+    //  * @param ss_ref 
+    //  * @param brute 
+    //  */
+    // void cross_correlation(const int ss_x, 
+    //                     const int ss_y, 
+    //                     const double *image_ref, 
+    //                     const int px_vertical, 
+    //                     const int px_horizontal, 
+    //                     util::Subset *ss_def, 
+    //                     util::Subset *ss_ref, 
+    //                     brute::Parameters *brute);
 
 
                          
     /**
-     * @brief Computes the Sum of Squared Differences (SSD) cost function.
+     * @brief Computes the Sum of Squared Differences (SSD) during a brute force search.
      * 
      * This function calculates the SSD between the subset in the reference image and the target subset.
      * 
@@ -141,7 +145,7 @@ namespace brute {
                const int p1);
 
     /**
-     * @brief Computes the Normalized Sum of Squared Differences (NSSD) cost function.
+     * @brief Computes the Normalized Sum of Squared Differences (NSSD) during a brute force search.
      * 
      * This function calculates the NSSD between the subset in the reference image and the target subset.
      * The cost is normalized by the sum of squared pixel values in the reference and target subsets.
@@ -166,7 +170,7 @@ namespace brute {
                 const int p1);
 
     /**
-     * @brief Computes the Zero-Mean Normalized Sum of Squared Differences (ZNSSD) cost function.
+     * @brief Computes the Zero-Mean Normalized Sum of Squared Differences (ZNSSD) during a brute force search.
      * 
      * This function calculates the ZNSSD between the subset in the reference image and the target subset.
      * The pixel values are normalized by their mean and the cost is computed based on the squared differences.
@@ -190,9 +194,53 @@ namespace brute {
                  const int p0,
                  const int p1);
 
+
+    /**
+     * @brief Checks if a point (dx, dy) lies on the perimeter of a square of radius r.
+     *
+     * A point is considered on the perimeter if its horizontal or vertical distance
+     * from the center equals the radius.
+     *
+     * @param dx Horizontal offset from subset centre location.
+     * @param dy Vertical offset from subset centre location.
+     * @param r Radius of the square perimeter.
+     *
+     * @return (bool) True if the point lies on the perimeter, false otherwise.
+     */
     inline bool is_perimeter_point(int dx, int dy, int r);
+    
+    
+    /**
+     * @brief Checks if a rectangular region is fully contained within image bounds.
+     *
+     * Evaluates whether the rectangle defined by its corner coordinates lies
+     * entirely within the image dimensions.
+     *
+     * @param xmin (`int`) Minimum x-coordinate of the rectangle.
+     * @param ymin (`int`) Minimum y-coordinate of the rectangle.
+     * @param xmax (`int`) Maximum x-coordinate of the rectangle.
+     * @param ymax (`int`) Maximum y-coordinate of the rectangle.
+     * @param width (int) Width of the image.
+     * @param height (int) Height of the image.
+     *
+     * @return (bool) True if the rectangle is fully inside the image, false otherwise.
+     */
     inline bool is_within_image(int xmin, int ymin, int xmax, int ymax,
                                 int width, int height);
+    
+    
+    /**
+     * @brief Checks if two values lie within the specified symmetric integer range.
+     *
+     * The range is interpreted as [-range, range). This function checks whether
+     * both values are within that range.
+     *
+     * @param p0 (int) first rigid shape function parameter (x).
+     * @param p1 (int) Second rigid shape function parameter (y).
+     * @param range (int) Half-width of the symmetric range (exclusive).
+     *
+     * @return (bool) True if both values are within the range, false otherwise.
+     */
     inline bool is_within_range(int p0, int p1, int range);
 
 

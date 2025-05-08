@@ -16,7 +16,15 @@
 #include <vector>
 
 // Program Header files
-
+/**
+ * @brief namespace for bicubic spline interpolation. 
+ * 
+ * Based on the implementation by GNU Scientific Library (GSL).
+ * Main difference is the removal of the binary search for index lookup.
+ * For use in DIC, we only ever need integer locations and therefore its
+ * sufficient to get the floor value of the subpixel location.
+ * 
+ */
 namespace interpolator {
 
     struct Data {
@@ -25,15 +33,111 @@ namespace interpolator {
         double interp_dy;
     };
 
-    inline void coeff_calc(std::vector<double> &tridiag_solution, double dy, double dx, size_t index, double * b, double * c, double * d);
-    inline int index_lookup(std::vector<double> &px, double x, size_t index_lo, size_t index_hi);
-    void cspline_init(std::vector<double> &px, std::vector<double> &data);
-    double cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data, double value, int length);
-    void bicubic_init(double *image_ref, int px_horizontal, int px_vertical);
+    /**
+     * @brief Initializes the bicubic interpolator with deformed image data.
+     * 
+     * Sets up the necessary data structures and computes derivatives required for bicubic interpolation.
+     * 
+     * @param img Pointer to the image data array
+     * @param px_horizontal Width of the image in pixels
+     * @param px_vertical Height of the image in pixels
+     */
+    void bicubic_init(double * img, int px_horizontal, int px_vertical);
+
+    /**
+     * @brief Evaluates the bicubic interpolation at a specified point.
+     * 
+     * Computes the interpolated value at (x,y) using bicubic interpolation from the surrounding pixel values.
+     * 
+     * @param x The x-coordinate of the interpolation point
+     * @param y The y-coordinate of the interpolation point
+     * @return The interpolated value at (x,y)
+     */
     double eval_bicubic(double x, double y);
+
+    /**
+     * @brief Evaluates the x-derivative of bicubic interpolation at a specified point.
+     * 
+     * Computes the partial derivative with respect to x at point (x,y).
+     * 
+     * @param x The x-coordinate of the point
+     * @param y The y-coordinate of the point
+     * @return The x-derivative of the interpolated function at (x,y)
+     */
     double eval_bicubic_dx(double x, double y);
+
+    /**
+     * @brief Evaluates the y-derivative of bicubic interpolation at a specified point.
+     * 
+     * Computes the partial derivative with respect to y at point (x,y).
+     * 
+     * @param x The x-coordinate of the point
+     * @param y The y-coordinate of the point
+     * @return The y-derivative of the interpolated function at (x,y)
+     */
     double eval_bicubic_dy(double x, double y);
+
+    /**
+     * @brief Evaluates the bicubic interpolation and its derivatives at a specified point.
+     * 
+     * Computes the interpolated value and its partial derivatives at (x,y) in a single call.
+     * 
+     * @param x The x-coordinate of the point
+     * @param y The y-coordinate of the point
+     * @return Data struct containing the interpolated value and its x and y derivatives
+     */
     Data eval_bicubic_and_derivs(double x, double y);
+
+    /**
+     * @brief Calculates the coefficients for cubic spline interpolation.
+     * 
+     * Computes the coefficients b, c, and d for the cubic spline polynomial.
+     * 
+     * @param tridiag_solution The solution vector from the tridiagonal system
+     * @param dy Difference in function values
+     * @param dx Difference in x values
+     * @param index Current index in the data array
+     * @param b Pointer to store the computed b coefficient
+     * @param c Pointer to store the computed c coefficient
+     * @param d Pointer to store the computed d coefficient
+     */
+    inline void coeff_calc(std::vector<double> &tridiag_solution, double dy, double dx, size_t index, double * b, double * c, double * d);
+
+    /**
+     * @brief Finds the index of the pixel that contains the given coordinate.
+     * 
+     * Determines the lower index of the interval containing the specified value.
+     * 
+     * @param px Vector of pixel coordinates
+     * @param x The coordinate to look up
+     * @param index_lo Lower bound for the search
+     * @param index_hi Upper bound for the search
+     * @return The index of the pixel containing the coordinate
+     */
+    inline int index_lookup(std::vector<double> &px, double x, size_t index_lo, size_t index_hi);
+
+    /**
+     * @brief Initializes the cubic spline coefficients.
+     * 
+     * Sets up the tridiagonal system and solves it to obtain the cubic spline coefficients.
+     * 
+     * @param px Vector of x coordinates
+     * @param data Vector of function values at the x coordinates
+     */
+    void cspline_init(std::vector<double> &px, std::vector<double> &data);
+
+    /**
+     * @brief Evaluates the derivative of a cubic spline at a specified point.
+     * 
+     * Computes the first derivative of the cubic spline function at the given value.
+     * 
+     * @param px Vector of x coordinates
+     * @param data Vector of function values at the x coordinates
+     * @param value The point at which to evaluate the derivative
+     * @param length The length of the px and data arrays
+     * @return The derivative value at the specified point
+     */
+    double cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data, double value, int length);
 
 }
 
