@@ -4,9 +4,10 @@
 #include "util.h"
 #include "pdf.h"
 #include "vec3.h"
-#include "color.h"
+#include "colour.h"
 #include "materials/material.h"
 #include <ostream>
+#include <omp.h>
 
 
 class Camera {
@@ -139,9 +140,16 @@ class Camera {
             // initialize();
     
             stream << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+
+            std::vector<std::string> pixel_buffer(image_height * image_width);
     
+            #pragma omp parallel for schedule(dynamic)
             for (int j = 0; j < image_height; j++) {
-                std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
+                #ifndef _OPENMP
+                    // log progress if serial
+                    std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
+                #endif
+
                 for (int i = 0; i < image_width; i++) {
                     color pixel_color(0,0,0);
                     for (int s_j = 0; s_j < sqrt_spp; s_j++) {
@@ -150,10 +158,18 @@ class Camera {
                             pixel_color += ray_color(r, max_depth, world, lights);
                         }
                     }
-                    write_color(stream, pixel_samples_scale * pixel_color);
+
+                    std::ostringstream ss;
+                    write_color(ss, pixel_samples_scale * pixel_color);
+                    pixel_buffer[j * image_width + i] = ss.str();
                 }
             }
-    
+            
+            // Shove all the buffer into the steam after being computed
+            for (const auto& line : pixel_buffer) {
+                stream << line;
+            }
+
             std::clog << "\rDone.                 \n";
         }
 
@@ -225,8 +241,6 @@ class Camera {
             return center + (p[0] * defocus_disk_u) + (p[1] * defocus_disk_v);
         }
 
-    // hmmm
-    // public:
         color ray_color(const Ray& r, int depth, const Hittable& world, const Hittable& lights) const {
             // If we've exceeded the ray bounce limit, no more light is gathered.
             if (depth <= 0)

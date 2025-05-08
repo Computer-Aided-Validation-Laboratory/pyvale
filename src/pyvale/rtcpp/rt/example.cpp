@@ -9,7 +9,7 @@
 //     std::cout << v;
 // }
 
-
+#include <omp.h>
 #include <iostream>
 #include <memory>
 // #include "scene.hpp"
@@ -21,6 +21,8 @@
 #include "geometry/sphere.h"
 #include "geometry/hittable_list.h"
 #include "camera.h"
+#include "textures/texture.h"
+#include "vec3.h"
 // #include "render.cpp"
 
 #include <Eigen/Dense>
@@ -41,8 +43,8 @@ int main(int, char**) {
     // auto glass = std::make_shared<Refractive>(1.5);
 
 
-    Camera camera = Camera(point3(0, 2, 5),
-                    point3(0, 2, 0),
+    Camera camera = Camera(point3(0, 0, 5),
+                    point3(0, 0, 0),
                     40.0,
                     200.0 / 200.0,
                     0.01,
@@ -79,7 +81,10 @@ int main(int, char**) {
               -2, 0, 0;
     Eigen::Matrix<double, 8, 3> displacements2 = Eigen::Matrix<double, 8, 3>::Zero();
 
-    scene.add(std::make_shared<ShapeQuadQuad>(nodes2, displacements2, green));
+    // scene.add(std::make_shared<ShapeQuadQuad>(nodes2, displacements2, green));
+    auto perl = std::make_shared<Noise_texture>(1);
+    auto nmat = std::make_shared<Lambertian>(perl);
+    scene.add(std::make_shared<Quad>(point3(-2, -2, 0), vec3(4,0,0), vec3(0,4,0), nmat));
 
     scene = Hittable_list(make_shared<BVH_node>(scene));
 
@@ -102,14 +107,14 @@ int main(int, char**) {
     //                         vec3(0.,1.,0.)
     //                 );
     
-    // Start time
+    // Start measuring rendering time taken
     auto start = std::chrono::high_resolution_clock::now();
 
     std::ostringstream oss(std::ios::binary);
     camera.render(scene, lights, oss);
     std::string ppm_data = oss.str();
 
-    // End time and show
+    // End rendering time taken and show
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Render time: " << elapsed.count() << " seconds\n";
@@ -128,26 +133,5 @@ int main(int, char**) {
     cv::imshow("image", image);
     cv::waitKey(0);
 
-    return 0;
-
-    // self.screen_width = screen_width
-    // self.screen_height = screen_height
-
-    // self.camera = Camera(lookfrom, lookat,field_of_view, screen_width/screen_height, aperture, focus_distance, vup)
-
-    // scene.add_Camera(
-    //     point3(278, 278, -800),
-    //     point3(278, 278, 0),
-    //     200, 200,
-    //     40.0,
-    //     10.0,
-    //     0.01
-    // );
-
-    // Render
-    // Image img = scene.render(20, 5); // samples per pixel, max depth
-    // img.save("output.png");          // Save output to file
-    std::cout << "Rendered to output.png" << std::endl;
-                
     return 0;
 }

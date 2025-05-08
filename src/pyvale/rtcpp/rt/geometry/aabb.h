@@ -5,6 +5,7 @@
 #include "vec3.h"
 #include <cassert>
 #include <cmath>
+#include <stdexcept>
 
 // #include <endian.h>
 
@@ -65,6 +66,7 @@ class aabb {
             if (n == 0) return {_min.x(), _max.x()};
             if (n == 1) return {_min.y(), _max.y()};
             if (n == 2) return {_min.z(), _max.z()};
+            else throw std::invalid_argument("Received argument out of bounds");
         }
 
         static const aabb empty, universe;

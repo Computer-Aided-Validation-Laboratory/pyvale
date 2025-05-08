@@ -2,7 +2,7 @@
 #define TEXTURE_H
 #include "../util.h"
 #include <iostream>
-#include "materials/perlin.h"
+#include "textures/perlin.h"
 
 
 class texture  {

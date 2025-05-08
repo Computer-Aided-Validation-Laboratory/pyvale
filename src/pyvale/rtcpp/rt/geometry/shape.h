@@ -4,9 +4,12 @@
 #include "hittable.h"
 // #include "../materials/material.h"
 #include <Eigen/Dense>
+#include <dlib/optimization.h>
+// #include <dlib/global_optimization.h>
 #include <cassert>
 #include <cmath>
 
+typedef dlib::matrix<double,0,1> column_vector;
 
 // Base class of shapes with shape function displacements
 class ShapeQuad: public Hittable {
@@ -142,6 +145,22 @@ class ShapeQuad: public Hittable {
         shared_ptr<Material> mp;
 };
 
+double rosen (const column_vector& m)
+/*
+    This function computes what is known as Rosenbrock's function.  It is 
+    a function of two input variables and has a global minimum at (1,1).
+    So when we use this function to test out the optimization algorithms
+    we will see that the minimum found is indeed at the point (1,1). 
+*/
+{
+    const double x = m(0); 
+    const double y = m(1);
+
+    // compute Rosenbrock's function and return the result
+    return 100.0*pow(y - x*x,2) + pow(1 - x,2);
+}
+
+
 // Linear quadrangles (4 points)
 class ShapeQuadLin : public ShapeQuad {
     public:
@@ -211,14 +230,23 @@ class ShapeQuadQuad : public ShapeQuad {
             N(5) = 0.5  * (1 + xi)             * (1 - pow(eta, 2));
             N(6) = 0.5  * (1 - pow(xi, 2))* (1 + eta);
             N(7) = 0.5  * (1 - xi)             * (1 - pow(eta, 2));
-            assert(N.size() == 8);
             return N;        
         }
 
+
         // Simple get the nodes that are the smallest and largest in the 3 directions
+        // Todo. Get the correct extents when curved. Probably install dlib, and rewrite the newton-raphson method above with this optimised library
         bool bounding_box(double dis_min, double dis_max, aabb& output_box) const override
         {
             Eigen::Matrix<double, 8, 3> locations = nodes + displacements;
+
+            column_vector starting_point = {4, 8};
+            starting_point = {-94, 5.2};
+            find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(),
+                                                   dlib::objective_delta_stop_strategy(1e-7),
+                                                   rosen, starting_point, -1);
+            
+            std::cout << "rosen solution:\n" << starting_point << std::endl;
 
             Eigen::Vector3d min_vals = locations.colwise().minCoeff(); // [min_x, min_y, min_z]
             Eigen::Vector3d max_vals = locations.colwise().maxCoeff(); // [max_x, max_y, max_z]
@@ -227,12 +255,13 @@ class ShapeQuadQuad : public ShapeQuad {
             point3 maxs = vec3(max_vals[0], max_vals[1], max_vals[2]);
 
             output_box = aabb(mins, maxs);
+            std::cout << mins << "\n" << maxs << "\n";
             return true;
         }
 
         Eigen::VectorXd dN_dxi(double xi, double eta) const override
         {
-            Eigen::VectorXd N;
+            Eigen::VectorXd N(8);
             N(0) =  0.25 * (1 - eta) * (-1 - 2 * xi - eta);
             N(1) =  0.25 * (1 - eta) * (-1 + 2 * xi - eta);
             N(2) =  0.25 * (1 + eta) * (-1 + 2 * xi + eta);
@@ -246,7 +275,7 @@ class ShapeQuadQuad : public ShapeQuad {
 
         Eigen::VectorXd dN_deta(double xi, double eta) const override
         {
-            Eigen::VectorXd N;
+            Eigen::VectorXd N(8);
             N(0) = 0.25 * (1 - xi) * (-1 - xi - 2 * eta);
             N(1) = 0.25 * (1 + xi) * (-1 + xi - 2 * eta);
             N(2) = 0.25 * (1 + xi) * (-1 + xi + 2 * eta);
