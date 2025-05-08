@@ -6,8 +6,9 @@
 
 """
 Pyvale example: Custom vector field sensors
-----------------------------------------------------------------------------
-In this example we build a custom vector field sensor array
+--------------------------------------------------------------------------------
+In this example we build a custom vector field sensor array which mimics the
+sensor array we built with the factory in the previous example.
 
 Note that this tutorial assumes you are familiar with the use of pyvale for
 scalar fields as described in the first set of examples.
@@ -81,7 +82,7 @@ def main() -> None:
     # We can add errors to our error simulation chain in exactly the same way as
     # we did for scalar fields. We will add some simple errors for now but in
     # the next example we will look at some field errors to do with sensor
-    # orientation that 
+    # orientation that
     error_chain = []
     error_chain.append(pyv.ErrSysUnif(low=-0.01,high=0.01))  # units = mm
     error_chain.append(pyv.ErrRandNorm(std=0.01))            # units = mm

@@ -14,35 +14,30 @@ def main() -> None:
 
     data_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+
+    field_name = "disp"
+    field_comps = ("disp_x","disp_y")
+    sim_data = pyv.scale_length_units(scale=1000.0,
+                                      sim_data=sim_data,
+                                      disp_comps=field_comps)
 
     descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
 
-    spat_dims = 2
-    field_key = "disp"
-    components = ("disp_x","disp_y")
-    disp_field = pyv.FieldVector(sim_data,field_key,components,spat_dims)
+    disp_field = pyv.FieldVector(sim_data,field_name,field_comps,elem_dims=2)
 
     n_sens = (2,2,1)
     x_lims = (0.0,100.0)
     y_lims = (0.0,150.0)
     z_lims = (0.0,0.0)
-    sensor_positions = pyv.create_sensor_pos_array(n_sens,
-                                                      x_lims,
-                                                      y_lims,
-                                                      z_lims)
+    sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
-    use_sim_time = False
-    if use_sim_time:
-        sample_times = None
-    else:
-        sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-    sensor_angles = sensor_positions.shape[0] * \
+    sample_times = np.linspace(0.0,np.max(sim_data.time),50)
+
+    sensor_angles = sens_pos.shape[0] * \
         (Rotation.from_euler("zyx", [0, 0, 0], degrees=True),)
 
-    sensor_data = pyv.SensorData(positions=sensor_positions,
+    sensor_data = pyv.SensorData(positions=sens_pos,
                                   sample_times=sample_times,
                                   angles=sensor_angles,
                                   spatial_averager=pyv.EIntSpatialType.QUAD4PT,
@@ -53,10 +48,10 @@ def main() -> None:
                                            disp_field,
                                            descriptor)
 
-    pos_offset = -10.0*np.ones_like(sensor_positions)
+    pos_offset = -10.0*np.ones_like(sens_pos)
     pos_offset[:,2] = 0 # in 2d we only have offset in x and y so zero z
 
-    angle_offset = np.zeros_like(sensor_positions)
+    angle_offset = np.zeros_like(sens_pos)
     angle_offset[:,0] = 5.0 # only rotate about z in 2D
 
     time_offset = 1.0*np.ones_like(disp_sensors.get_sample_times())
