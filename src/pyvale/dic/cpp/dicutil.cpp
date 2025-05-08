@@ -260,71 +260,65 @@ namespace util {
         std::stringstream outfile_str;
         std::ofstream outfile;
 
-        if (saveconf.layout == "col"){
+        std::string file_ext;
+        if (saveconf.binary) file_ext=".bin";
+        else file_ext=".dat";
 
-            // filename
-            outfile_str << saveconf.basepath << "/" <<
-            saveconf.prefix << std::setw(4) << std::setfill('0') << 
-            img << saveconf.format;
+        // filename
+        outfile_str << saveconf.basepath << "/" <<
+        saveconf.prefix << std::setw(4) << std::setfill('0') << img << file_ext;
 
-            // set the img var to 0 after opening file if not saving at end
-            if (!saveconf.at_end) img = 0;
+        // set the img var to 0 after opening file if not saving at end
+        if (!saveconf.at_end) img = 0;
 
-            // save in binary format
-            if (saveconf.format == ".bin"){
-                outfile.open(outfile_str.str(), std::ios::binary);
+        // save in binary format
+        if (saveconf.binary){
+            outfile.open(outfile_str.str(), std::ios::binary);
 
-                for (size_t i = 0; i < ssdata.num; ++i) {
+            for (size_t i = 0; i < ssdata.num; ++i) {
 
-                    int idx = img * ssdata.num + i;
-                    int idx_p = num_params*idx;
+                int idx = img * ssdata.num + i;
+                int idx_p = num_params*idx;
 
-                    double mag = std::sqrt(u_arr[idx] * u_arr[idx]+
-                                                 v_arr[idx] * v_arr[idx]);
+                double mag = std::sqrt(u_arr[idx] * u_arr[idx]+
+                                                v_arr[idx] * v_arr[idx]);
 
-                    outfile.write(reinterpret_cast<const char*>(&ssdata.coords[2*i]), sizeof(int));
-                    outfile.write(reinterpret_cast<const char*>(&ssdata.coords[2*i+1]), sizeof(int));
-                    outfile.write(reinterpret_cast<const char*>(&u_arr[idx]), sizeof(double));
-                    outfile.write(reinterpret_cast<const char*>(&v_arr[idx]), sizeof(double));
-                    outfile.write(reinterpret_cast<const char*>(&mag), sizeof(double));
-                    for (int p = 0; p < num_params; p++){
-                        outfile.write(reinterpret_cast<const char*>(&p_arr[idx_p+p]), sizeof(double));
-                    }
-                    outfile.write(reinterpret_cast<const char*>(&cost_arr[idx]), sizeof(double));
-                    outfile.write(reinterpret_cast<const char*>(&ftol_arr[idx]), sizeof(double));
-                    outfile.write(reinterpret_cast<const char*>(&xtol_arr[idx]), sizeof(double));
-                    outfile.write(reinterpret_cast<const char*>(&niter_arr[idx]), sizeof(int));
-                }
-
-                outfile.close();
+                write_int(outfile, ssdata.coords[2*i]);
+                write_int(outfile, ssdata.coords[2*i+1]);
+                write_dbl(outfile, u_arr[idx]);
+                write_dbl(outfile, v_arr[idx]);
+                write_dbl(outfile, mag);
+                write_dbl(outfile, cost_arr[idx]);
+                write_dbl(outfile, ftol_arr[idx]);
+                write_dbl(outfile, xtol_arr[idx]);
+                write_int(outfile, niter_arr[idx]);
             }
 
+            outfile.close();
+        }
+        else {
 
-            // save in human readable format
-            else if (saveconf.format == ".dat"){
+            outfile.open(outfile_str.str());
+            for (size_t i = 0; i < ssdata.num; i++) {
 
-                outfile.open(outfile_str.str());
-                for (size_t i = 0; i < ssdata.num; i++) {
+                int idx = img * ssdata.num + i;
+                int idx_p = num_params*idx;
 
-                    int idx = img * ssdata.num + i;
-                    int idx_p = num_params*idx;
-
-                    outfile << ssdata.coords[2*i] << delimiter;
-                    outfile << ssdata.coords[2*i+1] << delimiter;
-                    outfile << u_arr[idx] << delimiter;
-                    outfile << v_arr[idx] << delimiter;
-                    outfile << sqrt(u_arr[idx]*u_arr[idx]+
-                                    v_arr[idx]*v_arr[idx]) << delimiter;
-                    for (int p = 0; p < num_params; p++){
-                        outfile << p_arr[idx_p+p] << delimiter;
-                    }
-                    outfile << cost_arr[idx] << delimiter;
-                    outfile << ftol_arr[idx] << delimiter;
-                    outfile << xtol_arr[idx] << delimiter;
-                    outfile << niter_arr[idx] << "\n";
-                }
-                outfile.close();
+                outfile << ssdata.coords[2*i] << delimiter;
+                outfile << ssdata.coords[2*i+1] << delimiter;
+                outfile << u_arr[idx] << delimiter;
+                outfile << v_arr[idx] << delimiter;
+                outfile << sqrt(u_arr[idx]*u_arr[idx]+
+                                v_arr[idx]*v_arr[idx]) << delimiter;
+                //for (int p = 0; p < num_params; p++){
+                //    outfile << p_arr[idx_p+p] << delimiter;
+                //}
+                outfile << cost_arr[idx] << delimiter;
+                outfile << ftol_arr[idx] << delimiter;
+                outfile << xtol_arr[idx] << delimiter;
+                outfile << niter_arr[idx] << "\n";
             }
+            outfile.close();
         }
     }
 
@@ -342,4 +336,13 @@ namespace util {
     }
 
 
-}   
+    inline void write_int(std::ofstream& out, int val) {
+        out.write(reinterpret_cast<const char*>(&val), sizeof(int));
+    }
+
+    inline void write_dbl(std::ofstream& out, double val) {
+        out.write(reinterpret_cast<const char*>(&val), sizeof(double));
+    }
+
+
+}

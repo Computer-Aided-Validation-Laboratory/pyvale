@@ -78,11 +78,10 @@ namespace util {
 
     struct SaveConfig {
 
-        std::string format;
-        std::string layout;
         std::string basepath;
         std::string prefix;
         std::string delimiter;
+        bool binary;
         bool at_end;
 
 
@@ -223,6 +222,11 @@ namespace util {
 
 
     bool is_valid_pixel(int px_x, int px_y, Config& conf, bool *image_roi);
+
+
+    inline void write_int(std::ofstream& out, int val);
+
+    inline void write_dbl(std::ofstream& out, double val);
 }
 
 #endif //DICUTIL

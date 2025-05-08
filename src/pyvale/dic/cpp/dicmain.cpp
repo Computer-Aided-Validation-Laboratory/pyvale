@@ -133,7 +133,7 @@ void build_info(){
         INFO_OUT("- Compiled on Machine:", HOSTNAME);
         INFO_OUT("- Compiled on OS:", OSNAME);
         INFO_OUT("- Compiled at:", BUILDTIME);
-
+        std::cout << std::endl;
 }
 
 
@@ -160,8 +160,7 @@ PYBIND11_MODULE(dic2dcpp, m) {
     py::class_<util::SaveConfig>(m, "SaveConfig")
         .def(py::init<>())
         .def_readwrite("basepath", &util::SaveConfig::basepath)
-        .def_readwrite("format", &util::SaveConfig::format)
-        .def_readwrite("layout", &util::SaveConfig::layout)
+        .def_readwrite("binary", &util::SaveConfig::binary)
         .def_readwrite("prefix", &util::SaveConfig::prefix)
         .def_readwrite("delimiter", &util::SaveConfig::delimiter)
         .def_readwrite("at_end", &util::SaveConfig::at_end);

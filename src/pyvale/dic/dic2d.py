@@ -35,8 +35,7 @@ def DIC2D(reference: np.ndarray | str,
           scanning_method: str="IMAGE_SCAN",
           output_at_end: bool=False,
           output_basepath: str="./",
-          output_format: str=".dat",
-          output_layout: str="col",
+          output_binary: bool=False,
           output_prefix: str="results",
           output_delimiter: str=" ") -> DICResults:
 
@@ -47,8 +46,7 @@ def DIC2D(reference: np.ndarray | str,
     check_scanning_method(scanning_method)
     check_thresholds(threshold_levenberg, threshold_levenberg, precision)
     check_subset_size(subset_size)
-    check_output_directory(output_basepath, output_format, output_layout,
-                           output_prefix, output_delimiter)
+    check_output_directory(output_basepath, output_prefix, output_delimiter)
     num_params = check_shape_function(shape_function)
 
     # Assign values to config struct
@@ -71,8 +69,7 @@ def DIC2D(reference: np.ndarray | str,
 
     saveconf = dic2dcpp.SaveConfig()
     saveconf.basepath = output_basepath
-    saveconf.format = output_format
-    saveconf.layout = output_layout
+    saveconf.binary = output_binary
     saveconf.prefix = output_prefix
     saveconf.delimiter = output_delimiter
     saveconf.at_end = output_at_end
@@ -86,8 +83,6 @@ def DIC2D(reference: np.ndarray | str,
 
 
 def check_output_directory(output_basepath: str,
-                           output_format: str,
-                           output_layout: str,
                            output_prefix: str,
                            output_delimiter: str) -> None:
 
@@ -102,14 +97,15 @@ def check_output_directory(output_basepath: str,
     # Check for any matching files
     conflicting_files = [
         f for f in files 
-        if f.startswith(output_prefix) and f.endswith(output_format)
-    ]
+        if f.startswith(output_prefix) and (f.endswith(".dat") or
+                                            f.endswith(".bin"))]
 
     if conflicting_files:
         conflicting_files.sort()
         print("The following files already exist:")
         for f in conflicting_files:
             print(f"  - {os.path.join(output_basepath, f)}")
+        print("")
 
         user_input = input("Do you want to continue? (y/n): ").strip().lower()
 
@@ -129,9 +125,9 @@ def DIC2Dgpu() -> None:
     return None
 
 
-def build_test() -> None:
+def DICbuild() -> None:
     """
-    Returns the build information of the diccppinterface module.
+    Prints the C++ build information.
     """
     dic2dcpp.build_info()
 
@@ -176,7 +172,7 @@ def check_scanning_method(scanning_method: str) -> None:
     allowed_values = {"IMAGE_SCAN", "IMAGE_SCAN_WITH_BF", "RG"}
 
     if scanning_method not in allowed_values:
-        raise ValueError(f"Invalid scannign_method: {scanning_method}. "
+        raise ValueError(f"Invalid scanning_method: {scanning_method}. "
                          f"Allowed values are: {', '.join(allowed_values)}")
 
 
@@ -216,27 +212,23 @@ def check_and_get_images(reference: Union[np.ndarray, str],
     if type(reference) is not type(deformed):
         raise ValueError(
             f"Mismatch in input types: reference={type(reference)}, "
-            f"deformed={type(deformed)}"
-        )
+            f"deformed={type(deformed)}")
 
     if isinstance(reference, str):
         if not os.path.isfile(reference):
-            raise ValueError(
-                f"Reference image does not exist: {reference}"
-            )
+            raise ValueError(f"Reference image does not exist: {reference}")
 
         ref_arr = np.flip(np.array(Image.open(reference)),axis=0)
 
         files = sorted(glob.glob(deformed))
         if not files:
-            raise FileNotFoundError(
-                f"No deformation images found: {deformed}"
-            )
-        
+            raise FileNotFoundError(f"No deformation images found: {deformed}")
+
 
         print(f"Found {len(files)} deformation images:")
         for file in files:
-            print("-", file)
+            print("  -", file)
+        print("")
 
         def_arr = np.zeros((len(files), *ref_arr.shape), dtype=ref_arr.dtype)
 
@@ -245,8 +237,8 @@ def check_and_get_images(reference: Union[np.ndarray, str],
             if img.shape != ref_arr.shape:
                 raise ValueError(
                     f"Shape mismatch: '{file}' has shape {img.shape}, "
-                    f"expected {ref_arr.shape}"
-                )
+                    f"expected {ref_arr.shape}")
+
             def_arr[i] = img
 
     else:
@@ -254,9 +246,159 @@ def check_and_get_images(reference: Union[np.ndarray, str],
                 reference.shape != roi.shape):
             raise ValueError(
                 f"Shape mismatch: reference {reference.shape}, "
-                f"deformed[0] {deformed[0].shape}, roi {roi.shape}"
-            )
+                f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
 
     return ref_arr, def_arr
 
+def DICdata_import(layout: str="column", 
+                   data: str="./", 
+                   binary: bool=False,
+                   delimiter: str=" ") -> DICResults:
+
+    # firstly check whether layout has been spcified as column or matrix data
+    allowed_formats = {"column", "matrix"}
+    if layout not in allowed_formats:
+        raise ValueError(f"Invalid scanning_method: {layout}. "
+                         f"Allowed values are: {', '.join(allowed_formats)}")
+
+
+
+    # get the files
+    files = sorted(glob.glob(data))
+    if not files:
+        raise FileNotFoundError(f"No results found in: {data}")
+
+    ss_x_arr, ss_y_arr = None, None
+    u_list, v_list, m_list, cost_list  = [],[],[],[]
+    ftol_list, xtol_list, niter_list = [],[],[]
+
+    for i,file in enumerate(files):
+
+        if binary:
+
+            # row size in bytes
+            row_size = (3*4 + 6*8)
+            ss_x_tmp, ss_y_tmp = [],[]
+            u_tmp, v_tmp, m_tmp, cost_tmp = [],[],[],[]
+            ftol_tmp, xtol_tmp, niter_tmp = [],[],[]
+
+            with open(file, "rb") as f:
+
+                while True:
+
+                    row = f.read(row_size)
+
+                    # check the length of the line is what it should be
+                    if not row:
+                        break
+                    if len(row) != row_size:
+                        raise ValueError("Incomplete row in binary file.")
+                    
+                    ss_x  = np.frombuffer(row[0:4], dtype=np.int32)[0]
+                    ss_y  = np.frombuffer(row[4:8], dtype=np.int32)[0]
+                    u     = np.frombuffer(row[8:16], dtype=np.float64)[0]
+                    v     = np.frombuffer(row[16:24], dtype=np.float64)[0]
+                    m     = np.frombuffer(row[24:32], dtype=np.float64)[0]
+                    cost  = np.frombuffer(row[32:40], dtype=np.float64)[0]
+                    ftol  = np.frombuffer(row[40:48], dtype=np.float64)[0]
+                    xtol  = np.frombuffer(row[48:56], dtype=np.float64)[0]
+                    niter = np.frombuffer(row[56:64], dtype=np.int32)[0]
+
+                    # Combine coords, u, and v into one row
+                    ss_x_tmp.append(ss_x)
+                    ss_y_tmp.append(ss_y)
+                    u_tmp.append(u)
+                    v_tmp.append(v)
+                    m_tmp.append(m)
+                    cost_tmp.append(cost)
+                    ftol_tmp.append(ftol)
+                    xtol_tmp.append(xtol)
+                    niter_tmp.append(niter)
+
+            if i == 0:
+                ss_x_arr = np.array(ss_x_tmp, dtype=np.int32)
+                ss_y_arr = np.array(ss_y_tmp, dtype=np.int32)
+            else:
+                assert np.array_equal(ss_x_arr, ss_x_tmp)
+                assert np.array_equal(ss_y_arr, ss_y_tmp)
+
+            print(len(u_tmp))
+            u_list.append(u_tmp)
+            v_list.append(v_tmp)
+            m_list.append(m_tmp)
+            cost_list.append(cost_tmp)
+            ftol_list.append(ftol_tmp)
+            xtol_list.append(xtol_tmp)
+            niter_list.append(niter_tmp)
+
+        else:
+            data = np.loadtxt(file, delimiter=delimiter)
+            if data.shape[1] < 8:
+                raise ValueError("Text data must have at least 8 columns.")
+
+            ss_x = data[:, 0].astype(np.int32)
+            ss_y = data[:, 1].astype(np.int32)
+            u    = data[:, 2]
+            v    = data[:, 3]
+            m    = data[:, 4]
+            cost = data[:, 5]
+            ftol = data[:, 6]
+            xtol = data[:, 7]
+            niter = data[:, 8].astype(np.int32)
+
+            if i == 0:
+                ss_x_arr = ss_x
+                ss_y_arr = ss_y
+            else:
+                assert np.array_equal(ss_x_arr, ss_x)
+                assert np.array_equal(ss_y_arr, ss_y)
+
+            u_list.append(u)
+            v_list.append(v)
+            m_list.append(m)
+            cost_list.append(cost)
+            ftol_list.append(ftol)
+            xtol_list.append(xtol)
+            niter_list.append(niter)
+
+    # Convert lists to arrays
+    u_arr     = np.array(u_list)
+    v_arr     = np.array(v_list)
+    m_arr  = np.array(m_list)
+    cost_arr  = np.array(cost_list)
+    ftol_arr  = np.array(ftol_list)
+    xtol_arr  = np.array(xtol_list)
+    niter_arr = np.array(niter_list)
+    print(u_arr.shape)
+
+    if layout == "matrix":
+        x_unique = np.unique(ss_x_arr)
+        y_unique = np.unique(ss_y_arr)
+        X, Y = np.meshgrid(x_unique, y_unique)
+
+        # Determine mesh shape
+        rows, cols = Y.shape
+        n_frames = u_arr.shape[0]
+
+        def map_to_grid(flat_values):
+            grid = np.full((n_frames, rows, cols), np.nan, dtype=np.float64)
+            for i in range(len(ss_x_arr)):
+                x_idx = np.where(x_unique == ss_x_arr[i])[0][0]
+                y_idx = np.where(y_unique == ss_y_arr[i])[0][0]
+                grid[:, y_idx, x_idx] = flat_values[:, i]
+            return grid
+
+        u_arr     = map_to_grid(u_arr)
+        v_arr     = map_to_grid(v_arr)
+        m_arr     = map_to_grid(m_arr)
+        cost_arr  = map_to_grid(cost_arr)
+        ftol_arr  = map_to_grid(ftol_arr)
+        xtol_arr  = map_to_grid(xtol_arr)
+        niter_arr = map_to_grid(niter_arr)
+
+        return DICResults(X, Y, u_arr, v_arr, m_arr, 
+                          cost_arr, ftol_arr, xtol_arr, niter_arr)
+    else:
+        return DICResults(ss_x_arr, ss_y_arr, u_arr, v_arr, 
+                          m_arr, cost_arr, ftol_arr, xtol_arr, niter_arr)
 

@@ -9,67 +9,32 @@ import numpy as np
 
 from pyvale.dic import dic2dcpp
 
-
-def import_displacement_data(path: str="./", prefix: str="results", 
-                             format: str=".dat", delim: str=" "):
-    """
-    Import data from a file. The format of the file is determined by the extension.
-    Only reads coords, u, and v values.
-    
-    Args:
-        path (str): Path to the file.
-        format (str): Format of the file. Default is ".bin".
-    
-    Returns:
-        data: Imported data containing coords, u, and v values.
-    """
-    
-    if format == ".bin":
-        
-        # Calculate the size of a row based on known data types
-        row_size = (3*4 + 12*8)  # 2 integers (coords) + 12 doubles
-        data_list = []
-
-        with open(path, "rb") as f:
-            
-            while True:
-            
-                bytes_read = f.read(row_size)
-                
-                # check the length of the line is what it should be
-                if not bytes_read:
-                    break
-                if len(bytes_read) != row_size:
-                    raise ValueError("Incomplete row in binary file.")
-
-                # currently only interested in the coordinates and displacement
-                coords = np.frombuffer(bytes_read[:8], dtype=np.int32)
-                u_v = np.frombuffer(bytes_read[8:24], dtype=np.float64)
-
-                # Combine coords, u, and v into one row
-                row = np.concatenate([coords, u_v])
-                data_list.append(row)
-        
-        # convert list to numpy array
-        data = np.array(data_list)
-
-    elif format == ".dat":
-        data = np.loadtxt(path, delimiter=delim, 
-                          skiprows=0, usecols=(0, 1, 2, 3))
-
-    else:
-        raise ValueError(f"Unsupported file format: {format}")
-
-    return data
-
-
-
-def dic_calculate_strain(dic_data, 
+def DICstrain(dic_data, 
                          window_size: int=5, 
                          window_element: int=4, 
                          strain_formulation: str="HENCKY"):
 
-    print(dic_data.shape)
+
+    # Check the strain formulation is in the allowed list
+    allowed_formulations = ["GREEN", "ALMANSI", "HENCKY", 
+                            "BIOT_EULER", "BIOT_LAGRANGE"]
+    
+    if strain_formulation not in allowed_formulations:
+        raise ValueError(f"Invalid strain formulation: "
+                         f"'{strain_formulation}'. Allowed values are: "
+                         f"{', '.join(allowed_formulations)}.")
+
+    # check the strain window element is one of the allowed values
+    allowed_element = [4, 9]
+    if window_element not in allowed_element:
+        raise ValueError(f"Invalid strain window element type: "
+                         f"Q{window_element}. Allowed values are: "
+                         f"{', '.join(map(str, allowed_element))}.")
+
+    # chceck the window size is an odd number
+    if window_size % 2 == 0:
+        raise ValueError(f"Invalid strain window size: '{window_size}'. "
+                         f"Must be an odd number.")
 
     # convert subset data to meshgrid
     x, y = dic_data[:, 0], dic_data[:, 1]
@@ -103,25 +68,6 @@ def dic_calculate_strain(dic_data,
     np.savetxt("dudy.dat",dudy,delimiter=" ")
     np.savetxt("dvdx.dat",dvdx,delimiter=" ")
     np.savetxt("dvdy.dat",dvdy,delimiter=" ")
-
-    # Check the strain formulation is in the allowed list
-    allowed_formulations = ["GREEN", "ALMANSI", "HENCKY", 
-                            "BIOT_EULER", "BIOT_LAGRANGE"]
-    
-    if strain_formulation not in allowed_formulations:
-        raise ValueError(f"Invalid strain formulation: '{strain_formulation}'. "
-                         f"Allowed values are: {', '.join(allowed_formulations)}.")
-
-    # check the strain window element is one of the allowed values
-    allowed_element = [4, 9]
-    if window_element not in allowed_element:
-        raise ValueError(f"Invalid strain window element type: Q{window_element}. "
-                         f"Allowed values are: {', '.join(map(str, allowed_element))}.")
-
-    # chceck the window size is an odd number
-    if window_size % 2 == 0:
-        raise ValueError(f"Invalid strain window size: '{window_size}'. "
-                         f"Must be an odd number.")
 
 
     dic2dcpp.cpp_2d_strain_routine(x,y,u_mesh,v_mesh, window_size,

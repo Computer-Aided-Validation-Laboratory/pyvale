@@ -8,12 +8,14 @@
 from dataclasses import dataclass
 import numpy as np
 
-@dataclass
+@dataclass(slots=True)
 class DICResults:
-    niter: np.ndarray
-    subsets: np.ndarray
+    ss_x: np.ndarray
+    ss_y: np.ndarray
     u: np.ndarray
     v: np.ndarray
-    p: np.ndarray
+    mag: np.ndarray
+    cost: np.ndarray
     ftol: np.ndarray
     xtol: np.ndarray
+    niter: np.ndarray
