@@ -13,6 +13,7 @@
 #include <iostream>
 #include <memory>
 // #include "scene.hpp"
+#include "geometry/bvh.h"
 #include "materials/material.h"
 // #include "shapes.hpp"
 #include "geometry/shape.h"
@@ -26,6 +27,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <sstream>
+#include <chrono>
 
 int main(int, char**) {
     Hittable_list scene;
@@ -39,8 +41,8 @@ int main(int, char**) {
     // auto glass = std::make_shared<Refractive>(1.5);
 
 
-    Camera camera = Camera(point3(0, 1, 5),
-                    point3(0, 1, 0),
+    Camera camera = Camera(point3(0, 2, 5),
+                    point3(0, 2, 0),
                     40.0,
                     200.0 / 200.0,
                     0.01,
@@ -79,6 +81,8 @@ int main(int, char**) {
 
     scene.add(std::make_shared<ShapeQuadQuad>(nodes2, displacements2, green));
 
+    scene = Hittable_list(make_shared<BVH_node>(scene));
+
     // Walls and light
     // scene.add(std::make_shared<Plane_yz>(0, 555, 0, 555, 555, green));
     // scene.add(std::make_shared<Plane_yz>(0, 555, 0, 555, 0, red));
@@ -97,10 +101,19 @@ int main(int, char**) {
     //                         10.0,
     //                         vec3(0.,1.,0.)
     //                 );
+    
+    // Start time
+    auto start = std::chrono::high_resolution_clock::now();
 
     std::ostringstream oss(std::ios::binary);
     camera.render(scene, lights, oss);
     std::string ppm_data = oss.str();
+
+    // End time and show
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Render time: " << elapsed.count() << " seconds\n";
+
 
     // Decode PPM image to cv::Mat
     std::vector<uchar> buffer(ppm_data.begin(), ppm_data.end());
@@ -110,7 +123,7 @@ int main(int, char**) {
         return 1;
     }
 
-    // 4. Display the image
+    // Display the image
     cv::namedWindow("image", cv::WINDOW_NORMAL); //namedWindow('image',WINDOW_NORMAL)
     cv::imshow("image", image);
     cv::waitKey(0);

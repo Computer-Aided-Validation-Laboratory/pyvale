@@ -12,7 +12,7 @@ struct Hit_record {
     point3 position;
     vec3 normal;
     shared_ptr<Material> material_ptr;
-    double distance; //last ray collision distance
+    double distance; //last ray collision distance. Sometimes refered to as 't'
     bool orientation;
     double u;
     double v;

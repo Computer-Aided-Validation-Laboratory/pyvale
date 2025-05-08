@@ -1,7 +1,12 @@
 #ifndef AABB_H
 #define AABB_H
-#include "../util.h"
-#include <endian.h>
+// #include "util.h"
+#include "ray.h"
+#include "vec3.h"
+#include <cassert>
+#include <cmath>
+
+// #include <endian.h>
 
 
 class aabb {
@@ -55,7 +60,16 @@ class aabb {
                 return 2;
         }
 
-    public:
+        const std::pair<int, int> axis_interval(int n) const {
+            assert((n >= 0) && (n < 3));
+            if (n == 0) return {_min.x(), _max.x()};
+            if (n == 1) return {_min.y(), _max.y()};
+            if (n == 2) return {_min.z(), _max.z()};
+        }
+
+        static const aabb empty, universe;
+
+    private:
         point3 _min;
         point3 _max;
 };
@@ -80,5 +94,8 @@ aabb operator+(const aabb& bbox, const vec3& offset) {
 aabb operator+(const vec3& offset, const aabb& bbox) {
     return bbox + offset;
 }
+
+const aabb aabb::empty    = aabb(point3(+INFINITY,+INFINITY,+INFINITY), point3(-INFINITY,-INFINITY,-INFINITY));
+const aabb aabb::universe = aabb(point3(-INFINITY,-INFINITY,-INFINITY), point3(+INFINITY,+INFINITY,+INFINITY));
 
 #endif
