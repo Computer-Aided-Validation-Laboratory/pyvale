@@ -22,26 +22,32 @@ import pyvale as pyv
 
 def main() -> None:
 
-
+    # First we load the same 2D solid mechanics simulation we had previously as
+    # a `SimData` object and then we scale everything to millimeters.
     data_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-
     field_name = "disp"
     field_comps = ("disp_x","disp_y")
     sim_data = pyv.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
                                       disp_comps=field_comps)
 
-
-    descriptor = pyv.SensorDescriptor(name="Disp.",
-                                      symbol=r"u",
-                                      units=r"mm",
-                                      tag="DS",
-                                      components=("x","y","z"))
-
-
+    # This is the key different between building a vector field sensor vs a
+    # scalar field sensor. Here we create a vector field object which we will
+    # pass to our sensor array. In later examples we will see that the process
+    # is the same for tensor fields (e.g. strain) where we create a tensor field
+    # object and pass this to our sensor array. One thing to note is that the
+    # number of field components will be different here for a 2D vs 3D
+    # simulation. Also, it is worth noting that the element dimensions
+    # parameter does not need to match the number of field components. For
+    # example: it is possible to have a surface mesh (elem_dims=2) where we
+    # have all 3 components of the displacement field.
     disp_field = pyv.FieldVector(sim_data,field_name,field_comps,elem_dims=2)
 
+    # As we saw previously for scalar fields we define our sensor data object
+    # which determines how many point sensors we have and their sampling times.
+    # For vector field sensors we can also define the sensor orientation here
+    # which we will demonstrate in the next example.
     n_sens = (2,3,1)
     x_lims = (0.0,100.0)
     y_lims = (0.0,150.0)
@@ -55,10 +61,27 @@ def main() -> None:
     sens_data = pyv.SensorData(positions=sens_pos,
                                sample_times=sample_times)
 
+    # We can optionally define a custom sensor descriptor for our vector field
+    # sensor which will be used for labelling sensor placement visualisation or
+    # for time traces. It is also possible to use the sensor descriptor factory
+    # to get the same sensor descriptor object with these defaults.
+    descriptor = pyv.SensorDescriptor(name="Disp.",
+                                      symbol=r"u",
+                                      units=r"mm",
+                                      tag="DS",
+                                      components=("x","y","z"))
+
+    # The point sensor array class is generic and will take any field class
+    # that implements the field interface. So here we just pass in the vector
+    # field to create our vector field sensor array.
     disp_sens_array = pyv.SensorArrayPoint(sens_data,
                                            disp_field,
                                            descriptor)
 
+    # We can add errors to our error simulation chain in exactly the same way as
+    # we did for scalar fields. We will add some simple errors for now but in
+    # the next example we will look at some field errors to do with sensor
+    # orientation that 
     error_chain = []
     error_chain.append(pyv.ErrSysUnif(low=-0.01,high=0.01))  # units = mm
     error_chain.append(pyv.ErrRandNorm(std=0.01))            # units = mm
