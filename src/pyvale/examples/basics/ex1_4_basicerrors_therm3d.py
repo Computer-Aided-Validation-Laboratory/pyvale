@@ -55,8 +55,8 @@ def main() -> None:
     tc_array = pyv.SensorArrayFactory \
         .thermocouples_no_errs(sim_data,
                                sensor_data,
-                               field_key,
-                               elem_dims=3)
+                               elem_dims=3,
+                               field_name=field_key)
 
     # Now we have our thermocouple array applied to our simulation without any
     # errors we can build a custom chain of basic errors. Here we will start by

@@ -4,23 +4,28 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+Pyvale example: TODO
+--------------------------------------------------------------------------------
+TODO
+
+Test case: TODO
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import mooseherder as mh
 import pyvale as pyv
 
+# TODO: comments and full description for this example like the basics examples
 
 def main() -> None:
-    """pyvale example: point sensors on a 2D thermal simulation
-    ----------------------------------------------------------------------------
-    - Demonstrates options for controlling plots of points sensor traces using
-      matplotlib
-    """
+
     data_path = pyv.DataSet.thermal_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    field_key = list(sim_data.node_vars.keys())[0] # type: ignore
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+    sim_data = pyv.scale_length_units(scale=1000.0,
+                                      sim_data=sim_data,
+                                      disp_comps=None)
 
     n_sens = (4,1,1)
     x_lims = (0.0,100.0)
@@ -33,6 +38,7 @@ def main() -> None:
     sens_data = pyv.SensorData(positions=sens_pos,
                                   sample_times=sample_times)
 
+    field_key = "temperature"
     tc_array = pyv.SensorArrayFactory \
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
@@ -46,13 +52,23 @@ def main() -> None:
 
     measurements = tc_array.get_measurements()
 
+
     print(80*"-")
-    print("Looking at the last 5 time steps (measurements) of sensor 0:")
-    pyv.print_measurements(tc_array,
-                              (0,1),
-                              (0,1),
-                              (measurements.shape[2]-5,measurements.shape[2]))
+
+    sens_print: int = 0
+    time_print: int = 5
+    comp_print: int = 0
+
+    print(f"These are the last {time_print} virtual measurements of sensor "
+          + f"{sens_print}:")
+
+    pyv.print_measurements(sens_array=tc_array,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
     print(80*"-")
+
 
     trace_props = pyv.TraceOptsSensor()
 

@@ -6,19 +6,17 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation
 import mooseherder as mh
 import pyvale as pyv
 
 def main() -> None:
-    """pyvale example: strain sensors on a 2D plate with a hole
-    ----------------------------------------------------------------------------
-    - Demonstrates rotation of tensor fields
-    """
+
     data_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+    sim_data = pyv.scale_length_units(scale=1000.0,
+                                      sim_data=sim_data,
+                                      disp_comps=("disp_x","disp_y"))
 
     descriptor = pyv.SensorDescriptorFactory.strain_descriptor()
 
@@ -54,7 +52,7 @@ def main() -> None:
     meas_norot = sg_array_norot.get_measurements()
 
     sens_angles = sensor_positions.shape[0] * \
-        (R.from_euler("zyx", [45, 0, 0], degrees=True),)
+        (Rotation.from_euler("zyx", [45, 0, 0], degrees=True),)
 
     sens_data_rot = pyv.SensorData(positions=sensor_positions,
                                       sample_times=sample_times,

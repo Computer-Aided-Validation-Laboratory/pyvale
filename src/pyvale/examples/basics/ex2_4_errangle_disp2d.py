@@ -11,9 +11,7 @@ import mooseherder as mh
 import pyvale as pyv
 
 def main() -> None:
-    """pyvale example: displacement sensors on a 2D plate with a hole
-    ----------------------------------------------------------------------------
-    """
+
     data_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     # Scale to mm to make 3D visualisation scaling easier

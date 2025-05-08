@@ -54,8 +54,8 @@ def main() -> None:
     tc_array = pyv.SensorArrayFactory \
         .thermocouples_no_errs(sim_data,
                                sensor_data,
-                               field_key,
-                               elem_dims=3)
+                               elem_dims=3,
+                               field_name=field_key)
 
     # Now we will create a field error data class which we will use to build our
     # field error. This controls which sensor parameters will be perturbed such

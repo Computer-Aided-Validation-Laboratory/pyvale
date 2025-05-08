@@ -17,6 +17,8 @@ from pyvale.fieldtransform import (transform_tensor_2d,
                                    transform_tensor_3d,
                                    transform_tensor_3d_batch)
 
+# TODO:
+# - Checking to ensure normal and dev components are consistent
 
 class FieldTensor(IField):
     """Class for sampling (interpolating) tensor fields from simulations to
@@ -32,7 +34,7 @@ class FieldTensor(IField):
                  field_key: str,
                  norm_components: tuple[str,...],
                  dev_components: tuple[str,...],
-                 spat_dims: int) -> None:
+                 elem_dims: int) -> None:
         """Initialiser for the `FieldVector` class.
 
         Parameters
@@ -44,17 +46,14 @@ class FieldTensor(IField):
         components : tuple[str,...]
             String keys to the field components in the `SimData` object. For
             example ('stain_xx','strain_yy','strain_xy').
-        spat_dims : int
+        elem_dims : int
             Number of spatial dimensions (2 or 3) used for identifying element
             types.
         """
         self._field_key = field_key
         self._norm_components = norm_components
         self._dev_components = dev_components
-        self._spat_dims = spat_dims
-
-        #TODO: do some checking to make sure norm/dev components are consistent
-        # based on the spatial dimensions
+        self._spat_dims = elem_dims
 
         self._sim_data = sim_data
         (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(

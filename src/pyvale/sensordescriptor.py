@@ -79,7 +79,7 @@ class SensorDescriptorFactory:
         descriptor = SensorDescriptor()
         descriptor.name = 'Disp.'
         descriptor.symbol = 'u'
-        descriptor.units = r'm'
+        descriptor.units = r'mm'
         descriptor.tag = 'DS'
         descriptor.components = ('x','y','z')
         return descriptor

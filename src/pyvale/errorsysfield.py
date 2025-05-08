@@ -273,9 +273,6 @@ def _perturb_sensor_positions(sens_pos_nominal: np.ndarray,
                 sens_pos_perturbed[:,ii] = sens_pos_perturbed[:,ii] + \
                     rng.generate(shape=sens_pos_perturbed.shape[0])
 
-    # if pos_loc_xyz is not None:
-    #     sens_pos_perturbed[pos_loc_xyz] = sens_pos_nominal[pos_loc_xyz]
-
     return sens_pos_perturbed
 
 
@@ -391,10 +388,6 @@ def _perturb_sensor_angles(n_sensors: int,
                 if rand_ang is not None:
                     sensor_rot_angs[jj] = sensor_rot_angs[jj] + \
                         rand_ang.generate(shape=1)
-
-        # if angle_loc_zyx is not None:
-        #     # No rotation about locked axes using mask
-        #     sensor_rot_angs[angle_loc_zyx[ii,:]] = 0.0
 
         sensor_rot = Rotation.from_euler("zyx",sensor_rot_angs, degrees=True)
         angles_perturbed[ii] = sensor_rot*rot_nom

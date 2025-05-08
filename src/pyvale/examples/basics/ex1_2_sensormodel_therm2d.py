@@ -62,8 +62,8 @@ def main() -> None:
     tc_array = pyv.SensorArrayFactory \
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
-                                  field_key,
                                   elem_dims=2,
+                                  field_name=field_key,
                                   errs_pc=5.0)
 
 

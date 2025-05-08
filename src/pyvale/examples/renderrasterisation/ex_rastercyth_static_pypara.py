@@ -4,7 +4,8 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-from pathlib import Path
+
+
 import time
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -12,11 +13,8 @@ import matplotlib.pyplot as plt
 import mooseherder as mh
 import pyvale as pyv
 
+
 def main() -> None:
-    """pyvale example: rasterisation field renderer
-    ----------------------------------------------------------------------------
-    - TODO
-    """
     print()
     print(80*"=")
     print("RASTER CYTHON FILE (should be *.so on Linux):")

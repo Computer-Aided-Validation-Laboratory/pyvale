@@ -10,7 +10,7 @@ Pyvale example: Sensor calibration systematic errors
 In this example we show how pyvale can simulate sensor calibration errors with
 user defined calibration functions.
 
-Test case: Scalar field point sensors (thermocouples) on a 3D thermal simulation
+Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 """
 
 import numpy as np
@@ -86,8 +86,8 @@ def main() -> None:
     tc_array = pyv.SensorArrayFactory \
         .thermocouples_no_errs(sim_data,
                                sensor_data,
-                               field_key,
-                               elem_dims=2)
+                               elem_dims=2,
+                               field_name=field_key)
 
 
     # With our assumed and true calibration functions we can build our

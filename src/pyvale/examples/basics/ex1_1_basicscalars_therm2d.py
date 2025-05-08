@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-pyvale example: basics of pyvale point sensor simualtion
+Pyvale example: Basics of pyvale point sensor simualtion
 --------------------------------------------------------------------------------
 In this example we introduce the basic features of pyvale for point sensor
 simulation. We demonstrate quick sensor array construction with defaults using
@@ -24,10 +24,13 @@ import pyvale as pyv
 def main() -> None:
     # Here we load a pre-generated MOOSE finite element simulation dataset that
     # comes packaged with pyvale. The simulation is a 2D rectangular plate with
-    # a bi-directional temperature gradient.
+    # a bi-directional temperature gradient. You can replace this with the path
+    # to your own MOOSE simulation with exodus output (*.e). Note that the
+    # field_key must match the name of your variable in your MOOSE simulation.
     data_path = pyv.DataSet.thermal_2d_path()
+    # We use `mooseherder` to load the exodus file into a `SimData` object.
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    field_key: str = "temperature"
+
     # Scale to mm to make 3D visualisation scaling easier as pyvista scales
     # everything to unity
     sim_data = pyv.scale_length_units(scale=1000.0,
@@ -55,11 +58,12 @@ def main() -> None:
     # This basic thermocouple array includes a 1% systematic and random error.
     # If you want to remove the simulated errors and just interpolate at the
     # sensor locations then user `.thermocouples_no_errs()`.
+    field_key: str = "temperature"
     tc_array = pyv.SensorArrayFactory \
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
-                                  field_key,
-                                  elem_dims=2)
+                                  elem_dims=2,
+                                  field_name=field_key)
 
     # We have built our sensor array so now we can call `calc_measurements()` to
     # generate simulated sensor traces.

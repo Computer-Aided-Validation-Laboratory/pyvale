@@ -13,10 +13,6 @@ import mooseherder as mh
 import pyvale as pyv
 
 def main() -> None:
-    """pyvale example: rasterisation field renderer
-    ----------------------------------------------------------------------------
-    - TODO
-    """
     print()
     print(80*"=")
     print("RASTER CYTHON FILE (should be *.so on Linux):")
@@ -24,8 +20,6 @@ def main() -> None:
     print(80*"=")
     print()
 
-    # This a path to an exodus *.e output file from MOOSE, this can be
-    # replaced with a path to your own simulation file
     sim_path = pyv.DataSet.render_mechanical_3d_path()
     #sim_path = pyv.DataSet.render_simple_block_path()
     #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
