@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ test-github-actions ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ test-github-actions ]
   # Allow manual triggering of the workflow
   workflow_dispatch:
 
@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pylint # Replace with your preferred linting tool
+          pip install flake8 # Replace with your preferred linting tool
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           
       - name: Lint with flake8
@@ -53,7 +53,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest # Replace with your preferred testing framework
+          pip install pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         shell: bash
           
@@ -82,7 +82,4 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-          # Add commands to verify the package was installed correctly
-          # For example, you could run a simple command from your package
-          # my-package --version
         shell: bash
