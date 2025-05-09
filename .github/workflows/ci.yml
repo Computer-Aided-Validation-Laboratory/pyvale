@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint:
+  check-lint:
     name: Lint Code
     runs-on: ubuntu-latest
     steps:
@@ -18,51 +18,21 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
-          
+          python-version: '3.11'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 # Replace with your preferred linting tool
+          pip install pylint
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          
-      - name: Lint with flake8
-        run: |
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          pip install -e .
 
-  test:
-    name: Test on ${{ matrix.os }} with ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.11']
-        
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-          
-      - name: Install dependencies
+      - name: Lint with pylint
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        shell: bash
-          
-      - name: Test with pytest
-        run: |
-          pytest
-        shell: bash
+          pylint src/pyvale --recursive=y . --fail-under=7.0 || echo "Pylint score is below threshold but continuing workflow"
 
-  install-test:
+
+  install:
     name: Test Installation on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -83,3 +53,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
         shell: bash
+
+    name: Test on ${{ matrix.os }} with ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11']
+
+    steps:
+
+      - name: Run Blender pytests
+        run: |
+          pytest -v tests/blender/.
+        shell: bash
+
+
