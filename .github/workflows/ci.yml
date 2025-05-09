@@ -54,8 +54,6 @@ jobs:
           pip install -e .
         shell: bash
 
-    steps:
-
       - name: Run Blender pytests
         run: |
           pytest -v tests/blender/.
