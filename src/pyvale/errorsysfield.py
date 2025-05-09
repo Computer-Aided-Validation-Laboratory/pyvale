@@ -15,7 +15,7 @@ from pyvale.sensordata import SensorData
 from pyvale.integratortype import EIntSpatialType
 from pyvale.errorcalculator import (IErrCalculator,
                                     EErrType,
-                                    EErrDependence)
+                                    EErrDep)
 from pyvale.errordriftcalc import IDriftCalculator
 from pyvale.generatorsrandom import IGenRandom
 
@@ -24,7 +24,7 @@ from pyvale.generatorsrandom import IGenRandom
 #   to lock to the same time step as it works now.
 # - Need to check that we perform field rotations correctly for sensor angles.
 #   - This needs to be updated to take rotation objects for offsets and to build
-#     and compose rotations 
+#     and compose rotations
 
 
 @dataclass(slots=True)
@@ -111,7 +111,7 @@ class ErrSysField(IErrCalculator):
     def __init__(self,
                 field: IField,
                 field_err_data: ErrFieldData,
-                err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
+                err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
         """Initialiser for the `ErrSysField` class.
 
         Parameters
@@ -132,7 +132,7 @@ class ErrSysField(IErrCalculator):
         self._err_dep = err_dep
         self._sensor_data_perturbed = SensorData()
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -145,7 +145,7 @@ class ErrSysField(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -284,7 +284,7 @@ def _perturb_sample_times(sim_time: np.ndarray,
                          time_offset: np.ndarray | None,
                          time_rand: IGenRandom | None,
                          time_drift: IDriftCalculator | None
-                         ) -> np.ndarray | None:
+                         ) -> np.ndarray:
     """Helper function for calculating perturbed sensor sampling times for the
     purpose of calculating field based systematic errors.
 
@@ -307,16 +307,11 @@ def _perturb_sample_times(sim_time: np.ndarray,
 
     Returns
     -------
-    np.ndarray | None
-        Array of perturbed sample times
+    np.ndarray
+        Array of perturbed sample times.
     """
     if time_nominal is None:
-        if (time_offset is not None
-            or time_rand is not None
-            or time_drift is not None):
-            time_nominal = sim_time
-        else:
-            return None
+        time_nominal = sim_time
 
     time_perturbed = np.copy(time_nominal)
 

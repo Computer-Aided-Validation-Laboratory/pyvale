@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 from pyvale.errorcalculator import (IErrCalculator,
                                     EErrType,
-                                    EErrDependence)
+                                    EErrDep)
 from pyvale.sensordata import SensorData
 
 
@@ -19,7 +19,7 @@ class ErrIntOpts:
     errors are calculated and stored in memory for later use.
     """
 
-    force_dependence: EErrDependence | None = None
+    force_dependence: EErrDep | None = None
     """Forces all errors to be calculated with the specified dependence. If set
     to None then all errors will use their default/preset dependence.
 
@@ -184,10 +184,11 @@ class ErrIntegrator:
 
         for ii,ee in enumerate(self.err_chain):
 
-            if ee.get_error_dep() == EErrDependence.DEPENDENT:
+            if ee.get_error_dep() == EErrDep.DEPENDENT:
                 (error_array,sens_data) = ee.calc_errs(truth+accumulated_error,
                                                        self.sens_data_accumulated)
                 self.sens_data_accumulated = sens_data
+
             else:
                 (error_array,sens_data) = ee.calc_errs(truth,
                                                        self.sens_data_initial)
@@ -230,15 +231,15 @@ class ErrIntegrator:
 
         for ee in self.err_chain:
 
-            if ee.get_error_dep() == EErrDependence.DEPENDENT:
-                (error_array,sens_data) = ee.calc_errs(truth+accumulated_error,
-                                                       self.sens_data_accumulated)
+            if ee.get_error_dep() == EErrDep.DEPENDENT:
+                (error_array,sens_data) = ee.calc_errs(
+                    truth+accumulated_error,
+                    self.sens_data_accumulated
+                )
                 self.sens_data_accumulated = sens_data
             else:
                 (error_array,sens_data) = ee.calc_errs(truth,
                                                        self.sens_data_initial)
-
-            self.sens_data_accumulated = sens_data
 
             if ee.get_error_type() == EErrType.SYSTEMATIC:
                 self.errs_systematic = self.errs_systematic + error_array

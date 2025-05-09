@@ -7,7 +7,7 @@
 import numpy as np
 from pyvale.errorcalculator import (IErrCalculator,
                                          EErrType,
-                                         EErrDependence)
+                                         EErrDep)
 from pyvale.generatorsrandom import IGenRandom
 from pyvale.sensordata import SensorData
 
@@ -20,7 +20,7 @@ class ErrSysOffset(IErrCalculator):
 
     def __init__(self,
                  offset: float,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
+                 err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
         """Initialiser for the `ErrSysOffset` class.
 
         Parameters
@@ -34,7 +34,7 @@ class ErrSysOffset(IErrCalculator):
         self._offset = offset
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -50,7 +50,7 @@ class ErrSysOffset(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -109,7 +109,7 @@ class ErrSysOffsetPercent(IErrCalculator):
 
     def __init__(self,
                  offset_percent: float,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
+                 err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
         """Initialiser for the `ErrSysOffsetPercent` class.
 
         Parameters
@@ -123,7 +123,7 @@ class ErrSysOffsetPercent(IErrCalculator):
         self._offset_percent = offset_percent
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -136,7 +136,7 @@ class ErrSysOffsetPercent(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -196,7 +196,7 @@ class ErrSysUnif(IErrCalculator):
     def __init__(self,
                  low: float,
                  high: float,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT,
+                 err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
         """Initialiser for the `ErrSysUniform` class.
 
@@ -219,7 +219,7 @@ class ErrSysUnif(IErrCalculator):
         self._rng = np.random.default_rng(seed)
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -235,7 +235,7 @@ class ErrSysUnif(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -311,7 +311,7 @@ class ErrSysUnifPercent(IErrCalculator):
     def __init__(self,
                  low_percent: float,
                  high_percent: float,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT,
+                 err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
         """_summary_
 
@@ -332,7 +332,7 @@ class ErrSysUnifPercent(IErrCalculator):
         self._rng = np.random.default_rng(seed)
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -345,7 +345,7 @@ class ErrSysUnifPercent(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -413,7 +413,7 @@ class ErrSysNorm(IErrCalculator):
     def __init__(self,
                  std: float,
                  mean: float = 0.0,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT,
+                 err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
         """Initialiser for the `ErrSysNormal` class.
 
@@ -434,7 +434,7 @@ class ErrSysNorm(IErrCalculator):
         self._rng = np.random.default_rng(seed)
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -450,7 +450,7 @@ class ErrSysNorm(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -526,13 +526,13 @@ class ErrSysNormPercent(IErrCalculator):
 
     def __init__(self,
                  std_percent: float,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT,
+                 err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
         self._std = std_percent/100
         self._rng = np.random.default_rng(seed)
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -545,7 +545,7 @@ class ErrSysNormPercent(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -614,12 +614,12 @@ class ErrSysGen(IErrCalculator):
 
     def __init__(self,
                  generator: IGenRandom,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
+                 err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
 
         self._generator = generator
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -632,7 +632,7 @@ class ErrSysGen(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -705,12 +705,12 @@ class ErrSysGenPercent(IErrCalculator):
 
     def __init__(self,
                  generator: IGenRandom,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
+                 err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
 
         self._generator = generator
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -723,7 +723,7 @@ class ErrSysGenPercent(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated

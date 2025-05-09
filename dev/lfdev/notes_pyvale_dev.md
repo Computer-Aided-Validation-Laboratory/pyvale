@@ -3,6 +3,13 @@
 
 ## TODO: `pyvale` point sensors
 --------------------------------------------------------------------------------
+- EXAMPLES:
+    - Finish basics examples update
+    - Show how all errors can be extracted from the error integrator
+
+- ERROR ANALYSIS MODULE / UQ MODULE
+    - Extracts which errors in the chain are contributing the most for each sensor
+
 - BUGS!
     - Node vs Elem vars in the SimData object - does pyvale work with elem vars???
     - Spatial averaging with rectangle or quadrature makes assumptions about sensor orientation - looks like it assumes XY orientations only. Check this.

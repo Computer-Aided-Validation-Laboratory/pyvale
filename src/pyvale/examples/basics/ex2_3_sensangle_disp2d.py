@@ -72,6 +72,11 @@ def main() -> None:
     sens_angles = sens_pos.shape[0] * \
         (Rotation.from_euler("zyx", [45, 0, 0], degrees=True),)
 
+    # We could have also use a single element tuple to have all sensors have the
+    # angle and batch process them:
+    sens_angles = (Rotation.from_euler("zyx", [45, 0, 0], degrees=True),)
+
+
     sens_data_rot = pyv.SensorData(positions=sens_pos,
                                    sample_times=sample_times,
                                    angles=sens_angles)
@@ -97,7 +102,27 @@ def main() -> None:
                                     disp_sens_rot.get_measurement_shape())
     disp_sens_rot.set_error_integrator(sys_err_int)
 
-    disp_sens_rot.calc_measurements()
+    measurements = disp_sens_rot.calc_measurements()
+
+
+    # We print some of the results for one of the rotated sensors so we can see
+    # the effect of the angle errors.
+    print(80*"-")
+
+    sens_print: int = 0
+    time_print: int = 5
+    comp_print: int = 0
+
+    print("ROTATED SENSORS WITH ANGLE ERRORS:")
+    print(f"These are the last {time_print} virtual measurements of sensor "
+          + f"{sens_print} for {field_comps[comp_print]}:")
+
+    pyv.print_measurements(sens_array=disp_sens_rot,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
+    print(80*"-")
 
     # We can now plot the traces for the non-rotated and rotated sensors to
     # compare them:

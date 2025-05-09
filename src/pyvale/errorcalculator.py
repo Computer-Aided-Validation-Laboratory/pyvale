@@ -27,14 +27,14 @@ class EErrType(enum.Enum):
     RANDOM = enum.auto()
 
 
-class EErrDependence(enum.Enum):
+class EErrDep(enum.Enum):
     """Enumeration defining error dependence.
 
-    EErrDependence.INDEPENDENT:
+    EErrDep.INDEPENDENT:
         Errors are calculated based on the ground truth sensor values
         interpolated from the input simulation.
 
-    EErrDependence.DEPENDENT:
+    EErrDep.DEPENDENT:
         Errors are calculated based on the accumulated sensor reading due
         to all preceeding errors in the chain.
     """
@@ -58,7 +58,7 @@ class IErrCalculator(ABC):
         pass
 
     @abstractmethod
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Abstract method for getting the error dependence.
 
         Returns
@@ -69,7 +69,7 @@ class IErrCalculator(ABC):
         pass
 
     @abstractmethod
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Abstract method for setting the error dependence.
 
         Parameters

@@ -8,7 +8,7 @@ from typing import Callable
 import numpy as np
 from pyvale.errorcalculator import (IErrCalculator,
                                          EErrType,
-                                         EErrDependence)
+                                         EErrDep)
 from pyvale.sensordata import SensorData
 
 # TODO: add option to use Newton's method for function inversion instead of a
@@ -30,7 +30,7 @@ class ErrSysCalibration(IErrCalculator):
                  truth_calib: Callable[[np.ndarray],np.ndarray],
                  cal_range: tuple[float,float],
                  n_cal_divs: int = 10000,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
+                 err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
         """_summary_
 
         Parameters
@@ -65,7 +65,7 @@ class ErrSysCalibration(IErrCalculator):
         self._truth_cal_table[:,1] = self._truth_calib(
                                         self._truth_cal_table[:,0])
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -78,7 +78,7 @@ class ErrSysCalibration(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
