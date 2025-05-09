@@ -145,7 +145,7 @@ class DICRegionOfInterest:
         self.mask[bottom:(self.image.shape[0]-top), left:(self.image.shape[1])-right] = 255
         self.__roi_selected = True
 
-    def save(self, filename: str) -> None:
+    def save(self, filename: str="./roi.tiff") -> None:
         """
         Saves the image with the mask overlayed.
         

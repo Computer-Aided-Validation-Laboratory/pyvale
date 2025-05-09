@@ -12,8 +12,12 @@
 #include <Eigen/Dense>
 
 // Program Header files
+// pybind header files
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 
 
+namespace py = pybind11;
 
 
 namespace strain {
@@ -31,7 +35,12 @@ namespace strain {
     };
     
 
-    void engine(int *ss_x, int *ss_y, double *u, double *v, int num_ss_x, int num_ss_y, int sw_size, int q, std::string& formulation);
+    void engine(const py::array_t<int> ss_x_arr,
+                const py::array_t<int> ss_y_arr,
+                const py::array_t<double> u_arr,
+                const py::array_t<double> v_arr,
+                int nss_x, int nss_y, int nimg,
+                int sw_size, int q, std::string &form);
 
     /**
      * @brief Fills the strain window with the subset coordinates 
@@ -50,11 +59,9 @@ namespace strain {
      * @return true if the strain window is filled successfully
      * @return false if the strain window is out of bounds
      */
-    bool fill_strain_window(int *ss_x,int *ss_y,
-                            double *u, double *v, 
-                            Window &window,
-                            int num_ss_x, int num_ss_y,
-                            int x0_idx, int y0_idx, int swr);
+    bool fill_window(int *ss_x, int *ss_y, double *u, double *v,
+                            int img, int sw, Window &window,
+                            int nss_x, int nss_y, int sw_size);
         
     // strain formulations
     /**
@@ -64,7 +71,7 @@ namespace strain {
      * @param I Identity Matrix
      * @return Eigen::Matrix2d Green Strain
      */
-    inline Eigen::Matrix2d green(Eigen::Matrix2d F, Eigen::Matrix2d I);
+    inline Eigen::Matrix2d green(Eigen::Matrix2d F);
 
     /**
      * @brief Calculates Hencky strain for a given deformation gradient F and identity matrix I.
@@ -73,7 +80,7 @@ namespace strain {
      * @param I Identity Matrix
      * @return Eigen::Matrix2d Hencky Strain
      */
-    inline Eigen::Matrix2d hencky(Eigen::Matrix2d F, Eigen::Matrix2d I);
+    inline Eigen::Matrix2d hencky(Eigen::Matrix2d F);
 
     /**
      * @brief Calculates Almansi strain for a given deformation gradient F and identity matrix I.
@@ -82,7 +89,7 @@ namespace strain {
      * @param I Identity Matrix
      * @return Eigen::Matrix2d Almansi Strain
      */
-    inline Eigen::Matrix2d almansi(Eigen::Matrix2d F, Eigen::Matrix2d I);
+    inline Eigen::Matrix2d almansi(Eigen::Matrix2d F);
 
     /**
      * @brief Calculates Biot strain in the euler coordiate system for a given deformation gradient F and identity matrix I.
@@ -91,7 +98,7 @@ namespace strain {
      * @param I Identity Matrix
      * @return Eigen::Matrix2d Almansi Strain
      */
-    inline Eigen::Matrix2d biot_euler(Eigen::Matrix2d F, Eigen::Matrix2d I);
+    inline Eigen::Matrix2d biot_euler(Eigen::Matrix2d F);
 
     /**
      * @brief Calculates Biot strain in the lagrange coordiate system for a given deformation gradient F and identity matrix I.
@@ -100,7 +107,7 @@ namespace strain {
      * @param I Identity Matrix
      * @return Eigen::Matrix2d Almansi Strain
      */
-    inline Eigen::Matrix2d biot_lagrange(Eigen::Matrix2d F, Eigen::Matrix2d I);
+    inline Eigen::Matrix2d biot_lagrange(Eigen::Matrix2d F);
 
 }
 

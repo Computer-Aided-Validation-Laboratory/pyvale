@@ -8,11 +8,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pyvale.dic import dic2dcpp
+from pyvale.dic.dic2d import DICdata_import
+from pyvale.dic.dicresults import DICResults
 
-def DICstrain(dic_data, 
+def DICstrain(dic_data: DICResults | str,
                          window_size: int=5, 
                          window_element: int=4, 
-                         strain_formulation: str="HENCKY"):
+                         strain_formulation: str="HENCKY",
+                         binary: bool=False,
+                         delimiter: str=" "):
 
 
     # Check the strain formulation is in the allowed list
@@ -36,42 +40,21 @@ def DICstrain(dic_data,
         raise ValueError(f"Invalid strain window size: '{window_size}'. "
                          f"Must be an odd number.")
 
-    # convert subset data to meshgrid
-    x, y = dic_data[:, 0], dic_data[:, 1]
 
-    x_unique = np.unique(x).astype(np.int32)
-    y_unique = np.unique(y).astype(np.int32)
+    if type(dic_data) is str:
+        results = DICdata_import(layout="matrix", data=dic_data,
+                                 binary=binary, delimiter=delimiter)
+    else:
+        results = dic_data
 
-    x, y = np.meshgrid(x_unique, y_unique)
+    nss_x = results.ss_x.shape[1]
+    nss_y = results.ss_y.shape[0]
+    nimg = results.u.shape[0]
 
-    u_mesh = np.full_like(x, np.nan, dtype=np.float64)
-    v_mesh = np.full_like(y, np.nan, dtype=np.float64)
-
-    for i in range(len(dic_data)):
-        # Find indices in meshgrid
-        xi, yi, ui, vi = dic_data[i]
-        x_idx = np.where(x_unique == xi)[0][0]
-        y_idx = np.where(y_unique == yi)[0][0]
-        u_mesh[y_idx, x_idx] = ui
-        v_mesh[y_idx, x_idx] = vi
-
-    plt.plot()
-    plt.pcolor(x, y, u_mesh)
-    plt.colorbar()
-    plt.show()
-    dudx = np.gradient(u_mesh, axis=0)
-    dudy = np.gradient(u_mesh, axis=1)
-    dvdx = np.gradient(v_mesh, axis=0)
-    dvdy = np.gradient(v_mesh, axis=1)
-
-    np.savetxt("dudx.dat",dudx,delimiter=" ")
-    np.savetxt("dudy.dat",dudy,delimiter=" ")
-    np.savetxt("dvdx.dat",dvdx,delimiter=" ")
-    np.savetxt("dvdy.dat",dvdy,delimiter=" ")
-
-
-    dic2dcpp.cpp_2d_strain_routine(x,y,u_mesh,v_mesh, window_size,
-                                          window_element, strain_formulation)
+    dic2dcpp.strain_engine(results.ss_x,results.ss_y,
+                           results.u,results.v,
+                           nss_x, nss_y, nimg,
+                           window_size, window_element, strain_formulation)
 
 
 

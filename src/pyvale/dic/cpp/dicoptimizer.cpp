@@ -75,7 +75,7 @@ namespace optimizer {
             // - change in corr coeff is less than precision
             // - corr is less than threshold
             if ((xtol < opt->precision) && (ftol < opt->precision) && (opt->costp < opt->threshold_lm)) {
-                debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
+                //debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
                 break;
             }
 
@@ -85,7 +85,7 @@ namespace optimizer {
 
         // if its a bad subset and hits max_iterations then reset p values to 0.0 to prevent bad seeding.
         if (iter == opt->max_iter) {
-            debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
+            //debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
             std::fill(opt->p.begin(), opt->p.end(), 0.0);
         }
 

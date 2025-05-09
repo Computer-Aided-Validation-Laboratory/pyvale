@@ -18,6 +18,7 @@
 #include "./defines.hpp"
 #include "./dicutil.hpp"
 #include "./dicrg.hpp"
+#include "./progressbar.hpp"
 
 
 namespace scanmethod {
@@ -99,7 +100,6 @@ void image_with_bf(double *image_ref,
     // temp p values for copy from brute force to optimization.
     double ptemp[6] = {0,0,0,0,0,0};
 
-
     // loop over subsets within the ROI
     #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, res)
     for (int ss = 0; ss < ssdata.num; ss++){
@@ -155,6 +155,8 @@ void image_with_bf(double *image_ref,
                             util::SubsetData &ssdata, 
                             util::Config &conf,
                             int img_num){
+
+        progressbar bar(ssdata.num);
 
          int seed_x = 500; // in corner coordinates
          int seed_y = 500; // in corner coodinates
@@ -364,6 +366,9 @@ void image_with_bf(double *image_ref,
 
                         // append results
                         util::append_results(img_num, nidx, nres, ssdata.num);
+
+                        #pragma omp critical
+                            bar.update();
 
                         // // add results to temp neighbour results
                         temp_neigh.emplace_back(nx, ny, 1.0-0.5*nres.cost);

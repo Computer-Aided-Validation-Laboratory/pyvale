@@ -22,6 +22,7 @@
 #include "./dicscanmethod.hpp"
 #include "./defines.hpp"
 #include "./dicutil.hpp"
+#include "./dicstrain.hpp"
 
 // cuda Header files
 #include "../cuda/malloc.hpp"
@@ -29,11 +30,11 @@
 namespace py = pybind11;
 
 
-void engine(const py::array_t<double>& img_ref_arr,
-            const py::array_t<double>& img_def_stack_arr,
-            const py::array_t<bool>&   img_roi_arr, 
-            util::Config &conf,
-            util::SaveConfig &saveconf){
+void DICengine(const py::array_t<double>& img_ref_arr,
+               const py::array_t<double>& img_def_stack_arr,
+               const py::array_t<bool>&   img_roi_arr, 
+               util::Config &conf,
+               util::SaveConfig &saveconf){
 
     // -------------------------------------------------------------------------------------------
     // Initialisation
@@ -167,7 +168,8 @@ PYBIND11_MODULE(dic2dcpp, m) {
 
     // Bind the engine function
     m.def("build_info", &build_info, "build information");
-    m.def("engine", &engine, "Run 2D analysis on input images with config");
+    m.def("dic_engine", &DICengine, "Run 2D analysis on input images with config");
+    m.def("strain_engine", &strain::engine, "Strain C++ calculations");
 }
 
 
