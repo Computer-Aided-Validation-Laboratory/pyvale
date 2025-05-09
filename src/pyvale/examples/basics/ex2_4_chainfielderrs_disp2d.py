@@ -50,7 +50,7 @@ def main() -> None:
     sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
     sensor_data = pyv.SensorData(positions=sensor_positions,
-                                    sample_times=sample_times)
+                                 sample_times=sample_times)
 
     disp_sens_array = pyv.SensorArrayPoint(sensor_data,
                                            disp_field,

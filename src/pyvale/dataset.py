@@ -29,7 +29,6 @@ class DataSetError(Exception):
     """Custom error class for file io errors associated with retrieving datasets
     and files packaged with pyvale.
     """
-    pass
 
 
 class DataSet:

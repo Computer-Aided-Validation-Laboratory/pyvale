@@ -6,6 +6,7 @@
 - EXAMPLES:
     - Finish basics examples update
     - Show how all errors can be extracted from the error integrator
+    - Example showing how surface meshes can be generated for speeding up computation
 
 - ERROR ANALYSIS MODULE / UQ MODULE
     - Extracts which errors in the chain are contributing the most for each sensor
