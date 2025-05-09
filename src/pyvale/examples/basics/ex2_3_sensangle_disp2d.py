@@ -26,6 +26,9 @@ import mooseherder as mh
 import pyvale as pyv
 
 def main() -> None:
+    # First we are going to setup the same displacement sensor array on the 2D
+    # solid mechanics test case we have used previously. This will serve as a
+    # baseline with no sensor rotation.
 
     data_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
@@ -53,56 +56,57 @@ def main() -> None:
                                      sample_times=sample_times)
 
     disp_sens_norot = pyv.SensorArrayPoint(sens_data_norot,
-                                              disp_field,
-                                              descriptor)
+                                           disp_field,
+                                           descriptor)
 
     disp_sens_norot.calc_measurements()
 
+    # To create our sensor array with rotated sensors we need to add a tuple of
+    # scipy rotation objects to our sensor data class. This tuple must be the
+    # same length as the number of sensors in the sensor array. Note that it is
+    # also possible to specify a single rotation in the tuple in this case all
+    # sensors are assumed to have the same rotation and they are batch processed
+    # to increase speed. Here we will define our rotations to all be the same
+    # rotation in degrees about the z axis which is the out of plane axis for
+    # our current test case.
     sens_angles = sens_pos.shape[0] * \
         (Rotation.from_euler("zyx", [45, 0, 0], degrees=True),)
 
     sens_data_rot = pyv.SensorData(positions=sens_pos,
-                                      sample_times=sample_times,
-                                      angles=sens_angles)
+                                   sample_times=sample_times,
+                                   angles=sens_angles)
 
     disp_sens_rot = pyv.SensorArrayPoint(sens_data_rot,
                                             disp_field,
                                             descriptor)
 
-
+    # We can also use a field error to add uncertainty to the sensors angle.
+    # We can apply a specific offset to each sensor or provide a random
+    # generator to perturb the sensors orientation. Note that the offset and
+    # the random generator should provide the perturbation in degrees.
     angle_offset = np.zeros_like(sens_pos)
-    angle_offset[:,0] = 1.0 # only rotate about z in 2D
-    angle_error_data = pyv.ErrFieldData(ang_offset_zyx=angle_offset)
+    angle_offset[:,0] = 2.0 # only rotate about z in 2D
+    angle_rand = (pyv.GenNormal(std=2.0),None,None)
+    angle_error_data = pyv.ErrFieldData(ang_offset_zyx=angle_offset,
+                                        ang_rand_zyx=angle_rand)
+
 
     sys_err_rot = pyv.ErrSysField(disp_field,angle_error_data)
-
     sys_err_int = pyv.ErrIntegrator([sys_err_rot],
-                                         sens_data_rot,
-                                         disp_sens_rot.get_measurement_shape())
+                                    sens_data_rot,
+                                    disp_sens_rot.get_measurement_shape())
     disp_sens_rot.set_error_integrator(sys_err_int)
 
-    meas_rot = disp_sens_rot.get_measurements()
+    disp_sens_rot.calc_measurements()
 
+    # We can now plot the traces for the non-rotated and rotated sensors to
+    # compare them:
+    for ff in field_comps:
+        (_,ax) = pyv.plot_time_traces(disp_sens_norot,ff)
+        ax.set_title("No Rotation")
+        (_,ax) = pyv.plot_time_traces(disp_sens_rot,ff)
+        ax.set_title("Rotated with Errors")
 
-    print(80*'-')
-    sens_num = 4
-    print('The last 5 time steps (measurements) of sensor {sens_num}:')
-    pyv.print_measurements(disp_sens_rot,
-                              (sens_num-1,sens_num),
-                              (0,1),
-                              (meas_rot.shape[2]-5,meas_rot.shape[2]))
-    print(80*'-')
-
-    plot_field = 'disp_x'
-    if plot_field == 'disp_x':
-        pv_plot = pyv.plot_point_sensors_on_sim(disp_sens_rot,'disp_x')
-        pv_plot.show(cpos="xy")
-    elif plot_field == 'disp_y':
-        pv_plot = pyv.plot_point_sensors_on_sim(disp_sens_rot,'disp_y')
-        pv_plot.show(cpos="xy")
-
-    (fig,ax) = pyv.plot_time_traces(disp_sens_norot,plot_field)
-    (fig,ax) = pyv.plot_time_traces(disp_sens_rot,plot_field)
     plt.show()
 
 

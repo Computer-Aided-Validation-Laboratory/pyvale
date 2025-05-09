@@ -23,6 +23,8 @@ from pyvale.generatorsrandom import IGenRandom
 # - Implement different perturbed sampling times for each sensor or allow all
 #   to lock to the same time step as it works now.
 # - Need to check that we perform field rotations correctly for sensor angles.
+#   - This needs to be updated to take rotation objects for offsets and to build
+#     and compose rotations 
 
 
 @dataclass(slots=True)
@@ -56,7 +58,8 @@ class ErrFieldData:
     """Tuple of random generators (implementations of `IGeneratorRandom`
     interface) for perturbing the sensor positions. The generators perturb the
     X, Y and Z coordinates in order. If None then that axis is not randomly
-    perturbed from the nominal sensor position.
+    perturbed from the nominal sensor position. Note that the random generators
+    should return position perturbations consistent with the simulation units.
     """
 
     ang_rand_zyx: tuple[IGenRandom | None,

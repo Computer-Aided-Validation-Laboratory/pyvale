@@ -188,3 +188,12 @@ mprof plot -o memory_profile.png
 - 10px per mm
 - 1mm displacement = 10 px
 - Need displacement cases at 0.1/10 = 1/10th of a pixel
+
+
+## EULER ANGLES: Intrinsic vs Extrinsic
+
+**INTRINSIC** = Rotate about localc coords
+If the intrinsic Euler angles are α,β,γ representing rotations about the initial X, then the new Y', and then the newest Z'' axes respectively, the final rotation matrix is obtained by multiplying the individual rotation matrices in the order of application. For example, if the sequence is z-y'-x'', the rotation matrix R would be R=z(α)Ry′(β)Rx′′(γ). Here, the primes indicate the axes after the previous rotation. When expressed in terms of the initial fixed frame, this becomes R=Rz(α)Ry(β)Rx(γ). Notice the direct correspondence between the order of application and the matrix multiplication.
+
+**EXTRINSIC** = Rotate about fixed global coords
+If the extrinsic Euler angles are α,β,γ representing rotations about the x, y, and z axes respectively, the final rotation matrix is obtained by multiplying the individual rotation matrices in the order they are applied. For example, if the sequence is z-y-x, the rotation matrix R would be R=Rx(γ)Ry(β)Rz(α). Notice the reversed order of application in the matrix multiplication compared to the order of rotations.
