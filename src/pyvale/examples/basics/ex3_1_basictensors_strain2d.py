@@ -4,6 +4,19 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+Pyvale example: Basic strain (tensor) field sensors
+--------------------------------------------------------------------------------
+In this example we use the sensor array factory to build a set of strain
+sensors that can sample the strain tensor field from a solid mechanics
+simulation. In the next example we will examine how we can build custom tensor
+field sensors as we did for scalar field in the first set of examples.
+
+Note that this tutorial assumes you are familiar with the use of pyvale for
+scalar fields as described in the first set of examples.
+
+Test case: point strain sensors on a 2D plate with hole loaded in tension
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,7 +24,11 @@ import mooseherder as mh
 import pyvale as pyv
 
 def main() -> None:
-
+    # First we load the same 2D solid mechanics simulation we used previously
+    # for vector displacement fields. Most of this setup code is similar to our
+    # vector field examples except we will need to specify the string keys for
+    # the normal a deviatoric components of our tensor field (as they appear in
+    # our `SimData` object).
     data_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     sim_data = pyv.scale_length_units(scale=1000.0,
@@ -27,21 +44,37 @@ def main() -> None:
     sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
     sens_data = pyv.SensorData(positions=sens_pos,
-                                  sample_times=sample_times)
+                               sample_times=sample_times)
 
+    # This is where we need to specify the string keys for the normal and
+    # deviatoric components of our strain field. In 2D we have two normal
+    # normal components and one deviatoric. In 3D we will have 3 of each as we
+    # will see in a later example. Otherwise this is very similar to what we
+    # have seen previously for scalar and vector fields.
+    norm_comps = ("strain_xx","strain_yy")
+    dev_comps = ("strain_xy",)
     straingauge_array = pyv.SensorArrayFactory \
                             .strain_gauges_basic_errs(sim_data,
                                                       sens_data,
-                                                      "strain",
-                                                      elem_dims=2)
+                                                      elem_dims=2,
+                                                      field_name="strain",
+                                                      norm_comps=norm_comps,
+                                                      dev_comps=dev_comps,
+                                                      errs_pc=5.0)
 
+    # We run our virtual sensor simulation as normal
+    straingauge_array.calc_measurements()
+
+    # We can plot a given component of our tensor field and display our sensor
+    # locations with respect to the field.
     plot_field = "strain_yy"
     pv_plot = pyv.plot_point_sensors_on_sim(straingauge_array,plot_field)
     pv_plot.show(cpos="xy")
 
-    pyv.plot_time_traces(straingauge_array,"strain_xx")
-    pyv.plot_time_traces(straingauge_array,"strain_yy")
-    pyv.plot_time_traces(straingauge_array,"strain_xy")
+    # We can also plot time traces for all components of the tensor field.
+    for cc in (norm_comps+dev_comps):
+        pyv.plot_time_traces(straingauge_array,cc)
+
     plt.show()
 
 

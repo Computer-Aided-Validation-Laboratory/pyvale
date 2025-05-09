@@ -9,7 +9,16 @@ Pyvale example: Sensor model & `get_measurements()` vs `calc_measurements`
 --------------------------------------------------------------------------------
 In this example we explain the pyvale virtual sensor measurement model. For a
 virtual sensor in pyvale a measurement is defined as measurement = truth +
-systematic error + random error. We then explain and demonstrate the difference
+systematic error + random error. Sources of systematic errors include: spatial/
+temporal averaging, uncertainty in position / sampling time / orientation,
+digitisation, saturation, and calibration. Sources of random error are generally
+due to measurement noise characterised by a given probability distribution.
+
+Random errors can be mitigated by performing multiple experiments and averaging.
+However, systematic errors cannot easily be accounted for without a forward
+model of the source of the error. Characterising the contribution of systematic
+errors to the total measurement error is a key application of `pyvale`.
+
 between the `get_measurements()` and `calc_measurements()` methods for a sensor
 array. Calling `get_measurements()` retrieves the results for the current
 simulated experiment whereas calling `calc_measurements()` will generate a new
