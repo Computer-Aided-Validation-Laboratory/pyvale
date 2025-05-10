@@ -538,12 +538,22 @@ def _raster_frame(coords: cython.double[:,:],
         if ((y_min > num_pixels[yy]-1) or (y_max < 0)): # y crop
             continue
 
+        # print(f"Elem {ee}: x, min {x_min}")
+        # print(f"Elem {ee}: x, max {x_max}")
+        # print(f"Elem {ee}: y, min {y_min}")
+        # print(f"Elem {ee}: y, max {y_max}\n")
+
         elems_in_image += 1
 
         xi_min: cython.size_t = bound_index_min(x_min)
         xi_max: cython.size_t = bound_index_max(x_max,num_pixels[xx])
         yi_min: cython.size_t = bound_index_min(y_min)
         yi_max: cython.size_t = bound_index_max(y_max,num_pixels[yy])
+
+        # print(f"Elem {ee}: xi, min {xi_min}")
+        # print(f"Elem {ee}: xi, max {xi_max}")
+        # print(f"Elem {ee}: yi, min {yi_min}")
+        # print(f"Elem {ee}: yi, max {yi_max}\n")
 
         for nn in range(nodes_per_elem):
             nodes_raster_buff[nn,zz] = 1/nodes_raster_buff[nn,zz]

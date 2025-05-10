@@ -32,7 +32,7 @@ def main() -> None:
         #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
 
         sim_path = pyv.DataSet.render_simple_block_path()
-        sim_path = pyv.DataSet.render_mechanical_3d_path()
+        #sim_path = pyv.DataSet.render_mechanical_3d_path()
         sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
         disp_comps = ("disp_x","disp_y","disp_z")
@@ -121,7 +121,6 @@ def main() -> None:
     print(80*"-")
     print()
 
-    return
 
     print(80*"-")
     total_frames = render_mesh.fields_render.shape[1]*render_mesh.fields_render.shape[2]
@@ -170,7 +169,7 @@ def main() -> None:
 
     #===========================================================================
     # PLOTTING
-    plot_on = True
+    plot_on = False
     plot_field = 0
 
     # depth_to_plot = np.copy(np.asarray(depth_buffer[:,:,plot_frame]))
