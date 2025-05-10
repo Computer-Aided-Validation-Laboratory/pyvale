@@ -31,9 +31,9 @@ class FieldTensor(IField):
 
     def __init__(self,
                  sim_data: mh.SimData,
-                 field_key: str,
-                 norm_components: tuple[str,...],
-                 dev_components: tuple[str,...],
+                 field_name: str,
+                 norm_comps: tuple[str,...],
+                 dev_comps: tuple[str,...],
                  elem_dims: int) -> None:
         """Initialiser for the `FieldVector` class.
 
@@ -41,7 +41,7 @@ class FieldTensor(IField):
         ----------
         sim_data : mh.SimData
             Simulation data object containing the mesh and field to interpolate.
-        field_key : str
+        field_name : str
             String describing the tensor field. For example: 'strain'.
         components : tuple[str,...]
             String keys to the field components in the `SimData` object. For
@@ -50,9 +50,9 @@ class FieldTensor(IField):
             Number of spatial dimensions (2 or 3) used for identifying element
             types.
         """
-        self._field_key = field_key
-        self._norm_components = norm_components
-        self._dev_components = dev_components
+        self._field_key = field_name
+        self._norm_components = norm_comps
+        self._dev_components = dev_comps
         self._spat_dims = elem_dims
 
         self._sim_data = sim_data

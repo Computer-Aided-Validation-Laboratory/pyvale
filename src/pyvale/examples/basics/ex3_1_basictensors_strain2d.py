@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Pyvale example: Basic strain (tensor) field sensors
+Pyvale example: Basic tensor field sensors (strain gauges)
 --------------------------------------------------------------------------------
 In this example we use the sensor array factory to build a set of strain
 sensors that can sample the strain tensor field from a solid mechanics
@@ -18,9 +18,11 @@ scalar fields as described in the first set of examples.
 Test case: point strain sensors on a 2D plate with hole loaded in tension
 """
 
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import mooseherder as mh
+from mooseherder import SimData
 import pyvale as pyv
 
 def main() -> None:
@@ -29,11 +31,11 @@ def main() -> None:
     # vector field examples except we will need to specify the string keys for
     # the normal a deviatoric components of our tensor field (as they appear in
     # our `SimData` object).
-    data_path = pyv.DataSet.mechanical_2d_path()
-    sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    sim_data = pyv.scale_length_units(scale=1000.0,
-                                      sim_data=sim_data,
-                                      disp_comps=("disp_x","disp_y"))
+    data_path: Path = pyv.DataSet.mechanical_2d_path()
+    sim_data: SimData = mh.ExodusReader(data_path).read_all_sim_data()
+    sim_data: SimData = pyv.scale_length_units(scale=1000.0,
+                                                sim_data=sim_data,
+                                                disp_comps=("disp_x","disp_y"))
 
     n_sens = (2,3,1)
     x_lims = (0.0,100.0)
