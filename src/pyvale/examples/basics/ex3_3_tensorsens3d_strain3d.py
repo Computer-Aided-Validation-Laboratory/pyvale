@@ -4,70 +4,128 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+Pyvale example: Custom tensor field sensors (strain gauges) in 3D
+--------------------------------------------------------------------------------
+In this example we build a custom tensor field sensor array (i.e. a strain gauge
+array) in 3D. We will also demonstrate how to specify sensor angles and field
+errors based on sensor angles.
+
+Note that this tutorial assumes you are familiar with the use of pyvale for
+scalar fields as described in the first set of examples.
+
+Test case: point strain sensors on a 2D plate with hole loaded in tension
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation
 import mooseherder as mh
 import pyvale as pyv
 
 def main() -> None:
 
-    data_path = pyv.DataSet.mechanical_2d_path()
+    # Frist we load our simulation as a `SimData` object. In this case we are
+    # loading a 10mm cube loaded in tension in the y direction with the addition
+    # of a thermal gradient in the y direction.
+    data_path = pyv.DataSet.element_case_path(pyv.EElemTest.HEX20)
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+
+    # As we are creating a 3D tensor field sensor we now have a third
+    # displacement field component here for scaling. Note that you don't need to
+    # scale the displacements here if you only want to analyse strains.
+    disp_comps = ("disp_x","disp_y","disp_z")
     sim_data = pyv.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
-                                      disp_comps=("disp_x","disp_y"))
+                                      disp_comps=disp_comps)
 
-    descriptor = pyv.SensorDescriptor()
-    descriptor.name = 'Strain'
-    descriptor.symbol = r'\varepsilon'
-    descriptor.units = r'-'
-    descriptor.tag = 'SG'
-    descriptor.components = ('xx','yy','xy')
-
-    spat_dims = 2
-    field_key = 'strain'
-    norm_components = ('strain_xx','strain_yy')
-    dev_components = ('strain_xy',)
+    # Here is the main difference when creating a tensor field sensor array. We
+    # create a tensor field where we need to specify the normal and deviatoric
+    # component string keys as they appear in our `SimData` object. We have a 3D
+    # simulation here so we have 3 normal components and 3 deviatoric (shear).
+    field_name = "strain"
+    norm_comps = ("strain_xx","strain_yy","strain_zz")
+    dev_comps = ("strain_xy","strain_yz","strain_xz")
     strain_field = pyv.FieldTensor(sim_data,
-                                    field_key,
-                                    norm_components,
-                                    dev_components,
-                                    spat_dims)
+                                   field_name=field_name,
+                                   norm_comps=norm_comps,
+                                   dev_comps=dev_comps,
+                                   elem_dims=3)
 
-    n_sens = (2,3,1)
-    x_lims = (0.0,100.0)
-    y_lims = (0.0,150.0)
-    z_lims = (0.0,0.0)
-    sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    # Here we manually define our sensor positions to place a sensor on the
+    # centre of each face of our 10mm cube. From here everything is the same as
+    # for our 2D vector field sensor arrays.
+    sensor_positions = np.array(((5.0,0.0,5.0),     # bottom
+                                 (5.0,10.0,5.0),    # top
+                                 (5.0,5.0,0.0),     # xy face
+                                 (5.0,5.0,10.0),    # xy face
+                                 (0.0,5.0,5.0),     # yz face
+                                 (10.0,5.0,5.0),))  # yz face
 
-    use_sim_time = False
-    if use_sim_time:
-        sample_times = None
-    else:
-        sample_times = np.linspace(0.0,np.max(sim_data.time),50)
+    # We set custom sensor sampling times here but we could also set this to
+    # None to have the sensors sample at the simulation time steps.
+    sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-    sens_data = pyv.SensorData(positions=sens_pos,
-                                  sample_times=sample_times)
+    # We are going to manually specify the sensor angles for all our sensors.
+    sens_angles = (Rotation.from_euler("zyx", [0, 0, 0], degrees=True),
+                   Rotation.from_euler("zyx", [0, 0, 0], degrees=True),
+                   Rotation.from_euler("zyx", [45, 0, 0], degrees=True),
+                   Rotation.from_euler("zyx", [45, 0, 0], degrees=True),
+                   Rotation.from_euler("zyx", [0, 0, 45], degrees=True),
+                   Rotation.from_euler("zyx", [0, 0, 45], degrees=True),)
+
+
+    sens_data = pyv.SensorData(positions=sensor_positions,
+                               sample_times=sample_times,
+                               angles=sens_angles)
+
+    # Here we create a descriptor that will be used to label visualisations of
+    # the sensor locations and time traces for our sensors. For the strain
+    # gauges we are modelling here we could also use the descriptor factory to
+    # get these defaults.
+    descriptor = pyv.SensorDescriptor(name="Strain",
+                                      symbol=r"\varepsilon",
+                                      units=r"-",
+                                      tag="SG",
+                                      components=('xx','yy','zz','xy','yz','xz'))
+
 
     straingauge_array = pyv.SensorArrayPoint(sens_data,
-                                                strain_field,
-                                                descriptor)
+                                             strain_field,
+                                             descriptor)
 
+    # We run our virtual sensor simulation as normal. The only thing to note is
+    # that the second dimension of our measurement array will contain our tensor
+    # components in the order they are specified in the tuples with the normal
+    # components first followed by the deviatoric.
+    measurements = straingauge_array.calc_measurements()
+
+    # We can add any errors we like to our error chain. Here we add some basic
+    # percentage errors.
     error_chain = []
     error_chain.append(pyv.ErrSysUnif(low=-0.1e-3,high=0.1e-3))
-    error_chain.append(pyv.ErrRandNorm(std=0.1e-3))
+    error_chain.append(pyv.ErrRandNormPercent(std_percent=1.0))
+
+    # Now we add a field error to perturb the positions of each sensor on its
+    # relevant face and then add a +/- 2deg angle error.
+    
+
     error_int = pyv.ErrIntegrator(error_chain,
                                        sens_data,
                                        straingauge_array.get_measurement_shape())
     straingauge_array.set_error_integrator(error_int)
 
-    plot_field = 'strain_yy'
+
+    # We can plot a given component of our tensor field and display our sensor
+    # locations with respect to the field.
+    plot_field = "strain_yy"
     pv_plot = pyv.plot_point_sensors_on_sim(straingauge_array,plot_field)
     pv_plot.show(cpos="xy")
 
-    pyv.plot_time_traces(straingauge_array,'strain_xx')
-    pyv.plot_time_traces(straingauge_array,'strain_yy')
-    pyv.plot_time_traces(straingauge_array,'strain_xy')
+    # We can also plot time traces for all components of the tensor field.
+    for cc in (norm_comps+dev_comps):
+        pyv.plot_time_traces(straingauge_array,cc)
+
     plt.show()
 
 

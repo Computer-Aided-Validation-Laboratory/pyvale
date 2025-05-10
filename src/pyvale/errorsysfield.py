@@ -235,7 +235,8 @@ def _perturb_sensor_positions(sens_pos_nominal: np.ndarray,
                              pos_offset_xyz: np.ndarray | None,
                              pos_rand_xyz: tuple[IGenRandom | None,
                                                  IGenRandom | None,
-                                                 IGenRandom | None] | None
+                                                 IGenRandom | None] | None,
+                             pos_loc_xyz: np.ndarray | None = None,
                             ) -> np.ndarray:
     """Helper function for perturbing the sensor positions from their nominal
     positions based on the user specified offset and random generators for each

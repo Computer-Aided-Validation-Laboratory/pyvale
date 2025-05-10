@@ -63,6 +63,37 @@ def main() -> None:
                                                  field_comps=field_comps,
                                                  errs_pc=2.0)
 
+    # We run our sensor simulation as normal but we note that the second
+    # dimension of our measurement array will have the two vector components in
+    # the order we specified them in the field keys.
+    measurements = disp_sens_array.calc_measurements()
+
+    # Here we print the shape of the measurement array so we can see that the
+    # second dimension contains both our vector components. We also print some
+    # of the sensor measurements for the first vector component.
+    print("\n"+80*"-")
+    print("For a virtual sensor: measurement = truth + sysematic error + random error")
+    print(f"measurements.shape = {measurements.shape} = "+
+          "(n_sensors,n_field_components,n_timesteps)\n")
+    print("The truth, systematic error and random error arrays have the same "+
+          "shape.")
+
+    print(80*"-")
+
+    sens_print: int = 0
+    time_print: int = 5
+    comp_print: int = 0
+
+    print(f"These are the last {time_print} virtual measurements of sensor "
+          + f"{sens_print}:")
+
+    pyv.print_measurements(sens_array=disp_sens_array,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
+    print(80*"-")
+
     # Now that we have multiple field components we can plot each of them on the
     # simulation mesh and visulise the sensor locations with respect to these
     # fields.

@@ -64,8 +64,38 @@ def main() -> None:
                                                       dev_comps=dev_comps,
                                                       errs_pc=5.0)
 
-    # We run our virtual sensor simulation as normal
-    straingauge_array.calc_measurements()
+    # We run our virtual sensor simulation as normal. The only thing to note is
+    # that the second dimension of our measurement array will contain our tensor
+    # components in the order they are specified in the tuples with the normal
+    # components first followed by the deviatoric. In our case this will be
+    # (strain_xx,strain_yy,strain_xy).
+    measurements = straingauge_array.calc_measurements()
+
+    # Here we print the shape of the measurement array so we can see that the
+    # second dimension contains both our tensor components. We also print some
+    # of the sensor measurements for the first tensor component.
+    print("\n"+80*"-")
+    print("For a virtual sensor: measurement = truth + sysematic error + random error")
+    print(f"measurements.shape = {measurements.shape} = "+
+          "(n_sensors,n_field_components,n_timesteps)\n")
+    print("The truth, systematic error and random error arrays have the same "+
+          "shape.")
+
+    print(80*"-")
+
+    sens_print: int = 0
+    time_print: int = 5
+    comp_print: int = 0
+
+    print(f"These are the last {time_print} virtual measurements of sensor "
+          + f"{sens_print}:")
+
+    pyv.print_measurements(sens_array=straingauge_array,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
+    print(80*"-")
 
     # We can plot a given component of our tensor field and display our sensor
     # locations with respect to the field.

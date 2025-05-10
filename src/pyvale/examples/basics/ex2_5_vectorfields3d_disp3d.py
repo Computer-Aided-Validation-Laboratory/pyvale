@@ -32,12 +32,15 @@ def main() -> None:
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
     # As we are creating a 3D vector field sensor we now have a third
-    # displacement field component here
+    # displacement field component here.
     field_name = "disp"
     field_comps = ("disp_x","disp_y","disp_z")
     sim_data = pyv.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
                                       disp_comps=field_comps)
+
+    # We use a helper function to print the extent of the dimensions in our
+    # `SimData` object to help us locate our sensors on the cube.
     pyv.print_dimensions(sim_data)
 
     descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
@@ -47,7 +50,7 @@ def main() -> None:
     # 3 dimensional.
     disp_field = pyv.FieldVector(sim_data,field_name,field_comps,elem_dims=3)
 
-    # Here we manually define our sensir positions to place a sensor on the
+    # Here we manually define our sensor positions to place a sensor on the
     # centre of each face of our 10mm cube. From here everything is the same as
     # for our 2D vector field sensor arrays.
     sensor_positions = np.array(((5.0,0.0,5.0),

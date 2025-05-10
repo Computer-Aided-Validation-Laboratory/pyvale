@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Pyvale example: Custom tensor field sensors (strain gauges)
+Pyvale example: Custom tensor field sensors (strain gauges) in 2D
 --------------------------------------------------------------------------------
 In this example we build a custom tensor field sensor array (i.e. a strain gauge
 array) in 2D.
@@ -61,7 +61,7 @@ def main() -> None:
                                sample_times=sample_times)
 
     # Here we create a descriptor that will be used to label visualisations of
-    # the sensor locations and time traces for our sensors. For the starin
+    # the sensor locations and time traces for our sensors. For the strain
     # gauges we are modelling here we could also use the descriptor factory to
     # get these defaults.
     descriptor = pyv.SensorDescriptor(name="Strain",
@@ -86,8 +86,12 @@ def main() -> None:
                                   straingauge_array.get_measurement_shape())
     straingauge_array.set_error_integrator(error_int)
 
-    # We run our virtual sensor simulation as normal.
-    straingauge_array.calc_measurements()
+    # We run our virtual sensor simulation as normal. The only thing to note is
+    # that the second dimension of our measurement array will contain our tensor
+    # components in the order they are specified in the tuples with the normal
+    # components first followed by the deviatoric. In our case this will be
+    # (strain_xx,strain_yy,strain_xy).
+    measurements = straingauge_array.calc_measurements()
 
     # We can plot a given component of our tensor field and display our sensor
     # locations with respect to the field.
