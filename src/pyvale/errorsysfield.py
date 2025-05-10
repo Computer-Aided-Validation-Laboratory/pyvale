@@ -131,7 +131,7 @@ class ErrSysField(IErrCalculator):
             and how they will be perturbed. See the `ErrFieldData` class for
             more detail
         err_dep : EErrDep, optional
-            Error calculation dependence, by default EErrDep.INDEPENDENT.
+            Error calculation dependence, by default EErrDep.DEPENDENT.
         """
         self._field = field
         self._field_err_data = field_err_data

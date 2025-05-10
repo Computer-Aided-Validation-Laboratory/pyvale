@@ -94,28 +94,76 @@ def main() -> None:
                                              strain_field,
                                              descriptor)
 
+    # We can add any errors we like to our error chain. Here we add some basic
+    # percentage errors.
+    error_chain = []
+    # error_chain.append(pyv.ErrSysUnif(low=-0.1e-3,high=0.1e-3))
+    # error_chain.append(pyv.ErrRandNormPercent(std_percent=1.0))
+
+    # Now we add a field error to perturb the positions of each sensor on its
+    # relevant face and then add a +/- 2deg angle error.
+
+    pos_uncert = 0.1 # units = mm
+    pos_rand_xyz = (pyv.GenNormal(std=pos_uncert),
+                    pyv.GenNormal(std=pos_uncert),
+                    pyv.GenNormal(std=pos_uncert))
+
+    angle_uncert = 2.0
+    angle_rand_zyx = (pyv.GenUniform(low=-angle_uncert,high=angle_uncert), # units = deg
+                      pyv.GenUniform(low=-angle_uncert,high=angle_uncert),
+                      pyv.GenUniform(low=-angle_uncert,high=angle_uncert))
+
+    # We are going to lock position perturbation so that the sensors stay on the
+    # faces of the cube they are positioned on.
+    pos_lock = np.full(sensor_positions.shape,False,dtype=bool)
+    pos_lock[0:2,1] = True   # Block translation in y
+    pos_lock[2:4,2] = True   # Block translation in z
+    pos_lock[4:6,0] = True   # Block translation in x
+
+    # We are also going to lock angular perturbation so that each sensor is only
+    # allowed to rotate on the plane it is on.
+    angle_lock = np.full(sensor_positions.shape,True,dtype=bool)
+    angle_lock[0:2,1] = False   # Allow rotation about y
+    angle_lock[2:4,0] = False   # Allow rotation about z
+    angle_lock[4:6,2] = False   # Alloq rotation about x
+
+    field_error_data = pyv.ErrFieldData(pos_rand_xyz=pos_rand_xyz,
+                                        pos_lock_xyz=pos_lock,
+                                        ang_rand_zyx=angle_rand_zyx,
+                                        ang_lock_zyx=angle_lock)
+    sys_err_field = pyv.ErrSysField(strain_field,field_error_data)
+    error_chain.append(sys_err_field)
+
+
+    error_int = pyv.ErrIntegrator(error_chain,
+                                  sens_data,
+                                  straingauge_array.get_measurement_shape())
+    straingauge_array.set_error_integrator(error_int)
+
     # We run our virtual sensor simulation as normal. The only thing to note is
     # that the second dimension of our measurement array will contain our tensor
     # components in the order they are specified in the tuples with the normal
     # components first followed by the deviatoric.
     measurements = straingauge_array.calc_measurements()
 
-    # We can add any errors we like to our error chain. Here we add some basic
-    # percentage errors.
-    error_chain = []
-    error_chain.append(pyv.ErrSysUnif(low=-0.1e-3,high=0.1e-3))
-    error_chain.append(pyv.ErrRandNormPercent(std_percent=1.0))
+    # We print some of the results for one of the sensors so we can see the
+    # effect of the field errors.
+    print(80*"-")
 
-    # Now we add a field error to perturb the positions of each sensor on its
-    # relevant face and then add a +/- 2deg angle error.
-    
+    sens_print: int = 0
+    time_print: int = 5
+    comp_print: int = 0
 
+    print("ROTATED SENSORS WITH ANGLE ERRORS:")
+    print(f"These are the last {time_print} virtual measurements of sensor "
+          + f"{sens_print} for {norm_comps[comp_print]}:")
 
-    error_int = pyv.ErrIntegrator(error_chain,
-                                       sens_data,
-                                       straingauge_array.get_measurement_shape())
-    straingauge_array.set_error_integrator(error_int)
-
+    pyv.print_measurements(sens_array=straingauge_array,
+                           sensors=(sens_print,sens_print+1),
+                           components=(comp_print,comp_print+1),
+                           time_steps=(measurements.shape[2]-time_print,
+                                       measurements.shape[2]))
+    print(80*"-")
 
     # We can plot a given component of our tensor field and display our sensor
     # locations with respect to the field.

@@ -105,8 +105,8 @@ def main() -> None:
     measurements = disp_sens_rot.calc_measurements()
 
 
-    # We print some of the results for one of the rotated sensors so we can see
-    # the effect of the angle errors.
+    # We print some of the results for one of the sensors so we can see the
+    # effect of the field errors.
     print(80*"-")
 
     sens_print: int = 0

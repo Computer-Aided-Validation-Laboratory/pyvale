@@ -103,8 +103,8 @@ def main() -> None:
     err_chain.append(pyv.ErrSysField(tc_array.get_field(),
                                      field_err_data))
     err_int = pyv.ErrIntegrator(err_chain,
-                                   sensor_data,
-                                   tc_array.get_measurement_shape())
+                                sensor_data,
+                                tc_array.get_measurement_shape())
     tc_array.set_error_integrator(err_int)
 
 
