@@ -152,7 +152,7 @@ def main() -> None:
 
     sens_print: int = 0
     time_print: int = 5
-    comp_print: int = 0
+    comp_print: int = 1 # strain_yy based on order in tuple
 
     print("ROTATED SENSORS WITH ANGLE ERRORS:")
     print(f"These are the last {time_print} virtual measurements of sensor "
