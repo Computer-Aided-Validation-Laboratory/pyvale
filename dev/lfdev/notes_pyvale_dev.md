@@ -1,5 +1,13 @@
 # Notes: `pyvale` developement
 
+## pyvale hackathon
+- Conversation about docs
+- Get docs deployed so people can test point sensors with the docs
+
+- LF TODO agenda for hackathon
+- Dogbone tensile test - load cell?
+- STC multi-physics with thermcouples and DIC
+
 
 ## TODO: `pyvale` point sensors
 --------------------------------------------------------------------------------
@@ -8,8 +16,9 @@
     - Show how all errors can be extracted from the error integrator
     - Example showing how surface meshes can be generated for speeding up computation
 
-- ERROR ANALYSIS MODULE / UQ MODULE
+- EXPERIMENT ERROR ANALYSIS MODULE / UQ MODULE
     - Extracts which errors in the chain are contributing the most for each sensor
+    - Show differences between simulations for experiment traces
 
 - BUGS!
     - Node vs Elem vars in the SimData object - does pyvale work with elem vars???

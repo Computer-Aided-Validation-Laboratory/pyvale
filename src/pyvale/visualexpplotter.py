@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
 from pyvale.visualopts import (PlotOptsGeneral,
-                                   TraceOptsExperiment)
+                               TraceOptsExperiment)
 from pyvale.experimentsimulator import ExperimentSimulator
 
 #TODO: Docstrings
@@ -41,7 +41,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
 
     #---------------------------------------------------------------------------
     # Figure canvas setup
-    fig, ax = plt.subplots(figsize=plot_opts.single_fig_size_portrait,
+    fig, ax = plt.subplots(figsize=plot_opts.single_fig_size_landscape,
                            layout='constrained')
     fig.set_dpi(plot_opts.resolution)
 
@@ -60,7 +60,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     for ss in sensors_to_plot:
         if trace_opts.centre == "median":
             ax.plot(samp_time,
-                    exp_stats[sens_array_num].median[sim_num,ss,comp_ind,:],
+                    exp_stats[sens_array_num].med[sim_num,ss,comp_ind,:],
                     trace_opts.exp_mean_line,
                     lw=plot_opts.lw,
                     ms=plot_opts.ms,

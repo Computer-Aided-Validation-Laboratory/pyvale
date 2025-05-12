@@ -97,8 +97,8 @@ def main() -> None:
     # We can add any errors we like to our error chain. Here we add some basic
     # percentage errors.
     error_chain = []
-    # error_chain.append(pyv.ErrSysUnif(low=-0.1e-3,high=0.1e-3))
-    # error_chain.append(pyv.ErrRandNormPercent(std_percent=1.0))
+    error_chain.append(pyv.ErrSysUnif(low=-0.1e-3,high=0.1e-3))
+    error_chain.append(pyv.ErrRandNormPercent(std_percent=1.0))
 
     # Now we add a field error to perturb the positions of each sensor on its
     # relevant face and then add a +/- 2deg angle error.

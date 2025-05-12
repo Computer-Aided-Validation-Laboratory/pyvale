@@ -86,7 +86,7 @@ class TraceOptsSensor:
 
 @dataclass(slots=True)
 class TraceOptsExperiment:
-    """Dataclass for contorlling the properties of sensor trace plots from
+    """Dataclass for controlling the properties of sensor trace plots from
     batches of simulated experiments.
     """
     legend: bool = True
