@@ -19,7 +19,7 @@ An all-in-one package for sensor simulation, sensor uncertainty quantification, 
 Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. 
 Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
 
-**Release:**  |release|
+**Current Release:**  |release|
 
 **Useful links:**  | `Source Repository <https://github.com/Computer-Aided-Validation-Laboratory/pyvale>`_ | `Issues  <https://github.com/Computer-Aided-Validation-Laboratory/pyvale/issues>`_ | `PyPI <https://pypi.org/project/pyvale/>`_
 
