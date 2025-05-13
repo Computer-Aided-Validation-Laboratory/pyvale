@@ -1,0 +1,4 @@
+Thermocouples on a 2D plate
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. literalinclude:: ../../../../src/pyvale/examples/ex1_1_thermal2d.py
+   :language: python

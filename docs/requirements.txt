@@ -1,0 +1,6 @@
+sphinx
+sphinx-codeautolink
+sphinx-autodoc-typehints
+breathe
+furo
+myst-parser
