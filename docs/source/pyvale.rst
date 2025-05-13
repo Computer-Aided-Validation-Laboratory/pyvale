@@ -24,6 +24,54 @@ analyticsimdatagenerator
    :show-inheritance:
    :undoc-members:
 
+blendercalibrationdata
+------------------------------------
+
+.. automodule:: pyvale.blendercalibrationdata
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+blenderlightdata
+------------------------------
+
+.. automodule:: pyvale.blenderlightdata
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+blendermaterialdata
+---------------------------------
+
+.. automodule:: pyvale.blendermaterialdata
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+blenderrenderdata
+-------------------------------
+
+.. automodule:: pyvale.blenderrenderdata
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+blenderscene
+--------------------------
+
+.. automodule:: pyvale.blenderscene
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+blendertools
+--------------------------
+
+.. automodule:: pyvale.blendertools
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 camera
 --------------------
 
@@ -44,6 +92,14 @@ cameradata2d
 --------------------------
 
 .. automodule:: pyvale.cameradata2d
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+camerastereo
+--------------------------
+
+.. automodule:: pyvale.camerastereo
    :members:
    :show-inheritance:
    :undoc-members:
@@ -248,6 +304,22 @@ optimcheckfuncs
    :show-inheritance:
    :undoc-members:
 
+output
+--------------------
+
+.. automodule:: pyvale.output
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+pyvaleexceptions
+------------------------------
+
+.. automodule:: pyvale.pyvaleexceptions
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 raster
 --------------------
 
@@ -328,6 +400,14 @@ sensortools
    :show-inheritance:
    :undoc-members:
 
+simtools
+----------------------
+
+.. automodule:: pyvale.simtools
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 visualexpplotter
 ------------------------------
 
@@ -392,10 +472,3 @@ visualtraceplotter
    :show-inheritance:
    :undoc-members:
 
-Module contents
----------------
-
-.. automodule:: pyvale
-   :members:
-   :show-inheritance:
-   :undoc-members:
