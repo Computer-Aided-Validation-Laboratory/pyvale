@@ -4,6 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+This module is used for performing Monte-Carlo virtual experiments over a series
+of input simulation cases and sensor arrays.
+"""
+
 from dataclasses import dataclass
 import numpy as np
 import mooseherder as mh

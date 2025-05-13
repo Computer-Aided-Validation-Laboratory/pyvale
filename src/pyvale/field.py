@@ -29,7 +29,6 @@ class IField(ABC):
             Mooseherder SimData object. Contains a mesh and a simulated
             physical field.
         """
-        pass
 
     @abstractmethod
     def get_sim_data(self) -> mh.SimData:
@@ -43,7 +42,6 @@ class IField(ABC):
             Mooseherder SimData object. Contains a mesh and a simulated
             physical field.
         """
-        pass
 
     @abstractmethod
     def get_time_steps(self) -> np.ndarray:
@@ -55,7 +53,6 @@ class IField(ABC):
         np.ndarray
             1D array of simulation time steps. shape=(num_time_steps,)
         """
-        pass
 
     @abstractmethod
     def get_visualiser(self) -> pv.UnstructuredGrid:
@@ -68,7 +65,6 @@ class IField(ABC):
             Pyvista unstructured grid object containing only a mesh without any
             physical field data attached.
         """
-        pass
 
     @abstractmethod
     def get_all_components(self) -> tuple[str,...]:
@@ -82,7 +78,6 @@ class IField(ABC):
             Tuple containing the string keys for all components of the physical
             field.
         """
-        pass
 
     @abstractmethod
     def get_component_index(self,component: str) -> int:
@@ -99,7 +94,6 @@ class IField(ABC):
         int
             Index for the selected field component
         """
-        pass
 
     @abstractmethod
     def sample_field(self,
@@ -132,4 +126,3 @@ class IField(ABC):
             An array of sampled (interpolated) values with the following
             dimensions: shape=(num_points,num_components,num_time_steps).
         """
-        pass
