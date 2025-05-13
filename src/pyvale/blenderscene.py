@@ -16,6 +16,7 @@ from pyvale.camerastereo import CameraStereo
 from pyvale.rendermesh import RenderMeshData
 from pyvale.pyvaleexceptions import BlenderError
 
+
 class BlenderScene():
     """Namespace for creating a scene within Blender.
     Methods include adding an object, camera, light and adding a speckle pattern,

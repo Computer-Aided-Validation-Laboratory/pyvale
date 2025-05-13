@@ -8,6 +8,8 @@ from enum import Enum
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+#TODO: docstrings
+
 class BlenderLightType(Enum):
     POINT = 'POINT'
     SUN = 'SUN'

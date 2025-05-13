@@ -15,7 +15,7 @@ from pyvale.blendercalibrationdata import CalibrationData
 from pyvale.output import Outputs
 from pyvale.pyvaleexceptions import BlenderError
 
-class BlenderTools():
+class BlenderTools:
     """Namespace for tools used within the pyvale Blender module.
     """
 

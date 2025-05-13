@@ -4,14 +4,19 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+Helper functions and mini factory for building standard test meshes with
+analytic functions for the physical fields.
+"""
+
 import numpy as np
 import sympy
 import mooseherder as mh
-from pyvale.analyticsimdatagenerator import (AnalyticCaseData2D,
-                                                  AnalyticSimDataGenerator)
+from pyvale.analyticsimdatagenerator import (AnalyticData2D,
+                                                  AnalyticSimDataGen)
 
 
-def standard_case_2d() -> AnalyticCaseData2D:
+def standard_case_2d() -> AnalyticData2D:
     """Created the standard 2D analytic test case which is a plate with
     dimensions 10x7.5 (x,y), number of elements 40x30 (x,y), and time steps of
     0 to 10 in increments of 1.
@@ -21,7 +26,7 @@ def standard_case_2d() -> AnalyticCaseData2D:
     AnalyticCaseData2D
         _description_
     """
-    case_data = AnalyticCaseData2D()
+    case_data = AnalyticData2D()
     case_data.length_x = 10.0
     case_data.length_y = 7.5
     n_elem_mult = 10
@@ -37,7 +42,7 @@ class AnalyticCaseFactory:
     """
 
     @staticmethod
-    def scalar_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGenerator]:
+    def scalar_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
         """_summary_
 
         Returns
@@ -53,14 +58,14 @@ class AnalyticCaseFactory:
         case_data.offsets_space = (20.0,)
         case_data.offsets_time = (0.0,)
 
-        data_gen = AnalyticSimDataGenerator(case_data)
+        data_gen = AnalyticSimDataGen(case_data)
 
         sim_data = data_gen.generate_sim_data()
 
         return (sim_data,data_gen)
 
     @staticmethod
-    def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGenerator]:
+    def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
         """_summary_
 
         Returns
@@ -74,7 +79,7 @@ class AnalyticCaseFactory:
         case_data.funcs_y = (sym_y*(sym_y - case_data.length_y),)
         case_data.funcs_t = (sym_t,)
 
-        data_gen = AnalyticSimDataGenerator(case_data)
+        data_gen = AnalyticSimDataGen(case_data)
 
         sim_data = data_gen.generate_sim_data()
 

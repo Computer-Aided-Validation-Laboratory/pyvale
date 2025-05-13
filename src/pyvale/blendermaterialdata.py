@@ -5,6 +5,8 @@
 # ==============================================================================
 from dataclasses import dataclass
 
+#TODO: docstrings
+
 @dataclass(slots=True)
 class BlenderMaterialData():
     # TODO: Add other material properties here

@@ -12,6 +12,8 @@ from scipy.spatial.transform import Rotation
 from pyvale.cameradata import CameraData
 from pyvale.pyvaleexceptions import BlenderError
 
+# TODO: docstrings
+
 class CameraStereo:
     __slots__ = ("cam_data_0","cam_data_1","stereo_dist","stereo_rotation")
 
