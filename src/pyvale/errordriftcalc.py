@@ -32,7 +32,6 @@ class IDriftCalculator(ABC):
             Array of drift errors having the same shape as the input drift_var
             array.
         """
-        pass
 
 
 class DriftConstant(IDriftCalculator):
@@ -41,8 +40,7 @@ class DriftConstant(IDriftCalculator):
     Implements the IDriftCalculator interface.
     """
     def __init__(self, offset: float) -> None:
-        """Initialiser for the `DriftConstant` class.
-
+        """
         Parameters
         ----------
         offset : float
@@ -75,8 +73,7 @@ class DriftLinear(IDriftCalculator):
     """
 
     def __init__(self, slope: float, offset: float = 0.0) -> None:
-        """Initialiser for the `DriftLinear` class.
-
+        """
         Parameters
         ----------
         slope : float
@@ -114,8 +111,7 @@ class DriftPolynomial(IDriftCalculator):
     """
 
     def __init__(self, coeffs: np.ndarray) -> None:
-        """Initialiser for the `DriftPolynomial` class.
-
+        """
         Parameters
         ----------
         coeffs : np.ndarray

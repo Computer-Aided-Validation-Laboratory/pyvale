@@ -4,25 +4,54 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
+"""
+Accesors for data that comes pre-packaged with pyvale for demonstrating its
+functionality. This includes moose simulation outputs as exodus files, input
+files for moose and gmsh for additional simulation cases, and images required
+for testing the image deformation and digital image correlation modules.
+"""
+
 from enum import Enum
 from pathlib import Path
 from importlib.resources import files
 
-# TODO: docstrings
+
+SIM_CASE_COUNT = 26
+"""Constant describing the number of simulation test case input files for moose
+and gmsh that come packaged with pyvale.
+"""
 
 class EElemTest(Enum):
+    """Enumeration used to specify different 3D element types for extracting
+    specific test simulation datasets.
+    """
+
     TET4 = "TET4"
+    """Tetrahedral element, linear with 4 nodes.
+    """
+
     TET10 = "TET10"
+    """Tetrahedral element, quadratic with 10 nodes.
+    """
+
     TET14 = "TET14"
+    """Tetrahedral element, quadratic with 14 nodes.
+    """
+
     HEX8 = "HEX8"
+    """Hexahedral element, linear with 8 nodes.
+    """
+
     HEX20 = "HEX20"
+    """Hexahedral element, quadratic with 20 nodes.
+    """
+
     HEX27 = "HEX27"
+    """Hexahedral element, quadratic with 27 nodes.
+    """
 
     def __str__(self):
         return self.value
-
-
-SIM_CASE_COUNT = 26
 
 
 class DataSetError(Exception):
@@ -32,11 +61,6 @@ class DataSetError(Exception):
 
 
 class DataSet:
-    """A static namespace class for handling datasets packaged with pyvale.
-    Contains a series of static methods returning a Path object to each data
-    file that is packaged with pyvale.
-    """
-
     @staticmethod
     def sim_case_input_file_path(case_num: int) -> Path:
         """Gets the path to MOOSE input file (*.i) for a particular simulation
@@ -62,7 +86,7 @@ class DataSet:
             raise DataSetError("Simulation case number must be greater than 0")
         elif case_num > SIM_CASE_COUNT:
             raise DataSetError("Simulation case number must be less than " \
-                               + f"{SIM_CASE_COUNT}")
+                                + f"{SIM_CASE_COUNT}")
 
         case_num_str = str(case_num).zfill(2)
         case_file = f"case{case_num_str}.i"
@@ -97,7 +121,7 @@ class DataSet:
             raise DataSetError("Simulation case number must be greater than 0")
         elif case_num > SIM_CASE_COUNT:
             raise DataSetError("Simulation case number must be less than " \
-                               + f"{SIM_CASE_COUNT}")
+                                + f"{SIM_CASE_COUNT}")
 
         case_num_str = str(case_num).zfill(2)
         case_file = f"case{case_num_str}.geo"
@@ -248,19 +272,54 @@ class DataSet:
 
     @staticmethod
     def render_mechanical_3d_path() -> Path:
-        """_summary_
+        """Path to a MOOSE simulation output in exodus format. This case is a
+        purely mechanical test case in 3D meant for testing image rendering
+        algorithms for digital image correlation simulation. The simulation
+        consists of a linear elastic thin plate with a hole loaded in tension.
+        The simulation uses linear tetrahedral elements for rendering tests.
 
         Returns
         -------
         Path
-            _description_
+            Path to the exodus (*.e) output file for this simulation case.
         """
         return Path(files("pyvale.data").joinpath("case26_out.e"))
 
     @staticmethod
     def render_simple_block_path() -> Path:
+        """Path to a MOOSE simulation output in exodus format. This case is a
+        a simple rectangular block in 3D loaded in tension. It uses a minimum
+        number of elements and is intended purely for testing image rendering
+        algorithms. This simulation uses linear tetrahedral elements.
+
+        Returns
+        -------
+        Path
+            Path to the exodus (*.e) output file for this simulation case.
+        """
         return Path(files("pyvale.data").joinpath("case25_out.e"))
 
     @staticmethod
     def element_case_path(elem_type: EElemTest) -> Path:
-        return Path(files("pyvale.data").joinpath(f"case00_{elem_type.value}_out.e"))
+        """Path to a MOOSE simulation output in exodus format. This case is a
+        10mm cube undergoing thermo-mechanical loading solved for the
+        temperature displacement and strain fields. This case is solved using a
+        variety of tetrahedral and hexahedral elements with linear or quadratic
+        shapes functions. These simulation cases are intended for testing
+        purposes and contain a minimal number of elements.
+
+        Parameters
+        ----------
+        elem_type : EElemTest
+            Enumeration specifying the element type for this test case.
+
+        Returns
+        -------
+        Path
+            Path to the exodus (*.e) output file for this simulation case.
+        """
+        return Path(files("pyvale.data")
+                    .joinpath(f"case00_{elem_type.value}_out.e"))
+
+
+

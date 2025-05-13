@@ -54,8 +54,7 @@ class ErrSysRoundOff(IErrCalculator):
                  method: ERoundMethod = ERoundMethod.ROUND,
                  base: float = 1.0,
                  err_dep: EErrDep = EErrDep.DEPENDENT) -> None:
-        """Initialiser for the `ErrSysRoundOff` class.
-
+        """
         Parameters
         ----------
         method : ERoundMethod, optional
@@ -143,8 +142,7 @@ class ErrSysDigitisation(IErrCalculator):
                  bits_per_unit: float,
                  method: ERoundMethod = ERoundMethod.ROUND,
                  err_dep: EErrDep = EErrDep.DEPENDENT) -> None:
-        """Initialiser for the `ErrSysDigitisation` class.
-
+        """
         Parameters
         ----------
         bits_per_unit : float
@@ -226,18 +224,17 @@ class ErrSysSaturation(IErrCalculator):
     """Systematic error calculator for saturation error base on user specified
     minimum and maximum measurement values. Implements the `IErrCalculator`
     interface.
+
+    NOTE: For this error to function as expected and clamp the measurement
+    within the specified range it must be placed last in the error chain and
+    the behaviour must be set to: EErrDependence.DEPENDENT.
     """
     __slots__ = ("_min","_max","_err_dep")
 
     def __init__(self,
                  meas_min: float,
                  meas_max: float) -> None:
-        """Initialiser for the `ErrSysSaturation` class.
-
-        NOTE: For this error to function as expected and clamp the measurement
-        within the specified range it must be placed last in the error chain and
-        the behaviour must be set to: EErrDependence.DEPENDENT.
-
+        """
         Parameters
         ----------
         meas_min : float

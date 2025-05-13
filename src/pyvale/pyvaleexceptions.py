@@ -6,3 +6,6 @@
 
 class BlenderError(Exception):
     pass
+
+class VisError(Exception):
+    pass

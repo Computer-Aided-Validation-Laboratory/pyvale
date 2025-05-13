@@ -7,6 +7,7 @@
 from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
+from pyvale.pyvaleexceptions import VisError
 from pyvale.visualopts import (PlotOptsGeneral,
                                TraceOptsExperiment)
 from pyvale.experimentsimulator import ExperimentSimulator
@@ -31,8 +32,12 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     samp_time = exp_sim.sensor_arrays[sens_array_num].get_sample_times()
     num_sens = exp_sim.sensor_arrays[sens_array_num].get_measurement_shape()[0]
 
-    exp_data = exp_sim.get_data()
-    exp_stats = exp_sim.get_stats()
+    exp_data = exp_sim.exp_data
+    exp_stats = exp_sim.exp_stats
+
+    if exp_data is None or exp_stats is None:
+        raise VisError("Before visualising virtual experiment traces the " \
+        "virtual experiments must be run. exp_data or exp_stats is None.")
 
     if trace_opts.sensors_to_plot is None:
         sensors_to_plot = range(num_sens)

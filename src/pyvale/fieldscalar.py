@@ -27,8 +27,7 @@ class FieldScalar(IField):
                  sim_data: mh.SimData,
                  field_key: str,
                  elem_dims: int) -> None:
-        """Initialiser for the `FieldScalar` class.
-
+        """
         Parameters
         ----------
         sim_data : mh.SimData

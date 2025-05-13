@@ -68,8 +68,7 @@ class ErrIntegrator:
                  sensor_data_initial: SensorData,
                  meas_shape: tuple[int,int,int],
                  err_int_opts: ErrIntOpts | None = None) -> None:
-        """Initialiser for the `ErrIntegrator` class.
-
+        """
         Parameters
         ----------
         err_chain : list[IErrCalculator]

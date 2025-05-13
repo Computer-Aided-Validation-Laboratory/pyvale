@@ -103,6 +103,7 @@ def main() -> None:
                                (-0.215, 0.948, -0.233)]
     if save_figs:
         pv_plot.save_graphic(fig_save_path/(save_tag+"_tc_vis.svg"))
+        pv_plot.screenshot(fig_save_path/(save_tag+"_tc_vis.png"))
 
     pv_plot.show()
 
@@ -169,6 +170,7 @@ def main() -> None:
                                (-0.215, 0.948, -0.233)]
     if save_figs:
         pv_plot.save_graphic(fig_save_path/(save_tag+"_sg_vis.svg"))
+        pv_plot.screenshot(fig_save_path/(save_tag+"_sg_vis.png"))
 
     pv_plot.show()
 

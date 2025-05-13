@@ -23,7 +23,7 @@ class BlenderScene():
     as well as deforming the object, and then rendering the scene.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.reset_scene()
 
     def reset_scene(self) -> None:

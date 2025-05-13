@@ -118,8 +118,7 @@ class ErrSysField(IErrCalculator):
                 field: IField,
                 field_err_data: ErrFieldData,
                 err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
-        """Initialiser for the `ErrSysField` class.
-
+        """
         Parameters
         ----------
         field : IField

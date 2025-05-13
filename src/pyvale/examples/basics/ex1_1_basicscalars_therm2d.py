@@ -22,6 +22,7 @@ import pyvale as pyv
 
 
 def main() -> None:
+
     # Here we load a pre-generated MOOSE finite element simulation dataset that
     # comes packaged with pyvale. The simulation is a 2D rectangular plate with
     # a bi-directional temperature gradient. You can replace this with the path

@@ -25,8 +25,7 @@ class ErrRandUnif(IErrCalculator):
                  high: float,
                  err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """Initialiser for `ErrRandUniform` class.
-
+        """
         Parameters
         ----------
         low : float
@@ -140,8 +139,7 @@ class ErrRandUnifPercent(IErrCalculator):
                  high_percent: float,
                  err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """Initialiser for the `ErrRandUnifPercent` class.
-
+        """
         Parameters
         ----------
         low_percent : float
@@ -248,8 +246,7 @@ class ErrRandNorm(IErrCalculator):
                  std: float,
                  err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """Initialiser for `ErrRandNormal` class.
-
+        """
         Parameters
         ----------
         std : float
@@ -351,8 +348,7 @@ class ErrRandNormPercent(IErrCalculator):
                  std_percent: float,
                  err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """Initialiser for `ErrRandNormPercent` class.
-
+        """
         Parameters
         ----------
         std_percent : float
@@ -443,8 +439,7 @@ class ErrRandGenerator(IErrCalculator):
     def __init__(self,
                  generator: IGenRandom,
                  err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
-        """Initiliaser for the `ErrRandGenerator` class.
-
+        """
         Parameters
         ----------
         generator : IGeneratorRandom
@@ -538,8 +533,7 @@ class ErrRandGenPercent(IErrCalculator):
     def __init__(self,
                  generator: IGenRandom,
                  err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
-        """Initiliaser for the `ErrRandGenerator` class.
-
+        """
         Parameters
         ----------
         generator : IGeneratorRandom

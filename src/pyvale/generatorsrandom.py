@@ -45,9 +45,7 @@ class GenNormal(IGenRandom):
                  std: float = 1.0,
                  mean: float = 0.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         std : float, optional
@@ -93,9 +91,7 @@ class GenLogNormal(IGenRandom):
                  std: float = 1.0,
                  mean: float = 0.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         std : float, optional
@@ -140,9 +136,7 @@ class GenUniform(IGenRandom):
                  low: float = -1.0,
                  high: float = 1.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         low : float, optional
@@ -186,9 +180,7 @@ class GenExponential(IGenRandom):
     def __init__(self,
                  scale: float = 1.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         scale : float, optional
@@ -228,9 +220,7 @@ class GenChiSquare(IGenRandom):
     def __init__(self,
                  dofs: float,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         dofs : float
@@ -270,9 +260,7 @@ class GenDirichlet(IGenRandom):
     def __init__(self,
                  alpha: float,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         alpha : float
@@ -310,9 +298,7 @@ class GenF(IGenRandom):
     def __init__(self,
                  dofs: float,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         dofs : float
@@ -352,9 +338,7 @@ class GenGamma(IGenRandom):
                  shape: float,
                  scale: float = 1.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         shape : float
@@ -397,9 +381,7 @@ class GenStandardT(IGenRandom):
     def __init__(self,
                  dofs: float,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         dofs : float
@@ -440,9 +422,7 @@ class GenBeta(IGenRandom):
                  a: float,
                  b: float,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         a : float
@@ -487,9 +467,7 @@ class GenTriangular(IGenRandom):
                  mode: float = 0.0,
                  right: float = 1.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         left : float, optional

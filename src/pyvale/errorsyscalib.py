@@ -31,8 +31,7 @@ class ErrSysCalibration(IErrCalculator):
                  cal_range: tuple[float,float],
                  n_cal_divs: int = 10000,
                  err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
-        """_summary_
-
+        """
         Parameters
         ----------
         assumed_calib : Callable[[np.ndarray],np.ndarray]

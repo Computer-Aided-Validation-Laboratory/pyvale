@@ -108,8 +108,7 @@ class AnalyticSimDataGen:
 
     def __init__(self, case_data: AnalyticData2D
                  ) -> None:
-        """Initialiser for the `AnalyticSimData` class.
-
+        """
         Parameters
         ----------
         case_data : AnalyticCaseData2D

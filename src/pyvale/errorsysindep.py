@@ -21,8 +21,7 @@ class ErrSysOffset(IErrCalculator):
     def __init__(self,
                  offset: float,
                  err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
-        """Initialiser for the `ErrSysOffset` class.
-
+        """
         Parameters
         ----------
         offset : float
@@ -110,8 +109,7 @@ class ErrSysOffsetPercent(IErrCalculator):
     def __init__(self,
                  offset_percent: float,
                  err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
-        """Initialiser for the `ErrSysOffsetPercent` class.
-
+        """
         Parameters
         ----------
         offset_percent : float
@@ -198,8 +196,7 @@ class ErrSysUnif(IErrCalculator):
                  high: float,
                  err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """Initialiser for the `ErrSysUniform` class.
-
+        """
         Parameters
         ----------
         low : float
@@ -313,8 +310,7 @@ class ErrSysUnifPercent(IErrCalculator):
                  high_percent: float,
                  err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """_summary_
-
+        """
         Parameters
         ----------
         low_percent : float
@@ -415,8 +411,7 @@ class ErrSysNorm(IErrCalculator):
                  mean: float = 0.0,
                  err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """Initialiser for the `ErrSysNormal` class.
-
+        """
         Parameters
         ----------
         std : float
@@ -528,6 +523,17 @@ class ErrSysNormPercent(IErrCalculator):
                  std_percent: float,
                  err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
+        """
+        Parameters
+        ----------
+        std_percent : float
+            Standard deviation as a percentage in the range (0,100).
+        err_dep : EErrDependence, optional
+            Error calculation dependence, by default EErrDependence.INDEPENDENT.
+        seed : int | None, optional
+            Optional seed for the random generator to allow for replicable
+            behaviour, by default None.
+        """
         self._std = std_percent/100
         self._rng = np.random.default_rng(seed)
         self._err_dep = err_dep
@@ -615,7 +621,15 @@ class ErrSysGen(IErrCalculator):
     def __init__(self,
                  generator: IGenRandom,
                  err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
-
+        """
+        Parameters
+        ----------
+        generator : IGenRandom
+            Random generator object used to calculate the systematic error in
+            simulation units.
+        err_dep : EErrDependence, optional
+            Error calculation dependence, by default EErrDependence.INDEPENDENT.
+        """
         self._generator = generator
         self._err_dep = err_dep
 
@@ -706,7 +720,15 @@ class ErrSysGenPercent(IErrCalculator):
     def __init__(self,
                  generator: IGenRandom,
                  err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
-
+        """
+        Parameters
+        ----------
+        generator : IGenRandom
+            Random generator which returns a percentage error in the range
+            (0,100)
+        err_dep : EErrDep, optional
+            Error calculation dependence, by default EErrDep.INDEPENDENT
+        """
         self._generator = generator
         self._err_dep = err_dep
 

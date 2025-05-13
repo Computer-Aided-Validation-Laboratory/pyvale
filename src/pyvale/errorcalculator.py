@@ -46,6 +46,7 @@ class IErrCalculator(ABC):
     """Interface (abstract base class) for sensor error calculation allowing for
     chaining of errors.
     """
+
     @abstractmethod
     def get_error_type(self) -> EErrType:
         """Abstract method for getting the error type.
@@ -55,7 +56,6 @@ class IErrCalculator(ABC):
         EErrType
             Enumeration definining RANDOM or SYSTEMATIC error types.
         """
-        pass
 
     @abstractmethod
     def get_error_dep(self) -> EErrDep:
@@ -66,7 +66,6 @@ class IErrCalculator(ABC):
         EErrDependence
             Enumeration definining RANDOM or SYSTEMATIC error types.
         """
-        pass
 
     @abstractmethod
     def set_error_dep(self, dependence: EErrDep) -> None:
@@ -104,7 +103,6 @@ class IErrCalculator(ABC):
             the error chain. Note that many errors do not modify the sensor data
             so the sensor data class is passed through this function unchanged.
         """
-        pass
 
 
 

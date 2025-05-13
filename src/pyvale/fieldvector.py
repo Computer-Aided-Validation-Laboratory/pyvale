@@ -31,8 +31,7 @@ class FieldVector(IField):
                  field_key: str,
                  components: tuple[str,...],
                  elem_dims: int) -> None:
-        """Initialiser for the `FieldVector` class.
-
+        """
         Parameters
         ----------
         sim_data : mh.SimData

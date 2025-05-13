@@ -35,8 +35,7 @@ class FieldTensor(IField):
                  norm_comps: tuple[str,...],
                  dev_comps: tuple[str,...],
                  elem_dims: int) -> None:
-        """Initialiser for the `FieldVector` class.
-
+        """
         Parameters
         ----------
         sim_data : mh.SimData

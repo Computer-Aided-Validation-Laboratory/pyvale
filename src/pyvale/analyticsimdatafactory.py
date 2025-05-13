@@ -37,8 +37,9 @@ def standard_case_2d() -> AnalyticData2D:
 
 
 class AnalyticCaseFactory:
-    """Builds pre-defined 2D meshes and fields based on analytic functions for
-    testing the sensor simulation functionality of pyvale.
+    """Namespace for function used to build pre-defined 2D meshes and fields
+    based on analytic functions for testing the sensor simulation functionality
+    of pyvale.
     """
 
     @staticmethod

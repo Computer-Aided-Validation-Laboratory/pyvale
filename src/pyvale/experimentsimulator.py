@@ -6,28 +6,64 @@
 
 from dataclasses import dataclass
 import numpy as np
-from pyvale.sensorarray import ISensorArray
 import mooseherder as mh
+from pyvale.sensorarray import ISensorArray
 
-# NOTE: This module is a feature under developement.
-# TODO:
-# - Doc strings
-# - Print feature
 
 @dataclass(slots=True)
 class ExperimentStats:
     """Dataclass holding summary statistics for a series of simulated
-    experiments.
+    experiments produced using the experiment simulator. All summary statistics
+    are calculated over the 'experiments' dimension of the measurements array so
+    the arrays of statistics have the shape=(n_sims,n_sensors,n_field_comps,
+    n_time_steps). Note that the n_sims dimension refers to the number of input
+    multi-physics simulations (i.e. SimData objects) that the virtual
+    experiments were performed over.
     """
+
     mean: np.ndarray | None = None
+    """Mean of each sensors measurement for the given field component and time
+    step as an array with shape=(n_sims,n_sensors,n_field_comps,n_time_steps).
+    """
+
     std: np.ndarray | None = None
-    cov: np.ndarray | None = None
+    """Standard deviation of the sensor measurements for the given field
+    component and time step as an array with shape=(n_sims,n_sensors,
+    n_field_comps, n_time_steps)
+    """
+
     max: np.ndarray | None = None
+    """Maximum of the sensor measurements for the given field component and time
+    step as an array with shape=(n_sims,n_sensors,n_field_comps,n_time_steps)
+    """
+
     min: np.ndarray | None = None
+    """Minmum of the sensor measurements for the given field component and time
+    step as an array with shape=(n_sims,n_sensors,n_field_comps,n_time_steps)
+    """
+
     med: np.ndarray | None = None
+    """Median  of the sensor measurements for the given field component and time
+    step as an array with shape=(n_sims,n_sensors,n_field_comps,n_time_steps)
+    """
+
     q25: np.ndarray | None = None
+    """Lower 25% quantile of the sensor measurements for the given field
+    component and time step as an array with shape=(n_sims,n_sensors,
+    n_field_comps, n_time_steps)
+    """
+
     q75: np.ndarray | None = None
+    """Upper 75% quantile of the sensor measurements for the given field
+    component and time step as an array with shape=(n_sims,n_sensors,
+    _field_comps, n_time_steps)
+    """
+
     mad: np.ndarray | None = None
+    """Median absolute deviation of the sensor measurements for the given field
+    component and time step as an array with shape=(n_sims,n_sensors,
+    n_field_comps, n_time_steps)
+    """
 
 
 class ExperimentSimulator:
@@ -36,31 +72,48 @@ class ExperimentSimulator:
     defined experiments. Calculates summary statistics for each sensor array
     applied to each simulation.
     """
-    __slots__ = ("sim_list","sensor_arrays","num_exp_per_sim","_exp_data",
-                 "_exp_stats")
+    __slots__ = ("sim_list","sensor_arrays","num_exp_per_sim","exp_data",
+                 "exp_stats")
 
     def __init__(self,
                  sim_list: list[mh.SimData],
                  sensor_arrays: list[ISensorArray],
                  num_exp_per_sim: int
                  ) -> None:
-
+        """
+        Parameters
+        ----------
+        sim_list : list[mh.SimData]
+            List of simulation data objects over which the virtual experiments
+            will be performed.
+        sensor_arrays : list[ISensorArray]
+            The sensor arrays that will be applied to each simulation to
+            generate the virtual experiment data.
+        num_exp_per_sim : int
+            Number of virtual experiments to perform for each simulation and
+            sensor array.
+        """
         self.sim_list = sim_list
         self.sensor_arrays = sensor_arrays
         self.num_exp_per_sim = num_exp_per_sim
-        self._exp_data = [None]*len(self.sensor_arrays)
-        self._exp_stats = [None]*len(self.sensor_arrays)
-
-    def get_data(self) -> list[np.ndarray | None]:
-        return self._exp_data
-
-    def get_stats(self) -> list[np.ndarray | None]:
-        return self._exp_stats
+        self.exp_data = None
+        self.exp_stats = None
 
     def run_experiments(self) -> list[np.ndarray]:
+        """Runs the specified number of virtual experiments over the number of
+        input simulation cases and virtual sensor arrays.
+
+        Returns
+        -------
+        list[np.ndarray]
+            List of virtual experimental data arrays where the list index
+            corresponds to the virtual sensor array and the data is an array
+            with shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps).
+        """
+
         n_sims = len(self.sim_list)
-        # shape=list[n_arrays](n_sims,n_exps,n_sens,n_comps,n_time_steps)
-        self._exp_data = [None]*len(self.sensor_arrays)
+        # shape=list[n_sens_arrays](n_sims,n_exps,n_sens,n_comps,n_time_steps)
+        self.exp_data = [None]*len(self.sensor_arrays)
 
         for ii,aa in enumerate(self.sensor_arrays):
             meas_array = np.zeros((n_sims,self.num_exp_per_sim)+
@@ -72,28 +125,44 @@ class ExperimentSimulator:
                 for ee in range(self.num_exp_per_sim):
                     meas_array[jj,ee,:,:,:] = aa.calc_measurements()
 
-            self._exp_data[ii] = meas_array
+            self.exp_data[ii] = meas_array
 
-        return self._exp_data
+        # shape=list[n_sens_arrays](n_sims,n_exps,n_sens,n_comps,n_time_steps)
+        return self.exp_data
 
 
     def calc_stats(self) -> list[ExperimentStats]:
-        # shape=list[n_arrays](n_sims,n_exps,n_sens,n_comps,n_time_steps)
-        self._exp_stats = [None]*len(self.sensor_arrays)
+        """Calculates summary statistics over the number of virtual experiments
+        specified. If `run_experiments()` has not been called then it is called
+        to generate the virtual experimental data to perform the statistical
+        calculations.
+
+        Returns
+        -------
+        list[ExperimentStats]
+            List of summary statistics data classes for the virtual experiments.
+            The list index correponds to the virtual sensor array.
+        """
+        if self.exp_data is None:
+            self.exp_data = self.run_experiments()
+
+        # shape=list[n_sens_arrays](n_sims,n_sens,n_comps,n_time_steps)
+        self.exp_stats = [None]*len(self.sensor_arrays)
         for ii,_ in enumerate(self.sensor_arrays):
             array_stats = ExperimentStats()
-            array_stats.max = np.max(self._exp_data[ii],axis=1)
-            array_stats.min = np.min(self._exp_data[ii],axis=1)
-            array_stats.mean = np.mean(self._exp_data[ii],axis=1)
-            array_stats.std = np.std(self._exp_data[ii],axis=1)
-            array_stats.med = np.median(self._exp_data[ii],axis=1)
-            array_stats.q25 = np.quantile(self._exp_data[ii],0.25,axis=1)
-            array_stats.q75 = np.quantile(self._exp_data[ii],0.75,axis=1)
-            array_stats.mad = np.median(np.abs(self._exp_data[ii] -
-                np.median(self._exp_data[ii],axis=1,keepdims=True)),axis=1)
-            self._exp_stats[ii] = array_stats
+            array_stats.max = np.max(self.exp_data[ii],axis=1)
+            array_stats.min = np.min(self.exp_data[ii],axis=1)
+            array_stats.mean = np.mean(self.exp_data[ii],axis=1)
+            array_stats.std = np.std(self.exp_data[ii],axis=1)
+            array_stats.med = np.median(self.exp_data[ii],axis=1)
+            array_stats.q25 = np.quantile(self.exp_data[ii],0.25,axis=1)
+            array_stats.q75 = np.quantile(self.exp_data[ii],0.75,axis=1)
+            array_stats.mad = np.median(np.abs(self.exp_data[ii] -
+                np.median(self.exp_data[ii],axis=1,keepdims=True)),axis=1)
+            self.exp_stats[ii] = array_stats
 
-        return self._exp_stats
+        # shape=list[n_sens_arrays](n_sims,n_sens,n_comps,n_time_steps)
+        return self.exp_stats
 
 
 

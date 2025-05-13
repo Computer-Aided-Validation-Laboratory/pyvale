@@ -31,8 +31,7 @@ class Quadrature2D(IIntegratorSpatial):
                  sens_data: SensorData,
                  gauss_pt_offsets: np.ndarray,
                  gauss_weight_func: Callable) -> None:
-        """Initiliaser for the 2D Gaussian quadrature numerical integrator.
-
+        """
         Parameters
         ----------
         field : IField
