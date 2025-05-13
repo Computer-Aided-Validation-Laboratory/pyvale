@@ -21,7 +21,7 @@ Useful for experimental design, sensor placement optimisation, testing simulatio
 
 **Current Release:**  |release|
 
-**Useful links:**  | `Source Repository <https://github.com/Computer-Aided-Validation-Laboratory/pyvale>`_ | `Issues  <https://github.com/Computer-Aided-Validation-Laboratory/pyvale/issues>`_ | `PyPI <https://pypi.org/project/pyvale/>`_
+**Useful links:**  | `Source Repository <https://github.com/Computer-Aided-Validation-Laboratory/pyvale>`_ | `Issues  <https://github.com/Computer-Aided-Validation-Laboratory/pyvale/issues>`_ | `PyPI <https://pypi.org/project/pyvale/>`_ | `MIT License <https://choosealicense.com/licenses/mit/>`_ |
 
 .. toctree::
    :maxdepth: 1
@@ -43,10 +43,10 @@ The Computer Aided Validation Team at United Kingdom Atomic Energy Authority (UK
 * John Charlton  (`coolmule0 <https://github.com/coolmule0>`_), UK Atomic Energy Authority
 * Joel Hirst (`JoelPhys <https://github.com/JoelPhys>`_), UK Atomic Energy Authority
 * Lorna Sibson (`lornasibson <https://github.com/lornasibsin>`_), UK Atomic Energy Authority
-* Adel Tayeb, UK Atomic Energy Authority
-* Alex Marsh, UK Atomic Energy Authority
-* Rory Spencer, UK Atomic Energy Authority
-* Michael Atkinson, UK Atomic Energy Authority
+* Megan Sampson (`megan sampson <https://github.com/meganasampson>`_), UK Atomic Energy Authority
+* Adel Tayeb (`3adelTayeb <https://github.com/3adelTayeb>`_), UK Atomic Energy Authority
+* Alex Marsh (`alexmarsh2 <https://github.com/alexmarsh2>`_), UK Atomic Energy Authority
+* Rory Spencer (`fusmatr <https://github.com/fusmatrs>`_), UK Atomic Energy Authority
 
 
 
