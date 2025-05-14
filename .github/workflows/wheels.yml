@@ -40,7 +40,7 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
         env:
-          CIBW_BEFORE_BUILD: "pip install numpy --only-binary=numpy"
+          CIBW_SKIP: "pp*"
           CIBW_ENVIRONMENT_MACOS: >
             CC=gcc-14
             CXX=g++-14
