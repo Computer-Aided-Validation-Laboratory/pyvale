@@ -62,10 +62,10 @@ def animate_sim_with_sensors(sensor_array: SensorArrayPoint,
         # Updates the field plotted on the mesh
         sim_vis[component] = sim_data.node_vars[component][:,tt]
 
-        if vis_opts.time_label_show:
+        if vis_opts.time_label_pos is not None:
             pv_plot.add_text(f"Time: {sim_data.time[tt]} " + \
                              f"{sensor_array.descriptor.time_units}",
-                             position=vis_opts.time_label_position,
+                             position=vis_opts.time_label_pos,
                              font_size=vis_opts.time_label_font_size,
                              name='time-label')
 

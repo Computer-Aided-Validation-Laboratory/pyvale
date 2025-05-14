@@ -226,8 +226,8 @@ def main() -> None:
     # Note that the default here is to plot the mean and fill between 3 times
     # the standard deviation.
     trace_opts = pyv.TraceOptsExperiment(plot_all_exp_points=True,
-                                         centre="median",
-                                         fill_between="max")
+                                         centre=pyv.EExpVisCentre.MEDIAN,
+                                         fill_between=pyv.EExpVisBounds.MINMAX)
 
     (fig,ax) = pyv.plot_exp_traces(exp_sim,
                                    component="temperature",

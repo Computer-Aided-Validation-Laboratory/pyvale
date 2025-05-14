@@ -49,10 +49,10 @@ def add_sim_field(pv_plot: pv.Plotter,
                      lighting=False,
                      clim=vis_opts.colour_bar_lims)
 
-    if vis_opts.time_label_show:
+    if vis_opts.time_label_pos is not None:
         pv_plot.add_text(f"Time: {sim_data.time[time_step]} " + \
                             f"{sensor_array.descriptor.time_units}",
-                            position=vis_opts.time_label_position,
+                            position=vis_opts.time_label_pos,
                             font_size=vis_opts.time_label_font_size,
                             name='time-label')
 

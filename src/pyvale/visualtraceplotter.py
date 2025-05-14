@@ -25,7 +25,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     comp_ind = sensor_array.field.get_component_index(component)
     samp_time = sensor_array.get_sample_times()
     measurements = sensor_array.get_measurements()
-    n_sensors = sensor_array.sensor_data.positions.shape[0]
+    num_sens = sensor_array.sensor_data.positions.shape[0]
     descriptor = sensor_array.descriptor
     sensors_perturbed = sensor_array.get_sensor_data_perturbed()
 
@@ -37,7 +37,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         trace_opts = TraceOptsSensor()
 
     if trace_opts.sensors_to_plot is None:
-        sensors_to_plot = range(n_sensors)
+        sensors_to_plot = range(num_sens)
     else:
         sensors_to_plot = trace_opts.sensors_to_plot
 
@@ -61,7 +61,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                     trace_opts.sim_line,
                     lw=plot_opts.lw,
                     ms=plot_opts.ms,
-                    color=plot_opts.colors[ii % plot_opts.n_colors])
+                    color=plot_opts.colors[ii % plot_opts.colors_num])
 
     if trace_opts.truth_line is not None:
         truth = sensor_array.get_truth()
@@ -71,22 +71,25 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                     trace_opts.truth_line,
                     lw=plot_opts.lw,
                     ms=plot_opts.ms,
-                    color=plot_opts.colors[ii % plot_opts.n_colors])
+                    color=plot_opts.colors[ii % plot_opts.colors_num])
 
-    sensor_tags = descriptor.create_sensor_tags(n_sensors)
+    sensor_tags = descriptor.create_sensor_tags(num_sens)
+    lines = []
     for ii,ss in enumerate(sensors_to_plot):
         sensor_time = samp_time
         if sensors_perturbed is not None:
             if sensors_perturbed.sample_times is not None:
                 sensor_time = sensors_perturbed.sample_times
 
-        ax.plot(sensor_time,
+        line, = ax.plot(sensor_time,
                 measurements[ss,comp_ind,:],
                 trace_opts.meas_line,
                 label=sensor_tags[ss],
                 lw=plot_opts.lw,
                 ms=plot_opts.ms,
-                color=plot_opts.colors[ii % plot_opts.n_colors])
+                color=plot_opts.colors[ii % plot_opts.colors_num])
+
+        lines.append(line)
 
     #---------------------------------------------------------------------------
     # Axis / legend labels and options
@@ -102,8 +105,10 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     else:
         ax.set_xlim(trace_opts.time_min_max)
 
-    if trace_opts.legend:
-        ax.legend(prop={"size":plot_opts.font_leg_size},loc="best")
+    if trace_opts.legend_loc is not None:
+        ax.legend(handles=lines,
+                  prop={"size":plot_opts.font_leg_size},
+                  loc=trace_opts.legend_loc)
 
     plt.grid(True)
     plt.draw()

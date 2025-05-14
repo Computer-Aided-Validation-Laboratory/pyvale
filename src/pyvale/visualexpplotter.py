@@ -9,7 +9,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pyvale.pyvaleexceptions import VisError
 from pyvale.visualopts import (PlotOptsGeneral,
-                               TraceOptsExperiment)
+                               TraceOptsExperiment,
+                               EExpVisBounds,
+                               EExpVisCentre)
 from pyvale.experimentsimulator import ExperimentSimulator
 
 #TODO: Docstrings
@@ -60,52 +62,50 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
                         "+",
                         lw=plot_opts.lw,
                         ms=plot_opts.ms,
-                        color=plot_opts.colors[ss % plot_opts.n_colors])
+                        color=plot_opts.colors[ss % plot_opts.colors_num])
 
+    sensor_tags = descriptor.create_sensor_tags(num_sens)
+    lines = []
     for ss in sensors_to_plot:
-        if trace_opts.centre == "median":
-            ax.plot(samp_time,
-                    exp_stats[sens_array_num].med[sim_num,ss,comp_ind,:],
-                    trace_opts.exp_mean_line,
-                    lw=plot_opts.lw,
-                    ms=plot_opts.ms,
-                    color=plot_opts.colors[ss % plot_opts.n_colors])
+        if trace_opts.centre == EExpVisCentre.MEDIAN:
+            trace_centre = exp_stats[sens_array_num].med[sim_num,ss,comp_ind,:]
         else:
-            ax.plot(samp_time,
-                    exp_stats[sens_array_num].mean[sim_num,ss,comp_ind,:],
-                    trace_opts.exp_mean_line,
-                    lw=plot_opts.lw,
-                    ms=plot_opts.ms,
-                    color=plot_opts.colors[ss % plot_opts.n_colors])
+            trace_centre = exp_stats[sens_array_num].mean[sim_num,ss,comp_ind,:]
 
-        if trace_opts is not None:
+        line, = ax.plot(samp_time,
+                trace_centre,
+                trace_opts.exp_centre_line,
+                label=sensor_tags[ss],
+                lw=plot_opts.lw,
+                ms=plot_opts.ms,
+                color=plot_opts.colors[ss % plot_opts.colors_num])
+        lines.append(line)
+
+        if trace_opts.fill_between is not None:
             upper = np.zeros_like(exp_stats[sens_array_num].min)
             lower = np.zeros_like(exp_stats[sens_array_num].min)
 
-            if trace_opts.fill_between == 'max':
-                upper = exp_stats[sens_array_num].min
-                lower = exp_stats[sens_array_num].max
-
-            elif trace_opts.fill_between == 'quartile':
-                upper = exp_stats[sens_array_num].q25
-                lower = exp_stats[sens_array_num].q75
-
-            elif trace_opts.fill_between == '2std':
-                upper = exp_stats[sens_array_num].mean + \
-                        2*exp_stats[sens_array_num].std
-                lower = exp_stats[sens_array_num].mean - \
-                        2*exp_stats[sens_array_num].std
-
-            elif trace_opts.fill_between == '3std':
-                upper = exp_stats[sens_array_num].mean + \
-                        3*exp_stats[sens_array_num].std
-                lower = exp_stats[sens_array_num].mean - \
-                        3*exp_stats[sens_array_num].std
+            if trace_opts.fill_between == EExpVisBounds.MINMAX:
+                upper = trace_opts.fill_scale*exp_stats[sens_array_num].min
+                lower = trace_opts.fill_scale*exp_stats[sens_array_num].max
+            elif trace_opts.fill_between == EExpVisBounds.QUARTILE:
+                upper = trace_opts.fill_scale*exp_stats[sens_array_num].q25
+                lower = trace_opts.fill_scale*exp_stats[sens_array_num].q75
+            elif trace_opts.fill_between == EExpVisBounds.STD:
+                upper = trace_centre + \
+                        trace_opts.fill_scale*exp_stats[sens_array_num].std
+                lower = trace_centre - \
+                        trace_opts.fill_scale*exp_stats[sens_array_num].std
+            elif trace_opts.fill_between == EExpVisBounds.MAD:
+                upper = trace_centre + \
+                        trace_opts.fill_scale*exp_stats[sens_array_num].mad
+                lower = trace_centre - \
+                        trace_opts.fill_scale*exp_stats[sens_array_num].mad
 
             ax.fill_between(samp_time,
                 upper[sim_num,ss,comp_ind,:],
                 lower[sim_num,ss,comp_ind,:],
-                color=plot_opts.colors[ss % plot_opts.n_colors],
+                color=plot_opts.colors[ss % plot_opts.colors_num],
                 alpha=0.2)
 
     #---------------------------------------------------------------------------
@@ -130,7 +130,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
                     trace_opts.truth_line,
                     lw=plot_opts.lw,
                     ms=plot_opts.ms,
-                    color=plot_opts.colors[ss % plot_opts.n_colors])
+                    color=plot_opts.colors[ss % plot_opts.colors_num])
 
     #---------------------------------------------------------------------------
     # Axis / legend labels and options
@@ -144,9 +144,10 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     else:
         ax.set_xlim(trace_opts.time_min_max)
 
-    trace_opts.legend = False
-    if trace_opts.legend:
-        ax.legend(prop={"size":plot_opts.font_leg_size},loc='best')
+    if trace_opts.legend_loc is not None:
+        ax.legend(handles=lines,
+                  prop={"size":plot_opts.font_leg_size},
+                  loc=trace_opts.legend_loc)
 
     plt.grid(True)
     plt.draw()

@@ -7,7 +7,7 @@ import numpy as np
 from pyvale.rendermesh import RenderMeshData
 
 class SimTools:
-    """Namespace for tools required for handling simulation results.
+    """Namespace for tools required for analysing simulation results.
     """
 
     @staticmethod
