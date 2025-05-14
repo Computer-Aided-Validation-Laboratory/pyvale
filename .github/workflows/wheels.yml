@@ -10,19 +10,23 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # macos-13 is an intel runner, macos-14 is apple silicon
+        # macos13 is intel macos14 is apple silicon
         os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-14]
 
     steps:
       - uses: actions/checkout@v4
     
-      - name: Set GCC on macOS
-        if: matrix.os == macos-13
+      # Set GCC and Deployment Target for macOS 13
+      - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 13
+        if: matrix.os == 'macos-13'
         run: |
           echo "CC=gcc-14" >> $GITHUB_ENV
           echo "CXX=g++-14" >> $GITHUB_ENV
           echo "MACOSX_DEPLOYMENT_TARGET=13.0" >> $GITHUB_ENV
-        elseif: matrix.os == macos-14
+
+      # Set GCC and Deployment Target for macOS 14
+      - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 14
+        if: matrix.os == 'macos-14'
         run: |
           echo "CC=gcc-14" >> $GITHUB_ENV
           echo "CXX=g++-14" >> $GITHUB_ENV
@@ -39,3 +43,4 @@ jobs:
         with:
           name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
+
