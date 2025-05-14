@@ -1,5 +1,0 @@
-Displacement Sensors on a 2D Plate
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. literalinclude:: ../../../../src/pyvale/examples/ex3_1_displacement2d.py
-   :language: python

@@ -1,0 +1,4 @@
+Sensor spatial averaging and averaging errors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex1_7_spatavg_therm2d.py
+   :language: python

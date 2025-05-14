@@ -1,11 +1,9 @@
-Point Sensors
+Point Sensors: Pyvale Basics
 ======================
 
 .. toctree::
 
    ex1_1
-   ex2_1
-   ex3_1
-   ex4_1
-   ex5_1
+   ex1_2
+
 
