@@ -173,14 +173,15 @@ def plot_sim_mesh(sim_data: mh.SimData,
                   elem_dims: int,
                   vis_opts: VisOptsSimSensors | None = None,
                   ) -> pv.Plotter:
-    """Plots the simulation mesh 
+    """Plots the simulation mesh without any fields. Useful for visualising
+    mesh geometry.
 
     Parameters
     ----------
     sim_data : mh.SimData
-        _description_
+        Sim data object containing the mesh to plot.
     elem_dims : int
-        _description_
+        Number of dimensions for the elements to be plotted.
     vis_opts : VisOptsSimSensors | None, optional
         Dataclass containing options for controlling the appearance of the
         virtual sensors, by default None. If None then a default options
@@ -189,7 +190,7 @@ def plot_sim_mesh(sim_data: mh.SimData,
     Returns
     -------
     pv.Plotter
-        _description_
+        Handle to the pyvista plotter that is showing the mesh.
     """
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
@@ -212,18 +213,20 @@ def plot_sim_data(sim_data: mh.SimData,
                   time_step: int = -1,
                   vis_opts: VisOptsSimSensors | None = None
                   ) -> pv.Plotter:
-    """_summary_
+    """Plots the simulation mesh showing the specified phyiscal field at the
+    time step specified.
 
     Parameters
     ----------
     sim_data : mh.SimData
-        _description_
+        simulation data object containing the mesh and field data to show.
     component : str
-        _description_
+        String key for accessing the nodal field to visualise in the sim data
+        object.
     elem_dims : int
-        _description_
+        Number of dimensions for the elements to be plotted.
     time_step : int, optional
-        _description_, by default -1
+        Simulation time step number to plot, by default -1 (the last time step).
     vis_opts : VisOptsSimSensors | None, optional
         Dataclass containing options for controlling the appearance of the
         virtual sensors, by default None. If None then a default options
@@ -232,7 +235,7 @@ def plot_sim_data(sim_data: mh.SimData,
     Returns
     -------
     pv.Plotter
-        _description_
+        Handle to the pyvista plotter showing the simulation mesh and field.
     """
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
@@ -261,22 +264,27 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
                               vis_opts: VisOptsSimSensors | None = None,
                               image_save_opts: VisOptsImageSave | None = None,
                               ) -> pv.Plotter:
-    """_summary_
+    """Creates a visualisation of the virtual sensor locations on the simulation
+    mesh showing the underlying field the sensors are sampling at the specified
+    time step.
 
     Parameters
     ----------
     sensor_array : SensorArrayPoint
-        _description_
+        Sensor array containing the sensors to plot and the field to display.
     component : str
-        _description_
+        String key for accessing the nodal field to visualise in the sim data
+        object.
     time_step : int, optional
-        _description_, by default -1
+        Simulation time step number to plot, by default -1 (the last time step).
     vis_opts : VisOptsSimSensors | None, optional
         Dataclass containing options for controlling the appearance of the
         virtual sensors, by default None. If None then a default options
         dataclass is created.
     image_save_opts : VisOptsImageSave | None, optional
-        _description_, by default None
+        Dataclass containing options for saving image of the virtual sensor
+        visualisation, by default None. If None a default options dataclass is
+        created.
 
     Returns
     -------
