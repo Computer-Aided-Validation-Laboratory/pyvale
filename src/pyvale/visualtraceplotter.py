@@ -5,29 +5,54 @@
 # ==============================================================================
 
 from typing import Any
-
 import numpy as np
 import matplotlib.pyplot as plt
 from pyvale.sensorarraypoint import SensorArrayPoint
 from pyvale.visualopts import (PlotOptsGeneral,
                                TraceOptsSensor)
 
-#TODO: Docstrings
 
+
+# TODO: this should probably take an ISensorarray
 def plot_time_traces(sensor_array: SensorArrayPoint,
-                     component: str,
+                     component: str | None  = None,
                      trace_opts: TraceOptsSensor | None = None,
                      plot_opts: PlotOptsGeneral | None = None
                      ) -> tuple[Any,Any]:
+    """Plots time traces for the truth and virtual experiments of the sensors
+    in the given sensor array.
 
+    Parameters
+    ----------
+    sensor_array : SensorArrayPoint
+        _description
+    component : str | None
+        String key for the field component to plot, by default None. If None
+        then the first component in the measurement array is plotted
+    trace_opts : TraceOptsSensor | None, optional
+        Dataclass containing specific options for controlling the plot
+        appearance, by default None. If None the default options are used.
+    plot_opts : PlotOptsGeneral | None, optional
+        Dataclass containing general options for formatting plots and
+        visualisations, by default None. If None the default options are used.
+
+    Returns
+    -------
+    tuple[Any,Any]
+        A tuple containing a handle to the matplotlib figure and axis objects:
+        (fig,ax).
+    """
     #---------------------------------------------------------------------------
     field = sensor_array.field
-    comp_ind = sensor_array.field.get_component_index(component)
     samp_time = sensor_array.get_sample_times()
     measurements = sensor_array.get_measurements()
     num_sens = sensor_array.sensor_data.positions.shape[0]
     descriptor = sensor_array.descriptor
     sensors_perturbed = sensor_array.get_sensor_data_perturbed()
+
+    comp_ind = 0
+    if component is not None:
+        comp_ind = sensor_array.field.get_component_index(component)
 
     #---------------------------------------------------------------------------
     if plot_opts is None:
