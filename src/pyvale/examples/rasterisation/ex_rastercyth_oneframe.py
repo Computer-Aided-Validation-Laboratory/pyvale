@@ -13,10 +13,6 @@ import pyvale as pyv
 import imagebenchmarks as ib
 
 def main() -> None:
-    """pyvale example: rasterisation field renderer
-    ----------------------------------------------------------------------------
-    - TODO
-    """
     print()
     print(80*"=")
     print("RASTER CYTHON FILE (should be *.so on Linux):")
@@ -26,7 +22,6 @@ def main() -> None:
 
     benchmark = False
     if not benchmark:
-
         # This a path to an exodus *.e output file from MOOSE, this can be
         # replaced with a path to your own simulation file
         #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
