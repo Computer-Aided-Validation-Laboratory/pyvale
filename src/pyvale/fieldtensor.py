@@ -1,8 +1,8 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
 import numpy as np
 import pyvista as pv
@@ -17,6 +17,8 @@ from pyvale.fieldtransform import (transform_tensor_2d,
                                    transform_tensor_3d,
                                    transform_tensor_3d_batch)
 
+# TODO:
+# - Checking to ensure normal and dev components are consistent
 
 class FieldTensor(IField):
     """Class for sampling (interpolating) tensor fields from simulations to
@@ -29,32 +31,28 @@ class FieldTensor(IField):
 
     def __init__(self,
                  sim_data: mh.SimData,
-                 field_key: str,
-                 norm_components: tuple[str,...],
-                 dev_components: tuple[str,...],
-                 spat_dims: int) -> None:
-        """Initialiser for the `FieldVector` class.
-
+                 field_name: str,
+                 norm_comps: tuple[str,...],
+                 dev_comps: tuple[str,...],
+                 elem_dims: int) -> None:
+        """
         Parameters
         ----------
         sim_data : mh.SimData
             Simulation data object containing the mesh and field to interpolate.
-        field_key : str
+        field_name : str
             String describing the tensor field. For example: 'strain'.
         components : tuple[str,...]
             String keys to the field components in the `SimData` object. For
             example ('stain_xx','strain_yy','strain_xy').
-        spat_dims : int
+        elem_dims : int
             Number of spatial dimensions (2 or 3) used for identifying element
             types.
         """
-        self._field_key = field_key
-        self._norm_components = norm_components
-        self._dev_components = dev_components
-        self._spat_dims = spat_dims
-
-        #TODO: do some checking to make sure norm/dev components are consistent
-        # based on the spatial dimensions
+        self._field_key = field_name
+        self._norm_components = norm_comps
+        self._dev_components = dev_comps
+        self._spat_dims = elem_dims
 
         self._sim_data = sim_data
         (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(

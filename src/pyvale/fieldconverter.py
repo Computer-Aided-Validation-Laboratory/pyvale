@@ -1,15 +1,18 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
-import warnings
+"""
+This module provides functions for manipulating simulation data objects to be
+compatible with the underlying machinery of pyvale.
+"""
+
 import numpy as np
 import pyvista as pv
 from pyvista import CellType
 import mooseherder as mh
-
 
 def simdata_to_pyvista(sim_data: mh.SimData,
                         components: tuple[str,...] | None,
@@ -44,6 +47,8 @@ def simdata_to_pyvista(sim_data: mh.SimData,
         (nodes_per_elem,n_elems) = this_connect.shape
 
         this_cell_type = _get_pyvista_cell_type(nodes_per_elem,elem_dims)
+        assert this_cell_type is not None, ("Cell type with dimension " +
+            f"{elem_dims} and {nodes_per_elem} nodes per element not recognised.")
 
         # VTK and exodus have different winding for 3D higher order quads
         this_connect = _exodus_to_pyvista_connect(this_cell_type,this_connect)
@@ -69,19 +74,61 @@ def simdata_to_pyvista(sim_data: mh.SimData,
     return (pv_grid,pv_grid_vis)
 
 
-def scale_length_units(sim_data: mh.SimData,
-                       disp_comps: tuple[str,...],
-                       scale: float) -> mh.SimData:
+def scale_length_units(scale: float,
+                       sim_data: mh.SimData,
+                       disp_comps: tuple[str,...] | None = None,
+                       ) -> mh.SimData:
+    """Used to scale the length units of a simulation. Commonly used to convert
+    SI units to mm for use with visualisation tools and rendering algorithms.
 
+    Parameters
+    ----------
+    scale : float
+        Scale multiplier used to scale the coordinates and displacement fields
+        if specified.
+    sim_data : mh.SimData
+        Simulation dataclass that will be scaled.
+    disp_comps : tuple[str,...] | None, optional
+        Tuple of string keys for the displacement keys to be scaled, by default
+        None. If None then the displacements are not scaled.
+
+    Returns
+    -------
+    mh.SimData
+        Simulation dataclass with scaled length units.
+    """
     sim_data.coords = sim_data.coords*scale
-    for cc in disp_comps:
-        sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
+
+    if disp_comps is not None:
+        for cc in disp_comps:
+            sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
 
     return sim_data
 
 
 # TODO: make this work for sim_data with multiple connectivity
 def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
+    """Extracts a surface mesh from a 3D simulation dataclass. Useful for
+    limiting the memory required for analysing sensors that only measure surface
+    fields. This function currently supports:
+        - A single connectivity table
+        - Higher order retrahedral and hexahedral elements (but not wedges or
+          pyramids)
+
+    NOTE: this function returns the surface mesh with element nodal winding
+    consistent with th exodus output format.
+
+    Parameters
+    ----------
+    sim_data : mh.SimData
+        Simulation dataclass containing the 3D mesh from which the surface mesh
+        is to be extracted.
+
+    Returns
+    -------
+    mh.SimData
+        Simulation data class containing the data for the surface mesh.
+    """
 
     # NOTE: need to fix exodus 1 indexing for now and put it back at the end
     # shape=(nodes_per_elem,num_elems)
@@ -162,7 +209,7 @@ def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
     return face_data
 
 
-def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
+def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType | None:
     """Helper function to identify the pyvista element type in the mesh.
 
     Parameters
@@ -174,10 +221,10 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
 
     Returns
     -------
-    CellType
+    CellType | None
         Enumeration describing the element type in pyvista.
     """
-    cell_type = 0
+    cell_type = None
 
     if spat_dim == 2:
         if nodes_per_elem == 4:
@@ -192,10 +239,6 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
             cell_type = CellType.QUADRATIC_QUAD
         elif nodes_per_elem == 9:
             cell_type = CellType.BIQUADRATIC_QUAD
-        else:
-            warnings.warn(f"Cell type 2D with {nodes_per_elem} "
-                          + "nodes not recognised. Defaulting to 4 node QUAD")
-            cell_type = CellType.QUAD
     else:
         if nodes_per_elem == 8:
             cell_type =  CellType.HEXAHEDRON
@@ -207,15 +250,29 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType:
             cell_type = CellType.QUADRATIC_HEXAHEDRON
         elif nodes_per_elem == 27:
             cell_type = CellType.TRIQUADRATIC_HEXAHEDRON
-        else:
-            warnings.warn(f"Cell type 3D with {nodes_per_elem} "
-                + "nodes not recognised. Defaulting to 8 node HEX")
-            cell_type = CellType.HEXAHEDRON
 
     return cell_type
 
 
-def _exodus_to_pyvista_connect(cell_type: CellType, connect: np.ndarray) -> np.ndarray:
+def _exodus_to_pyvista_connect(cell_type: CellType,
+                               connect: np.ndarray) -> np.ndarray:
+    """Helper function that specifies the nodal winding map for higher order
+    tet and hex elements between the exodus output format and pyvista (VTK).
+
+    Parameters
+    ----------
+    cell_type : CellType
+        pyvista (VTK) cell type enumeration.
+    connect : np.ndarray
+        Input connectivity table in exodus winding format.
+        shape=(nodes_per_elem,num_elems)
+
+    Returns
+    -------
+    np.ndarray
+        Output connectivity table in pyvista (VTK) format.
+        shape=(nodes_per_elem,num_elems)
+    """
     copy_connect = np.copy(connect)
 
     # NOTE: it looks like VTK does not support TET14
@@ -235,7 +292,25 @@ def _exodus_to_pyvista_connect(cell_type: CellType, connect: np.ndarray) -> np.n
 
 
 def _get_surf_map(nodes_per_elem: int) -> np.ndarray:
+    """Helper function specifying the mapping from 3D tet and hex elements to
+    the individual faces consistent with the exodus output format.
 
+    Parameters
+    ----------
+    nodes_per_elem : int
+        Number of nodes per element.
+
+    Returns
+    -------
+    np.ndarray
+        Array of indices mapping the nodes to faces with shape=(num_faces,n
+        odes_per_face)
+
+    Raises
+    ------
+    ValueError
+        Element type is not supported.
+    """
     if nodes_per_elem == 4: # TET4
        return np.array(((0,1,2),
                         (0,3,1),
@@ -272,4 +347,5 @@ def _get_surf_map(nodes_per_elem: int) -> np.ndarray:
                          (0,4,5,1,12,16,13,8,25),
                          (2,6,7,3,14,18,15,10,26)))
 
-    raise ValueError("Number of nodes does not match a 3D element type for surface extraction.")
+    raise ValueError("Number of nodes does not match a 3D element type for " \
+        "surface extraction.")

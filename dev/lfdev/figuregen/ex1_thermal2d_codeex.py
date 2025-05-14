@@ -47,7 +47,7 @@ thermocouple_array = pyvale.SensorArrayPoint(sens_pos,
 
 # Calculated based on the sensor 'truth' value
 indep_sys_err1 = pyvale.ErrSysOffset(offset=-5.0)
-indep_sys_err2 = pyvale.ErrSysUniform(low=-10.0,
+indep_sys_err2 = pyvale.ErrSysUnif(low=-10.0,
                                     high=10.0)
 indep_sys_err3 = pyvale.ErrSysPositionRand(temperature_field,
                                             sens_pos,

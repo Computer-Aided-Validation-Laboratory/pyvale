@@ -1,5 +1,4 @@
-Strain Sensors on a 2D Plate
+Multi-physics experiment simulation in 2D
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. literalinclude:: ../../../../src/pyvale/examples/ex4_1_strain2d.py
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex4_1_expsim2d_thermmech2d.py
    :language: python

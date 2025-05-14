@@ -1,5 +1,4 @@
-Displacement Sensors on a 2D Plate
+Basic tensor field sensors (strain gauges)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. literalinclude:: ../../../../src/pyvale/examples/ex3_1_displacement2d.py
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex3_1_basictensors_strain2d.py
    :language: python

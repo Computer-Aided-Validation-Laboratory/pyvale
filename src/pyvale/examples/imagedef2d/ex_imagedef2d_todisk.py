@@ -1,11 +1,9 @@
-"""
-================================================================================
-pyvale: the python computer aided validation engine
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
 
 from pathlib import Path
 import numpy as np
@@ -14,8 +12,6 @@ import pyvale as pyv
 
 
 def main() -> None:
-    #---------------------------------------------------------------------------
-    # LOAD FILES
     sim_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
@@ -37,8 +33,7 @@ def main() -> None:
     print(f"{disp_y.shape=}")
     print(80*"-")
 
-    #---------------------------------------------------------------------------
-    # INPUT DATA
+
     cam_data = pyv.CameraData2D(pixels_count=np.array((1040,1540)),
                                    leng_per_px=0.1e-3,
                                    bits=8,
@@ -49,8 +44,7 @@ def main() -> None:
                                   add_static_ref=True)
 
 
-    #---------------------------------------------------------------------------
-    # PRE-PROCESS IMAGES
+
     (upsampled_image,
      image_mask,
      image_input,
@@ -68,8 +62,7 @@ def main() -> None:
     disp = np.array((disp_x[:,ff],disp_y[:,ff])).T
     print(f"{disp.shape=}")
 
-    #---------------------------------------------------------------------------
-    # DEFORM IMAGES AND SAVE
+
     pyv.ImageDef2D.deform_images_to_disk(cam_data,
                                             upsampled_image,
                                             coords,

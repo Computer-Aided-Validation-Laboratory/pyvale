@@ -1,8 +1,8 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
 import numpy as np
 import pyvista as pv
@@ -30,9 +30,8 @@ class FieldVector(IField):
                  sim_data: mh.SimData,
                  field_key: str,
                  components: tuple[str,...],
-                 spat_dims: int) -> None:
-        """Initialiser for the `FieldVector` class.
-
+                 elem_dims: int) -> None:
+        """
         Parameters
         ----------
         sim_data : mh.SimData
@@ -42,13 +41,13 @@ class FieldVector(IField):
         components : tuple[str,...]
             String keys to the field components in the `SimData` object. For
             example ('disp_x','disp_y').
-        spat_dims : int
+        elem_dims : int
             Number of spatial dimensions (2 or 3) used for identifying element
             types.
         """
         self._field_key = field_key
         self._components = components
-        self._spat_dims = spat_dims
+        self._spat_dims = elem_dims
 
         self._sim_data = sim_data
         (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(

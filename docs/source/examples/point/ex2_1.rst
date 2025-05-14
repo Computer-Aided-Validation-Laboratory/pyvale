@@ -1,5 +1,4 @@
-Thermocouples on a 3D plate
+Basic vector field (displacement) sensors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. literalinclude:: ../../../../src/pyvale/examples/ex1_5_thermal2d.py
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex2_1_basicvectors_disp2d.py
    :language: python

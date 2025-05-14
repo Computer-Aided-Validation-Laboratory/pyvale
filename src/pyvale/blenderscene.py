@@ -1,7 +1,7 @@
 # ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
-# Copyright (C) 2024 The Computer Aided Validation Team
+# Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 import numpy as np
 from pathlib import Path
@@ -16,13 +16,14 @@ from pyvale.camerastereo import CameraStereo
 from pyvale.rendermesh import RenderMeshData
 from pyvale.pyvaleexceptions import BlenderError
 
+
 class BlenderScene():
     """Namespace for creating a scene within Blender.
     Methods include adding an object, camera, light and adding a speckle pattern,
     as well as deforming the object, and then rendering the scene.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.reset_scene()
 
     def reset_scene(self) -> None:

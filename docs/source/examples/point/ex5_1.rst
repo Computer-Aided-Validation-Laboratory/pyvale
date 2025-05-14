@@ -1,5 +1,0 @@
-Thermo-mechanical sensors on a 2D plate
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. literalinclude:: ../../../../src/pyvale/examples/ex5_1_multiphysics2d.py
-   :language: python

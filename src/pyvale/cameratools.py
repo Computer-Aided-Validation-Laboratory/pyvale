@@ -1,8 +1,13 @@
 # ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
-# Copyright (C) 2024 The Computer Aided Validation Team
+# Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
+
+"""
+NOTE: This module is a feature under developement.
+"""
+
 import warnings
 from pathlib import Path
 import numpy as np
@@ -16,10 +21,8 @@ from pyvale.sensordata import SensorData
 from pyvale.cameradata import CameraData
 from pyvale.camerastereo import CameraStereo
 
-# NOTE: This module is a feature under developement.
 
 class CameraTools:
-    #-------------------------------------------------------------------------------
     @staticmethod
     def load_image(im_path: Path) -> np.ndarray:
 
@@ -57,7 +60,6 @@ class CameraTools:
 
         return num_str
 
-    #-------------------------------------------------------------------------------
     @staticmethod
     def pixel_vec_px(pixels_count: np.ndarray) -> tuple[np.ndarray,np.ndarray]:
         px_vec_x = np.arange(0,pixels_count[0],1)
@@ -73,7 +75,6 @@ class CameraTools:
         (px_grid_x,px_grid_y) = CameraTools.pixel_grid_px(pixels_count)
         return (px_grid_x.flatten(),px_grid_y.flatten())
 
-    #-------------------------------------------------------------------------------
     @staticmethod
     def subpixel_vec_px(pixels_count: np.ndarray,
                             subsample: int = 2) -> tuple[np.ndarray,np.ndarray]:
@@ -93,7 +94,6 @@ class CameraTools:
         (px_grid_x,px_grid_y) = CameraTools.subpixel_grid_px(pixels_count,subsample)
         return (px_grid_x.flatten(),px_grid_y.flatten())
 
-    #-------------------------------------------------------------------------------
     @staticmethod
     def pixel_vec_leng(field_of_view: np.ndarray,
                             leng_per_px: float) -> tuple[np.ndarray,np.ndarray]:
@@ -117,7 +117,7 @@ class CameraTools:
         (px_grid_x,px_grid_y) = CameraTools.pixel_grid_leng(field_of_view,leng_per_px)
         return (px_grid_x.flatten(),px_grid_y.flatten())
 
-    #-------------------------------------------------------------------------------
+
     @staticmethod
     def subpixel_vec_leng(field_of_view: np.ndarray,
                           leng_per_px: float,
@@ -150,7 +150,6 @@ class CameraTools:
                                                         subsample)
         return (px_grid_x.flatten(),px_grid_y.flatten())
 
-    #-------------------------------------------------------------------------------
     @staticmethod
     def calc_resolution_from_sim_2d(pixels_count: np.ndarray,
                                     coords: np.ndarray,
@@ -212,7 +211,6 @@ class CameraTools:
                                     round(subsample/2)-1::subsample]
         return avg_image
 
-    #---------------------------------------------------------------------------
     @staticmethod
     def build_sensor_data_from_camera_2d(cam_data: CameraData2D) -> SensorData:
         pixels_vectorised = CameraTools.vectorise_pixel_grid_leng(cam_data.field_of_view,
@@ -326,7 +324,7 @@ class CameraTools:
         return (roi_pos_world,cam_pos_world)
 
 
-    #-------------------------------------------------------------------------------
+    #---------------------------------------------------------------------------
     # Blender camera tools
 
     @staticmethod
