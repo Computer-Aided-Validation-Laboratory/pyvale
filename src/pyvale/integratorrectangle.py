@@ -10,13 +10,19 @@ from pyvale.integratorspatial import (IIntegratorSpatial,
                                            create_int_pt_array)
 from pyvale.sensordata import SensorData
 
-
-#TODO: Docstrings
-
 #NOTE: code below is very similar to quadrature integrator should be able to
 # refactor into injected classes/functions
 
 class Rectangle2D(IIntegratorSpatial):
+    """Rectangular numerical integrator for spatial averaging in 2D. Used to
+    model spatial averaging of sensors over a rectangular area which is
+    specified in the SensorData object. Handles sampling of the physical field
+    at the integration points and averages them back to a single value per
+    sensor location as specified in the SensorData object.
+
+    Implements the `IIntegratorSpatial` interface allowing for interoperability
+    of different spatial integration algorithms for modelling sensor averaging.
+    """
     __slots__ = ("_field","sens_data","_area","_area_int","_n_int_pts",
                  "_int_pt_offsets","_int_pts","_averages")
 
@@ -24,7 +30,20 @@ class Rectangle2D(IIntegratorSpatial):
                  field: IField,
                  sens_data: SensorData,
                  int_pt_offsets: np.ndarray) -> None:
-
+        """
+        Parameters
+        ----------
+        field : IField
+            A physical field interface that will be sampled at the integration
+            points and averaged back to single value per sensor.
+        sens_data : SensorData
+            Parameters of the sensor array including the sensor locations,
+            sampling times, type of spatial integrator and its dimensions. See
+            the `SensorData` dataclass for more details.
+        int_pt_offsets : np.ndarray
+            Offsets from the central location of the integration area with
+            shape=(n_gauss_pts,coord[X,Y,Z])
+        """
         self._field = field
         self._sens_data = sens_data
 
@@ -41,15 +60,63 @@ class Rectangle2D(IIntegratorSpatial):
 
 
     def calc_integrals(self, sens_data: SensorData | None = None) -> np.ndarray:
+        """Calculates the numerical integrals for each sensor based on the
+        specified sensor data and numerical integration options (i.e. geometry
+        and integration points).
+
+        Parameters
+        ----------
+        sens_data : SensorData | None, optional
+            Specifies the sensor parameters used to calculate the averages, by
+            default None. Is a sensor data object is passed a reference to that
+            object is stored by this class and used in later calculations. If
+            None then it uses the SensorData object stored by this class.
+            Defaults to None.
+
+        Returns
+        -------
+        np.ndarray
+            Array of virtual sensor integrals with shape=(n_sensors,n_comps,
+            n_timsteps). Note this is consistent with pyvales measurement array.
+        """
         self._averages = self.calc_averages(sens_data)
         return self._area*self.get_averages()
 
 
     def get_integrals(self) -> np.ndarray:
+        """Gets the most recent calculation of the spatial averages for all
+        sensors in the sensor array without performing any new interpolation. If
+        the averages have not been calculated they are first calculated and then
+        returned.
+
+        Returns
+        -------
+        np.ndarray
+            Array of virtual sensor averages with shape=(n_sensors,n_comps,
+            n_timsteps). Note this is consistent with pyvales measurement array.
+        """
         return self._area*self.get_averages()
 
     def calc_averages(self, sens_data: SensorData | None = None) -> np.ndarray:
+        """Calculates the spatial averages for each sensor based on the
+        specified sensor data and numerical integration options (i.e. geometry
+        and integration points).
 
+        Parameters
+        ----------
+        sens_data : SensorData | None, optional
+            Specifies the sensor parameters used to calculate the averages, by
+            default None. Is a sensor data object is passed a reference to that
+            object is stored by this class and used in later calculations. If
+            None then it uses the SensorData object stored by this class.
+            Defaults to None.
+
+        Returns
+        -------
+        np.ndarray
+            Array of virtual sensor averages with shape=(n_sensors,n_comps,
+            n_timsteps). Note this is consistent with pyvales measurement array.
+        """
         if sens_data is not None:
             self._sens_data = sens_data
 
@@ -78,6 +145,17 @@ class Rectangle2D(IIntegratorSpatial):
 
 
     def get_averages(self) -> np.ndarray:
+        """Gets the most recent calculation of the spatial averages for all
+        sensors in the sensor array without performing any new interpolation. If
+        the averages have not been calculated they are first calculated and then
+        returned.
+
+        Returns
+        -------
+        np.ndarray
+            Array of virtual sensor averages with shape=(n_sensors,n_comps,
+            n_timsteps). Note this is consistent with pyvales measurement array.
+        """
         if self._averages is None:
             self._averages = self.calc_averages()
 
