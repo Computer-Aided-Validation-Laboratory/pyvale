@@ -4,14 +4,16 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+NOTE: this module is a feature under developement.
+"""
+
 from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 from pyvale.cameradata import CameraData
 from pyvale.rendermesh import RenderMeshData
 import pyvale.cython.rastercyth as rastercyth
-
-# NOTE: This module is a feature under developement.
 
 class RasterCY:
     @staticmethod

@@ -6,9 +6,10 @@
 
 from pathlib import Path
 import numpy as np
-#import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
+import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 # See: https://github.com/pyvista/pyvista/discussions/2928
-#NOTE: causes output to console to be suppressed unfortunately
+# NOTE: causes output to console to be suppressed unfortunately
+# NOTE: May2025 still needs include but does not suppress console output
 import pyvista as pv
 from pyvale.visualopts import (VisOptsSimSensors,
                                     VisOptsImageSave,

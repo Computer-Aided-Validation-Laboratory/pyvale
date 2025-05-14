@@ -4,11 +4,12 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+NOTE: this module is a feature under developement.
+"""
+
 from abc import ABC, abstractmethod
 import numpy as np
-
-# NOTE: This module is a feature under developement.
-
 
 # NOTE:
 # - Need to render a single frame static/deformed

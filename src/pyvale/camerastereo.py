@@ -4,6 +4,10 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+NOTE: This module is a feature under developement.
+"""
+
 from typing import Self
 from pathlib import Path
 import numpy as np
@@ -12,7 +16,6 @@ from scipy.spatial.transform import Rotation
 from pyvale.cameradata import CameraData
 from pyvale.pyvaleexceptions import BlenderError
 
-# TODO: docstrings
 
 class CameraStereo:
     __slots__ = ("cam_data_0","cam_data_1","stereo_dist","stereo_rotation")

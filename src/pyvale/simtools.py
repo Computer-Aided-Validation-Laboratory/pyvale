@@ -2,11 +2,11 @@
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ==========================================================================================================================================================
+# ==============================================================================
 import numpy as np
 from pyvale.rendermesh import RenderMeshData
 
-class SimTools():
+class SimTools:
     """Namespace for tools required for handling simulation results.
     """
 

@@ -4,6 +4,10 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+NOTE: This module is a feature under developement.
+"""
+
 import time
 import warnings
 from dataclasses import dataclass

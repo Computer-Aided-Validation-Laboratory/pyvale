@@ -4,6 +4,10 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+NOTE: this module is a feature under developement.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 

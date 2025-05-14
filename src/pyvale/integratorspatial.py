@@ -71,7 +71,7 @@ class IIntegratorSpatial(ABC):
             Array of simulated sensor measurements. shape=(num_sensors,
             num_field_components,num_time_steps).
         """
-        pass
+
 
     @abstractmethod
     def get_averages(self) -> np.ndarray:
@@ -85,5 +85,5 @@ class IIntegratorSpatial(ABC):
             Array of simulated sensor measurements. shape=(num_sensors,
             num_field_components,num_time_steps).
         """
-        pass
+
 

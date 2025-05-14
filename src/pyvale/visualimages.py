@@ -4,13 +4,15 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+NOTE: this module is a feature under developement.
+"""
+
 from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
 from pyvale.camera import CameraBasic2D
 from pyvale.visualopts import PlotOptsGeneral
-
-# NOTE: This module is a feature under developement.
 
 # TODO: this only works for a 2D camera, maybe this should be deprecated
 def plot_measurement_image(camera: CameraBasic2D,

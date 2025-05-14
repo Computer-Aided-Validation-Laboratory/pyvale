@@ -4,6 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+This module contains a set of functions for transforming vector and tensor
+fields based on an input transformation matrix.
+"""
+
 import numpy as np
 
 def transform_vector_2d(trans_mat: np.ndarray, vector: np.ndarray
