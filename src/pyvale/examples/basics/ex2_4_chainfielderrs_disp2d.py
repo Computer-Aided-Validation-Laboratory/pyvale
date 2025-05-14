@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Pyvale example: Sensor angles for vector fields
+Pyvale example: Chaining field errors
 ----------------------------------------------------------------------------
 In this example we show how field errors can be chained together and accumulated
 allowing for successive perturbations in postion, sampling time and orientation.
