@@ -41,11 +41,9 @@ jobs:
           config-file: "{package}/pyproject.toml"
         env:
           CIBW_ENVIRONMENT_MACOS: >
-            CC=$(which gcc-14)
-            CXX=$(which g++-14)
-            LDSHARED="$CXX -shared"
-            CPPFLAGS="-I$(python3 -c 'import sysconfig; print(sysconfig.get_path("include"))')"
-            LDFLAGS="-L$(python3 -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))') -lpython3.11"
+            CC=gcc-14
+            CXX=g++-14
+            LDSHARED="g++14 -shared"
       - uses: actions/upload-artifact@v4
         with:
           name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}
