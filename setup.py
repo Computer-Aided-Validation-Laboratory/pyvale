@@ -3,6 +3,11 @@ from setuptools import  setup, find_packages, Extension
 from Cython.Build import cythonize
 import numpy
 import sys
+import os
+
+# set to compile with gnu GCC
+os.environ["CC"] = "g++"
+
 
 here = pathlib.Path(__file__).parent.resolve()
 long_description = (here / "README.md").read_text(encoding="utf-8")
