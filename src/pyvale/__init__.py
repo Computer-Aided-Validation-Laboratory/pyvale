@@ -63,7 +63,7 @@ from pyvale.generatorsrandom import *
 
 from pyvale.visualopts import *
 from pyvale.visualtools import *
-from pyvale.visualsimplotter import *
+from pyvale.visualsimsensors import *
 from pyvale.visualsimanimator import *
 from pyvale.visualexpplotter import *
 from pyvale.visualtraceplotter import *

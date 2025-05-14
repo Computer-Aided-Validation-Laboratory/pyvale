@@ -4,6 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+This module contains function for plotting virtuals sensor trace summary
+statistics and uncertainty bounds over simulated experiments.
+"""
+
 from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +19,6 @@ from pyvale.visualopts import (PlotOptsGeneral,
                                EExpVisCentre)
 from pyvale.experimentsimulator import ExperimentSimulator
 
-#TODO: Docstrings
 
 def plot_exp_traces(exp_sim: ExperimentSimulator,
                     component: str,
@@ -22,7 +26,38 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
                     sim_num: int,
                     trace_opts: TraceOptsExperiment | None = None,
                     plot_opts: PlotOptsGeneral | None = None) -> tuple[Any,Any]:
+    """_summary_
 
+    Parameters
+    ----------
+    exp_sim : ExperimentSimulator
+        Experiment simulation object containing the set of virtual experiment to
+        be plotted.
+    component : str
+        String key for the field component to plot.
+    sens_array_num : int
+        List index for the sensor array to plot.
+    sim_num : int
+        Index for the simulation to plot.
+    trace_opts : TraceOptsExperiment | None, optional
+        Dataclass containing specific options for controlling the plot
+        appearance, by default None. If None the default options are used.
+    plot_opts : PlotOptsGeneral | None, optional
+        Dataclass containing general options for formatting plots and
+        visualisations, by default None. If None the default options are used.
+
+    Returns
+    -------
+    tuple[Any,Any]
+        A tuple containing a handle to the matplotlib figure and axis objects:
+        (fig,ax).
+
+    Raises
+    ------
+    VisError
+        There are no virtual experiments or virtuale experiment stats to plot in
+        the ExperimentSimulator object. Call 'run_experiments' and 'calc_stats'.
+    """
     if trace_opts is None:
         trace_opts = TraceOptsExperiment()
 

@@ -4,6 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+This module contains functions for visualising virtual sensors on a simulation
+mesh using pyvista.
+"""
+
 import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 # See: https://github.com/pyvista/pyvista/discussions/2928
 #NOTE: causes output to console to be suppressed unfortunately
@@ -20,8 +25,6 @@ from pyvale.visualtools import (create_pv_plotter,
                                      get_colour_lims,
                                      save_image)
 
-
-#TODO: Docstrings
 
 def add_sim_field(pv_plot: pv.Plotter,
                   sensor_array: SensorArrayPoint,

@@ -4,6 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+This module contains functions for animating simulation fields including
+visualisation of virtual sensor locations on the simulation mesh using pyvista.
+"""
+
 import numpy as np
 #import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 # See: https://github.com/pyvista/pyvista/discussions/2928
@@ -12,11 +17,11 @@ import pyvista as pv
 from pyvale.sensorarraypoint import SensorArrayPoint
 from pyvale.visualopts import VisOptsSimSensors, VisOptsAnimation
 from pyvale.visualtools import (create_pv_plotter,
-                                     get_colour_lims,
-                                     set_animation_writer)
-from pyvale.visualsimplotter import (add_sensor_points_nom,
-                                          add_sensor_points_pert,
-                                          add_sim_field)
+                                get_colour_lims,
+                                set_animation_writer)
+from pyvale.visualsimsensors import (add_sensor_points_nom,
+                                     add_sensor_points_pert,
+                                     add_sim_field)
 
 #TODO: Docstrings
 
