@@ -4,17 +4,24 @@
    contain the root `toctree` directive.
 
 
-.. image:: ./logo.png
+.. image:: _static/logo_no_background_inverted.png
    :alt: Pyvale Logo
+   :class: only-dark
+
+.. image:: _static/logo_no_background.png
+   :alt: Pyvale Logo
+   :class: only-light
 
 
-
-======
-The python validation engine (pyvale): An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation.
+The Python Validation Engine
+=============================
+An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation.
 Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. 
 Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
 
-**Useful links:** `Installation <https://github.com/Computer-Aided-Validation-Laboratory/pyvale>`_ | `Source Repository <https://github.com/Computer-Aided-Validation-Laboratory/pyvale>`_ | `Paper <https://github.com/Computer-Aided-Validation-Laboratory/pyvale>`_
+**Current Release:**  |release|
+
+**Useful links:**  | `Source Repository <https://github.com/Computer-Aided-Validation-Laboratory/pyvale>`_ | `Issues  <https://github.com/Computer-Aided-Validation-Laboratory/pyvale/issues>`_ | `PyPI <https://pypi.org/project/pyvale/>`_ | `MIT License <https://choosealicense.com/licenses/mit/>`_ |
 
 .. toctree::
    :maxdepth: 1
@@ -22,23 +29,24 @@ Useful for experimental design, sensor placement optimisation, testing simulatio
 
    install
    guide
-   example
-   api
-    
+   examples/example
+   api_py
+   api_cpp
+   cite
 
 Contributors
 ------------
 
-The Computer Aided Validation Team at UKAEA:
+The Computer Aided Validation Team at United Kingdom Atomic Energy Authority (UKAEA):
 
-   #. Lloyd Fletcher (`ScepticalRabbit <https://github.com/ScepticalRabbit>`_), UK Atomic Energy Authority
-   #. John Charlton  (`coolmule0 <https://github.com/coolmule0>`_), UK Atomic Energy Authority
-   #. Joel Hirst (`JoelPhys <https://github.com/JoelPhys>`_), UK Atomic Energy Authority
-   #. Lorna Sibson (`lornasibson <https://github.com/lornasibsin>`_), UK Atomic Energy Authority
-   #. Adel Tayeb, UK Atomic Energy Authority
-   #. Alex Marsh, UK Atomic Energy Authority
-   #. Rory Spencer, UK Atomic Energy Authority
-   #. Michael Atkinson, UK Atomic Energy Authority
+* Lloyd Fletcher (`ScepticalRabbit <https://github.com/ScepticalRabbit>`_), UK Atomic Energy Authority
+* John Charlton  (`coolmule0 <https://github.com/coolmule0>`_), UK Atomic Energy Authority
+* Joel Hirst (`JoelPhys <https://github.com/JoelPhys>`_), UK Atomic Energy Authority
+* Lorna Sibson (`lornasibson <https://github.com/lornasibsin>`_), UK Atomic Energy Authority
+* Megan Sampson (`megan sampson <https://github.com/meganasampson>`_), UK Atomic Energy Authority
+* Adel Tayeb (`3adelTayeb <https://github.com/3adelTayeb>`_), UK Atomic Energy Authority
+* Alex Marsh (`alexmarsh2 <https://github.com/alexmarsh2>`_), UK Atomic Energy Authority
+* Rory Spencer (`fusmatr <https://github.com/fusmatrs>`_), UK Atomic Energy Authority
 
 
 
