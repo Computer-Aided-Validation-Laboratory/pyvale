@@ -1,0 +1,4 @@
+Multi-physics experiment simulation in 3D
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex4_2_expsim3d_thermmech3d.py
+   :language: python

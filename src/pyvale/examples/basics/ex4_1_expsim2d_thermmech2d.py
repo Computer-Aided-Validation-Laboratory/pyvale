@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Pyvale example: Multi-physics experiments simulation in 2D
+"""Pyvale example: Multi-physics experiment simulation in 2D
 --------------------------------------------------------------------------------
 In previous examples we have built our virtual sensor array and used this to
 run a single simulated experiment. However, we will generally want to run many

@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Pyvale example: Multi-physics experiments simulation in 3D
+"""Pyvale example: Multi-physics experiment simulation in 3D
 --------------------------------------------------------------------------------
 In the previous example we performed a series of simulated experiments on a set
 of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of

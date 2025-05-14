@@ -1,4 +1,4 @@
-Chaining field errors
+3D vector field sensors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. literalinclude:: ../../../../src/pyvale/examples/basics/ex2_4_chainfielderrs_disp2d.py
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex2_5_vectorfields3d_disp3d.py
    :language: python
