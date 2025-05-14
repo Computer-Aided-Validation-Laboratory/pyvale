@@ -23,7 +23,7 @@ from pyvale.fieldconverter import simdata_to_pyvista
 from pyvale.visualopts import (VisOptsSimSensors,VisOptsImageSave)
 from pyvale.visualtools import (create_pv_plotter,
                                      get_colour_lims,
-                                     save_image)
+                                     save_pv_image)
 
 
 def add_sim_field(pv_plot: pv.Plotter,
@@ -181,7 +181,7 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
     pv_plot.camera_position = vis_opts.camera_position
 
     if image_save_opts is not None:
-        save_image(pv_plot,image_save_opts)
+        save_pv_image(pv_plot,image_save_opts)
 
     return pv_plot
 

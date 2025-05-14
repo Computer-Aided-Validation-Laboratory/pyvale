@@ -26,7 +26,8 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
                     sim_num: int,
                     trace_opts: TraceOptsExperiment | None = None,
                     plot_opts: PlotOptsGeneral | None = None) -> tuple[Any,Any]:
-    """_summary_
+    """Plots time traces for summary statistics of virtual sensor traces over
+    a series of virtual experiments.
 
     Parameters
     ----------
