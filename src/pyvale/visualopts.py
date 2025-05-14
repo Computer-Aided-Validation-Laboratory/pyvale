@@ -387,17 +387,17 @@ class VisOptsSimSensors:
     time step label is not shown. Defaults to "upper_left".
     """
 
-    time_label_font_size: float = 12.0
+    time_label_font_size: int = 12
     """Font size for the simulation time step label on the canvas. Defaults to
-    12.0.
+    12.
     """
 
     colour_bar_show: bool = True
     """Flag to show the colourbar for the simulation field. Defaults to True.
     """
 
-    colour_bar_font_size: float = 18.0
-    """Font size for the colourbar.
+    colour_bar_font_size: int = 18
+    """Font size for the colourbar. Defaults to 18.
     """
 
     colour_bar_lims: tuple[float,float] | None = None
@@ -428,7 +428,7 @@ class VisOptsSimSensors:
     """Size for the markers used to show the sensor locations on the mesh.
     """
 
-    sens_label_font_size: float = 30.0
+    sens_label_font_size: int = 30
     """Font size for the sensor marker labels.
     """
 
