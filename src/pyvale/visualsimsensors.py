@@ -6,7 +6,7 @@
 
 """
 This module contains functions for visualising virtual sensors on a simulation
-mesh using pyvista.
+mesh with simulated fields using pyvista.
 """
 
 import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
@@ -32,7 +32,26 @@ def add_sim_field(pv_plot: pv.Plotter,
                   time_step: int,
                   vis_opts: VisOptsSimSensors,
                   ) -> tuple[pv.Plotter,pv.UnstructuredGrid]:
+    """_summary_
 
+    Parameters
+    ----------
+    pv_plot : pv.Plotter
+        _description_
+    sensor_array : SensorArrayPoint
+        _description_
+    component : str
+        _description_
+    time_step : int
+        _description_
+    vis_opts : VisOptsSimSensors
+        _description_
+
+    Returns
+    -------
+    tuple[pv.Plotter,pv.UnstructuredGrid]
+        _description_
+    """
     sim_vis = sensor_array.field.get_visualiser()
     sim_data = sensor_array.field.get_sim_data()
     sim_vis[component] = sim_data.node_vars[component][:,time_step]
@@ -66,7 +85,22 @@ def add_sensor_points_nom(pv_plot: pv.Plotter,
                           sensor_array: SensorArrayPoint,
                           vis_opts: VisOptsSimSensors,
                           ) -> pv.Plotter:
+    """_summary_
 
+    Parameters
+    ----------
+    pv_plot : pv.Plotter
+        _description_
+    sensor_array : SensorArrayPoint
+        _description_
+    vis_opts : VisOptsSimSensors
+        _description_
+
+    Returns
+    -------
+    pv.Plotter
+        _description_
+    """
     vis_sens_nominal = pv.PolyData(sensor_array.sensor_data.positions)
     vis_sens_nominal["labels"] = sensor_array.descriptor.create_sensor_tags(
     sensor_array.get_measurement_shape()[0])
@@ -87,7 +121,22 @@ def add_sensor_points_pert(pv_plot: pv.Plotter,
                            sensor_array: SensorArrayPoint,
                            vis_opts: VisOptsSimSensors,
                            ) -> pv.Plotter:
+    """_summary_
 
+    Parameters
+    ----------
+    pv_plot : pv.Plotter
+        _description_
+    sensor_array : SensorArrayPoint
+        _description_
+    vis_opts : VisOptsSimSensors
+        _description_
+
+    Returns
+    -------
+    pv.Plotter
+        _description_
+    """
     sens_data_perturbed = sensor_array.get_sensor_data_perturbed()
 
     if sens_data_perturbed is not None and vis_opts.show_perturbed_pos:
@@ -109,7 +158,22 @@ def plot_sim_mesh(sim_data: mh.SimData,
                   elem_dims: int,
                   vis_opts: VisOptsSimSensors | None = None,
                   ) -> pv.Plotter:
+    """_summary_
 
+    Parameters
+    ----------
+    sim_data : mh.SimData
+        _description_
+    elem_dims : int
+        _description_
+    vis_opts : VisOptsSimSensors | None, optional
+        _description_, by default None
+
+    Returns
+    -------
+    pv.Plotter
+        _description_
+    """
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
@@ -131,7 +195,26 @@ def plot_sim_data(sim_data: mh.SimData,
                   time_step: int = -1,
                   vis_opts: VisOptsSimSensors | None = None
                   ) -> pv.Plotter:
+    """_summary_
 
+    Parameters
+    ----------
+    sim_data : mh.SimData
+        _description_
+    component : str
+        _description_
+    elem_dims : int
+        _description_
+    time_step : int, optional
+        _description_, by default -1
+    vis_opts : VisOptsSimSensors | None, optional
+        _description_, by default None
+
+    Returns
+    -------
+    pv.Plotter
+        _description_
+    """
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
@@ -159,7 +242,26 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
                               vis_opts: VisOptsSimSensors | None = None,
                               image_save_opts: VisOptsImageSave | None = None,
                               ) -> pv.Plotter:
+    """_summary_
 
+    Parameters
+    ----------
+    sensor_array : SensorArrayPoint
+        _description_
+    component : str
+        _description_
+    time_step : int, optional
+        _description_, by default -1
+    vis_opts : VisOptsSimSensors | None, optional
+        _description_, by default None
+    image_save_opts : VisOptsImageSave | None, optional
+        _description_, by default None
+
+    Returns
+    -------
+    pv.Plotter
+        _description_
+    """
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 

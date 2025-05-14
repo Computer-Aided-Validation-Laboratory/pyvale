@@ -23,7 +23,6 @@ from pyvale.visualsimsensors import (add_sensor_points_nom,
                                      add_sensor_points_pert,
                                      add_sim_field)
 
-#TODO: Docstrings
 
 def animate_sim_with_sensors(sensor_array: SensorArrayPoint,
                             component: str,
@@ -31,7 +30,32 @@ def animate_sim_with_sensors(sensor_array: SensorArrayPoint,
                             vis_opts: VisOptsSimSensors | None = None,
                             anim_opts: VisOptsAnimation | None = None,
                             ) -> pv.Plotter:
+    """Creates an animation of the simulation fields using pyvista showing the
+    virtual sensor locations during the animation.
 
+    Parameters
+    ----------
+    sensor_array : SensorArrayPoint
+        Sensor array that will be displayed on the simulation while the
+        simulation results are animated.
+    component : str
+        String key for the field component to animate.
+    time_steps : np.ndarray | None, optional
+        Time steps over which to creatre the animation, by default None. If None
+        then the animation is performed over all time steps.
+    vis_opts : VisOptsSimSensors | None, optional
+        Dataclass containing options for controlling the appearance of the
+        virtual sensors, by default None. If None a default options dataclass is
+        created.
+    anim_opts : VisOptsAnimation | None, optional
+        Dataclass containing options for controlling the animation output, by
+        default None. If None then a default options dataclass is created.
+
+    Returns
+    -------
+    pv.Plotter
+        Handle to the pyvista plotter object used to create the animation.
+    """
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
