@@ -21,7 +21,12 @@ jobs:
         run: |
           echo "CC=gcc-14" >> $GITHUB_ENV
           echo "CXX=g++-14" >> $GITHUB_ENV
-
+          if [[ "$RUNNER_OS" == "macOS" && "$RUNNER_OS_VERSION" == "macOS 13" ]]; then
+            echo "MACOSX_DEPLOYMENT_TARGET=13.0" >> $GITHUB_ENV
+          fi
+          if [[ "$RUNNER_OS" == "macOS" && "$RUNNER_OS_VERSION" == "macOS 14" ]]; then
+            echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> $GITHUB_ENV
+          fi
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
