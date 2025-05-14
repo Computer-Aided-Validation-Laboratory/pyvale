@@ -44,6 +44,8 @@ jobs:
             CC=$(which gcc-14)
             CXX=$(which g++-14)
             LDSHARED="$CXX -shared"
+            CPPFLAGS="-I$(python3 -c 'import sysconfig; print(sysconfig.get_path("include"))')"
+            LDFLAGS="-L$(python3 -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))') -lpython3.11"
       - uses: actions/upload-artifact@v4
         with:
           name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}
