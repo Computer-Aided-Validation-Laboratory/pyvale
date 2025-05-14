@@ -1,4 +1,4 @@
-Basics of pyvale point sensor simulation
+Basics of `pyvale`` point sensor simulation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. literalinclude:: ../../../../src/pyvale/examples/basics/ex1_1_basicscalars_therm2d.py
    :language: python
