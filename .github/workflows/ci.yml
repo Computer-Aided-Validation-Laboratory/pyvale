@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ test-github-actions ]
+    branches: [ temp ]
   pull_request:
-    branches: [ test-github-actions ]
+    branches: [ temp ]
   # Allow manual triggering of the workflow
   workflow_dispatch:
 
