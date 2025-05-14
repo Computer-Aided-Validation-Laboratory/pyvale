@@ -39,6 +39,8 @@ class DriftConstant(IDriftCalculator):
 
     Implements the IDriftCalculator interface.
     """
+    __slots__ = ("_offset",)
+
     def __init__(self, offset: float) -> None:
         """
         Parameters
@@ -71,6 +73,7 @@ class DriftLinear(IDriftCalculator):
 
     Implements the IDriftCalculator interface.
     """
+    __slots__ = ("_slope","_offset")
 
     def __init__(self, slope: float, offset: float = 0.0) -> None:
         """
@@ -109,6 +112,8 @@ class DriftPolynomial(IDriftCalculator):
 
     Implements the IDriftCalculator interface.
     """
+
+    __slots__ = ("_coeffs",)
 
     def __init__(self, coeffs: np.ndarray) -> None:
         """

@@ -52,8 +52,8 @@ class SensorArrayPoint(ISensorArray):
     simulated physical fields quickly using finite element shape functions.
     """
 
-    __slots__ = ("field","descriptor","sensor_data","_truth","_measurements",
-                 "error_integrator")
+    __slots__ = ("_field","_descriptor","_sensor_data","_truth","_measurements",
+                 "_error_integrator")
 
     def __init__(self,
                  sensor_data: SensorData,
@@ -74,13 +74,13 @@ class SensorArrayPoint(ISensorArray):
             Contains descriptive information about the sensor array for display
             and visualisations, by default None.
         """
-        self.sensor_data = sensor_data
-        self.field = field
-        self.error_integrator = None
+        self._sensor_data = sensor_data
+        self._field = field
+        self._error_integrator = None
 
-        self.descriptor = SensorDescriptor()
+        self._descriptor = SensorDescriptor()
         if descriptor is not None:
-            self.descriptor = descriptor
+            self._descriptor = descriptor
 
         self._truth = None
         self._measurements = None
@@ -95,10 +95,10 @@ class SensorArrayPoint(ISensorArray):
         np.ndarray
             Sample times with shape: (num_time_steps,)
         """
-        if self.sensor_data.sample_times is None:
-            return self.field.get_time_steps()
+        if self._sensor_data.sample_times is None:
+            return self._field.get_time_steps()
 
-        return self.sensor_data.sample_times
+        return self._sensor_data.sample_times
 
     def get_measurement_shape(self) -> tuple[int,int,int]:
         """Gets the shape of the sensor measurement array. shape=(num_sensors,
@@ -111,8 +111,8 @@ class SensorArrayPoint(ISensorArray):
             num_field_components,num_time_steps)
         """
 
-        return (self.sensor_data.positions.shape[0],
-                len(self.field.get_all_components()),
+        return (self._sensor_data.positions.shape[0],
+                len(self._field.get_all_components()),
                 self.get_sample_times().shape[0])
 
     def get_field(self) -> IField:
@@ -124,7 +124,7 @@ class SensorArrayPoint(ISensorArray):
         IField
             Reference to an `IField` interface.
         """
-        return self.field
+        return self._field
 
 
     def calc_truth_values(self) -> np.ndarray:
@@ -138,8 +138,8 @@ class SensorArrayPoint(ISensorArray):
             Array of ground truth sensor values. shape=(num_sensors,
             num_field_components,num_time_steps).
         """
-        self._truth = sample_field_with_sensor_data(self.field,
-                                                    self.sensor_data)
+        self._truth = sample_field_with_sensor_data(self._field,
+                                                    self._sensor_data)
 
         return self._truth
 
@@ -169,7 +169,7 @@ class SensorArrayPoint(ISensorArray):
         err_int : ErrIntegrator
             Error integration object with a chain of user defined sensor errors.
         """
-        self.error_integrator = err_int
+        self._error_integrator = err_int
 
     def get_sensor_data_perturbed(self) -> SensorData | None:
         """Gets the final sensor array parameters after all errors in the error
@@ -182,10 +182,10 @@ class SensorArrayPoint(ISensorArray):
             The accumulated sensor array parameters as a SensorData object.
             Returns None if no error integrator has been specified.
         """
-        if self.error_integrator is None:
+        if self._error_integrator is None:
             return None
 
-        return self.error_integrator.get_sens_data_accumulated()
+        return self._error_integrator.get_sens_data_accumulated()
 
     def get_errors_systematic(self) -> np.ndarray | None:
         """Gets the systematic error array from the previously calculated sensor
@@ -198,10 +198,10 @@ class SensorArrayPoint(ISensorArray):
             ,num_field_components,num_time_steps). Returns None if no error
             integrator has been set.
         """
-        if self.error_integrator is None:
+        if self._error_integrator is None:
             return None
 
-        return self.error_integrator.get_errs_systematic()
+        return self._error_integrator.get_errs_systematic()
 
     def get_errors_random(self) -> np.ndarray | None:
         """Gets the random error array from the previously calculated sensor
@@ -214,10 +214,10 @@ class SensorArrayPoint(ISensorArray):
             ,num_field_components,num_time_steps). Returns None if no error
             integrator has been set.
         """
-        if self.error_integrator is None:
+        if self._error_integrator is None:
             return None
 
-        return self.error_integrator.get_errs_random()
+        return self._error_integrator.get_errs_random()
 
     def get_errors_total(self) -> np.ndarray | None:
         """Gets the total error array from the previously calculated sensor
@@ -230,10 +230,10 @@ class SensorArrayPoint(ISensorArray):
             ,num_field_components,num_time_steps). Returns None if no error
             integrator has been set.
         """
-        if self.error_integrator is None:
+        if self._error_integrator is None:
             return None
 
-        return self.error_integrator.get_errs_total()
+        return self._error_integrator.get_errs_total()
 
     def calc_measurements(self) -> np.ndarray:
         """Calculates a set of sensor measurements using the specified sensor
@@ -252,11 +252,11 @@ class SensorArrayPoint(ISensorArray):
             systematic errors if an error integrator is specified. shape=(
             num_sensors,num_field_components,num_time_steps).
         """
-        if self.error_integrator is None:
+        if self._error_integrator is None:
             self._measurements = self.get_truth()
         else:
             self._measurements = self.get_truth() + \
-                self.error_integrator.calc_errors_from_chain(self.get_truth())
+                self._error_integrator.calc_errors_from_chain(self.get_truth())
 
         return self._measurements
 

@@ -60,12 +60,12 @@ def add_sim_field(pv_plot: pv.Plotter,
         visualisation added and the pyvistas unstructured grid that was used to
         plot the field.
     """
-    sim_vis = sensor_array.field.get_visualiser()
-    sim_data = sensor_array.field.get_sim_data()
+    sim_vis = sensor_array._field.get_visualiser()
+    sim_data = sensor_array._field.get_sim_data()
     sim_vis[component] = sim_data.node_vars[component][:,time_step]
-    comp_ind = sensor_array.field.get_component_index(component)
+    comp_ind = sensor_array._field.get_component_index(component)
 
-    scalar_bar_args = {"title":sensor_array.descriptor.create_label(comp_ind),
+    scalar_bar_args = {"title":sensor_array._descriptor.create_label(comp_ind),
                         "vertical":vis_opts.colour_bar_vertical,
                         "title_font_size":vis_opts.colour_bar_font_size,
                         "label_font_size":vis_opts.colour_bar_font_size}
@@ -81,7 +81,7 @@ def add_sim_field(pv_plot: pv.Plotter,
 
     if vis_opts.time_label_pos is not None:
         pv_plot.add_text(f"Time: {sim_data.time[time_step]} " + \
-                            f"{sensor_array.descriptor.time_units}",
+                            f"{sensor_array._descriptor.time_units}",
                             position=vis_opts.time_label_pos,
                             font_size=vis_opts.time_label_font_size,
                             name='time-label')
@@ -113,8 +113,8 @@ def add_sensor_points_nom(pv_plot: pv.Plotter,
     pv.Plotter
         Pyvista plotter which has had the virtual sensor locations added.
     """
-    vis_sens_nominal = pv.PolyData(sensor_array.sensor_data.positions)
-    vis_sens_nominal["labels"] = sensor_array.descriptor.create_sensor_tags(
+    vis_sens_nominal = pv.PolyData(sensor_array._sensor_data.positions)
+    vis_sens_nominal["labels"] = sensor_array._descriptor.create_sensor_tags(
     sensor_array.get_measurement_shape()[0])
 
     # Add points to show sensor locations
@@ -294,7 +294,7 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    sim_data = sensor_array.field.get_sim_data()
+    sim_data = sensor_array._field.get_sim_data()
     vis_opts.colour_bar_lims = get_colour_lims(
         sim_data.node_vars[component][:,time_step],
         vis_opts.colour_bar_lims)

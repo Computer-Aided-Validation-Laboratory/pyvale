@@ -65,13 +65,13 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
 
-    descriptor = exp_sim.sensor_arrays[sens_array_num].descriptor
-    comp_ind = exp_sim.sensor_arrays[sens_array_num].field.get_component_index(component)
-    samp_time = exp_sim.sensor_arrays[sens_array_num].get_sample_times()
-    num_sens = exp_sim.sensor_arrays[sens_array_num].get_measurement_shape()[0]
+    descriptor = exp_sim._sensor_arrays[sens_array_num].descriptor
+    comp_ind = exp_sim._sensor_arrays[sens_array_num].field.get_component_index(component)
+    samp_time = exp_sim._sensor_arrays[sens_array_num].get_sample_times()
+    num_sens = exp_sim._sensor_arrays[sens_array_num].get_measurement_shape()[0]
 
-    exp_data = exp_sim.exp_data
-    exp_stats = exp_sim.exp_stats
+    exp_data = exp_sim._exp_data
+    exp_stats = exp_sim._exp_stats
 
     if exp_data is None or exp_stats is None:
         raise VisError("Before visualising virtual experiment traces the " \
@@ -92,7 +92,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     # Plot all simulated experimental points
     if trace_opts.plot_all_exp_points:
         for ss in sensors_to_plot:
-            for ee in range(exp_sim.num_exp_per_sim):
+            for ee in range(exp_sim._num_exp_per_sim):
                 ax.plot(samp_time,
                         exp_data[sens_array_num][sim_num,ee,ss,comp_ind,:],
                         "+",
@@ -147,9 +147,9 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     #---------------------------------------------------------------------------
     # Plot simulation and truth line
     if trace_opts.sim_line is not None:
-        sim_time = exp_sim.sensor_arrays[sens_array_num].field.get_time_steps()
-        sim_vals = exp_sim.sensor_arrays[sens_array_num].field.sample_field(
-                    exp_sim.sensor_arrays[sens_array_num].positions)
+        sim_time = exp_sim._sensor_arrays[sens_array_num].field.get_time_steps()
+        sim_vals = exp_sim._sensor_arrays[sens_array_num].field.sample_field(
+                    exp_sim._sensor_arrays[sens_array_num].positions)
 
         for ss in sensors_to_plot:
             ax.plot(sim_time,
@@ -159,7 +159,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
                     ms=plot_opts.ms)
 
     if trace_opts.truth_line is not None:
-        truth = exp_sim.sensor_arrays[sens_array_num].get_truth()
+        truth = exp_sim._sensor_arrays[sens_array_num].get_truth()
         for ss in sensors_to_plot:
             ax.plot(samp_time,
                     truth[ss,comp_ind,:],

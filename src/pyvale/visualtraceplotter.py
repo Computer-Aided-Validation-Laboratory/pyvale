@@ -43,16 +43,16 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         (fig,ax).
     """
     #---------------------------------------------------------------------------
-    field = sensor_array.field
+    field = sensor_array._field
     samp_time = sensor_array.get_sample_times()
     measurements = sensor_array.get_measurements()
-    num_sens = sensor_array.sensor_data.positions.shape[0]
-    descriptor = sensor_array.descriptor
+    num_sens = sensor_array._sensor_data.positions.shape[0]
+    descriptor = sensor_array._descriptor
     sensors_perturbed = sensor_array.get_sensor_data_perturbed()
 
     comp_ind = 0
     if component is not None:
-        comp_ind = sensor_array.field.get_component_index(component)
+        comp_ind = sensor_array._field.get_component_index(component)
 
     #---------------------------------------------------------------------------
     if plot_opts is None:
@@ -76,9 +76,9 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     # Plot simulation and truth lines
     if trace_opts.sim_line is not None:
         sim_time = field.get_time_steps()
-        sim_vals = field.sample_field(sensor_array.sensor_data.positions,
+        sim_vals = field.sample_field(sensor_array._sensor_data.positions,
                                       None,
-                                      sensor_array.sensor_data.angles)
+                                      sensor_array._sensor_data.angles)
 
         for ii,ss in enumerate(sensors_to_plot):
             ax.plot(sim_time,

@@ -58,10 +58,10 @@ class ErrIntegrator:
     The user can control how the errors are calculated using the `ErrIntOpts`
     dataclass.
     """
-    __slots__ = ("err_chain","meas_shape","errs_by_chain",
-                 "errs_systematic","errs_random","errs_total",
-                 "sens_data_by_chain","err_int_opts","sens_data_accumulated",
-                 "sens_data_initial")
+    __slots__ = ("_err_chain","_meas_shape","_errs_by_chain",
+                 "_errs_systematic","_errs_random","_errs_total",
+                 "_sens_data_by_chain","_err_int_opts","_sens_data_accumulated",
+                 "_sens_data_initial")
 
     def __init__(self,
                  err_chain: list[IErrCalculator],
@@ -86,27 +86,27 @@ class ErrIntegrator:
         """
 
         if err_int_opts is None:
-            self.err_int_opts = ErrIntOpts()
+            self._err_int_opts = ErrIntOpts()
         else:
-            self.err_int_opts = err_int_opts
+            self._err_int_opts = err_int_opts
 
         self.set_error_chain(err_chain)
-        self.meas_shape = meas_shape
+        self._meas_shape = meas_shape
 
-        self.sens_data_initial = copy.deepcopy(sensor_data_initial)
-        self.sens_data_accumulated = copy.deepcopy(sensor_data_initial)
+        self._sens_data_initial = copy.deepcopy(sensor_data_initial)
+        self._sens_data_accumulated = copy.deepcopy(sensor_data_initial)
 
-        if self.err_int_opts.store_all_errs:
-            self.sens_data_by_chain = []
-            self.errs_by_chain = np.zeros((len(self.err_chain),)+ \
-                                               self.meas_shape)
+        if self._err_int_opts.store_all_errs:
+            self._sens_data_by_chain = []
+            self._errs_by_chain = np.zeros((len(self._err_chain),)+ \
+                                               self._meas_shape)
         else:
-            self.sens_data_by_chain = None
-            self.errs_by_chain = None
+            self._sens_data_by_chain = None
+            self._errs_by_chain = None
 
-        self.errs_systematic = np.zeros(meas_shape)
-        self.errs_random = np.zeros(meas_shape)
-        self.errs_total = np.zeros(meas_shape)
+        self._errs_systematic = np.zeros(meas_shape)
+        self._errs_random = np.zeros(meas_shape)
+        self._errs_total = np.zeros(meas_shape)
 
 
     def set_error_chain(self, err_chain: list[IErrCalculator]) -> None:
@@ -120,11 +120,11 @@ class ErrIntegrator:
         err_chain : list[IErrCalculator]
             List of error calculators implementing the IErrCalculator interface.
         """
-        self.err_chain = err_chain
+        self._err_chain = err_chain
 
-        if self.err_int_opts.force_dependence is not None:
-            for ee in self.err_chain:
-                ee.set_error_dep(self.err_int_opts.force_dependence)
+        if self._err_int_opts.force_dependence is not None:
+            for ee in self._err_chain:
+                ee.set_error_dep(self._err_int_opts.force_dependence)
 
 
     def calc_errors_from_chain(self, truth: np.ndarray) -> np.ndarray:
@@ -152,7 +152,7 @@ class ErrIntegrator:
             Array of total errors summed over all errors in the chain. shape=(
             num_sensors,num_field_components,num_time_steps).
         """
-        if self.err_int_opts.store_all_errs:
+        if self._err_int_opts.store_all_errs:
             return self._calc_errors_store_by_chain(truth)
 
         return self._calc_errors_mem_eff(truth)
@@ -178,32 +178,32 @@ class ErrIntegrator:
             num_sensors,num_field_components,num_time_steps).
         """
         accumulated_error = np.zeros_like(truth)
-        self.errs_by_chain = np.zeros((len(self.err_chain),) + \
-                                           self.meas_shape)
+        self._errs_by_chain = np.zeros((len(self._err_chain),) + \
+                                           self._meas_shape)
 
-        for ii,ee in enumerate(self.err_chain):
+        for ii,ee in enumerate(self._err_chain):
 
             if ee.get_error_dep() == EErrDep.DEPENDENT:
                 (error_array,sens_data) = ee.calc_errs(truth+accumulated_error,
-                                                       self.sens_data_accumulated)
+                                                       self._sens_data_accumulated)
 
             else:
                 (error_array,sens_data) = ee.calc_errs(truth,
-                                                       self.sens_data_initial)
+                                                       self._sens_data_initial)
 
-            self.sens_data_accumulated = sens_data
-            self.sens_data_by_chain.append(sens_data)
+            self._sens_data_accumulated = sens_data
+            self._sens_data_by_chain.append(sens_data)
 
             if ee.get_error_type() == EErrType.SYSTEMATIC:
-                self.errs_systematic = self.errs_systematic + error_array
+                self._errs_systematic = self._errs_systematic + error_array
             else:
-                self.errs_random = self.errs_random + error_array
+                self._errs_random = self._errs_random + error_array
 
             accumulated_error = accumulated_error + error_array
-            self.errs_by_chain[ii,:,:,:] = error_array
+            self._errs_by_chain[ii,:,:,:] = error_array
 
-        self.errs_total = accumulated_error
-        return self.errs_total
+        self._errs_total = accumulated_error
+        return self._errs_total
 
 
     def _calc_errors_mem_eff(self, truth: np.ndarray) -> np.ndarray:
@@ -228,28 +228,28 @@ class ErrIntegrator:
         """
         accumulated_error = np.zeros_like(truth)
 
-        for ee in self.err_chain:
+        for ee in self._err_chain:
 
             if ee.get_error_dep() == EErrDep.DEPENDENT:
                 (error_array,sens_data) = ee.calc_errs(
                     truth+accumulated_error,
-                    self.sens_data_accumulated
+                    self._sens_data_accumulated
                 )
             else:
                 (error_array,sens_data) = ee.calc_errs(truth,
-                                                       self.sens_data_initial)
+                                                       self._sens_data_initial)
 
-            self.sens_data_accumulated = sens_data
+            self._sens_data_accumulated = sens_data
 
             if ee.get_error_type() == EErrType.SYSTEMATIC:
-                self.errs_systematic = self.errs_systematic + error_array
+                self._errs_systematic = self._errs_systematic + error_array
             else:
-                self.errs_random = self.errs_random + error_array
+                self._errs_random = self._errs_random + error_array
 
             accumulated_error = accumulated_error + error_array
 
-        self.errs_total = accumulated_error
-        return self.errs_total
+        self._errs_total = accumulated_error
+        return self._errs_total
 
 
     def get_errs_by_chain(self) -> np.ndarray | None:
@@ -263,7 +263,7 @@ class ErrIntegrator:
             num_sensors,num_field_components,num_time_steps). Returns None if
             `ErrIntOpts.store_all_errs=False`.
         """
-        return self.errs_by_chain
+        return self._errs_by_chain
 
     def get_sens_data_by_chain(self) -> list[SensorData] | None:
         """Gets the list of sensor data objects storing how each error in the
@@ -279,7 +279,7 @@ class ErrIntegrator:
             List of perturbed sensors array parameters for each error in the
             chain. Returns None if `ErrIntOpts.store_all_errs=False`.
         """
-        return self.sens_data_by_chain
+        return self._sens_data_by_chain
 
     def get_sens_data_accumulated(self) -> SensorData:
         """Gets the final accumulated sensor array parameters based on all
@@ -293,7 +293,7 @@ class ErrIntegrator:
             The final sensor array parameters based on accumulating all
             perturbations from all errors in the error chain.
         """
-        return self.sens_data_accumulated
+        return self._sens_data_accumulated
 
     def get_errs_systematic(self) -> np.ndarray:
         """Gets the array of summed systematic errors over the error chain. If
@@ -305,7 +305,7 @@ class ErrIntegrator:
             Array of total systematic errors. shape=(num_sensors,
             num_field_components,num_time_steps)
         """
-        return self.errs_systematic
+        return self._errs_systematic
 
     def get_errs_random(self) -> np.ndarray:
         """Gets the array of summed random errors over the error chain. If the
@@ -317,7 +317,7 @@ class ErrIntegrator:
             Array of total random errors. shape=(num_sensors,
             num_field_components,num_time_steps)
         """
-        return self.errs_random
+        return self._errs_random
 
     def get_errs_total(self) -> np.ndarray:
         """Gets the array of total errors. If the errors have not been
@@ -331,6 +331,6 @@ class ErrIntegrator:
             Array of total errors. shape=(num_sensors,num_field_components,
             num_time_steps)
         """
-        return self.errs_total
+        return self._errs_total
 
 

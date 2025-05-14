@@ -65,7 +65,7 @@ def animate_sim_with_sensors(sensor_array: SensorArrayPoint,
     if time_steps is None:
         time_steps = np.arange(0,sensor_array.get_sample_times().shape[0])
 
-    sim_data = sensor_array.field.get_sim_data()
+    sim_data = sensor_array._field.get_sim_data()
     vis_opts.colour_bar_lims = get_colour_lims(
         sim_data.node_vars[component][:,time_steps],
         vis_opts.colour_bar_lims)
@@ -93,7 +93,7 @@ def animate_sim_with_sensors(sensor_array: SensorArrayPoint,
 
         if vis_opts.time_label_pos is not None:
             pv_plot.add_text(f"Time: {sim_data.time[tt]} " + \
-                             f"{sensor_array.descriptor.time_units}",
+                             f"{sensor_array._descriptor.time_units}",
                              position=vis_opts.time_label_pos,
                              font_size=vis_opts.time_label_font_size,
                              name='time-label')
