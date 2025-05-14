@@ -26,31 +26,39 @@ from pyvale.visualtools import (create_pv_plotter,
                                      save_pv_image)
 
 
+# TODO: this needs to be updated to allow the user to plot at sensor times not
+# just simulation times. This will require interpolation of the underlying
+# simulation fields.
 def add_sim_field(pv_plot: pv.Plotter,
                   sensor_array: SensorArrayPoint,
                   component: str,
                   time_step: int,
                   vis_opts: VisOptsSimSensors,
                   ) -> tuple[pv.Plotter,pv.UnstructuredGrid]:
-    """_summary_
+    """Adds a simulation field to a pyvista plot object which is visualised on
+    the mesh using a colormap.
 
     Parameters
     ----------
     pv_plot : pv.Plotter
-        _description_
+        Handle to the pyvista plot object to add the simulation field to.
     sensor_array : SensorArrayPoint
-        _description_
+        Sensor array associated with the field to be plotted.
     component : str
-        _description_
+        String key for the field component to be shown.
     time_step : int
-        _description_
+        Time step to plot based on the time steps in the underlying simulation
+        data object.
     vis_opts : VisOptsSimSensors
-        _description_
+        Dataclass containing options for controlling the appearance of the
+        virtual sensors.
 
     Returns
     -------
     tuple[pv.Plotter,pv.UnstructuredGrid]
-        _description_
+        Tuple containing a handle to the pyvista plotter which has had the field
+        visualisation added and the pyvistas unstructured grid that was used to
+        plot the field.
     """
     sim_vis = sensor_array.field.get_visualiser()
     sim_data = sensor_array.field.get_sim_data()
@@ -81,25 +89,29 @@ def add_sim_field(pv_plot: pv.Plotter,
     return (pv_plot,sim_vis)
 
 
+# TODO: this should be able to take a list of ISensorArray and plot all of them
+# on the same mesh.
 def add_sensor_points_nom(pv_plot: pv.Plotter,
                           sensor_array: SensorArrayPoint,
                           vis_opts: VisOptsSimSensors,
                           ) -> pv.Plotter:
-    """_summary_
+    """Adds points and tagged labels showing the virtual sensor locations on
+    the simulation mesh in the given pyvista plot object.
 
     Parameters
     ----------
     pv_plot : pv.Plotter
-        _description_
+        Pyvista plotter used to display the virtual sensor locations.
     sensor_array : SensorArrayPoint
-        _description_
+        Sensor array for which the virtual sensor location will be shown.
     vis_opts : VisOptsSimSensors
-        _description_
+        Dataclass containing options for controlling the appearance of the
+        virtual sensors.
 
     Returns
     -------
     pv.Plotter
-        _description_
+        Pyvista plotter which has had the virtual sensor locations added.
     """
     vis_sens_nominal = pv.PolyData(sensor_array.sensor_data.positions)
     vis_sens_nominal["labels"] = sensor_array.descriptor.create_sensor_tags(
@@ -121,21 +133,24 @@ def add_sensor_points_pert(pv_plot: pv.Plotter,
                            sensor_array: SensorArrayPoint,
                            vis_opts: VisOptsSimSensors,
                            ) -> pv.Plotter:
-    """_summary_
+    """Adds points showing the perturbed virtual sensor locations on
+    the simulation mesh in the given pyvista plot object. Note that this will
+    only work if field errors are added perturbing the sensor locations.
 
     Parameters
     ----------
     pv_plot : pv.Plotter
-        _description_
+        Pyvista plotter used to display the virtual sensor locations.
     sensor_array : SensorArrayPoint
-        _description_
+        Sensor array for which the virtual sensor location will be shown.
     vis_opts : VisOptsSimSensors
-        _description_
+        Dataclass containing options for controlling the appearance of the
+        virtual sensors.
 
     Returns
     -------
     pv.Plotter
-        _description_
+        Pyvista plotter which has had the virtual sensor locations added.
     """
     sens_data_perturbed = sensor_array.get_sensor_data_perturbed()
 
@@ -158,7 +173,7 @@ def plot_sim_mesh(sim_data: mh.SimData,
                   elem_dims: int,
                   vis_opts: VisOptsSimSensors | None = None,
                   ) -> pv.Plotter:
-    """_summary_
+    """Plots the simulation mesh 
 
     Parameters
     ----------
@@ -167,7 +182,9 @@ def plot_sim_mesh(sim_data: mh.SimData,
     elem_dims : int
         _description_
     vis_opts : VisOptsSimSensors | None, optional
-        _description_, by default None
+        Dataclass containing options for controlling the appearance of the
+        virtual sensors, by default None. If None then a default options
+        dataclass is created.
 
     Returns
     -------
@@ -208,7 +225,9 @@ def plot_sim_data(sim_data: mh.SimData,
     time_step : int, optional
         _description_, by default -1
     vis_opts : VisOptsSimSensors | None, optional
-        _description_, by default None
+        Dataclass containing options for controlling the appearance of the
+        virtual sensors, by default None. If None then a default options
+        dataclass is created.
 
     Returns
     -------
@@ -253,14 +272,16 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
     time_step : int, optional
         _description_, by default -1
     vis_opts : VisOptsSimSensors | None, optional
-        _description_, by default None
+        Dataclass containing options for controlling the appearance of the
+        virtual sensors, by default None. If None then a default options
+        dataclass is created.
     image_save_opts : VisOptsImageSave | None, optional
         _description_, by default None
 
     Returns
     -------
     pv.Plotter
-        _description_
+        Handle to the pyvista plotter showing the sensor locations.
     """
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
