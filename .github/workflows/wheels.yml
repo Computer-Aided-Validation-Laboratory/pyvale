@@ -28,7 +28,11 @@ jobs:
         run: |
           echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> $GITHUB_ENV
 
-
+      - name: Install libomp for clang (macOS only)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install libomp
+      
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         with:
@@ -38,6 +42,7 @@ jobs:
         env:
           CIBW_SKIP: "pp*"
           CIBW_ENVIRONMENT_MACOS: >
+            brew install libomp
             CC=$(brew --prefix llvm@15)/bin/clang
             CXX=$(brew --prefix llvm@15)/bin/clang++
       - uses: actions/upload-artifact@v4
