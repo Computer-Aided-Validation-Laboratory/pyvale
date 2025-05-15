@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         # macos13 is intel macos14 is apple silicon
-        os: [ windows-latest]
+        os: [macos-13, macos-14]
 
     steps:
       - uses: actions/checkout@v4
@@ -20,16 +20,12 @@ jobs:
       - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 13
         if: matrix.os == 'macos-13'
         run: |
-          echo "CC=gcc-14" >> $GITHUB_ENV
-          echo "CXX=g++-14" >> $GITHUB_ENV
           echo "MACOSX_DEPLOYMENT_TARGET=13.0" >> $GITHUB_ENV
 
       # Set GCC and Deployment Target for macOS 14
       - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 14
         if: matrix.os == 'macos-14'
         run: |
-          echo "CC=gcc-14" >> $GITHUB_ENV
-          echo "CXX=g++-14" >> $GITHUB_ENV
           echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> $GITHUB_ENV
 
 
@@ -42,11 +38,8 @@ jobs:
         env:
           CIBW_SKIP: "pp*"
           CIBW_ENVIRONMENT_MACOS: >
-            CC=gcc-14
-            CXX=g++-14
-            LDSHARED="g++-14 -shared"
-            CPPFLAGS="-I$(python3 -c 'import sysconfig; print(sysconfig.get_path("include"))')"
-            LDFLAGS="-L$(python3 -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))') -lpython3.11"
+            CC=$(brew --prefix llvm@15)/bin/clang
+            CXX=$(brew --prefix llvm@15)/bin/clang++
       - uses: actions/upload-artifact@v4
         with:
           name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}
