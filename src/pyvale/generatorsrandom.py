@@ -1,13 +1,14 @@
-#===============================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-#===============================================================================
+# ==============================================================================
+
 from abc import ABC, abstractmethod
 import numpy as np
 
 
-class IGeneratorRandom(ABC):
+class IGenRandom(ABC):
     """Interface (abstract base class) for wrapping numpy random number
     generation to allow probability distribution parameters to be specified in
     the initialiser whereas the generation of random numbers has a common
@@ -33,7 +34,7 @@ class IGeneratorRandom(ABC):
         pass
 
 
-class GeneratorNormal(IGeneratorRandom):
+class GenNormal(IGenRandom):
     """Class wrapping the numpy normal random number generator. Implements the
     IGeneratorRandom interface to allow for interchangeability with other random
     number generators.
@@ -44,9 +45,7 @@ class GeneratorNormal(IGeneratorRandom):
                  std: float = 1.0,
                  mean: float = 0.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         std : float, optional
@@ -81,7 +80,7 @@ class GeneratorNormal(IGeneratorRandom):
                                 size = shape)
 
 
-class GeneratorLogNormal(IGeneratorRandom):
+class GenLogNormal(IGenRandom):
     """Class wrapping the numpy lognormal random generator. Implements the
     IGeneratorRandom interface to allow for interchangeability with other random
     number generators.
@@ -92,9 +91,7 @@ class GeneratorLogNormal(IGeneratorRandom):
                  std: float = 1.0,
                  mean: float = 0.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         std : float, optional
@@ -128,7 +125,7 @@ class GeneratorLogNormal(IGeneratorRandom):
                                    size = shape)
 
 
-class GeneratorUniform(IGeneratorRandom):
+class GenUniform(IGenRandom):
     """Class wrapping the numpy uniform random number generator. Implements the
     IGeneratorRandom interface to allow for interchangeability with other random
     number generators.
@@ -139,9 +136,7 @@ class GeneratorUniform(IGeneratorRandom):
                  low: float = -1.0,
                  high: float = 1.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         low : float, optional
@@ -175,7 +170,7 @@ class GeneratorUniform(IGeneratorRandom):
                                  size = shape)
 
 
-class GeneratorExponential(IGeneratorRandom):
+class GenExponential(IGenRandom):
     """Class wrapping the numpy exponential random generator. Implements the
     IGeneratorRandom interface to allow for interchangeability with other random
     number generators.
@@ -185,9 +180,7 @@ class GeneratorExponential(IGeneratorRandom):
     def __init__(self,
                  scale: float = 1.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         scale : float, optional
@@ -217,7 +210,7 @@ class GeneratorExponential(IGeneratorRandom):
                                      size = shape)
 
 
-class GeneratorChiSquare(IGeneratorRandom):
+class GenChiSquare(IGenRandom):
     """Class wrapping the numpy chi square random generator. Implements the
     IGeneratorRandom interface to allow for interchangeability with other random
     number generators.
@@ -227,9 +220,7 @@ class GeneratorChiSquare(IGeneratorRandom):
     def __init__(self,
                  dofs: float,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         dofs : float
@@ -259,7 +250,7 @@ class GeneratorChiSquare(IGeneratorRandom):
                                    size = shape)
 
 
-class GeneratorDirichlet(IGeneratorRandom):
+class GenDirichlet(IGenRandom):
     """Class wrapping the numpy dirichlet random generator. Implements the
     IGeneratorRandom interface to allow for interchangeability with other random
     number generators.
@@ -269,9 +260,7 @@ class GeneratorDirichlet(IGeneratorRandom):
     def __init__(self,
                  alpha: float,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         alpha : float
@@ -299,7 +288,7 @@ class GeneratorDirichlet(IGeneratorRandom):
         return self._rng.dirichlet(alpha = self._alpha, size = shape)
 
 
-class GeneratorF(IGeneratorRandom):
+class GenF(IGenRandom):
     """Class wrapping the numpy F distribution random generator. Implements the
     IGeneratorRandom interface to allow for interchangeability with other random
     number generators.
@@ -309,9 +298,7 @@ class GeneratorF(IGeneratorRandom):
     def __init__(self,
                  dofs: float,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         dofs : float
@@ -340,7 +327,7 @@ class GeneratorF(IGeneratorRandom):
         return self._rng.f(dfnum = self._dofs, size = shape)
 
 
-class GeneratorGamma(IGeneratorRandom):
+class GenGamma(IGenRandom):
     """Class wrapping the numpy gamma random generator. Implements the
     IGeneratorRandom interface to allow for interchangeability with other random
     number generators.
@@ -351,9 +338,7 @@ class GeneratorGamma(IGeneratorRandom):
                  shape: float,
                  scale: float = 1.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         shape : float
@@ -386,7 +371,7 @@ class GeneratorGamma(IGeneratorRandom):
                                      size = shape)
 
 
-class GeneratorStandardT(IGeneratorRandom):
+class GenStandardT(IGenRandom):
     """Class wrapping the numpy t distribution random generator. Implements the
     IGeneratorRandom interface to allow for interchangeability with other random
     number generators.
@@ -396,9 +381,7 @@ class GeneratorStandardT(IGeneratorRandom):
     def __init__(self,
                  dofs: float,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         dofs : float
@@ -428,7 +411,7 @@ class GeneratorStandardT(IGeneratorRandom):
                                    size = shape)
 
 
-class GeneratorBeta(IGeneratorRandom):
+class GenBeta(IGenRandom):
     """Class wrapping the numpy beta distribution random generator. Implements
     the IGeneratorRandom interface to allow for interchangeability with other
     random number generators.
@@ -439,9 +422,7 @@ class GeneratorBeta(IGeneratorRandom):
                  a: float,
                  b: float,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         a : float
@@ -474,7 +455,7 @@ class GeneratorBeta(IGeneratorRandom):
                               size = shape)
 
 
-class GeneratorTriangular(IGeneratorRandom):
+class GenTriangular(IGenRandom):
     """Class wrapping the numpy triangular random generator. Implements the
     IGeneratorRandom interface to allow for interchangeability with other random
     number generators.
@@ -486,9 +467,7 @@ class GeneratorTriangular(IGeneratorRandom):
                  mode: float = 0.0,
                  right: float = 1.0,
                  seed: int | None = None) -> None:
-        """Initialiser taking the parameters of the probability distribution and
-        an optional seed for the random generator to allow for reproducibility.
-
+        """
         Parameters
         ----------
         left : float, optional

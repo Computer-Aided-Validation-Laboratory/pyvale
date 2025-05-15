@@ -1,8 +1,9 @@
-#===============================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-#===============================================================================
+# ==============================================================================
+
 from abc import ABC, abstractmethod
 import numpy as np
 from pyvale.sensordata import SensorData
@@ -70,7 +71,7 @@ class IIntegratorSpatial(ABC):
             Array of simulated sensor measurements. shape=(num_sensors,
             num_field_components,num_time_steps).
         """
-        pass
+
 
     @abstractmethod
     def get_averages(self) -> np.ndarray:
@@ -84,5 +85,5 @@ class IIntegratorSpatial(ABC):
             Array of simulated sensor measurements. shape=(num_sensors,
             num_field_components,num_time_steps).
         """
-        pass
+
 

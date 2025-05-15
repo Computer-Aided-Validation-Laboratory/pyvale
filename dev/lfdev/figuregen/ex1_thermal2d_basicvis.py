@@ -36,7 +36,7 @@ def main() -> None:
         .thermocouples_basic_errs(sim_data,
                                   sens_pos,
                                   field_key,
-                                  spat_dims=2)
+                                  elem_dims=2)
 
     measurements = tc_array.get_measurements()
     print(f'\nMeasurements for last sensor:\n{measurements[-1,0,:]}\n')

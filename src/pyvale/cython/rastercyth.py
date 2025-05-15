@@ -1,15 +1,20 @@
-#===============================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-#===============================================================================
+# ==============================================================================
+
+"""
+NOTE: this module is a feature under developement.
+"""
+
 import numpy as np
 import cython
 #from cython.parallel import prange, parallel, threadid
 from cython.cimports.libc.math import floor, ceil
-#from pyvale.rendermesh import RenderMeshData
 from pyvale.cameradata import CameraData
 
+# NOTE: This module is a feature under developement.
 
 @cython.nogil
 @cython.cfunc # python+C or cython.cfunc for C only

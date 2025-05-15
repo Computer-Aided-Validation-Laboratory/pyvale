@@ -1,0 +1,4 @@
+Chaining field errors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex2_4_chainfielderrs_disp2d.py
+   :language: python

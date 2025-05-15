@@ -1,0 +1,4 @@
+Custom tensor field sensors in 2D
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex3_2_tensorsens2d_strain2d.py
+   :language: python

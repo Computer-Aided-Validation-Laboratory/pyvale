@@ -8,7 +8,7 @@ import cython
 from cython.parallel import prange, parallel, threadid
 from cython.cimports.libc.math import floor, ceil
 
-from pyvale.rendermesh import RenderMesh
+from pyvale.rendermesh import RenderMeshData
 from pyvale.cameradata import CameraData
 
 

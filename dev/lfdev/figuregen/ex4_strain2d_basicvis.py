@@ -28,7 +28,7 @@ def main() -> None:
                             .strain_gauges_basic_errs(sim_data,
                                                      sens_pos,
                                                      "strain",
-                                                     spat_dims=2)
+                                                     elem_dims=2)
 
     plot_field = 'strain_yy'
     pv_plot = pyvale.plot_point_sensors_on_sim(straingauge_array,plot_field)

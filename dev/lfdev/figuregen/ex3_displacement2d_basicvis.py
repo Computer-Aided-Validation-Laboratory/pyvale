@@ -30,7 +30,7 @@ def main() -> None:
                             .disp_sensors_basic_errs(sim_data,
                                                 sens_pos,
                                                 "displacement",
-                                                spat_dims=2)
+                                                elem_dims=2)
 
     plot_field = 'disp_y'
     pv_plot = pyvale.plot_point_sensors_on_sim(disp_sens_array,plot_field)

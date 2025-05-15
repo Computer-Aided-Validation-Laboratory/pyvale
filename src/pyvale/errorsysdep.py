@@ -1,15 +1,16 @@
-#===============================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-#===============================================================================
+# ==============================================================================
+
 import enum
 from typing import Callable
 import numpy as np
 from pyvale.sensordata import SensorData
 from pyvale.errorcalculator import (IErrCalculator,
                                          EErrType,
-                                         EErrDependence)
+                                         EErrDep)
 
 
 class ERoundMethod(enum.Enum):
@@ -52,9 +53,8 @@ class ErrSysRoundOff(IErrCalculator):
     def __init__(self,
                  method: ERoundMethod = ERoundMethod.ROUND,
                  base: float = 1.0,
-                 err_dep: EErrDependence = EErrDependence.DEPENDENT) -> None:
-        """Initialiser for the `ErrSysRoundOff` class.
-
+                 err_dep: EErrDep = EErrDep.DEPENDENT) -> None:
+        """
         Parameters
         ----------
         method : ERoundMethod, optional
@@ -69,7 +69,7 @@ class ErrSysRoundOff(IErrCalculator):
         self._method = _select_round_method(method)
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -82,7 +82,7 @@ class ErrSysRoundOff(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -141,9 +141,8 @@ class ErrSysDigitisation(IErrCalculator):
     def __init__(self,
                  bits_per_unit: float,
                  method: ERoundMethod = ERoundMethod.ROUND,
-                 err_dep: EErrDependence = EErrDependence.DEPENDENT) -> None:
-        """Initialiser for the `ErrSysDigitisation` class.
-
+                 err_dep: EErrDep = EErrDep.DEPENDENT) -> None:
+        """
         Parameters
         ----------
         bits_per_unit : float
@@ -158,7 +157,7 @@ class ErrSysDigitisation(IErrCalculator):
         self._method = _select_round_method(method)
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -171,7 +170,7 @@ class ErrSysDigitisation(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -225,18 +224,17 @@ class ErrSysSaturation(IErrCalculator):
     """Systematic error calculator for saturation error base on user specified
     minimum and maximum measurement values. Implements the `IErrCalculator`
     interface.
+
+    NOTE: For this error to function as expected and clamp the measurement
+    within the specified range it must be placed last in the error chain and
+    the behaviour must be set to: EErrDependence.DEPENDENT.
     """
     __slots__ = ("_min","_max","_err_dep")
 
     def __init__(self,
                  meas_min: float,
                  meas_max: float) -> None:
-        """Initialiser for the `ErrSysSaturation` class.
-
-        NOTE: For this error to function as expected and clamp the measurement
-        within the specified range it must be placed last in the error chain and
-        the behaviour must be set to: EErrDependence.DEPENDENT.
-
+        """
         Parameters
         ----------
         meas_min : float
@@ -256,9 +254,9 @@ class ErrSysSaturation(IErrCalculator):
 
         self._min = meas_min
         self._max = meas_max
-        self._err_dep = EErrDependence.DEPENDENT
+        self._err_dep = EErrDep.DEPENDENT
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -271,7 +269,7 @@ class ErrSysSaturation(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated

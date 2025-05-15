@@ -1,15 +1,18 @@
-#===============================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-#===============================================================================
-#from enum import Enum
+# ==============================================================================
+
+"""
+NOTE: this module is a feature under developement.
+"""
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 import mooseherder as mh
 from pyvale.fieldconverter import simdata_to_pyvista
 
-# NOTE: This module is a feature under developement.
 
 # TODO:
 # - Store the render field keys and match them between meshes?
@@ -78,7 +81,7 @@ def create_render_mesh(sim_data: mh.SimData,
 
     (pv_grid,_) = simdata_to_pyvista(sim_data,
                                      extract_keys,
-                                     spat_dim=sim_spat_dim)
+                                     elem_dims=sim_spat_dim)
 
     pv_surf = pv_grid.extract_surface()
     faces = np.array(pv_surf.faces)

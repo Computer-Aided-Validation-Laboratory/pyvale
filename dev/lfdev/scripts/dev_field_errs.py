@@ -50,9 +50,9 @@ def main() -> None:
                                               disp_field,
                                               descriptor)
 
-    pos_gen = pyvale.GeneratorNormal(std = 1.0)
-    angle_gen = pyvale.GeneratorNormal(std = 1.0)
-    time_gen = pyvale.GeneratorNormal(std = 0.1)
+    pos_gen = pyvale.GenNormal(std = 1.0)
+    angle_gen = pyvale.GenNormal(std = 1.0)
+    time_gen = pyvale.GenNormal(std = 0.1)
 
     pos_offset_xyz = 1.5*np.ones_like(sensor_positions)
     pos_offset_xyz[:,2] = 0 # don't perturb z in 2D

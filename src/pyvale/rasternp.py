@@ -3,6 +3,11 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
+
+"""
+NOTE: this module is a feature under developement
+"""
+
 from pathlib import Path
 import time
 from multiprocessing.pool import Pool
