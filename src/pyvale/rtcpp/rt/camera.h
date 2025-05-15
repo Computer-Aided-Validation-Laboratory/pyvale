@@ -36,6 +36,7 @@ class Camera {
             double focal_length,
             vec3 vup,
             int image_width,
+            int samples_per_pixel = 10,
             double t0 = 0,
             double t1 = 0
         ) : lookfrom(lookfrom),
@@ -137,31 +138,42 @@ class Camera {
         //     std::clog << "\rDone.                 \n";     
         // }
         void render(const Hittable& world, const Hittable& lights, std::ostream& stream = std::cout) {
-            // initialize();
-    
+               
             stream << "P3\n" << image_width << ' ' << image_height << "\n255\n";
 
-            std::vector<std::string> pixel_buffer(image_height * image_width);
+            int total_pixels = image_width * image_height;
+            std::vector<std::string> pixel_buffer(total_pixels);
+
+            // For loop progress vars
+            std::atomic<int> progress_counter{0};
+            const int report_interval = total_pixels / 100; // report every 1%
     
             #pragma omp parallel for schedule(dynamic)
-            for (int j = 0; j < image_height; j++) {
-                #ifndef _OPENMP
-                    // log progress if serial
-                    std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
-                #endif
+            for (int idx = 0; idx < total_pixels; idx++){
+                    int j = idx / image_width;  // row (y)
+                    int i = idx % image_width;  // column (x)
 
-                for (int i = 0; i < image_width; i++) {
-                    color pixel_color(0,0,0);
-                    for (int s_j = 0; s_j < sqrt_spp; s_j++) {
-                        for (int s_i = 0; s_i < sqrt_spp; s_i++) {
-                            Ray r = get_ray(i, j, s_i, s_j);
-                            pixel_color += ray_color(r, max_depth, world, lights);
-                        }
+                color pixel_color(0,0,0);
+                for (int s_j = 0; s_j < sqrt_spp; s_j++) {
+                    for (int s_i = 0; s_i < sqrt_spp; s_i++) {
+                        Ray r = get_ray(i, j, s_i, s_j);
+                        pixel_color += ray_color(r, max_depth, world, lights);
                     }
+                }
 
-                    std::ostringstream ss;
-                    write_color(ss, pixel_samples_scale * pixel_color);
-                    pixel_buffer[j * image_width + i] = ss.str();
+                std::ostringstream ss;
+                write_color(ss, pixel_samples_scale * pixel_color);
+                pixel_buffer[j * image_width + i] = ss.str();
+
+                // Update progress (thread-safe)
+                int count = ++progress_counter;
+
+                // Only one thread prints, and only at intervals
+                if (count % report_interval == 0) {
+                    #pragma omp critical
+                    {
+                        std::clog << "\rProgress: " << (100 * count / total_pixels) << "%" << std::flush;
+                    }
                 }
             }
             
