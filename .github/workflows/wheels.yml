@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - test-github-actions
   release:
     types:
       - published
