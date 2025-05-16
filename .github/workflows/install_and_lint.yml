@@ -28,7 +28,7 @@ jobs:
 
       - name: Lint with pylint
         run: |
-          pylint src/pyvale
+          pylint src/pyvale --fail-under=8.0
 
   install:
       name: Test Installation  ${{ matrix.os }}

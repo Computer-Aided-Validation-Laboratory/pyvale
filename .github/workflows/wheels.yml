@@ -84,7 +84,7 @@ jobs:
         with:
           pattern: pyvale-*
           path: dist
-          merge-multiple: true
+          merge-multiple: false
 
       # upload to pypi
       - uses: pypa/gh-action-pypi-publish@release/v1
