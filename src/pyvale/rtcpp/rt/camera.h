@@ -37,12 +37,15 @@ class Camera {
             vec3 vup,
             int image_width,
             int samples_per_pixel = 10,
+            color background = color(0.7, 0.7, 0.7),
             double t0 = 0,
             double t1 = 0
         ) : lookfrom(lookfrom),
         lookat(lookat),
         vup(vup),
-        image_width(image_width)
+        image_width(image_width),
+        samples_per_pixel(samples_per_pixel),
+        background(background)
         {
             // auto theta = degrees_to_radians(field_of_view);
             // auto h = tan(theta/2);
@@ -168,11 +171,11 @@ class Camera {
                 // Update progress (thread-safe)
                 int count = ++progress_counter;
 
-                // Only one thread prints, and only at intervals
+                // Chosen thread reports progress
                 if (count % report_interval == 0) {
                     #pragma omp critical
                     {
-                        std::clog << "\rProgress: " << (100 * count / total_pixels) << "%" << std::flush;
+                        std::clog << "\rProgress: " << (100 * count / total_pixels) << "%";
                     }
                 }
             }
@@ -182,7 +185,7 @@ class Camera {
                 stream << line;
             }
 
-            std::clog << "\rDone.                 \n";
+            std::clog << "\rDone. \n";
         }
 
     private:

@@ -31,10 +31,6 @@
 #include <sstream>
 #include <chrono>
 
-// double degrees_to_radians(double deg) {
-//     return deg * M_PI / 180.0;
-// }
-
 /**
  * @brief Calculates the size of a square in u/v space that appears as `n` pixels
  *        when viewed from a camera.
@@ -90,7 +86,9 @@ int main(int, char**) {
                     0.01,
                     10.0,
                     vec3(0.,1.,0.),
-                    600
+                    600,
+                    200,
+                    color(0.6, 0.6,0.6)
     );
 
     // scene.add(std::make_shared<Sphere>(point3(0, 1, 0), 3, green));
@@ -123,9 +121,10 @@ int main(int, char**) {
 
     // scene.add(std::make_shared<ShapeQuadQuad>(nodes2, displacements2, green));
 
+    // Compute the image/camera pixel size, then assign the results to the texture
     auto val = uvSquareSizeFromPixels(5, 5, 90, 600, 4, 4);
-    std::cout << val.first << val.second << std::endl;
-    auto speck = std::make_shared<Dot_texture>(30,30, val.first/2., val.first/2.);
+    // std::cout << val.first << val.second << std::endl;
+    auto speck = std::make_shared<Dot_texture>(30,30, val.first/2., val.second/2.);
     // auto perl = std::make_shared<Noise_texture>(1);
     auto nmat = std::make_shared<Lambertian>(speck);
     scene.add(std::make_shared<Quad>(point3(-2, -2, 0), vec3(4,0,0), vec3(0,4,0), nmat));

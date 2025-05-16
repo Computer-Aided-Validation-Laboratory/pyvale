@@ -35,7 +35,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-  dev = ["pytest"]
+  dev = ["pytest",
+          "mypy" # for building syntax highlighting .pyi files from compiled c libraries
+        ]
 
 [project.urls]
 "Repository" = "https://github.com/Digital-Validation-Laboratory/pyvale"

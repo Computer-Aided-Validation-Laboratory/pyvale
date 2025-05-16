@@ -246,7 +246,7 @@ def shape_quad():
 
     cam.render(world)
 
-def noise():
+def noise_sphere():
     world: HittableList = HittableList()
 
     noise_texture = NoiseTexture(5)
@@ -268,6 +268,44 @@ def noise():
 
     cam.render(world)
 
+def noise_quad():
+    world: HittableList = HittableList()
+
+    noise_texture = NoiseTexture(5)
+    material_2: Material = Lambertian(noise_texture)
+    # world.add(Sphere(np.array([0,0,-1]), 0.5, material_2))
+
+    nodes = np.array([
+        [-5, -5, 0],   # Node 1
+        [5, -5, 0],   # Node 2
+        [5, 5, 0],   # Node 3
+        [-5, 5, 0]    # Node 4
+    ])
+
+    # Define displacements at each node
+    displacements = np.array([
+        [0, 0, 0],       # Node 1
+        [0, 0, 0],     # Node 2
+        [0, 0, 0],     # Node 3
+        [0, 0, 0]      # Node 4
+    ])
+
+
+    world.add(ShapeLinQuad(nodes, displacements, material_2))
+
+    world = HittableList(BVH_Node(world._objects))
+
+    cam: Camera = Camera()
+    cam.image_width = 200
+    cam.image_height = 200
+    cam.samples_per_pixel = 5
+    cam.max_depth = 5
+    cam.background = np.array([0.90, 0.95, 1.00])
+    cam.look_from = np.array([0,0,8])
+    cam.look_at = np.array([0,0,0])
+
+    cam.render(world)
+
 
 if __name__ == "__main__":
-    noise()
+    noise_quad()
