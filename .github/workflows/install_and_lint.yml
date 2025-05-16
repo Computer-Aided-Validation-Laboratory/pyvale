@@ -52,12 +52,12 @@ jobs:
             pip install -e .
 
         - name: Install LLVM and libomp on macOS
-          if: runner.os == 'macOS'
+          if: (matrix.os == 'macos-13') || (matrix.os == 'macos-14')
           run: |
             brew install libomp
 
         - name: Set environment variables for macOS
-          if: runner.os == 'macOS'
+          if: (matrix.os == 'macos-13') || (matrix.os == 'macos-14')
           run: |
             echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
             echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
