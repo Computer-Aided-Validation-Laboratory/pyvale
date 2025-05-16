@@ -65,8 +65,8 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
 
-    descriptor = exp_sim._sensor_arrays[sens_array_num].descriptor
-    comp_ind = exp_sim._sensor_arrays[sens_array_num].field.get_component_index(component)
+    descriptor = exp_sim._sensor_arrays[sens_array_num]._descriptor
+    comp_ind = exp_sim._sensor_arrays[sens_array_num].get_field().get_component_index(component)
     samp_time = exp_sim._sensor_arrays[sens_array_num].get_sample_times()
     num_sens = exp_sim._sensor_arrays[sens_array_num].get_measurement_shape()[0]
 
@@ -147,9 +147,9 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     #---------------------------------------------------------------------------
     # Plot simulation and truth line
     if trace_opts.sim_line is not None:
-        sim_time = exp_sim._sensor_arrays[sens_array_num].field.get_time_steps()
-        sim_vals = exp_sim._sensor_arrays[sens_array_num].field.sample_field(
-                    exp_sim._sensor_arrays[sens_array_num].positions)
+        sim_time = exp_sim._sensor_arrays[sens_array_num].get_field().get_time_steps()
+        sim_vals = exp_sim._sensor_arrays[sens_array_num].get_field().sample_field(
+                   exp_sim._sensor_arrays[sens_array_num]._positions)
 
         for ss in sensors_to_plot:
             ax.plot(sim_time,
