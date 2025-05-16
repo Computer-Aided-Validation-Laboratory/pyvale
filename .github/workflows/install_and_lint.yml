@@ -51,14 +51,19 @@ jobs:
             python -m pip install --upgrade pip
             pip install -e .
 
-        - name: Install LLVM and libomp on macOS
-          if: (matrix.os == 'macos-13') || (matrix.os == 'macos-14')
+        - name: Install libomp and set compiler on macos-13
+          if: matrix.os == 'macos-13'
           run: |
             brew install libomp
+            echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+            echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+            echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
+            echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
 
-        - name: Set environment variables for macOS
-          if: (matrix.os == 'macos-13') || (matrix.os == 'macos-14')
+        - name: Install libomp and set compiler on macos-14
+          if: matrix.os == 'macos-14'
           run: |
+            brew install libomp
             echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
             echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
             echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
