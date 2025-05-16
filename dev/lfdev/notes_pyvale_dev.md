@@ -1,10 +1,55 @@
-
 # Notes: `pyvale` developement
 
+## pyvale hackathon
+- Conversation about docs
+- Get docs deployed so people can test point sensors with the docs
+
+- LF TODO agenda for hackathon
+- Dogbone tensile test - load cell?
+- STC multi-physics with thermcouples and DIC
+
+
+## TODO: `pyvale` point sensors
+--------------------------------------------------------------------------------
+- EXAMPLES:
+    - Finish basics examples update
+    - Show how all errors can be extracted from the error integrator
+    - Example showing how surface meshes can be generated for speeding up computation
+
+- EXPERIMENT ERROR ANALYSIS MODULE / UQ MODULE
+    - Extracts which errors in the chain are contributing the most for each sensor
+    - Show differences between simulations for experiment traces
+
+- BUGS!
+    - Node vs Elem vars in the SimData object - does pyvale work with elem vars???
+    - Spatial averaging with rectangle or quadrature makes assumptions about sensor orientation - looks like it assumes XY orientations only. Check this.
+    - Should be able to fix this with a good old 4x4 sensor_to_world matrix.
+
+- TODO PRIORITY:
+    - Docstrings
+    - Tests
+    - Field errors assume all sensors sample at the same time but it should be possible to have all sensors sampling at different times.
+- Area/volume/line averaging:
+    - Fix orientation of spatial averaging points with sensor_to_world matrix
+    - Support different types of spatial averaging and different shapes
+- Field based errors:
+    - Temporal averaging error:
+        - Set an integration time
+        - Set a weighting function
+
+- ErrorIntegrator
+    - Simplify the memory efficient and non-memory efficient options
+- TESTING:
+    - Need to check rotations are consistent
+
+- SENSORFACTORY
+    - Add more typical sensors to the library
+    - Add extensometers
+    - Add strain gauges with arbitrary rosette dims
 
 
 ## TODO: `Raster`
---------------------
+--------------------------------------------------------------------------------
 - Speed up edge function calculation using stepwise optimisation on SAP
 - Try to setup tiling optimisation
 - Deal with quads: edge function and interpolation
@@ -57,68 +102,9 @@ ext-modules = [
 - EXP SIM: "A comparison of image rendering techniques for DIC UQ"
 - EXP SIM: "Camera placement optimisation for 2D DIC FEMU"
 - EXP SIM: "A rendering engine for UQ of IRT sensors"
+#
 
-## TODO: `pyvale`
-- TODO PRIORITY:
-    - Docstrings
-    - Tests
-    - Field errors assume all sensors sample at the same time but it should be possible to have all sensors sampling at different times.
-    - Support for surface mesh extraction to simplify projections
-
-- BUGS!
-    - Spatial averaging with rectangle or quadrature makes assumptions about sensor orientation - looks like it assumes XY orientations only. Check this.
-    - Should be able to fix this with a good old 4x4 sensor_to_world matrix.
-
-- TODO GENERAL:
-    - Build Rory's simple DIC strain filter on top of the basic camera
-    - Visualisation tools for perturbed field errors:
-        - Angle
-    - Visualisation tools for animating sensor traces
-    - Visualisation tools for subplots of multiple sensors?
-    - Finish basic camera
-
-- TESTING/FEATURE EXAMPLES:
-- TODO: ErrorIntegrator
-    - Simplify the memory efficient and non-memory efficient options
-
-- TODO: visualisation tools for:
-    - TODO: remove methods from sensor descriptor data class
-    - TODO: presentation animations - animate traces
-    - TODO: experiment - allow extraction of different conditions for comparison plots
-    - TODO: visualise all components of vector / tensor field
-        - See this example for subplots: https://docs.pyvista.org/examples/02-plot/cmap#sphx-glr-examples-02-plot-cmap-py
-
-- TODO: Field based errors:
-    - TODO: Temporal averaging error
-        - Set an integration time
-        - Set a weighting function
-
-- IMAGE DEF: allow upsampled image to be generated once and retained.
-
-- CAMERAS:
-    - Need CameraData class
-    - Create 'CameraBasic' class or Simple?
-    - Create 'CameraProjection' class
-    - Create 'CameraRayTracing' class
-    - Create 'CameraIRThermo'
-    - Create 'CameraDIC2D'
-    - Create 'CameraDICStereo'
-    - Allow field class to do a single field rotation into camera coords on creation and store this
-    - Allow all sensors to have
-
-- TESTING:
-    - Need to check rotations are consistent
-
-## Sensors
-A sensor should have:
-- A spatial measurement geometry: point, line, area, volume
-- A measurement position, centroid of the measurement geometry
-- A measurement point/area/line/volume
-- A measurement frequency in time
-- A calibration curve
-- A digitisation
-
-### Thermocouples
+## Thermocouples
 https://www.mstarlabs.com/sensors/thermocouple-calibration.html
 
 T  =  -0.01897 + 25.41881 V - 0.42456 V^2 + 0.04365 V^3
@@ -130,24 +116,7 @@ https://www.ni.com/docs/en-US/bundle/ni-9213-specs/page/specs.html
 - App note on thermocouple amplifier chip:
 https://www.analog.com/en/resources/app-notes/an-1087.html
 
-## Systematic errors
-Comes from many sources:
-- Positioning error
-- Averaging over time (integration time)
-- Averaging over space (integration space)
-- Digistisation error
-- Calibration error
-- Temporal lag of the signal
-- Drift
 
-
-## Random errors
-Comes from sensors noise, need a way to specify a probability distribution to sample from.
-
-## Numba
-https://www.youtube.com/watch?v=6oXedk2tGfk
-
-## Gauss Quadrature
 
 ## Gauss Quadrature: Change of Interval
 https://stackoverflow.com/questions/33457880/different-intervals-for-gauss-legendre-quadrature-in-numpy
@@ -162,6 +131,8 @@ gauss = sum(w * f(t)) * 0.5*(b - a)
 
 Gauss Quadrature for the Unit Disc
 http://www.holoborodko.com/pavel/numerical-methods/numerical-integration/cubature-formulas-for-the-unit-disk/
+
+
 
 ## Pyvista Cameras
 Tested on monoblock sim:
@@ -185,6 +156,8 @@ Start with xy then azimuth 90
 (0.0, 16.0, 5.5),
 (0.0, 1.0, 0.0)]
 
+
+
 ## Memory Profiling with `mprof`
 Install into a virtual environment:
 `pip install memory-profiler`
@@ -194,6 +167,8 @@ mprof run --python PATH/TO/MAIN.py
 
 Plot the output and save to png:
 mprof plot -o memory_profile.png
+
+
 
 ## ARCHIVE
 -------------------------------------------------------------------
@@ -230,3 +205,12 @@ mprof plot -o memory_profile.png
 - 10px per mm
 - 1mm displacement = 10 px
 - Need displacement cases at 0.1/10 = 1/10th of a pixel
+
+
+## EULER ANGLES: Intrinsic vs Extrinsic
+
+**INTRINSIC** = Rotate about localc coords
+If the intrinsic Euler angles are α,β,γ representing rotations about the initial X, then the new Y', and then the newest Z'' axes respectively, the final rotation matrix is obtained by multiplying the individual rotation matrices in the order of application. For example, if the sequence is z-y'-x'', the rotation matrix R would be R=z(α)Ry′(β)Rx′′(γ). Here, the primes indicate the axes after the previous rotation. When expressed in terms of the initial fixed frame, this becomes R=Rz(α)Ry(β)Rx(γ). Notice the direct correspondence between the order of application and the matrix multiplication.
+
+**EXTRINSIC** = Rotate about fixed global coords
+If the extrinsic Euler angles are α,β,γ representing rotations about the x, y, and z axes respectively, the final rotation matrix is obtained by multiplying the individual rotation matrices in the order they are applied. For example, if the sequence is z-y-x, the rotation matrix R would be R=Rx(γ)Ry(β)Rz(α). Notice the reversed order of application in the matrix multiplication compared to the order of rotations.

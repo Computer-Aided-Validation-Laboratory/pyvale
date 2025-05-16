@@ -1,17 +1,16 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
 from typing import Callable
 import numpy as np
 from pyvale.field import IField
 from pyvale.integratorspatial import (IIntegratorSpatial,
-                                           create_int_pt_array)
+                                      create_int_pt_array)
 from pyvale.sensordata import SensorData
 
-#TODO: Docstrings
 
 class Quadrature2D(IIntegratorSpatial):
     """Gaussian quadrature numerical integrator for spatial averaging in 2D.
@@ -23,7 +22,7 @@ class Quadrature2D(IIntegratorSpatial):
     Implements the `IIntegratorSpatial` interface allowing for interoperability
     of different spatial integration algorithms for modelling sensor averaging.
     """
-    __slots__ = ("_field","_area","_n_gauss_pts","_gauss_pt_offsets"
+    __slots__ = ("_field","_area","_gauss_pts_num","_gauss_pt_offsets"
                  ,"_gauss_weight_func","_gauss_pts","_averages","_sens_data")
 
     def __init__(self,
@@ -31,8 +30,7 @@ class Quadrature2D(IIntegratorSpatial):
                  sens_data: SensorData,
                  gauss_pt_offsets: np.ndarray,
                  gauss_weight_func: Callable) -> None:
-        """Initiliaser for the 2D Gaussian quadrature numerical integrator.
-
+        """
         Parameters
         ----------
         field : IField
@@ -57,7 +55,7 @@ class Quadrature2D(IIntegratorSpatial):
         self._area = self._sens_data.spatial_dims[0] * \
             self._sens_data.spatial_dims[1]
 
-        self._n_gauss_pts = gauss_pt_offsets.shape[0]
+        self._gauss_pts_num = gauss_pt_offsets.shape[0]
         self._gauss_pt_offsets = gauss_pt_offsets
         self._gauss_weight_func = gauss_weight_func
 
@@ -66,43 +64,61 @@ class Quadrature2D(IIntegratorSpatial):
         self._averages = None
 
     def calc_integrals(self, sens_data: SensorData | None = None) -> np.ndarray:
-        """_summary_
+        """Calculates the numerical integrals for each sensor based on the
+        specified sensor data and numerical integration options (i.e. geometry
+        and integration points).
 
         Parameters
         ----------
         sens_data : SensorData | None, optional
-            _description_, by default None
+            Specifies the sensor parameters used to calculate the averages, by
+            default None. Is a sensor data object is passed a reference to that
+            object is stored by this class and used in later calculations. If
+            None then it uses the SensorData object stored by this class.
+            Defaults to None.
 
         Returns
         -------
         np.ndarray
-            _description_
+            Array of virtual sensor integrals with shape=(n_sensors,n_comps,
+            n_timsteps). Note this is consistent with pyvales measurement array.
         """
         self._averages = self.calc_averages(sens_data)
         return self._area*self.get_averages()
 
     def get_integrals(self) -> np.ndarray:
-        """_summary_
+        """Gets the most recent calculation of the spatial averages for all
+        sensors in the sensor array without performing any new interpolation. If
+        the averages have not been calculated they are first calculated and then
+        returned.
 
         Returns
         -------
         np.ndarray
-            _description_
+            Array of virtual sensor averages with shape=(n_sensors,n_comps,
+            n_timsteps). Note this is consistent with pyvales measurement array.
         """
         return self._area*self.get_averages()
 
     def calc_averages(self, sens_data: SensorData | None = None) -> np.ndarray:
-        """_summary_
+        """Calculates the spatial averages for each sensor based on the
+        specified sensor data and numerical integration options (i.e. geometry
+        and integration points).
 
         Parameters
         ----------
         sens_data : SensorData | None, optional
-            _description_, by default None
+            Specifies the sensor parameters used to calculate the averages, by
+            default None. Is a sensor data object is passed a reference to that
+            object is stored by this class and used in later calculations. If
+            None then it uses the SensorData object stored by this class.
+            Defaults to None.
 
         Returns
         -------
         np.ndarray
-            _description_
+            Array of virtual sensor averages with shape=(n_sensors,n_comps,
+            n_timsteps). Note this is consistent with pyvales measurement array.
         """
         if sens_data is not None:
             self._sens_data = sens_data
@@ -121,7 +137,7 @@ class Quadrature2D(IIntegratorSpatial):
                       gauss_vals.shape[2])
 
         # shape=(n_gauss_pts,n_sens,n_comps,n_timesteps)
-        gauss_vals = gauss_vals.reshape((self._n_gauss_pts,)+meas_shape,
+        gauss_vals = gauss_vals.reshape((self._gauss_pts_num,)+meas_shape,
                                          order='F')
 
         # shape=(n_gauss_pts,n_sens,n_comps,n_timesteps)
@@ -138,12 +154,16 @@ class Quadrature2D(IIntegratorSpatial):
         return self._averages
 
     def get_averages(self) -> np.ndarray:
-        """_summary_
+        """Gets the most recent calculation of the spatial averages for all
+        sensors in the sensor array without performing any new interpolation. If
+        the averages have not been calculated they are first calculated and then
+        returned.
 
         Returns
         -------
         np.ndarray
-            _description_
+            Array of virtual sensor averages with shape=(n_sensors,n_comps,
+            n_timsteps). Note this is consistent with pyvales measurement array.
         """
         if self._averages is None:
             self._averages = self.calc_averages()
@@ -159,29 +179,35 @@ def create_gauss_weights_2d_4pts(meas_shape: tuple[int,int,int]) -> np.ndarray:
     Parameters
     ----------
     meas_shape : tuple[int,int,int]
-        _description_
+        Shape of the measurement array, shape=(n_sensors,n_field_comps,
+        n_time_steps).
 
     Returns
     -------
     np.ndarray
-        _description_
+        Array of gaussian quadrature weights with shape = (n_gauss_pts,n_sensors
+        ,n_field_comps,n_time_steps).
     """
     #shape=(4,)+meas_shape
     return np.ones((4,)+meas_shape)
 
 
 def create_gauss_weights_2d_9pts(meas_shape: tuple[int,int,int]) -> np.ndarray:
-    """_summary_
+    """Helper function that creates an array of weights for gaussian quadrature
+    integration. This function provides the weights for 2D integrator with 9
+    integration points.
 
     Parameters
     ----------
     meas_shape : tuple[int,int,int]
-        _description_
+        Shape of the measurement array, shape=(n_sensors,n_field_comps,
+        n_time_steps).
 
     Returns
     -------
     np.ndarray
-        _description_
+        Array of gaussian quadrature weights with shape = (n_gauss_pts,n_sensors
+        ,n_field_comps,n_time_steps).
     """
     # shape=(9,)+meas_shape
     gauss_weights = np.vstack((25/81 * np.ones((4,)+meas_shape),

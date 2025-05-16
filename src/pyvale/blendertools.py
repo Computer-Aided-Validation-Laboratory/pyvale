@@ -1,7 +1,7 @@
 # ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
-# Copyright (C) 2024 The Computer Aided Validation Team
+# Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 import numpy as np
 from pathlib import Path
@@ -15,7 +15,7 @@ from pyvale.blendercalibrationdata import CalibrationData
 from pyvale.output import Outputs
 from pyvale.pyvaleexceptions import BlenderError
 
-class BlenderTools():
+class BlenderTools:
     """Namespace for tools used within the pyvale Blender module.
     """
 

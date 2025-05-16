@@ -1,4 +1,4 @@
-Thermocouples on a 2D plate
+Basics of `pyvale` point sensor simulation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. literalinclude:: ../../../../src/pyvale/examples/ex1_1_thermal2d.py
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex1_1_basicscalars_therm2d.py
    :language: python

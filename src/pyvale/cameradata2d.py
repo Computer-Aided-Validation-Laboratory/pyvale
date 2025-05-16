@@ -1,14 +1,16 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
+
+"""
+NOTE: This module is a feature under developement.
+"""
 
 from dataclasses import dataclass, field
 import numpy as np
 from scipy.spatial.transform import Rotation
-
-# NOTE: This module is a feature under developement.
 
 @dataclass(slots=True)
 class CameraData2D:

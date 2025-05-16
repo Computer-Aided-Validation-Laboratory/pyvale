@@ -9,7 +9,7 @@ from pymoo.termination.default import DefaultSingleObjectiveTermination
 from pymoo.optimize import minimize
 
 from pyvale.visualopts import PlotOptsGeneral
-import pyvale.optimcheckfuncs as cf
+import dev.lfdev.optimcheckfuncs as cf
 
 #-------------------------------------------------------------------------------
 def cost_func(x):

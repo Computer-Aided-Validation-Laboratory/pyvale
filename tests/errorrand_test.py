@@ -28,11 +28,11 @@ def check_data() -> CheckData:
 def check_err_calc_rand(err_calc: pyvale.IErrCalculator,
                         data: CheckData) -> np.ndarray:
 
-    err_calc.set_error_dep(pyvale.EErrDependence.DEPENDENT)
-    assert err_calc.get_error_dep() == pyvale.EErrDependence.DEPENDENT
+    err_calc.set_error_dep(pyvale.EErrDep.DEPENDENT)
+    assert err_calc.get_error_dep() == pyvale.EErrDep.DEPENDENT
 
-    err_calc.set_error_dep(pyvale.EErrDependence.INDEPENDENT)
-    assert err_calc.get_error_dep() == pyvale.EErrDependence.INDEPENDENT
+    err_calc.set_error_dep(pyvale.EErrDep.INDEPENDENT)
+    assert err_calc.get_error_dep() == pyvale.EErrDep.INDEPENDENT
 
     assert err_calc.get_error_type() == pyvale.EErrType.RANDOM
 
@@ -46,9 +46,9 @@ def check_err_calc_rand(err_calc: pyvale.IErrCalculator,
 def test_ErrRandUniform(check_data: CheckData) -> None:
     low = 1.0
     high = 1.0
-    err_calc = pyvale.ErrRandUniform(low=low,
+    err_calc = pyvale.ErrRandUnif(low=low,
                                      high=high,
-                                     err_dep=pyvale.EErrDependence.INDEPENDENT,
+                                     err_dep=pyvale.EErrDep.INDEPENDENT,
                                      seed=check_data.seed)
 
     err_mat = check_err_calc_rand(err_calc,check_data)
@@ -64,7 +64,7 @@ def test_ErrRandUnifPercent(check_data: CheckData) -> None:
     high_percent = 1.0
     err_calc = pyvale.ErrRandUnifPercent(low_percent=low_percent,
                                          high_percent=high_percent,
-                                         err_dep=pyvale.EErrDependence.INDEPENDENT,
+                                         err_dep=pyvale.EErrDep.INDEPENDENT,
                                          seed=check_data.seed)
 
     err_mat = check_err_calc_rand(err_calc,check_data)
@@ -77,8 +77,8 @@ def test_ErrRandUnifPercent(check_data: CheckData) -> None:
 
 def test_ErrRandNormal(check_data: CheckData) -> None:
     std = 5.0
-    err_calc = pyvale.ErrRandNormal(std=std,
-                                    err_dep=pyvale.EErrDependence.INDEPENDENT,
+    err_calc = pyvale.ErrRandNorm(std=std,
+                                    err_dep=pyvale.EErrDep.INDEPENDENT,
                                     seed=check_data.seed)
 
     err_mat = check_err_calc_rand(err_calc,check_data)
@@ -92,7 +92,7 @@ def test_ErrRandNormal(check_data: CheckData) -> None:
 def test_ErrRandNormPercent(check_data: CheckData) -> None:
     std_percent = 5.0
     err_calc = pyvale.ErrRandNormPercent(std_percent=std_percent,
-                                    err_dep=pyvale.EErrDependence.INDEPENDENT,
+                                    err_dep=pyvale.EErrDep.INDEPENDENT,
                                     seed=check_data.seed)
 
     err_mat = check_err_calc_rand(err_calc,check_data)
@@ -106,7 +106,7 @@ def test_ErrRandNormPercent(check_data: CheckData) -> None:
 def test_ErrRandGenerator(check_data: CheckData) -> None:
     std = 5.0
 
-    rand_gen = pyvale.GeneratorNormal(std=std,mean=0.0,seed=check_data.seed)
+    rand_gen = pyvale.GenNormal(std=std,mean=0.0,seed=check_data.seed)
 
     err_calc = pyvale.ErrRandGenerator(rand_gen)
 
