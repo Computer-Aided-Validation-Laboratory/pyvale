@@ -9,7 +9,7 @@
 #include <iostream>
 #include <cstring>
 #include <omp.h>
-
+#include <signal.h>
 
 // pybind header files
 #include <pybind11/pybind11.h>
@@ -40,6 +40,8 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // Initialisation
     // -------------------------------------------------------------------------------------------
 
+    // Register signal handler for Ctrl+C
+    signal(SIGINT, scanmethod::signalHandler);
 
     // get raw pointers
     bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
@@ -126,15 +128,15 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
 
 void build_info(){
-        std::cout << "Buld Information:" << std::endl;
-        INFO_OUT("- g++ version:", CPUCOMP);
-        INFO_OUT("- Compiler directory:", COMPPATH);
-        INFO_OUT("- Git SHA:", GITINFO);
-        INFO_OUT("- Number of dirty files:", GITDIRTY);
-        INFO_OUT("- Compiled on Machine:", HOSTNAME);
-        INFO_OUT("- Compiled on OS:", OSNAME);
-        INFO_OUT("- Compiled at:", BUILDTIME);
-        std::cout << std::endl;
+        //std::cout << "Buld Information:" << std::endl;
+        //INFO_OUT("- g++ version:", CPUCOMP);
+        //INFO_OUT("- Compiler directory:", COMPPATH);
+        //INFO_OUT("- Git SHA:", GITINFO);
+        //INFO_OUT("- Number of dirty files:", GITDIRTY);
+        //INFO_OUT("- Compiled on Machine:", HOSTNAME);
+        //INFO_OUT("- Compiled on OS:", OSNAME);
+        //INFO_OUT("- Compiled at:", BUILDTIME);
+        //std::cout << std::endl;
 }
 
 

@@ -11,6 +11,7 @@
 #include <thread>
 #include <cstring>
 #include <omp.h>
+#include <csignal>
 
 // Program Header files
 #include "./dicbruteforce.hpp"
@@ -18,12 +19,49 @@
 #include "./defines.hpp"
 #include "./dicutil.hpp"
 #include "./dicrg.hpp"
-#include "./progressbar.hpp"
-
+#include "./indicators.hpp"
 
 namespace scanmethod {
 
 
+    // for graceful exit
+    volatile bool stop_request(false);
+
+
+    void reset_indicators(indicators::ProgressBar &bar,
+                          int img_num, int num_ss){
+        //Hide cursor
+        indicators::show_console_cursor(false);
+        bar.set_option(indicators::option::BarWidth{50});
+        bar.set_option(indicators::option::Start{" ["});
+        bar.set_option(indicators::option::Fill{"█"});
+        bar.set_option(indicators::option::Lead{"█"});
+        bar.set_option(indicators::option::Remainder{"-"});
+        bar.set_option(indicators::option::End{"]"});
+        bar.set_option(indicators::option::PrefixText{"Deformed Image " + std::to_string(img_num)});
+        bar.set_option(indicators::option::ShowPercentage{true});
+        bar.set_option(indicators::option::ShowElapsedTime{true});
+        bar.set_option(indicators::option::FontStyles{
+          std::vector<indicators::FontStyle>{indicators::FontStyle::bold}});
+
+    }
+
+    void update_bar(indicators::ProgressBar &bar, int i, int num_ss, int &prev_pct) {
+
+        int curr_pct = static_cast<float>(i) / static_cast<float>(num_ss) * 100;
+        if (curr_pct > prev_pct){
+            bar.set_progress(curr_pct);
+        }
+        prev_pct = curr_pct;
+    }
+
+
+
+    void signalHandler(int signal) {
+        if (signal == SIGINT) {
+            stop_request = true;
+        }
+    }
 
     void image(double *image_ref, 
                     double *image_def, 
@@ -31,19 +69,30 @@ namespace scanmethod {
                     util::SubsetData &ssdata, 
                     util::Config &conf,
                     int img_num){
-    
+
+        // progress bar
+        indicators::ProgressBar bar;
+        reset_indicators(bar, img_num, ssdata.num);
+        int current_progress = 0;
+        int prev_pct = 0;
+
         // initialise subsets
         util::Subset ss_def(ssdata.size);
         util::Subset ss_ref(ssdata.size);
-    
+
         // optimization parameters
         optimizer::Parameters opt(conf.num_params, conf.max_iter, 
                                   conf.precision, conf.threshold_lm,
                                   conf.px_vertical, conf.px_horizontal);
-    
+
         // loop over subsets within the ROI
-        #pragma omp parallel for firstprivate(ss_def, ss_ref, opt)
+        #pragma omp parallel for firstprivate(ss_def, ss_ref, opt) shared(stop_request)
         for (int ss = 0; ss < ssdata.num; ss++){
+
+            // exit the main DIC loop when ctrl+C is hit
+            if (stop_request){
+                continue;
+            }
 
             // subset coordinate list takes central locations. 
             // Converting to top left corner for optimization routine
@@ -65,7 +114,16 @@ namespace scanmethod {
             // append the results for the current subset to result vectors
             util::append_results(img_num, ss, res, ssdata.num);
 
+            // update progress bar
+            #pragma omp critical 
+            {
+                update_bar(bar, current_progress, ssdata.num, prev_pct);
+                current_progress++;
+            }
+
         }
+
+        bar.mark_as_completed();
     }
 
 
@@ -76,6 +134,12 @@ void image_with_bf(double *image_ref,
                         util::SubsetData &ssdata, 
                         util::Config &conf,
                         int img_num){
+
+    // progress bar
+    indicators::ProgressBar bar;
+    reset_indicators(bar, img_num, ssdata.num);
+    int current_progress = 0;
+    int prev_pct = 0;
 
     // initialise subsets
     util::Subset ss_def(ssdata.size);
@@ -103,6 +167,12 @@ void image_with_bf(double *image_ref,
     // loop over subsets within the ROI
     #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, res)
     for (int ss = 0; ss < ssdata.num; ss++){
+
+        // exit the main DIC loop when ctrl+C is hit
+        if (stop_request){
+            continue;
+        }
+
 
         // subset coordinate list contains central locations.
         // Converting to top left corner for optimization routine
@@ -141,7 +211,15 @@ void image_with_bf(double *image_ref,
 
         ss_thread_num++;
 
+        // update progress bar
+        #pragma omp critical 
+        {
+            update_bar(bar, current_progress, ssdata.num, prev_pct);
+            current_progress++;
+        }
+
     }
+    bar.mark_as_completed();
 }
 
 
@@ -156,7 +234,11 @@ void image_with_bf(double *image_ref,
                             util::Config &conf,
                             int img_num){
 
-        progressbar bar(ssdata.num);
+        // progress bar
+        indicators::ProgressBar bar;
+        reset_indicators(bar, img_num, ssdata.num);
+        int current_progress = 0;
+        int prev_pct = 0;
 
          int seed_x = 500; // in corner coordinates
          int seed_y = 500; // in corner coodinates
@@ -272,7 +354,7 @@ void image_with_bf(double *image_ref,
             const int max_idle_iters = 100;
             rg::Point current(0, 0, 0);
 
-            while (true) {
+            while (!stop_request) {
 
                 // reset correlation values and got_point
                 bool got_point = false;
@@ -367,11 +449,17 @@ void image_with_bf(double *image_ref,
                         // append results
                         util::append_results(img_num, nidx, nres, ssdata.num);
 
-                        #pragma omp critical
-                            bar.update();
 
                         // // add results to temp neighbour results
                         temp_neigh.emplace_back(nx, ny, 1.0-0.5*nres.cost);
+                        
+                        // update progress bar
+                        #pragma omp critical 
+                        {
+                            update_bar(bar, current_progress, ssdata.num, prev_pct);
+                            current_progress++;
+                        }
+
                     }
                 }
 
@@ -380,9 +468,7 @@ void image_with_bf(double *image_ref,
                 }
             }
         }
-
-
-
+        bar.mark_as_completed();
     }
 
 

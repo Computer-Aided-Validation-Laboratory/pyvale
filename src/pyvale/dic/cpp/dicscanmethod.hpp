@@ -1,10 +1,15 @@
-
+// ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
 
 #ifndef DICSCANMETHOD_H
 #define DICSCANMETHOD_H
 
 
 // STD library Header files
+#include <atomic>
 
 // Program Header files
 #include "./dicutil.hpp"
@@ -12,6 +17,13 @@
 
 
 namespace scanmethod {
+
+
+
+    void signalHandler(int signal);
+
+
+
 
 /**
  * @brief straightforward image scan method. 

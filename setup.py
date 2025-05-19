@@ -1,79 +1,108 @@
 import pathlib
-from setuptools import  setup, find_packages, Extension
+from setuptools import  setup, Extension
 from Cython.Build import cythonize
 import numpy
 import sys
+import os
+from glob import glob
+import pybind11
+import urllib.request
+import tarfile
 
 here = pathlib.Path(__file__).parent.resolve()
 long_description = (here / "README.md").read_text(encoding="utf-8")
+
+
+
+debug_mode = '--debug' in sys.argv
+if debug_mode:
+    sys.argv.remove('--debug')  # Remove so setup() doesn't get confused
 
 if sys.platform.startswith("win"):
     openmp_arg = '/openmp'
 else:
     openmp_arg = '-fopenmp'
 
-ext_modules = [
-    Extension(
+
+eig_ver = "3.4.0"
+eig_url = f"https://gitlab.com/libeigen/eigen/-/archive/{eig_ver}/eigen-{eig_ver}.tar.gz"
+eig_dir = pathlib.Path("eigen_download")
+
+eig_common_paths = [
+    pathlib.Path("/usr/include"),
+    pathlib.Path("/usr/include/eigen3"),
+    pathlib.Path("/usr/local/include"),
+    pathlib.Path("/usr/local/include/eigen3"),
+    pathlib.Path("/usr/local/include/eigen3"),
+    pathlib.Path("C:/Program Files/Eigen/include/eigen3"),
+    pathlib.Path("C:/Eigen/include/eigen3"),
+]
+
+def find_system_eigen():
+
+    env_path = os.getenv("EIGEN_DIR")
+    if env_path:
+        env_path = pathlib.Path(env_path)
+        if (env_path / "Eigen" / "Dense").exists():
+            print(f"Found Eigen in EIGEN_DIR env var: {env_path}")
+            return env_path   
+
+    for p in eig_common_paths:
+            print(f"Found Eigen in system path: {p}")
+            return p
+
+    return None
+
+def download_eigen():
+
+    existing_path = find_system_eigen()
+    if existing_path:
+        print(f"Using existing Eigen headers at {existing_path}")
+        return existing_path
+
+    if eig_dir.exists():
+        print(f"Eigen directory {eig_dir} already exists, skipping download.")
+        return eig_dir
+    else:
+        os.mkdir(eig_dir)
+
+    print(f"Downloading Eigen {eig_ver}...")
+    archive_path = f"eigen-{eig_ver}.tar.gz"
+    urllib.request.urlretrieve(eig_url, archive_path)
+
+    print("Extracting Eigen...")
+    with tarfile.open(archive_path, "r:gz") as tar:
+        members = [m for m in tar.getmembers() if "Eigen" in m.name or "unsupported" in m.name]
+        tar.extractall(path=eig_dir.parent, members=members)
+
+    extracted_folder = eig_dir.parent / f"eigen-{eig_ver}"
+    if extracted_folder.exists():
+        extracted_folder.rename(eig_dir)
+
+    os.remove(archive_path)
+    print("Eigen downloaded and ready.")
+    return eig_dir
+
+
+
+ext_cython = Extension(
         "pyvale.cython.rastercyth",
         ["src/pyvale/cython/rastercyth.py",],
         include_dirs=[numpy.get_include()],
         extra_compile_args=["-ffast-math",openmp_arg],
         extra_link_args=[openmp_arg],
-    ),
-]
+    )
+
+ext_dic = Extension(
+    'pyvale.dic.dic2dcpp',
+    sorted(glob("src/pyvale/dic/cpp/dic*.cpp")),
+    language="c++",
+    include_dirs=[pybind11.get_include()],
+    extra_compile_args=['-g', '-O0', '-fopenmp'] if debug_mode else ['-O3', '-fopenmp'],
+    extra_link_args=['-fopenmp'] + (['-g'] if debug_mode else []),
+)
+ext = cythonize([ext_cython], annotate=True) + [ext_dic]
 
 setup(
-    name="pyvale",
-
-    version="0.1.0",
-
-    description="An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration or validation.",
-
-    long_description=long_description,
-
-    long_description_content_type="text/markdown",
-
-    url="https://github.com/Computer-Aided-Validation-Laboratory/pyvale",
-
-    author="ScepticalRabbit",
-
-    author_email="thescepticalrabbit@gmail.com",
-
-    package_dir={"": "src"},
-
-    packages=find_packages(where="src"),
-
-    # Locked to 3.11 for blender python interface
-    python_requires="==3.11.*",
-
-    install_requires=[
-        "mooseherder>=0.1.0",
-        "numpy<2.0.0",
-        "scipy>=1.14.0",
-        "netCDF4>=1.6.5",
-        "pyvista>=0.43.3",
-        "matplotlib>=3.8",
-        "shapely>=2.0.4",
-        "sympy>=1.13.0",
-        "PyQT6>=6.7.1",
-        "imageio>=2.36.1",
-        "imageio-ffmpeg>=0.5.1",
-        "numba>=0.59.1",
-        "pymoo>=0.6.1.3",
-        "Cython>=3.0.0",
-        "bpy>=4.2.0",
-    ],
-
-    package_data={
-        "pyvale.data" : ["*.e","*.tiff"],
-        "pyvale.simcases" : ["*.i","*.geo"],
-    },
-
-    project_urls={
-        "Repository" : "https://github.com/Digital-Validation-Laboratory/pyvale",
-        "Issue Tracker" : "https://github.com/Digital-Validation-Laboratory/pyvale/issues",
-    },
-
-    ext_modules=cythonize(ext_modules,
-                          annotate=True),
+      ext_modules=ext,
 )
