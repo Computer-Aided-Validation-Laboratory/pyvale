@@ -208,7 +208,9 @@ PYBIND11_MODULE(pyray, m) {
         .def(py::init<shared_ptr<texture>>())
         .def(py::init<color>());  
 
-
+    py::class_<Dot_texture, texture, shared_ptr<Dot_texture>>(m, "Dot_texture")
+        .def(py::init<>())
+        .def(py::init<int, int, double, double>());
 
 
 

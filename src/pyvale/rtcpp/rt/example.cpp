@@ -157,8 +157,8 @@ int main(int, char**) {
     auto start = std::chrono::high_resolution_clock::now();
 
     std::ostringstream oss(std::ios::binary);
-    camera.render(scene, lights, oss);
-    std::string ppm_data = oss.str();
+    std::string ppm_data = camera.render(scene, lights);
+    // std::string ppm_data = oss.str();
 
     // End rendering time taken and show
     auto end = std::chrono::high_resolution_clock::now();

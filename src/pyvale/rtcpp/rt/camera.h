@@ -8,6 +8,8 @@
 #include "materials/material.h"
 #include <ostream>
 #include <omp.h>
+#include <sstream>
+#include <string>
 
 
 class Camera {
@@ -140,9 +142,9 @@ class Camera {
     
         //     std::clog << "\rDone.                 \n";     
         // }
-        void render(const Hittable& world, const Hittable& lights, std::ostream& stream = std::cout) {
-               
-            stream << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+        std::string render(const Hittable& world, const Hittable& lights) {
+            std::stringstream return_ss;   
+            return_ss << "P3\n" << image_width << ' ' << image_height << "\n255\n";
 
             int total_pixels = image_width * image_height;
             std::vector<std::string> pixel_buffer(total_pixels);
@@ -182,10 +184,11 @@ class Camera {
             
             // Shove all the buffer into the steam after being computed
             for (const auto& line : pixel_buffer) {
-                stream << line;
+                return_ss << line;
             }
 
             std::clog << "\rDone. \n";
+            return return_ss.str();
         }
 
     private:
