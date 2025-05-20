@@ -1,0 +1,90 @@
+name: Build Wheels
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - published
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # macos13 is intel macos14 is arm
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-14]
+
+    steps:
+      - uses: actions/checkout@v4
+    
+      # Set GCC and Deployment Target for macOS 13
+      - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 13
+        if: matrix.os == 'macos-13'
+        run: |
+          echo "MACOSX_DEPLOYMENT_TARGET=13.0" >> $GITHUB_ENV
+
+      # Set GCC and Deployment Target for macOS 14
+      - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 14
+        if: matrix.os == 'macos-14'
+        run: |
+          echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> $GITHUB_ENV
+
+      - name: Install libomp for clang (macOS only)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install libomp
+      
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.23.3
+        with:
+          package-dir: .
+          output-dir: wheelhouse
+          config-file: "{package}/pyproject.toml"
+        env:
+          CIBW_SKIP: "pp*"
+          CIBW_ENVIRONMENT_MACOS: >
+            CC=$(brew --prefix llvm@15)/bin/clang
+            CXX=$(brew --prefix llvm@15)/bin/clang++
+            LDFLAGS="-L$(brew --prefix libomp)/lib"
+            CPPFLAGS="-I$(brew --prefix libomp)/include"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          path: ./wheelhouse/*.whl
+
+
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sdist
+        run: pipx run build --sdist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pyvale-sdist
+          path: dist/*.tar.gz
+
+  upload_pypi:
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pyvale-*
+          path: dist
+          merge-multiple: true
+
+      # upload to pypi
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        #with:
+        #  repository-url: https://test.pypi.org/legacy/

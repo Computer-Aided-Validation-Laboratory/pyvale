@@ -1,0 +1,5 @@
+Stereo
+==================================
+
+.. literalinclude:: ../../../../src/pyvale/examples/blender/ex2_1_stereoscene.py
+   :language: python

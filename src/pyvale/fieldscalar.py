@@ -1,8 +1,8 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
 import numpy as np
 import pyvista as pv
@@ -13,40 +13,40 @@ from pyvale.field import IField
 from pyvale.fieldconverter import simdata_to_pyvista
 from pyvale.fieldsampler import sample_pyvista_grid
 
+
 class FieldScalar(IField):
     """Class for sampling (interpolating) scalar fields from simulations to
     provide sensor values at specified locations and times.
 
     Implements the `IField` interface.
     """
-    __slots__ = ("_field_key","_spat_dims","_sim_data","_pyvista_grid",
+    __slots__ = ("_field_key","_elem_dims","_sim_data","_pyvista_grid",
                  "_pyvista_vis")
 
     def __init__(self,
                  sim_data: mh.SimData,
                  field_key: str,
-                 spat_dims: int) -> None:
-        """Initialiser for the `FieldScalar` class.
-
+                 elem_dims: int) -> None:
+        """
         Parameters
         ----------
         sim_data : mh.SimData
             Simulation data object containing the mesh and field to interpolate.
         field_key : str
             String key for the scalar field component in the `SimData` object.
-        spat_dims : int
+        elem_dims : int
             Number of spatial dimensions (2 or 3) used for identifying element
             types.
         """
 
         self._field_key = field_key
-        self._spat_dims = spat_dims
+        self._elem_dims = elem_dims
 
         self._sim_data = sim_data
         (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
             self._sim_data,
             (self._field_key,),
-            self._spat_dims
+            self._elem_dims
         )
 
     def set_sim_data(self, sim_data: mh.SimData) -> None:
@@ -64,7 +64,7 @@ class FieldScalar(IField):
         (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
             sim_data,
             (self._field_key,),
-            self._spat_dims
+            self._elem_dims
         )
 
     def get_sim_data(self) -> mh.SimData:

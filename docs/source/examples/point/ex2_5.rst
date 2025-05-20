@@ -1,0 +1,4 @@
+3D vector field sensors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex2_5_vectorfields3d_disp3d.py
+   :language: python

@@ -2,9 +2,11 @@
 The python validation engine (`pyvale`): An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation.​ Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
 
 ## Quick Demo: Simulating Point Sensors
-Here we demonstrate how `pyvale` can be used to simulate thermocouples and strain gauges applied to a [MOOSE](https://mooseframework.inl.gov/index.html) thermo-mechanical simulation of a fusion divertor armour heatsink. The figures below show visualisations of the virtual thermocouple and strain gauge locations on the simualtion mesh as well as time traces for each sensor over a series of simulated experiments. The code to run the simulated experiments and produce the output shown here comes from [this example](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/src/pyvale/examples/ex6_2_multiphysics3d_expsim.py).
+Here we demonstrate how `pyvale` can be used to simulate thermocouples and strain gauges applied to a [MOOSE](https://mooseframework.inl.gov/index.html) thermo-mechanical simulation of a fusion divertor armour heatsink. The figures below show visualisations of the virtual thermocouple and strain gauge locations on the simualtion mesh as well as time traces for each sensor over a series of simulated experiments.
 
-|![fig_thermomech3d_tc_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_sg_vis.svg)|![fig_thermomech3d_sg_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_sg_vis.svg)|
+The code to run the simulated experiments and produce the output shown here comes from [this example](https://computer-aided-validation-laboratory.github.io/pyvale/examples/point/ex4_2.html). You can find more examples and details of `pyvale` python API in the `pyvale` [documentation](https://computer-aided-validation-laboratory.github.io/pyvale/index.html).
+
+|![fig_thermomech3d_tc_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_tc_vis.svg)|![fig_thermomech3d_sg_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_sg_vis.svg)|
 |--|--|
 |*Visualisation of the thermcouple locations.*|*Visualisation of the strain gauge locations.*|
 
@@ -70,21 +72,20 @@ pip install -e .
 pip install -e ./dependencies/mooseherder
 ```
 
-### MOOSE
+### Running Physics Simulations with MOOSE
 `pyvale` come pre-packaged with example `moose` physics simulation outputs (as *.e exodus files) to demonstrate its functionality. If you need to run additional simulation cases we recommend `proteus` (https://github.com/aurora-multiphysics/proteus) which has build scripts for common linux distributions.
-
-## Getting Started
-The examples folder in "pyvale/examples" includes a sequence of examples of increasing complexity that demonstrate the functionality of `pyvale`.
 
 ## Contributors
 The Computer Aided Validation Team at UKAEA:
-- Lloyd Fletcher (ScepticalRabbit), UK Atomic Energy Authority
-- John Charlton (coolmule0), UK Atomic Energy Authority
-- Joel Hirst (JoelPhys), UK Atomic Energy Authority
-- Lorna Sibson (lornasibson), UK Atomic Energy Authority
-- Adel Tayeb (3adelTayeb), UK Atomic Energy Authority
-- Alex Marsh (alexmarsh2), UK Atomic Energy Authority
-- Rory Spencer (fusmatrs), UK Atomic Energy Authority
+- Lloyd Fletcher ([ScepticalRabbit](https://github.com/ScepticalRabbit)), UK Atomic Energy Authority
+- Joel Hirst ([JoelPhys](https://github.com/JoelPhys)), UK Atomic Energy Authority
+- John Charlton ([coolmule0](https://github.com/coolmule0)), UK Atomic Energy Authority
+- Lorna Sibson ([lornasibson](https://github.com/lornasibson)), UK Atomic Energy Authority
+- Megan Sampson ([meganasampson](https://github.com/meganasampson)), UK Atomic Energy Authority
+- Michael Atkinson ([mikesmic](https://github.com/mikesmic)), UK Atomic Energy Authority
+- Adel Tayeb ([3adelTayeb](https://github.com/3adelTayeb)), UK Atomic Energy Authority
+- Alex Marsh ([alexmarsh2](https://github.com/alexmarsh2)), UK Atomic Energy Authority
+- Rory Spencer ([fusmatrs](https://github.com/orgs/Computer-Aided-Validation-Laboratory/people/fusmatrs)), UK Atomic Energy Authority
 
 
 

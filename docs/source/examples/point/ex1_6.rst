@@ -1,0 +1,4 @@
+Sensor calibration systematic errors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. literalinclude:: ../../../../src/pyvale/examples/basics/ex1_6_caliberrs_therm2d.py
+   :language: python

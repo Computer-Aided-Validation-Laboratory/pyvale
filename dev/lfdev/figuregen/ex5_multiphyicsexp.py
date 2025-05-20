@@ -43,7 +43,7 @@ def main() -> None:
         .thermocouples_basic_errs(sim_data,
                                   sens_pos,
                                   tc_field,
-                                  spat_dims=spat_dims,
+                                  elem_dims=spat_dims,
                                   sample_times=None,
                                   errs_pc=err_pc)
 
@@ -52,7 +52,7 @@ def main() -> None:
         .strain_gauges_basic_errs(sim_data,
                                   sens_pos,
                                   sg_field,
-                                  spat_dims=spat_dims,
+                                  elem_dims=spat_dims,
                                   sample_times=None,
                                   errs_pc=err_pc)
 

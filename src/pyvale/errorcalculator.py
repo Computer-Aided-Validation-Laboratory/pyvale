@@ -1,8 +1,8 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
 import enum
 from abc import ABC, abstractmethod
@@ -27,14 +27,14 @@ class EErrType(enum.Enum):
     RANDOM = enum.auto()
 
 
-class EErrDependence(enum.Enum):
+class EErrDep(enum.Enum):
     """Enumeration defining error dependence.
 
-    EErrDependence.INDEPENDENT:
+    EErrDep.INDEPENDENT:
         Errors are calculated based on the ground truth sensor values
         interpolated from the input simulation.
 
-    EErrDependence.DEPENDENT:
+    EErrDep.DEPENDENT:
         Errors are calculated based on the accumulated sensor reading due
         to all preceeding errors in the chain.
     """
@@ -46,6 +46,7 @@ class IErrCalculator(ABC):
     """Interface (abstract base class) for sensor error calculation allowing for
     chaining of errors.
     """
+
     @abstractmethod
     def get_error_type(self) -> EErrType:
         """Abstract method for getting the error type.
@@ -55,10 +56,9 @@ class IErrCalculator(ABC):
         EErrType
             Enumeration definining RANDOM or SYSTEMATIC error types.
         """
-        pass
 
     @abstractmethod
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Abstract method for getting the error dependence.
 
         Returns
@@ -66,10 +66,9 @@ class IErrCalculator(ABC):
         EErrDependence
             Enumeration definining RANDOM or SYSTEMATIC error types.
         """
-        pass
 
     @abstractmethod
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Abstract method for setting the error dependence.
 
         Parameters
@@ -104,7 +103,6 @@ class IErrCalculator(ABC):
             the error chain. Note that many errors do not modify the sensor data
             so the sensor data class is passed through this function unchanged.
         """
-        pass
 
 
 
