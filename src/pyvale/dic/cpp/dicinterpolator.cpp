@@ -29,74 +29,74 @@ namespace interpolator {
     std::vector<double> px_y;
     std::vector<double> px_x;
     double *image;
-    int px_vertical;
-    int px_horizontal;
+    int px_vert;
+    int px_hori;
 
-    void bicubic_init(double * img, int px_horizontal, int px_vertical){
+    void bicubic_init(double * img, int px_hori, int px_vert){
 
         // intitialise vars used globally within interpolator.
         interpolator::image = img;
-        interpolator::px_vertical = px_vertical;
-        interpolator::px_horizontal = px_horizontal;
+        interpolator::px_vert = px_vert;
+        interpolator::px_hori = px_hori;
 
         // allocate memory for pixel coordinate arrays
-        px_y.resize(px_vertical);
-        px_x.resize(px_horizontal);
+        px_y.resize(px_vert);
+        px_x.resize(px_hori);
 
         // allocate memory for image derivatives
-        zx.resize(px_vertical*px_horizontal);
-        zy.resize(px_vertical*px_horizontal);
-        zxy.resize(px_vertical*px_horizontal);
+        zx.resize(px_vert*px_hori);
+        zy.resize(px_vert*px_hori);
+        zxy.resize(px_vert*px_hori);
 
 
-        for (int i = 0; i < px_horizontal; ++i) {
+        for (int i = 0; i < px_hori; ++i) {
             px_x[i] = i; 
         }
-        for (int j = 0; j < px_vertical; ++j) {
+        for (int j = 0; j < px_vert; ++j) {
             px_y[j] = j; 
 
         }
 
-        std::vector<double> data(px_horizontal,0);
-        for (int j = 0; j < px_vertical; j++){
+        std::vector<double> data(px_hori,0);
+        for (int j = 0; j < px_vert; j++){
 
             // get 1D data
-            for (int i = 0; i < px_horizontal; ++i) {
-                data[i] = image[j * px_horizontal + i];
+            for (int i = 0; i < px_hori; ++i) {
+                data[i] = image[j * px_hori + i];
             }
 
             cspline_init(px_x, data);
-            for (int i = 0; i < px_horizontal; i++){
-                zx[j * px_horizontal + i] = cspline_eval_deriv(px_x, data, px_x[i], px_horizontal);
+            for (int i = 0; i < px_hori; i++){
+                zx[j * px_hori + i] = cspline_eval_deriv(px_x, data, px_x[i], px_hori);
             }
         }
 
-        data.resize(px_vertical,0);
-        for (int i = 0; i < px_horizontal; ++i) {
+        data.resize(px_vert,0);
+        for (int i = 0; i < px_hori; ++i) {
 
             // get 1D data
-            for (int j = 0; j < px_vertical; j++){
-                data[j] = image[j * px_horizontal + i];
+            for (int j = 0; j < px_vert; j++){
+                data[j] = image[j * px_hori + i];
             }
 
             cspline_init(px_y, data);
-            for (int j = 0; j < px_vertical; j++){
-                zy[j * px_horizontal + i] = cspline_eval_deriv(px_y, data, px_y[j], px_vertical);
+            for (int j = 0; j < px_vert; j++){
+                zy[j * px_hori + i] = cspline_eval_deriv(px_y, data, px_y[j], px_vert);
             }
         }
 
 
-        data.resize(px_horizontal,0);
-        for (int j = 0; j < px_vertical; j++){
+        data.resize(px_hori,0);
+        for (int j = 0; j < px_vert; j++){
 
             // get 1D data
-            for (int i = 0; i < px_horizontal; ++i) {
-                data[i] = zy[j * px_horizontal + i];
+            for (int i = 0; i < px_hori; ++i) {
+                data[i] = zy[j * px_hori + i];
             }
 
             cspline_init(px_x, data);
-            for (int i = 0; i < px_horizontal; i++){
-                zxy[j * px_horizontal + i] = cspline_eval_deriv(px_x, data, px_x[i], px_horizontal);
+            for (int i = 0; i < px_hori; i++){
+                zxy[j * px_hori + i] = cspline_eval_deriv(px_x, data, px_x[i], px_hori);
             }
         }
 
@@ -108,14 +108,14 @@ namespace interpolator {
     double eval_bicubic(double x, double y){
 
         // get indices
-        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
-        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
+        size_t xi = index_lookup(px_x, x, 0, px_hori - 1);
+        size_t yi = index_lookup(px_y, y, 0, px_vert - 1);
 
         // precompute indices of surrounding pixel values
-        size_t idx00 = IDX2D(xi, yi, px_horizontal);
-        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
-        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
-        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
+        size_t idx00 = IDX2D(xi, yi, px_hori);
+        size_t idx01 = IDX2D(xi, yi + 1, px_hori);
+        size_t idx10 = IDX2D(xi + 1, yi, px_hori);
+        size_t idx11 = IDX2D(xi + 1, yi + 1, px_hori);
 
         /* Precompute values for the grid points */
         double zminmin = image[idx00];
@@ -179,14 +179,14 @@ namespace interpolator {
     double eval_bicubic_dx(double x, double y){
 
         /* first compute the indices into the data arrays where we are interpolating */
-        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
-        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
+        size_t xi = index_lookup(px_x, x, 0, px_hori - 1);
+        size_t yi = index_lookup(px_y, y, 0, px_vert - 1);
 
         // precompute indices of surrounding pixel values
-        size_t idx00 = IDX2D(xi, yi, px_horizontal);
-        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
-        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
-        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
+        size_t idx00 = IDX2D(xi, yi, px_hori);
+        size_t idx01 = IDX2D(xi, yi + 1, px_hori);
+        size_t idx10 = IDX2D(xi + 1, yi, px_hori);
+        size_t idx11 = IDX2D(xi + 1, yi + 1, px_hori);
 
         double zminmin = image[idx00];
         double zminmax = image[idx01];
@@ -240,14 +240,14 @@ namespace interpolator {
     double eval_bicubic_dy(double x, double y){
 
         /* first compute the indices into the data arrays where we are interpolating */
-        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
-        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
+        size_t xi = index_lookup(px_x, x, 0, px_hori - 1);
+        size_t yi = index_lookup(px_y, y, 0, px_vert - 1);
 
         // precompute indices of surrounding pixel values
-        size_t idx00 = IDX2D(xi, yi, px_horizontal);
-        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
-        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
-        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
+        size_t idx00 = IDX2D(xi, yi, px_hori);
+        size_t idx01 = IDX2D(xi, yi + 1, px_hori);
+        size_t idx10 = IDX2D(xi + 1, yi, px_hori);
+        size_t idx11 = IDX2D(xi + 1, yi + 1, px_hori);
 
         double zminmin = image[idx00];
         double zminmax = image[idx01];
@@ -299,14 +299,14 @@ namespace interpolator {
     Data eval_bicubic_and_derivs(double x, double y){
 
         // pixel floor of x and y 
-        size_t xi = index_lookup(px_x, x, 0, px_horizontal - 1);
-        size_t yi = index_lookup(px_y, y, 0, px_vertical - 1);
+        size_t xi = index_lookup(px_x, x, 0, px_hori - 1);
+        size_t yi = index_lookup(px_y, y, 0, px_vert - 1);
 
         // precompute indices of surrounding pixel values
-        size_t idx00 = IDX2D(xi, yi, px_horizontal);
-        size_t idx01 = IDX2D(xi, yi + 1, px_horizontal);
-        size_t idx10 = IDX2D(xi + 1, yi, px_horizontal);
-        size_t idx11 = IDX2D(xi + 1, yi + 1, px_horizontal);
+        size_t idx00 = IDX2D(xi, yi, px_hori);
+        size_t idx01 = IDX2D(xi, yi + 1, px_hori);
+        size_t idx10 = IDX2D(xi + 1, yi, px_hori);
+        size_t idx11 = IDX2D(xi + 1, yi + 1, px_hori);
 
         double zminmin = image[idx00];
         double zminmax = image[idx01];

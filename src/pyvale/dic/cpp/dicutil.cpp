@@ -33,17 +33,17 @@ namespace util {
 
 
 
-    void extract_image(double *image_def_stack, 
+    void extract_image(double *img_def_stack, 
                        int image_number,
-                       int px_horizontal,
-                       int px_vertical){
+                       int px_hori,
+                       int px_vert){
 
         int count = 0;
-        for (int px_y = 0; px_y < px_vertical; px_y++){
-            for (int px_x = 0; px_x < px_horizontal; px_x++){
-                int idx = image_number * px_horizontal * px_vertical + px_y * px_horizontal + px_x;
-                std::cout << image_def_stack[idx] << " ";
-                //image_def->vals[count] = image_def_stack[idx];
+        for (int px_y = 0; px_y < px_vert; px_y++){
+            for (int px_x = 0; px_x < px_hori; px_x++){
+                int idx = image_number * px_hori * px_vert + px_y * px_hori + px_x;
+                std::cout << img_def_stack[idx] << " ";
+                //img_def->vals[count] = img_def_stack[idx];
                 count++;
             }
             std::cout << std::endl;
@@ -67,9 +67,9 @@ namespace util {
 
     void extract_ss(util::Subset &ss_def, 
                     int ss_x, int ss_y, 
-                    int px_horizontal,
-                    int px_vertical,
-                    double *image_def){
+                    int px_hori,
+                    int px_vert,
+                    double *img_def){
 
         int count = 0;
         int idx;
@@ -82,8 +82,8 @@ namespace util {
                 ss_def.y[count] = px_y; 
 
                 // get pixel values
-                idx = px_y * px_horizontal + px_x;
-                ss_def.vals[count] = image_def[idx];
+                idx = px_y * px_hori + px_x;
+                ss_def.vals[count] = img_def[idx];
                 count++;
                 
             }
@@ -91,14 +91,12 @@ namespace util {
     }
 
 
-    SubsetData generate_ss_list(bool *image_roi, Config &conf, 
-                                SaveConfig &saveconf) {
+    SubsetData gen_ss_list(bool *img_roi, int ss_step, int ss_size, 
+                                int px_hori, int px_vert) {
         
         Timer timer("generate subset list");
 
         SubsetData ssdata;
-        const int ss_step = conf.ss_step;
-        const int ss_size = conf.ss_size;
 
         int idx;
         int dx[4] = {ss_step, 0, -ss_step, 0};
@@ -106,9 +104,8 @@ namespace util {
 
         int subset_counter = 0;
 
-        
-        int num_ss_x = conf.px_horizontal / ss_step;
-        int num_ss_y = conf.px_vertical / ss_step;
+        int num_ss_x = px_hori / ss_step;
+        int num_ss_y = px_vert / ss_step;
         ssdata.mask.resize(num_ss_x*num_ss_y, false);
         ssdata.num_ss_x = num_ss_x;
         ssdata.num_ss_y = num_ss_y;
@@ -137,7 +134,8 @@ namespace util {
                 for (int px_y = ymin; px_y <= ymax && valid; px_y++) {
                     for (int px_x = xmin; px_x <= xmax && valid; px_x++) {
 
-                       if(!is_valid_pixel(px_x,px_y,conf,image_roi)){
+                       if(!is_valid_pixel(px_x,px_y,px_hori,
+                                          px_vert,img_roi)){
                             valid = false;
                             break;
                         }
@@ -180,7 +178,9 @@ namespace util {
                 for (int y = ymin; y <= ymax && valid; ++y) {
                     for (int x = xmin; x <= xmax && valid; ++x) {
 
-                        if(!is_valid_pixel(x,y,conf,image_roi)){
+                        if(!is_valid_pixel(x,y,px_hori,
+                                           px_vert,img_roi)){
+
                             valid = false;
                             break;
                         }
@@ -199,16 +199,13 @@ namespace util {
             ssdata.neigh[center_idx] = std::move(temp_neigh);
         }
 
-
-        // update size of master result vectors
-        util::at_end = saveconf.at_end;
-        resize_results(conf.num_def_img, ssdata.num, conf.num_params);
-
         return ssdata;
     }
 
-    void resize_results(int num_def_img, 
-                        int num_ss, int num_params){
+    void resize_results(int num_def_img, int num_ss, 
+                        int num_params, bool at_end){
+        
+        util::at_end = at_end;
 
         if (at_end){
             niter_arr.resize(num_def_img * num_ss);
@@ -322,14 +319,14 @@ namespace util {
         }
     }
 
-    bool is_valid_pixel(int px_x, int px_y, Config& conf, 
-                        bool *image_roi) {
+    bool is_valid_pixel(int px_x, int px_y, int px_hori, 
+                        int px_vert, bool *img_roi) {
         if (px_x < 0 || px_y < 0 ||
-            px_x >= conf.px_horizontal || px_y >= conf.px_vertical) {
+            px_x >= px_hori || px_y >= px_vert) {
             return false;
         }
-        int idx = px_y * conf.px_horizontal + px_x;
-        if (!image_roi[idx]) {
+        int idx = px_y * px_hori + px_x;
+        if (!img_roi[idx]) {
             return false;
         }
         return true;

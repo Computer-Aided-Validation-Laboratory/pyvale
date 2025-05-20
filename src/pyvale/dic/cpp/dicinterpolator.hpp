@@ -39,10 +39,10 @@ namespace interpolator {
      * Sets up the necessary data structures and computes derivatives required for bicubic interpolation.
      * 
      * @param img Pointer to the image data array
-     * @param px_horizontal Width of the image in pixels
-     * @param px_vertical Height of the image in pixels
+     * @param px_hori Width of the image in pixels
+     * @param px_vert Height of the image in pixels
      */
-    void bicubic_init(double * img, int px_horizontal, int px_vertical);
+    void bicubic_init(double * img, int px_hori, int px_vert);
 
     /**
      * @brief Evaluates the bicubic interpolation at a specified point.

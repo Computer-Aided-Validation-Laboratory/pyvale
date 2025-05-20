@@ -46,8 +46,8 @@ namespace rg {
     /**
      * @brief 
      * 
-     * @param image_ref 
-     * @param image_def 
+     * @param img_ref 
+     * @param img_def 
      * @param seed_x
      * @param seed_y 
      * @param num_def_images 
@@ -60,9 +60,9 @@ namespace rg {
      * @param range_bf 
      */
     void reliability_guided_dic_single_seed(
-        const double *image_ref,
-        const double *image_def,
-        const bool *image_roi,
+        const double *img_ref,
+        const double *img_def,
+        const bool *img_roi,
         const int seed_x, const int seed_y,  // Single seed point coordinates
         util::SubsetData *ssdata,
         const int num_def_images,
@@ -80,8 +80,8 @@ namespace rg {
      * 
      * @param x 
      * @param y 
-     * @param px_horizontal 
-     * @param px_vertical 
+     * @param px_hori 
+     * @param px_vert 
      * @param ss_size 
      * @return true 
      * @return false 

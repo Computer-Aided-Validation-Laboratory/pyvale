@@ -15,7 +15,7 @@ from typing import Union
 
 
 # import cython module
-from pyvale.dic import dic2dcpp
+import pyvale.dic.dic2dcpp as dic2dcpp
 from pyvale.dic.dicresults import DICResults
 
 
@@ -62,8 +62,8 @@ def DIC2D(reference: np.ndarray | str,
     config.shape_func = shape_function
     config.interp_routine = interpolation_routine
     config.scan_method = scanning_method
-    config.px_horizontal = ref_arr.shape[1]
-    config.px_vertical = ref_arr.shape[0]
+    config.px_hori = ref_arr.shape[1]
+    config.px_vert = ref_arr.shape[0]
     config.num_def_img = def_arr.shape[0]
     config.num_params = num_params
 
@@ -74,10 +74,7 @@ def DIC2D(reference: np.ndarray | str,
     saveconf.delimiter = output_delimiter
     saveconf.at_end = output_at_end
 
-
-    print(ref_arr.dtype, def_arr.dtype, roi_mask.dtype)
-    print(ref_arr.shape, def_arr.shape, roi_mask.shape)
-    results = dic2dcpp.engine(ref_arr, def_arr, roi_mask, config, saveconf)
+    dic2dcpp.dic_engine(ref_arr, def_arr, roi_mask, config, saveconf)
 
 
 
@@ -125,7 +122,7 @@ def DIC2Dgpu() -> None:
     return None
 
 
-def DICbuild() -> None:
+def DICbuildinfo() -> None:
     """
     Prints the C++ build information.
     """

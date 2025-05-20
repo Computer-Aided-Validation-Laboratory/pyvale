@@ -63,9 +63,9 @@ namespace scanmethod {
         }
     }
 
-    void image(double *image_ref, 
-                    double *image_def, 
-                    bool *image_roi,
+    void image(double *img_ref, 
+                    double *img_def, 
+                    bool *img_roi,
                     util::SubsetData &ssdata, 
                     util::Config &conf,
                     int img_num){
@@ -83,7 +83,7 @@ namespace scanmethod {
         // optimization parameters
         optimizer::Parameters opt(conf.num_params, conf.max_iter, 
                                   conf.precision, conf.threshold_lm,
-                                  conf.px_vertical, conf.px_horizontal);
+                                  conf.px_vert, conf.px_hori);
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, opt) shared(stop_request)
@@ -101,9 +101,9 @@ namespace scanmethod {
 
             // get the deformed subset
             util::extract_ss(ss_def, ss_x, ss_y, 
-                             conf.px_horizontal,
-                             conf.px_vertical,
-                             image_def); 
+                             conf.px_hori,
+                             conf.px_vert,
+                             img_def); 
 
 
             // perform optimization on subset from deformed image
@@ -128,9 +128,9 @@ namespace scanmethod {
 
 
 
-void image_with_bf(double *image_ref, 
-                        double *image_def, 
-                        bool *image_roi,
+void image_with_bf(double *img_ref, 
+                        double *img_def, 
+                        bool *img_roi,
                         util::SubsetData &ssdata, 
                         util::Config &conf,
                         int img_num){
@@ -148,7 +148,7 @@ void image_with_bf(double *image_ref,
     // optimization parameters
     optimizer::Parameters opt(conf.num_params, conf.max_iter, 
                               conf.precision, conf.threshold_lm,
-                              conf.px_vertical, conf.px_horizontal);
+                              conf.px_vert, conf.px_hori);
 
 
     // brute force scan parameters
@@ -181,9 +181,9 @@ void image_with_bf(double *image_ref,
 
         // get the deformed subset
         util::extract_ss(ss_def, ss_x, ss_y, 
-                         conf.px_horizontal,
-                         conf.px_vertical,
-                             image_def); 
+                         conf.px_hori,
+                         conf.px_vert,
+                             img_def); 
 
 
         // if first subset in the loop or prev subset was a poor match
@@ -191,9 +191,9 @@ void image_with_bf(double *image_ref,
         // brute force params that gave a good match.
         if ((ss_thread_num == 0) || (res.iter == opt.max_iter)){
 
-            brute::expanding_wavefront(ss_x, ss_y, image_ref, 
-                                       conf.px_horizontal, 
-                                       conf.px_vertical, 
+            brute::expanding_wavefront(ss_x, ss_y, img_ref, 
+                                       conf.px_hori, 
+                                       conf.px_vert, 
                                        ss_def, ss_ref, brute);
 
             ptemp[0] = brute.p_rigid[0];
@@ -227,9 +227,9 @@ void image_with_bf(double *image_ref,
 
 
 
-    void reliability_guided(double *image_ref, 
-                            double *image_def, 
-                            bool *image_roi,
+    void reliability_guided(double *img_ref, 
+                            double *img_def, 
+                            bool *img_roi,
                             util::SubsetData &ssdata, 
                             util::Config &conf,
                             int img_num){
@@ -249,8 +249,8 @@ void image_with_bf(double *image_ref,
         }
 
         // assign some consts for readability
-        const int px_horizontal = conf.px_horizontal;
-        const int px_vertical = conf.px_vertical;
+        const int px_hori = conf.px_hori;
+        const int px_vert = conf.px_vert;
 
         // Initialize binary mask for computed points (initialized to 0)
         std::vector<std::atomic<bool>> computed_mask(ssdata.mask.size());
@@ -268,8 +268,8 @@ void image_with_bf(double *image_ref,
 
         // Extract subset and solve for starting seed point
         util::extract_ss(ss_def, seed_x, seed_y, 
-                         px_horizontal, px_vertical,
-                         image_def);
+                         px_hori, px_vert,
+                         img_def);
 
 
         // temp p values for copy from brute force to optimization.
@@ -279,14 +279,14 @@ void image_with_bf(double *image_ref,
         brute::Parameters brute(conf.threshold_bf, 
                                 conf.range_bf);
 
-        brute::expanding_wavefront(seed_x, seed_y, image_ref, 
-                                   px_horizontal, px_vertical, 
+        brute::expanding_wavefront(seed_x, seed_y, img_ref, 
+                                   px_hori, px_vert, 
                                    ss_def, ss_ref, brute);
 
         // Optimization parameters
         optimizer::Parameters opt(conf.num_params, conf.max_iter, 
                                   conf.precision, conf.threshold_lm, 
-                                  px_vertical, px_horizontal);
+                                  px_vert, px_hori);
 
         opt.p[0] = brute.p_rigid[0];
         opt.p[1] = brute.p_rigid[1];
@@ -315,11 +315,11 @@ void image_with_bf(double *image_ref,
             int ny = ssdata.coords[nidx*2+1];
 
             util::extract_ss(ss_def, nx, ny,
-                             px_horizontal, px_vertical,
-                             image_def);
+                             px_hori, px_vert,
+                             img_def);
 
-            brute::expanding_wavefront(nx, ny, image_ref,
-                                       px_horizontal, px_vertical,
+            brute::expanding_wavefront(nx, ny, img_ref,
+                                       px_hori, px_vert,
                                        ss_def, ss_ref, brute);
 
             ptemp[0] = brute.p_rigid[0];
@@ -412,8 +412,8 @@ void image_with_bf(double *image_ref,
 
                         // extract subset
                         util::extract_ss(ss_def, nx, ny,
-                                         px_horizontal, px_vertical,
-                                         image_def);
+                                         px_hori, px_vert,
+                                         img_def);
 
                         // if the neighbouring subset reached the max
                         // num of iterations or prev subset had not reached
@@ -421,9 +421,9 @@ void image_with_bf(double *image_ref,
                         if (util::niter_arr[idx] == opt.max_iter && 
                             util::cost_arr[idx] > opt.threshold_lm){
 
-                            brute::expanding_wavefront(nx, ny, image_ref, 
-                                                       px_horizontal,
-                                                       px_vertical, ss_def,
+                            brute::expanding_wavefront(nx, ny, img_ref, 
+                                                       px_hori,
+                                                       px_vert, ss_def,
                                                        ss_ref, brute);
 
                             ptemp[0] = brute.p_rigid[0];

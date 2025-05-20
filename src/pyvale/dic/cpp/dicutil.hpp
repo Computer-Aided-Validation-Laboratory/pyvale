@@ -48,8 +48,8 @@ namespace util {
         int ss_step;
         int ss_size;
         int max_iter;
-        int px_horizontal;
-        int px_vertical;
+        int px_hori;
+        int px_vert;
         int num_def_img;
         int num_params;
         double precision;
@@ -142,8 +142,8 @@ namespace util {
      */
     struct Image {
         double *vals;
-        int px_horizontal;
-        int px_vertical;
+        int px_hori;
+        int px_vert;
         int num;
     };
 
@@ -152,18 +152,18 @@ namespace util {
      * @brief Extracts a single image from a stacked image array and stores it in an `Image` object.
      * 
      * Takes a specific 2D image (identified by `image_number`) from a 3D image stack 
-     * (`image_def_stack`) and stores its pixel values into the `vals` field of the provided 
+     * (`img_def_stack`) and stores its pixel values into the `vals` field of the provided 
      * `util::Image` structure.
      * 
-     * @param image_def        Pointer to a `util::Image` object that will be populated with the extracted image data.
-     * @param image_def_stack  Pointer to a flat array representing a stack of images stored sequentially 
+     * @param img_def        Pointer to a `util::Image` object that will be populated with the extracted image data.
+     * @param img_def_stack  Pointer to a flat array representing a stack of images stored sequentially 
      *                         (row-major order).
      * @param image_number     Index of the image to extract from the stack (0-based).
      */
-    void extract_image(double *image_def_stack, 
+    void extract_image(double *img_def_stack, 
                        int image_number,
-                       int px_horizontal,
-                       int px_vertical);
+                       int px_hori,
+                       int px_vert);
 
 
            
@@ -177,15 +177,15 @@ namespace util {
      * 
      * @param ss_x        X-coordinate (column) of the top-left corner of the subset in the image.
      * @param ss_y        Y-coordinate (row) of the top-left corner of the subset in the image.
-     * @param image_def   Pointer to the source image (`util::Image`) from which to extract pixel data.
+     * @param img_def   Pointer to the source image (`util::Image`) from which to extract pixel data.
      * @param ss_def      Pointer to the destination subset (`util::Subset`) where extracted pixel 
      *                    values and coordinates are stored.
      */            
     void extract_ss(util::Subset &ss_def, 
                     int ss_x, int ss_y, 
-                    int px_horizontal,
-                    int px_vertical,
-                    double *image_def);
+                    int px_hori,
+                    int px_vert,
+                    double *img_def);
 
     /**
      */
@@ -195,33 +195,33 @@ namespace util {
      * @brief Generates a list of subsets based on the provided image ROI and parameters.
      * 
      * This function creates a list of subsets (defined by their coordinates) from a binary mask 
-     * (`image_roi`) that indicates the region of interest in the image. The subsets are generated 
+     * (`img_roi`) that indicates the region of interest in the image. The subsets are generated 
      * with specified size and step values.
      * 
-     * @param image_roi    Pointer to a binary mask indicating the region of interest in the image.
-     * @param px_horizontal Number of horizontal pixels in the image.
-     * @param px_vertical   Number of vertical pixels in the image.
+     * @param img_roi    Pointer to a binary mask indicating the region of interest in the image.
+     * @param px_hori Number of horizontal pixels in the image.
+     * @param px_vert   Number of vertical pixels in the image.
      * @param ss_size      Size of each subset (in pixels).
      * @param ss_step      Step size for generating subsets.
      * @return            A SubsetData object containing the generated subsets and their neighbours.
      */
-     SubsetData generate_ss_list(bool *image_roi, Config &conf,
-                                 SaveConfig &saveconf);
+    SubsetData gen_ss_list(bool *img_roi, int ss_step, int ss_size, 
+                                int px_hori, int px_vert);
 
 
+    void append_results(int img_num, int ss, 
+                        util::Results &res, int num_ss);
 
-    void append_results(int img_num, int ss, util::Results &res, 
-                        int num_ss);
-
-
-    void resize_results(int num_def_img, int num_ss, int num_params);
+    void resize_results(int num_def_img, int num_ss,
+                        int num_params, bool at_end);
 
     void save_to_disk(int img, util::SaveConfig &saveconf,
                       util::SubsetData &ssdata, int num_def_img,
                       int num_params);
 
 
-    bool is_valid_pixel(int px_x, int px_y, Config& conf, bool *image_roi);
+    bool is_valid_pixel(int px_x, int px_y, int px_hori, 
+                        int px_vert, bool *img_roi);
 
 
     inline void write_int(std::ofstream& out, int val);

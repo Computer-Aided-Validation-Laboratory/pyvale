@@ -49,11 +49,17 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     double* img_def_stack = static_cast<double*>(img_def_stack_arr.request().ptr);
 
     // get a list of ss coordinates within RIO.
-    util::SubsetData ssdata = util::generate_ss_list(img_roi, conf, saveconf);
+    util::SubsetData ssdata = util::gen_ss_list(img_roi, conf.ss_step, 
+                                                conf.ss_size, conf.px_hori, 
+                                                conf.px_vert);
+
+    // resize the results based on subset information
+    util::resize_results(conf.num_def_img, ssdata.num,
+                         conf.num_params, saveconf.at_end);
 
     // TITLE("DIC INITIALISATION");
-    INFO_OUT("Width of Images: ", conf.px_horizontal << " [px]");
-    INFO_OUT("Height of Images: ", conf.px_vertical << " [px]");
+    INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
+    INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
     INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
     INFO_OUT("Subset Step: ", conf.ss_step);
     INFO_OUT("Subset Size: ", conf.ss_size);
@@ -66,7 +72,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     INFO_OUT("Number of OMP threads:", omp_get_max_threads());
 
     // define our interpolator for the reference image
-    interpolator::bicubic_init(img_ref, conf.px_horizontal, conf.px_vertical);
+    interpolator::bicubic_init(img_ref, conf.px_hori, conf.px_vert);
 
     // initialise the LM optimizer with shape func and corr crit
     optimizer::init(conf.corr_crit, conf.shape_func);
@@ -104,7 +110,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
 
         // pointer to starting location of image
-        int num_px_in_image = conf.px_horizontal * conf.px_vertical;
+        int num_px_in_image = conf.px_hori * conf.px_vert;
         double *img_def = img_def_stack + img_num*num_px_in_image;
 
         scan_ptr(img_ref, img_def, img_roi, ssdata, conf, img_num);
@@ -155,8 +161,8 @@ PYBIND11_MODULE(dic2dcpp, m) {
         .def_readwrite("shape_func", &util::Config::shape_func)
         .def_readwrite("interp_routine", &util::Config::interp_routine)
         .def_readwrite("scan_method", &util::Config::scan_method)
-        .def_readwrite("px_horizontal", &util::Config::px_horizontal)
-        .def_readwrite("px_vertical", &util::Config::px_vertical)
+        .def_readwrite("px_hori", &util::Config::px_hori)
+        .def_readwrite("px_vert", &util::Config::px_vert)
         .def_readwrite("num_def_img", &util::Config::num_def_img)
         .def_readwrite("num_params", &util::Config::num_params);
 

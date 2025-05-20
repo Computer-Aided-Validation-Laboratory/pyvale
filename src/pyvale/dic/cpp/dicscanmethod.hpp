@@ -30,16 +30,16 @@ namespace scanmethod {
      * Loops over the subsets as a raster across the image.
      * initial subset locations are distrubuted evenly across the image
  * 
- * @param image_ref pointer to reference image
- * @param image_def pointer to deformed image
- * @param image_roi pointer to image roi
+ * @param img_ref pointer to reference image
+ * @param img_def pointer to deformed image
+ * @param img_roi pointer to image roi
  * @param ssdata pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void image(double *image_ref, 
-                double *image_def, 
-                bool *image_roi,
+void image(double *img_ref, 
+                double *img_def, 
+                bool *img_roi,
                 util::SubsetData &ssdata, 
                 util::Config &conf,
                 int img_num);
@@ -52,16 +52,16 @@ void image(double *image_ref,
  * and then a brute force search is performed to find the best match
  * for the first subset and any other poorly correlated subsets.
  * 
- * @param image_ref pointer to reference image
- * @param image_def pointer to deformed image
- * @param image_roi pointer to image roi
+ * @param img_ref pointer to reference image
+ * @param img_def pointer to deformed image
+ * @param img_roi pointer to image roi
  * @param ssdata pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void image_with_bf(double *image_ref, 
-                        double *image_def, 
-                        bool *image_roi,
+void image_with_bf(double *img_ref, 
+                        double *img_def, 
+                        bool *img_roi,
                         util::SubsetData &ssdata, 
                         util::Config &conf,
                         int img_num);
@@ -74,16 +74,16 @@ void image_with_bf(double *image_ref,
  * A full indepth outline of the method can be found here:
  * https://opg.optica.org/ao/abstract.cfm?uri=ao-48-8-1535
  * 
- * @param image_ref pointer to reference image
- * @param image_def pointer to deformed image
- * @param image_roi pointer to image roi
+ * @param img_ref pointer to reference image
+ * @param img_def pointer to deformed image
+ * @param img_roi pointer to image roi
  * @param ssdata pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void reliability_guided(double *image_ref, 
-                        double *image_def, 
-                        bool *image_roi,
+void reliability_guided(double *img_ref, 
+                        double *img_def, 
+                        bool *img_roi,
                         util::SubsetData &ssdata, 
                         util::Config &conf,
                         int img_num);

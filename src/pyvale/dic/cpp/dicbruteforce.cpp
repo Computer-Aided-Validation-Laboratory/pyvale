@@ -33,9 +33,9 @@ namespace brute {
 
 
     // function pointers
-    double (*cost_function)(const double *image_ref, 
-               const int px_horizontal, 
-               const int px_vertical, 
+    double (*cost_function)(const double *img_ref, 
+               const int px_hori, 
+               const int px_vert, 
                util::Subset &ss_def, 
                util::Subset &ss_ref,
                const int p0,
@@ -43,9 +43,9 @@ namespace brute {
 
     void (*find_min)(const int ss_x,
                      const int ss_y,
-                     const double *image_ref, 
-                     const int px_horizontal, 
-                     const int px_vertical, 
+                     const double *img_ref, 
+                     const int px_hori, 
+                     const int px_vert, 
                      util::Subset &ss_def, 
                      util::Subset &ss_ref, 
                      brute::Parameters &brute);
@@ -80,9 +80,9 @@ namespace brute {
 
     void expanding_wavefront(const int ss_x,
                          const int ss_y,
-                         const double *image_ref,
-                         const int px_horizontal,
-                         const int px_vertical,
+                         const double *img_ref,
+                         const int px_hori,
+                         const int px_vert,
                          util::Subset &ss_def,
                          util::Subset &ss_ref,
                          brute::Parameters &brute) {
@@ -117,11 +117,11 @@ namespace brute {
                     int ss_ymax = ss_y + p1 + ss_def.size;
 
                     if (!is_within_image(ss_xmin, ss_ymin, ss_xmax, ss_ymax, 
-                                         px_horizontal, px_vertical))
+                                         px_hori, px_vert))
                         continue;
 
-                    double cost = cost_function(image_ref, px_horizontal, 
-                                                px_vertical, ss_def, 
+                    double cost = cost_function(img_ref, px_hori, 
+                                                px_vert, ss_def, 
                                                 ss_ref, p0, p1);
 
                     if (std::abs(cost) < cost_min) {
@@ -144,9 +144,9 @@ namespace brute {
 
     void exhaustive(const int ss_x, 
                     const int ss_y, 
-                    const double *image_ref, 
-                    const int px_horizontal, 
-                    const int px_vertical, 
+                    const double *img_ref, 
+                    const int px_hori, 
+                    const int px_vert, 
                     util::Subset &ss_def, 
                     util::Subset &ss_ref, 
                     brute::Parameters &brute){
@@ -157,14 +157,14 @@ namespace brute {
         // clamp search area to within image bounds
         const int xmin = std::max(0, ss_x - range);
         const int ymin = std::max(0, ss_y - range);
-        const int xmax = std::min(px_horizontal, ss_x + range);
-        const int ymax = std::min(px_vertical, ss_y + range);
+        const int xmax = std::min(px_hori, ss_x + range);
+        const int ymax = std::min(px_vert, ss_y + range);
 
 
         for (int p1 = -ymin; p1 <= ymax; p1++){
             for (int p0 = -xmin; p0 <= xmax; p0++){
 
-                double cost = cost_function(image_ref, px_horizontal, px_vertical, ss_def,ss_ref,p0,p1);
+                double cost = cost_function(img_ref, px_hori, px_vert, ss_def,ss_ref,p0,p1);
 
                 // update minumum value. If Below tolerance then return.
                 if (std::abs(cost) < cost_min) {
@@ -180,9 +180,9 @@ namespace brute {
 
 
 
-    double ssd(const double *image_ref, 
-               const int px_horizontal, 
-               const int px_vertical, 
+    double ssd(const double *img_ref, 
+               const int px_hori, 
+               const int px_vert, 
                util::Subset &ss_def, 
                util::Subset &ss_ref,
                const int p0,
@@ -198,9 +198,9 @@ namespace brute {
 
             const int ss_ref_x_int = static_cast<int>(ss_ref.x[i]);
             const int ss_ref_y_int = static_cast<int>(ss_ref.y[i]);
-            const int idx = ss_ref_y_int * px_horizontal + ss_ref_x_int;
+            const int idx = ss_ref_y_int * px_hori + ss_ref_x_int;
 
-            ss_ref.vals[i] = image_ref[idx];
+            ss_ref.vals[i] = img_ref[idx];
             
             cost += (ss_def.vals[i] - ss_ref.vals[i]) *
                     (ss_def.vals[i] - ss_ref.vals[i]);
@@ -212,9 +212,9 @@ namespace brute {
     }
 
 
-    double nssd(const double *image_ref, 
-                const int px_horizontal, 
-                const int px_vertical, 
+    double nssd(const double *img_ref, 
+                const int px_hori, 
+                const int px_vert, 
                 util::Subset &ss_def,
                 util::Subset &ss_ref,
                 const int p0,
@@ -234,9 +234,9 @@ namespace brute {
 
             const int ss_ref_x_int = static_cast<int>(ss_ref.x[i]);
             const int ss_ref_y_int = static_cast<int>(ss_ref.y[i]);
-            const int idx = ss_ref_y_int * px_horizontal + ss_ref_x_int;
+            const int idx = ss_ref_y_int * px_hori + ss_ref_x_int;
 
-            ss_ref.vals[i] = image_ref[idx];
+            ss_ref.vals[i] = img_ref[idx];
 
             sum_squared_ref += ss_ref.vals[i] * ss_ref.vals[i];
             sum_squared_def += ss_def.vals[i] * ss_def.vals[i];
@@ -259,9 +259,9 @@ namespace brute {
 
     }
 
-    double znssd(const double *image_ref, 
-                const int px_horizontal, 
-                const int px_vertical, 
+    double znssd(const double *img_ref, 
+                const int px_hori, 
+                const int px_vert, 
                 util::Subset &ss_def,
                 util::Subset &ss_ref,
                 const int p0,
@@ -280,9 +280,9 @@ namespace brute {
 
             const int ss_ref_x_int = static_cast<int>(ss_ref.x[i]);
             const int ss_ref_y_int = static_cast<int>(ss_ref.y[i]);
-            const int idx = ss_ref_y_int * px_horizontal + ss_ref_x_int;
+            const int idx = ss_ref_y_int * px_hori + ss_ref_x_int;
 
-            ss_ref.vals[i] = image_ref[idx];
+            ss_ref.vals[i] = img_ref[idx];
             mean_ref += ss_ref.vals[i];
             mean_def += ss_def.vals[i];
         }
@@ -333,14 +333,14 @@ namespace brute {
 
     // void cross_correlation(const int ss_x, 
     //                     const int ss_y, 
-    //                     const double *image_ref, 
-    //                     const int px_vertical, 
-    //                     const int px_horizontal, 
+    //                     const double *img_ref, 
+    //                     const int px_vert, 
+    //                     const int px_hori, 
     //                     util::Subset *ss_def, 
     //                     util::Subset *ss_ref, 
     //                     brute::Parameters &brute) {
 
-    //     cv::Mat image(px_vertical, px_horizontal, CV_32S, const_cast<int*>(image_ref));
+    //     cv::Mat image(px_vert, px_hori, CV_32S, const_cast<int*>(img_ref));
     //     cv::Mat ss(ss_def.size, ss_def.size, CV_64F, ss_def.vals.data());
 
     //     cv::Mat image_float;

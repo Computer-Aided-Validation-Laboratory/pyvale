@@ -26,9 +26,9 @@
 namespace rg {
 
     // void reliability_guided_dic_single_seed(
-    //     const double *image_ref,
-    //     util::Image *image_def,
-    //     const bool *image_roi,
+    //     const double *img_ref,
+    //     util::Image *img_def,
+    //     const bool *img_roi,
     //     const int seed_x, const int seed_y,  // Single seed point coordinates
     //     util::SubsetData *ssdata,
     //     const int num_def_images,
@@ -41,8 +41,8 @@ namespace rg {
     //     const int num_params) {
     //
     //     // assign some consts for readability
-    //     const int px_horizontal = image_def->px_horizontal;
-    //     const int px_vertical = image_def->px_vertical;
+    //     const int px_hori = img_def->px_hori;
+    //     const int px_vert = img_def->px_vert;
     //     const int ss_step = ssdata->step;
     //     const int ss_size = ssdata->size;
     //
@@ -67,7 +67,7 @@ namespace rg {
     //     std::mutex queue_mutex;
     //
     //     // Optimization parameters
-    //     optimizer::Parameters opt(num_params, max_iter, precision, threshold_lm, px_vertical, px_horizontal);
+    //     optimizer::Parameters opt(num_params, max_iter, precision, threshold_lm, px_vert, px_hori);
     //
     //     // Initialize shared priority queue for all threads
     //     std::priority_queue<CorrelationPoint> point_queue;
@@ -90,11 +90,11 @@ namespace rg {
     //     double ptemp[6] = {0,0,0,0,0,0};
     //
     //     // Extract subset and solve for starting seed point
-    //     util::extract_ss(seed_x, seed_y, image_def, &ss_def);
+    //     util::extract_ss(seed_x, seed_y, img_def, &ss_def);
     //
     //     // brute force for initial subset
     //     brute::Parameters brute(threshold_bf, range_bf);
-    //     brute::expanding_wavefront(seed_x, seed_y, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
+    //     brute::expanding_wavefront(seed_x, seed_y, img_ref, px_vert, px_hori, &ss_def, &ss_ref, &brute);
     //     ptemp[0] = brute.p_rigid[0];
     //     ptemp[1] = brute.p_rigid[1];
     //
@@ -133,8 +133,8 @@ namespace rg {
     //         int neigh_x_ss = ssdata->coords[neigh_idx*2];
     //         int neigh_y_ss = ssdata->coords[neigh_idx*2+1];
     //
-    //         util::extract_ss(neigh_x_ss, neigh_y_ss, image_def, &ss_def);
-    //         brute::expanding_wavefront(neigh_x_ss, neigh_y_ss, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
+    //         util::extract_ss(neigh_x_ss, neigh_y_ss, img_def, &ss_def);
+    //         brute::expanding_wavefront(neigh_x_ss, neigh_y_ss, img_ref, px_vert, px_hori, &ss_def, &ss_ref, &brute);
     //         ptemp[0] = brute.p_rigid[0];
     //         ptemp[1] = brute.p_rigid[1];
     //
@@ -248,12 +248,12 @@ namespace rg {
     //                 if (!computed_mask[neigh_idx].exchange(true)) {
     //
     //                     // extract subset
-    //                     util::extract_ss(neigh_x_ss, neigh_y_ss, image_def, &ss_def);
+    //                     util::extract_ss(neigh_x_ss, neigh_y_ss, img_def, &ss_def);
     //
     //                     // if the neighbouring subset reached the maximum number of iterations, try again from a brute force
     //                     if (util::niter_arr[idx] == opt.max_iter && util::cost_arr[idx] > opt.threshold_lm){
     //
-    //                         brute::expanding_wavefront(neigh_x_ss, neigh_y_ss, image_ref, px_vertical, px_horizontal, &ss_def, &ss_ref, &brute);
+    //                         brute::expanding_wavefront(neigh_x_ss, neigh_y_ss, img_ref, px_vert, px_hori, &ss_def, &ss_ref, &brute);
     //                         ptemp[0] = brute.p_rigid[0];
     //                         ptemp[1] = brute.p_rigid[1];
     //                         ptemp[2] = 0.0;
@@ -329,11 +329,11 @@ namespace rg {
         //             int neigh_x = curr_x + dx[i];
         //             int neigh_y = curr_y + dy[i];
 
-        //             if (is_valid_point(neigh_x, neigh_y, image_roi, px_horizontal, px_vertical, ssdata->size)) {
-        //                 int index = neigh_y * px_horizontal + neigh_x;
+        //             if (is_valid_point(neigh_x, neigh_y, img_roi, px_hori, px_vert, ssdata->size)) {
+        //                 int index = neigh_y * px_hori + neigh_x;
 
         //                 if (!computed_mask[index].exchange(true)) {
-        //                     util::extract_ss(neigh_x, neigh_y, image_def, &ss_def);
+        //                     util::extract_ss(neigh_x, neigh_y, img_def, &ss_def);
         //                     optimizer::Results neigh_results = optimizer::solve(neigh_x, neigh_y, &ss_def, &ss_ref, &local_opt);
         //                     temp_neighbours.emplace_back(neigh_x, neigh_y, 1.0 - 0.5 * neigh_results.cost);
         //                 }

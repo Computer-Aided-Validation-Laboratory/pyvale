@@ -35,13 +35,13 @@ namespace optimizer {
         int max_iter;
         double precision;
         double threshold_lm;
-        int px_vertical;
-        int px_horizontal;
+        int px_vert;
+        int px_hori;
 
 
         // Constructor to initialize vectors and other parameters
         Parameters(int num_params_, int max_iter_, double precision_, 
-                   double threshold_lm_, int px_vertical_, int px_horizontal_)
+                   double threshold_lm_, int px_vert_, int px_hori_)
             :
             num_params(num_params_),
             lambda(0.001),
@@ -58,8 +58,8 @@ namespace optimizer {
             max_iter(max_iter_),
             precision(precision_),
             threshold_lm(threshold_lm_),
-            px_vertical(px_vertical_),
-            px_horizontal(px_horizontal_) {}
+            px_vert(px_vert_),
+            px_hori(px_hori_) {}
     };
 
     // intitialisation and debugging

@@ -27,7 +27,7 @@ namespace brute {
         std::array<int, 2> p_rigid_prevmatch; // translation vector
         double threshold_bf;
         int range;
-        
+
         Parameters(double threshold_bf_, int range_bf_)
             : p_rigid{0, 0},
               p_rigid_prevmatch{0, 0},
@@ -56,9 +56,9 @@ namespace brute {
      * 
      * @param ss_x Horizontal coordinate of the starting point.
      * @param ss_y Vertical coordinate of the starting point.
-     * @param image_ref Pointer to the reference image.
-     * @param px_vertical Vertical size of the image.
-     * @param px_horizontal Horizontal size of the image.
+     * @param img_ref Pointer to the reference image.
+     * @param px_vert Vertical size of the image.
+     * @param px_hori Horizontal size of the image.
      * @param ss_def Pointer to the subset definition.
      * @param ss_ref Pointer to the reference subset.
      * @param brute Pointer to the brute force parameters.
@@ -66,9 +66,9 @@ namespace brute {
      */
     void expanding_wavefront(const int ss_x, 
                                   const int ss_y, 
-                                  const double *image_ref, 
-                                  const int px_horizontal, 
-                                  const int px_vertical, 
+                                  const double *img_ref, 
+                                  const int px_hori, 
+                                  const int px_vert, 
                                   util::Subset &ss_def, 
                                   util::Subset &ss_ref, 
                                   brute::Parameters &brute);
@@ -80,9 +80,9 @@ namespace brute {
      * 
      * @param ss_x Horizontal coordinate of the starting point.
      * @param ss_y Vertical coordinate of the starting point.
-     * @param image_ref Pointer to the reference image.
-     * @param px_vertical Vertical size of the image.
-     * @param px_horizontal Horizontal size of the image.
+     * @param img_ref Pointer to the reference image.
+     * @param px_vert Vertical size of the image.
+     * @param px_hori Horizontal size of the image.
      * @param ss_def Pointer to the subset definition.
      * @param ss_ref Pointer to the reference subset.
      * @param brute Pointer to the brute force parameters.
@@ -90,9 +90,9 @@ namespace brute {
      */
     void exhaustive(const int ss_x, 
                                   const int ss_y,
-                                  const double *image_ref,
-                                  const int px_horizontal,
-                                  const int px_vertical,
+                                  const double *img_ref,
+                                  const int px_hori,
+                                  const int px_vert,
                                   util::Subset &ss_def,
                                   util::Subset &ss_ref,
                                   brute::Parameters &brute);
@@ -102,18 +102,18 @@ namespace brute {
     //  * 
     //  * @param ss_x 
     //  * @param ss_y 
-    //  * @param image_ref 
-    //  * @param px_vertical 
-    //  * @param px_horizontal 
+    //  * @param img_ref 
+    //  * @param px_vert 
+    //  * @param px_hori 
     //  * @param ss_def 
     //  * @param ss_ref 
     //  * @param brute 
     //  */
     // void cross_correlation(const int ss_x, 
     //                     const int ss_y, 
-    //                     const double *image_ref, 
-    //                     const int px_vertical, 
-    //                     const int px_horizontal, 
+    //                     const double *img_ref, 
+    //                     const int px_vert, 
+    //                     const int px_hori, 
     //                     util::Subset *ss_def, 
     //                     util::Subset *ss_ref, 
     //                     brute::Parameters *brute);
@@ -127,18 +127,18 @@ namespace brute {
      * 
      * @param ss_x Horizontal coordinate of the starting point.
      * @param ss_y Vertical coordinate of the starting point.
-     * @param image_ref Pointer to the reference image.
-     * @param px_vertical Vertical size of the image.
-     * @param px_horizontal Horizontal size of the image.
+     * @param img_ref Pointer to the reference image.
+     * @param px_vert Vertical size of the image.
+     * @param px_hori Horizontal size of the image.
      * @param ss_def Pointer to the subset definition.
      * @param ss_ref Pointer to the reference subset.
      * @param p0 int value for the x-coordinate of the translation.
      * @param p1 int value for the y-coordinate of the translation.
      * @return The computed SSD value.
      */
-    double ssd(const double *image_ref, 
-               const int px_horizontal, 
-               const int px_vertical, 
+    double ssd(const double *img_ref, 
+               const int px_hori, 
+               const int px_vert, 
                util::Subset &ss_def, 
                util::Subset &ss_ref,
                const int p0,
@@ -152,18 +152,18 @@ namespace brute {
      * 
      * @param ss_x Horizontal coordinate of the starting point.
      * @param ss_y Vertical coordinate of the starting point.
-     * @param image_ref Pointer to the reference image.
-     * @param px_vertical Vertical size of the image.
-     * @param px_horizontal Horizontal size of the image.
+     * @param img_ref Pointer to the reference image.
+     * @param px_vert Vertical size of the image.
+     * @param px_hori Horizontal size of the image.
      * @param ss_def Pointer to the subset definition.
      * @param ss_ref Pointer to the reference subset.
      * @param p0 int value for the x-coordinate of the translation.
      * @param p1 int value for the y-coordinate of the translation.
      * @return The computed NSSD value.
      */
-    double nssd(const double *image_ref, 
-                const int px_horizontal, 
-                const int px_vertical, 
+    double nssd(const double *img_ref, 
+                const int px_hori, 
+                const int px_vert, 
                 util::Subset &ss_def,
                 util::Subset &ss_ref,
                 const int p0,
@@ -177,18 +177,18 @@ namespace brute {
      * 
      * @param ss_x Horizontal coordinate of the starting point.
      * @param ss_y Vertical coordinate of the starting point.
-     * @param image_ref Pointer to the reference image.
-     * @param px_vertical Vertical size of the image.
-     * @param px_horizontal Horizontal size of the image.
+     * @param img_ref Pointer to the reference image.
+     * @param px_vert Vertical size of the image.
+     * @param px_hori Horizontal size of the image.
      * @param ss_def Pointer to the subset definition.
      * @param ss_ref Pointer to the reference subset.
      * @param p0 int value for the x-coordinate of the translation.
      * @param p1 int value for the y-coordinate of the translation.
      * @return The computed ZNSSD value.
      */
-    double znssd(const double *image_ref, 
-                 const int px_horizontal, 
-                 const int px_vertical, 
+    double znssd(const double *img_ref, 
+                 const int px_hori, 
+                 const int px_vert, 
                  util::Subset &ss_def, 
                  util::Subset &ss_ref,
                  const int p0,

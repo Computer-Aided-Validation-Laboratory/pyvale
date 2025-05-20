@@ -132,13 +132,13 @@ namespace optimizer {
             double ref_y = ss_ref->y[i];
 
             // // Inside ssd function before interpolation
-            // if (ref_x < 0 || ref_x > opt->px_horizontal-1 || ref_y < 0 || ref_y > opt->px_vertical-1) {
+            // if (ref_x < 0 || ref_x > opt->px_hori-1 || ref_y < 0 || ref_y > opt->px_vert-1) {
             //     // Apply a penalty proportional to how far outside the bounds
             //     double penalty = 0;
             //     if (ref_x < 0) penalty += std::abs(ref_x);
-            //     if (ref_x > opt->px_horizontal-1) penalty += ref_x - (opt->px_horizontal-1);
+            //     if (ref_x > opt->px_hori-1) penalty += ref_x - (opt->px_hori-1);
             //     if (ref_y < 0) penalty += std::abs(ref_y);
-            //     if (ref_y > opt->px_vertical-1) penalty += ref_y - (opt->px_vertical-1);
+            //     if (ref_y > opt->px_vert-1) penalty += ref_y - (opt->px_vert-1);
                 
             //     // Add this penalty to the cost function
             //     opt->costp += penalty * penalty;
@@ -237,13 +237,13 @@ namespace optimizer {
             shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->p);
             
             // // Inside ssd function before interpolation
-            // if (ss_ref->x[i] < 0 || ss_ref->x[i] > opt->px_horizontal-1 || ss_ref->y[i] < 0 || ss_ref->y[i] > opt->px_vertical-1) {
+            // if (ss_ref->x[i] < 0 || ss_ref->x[i] > opt->px_hori-1 || ss_ref->y[i] < 0 || ss_ref->y[i] > opt->px_vert-1) {
             //     // Apply a penalty proportional to how far outside the bounds
             //     double penalty = 0;
             //     if (ss_ref->x[i] < 0) penalty += std::abs(ss_ref->x[i]);
-            //     if (ss_ref->x[i] > opt->px_horizontal-1) penalty += ss_ref->x[i] - (opt->px_horizontal-1);
+            //     if (ss_ref->x[i] > opt->px_hori-1) penalty += ss_ref->x[i] - (opt->px_hori-1);
             //     if (ss_ref->y[i] < 0) penalty += std::abs(ss_ref->y[i]);
-            //     if (ss_ref->y[i] > opt->px_vertical-1) penalty += ss_ref->y[i] - (opt->px_vertical-1);
+            //     if (ss_ref->y[i] > opt->px_vert-1) penalty += ss_ref->y[i] - (opt->px_vert-1);
                 
             //     // Add this penalty to the cost function
             //     opt->costp += 10000.0 * penalty * penalty;
@@ -361,13 +361,13 @@ namespace optimizer {
             shape_function(ss_ref->x[i], ss_ref->y[i], ss_def->x[i], ss_def->y[i], opt->p);
 
             // // Inside ssd function before interpolation
-            // if (ss_ref->x[i] < 0 || ss_ref->x[i] > opt->px_horizontal-1 || ss_ref->y[i] < 0 || ss_ref->y[i] > opt->px_vertical-1) {
+            // if (ss_ref->x[i] < 0 || ss_ref->x[i] > opt->px_hori-1 || ss_ref->y[i] < 0 || ss_ref->y[i] > opt->px_vert-1) {
             //     // Apply a penalty proportional to how far outside the bounds
             //     double penalty = 0;
             //     if (ss_ref->x[i] < 0) penalty += std::abs(ss_ref->x[i]);
-            //     if (ss_ref->x[i] > opt->px_horizontal-1) penalty += ss_ref->x[i] - (opt->px_horizontal-1);
+            //     if (ss_ref->x[i] > opt->px_hori-1) penalty += ss_ref->x[i] - (opt->px_hori-1);
             //     if (ss_ref->y[i] < 0) penalty += std::abs(ss_ref->y[i]);
-            //     if (ss_ref->y[i] > opt->px_vertical-1) penalty += ss_ref->y[i] - (opt->px_vertical-1);
+            //     if (ss_ref->y[i] > opt->px_vert-1) penalty += ss_ref->y[i] - (opt->px_vert-1);
                 
             //     // Add this penalty to the cost function
             //     opt->costp += 10000.0 * penalty * penalty;
