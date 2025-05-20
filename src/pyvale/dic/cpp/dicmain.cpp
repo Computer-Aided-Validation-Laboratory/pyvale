@@ -23,6 +23,7 @@
 #include "./defines.hpp"
 #include "./dicutil.hpp"
 #include "./dicstrain.hpp"
+#include "./dicfourier.hpp"
 
 // cuda Header files
 #include "../cuda/malloc.hpp"
@@ -43,10 +44,19 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // Register signal handler for Ctrl+C
     signal(SIGINT, scanmethod::signalHandler);
 
-    // get raw pointers
+       // get raw pointers
     bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
     double* img_ref = static_cast<double*>(img_ref_arr.request().ptr);
     double* img_def_stack = static_cast<double*>(img_def_stack_arr.request().ptr);
+ 
+    // testing with fourier method
+    int windows[3] = {128, 64, 32};
+    double *img_def = img_def_stack;
+    fourier::init(img_roi, conf, windows, 2);
+    fourier::mgwd(img_def, img_ref, windows, 2, conf);
+    fourier::cleanup();
+    exit(0);
+
 
     // get a list of ss coordinates within RIO.
     util::SubsetData ssdata = util::gen_ss_list(img_roi, conf.ss_step, 
