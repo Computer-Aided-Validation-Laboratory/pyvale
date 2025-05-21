@@ -11,7 +11,7 @@
             "-fopenmp"
         ],
         "include_dirs": [
-            "/home/lloydf/pyvale/.venv/lib/python3.11/site-packages/numpy/core/include"
+            "/tmp/pip-build-env-sx2qyxza/overlay/lib/python3.11/site-packages/numpy/_core/include"
         ],
         "name": "pyvale.cython.rastercyth",
         "sources": [
@@ -2969,7 +2969,7 @@ static const char __pyx_k_Index_out_of_bounds_axis_d[] = "Index out of bounds (a
 static const char __pyx_k_Step_may_not_be_zero_axis_d[] = "Step may not be zero (axis %d)";
 static const char __pyx_k_itemsize_0_for_cython_array[] = "itemsize <= 0 for cython.array";
 static const char __pyx_k_unable_to_allocate_array_data[] = "unable to allocate array data.";
-static const char __pyx_k_81_81_81_G6_0_aq_Jar_Jar_r_1Cz[] = "\200\001\360\010\000!\"\330!\"\330*+\330\"#\360\010\000\005,\2508\2601\330\004 \240\010\250\001\330\004#\2408\2501\330\004 \240\010\250\001\330\004\033\2308\2401\340\004$\240G\2506\260\021\260!\330\004 \320 0\260\006\260a\260q\330\004\034\230J\240a\240r\250\021\250!\330\004\034\230J\240a\240r\250\021\250!\360\010\000\005\031\230\002\230%\230r\240\032\2501\250C\250z\270\021\270#\270\\\310\024\310V\320SU\320UV\330\004+\2501\340\004\030\230\002\230%\230r\240\032\2501\250C\250z\270\021\270$\270d\300&\310\002\310!\330\004)\250\021\360\010\000\005\027\220b\230\005\230R\230z\250\033\260F\270&\300\002\300!\330\004+\2501\340\004\026\220b\230\005\230R\230z\250\032\260<\270t\3006\310\022\3101\330\004-\250Q\360\006\000\005\027\220b\230\006\230b\240\017\250s\260&\270\002\270!\330\004,\250A\340\004\026\220b\230\006\230b\320 1\260\026\260r\270\021\330\004*\250!\340\004\022\220\"\220F\230\"\320\034-\250R\250q\330\004&\240a\340\004\021\220\022\2206\230\022\320\033,\250B\250a\330\004%\240Q\360\006\000\005%\240M\260\021\260&\270\001\33007\260q\3300@\300\001\3300@\300\001\3300:\270!\3300:\270!\33001\33001\3300>\270a\3300>\270a\3300@\300\001\3300@\300\001\3300A\300\021\3300A\300\021\3300=\270Q\3300<\270A\340\004\014\320\014\036\320\0360\260\001";
+static const char __pyx_k_81_81_81_G6_0_aq_Jar_Jar_r_1Cz[] = "\200\001\360\010\000!\"\330!\"\330*+\330\"#\360\010\000\005,\2508\2601\330\004 \240\010\250\001\330\004#\2408\2501\330\004 \240\010\250\001\330\004\033\2308\2401\340\004$\240G\2506\260\021\260!\330\004 \320 0\260\006\260a\260q\330\004\034\230J\240a\240r\250\021\250!\330\004\034\230J\240a\240r\250\021\250!\360\010\000\005\031\230\002\230%\230r\240\032\2501\250C\250z\270\021\270#\270\\\310\024\310V\320SU\320UV\330\004+\2501\340\004\030\230\002\230%\230r\240\032\2501\250C\250z\270\021\270$\270d\300&\310\002\310!\330\004)\250\021\360\010\000\005\027\220b\230\005\230R\230z\250\033\260F\270&\300\002\300!\330\004+\2501\340\004\026\220b\230\005\230R\230z\250\032\260<\270t\3006\310\022\3101\330\004-\250Q\360\006\000\005\027\220b\230\006\230b\240\017\250s\260&\270\002\270!\330\004,\250A\340\004\026\220b\230\006\230b\320 1\260\026\260r\270\021\330\004*\250!\340\004\021\220\022\2206\230\022\320\033,\250B\250a\330\004%\240Q\360\006\000\005\023\220\"\220F\230\"\230D\240\002\240!\330\004&\240a\360\n\000\005%\240M\260\021\260&\270\001\33007\260q\3300@\300\001\3300@\300\001\3300:\270!\3300:\270!\33001\33001\3300>\270a\3300>\270a\3300@\300\001\3300@\300\001\3300A\300\021\3300A\300\021\3300=\270Q\3300<\270A\340\004\014\320\014\036\320\0360\260\001";
 static const char __pyx_k_strided_and_direct_or_indirect[] = "<strided and direct or indirect>";
 static const char __pyx_k_NOTE_this_module_is_a_feature_u[] = "\nNOTE: this module is a feature under developement.\n";
 static const char __pyx_k_src_pyvale_cython_rastercyth_py[] = "src/pyvale/cython/rastercyth.py";
@@ -3087,13 +3087,14 @@ typedef struct {
   PyTypeObject *__pyx_memoryviewslice_type;
   __Pyx_CachedCFunction __pyx_umethod_PyDict_Type_pop;
   PyObject *__pyx_slice[1];
-  PyObject *__pyx_tuple[2];
+  PyObject *__pyx_tuple[3];
   PyObject *__pyx_codeobj_tab[3];
   PyObject *__pyx_string_tab[147];
   PyObject *__pyx_float_0_0;
   PyObject *__pyx_float_1_0e6;
   PyObject *__pyx_int_0;
   PyObject *__pyx_int_1;
+  PyObject *__pyx_int_2;
   PyObject *__pyx_int_4;
   PyObject *__pyx_int_112105877;
   PyObject *__pyx_int_136983863;
@@ -3309,13 +3310,14 @@ static CYTHON_SMALL_CODE int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_memoryviewslice_type);
   Py_CLEAR(clear_module_state->__pyx_type___pyx_memoryviewslice);
   for (int i=0; i<1; ++i) { Py_CLEAR(clear_module_state->__pyx_slice[i]); }
-  for (int i=0; i<2; ++i) { Py_CLEAR(clear_module_state->__pyx_tuple[i]); }
+  for (int i=0; i<3; ++i) { Py_CLEAR(clear_module_state->__pyx_tuple[i]); }
   for (int i=0; i<3; ++i) { Py_CLEAR(clear_module_state->__pyx_codeobj_tab[i]); }
   for (int i=0; i<147; ++i) { Py_CLEAR(clear_module_state->__pyx_string_tab[i]); }
   Py_CLEAR(clear_module_state->__pyx_float_0_0);
   Py_CLEAR(clear_module_state->__pyx_float_1_0e6);
   Py_CLEAR(clear_module_state->__pyx_int_0);
   Py_CLEAR(clear_module_state->__pyx_int_1);
+  Py_CLEAR(clear_module_state->__pyx_int_2);
   Py_CLEAR(clear_module_state->__pyx_int_4);
   Py_CLEAR(clear_module_state->__pyx_int_112105877);
   Py_CLEAR(clear_module_state->__pyx_int_136983863);
@@ -3350,13 +3352,14 @@ static CYTHON_SMALL_CODE int __pyx_m_traverse(PyObject *m, visitproc visit, void
   Py_VISIT(traverse_module_state->__pyx_memoryviewslice_type);
   Py_VISIT(traverse_module_state->__pyx_type___pyx_memoryviewslice);
   for (int i=0; i<1; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_slice[i]); }
-  for (int i=0; i<2; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_tuple[i]); }
+  for (int i=0; i<3; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_tuple[i]); }
   for (int i=0; i<3; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_codeobj_tab[i]); }
   for (int i=0; i<147; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_string_tab[i]); }
   __Pyx_VISIT_CONST(traverse_module_state->__pyx_float_0_0);
   __Pyx_VISIT_CONST(traverse_module_state->__pyx_float_1_0e6);
   __Pyx_VISIT_CONST(traverse_module_state->__pyx_int_0);
   __Pyx_VISIT_CONST(traverse_module_state->__pyx_int_1);
+  __Pyx_VISIT_CONST(traverse_module_state->__pyx_int_2);
   __Pyx_VISIT_CONST(traverse_module_state->__pyx_int_4);
   __Pyx_VISIT_CONST(traverse_module_state->__pyx_int_112105877);
   __Pyx_VISIT_CONST(traverse_module_state->__pyx_int_136983863);
@@ -18908,10 +18911,10 @@ static PyObject *__pyx_f_6pyvale_6cython_10rastercyth_raster_static_frame(__Pyx_
   __Pyx_memviewslice __pyx_v_nodes_raster_buff = { 0, 0, { 0 }, { 0 }, { 0 } };
   PyObject *__pyx_v_field_raster_np = NULL;
   __Pyx_memviewslice __pyx_v_field_raster_buff = { 0, 0, { 0 }, { 0 }, { 0 } };
-  PyObject *__pyx_v_px_coord_np = NULL;
-  __Pyx_memviewslice __pyx_v_px_coord_buff = { 0, 0, { 0 }, { 0 }, { 0 } };
   PyObject *__pyx_v_weights_np = NULL;
   __Pyx_memviewslice __pyx_v_weights_buff = { 0, 0, { 0 }, { 0 }, { 0 } };
+  PyObject *__pyx_v_px_coord_np = NULL;
+  __Pyx_memviewslice __pyx_v_px_coord_buff = { 0, 0, { 0 }, { 0 }, { 0 } };
   size_t __pyx_v_elems_in_image;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
@@ -19470,7 +19473,7 @@ static PyObject *__pyx_f_6pyvale_6cython_10rastercyth_raster_static_frame(__Pyx_
  *     field_raster_np = np.empty((nodes_per_elem,),dtype=np.float64)
  *     field_raster_buff: cython.double[:] = field_raster_np             # <<<<<<<<<<<<<<
  * 
- *     px_coord_np = np.zeros((nodes_per_elem,),np.float64)
+ *     weights_np = np.zeros((nodes_per_elem,),np.float64)
 */
   __pyx_t_4 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(__pyx_v_field_raster_np, PyBUF_WRITABLE); if (unlikely(!__pyx_t_4.memview)) __PYX_ERR(0, 374, __pyx_L1_error)
   __pyx_v_field_raster_buff = __pyx_t_4;
@@ -19480,8 +19483,8 @@ static PyObject *__pyx_f_6pyvale_6cython_10rastercyth_raster_static_frame(__Pyx_
   /* "pyvale/cython/rastercyth.py":376
  *     field_raster_buff: cython.double[:] = field_raster_np
  * 
- *     px_coord_np = np.zeros((nodes_per_elem,),np.float64)             # <<<<<<<<<<<<<<
- *     px_coord_buff: cython.double[:] = px_coord_np
+ *     weights_np = np.zeros((nodes_per_elem,),np.float64)             # <<<<<<<<<<<<<<
+ *     weights_buff: cython.double[:] = weights_np
  * 
 */
   __pyx_t_12 = NULL;
@@ -19524,45 +19527,38 @@ static PyObject *__pyx_f_6pyvale_6cython_10rastercyth_raster_static_frame(__Pyx_
     if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 376, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
   }
-  __pyx_v_px_coord_np = __pyx_t_1;
+  __pyx_v_weights_np = __pyx_t_1;
   __pyx_t_1 = 0;
 
   /* "pyvale/cython/rastercyth.py":377
  * 
- *     px_coord_np = np.zeros((nodes_per_elem,),np.float64)
- *     px_coord_buff: cython.double[:] = px_coord_np             # <<<<<<<<<<<<<<
- * 
  *     weights_np = np.zeros((nodes_per_elem,),np.float64)
+ *     weights_buff: cython.double[:] = weights_np             # <<<<<<<<<<<<<<
+ * 
+ *     # Only used for edge function in raster coords - need x,y
 */
-  __pyx_t_4 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(__pyx_v_px_coord_np, PyBUF_WRITABLE); if (unlikely(!__pyx_t_4.memview)) __PYX_ERR(0, 377, __pyx_L1_error)
-  __pyx_v_px_coord_buff = __pyx_t_4;
+  __pyx_t_4 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(__pyx_v_weights_np, PyBUF_WRITABLE); if (unlikely(!__pyx_t_4.memview)) __PYX_ERR(0, 377, __pyx_L1_error)
+  __pyx_v_weights_buff = __pyx_t_4;
   __pyx_t_4.memview = NULL;
   __pyx_t_4.data = NULL;
 
-  /* "pyvale/cython/rastercyth.py":379
+  /* "pyvale/cython/rastercyth.py":380
+ * 
+ *     # Only used for edge function in raster coords - need x,y
+ *     px_coord_np = np.zeros((2,),np.float64)             # <<<<<<<<<<<<<<
  *     px_coord_buff: cython.double[:] = px_coord_np
  * 
- *     weights_np = np.zeros((nodes_per_elem,),np.float64)             # <<<<<<<<<<<<<<
- *     weights_buff: cython.double[:] = weights_np
- *     #---------------------------------------------------------------------------
 */
   __pyx_t_13 = NULL;
-  __Pyx_GetModuleGlobalName(__pyx_t_10, __pyx_mstate_global->__pyx_n_u_np); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 379, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_10, __pyx_mstate_global->__pyx_n_u_np); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 380, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_10);
-  __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_mstate_global->__pyx_n_u_zeros); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 379, __pyx_L1_error)
+  __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_mstate_global->__pyx_n_u_zeros); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 380, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_9);
   __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-  __pyx_t_10 = __Pyx_PyLong_FromSize_t(__pyx_v_nodes_per_elem); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 379, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_10, __pyx_mstate_global->__pyx_n_u_np); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 380, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_10);
-  __pyx_t_12 = PyTuple_New(1); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 379, __pyx_L1_error)
+  __pyx_t_12 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_mstate_global->__pyx_n_u_float64); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 380, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_12);
-  __Pyx_GIVEREF(__pyx_t_10);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_12, 0, __pyx_t_10) != (0)) __PYX_ERR(0, 379, __pyx_L1_error);
-  __pyx_t_10 = 0;
-  __Pyx_GetModuleGlobalName(__pyx_t_10, __pyx_mstate_global->__pyx_n_u_np); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 379, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_10);
-  __pyx_t_11 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_mstate_global->__pyx_n_u_float64); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 379, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_11);
   __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
   __pyx_t_14 = 1;
   #if CYTHON_UNPACK_METHODS
@@ -19577,31 +19573,30 @@ static PyObject *__pyx_f_6pyvale_6cython_10rastercyth_raster_static_frame(__Pyx_
   }
   #endif
   {
-    PyObject *__pyx_callargs[3] = {__pyx_t_13, __pyx_t_12, __pyx_t_11};
+    PyObject *__pyx_callargs[3] = {__pyx_t_13, __pyx_mstate_global->__pyx_tuple[2], __pyx_t_12};
     __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_9, __pyx_callargs+__pyx_t_14, (3-__pyx_t_14) | (__pyx_t_14*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
     __Pyx_XDECREF(__pyx_t_13); __pyx_t_13 = 0;
     __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
-    __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 379, __pyx_L1_error)
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 380, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
   }
-  __pyx_v_weights_np = __pyx_t_1;
+  __pyx_v_px_coord_np = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "pyvale/cython/rastercyth.py":380
+  /* "pyvale/cython/rastercyth.py":381
+ *     # Only used for edge function in raster coords - need x,y
+ *     px_coord_np = np.zeros((2,),np.float64)
+ *     px_coord_buff: cython.double[:] = px_coord_np             # <<<<<<<<<<<<<<
  * 
- *     weights_np = np.zeros((nodes_per_elem,),np.float64)
- *     weights_buff: cython.double[:] = weights_np             # <<<<<<<<<<<<<<
- *     #---------------------------------------------------------------------------
  * 
 */
-  __pyx_t_4 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(__pyx_v_weights_np, PyBUF_WRITABLE); if (unlikely(!__pyx_t_4.memview)) __PYX_ERR(0, 380, __pyx_L1_error)
-  __pyx_v_weights_buff = __pyx_t_4;
+  __pyx_t_4 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(__pyx_v_px_coord_np, PyBUF_WRITABLE); if (unlikely(!__pyx_t_4.memview)) __PYX_ERR(0, 381, __pyx_L1_error)
+  __pyx_v_px_coord_buff = __pyx_t_4;
   __pyx_t_4.memview = NULL;
   __pyx_t_4.data = NULL;
 
-  /* "pyvale/cython/rastercyth.py":383
+  /* "pyvale/cython/rastercyth.py":386
  *     #---------------------------------------------------------------------------
  * 
  *     elems_in_image: cython.size_t = _raster_frame(coords[:,:],             # <<<<<<<<<<<<<<
@@ -19610,7 +19605,7 @@ static PyObject *__pyx_f_6pyvale_6cython_10rastercyth_raster_static_frame(__Pyx_
 */
   __pyx_v_elems_in_image = __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__pyx_v_coords, __pyx_v_connect, __pyx_v_fields_to_render, __pyx_v_world_to_cam_mat, __pyx_v_pixels_num, __pyx_v_image_dims, __pyx_v_image_dist, __pyx_v_sub_samp, __pyx_v_image_buff_avg, __pyx_v_depth_buff_avg, __pyx_v_image_buff_subpx, __pyx_v_depth_buff_subpx, __pyx_v_nodes_raster_buff, __pyx_v_field_raster_buff, __pyx_v_px_coord_buff, __pyx_v_weights_buff);
 
-  /* "pyvale/cython/rastercyth.py":400
+  /* "pyvale/cython/rastercyth.py":403
  *                                                 weights_buff[:])
  * 
  *     return (image_buff_avg_np,depth_buff_avg_np,elems_in_image)             # <<<<<<<<<<<<<<
@@ -19618,18 +19613,18 @@ static PyObject *__pyx_f_6pyvale_6cython_10rastercyth_raster_static_frame(__Pyx_
  * #///////////////////////////////////////////////////////////////////////////////
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyLong_FromSize_t(__pyx_v_elems_in_image); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 400, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyLong_FromSize_t(__pyx_v_elems_in_image); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 403, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_9 = PyTuple_New(3); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 400, __pyx_L1_error)
+  __pyx_t_9 = PyTuple_New(3); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 403, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_9);
   __Pyx_INCREF(__pyx_v_image_buff_avg_np);
   __Pyx_GIVEREF(__pyx_v_image_buff_avg_np);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_v_image_buff_avg_np) != (0)) __PYX_ERR(0, 400, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_v_image_buff_avg_np) != (0)) __PYX_ERR(0, 403, __pyx_L1_error);
   __Pyx_INCREF(__pyx_v_depth_buff_avg_np);
   __Pyx_GIVEREF(__pyx_v_depth_buff_avg_np);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 1, __pyx_v_depth_buff_avg_np) != (0)) __PYX_ERR(0, 400, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 1, __pyx_v_depth_buff_avg_np) != (0)) __PYX_ERR(0, 403, __pyx_L1_error);
   __Pyx_GIVEREF(__pyx_t_1);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 2, __pyx_t_1) != (0)) __PYX_ERR(0, 400, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 2, __pyx_t_1) != (0)) __PYX_ERR(0, 403, __pyx_L1_error);
   __pyx_t_1 = 0;
   __pyx_r = ((PyObject*)__pyx_t_9);
   __pyx_t_9 = 0;
@@ -19674,10 +19669,10 @@ static PyObject *__pyx_f_6pyvale_6cython_10rastercyth_raster_static_frame(__Pyx_
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_nodes_raster_buff, 1);
   __Pyx_XDECREF(__pyx_v_field_raster_np);
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_field_raster_buff, 1);
-  __Pyx_XDECREF(__pyx_v_px_coord_np);
-  __PYX_XCLEAR_MEMVIEW(&__pyx_v_px_coord_buff, 1);
   __Pyx_XDECREF(__pyx_v_weights_np);
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_weights_buff, 1);
+  __Pyx_XDECREF(__pyx_v_px_coord_np);
+  __PYX_XCLEAR_MEMVIEW(&__pyx_v_px_coord_buff, 1);
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
@@ -19845,7 +19840,7 @@ static PyObject *__pyx_pf_6pyvale_6cython_10rastercyth_2raster_static_frame(CYTH
   return __pyx_r;
 }
 
-/* "pyvale/cython/rastercyth.py":403
+/* "pyvale/cython/rastercyth.py":406
  * 
  * #///////////////////////////////////////////////////////////////////////////////
  * @cython.ccall # python+C or cython.cfunc for C only             # <<<<<<<<<<<<<<
@@ -19865,7 +19860,7 @@ static PyObject *__pyx_f_6pyvale_6cython_10rastercyth_raster_deform_frame(CYTHON
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("raster_deform_frame", 0);
 
-  /* "pyvale/cython/rastercyth.py":413
+  /* "pyvale/cython/rastercyth.py":416
  *                         field_disp: cython.double[:,:],
  *                         ) -> tuple[np.ndarray,np.ndarray,int]:
  *     pass             # <<<<<<<<<<<<<<
@@ -19880,7 +19875,7 @@ static PyObject *__pyx_f_6pyvale_6cython_10rastercyth_raster_deform_frame(CYTHON
   return __pyx_r;
 }
 
-/* "pyvale/cython/rastercyth.py":403
+/* "pyvale/cython/rastercyth.py":406
  * 
  * #///////////////////////////////////////////////////////////////////////////////
  * @cython.ccall # python+C or cython.cfunc for C only             # <<<<<<<<<<<<<<
@@ -19931,60 +19926,60 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   {
     PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_coords,&__pyx_mstate_global->__pyx_n_u_connect,&__pyx_mstate_global->__pyx_n_u_fields_to_render,&__pyx_mstate_global->__pyx_n_u_cam_data,&__pyx_mstate_global->__pyx_n_u_field_disp,0};
     const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
-    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 403, __pyx_L3_error)
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 406, __pyx_L3_error)
     if (__pyx_kwds_len > 0) {
       switch (__pyx_nargs) {
         case  5:
         values[4] = __Pyx_ArgRef_FASTCALL(__pyx_args, 4);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[4])) __PYX_ERR(0, 403, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[4])) __PYX_ERR(0, 406, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  4:
         values[3] = __Pyx_ArgRef_FASTCALL(__pyx_args, 3);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[3])) __PYX_ERR(0, 403, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[3])) __PYX_ERR(0, 406, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  3:
         values[2] = __Pyx_ArgRef_FASTCALL(__pyx_args, 2);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[2])) __PYX_ERR(0, 403, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[2])) __PYX_ERR(0, 406, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  2:
         values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 403, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 406, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  1:
         values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 403, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 406, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  0: break;
         default: goto __pyx_L5_argtuple_error;
       }
       const Py_ssize_t kwd_pos_args = __pyx_nargs;
-      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "raster_deform_frame", 0) < 0) __PYX_ERR(0, 403, __pyx_L3_error)
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "raster_deform_frame", 0) < 0) __PYX_ERR(0, 406, __pyx_L3_error)
       for (Py_ssize_t i = __pyx_nargs; i < 5; i++) {
-        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("raster_deform_frame", 1, 5, 5, i); __PYX_ERR(0, 403, __pyx_L3_error) }
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("raster_deform_frame", 1, 5, 5, i); __PYX_ERR(0, 406, __pyx_L3_error) }
       }
     } else if (unlikely(__pyx_nargs != 5)) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 403, __pyx_L3_error)
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 406, __pyx_L3_error)
       values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
-      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 403, __pyx_L3_error)
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 406, __pyx_L3_error)
       values[2] = __Pyx_ArgRef_FASTCALL(__pyx_args, 2);
-      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[2])) __PYX_ERR(0, 403, __pyx_L3_error)
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[2])) __PYX_ERR(0, 406, __pyx_L3_error)
       values[3] = __Pyx_ArgRef_FASTCALL(__pyx_args, 3);
-      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[3])) __PYX_ERR(0, 403, __pyx_L3_error)
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[3])) __PYX_ERR(0, 406, __pyx_L3_error)
       values[4] = __Pyx_ArgRef_FASTCALL(__pyx_args, 4);
-      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[4])) __PYX_ERR(0, 403, __pyx_L3_error)
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[4])) __PYX_ERR(0, 406, __pyx_L3_error)
     }
-    __pyx_v_coords = __Pyx_PyObject_to_MemoryviewSlice_dsds_double(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_coords.memview)) __PYX_ERR(0, 407, __pyx_L3_error)
-    __pyx_v_connect = __Pyx_PyObject_to_MemoryviewSlice_dsds_size_t(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_connect.memview)) __PYX_ERR(0, 408, __pyx_L3_error)
-    __pyx_v_fields_to_render = __Pyx_PyObject_to_MemoryviewSlice_dsds_double(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_fields_to_render.memview)) __PYX_ERR(0, 409, __pyx_L3_error)
+    __pyx_v_coords = __Pyx_PyObject_to_MemoryviewSlice_dsds_double(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_coords.memview)) __PYX_ERR(0, 410, __pyx_L3_error)
+    __pyx_v_connect = __Pyx_PyObject_to_MemoryviewSlice_dsds_size_t(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_connect.memview)) __PYX_ERR(0, 411, __pyx_L3_error)
+    __pyx_v_fields_to_render = __Pyx_PyObject_to_MemoryviewSlice_dsds_double(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_fields_to_render.memview)) __PYX_ERR(0, 412, __pyx_L3_error)
     __pyx_v_cam_data = values[3];
-    __pyx_v_field_disp = __Pyx_PyObject_to_MemoryviewSlice_dsds_double(values[4], PyBUF_WRITABLE); if (unlikely(!__pyx_v_field_disp.memview)) __PYX_ERR(0, 411, __pyx_L3_error)
+    __pyx_v_field_disp = __Pyx_PyObject_to_MemoryviewSlice_dsds_double(values[4], PyBUF_WRITABLE); if (unlikely(!__pyx_v_field_disp.memview)) __PYX_ERR(0, 414, __pyx_L3_error)
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("raster_deform_frame", 1, 5, 5, __pyx_nargs); __PYX_ERR(0, 403, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("raster_deform_frame", 1, 5, 5, __pyx_nargs); __PYX_ERR(0, 406, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -20000,16 +19995,16 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return NULL;
   __pyx_L4_argument_unpacking_done:;
   if (unlikely(((PyObject *)__pyx_v_coords.memview) == Py_None)) {
-    PyErr_Format(PyExc_TypeError, "Argument '%.200s' must not be None", "coords"); __PYX_ERR(0, 407, __pyx_L1_error)
+    PyErr_Format(PyExc_TypeError, "Argument '%.200s' must not be None", "coords"); __PYX_ERR(0, 410, __pyx_L1_error)
   }
   if (unlikely(((PyObject *)__pyx_v_connect.memview) == Py_None)) {
-    PyErr_Format(PyExc_TypeError, "Argument '%.200s' must not be None", "connect"); __PYX_ERR(0, 408, __pyx_L1_error)
+    PyErr_Format(PyExc_TypeError, "Argument '%.200s' must not be None", "connect"); __PYX_ERR(0, 411, __pyx_L1_error)
   }
   if (unlikely(((PyObject *)__pyx_v_fields_to_render.memview) == Py_None)) {
-    PyErr_Format(PyExc_TypeError, "Argument '%.200s' must not be None", "fields_to_render"); __PYX_ERR(0, 409, __pyx_L1_error)
+    PyErr_Format(PyExc_TypeError, "Argument '%.200s' must not be None", "fields_to_render"); __PYX_ERR(0, 412, __pyx_L1_error)
   }
   if (unlikely(((PyObject *)__pyx_v_field_disp.memview) == Py_None)) {
-    PyErr_Format(PyExc_TypeError, "Argument '%.200s' must not be None", "field_disp"); __PYX_ERR(0, 411, __pyx_L1_error)
+    PyErr_Format(PyExc_TypeError, "Argument '%.200s' must not be None", "field_disp"); __PYX_ERR(0, 414, __pyx_L1_error)
   }
   __pyx_r = __pyx_pf_6pyvale_6cython_10rastercyth_4raster_deform_frame(__pyx_self, __pyx_v_coords, __pyx_v_connect, __pyx_v_fields_to_render, __pyx_v_cam_data, __pyx_v_field_disp);
 
@@ -20043,11 +20038,11 @@ static PyObject *__pyx_pf_6pyvale_6cython_10rastercyth_4raster_deform_frame(CYTH
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("raster_deform_frame", 0);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_coords.memview)) { __Pyx_RaiseUnboundLocalError("coords"); __PYX_ERR(0, 403, __pyx_L1_error) }
-  if (unlikely(!__pyx_v_connect.memview)) { __Pyx_RaiseUnboundLocalError("connect"); __PYX_ERR(0, 403, __pyx_L1_error) }
-  if (unlikely(!__pyx_v_fields_to_render.memview)) { __Pyx_RaiseUnboundLocalError("fields_to_render"); __PYX_ERR(0, 403, __pyx_L1_error) }
-  if (unlikely(!__pyx_v_field_disp.memview)) { __Pyx_RaiseUnboundLocalError("field_disp"); __PYX_ERR(0, 403, __pyx_L1_error) }
-  __pyx_t_1 = __pyx_f_6pyvale_6cython_10rastercyth_raster_deform_frame(__pyx_v_coords, __pyx_v_connect, __pyx_v_fields_to_render, __pyx_v_cam_data, __pyx_v_field_disp, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 403, __pyx_L1_error)
+  if (unlikely(!__pyx_v_coords.memview)) { __Pyx_RaiseUnboundLocalError("coords"); __PYX_ERR(0, 406, __pyx_L1_error) }
+  if (unlikely(!__pyx_v_connect.memview)) { __Pyx_RaiseUnboundLocalError("connect"); __PYX_ERR(0, 406, __pyx_L1_error) }
+  if (unlikely(!__pyx_v_fields_to_render.memview)) { __Pyx_RaiseUnboundLocalError("fields_to_render"); __PYX_ERR(0, 406, __pyx_L1_error) }
+  if (unlikely(!__pyx_v_field_disp.memview)) { __Pyx_RaiseUnboundLocalError("field_disp"); __PYX_ERR(0, 406, __pyx_L1_error) }
+  __pyx_t_1 = __pyx_f_6pyvale_6cython_10rastercyth_raster_deform_frame(__pyx_v_coords, __pyx_v_connect, __pyx_v_fields_to_render, __pyx_v_cam_data, __pyx_v_field_disp, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 406, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -20064,7 +20059,7 @@ static PyObject *__pyx_pf_6pyvale_6cython_10rastercyth_4raster_deform_frame(CYTH
   return __pyx_r;
 }
 
-/* "pyvale/cython/rastercyth.py":417
+/* "pyvale/cython/rastercyth.py":420
  * #///////////////////////////////////////////////////////////////////////////////
  * #@cython.nogil
  * @cython.cfunc # python+C or cython.cfunc for C only             # <<<<<<<<<<<<<<
@@ -20081,6 +20076,8 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
   size_t __pyx_v_fields_num;
   double __pyx_v_tol;
   size_t __pyx_v_elems_in_image;
+  double __pyx_v_coord_step;
+  double __pyx_v_coord_offset;
   size_t __pyx_v_ee;
   size_t __pyx_v_nn;
   CYTHON_UNUSED size_t __pyx_v_ii;
@@ -20100,7 +20097,6 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
   size_t __pyx_v_num_bound_y;
   double __pyx_v_bound_coord_x;
   double __pyx_v_bound_coord_y;
-  double __pyx_v_coord_step;
   size_t __pyx_v_bound_ind_x;
   size_t __pyx_v_bound_ind_y;
   double __pyx_v_weight_dot_nodes;
@@ -20141,7 +20137,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
 
-  /* "pyvale/cython/rastercyth.py":488
+  /* "pyvale/cython/rastercyth.py":491
  *     """
  * 
  *     xx: cython.size_t = 0             # <<<<<<<<<<<<<<
@@ -20150,7 +20146,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_xx = 0;
 
-  /* "pyvale/cython/rastercyth.py":489
+  /* "pyvale/cython/rastercyth.py":492
  * 
  *     xx: cython.size_t = 0
  *     yy: cython.size_t = 1             # <<<<<<<<<<<<<<
@@ -20159,7 +20155,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_yy = 1;
 
-  /* "pyvale/cython/rastercyth.py":490
+  /* "pyvale/cython/rastercyth.py":493
  *     xx: cython.size_t = 0
  *     yy: cython.size_t = 1
  *     zz: cython.size_t = 2             # <<<<<<<<<<<<<<
@@ -20168,7 +20164,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_zz = 2;
 
-  /* "pyvale/cython/rastercyth.py":492
+  /* "pyvale/cython/rastercyth.py":495
  *     zz: cython.size_t = 2
  * 
  *     elem_count: cython.size_t = connect.shape[0]             # <<<<<<<<<<<<<<
@@ -20177,7 +20173,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_elem_count = (__pyx_v_connect.shape[0]);
 
-  /* "pyvale/cython/rastercyth.py":493
+  /* "pyvale/cython/rastercyth.py":496
  * 
  *     elem_count: cython.size_t = connect.shape[0]
  *     nodes_per_elem: cython.size_t = connect.shape[1]             # <<<<<<<<<<<<<<
@@ -20186,7 +20182,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_nodes_per_elem = (__pyx_v_connect.shape[1]);
 
-  /* "pyvale/cython/rastercyth.py":494
+  /* "pyvale/cython/rastercyth.py":497
  *     elem_count: cython.size_t = connect.shape[0]
  *     nodes_per_elem: cython.size_t = connect.shape[1]
  *     fields_num: cython.size_t = fields_to_render.shape[1]             # <<<<<<<<<<<<<<
@@ -20195,7 +20191,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_fields_num = (__pyx_v_fields_to_render.shape[1]);
 
-  /* "pyvale/cython/rastercyth.py":497
+  /* "pyvale/cython/rastercyth.py":500
  * 
  *     # tolerance for floating point zero dot product
  *     tol: cython.double = 1e-12             # <<<<<<<<<<<<<<
@@ -20204,17 +20200,35 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_tol = 1e-12;
 
-  /* "pyvale/cython/rastercyth.py":500
+  /* "pyvale/cython/rastercyth.py":503
  * 
  *     #elem_count: cython.size_t = 1
  *     elems_in_image: cython.size_t = 0             # <<<<<<<<<<<<<<
  * 
- *     ee: cython.size_t = 0
+ *     # Lifted constants
 */
   __pyx_v_elems_in_image = 0;
 
-  /* "pyvale/cython/rastercyth.py":502
- *     elems_in_image: cython.size_t = 0
+  /* "pyvale/cython/rastercyth.py":506
+ * 
+ *     # Lifted constants
+ *     coord_step: cython.double = 1.0/float(sub_samp)             # <<<<<<<<<<<<<<
+ *     coord_offset: cython.double = 1.0/(2.0*float(sub_samp))
+ * 
+*/
+  __pyx_v_coord_step = (1.0 / ((double)__pyx_v_sub_samp));
+
+  /* "pyvale/cython/rastercyth.py":507
+ *     # Lifted constants
+ *     coord_step: cython.double = 1.0/float(sub_samp)
+ *     coord_offset: cython.double = 1.0/(2.0*float(sub_samp))             # <<<<<<<<<<<<<<
+ * 
+ *     ee: cython.size_t = 0
+*/
+  __pyx_v_coord_offset = (1.0 / (2.0 * ((double)__pyx_v_sub_samp)));
+
+  /* "pyvale/cython/rastercyth.py":509
+ *     coord_offset: cython.double = 1.0/(2.0*float(sub_samp))
  * 
  *     ee: cython.size_t = 0             # <<<<<<<<<<<<<<
  *     nn: cython.size_t = 0
@@ -20222,7 +20236,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_ee = 0;
 
-  /* "pyvale/cython/rastercyth.py":503
+  /* "pyvale/cython/rastercyth.py":510
  * 
  *     ee: cython.size_t = 0
  *     nn: cython.size_t = 0             # <<<<<<<<<<<<<<
@@ -20231,7 +20245,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_nn = 0;
 
-  /* "pyvale/cython/rastercyth.py":504
+  /* "pyvale/cython/rastercyth.py":511
  *     ee: cython.size_t = 0
  *     nn: cython.size_t = 0
  *     ii: cython.size_t = 0             # <<<<<<<<<<<<<<
@@ -20240,7 +20254,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_ii = 0;
 
-  /* "pyvale/cython/rastercyth.py":505
+  /* "pyvale/cython/rastercyth.py":512
  *     nn: cython.size_t = 0
  *     ii: cython.size_t = 0
  *     jj: cython.size_t = 0             # <<<<<<<<<<<<<<
@@ -20249,7 +20263,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_jj = 0;
 
-  /* "pyvale/cython/rastercyth.py":506
+  /* "pyvale/cython/rastercyth.py":513
  *     ii: cython.size_t = 0
  *     jj: cython.size_t = 0
  *     ww: cython.size_t = 0             # <<<<<<<<<<<<<<
@@ -20258,7 +20272,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_ww = 0;
 
-  /* "pyvale/cython/rastercyth.py":507
+  /* "pyvale/cython/rastercyth.py":514
  *     jj: cython.size_t = 0
  *     ww: cython.size_t = 0
  *     ff: cython.size_t = 0             # <<<<<<<<<<<<<<
@@ -20267,7 +20281,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
 */
   __pyx_v_ff = 0;
 
-  /* "pyvale/cython/rastercyth.py":509
+  /* "pyvale/cython/rastercyth.py":516
  *     ff: cython.size_t = 0
  * 
  *     for ee in range(elem_count):             # <<<<<<<<<<<<<<
@@ -20279,7 +20293,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_ee = __pyx_t_3;
 
-    /* "pyvale/cython/rastercyth.py":511
+    /* "pyvale/cython/rastercyth.py":518
  *     for ee in range(elem_count):
  * 
  *         for nn in range(nodes_per_elem):             # <<<<<<<<<<<<<<
@@ -20291,7 +20305,7 @@ static size_t __pyx_f_6pyvale_6cython_10rastercyth__raster_frame(__Pyx_memviewsl
     for (__pyx_t_6 = 0; __pyx_t_6 < __pyx_t_5; __pyx_t_6+=1) {
       __pyx_v_nn = __pyx_t_6;
 
-      /* "pyvale/cython/rastercyth.py":513
+      /* "pyvale/cython/rastercyth.py":520
  *         for nn in range(nodes_per_elem):
  *             # shape=(nodes_per_elem, coord[X,Y,Z,W])
  *             nodes_raster_buff[nn,:] = world_to_raster_coords(coords[connect[ee,nn],:],             # <<<<<<<<<<<<<<
@@ -20315,7 +20329,7 @@ __pyx_t_9.strides[0] = __pyx_v_coords.strides[1];
 
 __pyx_t_10.data = __pyx_v_nodes_raster_buff.data;
 
-      /* "pyvale/cython/rastercyth.py":518
+      /* "pyvale/cython/rastercyth.py":525
  *                                                         image_dims,
  *                                                         num_pixels,
  *                                                         nodes_raster_buff[nn,:])             # <<<<<<<<<<<<<<
@@ -20334,9 +20348,9 @@ __pyx_t_10.shape[0] = __pyx_v_nodes_raster_buff.shape[1];
 __pyx_t_10.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
     __pyx_t_10.suboffsets[0] = -1;
 
-__pyx_t_11 = __pyx_f_6pyvale_6cython_10rastercyth_world_to_raster_coords(__pyx_t_9, __pyx_v_world_to_cam_mat, __pyx_v_image_dist, __pyx_v_image_dims, __pyx_v_num_pixels, __pyx_t_10); if (unlikely(!__pyx_t_11.memview)) __PYX_ERR(0, 513, __pyx_L1_error)
+__pyx_t_11 = __pyx_f_6pyvale_6cython_10rastercyth_world_to_raster_coords(__pyx_t_9, __pyx_v_world_to_cam_mat, __pyx_v_image_dist, __pyx_v_image_dims, __pyx_v_num_pixels, __pyx_t_10); if (unlikely(!__pyx_t_11.memview)) __PYX_ERR(0, 520, __pyx_L1_error)
 
-      /* "pyvale/cython/rastercyth.py":513
+      /* "pyvale/cython/rastercyth.py":520
  *         for nn in range(nodes_per_elem):
  *             # shape=(nodes_per_elem, coord[X,Y,Z,W])
  *             nodes_raster_buff[nn,:] = world_to_raster_coords(coords[connect[ee,nn],:],             # <<<<<<<<<<<<<<
@@ -20360,14 +20374,14 @@ __pyx_t_10.shape[0] = __pyx_v_nodes_raster_buff.shape[1];
 __pyx_t_10.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
     __pyx_t_10.suboffsets[0] = -1;
 
-if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_11, __pyx_t_10, 1, 1, 0) < 0))) __PYX_ERR(0, 513, __pyx_L1_error)
+if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_11, __pyx_t_10, 1, 1, 0) < 0))) __PYX_ERR(0, 520, __pyx_L1_error)
       __PYX_XCLEAR_MEMVIEW(&__pyx_t_10, 1);
       __pyx_t_10.memview = NULL; __pyx_t_10.data = NULL;
       __PYX_XCLEAR_MEMVIEW(&__pyx_t_11, 1);
       __pyx_t_11.memview = NULL; __pyx_t_11.data = NULL;
     }
 
-    /* "pyvale/cython/rastercyth.py":521
+    /* "pyvale/cython/rastercyth.py":528
  * 
  * 
  *         elem_area: cython.double = edge_function(nodes_raster_buff[0,:],             # <<<<<<<<<<<<<<
@@ -20389,7 +20403,7 @@ __pyx_t_11.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
 
 __pyx_t_10.data = __pyx_v_nodes_raster_buff.data;
 
-    /* "pyvale/cython/rastercyth.py":522
+    /* "pyvale/cython/rastercyth.py":529
  * 
  *         elem_area: cython.double = edge_function(nodes_raster_buff[0,:],
  *                                                  nodes_raster_buff[1,:],             # <<<<<<<<<<<<<<
@@ -20410,7 +20424,7 @@ __pyx_t_10.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
 
 __pyx_t_9.data = __pyx_v_nodes_raster_buff.data;
 
-    /* "pyvale/cython/rastercyth.py":523
+    /* "pyvale/cython/rastercyth.py":530
  *         elem_area: cython.double = edge_function(nodes_raster_buff[0,:],
  *                                                  nodes_raster_buff[1,:],
  *                                                  nodes_raster_buff[2,:])             # <<<<<<<<<<<<<<
@@ -20431,7 +20445,7 @@ __pyx_t_9.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
 
 __pyx_v_elem_area = __pyx_f_6pyvale_6cython_10rastercyth_edge_function(__pyx_t_11, __pyx_t_10, __pyx_t_9);
 
-    /* "pyvale/cython/rastercyth.py":521
+    /* "pyvale/cython/rastercyth.py":528
  * 
  * 
  *         elem_area: cython.double = edge_function(nodes_raster_buff[0,:],             # <<<<<<<<<<<<<<
@@ -20445,7 +20459,7 @@ __pyx_v_elem_area = __pyx_f_6pyvale_6cython_10rastercyth_edge_function(__pyx_t_1
     __PYX_XCLEAR_MEMVIEW(&__pyx_t_9, 1);
     __pyx_t_9.memview = NULL; __pyx_t_9.data = NULL;
 
-    /* "pyvale/cython/rastercyth.py":525
+    /* "pyvale/cython/rastercyth.py":532
  *                                                  nodes_raster_buff[2,:])
  * 
  *         if elem_area < -tol: # Backface culling             # <<<<<<<<<<<<<<
@@ -20455,7 +20469,7 @@ __pyx_v_elem_area = __pyx_f_6pyvale_6cython_10rastercyth_edge_function(__pyx_t_1
     __pyx_t_12 = (__pyx_v_elem_area < (-__pyx_v_tol));
     if (__pyx_t_12) {
 
-      /* "pyvale/cython/rastercyth.py":526
+      /* "pyvale/cython/rastercyth.py":533
  * 
  *         if elem_area < -tol: # Backface culling
  *             continue             # <<<<<<<<<<<<<<
@@ -20464,7 +20478,7 @@ __pyx_v_elem_area = __pyx_f_6pyvale_6cython_10rastercyth_edge_function(__pyx_t_1
 */
       goto __pyx_L3_continue;
 
-      /* "pyvale/cython/rastercyth.py":525
+      /* "pyvale/cython/rastercyth.py":532
  *                                                  nodes_raster_buff[2,:])
  * 
  *         if elem_area < -tol: # Backface culling             # <<<<<<<<<<<<<<
@@ -20473,7 +20487,7 @@ __pyx_v_elem_area = __pyx_f_6pyvale_6cython_10rastercyth_edge_function(__pyx_t_1
 */
     }
 
-    /* "pyvale/cython/rastercyth.py":534
+    /* "pyvale/cython/rastercyth.py":541
  *         # print()
  * 
  *         x_min: cython.double = vec_min_double(nodes_raster_buff[:,xx])             # <<<<<<<<<<<<<<
@@ -20497,7 +20511,7 @@ __pyx_v_x_min = __pyx_f_6pyvale_6cython_10rastercyth_vec_min_double(__pyx_t_9);
     __PYX_XCLEAR_MEMVIEW(&__pyx_t_9, 1);
     __pyx_t_9.memview = NULL; __pyx_t_9.data = NULL;
 
-    /* "pyvale/cython/rastercyth.py":535
+    /* "pyvale/cython/rastercyth.py":542
  * 
  *         x_min: cython.double = vec_min_double(nodes_raster_buff[:,xx])
  *         x_max: cython.double = vec_max_double(nodes_raster_buff[:,xx])             # <<<<<<<<<<<<<<
@@ -20521,7 +20535,7 @@ __pyx_v_x_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
     __PYX_XCLEAR_MEMVIEW(&__pyx_t_9, 1);
     __pyx_t_9.memview = NULL; __pyx_t_9.data = NULL;
 
-    /* "pyvale/cython/rastercyth.py":537
+    /* "pyvale/cython/rastercyth.py":544
  *         x_max: cython.double = vec_max_double(nodes_raster_buff[:,xx])
  * 
  *         if ((x_min > num_pixels[xx]-1) or (x_max < 0)): # x crop             # <<<<<<<<<<<<<<
@@ -20540,7 +20554,7 @@ __pyx_v_x_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
     __pyx_L9_bool_binop_done:;
     if (__pyx_t_12) {
 
-      /* "pyvale/cython/rastercyth.py":538
+      /* "pyvale/cython/rastercyth.py":545
  * 
  *         if ((x_min > num_pixels[xx]-1) or (x_max < 0)): # x crop
  *             continue             # <<<<<<<<<<<<<<
@@ -20549,7 +20563,7 @@ __pyx_v_x_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
 */
       goto __pyx_L3_continue;
 
-      /* "pyvale/cython/rastercyth.py":537
+      /* "pyvale/cython/rastercyth.py":544
  *         x_max: cython.double = vec_max_double(nodes_raster_buff[:,xx])
  * 
  *         if ((x_min > num_pixels[xx]-1) or (x_max < 0)): # x crop             # <<<<<<<<<<<<<<
@@ -20558,7 +20572,7 @@ __pyx_v_x_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
 */
     }
 
-    /* "pyvale/cython/rastercyth.py":540
+    /* "pyvale/cython/rastercyth.py":547
  *             continue
  * 
  *         y_min: cython.double = vec_min_double(nodes_raster_buff[:,yy])             # <<<<<<<<<<<<<<
@@ -20582,7 +20596,7 @@ __pyx_v_y_min = __pyx_f_6pyvale_6cython_10rastercyth_vec_min_double(__pyx_t_9);
     __PYX_XCLEAR_MEMVIEW(&__pyx_t_9, 1);
     __pyx_t_9.memview = NULL; __pyx_t_9.data = NULL;
 
-    /* "pyvale/cython/rastercyth.py":541
+    /* "pyvale/cython/rastercyth.py":548
  * 
  *         y_min: cython.double = vec_min_double(nodes_raster_buff[:,yy])
  *         y_max: cython.double = vec_max_double(nodes_raster_buff[:,yy])             # <<<<<<<<<<<<<<
@@ -20606,7 +20620,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
     __PYX_XCLEAR_MEMVIEW(&__pyx_t_9, 1);
     __pyx_t_9.memview = NULL; __pyx_t_9.data = NULL;
 
-    /* "pyvale/cython/rastercyth.py":543
+    /* "pyvale/cython/rastercyth.py":550
  *         y_max: cython.double = vec_max_double(nodes_raster_buff[:,yy])
  * 
  *         if ((y_min > num_pixels[yy]-1) or (y_max < 0)): # y crop             # <<<<<<<<<<<<<<
@@ -20625,7 +20639,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
     __pyx_L12_bool_binop_done:;
     if (__pyx_t_12) {
 
-      /* "pyvale/cython/rastercyth.py":544
+      /* "pyvale/cython/rastercyth.py":551
  * 
  *         if ((y_min > num_pixels[yy]-1) or (y_max < 0)): # y crop
  *             continue             # <<<<<<<<<<<<<<
@@ -20634,7 +20648,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
 */
       goto __pyx_L3_continue;
 
-      /* "pyvale/cython/rastercyth.py":543
+      /* "pyvale/cython/rastercyth.py":550
  *         y_max: cython.double = vec_max_double(nodes_raster_buff[:,yy])
  * 
  *         if ((y_min > num_pixels[yy]-1) or (y_max < 0)): # y crop             # <<<<<<<<<<<<<<
@@ -20643,7 +20657,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
 */
     }
 
-    /* "pyvale/cython/rastercyth.py":551
+    /* "pyvale/cython/rastercyth.py":558
  *         # print(f"Elem {ee}: y, max {y_max}\n")
  * 
  *         elems_in_image += 1             # <<<<<<<<<<<<<<
@@ -20652,7 +20666,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
 */
     __pyx_v_elems_in_image = (__pyx_v_elems_in_image + 1);
 
-    /* "pyvale/cython/rastercyth.py":553
+    /* "pyvale/cython/rastercyth.py":560
  *         elems_in_image += 1
  * 
  *         xi_min: cython.size_t = bound_index_min(x_min)             # <<<<<<<<<<<<<<
@@ -20661,7 +20675,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
 */
     __pyx_v_xi_min = __pyx_f_6pyvale_6cython_10rastercyth_bound_index_min(__pyx_v_x_min);
 
-    /* "pyvale/cython/rastercyth.py":554
+    /* "pyvale/cython/rastercyth.py":561
  * 
  *         xi_min: cython.size_t = bound_index_min(x_min)
  *         xi_max: cython.size_t = bound_index_max(x_max,num_pixels[xx])             # <<<<<<<<<<<<<<
@@ -20671,7 +20685,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
     __pyx_t_4 = __pyx_v_xx;
     __pyx_v_xi_max = __pyx_f_6pyvale_6cython_10rastercyth_bound_index_max(__pyx_v_x_max, (*((int *) ( /* dim=0 */ (__pyx_v_num_pixels.data + __pyx_t_4 * __pyx_v_num_pixels.strides[0]) ))));
 
-    /* "pyvale/cython/rastercyth.py":555
+    /* "pyvale/cython/rastercyth.py":562
  *         xi_min: cython.size_t = bound_index_min(x_min)
  *         xi_max: cython.size_t = bound_index_max(x_max,num_pixels[xx])
  *         yi_min: cython.size_t = bound_index_min(y_min)             # <<<<<<<<<<<<<<
@@ -20680,7 +20694,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
 */
     __pyx_v_yi_min = __pyx_f_6pyvale_6cython_10rastercyth_bound_index_min(__pyx_v_y_min);
 
-    /* "pyvale/cython/rastercyth.py":556
+    /* "pyvale/cython/rastercyth.py":563
  *         xi_max: cython.size_t = bound_index_max(x_max,num_pixels[xx])
  *         yi_min: cython.size_t = bound_index_min(y_min)
  *         yi_max: cython.size_t = bound_index_max(y_max,num_pixels[yy])             # <<<<<<<<<<<<<<
@@ -20690,7 +20704,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
     __pyx_t_4 = __pyx_v_yy;
     __pyx_v_yi_max = __pyx_f_6pyvale_6cython_10rastercyth_bound_index_max(__pyx_v_y_max, (*((int *) ( /* dim=0 */ (__pyx_v_num_pixels.data + __pyx_t_4 * __pyx_v_num_pixels.strides[0]) ))));
 
-    /* "pyvale/cython/rastercyth.py":563
+    /* "pyvale/cython/rastercyth.py":570
  *         # print(f"Elem {ee}: yi, max {yi_max}\n")
  * 
  *         for nn in range(nodes_per_elem):             # <<<<<<<<<<<<<<
@@ -20702,7 +20716,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
     for (__pyx_t_6 = 0; __pyx_t_6 < __pyx_t_5; __pyx_t_6+=1) {
       __pyx_v_nn = __pyx_t_6;
 
-      /* "pyvale/cython/rastercyth.py":564
+      /* "pyvale/cython/rastercyth.py":571
  * 
  *         for nn in range(nodes_per_elem):
  *             nodes_raster_buff[nn,zz] = 1/nodes_raster_buff[nn,zz]             # <<<<<<<<<<<<<<
@@ -20716,100 +20730,91 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
       *((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nodes_raster_buff.data + __pyx_t_14 * __pyx_v_nodes_raster_buff.strides[0]) ) + __pyx_t_15 * __pyx_v_nodes_raster_buff.strides[1]) )) = (1.0 / (*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nodes_raster_buff.data + __pyx_t_8 * __pyx_v_nodes_raster_buff.strides[0]) ) + __pyx_t_7 * __pyx_v_nodes_raster_buff.strides[1]) ))));
     }
 
-    /* "pyvale/cython/rastercyth.py":566
+    /* "pyvale/cython/rastercyth.py":573
  *             nodes_raster_buff[nn,zz] = 1/nodes_raster_buff[nn,zz]
  * 
  *         num_bound_x: cython.size_t = range_len_double(float(xi_min),             # <<<<<<<<<<<<<<
  *                                                       float(xi_max),
- *                                                       1.0/float(sub_samp))
+ *                                                       coord_step)
 */
-    __pyx_v_num_bound_x = __pyx_f_6pyvale_6cython_10rastercyth_range_len_double(((double)__pyx_v_xi_min), ((double)__pyx_v_xi_max), (1.0 / ((double)__pyx_v_sub_samp)));
-
-    /* "pyvale/cython/rastercyth.py":569
- *                                                       float(xi_max),
- *                                                       1.0/float(sub_samp))
- *         num_bound_y: cython.size_t = range_len_double(float(yi_min),             # <<<<<<<<<<<<<<
- *                                                       float(yi_max),
- *                                                       1.0/float(sub_samp))
-*/
-    __pyx_v_num_bound_y = __pyx_f_6pyvale_6cython_10rastercyth_range_len_double(((double)__pyx_v_yi_min), ((double)__pyx_v_yi_max), (1.0 / ((double)__pyx_v_sub_samp)));
-
-    /* "pyvale/cython/rastercyth.py":573
- *                                                       1.0/float(sub_samp))
- * 
- *         bound_coord_x: cython.double = float(xi_min) + 1.0/(2.0*float(sub_samp))             # <<<<<<<<<<<<<<
- *         bound_coord_y: cython.double = float(yi_min) + 1.0/(2.0*float(sub_samp))
- *         coord_step: cython.double = 1.0/float(sub_samp)
-*/
-    __pyx_v_bound_coord_x = (((double)__pyx_v_xi_min) + (1.0 / (2.0 * ((double)__pyx_v_sub_samp))));
-
-    /* "pyvale/cython/rastercyth.py":574
- * 
- *         bound_coord_x: cython.double = float(xi_min) + 1.0/(2.0*float(sub_samp))
- *         bound_coord_y: cython.double = float(yi_min) + 1.0/(2.0*float(sub_samp))             # <<<<<<<<<<<<<<
- *         coord_step: cython.double = 1.0/float(sub_samp)
- *         bound_ind_x: cython.size_t = sub_samp*xi_min
-*/
-    __pyx_v_bound_coord_y = (((double)__pyx_v_yi_min) + (1.0 / (2.0 * ((double)__pyx_v_sub_samp))));
-
-    /* "pyvale/cython/rastercyth.py":575
- *         bound_coord_x: cython.double = float(xi_min) + 1.0/(2.0*float(sub_samp))
- *         bound_coord_y: cython.double = float(yi_min) + 1.0/(2.0*float(sub_samp))
- *         coord_step: cython.double = 1.0/float(sub_samp)             # <<<<<<<<<<<<<<
- *         bound_ind_x: cython.size_t = sub_samp*xi_min
- *         bound_ind_y: cython.size_t = sub_samp*yi_min
-*/
-    __pyx_v_coord_step = (1.0 / ((double)__pyx_v_sub_samp));
+    __pyx_v_num_bound_x = __pyx_f_6pyvale_6cython_10rastercyth_range_len_double(((double)__pyx_v_xi_min), ((double)__pyx_v_xi_max), __pyx_v_coord_step);
 
     /* "pyvale/cython/rastercyth.py":576
- *         bound_coord_y: cython.double = float(yi_min) + 1.0/(2.0*float(sub_samp))
- *         coord_step: cython.double = 1.0/float(sub_samp)
+ *                                                       float(xi_max),
+ *                                                       coord_step)
+ *         num_bound_y: cython.size_t = range_len_double(float(yi_min),             # <<<<<<<<<<<<<<
+ *                                                       float(yi_max),
+ *                                                       coord_step)
+*/
+    __pyx_v_num_bound_y = __pyx_f_6pyvale_6cython_10rastercyth_range_len_double(((double)__pyx_v_yi_min), ((double)__pyx_v_yi_max), __pyx_v_coord_step);
+
+    /* "pyvale/cython/rastercyth.py":580
+ *                                                       coord_step)
+ * 
+ *         bound_coord_x: cython.double = float(xi_min) + coord_offset             # <<<<<<<<<<<<<<
+ *         bound_coord_y: cython.double = float(yi_min) + coord_offset
+ * 
+*/
+    __pyx_v_bound_coord_x = (((double)__pyx_v_xi_min) + __pyx_v_coord_offset);
+
+    /* "pyvale/cython/rastercyth.py":581
+ * 
+ *         bound_coord_x: cython.double = float(xi_min) + coord_offset
+ *         bound_coord_y: cython.double = float(yi_min) + coord_offset             # <<<<<<<<<<<<<<
+ * 
+ *         bound_ind_x: cython.size_t = sub_samp*xi_min
+*/
+    __pyx_v_bound_coord_y = (((double)__pyx_v_yi_min) + __pyx_v_coord_offset);
+
+    /* "pyvale/cython/rastercyth.py":583
+ *         bound_coord_y: cython.double = float(yi_min) + coord_offset
+ * 
  *         bound_ind_x: cython.size_t = sub_samp*xi_min             # <<<<<<<<<<<<<<
  *         bound_ind_y: cython.size_t = sub_samp*yi_min
  * 
 */
     __pyx_v_bound_ind_x = (__pyx_v_sub_samp * __pyx_v_xi_min);
 
-    /* "pyvale/cython/rastercyth.py":577
- *         coord_step: cython.double = 1.0/float(sub_samp)
+    /* "pyvale/cython/rastercyth.py":584
+ * 
  *         bound_ind_x: cython.size_t = sub_samp*xi_min
  *         bound_ind_y: cython.size_t = sub_samp*yi_min             # <<<<<<<<<<<<<<
  * 
- * 
+ *         # print(f"Elem {ee}: bound_coord_x={bound_coord_x}")
 */
     __pyx_v_bound_ind_y = (__pyx_v_sub_samp * __pyx_v_yi_min);
 
-    /* "pyvale/cython/rastercyth.py":580
+    /* "pyvale/cython/rastercyth.py":596
  * 
  * 
  *         for jj in range(num_bound_y):             # <<<<<<<<<<<<<<
  * 
- *             bound_coord_x = float(xi_min) + 1.0/(2.0*float(sub_samp))
+ *             bound_coord_x = float(xi_min) + coord_offset
 */
     __pyx_t_4 = __pyx_v_num_bound_y;
     __pyx_t_5 = __pyx_t_4;
     for (__pyx_t_6 = 0; __pyx_t_6 < __pyx_t_5; __pyx_t_6+=1) {
       __pyx_v_jj = __pyx_t_6;
 
-      /* "pyvale/cython/rastercyth.py":582
+      /* "pyvale/cython/rastercyth.py":598
  *         for jj in range(num_bound_y):
  * 
- *             bound_coord_x = float(xi_min) + 1.0/(2.0*float(sub_samp))             # <<<<<<<<<<<<<<
+ *             bound_coord_x = float(xi_min) + coord_offset             # <<<<<<<<<<<<<<
  *             bound_ind_x: cython.size_t = sub_samp*xi_min
  * 
 */
-      __pyx_v_bound_coord_x = (((double)__pyx_v_xi_min) + (1.0 / (2.0 * ((double)__pyx_v_sub_samp))));
+      __pyx_v_bound_coord_x = (((double)__pyx_v_xi_min) + __pyx_v_coord_offset);
 
-      /* "pyvale/cython/rastercyth.py":583
+      /* "pyvale/cython/rastercyth.py":599
  * 
- *             bound_coord_x = float(xi_min) + 1.0/(2.0*float(sub_samp))
+ *             bound_coord_x = float(xi_min) + coord_offset
  *             bound_ind_x: cython.size_t = sub_samp*xi_min             # <<<<<<<<<<<<<<
  * 
  *             for ii in range(num_bound_x):
 */
       __pyx_v_bound_ind_x = (__pyx_v_sub_samp * __pyx_v_xi_min);
 
-      /* "pyvale/cython/rastercyth.py":585
+      /* "pyvale/cython/rastercyth.py":601
  *             bound_ind_x: cython.size_t = sub_samp*xi_min
  * 
  *             for ii in range(num_bound_x):             # <<<<<<<<<<<<<<
@@ -20821,7 +20826,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
       for (__pyx_t_15 = 0; __pyx_t_15 < __pyx_t_8; __pyx_t_15+=1) {
         __pyx_v_ii = __pyx_t_15;
 
-        /* "pyvale/cython/rastercyth.py":587
+        /* "pyvale/cython/rastercyth.py":603
  *             for ii in range(num_bound_x):
  * 
  *                 px_coord_buff[xx] = bound_coord_x             # <<<<<<<<<<<<<<
@@ -20831,7 +20836,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
         __pyx_t_14 = __pyx_v_xx;
         *((double *) ( /* dim=0 */ (__pyx_v_px_coord_buff.data + __pyx_t_14 * __pyx_v_px_coord_buff.strides[0]) )) = __pyx_v_bound_coord_x;
 
-        /* "pyvale/cython/rastercyth.py":588
+        /* "pyvale/cython/rastercyth.py":604
  * 
  *                 px_coord_buff[xx] = bound_coord_x
  *                 px_coord_buff[yy] = bound_coord_y             # <<<<<<<<<<<<<<
@@ -20841,7 +20846,7 @@ __pyx_v_y_max = __pyx_f_6pyvale_6cython_10rastercyth_vec_max_double(__pyx_t_9);
         __pyx_t_14 = __pyx_v_yy;
         *((double *) ( /* dim=0 */ (__pyx_v_px_coord_buff.data + __pyx_t_14 * __pyx_v_px_coord_buff.strides[0]) )) = __pyx_v_bound_coord_y;
 
-        /* "pyvale/cython/rastercyth.py":592
+        /* "pyvale/cython/rastercyth.py":608
  *                 # Check the edge functions for each edge one at a time, as soon
  *                 # as one is outside we don't need to do anymore work
  *                 weights_buff[0] = edge_function(nodes_raster_buff[1,:],             # <<<<<<<<<<<<<<
@@ -20863,7 +20868,7 @@ __pyx_t_9.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
 
 __pyx_t_10.data = __pyx_v_nodes_raster_buff.data;
 
-        /* "pyvale/cython/rastercyth.py":593
+        /* "pyvale/cython/rastercyth.py":609
  *                 # as one is outside we don't need to do anymore work
  *                 weights_buff[0] = edge_function(nodes_raster_buff[1,:],
  *                                                 nodes_raster_buff[2,:],             # <<<<<<<<<<<<<<
@@ -20884,7 +20889,7 @@ __pyx_t_10.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
 
 __pyx_t_16 = 0;
 
-        /* "pyvale/cython/rastercyth.py":592
+        /* "pyvale/cython/rastercyth.py":608
  *                 # Check the edge functions for each edge one at a time, as soon
  *                 # as one is outside we don't need to do anymore work
  *                 weights_buff[0] = edge_function(nodes_raster_buff[1,:],             # <<<<<<<<<<<<<<
@@ -20897,7 +20902,7 @@ __pyx_t_16 = 0;
         __PYX_XCLEAR_MEMVIEW(&__pyx_t_10, 1);
         __pyx_t_10.memview = NULL; __pyx_t_10.data = NULL;
 
-        /* "pyvale/cython/rastercyth.py":595
+        /* "pyvale/cython/rastercyth.py":611
  *                                                 nodes_raster_buff[2,:],
  *                                                 px_coord_buff)
  *                 if (weights_buff[0] < -tol):             # <<<<<<<<<<<<<<
@@ -20908,7 +20913,7 @@ __pyx_t_16 = 0;
         __pyx_t_12 = ((*((double *) ( /* dim=0 */ (__pyx_v_weights_buff.data + __pyx_t_16 * __pyx_v_weights_buff.strides[0]) ))) < (-__pyx_v_tol));
         if (__pyx_t_12) {
 
-          /* "pyvale/cython/rastercyth.py":596
+          /* "pyvale/cython/rastercyth.py":612
  *                                                 px_coord_buff)
  *                 if (weights_buff[0] < -tol):
  *                     bound_coord_x += coord_step             # <<<<<<<<<<<<<<
@@ -20917,7 +20922,7 @@ __pyx_t_16 = 0;
 */
           __pyx_v_bound_coord_x = (__pyx_v_bound_coord_x + __pyx_v_coord_step);
 
-          /* "pyvale/cython/rastercyth.py":597
+          /* "pyvale/cython/rastercyth.py":613
  *                 if (weights_buff[0] < -tol):
  *                     bound_coord_x += coord_step
  *                     bound_ind_x += 1             # <<<<<<<<<<<<<<
@@ -20926,7 +20931,7 @@ __pyx_t_16 = 0;
 */
           __pyx_v_bound_ind_x = (__pyx_v_bound_ind_x + 1);
 
-          /* "pyvale/cython/rastercyth.py":598
+          /* "pyvale/cython/rastercyth.py":614
  *                     bound_coord_x += coord_step
  *                     bound_ind_x += 1
  *                     continue             # <<<<<<<<<<<<<<
@@ -20935,7 +20940,7 @@ __pyx_t_16 = 0;
 */
           goto __pyx_L18_continue;
 
-          /* "pyvale/cython/rastercyth.py":595
+          /* "pyvale/cython/rastercyth.py":611
  *                                                 nodes_raster_buff[2,:],
  *                                                 px_coord_buff)
  *                 if (weights_buff[0] < -tol):             # <<<<<<<<<<<<<<
@@ -20944,7 +20949,7 @@ __pyx_t_16 = 0;
 */
         }
 
-        /* "pyvale/cython/rastercyth.py":600
+        /* "pyvale/cython/rastercyth.py":616
  *                     continue
  * 
  *                 weights_buff[1] = edge_function(nodes_raster_buff[2,:],             # <<<<<<<<<<<<<<
@@ -20966,7 +20971,7 @@ __pyx_t_10.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
 
 __pyx_t_9.data = __pyx_v_nodes_raster_buff.data;
 
-        /* "pyvale/cython/rastercyth.py":601
+        /* "pyvale/cython/rastercyth.py":617
  * 
  *                 weights_buff[1] = edge_function(nodes_raster_buff[2,:],
  *                                                 nodes_raster_buff[0,:],             # <<<<<<<<<<<<<<
@@ -20987,7 +20992,7 @@ __pyx_t_9.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
 
 __pyx_t_16 = 1;
 
-        /* "pyvale/cython/rastercyth.py":600
+        /* "pyvale/cython/rastercyth.py":616
  *                     continue
  * 
  *                 weights_buff[1] = edge_function(nodes_raster_buff[2,:],             # <<<<<<<<<<<<<<
@@ -21000,7 +21005,7 @@ __pyx_t_16 = 1;
         __PYX_XCLEAR_MEMVIEW(&__pyx_t_9, 1);
         __pyx_t_9.memview = NULL; __pyx_t_9.data = NULL;
 
-        /* "pyvale/cython/rastercyth.py":603
+        /* "pyvale/cython/rastercyth.py":619
  *                                                 nodes_raster_buff[0,:],
  *                                                 px_coord_buff)
  *                 if (weights_buff[1] < -tol):             # <<<<<<<<<<<<<<
@@ -21011,7 +21016,7 @@ __pyx_t_16 = 1;
         __pyx_t_12 = ((*((double *) ( /* dim=0 */ (__pyx_v_weights_buff.data + __pyx_t_16 * __pyx_v_weights_buff.strides[0]) ))) < (-__pyx_v_tol));
         if (__pyx_t_12) {
 
-          /* "pyvale/cython/rastercyth.py":604
+          /* "pyvale/cython/rastercyth.py":620
  *                                                 px_coord_buff)
  *                 if (weights_buff[1] < -tol):
  *                     bound_coord_x += coord_step             # <<<<<<<<<<<<<<
@@ -21020,7 +21025,7 @@ __pyx_t_16 = 1;
 */
           __pyx_v_bound_coord_x = (__pyx_v_bound_coord_x + __pyx_v_coord_step);
 
-          /* "pyvale/cython/rastercyth.py":605
+          /* "pyvale/cython/rastercyth.py":621
  *                 if (weights_buff[1] < -tol):
  *                     bound_coord_x += coord_step
  *                     bound_ind_x += 1             # <<<<<<<<<<<<<<
@@ -21029,7 +21034,7 @@ __pyx_t_16 = 1;
 */
           __pyx_v_bound_ind_x = (__pyx_v_bound_ind_x + 1);
 
-          /* "pyvale/cython/rastercyth.py":606
+          /* "pyvale/cython/rastercyth.py":622
  *                     bound_coord_x += coord_step
  *                     bound_ind_x += 1
  *                     continue             # <<<<<<<<<<<<<<
@@ -21038,7 +21043,7 @@ __pyx_t_16 = 1;
 */
           goto __pyx_L18_continue;
 
-          /* "pyvale/cython/rastercyth.py":603
+          /* "pyvale/cython/rastercyth.py":619
  *                                                 nodes_raster_buff[0,:],
  *                                                 px_coord_buff)
  *                 if (weights_buff[1] < -tol):             # <<<<<<<<<<<<<<
@@ -21047,7 +21052,7 @@ __pyx_t_16 = 1;
 */
         }
 
-        /* "pyvale/cython/rastercyth.py":609
+        /* "pyvale/cython/rastercyth.py":625
  * 
  * 
  *                 weights_buff[2] = edge_function(nodes_raster_buff[0,:],             # <<<<<<<<<<<<<<
@@ -21069,7 +21074,7 @@ __pyx_t_9.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
 
 __pyx_t_10.data = __pyx_v_nodes_raster_buff.data;
 
-        /* "pyvale/cython/rastercyth.py":610
+        /* "pyvale/cython/rastercyth.py":626
  * 
  *                 weights_buff[2] = edge_function(nodes_raster_buff[0,:],
  *                                                 nodes_raster_buff[1,:],             # <<<<<<<<<<<<<<
@@ -21090,7 +21095,7 @@ __pyx_t_10.strides[0] = __pyx_v_nodes_raster_buff.strides[1];
 
 __pyx_t_16 = 2;
 
-        /* "pyvale/cython/rastercyth.py":609
+        /* "pyvale/cython/rastercyth.py":625
  * 
  * 
  *                 weights_buff[2] = edge_function(nodes_raster_buff[0,:],             # <<<<<<<<<<<<<<
@@ -21103,7 +21108,7 @@ __pyx_t_16 = 2;
         __PYX_XCLEAR_MEMVIEW(&__pyx_t_10, 1);
         __pyx_t_10.memview = NULL; __pyx_t_10.data = NULL;
 
-        /* "pyvale/cython/rastercyth.py":612
+        /* "pyvale/cython/rastercyth.py":628
  *                                                 nodes_raster_buff[1,:],
  *                                                 px_coord_buff)
  *                 if (weights_buff[2] < -tol):             # <<<<<<<<<<<<<<
@@ -21114,7 +21119,7 @@ __pyx_t_16 = 2;
         __pyx_t_12 = ((*((double *) ( /* dim=0 */ (__pyx_v_weights_buff.data + __pyx_t_16 * __pyx_v_weights_buff.strides[0]) ))) < (-__pyx_v_tol));
         if (__pyx_t_12) {
 
-          /* "pyvale/cython/rastercyth.py":613
+          /* "pyvale/cython/rastercyth.py":629
  *                                                 px_coord_buff)
  *                 if (weights_buff[2] < -tol):
  *                     bound_coord_x += coord_step             # <<<<<<<<<<<<<<
@@ -21123,7 +21128,7 @@ __pyx_t_16 = 2;
 */
           __pyx_v_bound_coord_x = (__pyx_v_bound_coord_x + __pyx_v_coord_step);
 
-          /* "pyvale/cython/rastercyth.py":614
+          /* "pyvale/cython/rastercyth.py":630
  *                 if (weights_buff[2] < -tol):
  *                     bound_coord_x += coord_step
  *                     bound_ind_x += 1             # <<<<<<<<<<<<<<
@@ -21132,16 +21137,16 @@ __pyx_t_16 = 2;
 */
           __pyx_v_bound_ind_x = (__pyx_v_bound_ind_x + 1);
 
-          /* "pyvale/cython/rastercyth.py":615
+          /* "pyvale/cython/rastercyth.py":631
  *                     bound_coord_x += coord_step
  *                     bound_ind_x += 1
  *                     continue             # <<<<<<<<<<<<<<
  * 
- * 
+ *                 # if (ee%6) == 0:
 */
           goto __pyx_L18_continue;
 
-          /* "pyvale/cython/rastercyth.py":612
+          /* "pyvale/cython/rastercyth.py":628
  *                                                 nodes_raster_buff[1,:],
  *                                                 px_coord_buff)
  *                 if (weights_buff[2] < -tol):             # <<<<<<<<<<<<<<
@@ -21150,7 +21155,7 @@ __pyx_t_16 = 2;
 */
         }
 
-        /* "pyvale/cython/rastercyth.py":618
+        /* "pyvale/cython/rastercyth.py":641
  * 
  * 
  *                 for ww in range(nodes_per_elem):             # <<<<<<<<<<<<<<
@@ -21162,7 +21167,7 @@ __pyx_t_16 = 2;
         for (__pyx_t_18 = 0; __pyx_t_18 < __pyx_t_17; __pyx_t_18+=1) {
           __pyx_v_ww = __pyx_t_18;
 
-          /* "pyvale/cython/rastercyth.py":619
+          /* "pyvale/cython/rastercyth.py":642
  * 
  *                 for ww in range(nodes_per_elem):
  *                     weights_buff[ww] = weights_buff[ww] / elem_area             # <<<<<<<<<<<<<<
@@ -21174,7 +21179,7 @@ __pyx_t_16 = 2;
           *((double *) ( /* dim=0 */ (__pyx_v_weights_buff.data + __pyx_t_20 * __pyx_v_weights_buff.strides[0]) )) = ((*((double *) ( /* dim=0 */ (__pyx_v_weights_buff.data + __pyx_t_19 * __pyx_v_weights_buff.strides[0]) ))) / __pyx_v_elem_area);
         }
 
-        /* "pyvale/cython/rastercyth.py":623
+        /* "pyvale/cython/rastercyth.py":646
  *                 weight_dot_nodes: cython.double = vec_dot_double(
  *                                                     weights_buff,
  *                                                     nodes_raster_buff[:,zz])             # <<<<<<<<<<<<<<
@@ -21196,7 +21201,7 @@ __pyx_t_10.strides[0] = __pyx_v_nodes_raster_buff.strides[0];
 
 __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(__pyx_v_weights_buff, __pyx_t_10);
 
-        /* "pyvale/cython/rastercyth.py":621
+        /* "pyvale/cython/rastercyth.py":644
  *                     weights_buff[ww] = weights_buff[ww] / elem_area
  * 
  *                 weight_dot_nodes: cython.double = vec_dot_double(             # <<<<<<<<<<<<<<
@@ -21206,46 +21211,64 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
         __PYX_XCLEAR_MEMVIEW(&__pyx_t_10, 1);
         __pyx_t_10.memview = NULL; __pyx_t_10.data = NULL;
 
-        /* "pyvale/cython/rastercyth.py":626
+        /* "pyvale/cython/rastercyth.py":649
  * 
  *                 # Check the depth buffer, if the element is behind move on
  *                 px_coord_z: cython.double = 1/weight_dot_nodes             # <<<<<<<<<<<<<<
  *                 if px_coord_z >= depth_buff_subpx[bound_ind_y,bound_ind_x]:
- *                     continue
+ *                     bound_coord_x += coord_step
 */
         __pyx_v_px_coord_z = (1.0 / __pyx_v_weight_dot_nodes);
 
-        /* "pyvale/cython/rastercyth.py":627
+        /* "pyvale/cython/rastercyth.py":650
  *                 # Check the depth buffer, if the element is behind move on
  *                 px_coord_z: cython.double = 1/weight_dot_nodes
  *                 if px_coord_z >= depth_buff_subpx[bound_ind_y,bound_ind_x]:             # <<<<<<<<<<<<<<
- *                     continue
- * 
+ *                     bound_coord_x += coord_step
+ *                     bound_ind_x += 1
 */
         __pyx_t_14 = __pyx_v_bound_ind_y;
         __pyx_t_17 = __pyx_v_bound_ind_x;
         __pyx_t_12 = (__pyx_v_px_coord_z >= (*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_depth_buff_subpx.data + __pyx_t_14 * __pyx_v_depth_buff_subpx.strides[0]) ) + __pyx_t_17 * __pyx_v_depth_buff_subpx.strides[1]) ))));
         if (__pyx_t_12) {
 
-          /* "pyvale/cython/rastercyth.py":628
+          /* "pyvale/cython/rastercyth.py":651
  *                 px_coord_z: cython.double = 1/weight_dot_nodes
  *                 if px_coord_z >= depth_buff_subpx[bound_ind_y,bound_ind_x]:
+ *                     bound_coord_x += coord_step             # <<<<<<<<<<<<<<
+ *                     bound_ind_x += 1
+ *                     continue
+*/
+          __pyx_v_bound_coord_x = (__pyx_v_bound_coord_x + __pyx_v_coord_step);
+
+          /* "pyvale/cython/rastercyth.py":652
+ *                 if px_coord_z >= depth_buff_subpx[bound_ind_y,bound_ind_x]:
+ *                     bound_coord_x += coord_step
+ *                     bound_ind_x += 1             # <<<<<<<<<<<<<<
+ *                     continue
+ * 
+*/
+          __pyx_v_bound_ind_x = (__pyx_v_bound_ind_x + 1);
+
+          /* "pyvale/cython/rastercyth.py":653
+ *                     bound_coord_x += coord_step
+ *                     bound_ind_x += 1
  *                     continue             # <<<<<<<<<<<<<<
  * 
  *                 # We only need one depth buffer for all fields
 */
           goto __pyx_L18_continue;
 
-          /* "pyvale/cython/rastercyth.py":627
+          /* "pyvale/cython/rastercyth.py":650
  *                 # Check the depth buffer, if the element is behind move on
  *                 px_coord_z: cython.double = 1/weight_dot_nodes
  *                 if px_coord_z >= depth_buff_subpx[bound_ind_y,bound_ind_x]:             # <<<<<<<<<<<<<<
- *                     continue
- * 
+ *                     bound_coord_x += coord_step
+ *                     bound_ind_x += 1
 */
         }
 
-        /* "pyvale/cython/rastercyth.py":631
+        /* "pyvale/cython/rastercyth.py":656
  * 
  *                 # We only need one depth buffer for all fields
  *                 depth_buff_subpx[bound_ind_y,bound_ind_x] = px_coord_z             # <<<<<<<<<<<<<<
@@ -21256,7 +21279,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
         __pyx_t_14 = __pyx_v_bound_ind_x;
         *((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_depth_buff_subpx.data + __pyx_t_17 * __pyx_v_depth_buff_subpx.strides[0]) ) + __pyx_t_14 * __pyx_v_depth_buff_subpx.strides[1]) )) = __pyx_v_px_coord_z;
 
-        /* "pyvale/cython/rastercyth.py":633
+        /* "pyvale/cython/rastercyth.py":658
  *                 depth_buff_subpx[bound_ind_y,bound_ind_x] = px_coord_z
  * 
  *                 for ff in range(fields_num):             # <<<<<<<<<<<<<<
@@ -21268,7 +21291,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
         for (__pyx_t_18 = 0; __pyx_t_18 < __pyx_t_17; __pyx_t_18+=1) {
           __pyx_v_ff = __pyx_t_18;
 
-          /* "pyvale/cython/rastercyth.py":634
+          /* "pyvale/cython/rastercyth.py":659
  * 
  *                 for ff in range(fields_num):
  *                     for nn in range(nodes_per_elem):             # <<<<<<<<<<<<<<
@@ -21280,7 +21303,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
           for (__pyx_t_21 = 0; __pyx_t_21 < __pyx_t_20; __pyx_t_21+=1) {
             __pyx_v_nn = __pyx_t_21;
 
-            /* "pyvale/cython/rastercyth.py":636
+            /* "pyvale/cython/rastercyth.py":661
  *                     for nn in range(nodes_per_elem):
  * 
  *                         field_raster_buff[nn] = (fields_to_render[connect[ee,nn],ff]             # <<<<<<<<<<<<<<
@@ -21292,7 +21315,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
             __pyx_t_24 = (*((size_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_connect.data + __pyx_t_22 * __pyx_v_connect.strides[0]) ) + __pyx_t_23 * __pyx_v_connect.strides[1]) )));
             __pyx_t_25 = __pyx_v_ff;
 
-            /* "pyvale/cython/rastercyth.py":637
+            /* "pyvale/cython/rastercyth.py":662
  * 
  *                         field_raster_buff[nn] = (fields_to_render[connect[ee,nn],ff]
  *                                                 *nodes_raster_buff[nn,zz])             # <<<<<<<<<<<<<<
@@ -21302,7 +21325,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
             __pyx_t_26 = __pyx_v_nn;
             __pyx_t_27 = __pyx_v_zz;
 
-            /* "pyvale/cython/rastercyth.py":636
+            /* "pyvale/cython/rastercyth.py":661
  *                     for nn in range(nodes_per_elem):
  * 
  *                         field_raster_buff[nn] = (fields_to_render[connect[ee,nn],ff]             # <<<<<<<<<<<<<<
@@ -21313,7 +21336,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
             *((double *) ( /* dim=0 */ (__pyx_v_field_raster_buff.data + __pyx_t_28 * __pyx_v_field_raster_buff.strides[0]) )) = ((*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_fields_to_render.data + __pyx_t_24 * __pyx_v_fields_to_render.strides[0]) ) + __pyx_t_25 * __pyx_v_fields_to_render.strides[1]) ))) * (*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nodes_raster_buff.data + __pyx_t_26 * __pyx_v_nodes_raster_buff.strides[0]) ) + __pyx_t_27 * __pyx_v_nodes_raster_buff.strides[1]) ))));
           }
 
-          /* "pyvale/cython/rastercyth.py":641
+          /* "pyvale/cython/rastercyth.py":666
  *                     px_field: cython.double = (vec_dot_double(field_raster_buff,
  *                                                               weights_buff)
  *                                                               *px_coord_z)             # <<<<<<<<<<<<<<
@@ -21322,7 +21345,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
 */
           __pyx_v_px_field = (__pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(__pyx_v_field_raster_buff, __pyx_v_weights_buff) * __pyx_v_px_coord_z);
 
-          /* "pyvale/cython/rastercyth.py":643
+          /* "pyvale/cython/rastercyth.py":668
  *                                                               *px_coord_z)
  * 
  *                     image_buff_subpx[bound_ind_y,bound_ind_x,ff] = px_field             # <<<<<<<<<<<<<<
@@ -21335,7 +21358,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
           *((double *) ( /* dim=2 */ (( /* dim=1 */ (( /* dim=0 */ (__pyx_v_image_buff_subpx.data + __pyx_t_19 * __pyx_v_image_buff_subpx.strides[0]) ) + __pyx_t_20 * __pyx_v_image_buff_subpx.strides[1]) ) + __pyx_t_21 * __pyx_v_image_buff_subpx.strides[2]) )) = __pyx_v_px_field;
         }
 
-        /* "pyvale/cython/rastercyth.py":646
+        /* "pyvale/cython/rastercyth.py":671
  * 
  *                 # end for(x) - increment the x coords
  *                 bound_coord_x += coord_step             # <<<<<<<<<<<<<<
@@ -21344,7 +21367,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
 */
         __pyx_v_bound_coord_x = (__pyx_v_bound_coord_x + __pyx_v_coord_step);
 
-        /* "pyvale/cython/rastercyth.py":647
+        /* "pyvale/cython/rastercyth.py":672
  *                 # end for(x) - increment the x coords
  *                 bound_coord_x += coord_step
  *                 bound_ind_x += 1             # <<<<<<<<<<<<<<
@@ -21355,7 +21378,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
         __pyx_L18_continue:;
       }
 
-      /* "pyvale/cython/rastercyth.py":650
+      /* "pyvale/cython/rastercyth.py":675
  * 
  *             # end for(y) - increment the y coords
  *             bound_coord_y += coord_step             # <<<<<<<<<<<<<<
@@ -21364,7 +21387,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
 */
       __pyx_v_bound_coord_y = (__pyx_v_bound_coord_y + __pyx_v_coord_step);
 
-      /* "pyvale/cython/rastercyth.py":651
+      /* "pyvale/cython/rastercyth.py":676
  *             # end for(y) - increment the y coords
  *             bound_coord_y += coord_step
  *             bound_ind_y += 1             # <<<<<<<<<<<<<<
@@ -21376,7 +21399,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
     __pyx_L3_continue:;
   }
 
-  /* "pyvale/cython/rastercyth.py":653
+  /* "pyvale/cython/rastercyth.py":678
  *             bound_ind_y += 1
  * 
  *     _average_image(depth_buff_subpx,sub_samp,depth_buff_avg)             # <<<<<<<<<<<<<<
@@ -21385,7 +21408,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
 */
   (void)(__pyx_f_6pyvale_6cython_10rastercyth__average_image(__pyx_v_depth_buff_subpx, __pyx_v_sub_samp, __pyx_v_depth_buff_avg));
 
-  /* "pyvale/cython/rastercyth.py":655
+  /* "pyvale/cython/rastercyth.py":680
  *     _average_image(depth_buff_subpx,sub_samp,depth_buff_avg)
  * 
  *     for ff in range(fields_num):             # <<<<<<<<<<<<<<
@@ -21397,7 +21420,7 @@ __pyx_v_weight_dot_nodes = __pyx_f_6pyvale_6cython_10rastercyth_vec_dot_double(_
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_ff = __pyx_t_3;
 
-    /* "pyvale/cython/rastercyth.py":656
+    /* "pyvale/cython/rastercyth.py":681
  * 
  *     for ff in range(fields_num):
  *         _average_image(image_buff_subpx[:,:,ff],             # <<<<<<<<<<<<<<
@@ -21423,7 +21446,7 @@ __pyx_t_29.strides[1] = __pyx_v_image_buff_subpx.strides[1];
 
 __pyx_t_30.data = __pyx_v_image_buff_avg.data;
 
-    /* "pyvale/cython/rastercyth.py":658
+    /* "pyvale/cython/rastercyth.py":683
  *         _average_image(image_buff_subpx[:,:,ff],
  *                         sub_samp,
  *                         image_buff_avg[:,:,ff])             # <<<<<<<<<<<<<<
@@ -21448,7 +21471,7 @@ __pyx_t_30.strides[1] = __pyx_v_image_buff_avg.strides[1];
 
 (void)(__pyx_f_6pyvale_6cython_10rastercyth__average_image(__pyx_t_29, __pyx_v_sub_samp, __pyx_t_30));
 
-    /* "pyvale/cython/rastercyth.py":656
+    /* "pyvale/cython/rastercyth.py":681
  * 
  *     for ff in range(fields_num):
  *         _average_image(image_buff_subpx[:,:,ff],             # <<<<<<<<<<<<<<
@@ -21461,7 +21484,7 @@ __pyx_t_30.strides[1] = __pyx_v_image_buff_avg.strides[1];
     __pyx_t_30.memview = NULL; __pyx_t_30.data = NULL;
   }
 
-  /* "pyvale/cython/rastercyth.py":660
+  /* "pyvale/cython/rastercyth.py":685
  *                         image_buff_avg[:,:,ff])
  * 
  *     return elems_in_image             # <<<<<<<<<<<<<<
@@ -21469,7 +21492,7 @@ __pyx_t_30.strides[1] = __pyx_v_image_buff_avg.strides[1];
   __pyx_r = __pyx_v_elems_in_image;
   goto __pyx_L0;
 
-  /* "pyvale/cython/rastercyth.py":417
+  /* "pyvale/cython/rastercyth.py":420
  * #///////////////////////////////////////////////////////////////////////////////
  * #@cython.nogil
  * @cython.cfunc # python+C or cython.cfunc for C only             # <<<<<<<<<<<<<<
@@ -23476,25 +23499,25 @@ __Pyx_RefNannySetupContext("PyInit_rastercyth", 0);
   if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_raster_static_frame, __pyx_t_4) < 0) __PYX_ERR(0, 331, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-  /* "pyvale/cython/rastercyth.py":403
+  /* "pyvale/cython/rastercyth.py":406
  * 
  * #///////////////////////////////////////////////////////////////////////////////
  * @cython.ccall # python+C or cython.cfunc for C only             # <<<<<<<<<<<<<<
  * @cython.boundscheck(False) # Turn off array bounds checking
  * @cython.wraparound(False)  # Turn off negative indexing
 */
-  __pyx_t_4 = __Pyx_PyDict_NewPresized(5); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 403, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyDict_NewPresized(5); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 406, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  if (PyDict_SetItem(__pyx_t_4, __pyx_mstate_global->__pyx_n_u_coords, __pyx_mstate_global->__pyx_kp_u_cython_double) < 0) __PYX_ERR(0, 403, __pyx_L1_error)
-  if (PyDict_SetItem(__pyx_t_4, __pyx_mstate_global->__pyx_n_u_connect, __pyx_mstate_global->__pyx_kp_u_cython_size_t) < 0) __PYX_ERR(0, 403, __pyx_L1_error)
-  if (PyDict_SetItem(__pyx_t_4, __pyx_mstate_global->__pyx_n_u_fields_to_render, __pyx_mstate_global->__pyx_kp_u_cython_double) < 0) __PYX_ERR(0, 403, __pyx_L1_error)
-  if (PyDict_SetItem(__pyx_t_4, __pyx_mstate_global->__pyx_n_u_cam_data, __pyx_mstate_global->__pyx_n_u_CameraData) < 0) __PYX_ERR(0, 403, __pyx_L1_error)
-  if (PyDict_SetItem(__pyx_t_4, __pyx_mstate_global->__pyx_n_u_field_disp, __pyx_mstate_global->__pyx_kp_u_cython_double) < 0) __PYX_ERR(0, 403, __pyx_L1_error)
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_6pyvale_6cython_10rastercyth_5raster_deform_frame, 0, __pyx_mstate_global->__pyx_n_u_raster_deform_frame, NULL, __pyx_mstate_global->__pyx_n_u_pyvale_cython_rastercyth, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[2])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 403, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_4, __pyx_mstate_global->__pyx_n_u_coords, __pyx_mstate_global->__pyx_kp_u_cython_double) < 0) __PYX_ERR(0, 406, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_4, __pyx_mstate_global->__pyx_n_u_connect, __pyx_mstate_global->__pyx_kp_u_cython_size_t) < 0) __PYX_ERR(0, 406, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_4, __pyx_mstate_global->__pyx_n_u_fields_to_render, __pyx_mstate_global->__pyx_kp_u_cython_double) < 0) __PYX_ERR(0, 406, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_4, __pyx_mstate_global->__pyx_n_u_cam_data, __pyx_mstate_global->__pyx_n_u_CameraData) < 0) __PYX_ERR(0, 406, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_4, __pyx_mstate_global->__pyx_n_u_field_disp, __pyx_mstate_global->__pyx_kp_u_cython_double) < 0) __PYX_ERR(0, 406, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_6pyvale_6cython_10rastercyth_5raster_deform_frame, 0, __pyx_mstate_global->__pyx_n_u_raster_deform_frame, NULL, __pyx_mstate_global->__pyx_n_u_pyvale_cython_rastercyth, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[2])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 406, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_CyFunction_SetAnnotationsDict(__pyx_t_5, __pyx_t_4);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_raster_deform_frame, __pyx_t_5) < 0) __PYX_ERR(0, 403, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_raster_deform_frame, __pyx_t_5) < 0) __PYX_ERR(0, 406, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
   /* "pyvale/cython/rastercyth.py":1
@@ -23779,6 +23802,17 @@ static int __Pyx_InitCachedConstants(__pyx_mstatetype *__pyx_mstate) {
   __pyx_mstate_global->__pyx_tuple[1] = PyTuple_Pack(3, __pyx_mstate_global->__pyx_int_136983863, __pyx_mstate_global->__pyx_int_112105877, __pyx_mstate_global->__pyx_int_184977713); if (unlikely(!__pyx_mstate_global->__pyx_tuple[1])) __PYX_ERR(1, 4, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_mstate_global->__pyx_tuple[1]);
   __Pyx_GIVEREF(__pyx_mstate_global->__pyx_tuple[1]);
+
+  /* "pyvale/cython/rastercyth.py":380
+ * 
+ *     # Only used for edge function in raster coords - need x,y
+ *     px_coord_np = np.zeros((2,),np.float64)             # <<<<<<<<<<<<<<
+ *     px_coord_buff: cython.double[:] = px_coord_np
+ * 
+*/
+  __pyx_mstate_global->__pyx_tuple[2] = PyTuple_Pack(1, __pyx_mstate_global->__pyx_int_2); if (unlikely(!__pyx_mstate_global->__pyx_tuple[2])) __PYX_ERR(0, 380, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_mstate_global->__pyx_tuple[2]);
+  __Pyx_GIVEREF(__pyx_mstate_global->__pyx_tuple[2]);
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -23796,6 +23830,7 @@ static int __Pyx_InitConstants(__pyx_mstatetype *__pyx_mstate) {
   __pyx_mstate->__pyx_float_1_0e6 = PyFloat_FromDouble(1.0e6); if (unlikely(!__pyx_mstate->__pyx_float_1_0e6)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_mstate->__pyx_int_0 = PyLong_FromLong(0); if (unlikely(!__pyx_mstate->__pyx_int_0)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_mstate->__pyx_int_1 = PyLong_FromLong(1); if (unlikely(!__pyx_mstate->__pyx_int_1)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_mstate->__pyx_int_2 = PyLong_FromLong(2); if (unlikely(!__pyx_mstate->__pyx_int_2)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_mstate->__pyx_int_4 = PyLong_FromLong(4); if (unlikely(!__pyx_mstate->__pyx_int_4)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_mstate->__pyx_int_112105877 = PyLong_FromLong(112105877L); if (unlikely(!__pyx_mstate->__pyx_int_112105877)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_mstate->__pyx_int_136983863 = PyLong_FromLong(136983863L); if (unlikely(!__pyx_mstate->__pyx_int_136983863)) __PYX_ERR(0, 1, __pyx_L1_error)
@@ -23836,12 +23871,12 @@ static int __Pyx_CreateCodeObjects(__pyx_mstatetype *__pyx_mstate) {
     __pyx_mstate_global->__pyx_codeobj_tab[0] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_src_pyvale_cython_rastercyth_py, __pyx_mstate->__pyx_n_u_average_image, __pyx_k_y_1_r_Q_c_a_1A_c_a_1A_r_D_b_F_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[0])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {4, 0, 0, 4, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 331, 418};
+    __Pyx_PyCode_New_function_description descr = {4, 0, 0, 4, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 331, 419};
     PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_coords, __pyx_mstate->__pyx_n_u_connect, __pyx_mstate->__pyx_n_u_fields_to_render, __pyx_mstate->__pyx_n_u_cam_data};
     __pyx_mstate_global->__pyx_codeobj_tab[1] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_src_pyvale_cython_rastercyth_py, __pyx_mstate->__pyx_n_u_raster_static_frame, __pyx_k_81_81_81_G6_0_aq_Jar_Jar_r_1Cz, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[1])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {5, 0, 0, 5, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 403, 19};
+    __Pyx_PyCode_New_function_description descr = {5, 0, 0, 5, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 406, 19};
     PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_coords, __pyx_mstate->__pyx_n_u_connect, __pyx_mstate->__pyx_n_u_fields_to_render, __pyx_mstate->__pyx_n_u_cam_data, __pyx_mstate->__pyx_n_u_field_disp};
     __pyx_mstate_global->__pyx_codeobj_tab[2] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_src_pyvale_cython_rastercyth_py, __pyx_mstate->__pyx_n_u_raster_deform_frame, __pyx_k__7, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[2])) goto bad;
   }
