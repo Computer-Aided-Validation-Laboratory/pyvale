@@ -162,7 +162,8 @@ def main() -> None:
     # By default pyvale does not store all individual error source
     # calculations (i.e. only the total random and total systematic error are
     # stored) to save memory but this can be changed using `ErrIntOpts`. This
-    # can also be used to force all errors to behave if they
+    # can also be used to force all errors to behave as if they are DEPENDENT or
+    # INDEPENDENT.
 
     if len(error_chain) > 0:
         err_int_opts = pyv.ErrIntOpts()
