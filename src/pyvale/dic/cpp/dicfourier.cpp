@@ -34,6 +34,9 @@ namespace fourier {
     std::vector<fftw_plan> plans_inv;
     std::vector<std::vector<double>> ifft_out;
 
+    std::vector<int> neigh_x;
+    std::vector<int> neigh_y;
+
     void init(bool *img_roi, util::Config conf, int *windows, int n_windows){
 
         std::cout << "init" << std::endl;
@@ -89,10 +92,19 @@ namespace fourier {
                 int ss_x = ssdata[i].coords[2*ss];
                 int ss_y = ssdata[i].coords[2*ss+1];
             
-                // going to assume that subset windows always decrease in
-                // factors of 2
+                // window has to always be decreasing in size
                 if (i > 0) {
-                    offset_x
+                    // get the index of the subset in the previous window
+                    int idx_x = ss_x / windows[i-1];
+                    int idx_y = ss_y / windows[i-1];
+                    neigh_x[0] = idx_x;
+                    neigh_x[1] = idx_x;
+                    neigh_x[2] = idx_x + 1;
+                    neigh_x[2] = idx_x + 1;
+                    neigh_y[0] = idx_y;
+                    neigh_y[1] = idx_y+1;
+                    neigh_y[2] = idx_y;
+                    neigh_y[2] = idx_y + 1;
                 }
 
                 // get the deformed subset
