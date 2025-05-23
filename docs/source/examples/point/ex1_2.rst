@@ -1,4 +1,0 @@
-Sensor model & `get_measurements()` vs `calc_measurements()`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. literalinclude:: ../../../../src/pyvale/examples/basics/ex1_2_sensormodel_therm2d.py
-   :language: python
