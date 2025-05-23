@@ -113,20 +113,15 @@ def main() -> None:
     time_print: int = 5
     comp_print: int = 0
 
-    print(f"These are the last {time_print} virtual measurements of sensor "
+    print(f"These are the last {time_last} virtual measurements of sensor "
           + f"{sens_print}:")
 
-    pyv.print_measurements(sens_array=tc_array,
-                           sensors=(sens_print,sens_print+1),
-                           components=(comp_print,comp_print+1),
-                           time_steps=(measurements.shape[2]-time_print,
-                                       measurements.shape[2]))
+    pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
+
     print(80*"-")
 
     pyv.plot_time_traces(tc_array,field_key)
     plt.show()
-
-
 
 
 if __name__ == "__main__":

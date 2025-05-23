@@ -10,7 +10,7 @@ In previous examples we have built our virtual sensor array and used this to
 run a single simulated experiment. However, we will generally want to run many
 simulated experiments and perform statistical analysis on the results. In this
 example we demonstrate how pyvale can be used to run a set of simulated
-experiments with a series of sensor arrays one measuring temperature and the
+experiments with a series of sensor arrays, one measuring temperature and the
 other measuring strain. We also show how this analysis can be performed over a
 set of input physics simulations.
 

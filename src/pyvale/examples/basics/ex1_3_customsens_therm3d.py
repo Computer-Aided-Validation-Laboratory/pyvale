@@ -196,7 +196,7 @@ def main() -> None:
     time_last = 5
     time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 
-    print(f"These are the last {time_print} virtual measurements of sensor "
+    print(f"These are the last {time_last} virtual measurements of sensor "
           + f"{sens_print}:")
 
     pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
