@@ -25,6 +25,8 @@ class CameraData:
     focal_length: float | None = 50.0
     sub_samp: int = 2
 
+    bits: int = 16
+
     back_face_removal: bool = True
 
     k1: float = 0.0
@@ -40,6 +42,7 @@ class CameraData:
     sensor_size: np.ndarray = field(init=False)
     image_dims: np.ndarray = field(init=False)
     image_dist: float = field(init=False)
+
     cam_to_world_mat: np.ndarray = field(init=False)
     world_to_cam_mat: np.ndarray = field(init=False)
 

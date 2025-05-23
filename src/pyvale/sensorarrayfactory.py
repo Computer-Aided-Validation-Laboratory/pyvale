@@ -64,8 +64,8 @@ class SensorArrayFactory:
                                        rand_err_pc=errs_pc)
 
         # Normal thermcouple amp = 5mV / K
-        err_int._err_chain.append(ErrSysDigitisation(bits_per_unit=2**16/1000))
-        err_int._err_chain.append(ErrSysSaturation(meas_min=0.0,meas_max=1000.0))
+        #err_int._err_chain.append(ErrSysDigitisation(bits_per_unit=2**16/1000))
+        #err_int._err_chain.append(ErrSysSaturation(meas_min=0.0,meas_max=1000.0))
 
         sens_array.set_error_integrator(err_int)
         return sens_array

@@ -28,7 +28,7 @@ def main() -> None:
     disp_comps = ("disp_x","disp_y","disp_z")
 
     # Scale m -> mm
-    sim_data = pyv.scale_length_units(sim_data,disp_comps,1000.0)
+    sim_data = pyv.scale_length_units(1000.0,sim_data,disp_comps)
 
     print()
     print(f"{np.max(np.abs(sim_data.node_vars['disp_x']))=}")
@@ -66,7 +66,7 @@ def main() -> None:
     fov_scale_factor: float = 1.1
 
     (roi_pos_world,
-     cam_pos_world) = pyv.CameraTools.pos_fill_frame_from_rotation(
+     cam_pos_world) = pyv.CameraTools.pos_fill_frame(
          coords_world=render_mesh.coords,
          pixel_num=pixel_num,
          pixel_size=pixel_size,

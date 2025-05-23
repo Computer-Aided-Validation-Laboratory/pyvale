@@ -29,7 +29,7 @@ Useful for experimental design, sensor placement optimisation, testing simulatio
 
    install
    guide
-   examples/example
+   examples
    api_py
    api_cpp
    cite

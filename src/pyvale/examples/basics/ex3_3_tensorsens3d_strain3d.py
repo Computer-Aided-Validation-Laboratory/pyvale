@@ -25,7 +25,7 @@ import pyvale as pyv
 
 def main() -> None:
 
-    # Frist we load our simulation as a `SimData` object. In this case we are
+    # First we load our simulation asa `SimData` object. In this case we are
     # loading a 10mm cube loaded in tension in the y direction with the addition
     # of a thermal gradient in the y direction.
     data_path = pyv.DataSet.element_case_path(pyv.EElemTest.HEX20)
@@ -154,15 +154,17 @@ def main() -> None:
     time_print: int = 5
     comp_print: int = 1 # strain_yy based on order in tuple
 
+    sens_print = 0
+    comp_print = 1 # strain_yy based on order in tuple
+    time_last = 5
+    time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
+
     print("ROTATED SENSORS WITH ANGLE ERRORS:")
-    print(f"These are the last {time_print} virtual measurements of sensor "
+    print(f"These are the last {time_last} virtual measurements of sensor "
           + f"{sens_print} for {norm_comps[comp_print]}:")
 
-    pyv.print_measurements(sens_array=straingauge_array,
-                           sensors=(sens_print,sens_print+1),
-                           components=(comp_print,comp_print+1),
-                           time_steps=(measurements.shape[2]-time_print,
-                                       measurements.shape[2]))
+    pyv.print_measurements(straingauge_array,sens_print,comp_print,time_print)
+
     print(80*"-")
 
     # We can plot a given component of our tensor field and display our sensor

@@ -18,8 +18,8 @@ def main() -> None:
     data_path = pyv.DataSet.thermal_3d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+    # Scale m to mm to make 3D visualisation scaling correct for pyvista
+    sim_data = pyv.scale_length_units(1000.0,sim_data)
 
     use_auto_descriptor = "manual"
     if use_auto_descriptor == "factory":
@@ -94,11 +94,11 @@ def main() -> None:
 
     save_fig = True
     if save_fig:
-        image_path = Path.cwd() / "example_output"
-        image_file = image_path / "monoblock_thermal_traces_syserrs.png"
+        image_path = Path.cwd() / "pyvale-output"
         if not image_path.is_dir():
-            image_path.mkdir()
+            image_path.mkdir(parents=True, exist_ok=True)
 
+        image_file = image_path / "monoblock_thermal_traces_syserrs.png"
         fig.savefig(image_file, dpi=300, format="png", bbox_inches="tight")
 
 

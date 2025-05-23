@@ -15,6 +15,7 @@ from enum import Enum
 from pathlib import Path
 from importlib.resources import files
 
+# TODO: finish doc strings for last functions
 
 SIM_CASE_COUNT = 26
 """Constant describing the number of simulation test case input files for moose
@@ -155,13 +156,9 @@ class DataSet:
         gradient along the x axis of the plate.
 
         The simulation parameters can be found in the corresponding MOOSE input
-        file: case13.i which can be retrieved using `sim_ca_summary_
-
-    Parameters
-    ----------
-    Exception : _type_
-        _description_se_input_file_path`
+        file: case13.i which can be retrieved using `sim_case_input_file_path`
         in this class.
+
 
         Returns
         -------

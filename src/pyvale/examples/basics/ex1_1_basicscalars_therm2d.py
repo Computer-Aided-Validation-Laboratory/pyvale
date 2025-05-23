@@ -107,7 +107,7 @@ def main() -> None:
     pv_plot.show()
 
     print(80*"-")
-    print("Camera position after interative view:")
+    print("Camera position after interactive view:")
     print(pv_plot.camera_position)
     print(80*"-"+"\n")
 

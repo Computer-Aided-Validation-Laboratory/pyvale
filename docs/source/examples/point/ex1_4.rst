@@ -1,4 +1,0 @@
-Overview of the basic error library
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. literalinclude:: ../../../../src/pyvale/examples/basics/ex1_4_basicerrors_therm3d.py
-   :language: python

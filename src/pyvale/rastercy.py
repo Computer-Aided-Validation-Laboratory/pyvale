@@ -12,13 +12,43 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 from pyvale.cameradata import CameraData
-from pyvale.rendermesh import RenderMeshData
+from pyvale.rendermesh import RenderMesh
+from pyvale.renderer import IRenderer
+from pyvale.rasteropts import RasterOpts
 import pyvale.cython.rastercyth as rastercyth
+
+# NOTE: This module is a feature under developement.
+
+
+# class RasterCyth(IRenderEngine):
+#     __slots__ = ("opts",)
+
+#     def __init__(self, opts: RasterOpts) -> None:
+#         self.opts = opts
+
+
+#     def one_frame(self, frame_ind: int = 0) -> list[np.ndarray]:
+#         pass
+
+
+#     def all_frames(self, para_by_frame: int = 1) -> list[np.ndarray]:
+#         pass
+
+
+#     def one_frame_to_disk(self, frame_ind: int = 0) -> None:
+#         pass
+
+
+#     def all_frames_to_disk(self, para_by_frame: int = 1) -> None:
+#         pass
+
+
+
 
 class RasterCY:
     @staticmethod
     def raster_static_mesh(cam_data: CameraData,
-                           render_mesh: RenderMeshData,
+                           render_mesh: RenderMesh,
                            threads_num: int | None = None,
                            ) -> tuple[np.ndarray,np.ndarray,np.ndarray] | None:
 
@@ -38,7 +68,7 @@ class RasterCY:
             for tt in range(frames_num):
                 (image_buffer,
                 depth_buffer,
-                elems_in_image) = rastercyth.raster_frame(
+                elems_in_image) = rastercyth.raster_static_frame(
                                             render_mesh.coords,
                                             render_mesh.connectivity,
                                             render_mesh.fields_render[:,tt,:],
@@ -60,7 +90,7 @@ class RasterCY:
                             render_mesh.fields_render[:,tt,:],
                             cam_data)
 
-                    process = pool.apply_async(rastercyth.raster_frame, args=args)
+                    process = pool.apply_async(rastercyth.raster_static_frame, args=args)
                     processes_with_id.append({"process": process,
                                               "frame": tt})
 
