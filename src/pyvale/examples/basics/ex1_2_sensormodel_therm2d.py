@@ -34,21 +34,25 @@ import pyvale as pyv
 
 
 def main() -> None:
+    #%%
     # The first part of this example is the similar to basics example 1.1, so
     # feel free to skip to after the first call to `calc_measurements()`.
-
+    #
     # Here we load a pre-generated MOOSE finite element simulation dataset that
     # comes packaged with pyvale. The simulation is a 2D rectangular plate with
     # a bi-directional temperature gradient.
     data_path = pyv.DataSet.thermal_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_key: str = "temperature"
+
+    #%%
     # Scale to mm to make 3D visualisation scaling easier as pyvista scales
     # everything to unity
     sim_data = pyv.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
                                       disp_comps=None)
 
+    #%%
     # We now use a helper function to create a grid of sensor locations but we
     # could have also manually built the numpy array of sensor locations which
     # has the shape=(num_sensors,coord[x,y,z]).
@@ -58,12 +62,14 @@ def main() -> None:
     z_lims = (0.0,0.0)
     sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
+    #%%
     # This dataclass contains the parameters to build our sensor array. We can
     # also customise the output frequency, the sensor area and the sensor
     # orientation. For now we will use the defaults which assumes an ideal point
     # sensor sampling at the simulation time steps.
     sens_data = pyv.SensorData(positions=sens_pos)
 
+    #%%
     # Now that we have our sensor locations we can use the sensor factory to
     # build a basic thermocouple array with some useful defaults. In later
     # examples we will see how to customise sensor parameters and errors.
@@ -76,11 +82,12 @@ def main() -> None:
                                   field_name=field_key,
                                   errs_pc=5.0)
 
-
+    #%%
     # We have built our sensor array so now we can call `calc_measurements()` to
     # generate simulated sensor traces.
     measurements = tc_array.calc_measurements()
 
+    #%%
     # From here we are going to experiment with repeated calls to
     # `calc_measurements()` and `get_measurements()` for our sensor array. We
     # will print the results to the console as well as plotting time traces of

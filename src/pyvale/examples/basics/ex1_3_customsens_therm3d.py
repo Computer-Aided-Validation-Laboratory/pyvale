@@ -23,6 +23,7 @@ import pyvale as pyv
 
 
 def main() -> None:
+    #%%
     # To build our custom point sensor array we need to at minimum provide a
     # `IField` (i.e. `FieldScaler`, `FieldVector`, `FieldTensor`) and a
     # `SensorData` object. For labelling visualisations (e.g. axis labels and
@@ -35,12 +36,11 @@ def main() -> None:
 
     data_path = pyv.DataSet.thermal_3d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    # Scale to mm to make 3D visualisation scaling easier as pyvista scales
-    # everything to unity
     sim_data = pyv.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
                                       disp_comps=None)
 
+    #%%
     # We are going to build a custom temperature sensor so we need a scalar
     # field object to perform interpolation to the sensor locations at the
     # desired sampling times.
@@ -50,6 +50,7 @@ def main() -> None:
                               elem_dims=3)
 
 
+    #%%
     # Next we need to create our `SensorData` object which will set the position
     # and sampling times of our sensors. We use the same helper function we used
     # previously to create a uniformly spaced grid of sensors in space
@@ -59,6 +60,7 @@ def main() -> None:
     z_lims = (0.0,12.0)
     sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
+    #%%
     # We are also going to specify the times at which we would like to simulate
     # measurements. Setting this to `None` will default the measurements times
     # to match the simulation time steps.
@@ -67,6 +69,7 @@ def main() -> None:
     sensor_data = pyv.SensorData(positions=sens_pos,
                                  sample_times=sample_times)
 
+    #%%
     # Finally, we can create a `SensorDescriptor` which will be used to label
     # the visualisation and sensor trace plots we have seen in previous
     # examples.
@@ -81,7 +84,7 @@ def main() -> None:
     else:
         descriptor = pyv.SensorDescriptor()
 
-
+    #%%
     # We can now build our custom point sensor array. This sensor array has no
     # errors so if we call `get_measurements()` or `calc_measurements()` we will
     # be able to extract the simulation truth values at the sensor locations.
@@ -89,10 +92,11 @@ def main() -> None:
                                     t_field,
                                     descriptor)
 
+    #%%
     # This is a new 3D simulation we are analysing so we should visualise the
     # sensor locations before we run our measurement simulation. We use the same
     # code as we did in example 1.1 to display the sensor locations.
-
+    #
     # We are also going to save some figures to disk as well as displaying them
     # interactively so we create a directory for this:
     output_path = Path.cwd() / "pyvale-output"
