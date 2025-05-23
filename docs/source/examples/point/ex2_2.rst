@@ -1,4 +1,0 @@
-Custom vector field sensors
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. literalinclude:: ../../../../src/pyvale/examples/basics/ex2_2_vectorsens_disp2d.py
-   :language: python

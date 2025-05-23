@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Field-based systematic errors
---------------------------------------------------------------------------------
+================================================================================
+
 In this example we give an overview of field-based systematic errors. Field
 errors require additional interpolation of the underlying physical field such as
 uncertainty in a sensors position or sampling time. For this example we will
