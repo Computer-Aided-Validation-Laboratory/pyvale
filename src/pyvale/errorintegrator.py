@@ -177,14 +177,16 @@ class ErrIntegrator:
             Array of total errors summed over all errors in the chain. shape=(
             num_sensors,num_field_components,num_time_steps).
         """
-        accumulated_error = np.zeros_like(truth)
+        self._errs_total = np.zeros_like(truth)
+        self._errs_systematic = np.zeros_like(truth)
+        self._errs_random = np.zeros_like(truth)
         self._errs_by_chain = np.zeros((len(self._err_chain),) + \
                                            self._meas_shape)
 
         for ii,ee in enumerate(self._err_chain):
 
             if ee.get_error_dep() == EErrDep.DEPENDENT:
-                (error_array,sens_data) = ee.calc_errs(truth+accumulated_error,
+                (error_array,sens_data) = ee.calc_errs(truth+self._errs_total,
                                                        self._sens_data_accumulated)
 
             else:
@@ -199,10 +201,9 @@ class ErrIntegrator:
             else:
                 self._errs_random = self._errs_random + error_array
 
-            accumulated_error = accumulated_error + error_array
+            self._errs_total = self._errs_total + error_array
             self._errs_by_chain[ii,:,:,:] = error_array
 
-        self._errs_total = accumulated_error
         return self._errs_total
 
 
@@ -226,13 +227,15 @@ class ErrIntegrator:
             Array of total errors summed over all errors in the chain. shape=(
             num_sensors,num_field_components,num_time_steps).
         """
-        accumulated_error = np.zeros_like(truth)
+        self._errs_total = np.zeros_like(truth)
+        self._errs_systematic = np.zeros_like(truth)
+        self._errs_random = np.zeros_like(truth)
 
         for ee in self._err_chain:
 
             if ee.get_error_dep() == EErrDep.DEPENDENT:
                 (error_array,sens_data) = ee.calc_errs(
-                    truth+accumulated_error,
+                    truth+self._errs_total,
                     self._sens_data_accumulated
                 )
             else:
@@ -246,9 +249,8 @@ class ErrIntegrator:
             else:
                 self._errs_random = self._errs_random + error_array
 
-            accumulated_error = accumulated_error + error_array
+            self._errs_total = self._errs_total + error_array
 
-        self._errs_total = accumulated_error
         return self._errs_total
 
 

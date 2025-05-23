@@ -1,4 +1,0 @@
-Building a point sensor array from scratch with custom errors
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. literalinclude:: ../../../../src/pyvale/examples/basics/ex1_3_customsens_therm3d.py
-   :language: python

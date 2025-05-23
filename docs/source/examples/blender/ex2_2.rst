@@ -1,5 +1,0 @@
-Stereo with deformation
-==================================
-
-.. literalinclude:: ../../../../src/pyvale/examples/blender/ex2_2_stereodeformed.py
-   :language: python

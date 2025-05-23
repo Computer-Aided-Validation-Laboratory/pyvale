@@ -24,43 +24,6 @@ from pyvale.camerastereo import CameraStereo
 
 class CameraTools:
     @staticmethod
-    def load_image(im_path: Path) -> np.ndarray:
-
-        input_im = mplim.imread(im_path).astype(np.float64)
-        # If we have RGB then get rid of it
-        # TODO: make sure this is collapsing RGB to grey scale coorectly
-        if input_im.ndim > 2:
-            input_im = input_im[:,:,0]
-
-        return input_im
-
-    @staticmethod
-    def save_image(save_file: Path,
-                image: np.ndarray,
-                n_bits: int = 16) -> None:
-
-        # Need to flip image so coords are top left with Y down
-        # TODO check this
-        image = image[::-1,:]
-
-        if n_bits > 8:
-            im = Image.fromarray(image.astype(np.uint16))
-        else:
-            im = Image.fromarray(image.astype(np.uint8))
-
-        im.save(save_file)
-
-    @staticmethod
-    def image_num_str(im_num: int, width: int , cam_num: int = -1) -> str:
-        num_str = str(im_num)
-        num_str = num_str.zfill(width)
-
-        if cam_num >= 0:
-            num_str = num_str+'_'+str(cam_num)
-
-        return num_str
-
-    @staticmethod
     def pixel_vec_px(pixels_count: np.ndarray) -> tuple[np.ndarray,np.ndarray]:
         px_vec_x = np.arange(0,pixels_count[0],1)
         px_vec_y = np.arange(0,pixels_count[1],1)
@@ -258,20 +221,13 @@ class CameraTools:
                                          [bb_max[xx],bb_max[yy],bb_min[zz]],
                                          [bb_min[xx],bb_max[yy],bb_min[zz]],])
 
+        print(80*"-")
+        print(bound_box_world_vecs)
+        print(80*"-")
+
         bound_box_cam_vecs = np.matmul(world_to_cam_mat,bound_box_world_vecs.T)
         boundbox_cam_leng = (np.max(bound_box_cam_vecs,axis=1)
                             - np.min(bound_box_cam_vecs,axis=1))
-
-        # print(80*"-")
-        # print(f"{bb_min=}")
-        # print(f"{bb_max=}")
-        # print()
-        # print("Cam to world mat:")
-        # print(cam_to_world_mat)
-        # print()
-        # print("World to cam mat:")
-        # print(world_to_cam_mat)
-        # print(80*"-")
 
         return np.array((boundbox_cam_leng[xx],boundbox_cam_leng[yy]))
 
@@ -287,14 +243,14 @@ class CameraTools:
         return image_dist
 
     @staticmethod
-    def pos_fill_frame_from_rotation(coords_world: np.ndarray,
-                                     pixel_num: np.ndarray,
-                                     pixel_size: np.ndarray,
-                                     focal_leng: float,
-                                     cam_rot: Rotation,
-                                     frame_fill: float = 1.0,
-                                     ) -> tuple[np.ndarray,
-                                                np.ndarray]:
+    def pos_fill_frame(coords_world: np.ndarray,
+                        pixel_num: np.ndarray,
+                        pixel_size: np.ndarray,
+                        focal_leng: float,
+                        cam_rot: Rotation,
+                        frame_fill: float = 1.0,
+                        ) -> tuple[np.ndarray,np.ndarray]:
+
         fov_leng = CameraTools.fov_from_cam_rot_3d(
             cam_rot=cam_rot,
             coords_world=coords_world,
@@ -316,12 +272,18 @@ class CameraTools:
         cam_z_dir_world = cam_rot.as_matrix()[:,-1]
         cam_pos_world = (roi_pos_world + np.max(image_dist)*cam_z_dir_world)
 
-        print(80*"-")
-        print(f"{fov_leng=}")
-        print(f"{image_dist=}")
-        print(80*"-")
-
         return (roi_pos_world,cam_pos_world)
+
+    @staticmethod
+    def pos_fill_frame_all(coords_world_list: list[np.ndarray],
+                            pixel_num: np.ndarray,
+                            pixel_size: np.ndarray,
+                            focal_leng: float,
+                            cam_rot: Rotation,
+                            frame_fill: float = 1.0,
+                            ) -> tuple[np.ndarray,np.ndarray]:
+        pass
+
 
 
     #---------------------------------------------------------------------------

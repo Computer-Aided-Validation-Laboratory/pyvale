@@ -1,6 +1,7 @@
 import os 
 import sys
 import inspect
+from sphinx_gallery.sorting import FileNameSortKey
 
 sys.path.insert(0, os.path.abspath('../../src/pyvale/'))
 sys.path.insert(0, os.path.abspath('../../src/pyvale/dic/'))
@@ -26,6 +27,8 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.napoleon',
               'sphinx.ext.autosummary',
               'sphinx_codeautolink',
+              'sphinx_copybutton',
+              'sphinx_gallery.gen_gallery',
               'breathe',
               'myst_parser']
 
@@ -36,6 +39,27 @@ autodoc_typehints = 'signature'
 breathe_projects = {"test": "./doxygen/xml"}
 breathe_default_project = "test"
 
+
+# sphinx-gallery configuration
+sphinx_gallery_conf = {
+    # path to your example scripts
+    'examples_dirs': ['../../src/pyvale/examples/basics',
+                      '../../src/pyvale/examples/renderblender'],
+
+    # path to where to save gallery generated output
+    'gallery_dirs': ['examples/basics',
+                     'examples/renderblender'],
+    
+    'filename_pattern': '/plot_', 
+    # specify that examples should be ordered according to filename
+    'within_subsection_order': FileNameSortKey,
+    # directory where function granular galleries are stored
+    'backreferences_dir': 'examples/gen_modules/backreferences',
+    # Modules for which function level galleries are created.  In
+    # this case sphinx_gallery and numpy in a tuple of strings.
+    'doc_module': ('pyvale'),
+}
+
 language = 'english'
 
 # -- Options for HTML output -------------------------------------------------
@@ -43,13 +67,13 @@ language = 'english'
 
 html_theme = 'furo'
 html_static_path = ['_static']
+html_css_files = ["custom.css"]
 
 html_theme_options = {
     "light_logo": "logo_no_background.png",
     "dark_logo": "logo_no_background_inverted.png",
 }
 html_title = "The Python Validation Engine"
-html_css_files = ["custom.css"]
 
 autosummary_generate = True
 autoclass_content = "both"

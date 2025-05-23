@@ -1,5 +1,0 @@
-2D
-==================================
-
-.. literalinclude:: ../../../../src/pyvale/examples/blender/ex1_1_blenderscene.py
-   :language: python

@@ -28,9 +28,7 @@ def sample_scene_no_cam():
     data_path = pyvale.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     disp_comps = ("disp_x","disp_y")
-    sim_data = pyvale.scale_length_units(sim_data=sim_data,
-                                         disp_comps=disp_comps,
-                                         scale=1000.0)
+    sim_data = pyvale.scale_length_units(1000.0,sim_data,disp_comps)
     render_mesh = pyvale.create_render_mesh(sim_data,
                                         ("disp_y","disp_x"),
                                         sim_spat_dim=2,

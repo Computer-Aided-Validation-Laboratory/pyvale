@@ -10,10 +10,8 @@ NOTE: this module is a feature under developement.
 
 import numpy as np
 import cython
-from cython.parallel import prange, parallel, threadid
+#from cython.parallel import prange, parallel, threadid
 from cython.cimports.libc.math import floor, ceil
-
-from pyvale.rendermesh import RenderMeshData
 from pyvale.cameradata import CameraData
 
 # NOTE: This module is a feature under developement.
@@ -334,11 +332,11 @@ def _average_image(image_buff_subpx_in: cython.double[:,:],
 @cython.boundscheck(False) # Turn off array bounds checking
 @cython.wraparound(False)  # Turn off negative indexing
 @cython.cdivision(True)    # Turn off divide by zero check
-def raster_frame(coords: cython.double[:,:],
-                 connect: cython.size_t[:,:],
-                 fields_to_render: cython.double[:,:],
-                 cam_data: CameraData,
-                 ) -> tuple[np.ndarray,np.ndarray,int]:
+def raster_static_frame(coords: cython.double[:,:],
+                        connect: cython.size_t[:,:],
+                        fields_to_render: cython.double[:,:],
+                        cam_data: CameraData,
+                        ) -> tuple[np.ndarray,np.ndarray,int]:
 
 
     world_to_cam_mat: cython.double[:,:] = cam_data.world_to_cam_mat
@@ -375,11 +373,14 @@ def raster_frame(coords: cython.double[:,:],
     field_raster_np = np.empty((nodes_per_elem,),dtype=np.float64)
     field_raster_buff: cython.double[:] = field_raster_np
 
-    px_coord_np = np.zeros((nodes_per_elem,),np.float64)
-    px_coord_buff: cython.double[:] = px_coord_np
-
     weights_np = np.zeros((nodes_per_elem,),np.float64)
     weights_buff: cython.double[:] = weights_np
+
+    # Only used for edge function in raster coords - need x,y
+    px_coord_np = np.zeros((2,),np.float64)
+    px_coord_buff: cython.double[:] = px_coord_np
+
+
     #---------------------------------------------------------------------------
 
     elems_in_image: cython.size_t = _raster_frame(coords[:,:],
@@ -401,6 +402,18 @@ def raster_frame(coords: cython.double[:,:],
 
     return (image_buff_avg_np,depth_buff_avg_np,elems_in_image)
 
+#///////////////////////////////////////////////////////////////////////////////
+@cython.ccall # python+C or cython.cfunc for C only
+@cython.boundscheck(False) # Turn off array bounds checking
+@cython.wraparound(False)  # Turn off negative indexing
+@cython.cdivision(True)    # Turn off divide by zero check
+def raster_deform_frame(coords: cython.double[:,:],
+                        connect: cython.size_t[:,:],
+                        fields_to_render: cython.double[:,:],
+                        cam_data: CameraData,
+                        field_disp: cython.double[:,:],
+                        ) -> tuple[np.ndarray,np.ndarray,int]:
+    pass
 
 #///////////////////////////////////////////////////////////////////////////////
 #@cython.nogil
@@ -461,13 +474,13 @@ def _raster_frame(coords: cython.double[:,:],
     depth_buff_subpx : cython.double[:,:]
         Processing buffer (output). shape=(num_subpx_y,num_subpx_x)
     nodes_raster_buff : cython.double[:,:]
-        Processing buffer (output). shape=(nodes_per_elem, 4 coord[x,y,z,w])
+        Processing buffer. shape=(nodes_per_elem, 4 coord[x,y,z,w])
     field_raster_buff : cython.double[:]
-        Processing buffer (output). shape=(nodes_per_elem,)
+        Processing buffer. shape=(nodes_per_elem,)
     px_coord_buff : cython.double[:]
-        Processing buffer (output). shape=(nodes_per_elem,)
+        Processing buffer. shape=(2,)
     weights_buff : cython.double[:]
-        Processing buffer (output). shape=(nodes_per_elem,)
+        Processing buffer. shape=(nodes_per_elem,)
 
     Returns
     -------
@@ -488,6 +501,10 @@ def _raster_frame(coords: cython.double[:,:],
 
     #elem_count: cython.size_t = 1
     elems_in_image: cython.size_t = 0
+
+    # Lifted constants
+    coord_step: cython.double = 1.0/float(sub_samp)
+    coord_offset: cython.double = 1.0/(2.0*float(sub_samp))
 
     ee: cython.size_t = 0
     nn: cython.size_t = 0
@@ -515,11 +532,11 @@ def _raster_frame(coords: cython.double[:,:],
         if elem_area < -tol: # Backface culling
             continue
 
-        print(f"{nodes_raster_buff[0,0]},{nodes_raster_buff[0,1]},{nodes_raster_buff[0,2]}")
-        print(f"{nodes_raster_buff[1,0]},{nodes_raster_buff[1,1]},{nodes_raster_buff[1,2]}")
-        print(f"{nodes_raster_buff[2,0]},{nodes_raster_buff[2,1]},{nodes_raster_buff[2,2]}")
-        print(f"{ee} ELEM AREA : {elem_area}")
-        print()
+        # print(f"{nodes_raster_buff[0,0]},{nodes_raster_buff[0,1]},{nodes_raster_buff[0,2]}")
+        # print(f"{nodes_raster_buff[1,0]},{nodes_raster_buff[1,1]},{nodes_raster_buff[1,2]}")
+        # print(f"{nodes_raster_buff[2,0]},{nodes_raster_buff[2,1]},{nodes_raster_buff[2,2]}")
+        # print(f"{ee} ELEM AREA : {elem_area}")
+        # print()
 
         x_min: cython.double = vec_min_double(nodes_raster_buff[:,xx])
         x_max: cython.double = vec_max_double(nodes_raster_buff[:,xx])
@@ -533,6 +550,11 @@ def _raster_frame(coords: cython.double[:,:],
         if ((y_min > num_pixels[yy]-1) or (y_max < 0)): # y crop
             continue
 
+        # print(f"Elem {ee}: x, min {x_min}")
+        # print(f"Elem {ee}: x, max {x_max}")
+        # print(f"Elem {ee}: y, min {y_min}")
+        # print(f"Elem {ee}: y, max {y_max}\n")
+
         elems_in_image += 1
 
         xi_min: cython.size_t = bound_index_min(x_min)
@@ -540,26 +562,40 @@ def _raster_frame(coords: cython.double[:,:],
         yi_min: cython.size_t = bound_index_min(y_min)
         yi_max: cython.size_t = bound_index_max(y_max,num_pixels[yy])
 
+        # print(f"Elem {ee}: xi, min {xi_min}")
+        # print(f"Elem {ee}: xi, max {xi_max}")
+        # print(f"Elem {ee}: yi, min {yi_min}")
+        # print(f"Elem {ee}: yi, max {yi_max}\n")
+
         for nn in range(nodes_per_elem):
             nodes_raster_buff[nn,zz] = 1/nodes_raster_buff[nn,zz]
 
         num_bound_x: cython.size_t = range_len_double(float(xi_min),
                                                       float(xi_max),
-                                                      1.0/float(sub_samp))
+                                                      coord_step)
         num_bound_y: cython.size_t = range_len_double(float(yi_min),
                                                       float(yi_max),
-                                                      1.0/float(sub_samp))
+                                                      coord_step)
 
-        bound_coord_x: cython.double = float(xi_min) + 1.0/(2.0*float(sub_samp))
-        bound_coord_y: cython.double = float(yi_min) + 1.0/(2.0*float(sub_samp))
-        coord_step: cython.double = 1.0/float(sub_samp)
+        bound_coord_x: cython.double = float(xi_min) + coord_offset
+        bound_coord_y: cython.double = float(yi_min) + coord_offset
+
         bound_ind_x: cython.size_t = sub_samp*xi_min
         bound_ind_y: cython.size_t = sub_samp*yi_min
+
+        # print(f"Elem {ee}: bound_coord_x={bound_coord_x}")
+        # print(f"Elem {ee}: bound_coord_y={bound_coord_y}")
+        # print(f"Elem {ee}: bound_ind_x={bound_ind_x}")
+        # print(f"Elem {ee}: bound_ind_y={bound_ind_y}")
+        # print(f"Elem {ee}: coord_step={coord_step}")
+        # print(f"Elem {ee}: num_bound_x={num_bound_x}")
+        # print(f"Elem {ee}: num_bound_x={num_bound_y}")
+        # print()
 
 
         for jj in range(num_bound_y):
 
-            bound_coord_x = float(xi_min) + 1.0/(2.0*float(sub_samp))
+            bound_coord_x = float(xi_min) + coord_offset
             bound_ind_x: cython.size_t = sub_samp*xi_min
 
             for ii in range(num_bound_x):
@@ -594,6 +630,13 @@ def _raster_frame(coords: cython.double[:,:],
                     bound_ind_x += 1
                     continue
 
+                # if (ee%6) == 0:
+                #     print(f"Elem: {ee}")
+                #     print(f"x bound ind={bound_ind_x}, coord={bound_coord_x}")
+                #     print(f"y bound ind={bound_ind_y}, coord={bound_coord_y}")
+                #     print(f"weights=[{weights_buff[0]},{weights_buff[1]},{weights_buff[2]}]")
+                #     print()
+
 
                 for ww in range(nodes_per_elem):
                     weights_buff[ww] = weights_buff[ww] / elem_area
@@ -605,6 +648,8 @@ def _raster_frame(coords: cython.double[:,:],
                 # Check the depth buffer, if the element is behind move on
                 px_coord_z: cython.double = 1/weight_dot_nodes
                 if px_coord_z >= depth_buff_subpx[bound_ind_y,bound_ind_x]:
+                    bound_coord_x += coord_step
+                    bound_ind_x += 1
                     continue
 
                 # We only need one depth buffer for all fields
