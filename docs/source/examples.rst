@@ -7,7 +7,7 @@ Basics
 .. toctree::
    :maxdepth: 1
 
-   examples/basics/plot_ex1_1_basicscalars_therm2d.rst
+   examples/basics/ex1_1_basicscalars_therm2d.rst
    examples/basics/ex1_2_sensormodel_therm2d.rst
    examples/basics/ex1_3_customsens_therm3d.rst
    examples/basics/ex1_4_basicerrors_therm3d.rst
@@ -31,7 +31,7 @@ Blender
 .. toctree::
    :maxdepth: 1
 
-   examples/renderblender/plot_ex1_1_blenderscene.rst
+   examples/renderblender/ex1_1_blenderscene.rst
    examples/renderblender/ex1_2_blenderdeformed.rst
    examples/renderblender/ex2_1_stereoscene.rst
    examples/renderblender/ex2_2_stereodeformed.rst

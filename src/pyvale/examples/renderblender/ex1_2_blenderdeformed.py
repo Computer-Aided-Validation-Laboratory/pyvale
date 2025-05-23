@@ -4,6 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+Example 1_2
+===========
+"""
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
