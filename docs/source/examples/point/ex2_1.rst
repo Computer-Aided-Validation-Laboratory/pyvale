@@ -1,4 +1,0 @@
-Basic vector field (displacement) sensors
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. literalinclude:: ../../../../src/pyvale/examples/basics/ex2_1_basicvectors_disp2d.py
-   :language: python

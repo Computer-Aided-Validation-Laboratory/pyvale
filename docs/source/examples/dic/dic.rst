@@ -1,2 +1,0 @@
-Digital Image Correlation Examples
-------------------------------------

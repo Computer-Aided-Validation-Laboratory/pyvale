@@ -1,5 +1,0 @@
-2D with deformation
-==================================
-
-.. literalinclude:: ../../../../src/pyvale/examples/blender/ex1_2_blenderdeformed.py
-   :language: python
