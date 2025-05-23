@@ -19,10 +19,10 @@ However, systematic errors cannot easily be accounted for without a forward
 model of the source of the error. Characterising the contribution of systematic
 errors to the total measurement error is a key application of `pyvale`.
 
-between the `get_measurements()` and `calc_measurements()` methods for a sensor
-array. Calling `get_measurements()` retrieves the results for the current
-simulated experiment whereas calling `calc_measurements()` will generate a new
-simulated experiment by sampling / calculating the systematic and random errors.
+A sensor array has two key methods: `get_measurements()` and `calc_measurements`
+. Calling `get_measurements()` retrieves the results for the current simulated
+experiment whereas calling `calc_measurements()` will generate a new simulated
+experiment by sampling / calculating the systematic and random errors.
 
 Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 """
@@ -95,29 +95,23 @@ def main() -> None:
     print("The truth, systematic error and random error arrays all have the "+
           "same shape.")
 
-    sens_print: int = 0
-    time_print: int = 5
-    comp_print: int = 0
+    sens_print = 0
+    comp_print = 0
+    time_last = 5
+    time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 
     print(80*"-")
-    print(f"Looking at the last {time_print} virtual measurements" +
-          f" of sensor {sens_print}:")
+    print(f"Looking at the last {time_last} virtual measurements for sensor"
+          +f" {sens_print}:")
 
-    pyv.print_measurements(sens_array=tc_array,
-                           sensors=(sens_print,sens_print+1),
-                           components=(comp_print,comp_print+1),
-                           time_steps=(measurements.shape[2]-time_print,
-                                       measurements.shape[2]))
+    pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
+
     print(80*"-")
     print("If we call the `calc_measurements()` method then the errors are "
           + "re-calculated.")
     measurements = tc_array.calc_measurements()
 
-    pyv.print_measurements(sens_array=tc_array,
-                           sensors=(sens_print,sens_print+1),
-                           components=(comp_print,comp_print+1),
-                           time_steps=(measurements.shape[2]-time_print,
-                                       measurements.shape[2]))
+    pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
 
     (fig,ax) = pyv.plot_time_traces(tc_array,field_key)
     ax.set_title("Exp 1: called calc_measurements()")
@@ -127,11 +121,7 @@ def main() -> None:
           + "same:")
     measurements = tc_array.get_measurements()
 
-    pyv.print_measurements(sens_array=tc_array,
-                           sensors=(sens_print,sens_print+1),
-                           components=(comp_print,comp_print+1),
-                           time_steps=(measurements.shape[2]-time_print,
-                                       measurements.shape[2]))
+    pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
 
     (fig,ax) = pyv.plot_time_traces(tc_array,field_key)
     ax.set_title("Exp 2: called get_measurements()")
@@ -141,11 +131,7 @@ def main() -> None:
           "sample new errors:")
     measurements = tc_array.calc_measurements()
 
-    pyv.print_measurements(sens_array=tc_array,
-                           sensors=(sens_print,sens_print+1),
-                           components=(comp_print,comp_print+1),
-                           time_steps=(measurements.shape[2]-time_print,
-                                       measurements.shape[2]))
+    pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
 
     (fig,ax) = pyv.plot_time_traces(tc_array,field_key)
     ax.set_title("Exp 3: called calc_measurements()")

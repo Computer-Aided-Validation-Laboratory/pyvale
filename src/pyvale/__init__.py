@@ -46,6 +46,7 @@ from pyvale.camerastereo import *
 import pyvale.cython.rastercyth as rastercyth
 from pyvale.rastercy import *
 
+from pyvale.renderscene import *
 from pyvale.rendermesh import *
 from pyvale.rasternp import *
 

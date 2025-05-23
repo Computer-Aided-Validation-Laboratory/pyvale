@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Pyvale example: Basics of pyvale point sensor simualtion
+Pyvale example: Basics of pyvale point sensor simulation
 --------------------------------------------------------------------------------
 In this example we introduce the basic features of pyvale for point sensor
 simulation. We demonstrate quick sensor array construction with defaults using
@@ -86,7 +86,7 @@ def main() -> None:
 
     # This creates a pyvista visualisation of the sensor locations on the
     # simulation mesh. The plot will can be shown in interactive mode by calling
-    # `pv_plot.show()` alternatively
+    # `pv_plot.show()`.
     pv_plot = pyv.plot_point_sensors_on_sim(tc_array,field_key)
 
     # We determined manually by moving camera in interative mode and then
@@ -107,7 +107,7 @@ def main() -> None:
     pv_plot.show()
 
     print(80*"-")
-    print("Camera position after interative view:")
+    print("Camera position after interactive view:")
     print(pv_plot.camera_position)
     print(80*"-"+"\n")
 

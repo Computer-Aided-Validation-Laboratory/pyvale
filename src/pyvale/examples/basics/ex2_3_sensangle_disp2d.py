@@ -109,19 +109,17 @@ def main() -> None:
     # effect of the field errors.
     print(80*"-")
 
-    sens_print: int = 0
-    time_print: int = 5
-    comp_print: int = 0
+    sens_print = 0
+    comp_print = 0
+    time_last = 5
+    time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 
     print("ROTATED SENSORS WITH ANGLE ERRORS:")
-    print(f"These are the last {time_print} virtual measurements of sensor "
+    print(f"These are the last {time_last} virtual measurements of sensor "
           + f"{sens_print} for {field_comps[comp_print]}:")
 
-    pyv.print_measurements(sens_array=disp_sens_rot,
-                           sensors=(sens_print,sens_print+1),
-                           components=(comp_print,comp_print+1),
-                           time_steps=(measurements.shape[2]-time_print,
-                                       measurements.shape[2]))
+    pyv.print_measurements(disp_sens_rot,sens_print,comp_print,time_print)
+
     print(80*"-")
 
     # We can now plot the traces for the non-rotated and rotated sensors to

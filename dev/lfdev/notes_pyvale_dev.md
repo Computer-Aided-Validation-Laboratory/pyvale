@@ -56,6 +56,70 @@
 
 **NOTE**: should we just have a single `IRenderer` or `IImager` interface and unify everything including: Blender, rasteriser, ray tracer?
 
+
+### `Renderer` Architecture
+- Meshes without and without deformation in the same scene:
+LOOP: over meshes
+    - raster_static_mesh() - takes one mesh
+        - Input/output: image buffer, depth buffer
+    - raster_deform_mesh() - takes one mesh
+        - Input/output: image buffer, depth buffer
+
+- What do we do when the number of time steps in the render or displacement fields does not match between meshes?
+    - Need to set default texture/field of 0
+    - Need to then mask with np.nan?
+    - How do we tell what is zero and what is background?
+- Deal with rendering at non-simulation time-steps
+
+
+- Start with an image buffer and depth buffer
+    - Render first mesh
+    - Pass in next mesh and the previous image buffer and depth buffer
+    - Repeat until all meshes are rendered
+
+- **COORDS**: Joined coord table: has the same shape
+- **CONNECT**: Separate connectivity tables (support quad/tri) indexing into the coords
+    - Will have the same shape for triangles only
+    - Will not have the same shape for different element types
+- **FIELDS**: How do we deal with render and displacement fields?
+    - Will not have the same shape
+    - All meshes will need to have the same number of field to render
+        - If not create a dummy field of zero
+        - How do we know which field is which?
+
+
+**OPTIONS**
+- The user will only add a camera if they want to render it
+- Should we parallelise over cameras even for a single frame?
+
+
+`Renderer`
+    - `__init__()` takes what? - an `IRenderer`: `Blender`, `Raster`, `RayTrace` which has a
+        - `RenderOpts` unique to the IRenderer
+    - Should implement the function that is called for parallelisation
+    - Should implement the function that saves the image so it is consistent
+    - Should implement the multi-processing parallelisation by frame?
+    - `render_one_frame`
+    - `render_all_frames(para_by_frame: int | None = None)`
+    - Takes a `Scene`
+        - `__init__()` - does this need to know what type of renderer we are using
+        - `add_obj()`
+        - `add_light()`
+        - `add_camera()`
+        - Has `list[Object]`, `list[Light]`, `list[Camera]`
+
+- Will need wrapper classes around each renderer
+- `RasterNP`
+- `RasterCY` - python interface on top of cython
+    - Need a python wrapper function
+    - `rastercyth`
+
+- `Renderer` parallelisation:
+    - Should the engine deal with this? This would allow frame by frame or camera by camera parallelisation on an individual engine basis.
+    - Python parallel harness would be nice: already needed for raster in numpy/cython
+    - Also need to allow parallel in native C/C++ and Zig
+
+
 ### `Raster` Core/Interface
 - Manages parallelisation?
 - Need to split out parallelisation from numpy version

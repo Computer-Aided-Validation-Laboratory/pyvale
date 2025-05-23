@@ -13,10 +13,6 @@ import pyvale as pyv
 import imagebenchmarks as ib
 
 def main() -> None:
-    """pyvale example: rasterisation field renderer
-    ----------------------------------------------------------------------------
-    - TODO
-    """
     print()
     print(80*"=")
     print("RASTER CYTHON FILE (should be *.so on Linux):")
@@ -24,23 +20,20 @@ def main() -> None:
     print(80*"=")
     print()
 
-    return
-
-    benchmark = True
+    benchmark = False
     if not benchmark:
-
         # This a path to an exodus *.e output file from MOOSE, this can be
         # replaced with a path to your own simulation file
         #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
 
         sim_path = pyv.DataSet.render_simple_block_path()
-        sim_path = pyv.DataSet.render_mechanical_3d_path()
+        #sim_path = pyv.DataSet.render_mechanical_3d_path()
         sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
         disp_comps = ("disp_x","disp_y","disp_z")
 
         # Scale m -> mm
-        sim_data = pyv.scale_length_units(sim_data,disp_comps,1000.0)
+        sim_data = pyv.scale_length_units(1000.0,sim_data,disp_comps)
 
         print()
         print(f"{np.max(np.abs(sim_data.node_vars['disp_x']))=}")
@@ -65,7 +58,7 @@ def main() -> None:
         fov_scale_factor: float = 1.1
 
         (roi_pos_world,
-        cam_pos_world) = pyv.CameraTools.pos_fill_frame_from_rotation(
+        cam_pos_world) = pyv.CameraTools.pos_fill_frame(
             coords_world=render_mesh.coords,
             pixel_num=pixel_num,
             pixel_size=pixel_size,
@@ -151,7 +144,7 @@ def main() -> None:
 
         (image_buffer,
          depth_buffer,
-         elems_in_image) = pyv.rastercyth.raster_frame(
+         elems_in_image) = pyv.rastercyth.raster_static_frame(
                                                 render_mesh.coords,
                                                 render_mesh.connectivity,
                                                 fields_render,
@@ -171,7 +164,7 @@ def main() -> None:
 
     #===========================================================================
     # PLOTTING
-    plot_on = True
+    plot_on = False
     plot_field = 0
 
     # depth_to_plot = np.copy(np.asarray(depth_buffer[:,:,plot_frame]))

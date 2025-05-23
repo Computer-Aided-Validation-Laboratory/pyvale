@@ -17,7 +17,9 @@ def main() -> None:
     disp_comps = ("disp_x","disp_y", "disp_z")
 
     # Scale m -> mm
-    sim_data = pyvale.scale_length_units(sim_data,disp_comps,1000.0)
+    sim_data = pyvale.scale_length_units(scale=1000.0,
+                                         sim_data=sim_data,
+                                         disp_comps=disp_comps)
 
     render_mesh = pyvale.create_render_mesh(sim_data,
                                         ("disp_y","disp_x"),
@@ -43,7 +45,7 @@ def main() -> None:
     part_location = np.array([0, 0, 0])
     pyvale.BlenderTools.move_blender_obj(part=part, pos_world=part_location)
     # Set part rotation
-    part_rotation = Rotation.from_euler("xyz", [0, 0, 0])
+    part_rotation = Rotation.from_euler("xyz", [0, 0, 0], degrees=True)
     pyvale.BlenderTools.rotate_blender_obj(part=part, rot_world=part_rotation)
 
     # Add the camera
