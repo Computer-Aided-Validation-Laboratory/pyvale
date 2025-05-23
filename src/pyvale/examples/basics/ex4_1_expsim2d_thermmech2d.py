@@ -64,7 +64,7 @@ def main() -> None:
     tc_sens_data = pyv.SensorData(positions=tc_sens_pos,
                                   sample_times=sample_times)
 
-    # We use the sensor array factory to give use thermocouples with basic 2%
+    # We use the sensor array factory to give us thermocouples with basic 2%
     # errors with uniform systematic error and normal random error. Note that
     # we need to provide a `SimData` object to create our sensor array but when
     # we run our experiment the field object that relies on this will switch the
@@ -97,7 +97,7 @@ def main() -> None:
                                   errs_pc=2.0)
 
 
-    # Now we have our list of simulation and the two sensor arrays we want to
+    # Now we have our list of simulations and the two sensor arrays we want to
     # apply to the simulations. We create a list of our two sensor arrays and
     # use this to create an experiment simulator while specifying how many
     # simulate experiments we want to run per simulation and sensor array.

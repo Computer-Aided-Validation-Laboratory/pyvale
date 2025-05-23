@@ -109,9 +109,10 @@ def main() -> None:
 
     print(80*"-")
 
-    sens_print: int = 0
-    time_print: int = 5
-    comp_print: int = 0
+    sens_print = 0
+    comp_print = 0
+    time_last = 5
+    time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 
     print(f"These are the last {time_last} virtual measurements of sensor "
           + f"{sens_print}:")
