@@ -10,7 +10,9 @@ Blender example: Creating a scene with 2D DIC
 
 This example takes you through creating a scene and adding all the necessary
 objects required to represent a 2D DIC setup (camera, lighting and sample).
-This example will then show you how to render a single image of this scene
+This example will then show you how to render a single image of this scene.
+
+Test case: mechanical analysis of a plate with a hole loaded in tension.
 """
 
 import numpy as np
@@ -31,12 +33,12 @@ data_path = pyvale.DataSet.render_mechanical_3d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
 # %%
+
 # This is then scaled to mm, as all lengths in Blender are to be set in mm.
 # The `SimData` object is then converted into a `RenderMeshData` object, as
 # this skins the mesh ready to be imported into Blender.
 # The `disp_comps` are the expected direction of displacement. Since this is a
 # 3D deformation test case, displacement is expected in the x, y and z directions.
-
 disp_comps = ("disp_x","disp_y", "disp_z")
 sim_data = pyvale.scale_length_units(scale=1000.0,
                                      sim_data=sim_data,
@@ -60,8 +62,10 @@ base_dir = Path.cwd()
 # Creating the scene
 # ^^^^^^^^^^^^^^^^^^
 # In order to create a DIC setup in Blender, first a scene must be created.
-# A scene is a holding space for all of your objects (e.g. camera(s), light(s) and sample(s)).
-# A scene is initialised using the `BlenderScene` class. All the subsequent objects and actions necessary are then methods of this class.
+# A scene is a holding space for all of your objects (e.g. camera(s), light(s)
+# and sample(s)).
+# A scene is initialised using the `BlenderScene` class. All the subsequent
+# objects and actions necessary are then methods of this class.
 
 scene = pyvale.BlenderScene()
 
@@ -154,7 +158,7 @@ scene.render_single_image(stage_image=False,
 # %%
 # The rendered image will be saved to this filepath:
 
-print(render_data.base_dir / "blenderimages")
+print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
 
 # %%
 # There is also the option to save the scene as a Blender project file.

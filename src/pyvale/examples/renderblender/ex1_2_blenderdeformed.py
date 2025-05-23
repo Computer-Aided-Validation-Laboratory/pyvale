@@ -5,8 +5,14 @@
 # ==============================================================================
 
 """
-Example 1_2
-===========
+Blender example: Deforming a sample with 2D DIC
+===============================================
+
+This example follows a similar workflow to the previous Blender example.
+In this example, defomation is applied to sample, and images are rendered at
+each timestep.
+
+Test case: mechanical analysis of a plate with a hole loaded in tension.
 """
 
 import numpy as np
@@ -15,112 +21,151 @@ from pathlib import Path
 import pyvale
 import mooseherder as mh
 
-def main() -> None:
-    data_path = pyvale.DataSet.render_mechanical_3d_path()
-    sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+# %%
+# The simulation results are loaded in here in the same way as the previous
+# example. As mentioned this `data_path` can be replaced with your own MOOSE
+# simulation output in exodus format (*.e).
 
-    disp_comps = ("disp_x","disp_y", "disp_z")
+data_path = pyvale.DataSet.render_mechanical_3d_path()
+sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
-    # Scale m -> mm
-    sim_data = pyvale.scale_length_units(scale=1000.0,
-                                         sim_data=sim_data,
-                                         disp_comps=disp_comps)
+# %%
+# This is then scaled to mm, as all lengths in Blender are to be set in mm.
+# The `SimData` object is then converted into a `RenderMeshData` object, as
+# this skins the mesh ready to be imported into Blender.
+# The `disp_comps` are the expected direction of displacement. Since this is a
+# 3D deformation test case, displacement is expected in the x, y and z directions.
 
-    render_mesh = pyvale.create_render_mesh(sim_data,
+disp_comps = ("disp_x","disp_y", "disp_z")
+sim_data = pyvale.scale_length_units(scale=1000.0,
+                                     sim_data=sim_data,
+                                     disp_comps=disp_comps)
+
+render_mesh = pyvale.create_render_mesh(sim_data,
                                         ("disp_y","disp_x"),
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
 
-    # Set the save path
-    # --------------------------------------------------------------------------
-    # All the files saved will be saved to a subfolder within this specified
-    # base directory.
-    # This base directory can be specified by:
-    base_dir = Path.cwd()
-    # If no base directory is specified, it will be set as your home directory
+# %%
+# Firstly, a save path must be set.
+# In order to do this a base path must be set. Then all the generated files will
+# be saved to a subfolder within this specified base directory
+# (e.g. blenderimages).
+# If no base directory is specified, it will be set as your home directory.
 
-    # Creating the scene
-    # --------------------------------------------------------------------------
-    scene = pyvale.BlenderScene()
+base_dir = Path.cwd()
 
-    # It should be noted that the mesh will be centred to allow for the cameras
-    # to be centred on the mesh.
-    part = scene.add_part(render_mesh, sim_spat_dim=3)
-    # Set the part location
-    part_location = np.array([0, 0, 0])
-    pyvale.BlenderTools.move_blender_obj(part=part, pos_world=part_location)
-    # Set part rotation
-    part_rotation = Rotation.from_euler("xyz", [0, 0, 0], degrees=True)
-    pyvale.BlenderTools.rotate_blender_obj(part=part, rot_world=part_rotation)
+# %%
+# Creating the scene
+# ^^^^^^^^^^^^^^^^^^
+# In order to create a DIC setup in Blender, first a scene must be created.
+# A scene is initialised using the `BlenderScene` class. All the subsequent
+# objects and actions necessary are then methods of this class.
 
-    # Add the camera
-    cam_data = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
-                                 pixels_size=np.array([0.00345, 0.00345]),
-                                 pos_world=(0, 0, 400),
-                                 rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
-                                 roi_cent_world=(0, 0, 0),
-                                 focal_length=15.0)
-    camera = scene.add_camera(cam_data)
+scene = pyvale.BlenderScene()
 
-    # The camera can be moved and rotated this:
-    camera.location = (0, 0, 410)
-    camera.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
+# %%
+# The next thing that can be added to the scene is a sample.
+# This is done by passing in the `RenderMeshData` object.
+# It should be noted that the mesh will be centred on the origin to allow for
+# the cameras to be centred on the mesh.
+# Once the part is added to the Blender scene, it can be both moved and rotated.
 
-    # Add the light
-    light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
-                                         pos_world=(0, 0, 400),
-                                         rot_world=Rotation.from_euler("xyz",
-                                                                       [0, 0, 0]),
-                                         energy=1)
-    light = scene.add_light(light_data)
 
-    # The light can also be moved and rotated:
-    light.location = (0, 0, 410)
-    light.rotation_euler = (0, 0, 0)
+part = scene.add_part(render_mesh, sim_spat_dim=3)
+# Set the part location
+part_location = np.array([0, 0, 0])
+pyvale.BlenderTools.move_blender_obj(part=part, pos_world=part_location)
+# Set part rotation
+part_rotation = Rotation.from_euler("xyz", [0, 0, 0], degrees=True)
+pyvale.BlenderTools.rotate_blender_obj(part=part, rot_world=part_rotation)
 
-    # Apply the speckle pattern
-    material_data = pyvale.BlenderMaterialData()
-    speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
-    # NOTE: If you wish to use a bigger camera, you will need to generate a
-    # bigger speckle pattern generator
-    mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data)
-    scene.add_speckle(part=part,
-                      speckle_path=speckle_path,
-                      mat_data=material_data,
-                      mm_px_resolution=mm_px_resolution)
+# %%
+# A camera can then be added to the scene.
+# To initialise a camera, the camera parameters must be specified using the
+# `CameraData` dataclass. Note that all lengths / distances inputted are in mm.
+# This camera can then be added to the Blender scene.
+# The camera can also be moved and rotated.
 
-    # Deform and render images
-    # --------------------------------------------------------------------------
-    # Set this to True to render image of the deforming part
-    render_opts = True
-    if render_opts:
-        # NOTE: If no save directory is specified, this is where the images will
-        # be saved
-        render_data = pyvale.RenderData(cam_data=cam_data,
-                                        base_dir=base_dir,
-                                        threads=8)
-        # NOTE: The number of threads used to render the images is set within
-        # RenderData, it is defaulted to 4 threads
+cam_data = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
+                             pixels_size=np.array([0.00345, 0.00345]),
+                             pos_world=(0, 0, 400),
+                             rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
+                             roi_cent_world=(0, 0, 0),
+                             focal_length=15.0)
+camera = scene.add_camera(cam_data)
+camera.location = (0, 0, 410)
+camera.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
 
-        scene.render_deformed_images(render_mesh,
-                                     sim_spat_dim=3,
-                                     render_data=render_data,
-                                     part=part,
-                                     stage_image=False)
-        # NOTE: If bounce_image is set to True, the image will be saved to disk,
-        # converted to an array, deleted and the image array will be returned.
+# %%
+# A light can the be added to the scene.
+# Blender offers different light types: Point, Sun, Spot and Area.
+# The light can also be moved and rotated like the camera.
 
-        print()
-        print(80*"-")
-        print("Save directory of the image:", render_data.base_dir)
-        print(80*"-")
-        print()
+light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
+                                     pos_world=(0, 0, 400),
+                                     rot_world=Rotation.from_euler("xyz",
+                                                                   [0, 0, 0]),
+                                     energy=1)
+light = scene.add_light(light_data)
+light.location = (0, 0, 410)
+light.rotation_euler = (0, 0, 0)
 
-    # Save Blender file
-    # --------------------------------------------------------------------------
-    # The file that will be saved is a Blender project file. This can be opened
-    # with the Blender GUI to view the scene.
-    pyvale.BlenderTools.save_blender_file(base_dir)
+# %%
+# A speckle pattern can then be applied to the sample.
+# Firstly, the material properties of the sample must be specified, but these
+# will all be defaulted if no inputs are provided.
+#The speckle pattern can then be specified by providing a path to an image file
+# with the pattern.
+# The mm/px resolution of the camera must also be specified in order to
+# correctly scale the speckle pattern.
+# It should be noted that for a bigger camera or sample you may need to generate
+# a larger speckle pattern.
 
-if __name__ == "__main__":
-    main()
+material_data = pyvale.BlenderMaterialData()
+speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
+mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data)
+scene.add_speckle(part=part,
+                    speckle_path=speckle_path,
+                    mat_data=material_data,
+                    mm_px_resolution=mm_px_resolution)
+
+# %%
+# Deforming the sample and rendering images
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# Once all the objects have been added to the scene, the sample can be deformed,
+# and images can be rendered.
+# Firstly, all the rendering parameters must be set, including parameters such as
+# the number of threads to use.
+
+render_data = pyvale.RenderData(cam_data=cam_data,
+                                base_dir=base_dir,
+                                threads=8)
+
+# %%
+# A series of deformed images can then be rendered.
+# This is done by passing in rendering parameters, as well as the
+# `RenderMeshData` object, the part(sample) and the spatial dimension of the
+# simulation.
+# This will automatically deform the sample, and render subsequent images at
+# each deformation timestep.
+# If `stage_image` is set to True, the image will be saved to disk, converted to
+# an array, deleted and the image array will be returned. This is due to the
+# fact that an image cannot be saved directly as an array through Blender.
+
+scene.render_deformed_images(render_mesh,
+                             sim_spat_dim=3,
+                             render_data=render_data,
+                             part=part,
+                             stage_image=False)
+
+# %%
+# The rendered image will be saved to this filepath:
+
+print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
+
+# %%
+# There is also the option to save the scene as a Blender project file.
+# This file can be opened with the Blender GUI to view the scene.
+
+pyvale.BlenderTools.save_blender_file(base_dir)
