@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Custom vector field sensors
---------------------------------------------------------------------------------
+================================================================================
+
 In this example we build a custom vector field sensor array which mimics the
 sensor array we built with the factory in the previous example.
 

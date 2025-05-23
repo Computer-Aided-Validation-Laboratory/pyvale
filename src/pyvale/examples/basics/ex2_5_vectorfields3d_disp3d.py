@@ -6,7 +6,8 @@
 
 """
 Pyvale example: 3D vector field sensors
---------------------------------------------------------------------------------
+================================================================================
+
 In all our previous examples we have looked at a 2D solid mechanics simulation
 and applied displacement sensors to the vector field. Here we will build a
 custom vector field sensor array on a 3D simulation of a small linear elastic

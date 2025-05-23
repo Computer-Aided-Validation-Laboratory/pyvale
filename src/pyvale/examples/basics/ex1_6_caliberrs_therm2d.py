@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Sensor calibration systematic errors
---------------------------------------------------------------------------------
+================================================================================
+
 In this example we show how pyvale can simulate sensor calibration errors with
 user defined calibration functions.
 

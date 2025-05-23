@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Basic tensor field sensors (strain gauges)
---------------------------------------------------------------------------------
+================================================================================
+
 In this example we use the sensor array factory to build a set of strain
 sensors that can sample the strain tensor field from a solid mechanics
 simulation. In the next example we will examine how we can build custom tensor
