@@ -37,7 +37,8 @@ jobs:
       
       - name: Setup Doxygen
         run: |
-          sudo apt install doxygen
+          sudo apt update
+          sudo apt install -y doxygen
           cd docs/source
           doxygen Doxyfile
       

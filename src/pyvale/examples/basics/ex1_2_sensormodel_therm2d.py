@@ -19,10 +19,10 @@ However, systematic errors cannot easily be accounted for without a forward
 model of the source of the error. Characterising the contribution of systematic
 errors to the total measurement error is a key application of `pyvale`.
 
-between the `get_measurements()` and `calc_measurements()` methods for a sensor
-array. Calling `get_measurements()` retrieves the results for the current
-simulated experiment whereas calling `calc_measurements()` will generate a new
-simulated experiment by sampling / calculating the systematic and random errors.
+A sensor array has two key methods: `get_measurements()` and `calc_measurements`
+. Calling `get_measurements()` retrieves the results for the current simulated
+experiment whereas calling `calc_measurements()` will generate a new simulated
+experiment by sampling / calculating the systematic and random errors.
 
 Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 """
