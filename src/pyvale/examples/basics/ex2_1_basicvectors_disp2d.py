@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Basic vector field (displacement) sensors
---------------------------------------------------------------------------------
+================================================================================
+
 In this example we use the sensor array factory to build a set of displacement
 sensors that can sample the displacement vector field from a solid mechanics
 simulation. In the next example we will examine how we can build custom vector

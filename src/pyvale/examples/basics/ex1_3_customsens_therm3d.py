@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Building a point sensor array from scratch with custom errors
---------------------------------------------------------------------------------
+================================================================================
+
 Here we build a custom point sensor array from scratch that is similar to the
 pre-built thermocouple array from example 1.1. For this example we switch to a
 3D thermal simulation of a fusion heatsink component.

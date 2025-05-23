@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Custom tensor field sensors (strain gauges) in 3D
---------------------------------------------------------------------------------
+================================================================================
+
 In this example we build a custom tensor field sensor array (i.e. a strain gauge
 array) in 3D. We will also demonstrate how to specify sensor angles and field
 errors based on sensor angles.
