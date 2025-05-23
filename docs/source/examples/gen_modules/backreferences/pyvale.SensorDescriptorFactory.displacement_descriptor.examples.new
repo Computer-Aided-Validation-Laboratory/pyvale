@@ -1,0 +1,77 @@
+
+
+Examples using ``pyvale.SensorDescriptorFactory.displacement_descriptor``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. start-sphx-glr-thumbnails
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+.. thumbnail-parent-div-open
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex2_3_sensangle_disp2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex2_3_sensangle_disp2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor angles for vector fields</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex2_3_sensangle_disp2d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex2_4_chainfielderrs_disp2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex2_4_chainfielderrs_disp2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Chaining field errors</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex2_4_chainfielderrs_disp2d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex2_5_vectorfields3d_disp3d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex2_5_vectorfields3d_disp3d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: 3D vector field sensors</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex2_5_vectorfields3d_disp3d.py`

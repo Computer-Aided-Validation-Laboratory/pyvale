@@ -1,0 +1,35 @@
+
+
+Examples using ``pyvale.ErrSysCalibration``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. start-sphx-glr-thumbnails
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+.. thumbnail-parent-div-open
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex1_6_caliberrs_therm2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex1_6_caliberrs_therm2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor calibration systematic errors</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex1_6_caliberrs_therm2d.py`

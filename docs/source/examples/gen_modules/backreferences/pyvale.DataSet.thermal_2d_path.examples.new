@@ -1,0 +1,98 @@
+
+
+Examples using ``pyvale.DataSet.thermal_2d_path``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. start-sphx-glr-thumbnails
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+.. thumbnail-parent-div-open
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we introduce the basic features of pyvale for point sensor simulation. We demonstrate quick sensor array construction with defaults using the pyvale sensor array factory. Finally we run a sensor simulation and display the output.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex1_1_basicscalars_therm2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex1_1_basicscalars_therm2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Basics of pyvale point sensor simulation</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex1_1_basicscalars_therm2d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we explain the pyvale virtual sensor measurement model. For a virtual sensor in pyvale a measurement is defined as measurement = truth + systematic error + random error. Sources of systematic errors include: spatial/ temporal averaging, uncertainty in position / sampling time / orientation, digitisation, saturation, and calibration. Sources of random error are generally due to measurement noise characterised by a given probability distribution.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex1_2_sensormodel_therm2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex1_2_sensormodel_therm2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor model & get_measurements() vs calc_measurements()</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex1_2_sensormodel_therm2d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex1_6_caliberrs_therm2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex1_6_caliberrs_therm2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor calibration systematic errors</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex1_6_caliberrs_therm2d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex1_7_spatavg_therm2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex1_7_spatavg_therm2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor spatial averaging and averaging errors</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex1_7_spatavg_therm2d.py`

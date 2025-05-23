@@ -1,0 +1,77 @@
+
+
+Examples using ``pyvale.SensorArrayFactory.thermocouples_basic_errs``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. start-sphx-glr-thumbnails
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+.. thumbnail-parent-div-open
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we introduce the basic features of pyvale for point sensor simulation. We demonstrate quick sensor array construction with defaults using the pyvale sensor array factory. Finally we run a sensor simulation and display the output.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex1_1_basicscalars_therm2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex1_1_basicscalars_therm2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Basics of pyvale point sensor simulation</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex1_1_basicscalars_therm2d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we explain the pyvale virtual sensor measurement model. For a virtual sensor in pyvale a measurement is defined as measurement = truth + systematic error + random error. Sources of systematic errors include: spatial/ temporal averaging, uncertainty in position / sampling time / orientation, digitisation, saturation, and calibration. Sources of random error are generally due to measurement noise characterised by a given probability distribution.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex1_2_sensormodel_therm2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex1_2_sensormodel_therm2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor model & get_measurements() vs calc_measurements()</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex1_2_sensormodel_therm2d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In previous examples we have built our virtual sensor array and used this to run a single simulated experiment. However, we will generally want to run many simulated experiments and perform statistical analysis on the results. In this example we demonstrate how pyvale can be used to run a set of simulated experiments with a series of sensor arrays, one measuring temperature and the other measuring strain. We also show how this analysis can be performed over a set of input physics simulations.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex4_1_expsim2d_thermmech2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex4_1_expsim2d_thermmech2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Multi-physics experiment simulation in 2D</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex4_1_expsim2d_thermmech2d.py`
