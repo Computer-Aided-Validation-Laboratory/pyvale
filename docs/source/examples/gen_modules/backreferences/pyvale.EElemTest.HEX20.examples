@@ -1,0 +1,63 @@
+
+
+Examples using ``pyvale.EElemTest.HEX20``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. start-sphx-glr-thumbnails
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+.. thumbnail-parent-div-open
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex2_5_vectorfields3d_disp3d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex2_5_vectorfields3d_disp3d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: 3D vector field sensors</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex2_5_vectorfields3d_disp3d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex3_3_tensorsens3d_strain3d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex3_3_tensorsens3d_strain3d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Pyvale example: Custom tensor field sensors (strain gauges) in 3D</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex3_3_tensorsens3d_strain3d.py`
+
+.. thumbnail-parent-div-close
+
+.. raw:: html
+
+    </div>
+
