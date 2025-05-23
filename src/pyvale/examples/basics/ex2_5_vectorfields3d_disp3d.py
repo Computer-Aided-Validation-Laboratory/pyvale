@@ -25,7 +25,7 @@ import pyvale as pyv
 
 
 def main() -> None:
-    # Frist we load our simulation as a `SimData` object. In this case we are
+    # First we load our simulation as a `SimData` object. In this case we are
     # loading a 10mm cube loaded in tension in the y direction with the addition
     # of a thermal gradient in the y direction.
     data_path = pyv.DataSet.element_case_path(pyv.EElemTest.HEX20)
