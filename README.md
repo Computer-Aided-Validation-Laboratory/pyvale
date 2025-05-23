@@ -6,7 +6,7 @@ Here we demonstrate how `pyvale` can be used to simulate thermocouples and strai
 
 The code to run the simulated experiments and produce the output shown here comes from [this example](https://computer-aided-validation-laboratory.github.io/pyvale/examples/point/ex4_2.html). You can find more examples and details of `pyvale` python API in the `pyvale` [documentation](https://computer-aided-validation-laboratory.github.io/pyvale/index.html).
 
-|![fig_thermomech3d_tc_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_tc_vis.svg)|![fig_thermomech3d_sg_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_sg_vis.svg)|
+|![fig_thermomech3d_tc_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_tc_vis.png)|![fig_thermomech3d_sg_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_sg_vis.png)|
 |--|--|
 |*Visualisation of the thermcouple locations.*|*Visualisation of the strain gauge locations.*|
 
@@ -29,9 +29,10 @@ sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update && sudo apt upgrade -y
 ```
 
-Install python 3.11:
+Install python 3.11 and the dev version:
 ```shell
 sudo apt install python3.11
+sudo apt install python3.11-dev
 ```
 
 Add `venv` to your python 3.11 install:
@@ -61,7 +62,7 @@ pip install pyvale
 
 ### Developer Installation
 
-Clone `pyvale` to your local system along with submodules using
+Clone `pyvale` to your local system along with submodules using:
 ```shell
 git clone --recurse-submodules git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
 ```
