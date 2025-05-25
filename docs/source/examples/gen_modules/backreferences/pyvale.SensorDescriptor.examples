@@ -1,0 +1,105 @@
+
+
+Examples using ``pyvale.SensorDescriptor``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. start-sphx-glr-thumbnails
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+.. thumbnail-parent-div-open
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex1_3_customsens_therm3d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex1_3_customsens_therm3d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Basics: Building a point sensor array from scratch with custom errors</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex1_3_customsens_therm3d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex2_2_vectorsens_disp2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex2_2_vectorsens_disp2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Basics: Custom vector field sensors</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex2_2_vectorsens_disp2d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex3_2_tensorsens2d_strain2d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex3_2_tensorsens2d_strain2d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Basics: Custom tensor field sensors (strain gauges) in 2D</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex3_2_tensorsens2d_strain2d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex3_3_tensorsens3d_strain3d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex3_3_tensorsens3d_strain3d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Basics: Custom tensor field sensors (strain gauges) in 3D</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex3_3_tensorsens3d_strain3d.py`
+
+.. thumbnail-parent-div-close
+
+.. raw:: html
+
+    </div>
+

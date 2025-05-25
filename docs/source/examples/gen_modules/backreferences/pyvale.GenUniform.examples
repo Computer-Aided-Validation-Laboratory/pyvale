@@ -1,0 +1,84 @@
+
+
+Examples using ``pyvale.GenUniform``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. start-sphx-glr-thumbnails
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+.. thumbnail-parent-div-open
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex1_4_basicerrors_therm3d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex1_4_basicerrors_therm3d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Basics: Overview of the basic error library</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex1_4_basicerrors_therm3d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex3_3_tensorsens3d_strain3d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex3_3_tensorsens3d_strain3d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Basics: Custom tensor field sensors (strain gauges) in 3D</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex3_3_tensorsens3d_strain3d.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.">
+
+.. only:: html
+
+  .. image:: /examples/basics/images/thumb/sphx_glr_ex4_2_expsim3d_thermmech3d_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_basics_ex4_2_expsim3d_thermmech3d.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Basics: Multi-physics experiment simulation in 3D</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_basics_ex4_2_expsim3d_thermmech3d.py`
+
+.. thumbnail-parent-div-close
+
+.. raw:: html
+
+    </div>
+

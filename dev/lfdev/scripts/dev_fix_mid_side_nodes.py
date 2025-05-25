@@ -12,7 +12,7 @@ import mooseherder as mh
 import pyvale
 
 def main() -> None:
-    """pyvale example: displacement sensors on a 2D plate with a hole
+    """Basics displacement sensors on a 2D plate with a hole
     ----------------------------------------------------------------------------
     """
     data_path = Path("dev/lfdev/meshtest/meshtest_higherorder_2d_out.e")

@@ -1,4 +1,0 @@
-Basic tensor field sensors (strain gauges)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. literalinclude:: ../../../../src/pyvale/examples/basics/ex3_1_basictensors_strain2d.py
-   :language: python

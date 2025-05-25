@@ -14,7 +14,7 @@ import pyvale
 
 
 def main() -> None:
-    """pyvale example: thermocouples on a 3D divertor monoblock heatsink
+    """Basics thermocouples on a 3D divertor monoblock heatsink
     ----------------------------------------------------------------------------
     """
     #data_path = pyvale.DataSet.thermal_3d_path()

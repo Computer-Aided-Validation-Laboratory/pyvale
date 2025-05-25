@@ -1,0 +1,105 @@
+
+
+Examples using ``pyvale.create_render_mesh``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. start-sphx-glr-thumbnails
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+.. thumbnail-parent-div-open
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene">
+
+.. only:: html
+
+  .. image:: /examples/renderblender/images/thumb/sphx_glr_ex1_1_blenderscene_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_renderblender_ex1_1_blenderscene.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Blender example: Creating a scene with 2D DIC</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_renderblender_ex1_1_blenderscene.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Example 1_2">
+
+.. only:: html
+
+  .. image:: /examples/renderblender/images/thumb/sphx_glr_ex1_2_blenderdeformed_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_renderblender_ex1_2_blenderdeformed.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Example 1_2</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_renderblender_ex1_2_blenderdeformed.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Example 2_1">
+
+.. only:: html
+
+  .. image:: /examples/renderblender/images/thumb/sphx_glr_ex2_1_stereoscene_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_renderblender_ex2_1_stereoscene.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Example 2_1</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_renderblender_ex2_1_stereoscene.py`
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Ex 2_2">
+
+.. only:: html
+
+  .. image:: /examples/renderblender/images/thumb/sphx_glr_ex2_2_stereodeformed_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_renderblender_ex2_2_stereodeformed.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Ex 2_2</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_renderblender_ex2_2_stereodeformed.py`
+
+.. thumbnail-parent-div-close
+
+.. raw:: html
+
+    </div>
+

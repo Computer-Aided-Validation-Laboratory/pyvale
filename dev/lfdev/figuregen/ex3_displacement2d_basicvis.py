@@ -13,7 +13,7 @@ import mooseherder as mh
 import pyvale
 
 def main() -> None:
-    """pyvale example:
+    """Basics
     """
     data_path = Path('simcases/case17/case17_out.e')
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()

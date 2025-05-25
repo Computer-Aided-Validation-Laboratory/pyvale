@@ -1,0 +1,2186 @@
+{
+ "pyvale.BlenderLightData": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ],
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.BlenderLightType.POINT": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ],
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.BlenderMaterialData": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ],
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.BlenderScene": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ],
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.BlenderTools.move_blender_obj": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ]
+ ],
+ "pyvale.BlenderTools.number_calibration_images": [
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.BlenderTools.render_calibration_images": [
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.BlenderTools.rotate_blender_obj": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ]
+ ],
+ "pyvale.BlenderTools.save_blender_file": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ],
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.CalibrationData": [
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.CameraData": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ],
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.CameraTools.calculate_mm_px_resolution": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ],
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.CameraTools.faceon_stereo_cameras": [
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ],
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.CameraTools.symmetric_stereo_cameras": [
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ],
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.DataSet.dic_pattern_5mpx_path": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ]
+ ],
+ "pyvale.DataSet.element_case_path": [
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ]
+ ],
+ "pyvale.DataSet.mechanical_2d_path": [
+  [
+   "ex2_1_basicvectors_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of displacement sensors that can sample the displacement vector field from a solid mechanics simulation. In the next example we will examine how we can build custom vector field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Vector field (displacement) sensors"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex3_1_basictensors_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of strain sensors that can sample the strain tensor field from a solid mechanics simulation. In the next example we will examine how we can build custom tensor field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Tensor field sensors (strain gauges)"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ]
+ ],
+ "pyvale.DataSet.render_mechanical_3d_path": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ]
+ ],
+ "pyvale.DataSet.thermal_2d_path": [
+  [
+   "ex1_1_basicscalars_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we introduce the basic features of pyvale for point sensor simulation. We demonstrate quick sensor array construction with defaults using the pyvale sensor array factory. Finally we run a sensor simulation and display the output.",
+   "Basics: Pyvale point sensor simulation"
+  ],
+  [
+   "ex1_2_sensormodel_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we explain the pyvale virtual sensor measurement model. For a virtual sensor in pyvale a measurement is defined as measurement = truth + systematic error + random error. Sources of systematic errors include: spatial/ temporal averaging, uncertainty in position / sampling time / orientation, digitisation, saturation, and calibration. Sources of random error are generally due to measurement noise characterised by a given probability distribution.",
+   "Basics: Sensor model & get_measurements() vs calc_measurements()"
+  ],
+  [
+   "ex1_6_caliberrs_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.",
+   "Basics: Sensor calibration systematic errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ]
+ ],
+ "pyvale.DataSet.thermal_3d_path": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ]
+ ],
+ "pyvale.DataSet.thermomechanical_2d_experiment_paths": [
+  [
+   "ex4_1_expsim2d_thermmech2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In previous examples we have built our virtual sensor array and used this to run a single simulated experiment. However, we will generally want to run many simulated experiments and perform statistical analysis on the results. In this example we demonstrate how pyvale can be used to run a set of simulated experiments with a series of sensor arrays, one measuring temperature and the other measuring strain. We also show how this analysis can be performed over a set of input physics simulations.",
+   "Basics: Multi-physics experiment simulation in 2D"
+  ]
+ ],
+ "pyvale.DataSet.thermomechanical_3d_path": [
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.EElemTest.HEX20": [
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ]
+ ],
+ "pyvale.EErrDep.DEPENDENT": [
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ]
+ ],
+ "pyvale.EExpVisBounds.MINMAX": [
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.EExpVisCentre.MEDIAN": [
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.EIntSpatialType.QUAD4PT": [
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ]
+ ],
+ "pyvale.EIntSpatialType.RECT1PT": [
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ]
+ ],
+ "pyvale.ERoundMethod.ROUND": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrFieldData": [
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.ErrIntOpts": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ]
+ ],
+ "pyvale.ErrIntegrator": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex1_6_caliberrs_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.",
+   "Basics: Sensor calibration systematic errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.ErrRandGenerator": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrRandNorm": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.ErrRandNormPercent": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.ErrRandUnif": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrRandUnifPercent": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrSysCalibration": [
+  [
+   "ex1_6_caliberrs_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.",
+   "Basics: Sensor calibration systematic errors"
+  ]
+ ],
+ "pyvale.ErrSysDigitisation": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrSysField": [
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.ErrSysGen": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrSysGenPercent": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrSysNorm": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrSysNormPercent": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrSysOffset": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrSysOffsetPercent": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrSysRoundOff": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrSysSaturation": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.ErrSysUnif": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.ErrSysUnifPercent": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.ExperimentSimulator": [
+  [
+   "ex4_1_expsim2d_thermmech2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In previous examples we have built our virtual sensor array and used this to run a single simulated experiment. However, we will generally want to run many simulated experiments and perform statistical analysis on the results. In this example we demonstrate how pyvale can be used to run a set of simulated experiments with a series of sensor arrays, one measuring temperature and the other measuring strain. We also show how this analysis can be performed over a set of input physics simulations.",
+   "Basics: Multi-physics experiment simulation in 2D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.FieldScalar": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ]
+ ],
+ "pyvale.FieldTensor": [
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ]
+ ],
+ "pyvale.FieldVector": [
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ]
+ ],
+ "pyvale.GenNormal": [
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.GenTriangular": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ]
+ ],
+ "pyvale.GenUniform": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.RenderData": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ],
+  [
+   "ex3_1_blendercalibration.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 3_1",
+   "Ex 3_1"
+  ]
+ ],
+ "pyvale.SensorArrayFactory.disp_sensors_basic_errs": [
+  [
+   "ex2_1_basicvectors_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of displacement sensors that can sample the displacement vector field from a solid mechanics simulation. In the next example we will examine how we can build custom vector field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Vector field (displacement) sensors"
+  ]
+ ],
+ "pyvale.SensorArrayFactory.strain_gauges_basic_errs": [
+  [
+   "ex3_1_basictensors_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of strain sensors that can sample the strain tensor field from a solid mechanics simulation. In the next example we will examine how we can build custom tensor field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Tensor field sensors (strain gauges)"
+  ],
+  [
+   "ex4_1_expsim2d_thermmech2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In previous examples we have built our virtual sensor array and used this to run a single simulated experiment. However, we will generally want to run many simulated experiments and perform statistical analysis on the results. In this example we demonstrate how pyvale can be used to run a set of simulated experiments with a series of sensor arrays, one measuring temperature and the other measuring strain. We also show how this analysis can be performed over a set of input physics simulations.",
+   "Basics: Multi-physics experiment simulation in 2D"
+  ]
+ ],
+ "pyvale.SensorArrayFactory.strain_gauges_no_errs": [
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.SensorArrayFactory.thermocouples_basic_errs": [
+  [
+   "ex1_1_basicscalars_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we introduce the basic features of pyvale for point sensor simulation. We demonstrate quick sensor array construction with defaults using the pyvale sensor array factory. Finally we run a sensor simulation and display the output.",
+   "Basics: Pyvale point sensor simulation"
+  ],
+  [
+   "ex1_2_sensormodel_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we explain the pyvale virtual sensor measurement model. For a virtual sensor in pyvale a measurement is defined as measurement = truth + systematic error + random error. Sources of systematic errors include: spatial/ temporal averaging, uncertainty in position / sampling time / orientation, digitisation, saturation, and calibration. Sources of random error are generally due to measurement noise characterised by a given probability distribution.",
+   "Basics: Sensor model & get_measurements() vs calc_measurements()"
+  ],
+  [
+   "ex4_1_expsim2d_thermmech2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In previous examples we have built our virtual sensor array and used this to run a single simulated experiment. However, we will generally want to run many simulated experiments and perform statistical analysis on the results. In this example we demonstrate how pyvale can be used to run a set of simulated experiments with a series of sensor arrays, one measuring temperature and the other measuring strain. We also show how this analysis can be performed over a set of input physics simulations.",
+   "Basics: Multi-physics experiment simulation in 2D"
+  ]
+ ],
+ "pyvale.SensorArrayFactory.thermocouples_no_errs": [
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex1_6_caliberrs_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.",
+   "Basics: Sensor calibration systematic errors"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.SensorArrayPoint": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ]
+ ],
+ "pyvale.SensorData": [
+  [
+   "ex1_1_basicscalars_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we introduce the basic features of pyvale for point sensor simulation. We demonstrate quick sensor array construction with defaults using the pyvale sensor array factory. Finally we run a sensor simulation and display the output.",
+   "Basics: Pyvale point sensor simulation"
+  ],
+  [
+   "ex1_2_sensormodel_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we explain the pyvale virtual sensor measurement model. For a virtual sensor in pyvale a measurement is defined as measurement = truth + systematic error + random error. Sources of systematic errors include: spatial/ temporal averaging, uncertainty in position / sampling time / orientation, digitisation, saturation, and calibration. Sources of random error are generally due to measurement noise characterised by a given probability distribution.",
+   "Basics: Sensor model & get_measurements() vs calc_measurements()"
+  ],
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex1_6_caliberrs_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.",
+   "Basics: Sensor calibration systematic errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ],
+  [
+   "ex2_1_basicvectors_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of displacement sensors that can sample the displacement vector field from a solid mechanics simulation. In the next example we will examine how we can build custom vector field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Vector field (displacement) sensors"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ],
+  [
+   "ex3_1_basictensors_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of strain sensors that can sample the strain tensor field from a solid mechanics simulation. In the next example we will examine how we can build custom tensor field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Tensor field sensors (strain gauges)"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ],
+  [
+   "ex4_1_expsim2d_thermmech2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In previous examples we have built our virtual sensor array and used this to run a single simulated experiment. However, we will generally want to run many simulated experiments and perform statistical analysis on the results. In this example we demonstrate how pyvale can be used to run a set of simulated experiments with a series of sensor arrays, one measuring temperature and the other measuring strain. We also show how this analysis can be performed over a set of input physics simulations.",
+   "Basics: Multi-physics experiment simulation in 2D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.SensorDescriptor": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ]
+ ],
+ "pyvale.SensorDescriptorFactory.displacement_descriptor": [
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ]
+ ],
+ "pyvale.SensorDescriptorFactory.temperature_descriptor": [
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ]
+ ],
+ "pyvale.TraceOptsExperiment": [
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.create_render_mesh": [
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ]
+ ],
+ "pyvale.create_sensor_pos_array": [
+  [
+   "ex1_1_basicscalars_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we introduce the basic features of pyvale for point sensor simulation. We demonstrate quick sensor array construction with defaults using the pyvale sensor array factory. Finally we run a sensor simulation and display the output.",
+   "Basics: Pyvale point sensor simulation"
+  ],
+  [
+   "ex1_2_sensormodel_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we explain the pyvale virtual sensor measurement model. For a virtual sensor in pyvale a measurement is defined as measurement = truth + systematic error + random error. Sources of systematic errors include: spatial/ temporal averaging, uncertainty in position / sampling time / orientation, digitisation, saturation, and calibration. Sources of random error are generally due to measurement noise characterised by a given probability distribution.",
+   "Basics: Sensor model & get_measurements() vs calc_measurements()"
+  ],
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex1_6_caliberrs_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.",
+   "Basics: Sensor calibration systematic errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ],
+  [
+   "ex2_1_basicvectors_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of displacement sensors that can sample the displacement vector field from a solid mechanics simulation. In the next example we will examine how we can build custom vector field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Vector field (displacement) sensors"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex3_1_basictensors_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of strain sensors that can sample the strain tensor field from a solid mechanics simulation. In the next example we will examine how we can build custom tensor field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Tensor field sensors (strain gauges)"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex4_1_expsim2d_thermmech2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In previous examples we have built our virtual sensor array and used this to run a single simulated experiment. However, we will generally want to run many simulated experiments and perform statistical analysis on the results. In this example we demonstrate how pyvale can be used to run a set of simulated experiments with a series of sensor arrays, one measuring temperature and the other measuring strain. We also show how this analysis can be performed over a set of input physics simulations.",
+   "Basics: Multi-physics experiment simulation in 2D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.plot_exp_traces": [
+  [
+   "ex4_1_expsim2d_thermmech2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In previous examples we have built our virtual sensor array and used this to run a single simulated experiment. However, we will generally want to run many simulated experiments and perform statistical analysis on the results. In this example we demonstrate how pyvale can be used to run a set of simulated experiments with a series of sensor arrays, one measuring temperature and the other measuring strain. We also show how this analysis can be performed over a set of input physics simulations.",
+   "Basics: Multi-physics experiment simulation in 2D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.plot_point_sensors_on_sim": [
+  [
+   "ex1_1_basicscalars_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we introduce the basic features of pyvale for point sensor simulation. We demonstrate quick sensor array construction with defaults using the pyvale sensor array factory. Finally we run a sensor simulation and display the output.",
+   "Basics: Pyvale point sensor simulation"
+  ],
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex2_1_basicvectors_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of displacement sensors that can sample the displacement vector field from a solid mechanics simulation. In the next example we will examine how we can build custom vector field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Vector field (displacement) sensors"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ],
+  [
+   "ex3_1_basictensors_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of strain sensors that can sample the strain tensor field from a solid mechanics simulation. In the next example we will examine how we can build custom tensor field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Tensor field sensors (strain gauges)"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ]
+ ],
+ "pyvale.plot_time_traces": [
+  [
+   "ex1_1_basicscalars_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we introduce the basic features of pyvale for point sensor simulation. We demonstrate quick sensor array construction with defaults using the pyvale sensor array factory. Finally we run a sensor simulation and display the output.",
+   "Basics: Pyvale point sensor simulation"
+  ],
+  [
+   "ex1_2_sensormodel_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we explain the pyvale virtual sensor measurement model. For a virtual sensor in pyvale a measurement is defined as measurement = truth + systematic error + random error. Sources of systematic errors include: spatial/ temporal averaging, uncertainty in position / sampling time / orientation, digitisation, saturation, and calibration. Sources of random error are generally due to measurement noise characterised by a given probability distribution.",
+   "Basics: Sensor model & get_measurements() vs calc_measurements()"
+  ],
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex1_6_caliberrs_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.",
+   "Basics: Sensor calibration systematic errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ],
+  [
+   "ex2_1_basicvectors_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of displacement sensors that can sample the displacement vector field from a solid mechanics simulation. In the next example we will examine how we can build custom vector field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Vector field (displacement) sensors"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ],
+  [
+   "ex3_1_basictensors_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of strain sensors that can sample the strain tensor field from a solid mechanics simulation. In the next example we will examine how we can build custom tensor field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Tensor field sensors (strain gauges)"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ]
+ ],
+ "pyvale.print_dimensions": [
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ]
+ ],
+ "pyvale.print_measurements": [
+  [
+   "ex1_2_sensormodel_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we explain the pyvale virtual sensor measurement model. For a virtual sensor in pyvale a measurement is defined as measurement = truth + systematic error + random error. Sources of systematic errors include: spatial/ temporal averaging, uncertainty in position / sampling time / orientation, digitisation, saturation, and calibration. Sources of random error are generally due to measurement noise characterised by a given probability distribution.",
+   "Basics: Sensor model & get_measurements() vs calc_measurements()"
+  ],
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex1_6_caliberrs_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.",
+   "Basics: Sensor calibration systematic errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ],
+  [
+   "ex2_1_basicvectors_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of displacement sensors that can sample the displacement vector field from a solid mechanics simulation. In the next example we will examine how we can build custom vector field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Vector field (displacement) sensors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ],
+  [
+   "ex3_1_basictensors_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of strain sensors that can sample the strain tensor field from a solid mechanics simulation. In the next example we will examine how we can build custom tensor field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Tensor field sensors (strain gauges)"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ]
+ ],
+ "pyvale.scale_length_units": [
+  [
+   "ex1_1_basicscalars_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we introduce the basic features of pyvale for point sensor simulation. We demonstrate quick sensor array construction with defaults using the pyvale sensor array factory. Finally we run a sensor simulation and display the output.",
+   "Basics: Pyvale point sensor simulation"
+  ],
+  [
+   "ex1_2_sensormodel_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we explain the pyvale virtual sensor measurement model. For a virtual sensor in pyvale a measurement is defined as measurement = truth + systematic error + random error. Sources of systematic errors include: spatial/ temporal averaging, uncertainty in position / sampling time / orientation, digitisation, saturation, and calibration. Sources of random error are generally due to measurement noise characterised by a given probability distribution.",
+   "Basics: Sensor model & get_measurements() vs calc_measurements()"
+  ],
+  [
+   "ex1_3_customsens_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Here we build a custom point sensor array from scratch that is similar to the pre-built thermocouple array from example 1.1. For this example we switch to a 3D thermal simulation of a fusion heatsink component.",
+   "Basics: Building a point sensor array from scratch with custom errors"
+  ],
+  [
+   "ex1_4_basicerrors_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "Building on what we learned in examples 1.1-1.3 we now have a look at the basic error library for pyvale. The sensor error models in pyvale are grouped into the types of random (`ErrRand`) and systematic (`ErrSys`). In this example we will consider probability distribution based sampled errors, constant offsets and basic systematic errors such as digitisation / saturation.",
+   "Basics: Overview of the basic error library"
+  ],
+  [
+   "ex1_5_fielderrs_therm3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we give an overview of field-based systematic errors. Field errors require additional interpolation of the underlying physical field such as uncertainty in a sensors position or sampling time. For this example we will focus on field error sources that perturb sensor locations and sampling times. In later examples we will analyse sensor orientation for vector and tensor fields.",
+   "Basics: Field-based systematic errors"
+  ],
+  [
+   "ex1_6_caliberrs_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor calibration errors with user defined calibration functions.",
+   "Basics: Sensor calibration systematic errors"
+  ],
+  [
+   "ex1_7_spatavg_therm2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how pyvale can simulate sensor spatial averaging for ground truth calculations as well as for calculating systematic errors.",
+   "Basics: Sensor spatial averaging and averaging errors"
+  ],
+  [
+   "ex2_1_basicvectors_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of displacement sensors that can sample the displacement vector field from a solid mechanics simulation. In the next example we will examine how we can build custom vector field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Vector field (displacement) sensors"
+  ],
+  [
+   "ex2_2_vectorsens_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom vector field sensor array which mimics the sensor array we built with the factory in the previous example.",
+   "Basics: Custom vector field sensors"
+  ],
+  [
+   "ex2_3_sensangle_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we demonstrate how to setup vector field sensors at custom orientations with respect to the simulation coordinate system. We first build a sensor array aligned with the simulation coords in the same way as the previous example. We then build a sensor array with the sensors rotated and compare this to the case with no rotation.",
+   "Basics: Sensor angles for vector fields"
+  ],
+  [
+   "ex2_4_chainfielderrs_disp2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we show how field errors can be chained together and accumulated allowing for successive perturbations in postion, sampling time and orientation. It is more computationally efficient to provide a single field error object as this will perform all perturbations in a single step allowing for a single new interpolation of the underlying physical field. However, in some cases it can be useful to separate the sensor parameter perturbations to determine which is contributing most to the total error.",
+   "Basics: Chaining field errors"
+  ],
+  [
+   "ex2_5_vectorfields3d_disp3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In all our previous examples we have looked at a 2D solid mechanics simulation and applied displacement sensors to the vector field. Here we will build a custom vector field sensor array on a 3D simulation of a small linear elastic cube loaded in tension with the addition of an applied thermal gradient.",
+   "Basics: 3D vector field sensors"
+  ],
+  [
+   "ex3_1_basictensors_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we use the sensor array factory to build a set of strain sensors that can sample the strain tensor field from a solid mechanics simulation. In the next example we will examine how we can build custom tensor field sensors as we did for scalar field in the first set of examples.",
+   "Basics: Tensor field sensors (strain gauges)"
+  ],
+  [
+   "ex3_2_tensorsens2d_strain2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 2D.",
+   "Basics: Custom tensor field sensors (strain gauges) in 2D"
+  ],
+  [
+   "ex3_3_tensorsens3d_strain3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In this example we build a custom tensor field sensor array (i.e. a strain gauge array) in 3D. We will also demonstrate how to specify sensor angles and field errors based on sensor angles.",
+   "Basics: Custom tensor field sensors (strain gauges) in 3D"
+  ],
+  [
+   "ex4_1_expsim2d_thermmech2d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In previous examples we have built our virtual sensor array and used this to run a single simulated experiment. However, we will generally want to run many simulated experiments and perform statistical analysis on the results. In this example we demonstrate how pyvale can be used to run a set of simulated experiments with a series of sensor arrays, one measuring temperature and the other measuring strain. We also show how this analysis can be performed over a set of input physics simulations.",
+   "Basics: Multi-physics experiment simulation in 2D"
+  ],
+  [
+   "ex4_2_expsim3d_thermmech3d.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/basics",
+   "/home/lloydf/pyvale/docs/source/examples/basics",
+   "In the previous example we performed a series of simulated experiments on a set of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of a divertor armour heatsink to show how we can run simulated experiments in 3D.",
+   "Basics: Multi-physics experiment simulation in 3D"
+  ],
+  [
+   "ex1_1_blenderscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "This example takes you through creating a scene and adding all the necessary objects required to represent a 2D DIC setup (camera, lighting and sample). This example will then show you how to render a single image of this scene",
+   "Blender example: Creating a scene with 2D DIC"
+  ],
+  [
+   "ex1_2_blenderdeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 1_2",
+   "Example 1_2"
+  ],
+  [
+   "ex2_1_stereoscene.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Example 2_1",
+   "Example 2_1"
+  ],
+  [
+   "ex2_2_stereodeformed.py",
+   "/home/lloydf/pyvale/docs/source/../../src/pyvale/examples/renderblender",
+   "/home/lloydf/pyvale/docs/source/examples/renderblender",
+   "Ex 2_2",
+   "Ex 2_2"
+  ]
+ ]
+}

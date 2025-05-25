@@ -1,0 +1,42 @@
+
+
+Examples using ``pyvale.BlenderTools.render_calibration_images``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. start-sphx-glr-thumbnails
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+.. thumbnail-parent-div-open
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Ex 3_1">
+
+.. only:: html
+
+  .. image:: /examples/renderblender/images/thumb/sphx_glr_ex3_1_blendercalibration_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_examples_renderblender_ex3_1_blendercalibration.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Ex 3_1</div>
+    </div>
+
+
+.. only:: not html
+
+ * :ref:`sphx_glr_examples_renderblender_ex3_1_blendercalibration.py`
+
+.. thumbnail-parent-div-close
+
+.. raw:: html
+
+    </div>
+

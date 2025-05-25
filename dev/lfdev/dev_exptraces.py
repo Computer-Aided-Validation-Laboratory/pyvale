@@ -14,7 +14,7 @@ import mooseherder as mh
 import pyvale
 
 def main() -> None:
-    """pyvale example: thermo-mechanical multi-physics sensors on a 2D plate
+    """Basics thermo-mechanical multi-physics sensors on a 2D plate
     ----------------------------------------------------------------------------
     - Demonstrates the experiment module for running many monte-carlo style
       experiments and statistically analysing the results.

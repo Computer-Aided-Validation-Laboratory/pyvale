@@ -14,7 +14,7 @@ import pyvale
 
 
 def main() -> None:
-    """Pyvale example: Point sensors on a 2D thermal simulation
+    """Basics Point sensors on a 2D thermal simulation
     ----------------------------------------------------------------------------
     - Quick start
     - Basic sensor array construction using the sensor array factory

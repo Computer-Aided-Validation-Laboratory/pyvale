@@ -14,7 +14,7 @@ import pyvale
 
 
 def main() -> None:
-    """pyvale example:
+    """Basics
     """
     data_path = Path('data/examplesims/monoblock_3d_thermal_out.e')
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()

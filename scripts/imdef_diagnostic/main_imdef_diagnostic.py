@@ -24,7 +24,7 @@ import pyvale.imagesim.imagedefdiags as idd
 def main() -> None:
     print()
     print('='*80)
-    print('PYVALE EXAMPLE: IMAGE DEFORMATION 2D DIAGNOSTIC')
+    print('Basics IMAGE DEFORMATION 2D DIAGNOSTIC')
     print('='*80)
 
     #---------------------------------------------------------------------------
