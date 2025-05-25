@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex1_4_basicerrors_therm3d.py:
 
 
-Basics Overview of the basic error library
+Basics: Overview of the basic error library
 ================================================================================
 
 Building on what we learned in examples 1.1-1.3 we now have a look at the basic

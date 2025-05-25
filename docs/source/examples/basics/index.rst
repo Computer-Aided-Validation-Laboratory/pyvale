@@ -24,7 +24,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Basics of pyvale point sensor simulation</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Pyvale point sensor simulation</div>
     </div>
 
 
@@ -41,7 +41,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Sensor model & get_measurements() vs calc_measurements()</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Sensor model & get_measurements() vs calc_measurements()</div>
     </div>
 
 
@@ -58,7 +58,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Building a point sensor array from scratch with custom errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Building a point sensor array from scratch with custom errors</div>
     </div>
 
 
@@ -75,7 +75,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Overview of the basic error library</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Overview of the basic error library</div>
     </div>
 
 
@@ -92,7 +92,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Field-based systematic errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Field-based systematic errors</div>
     </div>
 
 
@@ -109,7 +109,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Sensor calibration systematic errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Sensor calibration systematic errors</div>
     </div>
 
 
@@ -126,7 +126,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Sensor spatial averaging and averaging errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Sensor spatial averaging and averaging errors</div>
     </div>
 
 
@@ -143,7 +143,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Basic vector field (displacement) sensors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Vector field (displacement) sensors</div>
     </div>
 
 
@@ -160,7 +160,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Custom vector field sensors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Custom vector field sensors</div>
     </div>
 
 
@@ -177,7 +177,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Sensor angles for vector fields</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Sensor angles for vector fields</div>
     </div>
 
 
@@ -194,7 +194,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Chaining field errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Chaining field errors</div>
     </div>
 
 
@@ -211,7 +211,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics 3D vector field sensors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: 3D vector field sensors</div>
     </div>
 
 
@@ -228,7 +228,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Basic tensor field sensors (strain gauges)</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Tensor field sensors (strain gauges)</div>
     </div>
 
 
@@ -245,7 +245,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 2D</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Custom tensor field sensors (strain gauges) in 2D</div>
     </div>
 
 
@@ -262,7 +262,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Custom tensor field sensors (strain gauges) in 3D</div>
     </div>
 
 
@@ -279,7 +279,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Multi-physics experiment simulation in 2D</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Multi-physics experiment simulation in 2D</div>
     </div>
 
 
@@ -296,7 +296,7 @@ Point Sensor Examples
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Multi-physics experiment simulation in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Multi-physics experiment simulation in 3D</div>
     </div>
 
 

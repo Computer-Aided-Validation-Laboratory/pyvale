@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics Overview of the basic error library
+Basics: Overview of the basic error library
 ================================================================================
 
 Building on what we learned in examples 1.1-1.3 we now have a look at the basic

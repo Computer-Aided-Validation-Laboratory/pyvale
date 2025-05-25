@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex1_3_customsens_therm3d.py:
 
 
-Basics Building a point sensor array from scratch with custom errors
+Basics: Building a point sensor array from scratch with custom errors
 ================================================================================
 
 Here we build a custom point sensor array from scratch that is similar to the
@@ -27,7 +27,7 @@ pre-built thermocouple array from example 1.1. For this example we switch to a
 
 Test case: Scalar field point sensors (thermocouples) on a 3D thermal simulation
 
-.. GENERATED FROM PYTHON SOURCE LINES 17-25
+.. GENERATED FROM PYTHON SOURCE LINES 17-24
 
 .. code-block:: Python
 
@@ -39,8 +39,7 @@ Test case: Scalar field point sensors (thermocouples) on a 3D thermal simulation
     import pyvale as pyv
 
 
-
-.. GENERATED FROM PYTHON SOURCE LINES 26-35
+.. GENERATED FROM PYTHON SOURCE LINES 25-34
 
 To build our custom point sensor array we need to at minimum provide a
 `IField` (i.e. `FieldScaler`, `FieldVector`, `FieldTensor`) and a
@@ -52,7 +51,7 @@ to be evaluated when we run our measurement simulation. This example is
 based on the same thermal example we have used in the last two examples so
 we start by loading our simulation data:
 
-.. GENERATED FROM PYTHON SOURCE LINES 35-42
+.. GENERATED FROM PYTHON SOURCE LINES 34-41
 
 .. code-block:: Python
 
@@ -64,13 +63,13 @@ we start by loading our simulation data:
                                         disp_comps=None)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 43-46
+.. GENERATED FROM PYTHON SOURCE LINES 42-45
 
 We are going to build a custom temperature sensor so we need a scalar
 field object to perform interpolation to the sensor locations at the
 desired sampling times.
 
-.. GENERATED FROM PYTHON SOURCE LINES 46-52
+.. GENERATED FROM PYTHON SOURCE LINES 45-51
 
 .. code-block:: Python
 
@@ -81,13 +80,13 @@ desired sampling times.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 53-56
+.. GENERATED FROM PYTHON SOURCE LINES 52-55
 
 Next we need to create our `SensorData` object which will set the position
 and sampling times of our sensors. We use the same helper function we used
 previously to create a uniformly spaced grid of sensors in space
 
-.. GENERATED FROM PYTHON SOURCE LINES 56-62
+.. GENERATED FROM PYTHON SOURCE LINES 55-61
 
 .. code-block:: Python
 
@@ -98,13 +97,13 @@ previously to create a uniformly spaced grid of sensors in space
     sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 63-66
+.. GENERATED FROM PYTHON SOURCE LINES 62-65
 
 We are also going to specify the times at which we would like to simulate
 measurements. Setting this to `None` will default the measurements times
 to match the simulation time steps.
 
-.. GENERATED FROM PYTHON SOURCE LINES 66-71
+.. GENERATED FROM PYTHON SOURCE LINES 65-70
 
 .. code-block:: Python
 
@@ -114,13 +113,13 @@ to match the simulation time steps.
                                     sample_times=sample_times)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 72-75
+.. GENERATED FROM PYTHON SOURCE LINES 71-74
 
 Finally, we can create a `SensorDescriptor` which will be used to label
 the visualisation and sensor trace plots we have seen in previous
 examples.
 
-.. GENERATED FROM PYTHON SOURCE LINES 75-86
+.. GENERATED FROM PYTHON SOURCE LINES 74-85
 
 .. code-block:: Python
 
@@ -136,13 +135,13 @@ examples.
         descriptor = pyv.SensorDescriptor()
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 87-90
+.. GENERATED FROM PYTHON SOURCE LINES 86-89
 
 We can now build our custom point sensor array. This sensor array has no
 errors so if we call `get_measurements()` or `calc_measurements()` we will
 be able to extract the simulation truth values at the sensor locations.
 
-.. GENERATED FROM PYTHON SOURCE LINES 90-94
+.. GENERATED FROM PYTHON SOURCE LINES 89-93
 
 .. code-block:: Python
 
@@ -151,7 +150,7 @@ be able to extract the simulation truth values at the sensor locations.
                                     descriptor)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 95-101
+.. GENERATED FROM PYTHON SOURCE LINES 94-100
 
 This is a new 3D simulation we are analysing so we should visualise the
 sensor locations before we run our measurement simulation. We use the same
@@ -160,7 +159,7 @@ code as we did in example 1.1 to display the sensor locations.
 We are also going to save some figures to disk as well as displaying them
 interactively so we create a directory for this:
 
-.. GENERATED FROM PYTHON SOURCE LINES 101-117
+.. GENERATED FROM PYTHON SOURCE LINES 100-116
 
 .. code-block:: Python
 
@@ -181,7 +180,7 @@ interactively so we create a directory for this:
     pv_plot.show()
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 118-148
+.. GENERATED FROM PYTHON SOURCE LINES 117-147
 
 If we want to simulate sources of uncertainty for our sensor array we need
 to add an `ErrIntegrator` to our sensor array using the method
@@ -214,7 +213,7 @@ units as the simulation.
 
 This systematic error samples from a uniform probability distribution.
 
-.. GENERATED FROM PYTHON SOURCE LINES 148-156
+.. GENERATED FROM PYTHON SOURCE LINES 147-155
 
 .. code-block:: Python
 
@@ -227,14 +226,14 @@ This systematic error samples from a uniform probability distribution.
         error_chain.append(pyv.ErrSysUnif(low=-10.0,
                                                 high=10.0))
 
-.. GENERATED FROM PYTHON SOURCE LINES 157-161
+.. GENERATED FROM PYTHON SOURCE LINES 156-160
 
 This random error is generated by sampling from a normal distribution
 with the given standard deviation in simulation units.
 This random error is generated as a percentage sampled from uniform
 probability distribution
 
-.. GENERATED FROM PYTHON SOURCE LINES 161-167
+.. GENERATED FROM PYTHON SOURCE LINES 160-166
 
 .. code-block:: Python
 
@@ -245,7 +244,7 @@ probability distribution
                                                     high_percent=5.0))
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 168-173
+.. GENERATED FROM PYTHON SOURCE LINES 167-172
 
 By default pyvale does not store all individual error source
 calculations (i.e. only the total random and total systematic error are
@@ -253,7 +252,7 @@ stored) to save memory but this can be changed using `ErrIntOpts`. This
 can also be used to force all errors to behave as if they are DEPENDENT or
 INDEPENDENT.
 
-.. GENERATED FROM PYTHON SOURCE LINES 173-182
+.. GENERATED FROM PYTHON SOURCE LINES 172-181
 
 .. code-block:: Python
 
@@ -267,25 +266,25 @@ INDEPENDENT.
         tc_array.set_error_integrator(error_integrator)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 183-185
+.. GENERATED FROM PYTHON SOURCE LINES 182-184
 
 Now that we have added our error chain we can run a simulation to sample
 from all our error sources.
 
-.. GENERATED FROM PYTHON SOURCE LINES 185-187
+.. GENERATED FROM PYTHON SOURCE LINES 184-186
 
 .. code-block:: Python
 
     measurements = tc_array.calc_measurements()
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 188-191
+.. GENERATED FROM PYTHON SOURCE LINES 187-190
 
 We display the simulation results by printing to the console and by
 plotting the sensor times traces. Try experimenting with the errors above
 to see how the results change.
 
-.. GENERATED FROM PYTHON SOURCE LINES 191-222
+.. GENERATED FROM PYTHON SOURCE LINES 190-221
 
 .. code-block:: Python
 

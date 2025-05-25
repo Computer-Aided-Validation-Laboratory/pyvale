@@ -26,7 +26,7 @@ Examples using ``pyvale.FieldScalar``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Building a point sensor array from scratch with custom errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Building a point sensor array from scratch with custom errors</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.FieldScalar``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Sensor spatial averaging and averaging errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Sensor spatial averaging and averaging errors</div>
     </div>
 
 

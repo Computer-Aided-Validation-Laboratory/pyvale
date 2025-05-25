@@ -18,10 +18,10 @@
 .. _sphx_glr_examples_basics_ex1_6_caliberrs_therm2d.py:
 
 
-Basics Sensor calibration systematic errors
+Basics: Sensor calibration systematic errors
 ================================================================================
 
-In this example we show how pyvale can simulate sensor calibration errors with
+In this example we show how `pyvale` can simulate sensor calibration errors with
 user defined calibration functions.
 
 Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation

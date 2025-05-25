@@ -26,7 +26,7 @@ Examples using ``pyvale.DataSet.thermal_2d_path``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Basics of pyvale point sensor simulation</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Pyvale point sensor simulation</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.DataSet.thermal_2d_path``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Sensor model & get_measurements() vs calc_measurements()</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Sensor model & get_measurements() vs calc_measurements()</div>
     </div>
 
 
@@ -68,7 +68,7 @@ Examples using ``pyvale.DataSet.thermal_2d_path``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Sensor calibration systematic errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Sensor calibration systematic errors</div>
     </div>
 
 
@@ -89,7 +89,7 @@ Examples using ``pyvale.DataSet.thermal_2d_path``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Sensor spatial averaging and averaging errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Sensor spatial averaging and averaging errors</div>
     </div>
 
 

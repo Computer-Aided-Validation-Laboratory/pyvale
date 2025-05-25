@@ -18,12 +18,12 @@
 .. _sphx_glr_examples_basics_ex1_1_basicscalars_therm2d.py:
 
 
-Basics Basics of pyvale point sensor simulation
+Basics: Pyvale point sensor simulation
 ================================================================================
 
-In this example we introduce the basic features of pyvale for point sensor
+In this example we introduce the basic features of `pyvale` for point sensor
 simulation. We demonstrate quick sensor array construction with defaults using
-the pyvale sensor array factory. Finally we run a sensor simulation and display
+the `pyvale` sensor array factory. Finally we run a sensor simulation and display
 the output.
 
 Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation

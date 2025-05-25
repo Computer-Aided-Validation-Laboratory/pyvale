@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics Building a point sensor array from scratch with custom errors
+Basics: Building a point sensor array from scratch with custom errors
 ================================================================================
 
 Here we build a custom point sensor array from scratch that is similar to the
@@ -20,7 +20,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mooseherder as mh
 import pyvale as pyv
-
 
 #%%
 # To build our custom point sensor array we need to at minimum provide a

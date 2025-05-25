@@ -18,11 +18,11 @@
 .. _sphx_glr_examples_basics_ex1_2_sensormodel_therm2d.py:
 
 
-Basics Sensor model & `get_measurements()` vs `calc_measurements()`
+Basics: Sensor model & `get_measurements()` vs `calc_measurements()`
 ================================================================================
 
-In this example we explain the pyvale virtual sensor measurement model. For a
-virtual sensor in pyvale a measurement is defined as measurement = truth +
+In this example we explain the `pyvale` virtual sensor measurement model. For a
+virtual sensor in `pyvale` a measurement is defined as measurement = truth +
 systematic error + random error. Sources of systematic errors include: spatial/
 temporal averaging, uncertainty in position / sampling time / orientation,
 digitisation, saturation, and calibration. Sources of random error are generally
@@ -40,7 +40,7 @@ experiment by sampling / calculating the systematic and random errors.
 
 Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 
-.. GENERATED FROM PYTHON SOURCE LINES 30-37
+.. GENERATED FROM PYTHON SOURCE LINES 30-36
 
 .. code-block:: Python
 
@@ -51,8 +51,7 @@ Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 
 
 
-
-.. GENERATED FROM PYTHON SOURCE LINES 38-44
+.. GENERATED FROM PYTHON SOURCE LINES 37-43
 
 The first part of this example is the similar to basics example 1.1, so
 feel free to skip to after the first call to `calc_measurements()`.
@@ -61,7 +60,7 @@ Here we load a pre-generated MOOSE finite element simulation dataset that
 comes packaged with pyvale. The simulation is a 2D rectangular plate with
 a bi-directional temperature gradient.
 
-.. GENERATED FROM PYTHON SOURCE LINES 44-48
+.. GENERATED FROM PYTHON SOURCE LINES 43-47
 
 .. code-block:: Python
 
@@ -70,12 +69,12 @@ a bi-directional temperature gradient.
     field_key: str = "temperature"
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 49-51
+.. GENERATED FROM PYTHON SOURCE LINES 48-50
 
 Scale to mm to make 3D visualisation scaling easier as pyvista scales
 everything to unity
 
-.. GENERATED FROM PYTHON SOURCE LINES 51-55
+.. GENERATED FROM PYTHON SOURCE LINES 50-54
 
 .. code-block:: Python
 
@@ -84,13 +83,13 @@ everything to unity
                                         disp_comps=None)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 56-59
+.. GENERATED FROM PYTHON SOURCE LINES 55-58
 
 We now use a helper function to create a grid of sensor locations but we
 could have also manually built the numpy array of sensor locations which
 has the shape=(num_sensors,coord[x,y,z]).
 
-.. GENERATED FROM PYTHON SOURCE LINES 59-65
+.. GENERATED FROM PYTHON SOURCE LINES 58-64
 
 .. code-block:: Python
 
@@ -101,21 +100,21 @@ has the shape=(num_sensors,coord[x,y,z]).
     sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 66-70
+.. GENERATED FROM PYTHON SOURCE LINES 65-69
 
 This dataclass contains the parameters to build our sensor array. We can
 also customise the output frequency, the sensor area and the sensor
 orientation. For now we will use the defaults which assumes an ideal point
 sensor sampling at the simulation time steps.
 
-.. GENERATED FROM PYTHON SOURCE LINES 70-72
+.. GENERATED FROM PYTHON SOURCE LINES 69-71
 
 .. code-block:: Python
 
     sens_data = pyv.SensorData(positions=sens_pos)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 73-78
+.. GENERATED FROM PYTHON SOURCE LINES 72-77
 
 Now that we have our sensor locations we can use the sensor factory to
 build a basic thermocouple array with some useful defaults. In later
@@ -123,7 +122,7 @@ examples we will see how to customise sensor parameters and errors.
 This basic thermocouple array includes a 5% systematic and random error -
 We are specifically using exaggerated errors here for visualisation.
 
-.. GENERATED FROM PYTHON SOURCE LINES 78-85
+.. GENERATED FROM PYTHON SOURCE LINES 77-84
 
 .. code-block:: Python
 
@@ -135,19 +134,19 @@ We are specifically using exaggerated errors here for visualisation.
                                     errs_pc=5.0)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 86-88
+.. GENERATED FROM PYTHON SOURCE LINES 85-87
 
 We have built our sensor array so now we can call `calc_measurements()` to
 generate simulated sensor traces.
 
-.. GENERATED FROM PYTHON SOURCE LINES 88-90
+.. GENERATED FROM PYTHON SOURCE LINES 87-89
 
 .. code-block:: Python
 
     measurements = tc_array.calc_measurements()
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 91-96
+.. GENERATED FROM PYTHON SOURCE LINES 90-95
 
 From here we are going to experiment with repeated calls to
 `calc_measurements()` and `get_measurements()` for our sensor array. We
@@ -155,7 +154,7 @@ will print the results to the console as well as plotting time traces of
 the simulated sensor output. All further explanations are in the print
 statements below.
 
-.. GENERATED FROM PYTHON SOURCE LINES 96-152
+.. GENERATED FROM PYTHON SOURCE LINES 95-151
 
 .. code-block:: Python
 

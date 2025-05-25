@@ -8,15 +8,6 @@
    "name": "from_euler"
   }
  ],
- "__name__": [
-  {
-   "is_class": false,
-   "is_explicit": false,
-   "module": "builtins",
-   "module_short": "builtins",
-   "name": "str"
-  }
- ],
  "mh.ExodusReader": [
   {
    "is_class": false,

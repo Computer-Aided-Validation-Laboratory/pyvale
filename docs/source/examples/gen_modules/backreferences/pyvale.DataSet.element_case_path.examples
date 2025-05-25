@@ -26,7 +26,7 @@ Examples using ``pyvale.DataSet.element_case_path``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics 3D vector field sensors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: 3D vector field sensors</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.DataSet.element_case_path``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Custom tensor field sensors (strain gauges) in 3D</div>
     </div>
 
 

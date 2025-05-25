@@ -26,7 +26,7 @@ Examples using ``pyvale.ErrSysField``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Field-based systematic errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Field-based systematic errors</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.ErrSysField``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Sensor spatial averaging and averaging errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Sensor spatial averaging and averaging errors</div>
     </div>
 
 
@@ -68,7 +68,7 @@ Examples using ``pyvale.ErrSysField``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Sensor angles for vector fields</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Sensor angles for vector fields</div>
     </div>
 
 
@@ -89,7 +89,7 @@ Examples using ``pyvale.ErrSysField``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Chaining field errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Chaining field errors</div>
     </div>
 
 
@@ -110,7 +110,7 @@ Examples using ``pyvale.ErrSysField``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Custom tensor field sensors (strain gauges) in 3D</div>
     </div>
 
 
@@ -131,7 +131,7 @@ Examples using ``pyvale.ErrSysField``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Multi-physics experiment simulation in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Multi-physics experiment simulation in 3D</div>
     </div>
 
 

@@ -26,7 +26,7 @@ Examples using ``pyvale.FieldTensor``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 2D</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Custom tensor field sensors (strain gauges) in 2D</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.FieldTensor``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics: Custom tensor field sensors (strain gauges) in 3D</div>
     </div>
 
 

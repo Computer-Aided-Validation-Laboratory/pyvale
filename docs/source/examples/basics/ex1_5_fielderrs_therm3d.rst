@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex1_5_fielderrs_therm3d.py:
 
 
-Basics Field-based systematic errors
+Basics: Field-based systematic errors
 ================================================================================
 
 In this example we give an overview of field-based systematic errors. Field

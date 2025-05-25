@@ -5,10 +5,10 @@
 # ==============================================================================
 
 """
-Basics Sensor spatial averaging and averaging errors
+Basics: Sensor spatial averaging and averaging errors
 ================================================================================
 
-In this example we show how pyvale can simulate sensor spatial averaging for
+In this example we show how `pyvale` can simulate sensor spatial averaging for
 ground truth calculations as well as for calculating systematic errors.
 
 Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
