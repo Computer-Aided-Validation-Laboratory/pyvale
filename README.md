@@ -1,5 +1,7 @@
-# pyvale
-![fig_pyvale_logo](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/lf-dev/images/pyvale_logo.png)
+# Pyvale
+![fig_pyvale_logo](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/pyvale_logo.png)
+<!-- ![fig_pyvale_logo](images/pyvale_logo.png) -->
+
 The python validation engine (`pyvale`): An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation.​ Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
 
 ## Quick Demo: Simulating Point Sensors
