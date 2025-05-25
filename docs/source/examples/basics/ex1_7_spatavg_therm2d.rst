@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex1_7_spatavg_therm2d.py:
 
 
-Pyvale example: Sensor spatial averaging and averaging errors
+Basics Sensor spatial averaging and averaging errors
 ================================================================================
 
 In this example we show how pyvale can simulate sensor spatial averaging for

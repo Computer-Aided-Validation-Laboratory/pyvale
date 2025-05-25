@@ -26,7 +26,7 @@ Examples using ``pyvale.SensorArrayFactory.thermocouples_basic_errs``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Basics of pyvale point sensor simulation</div>
+      <div class="sphx-glr-thumbnail-title">Basics Basics of pyvale point sensor simulation</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.SensorArrayFactory.thermocouples_basic_errs``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor model & get_measurements() vs calc_measurements()</div>
+      <div class="sphx-glr-thumbnail-title">Basics Sensor model & get_measurements() vs calc_measurements()</div>
     </div>
 
 
@@ -68,7 +68,7 @@ Examples using ``pyvale.SensorArrayFactory.thermocouples_basic_errs``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Multi-physics experiment simulation in 2D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Multi-physics experiment simulation in 2D</div>
     </div>
 
 

@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex3_1_basictensors_strain2d.py:
 
 
-Pyvale example: Basic tensor field sensors (strain gauges)
+Basics Basic tensor field sensors (strain gauges)
 ================================================================================
 
 In this example we use the sensor array factory to build a set of strain

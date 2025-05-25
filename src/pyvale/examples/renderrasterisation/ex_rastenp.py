@@ -28,7 +28,7 @@ import pyvale as pyv
 
 
 def main() -> None:
-    """pyvale example: rasterisation field renderer
+    """Basics rasterisation field renderer
     ----------------------------------------------------------------------------
     """
     # This a path to an exodus *.e output file from MOOSE, this can be

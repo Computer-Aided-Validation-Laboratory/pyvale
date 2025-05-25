@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex2_3_sensangle_disp2d.py:
 
 
-Pyvale example: Sensor angles for vector fields
+Basics Sensor angles for vector fields
 ================================================================================
 
 In this example we demonstrate how to setup vector field sensors at custom

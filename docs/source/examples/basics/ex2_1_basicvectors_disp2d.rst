@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex2_1_basicvectors_disp2d.py:
 
 
-Pyvale example: Basic vector field (displacement) sensors
+Basics Basic vector field (displacement) sensors
 ================================================================================
 
 In this example we use the sensor array factory to build a set of displacement

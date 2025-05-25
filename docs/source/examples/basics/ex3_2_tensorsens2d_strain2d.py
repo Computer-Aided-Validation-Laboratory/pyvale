@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Pyvale example: Custom tensor field sensors (strain gauges) in 2D
+Basics Custom tensor field sensors (strain gauges) in 2D
 ================================================================================
 
 In this example we build a custom tensor field sensor array (i.e. a strain gauge

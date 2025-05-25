@@ -26,7 +26,7 @@ Examples using ``pyvale.plot_point_sensors_on_sim``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Basics of pyvale point sensor simulation</div>
+      <div class="sphx-glr-thumbnail-title">Basics Basics of pyvale point sensor simulation</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.plot_point_sensors_on_sim``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Building a point sensor array from scratch with custom errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Building a point sensor array from scratch with custom errors</div>
     </div>
 
 
@@ -68,7 +68,7 @@ Examples using ``pyvale.plot_point_sensors_on_sim``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Field-based systematic errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Field-based systematic errors</div>
     </div>
 
 
@@ -89,7 +89,7 @@ Examples using ``pyvale.plot_point_sensors_on_sim``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Basic vector field (displacement) sensors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Basic vector field (displacement) sensors</div>
     </div>
 
 
@@ -110,7 +110,7 @@ Examples using ``pyvale.plot_point_sensors_on_sim``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Custom vector field sensors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Custom vector field sensors</div>
     </div>
 
 
@@ -131,7 +131,7 @@ Examples using ``pyvale.plot_point_sensors_on_sim``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: 3D vector field sensors</div>
+      <div class="sphx-glr-thumbnail-title">Basics 3D vector field sensors</div>
     </div>
 
 
@@ -152,7 +152,7 @@ Examples using ``pyvale.plot_point_sensors_on_sim``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Basic tensor field sensors (strain gauges)</div>
+      <div class="sphx-glr-thumbnail-title">Basics Basic tensor field sensors (strain gauges)</div>
     </div>
 
 
@@ -173,7 +173,7 @@ Examples using ``pyvale.plot_point_sensors_on_sim``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Custom tensor field sensors (strain gauges) in 2D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 2D</div>
     </div>
 
 
@@ -194,7 +194,7 @@ Examples using ``pyvale.plot_point_sensors_on_sim``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Custom tensor field sensors (strain gauges) in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 3D</div>
     </div>
 
 
@@ -215,7 +215,7 @@ Examples using ``pyvale.plot_point_sensors_on_sim``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Multi-physics experiment simulation in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Multi-physics experiment simulation in 3D</div>
     </div>
 
 

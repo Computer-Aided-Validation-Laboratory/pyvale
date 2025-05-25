@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex1_1_basicscalars_therm2d.py:
 
 
-Pyvale example: Basics of pyvale point sensor simulation
+Basics Basics of pyvale point sensor simulation
 ================================================================================
 
 In this example we introduce the basic features of pyvale for point sensor

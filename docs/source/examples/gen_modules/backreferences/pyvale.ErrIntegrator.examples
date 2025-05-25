@@ -26,7 +26,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Building a point sensor array from scratch with custom errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Building a point sensor array from scratch with custom errors</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Overview of the basic error library</div>
+      <div class="sphx-glr-thumbnail-title">Basics Overview of the basic error library</div>
     </div>
 
 
@@ -68,7 +68,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Field-based systematic errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Field-based systematic errors</div>
     </div>
 
 
@@ -89,7 +89,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor calibration systematic errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Sensor calibration systematic errors</div>
     </div>
 
 
@@ -110,7 +110,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor spatial averaging and averaging errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Sensor spatial averaging and averaging errors</div>
     </div>
 
 
@@ -131,7 +131,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Custom vector field sensors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Custom vector field sensors</div>
     </div>
 
 
@@ -152,7 +152,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor angles for vector fields</div>
+      <div class="sphx-glr-thumbnail-title">Basics Sensor angles for vector fields</div>
     </div>
 
 
@@ -173,7 +173,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Chaining field errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Chaining field errors</div>
     </div>
 
 
@@ -194,7 +194,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Custom tensor field sensors (strain gauges) in 2D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 2D</div>
     </div>
 
 
@@ -215,7 +215,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Custom tensor field sensors (strain gauges) in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 3D</div>
     </div>
 
 
@@ -236,7 +236,7 @@ Examples using ``pyvale.ErrIntegrator``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Multi-physics experiment simulation in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Multi-physics experiment simulation in 3D</div>
     </div>
 
 

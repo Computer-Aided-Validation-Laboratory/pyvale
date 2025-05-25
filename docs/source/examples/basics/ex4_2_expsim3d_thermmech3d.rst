@@ -17,7 +17,7 @@
 
 .. _sphx_glr_examples_basics_ex4_2_expsim3d_thermmech3d.py:
 
-Pyvale example: Multi-physics experiment simulation in 3D
+Basics Multi-physics experiment simulation in 3D
 ================================================================================
 
 In the previous example we performed a series of simulated experiments on a set

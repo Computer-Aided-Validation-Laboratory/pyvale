@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex2_4_chainfielderrs_disp2d.py:
 
 
-Pyvale example: Chaining field errors
+Basics Chaining field errors
 ================================================================================
 
 In this example we show how field errors can be chained together and accumulated

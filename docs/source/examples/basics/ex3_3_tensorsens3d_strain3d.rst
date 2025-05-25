@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex3_3_tensorsens3d_strain3d.py:
 
 
-Pyvale example: Custom tensor field sensors (strain gauges) in 3D
+Basics Custom tensor field sensors (strain gauges) in 3D
 ================================================================================
 
 In this example we build a custom tensor field sensor array (i.e. a strain gauge

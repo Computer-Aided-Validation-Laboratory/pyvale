@@ -15,7 +15,7 @@ import mooseherder as mh
 import pyvale
 
 def main() -> None:
-    """pyvale example: tests that when only one sensor rotation is provided that
+    """Basics tests that when only one sensor rotation is provided that
     all sensors are assumed to have the same rotation and batch processed.
     """
     #---------------------------------------------------------------------------

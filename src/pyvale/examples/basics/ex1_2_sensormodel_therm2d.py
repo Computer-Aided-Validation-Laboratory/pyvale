@@ -5,11 +5,11 @@
 # ==============================================================================
 
 """
-Pyvale example: Sensor model & `get_measurements()` vs `calc_measurements()`
+Basics: Sensor model & `get_measurements()` vs `calc_measurements()`
 ================================================================================
 
-In this example we explain the pyvale virtual sensor measurement model. For a
-virtual sensor in pyvale a measurement is defined as measurement = truth +
+In this example we explain the `pyvale` virtual sensor measurement model. For a
+virtual sensor in `pyvale` a measurement is defined as measurement = truth +
 systematic error + random error. Sources of systematic errors include: spatial/
 temporal averaging, uncertainty in position / sampling time / orientation,
 digitisation, saturation, and calibration. Sources of random error are generally
@@ -31,7 +31,6 @@ Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 import matplotlib.pyplot as plt
 import mooseherder as mh
 import pyvale as pyv
-
 
 
 #%%

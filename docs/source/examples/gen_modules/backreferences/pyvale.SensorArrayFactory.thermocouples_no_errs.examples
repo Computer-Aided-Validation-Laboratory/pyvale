@@ -26,7 +26,7 @@ Examples using ``pyvale.SensorArrayFactory.thermocouples_no_errs``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Overview of the basic error library</div>
+      <div class="sphx-glr-thumbnail-title">Basics Overview of the basic error library</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.SensorArrayFactory.thermocouples_no_errs``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Field-based systematic errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Field-based systematic errors</div>
     </div>
 
 
@@ -68,7 +68,7 @@ Examples using ``pyvale.SensorArrayFactory.thermocouples_no_errs``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor calibration systematic errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Sensor calibration systematic errors</div>
     </div>
 
 
@@ -89,7 +89,7 @@ Examples using ``pyvale.SensorArrayFactory.thermocouples_no_errs``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Multi-physics experiment simulation in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Multi-physics experiment simulation in 3D</div>
     </div>
 
 

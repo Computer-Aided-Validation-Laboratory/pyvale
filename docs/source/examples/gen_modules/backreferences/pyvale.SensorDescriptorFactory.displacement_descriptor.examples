@@ -26,7 +26,7 @@ Examples using ``pyvale.SensorDescriptorFactory.displacement_descriptor``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Sensor angles for vector fields</div>
+      <div class="sphx-glr-thumbnail-title">Basics Sensor angles for vector fields</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.SensorDescriptorFactory.displacement_descriptor``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Chaining field errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Chaining field errors</div>
     </div>
 
 
@@ -68,7 +68,7 @@ Examples using ``pyvale.SensorDescriptorFactory.displacement_descriptor``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: 3D vector field sensors</div>
+      <div class="sphx-glr-thumbnail-title">Basics 3D vector field sensors</div>
     </div>
 
 

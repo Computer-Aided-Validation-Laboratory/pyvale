@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Pyvale example: Building a point sensor array from scratch with custom errors
+Basics Building a point sensor array from scratch with custom errors
 ================================================================================
 
 Here we build a custom point sensor array from scratch that is similar to the

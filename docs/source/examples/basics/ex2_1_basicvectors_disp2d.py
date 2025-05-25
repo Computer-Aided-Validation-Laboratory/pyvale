@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Pyvale example: Basic vector field (displacement) sensors
+Basics Basic vector field (displacement) sensors
 ================================================================================
 
 In this example we use the sensor array factory to build a set of displacement

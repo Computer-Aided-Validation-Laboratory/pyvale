@@ -26,7 +26,7 @@ Examples using ``pyvale.GenUniform``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Overview of the basic error library</div>
+      <div class="sphx-glr-thumbnail-title">Basics Overview of the basic error library</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.GenUniform``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Custom tensor field sensors (strain gauges) in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Custom tensor field sensors (strain gauges) in 3D</div>
     </div>
 
 
@@ -68,7 +68,7 @@ Examples using ``pyvale.GenUniform``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Multi-physics experiment simulation in 3D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Multi-physics experiment simulation in 3D</div>
     </div>
 
 

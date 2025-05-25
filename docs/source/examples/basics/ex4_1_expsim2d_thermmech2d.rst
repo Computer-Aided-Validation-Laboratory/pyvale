@@ -17,7 +17,7 @@
 
 .. _sphx_glr_examples_basics_ex4_1_expsim2d_thermmech2d.py:
 
-Pyvale example: Multi-physics experiment simulation in 2D
+Basics Multi-physics experiment simulation in 2D
 ================================================================================
 
 In previous examples we have built our virtual sensor array and used this to

@@ -26,7 +26,7 @@ Examples using ``pyvale.ErrSysOffset``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Building a point sensor array from scratch with custom errors</div>
+      <div class="sphx-glr-thumbnail-title">Basics Building a point sensor array from scratch with custom errors</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.ErrSysOffset``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Overview of the basic error library</div>
+      <div class="sphx-glr-thumbnail-title">Basics Overview of the basic error library</div>
     </div>
 
 

@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Pyvale example: Basic tensor field sensors (strain gauges)
+Basics Basic tensor field sensors (strain gauges)
 ================================================================================
 
 In this example we use the sensor array factory to build a set of strain

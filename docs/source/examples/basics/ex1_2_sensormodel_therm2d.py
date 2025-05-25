@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Pyvale example: Sensor model & `get_measurements()` vs `calc_measurements()`
+Basics Sensor model & `get_measurements()` vs `calc_measurements()`
 ================================================================================
 
 In this example we explain the pyvale virtual sensor measurement model. For a

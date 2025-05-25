@@ -14,7 +14,7 @@ import pyvale
 
 
 def main() -> None:
-    """pyvale example:
+    """Basics
     """
     # Use mooseherder to read the exodus and get a SimData object
     data_path = Path('src/data/case16_out.e')

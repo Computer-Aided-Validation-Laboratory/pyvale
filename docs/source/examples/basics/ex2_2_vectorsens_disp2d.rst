@@ -18,7 +18,7 @@
 .. _sphx_glr_examples_basics_ex2_2_vectorsens_disp2d.py:
 
 
-Pyvale example: Custom vector field sensors
+Basics Custom vector field sensors
 ================================================================================
 
 In this example we build a custom vector field sensor array which mimics the

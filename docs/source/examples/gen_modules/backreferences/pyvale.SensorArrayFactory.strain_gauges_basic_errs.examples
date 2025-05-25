@@ -26,7 +26,7 @@ Examples using ``pyvale.SensorArrayFactory.strain_gauges_basic_errs``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Basic tensor field sensors (strain gauges)</div>
+      <div class="sphx-glr-thumbnail-title">Basics Basic tensor field sensors (strain gauges)</div>
     </div>
 
 
@@ -47,7 +47,7 @@ Examples using ``pyvale.SensorArrayFactory.strain_gauges_basic_errs``
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">Pyvale example: Multi-physics experiment simulation in 2D</div>
+      <div class="sphx-glr-thumbnail-title">Basics Multi-physics experiment simulation in 2D</div>
     </div>
 
 
