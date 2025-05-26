@@ -1,7 +1,9 @@
 # Pyvale
 ![fig_pyvale_logo](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/pyvale_logo.png)
 
-The python validation engine (`pyvale`): An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation.​ Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
+The python validation engine (`pyvale`): An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation. Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
+
+We provide dedicated tools for simulation and uncertainty quantification of imaging sensors including digital image correlation (DIC) and infra-red thermography (IRT). Check out the [documentation](https://computer-aided-validation-laboratory.github.io/pyvale/examples.html) to get started with some of our examples.
 
 ## Quick Demo: Simulating Point Sensors
 Here we demonstrate how `pyvale` can be used to simulate thermocouples and strain gauges applied to a [MOOSE](https://mooseframework.inl.gov/index.html) thermo-mechanical simulation of a fusion divertor armour heatsink. The figures below show visualisations of the virtual thermocouple and strain gauge locations on the simualtion mesh as well as time traces for each sensor over a series of simulated experiments.
@@ -56,13 +58,13 @@ python3.11 -m venv .pyvale-env
 source .pyvale-env/bin/activate
 ```
 
-### Standard Installation
-`pyvale` can be installed from pypi. Ensure you virtual environment is activated and run:
+### Standard Local Installation
+`pyvale` can be installed from pypi. Ensure you virtual environment is activated and run the following from the `pyvale` directory:
 ```shell
 pip install pyvale
 ```
 
-### Developer Installation
+### Developer Local Installation
 
 Clone `pyvale` to your local system along with submodules using:
 ```shell
@@ -76,7 +78,7 @@ pip install -e ./dependencies/mooseherder
 ```
 
 ### Running Physics Simulations with MOOSE
-`pyvale` come pre-packaged with example `moose` physics simulation outputs (as *.e exodus files) to demonstrate its functionality. If you need to run additional simulation cases we recommend `proteus` (https://github.com/aurora-multiphysics/proteus) which has build scripts for common linux distributions.
+`pyvale` come pre-packaged with example `moose` physics simulation inputs (.i) and outputs (as '.e' exodus files) to demonstrate its functionality. If you need to run additional simulation cases we recommend `proteus` (https://github.com/aurora-multiphysics/proteus) which has build scripts for common linux distributions.
 
 ## Contributors
 The Computer Aided Validation Team at UKAEA:
