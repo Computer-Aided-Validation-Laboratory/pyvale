@@ -8,7 +8,7 @@ Mac OS
 ------------
 
 
-Ubuntu linux
+Ubuntu Linux
 -------------
 
 Managing Python Versions
@@ -26,6 +26,7 @@ Install python 3.11:
 .. code-block:: bash
 
    sudo apt install python3.11
+   sudo apt install python3.11-dev
 
 Add ``venv`` to your python 3.11 install:
 
