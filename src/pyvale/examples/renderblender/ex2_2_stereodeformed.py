@@ -13,6 +13,7 @@ to the sample, and rendering images at each deformation timestep.
 
 Test case: mechanical analysis of a plate with a hole loaded in tension.
 """
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
@@ -145,11 +146,7 @@ speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
 # %%
 # A speckle pattern can then be applied to the sample.
 # Firstly, the material properties of the sample must be specified, but these
-# will all be defaulted if no inputs are pro# Save Blender file
-# --------------------------------------------------------------------------
-# The file that will be saved is a Blender project file. This can be opened
-# with the Blender GUI to view the scene.
-pyvale.BlenderTools.save_blender_file(base_dir)vided.
+# will all be defaulted if no inputs are provided.
 #The speckle pattern can then be specified by providing a path to an image file
 # with the pattern.
 # The mm/px resolution of the camera must also be specified in order to
