@@ -4,14 +4,10 @@
    contain the root `toctree` directive.
 
 
-.. image:: _static/logo_no_background_inverted.png
+.. image:: ./_static/pyvale_logo.png
    :alt: Pyvale Logo
-   :class: only-dark
-
-.. image:: _static/logo_no_background.png
-   :alt: Pyvale Logo
-   :class: only-light
-
+   :align: center
+   :width: 600px
 
 The Python Validation Engine
 =============================
