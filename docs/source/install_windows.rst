@@ -3,7 +3,9 @@ Windows
 
 Installing Python
 -----------------
-To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` uses python 3.11. To install python 3.11 for windows grab the correct installer for your system (most likely windows 64 bit) from here: https://www.python.org/downloads/release/python-3119/.
+To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` uses python 3.11. To install python 3.11 for windows grab the correct installer for your system (most likely windows 64 bit) from the python website here: https://www.python.org/downloads/release/python-3119/.
+
+Launch the installer and make sure to select the following options during installation:
 
 
 Virtual Environment
