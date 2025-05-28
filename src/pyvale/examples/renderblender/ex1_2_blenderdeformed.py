@@ -76,7 +76,8 @@ part = scene.add_part(render_mesh, sim_spat_dim=3)
 # Set the part location
 part_location = np.array([0, 0, 0])
 pyvale.BlenderTools.move_blender_obj(part=part, pos_world=part_location)
-# Set part rotation
+# Set part rotationEx 2_2
+======
 part_rotation = Rotation.from_euler("xyz", [0, 0, 0], degrees=True)
 pyvale.BlenderTools.rotate_blender_obj(part=part, rot_world=part_rotation)
 

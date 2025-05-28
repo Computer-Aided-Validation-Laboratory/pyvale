@@ -5,120 +5,167 @@
 # ==============================================================================
 
 """
-Ex 3_1
-======
+Blender example: Rendering calibration images
+=============================================
+
+This example takes you through how to render calibration images for a given DIC
+setup.
 """
 import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
 import pyvale
 
-def main() -> None:
-    #NOTE: All lengths are to be specified in mm
+# %%
+# Firstly, a save path must be set.
+# In order to do this a base path must be set. Then all the generated files will
+# be saved to a subfolder within this specified base directory
+# (e.g. blenderimages).
+# If no base directory is specified, it will be set as your home directory.
 
-    # Set the save path
-    # --------------------------------------------------------------------------
-    # All the files saved will be saved to a subfolder within this specified
-    # base directory.
-    # This base directory can be specified by:
-    base_dir = Path("./")
-    # If no base directory is specified, it will be set as your home directory
+base_dir = Path.cwd()
 
-    # Creating the scene
-    # --------------------------------------------------------------------------
-    scene = pyvale.BlenderScene()
+# %%
+# Creating the scene
+# ^^^^^^^^^^^^^^^^^^
+# In order to create a DIC setup in Blender, first a scene must be created.
+# A scene is initialised using the `BlenderScene` class. All the subsequent
+# objects and actions necessary are then methods of this class.
+scene = pyvale.BlenderScene()
 
-    # Add the calibration target
-    # A rectangular calibration target of the specified size is added to the scene
-    target = scene.add_cal_target(target_size=np.array([150, 100, 10]))
+# %%
+# The next thing to add to the scene is the calibration target.
+# This is done by specifing the size of calibration target to add to the scene
+# by passing in an array of (width, height, depth).
+# The calibration target being simulated here is 12 x 9 with 10 mm spacing.
 
-    # Add the camera
-    cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
-                                 pixels_size=np.array([0.00345, 0.00345]),
-                                 pos_world=np.array([0, 0, 400]),
-                                 rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
-                                 roi_cent_world=(0, 0, 0),
-                                 focal_length=15.0)
-    # Set this to "symmetric" to get a symmetric stereo system or set this to
-    # "faceon" to get a face-on stereo system
-    stereo_setup = "faceon"
-    if stereo_setup == "symmetric":
-        stereo_system = pyvale.CameraTools.symmetric_stereo_cameras(
-            cam_data_0=cam_data_0,
-            stereo_angle=15.0)
-    if stereo_setup == "faceon":
-        stereo_system = pyvale.CameraTools.faceon_stereo_cameras(
-            cam_data_0=cam_data_0,
-            stereo_angle=15.0)
+target = scene.add_cal_target(target_size=np.array([150, 100, 10]))
 
-    scene.add_stereo_system(stereo_system)
+# %%
+# The cameras can then be initialised. A stereo camera system is defined by a
+# `CameraStereo` object, which contains the intrinsic parameters of both cameras
+# as well as the extrinsic parameters between them.
+# There are two ways to initialise a `CameraStereo` object.
+# One way is to specify the camera parameters separately for each camera, create
+# a `CameraStereo` object, and then add the stereo system using the
+# `add_stereo_system` method.
+# The other method is to use a convenience function, as shown below.
+# This requires you to first initialise one camera. Then you can choose between
+# either a face-on or symmetric stereo system. Then, either of the
+# `symmetric_stereo_cameras` or `faceon_stereo_cameras` functions can be used to
+# initialise a `CameraStereo` object. The only input required to these functions
+# are the camera parameters for the first camera, and the desired stereo angle
+# between the two. The cameras can then be added to the Blender scene using the
+# `add_stereo_system` method.
+cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
+                               pixels_size=np.array([0.00345, 0.00345]),
+                               pos_world=np.array([0, 0, 400]),
+                               rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
+                               roi_cent_world=(0, 0, 0),
+                               focal_length=15.0)
+# Set this to "symmetric" to get a symmetric stereo system or set this to
+# "faceon" to get a face-on stereo system
+stereo_setup = "faceon"
+if stereo_setup == "symmetric":
+    stereo_system = pyvale.CameraTools.symmetric_stereo_cameras(
+        cam_data_0=cam_data_0,
+        stereo_angle=15.0)
+if stereo_setup == "faceon":
+    stereo_system = pyvale.CameraTools.faceon_stereo_cameras(
+        cam_data_0=cam_data_0,
+        stereo_angle=15.0)
+scene.add_stereo_system(stereo_system)
 
-    # Generate calibration file
-    stereo_system.save_calibration(base_dir)
+# %%
+# Since this scene contains a stereo DIC system, a calibration file will be
+# required to run the images through a DIC engine.
+# A calibration file can be generated directly from the `CameraStereo` object.
+# The calibration file will be saved in `YAML` format. However, if you wish to
+# use MatchID to process the images, `save_calibration_mid` can be used instead
+# to save the calibration in a format readable by MatchID.
+# The calibration file will be saved to a sub-directory of the base directory
+# called "calibration".
+# This calibration file with "perfect" parameters can be used as a comparitive
+# benchmark to the calibration gained from running the calibration files through
+# a DIC engine.
+stereo_system.save_calibration(base_dir)
 
-    # Add the light
-    light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
-                                         pos_world=(0, 0, 200),
-                                         rot_world=Rotation.from_euler("xyz",
-                                                                       [0, 0, 0]),
-                                         energy=1)
-    light = scene.add_light(light_data)
-    # The light can be moved and rotated:
-    light.location = (0, 0, 210)
-    light.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
+# %%
+# A light can the be added to the scene.
+# Blender offers different light types: Point, Sun, Spot and Area.
+# The light can also be moved and rotated like the camera.
 
-    # Apply the calibration target pattern
-    material_data = pyvale.BlenderMaterialData()
-    speckle_path = Path.cwd() / "src/pyvale/data/cal_target.tiff"
-    mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data_0)
-    scene.add_speckle(part=target,
-                                    speckle_path=speckle_path,
-                                    mat_data=material_data,
-                                    mm_px_resolution=mm_px_resolution,
-                                    cal=True)
-    # NOTE: The `cal` flag has to be set to True in order to scale the
-    # calibration target pattern correctly
+light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
+                                     pos_world=(0, 0, 200),
+                                     rot_world=Rotation.from_euler("xyz",
+                                                                  [0, 0, 0]),
+                                     energy=1)
+light = scene.add_light(light_data)
+light.location = (0, 0, 210)
+light.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
 
-    # Rendering calibration images
-    # --------------------------------------------------------------------------
-    save_dir = Path.cwd() / "blenderimages"
-    save_name = "cal"
-    render_data = pyvale.RenderData(cam_data=(stereo_system.cam_data_0,
-                                              stereo_system.cam_data_1),
-                                    base_dir=base_dir)
-    # NOTE: The number of threads used to render the images is set within
-    # RenderData, it is defaulted to 4 threads
+# %%
+# The calibration target pattern can then be added to the calibration target
+# object.
+# This is added in the same way that a speckle pattern is added to a sample.
+# However, it is important to set the `cal` flag to True, as this means that the
+# calibration target pattern will not be scaled in the same way as a speckle
+# pattern.
 
-    # The desired limits for the calibration target movement are to be set within
-    # the CalibrationData dataclass
-    calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
-                                              angle_step=5,
-                                              plunge_lims=(-5, 5),
-                                              plunge_step=5)
+material_data = pyvale.BlenderMaterialData()
+speckle_path = Path.cwd() / "src/pyvale/data/cal_target.tiff"
+mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data_0)
+scene.add_speckle(part=target,
+                  speckle_path=speckle_path,
+                  mat_data=material_data,
+                  mm_px_resolution=mm_px_resolution,
+                  cal=True)
 
-    # The number of calibration images that will be rendered can be calculated
-    number_calibration_images = pyvale.BlenderTools.number_calibration_images(calibration_data)
-    print()
-    print(80*"-")
-    print("Number of calibration images to be rendered:", number_calibration_images)
-    print(80*"-")
+# %%
+# Rendering a set of images
+# ^^^^^^^^^^^^^^^^^^^^^^^^^
+# Once all the objects have been added to the scene, a set of images can be
+# rendered.Firstly, all the rendering parameters must be set, including
+# parameters such as the number of threads to use.
 
-    # The calibration images can then be rendered
-    pyvale.BlenderTools.render_calibration_images(render_data,
-                                                  calibration_data,
-                                                  target)
+render_data = pyvale.RenderData(cam_data=(stereo_system.cam_data_0,
+                                            stereo_system.cam_data_1),
+                                base_dir=base_dir)
 
-    print()
-    print(80*"-")
-    print("Save directory of the images:", (render_data.base_dir / "calimages"))
-    print(80*"-")
-    print()
+# %%
+# The parameters for the calibration target's movement can then be set. This is
+# done by setting the minimum and maximum angle and plunge limits, as well as
+# the step value that they should be increased by.
 
-    # Save Blender file
-    # --------------------------------------------------------------------------
-    # The file that will be saved is a Blender project file. This can be opened
-    # with the Blender GUI to view the scene.
-    pyvale.BlenderTools.save_blender_file(base_dir)
+calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
+                                          angle_step=5,
+                                          plunge_lims=(-5, 5),
+                                          plunge_step=5)
 
-if __name__ == "__main__":
-    main()
+# %%
+# It is then possible to check the number of calibration images that will be
+# rendered before rendering them. The only input that is needed is the
+# `calibration_data` specified above.
+
+number_calibration_images = pyvale.BlenderTools.number_calibration_images(calibration_data)
+print("Number of calibration images to be rendered:", number_calibration_images)
+
+# %%
+# The calibration images can then be rendered. This function will move the
+# calibration target according to movement limits set above, and will also move
+# the target rigidly across the FOV of the camera, in order to characterise the
+# entire FOV of the cameras.
+pyvale.BlenderTools.render_calibration_images(render_data,
+                                              calibration_data,
+                                              target)
+
+# %%
+# The rendered images will be saved to this filepath:
+
+print("Save directory of the images:", (render_data.base_dir / "calimages"))
+
+# %%
+# There is also the option to save the scene as a Blender project file.
+# This file can be opened with the Blender GUI to view the scene.
+
+pyvale.BlenderTools.save_blender_file(base_dir)
