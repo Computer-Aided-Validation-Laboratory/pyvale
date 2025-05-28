@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Sensor angles for vector fields
---------------------------------------------------------------------------------
+================================================================================
+
 In this example we demonstrate how to setup vector field sensors at custom
 orientations with respect to the simulation coordinate system. We first build a
 sensor array aligned with the simulation coords in the same way as the previous

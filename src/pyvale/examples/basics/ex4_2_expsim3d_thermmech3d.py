@@ -5,7 +5,8 @@
 # ==============================================================================
 
 """Pyvale example: Multi-physics experiment simulation in 3D
---------------------------------------------------------------------------------
+================================================================================
+
 In the previous example we performed a series of simulated experiments on a set
 of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of
 a divertor armour heatsink to show how we can run simulated experiments in 3D.
@@ -29,6 +30,7 @@ def main() -> None:
     sim_path = pyv.DataSet.thermomechanical_3d_path()
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
     elem_dims: int = 3
+
     # We scale our length and displacement units to mm to help with
     # visualisation.
     disp_comps = ("disp_x","disp_y","disp_z")

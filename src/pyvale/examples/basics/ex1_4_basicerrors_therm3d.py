@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Overview of the basic error library
---------------------------------------------------------------------------------
+================================================================================
+
 Building on what we learned in examples 1.1-1.3 we now have a look at the basic
 error library for pyvale. The sensor error models in pyvale are grouped into the
 types of random (`ErrRand*`) and systematic (`ErrSys*`). In this example we will

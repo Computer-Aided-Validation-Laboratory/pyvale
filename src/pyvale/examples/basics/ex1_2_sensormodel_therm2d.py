@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Sensor model & `get_measurements()` vs `calc_measurements()`
---------------------------------------------------------------------------------
+================================================================================
+
 In this example we explain the pyvale virtual sensor measurement model. For a
 virtual sensor in pyvale a measurement is defined as measurement = truth +
 systematic error + random error. Sources of systematic errors include: spatial/

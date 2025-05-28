@@ -6,7 +6,8 @@
 
 """
 Pyvale example: Chaining field errors
-----------------------------------------------------------------------------
+================================================================================
+
 In this example we show how field errors can be chained together and accumulated
 allowing for successive perturbations in postion, sampling time and orientation.
 It is more computationally efficient to provide a single field error object as
