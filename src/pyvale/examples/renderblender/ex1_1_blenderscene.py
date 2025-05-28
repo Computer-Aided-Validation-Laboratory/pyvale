@@ -6,7 +6,7 @@
 
 """
 Blender example: Creating a scene with 2D DIC
-=============================================
+---------------------------------------------
 
 This example takes you through creating a scene and adding all the necessary
 objects required to represent a 2D DIC setup (camera, lighting and sample).

@@ -6,7 +6,7 @@
 
 """
 Blender example: Deforming a sample with 2D DIC
-===============================================
+-----------------------------------------------
 
 This example follows a similar workflow to the previous Blender example.
 In this example, defomation is applied to sample, and images are rendered at
@@ -14,6 +14,7 @@ each timestep.
 
 Test case: mechanical analysis of a plate with a hole loaded in tension.
 """
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path

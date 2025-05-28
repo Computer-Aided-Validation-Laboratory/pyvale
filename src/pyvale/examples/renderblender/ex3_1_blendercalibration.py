@@ -6,7 +6,7 @@
 
 """
 Blender example: Rendering calibration images
-=============================================
+---------------------------------------------
 
 This example takes you through how to render calibration images for a given DIC
 setup.

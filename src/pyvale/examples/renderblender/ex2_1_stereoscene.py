@@ -6,7 +6,7 @@
 
 """
 Blender example: Creating a scene with stereo DIC
-=============================================
+-------------------------------------------------
 
 This example takes you through creating a scene and adding all the necessary
 objects required to represent a stereo DIC setup (two cameras, lighting and

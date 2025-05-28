@@ -6,7 +6,7 @@
 
 """
 Blender example: Deforming a sample with stereo DIC
-===================================================
+---------------------------------------------------
 
 This example takes you through creating stereo DIC scene, applying deformation
 to the sample, and rendering images at each deformation timestep.
@@ -107,7 +107,11 @@ if stereo_setup == "symmetric":
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
 if stereo_setup == "faceon":
-    stereo_system = pyvale.CameraTools.faceon_stereo_cameras(
+    stereo_system = pyvale.CameraTools.face# Save Blender file
+# --------------------------------------------------------------------------
+# The file that will be saved is a Blender project file. This can be opened
+# with the Blender GUI to view the scene.
+pyvale.BlenderTools.save_blender_file(base_dir)on_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
 cam0, cam1 = scene.add_stereo_system(stereo_system)
@@ -145,7 +149,11 @@ speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
 # %%
 # A speckle pattern can then be applied to the sample.
 # Firstly, the material properties of the sample must be specified, but these
-# will all be defaulted if no inputs are provided.
+# will all be defaulted if no inputs are pro# Save Blender file
+# --------------------------------------------------------------------------
+# The file that will be saved is a Blender project file. This can be opened
+# with the Blender GUI to view the scene.
+pyvale.BlenderTools.save_blender_file(base_dir)vided.
 #The speckle pattern can then be specified by providing a path to an image file
 # with the pattern.
 # The mm/px resolution of the camera must also be specified in order to
