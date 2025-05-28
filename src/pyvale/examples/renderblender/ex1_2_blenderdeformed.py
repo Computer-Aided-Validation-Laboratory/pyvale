@@ -14,7 +14,6 @@ each timestep.
 
 Test case: mechanical analysis of a plate with a hole loaded in tension.
 """
-
 import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
