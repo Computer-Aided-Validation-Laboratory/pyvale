@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('../../src/pyvale/dic/'))
 project = 'Pyvale'
 copyright = '2025, The CAV Team'
 author = 'The CAV Team at United Kingdom Atomic Energy Authority (UKAEA)'
-release = '2025.4.1'
+release = '2025.5.3'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -68,12 +68,12 @@ language = 'english'
 html_theme = 'furo'
 html_static_path = ['_static']
 html_css_files = ["custom.css"]
-
 html_theme_options = {
-    "light_logo": "logo_no_background.png",
-    "dark_logo": "logo_no_background_inverted.png",
+    "light_logo": "pyvale_logo_badge.png",
+    "dark_logo": "pyvale_logo_badge.png",
 }
-html_title = "The Python Validation Engine"
+html_title = "Pyvale: The Python Validation Engine"
+html_favicon = "_static/pyvale_logo_badge.png"
 
 autosummary_generate = True
 autoclass_content = "both"
