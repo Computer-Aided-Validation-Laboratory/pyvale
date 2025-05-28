@@ -3,7 +3,7 @@
 
 The python validation engine (`pyvale`): An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation. Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
 
-We provide dedicated tools for simulation and uncertainty quantification of imaging sensors including digital image correlation (DIC) and infra-red thermography (IRT). Check out the [documentation](https://computer-aided-validation-laboratory.github.io/pyvale/examples.html) to get started with some of our examples.
+We provide dedicated tools for simulation and uncertainty quantification of imaging sensors including digital image correlation (DIC) and infra-red thermography (IRT). Check out the [documentation](https://computer-aided-validation-laboratory.github.io/pyvale/index.html) to get started with some of our examples.
 
 ## Quick Demo: Simulating Point Sensors
 Here we demonstrate how `pyvale` can be used to simulate thermocouples and strain gauges applied to a [MOOSE](https://mooseframework.inl.gov/index.html) thermo-mechanical simulation of a fusion divertor armour heatsink. The figures below show visualisations of the virtual thermocouple and strain gauge locations on the simualtion mesh as well as time traces for each sensor over a series of simulated experiments.
@@ -24,6 +24,8 @@ The code to run the simulated experiments and produce the output shown here come
 ```shell
 pip install pyvale
 ```
+
+We recommend installing `pyvale` into a virtual environment of your choice as `pyvale` requires python 3.11. If you need help setting up your virtual environment and installing `pyvale` head over to the [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install.html) in our docs.
 
 ## Detailed Install: Ubuntu
 ### Managing Python Versions
