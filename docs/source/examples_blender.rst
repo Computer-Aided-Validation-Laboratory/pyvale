@@ -1,3 +1,5 @@
+.. _examples_blender:
+
 Blender
 =======
 

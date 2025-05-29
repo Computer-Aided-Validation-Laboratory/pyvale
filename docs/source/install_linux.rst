@@ -1,3 +1,5 @@
+.. _install_linux:
+
 Ubuntu Linux
 =============
 

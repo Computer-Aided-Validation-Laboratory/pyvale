@@ -1,3 +1,5 @@
+.. _examples_all:
+
 Pyvale Examples
 ================
 

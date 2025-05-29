@@ -1,3 +1,5 @@
+.. _install_all:
+
 Installation
 ===================
 We have detailed install guides for non-specialist python users for the common operating systems below. This includes walkthroughs on how to install the correct python version for your operating system and how to setup a virtual environment to install ``pyvale``.

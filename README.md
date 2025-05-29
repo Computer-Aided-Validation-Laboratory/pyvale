@@ -27,72 +27,17 @@ pip install pyvale
 
 We recommend installing `pyvale` into a virtual environment of your choice as `pyvale` requires python 3.11. If you need help setting up your virtual environment and installing `pyvale` head over to the [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install.html) in our docs.
 
-## Detailed Install: Ubuntu
-### Managing Python Versions
-To be compatible with `bpy` (the Blender python interface), `pyvale` uses python 3.11. To install python 3.11 without corrupting your operating systems python installation first add the deadsnakes repository to apt:
-```shell
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt update && sudo apt upgrade -y
-```
-
-Install python 3.11 and the dev version:
-```shell
-sudo apt install python3.11
-sudo apt install python3.11-dev
-```
-
-Add `venv` to your python 3.11 install:
-```shell
-sudo apt install python3.11-venv
-```
-
-Check your python 3.11 install is working using the following command which should open an interactive python interpreter:
-```shell
-python3.11
-```
-
-### Virtual Environment
-
-We recommend installing `pyvale` in a virtual environment using `venv` or `pyvale` can be installed into an existing environment of your choice. To create a specific virtual environment for `pyvale` navigate to the directory you want to install the environment and use:
-
-```shell
-python3.11 -m venv .pyvale-env
-source .pyvale-env/bin/activate
-```
-
-### Standard Local Installation
-`pyvale` can be installed from pypi. Ensure you virtual environment is activated and run the following from the `pyvale` directory:
-```shell
-pip install pyvale
-```
-
-### Developer Local Installation
-
-Clone `pyvale` to your local system along with submodules using:
-```shell
-git clone --recurse-submodules git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
-```
-
-`cd` to the root directory of `pyvale`. Ensure you virtual environment is activated and run the following commmand from the `pyvale` directory:
-```shell
-pip install -e .
-pip install -e ./dependencies/mooseherder
-```
-
-### Running Physics Simulations with MOOSE
-`pyvale` come pre-packaged with example `moose` physics simulation inputs (.i) and outputs (as '.e' exodus files) to demonstrate its functionality. If you need to run additional simulation cases we recommend `proteus` (https://github.com/aurora-multiphysics/proteus) which has build scripts for common linux distributions.
-
 ## Contributors
 The Computer Aided Validation Team at UKAEA:
 - Lloyd Fletcher ([ScepticalRabbit](https://github.com/ScepticalRabbit)), UK Atomic Energy Authority
 - Joel Hirst ([JoelPhys](https://github.com/JoelPhys)), UK Atomic Energy Authority
-- John Charlton ([coolmule0](https://github.com/coolmule0)), UK Atomic Energy Authority
 - Lorna Sibson ([lornasibson](https://github.com/lornasibson)), UK Atomic Energy Authority
 - Megan Sampson ([meganasampson](https://github.com/meganasampson)), UK Atomic Energy Authority
 - Michael Atkinson ([mikesmic](https://github.com/mikesmic)), UK Atomic Energy Authority
 - Adel Tayeb ([3adelTayeb](https://github.com/3adelTayeb)), UK Atomic Energy Authority
 - Alex Marsh ([alexmarsh2](https://github.com/alexmarsh2)), UK Atomic Energy Authority
 - Rory Spencer ([fusmatrs](https://github.com/orgs/Computer-Aided-Validation-Laboratory/people/fusmatrs)), UK Atomic Energy Authority
+- John Charlton ([coolmule0](https://github.com/coolmule0)), UK Atomic Energy Authority
 
 
 
