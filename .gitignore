@@ -30,6 +30,7 @@ pyvale-output/
 !reports/images/*.svg
 !images/*.png
 !images/*.svg
+!docs/source/_static/*.png
 
 # Image deformation test cases
 *.pkl
