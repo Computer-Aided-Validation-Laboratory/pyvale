@@ -8,7 +8,7 @@ Installing python
 
 To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` uses python 3.11. To install python 3.11 for windows grab the correct installer for your system (most likely windows 64 bit) from the python website here: https://www.python.org/downloads/release/python-3119/.
 
-Launch the installer, select 'custom installation' and make sure the 'py launcher' option is checked. Then click next and finish the installation. If you are prompted to disable the maximum path length then click this to confirm you want to disable the path length. 
+Launch the installer, select 'custom installation' and make sure the 'py launcher' option is checked. Then click next and finish the installation. If you are prompted to disable the maximum path length then click this to confirm you want to disable the path length.
 
 Starting Python with the py Launcher
 -------------------------------------
@@ -19,17 +19,18 @@ To confirm your installation has worked you should open a windows command line u
 
    py -3.11
 
-If you see prompt with Python 3.11.9 in the header and the starting cursor has '>>>' then everything has worked. If you install other python versions on windows you can start them using the py launcher using this syntax ``py -#.#``. Where the '\#' is the version you want to start. For pyvale we will stick with python 3.11. 
+If you see prompt with Python 3.11.9 in the header and the starting cursor has '>>>' then everything has worked. If you install other python versions on windows you can start them using the py launcher using this syntax ``py -#.#``. Where the '\#' is the version you want to start. For pyvale we will stick with python 3.11.
 
 Troubleshooting the py launcher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you have trouble starting the py launcher it is most likely because the py launcher is not on the user path. You can fix this with the following steps:
+
 - Open the start menu by clicking on the windows icon, next to the power button click the settings icon which is a gear.
 - In the search bar for settings in the top right corner type 'View Advanced System Settings', click on this option to open a window with tabs.
 - Go to the 'Advanced' tab and at the bottom click the 'Environment Variables' button.
 - In the 'User Variables' box at the top go to the 'PATH' and click edit.
-- Add the path to the py launcher by clicking 'new'. The path will likely be: C:\Users\YOURUSERNAME\AppData\Local\Programs\Python\Launcher\, replacing YOURUSERNAME with your windows username.
+- Add the path to the py launcher by clicking 'new'. The path will likely be: C:\\Users\\YOURUSERNAME\\AppData\\Local\\Programs\\Python\\Launcher\\, replacing YOURUSERNAME with your windows username.
 
 You should now restart your system and try opening a python interpreter through the windows command line again.
 
@@ -93,6 +94,6 @@ For this case it is normally easier to keep your virtual environment stored in t
 .. code-block:: bash
 
    pip install -e .
-   pip install -e ./dependencies/mooseherder
+   pip install -e .\dependencies\mooseherder
 
 This will create an editable/developer installation of ``pyvale`` and ``mooseherder``.
