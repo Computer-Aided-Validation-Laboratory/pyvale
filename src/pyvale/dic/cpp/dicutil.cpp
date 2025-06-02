@@ -86,6 +86,8 @@ namespace util {
                 ss_def.vals[count] = img_def[idx];
                 count++;
                 
+                // debugging
+                //std::cout << px_x << " " << px_y << " " << img_def[idx] << std::endl;
             }
         }
     }
@@ -94,7 +96,8 @@ namespace util {
     SubsetData gen_ss_list(bool *img_roi, int ss_step, int ss_size, 
                                 int px_hori, int px_vert) {
         
-        Timer timer("generate subset list");
+        Timer timer("subset list generation for subset size " + std::to_string(ss_size) +
+                    " [px] with step " + std::to_string(ss_step) + " [px]:" );
 
         SubsetData ssdata;
 

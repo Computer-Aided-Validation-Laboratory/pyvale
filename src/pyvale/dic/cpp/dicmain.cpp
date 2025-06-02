@@ -50,10 +50,10 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     double* img_def_stack = static_cast<double*>(img_def_stack_arr.request().ptr);
  
     // testing with fourier method
-    int windows[3] = {128, 64, 32};
+    int windows[7] = {2048,1024,512,256,128,64,32};
     double *img_def = img_def_stack;
-    fourier::init(img_roi, conf, windows, 3);
-    fourier::mgwd(img_def, img_ref, windows, 3, conf);
+    fourier::init(img_roi, conf, windows, 7);
+    fourier::mgwd(img_def, img_ref, windows, 7, conf);
     fourier::cleanup();
     exit(0);
 
@@ -114,7 +114,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // -----------------------------------------------------------------------
     // loop over deformed images and perform DIC
     // -----------------------------------------------------------------------
-    util::Timer timer("DIC Engine");
+    util::Timer timer("DIC Engine:");
 
     for (int img_num = 0; img_num < conf.num_def_img; img_num++){
 

@@ -36,7 +36,7 @@ namespace util {
         ~Timer() {
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed = end - start_;
-            INFO_OUT("Time taken for " << label_, elapsed.count() << " [s]");
+            INFO_OUT("Time taken for " + label_, elapsed.count() << " [s]");
         }
 
     private:
