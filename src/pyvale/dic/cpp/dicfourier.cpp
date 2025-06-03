@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 // Program Header files
 #include "./defines.hpp"
@@ -19,7 +20,6 @@
 
 namespace fourier {
 
-    std::vector<util::SubsetData> ssdata;
     std::vector<util::Subset> ss_def;
     std::vector<util::Subset> ss_ref;
 
@@ -32,7 +32,6 @@ namespace fourier {
     std::vector<std::vector<double>> shift_x;
     std::vector<std::vector<double>> shift_y;
 
-
     // inverse fft
     std::vector<fftw_plan> plans_inv;
     std::vector<std::vector<double>> ifft_out;
@@ -40,11 +39,15 @@ namespace fourier {
     std::vector<std::vector<int>> neighlist;
 
 
-    void init(bool *img_roi, util::Config conf, int *windows, int n_windows){
+    void init(std::vector<util::SubsetData> ssdata, 
+              const bool *img_roi, const util::Config conf){
+        
+        util::Timer timer("entire FFT initislisation");
 
-        for (int i = 0; i < n_windows; i++) {
 
-            int w = windows[i];
+        for (size_t i = 0; i < conf.windows.size(); i++) {
+
+            int w = conf.windows[i];
 
             // generate subset information
             ssdata.push_back(util::gen_ss_list(img_roi, w/2, w,
@@ -54,9 +57,6 @@ namespace fourier {
             ss_ref.push_back(util::Subset(w));
             fft_def.push_back((fftw_complex*) fftw_malloc(sizeof(fftw_complex) * w * (w/2+1)));
             fft_ref.push_back((fftw_complex*) fftw_malloc(sizeof(fftw_complex) * w * (w/2+1)));
-
-            //std::cout << "ss_def size: " << ss_def[i].size << std::endl;
-            //std::cout << "ss_def vals size: " << ss_def[i].vals.size() << std::endl;
 
             // forward fftw plans
             plans_def.push_back(fftw_plan_dft_r2c_2d(w, w, &ss_def[i].vals[0], fft_def[i], FFTW_ESTIMATE));
@@ -77,30 +77,68 @@ namespace fourier {
 
             // precompute neighbouring windows
             if (i > 0){
-                neighlist.push_back(std::vector<int>(ssdata[i].num, 0));
-                get_neighlist(neighlist[i-1], ssdata[i], ssdata[i-1]);
+                neighlist.push_back(std::vector<int>(4*ssdata[i].num, 0));
+                get_4nn(neighlist[i-1], ssdata[i], ssdata[i-1]);
             }
 
-
         }
-
         std::cout << "Finished FFT initialisation" << std::endl;
     }
 
-
-
-    void mgwd(double *img_def, double *img_ref,
-              int *windows, int n_windows, 
-              util::Config conf){
-
+    void remove_outliers_auto(std::vector<double>& shift,
+                              util::SubsetData ssdata,
+                              double mad_scale = 3.0) {
+        
+        std::vector<double> updated = shift;
     
+        for (const auto& [idx, neighbors] : ssdata.neigh) {
+            if (neighbors.size() < 2) continue;
+    
+            std::vector<double> neigh_vals;
+            for (int n : neighbors) {
+                neigh_vals.push_back(shift[n]);
+            }
+    
+            // Compute median
+            std::sort(neigh_vals.begin(), neigh_vals.end());
+            double median = neigh_vals[neigh_vals.size() / 2];
+    
+            // Median Absolute Deviation
+            std::vector<double> abs_devs;
+            for (double v : neigh_vals) {
+                abs_devs.push_back(std::abs(v - median));
+            }
+            std::sort(abs_devs.begin(), abs_devs.end());
+            double mad = abs_devs[abs_devs.size() / 2];
+
+            if (mad == 0) continue; // no variation among neighbors
+
+            // If current shift deviates significantly, replace
+            if (std::abs(shift[idx] - median) > mad_scale * mad) {
+                updated[idx] = median;
+            }
+        }
+        //debugging
+        //for (int ss = 0; ss < ssdata.num; ss++){
+        //    std::cout << ssdata.coords[ss*2] << " " << ssdata.coords[ss*2+1] << " " << shift[ss] << " " << updated[ss] << std::endl;
+        //}
+        shift = std::move(updated);
+
+    }
+
+
+    void mgwd(const std::vector<util::SubsetData> ssdata,
+              const double *img_def, const double *img_ref,
+              const util::Config conf){
+
 
         // Loop over window size
-        for (int i = 0; i < n_windows; i++){
+        for (size_t i = 0; i < conf.windows.size(); i++){
 
-            int w = windows[i];
+            int w = conf.windows[i];
 
             int ss_x, ss_y;
+            int ss_x_centre, ss_y_centre;
             int shift_x_prev = 0;
             int shift_y_prev = 0;
 
@@ -109,23 +147,45 @@ namespace fourier {
 
                 ss_x = ssdata[i].coords[2*ss];
                 ss_y = ssdata[i].coords[2*ss+1];
+                ss_x_centre = ss_x + ssdata[i].step / 2.0;
+                ss_y_centre = ss_y + ssdata[i].step / 2.0;
+                    
 
                 // window has to always be decreasing in size
                 if (i > 0) {
 
-                    // assuming always 50% overlap
-                    shift_x_prev = shift_x[i-1][neighlist[i-1][ss]];
-                    shift_y_prev = shift_y[i-1][neighlist[i-1][ss]];
+                    //shift_x_prev = shift_x[i-1][neighlist[i-1][ss]];
+                    //shift_y_prev = shift_y[i-1][neighlist[i-1][ss]];
                     
+                    // take a weighted sum of 4 nearest neighbours
+                    const double epsilon = 1e-8;
+                    double weight_sum_x = 0.0;
+                    double weight_sum_y = 0.0;
+                    double weight_tot = 0.0;
+                    
+                    for (int j = 0; j < 4; ++j) {
+                        int nidx = neighlist[i - 1][ss * 4 + j];
+
+                        int neigh_x = ssdata[i-1].coords[2*nidx];
+                        int neigh_y = ssdata[i-1].coords[2*nidx + 1];
+                        double neigh_x_centre = neigh_x + ssdata[i-1].step / 2.0;
+                        double neigh_y_centre = neigh_y + ssdata[i-1].step / 2.0;
+
+                        double dx = ss_x_centre - neigh_x_centre;
+                        double dy = ss_y_centre - neigh_y_centre;
+                        double dist_sq = dx * dx + dy * dy;
+
+                        double weight = 1.0 / (dist_sq + epsilon);
+                        weight_sum_x += shift_x[i-1][nidx] * weight;
+                        weight_sum_y += shift_y[i-1][nidx] * weight;
+                        weight_tot += weight;
+                    }
+
+                    shift_x_prev = weight_sum_x / weight_tot;
+                    shift_y_prev = weight_sum_y / weight_tot;
+
                     // debugging
                     //std::cout << ss_x << " " << ss_y << " " << " " << neighlist[i][ss] << " " << shift_x_prev << " " << shift_y_prev << std::endl;
-
-                    // TODO: Bilinear Interpolation
-                    //int prev_step = windows[i-1]/2;
-                    //double sx[4], sy[4], tx, ty;
-                    //interp_x = (1.0-tx) * (1-ty) * sx[0] + tx * (1-ty) * sx[1] + (1-tx) * ty * sx[2] + tx * ty * sx[3];
-                    //interp_y = (1.0-tx) * (1-ty) * sy[0] + tx * (1-ty) * sy[1] + (1-tx) * ty * sy[2] + tx * ty * sy[3];
-
 
                     // debugging
                     //if ((ss_x == 768) && (ss_y == 288)){
@@ -178,9 +238,6 @@ namespace fourier {
                     ss_ref[i].vals[px] = (ss_ref[i].vals[px] - mean_ref) / std_ref;
                 }
 
-                if (((ss_x == 1536) && (ss_y == 2560) && (i==1)) || ((ss_x ==  7680) && (ss_y == 2048) && (i==1))){
-                    std::cout << "MEAN " << mean_ref << " " << mean_def << " " << std_ref << " " << std_def << std::endl;
-                }
 
                 // perform fft
                 fftw_execute(plans_def[i]);
@@ -206,9 +263,6 @@ namespace fourier {
                 for (int y = 0; y < w; ++y) {
                     for (int x = 0; x < w; ++x) {
                         double val = ifft_out[i][y * w + x];
-                        // debugging
-                        if (((ss_x == 1536) && (ss_y == 2560) && (i==1)) || ((ss_x ==  7680) && (ss_y == 2048) && (i==1)))
-                            std::cout << x << " " << y << " " << ss_ref[i].vals[y*w + x] << " " << ss_def[i].vals[y*w + x] << " " << val << std::endl;
                         if (val > max_val) {
                             max_val = val;
                             peak_x = x;
@@ -216,11 +270,6 @@ namespace fourier {
                         }
                     }
                 }
-                if (((ss_x == 1536) && (ss_y == 2560) && (i==1)) || ((ss_x ==  7680) && (ss_y == 2048) && (i==1)))
-                    std::cout << std::endl;
-
-                if ((ss_x == 1536) && (ss_y == 2560) && (i==1))
-                    exit(0);
 
                 int peak_x_fftshift = fftshift(peak_x, w);
                 int peak_y_fftshift = fftshift(peak_y, w);
@@ -234,40 +283,64 @@ namespace fourier {
                     shift_x[i][ss] = shift_x_prev + peak_x_fftshift;
                     shift_y[i][ss] = shift_y_prev + peak_y_fftshift;
                 }
-                std::cout << ss_x << " " << ss_y << " " << peak_x_fftshift << " " << peak_y_fftshift << " " << shift_x_prev << " " << shift_y_prev << " " << shift_x[i][ss] << " " << shift_y[i][ss] << std::endl;
-
-
-                // update the shift GRID
-                //int idx = (ss_y/(w/2)) * ssdata[i].num_ss_x + ss_x/(w/2);
-                //if (i == 0){
-                //    shift_x[i][idx] = peak_x;
-                //    shift_y[i][idx] = peak_y;
-                //}
-                //else {
-                //    shift_x[i][idx] = interp_x + peak_x;
-                //    shift_y[i][idx] = interp_y + peak_y;
-                //}
-                //std::cout << ss_x << " " << ss_y << " " << peak_x << " " << peak_y << " " << shift_x[i][idx] << " " << shift_y[i][idx] << std::endl;
-
-
-                // DEBUGGING
-                //if ((ss_x == 368) && (ss_y == 208)){
-                //    for (int y = 0; y < w; ++y) {
-                //        for (int x = 0; x < w; ++x) {
-                //         std::cout << x << " " << y << " " << ss_def[i].vals[y*w+x] << " " << ss_ref[i].vals[y*w+x] << " " << ifft_out[i][y*w+x] << " ";
-                //         std::cout << " " << peak_x << " " << peak_y << " " << interp_x << " " << interp_y << std::endl;
-                //        }
-                //    }
-                //    exit(0);
-                //}
+                std::cout << ss_x << " " << ss_y << " " << peak_x_fftshift << " " << peak_y_fftshift << " " << shift_x_prev << " " << shift_y_prev << " " << shift_x[i][ss] << " " << shift_y[i][ss] << " " << max_val << std::endl;
 
             }
             std::cout << std::endl;
+
+            // remove outliers
+            remove_outliers_auto(shift_x[i], ssdata[i]);
+            remove_outliers_auto(shift_y[i], ssdata[i]);
         }
-        //exit(0);
     }
+    
+   
+    void get_4nn(std::vector<int> &neighlist,
+                const util::SubsetData ssdata,
+                const util::SubsetData ssdata_prev) {
 
+        const int num_subsets = ssdata.num;
+        const int prev_num = ssdata_prev.num;
+        const int size = ssdata.step;
 
+        // For each subset, find 4 nearest neighbours in ssdata_prev
+        for (int ss = 0; ss < num_subsets; ++ss) {
+
+            const int ss_x = ssdata.coords[2 * ss];
+            const int ss_y = ssdata.coords[2 * ss + 1];
+
+            const double ss_x_centre = ss_x + size / 2.0;
+            const double ss_y_centre = ss_y + size / 2.0;
+
+            // Vector to store pairs of (distance, index)
+            std::vector<std::pair<double, int>> dist_index_list;
+
+            for (int nss = 0; nss < prev_num; ++nss) {
+                int prev_x = ssdata_prev.coords[2 * nss];
+                int prev_y = ssdata_prev.coords[2 * nss + 1];
+
+                double dx = (prev_x + size / 2.0) - ss_x_centre;
+                double dy = (prev_y + size / 2.0) - ss_y_centre;
+                double dist_sq = dx * dx + dy * dy;
+
+                dist_index_list.emplace_back(dist_sq, nss);
+            }
+
+            // Partial sort to get 4 nearest neighbours
+            if (dist_index_list.size() > 4) {
+                std::nth_element(dist_index_list.begin(), dist_index_list.begin() + 4, dist_index_list.end());
+                dist_index_list.resize(4);
+            }
+
+            // Sort the 4 nearest neighbours by distance (optional, for consistent ordering)
+            std::sort(dist_index_list.begin(), dist_index_list.end());
+
+            // Store neighbours indices into neighlist
+            for (int i = 0; i < 4; ++i) {
+                neighlist[ss * 4 + i] = dist_index_list[i].second;
+            }
+        }
+    }
 
     void get_neighlist(std::vector<int> &neighlist,
                        const util::SubsetData ssdata,
@@ -294,10 +367,7 @@ namespace fourier {
 
                 int prev_x = ssdata_prev.coords[2*nss];
                 int prev_y = ssdata_prev.coords[2*nss+1];
-                
-                //if ((ss_x == 4608) && (ss_y == 7424)){
-                //    std::cout << ss_x << " " << ss_y << " " << prev_x << " " << prev_y << " " << nss << " " << best_nss << std::endl;
-                //}
+
 
                 // AABB colision check
                 if (prev_x < ss_x + step &&
@@ -317,10 +387,7 @@ namespace fourier {
                 double dx = (prev_x + size / 2.0) - ss_x_centre;
                 double dy = (prev_y + size / 2.0) - ss_y_centre;
                 double dist_sq = dx * dx + dy * dy;
-                //if ((ss_x == 4608) && (ss_y == 7424)){
-                //    std::cout << ssdata.num << " " << ssdata_prev.num << std::endl;
-                //    std::cout << ss_x << " " << ss_y << " " << prev_x << " " << prev_y << " " << dx << " " << dy << " " << dist_sq << " " << min_dist << " " << nss << " " << best_nss << std::endl;
-                //}
+
                 if (dist_sq < min_dist) {
                     min_dist = dist_sq;
                     best_nss = nss;
@@ -332,143 +399,10 @@ namespace fourier {
                 neighlist[ss] = best_nss;
             }
 
-            // debugging
-            //int idx = neighlist[ss];
-            //std::cout << ss_x << " " << ss_y << " " << neighlist[ss] << " " << ssdata_prev.coords[2*idx] << " " << ssdata_prev.coords[2*idx+1] << std::endl;
         }
     }
 
-    // TODO: Linear interpolation of the previous shifts to populate new values.
-    // void get_prev_shift_vals(double *sx, double *sy,
-    //                          double &tx, double &ty,
-    //                          const int ss_x, const int ss_y,
-    //                          const int i, const int prev_step,
-    //                          const int num_ss_x, const std::vector<bool> &mask) {
-    //
-    //     // Compute corners of the grid square
-    //     int grid_vals[4];
-    //     grid_vals[0] = (ss_x / prev_step) * prev_step;    // x0
-    //     grid_vals[1] = (ss_y / prev_step) * prev_step;    // y0
-    //     grid_vals[2] = grid_vals[0] + prev_step;     // x1
-    //     grid_vals[3] = grid_vals[1] + prev_step;     // y1
-    //
-    //     tx = (ss_x - static_cast<double>(grid_vals[0])) / prev_step;
-    //     ty = (ss_y - static_cast<double>(grid_vals[1])) / prev_step;
-    //
-    //     int i0 = grid_vals[0] / prev_step;
-    //     int i1 = grid_vals[1] / prev_step;
-    //     int j0 = grid_vals[2] / prev_step;
-    //     int j1 = grid_vals[3] / prev_step;
-    //
-    //     int grid_indx[4];
-    //     grid_indx[0] = j0 * num_ss_x + i0; // idx00
-    //     grid_indx[1] = j0 * num_ss_x + i1; // idx10
-    //     grid_indx[2] = j1 * num_ss_x + i0; // idx01
-    //     grid_indx[3] = j1 * num_ss_x + i1; // idx11
-    //
-    //     int valid[4];
-    //     valid[0] = mask[grid_indx[0]];
-    //     valid[1] = mask[grid_indx[1]];
-    //     valid[2] = mask[grid_indx[2]];
-    //     valid[3] = mask[grid_indx[3]];
-    //
-    //     sx[0] = valid[0] ? shift_x[i-1][grid_indx[0]] : 0.0;
-    //     sx[1] = valid[1] ? shift_x[i-1][grid_indx[1]] : 0.0;
-    //     sx[2] = valid[2] ? shift_x[i-1][grid_indx[2]] : 0.0;
-    //     sx[3] = valid[3] ? shift_x[i-1][grid_indx[3]] : 0.0;
-    //
-    //     sy[0] = valid[0] ? shift_y[i-1][grid_indx[0]] : 0.0;
-    //     sy[1] = valid[1] ? shift_y[i-1][grid_indx[1]] : 0.0;
-    //     sy[2] = valid[2] ? shift_y[i-1][grid_indx[2]] : 0.0;
-    //     sy[3] = valid[3] ? shift_y[i-1][grid_indx[3]] : 0.0;
-    //
-    //     int valid_count = valid[0] + valid[1] + valid[2] + valid[3];
-    //
-    //     while (valid_count == 0){
-    //
-    //          if (ss_x % prev_step == 0){
-    //              grid_vals[0] += -prev_step/2;
-    //              grid_vals[2] += -prev_step/2;
-    //          }
-    //          if (ss_y % prev_step == 0){
-    //              grid_vals[1] += -prev_step/2;
-    //              grid_vals[3] += -prev_step/2;
-    //          }
-    //
-    //          tx = (ss_x - static_cast<double>(grid_vals[0])) / prev_step;
-    //          ty = (ss_y - static_cast<double>(grid_vals[1])) / prev_step;
-    //
-    //          i0 = grid_vals[0] / prev_step;
-    //          i1 = grid_vals[1] / prev_step;
-    //          j0 = grid_vals[2] / prev_step;
-    //          j1 = grid_vals[3] / prev_step;
-    //
-    //          grid_indx[0] = j0 * num_ss_x + i0; // idx00
-    //          grid_indx[1] = j0 * num_ss_x + i1; // idx10
-    //          grid_indx[2] = j1 * num_ss_x + i0; // idx01
-    //          grid_indx[3] = j1 * num_ss_x + i1; // idx11
-    //
-    //          valid[0] = mask[grid_indx[0]];
-    //          valid[1] = mask[grid_indx[1]];
-    //          valid[2] = mask[grid_indx[2]];
-    //          valid[3] = mask[grid_indx[3]];
-    //
-    //          sx[0] = valid[0] ? shift_x[i-1][grid_indx[0]] : 0.0;
-    //          sx[1] = valid[1] ? shift_x[i-1][grid_indx[1]] : 0.0;
-    //          sx[2] = valid[2] ? shift_x[i-1][grid_indx[2]] : 0.0;
-    //          sx[3] = valid[3] ? shift_x[i-1][grid_indx[3]] : 0.0;
-    //
-    //          sy[0] = valid[0] ? shift_y[i-1][grid_indx[0]] : 0.0;
-    //          sy[1] = valid[1] ? shift_y[i-1][grid_indx[1]] : 0.0;
-    //          sy[2] = valid[2] ? shift_y[i-1][grid_indx[2]] : 0.0;
-    //          sy[3] = valid[3] ? shift_y[i-1][grid_indx[3]] : 0.0;
-    //
-    //          valid_count = valid[0] + valid[1] + valid[2] + valid[3];
-    //     }
-    //
-    //
-    //     if (valid_count == 1) {
-    //         for (int j = 0; j < 4; ++j) {
-    //             if (valid[j]) {
-    //                 sx[0] = sx[1] = sx[2] = sx[3] = sx[j];
-    //                 sy[0] = sy[1] = sy[2] = sy[3] = sy[j];
-    //                 break;
-    //             }
-    //         }
-    //     }
-    //     else if (valid_count == 2 || valid_count == 3) {
-    //         double x_sum = 0.0, y_sum = 0.0;
-    //         for (int j = 0; j < 4; ++j) {
-    //             if (valid[j]) {
-    //                 x_sum += sx[j];
-    //                 y_sum += sy[j];
-    //             }
-    //         }
-    //         double x_avg = x_sum / valid_count;
-    //         double y_avg = y_sum / valid_count;
-    //         for (int j = 0; j < 4; ++j) {
-    //             if (!valid[j]) {
-    //                 sx[j] = x_avg;
-    //                 sy[j] = y_avg;
-    //             }
-    //         }
-    //     }
-    //
-    //
-    //     if ((ss_x == 768) && (ss_y == 224)){
-    //         std::cout << "subset: " << " (" << ss_x << ", " << ss_y << ")" << std::endl;
-    //         std::cout << "grid_vals: " << " (" << grid_vals[0] << ", " << grid_vals[1] << "), (" << grid_vals[2] << ", " << grid_vals[3] << ")" << std::endl;
-    //         std::cout << "grid_indx: " << " (" << grid_indx[0] << ", " << grid_indx[1] << "), (" << grid_indx[2] << ", " << grid_vals[3] << ")" << std::endl;
-    //         std::cout << "valid: " << " " << valid[0] << " " << valid[1] << " " << valid[2] << " " << valid[3] << std::endl;
-    //         std::cout << "valid_count: " << " " << valid_count << std::endl;
-    //         std::cout << "tx " << " " << tx << " " << ty << std::endl;
-    //         std::cout << "sx " << " " << sx[0] << " " << sx[1] << " " << sx[2] << " " << sx[3] << std::endl;
-    //         std::cout << "sy " << " " << sy[0] << " " << sy[1] << " " << sy[2] << " " << sy[3] << std::endl;
-    //     }
-    //
-    // }
-
-    void cleanup(){
+    void cleanup(std::vector<util::SubsetData> ssdata){
         std::cout << "cleanup" << std::endl;
 
         for (size_t i = 0; i < ssdata.size(); i++){

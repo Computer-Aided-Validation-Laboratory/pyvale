@@ -16,14 +16,27 @@
 
 namespace fourier {
 
-    void init(bool *img_roi, util::Config conf, int *windows, int n_windows);
+    // A helper structure for sorting
+    struct NeighborDist {
+        int index;
+        double dist_sq;
+    };
 
-    void mgwd(double *img_def, double *img_ref, 
-              int *windows, int n_windows, 
-              util::Config conf);
+
+    void init(std::vector<util::SubsetData> ssdata, 
+              const bool *img_roi, const util::Config conf, 
+              const std::vector<int> &windows);
+
+    void mgwd(const std::vector<util::SubsetData> ssdata,
+              const double *img_def, const double *img_ref, 
+              const util::Config conf);
 
     void cleanup();
-    
+
+    void get_4nn(std::vector<int> &neighlist,
+                 const util::SubsetData ssdata,
+                 const util::SubsetData ssdata_prev);
+
     void get_neighlist(std::vector<int> &neighlist,
                        const util::SubsetData ssdata,
                        const util::SubsetData ssdata_prev);
