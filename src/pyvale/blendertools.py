@@ -371,15 +371,17 @@ class BlenderTools:
             plunge = calibration_data.plunge_lims[0] + calibration_data.plunge_step * ii
             # Plunge
             (FOV_x, FOV_y) = CameraTools.blender_FOV(render_data.cam_data[0])
-            x_limit = int(round((FOV_x / 2) - (part.dimensions[0] / 2)))
 
-            y_limit = int(round((FOV_y / 2) - (part.dimensions[1] / 2)))
+            if calibration_data.x_limit is None:
+                calibration_data.x_limit = int(round((FOV_x / 2) - (part.dimensions[0] / 2)))
+            if calibration_data.y_limit is None:
+                calibration_data.y_limit = int(round((FOV_y / 2) - (part.dimensions[1] / 2)))
 
             for x in np.arange(-1, 2):
-                x *= x_limit
+                x *= calibration_data.x_limit
                 # Move in x-dir
                 for y in np.arange(-1, 2):
-                    y *= y_limit
+                    y *= calibration_data.y_limit
                     # Move in y-dir
                     part.location = ((x, y, plunge))
                     part.location[2] = plunge
