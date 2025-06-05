@@ -332,7 +332,9 @@ class BlenderTools:
             A dataclass containing the parameters needed to render the images
         calibration_data : CalibrationData
             A dataclass containing the parameters by which to move the calibration
-            target. These inclcude the plungle depth and rotation angle.
+            target. These inclcude the plungle depth and rotation angle. It also
+            inlcludes optional x and y limits for the movement of the calibration
+            target (if None they will be initialised from the FOV).
         part : bpy.data.objects
             The Blender part object, in this instance the calibration target.
 
