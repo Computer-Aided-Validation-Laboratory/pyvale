@@ -45,12 +45,14 @@ def DIC2D(reference: np.ndarray | str,
     check_interpolation(interpolation_routine)
     check_scanning_method(scanning_method)
     check_thresholds(threshold_levenberg, threshold_levenberg, precision)
-    check_subsets(subset_size, subset_step, scanning_method)
     check_output_directory(output_basepath, output_prefix, output_delimiter)
     num_params = check_shape_function(shape_function)
 
+    # check the subsets. if its fft, then it can be an integer list
     if scanning_method == "FFT":
         check_fft_subsets(subset_size, subset_step)
+    else:
+        subset_size, subset_step = check_subsets(subset_size, subset_step, scanning_method)
 
     # Assign values to config struct
     config = dic2dcpp.Config()
@@ -212,14 +214,24 @@ def check_fft_subsets(subset_size, subset_step) -> None:
     if any(subset_step[i] <= subset_step[i + 1] for i in range(len(subset_step) - 1)):
         raise ValueError("FFT subset steps must be in strictly descending order.")
 
-def check_subsets(subset_size: int | list[int], subset_step: int | list[int],
-                  scanning_method: str):
+def check_subsets(subset_size, subset_step, scanning_method: str) -> tuple[list[int], list[int]]:
+
     # Enforce scalar types for non-FFT methods
     if scanning_method != "FFT":
         if isinstance(subset_size, list) or isinstance(subset_step, list):
             raise TypeError("subset_size and subset_step must be integers when scanning_method is not 'FFT'.")
         if subset_size % 2 == 0:
             raise ValueError("subset_size must be an odd number.")
+
+    if isinstance(subset_size, int):
+        subset_size = [subset_size]
+
+    if isinstance(subset_step, int):
+        subset_step = [subset_step]
+
+    return subset_size, subset_step
+
+
 
 
 
