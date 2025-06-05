@@ -16,23 +16,24 @@
 
 namespace fourier {
 
-    // A helper structure for sorting
+    
+    extern std::vector<std::vector<double>> shift_x;
+    extern std::vector<std::vector<double>> shift_y;
+
     struct NeighborDist {
         int index;
         double dist_sq;
     };
 
 
-    void init(std::vector<util::SubsetData> ssdata, 
-              const bool *img_roi, const util::Config conf, 
-              const std::vector<int> &windows);
+    void init(std::vector<util::SubsetData> &ssdata, 
+              const bool *img_roi, const util::Config conf);
 
-    void mgwd(const std::vector<util::SubsetData> ssdata,
+    void mgwd(const std::vector<util::SubsetData> &ssdata,
               const double *img_def, const double *img_ref, 
               const util::Config conf);
 
-    void cleanup();
-
+    
     void get_4nn(std::vector<int> &neighlist,
                  const util::SubsetData ssdata,
                  const util::SubsetData ssdata_prev);
@@ -41,20 +42,11 @@ namespace fourier {
                        const util::SubsetData ssdata,
                        const util::SubsetData ssdata_prev);
 
-    inline int fftshift(int peak, int w);
-
-    // TODO: Bilinear Interpolation for seeding
-    //void get_prev_shift_vals(double *sx, double *sy,
-    //                         double &tx, double &ty,
-    //                         const int ss_x, const int ss_y, 
-    //                         const int i, const int prev_step, 
-    //                         const int num_ss_x, const std::vector<bool> &mask);
+    inline int fftshift(int peak, int ss_size);
     
-    //void get_grid_vals(int ss_x, int ss_y, int step, int grid_vals[4]);
-    //void get_grid_indx(const int grid_vals[4], int step, int num_ss_x, int grid_indx[4]);
-    //void get_valid_neigh(std::vector<bool> &mask, const int grid_indx[4], int valid_neigh[4]);
-    //void adjust_boundary_look(int ss_x, int ss_y, int step, int grid_vals[4]);
-
+    inline void destroy_fftw_plans(std::vector<fftw_plan>& plans);
+    inline void free_fftw_arrays(std::vector<fftw_complex*>& vec);
+    double debugcost(util::Subset &ss_ref, util::Subset &ss_def);
 }
 
 #endif // DICFOURIER_H
