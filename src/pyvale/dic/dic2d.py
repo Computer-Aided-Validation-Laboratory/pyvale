@@ -22,8 +22,8 @@ from pyvale.dic.dicresults import DICResults
 def DIC2D(reference: np.ndarray | str,
           deformed: np.ndarray | str,
           roi_mask: np.ndarray,
-          subset_step: int=10, 
-          subset_size: int=21,
+          subset_size: int | list[int] = 21,
+          subset_step: int | list[int] = 10, 
           correlation_criteria: str="ZNSSD",
           shape_function: str="AFFINE",
           interpolation_routine: str="BICUBIC",
@@ -45,9 +45,12 @@ def DIC2D(reference: np.ndarray | str,
     check_interpolation(interpolation_routine)
     check_scanning_method(scanning_method)
     check_thresholds(threshold_levenberg, threshold_levenberg, precision)
-    check_subset_size(subset_size)
+    check_subsets(subset_size, subset_step, scanning_method)
     check_output_directory(output_basepath, output_prefix, output_delimiter)
     num_params = check_shape_function(shape_function)
+
+    if scanning_method == "FFT":
+        check_fft_subsets(subset_size, subset_step)
 
     # Assign values to config struct
     config = dic2dcpp.Config()
@@ -166,7 +169,7 @@ def check_interpolation(interpolation_routine: str) -> None:
 
 
 def check_scanning_method(scanning_method: str) -> None:
-    allowed_values = {"IMAGE_SCAN", "IMAGE_SCAN_WITH_BF", "RG"}
+    allowed_values = {"IMAGE_SCAN", "IMAGE_SCAN_WITH_BF", "RG", "FFT"}
 
     if scanning_method not in allowed_values:
         raise ValueError(f"Invalid scanning_method: {scanning_method}. "
@@ -191,12 +194,32 @@ def check_thresholds(threshold_levenberg: float,
                          "between 0 and 1.")
 
 
+def check_fft_subsets(subset_size, subset_step) -> None:
+
+    if not subset_size:
+        raise ValueError("FFT subsets list must not be empty.")
+    if not subset_step:
+        raise ValueError("FFT subsets list must not be empty.")
 
 
+    if any(not isinstance(ss_size, int) for ss_size in subset_size):
+        raise TypeError("all subset sizes must be integers.")
+    if any(not isinstance(ss_step, int) for ss_step in subset_step):
+        raise TypeError("all subset steps must be integers.")
 
-def check_subset_size(subset_size: int):
-    if subset_size % 2 == 0:
-        raise ValueError("subset_size must be an odd number.")
+    if any(subset_size[i] <= subset_size[i + 1] for i in range(len(subset_size) - 1)):
+        raise ValueError("FFT subset sizes must be in strictly descending order.")
+    if any(subset_step[i] <= subset_step[i + 1] for i in range(len(subset_step) - 1)):
+        raise ValueError("FFT subset steps must be in strictly descending order.")
+
+def check_subsets(subset_size: int | list[int], subset_step: int | list[int],
+                  scanning_method: str):
+    # Enforce scalar types for non-FFT methods
+    if scanning_method != "FFT":
+        if isinstance(subset_size, list) or isinstance(subset_step, list):
+            raise TypeError("subset_size and subset_step must be integers when scanning_method is not 'FFT'.")
+        if subset_size % 2 == 0:
+            raise ValueError("subset_size must be an odd number.")
 
 
 

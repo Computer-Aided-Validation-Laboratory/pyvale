@@ -145,7 +145,7 @@ class DICRegionOfInterest:
         self.mask[bottom:(self.image.shape[0]-top), left:(self.image.shape[1])-right] = 255
         self.__roi_selected = True
 
-    def save(self, filename: str="./roi.tiff") -> None:
+    def imsave(self, filename: str="./roi.tiff") -> None:
         """
         Saves the image with the mask overlayed.
         
@@ -162,7 +162,43 @@ class DICRegionOfInterest:
         result = cv2.addWeighted(self.image, 0.7, overlay, 0.3, 0)
         cv2.imwrite(filename, result)
 
+    def roisave(self, filename: str="./roi.tiff", binary: bool=True) -> None:
+        """
+        Saves the roi as a binary mask or text file.
+        
+        Args:
+            filename (str): The path where the result image will be saved.
+            binary (bool): If True, saves as a binary mask. If False, saves as a text file.
+        Raises:
+            ValueError: If no ROI is selected.
+        """
+        if not self.__roi_selected:
+            raise ValueError("No ROI selected with \'interactive_selection\' or \'rect_boundary\' ")
+        
+        if binary:
+            np.save(filename, self.mask)
+        else:
+            np.savetxt(filename, self.mask, fmt='%d', delimiter=' ')
 
+
+
+
+    def roiread(self, filename: str="./roi.tiff") -> None:
+        """
+        Saves the image with the mask overlayed.
+        
+        Args:
+            filename (str): The path where the result image will be saved.
+        
+        Raises:
+            ValueError: If no ROI is selected.
+        """
+        if not self.__roi_selected:
+            raise ValueError("No ROI selected with \'interactive_selection\' or \'rect_boundary\' ")
+        overlay = self.image.copy()
+        overlay[self.mask] = (0, 255, 0)
+        result = cv2.addWeighted(self.image, 0.7, overlay, 0.3, 0)
+        cv2.imwrite(filename, result)
 
     def imshow(self) -> None:
         """

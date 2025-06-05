@@ -9,11 +9,13 @@
 #include <iostream>
 #include <cstring>
 #include <omp.h>
+#include <vector>
 #include <signal.h>
 
 // pybind header files
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 // Program Header files
 #include "./dicinterpolator.hpp"
@@ -37,9 +39,19 @@ void DICengine(const py::array_t<double>& img_ref_arr,
                util::Config &conf,
                util::SaveConfig &saveconf){
 
-    // -------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
     // Initialisation
-    // -------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    TITLE("CONFIGURATION");
+    INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
+    INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
+    INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
+    INFO_OUT("Max number of solver iterations: ", conf.max_iter);
+    INFO_OUT("Correlation Criterion: ", conf.corr_crit);
+    INFO_OUT("Shape Function: ", conf.shape_func);
+    INFO_OUT("Interpolation Routine: ", conf.interp_routine);
+    INFO_OUT("Image Scan Method: ", conf.scan_method);
+    INFO_OUT("Number of OMP threads:", omp_get_max_threads());
 
     // Register signal handler for Ctrl+C
     signal(SIGINT, scanmethod::signalHandler);
@@ -48,39 +60,52 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
     double* img_ref = static_cast<double*>(img_ref_arr.request().ptr);
     double* img_def_stack = static_cast<double*>(img_def_stack_arr.request().ptr);
- 
-    // testing with fourier method
-    int windows[7] = {2048,1024,512,256,128,64,32};
-    double *img_def = img_def_stack;
-    fourier::init(img_roi, conf, windows, 7);
-    fourier::mgwd(img_def, img_ref, windows, 7, conf);
-    fourier::cleanup();
-    exit(0);
 
 
-    // get a list of ss coordinates within RIO.
-    util::SubsetData ssdata = util::gen_ss_list(img_roi, conf.ss_step, 
-                                                conf.ss_size, conf.px_hori, 
-                                                conf.px_vert);
+
+    // ------------------------------------------------------------------------
+    // function pointer for scanning method
+    // ------------------------------------------------------------------------
+    void (*scan_ptr)(const double *, const double *, const bool *, 
+                     const std::vector<util::SubsetData> &, 
+                     const util::Config &, int);
+
+    // set pointer based on the scan method specified by user.
+    if (conf.scan_method=="IMAGE_SCAN") 
+        scan_ptr=scanmethod::image;
+    else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") 
+        scan_ptr=scanmethod::image_with_bf;
+    else if (conf.scan_method=="RG") 
+        scan_ptr=scanmethod::reliability_guided;
+    else if (conf.scan_method=="FFT")
+        scan_ptr=scanmethod::multi_window_fourier;
+    else {
+        std::cerr << "Unknown subset scan type: \'";
+        std::cerr << conf.scan_method << "\'." << " ";
+        std::cerr << "Allowed values: \'IMAGE_SCAN\', ";
+        std::cerr << "\'img_SCAN_WITH_BF\', \'RG\', \'FFT\'." << std::endl;
+        return;
+    }
+
+
+    // ------------------------------------------------------------------------
+    // get a list of ss coordinates within RIO;
+    // ------------------------------------------------------------------------
+    std::vector<util::SubsetData> ssdata;
+    if (conf.scan_method == "FFT"){
+        fourier::init(ssdata, img_roi, conf);
+    }
+    else {
+        ssdata.push_back(util::gen_ss_list(img_roi, conf.ss_step[0],
+                                           conf.ss_size[0], conf.px_hori, 
+                                           conf.px_vert));
+    }
 
     // resize the results based on subset information
-    util::resize_results(conf.num_def_img, ssdata.num,
+    util::resize_results(conf.num_def_img, ssdata.back().num,
                          conf.num_params, saveconf.at_end);
 
-    // TITLE("DIC INITIALISATION");
-    INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
-    INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
-    INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
-    INFO_OUT("Subset Step: ", conf.ss_step);
-    INFO_OUT("Subset Size: ", conf.ss_size);
-    INFO_OUT("Max number of solver iterations: ", conf.max_iter);
-    INFO_OUT("Correlation Criterion: ", conf.corr_crit);
-    INFO_OUT("Shape Function: ", conf.shape_func);
-    INFO_OUT("Interpolation Routine: ", conf.interp_routine);
-    INFO_OUT("Image Scan Method: ", conf.scan_method);
-    INFO_OUT("Total number of subsets: ", ssdata.num);
-    INFO_OUT("Number of OMP threads:", omp_get_max_threads());
-
+   
     // define our interpolator for the reference image
     interpolator::bicubic_init(img_ref, conf.px_hori, conf.px_vert);
 
@@ -92,24 +117,6 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     brute::init(conf.corr_crit, brute_method);
 
 
-    // function pointer for scanning method
-    void (*scan_ptr)(double *, double *, bool *, 
-                     util::SubsetData &, util::Config &, int);
-
-    // set pointer based on the scan method specified by user.
-    if (conf.scan_method=="IMAGE_SCAN") 
-        scan_ptr=scanmethod::image;
-    else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") 
-        scan_ptr=scanmethod::image_with_bf;
-    else if (conf.scan_method=="RG") 
-        scan_ptr=scanmethod::reliability_guided;
-    else {
-        std::cerr << "Unknown subset scan type: \'";
-        std::cerr << conf.scan_method << "\'." << " ";
-        std::cerr << "Allowed values: \'IMAGE_SCAN\', ";
-        std::cerr << "\'img_SCAN_WITH_BF\', \'RG\'." << std::endl;
-        return;
-    }
 
     // -----------------------------------------------------------------------
     // loop over deformed images and perform DIC
@@ -126,8 +133,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
         scan_ptr(img_ref, img_def, img_roi, ssdata, conf, img_num);
 
         if (!saveconf.at_end){
-            std::cout << "SAVING IMAGE" << std::endl;
-            util::save_to_disk(img_num, saveconf, ssdata,
+            util::save_to_disk(img_num, saveconf, ssdata.back(),
                                conf.num_def_img, conf.num_params);
         }
 
@@ -135,11 +141,10 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
     if (saveconf.at_end){
         for (int img_num = 0; img_num < conf.num_def_img; img_num++){
-            util::save_to_disk(img_num, saveconf, ssdata,
+            util::save_to_disk(img_num, saveconf, ssdata.back(),
                                conf.num_def_img, conf.num_params);
         }
     }
-
 }
 
 

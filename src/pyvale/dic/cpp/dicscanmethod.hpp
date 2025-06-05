@@ -37,12 +37,12 @@ namespace scanmethod {
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void image(double *img_ref, 
-                double *img_def, 
-                bool *img_roi,
-                util::SubsetData &ssdata, 
-                util::Config &conf,
-                int img_num);
+void image(const double *img_ref, 
+           const double *img_def, 
+           const bool *img_roi,
+           const std::vector<util::SubsetData> &ssdata, 
+           const util::Config &conf,
+           const int img_num);
 
 
 /**
@@ -59,12 +59,12 @@ void image(double *img_ref,
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void image_with_bf(double *img_ref, 
-                        double *img_def, 
-                        bool *img_roi,
-                        util::SubsetData &ssdata, 
-                        util::Config &conf,
-                        int img_num);
+void image_with_bf(const double *img_ref, 
+                   const double *img_def, 
+                   const bool *img_roi,
+                   const std::vector<util::SubsetData> &ssdata, 
+                   const util::Config &conf,
+                   const int img_num);
 
 
 /**
@@ -81,12 +81,35 @@ void image_with_bf(double *img_ref,
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void reliability_guided(double *img_ref, 
-                        double *img_def, 
-                        bool *img_roi,
-                        util::SubsetData &ssdata, 
-                        util::Config &conf,
-                        int img_num);
+void reliability_guided(const double *img_ref, 
+                        const double *img_def, 
+                        const bool *img_roi,
+                        const std::vector<util::SubsetData> &ssdata, 
+                        const util::Config &conf,
+                        const int img_num);
+
+
+/**
+ * @brief Multi Window Fast Fourier Transform (FFT) DIC method.
+ * correlation is calculated for initial seed point and nearest neighbours.image
+ * Scan proceeds along path with better matching subsets. 
+ * A full indepth outline of the method can be found here:
+ * https://opg.optica.org/ao/abstract.cfm?uri=ao-48-8-1535
+ * 
+ * @param img_ref pointer to reference image
+ * @param img_def pointer to deformed image
+ * @param img_roi pointer to image roi
+ * @param ssdata pointer to subset information
+ * @param conf pointer to DIC config struct
+ * @param img_num current image number
+ */
+void multi_window_fourier(const double *img_ref, 
+                          const double *img_def, 
+                          const bool *img_roi,
+                          const std::vector<util::SubsetData> &ssdata, 
+                          const util::Config &conf,
+                          const int img_num);
+
 
 }
 

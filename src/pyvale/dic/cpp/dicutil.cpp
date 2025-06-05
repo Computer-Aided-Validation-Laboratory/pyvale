@@ -66,10 +66,10 @@ namespace util {
 
 
     void extract_ss(util::Subset &ss_def, 
-                    int ss_x, int ss_y, 
-                    int px_hori,
-                    int px_vert,
-                    double *img_def){
+                    const int ss_x, const int ss_y, 
+                    const int px_hori,
+                    const int px_vert,
+                    const double *img_def){
 
         int count = 0;
         int idx;
@@ -93,8 +93,9 @@ namespace util {
     }
 
 
-    SubsetData gen_ss_list(bool *img_roi, int ss_step, int ss_size, 
-                                int px_hori, int px_vert) {
+    SubsetData gen_ss_list(const bool *img_roi, const int ss_step, 
+                           const int ss_size, const int px_hori, 
+                           const int px_vert) {
         
         Timer timer("subset list generation for subset size " + std::to_string(ss_size) +
                     " [px] with step " + std::to_string(ss_step) + " [px]:" );
@@ -322,8 +323,8 @@ namespace util {
         }
     }
 
-    bool is_valid_pixel(int px_x, int px_y, int px_hori, 
-                        int px_vert, bool *img_roi) {
+    bool is_valid_pixel(const int px_x, const int px_y, const int px_hori, 
+                        const int px_vert, const bool *img_roi) {
         if (px_x < 0 || px_y < 0 ||
             px_x >= px_hori || px_y >= px_vert) {
             return false;

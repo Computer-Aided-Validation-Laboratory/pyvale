@@ -111,10 +111,9 @@ namespace fourier {
             #pragma omp parallel
             {
 
-                std::cout << ss_size << std::endl;
                 util::Subset ss_def(ss_size);
                 util::Subset ss_ref(ss_size);
-                
+
                 fftw_complex* fft_def = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * ss_size * (ss_size/2+1));
                 fftw_complex* fft_ref = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * ss_size * (ss_size/2+1));
                 std::vector<double> ifft_out(ss_size*ss_size);
@@ -261,14 +260,14 @@ namespace fourier {
                     }
             
                     double cost = debugcost(ss_def, ss_ref);
-                    #pragma omp critical
-                    {
-                        std::cout << ss_x << " " << ss_y << " ";
-                        std::cout << peak_x_fftshift << " " << peak_y_fftshift << " ";
-                        std::cout << shift_x_prev << " " << shift_y_prev << " ";
-                        std::cout << shift_x[i][ss] << " " << shift_y[i][ss] << " ";
-                        std::cout << max_val << " " << cost << std::endl;
-                    }
+                    //#pragma omp critical
+                    //{
+                    //    std::cout << ss_x << " " << ss_y << " ";
+                    //    std::cout << peak_x_fftshift << " " << peak_y_fftshift << " ";
+                    //    std::cout << shift_x_prev << " " << shift_y_prev << " ";
+                    //    std::cout << shift_x[i][ss] << " " << shift_y[i][ss] << " ";
+                    //    std::cout << max_val << " " << cost << std::endl;
+                    //}
                 }
 
                 // Cleanup thread-local FFTW resources
@@ -285,9 +284,12 @@ namespace fourier {
 
             std::cout << std::endl;
         }
+
+
+        #pragma omp barrier
     }
-    
-   
+
+
     void get_4nn(std::vector<int> &neighlist,
                 const util::SubsetData ssdata,
                 const util::SubsetData ssdata_prev) {

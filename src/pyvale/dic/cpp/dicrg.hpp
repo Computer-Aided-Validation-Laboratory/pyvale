@@ -86,7 +86,7 @@ namespace rg {
      * @return true 
      * @return false 
      */
-     bool is_valid_point(int ss_x, int ss_y, util::SubsetData &ssdata);
+     bool is_valid_point(const int ss_x, const int ss_y, const util::SubsetData &ssdata);
 
 
 

@@ -51,6 +51,7 @@ namespace optimizer {
         int iter = 0;
         double ftol = 0;
         double xtol = 0;
+        opt->lambda = 0.001;
 
         while (iter < opt->max_iter) {
 
@@ -83,12 +84,6 @@ namespace optimizer {
             iter++;
         }
 
-        // if its a bad subset and hits max_iterations then reset p values to 0.0 to prevent bad seeding.
-        if (iter == opt->max_iter) {
-            //debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
-            std::fill(opt->p.begin(), opt->p.end(), 0.0);
-        }
-
         util::Results res;
         params_to_displacement(&res, ss_x, ss_y, opt->p);
         res.iter = iter;
@@ -96,6 +91,12 @@ namespace optimizer {
         res.xtol = xtol;
         res.p = opt->p;
         res.cost = opt->costp;
+
+        // if its a bad subset and hits max_iterations then reset p values to 0.0 to prevent bad seeding.
+        if (iter == opt->max_iter) {
+            //debugPrint(ss_x, ss_y, iter, opt->costp, ftol, xtol, opt->p);
+            std::fill(opt->p.begin(), opt->p.end(), 0.0);
+        }
 
         return res;
     }
@@ -646,8 +647,8 @@ namespace optimizer {
     }
 
     inline void rigid_parameters_to_displacement(util::Results *res, double ss_x, double ss_y, std::vector<double> &p){
-        res->u = ss_x - p[0];
-        res->v = ss_y - p[1];
+        res->u = -p[0];
+        res->v = -p[1];
         res->mag = std::sqrt(res->u*res->u + res->v*res->v);
     }
 

@@ -45,8 +45,8 @@ namespace util {
     };
 
     struct Config {
-        int ss_step;
-        int ss_size;
+        std::vector<int> ss_step;
+        std::vector<int> ss_size;
         int max_iter;
         int px_hori;
         int px_vert;
@@ -182,10 +182,10 @@ namespace util {
      *                    values and coordinates are stored.
      */            
     void extract_ss(util::Subset &ss_def, 
-                    int ss_x, int ss_y, 
-                    int px_hori,
-                    int px_vert,
-                    double *img_def);
+                    const int ss_x, const int ss_y, 
+                    const int px_hori,
+                    const int px_vert,
+                    const double *img_def);
 
     /**
      */
@@ -205,8 +205,8 @@ namespace util {
      * @param ss_step      Step size for generating subsets.
      * @return            A SubsetData object containing the generated subsets and their neighbours.
      */
-    SubsetData gen_ss_list(bool *img_roi, int ss_step, int ss_size, 
-                                int px_hori, int px_vert);
+    SubsetData gen_ss_list(const bool *img_roi, const int ss_step, const int ss_size, 
+                           const int px_hori, const int px_vert);
 
 
     void append_results(int img_num, int ss, 
@@ -220,8 +220,8 @@ namespace util {
                       int num_params);
 
 
-    bool is_valid_pixel(int px_x, int px_y, int px_hori, 
-                        int px_vert, bool *img_roi);
+    bool is_valid_pixel(const int px_x, const int px_y, const int px_hori, 
+                        const int px_vert, const bool *img_roi);
 
 
     inline void write_int(std::ofstream& out, int val);

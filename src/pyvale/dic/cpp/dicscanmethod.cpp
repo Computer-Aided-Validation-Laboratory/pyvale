@@ -20,6 +20,7 @@
 #include "./dicutil.hpp"
 #include "./dicrg.hpp"
 #include "./indicators.hpp"
+#include "./dicfourier.hpp"
 
 namespace scanmethod {
 
@@ -63,22 +64,25 @@ namespace scanmethod {
         }
     }
 
-    void image(double *img_ref, 
-                    double *img_def, 
-                    bool *img_roi,
-                    util::SubsetData &ssdata, 
-                    util::Config &conf,
-                    int img_num){
+    void image(const double *img_ref, 
+               const double *img_def, 
+               const bool *img_roi,
+               const std::vector<util::SubsetData> &ssdata, 
+               const util::Config &conf,
+               const int img_num){
+
+        const int ss_num = ssdata[0].num;
+        const int ss_size = ssdata[0].step;
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, img_num, ssdata.num);
+        reset_indicators(bar, img_num, ss_num);
         int current_progress = 0;
         int prev_pct = 0;
 
         // initialise subsets
-        util::Subset ss_def(ssdata.size);
-        util::Subset ss_ref(ssdata.size);
+        util::Subset ss_def(ss_size);
+        util::Subset ss_ref(ss_size);
 
         // optimization parameters
         optimizer::Parameters opt(conf.num_params, conf.max_iter, 
@@ -87,7 +91,7 @@ namespace scanmethod {
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, opt) shared(stop_request)
-        for (int ss = 0; ss < ssdata.num; ss++){
+        for (int ss = 0; ss < ss_num; ss++){
 
             // exit the main DIC loop when ctrl+C is hit
             if (stop_request){
@@ -96,8 +100,8 @@ namespace scanmethod {
 
             // subset coordinate list takes central locations. 
             // Converting to top left corner for optimization routine
-            int ss_x = ssdata.coords[ss*2];
-            int ss_y = ssdata.coords[ss*2+1];
+            int ss_x = ssdata[0].coords[ss*2];
+            int ss_y = ssdata[0].coords[ss*2+1];
 
             // get the deformed subset
             util::extract_ss(ss_def, ss_x, ss_y, 
@@ -112,12 +116,12 @@ namespace scanmethod {
 
 
             // append the results for the current subset to result vectors
-            util::append_results(img_num, ss, res, ssdata.num);
+            util::append_results(img_num, ss, res, ss_num);
 
             // update progress bar
             #pragma omp critical 
             {
-                update_bar(bar, current_progress, ssdata.num, prev_pct);
+                update_bar(bar, current_progress, ss_num, prev_pct);
                 current_progress++;
             }
 
@@ -128,22 +132,25 @@ namespace scanmethod {
 
 
 
-void image_with_bf(double *img_ref, 
-                        double *img_def, 
-                        bool *img_roi,
-                        util::SubsetData &ssdata, 
-                        util::Config &conf,
-                        int img_num){
+void image_with_bf(const double *img_ref, 
+                   const double *img_def, 
+                   const bool *img_roi,
+                   const std::vector<util::SubsetData>  &ssdata, 
+                   const util::Config &conf,
+                   const int img_num){
+
+    const int ss_num = ssdata[0].num;
+    const int ss_size = ssdata[0].size;
 
     // progress bar
     indicators::ProgressBar bar;
-    reset_indicators(bar, img_num, ssdata.num);
+    reset_indicators(bar, img_num, ss_num);
     int current_progress = 0;
     int prev_pct = 0;
 
     // initialise subsets
-    util::Subset ss_def(ssdata.size);
-    util::Subset ss_ref(ssdata.size);
+    util::Subset ss_def(ss_size);
+    util::Subset ss_ref(ss_size);
 
     // optimization parameters
     optimizer::Parameters opt(conf.num_params, conf.max_iter, 
@@ -165,8 +172,8 @@ void image_with_bf(double *img_ref,
     double ptemp[6] = {0,0,0,0,0,0};
 
     // loop over subsets within the ROI
-    #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, res)
-    for (int ss = 0; ss < ssdata.num; ss++){
+    #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, res, ptemp)
+    for (int ss = 0; ss < ss_num; ss++){
 
         // exit the main DIC loop when ctrl+C is hit
         if (stop_request){
@@ -176,8 +183,8 @@ void image_with_bf(double *img_ref,
 
         // subset coordinate list contains central locations.
         // Converting to top left corner for optimization routine
-        int ss_x = ssdata.coords[ss*2];
-        int ss_y = ssdata.coords[ss*2+1];
+        int ss_x = ssdata[0].coords[ss*2];
+        int ss_y = ssdata[0].coords[ss*2+1];
 
         // get the deformed subset
         util::extract_ss(ss_def, ss_x, ss_y, 
@@ -207,14 +214,14 @@ void image_with_bf(double *img_ref,
         res = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
 
         // append the results for the current subset to result vectors
-        util::append_results(img_num, ss, res, ssdata.num);
+        util::append_results(img_num, ss, res, ss_num);
 
         ss_thread_num++;
 
         // update progress bar
         #pragma omp critical 
         {
-            update_bar(bar, current_progress, ssdata.num, prev_pct);
+            update_bar(bar, current_progress, ss_num, prev_pct);
             current_progress++;
         }
 
@@ -227,24 +234,27 @@ void image_with_bf(double *img_ref,
 
 
 
-    void reliability_guided(double *img_ref, 
-                            double *img_def, 
-                            bool *img_roi,
-                            util::SubsetData &ssdata, 
-                            util::Config &conf,
-                            int img_num){
+    void reliability_guided(const double *img_ref, 
+                            const double *img_def, 
+                            const bool *img_roi,
+                            const std::vector<util::SubsetData> &ssdata, 
+                            const util::Config &conf,
+                            const int img_num){
+
+        const int ss_num = ssdata[0].num;
+        const int ss_size = ssdata[0].size;
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, img_num, ssdata.num);
+        reset_indicators(bar, img_num, ss_num);
         int current_progress = 0;
         int prev_pct = 0;
 
-         int seed_x = 500; // in corner coordinates
-         int seed_y = 500; // in corner coodinates
+        int seed_x = 500; // in corner coordinates
+        int seed_y = 500; // in corner coodinates
 
         // quick check for the initial seed point
-        if (!rg::is_valid_point(seed_x, seed_y, ssdata)) {
+        if (!rg::is_valid_point(seed_x, seed_y, ssdata[0])) {
             return;
         }
 
@@ -253,7 +263,7 @@ void image_with_bf(double *img_ref,
         const int px_vert = conf.px_vert;
 
         // Initialize binary mask for computed points (initialized to 0)
-        std::vector<std::atomic<bool>> computed_mask(ssdata.mask.size());
+        std::vector<std::atomic<bool>> computed_mask(ssdata[0].mask.size());
         for (size_t i = 0; i < computed_mask.size(); ++i) {
             computed_mask[i] = false;
         }
@@ -263,8 +273,8 @@ void image_with_bf(double *img_ref,
         std::vector<std::priority_queue<rg::Point>> local_q(max_threads);
 
         // Initialize ref and def subsets
-        util::Subset ss_def(ssdata.size);
-        util::Subset ss_ref(ssdata.size);
+        util::Subset ss_def(ss_size);
+        util::Subset ss_ref(ss_size);
 
         // Extract subset and solve for starting seed point
         util::extract_ss(ss_def, seed_x, seed_y, 
@@ -301,18 +311,18 @@ void image_with_bf(double *img_ref,
 
 
         //mark seed as computed
-        int idx = ssdata.coords_to_idx.find({seed_x, seed_y})->second;
+        int idx = ssdata[0].coords_to_idx.find({seed_x, seed_y})->second;
 
         // append the results for the current subset to result vectors
-        util::append_results(img_num, idx, seed_res, ssdata.num);
+        util::append_results(img_num, idx, seed_res, ss_num);
 
         computed_mask[idx] = true;
 
         // loop over seed neigh
-        for (int nidx : ssdata.neigh[idx]) {
+        for (int nidx : ssdata[0].neigh.at(idx)) {
 
-            int nx = ssdata.coords[nidx*2];
-            int ny = ssdata.coords[nidx*2+1];
+            int nx = ssdata[0].coords[nidx*2];
+            int ny = ssdata[0].coords[nidx*2+1];
 
             util::extract_ss(ss_def, nx, ny,
                              px_hori, px_vert,
@@ -333,7 +343,7 @@ void image_with_bf(double *img_ref,
                                                   &ss_ref, &opt);
 
             // append the results for the current subset to result vectors
-            util::append_results(img_num, nidx, nres, ssdata.num);
+            util::append_results(img_num, nidx, nres, ss_num);
 
             // update mask
             computed_mask[nidx] = true;
@@ -397,16 +407,16 @@ void image_with_bf(double *img_ref,
 
 
                 // get the idx of point in subset list
-                int idx = ssdata.coords_to_idx.find({curr_x, curr_y})->second;
-                int idx_res = (img_num * ssdata.num + idx);
+                int idx = ssdata[0].coords_to_idx.find({curr_x, curr_y})->second;
+                int idx_res = (img_num * ss_num + idx);
                 int idx_resp = idx_res*opt.num_params;
 
                 // loop over neighbouring points
-                for (int nidx : ssdata.neigh[idx]) {
+                for (int nidx : ssdata[0].neigh.at(idx)) {
 
                     // coords of neigh
-                    int nx = ssdata.coords[nidx*2];
-                    int ny = ssdata.coords[nidx*2+1];
+                    int nx = ssdata[0].coords[nidx*2];
+                    int ny = ssdata[0].coords[nidx*2+1];
 
                     if (!computed_mask[nidx].exchange(true)) {
 
@@ -447,7 +457,7 @@ void image_with_bf(double *img_ref,
                                                                    &opt);
 
                         // append results
-                        util::append_results(img_num, nidx, nres, ssdata.num);
+                        util::append_results(img_num, nidx, nres, ss_num);
 
 
                         // // add results to temp neighbour results
@@ -456,7 +466,7 @@ void image_with_bf(double *img_ref,
                         // update progress bar
                         #pragma omp critical 
                         {
-                            update_bar(bar, current_progress, ssdata.num, prev_pct);
+                            update_bar(bar, current_progress, ss_num, prev_pct);
                             current_progress++;
                         }
 
@@ -470,6 +480,90 @@ void image_with_bf(double *img_ref,
         }
         bar.mark_as_completed();
     }
+
+
+    void multi_window_fourier(const double *img_ref, const double *img_def, const bool *img_roi,
+                              const std::vector<util::SubsetData> &ssdata, const util::Config &conf,
+                              const int img_num){
+    
+        fourier::mgwd(ssdata, img_def, img_ref, conf);
+        
+        const int nsizes = conf.ss_size.size();
+        const int last = nsizes-1;
+        const int ss_num  = ssdata[last].num;
+        const int ss_size = ssdata[last].size;
+
+        // progress bar
+        indicators::ProgressBar bar;
+        reset_indicators(bar, img_num, ss_num);
+        int current_progress = 0;
+        int prev_pct = 0;
+
+        // initialise subsets
+        util::Subset ss_def(ss_size);
+        util::Subset ss_ref(ss_size);
+
+        // optimization parameters
+        optimizer::Parameters opt(conf.num_params, conf.max_iter, 
+                                  conf.precision, conf.threshold_lm,
+                                  conf.px_vert, conf.px_hori);
+
+        double ptemp[6] = {0,0,0,0,0,0};
+
+        // loop over subsets within the ROI
+        #pragma omp parallel for firstprivate(ss_def, ss_ref, opt, ptemp) shared(stop_request, fourier::shift_x, fourier::shift_y)
+        for (int ss = 0; ss < ss_num; ss++){
+
+            // exit the main DIC loop when ctrl+C is hit
+            if (stop_request){
+                continue;
+            }
+
+            // subset coordinate list takes central locations. 
+            // Converting to top left corner for optimization routine
+            int ss_x = ssdata[last].coords[ss*2];
+            int ss_y = ssdata[last].coords[ss*2+1];
+
+            // get the deformed subset
+            util::extract_ss(ss_def, ss_x, ss_y, 
+                             conf.px_hori,
+                             conf.px_vert,
+                             img_def); 
+
+            ptemp[0] = -fourier::shift_x[last][ss];
+            ptemp[1] = -fourier::shift_y[last][ss];
+            
+            #pragma omp critical
+            {
+                std::cout << ss_x << " " << ss_y << " " << ptemp[0] << " " << ptemp[1] << std::endl;
+            }
+
+            for (int i = 0; i < opt.num_params; i++){
+                opt.p[i] = ptemp[i];
+            }
+
+            // perform optimization on subset from deformed image
+            util::Results res;
+            res = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
+
+            // append the results for the current subset to result vectors
+            util::append_results(img_num, ss, res, ss_num);
+            //exit(0);
+
+            // update progress bar
+            #pragma omp critical
+            {
+                //update_bar(bar, current_progress, ss_num, prev_pct);
+                //current_progress++;
+            }
+
+        }
+
+        bar.mark_as_completed();
+
+    }
+
+
 
 
 }
