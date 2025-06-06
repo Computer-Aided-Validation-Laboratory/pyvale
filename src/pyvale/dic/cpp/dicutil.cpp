@@ -85,9 +85,10 @@ namespace util {
                 idx = px_y * px_hori + px_x;
                 ss_def.vals[count] = img_def[idx];
                 count++;
-                
+
                 // debugging
-                //std::cout << px_x << " " << px_y << " " << img_def[idx] << std::endl;
+                //std::cout << px_x << " " << px_y << " ";
+                //std::cout << img_def[idx] << std::endl;
             }
         }
     }
@@ -110,7 +111,7 @@ namespace util {
 
         int num_ss_x = px_hori / ss_step;
         int num_ss_y = px_vert / ss_step;
-        ssdata.mask.resize(num_ss_x*num_ss_y, false);
+        ssdata.mask.resize(num_ss_x*num_ss_y, NAN);
         ssdata.num_ss_x = num_ss_x;
         ssdata.num_ss_y = num_ss_y;
         ssdata.num_in_mask = num_ss_x * num_ss_y;
@@ -151,7 +152,7 @@ namespace util {
                 if (valid) {
                     ssdata.coords.push_back(ss_x);
                     ssdata.coords.push_back(ss_y);
-                    ssdata.mask[j * num_ss_x + i] = true;
+                    ssdata.mask[j * num_ss_x + i] = subset_counter;
                     ssdata.coords_to_idx[{ss_x, ss_y}] = subset_counter;
                     subset_counter++;
                 }
@@ -305,8 +306,13 @@ namespace util {
                 int idx = img * ssdata.num + i;
                 int idx_p = num_params*idx;
 
-                outfile << ssdata.coords[2*i] << delimiter;
-                outfile << ssdata.coords[2*i+1] << delimiter;
+                // convert from corner to centre subset coords
+                double ss_x = ssdata.coords[2*i  ] + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                double ss_y = ssdata.coords[2*i+1] + static_cast<double>(ssdata.size)/2.0 - 0.5;
+
+
+                outfile << ss_x << delimiter;
+                outfile << ss_y << delimiter;
                 outfile << u_arr[idx] << delimiter;
                 outfile << v_arr[idx] << delimiter;
                 outfile << sqrt(u_arr[idx]*u_arr[idx]+

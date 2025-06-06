@@ -61,33 +61,6 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     double* img_ref = static_cast<double*>(img_ref_arr.request().ptr);
     double* img_def_stack = static_cast<double*>(img_def_stack_arr.request().ptr);
 
-
-
-    // ------------------------------------------------------------------------
-    // function pointer for scanning method
-    // ------------------------------------------------------------------------
-    void (*scan_ptr)(const double *, const double *, const bool *, 
-                     const std::vector<util::SubsetData> &, 
-                     const util::Config &, int);
-
-    // set pointer based on the scan method specified by user.
-    if (conf.scan_method=="IMAGE_SCAN") 
-        scan_ptr=scanmethod::image;
-    else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") 
-        scan_ptr=scanmethod::image_with_bf;
-    else if (conf.scan_method=="RG") 
-        scan_ptr=scanmethod::reliability_guided;
-    else if (conf.scan_method=="FFT")
-        scan_ptr=scanmethod::multi_window_fourier;
-    else {
-        std::cerr << "Unknown subset scan type: \'";
-        std::cerr << conf.scan_method << "\'." << " ";
-        std::cerr << "Allowed values: \'IMAGE_SCAN\', ";
-        std::cerr << "\'img_SCAN_WITH_BF\', \'RG\', \'FFT\'." << std::endl;
-        return;
-    }
-
-
     // ------------------------------------------------------------------------
     // get a list of ss coordinates within RIO;
     // ------------------------------------------------------------------------
@@ -126,11 +99,29 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     for (int img_num = 0; img_num < conf.num_def_img; img_num++){
 
 
-        // pointer to starting location of image
+        // pointer to starting location of deformed image in memory
         int num_px_in_image = conf.px_hori * conf.px_vert;
         double *img_def = img_def_stack + img_num*num_px_in_image;
+       
+        // raster scan
+        if (conf.scan_method=="IMAGE_SCAN") 
+            scanmethod::image(img_ref, img_def, img_roi, 
+                              ssdata, conf, img_num);
+        
+        // raster with brute force
+        else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") 
+            scanmethod::image_with_bf(img_ref, img_def, img_roi, 
+                              ssdata, conf, img_num);
 
-        scan_ptr(img_ref, img_def, img_roi, ssdata, conf, img_num);
+        // reliability Guided
+        else if (conf.scan_method=="RG")
+            scanmethod::reliability_guided(img_ref, img_def, img_roi, 
+                              ssdata, conf, img_num);
+    
+        // multi window fft
+        else if (conf.scan_method=="FFT")
+            scanmethod::multi_window_fourier(img_ref, img_def, img_roi, 
+                              ssdata, conf, img_num);
 
         if (!saveconf.at_end){
             util::save_to_disk(img_num, saveconf, ssdata.back(),

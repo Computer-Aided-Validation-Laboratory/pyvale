@@ -237,7 +237,7 @@ void image_with_bf(const double *img_ref,
     void reliability_guided(const double *img_ref, 
                             const double *img_def, 
                             const bool *img_roi,
-                            const std::vector<util::SubsetData> &ssdata, 
+                            const std::vector<util::SubsetData> &ssdata,
                             const util::Config &conf,
                             const int img_num){
 
@@ -486,12 +486,14 @@ void image_with_bf(const double *img_ref,
                               const std::vector<util::SubsetData> &ssdata, const util::Config &conf,
                               const int img_num){
     
-        fourier::mgwd(ssdata, img_def, img_ref, conf);
+        fourier::mgwd(ssdata, img_def, img_ref, conf.px_hori, conf.px_vert);
         
-        const int nsizes = conf.ss_size.size();
-        const int last = nsizes-1;
-        const int ss_num  = ssdata[last].num;
-        const int ss_size = ssdata[last].size;
+        const int nsizes = ssdata.size();
+        const int last_size = nsizes-1;
+
+        // get number of subsets and the size for the smalllest window size
+        const int ss_num  = ssdata[last_size].num;
+        const int ss_size = ssdata[last_size].size;
 
         // progress bar
         indicators::ProgressBar bar;
@@ -499,68 +501,71 @@ void image_with_bf(const double *img_ref,
         int current_progress = 0;
         int prev_pct = 0;
 
-        // initialise subsets
-        util::Subset ss_def(ss_size);
-        util::Subset ss_ref(ss_size);
-
-        // optimization parameters
-        optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                  conf.precision, conf.threshold_lm,
-                                  conf.px_vert, conf.px_hori);
-
-        double ptemp[6] = {0,0,0,0,0,0};
-
         // loop over subsets within the ROI
-        #pragma omp parallel for firstprivate(ss_def, ss_ref, opt, ptemp) shared(stop_request, fourier::shift_x, fourier::shift_y)
-        for (int ss = 0; ss < ss_num; ss++){
+        #pragma omp parallel shared(stop_request)
+        {
 
-            // exit the main DIC loop when ctrl+C is hit
-            if (stop_request){
-                continue;
+            // initialise subsets
+            util::Subset ss_def(ss_size);
+            util::Subset ss_ref(ss_size);
+
+            // optimization parameters
+            optimizer::Parameters opt(conf.num_params, conf.max_iter, 
+                                    conf.precision, conf.threshold_lm,
+                                    conf.px_vert, conf.px_hori);
+
+            double ptemp[6] = {0,0,0,0,0,0};
+
+            #pragma omp for
+            for (int ss = 0; ss < ss_num; ss++){
+
+                // exit the main DIC loop when ctrl+C is hit
+                if (stop_request){
+                    continue;
+                }
+
+                // subset coordinate list takes central locations. 
+                // Converting to top left corner for optimization routine
+                int ss_x = ssdata[last_size].coords[ss*2];
+                int ss_y = ssdata[last_size].coords[ss*2+1];
+
+                // get the deformed subset
+                util::extract_ss(ss_def, ss_x, ss_y, 
+                                conf.px_hori,
+                                conf.px_vert,
+                                img_def); 
+
+                ptemp[0] = -fourier::shifts[last_size].x[ss];
+                ptemp[1] = -fourier::shifts[last_size].y[ss];
+                
+                //#pragma omp critical
+                //{
+                //    std::cout << ss_x << " " << ss_y << " ";
+                //    std::cout << ptemp[0] << " " << ptemp[1] << std::endl;
+                //}
+
+                for (int i = 0; i < opt.num_params; i++){
+                    opt.p[i] = ptemp[i];
+                }
+
+                // perform optimization on subset from deformed image
+                util::Results res;
+                res = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
+
+                // append optimization results to results vectors
+                util::append_results(img_num, ss, res, ss_num);
+                //exit(0);
+
+                // update progress bar
+                #pragma omp critical
+                {
+                    update_bar(bar, current_progress, ss_num, prev_pct);
+                    current_progress++;
+                }
+
             }
-
-            // subset coordinate list takes central locations. 
-            // Converting to top left corner for optimization routine
-            int ss_x = ssdata[last].coords[ss*2];
-            int ss_y = ssdata[last].coords[ss*2+1];
-
-            // get the deformed subset
-            util::extract_ss(ss_def, ss_x, ss_y, 
-                             conf.px_hori,
-                             conf.px_vert,
-                             img_def); 
-
-            ptemp[0] = -fourier::shift_x[last][ss];
-            ptemp[1] = -fourier::shift_y[last][ss];
-            
-            #pragma omp critical
-            {
-                std::cout << ss_x << " " << ss_y << " " << ptemp[0] << " " << ptemp[1] << std::endl;
-            }
-
-            for (int i = 0; i < opt.num_params; i++){
-                opt.p[i] = ptemp[i];
-            }
-
-            // perform optimization on subset from deformed image
-            util::Results res;
-            res = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
-
-            // append the results for the current subset to result vectors
-            util::append_results(img_num, ss, res, ss_num);
-            //exit(0);
-
-            // update progress bar
-            #pragma omp critical
-            {
-                //update_bar(bar, current_progress, ss_num, prev_pct);
-                //current_progress++;
-            }
-
         }
-
         bar.mark_as_completed();
-
     }
 
 

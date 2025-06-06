@@ -71,7 +71,7 @@ namespace util {
         int num_ss_y;
         int num_in_mask;
         std::vector<int> coords;
-        std::vector<bool> mask;
+        std::vector<int> mask;
         std::unordered_map<std::pair<int, int>, int, PairHash> coords_to_idx;
         std::unordered_map<int, std::vector<int>> neigh;
     };
