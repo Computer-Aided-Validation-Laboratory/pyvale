@@ -164,7 +164,7 @@ def main() -> None:
 
     #===========================================================================
     # PLOTTING
-    plot_on = False
+    plot_on = True
     plot_field = 0
 
     # depth_to_plot = np.copy(np.asarray(depth_buffer[:,:,plot_frame]))

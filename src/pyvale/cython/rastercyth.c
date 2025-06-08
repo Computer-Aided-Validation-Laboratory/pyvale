@@ -5,13 +5,13 @@
     "distutils": {
         "extra_compile_args": [
             "-ffast-math",
-            "/openmp"
+            "-fopenmp"
         ],
         "extra_link_args": [
-            "/openmp"
+            "-fopenmp"
         ],
         "include_dirs": [
-            "C:\\Users\\longb\\AppData\\Local\\Temp\\pip-build-env-ihn13rrr\\overlay\\Lib\\site-packages\\numpy\\_core\\include"
+            "/tmp/pip-build-env-quu6e9nw/overlay/lib/python3.11/site-packages/numpy/_core/include"
         ],
         "name": "pyvale.cython.rastercyth",
         "sources": [
