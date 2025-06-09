@@ -111,7 +111,7 @@ namespace util {
 
         int num_ss_x = px_hori / ss_step;
         int num_ss_y = px_vert / ss_step;
-        ssdata.mask.resize(num_ss_x*num_ss_y, NAN);
+        //ssdata.mask.resize(num_ss_x*num_ss_y, NAN);
         ssdata.num_ss_x = num_ss_x;
         ssdata.num_ss_y = num_ss_y;
         ssdata.num_in_mask = num_ss_x * num_ss_y;
@@ -119,8 +119,12 @@ namespace util {
         ssdata.step = ss_step;
         ssdata.size = ss_size;
 
+        ssdata.mask.resize(ssdata.num_in_mask, -1);
+        ssdata.coords.resize(2*ssdata.num_in_mask, -1);
+
 
         // First pass: collect valid subset centers and idx them
+        // TODO: Parallelise this with openMP
         for (int j = 0; j < num_ss_y; j++) {
             for (int i = 0; i < num_ss_x; i++) {
 
@@ -150,59 +154,85 @@ namespace util {
 
                 // if its a valid subset. add it to a list of coordinates
                 if (valid) {
-                    ssdata.coords.push_back(ss_x);
-                    ssdata.coords.push_back(ss_y);
+                    ssdata.coords[2*subset_counter] = ss_x;
+                    ssdata.coords[2*subset_counter+1] = ss_y;
                     ssdata.mask[j * num_ss_x + i] = subset_counter;
                     ssdata.coords_to_idx[{ss_x, ss_y}] = subset_counter;
                     subset_counter++;
                 }
             }
         }
-        
+
+        ssdata.coords.resize(2*subset_counter);
         ssdata.num = subset_counter;
 
         // neighbours for each of the above subset
-        for (const auto& kv : ssdata.coords_to_idx) {
-            const std::pair<int, int>& coord = kv.first;
-            int center_idx = kv.second;
+        // TODO: Parallelise with openMP
+        for (int j = 0; j < num_ss_y; ++j) {
+            for (int i = 0; i < num_ss_x; ++i) {
 
-            std::vector<int> temp_neigh;
+                int center_idx = ssdata.mask[j * num_ss_x + i];
+                if (center_idx == -1) continue;
 
-            for (int i = 0; i < 4; ++i) {
-                int neigh_x = coord.first + dx[i];
-                int neigh_y = coord.second + dy[i];
+                std::vector<int> temp_neigh;
 
-                int xmin = neigh_x;
-                int ymin = neigh_y;
-                int xmax = neigh_x + ss_size;
-                int ymax = neigh_y + ss_size;
+                for (int d = 0; d < 4; ++d) {
+                    int ni = i + dx[d] / ss_step;
+                    int nj = j + dy[d] / ss_step;
 
-                bool valid = true;
-
-                // checking if the neigbour is valid
-                for (int y = ymin; y <= ymax && valid; ++y) {
-                    for (int x = xmin; x <= xmax && valid; ++x) {
-
-                        if(!is_valid_pixel(x,y,px_hori,
-                                           px_vert,img_roi)){
-
-                            valid = false;
-                            break;
+                    if (ni >= 0 && ni < num_ss_x && nj >= 0 && nj < num_ss_y) {
+                        int neigh_idx = ssdata.mask[nj * num_ss_x + ni];
+                        if (neigh_idx != -1) {
+                            temp_neigh.push_back(neigh_idx);
                         }
-
                     }
                 }
 
-                if (valid) {
-                    auto it = ssdata.coords_to_idx.find({neigh_x, neigh_y});
-                    if (it != ssdata.coords_to_idx.end()) {
-                        temp_neigh.push_back(it->second);
-                    }
-                }
+                ssdata.neigh[center_idx] = std::move(temp_neigh);
             }
-
-            ssdata.neigh[center_idx] = std::move(temp_neigh);
         }
+
+        //for (const auto& kv : ssdata.coords_to_idx) {
+        //    const std::pair<int, int>& coord = kv.first;
+        //    int center_idx = kv.second;
+
+        //    std::vector<int> temp_neigh;
+
+        //    for (int i = 0; i < 4; ++i) {
+        //        int neigh_x = coord.first + dx[i];
+        //        int neigh_y = coord.second + dy[i];
+
+        //        int xmin = neigh_x;
+        //        int ymin = neigh_y;
+        //        int xmax = neigh_x + ss_size;
+        //        int ymax = neigh_y + ss_size;
+
+        //        bool valid = true;
+
+        //        // checking if the neigbour is valid
+        //        for (int y = ymin; y <= ymax && valid; ++y) {
+        //            for (int x = xmin; x <= xmax && valid; ++x) {
+
+        //                if(!is_valid_pixel(x,y,px_hori,
+        //                                   px_vert,img_roi)){
+
+        //                    valid = false;
+        //                    break;
+        //                }
+
+        //            }
+        //        }
+
+        //        if (valid) {
+        //            auto it = ssdata.coords_to_idx.find({neigh_x, neigh_y});
+        //            if (it != ssdata.coords_to_idx.end()) {
+        //                temp_neigh.push_back(it->second);
+        //            }
+        //        }
+        //    }
+
+        //    ssdata.neigh[center_idx] = std::move(temp_neigh);
+        //}
 
         return ssdata;
     }

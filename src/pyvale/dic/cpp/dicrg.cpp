@@ -358,35 +358,34 @@ namespace rg {
 
     bool is_valid_point(const int ss_x, const int ss_y, const util::SubsetData &ssdata) {
 
-        // int x = ss_x / ssdata->step;
-        // int y = ss_y / ssdata->step;
+        int x = ss_x / ssdata.step;
+        int y = ss_y / ssdata.step;
 
-        // int idx = y * ssdata->num_ss_x + x;
+        int idx = y * ssdata.num_ss_x + x;
 
-        // if ((ss_x % ssdata->step) || (ss_y % ssdata->step)){
-        //     std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
-        //     std::cerr << "Subset ss_step size: " << ssdata->step << std::endl;
-        //     return false;
-        //     exit(EXIT_FAILURE);
-        // }
-        // else if (!ssdata->mask[idx]){
-        //     std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
-        //     std::cerr << "subset mask index: " << idx << std::endl;
-        //     std::cerr << "subset mask value: " << idx << std::endl;
-        //     return false;
-        //     exit(EXIT_FAILURE);
-        // }
-        // else return true;
-
-        auto it = ssdata.coords_to_idx.find({ss_x, ss_y});
-
-        // check if coordinates are in the coordinate list
-        if (it == ssdata.coords_to_idx.end()) {
-           std::cerr << "Error: coordinates not found in the coordinate list." << std::endl;
-           std::cerr << "Coordinates: " << ss_x << ", " << ss_y << std::endl;
-           exit(EXIT_FAILURE);
+        if ((ss_x % ssdata.step) || (ss_y % ssdata.step)){
+            std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
+            std::cerr << "Subset ss_step size: " << ssdata.step << std::endl;
+            return false;
+            exit(EXIT_FAILURE);
+        }
+        else if (ssdata.mask[idx] == -1){
+            std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
+            std::cerr << "subset mask index: " << idx << std::endl;
+            return false;
+            exit(EXIT_FAILURE);
         }
         else return true;
+
+        //auto it = ssdata.coords_to_idx.find({ss_x, ss_y});
+
+        //// check if coordinates are in the coordinate list
+        //if (it == ssdata.coords_to_idx.end()) {
+        //   std::cerr << "Error: coordinates not found in the coordinate list." << std::endl;
+        //   std::cerr << "Coordinates: " << ss_x << ", " << ss_y << std::endl;
+        //   exit(EXIT_FAILURE);
+        //}
+        //else return true;
     }
 
 }

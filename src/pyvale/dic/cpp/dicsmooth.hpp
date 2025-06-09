@@ -20,7 +20,7 @@ namespace smooth {
 
     Eigen::VectorXd q4(std::vector<int> &x, std::vector<int> &y, std::vector<double>& disp_vals);
     Eigen::VectorXd q9(std::vector<int> &x, std::vector<int> &y, std::vector<double>& disp_vals);
+    void gaussian_2d(std::vector<double>& data, const std::vector<int>& mask, int width, int height, double sigma);
 
 }
-
 #endif // DICSMOOTH_H

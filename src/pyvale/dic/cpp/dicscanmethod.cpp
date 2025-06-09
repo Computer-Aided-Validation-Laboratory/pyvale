@@ -35,8 +35,8 @@ namespace scanmethod {
         indicators::show_console_cursor(false);
         bar.set_option(indicators::option::BarWidth{50});
         bar.set_option(indicators::option::Start{" ["});
-        bar.set_option(indicators::option::Fill{"█"});
-        bar.set_option(indicators::option::Lead{"█"});
+        bar.set_option(indicators::option::Fill{"#"});
+        bar.set_option(indicators::option::Lead{"#"});
         bar.set_option(indicators::option::Remainder{"-"});
         bar.set_option(indicators::option::End{"]"});
         bar.set_option(indicators::option::PrefixText{"Deformed Image " + std::to_string(img_num)});
@@ -107,19 +107,19 @@ namespace scanmethod {
             util::extract_ss(ss_def, ss_x, ss_y, 
                              conf.px_hori,
                              conf.px_vert,
-                             img_def); 
+                             img_def);
 
 
             // perform optimization on subset from deformed image
             util::Results res;
-            res = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
+            res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, opt);
 
 
             // append the results for the current subset to result vectors
             util::append_results(img_num, ss, res, ss_num);
 
             // update progress bar
-            #pragma omp critical 
+            #pragma omp critical
             {
                 update_bar(bar, current_progress, ss_num, prev_pct);
                 current_progress++;
@@ -211,7 +211,7 @@ void image_with_bf(const double *img_ref,
             }
         }
 
-        res = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
+        res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, opt);
 
         // append the results for the current subset to result vectors
         util::append_results(img_num, ss, res, ss_num);
@@ -306,12 +306,15 @@ void image_with_bf(const double *img_ref,
         }
 
         util::Results seed_res = optimizer::solve(seed_x, seed_y, 
-                                                  &ss_def, &ss_ref, &opt);
+                                                  ss_def, ss_ref, opt);
 
 
 
         //mark seed as computed
-        int idx = ssdata[0].coords_to_idx.find({seed_x, seed_y})->second;
+        int x = seed_x / ssdata[0].step;
+        int y = seed_y / ssdata[0].step;
+        int idx = y * ssdata[0].num_ss_x + x;
+        //int idx = ssdata[0].coords_to_idx.find({seed_x, seed_y})->second;
 
         // append the results for the current subset to result vectors
         util::append_results(img_num, idx, seed_res, ss_num);
@@ -339,8 +342,8 @@ void image_with_bf(const double *img_ref,
                 opt.p[i] = ptemp[i];
             }
 
-            util::Results nres = optimizer::solve(nx, ny, &ss_def, 
-                                                  &ss_ref, &opt);
+            util::Results nres = optimizer::solve(nx, ny, ss_def, 
+                                                  ss_ref, opt);
 
             // append the results for the current subset to result vectors
             util::append_results(img_num, nidx, nres, ss_num);
@@ -407,7 +410,10 @@ void image_with_bf(const double *img_ref,
 
 
                 // get the idx of point in subset list
-                int idx = ssdata[0].coords_to_idx.find({curr_x, curr_y})->second;
+                int x = curr_x / ssdata[0].step;
+                int y = curr_y / ssdata[0].step;
+                int idx = y * ssdata[0].num_ss_x + x;
+                //int idx = ssdata[0].coords_to_idx.find({curr_x, curr_y})->second;
                 int idx_res = (img_num * ss_num + idx);
                 int idx_resp = idx_res*opt.num_params;
 
@@ -451,10 +457,7 @@ void image_with_bf(const double *img_ref,
                         }
 
                         // optimize
-                        util::Results nres = optimizer::solve(nx, ny, 
-                                                                   &ss_def, 
-                                                                   &ss_ref, 
-                                                                   &opt);
+                        util::Results nres = optimizer::solve(nx, ny, ss_def, ss_ref, opt);
 
                         // append results
                         util::append_results(img_num, nidx, nres, ss_num);
@@ -550,7 +553,7 @@ void image_with_bf(const double *img_ref,
 
                 // perform optimization on subset from deformed image
                 util::Results res;
-                res = optimizer::solve(ss_x, ss_y, &ss_def, &ss_ref, &opt);
+                res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, opt);
 
                 // append optimization results to results vectors
                 util::append_results(img_num, ss, res, ss_num);

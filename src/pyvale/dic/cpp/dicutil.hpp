@@ -113,7 +113,7 @@ namespace util {
 
         // Constructor to initialize the vectors with ss_size
         Subset(int ss_size) 
-            : vals(ss_size * ss_size, 0.0),       
+            : vals(ss_size * ss_size, 0.0),
             x(ss_size * ss_size, 0.0),
             y(ss_size * ss_size, 0.0),
             size(ss_size),

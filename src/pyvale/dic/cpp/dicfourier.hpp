@@ -21,6 +21,9 @@ namespace fourier {
 
     struct Shift {
 
+        // number of neighbours to use for removing outliers
+        int num_neigh;
+
         //integer shifts
         std::vector<double> x;
         std::vector<double> y;
@@ -54,7 +57,7 @@ namespace fourier {
                 int min_x = std::max(0,idx_x-5);
                 int min_y = std::max(0,idx_y-5);
                 int max_x = std::min(ssdata_prev.num_ss_x,idx_x+6);
-                int max_y = std::min(ssdata_prev.num_ss_y,idx_y+6); 
+                int max_y = std::min(ssdata_prev.num_ss_y,idx_y+6);
 
                 for (int y = min_y; y < max_y; y++){
                     for (int x = min_x; x < max_x; x++){
@@ -75,18 +78,33 @@ namespace fourier {
                 }
 
                 // Partial sort to get 4 nearest neighbours
-                if (dist_index_list.size() > 4) {
-                    std::nth_element(dist_index_list.begin(), dist_index_list.begin() + 4, dist_index_list.end());
-                    dist_index_list.resize(4);
+                if (dist_index_list.size() > num_neigh) {
+                    std::nth_element(dist_index_list.begin(), dist_index_list.begin() + num_neigh, dist_index_list.end());
+                    dist_index_list.resize(num_neigh);
                 }
+                else {
+                    std::cerr << "Could not not find " << num_neigh << " neihbours for point (" << ss_x << ", " << ss_y << ")." << std::endl;
+                    std::cerr << "Number of neighbours: " << dist_index_list.size() << std::endl;
+                    std::cerr << "Neighbours from previous window: " << std::endl;
+                    for (int n = 0; n < dist_index_list.size(); n++){
+                        int nss_idx = dist_index_list[n].second;
+                        int nss_x = ssdata_prev.coords[2*nss_idx];
+                        int nss_y = ssdata_prev.coords[2*nss_idx+1];
+                    }
+                }
+
 
                 // Store neighbours indices into neighlist
-                for (int i = 0; i < 4; ++i) {
-                    neighlist[ss*4+i] = dist_index_list[i].second;
+                for (int i = 0; i < num_neigh; ++i) {
+                    //std::cout << ss_x << " " << ss_y << std::endl;
+                    neighlist[ss*num_neigh+i] = dist_index_list[i].second;
+                    //int nidx = neighlist[ss*num_neigh+i];
+                    //std::cout << ssdata_prev.coords[nidx*2] << " " << ssdata_prev.coords[nidx*2+1] << std::endl; 
                 }
+                //std::cout << std::endl;
             }
+            //exit(0);
         }
-
     };
 
     extern std::vector<Shift> shifts;

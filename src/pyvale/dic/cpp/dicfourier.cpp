@@ -16,6 +16,7 @@
 // Program Header files
 #include "./defines.hpp"
 #include "./dicutil.hpp"
+#include "./dicsmooth.hpp"
 #include "./dicfourier.hpp"
 
 namespace fourier {
@@ -40,12 +41,13 @@ namespace fourier {
 
             // shifts for each subset size
             Shift shift;
+            shift.num_neigh = 8;
             shift.x.resize(ssdata[i].num);
             shift.y.resize(ssdata[i].num);
 
             // we need the neighbours for all subset sizes except the first.
             if (i > 0){
-                shift.neighlist.resize(4*ssdata[i].num);
+                shift.neighlist.resize(shift.num_neigh*ssdata[i].num);
                 shift.gen_neighlist(ssdata[i], ssdata[i-1]);
             }
 
@@ -55,47 +57,58 @@ namespace fourier {
         }
     }
 
-    void remove_outliers_auto(std::vector<double>& shift,
-                              util::SubsetData ssdata,
-                              double mad_scale = 3.0) {
+    void remove_outliers(std::vector<double>& shift,
+                         const util::SubsetData &ssdata,
+                         const double mad_scale = 1.0) {
 
         std::vector<double> updated = shift;
 
-        for (const auto& [idx, neighbors] : ssdata.neigh) {
-            if (neighbors.size() < 2) continue;
+        for (int ss = 0; ss < ssdata.num; ss++) {
+            int ss_x = ssdata.coords[2*ss];
+            int ss_y = ssdata.coords[2*ss+1];
+
+            int idx_x = ss_x / ssdata.step;
+            int idx_y = ss_y / ssdata.step;
 
             std::vector<double> neigh_vals;
-            for (int n : neighbors) {
-                neigh_vals.push_back(shift[n]);
+
+            int min_x = std::max(0, idx_x-2);
+            int min_y = std::max(0, idx_y-2);
+            int max_y = std::min(ssdata.num_ss_y, idx_y+3);
+            int max_x = std::min(ssdata.num_ss_x, idx_x+3);
+
+            for (int y = min_y; y < max_y; ++y) {
+                for (int x = min_x; x < max_x; ++x) {
+                    int nss_idx = ssdata.mask[y*ssdata.num_ss_x+x];
+                    if (nss_idx == -1 || nss_idx == ss) continue; // skip invalid or self
+
+                    neigh_vals.push_back(shift[nss_idx]);
+                }
             }
 
-            // Compute median
+            if (neigh_vals.size() < 4) continue;
+
+            // Median
             std::sort(neigh_vals.begin(), neigh_vals.end());
-            double median = neigh_vals[neigh_vals.size() / 2];
+            size_t sz = neigh_vals.size();
+            double median = (sz % 2 == 0) ? 0.5 * (neigh_vals[sz/2 - 1] + neigh_vals[sz/2]) : neigh_vals[sz/2];
 
-            // Median Absolute Deviation
+            // MAD
             std::vector<double> abs_devs;
-            for (double v : neigh_vals) {
-                abs_devs.push_back(std::abs(v - median));
-            }
+            abs_devs.reserve(sz);
+            for (double v : neigh_vals) abs_devs.push_back(std::abs(v - median));
+
             std::sort(abs_devs.begin(), abs_devs.end());
-            double mad = abs_devs[abs_devs.size() / 2];
+            double mad = (sz % 2 == 0) ? 0.5 * (abs_devs[sz/2 - 1] + abs_devs[sz/2]) : abs_devs[sz/2];
 
-            if (mad == 0) continue; // no variation among neighbors
+            if (mad < 1e-12) continue;
 
-            // If current shift deviates significantly, replace
-            if (std::abs(shift[idx] - median) > mad_scale * mad) {
-                updated[idx] = median;
+            if (std::abs(shift[ss] - median) > mad_scale * mad) {
+                updated[ss] = median;
             }
         }
-        //debugging
-        //for (int ss = 0; ss < ssdata.num; ss++){
-        //    std::cout << ssdata.coords[ss*2] << " " << ssdata.coords[ss*2+1] << " " << shift[ss] << " " << updated[ss] << std::endl;
-        //}
         shift = std::move(updated);
-
     }
-
 
     void mgwd(const std::vector<util::SubsetData> &ssdata,
               const double *img_def, const double *img_ref,
@@ -157,27 +170,25 @@ namespace fourier {
                     }
 
                     double cost = debugcost(ss_def, ss_ref);
-                    #pragma omp critical
-                    {
-                        std::cout << omp_get_thread_num() << " " << ss_x << " " << ss_y << " ";
-                        std::cout << peak_x << " " << peak_y << " ";
-                        std::cout << prev_x << " " << prev_y << " ";
-                        std::cout << shifts[i].x[ss] << " " << shifts[i].y[ss] << " ";
-                        std::cout << max_val << " " << cost << std::endl;
-                    }
                 }
             }
 
-            // remove outliers in fft
-            remove_outliers_auto(shifts[i].x, ssdata[i]);
-            remove_outliers_auto(shifts[i].y, ssdata[i]);
+            #pragma omp barrier
 
-            // debugging
+            // remove outliers in fft
+            remove_outliers(shifts[i].x, ssdata[i], 3.0);
+            remove_outliers(shifts[i].y, ssdata[i], 3.0);
+
+            for (int ss = 0; ss < ssdata[i].num; ss++){
+                std::cout << ssdata[i].coords[2*ss] << " " << ssdata[i].coords[2*ss+1] << " ";
+                std::cout << shifts[i].x[ss] << " " << shifts[i].y[ss] << std::endl;
+            }
+
+            // smooth it
             std::cout << std::endl;
         }
 
 
-        #pragma omp barrier
     }
 
 
@@ -188,7 +199,7 @@ namespace fourier {
                                        const double ss_x, const double ss_y,
                                        const std::vector<Shift>& shifts,
                                        const std::vector<util::SubsetData>& ssdata) {
-        const double epsilon = 1e-8;
+        const double epsilon = 1.0e-8;
         double weight_sum_x = 0.0;
         double weight_sum_y = 0.0;
         double weight_tot = 0.0;
@@ -199,9 +210,9 @@ namespace fourier {
         if (i > 0){
 
             // weighted average of 4 nearest neighbours
-            for (int j = 0; j < 4; ++j) {
+            for (int j = 0; j < shifts[i].num_neigh; ++j) {
 
-                int nidx = shifts[i].neighlist[ss*4+j];
+                int nidx = shifts[i].neighlist[ss*shifts[i].num_neigh+j];
                 int neigh_x = ssdata[i-1].coords[2*nidx];
                 int neigh_y = ssdata[i-1].coords[2*nidx+1];
 
