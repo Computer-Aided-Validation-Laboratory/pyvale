@@ -44,6 +44,7 @@ namespace fourier {
             shift.num_neigh = 8;
             shift.x.resize(ssdata[i].num);
             shift.y.resize(ssdata[i].num);
+            shift.cost.resize(ssdata[i].num);
 
             // we need the neighbours for all subset sizes except the first.
             if (i > 0){
@@ -169,7 +170,7 @@ namespace fourier {
                         shifts[i].y[ss] = prev_y + peak_y;
                     }
 
-                    double cost = debugcost(ss_def, ss_ref);
+                    shifts[i].cost[ss] = debugcost(ss_def, ss_ref);
                 }
             }
 
@@ -181,7 +182,8 @@ namespace fourier {
 
             for (int ss = 0; ss < ssdata[i].num; ss++){
                 std::cout << ssdata[i].coords[2*ss] << " " << ssdata[i].coords[2*ss+1] << " ";
-                std::cout << shifts[i].x[ss] << " " << shifts[i].y[ss] << std::endl;
+                std::cout << shifts[i].x[ss] << " " << shifts[i].y[ss] << " ";
+                std::cout << shifts[i].cost[ss] << std::endl;
             }
 
             // smooth it

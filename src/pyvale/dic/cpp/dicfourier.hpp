@@ -27,6 +27,7 @@ namespace fourier {
         //integer shifts
         std::vector<double> x;
         std::vector<double> y;
+        std::vector<double> cost;
 
         // list of neighbours from prev window
         std::vector<int> neighlist;
