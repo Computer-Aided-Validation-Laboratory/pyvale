@@ -42,11 +42,16 @@ namespace fourier {
             // shifts for each subset size
             Shift shift;
             shift.num_neigh = 8;
+
+            // resize vectors
             shift.x.resize(ssdata[i].num);
             shift.y.resize(ssdata[i].num);
             shift.cost.resize(ssdata[i].num);
+            shift.peak_x.resize(ssdata[i].num);
+            shift.peak_y.resize(ssdata[i].num);
 
-            // we need the neighbours for all subset sizes except the first.
+            // we need the neighbours in the previous window size for all sizes 
+            // except the first
             if (i > 0){
                 shift.neighlist.resize(shift.num_neigh*ssdata[i].num);
                 shift.gen_neighlist(ssdata[i], ssdata[i-1]);
