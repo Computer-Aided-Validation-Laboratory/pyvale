@@ -160,6 +160,9 @@ namespace fourier {
                     double max_val;
                     fft.find_peak(peak_x, peak_y, max_val);
 
+                    shifts[i].peak_x[ss] = peak_x;
+                    shifts[i].peak_y[ss] = peak_y;
+
                     // update the shift arrays
                     if (i == 0){
                         shifts[i].x[ss] = peak_x;

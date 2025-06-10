@@ -28,6 +28,8 @@ namespace fourier {
         std::vector<double> x;
         std::vector<double> y;
         std::vector<double> cost;
+        std::vector<double> peak_x;
+        std::vector<double> peak_y;
 
         // list of neighbours from prev window
         std::vector<int> neighlist;
