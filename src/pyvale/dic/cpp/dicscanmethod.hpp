@@ -32,14 +32,12 @@ namespace scanmethod {
  * 
  * @param img_ref pointer to reference image
  * @param img_def pointer to deformed image
- * @param img_roi pointer to image roi
  * @param ssdata pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void image(const double *img_ref, 
+void image(const Interpolator &interp_ref, 
            const double *img_def, 
-           const bool *img_roi,
            const std::vector<util::SubsetData> &ssdata, 
            const util::Config &conf,
            const int img_num);
@@ -54,14 +52,13 @@ void image(const double *img_ref,
  * 
  * @param img_ref pointer to reference image
  * @param img_def pointer to deformed image
- * @param img_roi pointer to image roi
  * @param ssdata pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void image_with_bf(const double *img_ref, 
-                   const double *img_def, 
-                   const bool *img_roi,
+void image_with_bf(const Interpolator &interp_ref, 
+                   const double *img_ref,
+                   const double *img_def,
                    const std::vector<util::SubsetData> &ssdata, 
                    const util::Config &conf,
                    const int img_num);
@@ -76,14 +73,13 @@ void image_with_bf(const double *img_ref,
  * 
  * @param img_ref pointer to reference image
  * @param img_def pointer to deformed image
- * @param img_roi pointer to image roi
  * @param ssdata pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void reliability_guided(const double *img_ref, 
-                        const double *img_def, 
-                        const bool *img_roi,
+void reliability_guided(const Interpolator &interp_ref,
+                        const double *img_ref,
+                        const double *img_def,
                         const std::vector<util::SubsetData> &ssdata, 
                         const util::Config &conf,
                         const int img_num);
@@ -98,14 +94,13 @@ void reliability_guided(const double *img_ref,
  * 
  * @param img_ref pointer to reference image
  * @param img_def pointer to deformed image
- * @param img_roi pointer to image roi
  * @param ssdata pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void multi_window_fourier(const double *img_ref, 
+void multi_window_fourier(const Interpolator &interp_ref,
+                          const double *img_ref, 
                           const double *img_def, 
-                          const bool *img_roi,
                           const std::vector<util::SubsetData> &ssdata, 
                           const util::Config &conf,
                           const int img_num);

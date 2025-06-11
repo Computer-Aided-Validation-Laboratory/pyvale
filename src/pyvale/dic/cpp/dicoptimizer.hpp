@@ -13,6 +13,7 @@
 
 // Program Header files
 #include "./dicutil.hpp"
+#include "./dicinterpolator.hpp"
 
 
 namespace optimizer {
@@ -70,12 +71,12 @@ namespace optimizer {
 
 
     // Optimization routine
-    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt);
+    util::Results solve(const double ss_x, const double ss_y,util::Subset &ss_def, util::Subset &ss_ref, const Interpolator &interp_ref, optimizer::Parameters &opt);
 
     // choice of cost function
-    void   ssd(util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt);
-    void  nssd(util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt);
-    void znssd(util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt);
+    void   ssd(util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt, const Interpolator &interp_ref);
+    void  nssd(util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt, const Interpolator &interp_ref);
+    void znssd(util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt, const Interpolator &interp_ref);
 
 
     // optimizer functions

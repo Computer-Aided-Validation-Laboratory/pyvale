@@ -15,6 +15,7 @@
 
 // Program Header files
 #include "./dicbruteforce.hpp"
+#include "./dicinterpolator.hpp"
 #include "./dicoptimizer.hpp"
 #include "./defines.hpp"
 #include "./dicutil.hpp"
@@ -64,9 +65,8 @@ namespace scanmethod {
         }
     }
 
-    void image(const double *img_ref, 
-               const double *img_def, 
-               const bool *img_roi,
+    void image(const Interpolator &interp_ref,
+               const double *img_def,
                const std::vector<util::SubsetData> &ssdata, 
                const util::Config &conf,
                const int img_num){
@@ -112,7 +112,7 @@ namespace scanmethod {
 
             // perform optimization on subset from deformed image
             util::Results res;
-            res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, opt);
+            res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, interp_ref, opt);
 
 
             // append the results for the current subset to result vectors
@@ -132,9 +132,9 @@ namespace scanmethod {
 
 
 
-void image_with_bf(const double *img_ref, 
-                   const double *img_def, 
-                   const bool *img_roi,
+void image_with_bf(const Interpolator &interp_ref, 
+                   const double *img_ref,
+                   const double *img_def,
                    const std::vector<util::SubsetData>  &ssdata, 
                    const util::Config &conf,
                    const int img_num){
@@ -211,7 +211,7 @@ void image_with_bf(const double *img_ref,
             }
         }
 
-        res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, opt);
+        res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, interp_ref, opt);
 
         // append the results for the current subset to result vectors
         util::append_results(img_num, ss, res, ss_num);
@@ -234,9 +234,9 @@ void image_with_bf(const double *img_ref,
 
 
 
-    void reliability_guided(const double *img_ref, 
-                            const double *img_def, 
-                            const bool *img_roi,
+    void reliability_guided(const Interpolator &interp_ref,
+                            const double *img_ref,
+                            const double *img_def,
                             const std::vector<util::SubsetData> &ssdata,
                             const util::Config &conf,
                             const int img_num){
@@ -306,7 +306,7 @@ void image_with_bf(const double *img_ref,
         }
 
         util::Results seed_res = optimizer::solve(seed_x, seed_y, 
-                                                  ss_def, ss_ref, opt);
+                                                  ss_def, ss_ref, interp_ref, opt);
 
 
 
@@ -342,8 +342,7 @@ void image_with_bf(const double *img_ref,
                 opt.p[i] = ptemp[i];
             }
 
-            util::Results nres = optimizer::solve(nx, ny, ss_def, 
-                                                  ss_ref, opt);
+            util::Results nres = optimizer::solve(nx, ny, ss_def, ss_ref, interp_ref, opt);
 
             // append the results for the current subset to result vectors
             util::append_results(img_num, nidx, nres, ss_num);
@@ -457,7 +456,7 @@ void image_with_bf(const double *img_ref,
                         }
 
                         // optimize
-                        util::Results nres = optimizer::solve(nx, ny, ss_def, ss_ref, opt);
+                        util::Results nres = optimizer::solve(nx, ny, ss_def, ss_ref, interp_ref, opt);
 
                         // append results
                         util::append_results(img_num, nidx, nres, ss_num);
@@ -485,12 +484,15 @@ void image_with_bf(const double *img_ref,
     }
 
 
-    void multi_window_fourier(const double *img_ref, const double *img_def, const bool *img_roi,
-                              const std::vector<util::SubsetData> &ssdata, const util::Config &conf,
+    void multi_window_fourier(const Interpolator &interp_ref, 
+                              const double *img_ref,
+                              const double *img_def, 
+                              const std::vector<util::SubsetData> &ssdata,
+                              const util::Config &conf,
                               const int img_num){
     
-        fourier::mgwd(ssdata, img_def, img_ref, conf.px_hori, conf.px_vert);
-        
+        fourier::mgwd(ssdata, interp_ref, img_ref, img_def, conf.px_hori, conf.px_vert);
+
         const int nsizes = ssdata.size();
         const int last_size = nsizes-1;
 
@@ -553,7 +555,7 @@ void image_with_bf(const double *img_ref,
 
                 // perform optimization on subset from deformed image
                 util::Results res;
-                res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, opt);
+                res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, interp_ref, opt);
 
                 // append optimization results to results vectors
                 util::append_results(img_num, ss, res, ss_num);

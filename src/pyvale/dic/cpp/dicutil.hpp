@@ -16,6 +16,7 @@
 #include <unordered_map>
 
 // program Header files
+#include "./dicinterpolator.hpp"
 #include "./defines.hpp"
 
 namespace util {
@@ -186,6 +187,26 @@ namespace util {
                     const int px_hori,
                     const int px_vert,
                     const double *img_def);
+
+
+    /**
+     * @brief Extracts a square subset of pixels from an image and stores the data in a Subset object.
+     * 
+     * This function copies a square region of pixel data from the specified starting coordinates 
+     * (`ss_x`, `ss_y`) in the input image into the `ss_def` structure. The size of the square 
+     * subset is determined by `ss_def->size`. Both the pixel values and their corresponding 
+     * coordinates are stored in `ss_def`.
+     * 
+     * @param ss_ref      Pointer to the destination subset (`util::Subset`) where extracted pixel info will be stored
+     * @param ss_x        X-coordinate (column) of the top-left corner of the subset in the image.
+     * @param ss_y        Y-coordinate (row) of the top-left corner of the subset in the image.
+     * @param interp_ref  interpolator for the reference image from which to extract pixel data.
+     */
+    void extract_ss_subpx(util::Subset &ss_ref, 
+                          const double ss_x, const double ss_y, 
+                          const Interpolator &interp_ref);
+
+
 
     /**
      */

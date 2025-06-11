@@ -15,6 +15,7 @@
 #include <cmath>
 
 // Program Header files
+#include "./dicinterpolator.hpp"
 #include "./defines.hpp"
 #include "./dicutil.hpp"
 
@@ -93,6 +94,30 @@ namespace util {
         }
     }
 
+    void extract_ss_subpx(util::Subset &ss_ref, 
+                          const double ss_x, const double ss_y, 
+                          const Interpolator &interp_ref){
+
+        int count = 0;
+        int idx;
+
+        for (double px_y = ss_y; px_y < ss_y+ss_ref.size; px_y+=1.0){
+            for (double px_x = ss_x; px_x < ss_x+ss_ref.size; px_x+=1.0){
+
+                // get coordinate values
+                ss_ref.x[count] = px_x; 
+                ss_ref.y[count] = px_y; 
+
+                // get pixel values
+                ss_ref.vals[count] = interp_ref.eval_bicubic(px_x, px_y);
+
+                // debugging
+                //std::cout << px_x << " " << px_y << " ";
+                //std::cout << ss_ref.vals[count] << std::endl;
+                count++;
+            }
+        }
+    }
 
     SubsetData gen_ss_list(const bool *img_roi, const int ss_step, 
                            const int ss_size, const int px_hori, 

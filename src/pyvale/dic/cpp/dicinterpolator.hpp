@@ -25,68 +25,15 @@
  * sufficient to get the floor value of the subpixel location.
  * 
  */
-namespace interpolator {
+struct InterpVals {
+    double f;
+    double dfdx;
+    double dfdy;
+};
 
-    struct Data {
-        double interp_value;
-        double interp_dx;
-        double interp_dy;
-    };
+class Interpolator {
 
-    /**
-     * @brief Initializes the bicubic interpolator with deformed image data.
-     * 
-     * Sets up the necessary data structures and computes derivatives required for bicubic interpolation.
-     * 
-     * @param img Pointer to the image data array
-     * @param px_hori Width of the image in pixels
-     * @param px_vert Height of the image in pixels
-     */
-    void bicubic_init(double * img, int px_hori, int px_vert);
-
-    /**
-     * @brief Evaluates the bicubic interpolation at a specified point.
-     * 
-     * Computes the interpolated value at (x,y) using bicubic interpolation from the surrounding pixel values.
-     * 
-     * @param x The x-coordinate of the interpolation point
-     * @param y The y-coordinate of the interpolation point
-     * @return The interpolated value at (x,y)
-     */
-    double eval_bicubic(double x, double y);
-
-    /**
-     * @brief Evaluates the x-derivative of bicubic interpolation at a specified point.
-     * 
-     * Computes the partial derivative with respect to x at point (x,y).
-     * 
-     * @param x The x-coordinate of the point
-     * @param y The y-coordinate of the point
-     * @return The x-derivative of the interpolated function at (x,y)
-     */
-    double eval_bicubic_dx(double x, double y);
-
-    /**
-     * @brief Evaluates the y-derivative of bicubic interpolation at a specified point.
-     * 
-     * Computes the partial derivative with respect to y at point (x,y).
-     * 
-     * @param x The x-coordinate of the point
-     * @param y The y-coordinate of the point
-     * @return The y-derivative of the interpolated function at (x,y)
-     */
-    double eval_bicubic_dy(double x, double y);
-
-    /**
-     * @brief Evaluates the bicubic interpolation and its derivatives at a specified point.
-     * 
-     * Computes the interpolated value and its partial derivatives at (x,y) in a single call.
-     * 
-     * @param x The x-coordinate of the point
-     * @param y The y-coordinate of the point
-     * @return Data struct containing the interpolated value and its x and y derivatives
-     */
-    Data eval_bicubic_and_derivs(double x, double y);
+private: 
 
     /**
      * @brief Calculates the coefficients for cubic spline interpolation.
@@ -114,7 +61,7 @@ namespace interpolator {
      * @param index_hi Upper bound for the search
      * @return The index of the pixel containing the coordinate
      */
-    inline int index_lookup(std::vector<double> &px, double x, size_t index_lo, size_t index_hi);
+    inline int index_lookup(const std::vector<double> &px, double x, size_t index_lo, size_t index_hi) const;
 
     /**
      * @brief Initializes the cubic spline coefficients.
@@ -139,7 +86,73 @@ namespace interpolator {
      */
     double cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data, double value, int length);
 
-}
+
+public:
+    std::vector<double> zx;
+    std::vector<double> zy;
+    std::vector<double> zxy;
+    std::vector<double> tridiag_solution;
+    std::vector<double> px_y;
+    std::vector<double> px_x;
+    double *image;
+    int px_vert;
+    int px_hori;
+
+    /**
+     * @brief Initializes the bicubic interpolator with deformed image data.
+     * 
+     * Sets up the necessary data structures and computes derivatives required for bicubic interpolation.
+     * 
+     * @param img Pointer to the image data array
+     * @param px_hori Width of the image in pixels
+     * @param px_vert Height of the image in pixels
+     */
+    Interpolator(double * img, int px_hori, int px_vert);
+
+    /**
+     * @brief Evaluates the bicubic interpolation at a specified point.
+     * 
+     * Computes the interpolated value at (x,y) using bicubic interpolation from the surrounding pixel values.
+     * 
+     * @param x The x-coordinate of the interpolation point
+     * @param y The y-coordinate of the interpolation point
+     * @return The interpolated value at (x,y)
+     */
+    double eval_bicubic(double x, double y) const;
+
+    /**
+     * @brief Evaluates the x-derivative of bicubic interpolation at a specified point.
+     * 
+     * Computes the partial derivative with respect to x at point (x,y).
+     * 
+     * @param x The x-coordinate of the point
+     * @param y The y-coordinate of the point
+     * @return The x-derivative of the interpolated function at (x,y)
+     */
+    double eval_bicubic_dx(double x, double y) const;
+
+    /**
+     * @brief Evaluates the y-derivative of bicubic interpolation at a specified point.
+     * 
+     * Computes the partial derivative with respect to y at point (x,y).
+     * 
+     * @param x The x-coordinate of the point
+     * @param y The y-coordinate of the point
+     * @return The y-derivative of the interpolated function at (x,y)
+     */
+    double eval_bicubic_dy(double x, double y) const;
+
+    /**
+     * @brief Evaluates the bicubic interpolation and its derivatives at a specified point.
+     * 
+     * Computes the interpolated value and its partial derivatives at (x,y) in a single call.
+     * 
+     * @param x The x-coordinate of the point
+     * @param y The y-coordinate of the point
+     * @return Data struct containing the interpolated value and its x and y derivatives
+     */
+    InterpVals eval_bicubic_and_derivs(double x, double y) const;
+};
 
 #endif //DICINTERPOLATOR_H
 

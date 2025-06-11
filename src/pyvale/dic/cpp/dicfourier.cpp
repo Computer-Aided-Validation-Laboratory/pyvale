@@ -8,6 +8,7 @@
 // STD library Header files
 #include <iostream>
 #include <fftw3.h>
+#include <string>
 #include <vector>
 #include <cmath>
 #include <algorithm>
@@ -16,7 +17,6 @@
 // Program Header files
 #include "./defines.hpp"
 #include "./dicutil.hpp"
-#include "./dicsmooth.hpp"
 #include "./dicfourier.hpp"
 
 namespace fourier {
@@ -47,8 +47,7 @@ namespace fourier {
             shift.x.resize(ssdata[i].num);
             shift.y.resize(ssdata[i].num);
             shift.cost.resize(ssdata[i].num);
-            shift.peak_x.resize(ssdata[i].num);
-            shift.peak_y.resize(ssdata[i].num);
+            shift.max_val.resize(ssdata[i].num);
 
             // we need the neighbours in the previous window size for all sizes 
             // except the first
@@ -65,7 +64,7 @@ namespace fourier {
 
     void remove_outliers(std::vector<double>& shift,
                          const util::SubsetData &ssdata,
-                         const double mad_scale = 1.0) {
+                         const double mad_scale = 3.0) {
 
         std::vector<double> updated = shift;
 
@@ -117,11 +116,19 @@ namespace fourier {
     }
 
     void mgwd(const std::vector<util::SubsetData> &ssdata,
-              const double *img_def, const double *img_ref,
+              const Interpolator &interp_ref,
+              const double *img_ref, const double *img_def,
               const int px_hori, const int px_vert){
+
+
+        // TODO: Add a proper flag for this 
+        bool subpx = true;
 
         // Loop over window size
         for (size_t i = 0; i < ssdata.size(); i++){
+
+            util::Timer timer("FFT windowing for subset size: " 
+                              + std::to_string(ssdata[i].size));
 
             const int ss_size = ssdata[i].size;
 
@@ -132,7 +139,7 @@ namespace fourier {
                 util::Subset ss_def(ss_size);
                 util::Subset ss_ref(ss_size);
 
-                // struct for FFT
+                // class for FFT
                 fourier::FFT fft(ss_size, ss_def.vals.data(), ss_ref.vals.data());
 
                 // loop over subsets for each size/step
@@ -141,32 +148,33 @@ namespace fourier {
 
                     int ss_x = ssdata[i].coords[2*ss];
                     int ss_y = ssdata[i].coords[2*ss+1];
+                    
+                    // get the deformed subset values
+                    util::extract_ss(ss_def,ss_x, ss_y, px_hori, px_vert, img_def);
 
-                    // window has to always be decreasing in size
-                    auto [prev_x, prev_y] = get_prev_shift(i, ss, ss_x, ss_y, 
-                                                           shifts, ssdata);
+                    // get the seed for the new window size
+                    auto [prev_x, prev_y] = get_prev_shift(i, ss, ss_x, ss_y, shifts, ssdata);
+                    double ss_x_shft = ss_x-prev_x;
+                    double ss_y_shft = ss_y-prev_y;
+                
+                    //std::cout << "prev:  " << prev_x << " " << prev_y << std::endl;
+                    //std::cout << "shift: " << ss_x_shft << " " << ss_y_shft << std::endl;
 
-                    // get the deformed subset
-                    util::extract_ss(ss_def,ss_x, ss_y, px_hori,
-                                     px_vert, img_def);
+                    // get the reference subset values
+                    if (subpx) util::extract_ss_subpx(ss_ref, ss_x_shft, ss_y_shft, interp_ref);
+                    else util::extract_ss(ss_ref, ss_x_shft, ss_y_shft, px_hori, px_vert, img_ref);
 
-                    // get the reference subset (shift included)
-                    util::extract_ss(ss_ref, ss_x-prev_x, ss_y-prev_y, 
-                                     px_hori, px_vert, img_ref);
-
-                    // zero normalise the subsets 
+                    // zero normalise the subsets
                     zero_norm_subsets(ss_def.vals, ss_ref.vals, ss_size);
 
-                    // perform the correlation
-                    fft.correlate();
 
                     // get peaks from the cross correlation
-                    int peak_x = 0, peak_y = 0;
-                    double max_val;
-                    fft.find_peak(peak_x, peak_y, max_val);
-
-                    shifts[i].peak_x[ss] = peak_x;
-                    shifts[i].peak_y[ss] = peak_y;
+                    double peak_x = 0, peak_y = 0;
+                    double max_val = 0.0;
+                    fft.correlate();
+                    fft.find_peak(peak_x, peak_y, max_val, subpx, "GAUSSIAN_2D");
+                    //std::cout << "peak:  " << peak_x << " " << peak_y << std::endl;
+                    //exit(0);
 
                     // update the shift arrays
                     if (i == 0){
@@ -179,22 +187,21 @@ namespace fourier {
                     }
 
                     shifts[i].cost[ss] = debugcost(ss_def, ss_ref);
+                    shifts[i].max_val[ss] = max_val;
                 }
             }
-
-            #pragma omp barrier
 
             // remove outliers in fft
             remove_outliers(shifts[i].x, ssdata[i], 3.0);
             remove_outliers(shifts[i].y, ssdata[i], 3.0);
 
-            for (int ss = 0; ss < ssdata[i].num; ss++){
+            for (size_t ss = 0; ss < ssdata[i].num; ss++){
                 std::cout << ssdata[i].coords[2*ss] << " " << ssdata[i].coords[2*ss+1] << " ";
                 std::cout << shifts[i].x[ss] << " " << shifts[i].y[ss] << " ";
+                std::cout << shifts[i].max_val[ss] << " ";
                 std::cout << shifts[i].cost[ss] << std::endl;
             }
 
-            // smooth it
             std::cout << std::endl;
         }
 
@@ -205,7 +212,7 @@ namespace fourier {
 
 
 
-    std::pair<int, int> get_prev_shift(const int i, const int ss,
+    std::pair<double,double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,
                                        const std::vector<Shift>& shifts,
                                        const std::vector<util::SubsetData>& ssdata) {
@@ -213,8 +220,8 @@ namespace fourier {
         double weight_sum_x = 0.0;
         double weight_sum_y = 0.0;
         double weight_tot = 0.0;
-        int prev_x = 0;
-        int prev_y = 0;
+        double prev_x = 0;
+        double prev_y = 0;
 
         // assign values for all subset sizes EXCEPT first
         if (i > 0){
@@ -236,8 +243,8 @@ namespace fourier {
                 weight_tot += weight;
             }
 
-            prev_x = static_cast<int>(weight_sum_x / weight_tot);
-            prev_y = static_cast<int>(weight_sum_y / weight_tot);
+            prev_x = weight_sum_x / weight_tot;
+            prev_y = weight_sum_y / weight_tot;
         }
         return {prev_x, prev_y};
     }
@@ -275,7 +282,6 @@ namespace fourier {
 
 
     double debugcost(util::Subset &ss_ref, util::Subset &ss_def){
-
         const int num_px = ss_def.num_px;
         double cost = 0.0;
         double mean_ref = 0.0;

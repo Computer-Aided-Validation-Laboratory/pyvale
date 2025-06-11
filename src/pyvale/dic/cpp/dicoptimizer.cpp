@@ -29,7 +29,7 @@ namespace optimizer {
 
 
     // function pointer for correlation criteria
-    void (*optimize_cost)(util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt);
+    void (*optimize_cost)(util::Subset &ss_def, util::Subset &ss_ref,optimizer::Parameters &opt, const Interpolator &Interp);
     void (*shape_function)(double &, double &, double , double , std::vector<double> &);
     void (*dshape_dp)(std::vector<double>&, double, double, double, double, int);
     void (*params_to_displacement)(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
@@ -46,7 +46,7 @@ namespace optimizer {
 
 
 
-    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt) {
+    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_def, util::Subset &ss_ref, const Interpolator &interp_ref, optimizer::Parameters &opt) {
 
         int iter = 0;
         double ftol = 0;
@@ -56,7 +56,7 @@ namespace optimizer {
         while (iter < opt.max_iter) {
 
             // perform the optimization
-            optimize_cost(ss_def, ss_ref, opt);
+            optimize_cost(ss_def, ss_ref, opt, interp_ref);
             update_lambda(opt.costp, opt.costpdp, opt.p, opt.pdp, opt.lambda, opt.num_params);
 
 
@@ -105,7 +105,8 @@ namespace optimizer {
 
     void ssd(util::Subset &ss_def,
              util::Subset &ss_ref,
-             optimizer::Parameters &opt){
+             optimizer::Parameters &opt,
+             const Interpolator &interp_ref){
 
         const int num_px = ss_def.num_px;
         const int num_params = opt.num_params;
@@ -113,7 +114,7 @@ namespace optimizer {
         double dfdy;
 
         // interpolation data struct
-        interpolator::Data interp_data;
+        InterpVals interp_vals;
 
         double gtemp[6] = {0,0,0,0,0,0};
 
@@ -148,12 +149,12 @@ namespace optimizer {
             // }
 
             // get the subset value and derivitives
-            interp_data = interpolator::eval_bicubic_and_derivs(ref_x, ref_y);
-            ss_ref.vals[i] = interp_data.interp_value;
+            interp_vals = interp_ref.eval_bicubic_and_derivs(ref_x, ref_y);
+            ss_ref.vals[i] = interp_vals.f;
             double ref = ss_ref.vals[i];
 
-            dfdx = interp_data.interp_dx;
-            dfdy = interp_data.interp_dy;
+            dfdx = interp_vals.dfdx;
+            dfdy = interp_vals.dfdy;
 
             // derivative of shape function with repsect to parameters
             dshape_dp(opt.dfdp, ref_x, ref_y, dfdx, dfdy, num_px);
@@ -196,7 +197,7 @@ namespace optimizer {
         opt.costpdp = 0.0;
         for (int i = 0; i < num_px; ++i) {
             shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
-            ss_ref.vals[i] = interpolator::eval_bicubic(ss_ref.x[i], ss_ref.y[i]);
+            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i], ss_ref.y[i]);
             opt.costpdp += (ss_def.vals[i] - ss_ref.vals[i]) * (ss_def.vals[i] - ss_ref.vals[i]);
         }
     }
@@ -204,8 +205,8 @@ namespace optimizer {
 
     void nssd(util::Subset &ss_def,
               util::Subset &ss_ref,
-              optimizer::Parameters &opt){
-
+              optimizer::Parameters &opt,
+              const Interpolator &interp_ref){
 
         // reset derivative and hessian values
         std::fill(opt.g.begin(), opt.g.end(), 0.0);
@@ -225,7 +226,7 @@ namespace optimizer {
         double inv_sum_squared_ref;
 
         // interpolation data struct
-        interpolator::Data interp_data;
+        InterpVals interp_vals;
 
         // reset cost function
         opt.costp = 0.0;
@@ -252,10 +253,10 @@ namespace optimizer {
             //     continue;
             // }
 
-            interp_data = interpolator::eval_bicubic_and_derivs(ss_ref.x[i], ss_ref.y[i]);
-            ss_ref.vals[i] = interp_data.interp_value;
-            dfdx[i] = interp_data.interp_dx;
-            dfdy[i] = interp_data.interp_dy;
+            interp_vals = interp_ref.eval_bicubic_and_derivs(ss_ref.x[i], ss_ref.y[i]);
+            ss_ref.vals[i] = interp_vals.f;
+            dfdx[i] = interp_vals.dfdx;
+            dfdy[i] = interp_vals.dfdy;
             sum_squared_def += ss_def.vals[i] * ss_def.vals[i];
             sum_squared_ref += ss_ref.vals[i] * ss_ref.vals[i];
         }
@@ -310,7 +311,7 @@ namespace optimizer {
         sum_squared_ref = 0.0;
         for (int i = 0; i < num_px; ++i) {
             shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
-            ss_ref.vals[i] = interpolator::eval_bicubic(ss_ref.x[i], ss_ref.y[i]);
+            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i], ss_ref.y[i]);
             sum_squared_ref += ss_ref.vals[i] * ss_ref.vals[i];
         }
 
@@ -327,7 +328,8 @@ namespace optimizer {
 
     void znssd(util::Subset &ss_def,
                util::Subset &ss_ref,
-               optimizer::Parameters &opt){
+               optimizer::Parameters &opt,
+               const Interpolator &interp_ref){
 
 
         // reset derivative and hessian values
@@ -347,7 +349,7 @@ namespace optimizer {
         double mean_def = 0.0;
         
         // interpolation data struct
-        interpolator::Data interp_data;
+        InterpVals interp_vals;
 
         // reset cost function
         opt.costp = 0.0;
@@ -377,10 +379,10 @@ namespace optimizer {
             // }
 
 
-            interp_data = interpolator::eval_bicubic_and_derivs(ss_ref.x[i], ss_ref.y[i]);
-            ss_ref.vals[i] = interp_data.interp_value;
-            dfdx[i] = interp_data.interp_dx;
-            dfdy[i] = interp_data.interp_dy;
+            interp_vals = interp_ref.eval_bicubic_and_derivs(ss_ref.x[i], ss_ref.y[i]);
+            ss_ref.vals[i] = interp_vals.f;
+            dfdx[i] = interp_vals.dfdx;
+            dfdy[i] = interp_vals.dfdy;
 
             mean_ref += ss_ref.vals[i];
             mean_def += ss_def.vals[i];
@@ -470,7 +472,7 @@ namespace optimizer {
         mean_ref = 0.0;
         for (int i = 0; i < num_px; ++i) {
             shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
-            ss_ref.vals[i] = interpolator::eval_bicubic(ss_ref.x[i], ss_ref.y[i]);
+            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i], ss_ref.y[i]);
             mean_ref += ss_ref.vals[i];
         }
 

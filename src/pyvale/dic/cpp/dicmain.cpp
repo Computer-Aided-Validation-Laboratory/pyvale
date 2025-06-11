@@ -80,7 +80,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
    
     // define our interpolator for the reference image
-    interpolator::bicubic_init(img_ref, conf.px_hori, conf.px_vert);
+    Interpolator interp_ref(img_ref, conf.px_hori, conf.px_vert);
 
     // initialise the LM optimizer with shape func and corr crit
     optimizer::init(conf.corr_crit, conf.shape_func);
@@ -102,40 +102,31 @@ void DICengine(const py::array_t<double>& img_ref_arr,
         // pointer to starting location of deformed image in memory
         int num_px_in_image = conf.px_hori * conf.px_vert;
         double *img_def = img_def_stack + img_num*num_px_in_image;
-       
+
         // raster scan
         if (conf.scan_method=="IMAGE_SCAN") 
-            scanmethod::image(img_ref, img_def, img_roi, 
-                              ssdata, conf, img_num);
-        
+            scanmethod::image(interp_ref, img_def, ssdata, conf, img_num);
+
         // raster with brute force
         else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") 
-            scanmethod::image_with_bf(img_ref, img_def, img_roi, 
-                              ssdata, conf, img_num);
+            scanmethod::image_with_bf(interp_ref, img_ref, img_def, ssdata, conf, img_num);
 
         // reliability Guided
         else if (conf.scan_method=="RG")
-            scanmethod::reliability_guided(img_ref, img_def, img_roi, 
-                              ssdata, conf, img_num);
-    
+            scanmethod::reliability_guided(interp_ref, img_ref, img_def, ssdata, conf, img_num);
+
         // multi window fft
         else if (conf.scan_method=="FFT")
-            scanmethod::multi_window_fourier(img_ref, img_def, img_roi, 
-                              ssdata, conf, img_num);
+            scanmethod::multi_window_fourier(interp_ref, img_ref, img_def, ssdata, conf, img_num);
 
-        if (!saveconf.at_end){
-            util::save_to_disk(img_num, saveconf, ssdata.back(),
-                               conf.num_def_img, conf.num_params);
-        }
+        if (!saveconf.at_end)
+            util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params);
 
     }
 
-    if (saveconf.at_end){
-        for (int img_num = 0; img_num < conf.num_def_img; img_num++){
-            util::save_to_disk(img_num, saveconf, ssdata.back(),
-                               conf.num_def_img, conf.num_params);
-        }
-    }
+    if (saveconf.at_end)
+        for (int img_num = 0; img_num < conf.num_def_img; img_num++)
+            util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params);
 }
 
 

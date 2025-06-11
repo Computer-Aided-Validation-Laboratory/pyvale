@@ -10,8 +10,11 @@
 // STD library Header files
 #include <fftw3.h>
 #include <algorithm>
+#include <cmath>
+#include <Eigen/Dense>
 
 // Program Header files
+#include "./dicinterpolator.hpp"
 #include "./defines.hpp"
 #include "./dicutil.hpp"
 
@@ -28,8 +31,7 @@ namespace fourier {
         std::vector<double> x;
         std::vector<double> y;
         std::vector<double> cost;
-        std::vector<double> peak_x;
-        std::vector<double> peak_y;
+        std::vector<double> max_val;
 
         // list of neighbours from prev window
         std::vector<int> neighlist;
@@ -115,16 +117,23 @@ namespace fourier {
     struct FFT {
         int ss_size;
 
+        // fft data
         fftw_complex* fft_def;
         fftw_complex* fft_ref;
         std::vector<double> cross_corr;
 
+        // fft plans
         fftw_plan plan_def;
         fftw_plan plan_ref;
         fftw_plan plan_inv;
 
+
+        // for subpixel peak position in correlation map
+        Eigen::MatrixXd A;
+        Eigen::VectorXd b;
+
         FFT(int ss_size_, double* ss_def_vals, double* ss_ref_vals)
-            : ss_size(ss_size_), cross_corr(ss_size_ * ss_size_)
+            : ss_size(ss_size_), cross_corr(ss_size_ * ss_size_), A(9,6), b(9)
         {
             fft_def = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * ss_size * (ss_size / 2 + 1));
             fft_ref = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * ss_size * (ss_size / 2 + 1));
@@ -163,32 +172,106 @@ namespace fourier {
             fftw_execute(plan_inv);
         }
 
-        void find_peak(int &peak_x, int &peak_y, double &max_val) {
+    void fftshift(std::vector<double>& data, int size) {
+        std::vector<double> temp(size * size);
 
+        int half = size / 2;
+
+        for (int y = 0; y < size; ++y) {
+            for (int x = 0; x < size; ++x) {
+                int new_x = (x + half) % size;
+                int new_y = (y + half) % size;
+                temp[new_y * size + new_x] = data[y * size + x];
+            }
+        }
+
+        data = temp;
+    }
+        inline double safe_log(double val, double eps = 1e-7) {
+            return std::log(std::max(val, eps));
+        }
+        
+        inline int wrap(int coord, int size) {
+            return (coord + size) % size;
+        }
+
+       
+        void find_peak(double &peak_x, double &peak_y, double &max_val, const bool subpx, const std::string &method) {
             max_val = -std::numeric_limits<double>::infinity();
+            int x0 = 0, y0 = 0;
 
+            // Step 1: Find the integer peak
             for (int y = 0; y < ss_size; ++y) {
                 for (int x = 0; x < ss_size; ++x) {
                     double val = cross_corr[y * ss_size + x];
                     if (val > max_val) {
                         max_val = val;
-                        peak_x = (x< ss_size / 2) ? x: x - ss_size;
-                        peak_y = (y< ss_size / 2) ? y: y - ss_size;
+                        x0 = x;
+                        y0 = y;
                     }
                 }
             }
-        }
 
+            // Step 2: No subpixel refinement requested
+            if (!subpx) {
+                peak_x = (x0 < ss_size / 2.0) ? x0 : x0 - ss_size;
+                peak_y = (y0 < ss_size / 2.0) ? y0 : y0 - ss_size;
+                return;
+            }
+
+            int i = 0;
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dx = -1; dx <= 1; ++dx) {
+                    int xw = wrap(x0 + dx, ss_size);
+                    int yw = wrap(y0 + dy, ss_size);
+                    double val = cross_corr[yw * ss_size + xw];
+
+                    // Safe log for Gaussian
+                    if (method == "GAUSSIAN_2D" && val <= 0) val = 1e-6;
+                    double z = (method == "GAUSSIAN_2D") ? std::log(val) : val;
+
+                    A(i, 0) = dx * dx;
+                    A(i, 1) = dy * dy;
+                    A(i, 2) = dx * dy;
+                    A(i, 3) = dx;
+                    A(i, 4) = dy;
+                    A(i, 5) = 1.0;
+                    b(i) = z;
+                    i++;
+                }
+            }
+
+            // Step 4: Solve least squares
+            Eigen::VectorXd coeffs = A.colPivHouseholderQr().solve(b);
+            double a = coeffs(0), b_ = coeffs(1), c = coeffs(2);
+            double d = coeffs(3), e = coeffs(4);
+
+            // Step 5: Find stationary point (gradient = 0)
+            Eigen::Matrix2d H;
+            H << 2 * a, c,
+                c,     2 * b_;
+            Eigen::Vector2d g(-d, -e);
+
+            Eigen::Vector2d offset = H.ldlt().solve(g);
+
+            peak_x = x0 + offset(0);
+            peak_y = y0 + offset(1);
+            peak_x = (peak_x < ss_size / 2.0) ? peak_x : peak_x - ss_size;
+            peak_y = (peak_y < ss_size / 2.0) ? peak_y : peak_y - ss_size;
+            //std::cout << peak_x << " " << peak_y << std::endl;
+        }
     };
 
     void init(std::vector<util::SubsetData> &ssdata, 
               const bool *img_roi, const util::Config conf);
 
     void mgwd(const std::vector<util::SubsetData> &ssdata,
-              const double *img_def, const double *img_ref,
+              const Interpolator &interp_ref,
+              const double *img_ref,
+              const double *img_def,
               const int px_hori, const int px_vert);
 
-    std::pair<int, int> get_prev_shift(const int i, const int ss,
+    std::pair<double, double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,
                                        const std::vector<Shift>& shifts,
                                        const std::vector<util::SubsetData>& ssdata);
