@@ -8,6 +8,8 @@
 #define DICFOURIER_H
 
 // STD library Header files
+#include <csignal>
+#include <cstdlib>
 #include <fftw3.h>
 #include <algorithm>
 #include <cmath>
@@ -25,7 +27,7 @@ namespace fourier {
     struct Shift {
 
         // number of neighbours to use for removing outliers
-        int num_neigh;
+        size_t num_neigh;
 
         //integer shifts
         std::vector<double> x;
@@ -91,16 +93,19 @@ namespace fourier {
                     std::cerr << "Could not not find " << num_neigh << " neihbours for point (" << ss_x << ", " << ss_y << ")." << std::endl;
                     std::cerr << "Number of neighbours: " << dist_index_list.size() << std::endl;
                     std::cerr << "Neighbours from previous window: " << std::endl;
-                    for (int n = 0; n < dist_index_list.size(); n++){
+                    for (size_t n = 0; n < dist_index_list.size(); n++){
                         int nss_idx = dist_index_list[n].second;
                         int nss_x = ssdata_prev.coords[2*nss_idx];
                         int nss_y = ssdata_prev.coords[2*nss_idx+1];
+                        std::cerr << "(" << nss_x << ", " << nss_y << "), ";
                     }
+                    std::cerr << std::endl;
+                    exit(EXIT_FAILURE);
                 }
 
 
                 // Store neighbours indices into neighlist
-                for (int i = 0; i < num_neigh; ++i) {
+                for (size_t i = 0; i < num_neigh; ++i) {
                     //std::cout << ss_x << " " << ss_y << std::endl;
                     neighlist[ss*num_neigh+i] = dist_index_list[i].second;
                     //int nidx = neighlist[ss*num_neigh+i];

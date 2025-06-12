@@ -105,15 +105,15 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
         // raster scan
         if (conf.scan_method=="IMAGE_SCAN") 
-            scanmethod::image(interp_ref, img_def, ssdata, conf, img_num);
+            scanmethod::image(interp_ref, img_def, ssdata[0], conf, img_num);
 
         // raster with brute force
         else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") 
-            scanmethod::image_with_bf(interp_ref, img_ref, img_def, ssdata, conf, img_num);
+            scanmethod::image_with_bf(interp_ref, img_ref, img_def, ssdata[0], conf, img_num);
 
         // reliability Guided
         else if (conf.scan_method=="RG")
-            scanmethod::reliability_guided(interp_ref, img_ref, img_def, ssdata, conf, img_num);
+            scanmethod::reliability_guided(interp_ref, img_ref, img_def, ssdata[0], conf, img_num);
 
         // multi window fft
         else if (conf.scan_method=="FFT")

@@ -195,7 +195,7 @@ namespace fourier {
             remove_outliers(shifts[i].x, ssdata[i], 3.0);
             remove_outliers(shifts[i].y, ssdata[i], 3.0);
 
-            for (size_t ss = 0; ss < ssdata[i].num; ss++){
+            for (int ss = 0; ss < ssdata[i].num; ss++){
                 std::cout << ssdata[i].coords[2*ss] << " " << ssdata[i].coords[2*ss+1] << " ";
                 std::cout << shifts[i].x[ss] << " " << shifts[i].y[ss] << " ";
                 std::cout << shifts[i].max_val[ss] << " ";
@@ -227,7 +227,7 @@ namespace fourier {
         if (i > 0){
 
             // weighted average of 4 nearest neighbours
-            for (int j = 0; j < shifts[i].num_neigh; ++j) {
+            for (size_t j = 0; j < shifts[i].num_neigh; ++j) {
 
                 int nidx = shifts[i].neighlist[ss*shifts[i].num_neigh+j];
                 int neigh_x = ssdata[i-1].coords[2*nidx];

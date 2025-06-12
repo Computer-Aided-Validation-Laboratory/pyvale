@@ -73,8 +73,7 @@ namespace util {
         int num_in_mask;
         std::vector<int> coords;
         std::vector<int> mask;
-        std::unordered_map<std::pair<int, int>, int, PairHash> coords_to_idx;
-        std::unordered_map<int, std::vector<int>> neigh;
+        std::vector<std::vector<int>> neigh;
     };
 
     struct SaveConfig {

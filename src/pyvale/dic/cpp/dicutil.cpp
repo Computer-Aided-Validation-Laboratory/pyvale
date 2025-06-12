@@ -182,7 +182,6 @@ namespace util {
                     ssdata.coords[2*subset_counter] = ss_x;
                     ssdata.coords[2*subset_counter+1] = ss_y;
                     ssdata.mask[j * num_ss_x + i] = subset_counter;
-                    ssdata.coords_to_idx[{ss_x, ss_y}] = subset_counter;
                     subset_counter++;
                 }
             }
@@ -190,14 +189,17 @@ namespace util {
 
         ssdata.coords.resize(2*subset_counter);
         ssdata.num = subset_counter;
+        ssdata.neigh.resize(ssdata.num);
 
         // neighbours for each of the above subset
         // TODO: Parallelise with openMP
         for (int j = 0; j < num_ss_y; ++j) {
             for (int i = 0; i < num_ss_x; ++i) {
 
-                int center_idx = ssdata.mask[j * num_ss_x + i];
-                if (center_idx == -1) continue;
+                // calculate the coordinates of the subset
+                int idx = ssdata.mask[j * num_ss_x + i];
+
+                if (idx == -1) continue;
 
                 std::vector<int> temp_neigh;
 
@@ -213,7 +215,17 @@ namespace util {
                     }
                 }
 
-                ssdata.neigh[center_idx] = std::move(temp_neigh);
+                ssdata.neigh[idx] = temp_neigh;
+
+                // debugging
+                //int ss_x = ssdata.coords[2*idx];
+                //int ss_y = ssdata.coords[2*idx+1];
+                //std::cout << idx << " " << ss_x << " " << ss_y << " ";
+                //for (int n = 0; n <  ssdata.neigh[idx].size(); n++){
+                //    int nidx = ssdata.neigh[idx][n];
+                //    std::cout << ssdata.coords[2*nidx] << " " << ssdata.coords[2*nidx+1] << " ";
+                //}
+                //std::cout << std::endl;
             }
         }
 
