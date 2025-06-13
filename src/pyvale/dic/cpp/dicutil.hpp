@@ -123,13 +123,15 @@ namespace util {
 
     struct Results {
         std::vector<double> p;
-        double u;
-        double v;
-        double mag;
-        double ftol;
-        double xtol;
-        int iter;
-        double cost;
+        double u = 0.0;
+        double v = 0.0;
+        double mag = 0.0;
+        double ftol = 0.0;
+        double xtol = 0.0;
+        int iter = 0;
+        double cost = 0.0;
+
+        Results(size_t num_params) : p(num_params, 0.0) {}
     };
 
 

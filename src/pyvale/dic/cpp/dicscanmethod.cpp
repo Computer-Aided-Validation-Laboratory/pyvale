@@ -67,12 +67,12 @@ namespace scanmethod {
 
     void image(const Interpolator &interp_ref,
                const double *img_def,
-               const std::vector<util::SubsetData> &ssdata, 
+               const util::SubsetData &ssdata, 
                const util::Config &conf,
                const int img_num){
 
-        const int ss_num = ssdata[0].num;
-        const int ss_size = ssdata[0].step;
+        const int ss_num = ssdata.num;
+        const int ss_size = ssdata.size;
 
         // progress bar
         indicators::ProgressBar bar;
@@ -100,19 +100,17 @@ namespace scanmethod {
 
             // subset coordinate list takes central locations. 
             // Converting to top left corner for optimization routine
-            int ss_x = ssdata[0].coords[ss*2];
-            int ss_y = ssdata[0].coords[ss*2+1];
+            int ss_x = ssdata.coords[ss*2];
+            int ss_y = ssdata.coords[ss*2+1];
 
             // get the deformed subset
-            util::extract_ss(ss_def, ss_x, ss_y, 
-                             conf.px_hori,
-                             conf.px_vert,
-                             img_def);
+            util::extract_ss(ss_def, ss_x, ss_y, conf.px_hori, conf.px_vert, img_def);
 
 
             // perform optimization on subset from deformed image
-            util::Results res;
-            res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, interp_ref, opt);
+            double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
+            double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
+            util::Results res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
 
             // append the results for the current subset to result vectors
@@ -135,12 +133,12 @@ namespace scanmethod {
 void image_with_bf(const Interpolator &interp_ref, 
                    const double *img_ref,
                    const double *img_def,
-                   const std::vector<util::SubsetData>  &ssdata, 
+                   const util::SubsetData  &ssdata, 
                    const util::Config &conf,
                    const int img_num){
 
-    const int ss_num = ssdata[0].num;
-    const int ss_size = ssdata[0].size;
+    const int ss_num = ssdata.num;
+    const int ss_size = ssdata.size;
 
     // progress bar
     indicators::ProgressBar bar;
@@ -162,8 +160,7 @@ void image_with_bf(const Interpolator &interp_ref,
     brute::Parameters brute(conf.threshold_bf, conf.range_bf);
 
     // perform optimization on subset from deformed image
-    util::Results res;
-    res.iter = 0;
+    util::Results res(conf.num_params);
 
     // counter for each thread
     int ss_thread_num = 0;
@@ -183,20 +180,17 @@ void image_with_bf(const Interpolator &interp_ref,
 
         // subset coordinate list contains central locations.
         // Converting to top left corner for optimization routine
-        int ss_x = ssdata[0].coords[ss*2];
-        int ss_y = ssdata[0].coords[ss*2+1];
+        int ss_x = ssdata.coords[ss*2];
+        int ss_y = ssdata.coords[ss*2+1];
 
         // get the deformed subset
-        util::extract_ss(ss_def, ss_x, ss_y, 
-                         conf.px_hori,
-                         conf.px_vert,
-                             img_def); 
+        util::extract_ss(ss_def, ss_x, ss_y, conf.px_hori, conf.px_vert, img_def); 
 
 
         // if first subset in the loop or prev subset was a poor match
         // start search with a brute force scan using the last set of 
         // brute force params that gave a good match.
-        if ((ss_thread_num == 0) || (res.iter == opt.max_iter)){
+        if ((ss_thread_num == 0) || (res.cost > opt.threshold_lm)){
 
             brute::expanding_wavefront(ss_x, ss_y, img_ref, 
                                        conf.px_hori, 
@@ -211,7 +205,9 @@ void image_with_bf(const Interpolator &interp_ref,
             }
         }
 
-        res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, interp_ref, opt);
+        double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
+        double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
+        util::Results res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
         // append the results for the current subset to result vectors
         util::append_results(img_num, ss, res, ss_num);
@@ -237,12 +233,12 @@ void image_with_bf(const Interpolator &interp_ref,
     void reliability_guided(const Interpolator &interp_ref,
                             const double *img_ref,
                             const double *img_def,
-                            const std::vector<util::SubsetData> &ssdata,
+                            const util::SubsetData &ssdata,
                             const util::Config &conf,
                             const int img_num){
 
-        const int ss_num = ssdata[0].num;
-        const int ss_size = ssdata[0].size;
+        const int ss_num = ssdata.num;
+        const int ss_size = ssdata.size;
 
         // progress bar
         indicators::ProgressBar bar;
@@ -250,11 +246,11 @@ void image_with_bf(const Interpolator &interp_ref,
         int current_progress = 0;
         int prev_pct = 0;
 
-        int seed_x = 500; // in corner coordinates
-        int seed_y = 500; // in corner coodinates
+        int seed_x = 3900 - ssdata.size/2; // in corner coordinates
+        int seed_y = 250 - ssdata.size/2; // in corner coodinates
 
         // quick check for the initial seed point
-        if (!rg::is_valid_point(seed_x, seed_y, ssdata[0])) {
+        if (!rg::is_valid_point(seed_x, seed_y, ssdata)) {
             return;
         }
 
@@ -263,78 +259,62 @@ void image_with_bf(const Interpolator &interp_ref,
         const int px_vert = conf.px_vert;
 
         // Initialize binary mask for computed points (initialized to 0)
-        std::vector<std::atomic<bool>> computed_mask(ssdata[0].mask.size());
+        std::vector<std::atomic<bool>> computed_mask(ssdata.mask.size());
         for (size_t i = 0; i < computed_mask.size(); ++i) {
             computed_mask[i] = false;
         }
 
         // queue for each thread
-        int max_threads = omp_get_max_threads();
-        std::vector<std::priority_queue<rg::Point>> local_q(max_threads);
+        std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
 
         // Initialize ref and def subsets
         util::Subset ss_def(ss_size);
         util::Subset ss_ref(ss_size);
 
         // Extract subset and solve for starting seed point
-        util::extract_ss(ss_def, seed_x, seed_y, 
-                         px_hori, px_vert,
-                         img_def);
-
-
-        // temp p values for copy from brute force to optimization.
-        double ptemp[6] = {0,0,0,0,0,0};
+        util::extract_ss(ss_def, seed_x, seed_y, px_hori, px_vert, img_def);
 
         // brute force for initial subset
-        brute::Parameters brute(conf.threshold_bf, 
-                                conf.range_bf);
+        brute::Parameters brute(conf.threshold_bf, conf.range_bf);
 
-        brute::expanding_wavefront(seed_x, seed_y, img_ref, 
-                                   px_hori, px_vert, 
-                                   ss_def, ss_ref, brute);
+        brute::expanding_wavefront(seed_x, seed_y, img_ref, px_hori, px_vert, ss_def, ss_ref, brute);
 
         // Optimization parameters
-        optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                  conf.precision, conf.threshold_lm, 
-                                  px_vert, px_hori);
-
+        optimizer::Parameters opt(conf.num_params, conf.max_iter, conf.precision, conf.threshold_lm, px_vert, px_hori);
         opt.p[0] = brute.p_rigid[0];
         opt.p[1] = brute.p_rigid[1];
 
-        for (int i = 0; i < opt.num_params; i++){
-                opt.p[i] = ptemp[i];
-        }
+        double centre_x = seed_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
+        double centre_y = seed_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
+        util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
-        util::Results seed_res = optimizer::solve(seed_x, seed_y, 
-                                                  ss_def, ss_ref, interp_ref, opt);
-
-
-
-        //mark seed as computed
-        int x = seed_x / ssdata[0].step;
-        int y = seed_y / ssdata[0].step;
-        int idx = y * ssdata[0].num_ss_x + x;
-        //int idx = ssdata[0].coords_to_idx.find({seed_x, seed_y})->second;
+        // seed coordinates
+        int x = seed_x / ssdata.step;
+        int y = seed_y / ssdata.step;
+        int idx = ssdata.mask[y * ssdata.num_ss_x + x];
 
         // append the results for the current subset to result vectors
         util::append_results(img_num, idx, seed_res, ss_num);
 
         computed_mask[idx] = true;
 
-        // loop over seed neigh
-        for (int nidx : ssdata[0].neigh.at(idx)) {
+        // loop over the neighbours for the initial seed point
+        std::cout << std::endl;
+        std::cout << idx << std::endl;
+        std::cout << ssdata.neigh[idx].size() << std::endl;
+        for (size_t n = 0; n < ssdata.neigh[idx].size(); n++) {
+            
+            // subset index of neighbour to the current point
+            int nidx = ssdata.neigh[idx][n];
 
-            int nx = ssdata[0].coords[nidx*2];
-            int ny = ssdata[0].coords[nidx*2+1];
+            int nx = ssdata.coords[nidx*2];
+            int ny = ssdata.coords[nidx*2+1];
 
-            util::extract_ss(ss_def, nx, ny,
-                             px_hori, px_vert,
-                             img_def);
+            util::extract_ss(ss_def, nx, ny, px_hori, px_vert, img_def);
 
-            brute::expanding_wavefront(nx, ny, img_ref,
-                                       px_hori, px_vert,
-                                       ss_def, ss_ref, brute);
+            brute::expanding_wavefront(nx, ny, img_ref, px_hori, px_vert, ss_def, ss_ref, brute);
 
+            double ptemp[6] = {0,0,0,0,0,0};
             ptemp[0] = brute.p_rigid[0];
             ptemp[1] = brute.p_rigid[1];
 
@@ -342,7 +322,10 @@ void image_with_bf(const Interpolator &interp_ref,
                 opt.p[i] = ptemp[i];
             }
 
-            util::Results nres = optimizer::solve(nx, ny, ss_def, ss_ref, interp_ref, opt);
+            // perform optimization for seed point neighbours
+            double centre_x = nx + static_cast<double>(ssdata.size)/2.0 - 0.5;
+            double centre_y = ny + static_cast<double>(ssdata.size)/2.0 - 0.5;
+            util::Results nres = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
             // append the results for the current subset to result vectors
             util::append_results(img_num, nidx, nres, ss_num);
@@ -350,21 +333,21 @@ void image_with_bf(const Interpolator &interp_ref,
             // update mask
             computed_mask[nidx] = true;
 
-            // add point to queue
-            local_q[0].push(rg::Point(nx, ny, 1.0 - 0.5*nres.cost));
+            // add this point to queue
+            local_q[0].push(rg::Point(nidx,1.0-0.5*nres.cost));
         }
-
+        
         // LOCAL QUEUE PROCESSING
         #pragma omp parallel firstprivate(ss_def, ss_ref, opt, brute)
         {
 
-            auto& my_q = local_q[omp_get_thread_num()];
+            std::priority_queue<rg::Point>& thread_q = local_q[omp_get_thread_num()];
             std::vector<rg::Point> temp_neigh;
             temp_neigh.reserve(4);
             double ptemp[6] = {0,0,0,0,0,0};
 
             const int max_idle_iters = 100;
-            rg::Point current(0, 0, 0);
+            rg::Point current(0, 0);
 
             while (!stop_request) {
 
@@ -373,9 +356,9 @@ void image_with_bf(const Interpolator &interp_ref,
                 int idle_iters = 0;
 
                 // Try threads own queue
-                if (!my_q.empty()) {
-                    current = my_q.top();
-                    my_q.pop();
+                if (!thread_q.empty()) {
+                    current = thread_q.top();
+                    thread_q.pop();
                     got_point = true;
                 } 
                 else {
@@ -403,38 +386,29 @@ void image_with_bf(const Interpolator &interp_ref,
 
                 temp_neigh.clear();
 
-                // cooridnates of point taken frmo queue
-                int curr_x = current.x;
-                int curr_y = current.y;
-
-
-                // get the idx of point in subset list
-                int x = curr_x / ssdata[0].step;
-                int y = curr_y / ssdata[0].step;
-                int idx = y * ssdata[0].num_ss_x + x;
-                //int idx = ssdata[0].coords_to_idx.find({curr_x, curr_y})->second;
-                int idx_res = (img_num * ss_num + idx);
+                // get the mask idx of point in subset list
+                int idx_res = (img_num * ss_num + current.idx);
                 int idx_resp = idx_res*opt.num_params;
 
                 // loop over neighbouring points
-                for (int nidx : ssdata[0].neigh.at(idx)) {
+                for (size_t n = 0; n < ssdata.neigh[current.idx].size(); n++) {
+            
+                    // subset index of neighbour to the current point
+                    int nidx = ssdata.neigh[current.idx][n];
 
                     // coords of neigh
-                    int nx = ssdata[0].coords[nidx*2];
-                    int ny = ssdata[0].coords[nidx*2+1];
+                    int nx = ssdata.coords[nidx*2];
+                    int ny = ssdata.coords[nidx*2+1];
 
                     if (!computed_mask[nidx].exchange(true)) {
 
                         // extract subset
-                        util::extract_ss(ss_def, nx, ny,
-                                         px_hori, px_vert,
-                                         img_def);
+                        util::extract_ss(ss_def, nx, ny, px_hori, px_vert, img_def);
 
-                        // if the neighbouring subset reached the max
-                        // num of iterations or prev subset had not reached
-                        // threshold, start brute force again
-                        if (util::niter_arr[idx] == opt.max_iter && 
-                            util::cost_arr[idx] > opt.threshold_lm){
+                        // if the neighbouring subset had not met correlation threshold
+                        // then start brute force again
+                        //if (util::niter_arr[idx] == opt.max_iter && util::cost_arr[idx] > opt.threshold_lm){
+                        if (util::cost_arr[idx] > opt.threshold_lm){
 
                             brute::expanding_wavefront(nx, ny, img_ref, 
                                                        px_hori,
@@ -456,15 +430,16 @@ void image_with_bf(const Interpolator &interp_ref,
                         }
 
                         // optimize
-                        util::Results nres = optimizer::solve(nx, ny, ss_def, ss_ref, interp_ref, opt);
+                        double centre_x = nx + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                        double centre_y = ny + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                        util::Results nres = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
                         // append results
                         util::append_results(img_num, nidx, nres, ss_num);
 
+                        // add results to temp neighbour results
+                        temp_neigh.emplace_back(nidx, 1.0-0.5*nres.cost);
 
-                        // // add results to temp neighbour results
-                        temp_neigh.emplace_back(nx, ny, 1.0-0.5*nres.cost);
-                        
                         // update progress bar
                         #pragma omp critical 
                         {
@@ -476,7 +451,7 @@ void image_with_bf(const Interpolator &interp_ref,
                 }
 
                 for (const auto& neigh : temp_neigh) {
-                    my_q.push(neigh);
+                    thread_q.push(neigh);
                 }
             }
         }
@@ -554,8 +529,9 @@ void image_with_bf(const Interpolator &interp_ref,
                 }
 
                 // perform optimization on subset from deformed image
-                util::Results res;
-                res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, interp_ref, opt);
+                double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
+                double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
+                util::Results res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, interp_ref, opt);
 
                 // append optimization results to results vectors
                 util::append_results(img_num, ss, res, ss_num);

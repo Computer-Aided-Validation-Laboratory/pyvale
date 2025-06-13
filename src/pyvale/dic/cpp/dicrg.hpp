@@ -24,13 +24,12 @@ namespace rg {
      * 
      */
     struct Point {
-        int x;
-        int y;
+        int idx;
         double val;
         
         // Constructor
-        Point(int x_coord, int y_coord, double _val) : 
-            x(x_coord), y(y_coord), val(_val) {}
+        Point(int _idx, double _val) : 
+            idx(_idx), val(_val) {}
         
         // Comparison operator for priority queue (higher ZNCC first)
         bool operator<(const Point& other) const {

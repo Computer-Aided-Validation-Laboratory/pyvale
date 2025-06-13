@@ -45,7 +45,7 @@ namespace optimizer {
                    double threshold_lm_, int px_vert_, int px_hori_)
             :
             num_params(num_params_),
-            lambda(0.001),
+            lambda(0.01),
             costp(0.0),
             costpdp(0.0),
             g(num_params, 0.0),
@@ -89,8 +89,8 @@ namespace optimizer {
     inline void affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
     inline void rigid(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
     inline void quad(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
-    inline void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
-    inline void drigid_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy, int n);
+    inline void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy);
+    inline void drigid_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy);
     inline void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
     void affine_parameters_to_displacement(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
     void rigid_parameters_to_displacement(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);

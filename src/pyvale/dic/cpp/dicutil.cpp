@@ -160,8 +160,8 @@ namespace util {
                 // pixel range of subset
                 int xmin = ss_x;
                 int ymin = ss_y;
-                int xmax = ss_x + ss_size;
-                int ymax = ss_y + ss_size;
+                int xmax = ss_x + ss_size-1;
+                int ymax = ss_y + ss_size-1;
 
                 // check if subset is within image and ROI.
                 bool valid = true;
