@@ -106,6 +106,9 @@ namespace scanmethod {
             // get the deformed subset
             util::extract_ss(ss_def, ss_x, ss_y, conf.px_hori, conf.px_vert, img_def);
 
+            for (int i = 0; i < opt.num_params; i++){
+                opt.p[i] = 0.0;
+            }
 
             // perform optimization on subset from deformed image
             double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
@@ -531,7 +534,7 @@ void image_with_bf(const Interpolator &interp_ref,
                 // perform optimization on subset from deformed image
                 double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
-                util::Results res = optimizer::solve(ss_x, ss_y, ss_def, ss_ref, interp_ref, opt);
+                util::Results res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
                 // append optimization results to results vectors
                 util::append_results(img_num, ss, res, ss_num);

@@ -20,7 +20,7 @@ namespace scanmethod {
 
 
 
-    void signalHandler(int signal);
+void signalHandler(int signal);
 
 
 
@@ -38,7 +38,7 @@ namespace scanmethod {
  */
 void image(const Interpolator &interp_ref, 
            const double *img_def, 
-           const std::vector<util::SubsetData> &ssdata, 
+           const util::SubsetData &ssdata, 
            const util::Config &conf,
            const int img_num);
 
@@ -59,7 +59,7 @@ void image(const Interpolator &interp_ref,
 void image_with_bf(const Interpolator &interp_ref, 
                    const double *img_ref,
                    const double *img_def,
-                   const std::vector<util::SubsetData> &ssdata, 
+                   const util::SubsetData &ssdata, 
                    const util::Config &conf,
                    const int img_num);
 
@@ -80,7 +80,7 @@ void image_with_bf(const Interpolator &interp_ref,
 void reliability_guided(const Interpolator &interp_ref,
                         const double *img_ref,
                         const double *img_def,
-                        const std::vector<util::SubsetData> &ssdata, 
+                        const util::SubsetData &ssdata, 
                         const util::Config &conf,
                         const int img_num);
 

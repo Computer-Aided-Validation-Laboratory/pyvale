@@ -29,7 +29,7 @@ namespace optimizer {
 
 
     // function pointer for correlation criteria
-    void (*optimize_cost)(util::Subset &ss_def, util::Subset &ss_ref,optimizer::Parameters &opt, const Interpolator &Interp);
+    void (*optimize_cost)(const util::Subset &ss_def, util::Subset &ss_ref,optimizer::Parameters &opt, const Interpolator &Interp, const int global_x, const int global_y);
     void (*shape_function)(double &, double &, double , double , std::vector<double> &);
     void (*dshape_dp)(std::vector<double>&, double, double, double, double);
     void (*params_to_displacement)(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
@@ -53,10 +53,18 @@ namespace optimizer {
         double xtol = 0;
         opt.lambda = 0.001;
 
+        // trying relative instead of global coordinates for the optimization
+        int global_x = ss_def.x[0];
+        int global_y = ss_def.y[0];
+        for (int px = 0; px < ss_def.num_px; px++){
+            ss_def.x[px] -= global_x;
+            ss_def.y[px] -= global_y;
+        }
+
         while (iter < opt.max_iter) {
 
             // perform the optimization
-            optimize_cost(ss_def, ss_ref, opt, interp_ref);
+            optimize_cost(ss_def, ss_ref, opt, interp_ref, global_x, global_y);
             update_lambda(opt.costp, opt.costpdp, opt.p, opt.pdp, opt.lambda, opt.num_params);
 
 
@@ -84,7 +92,7 @@ namespace optimizer {
         }
 
         util::Results res(opt.num_params);
-        params_to_displacement(res, ss_x, ss_y, opt.p);
+        params_to_displacement(res, ss_x-global_x, ss_y-global_y, opt.p);
         res.iter = iter;
         res.ftol = ftol;
         res.xtol = xtol;
@@ -103,10 +111,12 @@ namespace optimizer {
 
 
 
-    void ssd(util::Subset &ss_def,
+    void ssd(const util::Subset &ss_def,
              util::Subset &ss_ref,
              optimizer::Parameters &opt,
-             const Interpolator &interp_ref){
+             const Interpolator &interp_ref,
+             const int global_x,
+             const int global_y){
 
         const int num_px = ss_def.num_px;
         const int num_params = opt.num_params;
@@ -129,24 +139,9 @@ namespace optimizer {
             // get subset coordinates based on shape function parameters
             shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.p);
 
+            // x and y coordinates of reference subset
             double ref_x = ss_ref.x[i];
             double ref_y = ss_ref.y[i];
-
-            // // Inside ssd function before interpolation
-            // if (ref_x < 0 || ref_x > opt.px_hori-1 || ref_y < 0 || ref_y > opt.px_vert-1) {
-            //     // Apply a penalty proportional to how far outside the bounds
-            //     double penalty = 0;
-            //     if (ref_x < 0) penalty += std::abs(ref_x);
-            //     if (ref_x > opt.px_hori-1) penalty += ref_x - (opt.px_hori-1);
-            //     if (ref_y < 0) penalty += std::abs(ref_y);
-            //     if (ref_y > opt.px_vert-1) penalty += ref_y - (opt.px_vert-1);
-                
-            //     // Add this penalty to the cost function
-            //     opt.costp += penalty * penalty;
-                
-            //     // Skip this point for derivative calculations
-            //     continue;
-            // }
 
             // get the subset value and derivitives
             interp_vals = interp_ref.eval_bicubic_and_derivs(ref_x, ref_y);
@@ -203,10 +198,12 @@ namespace optimizer {
     }
 
 
-    void nssd(util::Subset &ss_def,
+    void nssd(const util::Subset &ss_def,
               util::Subset &ss_ref,
               optimizer::Parameters &opt,
-              const Interpolator &interp_ref){
+              const Interpolator &interp_ref,
+              const int global_x,
+              const int global_y){
 
         // reset derivative and hessian values
         std::fill(opt.g.begin(), opt.g.end(), 0.0);
@@ -328,10 +325,12 @@ namespace optimizer {
     }
 
 
-    void znssd(util::Subset &ss_def,
+    void znssd(const util::Subset &ss_def,
                util::Subset &ss_ref,
                optimizer::Parameters &opt,
-               const Interpolator &interp_ref){
+               const Interpolator &interp_ref,
+               const int global_x,
+               const int global_y){
 
 
         // reset derivative and hessian values
@@ -363,7 +362,7 @@ namespace optimizer {
 
             shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.p);
 
-            interp_vals = interp_ref.eval_bicubic_and_derivs(ss_ref.x[i], ss_ref.y[i]);
+            interp_vals = interp_ref.eval_bicubic_and_derivs(ss_ref.x[i]+global_x, ss_ref.y[i]+global_y);
             ss_ref.vals[i] = interp_vals.f;
             dfdx[i] = interp_vals.dfdx;
             dfdy[i] = interp_vals.dfdy;
@@ -421,31 +420,31 @@ namespace optimizer {
         invertMatrix(opt.H, opt.invH, opt.augmented, opt.num_params);
         update_shapefunc_parameters(opt.pdp, opt.p, opt.dp, opt.invH, opt.g, opt.num_params);
 
-        // #pragma omp critical
-        // {
-        //     std::cout << "ss_def_x " << ss_def.x[0] << " " << ss_def.x[1] << " " << ss_def.x[2] << std::endl;
-        //     std::cout << "ss_ref_x " << ss_ref.x[0] << " " << ss_ref.x[1] << " " << ss_ref.x[2] << std::endl;
-        //     std::cout << "ss_def   " << ss_def.vals[0] << " " << ss_def.vals[1] << " " << ss_def.vals[2] << std::endl;
-        //     std::cout << "ss_ref   " << ss_ref.vals[0] << " " << ss_ref.vals[1] << " " << ss_ref.vals[2] << std::endl;
-        //     std::cout << "invs     " << inv_sum_squared_def << " " << inv_sum_squared_ref << std::endl;
-        //     std::cout << "dfdx     " << dfdx[0] << " " << dfdy[0] << std::endl;
-        //     std::cout << "dfdp     " << opt.dfdp[0] << " " << opt.dfdp[1] << " " << opt.dfdp[2] << " " << opt.dfdp[3] << " " <<opt.dfdp[4] << " " << opt.dfdp[5] << std::endl;
-        //     std::cout << "g        " << opt.g[0] << " " << opt.g[1] << " " << opt.g[2] << " " << opt.g[3] << " " << opt.g[4] << " " << opt.g[5] << std::endl;
-        //     std::cout << "H        " << opt.H[0] << " " << opt.H[1] << " " << opt.H[2] << " " << opt.H[3] << " " << opt.H[4] << " " << opt.H[5] << std::endl;
-        //     std::cout << "Hi       " << opt.invH[0] << " " << opt.invH[1] << " " << opt.invH[2] << " " << opt.invH[3] << " " << opt.invH[4] << " " << opt.invH[5] << std::endl;
-        //     std::cout << "p        " << opt.p[0] << " " << opt.p[1] << " " << opt.p[2] << " " << opt.p[3] << " " << opt.p[4] << " " << opt.p[5] << std::endl;
-        //     std::cout << "pdp      " << opt.pdp[0] << " " << opt.pdp[1] << " " << opt.pdp[2] << " " << opt.pdp[3] << " " << opt.pdp[4] << " " << opt.pdp[5] << std::endl;
-        //     std::cout << opt.g.size() << std::endl;
-        //     std::cout << "invs " << inv_sum_squared_def << " " << inv_sum_squared_ref << std::endl;
-        //     std::cout << "dfdx " << dfdx[0] << " " << dfdy[0] << std::endl;
-        //     std::cout << "dfdp " << opt.dfdp[0] << " " << opt.dfdp[1] << std::endl;
-        //     std::cout << "g   " << opt.g[0] << " " << opt.g[1] << std::endl;
-        //     std::cout << "H   " << opt.H[0] << " " << opt.H[1] << " " << opt.H[2] << " " << opt.H[3] << std::endl;
-        //     std::cout << "Hi  " << opt.invH[0] << " " << opt.invH[1] << " " << opt.invH[2] << " " << opt.invH[3] << std::endl;
-        //     std::cout << "p   " << opt.p[0] << " " << opt.p[1] << std::endl;
-        //     std::cout << "pdp " << opt.pdp[0] << " " << opt.pdp[1] <<  std::endl;
-        //     exit(0);
-        // }
+        //#pragma omp critical
+        //{
+        //    std::cout << "ss_def_x " << ss_def.x[0] << " " << ss_def.x[1] << " " << ss_def.x[2] << std::endl;
+        //    std::cout << "ss_ref_x " << ss_ref.x[0] << " " << ss_ref.x[1] << " " << ss_ref.x[2] << std::endl;
+        //    std::cout << "ss_def   " << ss_def.vals[0] << " " << ss_def.vals[1] << " " << ss_def.vals[2] << std::endl;
+        //    std::cout << "ss_ref   " << ss_ref.vals[0] << " " << ss_ref.vals[1] << " " << ss_ref.vals[2] << std::endl;
+        //    std::cout << "invs     " << inv_sum_squared_def << " " << inv_sum_squared_ref << std::endl;
+        //    std::cout << "dfdx     " << dfdx[0] << " " << dfdy[0] << std::endl;
+        //    std::cout << "dfdp     " << opt.dfdp[0] << " " << opt.dfdp[1] << " " << opt.dfdp[2] << " " << opt.dfdp[3] << " " <<opt.dfdp[4] << " " << opt.dfdp[5] << std::endl;
+        //    std::cout << "g        " << opt.g[0] << " " << opt.g[1] << " " << opt.g[2] << " " << opt.g[3] << " " << opt.g[4] << " " << opt.g[5] << std::endl;
+        //    std::cout << "H        " << opt.H[0] << " " << opt.H[1] << " " << opt.H[2] << " " << opt.H[3] << " " << opt.H[4] << " " << opt.H[5] << std::endl;
+        //    std::cout << "Hi       " << opt.invH[0] << " " << opt.invH[1] << " " << opt.invH[2] << " " << opt.invH[3] << " " << opt.invH[4] << " " << opt.invH[5] << std::endl;
+        //    std::cout << "p        " << opt.p[0] << " " << opt.p[1] << " " << opt.p[2] << " " << opt.p[3] << " " << opt.p[4] << " " << opt.p[5] << std::endl;
+        //    std::cout << "pdp      " << opt.pdp[0] << " " << opt.pdp[1] << " " << opt.pdp[2] << " " << opt.pdp[3] << " " << opt.pdp[4] << " " << opt.pdp[5] << std::endl;
+        //    std::cout << opt.g.size() << std::endl;
+        //    std::cout << "invs " << inv_sum_squared_def << " " << inv_sum_squared_ref << std::endl;
+        //    std::cout << "dfdx " << dfdx[0] << " " << dfdy[0] << std::endl;
+        //    std::cout << "dfdp " << opt.dfdp[0] << " " << opt.dfdp[1] << std::endl;
+        //    std::cout << "g   " << opt.g[0] << " " << opt.g[1] << std::endl;
+        //    std::cout << "H   " << opt.H[0] << " " << opt.H[1] << " " << opt.H[2] << " " << opt.H[3] << std::endl;
+        //    std::cout << "Hi  " << opt.invH[0] << " " << opt.invH[1] << " " << opt.invH[2] << " " << opt.invH[3] << std::endl;
+        //    std::cout << "p   " << opt.p[0] << " " << opt.p[1] << std::endl;
+        //    std::cout << "pdp " << opt.pdp[0] << " " << opt.pdp[1] <<  std::endl;
+        //    exit(0);
+        //}
 
         // calculate cost function for current parameter values
         for (int i = 0; i < num_px; i++){
@@ -459,7 +458,7 @@ namespace optimizer {
         mean_ref = 0.0;
         for (int i = 0; i < num_px; ++i) {
             shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
-            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i], ss_ref.y[i]);
+            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i]+global_x, ss_ref.y[i]+global_y);
             mean_ref += ss_ref.vals[i];
         }
 

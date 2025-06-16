@@ -50,6 +50,8 @@ private:
      */
     inline void coeff_calc(std::vector<double> &tridiag_solution, double dy, double dx, size_t index, double * b, double * c, double * d);
 
+    inline void index_lookup_xy(size_t &xi, size_t &yi, const double x, const double y) const;
+
     /**
      * @brief Finds the index of the pixel that contains the given coordinate.
      * 
