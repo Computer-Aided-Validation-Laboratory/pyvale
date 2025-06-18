@@ -22,6 +22,7 @@ from pyvale.dic.dicresults import DICResults
 def DIC2D(reference: np.ndarray | str,
           deformed: np.ndarray | str,
           roi_mask: np.ndarray,
+          rg_seed: list[int]=[],
           subset_size: int | list[int] = 21,
           subset_step: int | list[int] = 10, 
           correlation_criteria: str="ZNSSD",
@@ -46,6 +47,8 @@ def DIC2D(reference: np.ndarray | str,
     check_scanning_method(scanning_method)
     check_thresholds(threshold_levenberg, threshold_levenberg, precision)
     check_output_directory(output_basepath, output_prefix, output_delimiter)
+    updated_seed = check_and_update_rg_seed(rg_seed, roi_mask, scanning_method, ref_arr.shape[1], ref_arr.shape[0], subset_step)
+
     num_params = check_shape_function(shape_function)
 
     # check the subsets. if its fft, then it can be an integer list
@@ -71,6 +74,7 @@ def DIC2D(reference: np.ndarray | str,
     config.px_vert = ref_arr.shape[0]
     config.num_def_img = def_arr.shape[0]
     config.num_params = num_params
+    config.rg_seed = updated_seed
 
     saveconf = dic2dcpp.SaveConfig()
     saveconf.basepath = output_basepath
@@ -233,7 +237,38 @@ def check_subsets(subset_size, subset_step, scanning_method: str) -> tuple[list[
 
 
 
+def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_step: int) -> list[int]:
+    if scanning_method != "RG":
+        return seed
 
+    if not (isinstance(seed, list) and len(seed) == 2 and all(isinstance(coord, int) for coord in seed)):
+        raise ValueError("rg_seed is either missing or has been defined incorrectly. must be a list of two integers: rg_seed=[x, y]")
+
+    x, y = seed
+
+    if not (0 <= x < px_hori and 0 <= y < px_vert):
+        raise ValueError(f"Seed ({x}, {y}) is out of image bounds ({px_hori}, {px_vert})")
+
+    def round_to_step(value: int, step: int) -> int:
+        return round(value / step) * step
+
+    new_x = round_to_step(x, subset_step)
+    new_y = round_to_step(y, subset_step)
+
+    # Clamp to image bounds
+    new_x = min(max(new_x, 0), px_hori - 1)
+    new_y = min(max(new_y, 0), px_vert - 1)
+
+
+
+    if (new_x, new_y) != (x, y):
+        print(f"Seed adjusted from ({x}, {y}) to ({new_x}, {new_y}) to align with subset step of {subset_step}.")
+    
+    # check if the new seed location is within the roi
+    if not roi_mask[new_x, new_y]:
+        print(f"seed location ({new_x}, {new_y}) is not in the Region of interest (ROI) mask. Please select a seed point within the ROI.")
+
+    return [new_x, new_y]
 
 
 def check_and_get_images(reference: Union[np.ndarray, str],
@@ -250,7 +285,7 @@ def check_and_get_images(reference: Union[np.ndarray, str],
         if not os.path.isfile(reference):
             raise ValueError(f"Reference image does not exist: {reference}")
 
-        ref_arr = np.flip(np.array(Image.open(reference)),axis=0)
+        ref_arr = np.array(Image.open(reference))
 
         files = sorted(glob.glob(deformed))
         if not files:
@@ -265,7 +300,7 @@ def check_and_get_images(reference: Union[np.ndarray, str],
         def_arr = np.zeros((len(files), *ref_arr.shape), dtype=ref_arr.dtype)
 
         for i, file in enumerate(files):
-            img = np.flip(np.array(Image.open(file)), axis=0)
+            img = np.array(Image.open(file))
             if img.shape != ref_arr.shape:
                 raise ValueError(
                     f"Shape mismatch: '{file}' has shape {img.shape}, "

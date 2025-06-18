@@ -239,9 +239,14 @@ void image_with_bf(const Interpolator &interp_ref,
                             const util::SubsetData &ssdata,
                             const util::Config &conf,
                             const int img_num){
-
+        
+        // assign some consts for readability
+        const int px_hori = conf.px_hori;
+        const int px_vert = conf.px_vert;
         const int ss_num = ssdata.num;
         const int ss_size = ssdata.size;
+        const int seed_x = conf.rg_seed.first;
+        const int seed_y = conf.rg_seed.second;
 
         // progress bar
         indicators::ProgressBar bar;
@@ -249,17 +254,10 @@ void image_with_bf(const Interpolator &interp_ref,
         int current_progress = 0;
         int prev_pct = 0;
 
-        int seed_x = 3900 - ssdata.size/2; // in corner coordinates
-        int seed_y = 250 - ssdata.size/2; // in corner coodinates
-
         // quick check for the initial seed point
         if (!rg::is_valid_point(seed_x, seed_y, ssdata)) {
             return;
         }
-
-        // assign some consts for readability
-        const int px_hori = conf.px_hori;
-        const int px_vert = conf.px_vert;
 
         // Initialize binary mask for computed points (initialized to 0)
         std::vector<std::atomic<bool>> computed_mask(ssdata.mask.size());
@@ -270,80 +268,121 @@ void image_with_bf(const Interpolator &interp_ref,
         // queue for each thread
         std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
 
-        // Initialize ref and def subsets
-        util::Subset ss_def(ss_size);
-        util::Subset ss_ref(ss_size);
+        // initialise the fft search
+        int largest_fft_window = rg::next_pow2(conf.range_bf);
+        std::vector<int> windows = rg::pow2_between(largest_fft_window, conf.ss_size.back());
 
-        // Extract subset and solve for starting seed point
-        util::extract_ss(ss_def, seed_x, seed_y, px_hori, px_vert, img_def);
+        # pragma omp parallel 
+        {
+            // Initialize ref and def subsets
+            util::Subset ss_def(ss_size);
+            util::Subset ss_ref(ss_size);
 
-        // brute force for initial subset
-        brute::Parameters brute(conf.threshold_bf, conf.range_bf);
+            // Optimization parameters
+            optimizer::Parameters opt(conf.num_params, conf.max_iter, conf.precision, conf.threshold_lm, px_vert, px_hori);
 
-        brute::expanding_wavefront(seed_x, seed_y, img_ref, px_hori, px_vert, ss_def, ss_ref, brute);
+            brute::Parameters brute(conf.threshold_bf, conf.range_bf);
 
-        // Optimization parameters
-        optimizer::Parameters opt(conf.num_params, conf.max_iter, conf.precision, conf.threshold_lm, px_vert, px_hori);
-        opt.p[0] = brute.p_rigid[0];
-        opt.p[1] = brute.p_rigid[1];
+            // I now need an array of ssdatas for each window size.
+            //std::vector<util::SubsetData> window_data;
+            //std::vector<util::Subset> fft_window_ref;
+            //std::vector<util::Subset> fft_window_def;
 
-        double centre_x = seed_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
-        double centre_y = seed_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
-        util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
+            //// Reserve to be safe
+            //fft_window_ref.reserve(windows.size());
+            //fft_window_def.reserve(windows.size());
 
-        // seed coordinates
-        int x = seed_x / ssdata.step;
-        int y = seed_y / ssdata.step;
-        int idx = ssdata.mask[y * ssdata.num_ss_x + x];
+            //for (size_t t = 0; t < windows.size(); t++){
+            //    fft_window_ref.emplace_back(util::Subset(windows[t]));
+            //    fft_window_def.emplace_back(util::Subset(windows[t]));
+            //}
 
-        // append the results for the current subset to result vectors
-        util::append_results(img_num, idx, seed_res, ss_num);
+            std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
-        computed_mask[idx] = true;
-
-        // loop over the neighbours for the initial seed point
-        std::cout << std::endl;
-        std::cout << idx << std::endl;
-        std::cout << ssdata.neigh[idx].size() << std::endl;
-        for (size_t n = 0; n < ssdata.neigh[idx].size(); n++) {
-            
-            // subset index of neighbour to the current point
-            int nidx = ssdata.neigh[idx][n];
-
-            int nx = ssdata.coords[nidx*2];
-            int ny = ssdata.coords[nidx*2+1];
-
-            util::extract_ss(ss_def, nx, ny, px_hori, px_vert, img_def);
-
-            brute::expanding_wavefront(nx, ny, img_ref, px_hori, px_vert, ss_def, ss_ref, brute);
-
-            double ptemp[6] = {0,0,0,0,0,0};
-            ptemp[0] = brute.p_rigid[0];
-            ptemp[1] = brute.p_rigid[1];
-
-            for (int i = 0; i < opt.num_params; i++){
-                opt.p[i] = ptemp[i];
+            for (size_t t = 0; t < windows.size(); ++t) {
+                fft_windows.push_back(std::make_unique<fourier::FFT>(windows[t]));
             }
 
-            // perform optimization for seed point neighbours
-            double centre_x = nx + static_cast<double>(ssdata.size)/2.0 - 0.5;
-            double centre_y = ny + static_cast<double>(ssdata.size)/2.0 - 0.5;
-            util::Results nres = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
+            double prev_x = 0.0;
+            double prev_y = 0.0;
+            // ---------------------------------------------------------------------------------------------------------------------------
+            // PROCESS THE SEED SUBSET 
+            // ---------------------------------------------------------------------------------------------------------------------------
+            if (omp_get_thread_num() == 0) {
 
-            // append the results for the current subset to result vectors
-            util::append_results(img_num, nidx, nres, ss_num);
+                double shift_x, shift_y;
+                rg::get_rigid_shift(shift_x, shift_y, seed_x, seed_y, fft_windows, interp_ref, img_def);
 
-            // update mask
-            computed_mask[nidx] = true;
+                opt.p[0] = -shift_x;
+                opt.p[1] = -shift_y;
 
-            // add this point to queue
-            local_q[0].push(rg::Point(nidx,1.0-0.5*nres.cost));
-        }
-        
-        // LOCAL QUEUE PROCESSING
-        #pragma omp parallel firstprivate(ss_def, ss_ref, opt, brute)
-        {
+                // Extract subset and solve for starting seed point
+                util::extract_ss(ss_def, seed_x, seed_y, px_hori, px_vert, img_def);
 
+                // brute force for initial subset
+                //brute::expanding_wavefront(seed_x, seed_y, img_ref, px_hori, px_vert, ss_def, ss_ref, brute);
+                //opt.p[0] = brute.p_rigid[0];
+                //opt.p[1] = brute.p_rigid[1];
+
+
+                double centre_x = seed_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                double centre_y = seed_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
+
+                // seed coordinates
+                int x = seed_x / ssdata.step;
+                int y = seed_y / ssdata.step;
+                int idx = ssdata.mask[y * ssdata.num_ss_x + x];
+
+                // append the results for the current subset to result vectors
+                util::append_results(img_num, idx, seed_res, ss_num);
+
+                computed_mask[idx] = true;
+
+                // loop over the neighbours for the initial seed point
+                for (size_t n = 0; n < ssdata.neigh[idx].size(); n++) {
+
+                    // subset index of neighbour to the current point
+                    int nidx = ssdata.neigh[idx][n];
+
+                    int nx = ssdata.coords[nidx*2];
+                    int ny = ssdata.coords[nidx*2+1];
+
+                    util::extract_ss(ss_def, nx, ny, px_hori, px_vert, img_def);
+
+                    double shift_x, shift_y;
+                    rg::get_rigid_shift(shift_x, shift_y, nx, ny, fft_windows, interp_ref, img_def);
+                    // replace brute force with fft approach
+                    //brute::expanding_wavefront(nx, ny, img_ref, px_hori, px_vert, ss_def, ss_ref, brute);
+
+                    double ptemp[6] = {0,0,0,0,0,0};
+                    ptemp[0] = -shift_x; //brute.p_rigid[0];
+                    ptemp[1] = -shift_y; //brute.p_rigid[1];
+
+                    for (int i = 0; i < opt.num_params; i++){
+                        opt.p[i] = ptemp[i];
+                    }
+
+                    // perform optimization for seed point neighbours
+                    double centre_x = nx + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                    double centre_y = ny + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                    util::Results nres = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
+
+                    // append the results for the current subset to result vectors
+                    util::append_results(img_num, nidx, nres, ss_num);
+
+                    // update mask
+                    computed_mask[nidx] = true;
+
+                    // add this point to queue
+                    local_q[0].push(rg::Point(nidx,1.0-0.5*nres.cost));
+                }
+            }
+
+
+            // ---------------------------------------------------------------------------------------------------------------------------
+            // PROCESS ALL OTHER SUBSETS
+            // ---------------------------------------------------------------------------------------------------------------------------
             std::priority_queue<rg::Point>& thread_q = local_q[omp_get_thread_num()];
             std::vector<rg::Point> temp_neigh;
             temp_neigh.reserve(4);
@@ -395,7 +434,7 @@ void image_with_bf(const Interpolator &interp_ref,
 
                 // loop over neighbouring points
                 for (size_t n = 0; n < ssdata.neigh[current.idx].size(); n++) {
-            
+
                     // subset index of neighbour to the current point
                     int nidx = ssdata.neigh[current.idx][n];
 
@@ -410,16 +449,13 @@ void image_with_bf(const Interpolator &interp_ref,
 
                         // if the neighbouring subset had not met correlation threshold
                         // then start brute force again
-                        //if (util::niter_arr[idx] == opt.max_iter && util::cost_arr[idx] > opt.threshold_lm){
-                        if (util::cost_arr[idx] > opt.threshold_lm){
+                        if (util::cost_arr[idx_res] > opt.threshold_lm){
 
-                            brute::expanding_wavefront(nx, ny, img_ref, 
-                                                       px_hori,
-                                                       px_vert, ss_def,
-                                                       ss_ref, brute);
+                            double shift_x, shift_y;
+                            rg::get_rigid_shift(shift_x, shift_y, nx, ny, fft_windows, interp_ref, img_def);
 
-                            ptemp[0] = brute.p_rigid[0];
-                            ptemp[1] = brute.p_rigid[1];
+                            ptemp[0] = -shift_x;
+                            ptemp[1] = -shift_y;
 
                             for (int i = 0; i < opt.num_params; i++){
                                 opt.p[i] = ptemp[i];

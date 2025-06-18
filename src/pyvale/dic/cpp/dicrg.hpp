@@ -9,13 +9,13 @@
 #define DICRG_H
 
 // STD library Header files
-
+#include <memory>
 
 
 // Program Header files
 #include "./dicutil.hpp"
 #include "./defines.hpp"
-
+#include "./dicfourier.hpp"
 
 namespace rg {
 
@@ -26,11 +26,11 @@ namespace rg {
     struct Point {
         int idx;
         double val;
-        
+
         // Constructor
         Point(int _idx, double _val) : 
             idx(_idx), val(_val) {}
-        
+
         // Comparison operator for priority queue (higher ZNCC first)
         bool operator<(const Point& other) const {
             return val < other.val;  // Note: priority_queue puts largest elements on top
@@ -41,38 +41,14 @@ namespace rg {
 
 
 
+    int next_pow2(int n);
+    std::vector<int> pow2_between(int n, int x);
 
-    /**
-     * @brief 
-     * 
-     * @param img_ref 
-     * @param img_def 
-     * @param seed_x
-     * @param seed_y 
-     * @param num_def_images 
-     * @param img_num 
-     * @param ss_size 
-     * @param max_iter 
-     * @param precision 
-     * @param threshold_lm 
-     * @param threshold_bf 
-     * @param range_bf 
-     */
-    void reliability_guided_dic_single_seed(
-        const double *img_ref,
-        const double *img_def,
-        const bool *img_roi,
-        const int seed_x, const int seed_y,  // Single seed point coordinates
-        util::SubsetData *ssdata,
-        const int num_def_images,
-        const int img_num,
-        const int max_iter,
-        const double precision,
-        const double threshold_lm,
-        const double threshold_bf,
-        const double range_bf,
-        const int num_params);
-
+    void get_rigid_shift(double &shift_x, double &shift_y,
+                         const int ss_x, const int ss_y,
+                         std::vector<std::unique_ptr<fourier::FFT>>& fft_windows,
+                         const Interpolator &interp_ref,
+                         const double *img_def);
 
     /**
      * @brief 

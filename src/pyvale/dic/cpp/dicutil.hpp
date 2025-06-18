@@ -57,6 +57,7 @@ namespace util {
         double threshold_lm;
         double threshold_bf;
         int range_bf;
+        std::pair<int, int> rg_seed;
         std::string corr_crit;
         std::string shape_func;
         std::string interp_routine;

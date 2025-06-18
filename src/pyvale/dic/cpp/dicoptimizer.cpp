@@ -126,9 +126,6 @@ namespace optimizer {
         // interpolation data struct
         InterpVals interp_vals;
 
-        double gtemp[6] = {0,0,0,0,0,0};
-
-
         // reset derivative and hessian values
         std::fill(opt.g.begin(), opt.g.end(), 0.0);
         std::fill(opt.H.begin(), opt.H.end(), 0.0);
@@ -144,7 +141,7 @@ namespace optimizer {
             double ref_y = ss_ref.y[i];
 
             // get the subset value and derivitives
-            interp_vals = interp_ref.eval_bicubic_and_derivs(ref_x, ref_y);
+            interp_vals = interp_ref.eval_bicubic_and_derivs(ref_x+global_x, ref_y+global_y);
             ss_ref.vals[i] = interp_vals.f;
             double ref = ss_ref.vals[i];
 
@@ -164,15 +161,17 @@ namespace optimizer {
 
             double dshape_df = - (ss_def.vals[i] - ref);
             
-            gtemp[0] = dshape_df * dfdx;
-            gtemp[1] = dshape_df * dfdy;
-            gtemp[2] = dshape_df * dfdx * ref_x;
-            gtemp[3] = dshape_df * dfdx * ref_y;
-            gtemp[4] = dshape_df * dfdy * ref_x;
-            gtemp[5] = dshape_df * dfdy * ref_y;
-
-            for (int j = 0; j < num_params; j++) {
-                opt.g[j] += gtemp[j];
+            if (num_params == 2) {
+                opt.g[0] += dshape_df*dfdx;
+                opt.g[1] += dshape_df*dfdy;
+            }
+            else if (num_params == 6) {
+                opt.g[0] += dshape_df*dfdx;
+                opt.g[1] += dshape_df*dfdy;
+                opt.g[2] += dshape_df*dfdx*ref_x;
+                opt.g[3] += dshape_df*dfdx*ref_y;
+                opt.g[4] += dshape_df*dfdy*ref_x;
+                opt.g[5] += dshape_df*dfdy*ref_y;
             }
 
         }
@@ -192,7 +191,7 @@ namespace optimizer {
         opt.costpdp = 0.0;
         for (int i = 0; i < num_px; ++i) {
             shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
-            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i], ss_ref.y[i]);
+            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i]+global_x, ss_ref.y[i]+global_y);
             opt.costpdp += (ss_def.vals[i] - ss_ref.vals[i]) * (ss_def.vals[i] - ss_ref.vals[i]);
         }
     }
@@ -211,8 +210,6 @@ namespace optimizer {
 
         const int num_px = ss_def.num_px;
         const int num_params = opt.num_params;
-
-        double gtemp[6] = {0,0,0,0,0,0};
 
         std::vector<double> dfdx(num_px);
         std::vector<double> dfdy(num_px);
@@ -233,24 +230,8 @@ namespace optimizer {
         for (int i = 0; i < num_px; ++i) {
 
             shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.p);
-            
-            // // Inside ssd function before interpolation
-            // if (ss_ref.x[i] < 0 || ss_ref.x[i] > opt.px_hori-1 || ss_ref.y[i] < 0 || ss_ref.y[i] > opt.px_vert-1) {
-            //     // Apply a penalty proportional to how far outside the bounds
-            //     double penalty = 0;
-            //     if (ss_ref.x[i] < 0) penalty += std::abs(ss_ref.x[i]);
-            //     if (ss_ref.x[i] > opt.px_hori-1) penalty += ss_ref.x[i] - (opt.px_hori-1);
-            //     if (ss_ref.y[i] < 0) penalty += std::abs(ss_ref.y[i]);
-            //     if (ss_ref.y[i] > opt.px_vert-1) penalty += ss_ref.y[i] - (opt.px_vert-1);
-                
-            //     // Add this penalty to the cost function
-            //     opt.costp += 10000.0 * penalty * penalty;
-                
-            //     // Skip this point for derivative calculations
-            //     continue;
-            // }
 
-            interp_vals = interp_ref.eval_bicubic_and_derivs(ss_ref.x[i], ss_ref.y[i]);
+            interp_vals = interp_ref.eval_bicubic_and_derivs(ss_ref.x[i]+global_x, ss_ref.y[i]+global_y);
             ss_ref.vals[i] = interp_vals.f;
             dfdx[i] = interp_vals.dfdx;
             dfdy[i] = interp_vals.dfdy;
@@ -269,8 +250,8 @@ namespace optimizer {
             dshape_dp(opt.dfdp, ss_ref.x[i], ss_ref.y[i], dfdx[i], dfdy[i]);
 
             double dshape_df = - inv_sum_squared_ref * (ss_def.vals[i] * inv_sum_squared_def - ss_ref.vals[i] * inv_sum_squared_ref);
-            
-            
+
+
             if (num_params == 2) {
                 opt.g[0] += dshape_df * dfdx[i];
                 opt.g[1] += dshape_df * dfdy[i];
@@ -310,7 +291,7 @@ namespace optimizer {
         sum_squared_ref = 0.0;
         for (int i = 0; i < num_px; ++i) {
             shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
-            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i], ss_ref.y[i]);
+            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i]+global_x, ss_ref.y[i]+global_y);
             sum_squared_ref += ss_ref.vals[i] * ss_ref.vals[i];
         }
 
@@ -340,14 +321,12 @@ namespace optimizer {
         const int num_px = ss_def.num_px;
         const int num_params = opt.num_params;
 
-        double gtemp[6] = {0,0,0,0,0,0};
-
         std::vector<double> dfdx(num_px);
         std::vector<double> dfdy(num_px);
 
         double mean_ref = 0.0;
         double mean_def = 0.0;
-        
+
         // interpolation data struct
         InterpVals interp_vals;
 
@@ -356,8 +335,6 @@ namespace optimizer {
         opt.costpdp = 0.0;
 
         // get the normalisation values for both reference and deformed subsets
-        // std::cout << ss_x << " " << ss_y << " ";
-
         for (int i = 0; i < num_px; ++i) {
 
             shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.p);

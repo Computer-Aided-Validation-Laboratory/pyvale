@@ -161,6 +161,7 @@ PYBIND11_MODULE(dic2dcpp, m) {
         .def_readwrite("px_hori", &util::Config::px_hori)
         .def_readwrite("px_vert", &util::Config::px_vert)
         .def_readwrite("num_def_img", &util::Config::num_def_img)
+        .def_readwrite("rg_seed", &util::Config::rg_seed)
         .def_readwrite("num_params", &util::Config::num_params);
 
     py::class_<util::SaveConfig>(m, "SaveConfig")

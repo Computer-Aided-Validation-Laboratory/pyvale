@@ -68,8 +68,8 @@ namespace strain {
                 Eigen::VectorXd vc;
 
                 // 2D deformation gradient matrix and identity matrix
-                Eigen::Matrix2d deform_grad;
-                Eigen::Matrix2d eps;
+                Eigen::Matrix2d deform_grad = Eigen::Matrix2d::Zero();
+                Eigen::Matrix2d eps = Eigen::Matrix2d::Zero();
 
 
                 if (valid_window){
