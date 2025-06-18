@@ -135,12 +135,8 @@ namespace fourier {
             #pragma omp parallel
             {
 
-                // subsets for FFTs
-                util::Subset ss_def(ss_size);
-                util::Subset ss_ref(ss_size);
-
                 // class for FFT
-                fourier::FFT fft(ss_size, ss_def.vals.data(), ss_ref.vals.data());
+                fourier::FFT fft(ss_size);
 
                 // loop over subsets for each size/step
                 #pragma omp for
@@ -148,33 +144,27 @@ namespace fourier {
 
                     int ss_x = ssdata[i].coords[2*ss];
                     int ss_y = ssdata[i].coords[2*ss+1];
-                    
+
                     // get the deformed subset values
-                    util::extract_ss(ss_def,ss_x, ss_y, px_hori, px_vert, img_def);
+                    util::extract_ss(fft.ss_def,ss_x, ss_y, px_hori, px_vert, img_def);
 
                     // get the seed for the new window size
                     auto [prev_x, prev_y] = get_prev_shift(i, ss, ss_x, ss_y, shifts, ssdata);
                     double ss_x_shft = ss_x-prev_x;
                     double ss_y_shft = ss_y-prev_y;
-                
-                    //std::cout << "prev:  " << prev_x << " " << prev_y << std::endl;
-                    //std::cout << "shift: " << ss_x_shft << " " << ss_y_shft << std::endl;
 
                     // get the reference subset values
-                    if (subpx) util::extract_ss_subpx(ss_ref, ss_x_shft, ss_y_shft, interp_ref);
-                    else util::extract_ss(ss_ref, ss_x_shft, ss_y_shft, px_hori, px_vert, img_ref);
+                    if (subpx) util::extract_ss_subpx(fft.ss_ref, ss_x_shft, ss_y_shft, interp_ref);
+                    else util::extract_ss(fft.ss_ref, ss_x_shft, ss_y_shft, px_hori, px_vert, img_ref);
 
                     // zero normalise the subsets
-                    zero_norm_subsets(ss_def.vals, ss_ref.vals, ss_size);
-
+                    zero_norm_subsets(fft.ss_def.vals, fft.ss_ref.vals, ss_size);
 
                     // get peaks from the cross correlation
                     double peak_x = 0, peak_y = 0;
                     double max_val = 0.0;
                     fft.correlate();
                     fft.find_peak(peak_x, peak_y, max_val, subpx, "GAUSSIAN_2D");
-                    //std::cout << "peak:  " << peak_x << " " << peak_y << std::endl;
-                    //exit(0);
 
                     // update the shift arrays
                     if (i == 0){
@@ -186,7 +176,7 @@ namespace fourier {
                         shifts[i].y[ss] = prev_y + peak_y;
                     }
 
-                    shifts[i].cost[ss] = debugcost(ss_def, ss_ref);
+                    shifts[i].cost[ss] = debugcost(fft.ss_def, fft.ss_ref);
                     shifts[i].max_val[ss] = max_val;
                 }
             }

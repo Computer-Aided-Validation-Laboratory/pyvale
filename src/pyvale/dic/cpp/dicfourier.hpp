@@ -122,10 +122,14 @@ namespace fourier {
     struct FFT {
         int ss_size;
 
-        // fft data
+        // output data
         fftw_complex* fft_def;
         fftw_complex* fft_ref;
         std::vector<double> cross_corr;
+
+        // input data
+        util::Subset ss_def;
+        util::Subset ss_ref;
 
         // fft plans
         fftw_plan plan_def;
@@ -137,16 +141,16 @@ namespace fourier {
         Eigen::MatrixXd A;
         Eigen::VectorXd b;
 
-        FFT(int ss_size_, double* ss_def_vals, double* ss_ref_vals)
-            : ss_size(ss_size_), cross_corr(ss_size_ * ss_size_), A(9,6), b(9)
+        FFT(int ss_size_)
+            : ss_size(ss_size_), cross_corr(ss_size_ * ss_size_), ss_def(ss_size_), ss_ref(ss_size_), A(9,6), b(9)
         {
             fft_def = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * ss_size * (ss_size / 2 + 1));
             fft_ref = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * ss_size * (ss_size / 2 + 1));
 
             #pragma omp critical
             {
-                plan_def = fftw_plan_dft_r2c_2d(ss_size, ss_size, ss_def_vals, fft_def, FFTW_ESTIMATE);
-                plan_ref = fftw_plan_dft_r2c_2d(ss_size, ss_size, ss_ref_vals, fft_ref, FFTW_ESTIMATE);
+                plan_def = fftw_plan_dft_r2c_2d(ss_size, ss_size, ss_def.vals.data(), fft_def, FFTW_ESTIMATE);
+                plan_ref = fftw_plan_dft_r2c_2d(ss_size, ss_size, ss_ref.vals.data(), fft_ref, FFTW_ESTIMATE);
                 plan_inv = fftw_plan_dft_c2r_2d(ss_size, ss_size, fft_def, cross_corr.data(), FFTW_ESTIMATE);
             }
         }
