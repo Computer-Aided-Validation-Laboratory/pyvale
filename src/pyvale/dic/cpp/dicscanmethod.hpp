@@ -80,7 +80,7 @@ void image_with_bf(const Interpolator &interp_ref,
 void reliability_guided(const Interpolator &interp_ref,
                         const double *img_ref,
                         const double *img_def,
-                        const util::SubsetData &ssdata, 
+                        const std::vector<util::SubsetData> &ssdata, 
                         const util::Config &conf,
                         const int img_num);
 

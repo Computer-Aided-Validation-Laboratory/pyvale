@@ -65,14 +65,18 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // get a list of ss coordinates within RIO;
     // ------------------------------------------------------------------------
     std::vector<util::SubsetData> ssdata;
-    if (conf.scan_method == "FFT"){
-        fourier::init(ssdata, img_roi, conf);
+    std::vector<int> ss_sizes, ss_steps;
+    if ((conf.scan_method == "FFT") || (conf.scan_method == "RG")){
+        util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.range_bf);
+        fourier::init(ssdata, ss_sizes, ss_steps, img_roi, conf);
     }
     else {
-        ssdata.push_back(util::gen_ss_list(img_roi, conf.ss_step[0],
-                                           conf.ss_size[0], conf.px_hori, 
+        ssdata.push_back(util::gen_ss_list(img_roi, conf.ss_step,
+                                           conf.ss_size, conf.px_hori, 
                                            conf.px_vert));
     }
+
+
 
     // resize the results based on subset information
     util::resize_results(conf.num_def_img, ssdata.back().num,
@@ -113,7 +117,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
         // reliability Guided
         else if (conf.scan_method=="RG")
-            scanmethod::reliability_guided(interp_ref, img_ref, img_def, ssdata[0], conf, img_num);
+            scanmethod::reliability_guided(interp_ref, img_ref, img_def, ssdata, conf, img_num);
 
         // multi window fft
         else if (conf.scan_method=="FFT")

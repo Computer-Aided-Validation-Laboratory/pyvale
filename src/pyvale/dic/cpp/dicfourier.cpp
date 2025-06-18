@@ -24,16 +24,18 @@ namespace fourier {
     std::vector<Shift> shifts;
 
     void init(std::vector<util::SubsetData> &ssdata,
-              const bool *img_roi, const util::Config conf){
+              std::vector<int> &ss_sizes,
+              std::vector<int> &ss_steps,
+              const bool *img_roi, const util::Config &conf){
 
         // timer for the initialisation
         util::Timer timer("entire FFT initislisation");
         
         // loop over the window sizes
-        for (size_t i = 0; i < conf.ss_size.size(); i++) {
+        for (size_t i = 0; i < ss_sizes.size(); i++) {
 
-            const int ss_size = conf.ss_size[i];
-            const int ss_step = conf.ss_step[i];
+            const int ss_size = ss_sizes[i];
+            const int ss_step = ss_steps[i];
 
             // generate subset information for each window
             ssdata.push_back(util::gen_ss_list(img_roi, ss_step, ss_size,
@@ -117,8 +119,10 @@ namespace fourier {
 
     void mgwd(const std::vector<util::SubsetData> &ssdata,
               const Interpolator &interp_ref,
-              const double *img_ref, const double *img_def,
-              const int px_hori, const int px_vert){
+              const double *img_ref, const double *img_def){
+
+        const int px_hori = interp_ref.px_hori;
+        const int px_vert = interp_ref.px_vert;
 
 
         // TODO: Add a proper flag for this 

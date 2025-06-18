@@ -271,14 +271,15 @@ namespace fourier {
         }
     };
 
-    void init(std::vector<util::SubsetData> &ssdata, 
-              const bool *img_roi, const util::Config conf);
+    void init(std::vector<util::SubsetData> &ssdata,
+              std::vector<int> &ss_sizes,
+              std::vector<int> &ss_steps,
+              const bool *img_roi, const util::Config &conf);
 
     void mgwd(const std::vector<util::SubsetData> &ssdata,
               const Interpolator &interp_ref,
               const double *img_ref,
-              const double *img_def,
-              const int px_hori, const int px_vert);
+              const double *img_def);
 
     std::pair<double, double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,

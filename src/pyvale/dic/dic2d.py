@@ -23,8 +23,8 @@ def DIC2D(reference: np.ndarray | str,
           deformed: np.ndarray | str,
           roi_mask: np.ndarray,
           rg_seed: list[int]=[],
-          subset_size: int | list[int] = 21,
-          subset_step: int | list[int] = 10, 
+          subset_size: int = 21,
+          subset_step: int = 10,
           correlation_criteria: str="ZNSSD",
           shape_function: str="AFFINE",
           interpolation_routine: str="BICUBIC",
@@ -47,15 +47,11 @@ def DIC2D(reference: np.ndarray | str,
     check_scanning_method(scanning_method)
     check_thresholds(threshold_levenberg, threshold_levenberg, precision)
     check_output_directory(output_basepath, output_prefix, output_delimiter)
+    check_subsets(subset_size, subset_step, scanning_method)
     updated_seed = check_and_update_rg_seed(rg_seed, roi_mask, scanning_method, ref_arr.shape[1], ref_arr.shape[0], subset_step)
 
     num_params = check_shape_function(shape_function)
 
-    # check the subsets. if its fft, then it can be an integer list
-    if scanning_method == "FFT":
-        check_fft_subsets(subset_size, subset_step)
-    else:
-        subset_size, subset_step = check_subsets(subset_size, subset_step, scanning_method)
 
     # Assign values to config struct
     config = dic2dcpp.Config()
@@ -199,47 +195,17 @@ def check_thresholds(threshold_levenberg: float,
         raise ValueError("precision must be a float strictly "
                          "between 0 and 1.")
 
-
-def check_fft_subsets(subset_size, subset_step) -> None:
-
-    if not subset_size:
-        raise ValueError("FFT subsets list must not be empty.")
-    if not subset_step:
-        raise ValueError("FFT subsets list must not be empty.")
-
-
-    if any(not isinstance(ss_size, int) for ss_size in subset_size):
-        raise TypeError("all subset sizes must be integers.")
-    if any(not isinstance(ss_step, int) for ss_step in subset_step):
-        raise TypeError("all subset steps must be integers.")
-
-    if any(subset_size[i] <= subset_size[i + 1] for i in range(len(subset_size) - 1)):
-        raise ValueError("FFT subset sizes must be in strictly descending order.")
-    if any(subset_step[i] <= subset_step[i + 1] for i in range(len(subset_step) - 1)):
-        raise ValueError("FFT subset steps must be in strictly descending order.")
-
-def check_subsets(subset_size, subset_step, scanning_method: str) -> tuple[list[int], list[int]]:
+def check_subsets(subset_size, subset_step, scanning_method: str) -> None:
 
     # Enforce scalar types for non-FFT methods
-    if scanning_method != "FFT":
-        if isinstance(subset_size, list) or isinstance(subset_step, list):
-            raise TypeError("subset_size and subset_step must be integers when scanning_method is not 'FFT'.")
-        if subset_size % 2 == 0:
-            raise ValueError("subset_size must be an odd number.")
-
-    if isinstance(subset_size, int):
-        subset_size = [subset_size]
-
-    if isinstance(subset_step, int):
-        subset_step = [subset_step]
-
-    return subset_size, subset_step
+    if subset_size % 2 == 0:
+        raise ValueError("subset_size must be an odd number.")
 
 
 
 def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_step: int) -> list[int]:
     if scanning_method != "RG":
-        return seed
+        return [0,0]
 
     if not (isinstance(seed, list) and len(seed) == 2 and all(isinstance(coord, int) for coord in seed)):
         raise ValueError("rg_seed is either missing or has been defined incorrectly. must be a list of two integers: rg_seed=[x, y]")

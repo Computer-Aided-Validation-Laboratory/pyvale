@@ -236,17 +236,25 @@ void image_with_bf(const Interpolator &interp_ref,
     void reliability_guided(const Interpolator &interp_ref,
                             const double *img_ref,
                             const double *img_def,
-                            const util::SubsetData &ssdata,
+                            const std::vector<util::SubsetData> &ssdata,
                             const util::Config &conf,
                             const int img_num){
         
         // assign some consts for readability
         const int px_hori = conf.px_hori;
         const int px_vert = conf.px_vert;
-        const int ss_num = ssdata.num;
-        const int ss_size = ssdata.size;
         const int seed_x = conf.rg_seed.first;
         const int seed_y = conf.rg_seed.second;
+        const int nsizes = ssdata.size();
+        const int last_size = nsizes-1;
+        const int ss_num = ssdata[last_size].num;
+        const int ss_size = ssdata[last_size].size;
+        const int ss_step = ssdata[last_size].step;
+        
+
+        if (img_num == 0){
+            fourier::mgwd(ssdata, interp_ref, img_ref, img_def);
+        }
 
         // progress bar
         indicators::ProgressBar bar;
@@ -255,12 +263,12 @@ void image_with_bf(const Interpolator &interp_ref,
         int prev_pct = 0;
 
         // quick check for the initial seed point
-        if (!rg::is_valid_point(seed_x, seed_y, ssdata)) {
+        if (!rg::is_valid_point(seed_x, seed_y, ssdata[last_size])) {
             return;
         }
 
         // Initialize binary mask for computed points (initialized to 0)
-        std::vector<std::atomic<bool>> computed_mask(ssdata.mask.size());
+        std::vector<std::atomic<bool>> computed_mask(ssdata[last_size].mask.size());
         for (size_t i = 0; i < computed_mask.size(); ++i) {
             computed_mask[i] = false;
         }
@@ -269,8 +277,8 @@ void image_with_bf(const Interpolator &interp_ref,
         std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
 
         // initialise the fft search
-        int largest_fft_window = rg::next_pow2(conf.range_bf);
-        std::vector<int> windows = rg::pow2_between(largest_fft_window, conf.ss_size.back());
+        //int largest_fft_window = rg::next_pow2(conf.range_bf);
+        //std::vector<int> windows = rg::pow2_between(largest_fft_window, conf.ss_size.back());
 
         # pragma omp parallel 
         {
@@ -299,8 +307,8 @@ void image_with_bf(const Interpolator &interp_ref,
 
             std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
-            for (size_t t = 0; t < windows.size(); ++t) {
-                fft_windows.push_back(std::make_unique<fourier::FFT>(windows[t]));
+            for (size_t t = 0; t < ssdata.size(); ++t) {
+                fft_windows.push_back(std::make_unique<fourier::FFT>(ssdata[t].size));
             }
 
             double prev_x = 0.0;
@@ -309,12 +317,19 @@ void image_with_bf(const Interpolator &interp_ref,
             // PROCESS THE SEED SUBSET 
             // ---------------------------------------------------------------------------------------------------------------------------
             if (omp_get_thread_num() == 0) {
+                
+                // seed coordinates
+                int x = seed_x / ss_step;
+                int y = seed_y / ss_step;
+                int idx = ssdata[last_size].mask[y * ssdata[last_size].num_ss_x + x];
 
-                double shift_x, shift_y;
-                rg::get_rigid_shift(shift_x, shift_y, seed_x, seed_y, fft_windows, interp_ref, img_def);
+                //double shift_x, shift_y;
+                //rg::get_rigid_shift(shift_x, shift_y, seed_x, seed_y, fft_windows, interp_ref, img_def);
+                //opt.p[0] = -shift_x;
+                //opt.p[1] = -shift_y;
 
-                opt.p[0] = -shift_x;
-                opt.p[1] = -shift_y;
+                opt.p[0] = -fourier::shifts[last_size].x[idx];
+                opt.p[1] = -fourier::shifts[last_size].y[idx];
 
                 // Extract subset and solve for starting seed point
                 util::extract_ss(ss_def, seed_x, seed_y, px_hori, px_vert, img_def);
@@ -325,14 +340,11 @@ void image_with_bf(const Interpolator &interp_ref,
                 //opt.p[1] = brute.p_rigid[1];
 
 
-                double centre_x = seed_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
-                double centre_y = seed_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                double centre_x = seed_x + static_cast<double>(ss_size)/2.0 - 0.5;
+                double centre_y = seed_y + static_cast<double>(ss_size)/2.0 - 0.5;
                 util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
-                // seed coordinates
-                int x = seed_x / ssdata.step;
-                int y = seed_y / ssdata.step;
-                int idx = ssdata.mask[y * ssdata.num_ss_x + x];
+
 
                 // append the results for the current subset to result vectors
                 util::append_results(img_num, idx, seed_res, ss_num);
@@ -340,32 +352,34 @@ void image_with_bf(const Interpolator &interp_ref,
                 computed_mask[idx] = true;
 
                 // loop over the neighbours for the initial seed point
-                for (size_t n = 0; n < ssdata.neigh[idx].size(); n++) {
+                for (size_t n = 0; n < ssdata[last_size].neigh[idx].size(); n++) {
 
                     // subset index of neighbour to the current point
-                    int nidx = ssdata.neigh[idx][n];
+                    int nidx = ssdata[last_size].neigh[idx][n];
 
-                    int nx = ssdata.coords[nidx*2];
-                    int ny = ssdata.coords[nidx*2+1];
+                    int nx = ssdata[last_size].coords[nidx*2];
+                    int ny = ssdata[last_size].coords[nidx*2+1];
 
                     util::extract_ss(ss_def, nx, ny, px_hori, px_vert, img_def);
 
-                    double shift_x, shift_y;
-                    rg::get_rigid_shift(shift_x, shift_y, nx, ny, fft_windows, interp_ref, img_def);
-                    // replace brute force with fft approach
-                    //brute::expanding_wavefront(nx, ny, img_ref, px_hori, px_vert, ss_def, ss_ref, brute);
-
                     double ptemp[6] = {0,0,0,0,0,0};
-                    ptemp[0] = -shift_x; //brute.p_rigid[0];
-                    ptemp[1] = -shift_y; //brute.p_rigid[1];
+
+                    //double shift_x, shift_y;
+                    //rg::get_rigid_shift(shift_x, shift_y, nx, ny, fft_windows, interp_ref, img_def);
+                    //ptemp[0] = -shift_x;
+                    //ptemp[1] = -shift_y;
+
+                    ptemp[0] = -fourier::shifts[last_size].x[nidx];
+                    ptemp[1] = -fourier::shifts[last_size].y[nidx];
+
 
                     for (int i = 0; i < opt.num_params; i++){
                         opt.p[i] = ptemp[i];
                     }
 
                     // perform optimization for seed point neighbours
-                    double centre_x = nx + static_cast<double>(ssdata.size)/2.0 - 0.5;
-                    double centre_y = ny + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                    double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
+                    double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
                     util::Results nres = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
                     // append the results for the current subset to result vectors
@@ -433,14 +447,14 @@ void image_with_bf(const Interpolator &interp_ref,
                 int idx_resp = idx_res*opt.num_params;
 
                 // loop over neighbouring points
-                for (size_t n = 0; n < ssdata.neigh[current.idx].size(); n++) {
+                for (size_t n = 0; n < ssdata[last_size].neigh[current.idx].size(); n++) {
 
                     // subset index of neighbour to the current point
-                    int nidx = ssdata.neigh[current.idx][n];
+                    int nidx = ssdata[last_size].neigh[current.idx][n];
 
                     // coords of neigh
-                    int nx = ssdata.coords[nidx*2];
-                    int ny = ssdata.coords[nidx*2+1];
+                    int nx = ssdata[last_size].coords[nidx*2];
+                    int ny = ssdata[last_size].coords[nidx*2+1];
 
                     if (!computed_mask[nidx].exchange(true)) {
 
@@ -451,11 +465,13 @@ void image_with_bf(const Interpolator &interp_ref,
                         // then start brute force again
                         if (util::cost_arr[idx_res] > opt.threshold_lm){
 
-                            double shift_x, shift_y;
-                            rg::get_rigid_shift(shift_x, shift_y, nx, ny, fft_windows, interp_ref, img_def);
+                            //double shift_x, shift_y;
+                            //rg::get_rigid_shift(shift_x, shift_y, nx, ny, fft_windows, interp_ref, img_def);
+                            //ptemp[0] = -shift_x;
+                            //ptemp[1] = -shift_y;
 
-                            ptemp[0] = -shift_x;
-                            ptemp[1] = -shift_y;
+                            ptemp[0] = -fourier::shifts[last_size].x[nidx];
+                            ptemp[1] = -fourier::shifts[last_size].y[nidx];
 
                             for (int i = 0; i < opt.num_params; i++){
                                 opt.p[i] = ptemp[i];
@@ -469,8 +485,8 @@ void image_with_bf(const Interpolator &interp_ref,
                         }
 
                         // optimize
-                        double centre_x = nx + static_cast<double>(ssdata.size)/2.0 - 0.5;
-                        double centre_y = ny + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                        double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
+                        double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
                         util::Results nres = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
                         // append results
@@ -504,8 +520,12 @@ void image_with_bf(const Interpolator &interp_ref,
                               const std::vector<util::SubsetData> &ssdata,
                               const util::Config &conf,
                               const int img_num){
-    
-        fourier::mgwd(ssdata, interp_ref, img_ref, img_def, conf.px_hori, conf.px_vert);
+
+        // for the first image perform the FFT windowing. later images will be
+        // seeded with previous images
+        if (img_num == 0){
+            fourier::mgwd(ssdata, interp_ref, img_ref, img_def);
+        }
 
         const int nsizes = ssdata.size();
         const int last_size = nsizes-1;

@@ -418,5 +418,55 @@ namespace util {
         out.write(reinterpret_cast<const char*>(&val), sizeof(double));
     }
 
+    int next_pow2(int n) {
+        if (n <= 0){
+            std::cerr << __FILE__ << " " << __LINE__ << std::endl;
+            std::cerr << "Expected a positive integer to calculate next power of 2 " << std::endl;
+            std::cerr << "n = " << n << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        // If already a power of 2, return as-is
+        if ((n & (n - 1)) == 0) return n;
+
+        n--;
+        n |= n >> 1;
+        n |= n >> 2;
+        n |= n >> 4;
+        n |= n >> 8;
+        n |= n >> 16;
+        n++;
+
+        // Handle possible overflow
+        if (n < 0) return std::numeric_limits<int>::max();
+
+        return n;
+    }
+
+
+    void gen_size_and_step_vector(std::vector<int> &ss_sizes, std::vector<int> &ss_steps, 
+                                  const int ss_size, const int ss_step, const int max_disp) {
+
+        ss_sizes.clear();
+        ss_steps.clear();
+
+        int power = next_pow2(max_disp);
+
+        // Generate sizes down to just above ss_size
+        while (power > ss_size) {
+            ss_sizes.push_back(power);
+            ss_steps.push_back(power / 2);
+            power /= 2;
+        }
+
+        // Finally, add the original ss_size and ss_step
+        ss_sizes.push_back(ss_size);
+        ss_steps.push_back(ss_step);
+
+        // debugging
+        //for (size_t i = 0; i < ss_sizes.size(); ++i) {
+        //    std::cout << "ss_size = " << ss_sizes[i] << ", step = " << ss_steps[i] << std::endl;
+        //}
+    }
 
 }

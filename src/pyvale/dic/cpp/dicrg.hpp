@@ -41,8 +41,8 @@ namespace rg {
 
 
 
-    int next_pow2(int n);
-    std::vector<int> pow2_between(int n, int x);
+    //int next_pow2(int n);
+    //std::vector<int> pow2_between(int n, int x);
 
     void get_rigid_shift(double &shift_x, double &shift_y,
                          const int ss_x, const int ss_y,

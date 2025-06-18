@@ -46,8 +46,8 @@ namespace util {
     };
 
     struct Config {
-        std::vector<int> ss_step;
-        std::vector<int> ss_size;
+        int ss_step;
+        int ss_size;
         int max_iter;
         int px_hori;
         int px_vert;
@@ -250,6 +250,10 @@ namespace util {
     inline void write_int(std::ofstream& out, int val);
 
     inline void write_dbl(std::ofstream& out, double val);
+
+    int next_pow2(int n);
+    void gen_size_and_step_vector(std::vector<int> &ss_sizes, std::vector<int> &ss_steps, 
+                                  const int ss_size, const int ss_step, const int max_disp);
 }
 
 #endif //DICUTIL
