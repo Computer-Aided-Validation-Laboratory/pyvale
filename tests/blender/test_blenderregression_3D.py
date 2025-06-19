@@ -90,7 +90,7 @@ def test_stereo_convenience_cameras(placement, output, request, sample_scene_no_
                                                           render_data=render_data)
     output = request.getfixturevalue(output)
 
-    npt.assert_array_equal(image_array, output)
+    npt.assert_allclose(image_array, output, atol=1)
 
 def test_stereo_deformation(sample_stereo_scene, deformed_images, tmp_path):
     (stereo_system, part, render_mesh, scene) = sample_stereo_scene

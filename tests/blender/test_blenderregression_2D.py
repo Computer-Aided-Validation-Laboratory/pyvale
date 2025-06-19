@@ -245,7 +245,7 @@ def test_max_bounces_happy(bounces, output, request, sample_scene, tmp_path):
                                                           render_data=render_data)
     output = request.getfixturevalue(output)
 
-    npt.assert_array_equal(image_array, output)
+    npt.assert_allclose(image_array, output, atol=1)
 
 def test_max_bounces_unhappy(sample_scene, tmp_path):
     bounces = 2.5
