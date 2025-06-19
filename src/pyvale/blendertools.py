@@ -419,6 +419,22 @@ class BlenderTools:
         print('Total number of calibration images = ' + str(render_counter))
         return render_counter
 
+    def check_for_GPU() -> bool:
+        """A method to check whether the machine has a GPU or not.
+
+        Returns
+        -------
+        bool
+            Returns True if a GPU is present, returns False if only a CPU is
+            present.
+        """
+        cycles_prefs = bpy.context.preferences.addons["cycles"].preferences
+        cycles_prefs.refresh_devices()
+        for device in cycles_prefs.devices:
+            if device.type != 'CPU':
+                return True
+        return False
+
 
 
 
