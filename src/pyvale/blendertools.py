@@ -432,6 +432,7 @@ class BlenderTools:
         cycles_prefs = bpy.context.preferences.addons["cycles"].preferences
         cycles_prefs.refresh_devices()
         for device in cycles_prefs.devices:
+            print(f"Name: {device.name}, Type: {device.type}, Use: {device.use}")
             if device.type in accepted_gpus:
                 return True
         return False
