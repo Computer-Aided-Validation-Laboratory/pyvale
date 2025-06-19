@@ -48,13 +48,14 @@ namespace scanmethod {
 
     }
 
-    void update_bar(indicators::ProgressBar &bar, int i, int num_ss, int &prev_pct) {
-
+    void update_bar(indicators::ProgressBar &bar, int i, int num_ss, std::atomic<int> &prev_pct) {
         int curr_pct = static_cast<float>(i) / static_cast<float>(num_ss) * 100;
-        if (curr_pct > prev_pct){
+        int expected = prev_pct.load();
+    
+        // Only update bar if we've passed the previous percentage
+        if (curr_pct > expected && prev_pct.compare_exchange_strong(expected, curr_pct)) {
             bar.set_progress(curr_pct);
         }
-        prev_pct = curr_pct;
     }
 
 
@@ -71,14 +72,14 @@ namespace scanmethod {
                const util::Config &conf,
                const int img_num){
 
-        const int ss_num = ssdata.num;
+        const int num_ss = ssdata.num;
         const int ss_size = ssdata.size;
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, img_num, ss_num);
-        int current_progress = 0;
-        int prev_pct = 0;
+        reset_indicators(bar, img_num, num_ss);
+        std::atomic<int> current_progress = 0;
+        std::atomic<int> prev_pct = 0;
 
         // initialise subsets
         util::Subset ss_def(ss_size);
@@ -91,7 +92,7 @@ namespace scanmethod {
 
         // loop over subsets within the ROI
         #pragma omp parallel for firstprivate(ss_def, ss_ref, opt) shared(stop_request)
-        for (int ss = 0; ss < ss_num; ss++){
+        for (int ss = 0; ss < num_ss; ss++){
 
             // exit the main DIC loop when ctrl+C is hit
             if (stop_request){
@@ -117,14 +118,11 @@ namespace scanmethod {
 
 
             // append the results for the current subset to result vectors
-            util::append_results(img_num, ss, res, ss_num);
+            util::append_results(img_num, ss, res, num_ss);
 
             // update progress bar
-            #pragma omp critical
-            {
-                update_bar(bar, current_progress, ss_num, prev_pct);
-                current_progress++;
-            }
+            int progress = current_progress.fetch_add(1);
+            update_bar(bar, progress, num_ss, prev_pct);
 
         }
 
@@ -140,14 +138,14 @@ void image_with_bf(const Interpolator &interp_ref,
                    const util::Config &conf,
                    const int img_num){
 
-    const int ss_num = ssdata.num;
+    const int num_ss = ssdata.num;
     const int ss_size = ssdata.size;
 
     // progress bar
     indicators::ProgressBar bar;
-    reset_indicators(bar, img_num, ss_num);
-    int current_progress = 0;
-    int prev_pct = 0;
+    reset_indicators(bar, img_num, num_ss);
+    std::atomic<int> current_progress = 0;
+    std::atomic<int> prev_pct = 0;
 
     // initialise subsets
     util::Subset ss_def(ss_size);
@@ -173,7 +171,7 @@ void image_with_bf(const Interpolator &interp_ref,
 
     // loop over subsets within the ROI
     #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, res, ptemp)
-    for (int ss = 0; ss < ss_num; ss++){
+    for (int ss = 0; ss < num_ss; ss++){
 
         // exit the main DIC loop when ctrl+C is hit
         if (stop_request){
@@ -213,16 +211,13 @@ void image_with_bf(const Interpolator &interp_ref,
         util::Results res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
         // append the results for the current subset to result vectors
-        util::append_results(img_num, ss, res, ss_num);
+        util::append_results(img_num, ss, res, num_ss);
 
         ss_thread_num++;
 
         // update progress bar
-        #pragma omp critical 
-        {
-            update_bar(bar, current_progress, ss_num, prev_pct);
-            current_progress++;
-        }
+        int progress = current_progress.fetch_add(1);
+        update_bar(bar, progress, num_ss, prev_pct);
 
     }
     bar.mark_as_completed();
@@ -239,7 +234,7 @@ void image_with_bf(const Interpolator &interp_ref,
                             const std::vector<util::SubsetData> &ssdata,
                             const util::Config &conf,
                             const int img_num){
-        
+
         // assign some consts for readability
         const int px_hori = conf.px_hori;
         const int px_vert = conf.px_vert;
@@ -247,10 +242,10 @@ void image_with_bf(const Interpolator &interp_ref,
         const int seed_y = conf.rg_seed.second;
         const int nsizes = ssdata.size();
         const int last_size = nsizes-1;
-        const int ss_num = ssdata[last_size].num;
+        const int num_ss = ssdata[last_size].num;
         const int ss_size = ssdata[last_size].size;
         const int ss_step = ssdata[last_size].step;
-        
+
 
         if (img_num == 0){
             fourier::mgwd(ssdata, interp_ref, img_ref, img_def);
@@ -258,9 +253,9 @@ void image_with_bf(const Interpolator &interp_ref,
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, img_num, ss_num);
-        int current_progress = 0;
-        int prev_pct = 0;
+        reset_indicators(bar, img_num, num_ss);
+        std::atomic<int> current_progress(0);
+        std::atomic<int> prev_pct(0);
 
         // quick check for the initial seed point
         if (!rg::is_valid_point(seed_x, seed_y, ssdata[last_size])) {
@@ -268,17 +263,10 @@ void image_with_bf(const Interpolator &interp_ref,
         }
 
         // Initialize binary mask for computed points (initialized to 0)
-        std::vector<std::atomic<bool>> computed_mask(ssdata[last_size].mask.size());
-        for (size_t i = 0; i < computed_mask.size(); ++i) {
-            computed_mask[i] = false;
-        }
+        std::vector<int> computed_mask(ssdata[last_size].mask.size(), 0);    
 
         // queue for each thread
         std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
-
-        // initialise the fft search
-        //int largest_fft_window = rg::next_pow2(conf.range_bf);
-        //std::vector<int> windows = rg::pow2_between(largest_fft_window, conf.ss_size.back());
 
         # pragma omp parallel 
         {
@@ -288,22 +276,6 @@ void image_with_bf(const Interpolator &interp_ref,
 
             // Optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, conf.precision, conf.threshold_lm, px_vert, px_hori);
-
-            brute::Parameters brute(conf.threshold_bf, conf.range_bf);
-
-            // I now need an array of ssdatas for each window size.
-            //std::vector<util::SubsetData> window_data;
-            //std::vector<util::Subset> fft_window_ref;
-            //std::vector<util::Subset> fft_window_def;
-
-            //// Reserve to be safe
-            //fft_window_ref.reserve(windows.size());
-            //fft_window_def.reserve(windows.size());
-
-            //for (size_t t = 0; t < windows.size(); t++){
-            //    fft_window_ref.emplace_back(util::Subset(windows[t]));
-            //    fft_window_def.emplace_back(util::Subset(windows[t]));
-            //}
 
             std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
@@ -317,27 +289,17 @@ void image_with_bf(const Interpolator &interp_ref,
             // PROCESS THE SEED SUBSET 
             // ---------------------------------------------------------------------------------------------------------------------------
             if (omp_get_thread_num() == 0) {
-                
+
                 // seed coordinates
                 int x = seed_x / ss_step;
                 int y = seed_y / ss_step;
                 int idx = ssdata[last_size].mask[y * ssdata[last_size].num_ss_x + x];
-
-                //double shift_x, shift_y;
-                //rg::get_rigid_shift(shift_x, shift_y, seed_x, seed_y, fft_windows, interp_ref, img_def);
-                //opt.p[0] = -shift_x;
-                //opt.p[1] = -shift_y;
 
                 opt.p[0] = -fourier::shifts[last_size].x[idx];
                 opt.p[1] = -fourier::shifts[last_size].y[idx];
 
                 // Extract subset and solve for starting seed point
                 util::extract_ss(ss_def, seed_x, seed_y, px_hori, px_vert, img_def);
-
-                // brute force for initial subset
-                //brute::expanding_wavefront(seed_x, seed_y, img_ref, px_hori, px_vert, ss_def, ss_ref, brute);
-                //opt.p[0] = brute.p_rigid[0];
-                //opt.p[1] = brute.p_rigid[1];
 
 
                 double centre_x = seed_x + static_cast<double>(ss_size)/2.0 - 0.5;
@@ -347,9 +309,9 @@ void image_with_bf(const Interpolator &interp_ref,
 
 
                 // append the results for the current subset to result vectors
-                util::append_results(img_num, idx, seed_res, ss_num);
+                util::append_results(img_num, idx, seed_res, num_ss);
 
-                computed_mask[idx] = true;
+                computed_mask[idx] = 1;
 
                 // loop over the neighbours for the initial seed point
                 for (size_t n = 0; n < ssdata[last_size].neigh[idx].size(); n++) {
@@ -363,16 +325,8 @@ void image_with_bf(const Interpolator &interp_ref,
                     util::extract_ss(ss_def, nx, ny, px_hori, px_vert, img_def);
 
                     double ptemp[6] = {0,0,0,0,0,0};
-
-                    //double shift_x, shift_y;
-                    //rg::get_rigid_shift(shift_x, shift_y, nx, ny, fft_windows, interp_ref, img_def);
-                    //ptemp[0] = -shift_x;
-                    //ptemp[1] = -shift_y;
-
                     ptemp[0] = -fourier::shifts[last_size].x[nidx];
                     ptemp[1] = -fourier::shifts[last_size].y[nidx];
-
-
                     for (int i = 0; i < opt.num_params; i++){
                         opt.p[i] = ptemp[i];
                     }
@@ -383,10 +337,10 @@ void image_with_bf(const Interpolator &interp_ref,
                     util::Results nres = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
                     // append the results for the current subset to result vectors
-                    util::append_results(img_num, nidx, nres, ss_num);
+                    util::append_results(img_num, nidx, nres, num_ss);
 
                     // update mask
-                    computed_mask[nidx] = true;
+                    computed_mask[nidx] = 1;
 
                     // add this point to queue
                     local_q[0].push(rg::Point(nidx,1.0-0.5*nres.cost));
@@ -443,8 +397,8 @@ void image_with_bf(const Interpolator &interp_ref,
                 temp_neigh.clear();
 
                 // get the mask idx of point in subset list
-                int idx_res = (img_num * ss_num + current.idx);
-                int idx_resp = idx_res*opt.num_params;
+                int idx_results = (img_num * num_ss + current.idx);
+                int idx_presults = idx_results*opt.num_params;
 
                 // loop over neighbouring points
                 for (size_t n = 0; n < ssdata[last_size].neigh[current.idx].size(); n++) {
@@ -452,23 +406,23 @@ void image_with_bf(const Interpolator &interp_ref,
                     // subset index of neighbour to the current point
                     int nidx = ssdata[last_size].neigh[current.idx][n];
 
-                    // coords of neigh
-                    int nx = ssdata[last_size].coords[nidx*2];
-                    int ny = ssdata[last_size].coords[nidx*2+1];
+                    int expected;
+                    #pragma omp critical
+                    {
+                        expected = computed_mask[nidx];
+                        computed_mask[nidx] = 1;
+                    }
+                   if (expected == 0) {
 
-                    if (!computed_mask[nidx].exchange(true)) {
+                        // coords of neigh
+                        int nx = ssdata[last_size].coords[nidx*2];
+                        int ny = ssdata[last_size].coords[nidx*2+1];
 
                         // extract subset
                         util::extract_ss(ss_def, nx, ny, px_hori, px_vert, img_def);
 
-                        // if the neighbouring subset had not met correlation threshold
-                        // then start brute force again
-                        if (util::cost_arr[idx_res] > opt.threshold_lm){
-
-                            //double shift_x, shift_y;
-                            //rg::get_rigid_shift(shift_x, shift_y, nx, ny, fft_windows, interp_ref, img_def);
-                            //ptemp[0] = -shift_x;
-                            //ptemp[1] = -shift_y;
+                        // if the neighbouring subset had not met correlation threshold then start brute force again
+                        if (util::cost_arr[idx_results] > opt.threshold_lm){
 
                             ptemp[0] = -fourier::shifts[last_size].x[nidx];
                             ptemp[1] = -fourier::shifts[last_size].y[nidx];
@@ -480,7 +434,7 @@ void image_with_bf(const Interpolator &interp_ref,
                         }
                         else {
                             for (int i = 0; i < opt.num_params; i++){
-                                opt.p[i] = util::p_arr[idx_resp+i];
+                                opt.p[i] = util::p_arr[idx_presults+i];
                             }
                         }
 
@@ -490,17 +444,14 @@ void image_with_bf(const Interpolator &interp_ref,
                         util::Results nres = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
                         // append results
-                        util::append_results(img_num, nidx, nres, ss_num);
+                        util::append_results(img_num, nidx, nres, num_ss);
 
                         // add results to temp neighbour results
                         temp_neigh.emplace_back(nidx, 1.0-0.5*nres.cost);
 
                         // update progress bar
-                        #pragma omp critical 
-                        {
-                            update_bar(bar, current_progress, ss_num, prev_pct);
-                            current_progress++;
-                        }
+                        int progress = current_progress.fetch_add(1);
+                        update_bar(bar, progress, num_ss, prev_pct);
 
                     }
                 }
@@ -531,14 +482,14 @@ void image_with_bf(const Interpolator &interp_ref,
         const int last_size = nsizes-1;
 
         // get number of subsets and the size for the smalllest window size
-        const int ss_num  = ssdata[last_size].num;
+        const int num_ss  = ssdata[last_size].num;
         const int ss_size = ssdata[last_size].size;
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, img_num, ss_num);
-        int current_progress = 0;
-        int prev_pct = 0;
+        reset_indicators(bar, img_num, num_ss);
+        std::atomic<int> current_progress = 0;
+        std::atomic<int> prev_pct = 0;
 
         // loop over subsets within the ROI
         #pragma omp parallel shared(stop_request)
@@ -556,7 +507,7 @@ void image_with_bf(const Interpolator &interp_ref,
             double ptemp[6] = {0,0,0,0,0,0};
 
             #pragma omp for
-            for (int ss = 0; ss < ss_num; ss++){
+            for (int ss = 0; ss < num_ss; ss++){
 
                 // exit the main DIC loop when ctrl+C is hit
                 if (stop_request){
@@ -569,19 +520,10 @@ void image_with_bf(const Interpolator &interp_ref,
                 int ss_y = ssdata[last_size].coords[ss*2+1];
 
                 // get the deformed subset
-                util::extract_ss(ss_def, ss_x, ss_y, 
-                                conf.px_hori,
-                                conf.px_vert,
-                                img_def); 
+                util::extract_ss(ss_def, ss_x, ss_y, conf.px_hori, conf.px_vert, img_def);
 
                 ptemp[0] = -fourier::shifts[last_size].x[ss];
                 ptemp[1] = -fourier::shifts[last_size].y[ss];
-                
-                //#pragma omp critical
-                //{
-                //    std::cout << ss_x << " " << ss_y << " ";
-                //    std::cout << ptemp[0] << " " << ptemp[1] << std::endl;
-                //}
 
                 for (int i = 0; i < opt.num_params; i++){
                     opt.p[i] = ptemp[i];
@@ -593,15 +535,11 @@ void image_with_bf(const Interpolator &interp_ref,
                 util::Results res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
 
                 // append optimization results to results vectors
-                util::append_results(img_num, ss, res, ss_num);
-                //exit(0);
+                util::append_results(img_num, ss, res, num_ss);
 
                 // update progress bar
-                #pragma omp critical
-                {
-                    update_bar(bar, current_progress, ss_num, prev_pct);
-                    current_progress++;
-                }
+                int progress = current_progress.fetch_add(1);
+                update_bar(bar, progress, num_ss, prev_pct);
 
             }
         }
