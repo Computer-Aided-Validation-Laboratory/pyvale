@@ -428,10 +428,11 @@ class BlenderTools:
             Returns True if a GPU is present, returns False if only a CPU is
             present.
         """
+        accepted_gpus = ["CUDA", "OPTIX", "HIP", "METAL", "ONEAPI"]
         cycles_prefs = bpy.context.preferences.addons["cycles"].preferences
         cycles_prefs.refresh_devices()
         for device in cycles_prefs.devices:
-            if device.type != 'CPU':
+            if device.type in accepted_gpus:
                 return True
         return False
 
