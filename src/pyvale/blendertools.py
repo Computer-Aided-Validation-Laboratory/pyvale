@@ -332,7 +332,9 @@ class BlenderTools:
             A dataclass containing the parameters needed to render the images
         calibration_data : CalibrationData
             A dataclass containing the parameters by which to move the calibration
-            target. These inclcude the plungle depth and rotation angle.
+            target. These inclcude the plungle depth and rotation angle. It also
+            inlcludes optional x and y limits for the movement of the calibration
+            target (if None they will be initialised from the FOV).
         part : bpy.data.objects
             The Blender part object, in this instance the calibration target.
 
@@ -371,15 +373,17 @@ class BlenderTools:
             plunge = calibration_data.plunge_lims[0] + calibration_data.plunge_step * ii
             # Plunge
             (FOV_x, FOV_y) = CameraTools.blender_FOV(render_data.cam_data[0])
-            x_limit = int(round((FOV_x / 2) - (part.dimensions[0] / 2)))
 
-            y_limit = int(round((FOV_y / 2) - (part.dimensions[1] / 2)))
+            if calibration_data.x_limit is None:
+                calibration_data.x_limit = int(round((FOV_x / 2) - (part.dimensions[0] / 2)))
+            if calibration_data.y_limit is None:
+                calibration_data.y_limit = int(round((FOV_y / 2) - (part.dimensions[1] / 2)))
 
             for x in np.arange(-1, 2):
-                x *= x_limit
+                x *= calibration_data.x_limit
                 # Move in x-dir
                 for y in np.arange(-1, 2):
-                    y *= y_limit
+                    y *= calibration_data.y_limit
                     # Move in y-dir
                     part.location = ((x, y, plunge))
                     part.location[2] = plunge
@@ -414,6 +418,24 @@ class BlenderTools:
                             render_counter += 1
         print('Total number of calibration images = ' + str(render_counter))
         return render_counter
+
+    def check_for_GPU() -> bool:
+        """A method to check whether the machine has a GPU or not.
+
+        Returns
+        -------
+        bool
+            Returns True if a GPU is present, returns False if only a CPU is
+            present.
+        """
+        accepted_gpus = ["CUDA", "OPTIX", "HIP", "METAL", "ONEAPI"]
+        cycles_prefs = bpy.context.preferences.addons["cycles"].preferences
+        cycles_prefs.refresh_devices()
+        for device in cycles_prefs.devices:
+            print(f"Name: {device.name}, Type: {device.type}, Use: {device.use}")
+            if device.type in accepted_gpus:
+                return True
+        return False
 
 
 
