@@ -23,39 +23,39 @@ namespace fourier {
 
     std::vector<Shift> shifts;
 
-    void init(std::vector<util::SubsetData> &ssdata,
+    void init(std::vector<util::SubsetData> &window_data,
               std::vector<int> &ss_sizes,
               std::vector<int> &ss_steps,
               const bool *img_roi, const util::Config &conf){
 
         // timer for the initialisation
-        util::Timer timer("entire FFT initislisation");
+        //util::Timer timer("entire FFT initislisation");
         
         // loop over the window sizes
         for (size_t i = 0; i < ss_sizes.size(); i++) {
 
-            const int ss_size = ss_sizes[i];
-            const int ss_step = ss_steps[i];
+            const int window_size = ss_sizes[i];
+            const int window_step = ss_steps[i];
 
             // generate subset information for each window
-            ssdata.push_back(util::gen_ss_list(img_roi, ss_step, ss_size,
-                                          conf.px_hori, conf.px_vert));
+            window_data.push_back(util::gen_ss_list(img_roi, window_step, window_size,
+                                          conf.px_hori, conf.px_vert, true));
 
             // shifts for each subset size
             Shift shift;
-            shift.num_neigh = 8;
+            shift.num_neigh = 4;
 
             // resize vectors
-            shift.x.resize(ssdata[i].num);
-            shift.y.resize(ssdata[i].num);
-            shift.cost.resize(ssdata[i].num);
-            shift.max_val.resize(ssdata[i].num);
+            shift.x.resize(window_data[i].num);
+            shift.y.resize(window_data[i].num);
+            shift.cost.resize(window_data[i].num);
+            shift.max_val.resize(window_data[i].num);
 
             // we need the neighbours in the previous window size for all sizes 
             // except the first
             if (i > 0){
-                shift.neighlist.resize(shift.num_neigh*ssdata[i].num);
-                shift.gen_neighlist(ssdata[i], ssdata[i-1]);
+                shift.neighlist.resize(shift.num_neigh*window_data[i].num);
+                shift.gen_neighlist(window_data[i], window_data[i-1]);
             }
 
             // add the shifts for the current window to the vector
@@ -71,9 +71,12 @@ namespace fourier {
         std::vector<double> updated = shift;
 
         for (int ss = 0; ss < ssdata.num; ss++) {
+            
+            // subset coords
             int ss_x = ssdata.coords[2*ss];
             int ss_y = ssdata.coords[2*ss+1];
 
+            // subset x and y index in 2d mask
             int idx_x = ss_x / ssdata.step;
             int idx_y = ss_y / ssdata.step;
 
@@ -86,8 +89,12 @@ namespace fourier {
 
             for (int y = min_y; y < max_y; ++y) {
                 for (int x = min_x; x < max_x; ++x) {
+
+                    // index of neighbour 
                     int nss_idx = ssdata.mask[y*ssdata.num_ss_x+x];
-                    if (nss_idx == -1 || nss_idx == ss) continue; // skip invalid or self
+
+                    // check if invalid neigh
+                    if (nss_idx == -1 || nss_idx == ss) continue; 
 
                     neigh_vals.push_back(shift[nss_idx]);
                 }
@@ -114,16 +121,13 @@ namespace fourier {
                 updated[ss] = median;
             }
         }
-        shift = std::move(updated);
+shift = std::move(updated);
     }
 
-    void mgwd(const std::vector<util::SubsetData> &ssdata,
-              const Interpolator &interp_ref,
-              const double *img_ref, const double *img_def){
+    void mgwd(const std::vector<util::SubsetData> &ssdata, const double *img_ref, const double *img_def, const Interpolator &interp_def){
 
-        const int px_hori = interp_ref.px_hori;
-        const int px_vert = interp_ref.px_vert;
-
+        const int px_hori = interp_def.px_hori;
+        const int px_vert = interp_def.px_vert;
 
         // TODO: Add a proper flag for this 
         bool subpx = true;
@@ -131,13 +135,16 @@ namespace fourier {
         // Loop over window size
         for (size_t i = 0; i < ssdata.size(); i++){
 
-            util::Timer timer("FFT windowing for subset size: " 
-                              + std::to_string(ssdata[i].size));
+            //util::Timer timer("FFT windowing for subset size: " + std::to_string(ssdata[i].size));
 
             const int ss_size = ssdata[i].size;
 
-            #pragma omp parallel
+            std::fill(shifts[i].x.begin(), shifts[i].x.end(), 0.0);
+            std::fill(shifts[i].y.begin(), shifts[i].y.end(), 0.0);
+
+        #pragma omp parallel
             {
+
 
                 // class for FFT
                 fourier::FFT fft(ss_size);
@@ -149,20 +156,19 @@ namespace fourier {
                     int ss_x = ssdata[i].coords[2*ss];
                     int ss_y = ssdata[i].coords[2*ss+1];
 
-                    // get the deformed subset values
-                    util::extract_ss(fft.ss_def,ss_x, ss_y, px_hori, px_vert, img_def);
-
                     // get the seed for the new window size
                     auto [prev_x, prev_y] = get_prev_shift(i, ss, ss_x, ss_y, shifts, ssdata);
                     double ss_x_shft = ss_x-prev_x;
                     double ss_y_shft = ss_y-prev_y;
 
-                    // get the reference subset values
-                    if (subpx) util::extract_ss_subpx(fft.ss_ref, ss_x_shft, ss_y_shft, interp_ref);
-                    else util::extract_ss(fft.ss_ref, ss_x_shft, ss_y_shft, px_hori, px_vert, img_ref);
+                    // populate fft.ss_ref with reference subset values
+                    util::extract_ss(fft.ss_ref,ss_x, ss_y, px_hori, px_vert, img_ref);
+
+                    // populate fft.ss_def with interpolator values
+                    util::extract_ss_subpx(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
 
                     // zero normalise the subsets
-                    zero_norm_subsets(fft.ss_def.vals, fft.ss_ref.vals, ss_size);
+                    zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, ss_size);
 
                     // get peaks from the cross correlation
                     double peak_x = 0, peak_y = 0;
@@ -170,17 +176,30 @@ namespace fourier {
                     fft.correlate();
                     fft.find_peak(peak_x, peak_y, max_val, subpx, "GAUSSIAN_2D");
 
+
+                    // debugging print cross correlation
+                    //if (ss == 0){
+                    //    for (int y = 0; y < fft.ss_ref.size; y++){
+                    //        for (int x = 0; x < fft.ss_ref.size; x++){
+                    //            std::cout << x << " " << y << " "  << fft.ss_ref.vals[y*fft.ss_ref.size + x] << " " << fft.ss_def.vals[y*fft.ss_ref.size + x] << " " << fft.cross_corr[y*fft.ss_ref.size+x] << std::endl;
+                    //        }
+                    //    }
+                    //    std::cout << std::endl;
+                    //}
+
                     // update the shift arrays
                     if (i == 0){
                         shifts[i].x[ss] = peak_x;
                         shifts[i].y[ss] = peak_y;
                     }
                     else {
-                        shifts[i].x[ss] = prev_x + peak_x;
-                        shifts[i].y[ss] = prev_y + peak_y;
+                        shifts[i].x[ss] = prev_x+peak_x;
+                        shifts[i].y[ss] = prev_y+peak_y;
                     }
 
-                    shifts[i].cost[ss] = debugcost(fft.ss_def, fft.ss_ref);
+                    // this isn't essential. storing peak amplitude and cost value for shifts
+                    util::extract_ss_subpx(fft.ss_def, ss_x+shifts[i].x[ss], ss_y+shifts[i].y[ss], interp_def);
+                    shifts[i].cost[ss] = debugcost(fft.ss_ref,fft.ss_def);
                     shifts[i].max_val[ss] = max_val;
                 }
             }
@@ -195,7 +214,6 @@ namespace fourier {
                 std::cout << shifts[i].max_val[ss] << " ";
                 std::cout << shifts[i].cost[ss] << std::endl;
             }
-
             std::cout << std::endl;
         }
 
@@ -307,7 +325,7 @@ namespace fourier {
         for (int i = 0; i < num_px; i++){
             double def_norm = ss_def.vals[i] * inv_sum_squared_def;
             double ref_norm = ss_ref.vals[i] * inv_sum_squared_ref;
-            cost += (def_norm - ref_norm) * (def_norm - ref_norm);
+            cost += (ref_norm - def_norm) * (ref_norm - def_norm);
         }
         return cost;
     }
@@ -316,7 +334,7 @@ namespace fourier {
 
 
 
-    void zero_norm_subsets(std::vector<double>& def_vals, std::vector<double>& ref_vals, int ss_size) {
+    void zero_norm_subsets(std::vector<double>& ref_vals, std::vector<double>& def_vals, int ss_size) {
         const int total_px = ss_size * ss_size;
 
         // Compute means

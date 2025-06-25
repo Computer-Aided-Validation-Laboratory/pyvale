@@ -6,6 +6,7 @@
 
 
 // STD library Header files
+#include <cstdlib>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -66,7 +67,7 @@ namespace util {
 
 
 
-    void extract_ss(util::Subset &ss_def, 
+    void extract_ss(util::Subset &ss_ref, 
                     const int ss_x, const int ss_y, 
                     const int px_hori,
                     const int px_vert,
@@ -75,16 +76,16 @@ namespace util {
         int count = 0;
         int idx;
 
-        for (int px_y = ss_y; px_y < ss_y+ss_def.size; px_y++){
-            for (int px_x = ss_x; px_x < ss_x+ss_def.size; px_x++){
+        for (int px_y = ss_y; px_y < ss_y+ss_ref.size; px_y++){
+            for (int px_x = ss_x; px_x < ss_x+ss_ref.size; px_x++){
 
                 // get coordinate values
-                ss_def.x[count] = px_x; 
-                ss_def.y[count] = px_y; 
+                ss_ref.x[count] = px_x; 
+                ss_ref.y[count] = px_y; 
 
                 // get pixel values
                 idx = px_y * px_hori + px_x;
-                ss_def.vals[count] = img_def[idx];
+                ss_ref.vals[count] = img_def[idx];
                 count++;
 
                 // debugging
@@ -94,37 +95,50 @@ namespace util {
         }
     }
 
-    void extract_ss_subpx(util::Subset &ss_ref, 
-                          const double ss_x, const double ss_y, 
+    void extract_ss_subpx(util::Subset &ss_def, 
+                          const double subpx_x, const double subpx_y, 
                           const Interpolator &interp_ref){
 
         int count = 0;
         int idx;
 
-        for (double px_y = ss_y; px_y < ss_y+ss_ref.size; px_y+=1.0){
-            for (double px_x = ss_x; px_x < ss_x+ss_ref.size; px_x+=1.0){
-
+        for (int y = 0; y < ss_def.size; y++){
+            for (int x = 0; x < ss_def.size; x++){
+                if (count >= ss_def.size*ss_def.size){
+                    std::cerr << "issue with count for subpixel subset population" << std::endl;
+                    std::cerr << "count: " << count << std::endl;
+                    std::cerr << "subset size: " << ss_def.size << std::endl;
+                    std::cerr << "num px (size*size): " << ss_def.size*ss_def.size << std::endl;
+                    std::cerr << "subpixel value: " << subpx_x+x << " " << subpx_y+y << std::endl;
+                    std::cerr << "subset coordinates: " << " " <<  subpx_x << " " << subpx_y << " " << std::endl;
+                    exit(EXIT_FAILURE);
+                }
                 // get coordinate values
-                ss_ref.x[count] = px_x; 
-                ss_ref.y[count] = px_y; 
+                ss_def.x[count] = subpx_x+x; 
+                ss_def.y[count] = subpx_y+y; 
 
                 // get pixel values
-                ss_ref.vals[count] = interp_ref.eval_bicubic(px_x, px_y);
+                ss_def.vals[count] = interp_ref.eval_bicubic(0, 0, ss_def.x[count], ss_def.y[count]);
 
                 // debugging
-                //std::cout << px_x << " " << px_y << " ";
-                //std::cout << ss_ref.vals[count] << std::endl;
+                //std::cout << ss_def.x[count] << " " << ss_def.y[count] << " " << ss_def.vals[count] << std::endl;
+
                 count++;
             }
+        }
+        if (count!=ss_def.size*ss_def.size){
+            std::cerr << "count for subpixel population is not the same as the number of subset pixels.";
+            std::cout << "count: " << count << std::endl;
+            std::cerr << "number of pixels: " << ss_def.size*ss_def.size << std::endl; 
+            exit(EXIT_FAILURE);
         }
     }
 
     SubsetData gen_ss_list(const bool *img_roi, const int ss_step, 
                            const int ss_size, const int px_hori, 
-                           const int px_vert) {
+                           const int px_vert, const bool partial) {
         
-        Timer timer("subset list generation for subset size " + std::to_string(ss_size) +
-                    " [px] with step " + std::to_string(ss_step) + " [px]:" );
+        //Timer timer("subset list generation for subset size " + std::to_string(ss_size) + " [px] with step " + std::to_string(ss_step) + " [px]:" );
 
         SubsetData ssdata;
 
@@ -147,7 +161,6 @@ namespace util {
         ssdata.mask.resize(ssdata.num_in_mask, -1);
         ssdata.coords.resize(2*ssdata.num_in_mask, -1);
 
-
         // First pass: collect valid subset centers and idx them
         // TODO: Parallelise this with openMP
         for (int j = 0; j < num_ss_y; j++) {
@@ -165,15 +178,37 @@ namespace util {
 
                 // check if subset is within image and ROI.
                 bool valid = true;
+                int  valid_count = 0;
                 for (int px_y = ymin; px_y <= ymax && valid; px_y++) {
                     for (int px_x = xmin; px_x <= xmax && valid; px_x++) {
 
-                       if(!is_valid_pixel(px_x,px_y,px_hori,
-                                          px_vert,img_roi)){
-                            valid = false;
-                            break;
-                        }
+                        // When no partial subset filling all px must be within roi
+                        if (!partial) {
+                            if (!is_valid_in_dims(px_x, px_y, px_hori, px_vert) ||
+                                !is_valid_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
+                                valid = false;
+                                break;
+                            }
+                        } 
 
+                        // When partial count num of px in roi
+                        else {
+                            if (is_valid_in_dims(px_x, px_y, px_hori, px_vert) &&
+                                is_valid_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
+                                valid_count++;
+                            }
+                        }
+                    }
+
+                    if (!valid && !partial) break;
+                }
+
+                // TODO: this is hardcoded so that atleast 60% of pixels in subset must be in ROI
+                if (partial) {
+                    if (valid_count >= (ss_size*ss_size) * (0.50)) {
+                        valid = true;
+                    } else {
+                        valid = false;
                     }
                 }
 
@@ -396,19 +431,25 @@ namespace util {
         }
     }
 
-    bool is_valid_pixel(const int px_x, const int px_y, const int px_hori, 
-                        const int px_vert, const bool *img_roi) {
+    inline bool is_valid_in_dims(const int px_x, const int px_y, const int px_hori, 
+                        const int px_vert) {
+
         if (px_x < 0 || px_y < 0 ||
             px_x >= px_hori || px_y >= px_vert) {
             return false;
         }
+        return true;
+    }
+
+    inline bool is_valid_in_roi(const int px_x, const int px_y, const int px_hori, 
+                        const int px_vert, const bool *img_roi) {
+
         int idx = px_y * px_hori + px_x;
         if (!img_roi[idx]) {
             return false;
         }
         return true;
     }
-
 
     inline void write_int(std::ofstream& out, int val) {
         out.write(reinterpret_cast<const char*>(&val), sizeof(int));

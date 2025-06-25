@@ -71,12 +71,12 @@ namespace optimizer {
 
 
     // Optimization routine
-    util::Results solve(const double ss_x, const double ss_y,util::Subset &ss_def, util::Subset &ss_ref, const Interpolator &interp_ref, optimizer::Parameters &opt);
+    util::Results solve(const double ss_x, const double ss_y, const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt);
 
     // choice of cost function
-    void   ssd(util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt, const Interpolator &interp_ref);
-    void  nssd(util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt, const Interpolator &interp_ref);
-    void znssd(util::Subset &ss_def, util::Subset &ss_ref, optimizer::Parameters &opt, const Interpolator &interp_ref);
+    void   ssd(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
+    void  nssd(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
+    void znssd(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
 
 
     // optimizer functions

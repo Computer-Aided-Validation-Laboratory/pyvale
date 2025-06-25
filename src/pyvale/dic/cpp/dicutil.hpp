@@ -229,7 +229,7 @@ namespace util {
      * @return            A SubsetData object containing the generated subsets and their neighbours.
      */
     SubsetData gen_ss_list(const bool *img_roi, const int ss_step, const int ss_size, 
-                           const int px_hori, const int px_vert);
+                           const int px_hori, const int px_vert, const bool partial=false);
 
 
     void append_results(int img_num, int ss, 
@@ -243,9 +243,11 @@ namespace util {
                       int num_params);
 
 
-    bool is_valid_pixel(const int px_x, const int px_y, const int px_hori, 
-                        const int px_vert, const bool *img_roi);
+    inline bool is_valid_in_dims(const int px_x, const int px_y, const int px_hori, 
+                        const int px_vert);
 
+    inline bool is_valid_in_roi(const int px_x, const int px_y, const int px_hori, 
+                        const int px_vert, const bool *img_roi);
 
     inline void write_int(std::ofstream& out, int val);
 

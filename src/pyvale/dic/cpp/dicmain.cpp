@@ -42,16 +42,16 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // ------------------------------------------------------------------------
     // Initialisation
     // ------------------------------------------------------------------------
-    TITLE("CONFIGURATION");
-    INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
-    INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
-    INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
-    INFO_OUT("Max number of solver iterations: ", conf.max_iter);
-    INFO_OUT("Correlation Criterion: ", conf.corr_crit);
-    INFO_OUT("Shape Function: ", conf.shape_func);
-    INFO_OUT("Interpolation Routine: ", conf.interp_routine);
-    INFO_OUT("Image Scan Method: ", conf.scan_method);
-    INFO_OUT("Number of OMP threads:", omp_get_max_threads());
+    //TITLE("CONFIGURATION");
+    //INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
+    //INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
+    //INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
+    //INFO_OUT("Max number of solver iterations: ", conf.max_iter);
+    //INFO_OUT("Correlation Criterion: ", conf.corr_crit);
+    //INFO_OUT("Shape Function: ", conf.shape_func);
+    //INFO_OUT("Interpolation Routine: ", conf.interp_routine);
+    //INFO_OUT("Image Scan Method: ", conf.scan_method);
+    //INFO_OUT("Number of OMP threads:", omp_get_max_threads());
 
     // Register signal handler for Ctrl+C
     signal(SIGINT, scanmethod::signalHandler);
@@ -60,6 +60,14 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
     double* img_ref = static_cast<double*>(img_ref_arr.request().ptr);
     double* img_def_stack = static_cast<double*>(img_def_stack_arr.request().ptr);
+
+    // debugging
+    //for (int y = 0; y < conf.px_vert; y++){
+    //    for (int x = 0; x < conf.px_hori; x++){
+    //        std::cout << x << " " << y << " " << img_ref[y*conf.px_hori + x] << " " << img_def_stack[y*conf.px_hori + x] << " " << img_roi[y*conf.px_hori+x] << std::endl;
+    //    }
+    //}
+    //exit(0);
 
     // ------------------------------------------------------------------------
     // get a list of ss coordinates within RIO;
@@ -82,10 +90,6 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     util::resize_results(conf.num_def_img, ssdata.back().num,
                          conf.num_params, saveconf.at_end);
 
-   
-    // define our interpolator for the reference image
-    Interpolator interp_ref(img_ref, conf.px_hori, conf.px_vert);
-
     // initialise the LM optimizer with shape func and corr crit
     optimizer::init(conf.corr_crit, conf.shape_func);
 
@@ -102,26 +106,28 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
     for (int img_num = 0; img_num < conf.num_def_img; img_num++){
 
-
         // pointer to starting location of deformed image in memory
         int num_px_in_image = conf.px_hori * conf.px_vert;
         double *img_def = img_def_stack + img_num*num_px_in_image;
 
+        // define our interpolator for the reference image
+        Interpolator interp_def(img_def, conf.px_hori, conf.px_vert);
+
         // raster scan
         if (conf.scan_method=="IMAGE_SCAN") 
-            scanmethod::image(interp_ref, img_def, ssdata[0], conf, img_num);
+            scanmethod::image(img_ref, interp_def, ssdata[0], conf, img_num);
 
         // raster with brute force
         else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") 
-            scanmethod::image_with_bf(interp_ref, img_ref, img_def, ssdata[0], conf, img_num);
+            scanmethod::image_with_bf(img_ref, img_def, interp_def, ssdata[0], conf, img_num);
 
         // reliability Guided
         else if (conf.scan_method=="RG")
-            scanmethod::reliability_guided(interp_ref, img_ref, img_def, ssdata, conf, img_num);
+            scanmethod::reliability_guided(img_ref, img_def, interp_def, ssdata, conf, img_num, saveconf.at_end);
 
         // multi window fft
         else if (conf.scan_method=="FFT")
-            scanmethod::multi_window_fourier(interp_ref, img_ref, img_def, ssdata, conf, img_num);
+            scanmethod::multi_window_fourier(img_ref, img_def, interp_def, ssdata, conf, img_num);
 
         if (!saveconf.at_end)
             util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params);
@@ -137,7 +143,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 void build_info(){
         //std::cout << "Buld Information:" << std::endl;
         //INFO_OUT("- g++ version:", CPUCOMP);
-        //INFO_OUT("- Compiler directory:", COMPPATH);
+        //INFO_OUT("- Co
         //INFO_OUT("- Git SHA:", GITINFO);
         //INFO_OUT("- Number of dirty files:", GITDIRTY);
         //INFO_OUT("- Compiled on Machine:", HOSTNAME);

@@ -29,7 +29,7 @@ namespace optimizer {
 
 
     // function pointer for correlation criteria
-    void (*optimize_cost)(const util::Subset &ss_def, util::Subset &ss_ref,optimizer::Parameters &opt, const Interpolator &Interp, const int global_x, const int global_y);
+    void (*optimize_cost)(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &Interp, optimizer::Parameters &opt, const int global_x, const int global_y);
     void (*shape_function)(double &, double &, double , double , std::vector<double> &);
     void (*dshape_dp)(std::vector<double>&, double, double, double, double);
     void (*params_to_displacement)(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
@@ -46,12 +46,13 @@ namespace optimizer {
 
 
 
-    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_def, util::Subset &ss_ref, const Interpolator &interp_ref, optimizer::Parameters &opt) {
+    util::Results solve(const double ss_x, const double ss_y, const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt) {
 
         int iter = 0;
         double ftol = 0;
         double xtol = 0;
         opt.lambda = 0.001;
+
 
         // trying relative instead of global coordinates for the optimization
         int global_x = ss_def.x[0];
@@ -64,11 +65,9 @@ namespace optimizer {
         while (iter < opt.max_iter) {
 
             // perform the optimization
-            optimize_cost(ss_def, ss_ref, opt, interp_ref, global_x, global_y);
+            optimize_cost(ss_ref, ss_def, interp_def, opt, global_x, global_y);
             update_lambda(opt.costp, opt.costpdp, opt.p, opt.pdp, opt.lambda, opt.num_params);
-
-
-
+            
             // relative change of all parameters
             xtol = std::sqrt(std::inner_product(opt.dp.begin(), opt.dp.end(), opt.dp.begin(), 0.0)) / 
                           std::sqrt(std::inner_product( opt.p.begin(),  opt.p.end(),  opt.p.begin(), 0.0));
@@ -77,7 +76,7 @@ namespace optimizer {
 
             // variation on correlation coefficient
             ftol = std::abs(opt.costpdp - opt.costp);
-
+            debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
             // convergence criteria
             // - rel change in parameters is less than user precision
             // - change in corr coeff is less than precision
@@ -90,7 +89,7 @@ namespace optimizer {
 
             iter++;
         }
-
+        exit(0);
         util::Results res(opt.num_params);
         params_to_displacement(res, ss_x-global_x, ss_y-global_y, opt.p);
         res.iter = iter;
@@ -111,10 +110,10 @@ namespace optimizer {
 
 
 
-    void ssd(const util::Subset &ss_def,
-             util::Subset &ss_ref,
+    void ssd(const util::Subset &ss_ref,
+             util::Subset &ss_def,
+             const Interpolator &interp_def,
              optimizer::Parameters &opt,
-             const Interpolator &interp_ref,
              const int global_x,
              const int global_y){
 
@@ -133,24 +132,24 @@ namespace optimizer {
         // loop over the subset values
         for (int i = 0; i < num_px; i++){
 
-            // get subset coordinates based on shape function parameters
-            shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.p);
+            // apply shape function parameters to deformed subset
+            shape_function(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.p);
 
             // x and y coordinates of reference subset
-            double ref_x = ss_ref.x[i];
-            double ref_y = ss_ref.y[i];
+            double def_x = ss_def.x[i];
+            double def_y = ss_def.y[i];
 
             // get the subset value and derivitives
-            interp_vals = interp_ref.eval_bicubic_and_derivs(ref_x+global_x, ref_y+global_y);
-            ss_ref.vals[i] = interp_vals.f;
-            double ref = ss_ref.vals[i];
+            interp_vals = interp_def.eval_bicubic_and_derivs(global_x, global_y, def_x+global_x, def_y+global_y);
+            ss_def.vals[i] = interp_vals.f;
+            double def = ss_def.vals[i];
 
             dfdx = interp_vals.dfdx;
             dfdy = interp_vals.dfdy;
 
             // derivative of shape function with repsect to parameters
-            dshape_dp(opt.dfdp, ref_x, ref_y, dfdx, dfdy);
-            
+            dshape_dp(opt.dfdp, def_x, def_y, dfdx, dfdy);
+
             // Upper triangle of Hessian Matrix
             for (int row = 0; row < num_params; row++) {
                 double dfdp_row = opt.dfdp[row];
@@ -159,7 +158,7 @@ namespace optimizer {
                 }
             }
 
-            double dshape_df = - (ss_def.vals[i] - ref);
+            double dshape_df = - (ss_ref.vals[i] - def);
             
             if (num_params == 2) {
                 opt.g[0] += dshape_df*dfdx;
@@ -168,10 +167,10 @@ namespace optimizer {
             else if (num_params == 6) {
                 opt.g[0] += dshape_df*dfdx;
                 opt.g[1] += dshape_df*dfdy;
-                opt.g[2] += dshape_df*dfdx*ref_x;
-                opt.g[3] += dshape_df*dfdx*ref_y;
-                opt.g[4] += dshape_df*dfdy*ref_x;
-                opt.g[5] += dshape_df*dfdy*ref_y;
+                opt.g[2] += dshape_df*dfdx*def_x;
+                opt.g[3] += dshape_df*dfdx*def_y;
+                opt.g[4] += dshape_df*dfdy*def_x;
+                opt.g[5] += dshape_df*dfdy*def_y;
             }
 
         }
@@ -183,24 +182,24 @@ namespace optimizer {
         // calculate cost function for current and updated parameter values 
         opt.costp = 0.0;
         for (int i = 0; i < num_px; i++){
-            opt.costp += (ss_def.vals[i] - ss_ref.vals[i]) * (ss_def.vals[i] - ss_ref.vals[i]);
+            opt.costp += (ss_ref.vals[i] - ss_def.vals[i]) * (ss_ref.vals[i] - ss_def.vals[i]);
         }
 
 
         // calculate cost function for updated parameter values
         opt.costpdp = 0.0;
         for (int i = 0; i < num_px; ++i) {
-            shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
-            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i]+global_x, ss_ref.y[i]+global_y);
-            opt.costpdp += (ss_def.vals[i] - ss_ref.vals[i]) * (ss_def.vals[i] - ss_ref.vals[i]);
+            shape_function(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.pdp);
+            ss_def.vals[i] = interp_def.eval_bicubic(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+            opt.costpdp += (ss_ref.vals[i] - ss_def.vals[i]) * (ss_ref.vals[i] - ss_def.vals[i]);
         }
     }
 
 
-    void nssd(const util::Subset &ss_def,
-              util::Subset &ss_ref,
+    void nssd(const util::Subset &ss_ref,
+              util::Subset &ss_def,
+              const Interpolator &interp_def,
               optimizer::Parameters &opt,
-              const Interpolator &interp_ref,
               const int global_x,
               const int global_y){
 
@@ -229,10 +228,11 @@ namespace optimizer {
         // get the normalisation values for both reference and deformed subsets
         for (int i = 0; i < num_px; ++i) {
 
-            shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.p);
+            // apply shape function parameters to deformed subset
+            shape_function(ss_def.x[i], ss_def.y[i], ss_def.x[i], ss_def.y[i], opt.p);
 
-            interp_vals = interp_ref.eval_bicubic_and_derivs(ss_ref.x[i]+global_x, ss_ref.y[i]+global_y);
-            ss_ref.vals[i] = interp_vals.f;
+            interp_vals = interp_def.eval_bicubic_and_derivs(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+            ss_def.vals[i] = interp_vals.f;
             dfdx[i] = interp_vals.dfdx;
             dfdy[i] = interp_vals.dfdy;
             sum_squared_def += ss_def.vals[i] * ss_def.vals[i];
@@ -247,9 +247,9 @@ namespace optimizer {
         for (int i = 0; i < num_px; i++){
             
             // derivative of shape function with repsect to parameters
-            dshape_dp(opt.dfdp, ss_ref.x[i], ss_ref.y[i], dfdx[i], dfdy[i]);
+            dshape_dp(opt.dfdp, ss_def.x[i], ss_def.y[i], dfdx[i], dfdy[i]);
 
-            double dshape_df = - inv_sum_squared_ref * (ss_def.vals[i] * inv_sum_squared_def - ss_ref.vals[i] * inv_sum_squared_ref);
+            double dshape_df = - inv_sum_squared_ref * (ss_ref.vals[i] * inv_sum_squared_def - ss_def.vals[i] * inv_sum_squared_ref);
 
 
             if (num_params == 2) {
@@ -259,10 +259,10 @@ namespace optimizer {
             else if (num_params == 6) {
                 opt.g[0] += dshape_df * dfdx[i];
                 opt.g[1] += dshape_df * dfdy[i];
-                opt.g[2] += dshape_df * dfdx[i] * ss_ref.x[i];
-                opt.g[3] += dshape_df * dfdx[i] * ss_ref.y[i];
-                opt.g[4] += dshape_df * dfdy[i] * ss_ref.x[i];
-                opt.g[5] += dshape_df * dfdy[i] * ss_ref.y[i];
+                opt.g[2] += dshape_df * dfdx[i] * ss_def.x[i];
+                opt.g[3] += dshape_df * dfdx[i] * ss_def.y[i];
+                opt.g[4] += dshape_df * dfdy[i] * ss_def.x[i];
+                opt.g[5] += dshape_df * dfdy[i] * ss_def.y[i];
             }
 
             // Upper triangle of Hessian Matrix
@@ -283,16 +283,16 @@ namespace optimizer {
         for (int i = 0; i < num_px; i++){
             double def_norm = ss_def.vals[i] * inv_sum_squared_def;
             double ref_norm = ss_ref.vals[i] * inv_sum_squared_ref;
-            opt.costp += (def_norm - ref_norm) * (def_norm - ref_norm);
+            opt.costp += (ref_norm - def_norm) * (ref_norm - def_norm);
         }
 
 
         // calculate cost function for updated parameter values
         sum_squared_ref = 0.0;
         for (int i = 0; i < num_px; ++i) {
-            shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
-            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i]+global_x, ss_ref.y[i]+global_y);
-            sum_squared_ref += ss_ref.vals[i] * ss_ref.vals[i];
+            shape_function(ss_def.x[i], ss_def.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
+            ss_def.vals[i] = interp_def.eval_bicubic(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+            sum_squared_ref += ss_def.vals[i] * ss_def.vals[i];
         }
 
         inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
@@ -300,16 +300,16 @@ namespace optimizer {
         for (int i = 0; i < num_px; ++i) {
             double def_norm = ss_def.vals[i] * inv_sum_squared_def;
             double ref_norm = ss_ref.vals[i] * inv_sum_squared_ref;
-            opt.costpdp += (def_norm - ref_norm) * (def_norm - ref_norm);        
+            opt.costpdp += (ref_norm - def_norm) * (ref_norm - def_norm);
         }
 
     }
 
 
-    void znssd(const util::Subset &ss_def,
-               util::Subset &ss_ref,
+    void znssd(const util::Subset &ss_ref,
+               util::Subset &ss_def,
+               const Interpolator &interp_def,
                optimizer::Parameters &opt,
-               const Interpolator &interp_ref,
                const int global_x,
                const int global_y){
 
@@ -337,10 +337,11 @@ namespace optimizer {
         // get the normalisation values for both reference and deformed subsets
         for (int i = 0; i < num_px; ++i) {
 
-            shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.p);
+            // apply shape function parameters to deformed subset
+            shape_function(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.p);
 
-            interp_vals = interp_ref.eval_bicubic_and_derivs(ss_ref.x[i]+global_x, ss_ref.y[i]+global_y);
-            ss_ref.vals[i] = interp_vals.f;
+            interp_vals = interp_def.eval_bicubic_and_derivs(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+            ss_def.vals[i] = interp_vals.f;
             dfdx[i] = interp_vals.dfdx;
             dfdy[i] = interp_vals.dfdy;
 
@@ -364,11 +365,11 @@ namespace optimizer {
 
         // loop over the subset values
         for (int i = 0; i < num_px; i++){
-            
-            // derivative of shape function with repsect to parameters
-            dshape_dp(opt.dfdp, ss_ref.x[i], ss_ref.y[i], dfdx[i], dfdy[i]);
 
-            double dshape_df = - inv_sum_squared_ref * ((ss_def.vals[i] - mean_def) * inv_sum_squared_def - (ss_ref.vals[i] - mean_ref) * inv_sum_squared_ref);
+            // derivative of shape function with repsect to parameters
+            dshape_dp(opt.dfdp, ss_def.x[i], ss_def.y[i], dfdx[i], dfdy[i]);
+
+            double dshape_df = - inv_sum_squared_def * ((ss_ref.vals[i] - mean_ref) * inv_sum_squared_ref - (ss_def.vals[i] - mean_def) * inv_sum_squared_def);
 
             if (num_params == 2) {
                 opt.g[0] += dshape_df * dfdx[i];
@@ -377,17 +378,17 @@ namespace optimizer {
             else if (num_params == 6) {
                 opt.g[0] += dshape_df * dfdx[i];
                 opt.g[1] += dshape_df * dfdy[i];
-                opt.g[2] += dshape_df * dfdx[i] * ss_ref.x[i];
-                opt.g[3] += dshape_df * dfdx[i] * ss_ref.y[i];
-                opt.g[4] += dshape_df * dfdy[i] * ss_ref.x[i];
-                opt.g[5] += dshape_df * dfdy[i] * ss_ref.y[i];
+                opt.g[2] += dshape_df * dfdx[i] * ss_def.x[i];
+                opt.g[3] += dshape_df * dfdx[i] * ss_def.y[i];
+                opt.g[4] += dshape_df * dfdy[i] * ss_def.x[i];
+                opt.g[5] += dshape_df * dfdy[i] * ss_def.y[i];
             }
 
             // Upper triangle of Hessian Matrix
             for (int row = 0; row < num_params; row++) {
                 double dfdp_row = opt.dfdp[row];
                 for (int col = row; col < num_params; col++) {
-                    opt.H[row * num_params + col] += inv_sum_squared_ref * inv_sum_squared_ref * dfdp_row * opt.dfdp[col];
+                    opt.H[row * num_params + col] += inv_sum_squared_def * inv_sum_squared_def * dfdp_row * opt.dfdp[col];
                 }
             }
         }
@@ -397,12 +398,14 @@ namespace optimizer {
         invertMatrix(opt.H, opt.invH, opt.augmented, opt.num_params);
         update_shapefunc_parameters(opt.pdp, opt.p, opt.dp, opt.invH, opt.g, opt.num_params);
 
+        // debugging
         //#pragma omp critical
         //{
         //    std::cout << "ss_def_x " << ss_def.x[0] << " " << ss_def.x[1] << " " << ss_def.x[2] << std::endl;
         //    std::cout << "ss_ref_x " << ss_ref.x[0] << " " << ss_ref.x[1] << " " << ss_ref.x[2] << std::endl;
         //    std::cout << "ss_def   " << ss_def.vals[0] << " " << ss_def.vals[1] << " " << ss_def.vals[2] << std::endl;
         //    std::cout << "ss_ref   " << ss_ref.vals[0] << " " << ss_ref.vals[1] << " " << ss_ref.vals[2] << std::endl;
+        //    std::cout << "means    " << mean_def << " " << mean_ref << std::endl;
         //    std::cout << "invs     " << inv_sum_squared_def << " " << inv_sum_squared_ref << std::endl;
         //    std::cout << "dfdx     " << dfdx[0] << " " << dfdy[0] << std::endl;
         //    std::cout << "dfdp     " << opt.dfdp[0] << " " << opt.dfdp[1] << " " << opt.dfdp[2] << " " << opt.dfdp[3] << " " <<opt.dfdp[4] << " " << opt.dfdp[5] << std::endl;
@@ -427,32 +430,32 @@ namespace optimizer {
         for (int i = 0; i < num_px; i++){
             double def_norm = (ss_def.vals[i] - mean_def) * inv_sum_squared_def;
             double ref_norm = (ss_ref.vals[i] - mean_ref) * inv_sum_squared_ref;
-            opt.costp += (def_norm - ref_norm) * (def_norm - ref_norm);
+            opt.costp += (ref_norm - def_norm) * (ref_norm - def_norm);
         }
 
 
         // calculate cost function for updated parameter values
-        mean_ref = 0.0;
+        mean_def = 0.0;
         for (int i = 0; i < num_px; ++i) {
-            shape_function(ss_ref.x[i], ss_ref.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
-            ss_ref.vals[i] = interp_ref.eval_bicubic(ss_ref.x[i]+global_x, ss_ref.y[i]+global_y);
-            mean_ref += ss_ref.vals[i];
+            shape_function(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.pdp);
+            ss_def.vals[i] = interp_def.eval_bicubic(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+            mean_def += ss_def.vals[i];
         }
 
-        mean_ref /= num_px;
+        mean_def /= num_px;
 
-        sum_squared_ref = 0.0;
+        sum_squared_def = 0.0;
         for (int i = 0; i < num_px; ++i) {
-            sum_squared_ref += (ss_ref.vals[i] - mean_ref) * (ss_ref.vals[i] - mean_ref);
+            sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
         }
 
-        inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
+        inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
 
 
         for (int i = 0; i < num_px; ++i) {
             double def_norm = (ss_def.vals[i] - mean_def) * inv_sum_squared_def;
             double ref_norm = (ss_ref.vals[i] - mean_ref) * inv_sum_squared_ref;
-            opt.costpdp += (def_norm - ref_norm) * (def_norm - ref_norm);        
+            opt.costpdp += (ref_norm - def_norm) * (ref_norm - def_norm);
         }
 
     }

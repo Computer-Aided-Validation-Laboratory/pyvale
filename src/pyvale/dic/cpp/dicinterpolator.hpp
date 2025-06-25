@@ -49,8 +49,8 @@ private:
      * @param d Pointer to store the computed d coefficient
      */
     inline void coeff_calc(std::vector<double> &tridiag_solution, double dy, double dx, size_t index, double * b, double * c, double * d);
-
-    inline void index_lookup_xy(size_t &xi, size_t &yi, const double x, const double y) const;
+    
+    inline void index_lookup_xy(const int ss_x, const int ss_y, size_t &xi, size_t &yi, const double subpx_x, const double subpx_y) const;
 
     /**
      * @brief Finds the index of the pixel that contains the given coordinate.
@@ -120,7 +120,7 @@ public:
      * @param y The y-coordinate of the interpolation point
      * @return The interpolated value at (x,y)
      */
-    double eval_bicubic(double x, double y) const;
+    double eval_bicubic(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const;
 
     /**
      * @brief Evaluates the x-derivative of bicubic interpolation at a specified point.
@@ -131,7 +131,7 @@ public:
      * @param y The y-coordinate of the point
      * @return The x-derivative of the interpolated function at (x,y)
      */
-    double eval_bicubic_dx(double x, double y) const;
+    double eval_bicubic_dx(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const;
 
     /**
      * @brief Evaluates the y-derivative of bicubic interpolation at a specified point.
@@ -142,7 +142,7 @@ public:
      * @param y The y-coordinate of the point
      * @return The y-derivative of the interpolated function at (x,y)
      */
-    double eval_bicubic_dy(double x, double y) const;
+    double eval_bicubic_dy(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const;
 
     /**
      * @brief Evaluates the bicubic interpolation and its derivatives at a specified point.
@@ -153,7 +153,7 @@ public:
      * @param y The y-coordinate of the point
      * @return Data struct containing the interpolated value and its x and y derivatives
      */
-    InterpVals eval_bicubic_and_derivs(double x, double y) const;
+    InterpVals eval_bicubic_and_derivs(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const;
 };
 
 #endif //DICINTERPOLATOR_H

@@ -13,6 +13,7 @@
 
 // Program Header files
 #include "./dicinterpolator.hpp"
+#include "dicutil.hpp"
 
 
 
@@ -20,6 +21,8 @@
 
 
 Interpolator::Interpolator(double * img, int px_hori, int px_vert){
+
+    //util::Timer timer("interpolator initialisation");
 
     // intitialise vars used globally within Interpolator.
     this->image = img;
@@ -88,11 +91,11 @@ Interpolator::Interpolator(double * img, int px_hori, int px_vert){
     }
 }
 
-double Interpolator::eval_bicubic(double x, double y) const {
+double Interpolator::eval_bicubic(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const {
 
     // get indices
     size_t xi,yi;
-    index_lookup_xy(xi, yi, x, y);
+    index_lookup_xy(ss_x, ss_y, xi, yi, subpx_x, subpx_y);
 
     // precompute indices of surrounding pixel values
     size_t idx00 = IDX2D(xi, yi, px_hori);
@@ -124,8 +127,8 @@ double Interpolator::eval_bicubic(double x, double y) const {
     // polynomial terms
     double t0 = 1;
     double u0 = 1;
-    double t1 = (x - px_x[xi]);
-    double u1 = (y - px_y[yi]);
+    double t1 = (subpx_x - px_x[xi]);
+    double u1 = (subpx_y - px_y[yi]);
     double t2 = t1 * t1;
     double u2 = u1 * u1;  
     double t3 = t1 * t2;
@@ -159,11 +162,11 @@ double Interpolator::eval_bicubic(double x, double y) const {
 
 
 
-double Interpolator::eval_bicubic_dx(double x, double y) const{
+double Interpolator::eval_bicubic_dx(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const{
 
     /* first compute the indices into the data arrays where we are interpolating */ 
     size_t xi,yi;
-    index_lookup_xy(xi, yi, x, y);
+    index_lookup_xy(ss_x, ss_y, xi, yi, subpx_x, subpx_y);
 
     // precompute indices of surrounding pixel values
     size_t idx00 = IDX2D(xi, yi, px_hori);
@@ -194,8 +197,8 @@ double Interpolator::eval_bicubic_dx(double x, double y) const{
     // polynomial terms
     double t0 = 1;
     double u0 = 1;
-    double t1 = (x - px_x[xi]);
-    double u1 = (y - px_y[yi]);
+    double t1 = (subpx_x - px_x[xi]);
+    double u1 = (subpx_y - px_y[yi]);
     double t2 = t1 * t1;
     double u2 = u1 * u1;  
     double u3 = u1 * u2;
@@ -220,11 +223,11 @@ double Interpolator::eval_bicubic_dx(double x, double y) const{
 }
 
 
-double Interpolator::eval_bicubic_dy(double x, double y) const{
+double Interpolator::eval_bicubic_dy(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const{
 
     /* first compute the indices into the data arrays where we are interpolating */
     size_t xi,yi;
-    index_lookup_xy(xi, yi, x, y);
+    index_lookup_xy(ss_x, ss_y, xi, yi, subpx_x, subpx_y);
 
     // precompute indices of surrounding pixel values
     size_t idx00 = IDX2D(xi, yi, px_hori);
@@ -255,8 +258,8 @@ double Interpolator::eval_bicubic_dy(double x, double y) const{
     // polynomial terms
     double t0 = 1;
     double u0 = 1;
-    double t1 = (x - px_x[xi]);
-    double u1 = (y - px_y[yi]);
+    double t1 = (subpx_x - px_x[xi]);
+    double u1 = (subpx_y - px_y[yi]);
     double t2 = t1 * t1;
     double u2 = u1 * u1;  
     double t3 = t1 * t2;
@@ -279,11 +282,11 @@ double Interpolator::eval_bicubic_dy(double x, double y) const{
 }
 
 
-InterpVals Interpolator::eval_bicubic_and_derivs(double x, double y) const{
+InterpVals Interpolator::eval_bicubic_and_derivs(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const{
 
     // pixel floor of x and y 
     size_t xi,yi;
-    index_lookup_xy(xi, yi, x, y);
+    index_lookup_xy(ss_x, ss_y, xi, yi, subpx_x, subpx_y);
 
     // precompute indices of surrounding pixel values
     size_t idx00 = IDX2D(xi, yi, px_hori);
@@ -314,8 +317,8 @@ InterpVals Interpolator::eval_bicubic_and_derivs(double x, double y) const{
     // polynomial terms
     double t0 = 1;
     double u0 = 1;
-    double t1 = (x - px_x[xi]);
-    double u1 = (y - px_y[yi]);
+    double t1 = (subpx_x - px_x[xi]);
+    double u1 = (subpx_y - px_y[yi]);
     double t2 = t1 * t1;
     double u2 = u1 * u1;  
     double t3 = t1 * t2;
@@ -382,41 +385,43 @@ inline void Interpolator::coeff_calc(std::vector<double> &tridiag_solution, doub
 
 }
 
-inline void Interpolator::index_lookup_xy(size_t &xi, size_t &yi, const double x, const double y) const {
+inline void Interpolator::index_lookup_xy(const int ss_x, const int ss_y, size_t &xi, size_t &yi, const double subpx_x, const double subpx_y) const {
     
-    //if (x < px_x[0]) 
-    //    xi = 0;
-    //else if (x > px_x[px_hori - 1]) 
-    //    xi = px_hori - 1;
-    //else 
-    //    xi = static_cast<size_t>(x);
+    if (subpx_x < px_x[0]) 
+        xi = 0;
+    else if (subpx_x > px_x[px_hori - 1]) 
+        xi = px_hori - 1;
+    else 
+        xi = static_cast<size_t>(subpx_x);
 
-    //if (y < px_y[0])
-    //    yi = 0;
-    //else if (y > px_y[px_vert - 1])
-    //    yi = px_vert - 1;
-    //else
-    //    yi = static_cast<size_t>(y);
+    if (subpx_y < px_y[0])
+        yi = 0;
+    else if (subpx_y > px_y[px_vert - 1])
+        yi = px_vert - 1;
+    else
+        yi = static_cast<size_t>(subpx_y);
 
-    if (x >= px_x[0] && x <= px_x[px_hori-1]) {
-        xi = static_cast<size_t>(x); // Return x as the index
-    }
-    else {
-        std::cerr << "ERROR in \'" << __FILE__ << "\' at line \'" << __LINE__ << "\' \n";
-        std::cerr << "value is out of bounds: (" << x << ", " << y << ")" << std::endl;
-        std::cerr << "Image bounds: (0,0) to (" << px_hori-1 << ", " << px_vert-1 << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    //if (subpx_x >= px_x[0] && subpx_x <= px_x[px_hori-1]) {
+    //    xi = static_cast<size_t>(subpx_x); // Return x as the index
+    //}
+    //else {
+    //    std::cerr << "ERROR in \'" << __FILE__ << "\' at line \'" << __LINE__ << "\' \n";
+    //    std::cerr << "Interpolator went out of bounds for subset (" << ss_x << ", " << ss_y << ")" << std::endl;
+    //    std::cerr << "value is out of bounds: (" << subpx_x << ", " << subpx_y << ")" << std::endl;
+    //    std::cerr << "Image bounds: (0,0) to (" << px_hori-1 << ", " << px_vert-1 << ")" << std::endl;
+    //    exit(EXIT_FAILURE);
+    //}
 
-    if (y >= px_y[0] && y <= px_y[px_vert-1]) {
-        yi = static_cast<size_t>(y); // Return x as the index
-    }
-    else {
-        std::cerr << "ERROR in \'" << __FILE__ << "\' at line \'" << __LINE__ << "\' \n";
-        std::cerr << "value is out of bounds: (" << x << ", " << y << ")" << std::endl;
-        std::cerr << "Image bounds: (0,0) to (" << px_hori-1 << ", " << px_vert-1 << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    //if (subpx_y >= px_y[0] && subpx_y <= px_y[px_vert-1]) {
+    //    yi = static_cast<size_t>(subpx_y); // Return x as the index
+    //}
+    //else {
+    //    std::cerr << "ERROR in \'" << __FILE__ << "\' at line \'" << __LINE__ << "\' \n";
+    //    std::cerr << "Interpolator went out of bounds for subset (" << ss_x << ", " << ss_y << ")" << std::endl;
+    //    std::cerr << "value is out of bounds: (" << subpx_x << ", " << subpx_y << ")" << std::endl;
+    //    std::cerr << "Image bounds: (0,0) to (" << px_hori-1 << ", " << px_vert-1 << ")" << std::endl;
+    //    exit(EXIT_FAILURE);
+    //}
 }
 
 

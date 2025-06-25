@@ -41,7 +41,7 @@ namespace fourier {
         void gen_neighlist(const util::SubsetData ssdata,
                            const util::SubsetData ssdata_prev) {
 
-            util::Timer timer("nearest neighbour collection for :");
+            //util::Timer timer("nearest neighbour collection for :");
 
             const int prev_step = ssdata_prev.step;
 
@@ -156,11 +156,14 @@ namespace fourier {
         }
 
         ~FFT() {
+            #pragma omp critical 
+            {
             fftw_destroy_plan(plan_def);
             fftw_destroy_plan(plan_ref);
             fftw_destroy_plan(plan_inv);
             fftw_free(fft_def);
             fftw_free(fft_ref);
+            }
         }
 
         void correlate() {
@@ -174,8 +177,8 @@ namespace fourier {
                 double ref_im = fft_ref[px][1];
 
                 // Complex conjugate multiplication
-                fft_def[px][0] = def_re * ref_re + def_im * ref_im;
-                fft_def[px][1] = def_im * ref_re - def_re * ref_im;
+                fft_def[px][0] = ref_re * def_re + ref_im * def_im;
+                fft_def[px][1] = ref_im * def_re - ref_re * def_im;
             }
 
             fftw_execute(plan_inv);
@@ -277,9 +280,9 @@ namespace fourier {
               const bool *img_roi, const util::Config &conf);
 
     void mgwd(const std::vector<util::SubsetData> &ssdata,
-              const Interpolator &interp_ref,
               const double *img_ref,
-              const double *img_def);
+              const double *img_def,
+              const Interpolator &interp_def);
 
     std::pair<double, double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,

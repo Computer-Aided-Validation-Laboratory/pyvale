@@ -43,9 +43,6 @@ namespace scanmethod {
         bar.set_option(indicators::option::PrefixText{"Deformed Image " + std::to_string(img_num)});
         bar.set_option(indicators::option::ShowPercentage{true});
         bar.set_option(indicators::option::ShowElapsedTime{true});
-        bar.set_option(indicators::option::FontStyles{
-          std::vector<indicators::FontStyle>{indicators::FontStyle::bold}});
-
     }
 
     void update_bar(indicators::ProgressBar &bar, int i, int num_ss, std::atomic<int> &prev_pct) {
@@ -66,8 +63,8 @@ namespace scanmethod {
         }
     }
 
-    void image(const Interpolator &interp_ref,
-               const double *img_def,
+    void image(const double *img_ref,
+               const Interpolator &interp_def,
                const util::SubsetData &ssdata, 
                const util::Config &conf,
                const int img_num){
@@ -91,7 +88,7 @@ namespace scanmethod {
                                   conf.px_vert, conf.px_hori);
 
         // loop over subsets within the ROI
-        #pragma omp parallel for firstprivate(ss_def, ss_ref, opt) shared(stop_request)
+        #pragma omp parallel for firstprivate(ss_ref, ss_def, opt) shared(stop_request)
         for (int ss = 0; ss < num_ss; ss++){
 
             // exit the main DIC loop when ctrl+C is hit
@@ -104,8 +101,8 @@ namespace scanmethod {
             int ss_x = ssdata.coords[ss*2];
             int ss_y = ssdata.coords[ss*2+1];
 
-            // get the deformed subset
-            util::extract_ss(ss_def, ss_x, ss_y, conf.px_hori, conf.px_vert, img_def);
+            // get the reference subset
+            util::extract_ss(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref);
 
             for (int i = 0; i < opt.num_params; i++){
                 opt.p[i] = 0.0;
@@ -114,7 +111,7 @@ namespace scanmethod {
             // perform optimization on subset from deformed image
             double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
             double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
-            util::Results res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
+            util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
 
 
             // append the results for the current subset to result vectors
@@ -131,9 +128,9 @@ namespace scanmethod {
 
 
 
-void image_with_bf(const Interpolator &interp_ref, 
-                   const double *img_ref,
+void image_with_bf(const double *img_ref,
                    const double *img_def,
+                   const Interpolator &interp_def,
                    const util::SubsetData  &ssdata, 
                    const util::Config &conf,
                    const int img_num){
@@ -170,7 +167,7 @@ void image_with_bf(const Interpolator &interp_ref,
     double ptemp[6] = {0,0,0,0,0,0};
 
     // loop over subsets within the ROI
-    #pragma omp parallel for firstprivate(ss_def, ss_ref, ss_thread_num, opt, brute, res, ptemp)
+    #pragma omp parallel for firstprivate(ss_ref, ss_def, ss_thread_num, opt, brute, res, ptemp)
     for (int ss = 0; ss < num_ss; ss++){
 
         // exit the main DIC loop when ctrl+C is hit
@@ -184,8 +181,8 @@ void image_with_bf(const Interpolator &interp_ref,
         int ss_x = ssdata.coords[ss*2];
         int ss_y = ssdata.coords[ss*2+1];
 
-        // get the deformed subset
-        util::extract_ss(ss_def, ss_x, ss_y, conf.px_hori, conf.px_vert, img_def); 
+        // get the reference subset values from the reference img
+        util::extract_ss(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref); 
 
 
         // if first subset in the loop or prev subset was a poor match
@@ -196,7 +193,7 @@ void image_with_bf(const Interpolator &interp_ref,
             brute::expanding_wavefront(ss_x, ss_y, img_ref, 
                                        conf.px_hori, 
                                        conf.px_vert, 
-                                       ss_def, ss_ref, brute);
+                                       ss_ref, ss_def, brute);
 
             ptemp[0] = brute.p_rigid[0];
             ptemp[1] = brute.p_rigid[1];
@@ -208,7 +205,7 @@ void image_with_bf(const Interpolator &interp_ref,
 
         double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
         double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
-        util::Results res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
+        util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
 
         // append the results for the current subset to result vectors
         util::append_results(img_num, ss, res, num_ss);
@@ -228,12 +225,13 @@ void image_with_bf(const Interpolator &interp_ref,
 
 
 
-    void reliability_guided(const Interpolator &interp_ref,
-                            const double *img_ref,
+    void reliability_guided(const double *img_ref,
                             const double *img_def,
+                            const Interpolator &interp_def,
                             const std::vector<util::SubsetData> &ssdata,
                             const util::Config &conf,
-                            const int img_num){
+                            const int img_num,
+                            const bool save_at_end){
 
         // assign some consts for readability
         const int px_hori = conf.px_hori;
@@ -247,9 +245,7 @@ void image_with_bf(const Interpolator &interp_ref,
         const int ss_step = ssdata[last_size].step;
 
 
-        if (img_num == 0){
-            fourier::mgwd(ssdata, interp_ref, img_ref, img_def);
-        }
+        fourier::mgwd(ssdata, img_ref, img_def, interp_def);
 
         // progress bar
         indicators::ProgressBar bar;
@@ -263,12 +259,12 @@ void image_with_bf(const Interpolator &interp_ref,
         }
 
         // Initialize binary mask for computed points (initialized to 0)
-        std::vector<int> computed_mask(ssdata[last_size].mask.size(), 0);    
+        std::vector<int> computed_mask(ssdata[last_size].mask.size(), 0);
 
         // queue for each thread
         std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
 
-        # pragma omp parallel 
+        # pragma omp parallel
         {
             // Initialize ref and def subsets
             util::Subset ss_def(ss_size);
@@ -295,16 +291,19 @@ void image_with_bf(const Interpolator &interp_ref,
                 int y = seed_y / ss_step;
                 int idx = ssdata[last_size].mask[y * ssdata[last_size].num_ss_x + x];
 
+
+                // if the first image. Take the optimization parameters from rigid fourier
+                std::fill(opt.p.begin(), opt.p.end(), 0.0);
                 opt.p[0] = -fourier::shifts[last_size].x[idx];
                 opt.p[1] = -fourier::shifts[last_size].y[idx];
 
-                // Extract subset and solve for starting seed point
-                util::extract_ss(ss_def, seed_x, seed_y, px_hori, px_vert, img_def);
+                // Extract reference subset and solve for starting seed point
+                util::extract_ss(ss_ref, seed_x, seed_y, px_hori, px_vert, img_ref);
 
 
                 double centre_x = seed_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = seed_y + static_cast<double>(ss_size)/2.0 - 0.5;
-                util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
+                util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
 
 
 
@@ -322,19 +321,17 @@ void image_with_bf(const Interpolator &interp_ref,
                     int nx = ssdata[last_size].coords[nidx*2];
                     int ny = ssdata[last_size].coords[nidx*2+1];
 
-                    util::extract_ss(ss_def, nx, ny, px_hori, px_vert, img_def);
+                    util::extract_ss(ss_ref, nx, ny, px_hori, px_vert, img_ref);
 
-                    double ptemp[6] = {0,0,0,0,0,0};
-                    ptemp[0] = -fourier::shifts[last_size].x[nidx];
-                    ptemp[1] = -fourier::shifts[last_size].y[nidx];
-                    for (int i = 0; i < opt.num_params; i++){
-                        opt.p[i] = ptemp[i];
-                    }
+                    // get parameter values from fft output or from previous image
+                    std::fill(opt.p.begin(), opt.p.end(), 0.0);
+                    opt.p[0] = -fourier::shifts[last_size].x[nidx];
+                    opt.p[1] = -fourier::shifts[last_size].y[nidx];
 
                     // perform optimization for seed point neighbours
                     double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
                     double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
-                    util::Results nres = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
+                    util::Results nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
 
                     // append the results for the current subset to result vectors
                     util::append_results(img_num, nidx, nres, num_ss);
@@ -396,9 +393,11 @@ void image_with_bf(const Interpolator &interp_ref,
 
                 temp_neigh.clear();
 
-                // get the mask idx of point in subset list
-                int idx_results = (img_num * num_ss + current.idx);
-                int idx_presults = idx_results*opt.num_params;
+
+                // index of current point in results arrays
+                int idx_results;
+                if (save_at_end) idx_results = img_num * num_ss + current.idx;
+                else idx_results = current.idx;
 
                 // loop over neighbouring points
                 for (size_t n = 0; n < ssdata[last_size].neigh[current.idx].size(); n++) {
@@ -419,29 +418,24 @@ void image_with_bf(const Interpolator &interp_ref,
                         int ny = ssdata[last_size].coords[nidx*2+1];
 
                         // extract subset
-                        util::extract_ss(ss_def, nx, ny, px_hori, px_vert, img_def);
+                        util::extract_ss(ss_ref, nx, ny, px_hori, px_vert, img_ref);
 
                         // if the neighbouring subset had not met correlation threshold then start brute force again
                         if (util::cost_arr[idx_results] > opt.threshold_lm){
-
-                            ptemp[0] = -fourier::shifts[last_size].x[nidx];
-                            ptemp[1] = -fourier::shifts[last_size].y[nidx];
-
-                            for (int i = 0; i < opt.num_params; i++){
-                                opt.p[i] = ptemp[i];
-                            }
-
+                            std::fill(opt.p.begin(), opt.p.end(), 0.0);
+                            opt.p[0] = -fourier::shifts[last_size].x[nidx];
+                            opt.p[1] = -fourier::shifts[last_size].y[nidx];
                         }
                         else {
                             for (int i = 0; i < opt.num_params; i++){
-                                opt.p[i] = util::p_arr[idx_presults+i];
+                                opt.p[i] = util::p_arr[opt.num_params*idx_results+i];
                             }
                         }
 
                         // optimize
                         double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
                         double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
-                        util::Results nres = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
+                        util::Results nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
 
                         // append results
                         util::append_results(img_num, nidx, nres, num_ss);
@@ -465,18 +459,16 @@ void image_with_bf(const Interpolator &interp_ref,
     }
 
 
-    void multi_window_fourier(const Interpolator &interp_ref, 
-                              const double *img_ref,
-                              const double *img_def, 
+    void multi_window_fourier(const double *img_ref,
+                              const double *img_def,
+                              const Interpolator &interp_def,
                               const std::vector<util::SubsetData> &ssdata,
                               const util::Config &conf,
                               const int img_num){
 
         // for the first image perform the FFT windowing. later images will be
         // seeded with previous images
-        if (img_num == 0){
-            fourier::mgwd(ssdata, interp_ref, img_ref, img_def);
-        }
+        fourier::mgwd(ssdata, img_ref, img_def, interp_def);
 
         const int nsizes = ssdata.size();
         const int last_size = nsizes-1;
@@ -504,7 +496,6 @@ void image_with_bf(const Interpolator &interp_ref,
                                     conf.precision, conf.threshold_lm,
                                     conf.px_vert, conf.px_hori);
 
-            double ptemp[6] = {0,0,0,0,0,0};
 
             #pragma omp for
             for (int ss = 0; ss < num_ss; ss++){
@@ -519,20 +510,17 @@ void image_with_bf(const Interpolator &interp_ref,
                 int ss_x = ssdata[last_size].coords[ss*2];
                 int ss_y = ssdata[last_size].coords[ss*2+1];
 
-                // get the deformed subset
-                util::extract_ss(ss_def, ss_x, ss_y, conf.px_hori, conf.px_vert, img_def);
+                // get the reference subset
+                util::extract_ss(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref);
 
-                ptemp[0] = -fourier::shifts[last_size].x[ss];
-                ptemp[1] = -fourier::shifts[last_size].y[ss];
-
-                for (int i = 0; i < opt.num_params; i++){
-                    opt.p[i] = ptemp[i];
-                }
+                std::fill(opt.p.begin(), opt.p.end(), 0.0);
+                opt.p[0] = -fourier::shifts[last_size].x[ss];
+                opt.p[1] = -fourier::shifts[last_size].y[ss];
 
                 // perform optimization on subset from deformed image
                 double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
-                util::Results res = optimizer::solve(centre_x, centre_y, ss_def, ss_ref, interp_ref, opt);
+                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
 
                 // append optimization results to results vectors
                 util::append_results(img_num, ss, res, num_ss);

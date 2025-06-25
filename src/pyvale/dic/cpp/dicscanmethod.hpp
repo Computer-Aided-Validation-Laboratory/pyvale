@@ -9,7 +9,6 @@
 
 
 // STD library Header files
-#include <atomic>
 
 // Program Header files
 #include "./dicutil.hpp"
@@ -36,9 +35,9 @@ void signalHandler(int signal);
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void image(const Interpolator &interp_ref, 
-           const double *img_def, 
-           const util::SubsetData &ssdata, 
+void image(const double *img_ref,
+           const Interpolator &interp_def,
+           const util::SubsetData &ssdata,
            const util::Config &conf,
            const int img_num);
 
@@ -56,10 +55,10 @@ void image(const Interpolator &interp_ref,
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void image_with_bf(const Interpolator &interp_ref, 
-                   const double *img_ref,
+void image_with_bf(const double *img_ref,
                    const double *img_def,
-                   const util::SubsetData &ssdata, 
+                   const Interpolator &interp_def,
+                   const util::SubsetData &ssdata,
                    const util::Config &conf,
                    const int img_num);
 
@@ -77,12 +76,13 @@ void image_with_bf(const Interpolator &interp_ref,
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void reliability_guided(const Interpolator &interp_ref,
-                        const double *img_ref,
+void reliability_guided(const double *img_ref,
                         const double *img_def,
-                        const std::vector<util::SubsetData> &ssdata, 
+                        const Interpolator &interp_def,
+                        const std::vector<util::SubsetData> &ssdata,
                         const util::Config &conf,
-                        const int img_num);
+                        const int img_num,
+                        const bool save_at_end);
 
 
 /**
@@ -98,9 +98,9 @@ void reliability_guided(const Interpolator &interp_ref,
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void multi_window_fourier(const Interpolator &interp_ref,
-                          const double *img_ref, 
-                          const double *img_def, 
+void multi_window_fourier(const double *img_ref,
+                          const double *img_def,
+                          const Interpolator &interp_def,
                           const std::vector<util::SubsetData> &ssdata, 
                           const util::Config &conf,
                           const int img_num);
