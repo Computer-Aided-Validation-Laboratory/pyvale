@@ -65,7 +65,7 @@ sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
 sensor_data = pyv.SensorData(positions=sens_pos,
-                                sample_times=sample_times)
+                             sample_times=sample_times)
 
 #%%
 # Finally, we can create a `SensorDescriptor` which will be used to label
@@ -173,9 +173,9 @@ if errors_on["rand"]:
 if len(error_chain) > 0:
     err_int_opts = pyv.ErrIntOpts()
     error_integrator = pyv.ErrIntegrator(error_chain,
-                                            sensor_data,
-                                            tc_array.get_measurement_shape(),
-                                            err_int_opts=err_int_opts)
+                                         sensor_data,
+                                         tc_array.get_measurement_shape(),
+                                         err_int_opts=err_int_opts)
     tc_array.set_error_integrator(error_integrator)
 
 #%%

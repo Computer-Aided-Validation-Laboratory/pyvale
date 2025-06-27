@@ -17,7 +17,7 @@ from pyvale.errorintegrator import ErrIntegrator
 from pyvale.errorsysindep import ErrSysUnifPercent
 from pyvale.errorrand import ErrRandNormPercent
 from pyvale.errorsysdep import (ErrSysDigitisation,
-                                     ErrSysSaturation)
+                                ErrSysSaturation)
 
 # TODO:
 # - docstrings

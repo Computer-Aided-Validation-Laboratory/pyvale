@@ -48,9 +48,6 @@ def main() -> None:
                                             field_disp_keys=disp_comps)
 
 
-
-
-
         pixel_num = np.array((960,1280),dtype=np.int32)
         pixel_size = np.array((5.3e-3,5.3e-3),dtype=np.float64)
         focal_leng: float = 50.0

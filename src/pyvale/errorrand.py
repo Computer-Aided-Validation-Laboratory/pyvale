@@ -428,7 +428,7 @@ class ErrRandNormPercent(IErrCalculator):
         return (err_basis*self._std*norm_rand,sens_data)
 
 
-class ErrRandGenerator(IErrCalculator):
+class ErrRandGen(IErrCalculator):
     """Sensor random error calculator based on sampling a user specified random
     number generator implementing the `IGeneratorRandom` interface.
 

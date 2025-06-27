@@ -382,23 +382,22 @@ def raster_static_frame(coords: cython.double[:,:],
 
 
     #---------------------------------------------------------------------------
-
     elems_in_image: cython.size_t = _raster_frame(coords[:,:],
-                                                connect[:,:],
-                                                fields_to_render[:,:],
-                                                world_to_cam_mat[:,:],
-                                                pixels_num[:],
-                                                image_dims[:],
-                                                image_dist,
-                                                sub_samp,
-                                                image_buff_avg[:,:,:],
-                                                depth_buff_avg[:,:],
-                                                image_buff_subpx[:,:,:],
-                                                depth_buff_subpx[:,:],
-                                                nodes_raster_buff[:,:],
-                                                field_raster_buff[:],
-                                                px_coord_buff[:],
-                                                weights_buff[:])
+                                                  connect[:,:],
+                                                  fields_to_render[:,:],
+                                                  world_to_cam_mat[:,:],
+                                                  pixels_num[:],
+                                                  image_dims[:],
+                                                  image_dist,
+                                                  sub_samp,
+                                                  image_buff_avg[:,:,:],
+                                                  depth_buff_avg[:,:],
+                                                  image_buff_subpx[:,:,:],
+                                                  depth_buff_subpx[:,:],
+                                                  nodes_raster_buff[:,:],
+                                                  field_raster_buff[:],
+                                                  px_coord_buff[:],
+                                                  weights_buff[:])
 
     return (image_buff_avg_np,depth_buff_avg_np,elems_in_image)
 

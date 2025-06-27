@@ -116,7 +116,7 @@ err_chain.append(pyv.ErrRandUnifPercent(low_percent=-2.0,
 rand_gen = pyv.GenTriangular(left=-5.0,
                                 mode=0.0,
                                 right=5.0)
-err_chain.append(pyv.ErrRandGenerator(rand_gen))
+err_chain.append(pyv.ErrRandGen(rand_gen))
 
 #%%
 # Finally we add some dependent systematic errors including rounding errors,
