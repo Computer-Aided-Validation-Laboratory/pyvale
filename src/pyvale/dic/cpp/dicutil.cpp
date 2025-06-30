@@ -97,7 +97,7 @@ namespace util {
 
     void extract_ss_subpx(util::Subset &ss_def, 
                           const double subpx_x, const double subpx_y, 
-                          const Interpolator &interp_ref){
+                          const Interpolator &interp_def){
 
         int count = 0;
         int idx;
@@ -118,7 +118,7 @@ namespace util {
                 ss_def.y[count] = subpx_y+y; 
 
                 // get pixel values
-                ss_def.vals[count] = interp_ref.eval_bicubic(0, 0, ss_def.x[count], ss_def.y[count]);
+                ss_def.vals[count] = interp_def.eval_bicubic(0, 0, ss_def.x[count], ss_def.y[count]);
 
                 // debugging
                 //std::cout << ss_def.x[count] << " " << ss_def.y[count] << " " << ss_def.vals[count] << std::endl;
@@ -138,7 +138,7 @@ namespace util {
                            const int ss_size, const int px_hori, 
                            const int px_vert, const bool partial) {
         
-        //Timer timer("subset list generation for subset size " + std::to_string(ss_size) + " [px] with step " + std::to_string(ss_step) + " [px]:" );
+        Timer timer("subset list generation for subset size " + std::to_string(ss_size) + " [px] with step " + std::to_string(ss_step) + " [px]:" );
 
         SubsetData ssdata;
 
@@ -203,9 +203,9 @@ namespace util {
                     if (!valid && !partial) break;
                 }
 
-                // TODO: this is hardcoded so that atleast 60% of pixels in subset must be in ROI
+                // TODO: this is hardcoded so that atleast 70% of pixels in subset must be in ROI
                 if (partial) {
-                    if (valid_count >= (ss_size*ss_size) * (0.50)) {
+                    if (valid_count >= (ss_size*ss_size) * (0.70)) {
                         valid = true;
                     } else {
                         valid = false;

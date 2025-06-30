@@ -145,6 +145,17 @@ class DICRegionOfInterest:
         self.mask[bottom:(self.image.shape[0]-top), left:(self.image.shape[1])-right] = 255
         self.__roi_selected = True
 
+    def specific_subset(self, ss_x: int, ss_y: int, ss_size: int ) -> None:
+
+            top    = max(0, ss_y)
+            bottom = min(self.image.shape[0],ss_y+ss_size)
+            left   = max(0, ss_x)
+            right  = min(self.image.shape[1],ss_x+ss_size)
+
+            # Apply the mask in the subset region
+            self.mask[top:bottom, left:right] = 255
+            self.__roi_selected = True
+
     def imsave(self, filename: str="./roi.tiff") -> None:
         """
         Saves the image with the mask overlayed.
@@ -181,24 +192,34 @@ class DICRegionOfInterest:
             np.savetxt(filename, self.mask, fmt='%d', delimiter=' ')
 
 
-
-
-    def roiread(self, filename: str="./roi.tiff") -> None:
+    def roiread(self, filename: str = "./roi.tiff", binary: bool = True) -> None:
         """
-        Saves the image with the mask overlayed.
-        
+        Loads the ROI mask from a binary or text file and stores it in self.mask.
+
         Args:
-            filename (str): The path where the result image will be saved.
-        
+            filename (str): The path of the file to load.
+            binary (bool): If True, loads from a .npy binary file. If False, loads from a text file.
         Raises:
-            ValueError: If no ROI is selected.
+            FileNotFoundError: If the specified file does not exist.
+            ValueError: If the loaded data is not a valid mask.
         """
-        if not self.__roi_selected:
-            raise ValueError("No ROI selected with \'interactive_selection\' or \'rect_boundary\' ")
-        overlay = self.image.copy()
-        overlay[self.mask] = (0, 255, 0)
-        result = cv2.addWeighted(self.image, 0.7, overlay, 0.3, 0)
-        cv2.imwrite(filename, result)
+        import os
+        import numpy as np
+
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f"File '{filename}' does not exist.")
+
+        if binary:
+            self.mask = np.load(filename)
+        else:
+            self.mask = np.loadtxt(filename, dtype=int, delimiter=' ')
+
+        # Optional: check if the loaded data is a proper binary mask (0s and 1s)
+        if not np.isin(self.mask, [0, 1]).all():
+            raise ValueError("Loaded ROI mask contains values other than 0 and 1.")
+
+        self.__roi_selected = True
+
 
     def imshow(self) -> None:
         """

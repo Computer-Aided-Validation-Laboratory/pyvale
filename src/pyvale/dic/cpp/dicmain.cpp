@@ -42,16 +42,16 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // ------------------------------------------------------------------------
     // Initialisation
     // ------------------------------------------------------------------------
-    //TITLE("CONFIGURATION");
-    //INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
-    //INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
-    //INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
-    //INFO_OUT("Max number of solver iterations: ", conf.max_iter);
-    //INFO_OUT("Correlation Criterion: ", conf.corr_crit);
-    //INFO_OUT("Shape Function: ", conf.shape_func);
-    //INFO_OUT("Interpolation Routine: ", conf.interp_routine);
-    //INFO_OUT("Image Scan Method: ", conf.scan_method);
-    //INFO_OUT("Number of OMP threads:", omp_get_max_threads());
+    TITLE("CONFIGURATION");
+    INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
+    INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
+    INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
+    INFO_OUT("Max number of solver iterations: ", conf.max_iter);
+    INFO_OUT("Correlation Criterion: ", conf.corr_crit);
+    INFO_OUT("Shape Function: ", conf.shape_func);
+    INFO_OUT("Interpolation Routine: ", conf.interp_routine);
+    INFO_OUT("Image Scan Method: ", conf.scan_method);
+    INFO_OUT("Number of OMP threads:", omp_get_max_threads());
 
     // Register signal handler for Ctrl+C
     signal(SIGINT, scanmethod::signalHandler);
@@ -128,6 +128,10 @@ void DICengine(const py::array_t<double>& img_ref_arr,
         // multi window fft
         else if (conf.scan_method=="FFT")
             scanmethod::multi_window_fourier(img_ref, img_def, interp_def, ssdata, conf, img_num);
+
+        // single window fft
+        else if (conf.scan_method=="FFT_test")
+            scanmethod::single_window_fourier(img_ref, img_def, interp_def, ssdata[0], conf, img_num);
 
         if (!saveconf.at_end)
             util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params);

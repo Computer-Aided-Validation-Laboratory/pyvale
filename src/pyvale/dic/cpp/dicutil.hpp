@@ -204,9 +204,9 @@ namespace util {
      * @param ss_y        Y-coordinate (row) of the top-left corner of the subset in the image.
      * @param interp_ref  interpolator for the reference image from which to extract pixel data.
      */
-    void extract_ss_subpx(util::Subset &ss_ref, 
-                          const double ss_x, const double ss_y, 
-                          const Interpolator &interp_ref);
+    void extract_ss_subpx(util::Subset &ss_def, 
+                          const double subpx_x, const double subpx_y, 
+                          const Interpolator &interp_def);
 
 
 

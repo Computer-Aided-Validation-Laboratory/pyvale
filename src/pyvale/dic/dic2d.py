@@ -93,7 +93,8 @@ def check_output_directory(output_basepath: str,
     try:
         files = os.listdir(output_basepath)
     except FileNotFoundError:
-        print(f"Output path '{output_basepath}' does not exist.")
+        print("")
+        print(f"Output directory '{output_basepath}' does not exist.")
         sys.exit(1)
 
     # Check for any matching files
@@ -104,7 +105,7 @@ def check_output_directory(output_basepath: str,
 
     if conflicting_files:
         conflicting_files.sort()
-        print("The following files already exist:")
+        print("The following output files already exist and may be overwritten:")
         for f in conflicting_files:
             print(f"  - {os.path.join(output_basepath, f)}")
         print("")
@@ -171,7 +172,7 @@ def check_interpolation(interpolation_routine: str) -> None:
 
 
 def check_scanning_method(scanning_method: str) -> None:
-    allowed_values = {"IMAGE_SCAN", "IMAGE_SCAN_WITH_BF", "RG", "FFT"}
+    allowed_values = {"IMAGE_SCAN", "IMAGE_SCAN_WITH_BF", "RG", "FFT", "FFT_test"}
 
     if scanning_method not in allowed_values:
         raise ValueError(f"Invalid scanning_method: {scanning_method}. "
@@ -244,14 +245,23 @@ def check_and_get_images(reference: Union[np.ndarray, str],
     # Check type consistency
     if type(reference) is not type(deformed):
         raise ValueError(
-            f"Mismatch in input types: reference={type(reference)}, "
+            f"Mismatch in file types: reference={type(reference)}, "
             f"deformed={type(deformed)}")
 
     if isinstance(reference, str):
         if not os.path.isfile(reference):
             raise ValueError(f"Reference image does not exist: {reference}")
 
+
+        print("Using reference image: ")
+        print(f"  - {reference}")
+        print("")
         ref_arr = np.array(Image.open(reference))
+        print(f"Reference image shape: {ref_arr.shape}")
+        if ref_arr.ndim==3:
+            print(f"Reference image appears to have {ref_arr.shape[2]} channels. Using channel 0.")
+            ref_arr = ref_arr[:,:,0]
+        print("")
 
         files = sorted(glob.glob(deformed))
         if not files:
@@ -260,17 +270,21 @@ def check_and_get_images(reference: Union[np.ndarray, str],
 
         print(f"Found {len(files)} deformation images:")
         for file in files:
-            print("  -", file)
+            print(f"  - {file}")
         print("")
 
         def_arr = np.zeros((len(files), *ref_arr.shape), dtype=ref_arr.dtype)
 
         for i, file in enumerate(files):
             img = np.array(Image.open(file))
+
+            if img.ndim==3:
+                print(f"Deformed image {file} appears to have {img.shape[2]} channels. Using channel 0.")
+                img = img[:,:,0]
+
             if img.shape != ref_arr.shape:
                 raise ValueError(
-                    f"Shape mismatch: '{file}' has shape {img.shape}, "
-                    f"expected {ref_arr.shape}")
+                    f"Shape mismatch: '{file}' has shape {img.shape}" , f"expected {ref_arr.shape}")
 
             def_arr[i] = img
 

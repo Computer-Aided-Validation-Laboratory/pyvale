@@ -78,51 +78,54 @@ namespace scanmethod {
         std::atomic<int> current_progress = 0;
         std::atomic<int> prev_pct = 0;
 
-        // initialise subsets
-        util::Subset ss_def(ss_size);
-        util::Subset ss_ref(ss_size);
+               // loop over subsets within the ROI
+        #pragma omp parallel shared(stop_request)
+        {
 
-        // optimization parameters
-        optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                  conf.precision, conf.threshold_lm,
-                                  conf.px_vert, conf.px_hori);
+            // initialise subsets
+            util::Subset ss_def(ss_size);
+            util::Subset ss_ref(ss_size);
 
-        // loop over subsets within the ROI
-        #pragma omp parallel for firstprivate(ss_ref, ss_def, opt) shared(stop_request)
-        for (int ss = 0; ss < num_ss; ss++){
+            // optimization parameters
+            optimizer::Parameters opt(conf.num_params, conf.max_iter,
+                                    conf.precision, conf.threshold_lm,
+                                    conf.px_vert, conf.px_hori);
 
-            // exit the main DIC loop when ctrl+C is hit
-            if (stop_request){
-                continue;
+
+            #pragma omp for
+            for (int ss = 0; ss < num_ss; ss++){
+
+                //util::Timer timer("subset");
+                // exit the main DIC loop when ctrl+C is hit
+                if (stop_request){
+                    continue;
+                }
+
+                // subset coordinate list takes central locations. 
+                // Converting to top left corner for optimization routine
+                int ss_x = ssdata.coords[ss*2];
+                int ss_y = ssdata.coords[ss*2+1];
+
+                // get the reference subset
+                util::extract_ss(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref);
+
+                for (int i = 0; i < opt.num_params; i++){
+                    opt.p[i] = 0.0;
+                }
+
+                // perform optimization on subset from deformed image
+                double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+                // append the results for the current subset to result vectors
+                util::append_results(img_num, ss, res, num_ss);
+
+                // update progress bar
+                //int progress = current_progress.fetch_add(1);
+                //update_bar(bar, progress, num_ss, prev_pct);
+                //if (ss==100) exit(0);
             }
-
-            // subset coordinate list takes central locations. 
-            // Converting to top left corner for optimization routine
-            int ss_x = ssdata.coords[ss*2];
-            int ss_y = ssdata.coords[ss*2+1];
-
-            // get the reference subset
-            util::extract_ss(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref);
-
-            for (int i = 0; i < opt.num_params; i++){
-                opt.p[i] = 0.0;
-            }
-
-            // perform optimization on subset from deformed image
-            double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
-            double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
-            util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
-
-
-            // append the results for the current subset to result vectors
-            util::append_results(img_num, ss, res, num_ss);
-
-            // update progress bar
-            int progress = current_progress.fetch_add(1);
-            update_bar(bar, progress, num_ss, prev_pct);
-
         }
-
         bar.mark_as_completed();
     }
 
@@ -273,6 +276,8 @@ void image_with_bf(const double *img_ref,
             // Optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, conf.precision, conf.threshold_lm, px_vert, px_hori);
 
+            brute::Parameters brute(conf.threshold_bf, conf.range_bf);
+
             std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
             for (size_t t = 0; t < ssdata.size(); ++t) {
@@ -420,9 +425,13 @@ void image_with_bf(const double *img_ref,
                         // extract subset
                         util::extract_ss(ss_ref, nx, ny, px_hori, px_vert, img_ref);
 
-                        // if the neighbouring subset had not met correlation threshold then start brute force again
+                        // if the neighbouring subset had not met correlation threshold then try values from fft windowing
                         if (util::cost_arr[idx_results] > opt.threshold_lm){
                             std::fill(opt.p.begin(), opt.p.end(), 0.0);
+                            //fourier::test(opt.p[0], opt.p[1], nx, ny, 256, img_ref, img_def, interp_def);
+                            //brute::expanding_wavefront(nx, ny, img_def, conf.px_hori, conf.px_vert, ss_ref, ss_def, brute);
+                            //opt.p[0] = brute.p_rigid[0];
+                            //opt.p[0] = brute.p_rigid[1];
                             opt.p[0] = -fourier::shifts[last_size].x[nidx];
                             opt.p[1] = -fourier::shifts[last_size].y[nidx];
                         }
@@ -495,7 +504,7 @@ void image_with_bf(const double *img_ref,
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
                                     conf.precision, conf.threshold_lm,
                                     conf.px_vert, conf.px_hori);
-
+            
 
             #pragma omp for
             for (int ss = 0; ss < num_ss; ss++){
@@ -535,6 +544,76 @@ void image_with_bf(const double *img_ref,
     }
 
 
+    void single_window_fourier(const double *img_ref,
+                              const double *img_def,
+                              const Interpolator &interp_def,
+                              const util::SubsetData &ssdata,
+                              const util::Config &conf,
+                              const int img_num){
 
+        // for the first image perform the FFT windowing. later images will be
+        // seeded with previous images
+        fourier::sgwd(ssdata, 256, img_ref, img_def, interp_def);
+
+        // get number of subsets and the size for the smalllest window size
+        const int num_ss  = ssdata.num;
+        const int ss_size = ssdata.size;
+
+        // progress bar
+        indicators::ProgressBar bar;
+        reset_indicators(bar, img_num, num_ss);
+        std::atomic<int> current_progress = 0;
+        std::atomic<int> prev_pct = 0;
+
+        // loop over subsets within the ROI
+        #pragma omp parallel shared(stop_request)
+        {
+
+            // initialise subsets
+            util::Subset ss_def(ss_size);
+            util::Subset ss_ref(ss_size);
+
+            // optimization parameters
+            optimizer::Parameters opt(conf.num_params, conf.max_iter, 
+                                    conf.precision, conf.threshold_lm,
+                                    conf.px_vert, conf.px_hori);
+
+
+            #pragma omp for
+            for (int ss = 0; ss < num_ss; ss++){
+
+                // exit the main DIC loop when ctrl+C is hit
+                if (stop_request){
+                    continue;
+                }
+
+                // subset coordinate list takes central locations. 
+                // Converting to top left corner for optimization routine
+                int ss_x = ssdata.coords[ss*2];
+                int ss_y = ssdata.coords[ss*2+1];
+
+                // get the reference subset
+                util::extract_ss(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref);
+
+                std::fill(opt.p.begin(), opt.p.end(), 0.0);
+                opt.p[0] = -fourier::shifts[0].x[ss];
+                opt.p[1] = -fourier::shifts[0].y[ss];
+
+                // perform optimization on subset from deformed image
+                double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
+                double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
+                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+
+                // append optimization results to results vectors
+                util::append_results(img_num, ss, res, num_ss);
+
+                // update progress bar
+                int progress = current_progress.fetch_add(1);
+                update_bar(bar, progress, num_ss, prev_pct);
+
+            }
+        }
+        bar.mark_as_completed();
+    }
 
 }

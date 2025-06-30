@@ -71,7 +71,7 @@ namespace optimizer {
 
 
     // Optimization routine
-    util::Results solve(const double ss_x, const double ss_y, const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt);
+    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt);
 
     // choice of cost function
     void   ssd(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);

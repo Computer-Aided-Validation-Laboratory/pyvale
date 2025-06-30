@@ -72,7 +72,7 @@ namespace brute {
         } else if (search_method == "EXPANDING_WAVEFRONT") {
             find_min = expanding_wavefront;
         } else {
-            std::cerr << "Error: search method not recognised. Using EXPANDING_WAVEFRONT." << std::endl;
+            //std::cerr << "Error: search method not recognised. Using EXPANDING_WAVEFRONT." << std::endl;
             find_min = expanding_wavefront;
         }
     }
@@ -92,8 +92,8 @@ namespace brute {
         const int range = brute.range;
         double cost_min = 1.0e6;
 
-        int offset_x = brute.p_rigid_prevmatch[0];
-        int offset_y = brute.p_rigid_prevmatch[1];
+        int offset_x = 0; //brute.p_rigid_prevmatch[0];
+        int offset_y = 0; //brute.p_rigid_prevmatch[1];
 
         for (int r = 0; r <= range; r++) {
 

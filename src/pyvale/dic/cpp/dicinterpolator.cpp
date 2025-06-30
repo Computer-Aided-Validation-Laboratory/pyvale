@@ -8,12 +8,9 @@
 // STD library Header files
 #include <vector>
 #include <iostream>
-#include <chrono>
-#include <algorithm>
 
 // Program Header files
 #include "./dicinterpolator.hpp"
-#include "dicutil.hpp"
 
 
 
@@ -389,15 +386,15 @@ inline void Interpolator::index_lookup_xy(const int ss_x, const int ss_y, size_t
     
     if (subpx_x < px_x[0]) 
         xi = 0;
-    else if (subpx_x > px_x[px_hori - 1]) 
-        xi = px_hori - 1;
-    else 
+    else if (subpx_x > px_x[px_hori - 2]) 
+        xi = px_hori - 2;
+    else
         xi = static_cast<size_t>(subpx_x);
 
     if (subpx_y < px_y[0])
         yi = 0;
-    else if (subpx_y > px_y[px_vert - 1])
-        yi = px_vert - 1;
+    else if (subpx_y > px_y[px_vert - 2])
+        yi = px_vert - 2;
     else
         yi = static_cast<size_t>(subpx_y);
 

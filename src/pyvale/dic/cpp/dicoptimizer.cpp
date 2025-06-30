@@ -46,7 +46,7 @@ namespace optimizer {
 
 
 
-    util::Results solve(const double ss_x, const double ss_y, const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt) {
+    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt) {
 
         int iter = 0;
         double ftol = 0;
@@ -55,11 +55,11 @@ namespace optimizer {
 
 
         // trying relative instead of global coordinates for the optimization
-        int global_x = ss_def.x[0];
-        int global_y = ss_def.y[0];
-        for (int px = 0; px < ss_def.num_px; px++){
-            ss_def.x[px] -= global_x;
-            ss_def.y[px] -= global_y;
+        int global_x = ss_ref.x[0];
+        int global_y = ss_ref.y[0];
+        for (int px = 0; px < ss_ref.num_px; px++){
+            ss_ref.x[px] -= global_x;
+            ss_ref.y[px] -= global_y;
         }
 
         while (iter < opt.max_iter) {
@@ -67,7 +67,7 @@ namespace optimizer {
             // perform the optimization
             optimize_cost(ss_ref, ss_def, interp_def, opt, global_x, global_y);
             update_lambda(opt.costp, opt.costpdp, opt.p, opt.pdp, opt.lambda, opt.num_params);
-            
+
             // relative change of all parameters
             xtol = std::sqrt(std::inner_product(opt.dp.begin(), opt.dp.end(), opt.dp.begin(), 0.0)) / 
                           std::sqrt(std::inner_product( opt.p.begin(),  opt.p.end(),  opt.p.begin(), 0.0));
@@ -76,7 +76,7 @@ namespace optimizer {
 
             // variation on correlation coefficient
             ftol = std::abs(opt.costpdp - opt.costp);
-            debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+
             // convergence criteria
             // - rel change in parameters is less than user precision
             // - change in corr coeff is less than precision
@@ -89,7 +89,8 @@ namespace optimizer {
 
             iter++;
         }
-        exit(0);
+
+        // assign 'results' for current subset
         util::Results res(opt.num_params);
         params_to_displacement(res, ss_x-global_x, ss_y-global_y, opt.p);
         res.iter = iter;

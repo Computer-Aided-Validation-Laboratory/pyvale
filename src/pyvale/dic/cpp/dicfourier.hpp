@@ -284,6 +284,13 @@ namespace fourier {
               const double *img_def,
               const Interpolator &interp_def);
 
+
+    void sgwd(const util::SubsetData &ssdata, 
+              const int window_size,
+              const double *img_ref,
+              const double *img_def,
+              const Interpolator &interp_def);
+
     std::pair<double, double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,
                                        const std::vector<Shift>& shifts,
@@ -297,6 +304,8 @@ namespace fourier {
 
     void zero_norm_subsets(std::vector<double>& def_vals, std::vector<double>& ref_vals, int ss_size);
 
+   void smooth_field(std::vector<double>& shift, const util::SubsetData& ssdata, double sigma, int radius);
+   void test(double &peak_x, double &peak_y, int ss_x, int ss_y, const int window_size, const double *img_ref, const double *img_def, const Interpolator &interp_def);
 }
 
 #endif // DICFOURIER_H
