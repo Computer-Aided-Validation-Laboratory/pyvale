@@ -40,10 +40,17 @@ namespace rg {
 
 
 
-
-    //int next_pow2(int n);
-    //std::vector<int> pow2_between(int n, int x);
-
+    /**
+     * @brief
+     * 
+     * @param[out] shift_x 
+     * @param[out] shift_y 
+     * @param ss_x 
+     * @param ss_y 
+     * @param fft_windows 
+     * @param interp_ref 
+     * @param img_def 
+     */
     void get_rigid_shift(double &shift_x, double &shift_y,
                          const int ss_x, const int ss_y,
                          std::vector<std::unique_ptr<fourier::FFT>>& fft_windows,
