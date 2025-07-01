@@ -21,3 +21,6 @@ Rendering multiple deforming objects
 - Currently the code only works to image a single deforming object, and it centres this object
 - It should be relatively easy to add other deforming objects, but this centring would need to be changed
 - Not sure how the shape keys would need to be adapted - might need multiple linked shape keys(?)
+
+Bug in CameraTools stereo methods
+- When I deep copy the CameraData dataclass, some of the parameters don't update to match new camera position.
