@@ -24,3 +24,22 @@ Rendering multiple deforming objects
 
 Bug in CameraTools stereo methods
 - When I deep copy the CameraData dataclass, some of the parameters don't update to match new camera position.
+
+Denoising
+- Turn off in render settings - doesn't introduce another source of error
+- Impact of denoising would be useful to study
+
+Set changing seed point in render settings
+- Change seed for each frame to get different level of noise
+
+Add noise to image within Blender
+- Can use NoiseTexture node
+
+Correct colourspace transform
+- Needs to be changed in the shader/texturing (to Non-Colour) and render output (to Raw)
+- Makes it the same as cmos cameras
+
+Calibration target positioning
+- Could have the option of coding a more random calibration positioning
+
+Get rid of background lighting node - not linked to an output so doesn't need to be there
