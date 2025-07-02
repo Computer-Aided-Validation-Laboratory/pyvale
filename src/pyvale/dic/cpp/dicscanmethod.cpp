@@ -31,7 +31,8 @@ namespace scanmethod {
 
 
     void reset_indicators(indicators::ProgressBar &bar,
-                          int img_num, int num_ss){
+                          const util::Config &conf,
+                          const int img_num, const int num_ss){
         //Hide cursor
         indicators::show_console_cursor(false);
         bar.set_option(indicators::option::BarWidth{50});
@@ -40,7 +41,7 @@ namespace scanmethod {
         bar.set_option(indicators::option::Lead{"#"});
         bar.set_option(indicators::option::Remainder{"-"});
         bar.set_option(indicators::option::End{"]"});
-        bar.set_option(indicators::option::PrefixText{"Deformed Image " + std::to_string(img_num)});
+        bar.set_option(indicators::option::PrefixText{conf.filenames[img_num]});
         bar.set_option(indicators::option::ShowPercentage{true});
         bar.set_option(indicators::option::ShowElapsedTime{true});
     }
@@ -74,7 +75,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, img_num, num_ss);
+        reset_indicators(bar, conf, img_num, num_ss);
         std::atomic<int> current_progress = 0;
         std::atomic<int> prev_pct = 0;
 
@@ -131,97 +132,97 @@ namespace scanmethod {
 
 
 
-void image_with_bf(const double *img_ref,
-                   const double *img_def,
-                   const Interpolator &interp_def,
-                   const util::SubsetData  &ssdata, 
-                   const util::Config &conf,
-                   const int img_num){
+    void image_with_bf(const double *img_ref,
+                    const double *img_def,
+                    const Interpolator &interp_def,
+                    const util::SubsetData  &ssdata, 
+                    const util::Config &conf,
+                    const int img_num){
 
-    const int num_ss = ssdata.num;
-    const int ss_size = ssdata.size;
+        const int num_ss = ssdata.num;
+        const int ss_size = ssdata.size;
 
-    // progress bar
-    indicators::ProgressBar bar;
-    reset_indicators(bar, img_num, num_ss);
-    std::atomic<int> current_progress = 0;
-    std::atomic<int> prev_pct = 0;
+        // progress bar
+        indicators::ProgressBar bar;
+        reset_indicators(bar, conf, img_num, num_ss);
+        std::atomic<int> current_progress = 0;
+        std::atomic<int> prev_pct = 0;
 
-    // initialise subsets
-    util::Subset ss_def(ss_size);
-    util::Subset ss_ref(ss_size);
+        // initialise subsets
+        util::Subset ss_def(ss_size);
+        util::Subset ss_ref(ss_size);
 
-    // optimization parameters
-    optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                              conf.precision, conf.threshold_lm,
-                              conf.px_vert, conf.px_hori);
-
-
-    // brute force scan parameters
-    brute::Parameters brute(conf.threshold_bf, conf.range_bf);
-
-    // perform optimization on subset from deformed image
-    util::Results res(conf.num_params);
-
-    // counter for each thread
-    int ss_thread_num = 0;
-
-    // temp p values for copy from brute force to optimization.
-    double ptemp[6] = {0,0,0,0,0,0};
-
-    // loop over subsets within the ROI
-    #pragma omp parallel for firstprivate(ss_ref, ss_def, ss_thread_num, opt, brute, res, ptemp)
-    for (int ss = 0; ss < num_ss; ss++){
-
-        // exit the main DIC loop when ctrl+C is hit
-        if (stop_request){
-            continue;
-        }
+        // optimization parameters
+        optimizer::Parameters opt(conf.num_params, conf.max_iter, 
+                                conf.precision, conf.threshold_lm,
+                                conf.px_vert, conf.px_hori);
 
 
-        // subset coordinate list contains central locations.
-        // Converting to top left corner for optimization routine
-        int ss_x = ssdata.coords[ss*2];
-        int ss_y = ssdata.coords[ss*2+1];
+        // brute force scan parameters
+        brute::Parameters brute(conf.threshold_bf, conf.range_bf);
 
-        // get the reference subset values from the reference img
-        util::extract_ss(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref); 
+        // perform optimization on subset from deformed image
+        util::Results res(conf.num_params);
 
+        // counter for each thread
+        int ss_thread_num = 0;
 
-        // if first subset in the loop or prev subset was a poor match
-        // start search with a brute force scan using the last set of 
-        // brute force params that gave a good match.
-        if ((ss_thread_num == 0) || (res.cost > opt.threshold_lm)){
+        // temp p values for copy from brute force to optimization.
+        double ptemp[6] = {0,0,0,0,0,0};
 
-            brute::expanding_wavefront(ss_x, ss_y, img_ref, 
-                                       conf.px_hori, 
-                                       conf.px_vert, 
-                                       ss_ref, ss_def, brute);
+        // loop over subsets within the ROI
+        #pragma omp parallel for firstprivate(ss_ref, ss_def, ss_thread_num, opt, brute, res, ptemp)
+        for (int ss = 0; ss < num_ss; ss++){
 
-            ptemp[0] = brute.p_rigid[0];
-            ptemp[1] = brute.p_rigid[1];
-
-            for (int i = 0; i < opt.num_params; i++){
-                opt.p[i] = ptemp[i];
+            // exit the main DIC loop when ctrl+C is hit
+            if (stop_request){
+                continue;
             }
+
+
+            // subset coordinate list contains central locations.
+            // Converting to top left corner for optimization routine
+            int ss_x = ssdata.coords[ss*2];
+            int ss_y = ssdata.coords[ss*2+1];
+
+            // get the reference subset values from the reference img
+            util::extract_ss(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref); 
+
+
+            // if first subset in the loop or prev subset was a poor match
+            // start search with a brute force scan using the last set of 
+            // brute force params that gave a good match.
+            if ((ss_thread_num == 0) || (res.cost > opt.threshold_lm)){
+
+                brute::expanding_wavefront(ss_x, ss_y, img_ref, 
+                                        conf.px_hori, 
+                                        conf.px_vert, 
+                                        ss_ref, ss_def, brute);
+
+                ptemp[0] = brute.p_rigid[0];
+                ptemp[1] = brute.p_rigid[1];
+
+                for (int i = 0; i < opt.num_params; i++){
+                    opt.p[i] = ptemp[i];
+                }
+            }
+
+            double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
+            double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
+            util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+
+            // append the results for the current subset to result vectors
+            util::append_results(img_num, ss, res, num_ss);
+
+            ss_thread_num++;
+
+            // update progress bar
+            int progress = current_progress.fetch_add(1);
+            update_bar(bar, progress, num_ss, prev_pct);
+
         }
-
-        double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
-        double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
-        util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
-
-        // append the results for the current subset to result vectors
-        util::append_results(img_num, ss, res, num_ss);
-
-        ss_thread_num++;
-
-        // update progress bar
-        int progress = current_progress.fetch_add(1);
-        update_bar(bar, progress, num_ss, prev_pct);
-
+        bar.mark_as_completed();
     }
-    bar.mark_as_completed();
-}
 
 
 
@@ -252,7 +253,7 @@ void image_with_bf(const double *img_ref,
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, img_num, num_ss);
+        reset_indicators(bar, conf, img_num, num_ss);
         std::atomic<int> current_progress(0);
         std::atomic<int> prev_pct(0);
 
@@ -284,8 +285,10 @@ void image_with_bf(const double *img_ref,
                 fft_windows.push_back(std::make_unique<fourier::FFT>(ssdata[t].size));
             }
 
-            double prev_x = 0.0;
-            double prev_y = 0.0;
+            // TODO: for the seed location I'm going to overwride the max number of iterations to make sure we get a good convergence.
+            // this is hardcoded for now. Could do with updating so that the seed location is checked ahead of the main correlation run.
+            opt.max_iter = 200;
+
             // ---------------------------------------------------------------------------------------------------------------------------
             // PROCESS THE SEED SUBSET 
             // ---------------------------------------------------------------------------------------------------------------------------
@@ -308,6 +311,7 @@ void image_with_bf(const double *img_ref,
 
                 double centre_x = seed_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = seed_y + static_cast<double>(ss_size)/2.0 - 0.5;
+
                 util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
 
 
@@ -353,10 +357,10 @@ void image_with_bf(const double *img_ref,
             // ---------------------------------------------------------------------------------------------------------------------------
             // PROCESS ALL OTHER SUBSETS
             // ---------------------------------------------------------------------------------------------------------------------------
+            opt.max_iter = conf.max_iter;
             std::priority_queue<rg::Point>& thread_q = local_q[omp_get_thread_num()];
             std::vector<rg::Point> temp_neigh;
             temp_neigh.reserve(4);
-            double ptemp[6] = {0,0,0,0,0,0};
 
             const int max_idle_iters = 100;
             rg::Point current(0, 0);
@@ -428,10 +432,6 @@ void image_with_bf(const double *img_ref,
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
                         if (util::cost_arr[idx_results] > opt.threshold_lm){
                             std::fill(opt.p.begin(), opt.p.end(), 0.0);
-                            //fourier::test(opt.p[0], opt.p[1], nx, ny, 256, img_ref, img_def, interp_def);
-                            //brute::expanding_wavefront(nx, ny, img_def, conf.px_hori, conf.px_vert, ss_ref, ss_def, brute);
-                            //opt.p[0] = brute.p_rigid[0];
-                            //opt.p[0] = brute.p_rigid[1];
                             opt.p[0] = -fourier::shifts[last_size].x[nidx];
                             opt.p[1] = -fourier::shifts[last_size].y[nidx];
                         }
@@ -488,7 +488,7 @@ void image_with_bf(const double *img_ref,
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, img_num, num_ss);
+        reset_indicators(bar, conf, img_num, num_ss);
         std::atomic<int> current_progress = 0;
         std::atomic<int> prev_pct = 0;
 
@@ -561,7 +561,7 @@ void image_with_bf(const double *img_ref,
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, img_num, num_ss);
+        reset_indicators(bar, conf, img_num, num_ss);
         std::atomic<int> current_progress = 0;
         std::atomic<int> prev_pct = 0;
 

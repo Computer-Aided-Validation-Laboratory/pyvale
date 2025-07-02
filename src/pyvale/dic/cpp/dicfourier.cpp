@@ -137,7 +137,7 @@ namespace fourier {
         // Loop over window size
         for (size_t i = 0; i < ssdata.size(); i++){
 
-            util::Timer timer("FFT windowing for subset size: " + std::to_string(ssdata[i].size));
+            //util::Timer timer("FFT windowing for subset size: " + std::to_string(ssdata[i].size));
 
             const int ss_size = ssdata[i].size;
 
@@ -234,8 +234,8 @@ namespace fourier {
         double weight_tot = 0.0;
         double prev_x = 0;
         double prev_y = 0;
-        double sum_x = 0;
-        double sum_y = 0;
+        //double sum_x = 0;
+        //double sum_y = 0;
 
         // assign values for all subset sizes EXCEPT first
         if (i > 0){
@@ -538,14 +538,14 @@ namespace fourier {
                     for (int col = 0; col < ss_size; ++col) {
 
                         // Source coordinates in img_def
-                        int px_y = ss_y + row;
-                        int px_x = ss_x + col;
+                        //int px_y = ss_y + row;
+                        //int px_x = ss_x + col;
 
                         // Target coordinates in ss_ref
                         int target_y = offset_y + row;
                         int target_x = offset_x + col;
 
-                        int idx_img = px_y * px_hori + px_x;
+                        //int idx_img = px_y * px_hori + px_x;
                         int idx_window = target_y * window_size + target_x;
                         fft.ss_ref.vals[idx_window] = 0.0;
                     }

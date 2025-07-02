@@ -78,8 +78,8 @@ namespace strain {
                     if (q==4){
 
                         // get polynomial coeffieicnts from smoothing
-                        uc = strainsmooth::q4(window.x ,window.y, window.u);
-                        vc = strainsmooth::q4(window.x ,window.y, window.v);
+                        uc = smooth::q4(window.x ,window.y, window.u);
+                        vc = smooth::q4(window.x ,window.y, window.v);
 
                         // populate 2D deformation gradient matrix
                         deform_grad(0,0) = 1.0 + uc[1] + uc[3]*y0;
@@ -114,8 +114,8 @@ namespace strain {
                      if (q==9){
 
                         // get polynomial coeffieicnts from smoothing
-                        uc = strainsmooth::q9(window.x ,window.y, window.u);
-                        vc = strainsmooth::q9(window.x ,window.y, window.v);
+                        uc = smooth::q9(window.x ,window.y, window.u);
+                        vc = smooth::q9(window.x ,window.y, window.v);
 
                         // populate 2D deformation gradient matrix
                         deform_grad(0,0) = 1.0 + uc[1] + uc[3]*y0 + 2.0*uc[4]*x0 + 2.0*uc[6]*x0*y0 + uc[7]*y0*y0 + 2.0*uc[8]*x0*y0*y0;

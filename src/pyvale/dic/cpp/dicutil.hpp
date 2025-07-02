@@ -62,6 +62,7 @@ namespace util {
         std::string shape_func;
         std::string interp_routine;
         std::string scan_method;
+        std::vector<std::string> filenames;
     };
 
 

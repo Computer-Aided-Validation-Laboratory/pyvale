@@ -100,7 +100,6 @@ namespace util {
                           const Interpolator &interp_def){
 
         int count = 0;
-        int idx;
 
         for (int y = 0; y < ss_def.size; y++){
             for (int x = 0; x < ss_def.size; x++){
@@ -138,11 +137,10 @@ namespace util {
                            const int ss_size, const int px_hori, 
                            const int px_vert, const bool partial) {
         
-        Timer timer("subset list generation for subset size " + std::to_string(ss_size) + " [px] with step " + std::to_string(ss_step) + " [px]:" );
+        //Timer timer("subset list generation for subset size " + std::to_string(ss_size) + " [px] with step " + std::to_string(ss_step) + " [px]:" );
 
         SubsetData ssdata;
 
-        int idx;
         int dx[4] = {ss_step, 0, -ss_step, 0};
         int dy[4] = {0, ss_step, 0, -ss_step};
 
@@ -311,7 +309,9 @@ namespace util {
 
     void resize_results(int num_def_img, int num_ss, 
                         int num_params, bool at_end){
-        
+
+
+        util::Timer timer("resizing of result arrays:");
         util::at_end = at_end;
 
         if (at_end){
@@ -379,10 +379,10 @@ namespace util {
         if (saveconf.binary){
             outfile.open(outfile_str.str(), std::ios::binary);
 
-            for (size_t i = 0; i < ssdata.num; ++i) {
+            for (int i = 0; i < ssdata.num; ++i) {
 
                 int idx = img * ssdata.num + i;
-                int idx_p = num_params*idx;
+                //int idx_p = num_params*idx;
 
                 double mag = std::sqrt(u_arr[idx]*u_arr[idx]+
                                        v_arr[idx]*v_arr[idx]);
@@ -403,10 +403,10 @@ namespace util {
         else {
 
             outfile.open(outfile_str.str());
-            for (size_t i = 0; i < ssdata.num; i++) {
+            for (int i = 0; i < ssdata.num; i++) {
 
                 int idx = img * ssdata.num + i;
-                int idx_p = num_params*idx;
+                //int idx_p = num_params*idx;
 
                 // convert from corner to centre subset coords
                 double ss_x = ssdata.coords[2*i  ] + static_cast<double>(ssdata.size)/2.0 - 0.5;

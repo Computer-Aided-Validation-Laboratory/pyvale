@@ -16,7 +16,7 @@
 
 
 
-namespace strainsmooth {
+namespace smooth {
 
     /**
      * @brief 

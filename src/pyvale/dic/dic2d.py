@@ -41,7 +41,7 @@ def DIC2D(reference: np.ndarray | str,
           output_delimiter: str=" ") -> DICResults:
 
     # do var checks in python land
-    ref_arr, def_arr = check_and_get_images(reference,deformed,roi_mask)
+    ref_arr, def_arr, filenames = check_and_get_images(reference,deformed,roi_mask)
     check_correlation_criteria(correlation_criteria)
     check_interpolation(interpolation_routine)
     check_scanning_method(scanning_method)
@@ -71,6 +71,7 @@ def DIC2D(reference: np.ndarray | str,
     config.num_def_img = def_arr.shape[0]
     config.num_params = num_params
     config.rg_seed = updated_seed
+    config.filenames = filenames
 
     saveconf = dic2dcpp.SaveConfig()
     saveconf.basepath = output_basepath
@@ -240,7 +241,7 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
 
 def check_and_get_images(reference: Union[np.ndarray, str],
                  deformed: Union[np.ndarray, str],
-                 roi: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+                 roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, list[str]]:
 
     # Check type consistency
     if type(reference) is not type(deformed):
@@ -248,14 +249,18 @@ def check_and_get_images(reference: Union[np.ndarray, str],
             f"Mismatch in file types: reference={type(reference)}, "
             f"deformed={type(deformed)}")
 
+
+    # if the deformed images is a string, not a numpy array
     if isinstance(reference, str):
+
+        # check if user specified reference image exists
         if not os.path.isfile(reference):
             raise ValueError(f"Reference image does not exist: {reference}")
-
-
         print("Using reference image: ")
         print(f"  - {reference}")
         print("")
+
+        # open reference image and get dimensions
         ref_arr = np.array(Image.open(reference))
         print(f"Reference image shape: {ref_arr.shape}")
         if ref_arr.ndim==3:
@@ -263,14 +268,17 @@ def check_and_get_images(reference: Union[np.ndarray, str],
             ref_arr = ref_arr[:,:,0]
         print("")
 
+        # check if the deformed images exist
         files = sorted(glob.glob(deformed))
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
-
+        # sort the deformed images. append filenames to a list to copy to c++
+        filenames=[]
         print(f"Found {len(files)} deformation images:")
         for file in files:
             print(f"  - {file}")
+            filenames.append(os.path.basename(file))
         print("")
 
         def_arr = np.zeros((len(files), *ref_arr.shape), dtype=ref_arr.dtype)
@@ -283,19 +291,17 @@ def check_and_get_images(reference: Union[np.ndarray, str],
                 img = img[:,:,0]
 
             if img.shape != ref_arr.shape:
-                raise ValueError(
-                    f"Shape mismatch: '{file}' has shape {img.shape}" , f"expected {ref_arr.shape}")
+                raise ValueError(f"Shape mismatch: '{file}' has shape {img.shape}" , f"expected {ref_arr.shape}")
 
             def_arr[i] = img
 
     else:
-        if (reference.shape != deformed[0].shape or 
-                reference.shape != roi.shape):
-            raise ValueError(
-                f"Shape mismatch: reference {reference.shape}, "
-                f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
+        if (reference.shape != deformed[0].shape or reference.shape != roi.shape):
+            raise ValueError(f"Shape mismatch: reference {reference.shape}, "f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
 
-    return ref_arr, def_arr
+
+
+    return ref_arr, def_arr, filenames
 
 def DICdata_import(layout: str="column", 
                    data: str="./", 

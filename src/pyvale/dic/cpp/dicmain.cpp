@@ -42,7 +42,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // ------------------------------------------------------------------------
     // Initialisation
     // ------------------------------------------------------------------------
-    TITLE("CONFIGURATION");
+    TITLE("Config");
     INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
     INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
     INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
@@ -51,7 +51,13 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     INFO_OUT("Shape Function: ", conf.shape_func);
     INFO_OUT("Interpolation Routine: ", conf.interp_routine);
     INFO_OUT("Image Scan Method: ", conf.scan_method);
+    INFO_OUT("Optimization Precision:", conf.precision);
+    INFO_OUT("Optimization Threshold:", conf.threshold_lm);
+    INFO_OUT("Estimate for Max Displacement:", conf.range_bf << " [px]");
+    INFO_OUT("Subset Size:", conf.ss_size << " [px]");
+    INFO_OUT("Subset Step:", conf.ss_step << " [px]" );
     INFO_OUT("Number of OMP threads:", omp_get_max_threads());
+    if (conf.scan_method=="RG") INFO_OUT("Reliability Guided Seed location: ", "(" << conf.rg_seed.first << ", " << conf.rg_seed.second << ") [px] " )
 
     // Register signal handler for Ctrl+C
     signal(SIGINT, scanmethod::signalHandler);
@@ -75,10 +81,12 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     std::vector<util::SubsetData> ssdata;
     std::vector<int> ss_sizes, ss_steps;
     if ((conf.scan_method == "FFT") || (conf.scan_method == "RG")){
+        util::Timer timer("subset list initialisation");
         util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.range_bf);
         fourier::init(ssdata, ss_sizes, ss_steps, img_roi, conf);
     }
     else {
+        util::Timer timer("subset list initialisation");
         ssdata.push_back(util::gen_ss_list(img_roi, conf.ss_step,
                                            conf.ss_size, conf.px_hori, 
                                            conf.px_vert));
@@ -94,7 +102,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     optimizer::init(conf.corr_crit, conf.shape_func);
 
     // initialise the brute force scan
-    std::string brute_method = "SPIRAL";
+    std::string brute_method = "EXPANDING_WAVEFRONT";
     brute::init(conf.corr_crit, brute_method);
 
 
@@ -102,8 +110,9 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // -----------------------------------------------------------------------
     // loop over deformed images and perform DIC
     // -----------------------------------------------------------------------
+    std::cout << std::endl;
+    TITLE("Starting Correlation...")
     util::Timer timer("DIC Engine:");
-
     for (int img_num = 0; img_num < conf.num_def_img; img_num++){
 
         // pointer to starting location of deformed image in memory
@@ -176,7 +185,8 @@ PYBIND11_MODULE(dic2dcpp, m) {
         .def_readwrite("px_vert", &util::Config::px_vert)
         .def_readwrite("num_def_img", &util::Config::num_def_img)
         .def_readwrite("rg_seed", &util::Config::rg_seed)
-        .def_readwrite("num_params", &util::Config::num_params);
+        .def_readwrite("num_params", &util::Config::num_params)
+        .def_readwrite("filenames", &util::Config::filenames);
 
     py::class_<util::SaveConfig>(m, "SaveConfig")
         .def(py::init<>())
