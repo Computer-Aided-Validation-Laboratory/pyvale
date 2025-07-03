@@ -12,7 +12,7 @@ analytic functions for the physical fields.
 import numpy as np
 import sympy
 import mooseherder as mh
-from pyvale.analyticsimdatagenerator import (AnalyticData2D,
+from pyvale.verif.analyticsimdatagenerator import (AnalyticData2D,
                                                   AnalyticSimDataGen)
 
 

@@ -5,10 +5,13 @@
 # ==============================================================================
 
 """
-`pyvale`: the python validation engine. Used to simulate experimental data from
-an input multi-physics simulation by explicitly modelling sensors with realistic
-uncertainties. Useful for experimental design, sensor placement optimisation,
-testing simulation validation metrics and testing digital shadows/twins.
+The python validation engine (`pyvale`) is your virtual engineering laboratory:
+An all-in-one package for sensor simulation, sensor uncertainty quantification,
+sensor placement optimisation and simulation calibration/validation. Used to
+simulate experimental data from an input multi-physics simulation by explicitly
+modelling sensors with realistic uncertainties. Useful for experimental design,
+sensor placement optimisation, testing simulation validation metrics and
+virtually testing digital shadows/twins.
 """
 
 # NOTE: this simplifies and decouples how the user calls pyvale from the
@@ -70,10 +73,6 @@ from pyvale.visualexpplotter import *
 from pyvale.visualtraceplotter import *
 from pyvale.visualimages import *
 from pyvale.visualimagedef import *
-
-from pyvale.analyticmeshgen import *
-from pyvale.analyticsimdatagenerator import *
-from pyvale.analyticsimdatafactory import *
 
 from pyvale.experimentsimulator import *
 

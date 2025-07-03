@@ -28,7 +28,7 @@ These are some resources we have drawn inspiration from when writing our code, e
 
 Coding Languages
 ---------------------------------
-All user interfaces in ``pyvale`` should be written in Python to allow ease of use for the general engineering and scientific community. Code where performance is required (e.g. rendering engines, image analysis and digital image correlation analysis) should be written in a compiled language. A list of preferred coding languages for ``pyvale`` is given below:
+All user interfaces in ``pyvale`` should be written in Python to allow ease of use for the general engineering and scientific community. Code where performance is required (e.g. rendering engines, image analysis and digital image correlation analysis) or where you feel the need to write a ``for`` loop should preferably be written in a compiled language. A list of preferred coding languages for ``pyvale`` is given below:
 
 - Python
 - Cython
@@ -40,7 +40,7 @@ The following can be used for linking compiled code to a python interface:
 - Cython
 - Pybind
 
-For Zig we support a custom build process through our ``setup.py`` that pulls in the Zig compiler on pypi to build and dynamically link Zig libraries through C and Cython.
+For Zig we support a custom build process through our ``setup.py`` that pulls in the Zig compiler on pypi to build and dynamically link Zig libraries through the C ABI and Cython. Unfortunately, this requires a lot more boiler plate code (i.e. a C header and a .pxd cython header restating the same thing) than using Pybind with C/C++.
 
 GPU programming must be vendor agnostic. The following can be used for GPU programming:
 
@@ -52,7 +52,8 @@ Further Information
 .. toctree::
    :maxdepth: 1
 
-   dev_guide_designspec.rst
-   dev_guide_python.rst
+   dev_guide_designspec
+   dev_guide_customsensors
+   dev_guide_python
 
 

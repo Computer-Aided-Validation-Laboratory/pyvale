@@ -96,7 +96,6 @@ err_chain.append(pyv.ErrSysField(disp_field,
 err_chain.append(pyv.ErrSysField(disp_field,
                                     pos_error_data,
                                     pyv.EErrDep.DEPENDENT))
-
 err_chain.append(pyv.ErrSysField(disp_field,
                                     angle_error_data,
                                     pyv.EErrDep.DEPENDENT))

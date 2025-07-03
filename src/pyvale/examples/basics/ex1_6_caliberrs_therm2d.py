@@ -27,11 +27,11 @@ import pyvale as pyv
 # we can calculate the error between them. The calibration functions shown below
 # are simplified versions of the typical calibration curves for a K-type
 # thermocouple.
-def assumed_calib(signal: np.ndarray) -> np.ndarray:
+def calib_assumed(signal: np.ndarray) -> np.ndarray:
     return 24.3*signal + 0.616
 
 
-def truth_calib(signal: np.ndarray) -> np.ndarray:
+def calib_truth(signal: np.ndarray) -> np.ndarray:
     return -0.01897 + 25.41881*signal - 0.42456*signal**2 + 0.04365*signal**3
 
 
@@ -46,8 +46,8 @@ signal_calib_range = np.array((0.0,6.0),dtype=np.float64)
 milli_volts = np.linspace(signal_calib_range[0],
                             signal_calib_range[1],
                             n_cal_divs)
-temp_truth = truth_calib(milli_volts)
-temp_assumed = assumed_calib(milli_volts)
+temp_truth = calib_truth(milli_volts)
+temp_assumed = calib_assumed(milli_volts)
 calib_error = temp_assumed - temp_truth
 
 print()
@@ -96,8 +96,8 @@ tc_array = pyv.SensorArrayFactory \
 # that the truth calibration function must be inverted numerically so to
 # increase accuracy the number of divisions can be increased. However, 1e4
 # divisions should be suitable for most applications.
-cal_err = pyv.ErrSysCalibration(assumed_calib,
-                                truth_calib,
+cal_err = pyv.ErrSysCalibration(calib_assumed,
+                                calib_truth,
                                 signal_calib_range,
                                 n_cal_divs=10000)
 sys_err_int = pyv.ErrIntegrator([cal_err],

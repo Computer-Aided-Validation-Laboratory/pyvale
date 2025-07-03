@@ -4,11 +4,9 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
-import numpy as np
-import mooseherder as mh
-import pyvale as pyv
-import tests.pointsensors.psensconst as psensconst
-import psensscalar as pss
+import pyvale.verif.psensconst as psensconst
+import pyvale.verif.psensscalar as psensscalar
+
 
 def main() -> None:
     print(80*"=")
@@ -16,7 +14,8 @@ def main() -> None:
     print(80*"=")
     print(f"Saving gold output to: {psensconst.GOLD_PATH}\n")
 
-    print("Generating...")
+    print("Generating 2D gold output for scalar field point sensors...")
+    psensscalar.gen_gold_2d()
 
 
 if __name__ == "__main__":

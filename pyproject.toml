@@ -33,6 +33,12 @@ dependencies = [
   "pybind11>=2.13.6",
 ]
 
+[tool.pytest.ini_options]
+pythonpath = [
+    "src",
+    "tests"
+]
+
 [project.urls]
 "Repository" = "https://github.com/Digital-Validation-Laboratory/pyvale"
 "Issue Tracker" = "https://github.com/Digital-Validation-Laboratory/pyvale/issues"

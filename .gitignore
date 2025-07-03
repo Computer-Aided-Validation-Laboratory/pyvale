@@ -33,12 +33,23 @@ pyvale-output/
 !images/*.svg
 !docs/source/_static/*.png
 
+# Keep these as they are gold output for regression tests
+# !tests/pointsensors/gold/*.npy
+
 # Image deformation test cases
 *.pkl
 *.dill
 imdefcase*_*/
 deformed_images/
 src/deformed_images/
+
+# Cython diagnostics
+src/pyvale/cython/*.html
+
+# Zig libraries
+*.so
+*.a
+*.o
 
 #-------------------------------------------------------------------------------
 # Python Standard Ignore
