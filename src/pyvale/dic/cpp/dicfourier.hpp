@@ -10,19 +10,18 @@
 // STD library Header files
 #include <csignal>
 #include <cstdlib>
-#include <fftw3.h>
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <Eigen/Dense>
 
 // Program Header files
 #include "./dicinterpolator.hpp"
 #include "./defines.hpp"
 #include "./dicutil.hpp"
+#include "./pocketfft_hdronly.h"
 
 namespace fourier {
-
-
 
     struct Shift {
 
@@ -121,67 +120,54 @@ namespace fourier {
 
     struct FFT {
         int ss_size;
-
-        // output data
-        fftw_complex* fft_def;
-        fftw_complex* fft_ref;
-        std::vector<double> cross_corr;
-
+        int n_complex;
+        
         // input data
         util::Subset ss_def;
         util::Subset ss_ref;
 
-        // fft plans
-        fftw_plan plan_def;
-        fftw_plan plan_ref;
-        fftw_plan plan_inv;
+        // output data
+        std::vector<std::complex<double>> fft_def;
+        std::vector<std::complex<double>> fft_ref;
+        std::vector<double> cross_corr;
 
+        pocketfft::shape_t shape_in;
+        pocketfft::shape_t axes = {0,1};
+
+        pocketfft::stride_t stride_in;
+        pocketfft::stride_t stride_out;
 
         // for subpixel peak position in correlation map
         Eigen::MatrixXd A;
         Eigen::VectorXd b;
 
         FFT(int ss_size_)
-            : ss_size(ss_size_), cross_corr(ss_size_ * ss_size_), ss_def(ss_size_), ss_ref(ss_size_), A(9,6), b(9)
+            : ss_size(ss_size_), n_complex(ss_size_/2+1), ss_def(ss_size_), ss_ref(ss_size_),
+                fft_def(ss_size_*n_complex), fft_ref(ss_size_*n_complex), 
+                cross_corr(ss_size_ * ss_size_),  A(9,6), b(9)
         {
-            fft_def = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * ss_size * (ss_size / 2 + 1));
-            fft_ref = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * ss_size * (ss_size / 2 + 1));
+       
+            shape_in   = {static_cast<unsigned long>(ss_size), static_cast<unsigned long>(ss_size)};
+            stride_in  = {static_cast<long>(ss_size * sizeof(double)), sizeof(double)};
+            stride_out = {static_cast<long>(n_complex * sizeof(std::complex<double>)), sizeof(std::complex<double>)};
 
-            #pragma omp critical
-            {
-                plan_def = fftw_plan_dft_r2c_2d(ss_size, ss_size, ss_def.vals.data(), fft_def, FFTW_ESTIMATE);
-                plan_ref = fftw_plan_dft_r2c_2d(ss_size, ss_size, ss_ref.vals.data(), fft_ref, FFTW_ESTIMATE);
-                plan_inv = fftw_plan_dft_c2r_2d(ss_size, ss_size, fft_def, cross_corr.data(), FFTW_ESTIMATE);
-            }
         }
 
-        ~FFT() {
-            #pragma omp critical 
-            {
-            fftw_destroy_plan(plan_def);
-            fftw_destroy_plan(plan_ref);
-            fftw_destroy_plan(plan_inv);
-            fftw_free(fft_def);
-            fftw_free(fft_ref);
-            }
-        }
+
 
         void correlate() {
-            fftw_execute(plan_def);
-            fftw_execute(plan_ref);
 
-            for (int px = 0; px < ss_size * (ss_size / 2 + 1); px++) {
-                double def_re = fft_def[px][0];
-                double def_im = fft_def[px][1];
-                double ref_re = fft_ref[px][0];
-                double ref_im = fft_ref[px][1];
-
-                // Complex conjugate multiplication
-                fft_def[px][0] = ref_re * def_re + ref_im * def_im;
-                fft_def[px][1] = ref_im * def_re - ref_re * def_im;
+            // forward fft of reference and deformed subsets
+            pocketfft::r2c(shape_in, stride_in, stride_out, axes, pocketfft::FORWARD, ss_ref.vals.data(), fft_ref.data(), 1.0, 1);
+            pocketfft::r2c(shape_in, stride_in, stride_out, axes, pocketfft::FORWARD, ss_def.vals.data(), fft_def.data(), 1.0, 1);
+            
+            // multiplication of complex fft data
+            for (int px = 0; px < ss_size * n_complex; px++) {
+                fft_def[px] = std::conj(fft_ref[px]) * fft_def[px];
             }
 
-            fftw_execute(plan_inv);
+            // inverse FFT to get cross correlation
+            pocketfft::c2r(shape_in, stride_out, stride_in, axes, pocketfft::BACKWARD, fft_def.data(), cross_corr.data(), 1.0, 1);
         }
 
     void fftshift(std::vector<double>& data, int size) {
@@ -295,10 +281,6 @@ namespace fourier {
                                        const double ss_x, const double ss_y,
                                        const std::vector<Shift>& shifts,
                                        const std::vector<util::SubsetData>& ssdata);
-
-    inline void destroy_fftw_plans(std::vector<fftw_plan>& plans);
-
-    inline void free_fftw_arrays(std::vector<fftw_complex*>& vec);
 
     double debugcost(util::Subset &ss_ref, util::Subset &ss_def);
 
