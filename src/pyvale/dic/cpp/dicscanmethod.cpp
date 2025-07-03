@@ -302,8 +302,8 @@ namespace scanmethod {
 
                 // if the first image. Take the optimization parameters from rigid fourier
                 std::fill(opt.p.begin(), opt.p.end(), 0.0);
-                opt.p[0] = -fourier::shifts[last_size].x[idx];
-                opt.p[1] = -fourier::shifts[last_size].y[idx];
+                opt.p[0] = fourier::shifts[last_size].x[idx];
+                opt.p[1] = fourier::shifts[last_size].y[idx];
 
                 // Extract reference subset and solve for starting seed point
                 util::extract_ss(ss_ref, seed_x, seed_y, px_hori, px_vert, img_ref);
@@ -334,8 +334,8 @@ namespace scanmethod {
 
                     // get parameter values from fft output or from previous image
                     std::fill(opt.p.begin(), opt.p.end(), 0.0);
-                    opt.p[0] = -fourier::shifts[last_size].x[nidx];
-                    opt.p[1] = -fourier::shifts[last_size].y[nidx];
+                    opt.p[0] = fourier::shifts[last_size].x[nidx];
+                    opt.p[1] = fourier::shifts[last_size].y[nidx];
 
                     // perform optimization for seed point neighbours
                     double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
@@ -432,8 +432,8 @@ namespace scanmethod {
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
                         if (util::cost_arr[idx_results] > opt.threshold_lm){
                             std::fill(opt.p.begin(), opt.p.end(), 0.0);
-                            opt.p[0] = -fourier::shifts[last_size].x[nidx];
-                            opt.p[1] = -fourier::shifts[last_size].y[nidx];
+                            opt.p[0] = fourier::shifts[last_size].x[nidx];
+                            opt.p[1] = fourier::shifts[last_size].y[nidx];
                         }
                         else {
                             for (int i = 0; i < opt.num_params; i++){
@@ -523,8 +523,8 @@ namespace scanmethod {
                 util::extract_ss(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref);
 
                 std::fill(opt.p.begin(), opt.p.end(), 0.0);
-                opt.p[0] = -fourier::shifts[last_size].x[ss];
-                opt.p[1] = -fourier::shifts[last_size].y[ss];
+                opt.p[0] = fourier::shifts[last_size].x[ss];
+                opt.p[1] = fourier::shifts[last_size].y[ss];
 
                 // perform optimization on subset from deformed image
                 double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
@@ -596,8 +596,8 @@ namespace scanmethod {
                 util::extract_ss(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref);
 
                 std::fill(opt.p.begin(), opt.p.end(), 0.0);
-                opt.p[0] = -fourier::shifts[0].x[ss];
-                opt.p[1] = -fourier::shifts[0].y[ss];
+                opt.p[0] = fourier::shifts[0].x[ss];
+                opt.p[1] = fourier::shifts[0].y[ss];
 
                 // perform optimization on subset from deformed image
                 double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;

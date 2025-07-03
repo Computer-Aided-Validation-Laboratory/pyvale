@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "Cython", "numpy", "pybind11"]
+requires = ["setuptools>=61.0", "wheel", "Cython", "numpy", "scikit-build-core", "pybind11"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -29,6 +29,7 @@ dependencies = [
   "Cython>=3.0.0",
   "bpy>=4.2.0",
   "pybind11",
+  "pyqtgraph"
 ]
 
 [project.urls]

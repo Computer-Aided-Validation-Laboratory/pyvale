@@ -13,7 +13,6 @@
 #include <vector>
 #include <string>
 #include <iostream>
-#include <unordered_map>
 
 // program Header files
 #include "./dicinterpolator.hpp"

@@ -14,7 +14,10 @@
 
 
 
-#define IDX2D(i, j, w) ((j) * (w) + (i))
+inline int idx_from_2d(const int x, const int y, const int length){
+    return y*length+x;
+}
+
 
 
 Interpolator::Interpolator(double * img, int px_hori, int px_vert){
@@ -35,15 +38,16 @@ Interpolator::Interpolator(double * img, int px_hori, int px_vert){
     zy.resize(px_vert*px_hori);
     zxy.resize(px_vert*px_hori);
 
-
+    // setting pixel values for internal vectors
     for (int i = 0; i < px_hori; ++i) {
-        px_x[i] = i; 
+        px_x[i] = i;
     }
     for (int j = 0; j < px_vert; ++j) {
-        px_y[j] = j; 
+        px_y[j] = j;
 
     }
 
+    //interpolator data
     std::vector<double> data(px_hori,0);
     for (int j = 0; j < px_vert; j++){
 
@@ -94,13 +98,11 @@ double Interpolator::eval_bicubic(const int ss_x, const int ss_y, const double s
     size_t xi,yi;
     index_lookup_xy(ss_x, ss_y, xi, yi, subpx_x, subpx_y);
 
-    // precompute indices of surrounding pixel values
-    size_t idx00 = IDX2D(xi, yi, px_hori);
-    size_t idx01 = IDX2D(xi, yi + 1, px_hori);
-    size_t idx10 = IDX2D(xi + 1, yi, px_hori);
-    size_t idx11 = IDX2D(xi + 1, yi + 1, px_hori);
+    int idx00 = idx_from_2d(xi, yi, px_hori);
+    int idx01 = idx_from_2d(xi, yi + 1, px_hori);
+    int idx10 = idx_from_2d(xi + 1, yi, px_hori);
+    int idx11 = idx_from_2d(xi + 1, yi + 1, px_hori);
 
-    /* Precompute values for the grid points */
     double zminmin = image[idx00];
     double zminmax = image[idx01];
     double zmaxmin = image[idx10];
@@ -165,11 +167,10 @@ double Interpolator::eval_bicubic_dx(const int ss_x, const int ss_y, const doubl
     size_t xi,yi;
     index_lookup_xy(ss_x, ss_y, xi, yi, subpx_x, subpx_y);
 
-    // precompute indices of surrounding pixel values
-    size_t idx00 = IDX2D(xi, yi, px_hori);
-    size_t idx01 = IDX2D(xi, yi + 1, px_hori);
-    size_t idx10 = IDX2D(xi + 1, yi, px_hori);
-    size_t idx11 = IDX2D(xi + 1, yi + 1, px_hori);
+    int idx00 = idx_from_2d(xi, yi, px_hori);
+    int idx01 = idx_from_2d(xi, yi + 1, px_hori);
+    int idx10 = idx_from_2d(xi + 1, yi, px_hori);
+    int idx11 = idx_from_2d(xi + 1, yi + 1, px_hori);
 
     double zminmin = image[idx00];
     double zminmax = image[idx01];
@@ -189,17 +190,14 @@ double Interpolator::eval_bicubic_dx(const int ss_x, const int ss_y, const doubl
     double zxymaxmin = zxy[idx10];
     double zxymaxmax = zxy[idx11];
 
-    // distance between interpolation point and pixel value 
-
     // polynomial terms
     double t0 = 1;
     double u0 = 1;
     double t1 = (subpx_x - px_x[xi]);
     double u1 = (subpx_y - px_y[yi]);
     double t2 = t1 * t1;
-    double u2 = u1 * u1;  
+    double u2 = u1 * u1;
     double u3 = u1 * u2;
-
 
     double result = 0.0;
     result = 0;
@@ -227,10 +225,10 @@ double Interpolator::eval_bicubic_dy(const int ss_x, const int ss_y, const doubl
     index_lookup_xy(ss_x, ss_y, xi, yi, subpx_x, subpx_y);
 
     // precompute indices of surrounding pixel values
-    size_t idx00 = IDX2D(xi, yi, px_hori);
-    size_t idx01 = IDX2D(xi, yi + 1, px_hori);
-    size_t idx10 = IDX2D(xi + 1, yi, px_hori);
-    size_t idx11 = IDX2D(xi + 1, yi + 1, px_hori);
+    size_t idx00 = idx_from_2d(xi, yi, px_hori);
+    size_t idx01 = idx_from_2d(xi, yi + 1, px_hori);
+    size_t idx10 = idx_from_2d(xi + 1, yi, px_hori);
+    size_t idx11 = idx_from_2d(xi + 1, yi + 1, px_hori);
 
     double zminmin = image[idx00];
     double zminmax = image[idx01];
@@ -286,10 +284,10 @@ InterpVals Interpolator::eval_bicubic_and_derivs(const int ss_x, const int ss_y,
     index_lookup_xy(ss_x, ss_y, xi, yi, subpx_x, subpx_y);
 
     // precompute indices of surrounding pixel values
-    size_t idx00 = IDX2D(xi, yi, px_hori);
-    size_t idx01 = IDX2D(xi, yi + 1, px_hori);
-    size_t idx10 = IDX2D(xi + 1, yi, px_hori);
-    size_t idx11 = IDX2D(xi + 1, yi + 1, px_hori);
+    size_t idx00 = idx_from_2d(xi, yi, px_hori);
+    size_t idx01 = idx_from_2d(xi, yi + 1, px_hori);
+    size_t idx10 = idx_from_2d(xi + 1, yi, px_hori);
+    size_t idx11 = idx_from_2d(xi + 1, yi + 1, px_hori);
 
     double zminmin = image[idx00];
     double zminmax = image[idx01];
@@ -482,16 +480,6 @@ void Interpolator::cspline_init(std::vector<double> &px, std::vector<double> &da
     std::vector<double> alpha(sys_size);
     std::vector<double> c(sys_size);
     std::vector<double> z(sys_size);
-
-
-    //--------------------------------------------------------------------------------
-    //Cholesky decomposition
-    // A = L.D.L^t
-    // lower_diag(L) = gamma
-    // diag(D) = alpha
-    //--------------------------------------------------------------------------------
-
-
     alpha[0] = diagonal[0];
     gamma[0] = off_diagonal[0] / alpha[0];
 
@@ -534,34 +522,35 @@ void Interpolator::cspline_init(std::vector<double> &px, std::vector<double> &da
     }  
 }
 
-double Interpolator::cspline_eval_deriv (std::vector<double> &px, std::vector<double> &data, double value, int length){
+double Interpolator::cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data, double value, int length) {
 
-    double dx;
-    double dydx;
+    // Find the interval containing the evaluation point
+    int index = index_lookup(px, value, 0, length - 1);
 
-    int index = index_lookup(px, value, 0, length-1);
-
-    /* evaluate */
-    double px_max = px[index + 1];
+    // Get interval boundaries
     double px_min = px[index];
-    dx = px_max - px_min;
+    double px_max = px[index + 1];
+    double dx = px_max - px_min;
 
-    if (dx > 0.0)
-    {
-        const double y_lo = data[index];
-        const double y_hi = data[index + 1];
-        const double dy = y_hi - y_lo;
-        double delx = value - px_min;
-        double b_i, c_i, d_i; 
-        coeff_calc(tridiag_solution, dy, dx, index,  &b_i, &c_i, &d_i);
-        dydx = b_i + delx * (2.0 * c_i + 3.0 * d_i * delx);
-        // std::cout << dydx << std::endl;
+    // Handle degenerate case where interval has zero width
+    if (dx <= 0.0) {
+        return 0.0;
     }
-    else
-    {
-        dydx = 0.0;
-    }
+
+    // Get y-values at interval endpoints
+    double y_lo = data[index];
+    double y_hi = data[index + 1];
+    double dy = y_hi - y_lo;
+
+    // Calculate distance from left endpoint
+    double delx = value - px_min;
+
+    // Calculate cubic spline coefficients for this interval
+    double b_i, c_i, d_i;
+    coeff_calc(tridiag_solution, dy, dx, index, &b_i, &c_i, &d_i);
+
+    // Evaluate derivative: dy/dx = b + 2c*delx + 3d*delx^2
+    double dydx = b_i + delx * (2.0 * c_i + 3.0 * d_i * delx);
+
     return dydx;
-    exit(0);
-
 }

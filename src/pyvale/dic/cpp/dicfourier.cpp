@@ -160,8 +160,8 @@ namespace fourier {
 
                     // get the seed for the new window size
                     auto [prev_x, prev_y] = get_prev_shift(i, ss, ss_x, ss_y, shifts, ssdata);
-                    double ss_x_shft = ss_x-prev_x;
-                    double ss_y_shft = ss_y-prev_y;
+                    double ss_x_shft = ss_x+prev_x;
+                    double ss_y_shft = ss_y+prev_y;
 
                     // populate fft.ss_ref with reference subset values
                     util::extract_ss(fft.ss_ref,ss_x, ss_y, px_hori, px_vert, img_ref);
@@ -187,6 +187,7 @@ namespace fourier {
                     //    }
                     //    std::cout << std::endl;
                     //}
+                    //exit(0);
 
                     // update the shift arrays
                     if (i == 0){
@@ -208,8 +209,8 @@ namespace fourier {
             // remove outliers in fft
             //remove_outliers(shifts[i].x, ssdata[i], 3.0);
             //remove_outliers(shifts[i].y, ssdata[i], 3.0);
-            smooth_field(shifts[i].x, ssdata[i], 5.0, 5);
-            smooth_field(shifts[i].x, ssdata[i], 5.0, 5);
+            //smooth_field(shifts[i].x, ssdata[i], 7.0, 5);
+            //smooth_field(shifts[i].y, ssdata[i], 7.0, 5);
 
             //for (int ss = 0; ss < ssdata[i].num; ss++){
             //    std::cout << ssdata[i].coords[2*ss] << " " << ssdata[i].coords[2*ss+1] << " ";
@@ -234,8 +235,8 @@ namespace fourier {
         double weight_tot = 0.0;
         double prev_x = 0;
         double prev_y = 0;
-        //double sum_x = 0;
-        //double sum_y = 0;
+        double sum_x = 0;
+        double sum_y = 0;
 
         // assign values for all subset sizes EXCEPT first
         if (i > 0){
@@ -254,18 +255,18 @@ namespace fourier {
                 double weight = 1.0 / (dist_sq + epsilon);
 
                 //std::cout << nidx << " " << neigh_x << " " << neigh_y << " " << dx << " " << dy << " " << dist_sq << " " << weight << std::endl;
-                //sum_x += shifts[i-1].x[nidx];
-                //sum_y += shifts[i-1].y[nidx];
-                weight_sum_x += shifts[i-1].x[nidx] * weight;
-                weight_sum_y += shifts[i-1].y[nidx] * weight;
-                weight_tot += weight;
+                sum_x += shifts[i-1].x[nidx];
+                sum_y += shifts[i-1].y[nidx];
+                //weight_sum_x += shifts[i-1].x[nidx] * weight;
+                //weight_sum_y += shifts[i-1].y[nidx] * weight;
+                //weight_tot += weight;
             }
 
             //std::cout << std::endl;
-            //prev_x = sum_x / shifts[i].num_neigh;
-            //prev_y = sum_y / shifts[i].num_neigh;
-            prev_x = weight_sum_x / weight_tot;
-            prev_y = weight_sum_y / weight_tot;
+            prev_x = sum_x / shifts[i].num_neigh;
+            prev_y = sum_y / shifts[i].num_neigh;
+            //prev_x = weight_sum_x / weight_tot;
+            //prev_y = weight_sum_y / weight_tot;
         }
         return {prev_x, prev_y};
     }
