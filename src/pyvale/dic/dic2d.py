@@ -38,22 +38,21 @@ def DIC2D(reference: np.ndarray | str,
           output_basepath: str="./",
           output_binary: bool=False,
           output_prefix: str="results",
-          output_delimiter: str=" ") -> DICResults:
+          output_delimiter: str=" "):
 
-    # do var checks in python land
+    # do checks on vars in python land
     ref_arr, def_arr, filenames = check_and_get_images(reference,deformed,roi_mask)
     check_correlation_criteria(correlation_criteria)
     check_interpolation(interpolation_routine)
     check_scanning_method(scanning_method)
     check_thresholds(threshold_levenberg, threshold_levenberg, precision)
-    check_output_directory(output_basepath, output_prefix, output_delimiter)
-    check_subsets(subset_size, subset_step, scanning_method)
+    check_output_directory(output_basepath, output_prefix)
+    check_subsets(subset_size, subset_step)
     updated_seed = check_and_update_rg_seed(rg_seed, roi_mask, scanning_method, ref_arr.shape[1], ref_arr.shape[0], subset_step)
-
     num_params = check_shape_function(shape_function)
 
 
-    # Assign values to config struct
+    # Assign values to config struct for c++ land
     config = dic2dcpp.Config()
     config.ss_step = subset_step
     config.ss_size = subset_size
@@ -73,6 +72,7 @@ def DIC2D(reference: np.ndarray | str,
     config.rg_seed = updated_seed
     config.filenames = filenames
 
+    # assigning c++ struct vals for save config
     saveconf = dic2dcpp.SaveConfig()
     saveconf.basepath = output_basepath
     saveconf.binary = output_binary
@@ -80,15 +80,35 @@ def DIC2D(reference: np.ndarray | str,
     saveconf.delimiter = output_delimiter
     saveconf.at_end = output_at_end
 
+    # calling the c++ dic engine
     dic2dcpp.dic_engine(ref_arr, def_arr, roi_mask, config, saveconf)
 
 
 
 
 def check_output_directory(output_basepath: str,
-                           output_prefix: str,
-                           output_delimiter: str) -> None:
+                           output_prefix: str) -> None:
+    """
+    Check for existing output files in a directory and prompt user confirmation before overwriting.
 
+    This function verifies whether the specified output directory exists and checks for any existing
+    files that match a given prefix and have `.dat` or `.bin` extensions. If such files are found,
+    a list is displayed and the user is prompted to confirm whether to continue. If the user declines,
+    the program exits to prevent data loss.
+
+    Parameters
+    ----------
+    output_basepath : str
+        Path to the output directory where files are or will be saved.
+    output_prefix : str
+        Filename prefix used to identify potential conflicting output files.
+
+    Raises
+    ------
+    SystemExit
+        If the output directory does not exist or the user chooses not to proceed after
+        being warned about existing files.
+    """
 
     # check if there's output files
     try:
@@ -101,8 +121,7 @@ def check_output_directory(output_basepath: str,
     # Check for any matching files
     conflicting_files = [
         f for f in files 
-        if f.startswith(output_prefix) and (f.endswith(".dat") or
-                                            f.endswith(".bin"))]
+        if f.startswith(output_prefix) and (f.endswith(".dat") or f.endswith(".bin"))]
 
     if conflicting_files:
         conflicting_files.sort()
@@ -118,27 +137,24 @@ def check_output_directory(output_basepath: str,
             exit(0)
 
 
-
-def DIC2Dgpu() -> None:
-    """
-    Executes the c++ 2D DIC routine on GPU architecture.
-    """
-
-    print("This is a work in progress...")
-
-    return None
-
-
-def DICbuildinfo() -> None:
-    """
-    Prints the C++ build information.
-    """
-    dic2dcpp.build_info()
-
-
-
-
 def check_correlation_criteria(correlation_criteria: str) -> None:
+    """
+    Validate that the correlation criteria is one of the allowed values.
+
+    Checks whether input `correlation_criteria` is among the
+    accepted options: "SSD", "NSSD", or "ZNSSD". If not, raises a `ValueError`.
+
+    Parameters
+    ----------
+    correlation_criteria : str
+        The correlation type. Must be one of: "SSD", "NSSD", or "ZNSSD".
+
+    Raises
+    ------
+    ValueError
+        If `correlation_criteria` is not one of the allowed values.
+    """
+
     allowed_values = {"SSD", "NSSD", "ZNSSD"}
 
     if correlation_criteria not in allowed_values:
@@ -149,6 +165,30 @@ def check_correlation_criteria(correlation_criteria: str) -> None:
 
 
 def check_shape_function(shape_function: str) -> int:
+    """
+    Validate the shape function type and return the corresponding number of parameters.
+
+    Checks whether input `shape_function` is one of the allowed
+    values ("RIGID" or "AFFINE"). If valid, it returns the number of transformation
+    parameters associated with that shape function.
+
+    Parameters
+    ----------
+    shape_function : str
+        The shape function type. Must be either "RIGID" or "AFFINE".
+
+    Returns
+    -------
+    int
+        The number of parameters for the specified shape function:
+        - 2 for "RIGID"
+        - 6 for "AFFINE"
+
+    Raises
+    ------
+    ValueError
+        If `shape_function` is not one of the allowed values.
+    """
 
     if (shape_function=="RIGID"):
         num_params = 2
@@ -163,6 +203,25 @@ def check_shape_function(shape_function: str) -> int:
 
 
 def check_interpolation(interpolation_routine: str) -> None:
+    """
+    Validate that the interpolation routine is one of the allowed methods.
+
+    Checks whether interpolation_routine is a supported
+    interpolation method. Allowed values are "BILINEAR" and "BICUBIC". If the input
+    is not one of these, a `ValueError` is raised.
+
+    Parameters
+    ----------
+    interpolation_routine : str
+        The interpolation method to validate. Must be either "BILINEAR" or "BICUBIC".
+
+    Raises
+    ------
+    ValueError
+        If `interpolation_routine` is not a supported value.
+
+    """
+
     allowed_values = {"BILINEAR", "BICUBIC"}
 
     if interpolation_routine not in allowed_values:
@@ -173,7 +232,25 @@ def check_interpolation(interpolation_routine: str) -> None:
 
 
 def check_scanning_method(scanning_method: str) -> None:
-    allowed_values = {"IMAGE_SCAN", "IMAGE_SCAN_WITH_BF", "RG", "FFT", "FFT_test"}
+    """
+    Validate that the scan type  one of the allowed methods.
+
+    Allowed values are "RG", "IMAGE_SCAN", "FFT", "IMAGE_SCAN_WITH_BF", "FFT_test". If `scanning_method`
+    is not one of these, a `ValueError` is raised.
+
+    Parameters
+    ----------
+    interpolation_routine : str
+        The interpolation method to validate. Must be either "BILINEAR" or "BICUBIC".
+
+    Raises
+    ------
+    ValueError
+        If `interpolation_routine` is not a supported value.
+
+    """
+
+    allowed_values = {"RG", "IMAGE_SCAN", "FFT", "IMAGE_SCAN_WITH_BF", "FFT_test"}
 
     if scanning_method not in allowed_values:
         raise ValueError(f"Invalid scanning_method: {scanning_method}. "
@@ -184,7 +261,25 @@ def check_scanning_method(scanning_method: str) -> None:
 def check_thresholds(threshold_levenberg: float, 
                      threshold_bruteforce: float, 
                      precision: float) -> None:
-    
+    """
+    Ensures that `threshold_levenberg`, `threshold_bruteforce`, and `precision`
+    are all floats strictly between 0 and 1. Raises a `ValueError` if any condition fails.
+
+    Parameters
+    ----------
+    threshold_levenberg : float
+        Threshold for the Levenberg optimization method.
+    threshold_bruteforce : float
+        Threshold for the brute-force optimization method.
+    precision : float
+        Desired precision for the optimizer.
+
+    Raises
+    ------
+    ValueError
+        If any input value is not a float strictly between 0 and 1.
+    """
+
     if not (0 < threshold_levenberg < 1):
         raise ValueError("threshold_levenberg must be a float "
                          "strictly between 0 and 1.")
@@ -194,18 +289,73 @@ def check_thresholds(threshold_levenberg: float,
                          "strictly between 0 and 1.")
     
     if not (0 < precision < 1):
-        raise ValueError("precision must be a float strictly "
+        raise ValueError("Optimizer precision must be a float strictly "
                          "between 0 and 1.")
 
-def check_subsets(subset_size, subset_step, scanning_method: str) -> None:
+def check_subsets(subset_size: int, subset_step: int) -> None:
+    """
+
+    Parameters
+    ----------
+    subset_size : int
+        Threshold for the Levenberg optimization method.
+    subset_step : int
+        Threshold for the brute-force optimization method.
+
+    Raises
+    ------
+    ValueError
+        If any input value is not a float strictly between 0 and 1.
+    """
+
 
     # Enforce scalar types for non-FFT methods
     if subset_size % 2 == 0:
         raise ValueError("subset_size must be an odd number.")
 
+    # check if subset_step is larger than the subset_size
+    if subset_step > subset_size:
+        raise ValueError("subset_step is larger than the subset_size.")
+
 
 
 def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_step: int) -> list[int]:
+    """
+    Validate and update the region-growing seed location to align with image bounds and subset spacing.
+
+    This function checks the format and bounds of the seed coordinates used for a region-growing (RG)
+    scanning method. It adjusts the seed to the nearest valid grid point based on the subset step size,
+    clamps it to the image dimensions, and ensures it lies within the region of interest (ROI) mask.
+
+    If the scanning method is not "RG", the function returns a default seed of [0, 0]. 
+    This seed is not used any other scan method methods.
+
+    Parameters
+    ----------
+    seed : list of int
+        The initial seed coordinates as a list of two integers: [x, y].
+    roi_mask : np.ndarray
+        A 2D binary mask (same size as the image) indicating the region of interest.
+    scanning_method : str
+        The scanning method to be used. Only "RG" triggers validation and adjustment logic.
+    px_hori : int
+        Width of the image in pixels.
+    px_vert : int
+        Height of the image in pixels.
+    subset_step : int
+        Step size used for subset spacing; seed is aligned to this grid.
+
+    Returns
+    -------
+    list of int
+        The adjusted seed coordinates [x, y] aligned to the subset grid and within bounds.
+
+    Raises
+    ------
+    ValueError
+        If the seed is improperly formatted, out of image bounds, or not a list of two integers.
+    """
+
     if scanning_method != "RG":
         return [0,0]
 
@@ -227,8 +377,6 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
     new_x = min(max(new_x, 0), px_hori - 1)
     new_y = min(max(new_y, 0), px_vert - 1)
 
-
-
     if (new_x, new_y) != (x, y):
         print(f"Seed adjusted from ({x}, {y}) to ({new_x}, {new_y}) to align with subset step of {subset_step}.")
     
@@ -240,41 +388,85 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
 
 
 def check_and_get_images(reference: Union[np.ndarray, str],
-                 deformed: Union[np.ndarray, str],
-                 roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, list[str]]:
+                         deformed: Union[np.ndarray, str],
+                         roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, list[str]]:
+    """
+    Load and validate reference and deformed images, checks consistency in shape/format.
 
-    # Check type consistency
+    This function accepts either:
+    - A file path to a reference image and a glob pattern for a sequence of deformed image files, or
+    - Numpy arrays for both reference and deformed images.
+
+    It ensures:
+    - The reference and deformed images are the same type (both paths or both arrays).
+    - The reference image exists and is readable (if passed as a path).
+    - All deformed images exist and match the reference image shape.
+    - If images are RGB or multi-channel, only the first channel is used.
+    - The `roi` (region of interest) has the same shape as the reference image (when arrays are used directly).
+
+    Parameters
+    ----------
+    reference : Union[np.ndarray, str]
+        Either a NumPy array representing the reference image, or a file path to a reference image.
+    deformed : Union[np.ndarray, str]
+        Either a NumPy array representing a sequence of deformed images (shape: [N, H, W]),
+        or a glob pattern string pointing to multiple image files.
+    roi : np.ndarray
+        A 2D NumPy array defining the region of interest. Must match the reference image shape
+        if `reference` is an array.
+
+    Returns
+    -------
+    ref_arr : np.ndarray
+        The reference image as a 2D NumPy array.
+    def_arr : np.ndarray
+        A 3D NumPy array containing all deformed images with shape (N, H, W).
+    filenames : list of str
+        List of base filenames of deformed images (empty if deformed images were passed as arrays).
+
+    Raises
+    ------
+    ValueError
+        If there is a type mismatch between `reference` and `deformed`,
+        if image files are not found or unreadable,
+        or if image shapes do not match.
+    FileNotFoundError
+        If no files are found matching the deformed image pattern.
+    """
+
+    filenames = []
+
+    # check matching filetypes 
     if type(reference) is not type(deformed):
         raise ValueError(
             f"Mismatch in file types: reference={type(reference)}, "
             f"deformed={type(deformed)}")
 
 
-    # if the deformed images is a string, not a numpy array
+    # if the reference is a string rather than a numpy array
     if isinstance(reference, str):
+        assert isinstance(deformed, str)
 
-        # check if user specified reference image exists
+        # check reference image exists 
         if not os.path.isfile(reference):
             raise ValueError(f"Reference image does not exist: {reference}")
         print("Using reference image: ")
-        print(f"  - {reference}")
-        print("")
+        print(f"  - {reference}\n")
 
-        # open reference image and get dimensions
+        # get shape. check channels
         ref_arr = np.array(Image.open(reference))
         print(f"Reference image shape: {ref_arr.shape}")
-        if ref_arr.ndim==3:
+        if ref_arr.ndim == 3:
             print(f"Reference image appears to have {ref_arr.shape[2]} channels. Using channel 0.")
-            ref_arr = ref_arr[:,:,0]
+            ref_arr = ref_arr[:, :, 0]
         print("")
 
-        # check if the deformed images exist
+        # deformed files
         files = sorted(glob.glob(deformed))
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
-        # sort the deformed images. append filenames to a list to copy to c++
-        filenames=[]
+        # can't find any deformed files
         print(f"Found {len(files)} deformation images:")
         for file in files:
             print(f"  - {file}")
@@ -285,171 +477,24 @@ def check_and_get_images(reference: Union[np.ndarray, str],
 
         for i, file in enumerate(files):
             img = np.array(Image.open(file))
-
-            if img.ndim==3:
+            if img.ndim == 3:
                 print(f"Deformed image {file} appears to have {img.shape[2]} channels. Using channel 0.")
-                img = img[:,:,0]
+                img = img[:, :, 0]
 
+            # check deformed image shape matches reference
             if img.shape != ref_arr.shape:
-                raise ValueError(f"Shape mismatch: '{file}' has shape {img.shape}" , f"expected {ref_arr.shape}")
+                raise ValueError(f"Shape mismatch: '{file}' has shape {img.shape}", f"expected {ref_arr.shape}")
 
             def_arr[i] = img
 
     else:
+        assert isinstance(reference, np.ndarray)
+        assert isinstance(deformed, np.ndarray)
+        ref_arr = reference
+        def_arr = deformed
+
         if (reference.shape != deformed[0].shape or reference.shape != roi.shape):
-            raise ValueError(f"Shape mismatch: reference {reference.shape}, "f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
-
-
+            raise ValueError(f"Shape mismatch: reference {reference.shape}, "
+                             f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
 
     return ref_arr, def_arr, filenames
-
-def DICdata_import(layout: str="column", 
-                   data: str="./", 
-                   binary: bool=False,
-                   delimiter: str=" ") -> DICResults:
-
-    # firstly check whether layout has been spcified as column or matrix data
-    allowed_formats = {"column", "matrix"}
-    if layout not in allowed_formats:
-        raise ValueError(f"Invalid scanning_method: {layout}. "
-                         f"Allowed values are: {', '.join(allowed_formats)}")
-
-
-
-    # get the files
-    files = sorted(glob.glob(data))
-    if not files:
-        raise FileNotFoundError(f"No results found in: {data}")
-
-    ss_x_arr, ss_y_arr = None, None
-    u_list, v_list, m_list, cost_list  = [],[],[],[]
-    ftol_list, xtol_list, niter_list = [],[],[]
-
-    for i,file in enumerate(files):
-
-        if binary:
-
-            # row size in bytes
-            row_size = (3*4 + 6*8)
-            ss_x_tmp, ss_y_tmp = [],[]
-            u_tmp, v_tmp, m_tmp, cost_tmp = [],[],[],[]
-            ftol_tmp, xtol_tmp, niter_tmp = [],[],[]
-
-            with open(file, "rb") as f:
-
-                while True:
-
-                    row = f.read(row_size)
-
-                    # check the length of the line is what it should be
-                    if not row:
-                        break
-                    if len(row) != row_size:
-                        raise ValueError("Incomplete row in binary file.")
-                    
-                    ss_x  = np.frombuffer(row[0:4], dtype=np.int32)[0]
-                    ss_y  = np.frombuffer(row[4:8], dtype=np.int32)[0]
-                    u     = np.frombuffer(row[8:16], dtype=np.float64)[0]
-                    v     = np.frombuffer(row[16:24], dtype=np.float64)[0]
-                    m     = np.frombuffer(row[24:32], dtype=np.float64)[0]
-                    cost  = np.frombuffer(row[32:40], dtype=np.float64)[0]
-                    ftol  = np.frombuffer(row[40:48], dtype=np.float64)[0]
-                    xtol  = np.frombuffer(row[48:56], dtype=np.float64)[0]
-                    niter = np.frombuffer(row[56:60], dtype=np.int32)[0]
-
-                    # Combine coords, u, and v into one row
-                    ss_x_tmp.append(ss_x)
-                    ss_y_tmp.append(ss_y)
-                    u_tmp.append(u)
-                    v_tmp.append(v)
-                    m_tmp.append(m)
-                    cost_tmp.append(cost)
-                    ftol_tmp.append(ftol)
-                    xtol_tmp.append(xtol)
-                    niter_tmp.append(niter)
-
-            if i == 0:
-                ss_x_arr = np.array(ss_x_tmp, dtype=np.int32)
-                ss_y_arr = np.array(ss_y_tmp, dtype=np.int32)
-            else:
-                assert np.array_equal(ss_x_arr, ss_x_tmp)
-                assert np.array_equal(ss_y_arr, ss_y_tmp)
-
-            u_list.append(u_tmp)
-            v_list.append(v_tmp)
-            m_list.append(m_tmp)
-            cost_list.append(cost_tmp)
-            ftol_list.append(ftol_tmp)
-            xtol_list.append(xtol_tmp)
-            niter_list.append(niter_tmp)
-
-        else:
-            data = np.loadtxt(file, delimiter=delimiter)
-            if data.shape[1] < 8:
-                raise ValueError("Text data must have at least 8 columns.")
-
-            ss_x = data[:, 0].astype(np.int32)
-            ss_y = data[:, 1].astype(np.int32)
-            u    = data[:, 2]
-            v    = data[:, 3]
-            m    = data[:, 4]
-            cost = data[:, 5]
-            ftol = data[:, 6]
-            xtol = data[:, 7]
-            niter = data[:, 8].astype(np.int32)
-
-            if i == 0:
-                ss_x_arr = ss_x
-                ss_y_arr = ss_y
-            else:
-                assert np.array_equal(ss_x_arr, ss_x)
-                assert np.array_equal(ss_y_arr, ss_y)
-
-            u_list.append(u)
-            v_list.append(v)
-            m_list.append(m)
-            cost_list.append(cost)
-            ftol_list.append(ftol)
-            xtol_list.append(xtol)
-            niter_list.append(niter)
-
-    # Convert lists to arrays
-    u_arr     = np.array(u_list)
-    v_arr     = np.array(v_list)
-    m_arr  = np.array(m_list)
-    cost_arr  = np.array(cost_list)
-    ftol_arr  = np.array(ftol_list)
-    xtol_arr  = np.array(xtol_list)
-    niter_arr = np.array(niter_list)
-
-    if layout == "matrix":
-        x_unique = np.unique(ss_x_arr)
-        y_unique = np.unique(ss_y_arr)
-        X, Y = np.meshgrid(x_unique, y_unique)
-
-        # Determine mesh shape
-        rows, cols = Y.shape
-        n_frames = u_arr.shape[0]
-
-        def map_to_grid(flat_values):
-            grid = np.full((n_frames, rows, cols), np.nan, dtype=np.float64)
-            for i in range(len(ss_x_arr)):
-                x_idx = np.where(x_unique == ss_x_arr[i])[0][0]
-                y_idx = np.where(y_unique == ss_y_arr[i])[0][0]
-                grid[:, y_idx, x_idx] = flat_values[:, i]
-            return grid
-
-        u_arr     = map_to_grid(u_arr)
-        v_arr     = map_to_grid(v_arr)
-        m_arr     = map_to_grid(m_arr)
-        cost_arr  = map_to_grid(cost_arr)
-        ftol_arr  = map_to_grid(ftol_arr)
-        xtol_arr  = map_to_grid(xtol_arr)
-        niter_arr = map_to_grid(niter_arr)
-
-        return DICResults(X, Y, u_arr, v_arr, m_arr, 
-                          cost_arr, ftol_arr, xtol_arr, niter_arr)
-    else:
-        return DICResults(ss_x_arr, ss_y_arr, u_arr, v_arr, 
-                          m_arr, cost_arr, ftol_arr, xtol_arr, niter_arr)
-

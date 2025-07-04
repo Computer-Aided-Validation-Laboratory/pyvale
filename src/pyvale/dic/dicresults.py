@@ -10,6 +10,39 @@ import numpy as np
 
 @dataclass(slots=True)
 class DICResults:
+    """
+    Data container for Digital Image Correlation (DIC) analysis results.
+
+    This class stores the displacement, convergence, and correlation data
+    associated with a DIC computation over a region of interest or structured grid.
+
+    Attributes
+    ----------
+    ss_x : np.ndarray
+        The x-coordinates of the subset centers (in pixels).
+    ss_y : np.ndarray
+        The y-coordinates of the subset centers (in pixels).
+    u : np.ndarray
+        Horizontal displacements at each subset location.
+    v : np.ndarray
+        Vertical displacements at each subset location.
+    mag : np.ndarray
+        Displacement magnitude at each subset location, typically computed as sqrt(u^2 + v^2).
+    cost : np.ndarray
+        Final cost or residual value from the correlation optimization (e.g., ZNSSD).
+    ftol : np.ndarray
+        Final `ftol` value from the optimization routine, indicating function tolerance.
+    xtol : np.ndarray
+        Final `xtol` value from the optimization routine, indicating solution tolerance.
+    niter : np.ndarray
+        Number of iterations taken to converge for each subset point.
+
+    Notes
+    -----
+    All arrays are expected to be of the same shape, typically corresponding to a flattened
+    or reshaped grid of subset locations analyzed during the DIC process.
+    """
+
     ss_x: np.ndarray
     ss_y: np.ndarray
     u: np.ndarray

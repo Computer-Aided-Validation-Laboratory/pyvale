@@ -8,6 +8,7 @@
 #define DICSTRAIN_H
 
 // STD library Header files
+#include "dicutil.hpp"
 #include <vector>
 #include <Eigen/Dense>
 
@@ -32,15 +33,39 @@ namespace strain {
         std::vector<int> y;
         std::vector<double> u;
         std::vector<double> v;
-    };
-    
 
-    void engine(const py::array_t<int> ss_x_arr,
-                const py::array_t<int> ss_y_arr,
-                const py::array_t<double> u_arr,
-                const py::array_t<double> v_arr,
+        Window(int sw_size) 
+            : x(sw_size * sw_size, 0.0),
+              y(sw_size * sw_size, 0.0),
+              u(sw_size * sw_size, 0.0),
+              v(sw_size * sw_size, 0.0)
+        {}
+    };
+
+
+    struct Results {
+        std::vector<int> x;
+        std::vector<int> y;
+        std::vector<double> def_grad;
+        std::vector<double> strain;
+
+        Results(int sw_size) 
+            : x(sw_size*sw_size, 0.0),
+              y(sw_size*sw_size, 0.0),
+              def_grad(sw_size*sw_size, 0.0),
+              strain(sw_size*sw_size, 0.0)
+        {}
+    };
+
+
+
+    void engine(const py::array_t<int> &ss_x_arr,
+                const py::array_t<int> &ss_y_arr,
+                const py::array_t<double> &u_arr,
+                const py::array_t<double> &v_arr,
                 int nss_x, int nss_y, int nimg,
-                int sw_size, int q, std::string &form);
+                int sw_size, int q, std::string &form,
+                util::SaveConfig &strain_save_conf);
 
     /**
      * @brief Fills the strain window with the subset coordinates 
@@ -62,7 +87,15 @@ namespace strain {
     bool fill_window(int *ss_x, int *ss_y, double *u, double *v,
                             int img, int sw, Window &window,
                             int nss_x, int nss_y, int sw_size);
-        
+
+
+
+    Eigen::Matrix2d compute_deformation_gradient(const int q, const Eigen::VectorXd &uc, const Eigen::VectorXd& vc, const double x0, const double y0);
+
+
+    Eigen::Matrix2d compute_strain(const std::string& form, const Eigen::Matrix2d& deform_grad);
+
+
     // strain formulations
     /**
      * @brief Calculates Green strain for a given deformation gradient F and identity matrix I.

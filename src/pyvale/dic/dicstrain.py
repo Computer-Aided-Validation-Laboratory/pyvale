@@ -8,53 +8,95 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pyvale.dic import dic2dcpp
-from pyvale.dic.dic2d import DICdata_import
+from pyvale.dic.dicdataimport import DICdata_import
 from pyvale.dic.dicresults import DICResults
 
 def DICstrain(dic_data: DICResults | str,
                          window_size: int=5, 
-                         window_element: int=4, 
+                         window_element: int=4,
+                         input_binary: bool=False,
+                         output_def_grad: bool=True,
+                         output_strain: bool=True,
+                         output_basepath: str="./",
+                         output_binary: bool=False,
+                         output_prefix: str="strain",
+                         output_delimiter: str=" ",
+                         output_at_end: bool=False,
                          strain_formulation: str="HENCKY",
                          binary: bool=False,
                          delimiter: str=" "):
+    """
+    Compute strain fields from DIC displacement data using a finite element smoothing approach.
 
+    This function validates the input data and parameters, optionally loads DIC results from file,
+    and passes the data to a C++-accelerated backend for strain computation.
 
-    # Check the strain formulation is in the allowed list
-    allowed_formulations = ["GREEN", "ALMANSI", "HENCKY", 
-                            "BIOT_EULER", "BIOT_LAGRANGE"]
-    
+    Parameters
+    ----------
+    dic_data : DICResults or str
+        A `DICResults` instance containing displacement and subset coordinates,
+        OR a path to files from which the data should be imported.
+    window_size : int, optional
+        The size of the local window over which to compute strain (must be odd), by default 5.
+    window_element : int, optional
+        The type of finite element shape function used in the strain window: 4 (bilinear) or 9 (biquadratic),
+        by default 4.
+    strain_formulation : str, optional
+        The strain definition to use: one of 'GREEN', 'ALMANSI', 'HENCKY', 'BIOT_EULER', 'BIOT_LAGRANGE'.
+        Defaults to 'HENCKY'.
+    binary : bool, optional
+        Whether the input file is in binary format. Only relevant if `dic_data` is a file path.
+    delimiter : str, optional
+        The delimiter used in the input file if it's in text format, by default " ".
+
+    Raises
+    ------
+    ValueError
+        If any of the input parameters are invalid (e.g., unsupported strain formulation,
+        even window size, or invalid element type).
+    """
+
+    allowed_formulations = ["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"]
     if strain_formulation not in allowed_formulations:
-        raise ValueError(f"Invalid strain formulation: "
-                         f"'{strain_formulation}'. Allowed values are: "
-                         f"{', '.join(allowed_formulations)}.")
+        raise ValueError(f"Invalid strain formulation: '{strain_formulation}'. "
+                         f"Allowed values are: {', '.join(allowed_formulations)}.")
 
-    # check the strain window element is one of the allowed values
-    allowed_element = [4, 9]
-    if window_element not in allowed_element:
-        raise ValueError(f"Invalid strain window element type: "
-                         f"Q{window_element}. Allowed values are: "
-                         f"{', '.join(map(str, allowed_element))}.")
+    allowed_elements = [4, 9]
+    if window_element not in allowed_elements:
+        raise ValueError(f"Invalid strain window element type: Q{window_element}. "
+                         f"Allowed values are: {', '.join(map(str, allowed_elements))}.")
 
-    # chceck the window size is an odd number
     if window_size % 2 == 0:
-        raise ValueError(f"Invalid strain window size: '{window_size}'. "
-                         f"Must be an odd number.")
+        raise ValueError(f"Invalid strain window size: '{window_size}'. Must be an odd number.")
 
-
-    if type(dic_data) is str:
+    # Load data if a file path is given
+    if isinstance(dic_data, str):
         results = DICdata_import(layout="matrix", data=dic_data,
                                  binary=binary, delimiter=delimiter)
-    else:
+    elif isinstance(dic_data, DICResults):
         results = dic_data
+    else:
+        raise TypeError("dic_data must be either a DICResults instance or a file path string.")
 
+    # Extract dimensions from the validated object
     nss_x = results.ss_x.shape[1]
     nss_y = results.ss_y.shape[0]
     nimg = results.u.shape[0]
 
-    dic2dcpp.strain_engine(results.ss_x,results.ss_y,
-                           results.u,results.v,
+
+    # assigning c++ struct vals for save config
+    strainsaveconf = dic2dcpp.SaveConfig()
+    strainsaveconf.basepath = output_basepath
+    strainsaveconf.binary = output_binary
+    strainsaveconf.prefix = output_prefix
+    strainsaveconf.delimiter = output_delimiter
+    strainsaveconf.at_end = output_at_end
+
+    # Call to C++ backend
+    dic2dcpp.strain_engine(results.ss_x, results.ss_y,
+                           results.u, results.v,
                            nss_x, nss_y, nimg,
-                           window_size, window_element, strain_formulation)
+                           window_size, window_element, strain_formulation, strain_save_conf)
 
 
 

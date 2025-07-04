@@ -21,6 +21,7 @@
 #include "./dicutil.hpp"
 #include "./dicrg.hpp"
 #include "./indicators.hpp"
+#include "./cursor_control.hpp"
 #include "./dicfourier.hpp"
 
 namespace scanmethod {
@@ -96,7 +97,6 @@ namespace scanmethod {
             #pragma omp for
             for (int ss = 0; ss < num_ss; ss++){
 
-                //util::Timer timer("subset");
                 // exit the main DIC loop when ctrl+C is hit
                 if (stop_request){
                     continue;
@@ -128,6 +128,8 @@ namespace scanmethod {
             }
         }
         bar.mark_as_completed();
+        indicators::show_console_cursor(true);
+
     }
 
 
@@ -222,6 +224,7 @@ namespace scanmethod {
 
         }
         bar.mark_as_completed();
+        indicators::show_console_cursor(true);
     }
 
 
@@ -465,6 +468,8 @@ namespace scanmethod {
             }
         }
         bar.mark_as_completed();
+        indicators::show_console_cursor(true);
+
     }
 
 
@@ -541,6 +546,7 @@ namespace scanmethod {
             }
         }
         bar.mark_as_completed();
+        indicators::show_console_cursor(true);
     }
 
 
@@ -614,6 +620,7 @@ namespace scanmethod {
             }
         }
         bar.mark_as_completed();
+        indicators::show_console_cursor(true);
     }
 
 }

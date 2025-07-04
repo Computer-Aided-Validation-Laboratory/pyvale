@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
-
+import math
 
 class DICRegionOfInterest:
     """
@@ -20,7 +20,9 @@ class DICRegionOfInterest:
     - Interactively select rectangular, circular, or polygonal regions on the image.
     - Add or subtract selected regions from the mask.
     - Undo and reset the mask changes.
-    - Display/save the image with ROI overlayed
+    - read in previously created ROIs 
+    - save created ROI as text or binary file.
+    - Display/save the ROI overlayed over the reference.
     - Programatically select a rectangular ROI for consistency.
     
     Public attributes:
@@ -30,10 +32,10 @@ class DICRegionOfInterest:
     def __init__(self, image):
         """
         Initializes the DICRegionOfInterest class with an image.
-        
+
         Args:
             image (str or np.ndarray): Can be a path to an image file or an image array.
-            
+
         Raises:
             ValueError: If the image cannot be loaded or is invalid.
         """
@@ -49,6 +51,7 @@ class DICRegionOfInterest:
         self.mask = np.zeros(self.image.shape[:2], dtype=bool)
         self.__roi_selected = False
 
+        self.drawing_seed = False
         self.drawing_poly = False
         self.drawing_rect = False
         self.drawing_circle = False
@@ -56,7 +59,7 @@ class DICRegionOfInterest:
         self.removing_rect = False
         self.removing_circle = False
 
-    def interactive_selection(self):
+    def interactive_selection(self, subset_size):
         """
         Interactive GUI to select a region of interest (ROI) in the image using openCV.
 
@@ -75,6 +78,7 @@ class DICRegionOfInterest:
 
         # Sidebar
         sidebar = QtWidgets.QVBoxLayout()
+        btn_add_seed = QtWidgets.QPushButton("Add Starting Seed Location")
         btn_add_rect = QtWidgets.QPushButton("Add Rectangle")
         btn_add_circle = QtWidgets.QPushButton("Add Circle")
         btn_add_poly = QtWidgets.QPushButton("Add Polygon")
@@ -84,7 +88,7 @@ class DICRegionOfInterest:
         btn_undo_prev = QtWidgets.QPushButton("Undo Shape")
         btn_redo_prev = QtWidgets.QPushButton("Redo Shape")
 
-        for btn in [btn_add_rect, btn_add_circle, btn_add_poly, btn_sub_rect, btn_sub_circle, btn_sub_poly, btn_undo_prev, btn_redo_prev]:
+        for btn in [btn_add_seed, btn_add_rect, btn_add_circle, btn_add_poly, btn_sub_rect, btn_sub_circle, btn_sub_poly, btn_undo_prev, btn_redo_prev]:
             sidebar.addWidget(btn)
 
         sidebar.addStretch()
@@ -210,7 +214,18 @@ class DICRegionOfInterest:
         main_view.addItem(add_line)
         main_view.addItem(sub_line)
 
-        # FIXED: Removed 'self' parameter from nested function definitions
+        def start_drawing_seed():
+            self.drawing_seed = True
+            main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
+            print("Click to add seed location...")
+
+        def finish_drawing_seed():
+            if not self.drawing_seed:
+                return
+            main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            clear_redo_stack()  # Clear redo stack when adding new shape
+            self.drawing_seed = False
+
         def start_drawing_rect():
             self.drawing_rect = True
             main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
@@ -357,7 +372,6 @@ class DICRegionOfInterest:
                     finish_removing_poly()
 
             elif self.drawing_rect:
-                print(self.drawing_rect)
                 main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
                 if event.button() == QtCore.Qt.MouseButton.LeftButton:
                     pos = event.scenePos()
@@ -378,6 +392,24 @@ class DICRegionOfInterest:
                     redraw_fill_layer()
                     print("rect added.")
                     finish_drawing_rect()
+
+            elif self.drawing_seed:
+                main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
+                if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                    pos = event.scenePos()
+                    start_point = main_view.mapSceneToView(pos)
+                    seedpen=pg.mkPen('y', width=1)
+                    seedhoverpen=pg.mkPen('b', width=1)
+                    x = math.floor(start_point.x()-subset_size/2)
+                    y = math.floor(start_point.y()-subset_size/2)
+                    roi = pg.RectROI([x,y], [subset_size, subset_size], pen=seedpen, hoverPen=seedhoverpen, handlePen=seedpen, handleHoverPen=seedhoverpen)
+                    handles = roi.getHandles()
+                    for handle in handles:
+                        roi.removeHandle(handle)
+                    roi.addTranslateHandle([0.5,0.5])
+                    main_view.addItem(roi)
+                    print("seed added at location: [", x, ", ", y, "]")
+                    finish_drawing_seed()
 
             elif self.removing_rect:
                 main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
@@ -444,7 +476,8 @@ class DICRegionOfInterest:
                     finish_removing_circle()
 
         main_view.scene().sigMouseClicked.connect(mouse_clicked)
-
+        
+        btn_add_seed.clicked.connect(start_drawing_seed)
         btn_add_rect.clicked.connect(start_drawing_rect)
         btn_add_circle.clicked.connect(start_drawing_circle)
         btn_add_poly.clicked.connect(start_drawing_polygon)
@@ -461,17 +494,22 @@ class DICRegionOfInterest:
 
 
     def reset_mask(self, image_shape: np.ndarray) -> np.ndarray:
+        """
+        Completely resets the roi mask to 0s.
+        """
         return np.zeros(image_shape[:2], dtype=bool)
 
     def rect_boundary(self, left: int, right: int, top: int, bottom: int) -> None:
         """
-        Defines a rectangular region of interest (ROI) by setting a rectangular mask.
+        Defines a central rectangular region of interest (ROI) excluding
+        surrounding pixels defined by input arguments"
         
-        Args:
-            left (int): Left coordinate of the rectangle.
-            right (int): Right coordinate of the rectangle.
-            top (int): Top coordinate of the rectangle.
-            bottom (int): Bottom coordinate of the rectangle.
+        Parameters
+        ----------
+            left (int): Number of px to exclude from left edge.
+            right (int): Number of px to exclude from the right edge.
+            top (int): Number of px to exclude from the top edge.
+            bottom (int): Number of px to exclude from the bottom edge.
         """
         self.mask = self.reset_mask(self.image.shape)
         self.mask[bottom:(self.image.shape[0]-top), left:(self.image.shape[1])-right] = 255
@@ -491,10 +529,10 @@ class DICRegionOfInterest:
     def imsave(self, filename: str="./roi.tiff") -> None:
         """
         Saves the image with the mask overlayed.
-        
+
         Args:
             filename (str): The path where the result image will be saved.
-        
+
         Raises:
             ValueError: If no ROI is selected.
         """
@@ -526,14 +564,21 @@ class DICRegionOfInterest:
 
     def roiread(self, filename: str = "./roi.tiff", binary: bool = True) -> None:
         """
-        Loads the ROI mask from a binary or text file and stores it in self.mask.
+        Load the ROI mask from a binary or text file and store it in `self.mask`.
 
-        Args:
-            filename (str): The path of the file to load.
-            binary (bool): If True, loads from a .npy binary file. If False, loads from a text file.
-        Raises:
-            FileNotFoundError: If the specified file does not exist.
-            ValueError: If the loaded data is not a valid mask.
+        Parameters
+        ----------
+        filename : str
+            Path to the file to load.
+        binary : bool
+            If True, loads from a .npy binary file. If False, loads from a text file.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the specified file does not exist.
+        ValueError
+            If the loaded data is not a valid mask.
         """
         import os
         import numpy as np
@@ -556,10 +601,12 @@ class DICRegionOfInterest:
     def imshow(self) -> None:
         """
         Displays the current mask in grayscale.
-        
-        Raises:
+
+        Raises
+        ------
             ValueError: If no ROI is selected.
         """
+
         if not self.__roi_selected:
             raise ValueError("No ROI selected with \'interactive_selection\' or \'rect_boundary\' ")
         plt.imshow((self.mask.astype(np.uint8)) * 255, cmap='gray')

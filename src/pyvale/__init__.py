@@ -93,6 +93,7 @@ from pyvale.dic.dicspecklegenerator import *
 from pyvale.dic.dicspecklequality import *
 from pyvale.dic.dicspeckleroi import *
 from pyvale.dic.dic2d import *
+from pyvale.dic.dicdataimport import *
 from pyvale.dic.dicresults import *
 from pyvale.dic.dic2dcpp import *
 from pyvale.dic.dicstrain import *

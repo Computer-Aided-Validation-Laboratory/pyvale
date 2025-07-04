@@ -387,8 +387,12 @@ namespace util {
                 double mag = std::sqrt(u_arr[idx]*u_arr[idx]+
                                        v_arr[idx]*v_arr[idx]);
 
-                write_int(outfile, ssdata.coords[2*i]);
-                write_int(outfile, ssdata.coords[2*i+1]);
+                // convert from corner to centre subset coords
+                double ss_x = ssdata.coords[2*i  ] + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                double ss_y = ssdata.coords[2*i+1] + static_cast<double>(ssdata.size)/2.0 - 0.5;
+
+                write_int(outfile, ss_x);
+                write_int(outfile, ss_y);
                 write_dbl(outfile, u_arr[idx]);
                 write_dbl(outfile, v_arr[idx]);
                 write_dbl(outfile, mag);

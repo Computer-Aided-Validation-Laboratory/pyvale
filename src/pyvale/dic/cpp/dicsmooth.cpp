@@ -136,4 +136,4 @@ namespace smooth {
         data = result;
     }
 
-} // namespace smooth
+}

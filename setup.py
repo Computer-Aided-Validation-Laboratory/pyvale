@@ -99,7 +99,7 @@ ext_dic = Extension(
     language="c++",
     include_dirs=[pybind11.get_include()],
     extra_compile_args=['-g', '-O0', '-fopenmp'] if debug_mode else ['-O3', '-fopenmp'],
-    extra_link_args=['-fopenmp', '-lfftw3'] + (['-g'] if debug_mode else []),
+    extra_link_args=['-fopenmp'] + (['-g'] if debug_mode else []),
 )
 ext = cythonize([ext_cython], annotate=True) + [ext_dic]
 

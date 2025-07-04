@@ -14,6 +14,7 @@
 #include "./dicsmooth.hpp"
 #include "./dicstrain.hpp"
 #include "./defines.hpp"
+#include "dicutil.hpp"
 
 // pybind header files
 #include <pybind11/pybind11.h>
@@ -25,12 +26,13 @@ namespace strain {
 
     Eigen::Matrix2d I = Eigen::Matrix2d::Identity();
 
-    void engine(const py::array_t<int> ss_x_arr,
-                const py::array_t<int> ss_y_arr,
-                const py::array_t<double> u_arr,
-                const py::array_t<double> v_arr,
+    void engine(const py::array_t<int> &ss_x_arr,
+                const py::array_t<int> &ss_y_arr,
+                const py::array_t<double> &u_arr,
+                const py::array_t<double> &v_arr,
                 int nss_x, int nss_y, int nimg,
-                int sw_size, int q, std::string &form){
+                int sw_size, int q, std::string &form,
+                util::SaveConfig &strain_save_conf){
 
 
         // get raw pointers for numpy arrays
@@ -39,18 +41,17 @@ namespace strain {
         double* u = static_cast<double*>(u_arr.request().ptr);
         double* v = static_cast<double*>(v_arr.request().ptr);
 
+        // function wrapper
+        std::function<Eigen::VectorXd(std::vector<int>&, std::vector<int>&, std::vector<double>&)> smooth_window = (q == 4) ? smooth::q4 : smooth::q9;
 
-        strain::Window window;
-        window.x.resize(sw_size*sw_size,0.0);
-        window.y.resize(sw_size*sw_size,0.0);
-        window.u.resize(sw_size*sw_size,0.0);
-        window.v.resize(sw_size*sw_size,0.0);
+
+        strain::Window window(sw_size);
+        if (strain_save_conf.at_end) strain::Results results(nimg*nss_x*nss_y);
+        else strain::Results results(nss_x*nss_y);
 
 
         // loop over the displacement images
         for (int img = 0; img < nimg; img++) {
-
-            std::cout << img << std::endl;
 
             // loop over strain windows within the image
             for (int sw = 0; sw < nss_x*nss_y; sw++){
@@ -58,9 +59,8 @@ namespace strain {
                 int x0 = ss_x[sw];
                 int y0 = ss_y[sw];
 
-               
                 bool valid_window = fill_window(ss_x, ss_y, u, v, img,
-                                                sw, window, nss_x, 
+                                                sw, window, nss_x,
                                                 nss_y, sw_size);
 
                 // element coefficients
@@ -73,80 +73,12 @@ namespace strain {
 
 
                 if (valid_window){
-
-                    // calculate derivatives
-                    if (q==4){
-
-                        // get polynomial coeffieicnts from smoothing
-                        uc = smooth::q4(window.x ,window.y, window.u);
-                        vc = smooth::q4(window.x ,window.y, window.v);
-
-                        // populate 2D deformation gradient matrix
-                        deform_grad(0,0) = 1.0 + uc[1] + uc[3]*y0;
-                        deform_grad(0,1) = uc[2] + uc[3]*x0;
-                        deform_grad(1,0) = vc[1] + vc[3]*y0;
-                        deform_grad(1,1) = 1.0 + vc[2] + vc[3]*x0;
-
-                        // calculate strain
-                        if (form=="GREEN"){
-                            eps = green(deform_grad);
-                        }
-                        else if (form=="ALMANSI"){
-                            eps = almansi(deform_grad);
-                        }
-                        else if (form=="HENCKY"){
-                            eps = hencky(deform_grad);
-                        }
-                        else if (form=="BIOT_EULER"){
-                            eps = biot_euler(deform_grad);
-                        }
-                        else if (form=="BIOT_LAGRANGE"){
-                            eps = biot_lagrange(deform_grad);
-                        }
-                        else {
-                            std::cerr << "Unknown Strain formulation: '" << form << "'." << std::endl;
-                        }
-
-                        //std::cout << x0 << " " << y0 << " " << deform_grad(0,0) << " " << deform_grad(0,1) << " " << deform_grad(1,0) << " " << deform_grad(1,1) << std::endl; 
-                        std::cout << x0 << " " << y0 << " " << eps(0,0) << " " << eps(0,1) << " " << eps(1,0) << " " << eps(1,1) << std::endl; 
-
-                    }
-                     if (q==9){
-
-                        // get polynomial coeffieicnts from smoothing
-                        uc = smooth::q9(window.x ,window.y, window.u);
-                        vc = smooth::q9(window.x ,window.y, window.v);
-
-                        // populate 2D deformation gradient matrix
-                        deform_grad(0,0) = 1.0 + uc[1] + uc[3]*y0 + 2.0*uc[4]*x0 + 2.0*uc[6]*x0*y0 + uc[7]*y0*y0 + 2.0*uc[8]*x0*y0*y0;
-                        deform_grad(0,1) = uc[2] + uc[3]*x0 + 2.0*uc[5]*y0 + uc[6]*x0*x0 + 2.0*uc[7]*x0*y0 + 2.0*uc[8]*x0*x0*y0;
-                        deform_grad(1,0) = vc[1] + vc[3]*y0 + 2.0*vc[4]*x0 + 2.0*vc[6]*x0*y0 + vc[7]*y0*y0 + 2.0*vc[8]*x0*y0*y0;
-                        deform_grad(1,1) = 1.0 + vc[2] + vc[3]*x0 + 2.0*vc[5]*y0 + vc[6]*x0*x0 + 2.0*vc[7]*x0*y0 + 2.0*vc[8]*x0*x0*y0;
-
-                        // calculate strain
-                        if (form=="GREEN"){
-                            eps = green(deform_grad);
-                        }
-                        else if (form=="ALMANSI"){
-                            eps = almansi(deform_grad);
-                        }
-                        else if (form=="HENCKY"){
-                            eps = hencky(deform_grad);
-                        }
-                        else if (form=="BIOT_EULER"){
-                            eps = biot_euler(deform_grad);
-                        }
-                        else if (form=="BIOT_LAGRANGE"){
-                            eps = biot_lagrange(deform_grad);
-                        }
-
-                        //std::cout << x0 << " " << y0 << " " << deform_grad(0,0) << " " << deform_grad(0,1) << " " << deform_grad(1,0) << " " << deform_grad(1,1) << std::endl; 
-                        std::cout << x0 << " " << y0 << " " << eps(0,0) << " " << eps(0,1) << " " << eps(1,0) << " " << eps(1,1) << std::endl; 
-
-                    }
+                    uc = smooth_window(window.x, window.y, window.u);
+                    vc = smooth_window(window.x, window.y, window.v);
+                    deform_grad = compute_deformation_gradient(q, uc, vc, x0, y0);
+                    eps = compute_strain(form, deform_grad);
                 }
             }
-            std::cout << std::endl;
         }
     }
 
@@ -164,7 +96,7 @@ namespace strain {
         const int ymin = y0_idx - swr;
         const int ymax = y0_idx + swr;
 
-        // check if the centre of strain window is within mask bounds
+        // check centre of strain window is within mask bounds
         if ((xmin < 0) || (xmax >= nss_x) || (ymin < 0) || (ymax >= nss_y)) return false;
         
         int widx = 0;
@@ -189,6 +121,38 @@ namespace strain {
             }
         }
         return true;
+    }
+
+
+    Eigen::Matrix2d compute_deformation_gradient(const int q, const Eigen::VectorXd &uc, const Eigen::VectorXd& vc, const double x0, const double y0) {
+
+        Eigen::Matrix2d grad;
+
+        if (q == 4) {
+            grad(0,0) = 1.0 + uc[1] + uc[3]*y0;
+            grad(0,1) = uc[2] + uc[3]*x0;
+            grad(1,0) = vc[1] + vc[3]*y0;
+            grad(1,1) = 1.0 + vc[2] + vc[3]*x0;
+        }
+        else if (q == 9) {
+            grad(0,0) = 1.0 + uc[1] + uc[3]*y0 + 2.0*uc[4]*x0 + 2.0*uc[6]*x0*y0 + uc[7]*y0*y0 + 2.0*uc[8]*x0*y0*y0;
+            grad(0,1) = uc[2] + uc[3]*x0 + 2.0*uc[5]*y0 + uc[6]*x0*x0 + 2.0*uc[7]*x0*y0 + 2.0*uc[8]*x0*x0*y0;
+            grad(1,0) = vc[1] + vc[3]*y0 + 2.0*vc[4]*x0 + 2.0*vc[6]*x0*y0 + vc[7]*y0*y0 + 2.0*vc[8]*x0*y0*y0;
+            grad(1,1) = 1.0 + vc[2] + vc[3]*x0 + 2.0*vc[5]*y0 + vc[6]*x0*x0 + 2.0*vc[7]*x0*y0 + 2.0*vc[8]*x0*x0*y0;
+        }
+
+        return grad;
+    }
+
+    Eigen::Matrix2d compute_strain(const std::string& form, const Eigen::Matrix2d& deform_grad) {
+        if (form == "GREEN")        return green(deform_grad);
+        else if (form == "ALMANSI") return almansi(deform_grad);
+        else if (form == "HENCKY")  return hencky(deform_grad);
+        else if (form == "BIOT_EULER") return biot_euler(deform_grad);
+        else if (form == "BIOT_LAGRANGE") return biot_lagrange(deform_grad);
+
+        std::cerr << "Unknown Strain formulation: '" << form << "'." << std::endl;
+        return Eigen::Matrix2d::Zero();
     }
 
 
@@ -228,7 +192,7 @@ namespace strain {
 
 
     inline Eigen::Matrix2d biot_euler(Eigen::Matrix2d F){
-        
+
         Eigen::Matrix2d C = F * F.transpose();
 
         Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(C);
@@ -247,7 +211,7 @@ namespace strain {
 
 
     inline Eigen::Matrix2d biot_lagrange(Eigen::Matrix2d F){
-        
+
         Eigen::Matrix2d C = F.transpose() * F;
 
         Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(C);
