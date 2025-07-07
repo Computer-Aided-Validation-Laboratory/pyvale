@@ -8,12 +8,12 @@
 #include <cmath>
 #include <vector>
 #include <iostream>
-#include <Eigen/Dense>
 
 // Program Header files
 #include "./dicsmooth.hpp"
 #include "./dicstrain.hpp"
 #include "./defines.hpp"
+#include "./Eigen/Dense"
 #include "dicutil.hpp"
 
 // pybind header files

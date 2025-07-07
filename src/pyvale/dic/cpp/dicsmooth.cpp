@@ -6,12 +6,11 @@
 
 // STD library Header files
 #include <vector>
-#include <Eigen/Dense>
-#include <iostream>
 
 // Program Header files
 #include "./dicsmooth.hpp"
 #include "./defines.hpp"
+#include "./Eigen/Dense"
 
 namespace smooth {
 

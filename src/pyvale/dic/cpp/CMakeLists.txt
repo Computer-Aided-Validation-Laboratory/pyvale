@@ -6,12 +6,6 @@ project(dic2dcpp LANGUAGES CXX)
 find_package(pybind11 REQUIRED)
 find_package(OpenMP REQUIRED)
 
-# Use pkg-config to locate FFTW
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(FFTW REQUIRED fftw3)
-include_directories(${FFTW_INCLUDE_DIRS})
-link_directories(${FFTW_LIBRARY_DIRS})
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
