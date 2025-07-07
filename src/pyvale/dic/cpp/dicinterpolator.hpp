@@ -59,11 +59,9 @@ private:
      * 
      * @param px Vector of pixel coordinates
      * @param x The coordinate to look up
-     * @param index_lo Lower bound for the search
-     * @param index_hi Upper bound for the search
      * @return The index of the pixel containing the coordinate
      */
-    inline int index_lookup(const std::vector<double> &px, double x, size_t index_lo, size_t index_hi) const;
+    inline int index_lookup(const std::vector<double> &px, double x) const;
 
     /**
      * @brief Initializes the cubic spline coefficients.

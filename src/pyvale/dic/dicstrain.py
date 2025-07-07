@@ -85,12 +85,12 @@ def DICstrain(dic_data: DICResults | str,
 
 
     # assigning c++ struct vals for save config
-    strainsaveconf = dic2dcpp.SaveConfig()
-    strainsaveconf.basepath = output_basepath
-    strainsaveconf.binary = output_binary
-    strainsaveconf.prefix = output_prefix
-    strainsaveconf.delimiter = output_delimiter
-    strainsaveconf.at_end = output_at_end
+    strain_save_conf = dic2dcpp.SaveConfig()
+    strain_save_conf.basepath = output_basepath
+    strain_save_conf.binary = output_binary
+    strain_save_conf.prefix = output_prefix
+    strain_save_conf.delimiter = output_delimiter
+    strain_save_conf.at_end = output_at_end
 
     # Call to C++ backend
     dic2dcpp.strain_engine(results.ss_x, results.ss_y,

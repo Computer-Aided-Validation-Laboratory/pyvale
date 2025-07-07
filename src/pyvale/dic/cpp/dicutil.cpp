@@ -455,14 +455,6 @@ namespace util {
         return true;
     }
 
-    inline void write_int(std::ofstream& out, int val) {
-        out.write(reinterpret_cast<const char*>(&val), sizeof(int));
-    }
-
-    inline void write_dbl(std::ofstream& out, double val) {
-        out.write(reinterpret_cast<const char*>(&val), sizeof(double));
-    }
-
     int next_pow2(int n) {
         if (n <= 0){
             std::cerr << __FILE__ << " " << __LINE__ << std::endl;

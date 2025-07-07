@@ -89,7 +89,7 @@ namespace fourier {
                     dist_index_list.resize(num_neigh);
                 }
                 else {
-                    std::cerr << "Could not not find " << num_neigh << " neihbours for point (" << ss_x << ", " << ss_y << ")." << std::endl;
+                    std::cerr << "Could not find " << num_neigh << " neighbours for point (" << ss_x << ", " << ss_y << ")." << std::endl;
                     std::cerr << "Number of neighbours: " << dist_index_list.size() << std::endl;
                     std::cerr << "Neighbours from previous window: " << std::endl;
                     for (size_t n = 0; n < dist_index_list.size(); n++){

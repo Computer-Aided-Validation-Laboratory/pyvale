@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <fstream>
 
 // program Header files
 #include "./dicinterpolator.hpp"
@@ -249,9 +250,14 @@ namespace util {
     inline bool is_valid_in_roi(const int px_x, const int px_y, const int px_hori, 
                         const int px_vert, const bool *img_roi);
 
-    inline void write_int(std::ofstream& out, int val);
+    
+    inline void write_int(std::ofstream& out, int val) {
+        out.write(reinterpret_cast<const char*>(&val), sizeof(int));
+    }
 
-    inline void write_dbl(std::ofstream& out, double val);
+    inline void write_dbl(std::ofstream& out, double val) {
+        out.write(reinterpret_cast<const char*>(&val), sizeof(double));
+    }
 
     int next_pow2(int n);
     void gen_size_and_step_vector(std::vector<int> &ss_sizes, std::vector<int> &ss_steps, 

@@ -22,7 +22,7 @@ from pyvale.dic.dicresults import DICResults
 def DIC2D(reference: np.ndarray | str,
           deformed: np.ndarray | str,
           roi_mask: np.ndarray,
-          rg_seed: list[int]=[],
+          seed: list[int]=[],
           subset_size: int = 21,
           subset_step: int = 10,
           correlation_criteria: str="ZNSSD",
@@ -38,7 +38,7 @@ def DIC2D(reference: np.ndarray | str,
           output_basepath: str="./",
           output_binary: bool=False,
           output_prefix: str="results",
-          output_delimiter: str=" "):
+          output_delimiter: str=" ") -> None:
 
     # do checks on vars in python land
     ref_arr, def_arr, filenames = check_and_get_images(reference,deformed,roi_mask)
@@ -48,7 +48,7 @@ def DIC2D(reference: np.ndarray | str,
     check_thresholds(threshold_levenberg, threshold_levenberg, precision)
     check_output_directory(output_basepath, output_prefix)
     check_subsets(subset_size, subset_step)
-    updated_seed = check_and_update_rg_seed(rg_seed, roi_mask, scanning_method, ref_arr.shape[1], ref_arr.shape[0], subset_step)
+    updated_seed = check_and_update_rg_seed(seed, roi_mask, scanning_method, ref_arr.shape[1], ref_arr.shape[0], subset_step)
     num_params = check_shape_function(shape_function)
 
 

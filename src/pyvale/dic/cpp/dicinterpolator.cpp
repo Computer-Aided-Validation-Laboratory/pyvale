@@ -200,7 +200,6 @@ double Interpolator::eval_bicubic_dx(const int ss_x, const int ss_y, const doubl
     double u3 = u1 * u2;
 
     double result = 0.0;
-    result = 0;
     result += zxminmin *t0 * u0;
     result += zxyminmin * t0 * u1;
     result += (-3*zxminmin + 3*zxminmax - 2*zxyminmin - zxyminmax) *t0 * u2;
@@ -319,9 +318,10 @@ InterpVals Interpolator::eval_bicubic_and_derivs(const int ss_x, const int ss_y,
     double t3 = t1 * t2;
     double u3 = u1 * u2;
 
-    double result, result_dx, result_dy;
+    double result = 0.0;
+    double result_dx = 0.0;
+    double result_dy = 0.0;
 
-    result = 0.0;
     result += zminmin * t0 * u0;
     result += zyminmin * t0 * u1;
     result += (-3 * zminmin + 3 * zminmax - 2 * zyminmin - zyminmax) * t0 * u2;
@@ -339,7 +339,6 @@ InterpVals Interpolator::eval_bicubic_and_derivs(const int ss_x, const int ss_y,
     result += (-6 * zminmin + 6 * zmaxmin - 6 * zmaxmax + 6 * zminmax - 3 * zxminmin - 3 * zxmaxmin + 3 * zxmaxmax + 3 * zxminmax - 4 * zyminmin + 4 * zymaxmin + 2 * zymaxmax - 2 * zyminmax - 2 * zxyminmin - 2 * zxymaxmin - zxymaxmax - zxyminmax) * t3 * u2;
     result += (4 * zminmin - 4 * zmaxmin + 4 * zmaxmax - 4 * zminmax + 2 * zxminmin + 2 * zxmaxmin - 2 * zxmaxmax - 2 * zxminmax + 2 * zyminmin - 2 * zymaxmin - 2 * zymaxmax + 2 * zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t3 * u3;
 
-    result_dx = 0;
     result_dx += zxminmin *t0 * u0;
     result_dx += zxyminmin * t0 * u1;
     result_dx += (-3*zxminmin + 3*zxminmax - 2*zxyminmin - zxyminmax) *t0 * u2;
@@ -353,7 +352,6 @@ InterpVals Interpolator::eval_bicubic_and_derivs(const int ss_x, const int ss_y,
     result_dx += 3 * (-6*zminmin + 6*zmaxmin - 6*zmaxmax + 6*zminmax - 3*zxminmin - 3*zxmaxmin + 3*zxmaxmax + 3*zxminmax - 4*zyminmin + 4*zymaxmin + 2*zymaxmax - 2*zyminmax - 2*zxyminmin - 2*zxymaxmin - zxymaxmax - zxyminmax) * t2 * u2;
     result_dx += 3 * (4*zminmin - 4*zmaxmin + 4*zmaxmax - 4*zminmax + 2*zxminmin + 2*zxmaxmin - 2*zxmaxmax - 2*zxminmax + 2*zyminmin - 2*zymaxmin - 2*zymaxmax + 2*zyminmax + zxyminmin + zxymaxmin + zxymaxmax + zxyminmax) * t2 * u3;
 
-    result_dy = 0.0;
     result_dy += zyminmin * t0 * u0;
     result_dy += 2 * (-3*zminmin + 3*zminmax - 2*zyminmin - zyminmax) * t0 * u1;
     result_dy += 3 * (2*zminmin-2*zminmax + zyminmin + zyminmax) * t0 * u2;
@@ -420,7 +418,7 @@ inline void Interpolator::index_lookup_xy(const int ss_x, const int ss_y, size_t
 }
 
 
-inline int Interpolator::index_lookup(const std::vector<double> &px, double x, size_t index_lo, size_t index_hi) const {
+inline int Interpolator::index_lookup(const std::vector<double> &px, double x) const {
     
     // Clamp coordinates to valid range
     // double clamped_x = std::max(static_cast<double>(index_lo), std::min(static_cast<double>(index_hi), x));
@@ -435,9 +433,7 @@ inline int Interpolator::index_lookup(const std::vector<double> &px, double x, s
     // }
     // return static_cast<int>(clamped_x);
 
-    
-    
-    if (x >= px[index_lo] && x <= px[index_hi]) {
+    if (x >= px.front() && x <= px.back()) {
         return static_cast<int>(x); // Return x as the index
     }
     else {
@@ -525,7 +521,7 @@ void Interpolator::cspline_init(std::vector<double> &px, std::vector<double> &da
 double Interpolator::cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data, double value, int length) {
 
     // Find the interval containing the evaluation point
-    int index = index_lookup(px, value, 0, length - 1);
+    int index = index_lookup(px, value);
 
     // Get interval boundaries
     double px_min = px[index];
