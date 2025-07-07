@@ -10,6 +10,7 @@
 // STD library Header files
 #include "dicutil.hpp"
 #include <vector>
+#include <cmath>
 #include <Eigen/Dense>
 
 // Program Header files
@@ -49,11 +50,11 @@ namespace strain {
         std::vector<double> def_grad;
         std::vector<double> strain;
 
-        Results(int sw_size) 
-            : x(sw_size*sw_size, 0.0),
-              y(sw_size*sw_size, 0.0),
-              def_grad(sw_size*sw_size, 0.0),
-              strain(sw_size*sw_size, 0.0)
+        Results(int nwindows) 
+            : x(nwindows, 0),
+              y(nwindows, 0),
+              def_grad(nwindows*4, std::nan("")),
+              strain(nwindows*4, std::nan(""))
         {}
     };
 
@@ -94,6 +95,17 @@ namespace strain {
 
 
     Eigen::Matrix2d compute_strain(const std::string& form, const Eigen::Matrix2d& deform_grad);
+
+
+    /**
+     */
+    void append_results(int sw, strain::Results &results, const bool save_at_end, const int x0, const int y0, const Eigen::Matrix2d &deform_grad, const Eigen::Matrix2d &eps, const int nwindows, const int img);
+
+
+    /**
+     */
+    void save_to_disk(int img, const strain::Results &results, const util::SaveConfig &strain_save_conf, const int nwindows, const int nimg);
+
 
 
     // strain formulations
