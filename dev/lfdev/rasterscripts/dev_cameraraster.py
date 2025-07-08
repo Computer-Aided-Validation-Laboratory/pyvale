@@ -1,10 +1,8 @@
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
@@ -50,7 +48,7 @@ def main() -> None:
     field_key = 'temperature'
     t_field = pyvale.FieldScalar(sim_data,
                                  field_key=field_key,
-                                 spat_dims=2)
+                                 elem_dims=2)
 
     num_px = np.array((510,260))
     leng_per_px = pyvale.calc_resolution_from_sim_2d(num_px,

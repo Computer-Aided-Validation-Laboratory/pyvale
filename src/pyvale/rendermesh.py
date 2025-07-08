@@ -1,61 +1,79 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
-from enum import Enum
-from dataclasses import dataclass, field
+"""
+NOTE: this module is a feature under developement.
+"""
+
 import numpy as np
+from scipy.spatial.transform import Rotation
 import mooseherder as mh
 from pyvale.fieldconverter import simdata_to_pyvista
 
 
-# class ImageFormat(Enum):
-#     NPY = 0
-#     TIFF = 1
-
-# @dataclass(slots=True)
-# class RenderOpts:
-#     image_tag: str = "image"
-#     image_formats: tuple[ImageFormat,...]
-#     bits_per_unit: int = 1
-#     parallel: int | None = None
+# TODO:
+# - Store the render field keys and match them between meshes?
 
 
-@dataclass(slots=True)
-class RenderMeshData:
-    coords: np.ndarray
-    connectivity: np.ndarray
-    fields_render: np.ndarray
+class RenderMesh:
+    __slots__ = ("coords","connectivity","fields_render","fields_disp",
+                 "pos_world","rot_world","node_count","elem_count",
+                 "nodes_per_elem","mesh_to_world_mat","world_to_mesh_mat")
 
-    # If this is None then the mesh is not deformable
-    fields_disp: np.ndarray | None = None
+    def __init__(self,
+                 coords: np.ndarray,
+                 connectivity: np.ndarray,
+                 fields_render: np.ndarray,
+                 fields_disp: np.ndarray | None = None,
+                 pos_world: np.ndarray | None = None,
+                 rot_world: Rotation | None = None) -> None:
 
-    node_count: int = field(init=False)
-    elem_count: int = field(init=False)
-    nodes_per_elem: int = field(init=False)
+        self.coords = coords
+        self.connectivity = connectivity
+        self.fields_render = fields_render
+        self.fields_disp = fields_disp
 
-    coord_cent: np.ndarray = field(init=False)
-    coord_bound_min: np.ndarray = field(init=False)
-    coord_bound_max: np.ndarray = field(init=False)
-
-    def __post_init__(self) -> None:
-        # C format: num_nodes/num_elems first as it is the largest dimension
         self.node_count = self.coords.shape[0]
         self.elem_count = self.connectivity.shape[0]
         self.nodes_per_elem = self.connectivity.shape[1]
 
-        self.coord_bound_min = np.min(self.coords,axis=0)
-        self.coord_bound_max = np.max(self.coords,axis=0)
-        self.coord_cent = (self.coord_bound_max + self.coord_bound_min)/2.0
+        if pos_world is None:
+            self.pos_world = np.array((0.0,0.0,0.0),dtype=np.float64)
+
+        if rot_world is None:
+            self.rot_world = Rotation.from_euler("zyx",(0.0,0.0,0.0),degrees=True)
+
+        self.mesh_to_world_mat = np.zeros((4,4),dtype=np.float64)
+        self.world_to_mesh_mat = np.zeros((4,4),dtype=np.float64)
+        self._build_transform_mats()
+
+    def _build_transform_mats(self) -> None:
+        self.mesh_to_world_mat = np.zeros((4,4))
+        self.mesh_to_world_mat[0:3,0:3] = self.rot_world.as_matrix()
+        self.mesh_to_world_mat[-1,-1] = 1.0
+        self.mesh_to_world_mat[0:3,-1] = self.pos_world
+        self.world_to_mesh_mat = np.linalg.inv(self.mesh_to_world_mat)
+
+    def set_pos(self, pos_world: np.ndarray) -> None:
+        self.pos_world = pos_world
+        self._build_transform_mats()
+
+    def set_rot(self, rot_world: Rotation) -> None:
+        self.rot_world = rot_world
+        self._build_transform_mats()
+
 
 
 def create_render_mesh(sim_data: mh.SimData,
                        field_render_keys: tuple[str,...],
                        sim_spat_dim: int,
                        field_disp_keys: tuple[str,...] | None = None,
-                       ) -> RenderMeshData:
+                       pos_world: np.ndarray | None  = None,
+                       rot_world: Rotation | None = None
+                       ) -> RenderMesh:
 
     extract_keys = field_render_keys
     if field_disp_keys is not None:
@@ -63,7 +81,7 @@ def create_render_mesh(sim_data: mh.SimData,
 
     (pv_grid,_) = simdata_to_pyvista(sim_data,
                                      extract_keys,
-                                     spat_dim=sim_spat_dim)
+                                     elem_dims=sim_spat_dim)
 
     pv_surf = pv_grid.extract_surface()
     faces = np.array(pv_surf.faces)
@@ -110,46 +128,10 @@ def create_render_mesh(sim_data: mh.SimData,
             field_disp_by_node[:,:,ii] = np.ascontiguousarray(
                 np.array(pv_surf[cc]))
 
-
-
-    return RenderMeshData(coords=coords_world,
+    return RenderMesh(coords=coords_world,
                           connectivity=connectivity,
                           fields_render=fields_render_by_node,
-                          fields_disp=field_disp_by_node)
+                          fields_disp=field_disp_by_node,
+                          pos_world=pos_world,
+                          rot_world=rot_world)
 
-
-def slice_mesh_data_by_elem(coords_world: np.ndarray,
-                            connectivity: np.ndarray,
-                            field_by_node: np.ndarray,
-                            ) -> tuple[np.ndarray,np.ndarray]:
-    """_summary_
-
-    Parameters
-    ----------
-    coords_world : np.ndarray
-        _description_
-    connectivity : np.ndarray
-        _description_
-    field_by_node : np.ndarray
-        _description_
-
-    Returns
-    -------
-    tuple[np.ndarray,np.ndarray]
-        _description_
-    """
-    # shape=(coord[X,Y,Z,W],node_per_elem,elem_num)
-    elem_world_coords = np.copy(coords_world[connectivity,:])
-
-    # shape=(elem_num,nodes_per_elem,coord[X,Y,Z,W]), C memory format
-    # elem_world_coords = np.ascontiguousarray(np.swapaxes(elem_world_coords,0,2))
-    elem_world_coords = np.ascontiguousarray(elem_world_coords)
-
-    # shape=(nodes_per_elem,elem_num,time_steps)
-    field_by_elem = np.copy(field_by_node[connectivity,:])
-
-    # shape=(elem_num,nodes_per_elem,time_steps), C memory format
-    # field_by_elem = np.ascontiguousarray(np.swapaxes(field_by_elem,0,1))
-    field_by_elem = np.ascontiguousarray(field_by_elem)
-
-    return (elem_world_coords,field_by_elem)

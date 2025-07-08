@@ -13,12 +13,12 @@ import mooseherder as mh
 import pyvale
 
 def main() -> None:
-    """pyvale example:
+    """Basics
     """
     data_path = Path('simcases/case17/case17_out.e')
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+    # Scale m to mm to make 3D visualisation scaling correct for pyvista
+    sim_data = pyv.scale_length_units(1000.0,sim_data)
 
     n_sens = (2,3,1)
     x_lims = (0.0,100.0)
@@ -30,7 +30,7 @@ def main() -> None:
                             .disp_sensors_basic_errs(sim_data,
                                                 sens_pos,
                                                 "displacement",
-                                                spat_dims=2)
+                                                elem_dims=2)
 
     plot_field = 'disp_y'
     pv_plot = pyvale.plot_point_sensors_on_sim(disp_sens_array,plot_field)

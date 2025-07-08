@@ -1,11 +1,9 @@
-"""
-================================================================================
-pyvale: the python computer aided validation engine
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
 
 from pathlib import Path
 import numpy as np
@@ -14,15 +12,15 @@ import pyvale as pyv
 
 
 def main() -> None:
-    #---------------------------------------------------------------------------
-    # LOAD FILES
     sim_path = pyv.DataSet.mechanical_2d_path()
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
     image_path = pyv.DataSet.dic_pattern_5mpx_path()
-    image_speckle = pyv.CameraTools.load_image(image_path)
+    image_speckle = pyv.ImageTools.load_image_greyscale(image_path)
 
-    save_path = Path.cwd()/"exampleoutput"
+    save_path = Path.cwd()/"pyvale-output"
+    if not save_path.is_dir():
+        save_path.mkdir(parents=True, exist_ok=True)
 
     coords = sim_data.coords
     connectivity = (sim_data.connect["connect1"]-1).T # Beware 0 indexing here
@@ -37,8 +35,7 @@ def main() -> None:
     print(f"{disp_y.shape=}")
     print(80*"-")
 
-    #---------------------------------------------------------------------------
-    # INPUT DATA
+
     cam_data = pyv.CameraData2D(pixels_count=np.array((1040,1540)),
                                    leng_per_px=0.1e-3,
                                    bits=8,
@@ -49,8 +46,7 @@ def main() -> None:
                                   add_static_ref=True)
 
 
-    #---------------------------------------------------------------------------
-    # PRE-PROCESS IMAGES
+
     (upsampled_image,
      image_mask,
      image_input,
@@ -68,8 +64,7 @@ def main() -> None:
     disp = np.array((disp_x[:,ff],disp_y[:,ff])).T
     print(f"{disp.shape=}")
 
-    #---------------------------------------------------------------------------
-    # DEFORM IMAGES AND SAVE
+
     pyv.ImageDef2D.deform_images_to_disk(cam_data,
                                             upsampled_image,
                                             coords,

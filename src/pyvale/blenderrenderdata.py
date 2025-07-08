@@ -1,13 +1,16 @@
 # ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
-# Copyright (C) 2024 The Computer Aided Validation Team
+# Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
+
 from enum import Enum
 from dataclasses import dataclass
 from pathlib import Path
 from pyvale.cameradata import CameraData
 from pyvale.output import Outputs
+
+#TODO: docstrings
 
 class RenderEngine(Enum):
     """Different render engines on Blender

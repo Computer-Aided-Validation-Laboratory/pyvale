@@ -9,7 +9,7 @@ def main() -> None:
 
     (pv_grid,pv_grid_vis) = pyvale.simdata_to_pyvista(sim_data,
                                                            None,
-                                                           spat_dim=3)
+                                                           elem_dims=3)
 
     pv_surf = pv_grid.extract_surface()
 

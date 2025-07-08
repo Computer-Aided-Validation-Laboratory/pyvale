@@ -1,0 +1,12 @@
+sphinx
+sphinx-codeautolink
+sphinx-autodoc-typehints
+sphinx-copybutton
+breathe
+furo
+myst-parser
+trame
+trame-vtk
+trame-vuetify
+ipywidgets
+sphinx-gallery

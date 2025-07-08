@@ -12,13 +12,13 @@ import mooseherder as mh
 import pyvale
 
 def main() -> None:
-    """pyvale example: displacement sensors on a 2D plate with a hole
+    """Basics displacement sensors on a 2D plate with a hole
     ----------------------------------------------------------------------------
     """
     data_path = Path("dev/lfdev/meshtest/meshtest_higherorder_2d_out.e")
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+    # Scale m to mm to make 3D visualisation scaling correct for pyvista
+    sim_data = pyv.scale_length_units(1000.0,sim_data)
 
     #---------------------------------------------------------------------------
     print()
@@ -48,7 +48,7 @@ def main() -> None:
                             .disp_sensors_basic_errs(sim_data,
                                                      sens_data,
                                                      "displacement",
-                                                     spat_dims=2)
+                                                     elem_dims=2)
 
     plot_field = 'disp_x'
     pv_plot = pyvale.plot_point_sensors_on_sim(disp_sens_array,plot_field)

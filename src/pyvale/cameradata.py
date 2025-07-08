@@ -1,26 +1,16 @@
 # ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
-# Copyright (C) 2024 The Computer Aided Validation Team
+# Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
+
+"""
+NOTE: This module is a feature under developement.
+"""
+
 from dataclasses import dataclass, field
 import numpy as np
 from scipy.spatial.transform import Rotation
-
-
-# NOTE: This module is a feature under developement.
-#
-# - Camera Local Coords: Pixel positions in pixels/meters
-# - Global Sim Coords: Transform from local pixel positions to sim coords in meters
-# - For this transformation we need user to specify center of ROI in sim coords
-# - There are going to be different ways to specify the camera properties
-
-# For thin lens theory will need to know some combination of:
-#   - The focal length of the lense
-#   - The working distance
-
-# Will need to create different ways for the user to automatically position the
-# camera
 
 
 @dataclass(slots=True)
@@ -34,6 +24,8 @@ class CameraData:
 
     focal_length: float | None = 50.0
     sub_samp: int = 2
+
+    bits: int = 16
 
     back_face_removal: bool = True
 
@@ -50,6 +42,7 @@ class CameraData:
     sensor_size: np.ndarray = field(init=False)
     image_dims: np.ndarray = field(init=False)
     image_dist: float = field(init=False)
+
     cam_to_world_mat: np.ndarray = field(init=False)
     world_to_cam_mat: np.ndarray = field(init=False)
 

@@ -1,18 +1,18 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
 import numpy as np
 from pyvale.sensordata import SensorData
 from pyvale.errorcalculator import (IErrCalculator,
                                          EErrType,
-                                         EErrDependence)
-from pyvale.generatorsrandom import IGeneratorRandom
+                                         EErrDep)
+from pyvale.generatorsrandom import IGenRandom
 
 
-class ErrRandUniform(IErrCalculator):
+class ErrRandUnif(IErrCalculator):
     """Random error calculator based on uniform sampling of an interval
     specified by its upper and lower bound.
 
@@ -23,10 +23,9 @@ class ErrRandUniform(IErrCalculator):
     def __init__(self,
                  low: float,
                  high: float,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT,
+                 err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """Initialiser for `ErrRandUniform` class.
-
+        """
         Parameters
         ----------
         low : float
@@ -54,7 +53,7 @@ class ErrRandUniform(IErrCalculator):
         self.rng = np.random.default_rng(seed)
         self.err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -69,7 +68,7 @@ class ErrRandUniform(IErrCalculator):
         """
         return self.err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -138,10 +137,9 @@ class ErrRandUnifPercent(IErrCalculator):
     def __init__(self,
                  low_percent: float,
                  high_percent: float,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT,
+                 err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """Initialiser for the `ErrRandUnifPercent` class.
-
+        """
         Parameters
         ----------
         low_percent : float
@@ -170,7 +168,7 @@ class ErrRandUnifPercent(IErrCalculator):
         self.rng = np.random.default_rng(seed)
         self.err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -183,7 +181,7 @@ class ErrRandUnifPercent(IErrCalculator):
         """
         return self.err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -234,7 +232,7 @@ class ErrRandUnifPercent(IErrCalculator):
         return (err_basis*norm_rand,sens_data)
 
 
-class ErrRandNormal(IErrCalculator):
+class ErrRandNorm(IErrCalculator):
     """Random error calculator based on sampling of a normal (Gaussian)
     distribution specified using the standard deviation with an assumed zero
     mean. A non-zero mean is a systematic error and should be specified using
@@ -246,10 +244,9 @@ class ErrRandNormal(IErrCalculator):
 
     def __init__(self,
                  std: float,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT,
+                 err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """Initialiser for `ErrRandNormal` class.
-
+        """
         Parameters
         ----------
         std : float
@@ -264,7 +261,7 @@ class ErrRandNormal(IErrCalculator):
         self.rng = np.random.default_rng(seed)
         self.err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -279,7 +276,7 @@ class ErrRandNormal(IErrCalculator):
         """
         return self.err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -349,10 +346,9 @@ class ErrRandNormPercent(IErrCalculator):
 
     def __init__(self,
                  std_percent: float,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT,
+                 err_dep: EErrDep = EErrDep.INDEPENDENT,
                  seed: int | None = None) -> None:
-        """Initialiser for `ErrRandNormPercent` class.
-
+        """
         Parameters
         ----------
         std_percent : float
@@ -368,7 +364,7 @@ class ErrRandNormPercent(IErrCalculator):
         self._rng = np.random.default_rng(seed)
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -381,7 +377,7 @@ class ErrRandNormPercent(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -441,10 +437,9 @@ class ErrRandGenerator(IErrCalculator):
     __slots__ = ("_generator","_err_dep")
 
     def __init__(self,
-                 generator: IGeneratorRandom,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
-        """Initiliaser for the `ErrRandGenerator` class.
-
+                 generator: IGenRandom,
+                 err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
+        """
         Parameters
         ----------
         generator : IGeneratorRandom
@@ -455,7 +450,7 @@ class ErrRandGenerator(IErrCalculator):
         self._generator = generator
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -470,7 +465,7 @@ class ErrRandGenerator(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -536,10 +531,9 @@ class ErrRandGenPercent(IErrCalculator):
     __slots__ = ("_generator","_err_dep")
 
     def __init__(self,
-                 generator: IGeneratorRandom,
-                 err_dep: EErrDependence = EErrDependence.INDEPENDENT) -> None:
-        """Initiliaser for the `ErrRandGenerator` class.
-
+                 generator: IGenRandom,
+                 err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
+        """
         Parameters
         ----------
         generator : IGeneratorRandom
@@ -550,7 +544,7 @@ class ErrRandGenPercent(IErrCalculator):
         self._generator = generator
         self._err_dep = err_dep
 
-    def get_error_dep(self) -> EErrDependence:
+    def get_error_dep(self) -> EErrDep:
         """Gets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -563,7 +557,7 @@ class ErrRandGenPercent(IErrCalculator):
         """
         return self._err_dep
 
-    def set_error_dep(self, dependence: EErrDependence) -> None:
+    def set_error_dep(self, dependence: EErrDep) -> None:
         """Sets the error dependence state for this error calculator. An
         independent error is calculated based on the input truth values as the
         error basis. A dependent error is calculated based on the accumulated
@@ -608,6 +602,6 @@ class ErrRandGenPercent(IErrCalculator):
             error array has the same shape as the input error basis.
         """
         rand_errs = err_basis \
-            * self._generator.generate(shape=err_basis.shape)/100
+            * self._generator.generate(shape=err_basis.shape)/100.0
 
         return (rand_errs,sens_data)

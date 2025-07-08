@@ -1,10 +1,8 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
-
-
+# ==============================================================================
 
 """
 `pyvale`: the python validation engine. Used to simulate experimental data from
@@ -16,6 +14,7 @@ testing simulation validation metrics and testing digital shadows/twins.
 # NOTE: this simplifies and decouples how the user calls pyvale from the
 # underlying project structure: the user should be able to use 'pyvale.'
 # and access everything in one layer without multiple import dots
+
 
 from pyvale.dataset import *
 
@@ -47,6 +46,7 @@ from pyvale.camerastereo import *
 import pyvale.cython.rastercyth as rastercyth
 from pyvale.rastercy import *
 
+from pyvale.renderscene import *
 from pyvale.rendermesh import *
 from pyvale.rasternp import *
 
@@ -57,13 +57,14 @@ from pyvale.errorrand import *
 from pyvale.errorsysindep import *
 from pyvale.errorsysdep import *
 from pyvale.errorsysfield import *
+from pyvale.errorsyscalib import *
 from pyvale.errordriftcalc import *
 
 from pyvale.generatorsrandom import *
 
 from pyvale.visualopts import *
 from pyvale.visualtools import *
-from pyvale.visualsimplotter import *
+from pyvale.visualsimsensors import *
 from pyvale.visualsimanimator import *
 from pyvale.visualexpplotter import *
 from pyvale.visualtraceplotter import *

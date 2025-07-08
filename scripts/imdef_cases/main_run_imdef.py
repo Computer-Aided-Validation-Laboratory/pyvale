@@ -22,7 +22,7 @@ import pyvale.imagesim.imagedef as sid
 def main() -> None:
     print()
     print('='*80)
-    print('PYVALE EXAMPLE: IMAGE DEFORMATION 2D MINIMAL')
+    print('Basics IMAGE DEFORMATION 2D MINIMAL')
     print('='*80)
     # This example assumes no experimental image is provided and a masked one
     # needs to be generated from a full speckled image using the simulation data.

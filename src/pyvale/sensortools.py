@@ -1,9 +1,8 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
-
+# ==============================================================================
 import numpy as np
 import mooseherder as mh
 from pyvale.sensorarray import ISensorArray
@@ -60,9 +59,9 @@ def create_sensor_pos_array(num_sensors: tuple[int,int,int],
 
 
 def print_measurements(sens_array: ISensorArray,
-                       sensors: tuple[int,int],
-                       components: tuple[int,int],
-                       time_steps: tuple[int,int])  -> None:
+                       sensors: int | slice,
+                       components: int | slice,
+                       time_steps: int | slice)  -> None:
     """Diagnostic function to print sensor measurements to the console. Also
     prints the ground truth, the random and the systematic errors for the
     specified sensor array. The sensors, components and time steps are specified
@@ -71,17 +70,18 @@ def print_measurements(sens_array: ISensorArray,
     Parameters
     ----------
     sens_array : ISensorArray
-        Sensor array to print measurement for.
-    sensors : tuple[int,int]
-        Range of sensors to print from the measurement array using the slice
-        specified by this tuple.
-    components : tuple[int,int]
-        Range of field components to print based on slicing the measurement
-        array with this tuple.
-    time_steps : tuple[int,int]
-        Range of time steps to print based on slicing the measurement array with
-        this tuple.
+        Sensor array to print measurements for.
+    sensors : int | slice
+        Index for the sensor or slice of range of sensors to be printed to the
+        console.
+    components : int | slice
+        Index for the field component or slice of range of field components to
+        be printed to the console
+    time_steps : int | slice
+        Index for the time step or slice of time steps to be printed to the
+        console.
     """
+
     measurement =  sens_array.get_measurements()
     truth = sens_array.get_truth()
     rand_errs = sens_array.get_errors_random()
@@ -89,33 +89,17 @@ def print_measurements(sens_array: ISensorArray,
     tot_errs = sens_array.get_errors_total()
 
     print(f"\nmeasurement.shape = \n    {measurement.shape}")
-    print_meas = measurement[sensors[0]:sensors[1],
-                             components[0]:components[1],
-                             time_steps[0]:time_steps[1]]
-    print(f"measurement = \n    {print_meas}")
-
-    print_truth = truth[sensors[0]:sensors[1],
-                        components[0]:components[1],
-                        time_steps[0]:time_steps[1]]
-    print(f"truth = \n    {print_truth}")
+    print(f"measurement = \n    {measurement[sensors,components,time_steps]}")
+    print(f"truth = \n    {truth[sensors,components,time_steps]}")
 
     if rand_errs is not None:
-        print_randerrs = rand_errs[sensors[0]:sensors[1],
-                                    components[0]:components[1],
-                                    time_steps[0]:time_steps[1]]
-        print(f"random errors = \n    {print_randerrs}")
+        print(f"random errors = \n    {rand_errs[sensors,components,time_steps]}")
 
     if sys_errs is not None:
-        print_syserrs = sys_errs[sensors[0]:sensors[1],
-                                        components[0]:components[1],
-                                        time_steps[0]:time_steps[1]]
-        print(f"systematic errors = \n    {print_syserrs}")
+        print(f"systematic errors = \n    {sys_errs[sensors,components,time_steps]}")
 
     if tot_errs is not None:
-        print_toterrs = tot_errs[sensors[0]:sensors[1],
-                                        components[0]:components[1],
-                                        time_steps[0]:time_steps[1]]
-        print(f"total errors = \n    {print_syserrs}")
+        print(f"total errors = \n    {tot_errs[sensors,components,time_steps]}")
 
     print()
 

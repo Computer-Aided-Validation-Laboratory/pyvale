@@ -1,15 +1,15 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
 import copy
 from dataclasses import dataclass
 import numpy as np
 from pyvale.errorcalculator import (IErrCalculator,
-                                        EErrType,
-                                        EErrDependence)
+                                    EErrType,
+                                    EErrDep)
 from pyvale.sensordata import SensorData
 
 
@@ -19,12 +19,9 @@ class ErrIntOpts:
     errors are calculated and stored in memory for later use.
     """
 
-    force_dependence: bool = False
-    """Forces all errors to be calculated as dependent if True. Otherwise errors
-    will use individual dependence set in the errors initialiser. Independent
-    errors are calculated based on the ground truth whereas dependent errors are
-    calculated based on the accumulated sensor measurement at that stage in the
-    error chain.
+    force_dependence: EErrDep | None = None
+    """Forces all errors to be calculated with the specified dependence. If set
+    to None then all errors will use their default/preset dependence.
 
     Note that some errors are inherently independent so will not change. For
     example: `ErrRandNormal` is purely independent whereas `ErrRandNormPercent`
@@ -71,8 +68,7 @@ class ErrIntegrator:
                  sensor_data_initial: SensorData,
                  meas_shape: tuple[int,int,int],
                  err_int_opts: ErrIntOpts | None = None) -> None:
-        """Initialiser for the `ErrIntegrator` class.
-
+        """
         Parameters
         ----------
         err_chain : list[IErrCalculator]
@@ -117,7 +113,7 @@ class ErrIntegrator:
         """Sets the error chain that will be looped over to calculate the sensor
         measurement errors. If the error integration options are forcing error
         dependence then all errors in the chain will have their dependence set
-        to `EErrDependence.DEPENDENT`.
+        to the specified value.
 
         Parameters
         ----------
@@ -126,9 +122,9 @@ class ErrIntegrator:
         """
         self._err_chain = err_chain
 
-        if self._err_int_opts.force_dependence:
+        if self._err_int_opts.force_dependence is not None:
             for ee in self._err_chain:
-                ee.set_error_dep(EErrDependence.DEPENDENT)
+                ee.set_error_dep(self._err_int_opts.force_dependence)
 
 
     def calc_errors_from_chain(self, truth: np.ndarray) -> np.ndarray:
@@ -181,20 +177,23 @@ class ErrIntegrator:
             Array of total errors summed over all errors in the chain. shape=(
             num_sensors,num_field_components,num_time_steps).
         """
-        accumulated_error = np.zeros_like(truth)
+        self._errs_total = np.zeros_like(truth)
+        self._errs_systematic = np.zeros_like(truth)
+        self._errs_random = np.zeros_like(truth)
         self._errs_by_chain = np.zeros((len(self._err_chain),) + \
                                            self._meas_shape)
 
         for ii,ee in enumerate(self._err_chain):
 
-            if ee.get_error_dep() == EErrDependence.DEPENDENT:
-                (error_array,sens_data) = ee.calc_errs(truth+accumulated_error,
+            if ee.get_error_dep() == EErrDep.DEPENDENT:
+                (error_array,sens_data) = ee.calc_errs(truth+self._errs_total,
                                                        self._sens_data_accumulated)
-                self._sens_data_accumulated = sens_data
+
             else:
                 (error_array,sens_data) = ee.calc_errs(truth,
                                                        self._sens_data_initial)
 
+            self._sens_data_accumulated = sens_data
             self._sens_data_by_chain.append(sens_data)
 
             if ee.get_error_type() == EErrType.SYSTEMATIC:
@@ -202,10 +201,9 @@ class ErrIntegrator:
             else:
                 self._errs_random = self._errs_random + error_array
 
-            accumulated_error = accumulated_error + error_array
+            self._errs_total = self._errs_total + error_array
             self._errs_by_chain[ii,:,:,:] = error_array
 
-        self._errs_total = accumulated_error
         return self._errs_total
 
 
@@ -229,14 +227,17 @@ class ErrIntegrator:
             Array of total errors summed over all errors in the chain. shape=(
             num_sensors,num_field_components,num_time_steps).
         """
-        accumulated_error = np.zeros_like(truth)
+        self._errs_total = np.zeros_like(truth)
+        self._errs_systematic = np.zeros_like(truth)
+        self._errs_random = np.zeros_like(truth)
 
         for ee in self._err_chain:
 
-            if ee.get_error_dep() == EErrDependence.DEPENDENT:
-                (error_array,sens_data) = ee.calc_errs(truth+accumulated_error,
-                                                       self._sens_data_accumulated)
-                self._sens_data_accumulated = sens_data
+            if ee.get_error_dep() == EErrDep.DEPENDENT:
+                (error_array,sens_data) = ee.calc_errs(
+                    truth+self._errs_total,
+                    self._sens_data_accumulated
+                )
             else:
                 (error_array,sens_data) = ee.calc_errs(truth,
                                                        self._sens_data_initial)
@@ -248,9 +249,8 @@ class ErrIntegrator:
             else:
                 self._errs_random = self._errs_random + error_array
 
-            accumulated_error = accumulated_error + error_array
+            self._errs_total = self._errs_total + error_array
 
-        self._errs_total = accumulated_error
         return self._errs_total
 
 

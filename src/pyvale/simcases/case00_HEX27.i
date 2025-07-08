@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------
 #_* MOOSEHERDER VARIABLES - START
 
-endTime = 50
+endTime = 20
 timeStep = 1
 
 # Geometric Properties
@@ -14,9 +14,9 @@ lengY = 10e-3   # m
 lengZ = 10e-3   # m
 
 # Mesh Properties
-nElemX = 1
-nElemY = 1
-nElemZ = 1
+nElemX = 2
+nElemY = 2
+nElemZ = 2
 eType = HEX27 # TET10, TET11, HEX20, HEX27
 
 # Thermal BCs
@@ -89,7 +89,7 @@ ThermExp = 17.8e-6 # 1/degC
         add_variables = true
         material_output_family = MONOMIAL   # MONOMIAL, LAGRANGE
         material_output_order = FIRST       # CONSTANT, FIRST, SECOND,
-        generate_output = 'stress_xx stress_yy stress_zz stress_xy stress_yz stress_xz strain_xx strain_yy strain_zz strain_xy strain_yz strain_xz'
+        generate_output = 'strain_xx strain_yy strain_zz strain_xy strain_yz strain_xz'
     []
 []
 

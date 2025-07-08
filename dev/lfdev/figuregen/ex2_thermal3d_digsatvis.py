@@ -15,14 +15,14 @@ import pyvale
 
 
 def main() -> None:
-    """pyvale example:
+    """Basics
     """
     data_path = Path('data/examplesims/monoblock_3d_thermal_out.e')
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_name = list(sim_data.node_vars.keys())[0] # type: ignore
 
-    # Scale to mm to make 3D visualisation scaling easier
-    sim_data.coords = sim_data.coords*1000.0 # type: ignore
+    # Scale m to mm to make 3D visualisation scaling correct for pyvista
+    sim_data = pyv.scale_length_units(1000.0,sim_data)
 
     use_auto_descriptor = 'manual'
     if use_auto_descriptor == 'factory':
@@ -66,7 +66,7 @@ def main() -> None:
 
     if errors_on['indep_sys']:
         indep_sys_err1 = pyvale.ErrSysOffset(offset=-5.0)
-        indep_sys_err2 = pyvale.ErrSysUniform(low=-10.0,
+        indep_sys_err2 = pyvale.ErrSysUnif(low=-10.0,
                                             high=10.0)
         indep_sys_err_int = pyvale.ErrIntegrator([indep_sys_err1,indep_sys_err2],
                                             tc_array.get_measurement_shape())

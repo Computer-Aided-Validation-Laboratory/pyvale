@@ -1,8 +1,12 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
+
+"""
+NOTE: This module is a feature under developement.
+"""
 
 import time
 import warnings
@@ -16,6 +20,7 @@ from scipy import ndimage
 from pyvale.rasternp import edge_function, RasterNP
 from pyvale.cameradata2d import CameraData2D
 from pyvale.cameratools import CameraTools
+from pyvale.imagetools import ImageTools
 
 
 @dataclass(slots=True)
@@ -432,9 +437,9 @@ class ImageDef2D:
                                             print_on=print_on)
 
             save_file = id_opts.save_path / str(f'{id_opts.save_tag}_'+
-                    f'{CameraTools.image_num_str(im_num=ff,width=4)}'+
+                    f'{ImageTools.get_num_str(im_num=ff,width=4)}'+
                     '.tiff')
-            CameraTools.save_image(save_file,def_image,cam_data.bits)
+            ImageTools.save_tiff(save_file,def_image,cam_data.bits)
 
             if print_on:
                 tocf = time.perf_counter()

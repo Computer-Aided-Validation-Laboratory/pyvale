@@ -14,7 +14,7 @@ import mooseherder as mh
 import pyvale
 
 def main() -> None:
-    """pyvale example: thermo-mechanical multi-physics sensors on a 2D plate
+    """Basics thermo-mechanical multi-physics sensors on a 2D plate
     ----------------------------------------------------------------------------
     - Demonstrates the experiment module for running many monte-carlo style
       experiments and statistically analysing the results.
@@ -54,7 +54,7 @@ def main() -> None:
         .thermocouples_basic_errs(sim_data,
                                   sens_data,
                                   tc_field,
-                                  spat_dims=2,
+                                  elem_dims=2,
                                   errs_pc=1.0)
 
     sg_field = 'strain'
@@ -62,7 +62,7 @@ def main() -> None:
         .strain_gauges_basic_errs(sim_data,
                                   sens_data,
                                   sg_field,
-                                  spat_dims=2,
+                                  elem_dims=2,
                                   errs_pc=1.0)
 
     sensor_arrays = [tc_array,sg_array]

@@ -1,7 +1,7 @@
 # ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
-# Copyright (C) 2024 The Computer Aided Validation Team
+# Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 import numpy as np
 from pathlib import Path
@@ -13,8 +13,9 @@ from pyvale.simtools import SimTools
 from pyvale.blendermaterialdata import BlenderMaterialData
 from pyvale.blenderrenderdata import RenderData, RenderEngine
 from pyvale.camerastereo import CameraStereo
-from pyvale.rendermesh import RenderMeshData
+from pyvale.rendermesh import RenderMesh
 from pyvale.pyvaleexceptions import BlenderError
+
 
 class BlenderScene():
     """Namespace for creating a scene within Blender.
@@ -22,7 +23,7 @@ class BlenderScene():
     as well as deforming the object, and then rendering the scene.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.reset_scene()
 
     def reset_scene(self) -> None:
@@ -151,7 +152,7 @@ class BlenderScene():
         return light_ob
 
     def add_part(self,
-                 render_mesh: RenderMeshData,
+                 render_mesh: RenderMesh,
                  sim_spat_dim: int) -> bpy.data.objects:
         """A method to add a part mesh into Blender, given a RenderMeshData object.
         This is done by taking the mesh information from the RenderMeshData
@@ -257,7 +258,7 @@ class BlenderScene():
         BlenderTools.uv_unwrap_part(part, mm_px_resolution, cal)
 
     def _debug_deform(self,
-                      render_mesh: RenderMeshData,
+                      render_mesh: RenderMesh,
                      sim_spat_dim:int,
                      part: bpy.data.objects) -> None:
         """A method to deform the Blender mesh object using the simulation results.
@@ -370,7 +371,7 @@ class BlenderScene():
                 bpy.ops.render.render(write_still=True)
 
     def render_deformed_images(self,
-                               render_mesh: RenderMeshData,
+                               render_mesh: RenderMesh,
                                sim_spat_dim: int,
                                render_data:RenderData,
                                part: bpy.data.objects,

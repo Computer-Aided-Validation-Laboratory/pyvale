@@ -1,8 +1,8 @@
-# ================================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-# ================================================================================
+# ==============================================================================
 
 from abc import ABC, abstractmethod
 import numpy as np
@@ -32,7 +32,6 @@ class IDriftCalculator(ABC):
             Array of drift errors having the same shape as the input drift_var
             array.
         """
-        pass
 
 
 class DriftConstant(IDriftCalculator):
@@ -40,9 +39,10 @@ class DriftConstant(IDriftCalculator):
 
     Implements the IDriftCalculator interface.
     """
-    def __init__(self, offset: float) -> None:
-        """Initialiser for the `DriftConstant` class.
+    __slots__ = ("_offset",)
 
+    def __init__(self, offset: float) -> None:
+        """
         Parameters
         ----------
         offset : float
@@ -73,10 +73,10 @@ class DriftLinear(IDriftCalculator):
 
     Implements the IDriftCalculator interface.
     """
+    __slots__ = ("_slope","_offset")
 
     def __init__(self, slope: float, offset: float = 0.0) -> None:
-        """Initialiser for the `DriftLinear` class.
-
+        """
         Parameters
         ----------
         slope : float
@@ -113,9 +113,10 @@ class DriftPolynomial(IDriftCalculator):
     Implements the IDriftCalculator interface.
     """
 
-    def __init__(self, coeffs: np.ndarray) -> None:
-        """Initialiser for the `DriftPolynomial` class.
+    __slots__ = ("_coeffs",)
 
+    def __init__(self, coeffs: np.ndarray) -> None:
+        """
         Parameters
         ----------
         coeffs : np.ndarray

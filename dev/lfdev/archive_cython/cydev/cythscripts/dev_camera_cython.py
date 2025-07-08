@@ -1,11 +1,9 @@
 
-"""
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-"""
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 import time
 from pathlib import Path
 import numpy as np
@@ -32,7 +30,7 @@ def main() -> None:
 
     field_key = "disp_y"
     components = ("disp_x","disp_y","disp_z")
-    mesh_world: pyvale.RenderMeshData = pyvale.create_render_mesh(data_path,
+    mesh_world: pyvale.RenderMesh = pyvale.create_render_mesh(data_path,
                                                                   field_key,
                                                                   components,
                                                                   sim_spat_dim=3)

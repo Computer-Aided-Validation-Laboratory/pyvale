@@ -1,13 +1,13 @@
 # ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
-# Copyright (C) 2024 The Computer Aided Validation Team
-# ==========================================================================================================================================================
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 import numpy as np
-from pyvale.rendermesh import RenderMeshData
+from pyvale.rendermesh import RenderMesh
 
-class SimTools():
-    """Namespace for tools required for handling simulation results.
+class SimTools:
+    """Namespace for tools required for analysing simulation results.
     """
 
     @staticmethod
@@ -37,7 +37,7 @@ class SimTools():
 
     @staticmethod
     def get_deformed_nodes(timestep: int,
-                           render_mesh: RenderMeshData) -> np.ndarray | None:
+                           render_mesh: RenderMesh) -> np.ndarray | None:
         """A method to obtain the deformed locations of all the nodes at a given
             timestep.
 
