@@ -54,9 +54,9 @@ namespace util {
         int num_def_img;
         int num_params;
         double precision;
-        double threshold_lm;
-        double threshold_bf;
-        int range_bf;
+        double opt_threshold;
+        double bf_threshold;
+        int max_disp;
         std::pair<int, int> rg_seed;
         std::string corr_crit;
         std::string shape_func;

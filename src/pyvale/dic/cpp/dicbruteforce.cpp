@@ -130,7 +130,7 @@ namespace brute {
                         brute.p_rigid[1] = p1;
 
                         // if its below our threshold and considered a good match. we'll use these values for the next brute force.
-                        if (cost_min < brute.threshold_bf) {
+                        if (cost_min < brute.bf_threshold) {
                             brute.p_rigid_prevmatch[0] = brute.p_rigid[0];
                             brute.p_rigid_prevmatch[1] = brute.p_rigid[1];
                             return;
@@ -171,7 +171,7 @@ namespace brute {
                     cost_min = cost;
                     brute.p_rigid[0] = p0;
                     brute.p_rigid[1] = p1;
-                    if (cost_min < brute.threshold_bf) return;
+                    if (cost_min < brute.bf_threshold) return;
                 }
 
             }

@@ -90,7 +90,7 @@ namespace scanmethod {
 
             // optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter,
-                                    conf.precision, conf.threshold_lm,
+                                    conf.precision, conf.opt_threshold,
                                     conf.px_vert, conf.px_hori);
 
 
@@ -156,12 +156,12 @@ namespace scanmethod {
 
         // optimization parameters
         optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                conf.precision, conf.threshold_lm,
+                                conf.precision, conf.opt_threshold,
                                 conf.px_vert, conf.px_hori);
 
 
         // brute force scan parameters
-        brute::Parameters brute(conf.threshold_bf, conf.range_bf);
+        brute::Parameters brute(conf.bf_threshold, conf.max_disp);
 
         // perform optimization on subset from deformed image
         util::Results res(conf.num_params);
@@ -194,7 +194,7 @@ namespace scanmethod {
             // if first subset in the loop or prev subset was a poor match
             // start search with a brute force scan using the last set of 
             // brute force params that gave a good match.
-            if ((ss_thread_num == 0) || (res.cost > opt.threshold_lm)){
+            if ((ss_thread_num == 0) || (res.cost > opt.opt_threshold)){
 
                 brute::expanding_wavefront(ss_x, ss_y, img_ref, 
                                         conf.px_hori, 
@@ -278,9 +278,9 @@ namespace scanmethod {
             util::Subset ss_ref(ss_size);
 
             // Optimization parameters
-            optimizer::Parameters opt(conf.num_params, conf.max_iter, conf.precision, conf.threshold_lm, px_vert, px_hori);
+            optimizer::Parameters opt(conf.num_params, conf.max_iter, conf.precision, conf.opt_threshold, px_vert, px_hori);
 
-            brute::Parameters brute(conf.threshold_bf, conf.range_bf);
+            brute::Parameters brute(conf.bf_threshold, conf.max_disp);
 
             std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
@@ -433,7 +433,7 @@ namespace scanmethod {
                         util::extract_ss(ss_ref, nx, ny, px_hori, px_vert, img_ref);
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
-                        if (util::cost_arr[idx_results] > opt.threshold_lm){
+                        if (util::cost_arr[idx_results] > opt.opt_threshold){
                             std::fill(opt.p.begin(), opt.p.end(), 0.0);
                             opt.p[0] = fourier::shifts[last_size].x[nidx];
                             opt.p[1] = fourier::shifts[last_size].y[nidx];
@@ -507,7 +507,7 @@ namespace scanmethod {
 
             // optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                    conf.precision, conf.threshold_lm,
+                                    conf.precision, conf.opt_threshold,
                                     conf.px_vert, conf.px_hori);
             
 
@@ -581,7 +581,7 @@ namespace scanmethod {
 
             // optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                    conf.precision, conf.threshold_lm,
+                                    conf.precision, conf.opt_threshold,
                                     conf.px_vert, conf.px_hori);
 
 

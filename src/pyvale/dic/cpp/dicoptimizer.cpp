@@ -81,7 +81,7 @@ namespace optimizer {
             // - rel change in parameters is less than user precision
             // - change in corr coeff is less than precision
             // - cost is less than threshold
-            if ((xtol < opt.precision) && (ftol < opt.precision) && (opt.costp < opt.threshold_lm)) {
+            if ((xtol < opt.precision) && (ftol < opt.precision) && (opt.costp < opt.opt_threshold)) {
                 //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
                 break;
             }

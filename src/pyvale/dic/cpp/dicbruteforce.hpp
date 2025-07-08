@@ -25,14 +25,14 @@ namespace brute {
     struct Parameters {
         std::array<int, 2> p_rigid; // translation vector
         std::array<int, 2> p_rigid_prevmatch; // translation vector
-        double threshold_bf;
+        double bf_threshold;
         int range;
 
-        Parameters(double threshold_bf_, int range_bf_)
+        Parameters(double bf_threshold_, int max_disp_)
             : p_rigid{0, 0},
               p_rigid_prevmatch{0, 0},
-              threshold_bf(threshold_bf_),
-              range(range_bf_) {}
+              bf_threshold(bf_threshold_),
+              range(max_disp_) {}
 
     };
     

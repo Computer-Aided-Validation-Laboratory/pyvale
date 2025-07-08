@@ -38,14 +38,14 @@ namespace optimizer {
         std::vector<double> augmented;
         int max_iter;
         double precision;
-        double threshold_lm;
+        double opt_threshold;
         int px_vert;
         int px_hori;
 
 
         // Constructor to initialize vectors and other parameters
         Parameters(int num_params_, int max_iter_, double precision_, 
-                   double threshold_lm_, int px_vert_, int px_hori_)
+                   double opt_threshold_, int px_vert_, int px_hori_)
             :
             num_params(num_params_),
             lambda(0.01),
@@ -61,7 +61,7 @@ namespace optimizer {
             augmented(num_params*num_params*2, 0.0),
             max_iter(max_iter_),
             precision(precision_),
-            threshold_lm(threshold_lm_),
+            opt_threshold(opt_threshold_),
             px_vert(px_vert_),
             px_hori(px_hori_) {}
     };

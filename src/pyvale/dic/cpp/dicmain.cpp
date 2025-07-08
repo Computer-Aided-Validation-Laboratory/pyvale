@@ -52,8 +52,8 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     INFO_OUT("Interpolation Routine: ", conf.interp_routine);
     INFO_OUT("Image Scan Method: ", conf.scan_method);
     INFO_OUT("Optimization Precision:", conf.precision);
-    INFO_OUT("Optimization Threshold:", conf.threshold_lm);
-    INFO_OUT("Estimate for Max Displacement:", conf.range_bf << " [px]");
+    INFO_OUT("Optimization Threshold:", conf.opt_threshold);
+    INFO_OUT("Estimate for Max Displacement:", conf.max_disp << " [px]");
     INFO_OUT("Subset Size:", conf.ss_size << " [px]");
     INFO_OUT("Subset Step:", conf.ss_step << " [px]" );
     INFO_OUT("Number of OMP threads:", omp_get_max_threads());
@@ -82,7 +82,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     std::vector<int> ss_sizes, ss_steps;
     if ((conf.scan_method == "FFT") || (conf.scan_method == "RG")){
         util::Timer timer("subset list initialisation");
-        util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.range_bf);
+        util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.max_disp);
         fourier::init(ssdata, ss_sizes, ss_steps, img_roi, conf);
     }
     else {
@@ -174,9 +174,9 @@ PYBIND11_MODULE(dic2dcpp, m) {
         .def_readwrite("ss_size", &util::Config::ss_size)
         .def_readwrite("max_iter", &util::Config::max_iter)
         .def_readwrite("precision", &util::Config::precision)
-        .def_readwrite("threshold_lm", &util::Config::threshold_lm)
-        .def_readwrite("threshold_bf", &util::Config::threshold_bf)
-        .def_readwrite("range_bf", &util::Config::range_bf)
+        .def_readwrite("opt_threshold", &util::Config::opt_threshold)
+        .def_readwrite("bf_threshold", &util::Config::bf_threshold)
+        .def_readwrite("max_disp", &util::Config::max_disp)
         .def_readwrite("corr_crit", &util::Config::corr_crit)
         .def_readwrite("shape_func", &util::Config::shape_func)
         .def_readwrite("interp_routine", &util::Config::interp_routine)

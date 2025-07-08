@@ -4,6 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
+from re import A
 from pyqtgraph.Qt import QtWidgets, QtGui, QtCore
 import pyqtgraph as pg
 import cv2
@@ -49,6 +50,8 @@ class DICRegionOfInterest:
             raise ValueError("Invalid image input")
 
         self.mask = np.zeros(self.image.shape[:2], dtype=bool)
+        self.mask = self.mask.T
+        self.seed = [0,0]
         self.__roi_selected = False
 
         self.drawing_seed = False
@@ -78,7 +81,7 @@ class DICRegionOfInterest:
 
         # Sidebar
         sidebar = QtWidgets.QVBoxLayout()
-        btn_add_seed = QtWidgets.QPushButton("Add Starting Seed Location")
+        btn_add_seed = QtWidgets.QPushButton("Add Reliability Guided Seed Location")
         btn_add_rect = QtWidgets.QPushButton("Add Rectangle")
         btn_add_circle = QtWidgets.QPushButton("Add Circle")
         btn_add_poly = QtWidgets.QPushButton("Add Polygon")
@@ -87,8 +90,9 @@ class DICRegionOfInterest:
         btn_sub_poly = QtWidgets.QPushButton("Remove Polygon")
         btn_undo_prev = QtWidgets.QPushButton("Undo Shape")
         btn_redo_prev = QtWidgets.QPushButton("Redo Shape")
+        btn_finished = QtWidgets.QPushButton("ROI Completed")
 
-        for btn in [btn_add_seed, btn_add_rect, btn_add_circle, btn_add_poly, btn_sub_rect, btn_sub_circle, btn_sub_poly, btn_undo_prev, btn_redo_prev]:
+        for btn in [btn_add_seed, btn_add_rect, btn_add_circle, btn_add_poly, btn_sub_rect, btn_sub_circle, btn_sub_poly, btn_undo_prev, btn_redo_prev, btn_finished]:
             sidebar.addWidget(btn)
 
         sidebar.addStretch()
@@ -96,7 +100,8 @@ class DICRegionOfInterest:
         # Graphics view
         graphics_widget = pg.GraphicsLayoutWidget()
         main_view = graphics_widget.addViewBox(lockAspect=True)
-        img = pg.ImageItem(self.image)
+        rotated = np.rot90(self.image,k=-1)
+        img = pg.ImageItem(rotated)
         main_view.addItem(img)
         main_view.disableAutoRange('xy')
         main_view.autoRange()
@@ -105,12 +110,14 @@ class DICRegionOfInterest:
         fill_layer.setZValue(1)
         main_view.addItem(fill_layer)
 
-        height, width = self.image.shape[:2]
+        height, width = rotated.shape[:2]
         fill_array = np.zeros((height,width,4), dtype=np.uint8)
 
         roi_list = []
         add_list = []
-        undo_list = []  # Stack of (roi, add_flag) tuples that were undone
+        seed_list = []
+        undo_list = []
+        temp_mask = np.zeros((height, width), dtype=bool)
 
         def clear_redo_stack():
             """Clear the redo stack when new shapes are added"""
@@ -118,12 +125,12 @@ class DICRegionOfInterest:
             undo_list = []
 
         def redraw_fill_layer():
-            nonlocal fill_array
+            nonlocal fill_array, temp_mask
             if not roi_list:
                 fill_layer.setImage(fill_array)
                 return
 
-            mask = np.zeros((height, width), dtype=bool)
+            temp_mask.fill(False)
 
             for n, roi in enumerate(roi_list):
 
@@ -137,7 +144,7 @@ class DICRegionOfInterest:
                     w = max(0, min(w, width - x))
                     h = max(0, min(h, height - y))
                     if w > 0 and h > 0:
-                        mask[y:y+h, x:x+w] = add_list[n]
+                        temp_mask[y:y+h, x:x+w] = add_list[n]
 
                 elif isinstance(roi, pg.CircleROI):
                     pos = roi.pos()
@@ -147,9 +154,9 @@ class DICRegionOfInterest:
                     y_coords, x_coords = np.ogrid[:height, :width]
                     circle_mask = ((x_coords - cx)/rx)**2 + ((y_coords - cy)/ry)**2 <= 1
                     if add_list[n]:
-                        mask |= circle_mask
+                        temp_mask |= circle_mask
                     else:
-                        mask &= ~circle_mask
+                        temp_mask &= ~circle_mask
 
                 elif isinstance(roi, pg.PolyLineROI):
                     points = roi.getState()['points']
@@ -169,14 +176,14 @@ class DICRegionOfInterest:
                             inside = path.contains_points(points_grid)
                             inside_2d = inside.reshape(y_max - y_min, x_max - x_min)
                             if add_list[n]:
-                                mask[y_min:y_max, x_min:x_max] |= inside_2d
+                                temp_mask[y_min:y_max, x_min:x_max] |= inside_2d
                             else:
-                                mask[y_min:y_max, x_min:x_max] &= ~inside_2d
+                                temp_mask[y_min:y_max, x_min:x_max] &= ~inside_2d
 
             fill_array[:, :, 0] = 0
             fill_array[:, :, 1] = 255
             fill_array[:, :, 2] = 0
-            fill_array[:, :, 3] = mask * 80
+            fill_array[:, :, 3] = temp_mask * 80
             fill_layer.setImage(fill_array)
 
         addpen=pg.mkPen('g', width=4)
@@ -204,6 +211,11 @@ class DICRegionOfInterest:
                 roi.sigRegionChanged.connect(redraw_fill_layer)
                 redraw_fill_layer()
 
+        def finish():
+            main_window.close()
+            pg.QtWidgets.QApplication.quit()
+            
+
         poly_points = []
         add_scatter = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush('b'))
         sub_scatter = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush('r'))
@@ -223,7 +235,8 @@ class DICRegionOfInterest:
             if not self.drawing_seed:
                 return
             main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            clear_redo_stack()  # Clear redo stack when adding new shape
+            clear_redo_stack()
+            btn_add_seed.setEnabled(False)
             self.drawing_seed = False
 
         def start_drawing_rect():
@@ -235,7 +248,7 @@ class DICRegionOfInterest:
             if not self.drawing_rect:
                 return
             main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            clear_redo_stack()  # Clear redo stack when adding new shape
+            clear_redo_stack()
             self.drawing_rect = False
 
         def start_removing_rect():
@@ -247,7 +260,7 @@ class DICRegionOfInterest:
             if not self.removing_rect:
                 return
             main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            clear_redo_stack()  # Clear redo stack when adding new shape
+            clear_redo_stack()
             self.removing_rect = False
 
         def start_drawing_circle():
@@ -259,7 +272,7 @@ class DICRegionOfInterest:
             if not self.drawing_circle:
                 return
             main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            clear_redo_stack()  # Clear redo stack when adding new shape
+            clear_redo_stack()
             self.drawing_circle = False
 
         def start_removing_circle():
@@ -271,7 +284,7 @@ class DICRegionOfInterest:
             if not self.removing_circle:
                 return
             main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            clear_redo_stack()  # Clear redo stack when adding new shape
+            clear_redo_stack()
             self.removing_circle = False
 
         def start_drawing_polygon():
@@ -403,12 +416,13 @@ class DICRegionOfInterest:
                     x = math.floor(start_point.x()-subset_size/2)
                     y = math.floor(start_point.y()-subset_size/2)
                     roi = pg.RectROI([x,y], [subset_size, subset_size], pen=seedpen, hoverPen=seedhoverpen, handlePen=seedpen, handleHoverPen=seedhoverpen)
+                    seed_list.append(roi)
                     handles = roi.getHandles()
                     for handle in handles:
                         roi.removeHandle(handle)
                     roi.addTranslateHandle([0.5,0.5])
                     main_view.addItem(roi)
-                    print("seed added at location: [", x, ", ", y, "]")
+                    print(f"seed initially added at location: [{x}, {width-y}]")
                     finish_drawing_seed()
 
             elif self.removing_rect:
@@ -486,11 +500,26 @@ class DICRegionOfInterest:
         btn_sub_poly.clicked.connect(start_removing_poly)
         btn_undo_prev.clicked.connect(undo_last)
         btn_redo_prev.clicked.connect(redo_last)
+        btn_finished.clicked.connect(finish)
 
         main_layout.addLayout(sidebar)
         main_layout.addWidget(graphics_widget)
         main_window.show()
         pg.exec()
+
+        self.mask = np.flipud(temp_mask.T)
+        plt.figure()
+        plt.imshow(self.mask)
+        plt.show()
+
+        if len(seed_list) != 0:
+            pos = seed_list[0].pos()
+            x = int(np.floor(pos.x()))
+            y = int(np.floor(width-pos.y()))
+            self.seed = [x,y]
+            if not self.mask[y,x]:
+                raise ValueError(f"seed location [{x}, {y}] is not within the mask")
+            print(f"Final seed location: [{x}, {y}]")
 
 
     def reset_mask(self, image_shape: np.ndarray) -> np.ndarray:

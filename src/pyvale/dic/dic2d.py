@@ -29,11 +29,11 @@ def DIC2D(reference: np.ndarray | str,
           shape_function: str="AFFINE",
           interpolation_routine: str="BICUBIC",
           max_iterations: int=40,
-          precision: float=0.001,
-          threshold_levenberg: float=0.1,
-          threshold_bruteforce: float=0.2,
-          range_bruteforce: int=10,
-          scanning_method: str="IMAGE_SCAN",
+          opt_precision: float=0.001,
+          opt_threshold: float=0.1,
+          bf_threshold: float=0.2,
+          max_displacement: int=128,
+          scanning_method: str="RG",
           output_at_end: bool=False,
           output_basepath: str="./",
           output_binary: bool=False,
@@ -45,7 +45,7 @@ def DIC2D(reference: np.ndarray | str,
     check_correlation_criteria(correlation_criteria)
     check_interpolation(interpolation_routine)
     check_scanning_method(scanning_method)
-    check_thresholds(threshold_levenberg, threshold_levenberg, precision)
+    check_thresholds(opt_threshold, bf_threshold, opt_precision)
     check_output_directory(output_basepath, output_prefix)
     check_subsets(subset_size, subset_step)
     updated_seed = check_and_update_rg_seed(seed, roi_mask, scanning_method, ref_arr.shape[1], ref_arr.shape[0], subset_step)
@@ -57,10 +57,10 @@ def DIC2D(reference: np.ndarray | str,
     config.ss_step = subset_step
     config.ss_size = subset_size
     config.max_iter = max_iterations
-    config.precision = precision
-    config.threshold_lm = threshold_levenberg
-    config.threshold_bf = threshold_bruteforce
-    config.range_bf = range_bruteforce
+    config.precision = opt_precision
+    config.opt_threshold = opt_threshold
+    config.bf_threshold = bf_threshold
+    config.max_disp = max_displacement
     config.corr_crit = correlation_criteria
     config.shape_func = shape_function
     config.interp_routine = interpolation_routine
@@ -258,20 +258,20 @@ def check_scanning_method(scanning_method: str) -> None:
 
 
 
-def check_thresholds(threshold_levenberg: float, 
-                     threshold_bruteforce: float, 
-                     precision: float) -> None:
+def check_thresholds(opt_threshold: float, 
+                     bf_threshold: float, 
+                     opt_precision: float) -> None:
     """
-    Ensures that `threshold_levenberg`, `threshold_bruteforce`, and `precision`
+    Ensures that `opt_threshold`, `bf_threshold`, and `opt_precision`
     are all floats strictly between 0 and 1. Raises a `ValueError` if any condition fails.
 
     Parameters
     ----------
-    threshold_levenberg : float
+    opt_threshold : float
         Threshold for the Levenberg optimization method.
-    threshold_bruteforce : float
+    bf_threshold : float
         Threshold for the brute-force optimization method.
-    precision : float
+    opt_precision : float
         Desired precision for the optimizer.
 
     Raises
@@ -280,15 +280,15 @@ def check_thresholds(threshold_levenberg: float,
         If any input value is not a float strictly between 0 and 1.
     """
 
-    if not (0 < threshold_levenberg < 1):
-        raise ValueError("threshold_levenberg must be a float "
+    if not (0 < opt_threshold < 1):
+        raise ValueError("opt_threshold must be a float "
                          "strictly between 0 and 1.")
 
-    if not (0 < threshold_bruteforce < 1):
-        raise ValueError("threshold_bruteforce must be a float "
+    if not (0 < bf_threshold < 1):
+        raise ValueError("bf_threshold must be a float "
                          "strictly between 0 and 1.")
     
-    if not (0 < precision < 1):
+    if not (0 < opt_precision < 1):
         raise ValueError("Optimizer precision must be a float strictly "
                          "between 0 and 1.")
 
