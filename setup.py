@@ -29,7 +29,7 @@ ext_cython = Extension(
     )
 
 ext_dic = Extension(
-    'pyvale.dic.dic2dcpp',
+    'pyvale.dic2dcpp',
     sorted(glob("src/pyvale/dic/cpp/dic*.cpp")),
     language="c++",
     include_dirs=[pybind11.get_include()],

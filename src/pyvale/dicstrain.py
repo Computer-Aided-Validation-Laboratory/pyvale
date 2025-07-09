@@ -7,11 +7,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pyvale.dic import dic2dcpp
-from pyvale.dic.dicdataimport import DICdata_import
-from pyvale.dic.dicresults import DICResults
+from pyvale import dic2dcpp
+from pyvale.dicdataimport import dic_data_import
+from pyvale.dicresults import DICResults
 
-def DICstrain(dic_data: DICResults | str,
+def strain_2d(data: DICResults | str,
                          window_size: int=5, 
                          window_element: int=4,
                          input_binary: bool=False,
@@ -71,7 +71,7 @@ def DICstrain(dic_data: DICResults | str,
 
     # Load data if a file path is given
     if isinstance(dic_data, str):
-        results = DICdata_import(layout="matrix", data=dic_data,
+        results = dic_data_import(layout="matrix", data=dic_data,
                                  binary=binary, delimiter=delimiter)
     elif isinstance(dic_data, DICResults):
         results = dic_data
@@ -100,3 +100,17 @@ def DICstrain(dic_data: DICResults | str,
 
 
 
+def strain_data_import(data: DICResults | str,
+                         window_size: int=5, 
+                         window_element: int=4,
+                         input_binary: bool=False,
+                         output_def_grad: bool=True,
+                         output_strain: bool=True,
+                         output_basepath: str="./",
+                         output_binary: bool=False,
+                         output_prefix: str="strain",
+                         output_delimiter: str=" ",
+                         output_at_end: bool=False,
+                         strain_formulation: str="HENCKY",
+                         binary: bool=False,
+                         delimiter: str=" "):

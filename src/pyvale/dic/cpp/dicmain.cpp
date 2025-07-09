@@ -57,7 +57,8 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     INFO_OUT("Subset Size:", conf.ss_size << " [px]");
     INFO_OUT("Subset Step:", conf.ss_step << " [px]" );
     INFO_OUT("Number of OMP threads:", omp_get_max_threads());
-    if (conf.scan_method=="RG") INFO_OUT("Reliability Guided Seed location: ", "(" << conf.rg_seed.first << ", " << conf.rg_seed.second << ") [px] " )
+    if (conf.scan_method=="RG") INFO_OUT("Reliability Guided Seed central px location: ", "(" 
+                                         << conf.rg_seed.first+conf.ss_size/2 << ", " << conf.rg_seed.second+conf.ss_size/2 << ") [px] " )
 
     // Register signal handler for Ctrl+C
     signal(SIGINT, scanmethod::signalHandler);
@@ -70,7 +71,10 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // debugging
     //for (int y = 0; y < conf.px_vert; y++){
     //    for (int x = 0; x < conf.px_hori; x++){
-    //        std::cout << x << " " << y << " " << img_ref[y*conf.px_hori + x] << " " << img_def_stack[y*conf.px_hori + x] << " " << img_roi[y*conf.px_hori+x] << std::endl;
+    //        std::cout << x << " " << y << " ";
+    //        std::cout << img_ref[y*conf.px_hori + x] << " ";
+    //        std::cout << img_def_stack[y*conf.px_hori + x] << " ";
+    //        std::cout << img_roi[y*conf.px_hori+x] << std::endl;
     //    }
     //}
     //exit(0);

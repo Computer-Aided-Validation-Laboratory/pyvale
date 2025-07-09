@@ -8,16 +8,14 @@
 
 import numpy as np
 import glob
-from typing import Union
-from typing import List
 
 # import cython module
-from pyvale.dic.dicresults import DICResults
+from pyvale.dicresults import DICResults
 
 
-def DICdata_import(layout: str = "column", 
-                   data: str = "./", 
+def dic_data_import(data: str = "./",
                    binary: bool = False,
+                   layout: str = "matrix",
                    delimiter: str = " ") -> DICResults:
     """
     Import DIC result data from human readable text or binary files.

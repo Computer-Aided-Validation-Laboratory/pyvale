@@ -508,10 +508,6 @@ class DICRegionOfInterest:
         pg.exec()
 
         self.mask = np.flipud(temp_mask.T)
-        plt.figure()
-        plt.imshow(self.mask)
-        plt.show()
-
         if len(seed_list) != 0:
             pos = seed_list[0].pos()
             x = int(np.floor(pos.x()))
@@ -572,7 +568,7 @@ class DICRegionOfInterest:
         result = cv2.addWeighted(self.image, 0.7, overlay, 0.3, 0)
         cv2.imwrite(filename, result)
 
-    def roisave(self, filename: str="./roi.tiff", binary: bool=True) -> None:
+    def save(self, filename: str="./roi.dat", binary: bool=False) -> None:
         """
         Saves the roi as a binary mask or text file.
         
@@ -591,7 +587,7 @@ class DICRegionOfInterest:
             np.savetxt(filename, self.mask, fmt='%d', delimiter=' ')
 
 
-    def roiread(self, filename: str = "./roi.tiff", binary: bool = True) -> None:
+    def read(self, filename: str = "./roi.tiff", binary: bool = True) -> None:
         """
         Load the ROI mask from a binary or text file and store it in `self.mask`.
 
@@ -636,9 +632,24 @@ class DICRegionOfInterest:
             ValueError: If no ROI is selected.
         """
 
+        
         if not self.__roi_selected:
-            raise ValueError("No ROI selected with \'interactive_selection\' or \'rect_boundary\' ")
-        plt.imshow((self.mask.astype(np.uint8)) * 255, cmap='gray')
-        plt.title("ROI Mask")
+                raise ValueError("No ROI selected with 'interactive_selection' or 'rect_boundary'")
+
+        # Create a green mask image
+        green_mask = np.zeros_like(self.image)
+        green_mask[self.mask] = [0, 255, 0]
+
+        # Blend the original image and the mask
+        blended = self.image.astype(float) * 0.7 + green_mask.astype(float) * 0.3
+        blended = blended.astype(np.uint8)
+
+        # Display using Matplotlib
+        plt.figure(figsize=(8, 6))
+        plt.imshow(blended)
+        plt.title("Region Of Interest")
+        plt.axis('off')
         plt.show()
+
+
 

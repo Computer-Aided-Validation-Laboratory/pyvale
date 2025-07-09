@@ -4,86 +4,12 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
-
-
 import numpy as np
 import glob
 import os
 import sys
 from PIL import Image
 from typing import Union
-
-
-# import cython module
-import pyvale.dic.dic2dcpp as dic2dcpp
-from pyvale.dic.dicresults import DICResults
-
-
-def DIC2D(reference: np.ndarray | str,
-          deformed: np.ndarray | str,
-          roi_mask: np.ndarray,
-          seed: list[int]=[],
-          subset_size: int = 21,
-          subset_step: int = 10,
-          correlation_criteria: str="ZNSSD",
-          shape_function: str="AFFINE",
-          interpolation_routine: str="BICUBIC",
-          max_iterations: int=40,
-          opt_precision: float=0.001,
-          opt_threshold: float=0.1,
-          bf_threshold: float=0.2,
-          max_displacement: int=128,
-          scanning_method: str="RG",
-          output_at_end: bool=False,
-          output_basepath: str="./",
-          output_binary: bool=False,
-          output_prefix: str="results",
-          output_delimiter: str=" ") -> None:
-
-    # do checks on vars in python land
-    ref_arr, def_arr, filenames = check_and_get_images(reference,deformed,roi_mask)
-    check_correlation_criteria(correlation_criteria)
-    check_interpolation(interpolation_routine)
-    check_scanning_method(scanning_method)
-    check_thresholds(opt_threshold, bf_threshold, opt_precision)
-    check_output_directory(output_basepath, output_prefix)
-    check_subsets(subset_size, subset_step)
-    updated_seed = check_and_update_rg_seed(seed, roi_mask, scanning_method, ref_arr.shape[1], ref_arr.shape[0], subset_step)
-    num_params = check_shape_function(shape_function)
-
-
-    # Assign values to config struct for c++ land
-    config = dic2dcpp.Config()
-    config.ss_step = subset_step
-    config.ss_size = subset_size
-    config.max_iter = max_iterations
-    config.precision = opt_precision
-    config.opt_threshold = opt_threshold
-    config.bf_threshold = bf_threshold
-    config.max_disp = max_displacement
-    config.corr_crit = correlation_criteria
-    config.shape_func = shape_function
-    config.interp_routine = interpolation_routine
-    config.scan_method = scanning_method
-    config.px_hori = ref_arr.shape[1]
-    config.px_vert = ref_arr.shape[0]
-    config.num_def_img = def_arr.shape[0]
-    config.num_params = num_params
-    config.rg_seed = updated_seed
-    config.filenames = filenames
-
-    # assigning c++ struct vals for save config
-    saveconf = dic2dcpp.SaveConfig()
-    saveconf.basepath = output_basepath
-    saveconf.binary = output_binary
-    saveconf.prefix = output_prefix
-    saveconf.delimiter = output_delimiter
-    saveconf.at_end = output_at_end
-
-    # calling the c++ dic engine
-    dic2dcpp.dic_engine(ref_arr, def_arr, roi_mask, config, saveconf)
-
-
 
 
 def check_output_directory(output_basepath: str,
@@ -166,8 +92,6 @@ def check_correlation_criteria(correlation_criteria: str) -> None:
 
 def check_shape_function(shape_function: str) -> int:
     """
-    Validate the shape function type and return the corresponding number of parameters.
-
     Checks whether input `shape_function` is one of the allowed
     values ("RIGID" or "AFFINE"). If valid, it returns the number of transformation
     parameters associated with that shape function.
@@ -319,7 +243,7 @@ def check_subsets(subset_size: int, subset_step: int) -> None:
 
 
 
-def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_step: int) -> list[int]:
+def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_size: int, subset_step: int) -> list[int]:
     """
     Validate and update the region-growing seed location to align with image bounds and subset spacing.
 
@@ -360,36 +284,47 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
         return [0,0]
 
     if not (isinstance(seed, list) and len(seed) == 2 and all(isinstance(coord, int) for coord in seed)):
-        raise ValueError("rg_seed is either missing or has been defined incorrectly. must be a list of two integers: rg_seed=[x, y]")
+        raise ValueError("rg_seed is either missing or has been defined incorrectly. must be a list of two integers: seed=[x, y]")
 
     x, y = seed
 
-    if not (0 <= x < px_hori and 0 <= y < px_vert):
-        raise ValueError(f"Seed ({x}, {y}) is out of image bounds ({px_hori}, {px_vert})")
+    corner_x = x - subset_size//2
+    corner_y = y - subset_size//2
 
     def round_to_step(value: int, step: int) -> int:
         return round(value / step) * step
 
-    new_x = round_to_step(x, subset_step)
-    new_y = round_to_step(y, subset_step)
+    # snap to grid
+    new_x = round_to_step(corner_x, subset_step)
+    new_y = round_to_step(corner_y, subset_step)
+
 
     # Clamp to image bounds
     new_x = min(max(new_x, 0), px_hori - 1)
     new_y = min(max(new_y, 0), px_vert - 1)
 
-    if (new_x, new_y) != (x, y):
-        print(f"Seed adjusted from ({x}, {y}) to ({new_x}, {new_y}) to align with subset step of {subset_step}.")
-    
-    # check if the new seed location is within the roi
-    if not roi_mask[new_x, new_y]:
-        print(f"seed location ({new_x}, {new_y}) is not in the Region of interest (ROI) mask. Please select a seed point within the ROI.")
+    # check if all pixel values within the seed location are within the ROI
+    # seed coordinates are the central pixel to the subset
+    max_x = new_x + subset_size//2+1
+    max_y = new_y + subset_size//2+1
+
+
+    # Check if all pixel values in the ROI are valid
+    for i in range(corner_x, max_x):
+        for j in range(corner_y, max_y):
+
+            if i < 0 or i >= px_hori or j < 0 or j >= px_vert:
+                raise ValueError(f"Seed ({x}, {y}) goes outside the image bounds at pixel ({i}, {j})")
+
+            if not roi_mask[j, i]:
+                raise ValueError(f"Seed ({x}, {y}) goes outside the ROI at pixel ({i}, {j})")
 
     return [new_x, new_y]
 
 
 def check_and_get_images(reference: Union[np.ndarray, str],
                          deformed: Union[np.ndarray, str],
-                         roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, list[str]]:
+                         roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[str]]:
     """
     Load and validate reference and deformed images, checks consistency in shape/format.
 
@@ -497,4 +432,9 @@ def check_and_get_images(reference: Union[np.ndarray, str],
             raise ValueError(f"Shape mismatch: reference {reference.shape}, "
                              f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
 
-    return ref_arr, def_arr, filenames
+    
+    # it might be the case that the roi has been manipulated prior to DIC run
+    # and therefore we need to to prevent the roi mask from being a 'view'
+    roi_c = np.ascontiguousarray(roi)
+
+    return ref_arr, def_arr, roi_c, filenames

@@ -37,9 +37,13 @@ namespace fourier {
             const int window_size = ss_sizes[i];
             const int window_step = ss_steps[i];
 
-            // generate subset information for each window
-            window_data.push_back(util::gen_ss_list(img_roi, window_step, window_size,
-                                          conf.px_hori, conf.px_vert, true));
+            // generate subset information for each window size.
+            // for the last size all subsets need to sit within the ROI
+            if (i==ss_sizes.size()-1)
+                window_data.push_back(util::gen_ss_list(img_roi, window_step, window_size, conf.px_hori, conf.px_vert, false));
+            else 
+                window_data.push_back(util::gen_ss_list(img_roi, window_step, window_size, conf.px_hori, conf.px_vert, true));
+            
 
             // shifts for each subset size
             Shift shift;
