@@ -49,12 +49,14 @@ namespace strain {
         std::vector<int> y;
         std::vector<double> def_grad;
         std::vector<double> strain;
+        std::vector<bool> valid_window;
 
         Results(int nwindows) 
             : x(nwindows, 0),
               y(nwindows, 0),
               def_grad(nwindows*4, std::nan("")),
-              strain(nwindows*4, std::nan(""))
+              strain(nwindows*4, std::nan("")),
+              valid_window(nwindows, false)
         {}
     };
 
@@ -64,9 +66,11 @@ namespace strain {
                 const py::array_t<int> &ss_y_arr,
                 const py::array_t<double> &u_arr,
                 const py::array_t<double> &v_arr,
-                int nss_x, int nss_y, int nimg,
-                int sw_size, int q, std::string &form,
-                util::SaveConfig &strain_save_conf);
+                const int nss_x, const int nss_y, 
+                const int nimg, const int sw_size, 
+                const int q, const std::string &form,
+                const std::vector<std::string> &filenames,
+                const util::SaveConfig &strain_save_conf);
 
     /**
      * @brief Fills the strain window with the subset coordinates 
@@ -91,20 +95,30 @@ namespace strain {
 
 
 
-    Eigen::Matrix2d compute_deformation_gradient(const int q, const Eigen::VectorXd &uc, const Eigen::VectorXd& vc, const double x0, const double y0);
+    Eigen::Matrix2d compute_def_grad(const int q, const Eigen::VectorXd &uc, 
+                                     const Eigen::VectorXd& vc, const double x0, 
+                                     const double y0);
 
 
-    Eigen::Matrix2d compute_strain(const std::string& form, const Eigen::Matrix2d& deform_grad);
+    Eigen::Matrix2d compute_strain(const std::string& form, 
+                                   const Eigen::Matrix2d& deform_grad);
 
 
     /**
      */
-    void append_results(int sw, strain::Results &results, const bool save_at_end, const int x0, const int y0, const Eigen::Matrix2d &deform_grad, const Eigen::Matrix2d &eps, const int nwindows, const int img);
+    void append_results(int sw, strain::Results &results,
+                        const bool save_at_end, const int x0, const int y0, 
+                        const Eigen::Matrix2d &deform_grad, 
+                        const Eigen::Matrix2d &eps, 
+                        const int nwindows, const int img);
 
 
     /**
      */
-    void save_to_disk(int img, const strain::Results &results, const util::SaveConfig &strain_save_conf, const int nwindows, const int nimg);
+    void save_to_disk(int img, const strain::Results &results, 
+                      const util::SaveConfig &strain_save_conf, 
+                      const int nwindows, const int nimg,
+                      const std::vector<std::string> filenames);
 
 
 

@@ -36,6 +36,8 @@ class DICResults:
         Final `xtol` value from the optimization routine, indicating solution tolerance.
     niter : np.ndarray
         Number of iterations taken to converge for each subset point.
+    filenames : list[str]
+        name of DIC result files that have been found
 
     Notes
     -----
@@ -52,3 +54,4 @@ class DICResults:
     ftol: np.ndarray
     xtol: np.ndarray
     niter: np.ndarray
+    filenames: list[str]

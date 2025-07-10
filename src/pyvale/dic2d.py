@@ -31,10 +31,11 @@ def dic_2d(reference: np.ndarray | str,
           output_at_end: bool=False,
           output_basepath: str="./",
           output_binary: bool=False,
-          output_prefix: str="results",
+          output_prefix: str="dic_results_",
           output_delimiter: str=" ") -> None:
 
     # do checks on vars in python land
+    dicchecks.print_title("Initial Checks")
     ref_arr, def_arr, roi_c, filenames = dicchecks.check_and_get_images(reference,deformed,roi_mask)
     dicchecks.check_correlation_criteria(correlation_criteria)
     dicchecks.check_interpolation(interpolation_routine)

@@ -52,7 +52,7 @@ pyvale.dic_2d(reference=ref_pattern,
 
 # %% 
 # We can import the results in the standard way
-dicdata = pyvale.DICdata_import(data="./subset_size_17_0000.dat",
+dicdata = pyvale.dic_data_import(data="./subset_size_17_0000.dat",
                                 layout='column', binary=False, delimiter=" ")
 
 

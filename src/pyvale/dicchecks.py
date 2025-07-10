@@ -284,7 +284,7 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
         return [0,0]
 
     if not (isinstance(seed, list) and len(seed) == 2 and all(isinstance(coord, int) for coord in seed)):
-        raise ValueError("rg_seed is either missing or has been defined incorrectly. must be a list of two integers: seed=[x, y]")
+        raise ValueError("Reliability Guided seed is either missing or has been defined incorrectly. must be a list of two integers: seed=[x, y]")
 
     x, y = seed
 
@@ -438,3 +438,16 @@ def check_and_get_images(reference: Union[np.ndarray, str],
     roi_c = np.ascontiguousarray(roi)
 
     return ref_arr, def_arr, roi_c, filenames
+
+def print_title(a: str):
+    line_width = 122
+    half_width = 60
+
+    print('-' * line_width)
+
+    # Center the title between dashes
+    left_dashes = '-' * (half_width - len(a) // 2)
+    right_dashes = '-' * (half_width - len(a) // 2)
+    print(f"{left_dashes} {a} {right_dashes}")
+
+    print('-' * line_width)

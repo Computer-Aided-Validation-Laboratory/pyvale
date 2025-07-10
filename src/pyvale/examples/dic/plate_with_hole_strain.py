@@ -7,7 +7,7 @@
 # ================================================================================
 
 """
-Strain and Deformation gradient Calculations
+Strain and Deformation Gradient Calculations
 ---------------------------------------------
 This example leads on from the previous one, so its assumed that the results
 have been generated in the current working directory ready to be used for the
@@ -22,7 +22,7 @@ import pyvale
 # to import the data first, you can simply set data argument to the name and location of
 # the output data (and you'll also need to set the delimiter and format if that
 # has been altered in anyway).
-dic_data = pyvale.dic_data_import(data="./plate_with_hole_*.dat")
+dic_data = pyvale.dic_data_import(data="dic_results_*.dat")
  
 # %%
 # At a minimum you'll need to set the strain window wize and
@@ -31,13 +31,12 @@ dic_data = pyvale.dic_data_import(data="./plate_with_hole_*.dat")
 # a minimum, the strain window locations and the deformation gradient. If the
 # user has provided a strain_formulation, then the 2D strain tensor will also
 # be included in the output files.
-pyvale.dic_strain(data=dic_data, window_size=5, window_element=4,
-                            strain_formulation="ALMANSI")
+pyvale.strain_2d(data=dic_data, window_size=5, window_element=4)
 
 # %% 
 # The results can be read back into python following the completion of the
 # calculation by using the func:`pyvale.strainDataImport` command.
-straindata = pyvale.strain_data_import()
+#straindata = pyvale.strain_data_import()
 
 
 

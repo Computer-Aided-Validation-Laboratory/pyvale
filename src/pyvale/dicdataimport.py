@@ -42,6 +42,7 @@ def dic_data_import(data: str = "./",
         A named container with the following fields:
             - X, Y (grid arrays if layout=="matrix"; otherwise, 1D integer arrays)
             - u, v, m, cost, ftol, xtol, niter (arrays with shape depending on layout)
+            - filenames (python list)
 
     Raises:
     -------
@@ -54,6 +55,7 @@ def dic_data_import(data: str = "./",
     """
 
     files = sorted(glob.glob(data))
+    filenames = files
     if not files:
         raise FileNotFoundError(f"No results found in: {data}")
 
@@ -76,13 +78,11 @@ def dic_data_import(data: str = "./",
         y_unique = np.unique(ss_y_ref)
         X, Y = np.meshgrid(x_unique, y_unique)
         shape = (len(files), len(y_unique), len(x_unique))
-
-
-
         arrays = [to_grid(a,shape,ss_x_ref, ss_y_ref, x_unique,y_unique) for a in arrays]
-        return DICResults(X, Y, *arrays)
+        return DICResults(X, Y, *arrays, filenames)
+
     else:
-        return DICResults(ss_x_ref, ss_y_ref, *arrays)
+        return DICResults(ss_x_ref, ss_y_ref, *arrays, filenames)
 
 
 
@@ -107,7 +107,7 @@ def read_binary(file: str, delimiter: str):
     return ss_x, ss_y, u, v, m, cost, ftol, xtol, niter
 
 def read_text(file: str, delimiter: str):
-    data = np.loadtxt(file, delimiter=delimiter)
+    data = np.loadtxt(file, delimiter=delimiter, skiprows=1)
     if data.shape[1] < 9:
         raise ValueError("Text data must have at least 9 columns.")
     return (

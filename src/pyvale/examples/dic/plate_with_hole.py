@@ -14,7 +14,7 @@ This example takes you through setting up A DIC and strain calculation for 1
 """
 
 import matplotlib.pyplot as plt
-import pyvale.dicdataimport
+import pyvale
 
 # %%
 # there'll be a couple of places where we'll be referring back to the reference
@@ -24,7 +24,7 @@ import pyvale.dicdataimport
 # can use a the wildcard operator '*' to select multiple files.
 subset_size = 31
 ref_img = "../../data/ref0000.tiff"
-def_img = "../../data/def0000.tiff"
+def_img = "../../data/def000*.tiff"
 
 # %% 
 # We'll want to select our Region of Interset (ROI) using the interactive tool.
@@ -34,7 +34,6 @@ def_img = "../../data/def0000.tiff"
 # process.
 roi = pyvale.DICRegionOfInterest(ref_img)
 roi.interactive_selection(subset_size)
-roi.imshow()
 
 # %%
 # Once you've closed the ROI interactive selection, this will generate a mask
@@ -48,7 +47,9 @@ roi.save(filename="roi.dat",binary=False)
 # For any future DIC calculations, you can read the ROI mask back in using the
 # :func:`roi.roiread` command. Remember to update the filename and the whether the ROI
 # mask has been saved in human readable or binary format.
-roi.read(filename="roi.dat",binary=False)
+roi.read(filename="roi.dat")
+
+roi.imshow()
 
 # %%
 # Now for the main event, the 2D DIC engine can be run using the command
@@ -62,12 +63,13 @@ roi.read(filename="roi.dat",binary=False)
 # using the appropriate flags. Again, please see the in-depth documentation for
 # further details.
 pyvale.dic_2d(reference=ref_img,
-             deformed=def_img,
-             roi_mask=roi.mask,
-             subset_size=subset_size,
-             subset_step=10,
-             shape_function="AFFINE",
-             correlation_criteria="ZNSSD")
+              deformed=def_img,
+              roi_mask=roi.mask,
+              seed=[300,500],
+              subset_size=subset_size,
+              subset_step=10,
+              shape_function="AFFINE",
+              correlation_criteria="ZNSSD")
 
 # %%
 # If you've saved the results in human readable format, then feel free to use
@@ -81,16 +83,33 @@ pyvale.dic_2d(reference=ref_img,
 # they'll also need to be specified. There's also the option to specify the
 # layout of the imported data. See :class:`pyvale.DICResults` for more details.
 # You can also look at :func:`pyvale.DICdata_import` for more info
-dicdata = pyvale.dic_data_import(data="./output/*.dat", delimiter=" ", binary=False)
+dicdata = pyvale.dic_data_import(data="dic_results_*.dat", delimiter=" ", binary=False)
 
 # %%
 # As an example of some very simple visualisation, you could loop over the
 # number of deformed images and plot the displacement and cost values using the
 # below. You'll need to make sure you have matplotlib.pyplot installed and imported.
 for i in range(0,2):
-    plt.figure()
-    plt.pcolor(dicdata.ss_x,dicdata.ss_y,dicdata.u[i])
-    plt.pcolor(dicdata.ss_x,dicdata.ss_y,dicdata.v[i])
-    plt.pcolor(dicdata.ss_x,dicdata.ss_y,dicdata.cost[i])
-    plt.colorbar()
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+    # plot title
+    fig.suptitle(dicdata.filenames[i])
+
+    # Plot u component
+    im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u[i])
+    axes[0].set_title(f'u component (frame {i})')
+    plt.colorbar(im1, ax=axes[0])
+
+    # Plot v component
+    im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[i])
+    axes[1].set_title(f'v component (frame {i})')
+    plt.colorbar(im2, ax=axes[1])
+
+    # Plot cost
+    im3 = axes[2].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[i])
+    axes[2].set_title(f'cost (frame {i})')
+    plt.colorbar(im3, ax=axes[2])
+
+    # layout
+    plt.tight_layout()
     plt.show()

@@ -32,14 +32,16 @@ namespace strain {
                 const py::array_t<int> &ss_y_arr,
                 const py::array_t<double> &u_arr,
                 const py::array_t<double> &v_arr,
-                int nss_x, int nss_y, int nimg,
-                int sw_size, int q, std::string &form,
-                util::SaveConfig &strain_save_conf){
+                const int nss_x, const int nss_y, 
+                const int nimg, const int sw_size, 
+                const int q, const std::string &form,
+                const std::vector<std::string> &filenames,
+                const util::SaveConfig &strain_save_conf){
 
         TITLE("Strain Config");
         INFO_OUT("Number of Images:", nimg)
         INFO_OUT("Strain window size:", sw_size)
-        INFO_OUT("Strain element (4 = bilinear, 9 is biquadratic:", q);
+        INFO_OUT("Strain element (4 = bilinear, 9 is biquadratic):", q);
         INFO_OUT("Strain formulation:", form);
         INFO_OUT("Saving data to folder:", strain_save_conf.basepath)
         INFO_OUT("Saving data as binary (`False` = human readable text):", strain_save_conf.binary)
@@ -62,20 +64,24 @@ namespace strain {
         strain::Results results(save_at_end ? nimg * nwindows : nwindows);
 
 
+        TITLE("Deformation Gradient and Strain Calculation")
+
         // loop over the displacement images
         for (int img_num = 0; img_num < nimg; img_num++) {
 
-            std::cout << img_num << std::endl;
+            indicators::ProgressBar bar;
+            util::create_progress_bar(bar, filenames, img_num, nwindows);
+            std::atomic<int> prev_pct = 0;
 
             // loop over strain windows within the image
-            for (int sw = 0; sw < nss_x*nss_y; sw++){
+            for (int sw = 0; sw < nwindows; sw++){
 
                 int x0 = ss_x[sw];
                 int y0 = ss_y[sw];
                 results.x[sw] = x0;
                 results.y[sw] = y0;
 
-                bool valid_window = fill_window(ss_x, ss_y, u, v, img_num,
+                results.valid_window[sw] = fill_window(ss_x, ss_y, u, v, img_num,
                                                 sw, window, nss_x,
                                                 nss_y, sw_size);
 
@@ -87,23 +93,34 @@ namespace strain {
                 Eigen::Matrix2d deform_grad = Eigen::Matrix2d::Zero();
                 Eigen::Matrix2d eps = Eigen::Matrix2d::Zero();
 
-                if (valid_window){
+                if (results.valid_window[sw]){
                     uc = smooth_window(window.x, window.y, window.u);
                     vc = smooth_window(window.x, window.y, window.v);
-                    deform_grad = compute_deformation_gradient(q, uc, vc, x0, y0);
+                    deform_grad = compute_def_grad(q, uc, vc, x0, y0);
                     eps = compute_strain(form, deform_grad);
-                    append_results(sw, results, save_at_end, x0, y0, deform_grad, eps, nwindows, img_num);
+                    append_results(sw, results, save_at_end, x0, y0, 
+                                   deform_grad, eps, nwindows, img_num);
                 }
 
+                util::update_progress_bar(bar, sw, nwindows, prev_pct);
+
             }
+
+
+            // finish up progress bar
+            bar.mark_as_completed();
+            indicators::show_console_cursor(true);
+
             if (!save_at_end){
-                strain::save_to_disk(img_num, results, strain_save_conf, nwindows, nimg);
+                strain::save_to_disk(img_num, results, strain_save_conf, 
+                                     nwindows, nimg, filenames);
             }
         }
 
         if (save_at_end){
             for (int img_num = 0; img_num < nimg; img_num++)
-                strain::save_to_disk(img_num, results, strain_save_conf, nwindows, nimg);
+                strain::save_to_disk(img_num, results, strain_save_conf,
+                                     nwindows, nimg, filenames);
         }
     }
 
@@ -141,7 +158,8 @@ namespace strain {
                 window.u[widx] = u[idx_3d];
                 window.v[widx] = v[idx_3d];
 
-                //std::cout << window.x[idx] << " " << window.y[idx] << " " << window.u[idx] << " " << window.v[idx] << std::endl;
+                //std::cout << window.x[idx] << " " << window.y[idx] << " ";
+                //std::cout << window.u[idx] << " " << window.v[idx] << std::endl;
                 widx++;
             }
         }
@@ -149,7 +167,9 @@ namespace strain {
     }
 
 
-    Eigen::Matrix2d compute_deformation_gradient(const int q, const Eigen::VectorXd &uc, const Eigen::VectorXd& vc, const double x0, const double y0) {
+    Eigen::Matrix2d compute_def_grad(const int q, const Eigen::VectorXd &uc, 
+                                     const Eigen::VectorXd& vc, const double x0, 
+                                     const double y0) {
 
         Eigen::Matrix2d grad;
 
@@ -252,14 +272,16 @@ namespace strain {
     }
 
 
-    void append_results(int sw, strain::Results &results, const bool save_at_end, const int x0, const int y0, const Eigen::Matrix2d &deform_grad, const Eigen::Matrix2d &eps, const int nwindows, const int img){
-    
+    void append_results(int sw, strain::Results &results, 
+                        const bool save_at_end, const int x0, const int y0, 
+                        const Eigen::Matrix2d &deform_grad, 
+                        const Eigen::Matrix2d &eps, 
+                        const int nwindows, const int img){
+
         // index in results arrays depending on whether saving at end or on a per image basis
         int idx;
         if (save_at_end) idx = nwindows * img + sw;
         else idx = sw;
-        
-        int idx_2x2 = sw*4;
 
         results.def_grad[4*idx+0] = deform_grad(0,0);
         results.def_grad[4*idx+1] = deform_grad(0,1);
@@ -271,7 +293,10 @@ namespace strain {
         results.strain[4*idx+3] = eps(1,1);
     }
 
-    void save_to_disk(int img_num, const strain::Results &results, const util::SaveConfig &strain_save_conf, const int nwindows, const int nimg){
+    void save_to_disk(int img_num, const strain::Results &results, 
+                      const util::SaveConfig &strain_save_conf, 
+                      const int nwindows, const int nimg,
+                      const std::vector<std::string> filenames){
 
         const std::string delimiter = strain_save_conf.delimiter;
 
@@ -285,9 +310,9 @@ namespace strain {
         if (strain_save_conf.binary) file_ext=".bin";
         else file_ext=".dat";
 
-        // filename
+        // output filename
         outfile_str << strain_save_conf.basepath << "/" <<
-        strain_save_conf.prefix << std::setw(4) << std::setfill('0') << img_num << file_ext;
+        strain_save_conf.prefix << filenames[img_num];
 
         // set the img var to 0 after opening file if not saving at end
         if (!strain_save_conf.at_end) img_num = 0;
@@ -314,18 +339,33 @@ namespace strain {
         }
         else {
             outfile.open(outfile_str.str());
+
+            // column headers
+            outfile << "window_x" << delimiter;
+            outfile << "window_y" << delimiter;
+            outfile << "def_grad_00" << delimiter;
+            outfile << "def_grad_01" << delimiter;
+            outfile << "def_grad_10" << delimiter;
+            outfile << "def_grad_11" << delimiter;
+            outfile << "eps_00" << delimiter;
+            outfile << "eps_01" << delimiter;
+            outfile << "eps_10" << delimiter;
+            outfile << "eps_11\n";
+
             for (int i = 0; i < nwindows; i++) {
                 int idx = img_num * nwindows + i;
-                outfile << results.x[idx] << delimiter;
-                outfile << results.y[idx] << delimiter;
-                outfile << results.def_grad[4*idx+0] << delimiter;
-                outfile << results.def_grad[4*idx+1] << delimiter;
-                outfile << results.def_grad[4*idx+2] << delimiter;
-                outfile << results.def_grad[4*idx+3] << delimiter;
-                outfile << results.strain[4*idx+0] << delimiter;
-                outfile << results.strain[4*idx+1] << delimiter;
-                outfile << results.strain[4*idx+2] << delimiter;
-                outfile << results.strain[4*idx+3] << "\n";
+                if (results.valid_window[idx]) {
+                    outfile << results.x[idx] << delimiter;
+                    outfile << results.y[idx] << delimiter;
+                    outfile << results.def_grad[4*idx+0] << delimiter;
+                    outfile << results.def_grad[4*idx+1] << delimiter;
+                    outfile << results.def_grad[4*idx+2] << delimiter;
+                    outfile << results.def_grad[4*idx+3] << delimiter;
+                    outfile << results.strain[4*idx+0] << delimiter;
+                    outfile << results.strain[4*idx+1] << delimiter;
+                    outfile << results.strain[4*idx+2] << delimiter;
+                    outfile << results.strain[4*idx+3] << "\n";
+                }
             }
             outfile.close();
         }

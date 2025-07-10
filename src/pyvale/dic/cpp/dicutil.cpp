@@ -8,15 +8,14 @@
 // STD library Header files
 #include <cstdlib>
 #include <iostream>
-#include <iomanip>
 #include <fstream>
 #include <sstream>
-#include <chrono>
 #include <vector>
 #include <cmath>
 
 // Program Header files
 #include "./dicinterpolator.hpp"
+#include "./indicators.hpp"
 #include "./defines.hpp"
 #include "./dicutil.hpp"
 
@@ -354,9 +353,9 @@ namespace util {
     }
 
 
-    void save_to_disk(int img, util::SaveConfig &saveconf,
-                      util::SubsetData &ssdata, int num_def_img,
-                      int num_params){
+    void save_to_disk(int img, const util::SaveConfig &saveconf,
+                      const util::SubsetData &ssdata, const int num_def_img,
+                      const int num_params, const std::vector<std::string> &filenames){
 
         const std::string delimiter = saveconf.delimiter;
 
@@ -368,9 +367,16 @@ namespace util {
         if (saveconf.binary) file_ext=".bin";
         else file_ext=".dat";
 
-        // filename
+        // Extract the base filename without extension
+        std::string full_filename = filenames[img];
+        size_t dot_pos = full_filename.find(".tiff");
+        if (dot_pos != std::string::npos) {
+            full_filename = full_filename.substr(0, dot_pos);
+        }
+
+        // output filename
         outfile_str << saveconf.basepath << "/" <<
-        saveconf.prefix << std::setw(4) << std::setfill('0') << img << file_ext;
+        saveconf.prefix << full_filename << file_ext;
 
         // set the img var to 0 after opening file if not saving at end
         if (!saveconf.at_end) img = 0;
@@ -407,6 +413,18 @@ namespace util {
         else {
 
             outfile.open(outfile_str.str());
+
+            // column headers
+            outfile << "subset_x" << delimiter;
+            outfile << "subset_y" << delimiter;
+            outfile << "displacement_u" << delimiter;
+            outfile << "displacement_v" << delimiter;
+            outfile << "displacement_mag" << delimiter;
+            outfile << "cost" << delimiter;
+            outfile << "ftol" << delimiter;
+            outfile << "xtol" << delimiter;
+            outfile << "num_iterations\n";
+
             for (int i = 0; i < ssdata.num; i++) {
 
                 int idx = img * ssdata.num + i;
@@ -505,5 +523,33 @@ namespace util {
         //    std::cout << "ss_size = " << ss_sizes[i] << ", step = " << ss_steps[i] << std::endl;
         //}
     }
+
+    void create_progress_bar(indicators::ProgressBar &bar,
+                             const std::vector<std::string> &filenames,
+                             const int img_num, const int num_ss){
+        //Hide cursor
+        indicators::show_console_cursor(false);
+        bar.set_option(indicators::option::BarWidth{50});
+        bar.set_option(indicators::option::Start{" ["});
+        bar.set_option(indicators::option::Fill{"#"});
+        bar.set_option(indicators::option::Lead{"#"});
+        bar.set_option(indicators::option::Remainder{"-"});
+        bar.set_option(indicators::option::End{"]"});
+        bar.set_option(indicators::option::PrefixText{filenames[img_num]});
+        bar.set_option(indicators::option::ShowPercentage{true});
+        bar.set_option(indicators::option::ShowElapsedTime{true});
+    }
+
+    void update_progress_bar(indicators::ProgressBar &bar, int i, int num_ss, std::atomic<int> &prev_pct) {
+        int curr_pct = static_cast<float>(i) / static_cast<float>(num_ss) * 100;
+        int expected = prev_pct.load();
+    
+        // Only update bar if we've passed the previous percentage
+        if (curr_pct > expected && prev_pct.compare_exchange_strong(expected, curr_pct)) {
+            bar.set_progress(curr_pct);
+        }
+    }
+
+
 
 }

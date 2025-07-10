@@ -15,16 +15,15 @@ def strain_2d(data: DICResults | str,
                          window_size: int=5, 
                          window_element: int=4,
                          input_binary: bool=False,
+                         input_delimiter: str=" ",
                          output_def_grad: bool=True,
                          output_strain: bool=True,
                          output_basepath: str="./",
                          output_binary: bool=False,
-                         output_prefix: str="strain",
+                         output_prefix: str="strain_",
                          output_delimiter: str=" ",
                          output_at_end: bool=False,
-                         strain_formulation: str="HENCKY",
-                         binary: bool=False,
-                         delimiter: str=" "):
+                         strain_formulation: str="HENCKY"):
     """
     Compute strain fields from DIC displacement data using a finite element smoothing approach.
 
@@ -33,7 +32,7 @@ def strain_2d(data: DICResults | str,
 
     Parameters
     ----------
-    dic_data : DICResults or str
+    data : DICResults or str
         A `DICResults` instance containing displacement and subset coordinates,
         OR a path to files from which the data should be imported.
     window_size : int, optional
@@ -45,7 +44,7 @@ def strain_2d(data: DICResults | str,
         The strain definition to use: one of 'GREEN', 'ALMANSI', 'HENCKY', 'BIOT_EULER', 'BIOT_LAGRANGE'.
         Defaults to 'HENCKY'.
     binary : bool, optional
-        Whether the input file is in binary format. Only relevant if `dic_data` is a file path.
+        Whether the input file is in binary format. Only relevant if `data` is a file path.
     delimiter : str, optional
         The delimiter used in the input file if it's in text format, by default " ".
 
@@ -70,13 +69,13 @@ def strain_2d(data: DICResults | str,
         raise ValueError(f"Invalid strain window size: '{window_size}'. Must be an odd number.")
 
     # Load data if a file path is given
-    if isinstance(dic_data, str):
-        results = dic_data_import(layout="matrix", data=dic_data,
-                                 binary=binary, delimiter=delimiter)
-    elif isinstance(dic_data, DICResults):
-        results = dic_data
+    if isinstance(data, str):
+        results = dic_data_import(layout="matrix", data=data,
+                                  binary=input_binary, delimiter=input_delimiter)
+    elif isinstance(data, DICResults):
+        results = data
     else:
-        raise TypeError("dic_data must be either a DICResults instance or a file path string.")
+        raise TypeError("data must be either a DICResults instance or a file path string.")
 
     # Extract dimensions from the validated object
     nss_x = results.ss_x.shape[1]
@@ -96,7 +95,9 @@ def strain_2d(data: DICResults | str,
     dic2dcpp.strain_engine(results.ss_x, results.ss_y,
                            results.u, results.v,
                            nss_x, nss_y, nimg,
-                           window_size, window_element, strain_formulation, strain_save_conf)
+                           window_size, window_element, 
+                           strain_formulation, results.filenames,
+                           strain_save_conf)
 
 
 
@@ -108,9 +109,10 @@ def strain_data_import(data: DICResults | str,
                          output_strain: bool=True,
                          output_basepath: str="./",
                          output_binary: bool=False,
-                         output_prefix: str="strain",
+                         output_prefix: str="strain_",
                          output_delimiter: str=" ",
                          output_at_end: bool=False,
                          strain_formulation: str="HENCKY",
                          binary: bool=False,
                          delimiter: str=" "):
+    print("test")

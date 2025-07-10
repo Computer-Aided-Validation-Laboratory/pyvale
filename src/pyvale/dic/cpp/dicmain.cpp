@@ -115,7 +115,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // loop over deformed images and perform DIC
     // -----------------------------------------------------------------------
     std::cout << std::endl;
-    TITLE("Starting Correlation...")
+    TITLE("Starting Correlation")
     util::Timer timer("DIC Engine:");
     for (int img_num = 0; img_num < conf.num_def_img; img_num++){
 
@@ -147,13 +147,13 @@ void DICengine(const py::array_t<double>& img_ref_arr,
             scanmethod::single_window_fourier(img_ref, img_def, interp_def, ssdata[0], conf, img_num);
 
         if (!saveconf.at_end)
-            util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params);
+            util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params, conf.filenames);
 
     }
 
     if (saveconf.at_end)
         for (int img_num = 0; img_num < conf.num_def_img; img_num++)
-            util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params);
+            util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params, conf.filenames);
 }
 
 

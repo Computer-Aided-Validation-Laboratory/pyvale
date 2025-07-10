@@ -30,35 +30,6 @@ namespace scanmethod {
     // for graceful exit
     volatile bool stop_request(false);
 
-
-    void reset_indicators(indicators::ProgressBar &bar,
-                          const util::Config &conf,
-                          const int img_num, const int num_ss){
-        //Hide cursor
-        indicators::show_console_cursor(false);
-        bar.set_option(indicators::option::BarWidth{50});
-        bar.set_option(indicators::option::Start{" ["});
-        bar.set_option(indicators::option::Fill{"#"});
-        bar.set_option(indicators::option::Lead{"#"});
-        bar.set_option(indicators::option::Remainder{"-"});
-        bar.set_option(indicators::option::End{"]"});
-        bar.set_option(indicators::option::PrefixText{conf.filenames[img_num]});
-        bar.set_option(indicators::option::ShowPercentage{true});
-        bar.set_option(indicators::option::ShowElapsedTime{true});
-    }
-
-    void update_bar(indicators::ProgressBar &bar, int i, int num_ss, std::atomic<int> &prev_pct) {
-        int curr_pct = static_cast<float>(i) / static_cast<float>(num_ss) * 100;
-        int expected = prev_pct.load();
-    
-        // Only update bar if we've passed the previous percentage
-        if (curr_pct > expected && prev_pct.compare_exchange_strong(expected, curr_pct)) {
-            bar.set_progress(curr_pct);
-        }
-    }
-
-
-
     void signalHandler(int signal) {
         if (signal == SIGINT) {
             stop_request = true;
@@ -76,7 +47,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, conf, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
         std::atomic<int> current_progress = 0;
         std::atomic<int> prev_pct = 0;
 
@@ -123,7 +94,7 @@ namespace scanmethod {
 
                 // update progress bar
                 //int progress = current_progress.fetch_add(1);
-                //update_bar(bar, progress, num_ss, prev_pct);
+                //util::update_progress_bar(bar, progress, num_ss, prev_pct);
                 //if (ss==100) exit(0);
             }
         }
@@ -146,7 +117,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, conf, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
         std::atomic<int> current_progress = 0;
         std::atomic<int> prev_pct = 0;
 
@@ -220,7 +191,7 @@ namespace scanmethod {
 
             // update progress bar
             int progress = current_progress.fetch_add(1);
-            update_bar(bar, progress, num_ss, prev_pct);
+            util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
         }
         bar.mark_as_completed();
@@ -256,7 +227,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, conf, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
         std::atomic<int> current_progress(0);
         std::atomic<int> prev_pct(0);
 
@@ -457,7 +428,7 @@ namespace scanmethod {
 
                         // update progress bar
                         int progress = current_progress.fetch_add(1);
-                        update_bar(bar, progress, num_ss, prev_pct);
+                        util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
                     }
                 }
@@ -493,7 +464,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, conf, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
         std::atomic<int> current_progress = 0;
         std::atomic<int> prev_pct = 0;
 
@@ -541,7 +512,7 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                update_bar(bar, progress, num_ss, prev_pct);
+                util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }
@@ -567,7 +538,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        reset_indicators(bar, conf, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
         std::atomic<int> current_progress = 0;
         std::atomic<int> prev_pct = 0;
 
@@ -615,7 +586,7 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                update_bar(bar, progress, num_ss, prev_pct);
+                util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }

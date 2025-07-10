@@ -14,9 +14,11 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <atomic>
 
 // program Header files
 #include "./dicinterpolator.hpp"
+#include "./indicators.hpp"
 #include "./defines.hpp"
 
 namespace util {
@@ -239,9 +241,9 @@ namespace util {
     void resize_results(int num_def_img, int num_ss,
                         int num_params, bool at_end);
 
-    void save_to_disk(int img, util::SaveConfig &saveconf,
-                      util::SubsetData &ssdata, int num_def_img,
-                      int num_params);
+    void save_to_disk(int img, const util::SaveConfig &saveconf,
+                      const util::SubsetData &ssdata, const int num_def_img,
+                      const int num_params, const std::vector<std::string> &filenames);
 
 
     inline bool is_valid_in_dims(const int px_x, const int px_y, const int px_hori, 
@@ -262,6 +264,12 @@ namespace util {
     int next_pow2(int n);
     void gen_size_and_step_vector(std::vector<int> &ss_sizes, std::vector<int> &ss_steps, 
                                   const int ss_size, const int ss_step, const int max_disp);
+
+    void create_progress_bar(indicators::ProgressBar &bar,
+                             const std::vector<std::string> &filenames,
+                             const int img_num, const int num_ss);
+
+    void update_progress_bar(indicators::ProgressBar &bar, int i, int num_ss, std::atomic<int> &prev_pct);
 }
 
 #endif //DICUTIL

@@ -30,7 +30,7 @@ class DICRegionOfInterest:
         image (np.ndarray): The image on which regions of interest are selected.
         mask (np.ndarray): A binary mask representing the selected regions of interest.
     """
-    def __init__(self, image):
+    def __init__(self, ref_image):
         """
         Initializes the DICRegionOfInterest class with an image.
 
@@ -41,15 +41,15 @@ class DICRegionOfInterest:
             ValueError: If the image cannot be loaded or is invalid.
         """
 
-        if isinstance(image, str):
-            self.image = cv2.imread(image)
+        if isinstance(ref_image, str):
+            self.ref_image = cv2.imread(ref_image)
         else:
-            self.image = image.copy()
+            self.ref_image = ref_image.copy()
 
-        if self.image is None:
+        if self.ref_image is None:
             raise ValueError("Invalid image input")
 
-        self.mask = np.zeros(self.image.shape[:2], dtype=bool)
+        self.mask = np.zeros(self.ref_image.shape[:2], dtype=bool)
         self.mask = self.mask.T
         self.seed = [0,0]
         self.__roi_selected = False
@@ -100,7 +100,7 @@ class DICRegionOfInterest:
         # Graphics view
         graphics_widget = pg.GraphicsLayoutWidget()
         main_view = graphics_widget.addViewBox(lockAspect=True)
-        rotated = np.rot90(self.image,k=-1)
+        rotated = np.rot90(self.ref_image,k=-1)
         img = pg.ImageItem(rotated)
         main_view.addItem(img)
         main_view.disableAutoRange('xy')
@@ -536,16 +536,16 @@ class DICRegionOfInterest:
             top (int): Number of px to exclude from the top edge.
             bottom (int): Number of px to exclude from the bottom edge.
         """
-        self.mask = self.reset_mask(self.image.shape)
-        self.mask[bottom:(self.image.shape[0]-top), left:(self.image.shape[1])-right] = 255
+        self.mask = self.reset_mask(self.ref_image.shape)
+        self.mask[bottom:(self.ref_image.shape[0]-top), left:(self.ref_image.shape[1])-right] = 255
         self.__roi_selected = True
 
-    def specific_subset(self, ss_x: int, ss_y: int, ss_size: int ) -> None:
+    def rect_region(self, x: int, y: int, size_x: int, size_y: int ) -> None:
 
-            top    = max(0, ss_y)
-            bottom = min(self.image.shape[0],ss_y+ss_size)
-            left   = max(0, ss_x)
-            right  = min(self.image.shape[1],ss_x+ss_size)
+            top    = max(0, y)
+            bottom = min(self.ref_image.shape[0],y+size_y)
+            left   = max(0, x)
+            right  = min(self.ref_image.shape[1],x+size_x)
 
             # Apply the mask in the subset region
             self.mask[top:bottom, left:right] = 255
@@ -563,9 +563,9 @@ class DICRegionOfInterest:
         """
         if not self.__roi_selected:
             raise ValueError("No ROI selected with \'interactive_selection\' or \'rect_boundary\' ")
-        overlay = self.image.copy()
+        overlay = self.ref_image.copy()
         overlay[self.mask] = (0, 255, 0)
-        result = cv2.addWeighted(self.image, 0.7, overlay, 0.3, 0)
+        result = cv2.addWeighted(self.ref_image, 0.7, overlay, 0.3, 0)
         cv2.imwrite(filename, result)
 
     def save(self, filename: str="./roi.dat", binary: bool=False) -> None:
@@ -587,7 +587,7 @@ class DICRegionOfInterest:
             np.savetxt(filename, self.mask, fmt='%d', delimiter=' ')
 
 
-    def read(self, filename: str = "./roi.tiff", binary: bool = True) -> None:
+    def read(self, filename: str = "./roi.tiff", binary: bool = False) -> None:
         """
         Load the ROI mask from a binary or text file and store it in `self.mask`.
 
@@ -614,7 +614,7 @@ class DICRegionOfInterest:
         if binary:
             self.mask = np.load(filename)
         else:
-            self.mask = np.loadtxt(filename, dtype=int, delimiter=' ')
+            self.mask = np.loadtxt(filename, dtype=bool, delimiter=' ')
 
         # Optional: check if the loaded data is a proper binary mask (0s and 1s)
         if not np.isin(self.mask, [0, 1]).all():
@@ -637,11 +637,11 @@ class DICRegionOfInterest:
                 raise ValueError("No ROI selected with 'interactive_selection' or 'rect_boundary'")
 
         # Create a green mask image
-        green_mask = np.zeros_like(self.image)
-        green_mask[self.mask] = [0, 255, 0]
+        green_mask = np.zeros_like(self.ref_image)
+        green_mask[self.mask,:] = [0, 255, 0]
 
         # Blend the original image and the mask
-        blended = self.image.astype(float) * 0.7 + green_mask.astype(float) * 0.3
+        blended = self.ref_image.astype(float) * 0.7 + green_mask.astype(float) * 0.3
         blended = blended.astype(np.uint8)
 
         # Display using Matplotlib
