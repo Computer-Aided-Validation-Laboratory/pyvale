@@ -33,6 +33,75 @@ def dic_2d(reference: np.ndarray | str,
           output_binary: bool=False,
           output_prefix: str="dic_results_",
           output_delimiter: str=" ") -> None:
+    """
+    Perform 2D Digital Image Correlation (DIC) between a reference image and one or more deformed images.
+
+    This function wraps a C++ DIC engine by preparing configuration parameters,
+    performing input validation, and dispatching image data and settings. It supports
+    pixel-level displacement and strain measurement over a defined region of interest (ROI).
+
+    Parameters
+    ----------
+    reference : np.ndarray or str
+        The reference image (2D array) or path to the image file.
+    deformed : np.ndarray or str
+        The deformed image(s) (3D array for multiple images) or path/pattern to image files.
+    roi_mask : np.ndarray
+        A binary mask indicating the Region of Interest (ROI) for analysis (same size as image).
+    seed : list of int, optional
+        Coordinates `[x, y]` of the seed point for Reliability-Guided (RG) scanning, default is empty.
+    subset_size : int, optional
+        Size of the square subset window in pixels (default: 21).
+    subset_step : int, optional
+        Step size between subset centers in pixels (default: 10).
+    correlation_criteria : str, optional
+        Metric for matching subsets: "ZNSSD", "NSSD" or "SSD" (default: "ZNSSD").
+    shape_function : str, optional
+        Deformation model: e.g., "AFFINE", "RIGID" (default: "AFFINE").
+    interpolation_routine : str, optional
+        Interpolation method used on image intensity. "BICUBIC" is currently the
+        only supported option.
+    max_iterations : int, optional
+        Maximum number of iterations allowed for subset optimization (default: 40).
+    opt_precision : float, optional
+        Precision threshold for iterative optimization convergence (default: 0.001).
+    opt_threshold : float, optional
+        Minimum correlation improvement threshold to continue iterations (default: 0.9).
+    bf_threshold : float, optional
+        Correlation threshold used in rigid bruteforce check for a subset to be considered a
+        good match(default: 0.2).
+    max_displacement : int, optional
+        Estimate for the Maximum displacement in any direction (in pixels) (default: 128).
+    scanning_method : str, optional
+        Subset scanning method: "RG" for Reliability-Guided (best overall approach), 
+        "IMAGE_SCAN" for a standard scan across the image with no seeding 
+        (best performance with for subpixel displacements with high quality images), 
+        "FFT" for a multi-window FFT based approach (Good for large displacements)
+    output_at_end : bool, optional
+        If True, results will only be written at the end of processing (default: False).
+    output_basepath : str, optional
+        Directory path where output files will be written (default: "./").
+    output_binary : bool, optional
+        Whether to write output in binary format (default: False).
+    output_prefix : str, optional
+        Prefix for all output files (default: "dic_results_"). results will be
+        named with output_prefix + original filename. THe extension will be
+        changed to ".dat" or ".bin" depending on whether outputting as a binary.
+    output_delimiter : str, optional
+        Delimiter used in text output files (default: " ").
+
+    Returns
+    -------
+    None
+        All outputs are written to files; no values are returned.
+
+    Raises
+    ------
+    ValueError
+        If input checks fail (e.g., invalid image sizes, unsupported parameters).
+    FileNotFoundError
+        If provided file paths do not exist.
+    """
 
     # do checks on vars in python land
     dicchecks.print_title("Initial Checks")

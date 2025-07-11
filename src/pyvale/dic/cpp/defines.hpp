@@ -1,5 +1,5 @@
-#define TITLE(a) std::cout << std::string(122, '-') << std::endl; std::cout << std::string(60 - std::strlen(a)/2, '-') << " " << a << " " << std::string(60 - std::strlen(a)/2, '-') << std::endl; std::cout << std::string(122, '-') << std::endl;
-#define INFO_OUT(a,b) std::cout.width(100); std::cout << std::left << "  - " << a; std::cout << b << std::endl;
+#define TITLE(a) std::cout << std::string(80, '-') << std::endl; std::cout << std::string(38 - std::strlen(a)/2, '-') << " " << a << " " << std::string(38 - std::strlen(a)/2, '-') << std::endl; std::cout << std::string(80, '-') << std::endl;
+#define INFO_OUT(a,b) std::cout << "  - " << std::left << std::setw(50) << a << b << std::endl;
 #define DEBUGGER std::cout << __FILE__ << " " << __LINE__ << std::endl;
 #ifdef CUDA
         #define CUDA_CALL(x) do { if((x) != cudaSuccess) {\

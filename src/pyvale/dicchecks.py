@@ -11,6 +11,10 @@ import sys
 from PIL import Image
 from typing import Union
 
+"""
+This module contains functions for checking arguments passed to the 2D DIC
+Engine.
+"""
 
 def check_output_directory(output_basepath: str,
                            output_prefix: str) -> None:
@@ -440,8 +444,8 @@ def check_and_get_images(reference: Union[np.ndarray, str],
     return ref_arr, def_arr, roi_c, filenames
 
 def print_title(a: str):
-    line_width = 122
-    half_width = 60
+    line_width = 80
+    half_width = 39
 
     print('-' * line_width)
 

@@ -3,3 +3,9 @@
     border-bottom-style: solid;
     border-bottom-width: 1px;
 }
+
+/* Override function name color in function signatures */
+.sig-name {
+    color: #66d9ef !important; /* Monokai-style cyan */
+}
+

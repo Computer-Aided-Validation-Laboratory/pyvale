@@ -13,8 +13,8 @@ class DICResults:
     """
     Data container for Digital Image Correlation (DIC) analysis results.
 
-    This class stores the displacement, convergence, and correlation data
-    associated with a DIC computation over a region of interest or structured grid.
+    This dataclass stores the displacements, convergence info, and correlation data
+    associated with a DIC computation.
 
     Attributes
     ----------
@@ -38,11 +38,6 @@ class DICResults:
         Number of iterations taken to converge for each subset point.
     filenames : list[str]
         name of DIC result files that have been found
-
-    Notes
-    -----
-    All arrays are expected to be of the same shape, typically corresponding to a flattened
-    or reshaped grid of subset locations analyzed during the DIC process.
     """
 
     ss_x: np.ndarray

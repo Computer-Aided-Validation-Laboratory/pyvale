@@ -49,7 +49,6 @@ roi.save(filename="roi.dat",binary=False)
 # mask has been saved in human readable or binary format.
 roi.read(filename="roi.dat")
 
-roi.imshow()
 
 # %%
 # Now for the main event, the 2D DIC engine can be run using the command
@@ -65,7 +64,7 @@ roi.imshow()
 pyvale.dic_2d(reference=ref_img,
               deformed=def_img,
               roi_mask=roi.mask,
-              seed=[300,500],
+              seed=roi.seed,
               subset_size=subset_size,
               subset_step=10,
               shape_function="AFFINE",
@@ -89,27 +88,44 @@ dicdata = pyvale.dic_data_import(data="dic_results_*.dat", delimiter=" ", binary
 # As an example of some very simple visualisation, you could loop over the
 # number of deformed images and plot the displacement and cost values using the
 # below. You'll need to make sure you have matplotlib.pyplot installed and imported.
-for i in range(0,2):
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+fig, axes = plt.subplots(2, 3, figsize=(15, 5))
+axes = axes.flatten()
 
-    # plot title
-    fig.suptitle(dicdata.filenames[i])
+# first deformation image
+im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u[0])
+im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[0])
+im3 = axes[2].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[0])
 
-    # Plot u component
-    im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u[i])
-    axes[0].set_title(f'u component (frame {i})')
-    plt.colorbar(im1, ax=axes[0])
+# second deformation image
+im4 = axes[3].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u[1])
+im5 = axes[4].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[1])
+im6 = axes[5].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[1])
 
-    # Plot v component
-    im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[i])
-    axes[1].set_title(f'v component (frame {i})')
-    plt.colorbar(im2, ax=axes[1])
+# Titles
+axes[0].set_title('u component (def0000.tiff)')
+axes[1].set_title('v component (def0000.tiff)')
+axes[2].set_title('cost (def0000.tiff)')
+axes[3].set_title('u component (def0001.tiff)')
+axes[4].set_title('v component (def0001.tiff)')
+axes[5].set_title('cost (def0001.tiff)')
 
-    # Plot cost
-    im3 = axes[2].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[i])
-    axes[2].set_title(f'cost (frame {i})')
-    plt.colorbar(im3, ax=axes[2])
 
-    # layout
-    plt.tight_layout()
-    plt.show()
+fig.colorbar(im1, ax=axes[0])
+fig.colorbar(im2, ax=axes[1])
+fig.colorbar(im3, ax=axes[2])
+fig.colorbar(im4, ax=axes[3])
+fig.colorbar(im5, ax=axes[4])
+fig.colorbar(im6, ax=axes[5])
+
+# layout
+plt.show()
+
+
+# %%
+# .. image:: ../../../../_static/plate_with_hole.png
+#    :alt: Displacement and cost values
+#    :width: 600px
+#    :align: center
+
+
+

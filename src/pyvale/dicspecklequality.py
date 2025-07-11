@@ -278,7 +278,7 @@ class DICSpeckleQuality:
 @jit(nopython=True)
 def extract_subset(image: np.ndarray, x: int, y: int, subset_size: int) -> np.ndarray:
     """
-    Parameters:
+    Parameters
     x (int): x-coord of subset center in image
     y (int): y-coord of subset center in image
 

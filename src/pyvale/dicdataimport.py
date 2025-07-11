@@ -12,6 +12,11 @@ import glob
 # import cython module
 from pyvale.dicresults import DICResults
 
+"""
+Module responsible for handling importing of DIC results from completed
+calculations.
+"""
+
 
 def dic_data_import(data: str = "./",
                    binary: bool = False,
@@ -20,7 +25,7 @@ def dic_data_import(data: str = "./",
     """
     Import DIC result data from human readable text or binary files.
 
-    Parameters:
+    Parameters
     -----------
     layout : str, optional
         Format of the output data layout: "column" (flat array per frame) or "matrix" 
@@ -36,16 +41,16 @@ def dic_data_import(data: str = "./",
     delimiter : str, optional
         Delimiter used in text data files. Ignored if binary=True. Default is a single space.
 
-    Returns:
-    --------
+    Returns
+    -------
     DICResults
         A named container with the following fields:
             - X, Y (grid arrays if layout=="matrix"; otherwise, 1D integer arrays)
             - u, v, m, cost, ftol, xtol, niter (arrays with shape depending on layout)
             - filenames (python list)
 
-    Raises:
-    -------
+    Raises
+    ------
     ValueError:
         If `layout` is not "column" or "matrix", or text data has insufficient columns,
         or binary rows are malformed.
@@ -84,9 +89,35 @@ def dic_data_import(data: str = "./",
     else:
         return DICResults(ss_x_ref, ss_y_ref, *arrays, filenames)
 
-
-
 def read_binary(file: str, delimiter: str):
+    """
+    Read a binary DIC result file and extract DIC fields.
+
+    Assumes a fixed binary structure with each row containing:
+    - 2 × int32 (subset coordinates)
+    - 6 × float64 (u, v, match quality, cost, ftol, xtol)
+    - 1 × int32 (number of iterations)
+
+    Parameters
+    ----------
+    file : str
+        Path to the binary result file.
+
+    delimiter : str
+        Ignored for binary data (included for API consistency).
+
+    Returns
+    -------
+    tuple of np.ndarray
+        Arrays corresponding to:
+        (ss_x, ss_y, u, v, m, cost, ftol, xtol, niter)
+
+    Raises
+    ------
+    ValueError
+        If the binary file size does not align with expected row size.
+    """
+
     row_size = (3 * 4 + 6 * 8)
     with open(file, "rb") as f:
         raw = f.read()
@@ -107,6 +138,32 @@ def read_binary(file: str, delimiter: str):
     return ss_x, ss_y, u, v, m, cost, ftol, xtol, niter
 
 def read_text(file: str, delimiter: str):
+    """
+    Read a human-readable text DIC result file and extract DIC fields.
+
+    Expects at least 9 columns:
+    [ss_x, ss_y, u, v, m, cost, ftol, xtol, niter]
+
+    Parameters
+    ----------
+    file : str
+        Path to the text result file.
+
+    delimiter : str
+        Delimiter used in the text file (e.g., space, tab, comma).
+
+    Returns
+    -------
+    tuple of np.ndarray
+        Arrays corresponding to:
+        (ss_x, ss_y, u, v, m, cost, ftol, xtol, niter)
+
+    Raises
+    ------
+    ValueError
+        If the text file has fewer than 9 columns.
+    """
+
     data = np.loadtxt(file, delimiter=delimiter, skiprows=1)
     if data.shape[1] < 9:
         raise ValueError("Text data must have at least 9 columns.")
@@ -119,6 +176,38 @@ def read_text(file: str, delimiter: str):
     )
 
 def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
+    """
+    Reshape a 2D DIC field from flat (column) format into grid (matrix) format.
+
+    This is used when output layout is specified as "matrix".
+    Maps values using reference subset coordinates (ss_x_ref, ss_y_ref).
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Array of shape (n_frames, n_points) to be reshaped into (n_frames, height, width).
+
+    shape : tuple
+        Target shape of output array: (n_frames, height, width).
+
+    ss_x_ref : np.ndarray
+        X coordinates of subset centers.
+
+    ss_y_ref : np.ndarray
+        Y coordinates of subset centers.
+
+    x_unique : np.ndarray
+        Sorted unique X coordinates in the grid.
+
+    y_unique : np.ndarray
+        Sorted unique Y coordinates in the grid.
+
+    Returns
+    -------
+    np.ndarray
+        Reshaped array with shape `shape`, filled with NaNs where no data exists.
+    """
+
     grid = np.full(shape, np.nan)
     for i, (x, y) in enumerate(zip(ss_x_ref, ss_y_ref)):
         x_idx = np.where(x_unique == x)[0][0]

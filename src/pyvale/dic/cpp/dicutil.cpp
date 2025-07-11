@@ -369,7 +369,7 @@ namespace util {
 
         // Extract the base filename without extension
         std::string full_filename = filenames[img];
-        size_t dot_pos = full_filename.find(".tiff");
+        size_t dot_pos = full_filename.find(".");
         if (dot_pos != std::string::npos) {
             full_filename = full_filename.substr(0, dot_pos);
         }
