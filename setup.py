@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from setuptools import  setup, Extension
 from Cython.Build import cythonize
 import numpy
@@ -18,7 +24,6 @@ ext_modules = [
         extra_link_args=[openmp_arg],
     ),
 ]
-
 
 setup(
     ext_modules=cythonize(ext_modules,

@@ -67,6 +67,8 @@ import pyvale.verif.psensscalar as psensscalar
 #-------------------------------------------------------------------------------
 # Tests
 def test_gold_scalar2d() -> None:
+    """Gold regression testing for all scalar field point sensors in 2D.
+    """
     sens_dict = psensscalar.sens_2d_dict()
 
     fails = []
@@ -86,6 +88,8 @@ def test_gold_scalar2d() -> None:
 
 
 def test_get_meas_scalar2d() -> None:
+    """Tests that get does not resample from probability distributions.
+    """
     sens_dict = psensscalar.sens_2d_dict()
 
     fails = []
