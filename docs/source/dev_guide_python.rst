@@ -48,7 +48,7 @@ Testing
 -----------------------------------
 We use ``pytest`` as our main testing platform. Tests should be pragmatic and cover the following where applicable:
 
-- Specific algorithms (e.g. tensor rotations)
+- Specific algorithms (e.g. tensor rotations) and logic
 - Regression tests
 - Integration tests
 - End-to-end tests

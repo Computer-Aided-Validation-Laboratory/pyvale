@@ -7,7 +7,7 @@ Design Philosophy
 ---------------------------------
 Here are some guiding principles we have used when building ``pyvale``:
 
-- Scientists and engineers want a python interface (preferably a GUI), they will not build code from source and want to work on the OS of their choice:
+- Scientists and engineers want a python interface (preferably a GUI), they will not want to build code from source and they want to work on the OS of their choice:
     - Installation should be as simple as ``pip install pyvale`` and work across all platforms.
     - Write computationally demanding algorithms in lower level languages like Cython, C/C++ but provide a python interface.
 
@@ -42,7 +42,7 @@ The following can be used for linking compiled code to a python interface:
 
 For Zig we support a custom build process through our ``setup.py`` that pulls in the Zig compiler on pypi to build and dynamically link Zig libraries through the C ABI and Cython. Unfortunately, this requires a lot more boiler plate code (i.e. a C header and a .pxd cython header restating the same thing) than using Pybind with C/C++.
 
-GPU programming must be vendor agnostic. The following can be used for GPU programming:
+GPU programming should be vendor agnostic. The following can be used for GPU programming:
 
 - `HIP <https://github.com/ROCm/hip>`_
 
