@@ -3,6 +3,18 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
+
+"""
+DEVELOPER VERIFICATION MODULE
+--------------------------------------------------------------------------------
+This module contains developer utility functions used for verification testing
+of the point sensor simulation toolbox in pyvale.
+
+Specifically, this module contains generic functions used across all types of
+point sensors.
+"""
+
+
 import numpy as np
 import mooseherder as mh
 import pyvale as pyv

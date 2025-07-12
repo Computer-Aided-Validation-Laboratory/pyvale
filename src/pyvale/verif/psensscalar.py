@@ -10,6 +10,15 @@ import pyvale as pyv
 import pyvale.verif.psens as psens
 import pyvale.verif.psensconst as psensconst
 
+"""
+DEVELOPER VERIFICATION MODULE
+--------------------------------------------------------------------------------
+This module contains developer utility functions used for verification testing
+of the point sensor simulation toolbox in pyvale.
+
+Specifically, this module contains functions used for testing point sensors
+applied to scalar field.
+"""
 
 def simdata_2d() -> mh.SimData:
     data_path = pyv.DataSet.thermal_2d_path()

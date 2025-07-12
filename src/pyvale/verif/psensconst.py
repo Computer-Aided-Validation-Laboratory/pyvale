@@ -5,5 +5,14 @@
 #===============================================================================
 from pathlib import Path
 
+"""
+DEVELOPER VERIFICATION MODULE
+--------------------------------------------------------------------------------
+This module contains developer utility functions used for verification testing
+of the point sensor simulation toolbox in pyvale.
+
+Specifically, this module contains constants used for verification testing.
+"""
+
 GOLD_PATH: Path = Path.cwd() / "tests" / "pointsensors" / "gold"
 GOLD_SEED: int = 123
