@@ -333,10 +333,33 @@ def sens_2d_dict() -> dict[str,pyv.SensorArrayPoint]:
     return sens
 
 
+def sens_3d_dict() -> dict[str,pyv.SensorArrayPoint]:
+    sens_data_dict = sens_data_3d_dict()
 
-def gen_gold_2d() -> None:
-    sens_dict = sens_2d_dict()
+    sens = {}
+    for ss in sens_data_dict:
+        sens_array = sens_3d_noerrs(sens_data_dict[ss])
 
+        err_chain_dict = err_chain_3d_dict(sens_array.get_field(),
+                                           sens_data_dict[ss].positions,
+                                           sens_data_dict[ss].sample_times)
+
+        for ee in err_chain_dict:
+            tag = f"scal3d_{ss}_err-{ee}"
+            sens[tag] = copy.deepcopy(sens_array)
+
+            if err_chain_dict[ee] is not None:
+                err_int_opts = pyv.ErrIntOpts()
+                err_int = pyv.ErrIntegrator(err_chain_dict[ee],
+                                            sens_data_dict[ss],
+                                            sens[tag].get_measurement_shape(),
+                                            err_int_opts=err_int_opts)
+                sens[tag].set_error_integrator(err_int)
+
+    return sens
+
+
+def gen_gold(sens_dict: dict[str,pyv.SensorArrayPoint]) -> None:
     for ss in sens_dict:
         print(f"Generating gold output for case: {ss}")
         measurements = sens_dict[ss].calc_measurements()
@@ -345,14 +368,4 @@ def gen_gold_2d() -> None:
 
 
 
-
-
-def check_gold_2d() -> None:
-    sens_dict = sens_2d_dict()
-
-    for ss in sens_dict:
-        measurements = sens_dict[ss].calc_measurements()
-
-        save_path = psensconst.GOLD_PATH / f"{ss}.npy"
-        np.save(save_path,measurements)
 

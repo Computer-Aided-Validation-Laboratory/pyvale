@@ -15,8 +15,10 @@ def main() -> None:
     print(f"Saving gold output to: {psensconst.GOLD_PATH}\n")
 
     print("Generating 2D gold output for scalar field point sensors...")
-    psensscalar.gen_gold_2d()
+    psensscalar.gen_gold(psensscalar.sens_2d_dict())
 
+    print("Generating 3D gold output for scalar field point sensors...")
+    psensscalar.gen_gold(psensscalar.sens_3d_dict())
 
 if __name__ == "__main__":
     main()

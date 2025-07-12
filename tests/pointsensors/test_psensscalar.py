@@ -102,6 +102,7 @@ def test_get_meas_scalar2d() -> None:
 
     assert not fails, "\n".join(fails)
 
-
+# TODO: check that for the last time step of all sensors the measurement is not zero
+# if it is zero we are interpolating outside the mesh
 
 
