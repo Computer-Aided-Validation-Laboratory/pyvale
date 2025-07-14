@@ -230,7 +230,7 @@ namespace optimizer {
         for (int i = 0; i < num_px; ++i) {
 
             // apply shape function parameters to deformed subset
-            shape_function(ss_def.x[i], ss_def.y[i], ss_def.x[i], ss_def.y[i], opt.p);
+            shape_function(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.p);
 
             interp_vals = interp_def.eval_bicubic_and_derivs(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
             ss_def.vals[i] = interp_vals.f;
@@ -250,7 +250,7 @@ namespace optimizer {
             // derivative of shape function with repsect to parameters
             dshape_dp(opt.dfdp, ss_def.x[i], ss_def.y[i], dfdx[i], dfdy[i]);
 
-            double dshape_df = - inv_sum_squared_ref * (ss_ref.vals[i] * inv_sum_squared_def - ss_def.vals[i] * inv_sum_squared_ref);
+            double dshape_df = - inv_sum_squared_def * (ss_ref.vals[i] * inv_sum_squared_ref - ss_def.vals[i] * inv_sum_squared_def);
 
 
             if (num_params == 2) {
@@ -270,7 +270,7 @@ namespace optimizer {
             for (int row = 0; row < num_params; row++) {
                 double dfdp_row = opt.dfdp[row];
                 for (int col = row; col < num_params; col++) {
-                    opt.H[row * num_params + col] += inv_sum_squared_ref * inv_sum_squared_ref * dfdp_row * opt.dfdp[col];
+                    opt.H[row * num_params + col] += inv_sum_squared_def * inv_sum_squared_def * dfdp_row * opt.dfdp[col];
                 }
             }
         }
@@ -289,14 +289,14 @@ namespace optimizer {
 
 
         // calculate cost function for updated parameter values
-        sum_squared_ref = 0.0;
+        sum_squared_def = 0.0;
         for (int i = 0; i < num_px; ++i) {
-            shape_function(ss_def.x[i], ss_def.y[i], ss_def.x[i], ss_def.y[i], opt.pdp);
+            shape_function(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.pdp);
             ss_def.vals[i] = interp_def.eval_bicubic(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
-            sum_squared_ref += ss_def.vals[i] * ss_def.vals[i];
+            sum_squared_def += ss_def.vals[i] * ss_def.vals[i];
         }
 
-        inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
+        inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
 
         for (int i = 0; i < num_px; ++i) {
             double def_norm = ss_def.vals[i] * inv_sum_squared_def;
