@@ -20,6 +20,8 @@ Specifically, this module contains functions used for testing point sensors
 applied to scalar field.
 """
 
+# TODO: fix position locking for 3D field errors
+
 def simdata_2d() -> mh.SimData:
     data_path = pyv.DataSet.thermal_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
@@ -74,11 +76,30 @@ def sens_pos_3d() -> dict[str,np.ndarray]:
 
     return sens_pos
 
-def sens_pos_3d_lock() -> dict[str,np.ndarray]:
+
+def sens_pos_2d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
     pos_lock = {}
 
-    pos_lock["line-y-xy"] = None
+    lock = np.full_like(sens_pos,False,dtype=bool)
+    lock[:,2] = True # lock z
+    pos_lock["line-4"] = None
 
+    lock = np.full_like(sens_pos,False,dtype=bool)
+    lock[:,2] = True # lock z
+    pos_lock["grid-22"] = None
+
+    return pos_lock
+
+
+def sens_pos_3d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
+    pos_lock = {}
+
+    lock = np.full_like(sens_pos,False,dtype=bool)
+    lock[:,2] = True # lock z
+    pos_lock["line-y-xy"] = lock
+
+    lock = np.full_like(sens_pos,False,dtype=bool)
+    lock[:,0] = True # lock x
     pos_lock["line-y-yz"] = None
 
     return pos_lock
@@ -95,6 +116,7 @@ def sens_data_3d_dict() -> dict[str,pyv.SensorData]:
 def err_chain_sfield_2dxy(field: pyv.IField,
                     sens_pos: np.ndarray,
                     samp_times: np.ndarray | None,
+                    pos_lock: np.ndarray | None,
                     ) -> list[pyv.IErrCalculator]:
 
     if samp_times is None:
@@ -117,6 +139,7 @@ def err_chain_sfield_2dxy(field: pyv.IField,
         time_offset=time_offset,
         pos_rand_xyz=(pos_rand,pos_rand,None),
         time_rand=time_rand,
+        pos_lock_xyz=pos_lock,
     )
 
     err_chain = []
@@ -128,6 +151,7 @@ def err_chain_sfield_2dxy(field: pyv.IField,
 def err_chain_sfield_dep_2dxy(field: pyv.IField,
                         sens_pos: np.ndarray,
                         samp_times: np.ndarray | None,
+                        pos_lock: np.ndarray | None,
                         ) -> list[pyv.IErrCalculator]:
 
     if samp_times is None:
@@ -138,7 +162,8 @@ def err_chain_sfield_dep_2dxy(field: pyv.IField,
 
     pos_offset = -1.0*np.ones_like(sens_pos)
     pos_offset[:,2] = 0.0 # in 2d we only have offset in x and y so zero z
-    pos_error_data = pyv.ErrFieldData(pos_offset_xyz=pos_offset)
+    pos_error_data = pyv.ErrFieldData(pos_offset_xyz=pos_offset,
+                                      pos_lock_xyz=pos_lock)
 
     # angle_offset = np.zeros_like(sens_pos)
     # angle_offset[:,0] = 1.0 # only rotate about z in 2D
@@ -166,9 +191,11 @@ def err_chain_sfield_dep_2dxy(field: pyv.IField,
     #                                 pyv.EErrDep.DEPENDENT))
     return err_chain
 
+
 def err_chain_sfield_3d(field: pyv.IField,
                     sens_pos: np.ndarray,
                     samp_times: np.ndarray | None,
+                    pos_lock: np.ndarray | None,
                     ) -> list[pyv.IErrCalculator]:
 
     if samp_times is None:
@@ -191,6 +218,7 @@ def err_chain_sfield_3d(field: pyv.IField,
         time_offset=time_offset,
         pos_rand_xyz=(pos_rand,pos_rand,pos_rand),
         time_rand=time_rand,
+        pos_lock_xyz = pos_lock,
     )
 
     err_chain = []
@@ -202,6 +230,7 @@ def err_chain_sfield_3d(field: pyv.IField,
 def err_chain_sfield_dep_3d(field: pyv.IField,
                         sens_pos: np.ndarray,
                         samp_times: np.ndarray | None,
+                        pos_lock: np.ndarray | None,
                         ) -> list[pyv.IErrCalculator]:
 
     if samp_times is None:
@@ -211,7 +240,8 @@ def err_chain_sfield_dep_3d(field: pyv.IField,
     time_error_data = pyv.ErrFieldData(time_offset=time_offset)
 
     pos_offset = -1.0*np.ones_like(sens_pos)
-    pos_error_data = pyv.ErrFieldData(pos_offset_xyz=pos_offset)
+    pos_error_data = pyv.ErrFieldData(pos_offset_xyz=pos_offset,
+                                      pos_lock_xyz=pos_lock)
 
     # angle_offset = np.zeros_like(sens_pos)
     # angle_offset[:,0] = 1.0 # only rotate about z in 2D
@@ -257,28 +287,32 @@ def err_chain_calib() -> list[pyv.IErrCalculator]:
 
 def err_chain_2d_dict(field: pyv.IField,
                       sens_pos: np.ndarray,
-                      samp_times: np.ndarray) -> dict[str,list[pyv.IErrCalculator]]:
+                      samp_times: np.ndarray | None,
+                      pos_lock: np.ndarray | None
+                      ) -> dict[str,list[pyv.IErrCalculator]]:
     err_cases = {}
     err_cases["none"] = None
     err_cases["basic"] = psens.err_chain_basic()
     err_cases["basic-gen"] = psens.err_chain_gen()
     err_cases["basic-dep"] = psens.err_chain_dep()
-    err_cases["field"] = err_chain_sfield_2dxy(field,sens_pos,samp_times)
-    err_cases["field-dep"] = err_chain_sfield_dep_2dxy(field,sens_pos,samp_times)
+    err_cases["field"] = err_chain_sfield_2dxy(field,sens_pos,samp_times,pos_lock)
+    err_cases["field-dep"] = err_chain_sfield_dep_2dxy(field,sens_pos,samp_times,pos_lock)
     err_cases["calib"] = err_chain_calib()
     return err_cases
 
 
 def err_chain_3d_dict(field: pyv.IField,
                       sens_pos: np.ndarray,
-                      samp_times: np.ndarray) -> dict[str,list[pyv.IErrCalculator]]:
+                      samp_times: np.ndarray | None,
+                      pos_lock: np.ndarray | None
+                      ) -> dict[str,list[pyv.IErrCalculator]]:
     err_cases = {}
     err_cases["none"] = None
     err_cases["basic"] = psens.err_chain_basic()
     err_cases["basic-gen"] = psens.err_chain_gen()
     err_cases["basic-dep"] = psens.err_chain_dep()
-    err_cases["field"] = err_chain_sfield_3d(field,sens_pos,samp_times)
-    err_cases["field-dep"] = err_chain_sfield_dep_3d(field,sens_pos,samp_times)
+    err_cases["field"] = err_chain_sfield_3d(field,sens_pos,samp_times,pos_lock)
+    err_cases["field-dep"] = err_chain_sfield_dep_3d(field,sens_pos,samp_times,pos_lock)
     err_cases["calib"] = err_chain_calib()
     return err_cases
 
@@ -314,9 +348,16 @@ def sens_2d_dict() -> dict[str,pyv.SensorArrayPoint]:
     for ss in sens_data_dict:
         sens_array = sens_2d_noerrs(sens_data_dict[ss])
 
+        pos_lock = sens_pos_2d_lock(sens_data_dict[ss].positions)
+        for kk in pos_lock:
+            if kk in ss:
+                pos_lock_key = kk
+                break
+
         err_chain_dict = err_chain_2d_dict(sens_array.get_field(),
                                            sens_data_dict[ss].positions,
-                                           sens_data_dict[ss].sample_times)
+                                           sens_data_dict[ss].sample_times,
+                                           pos_lock[pos_lock_key])
 
         for ee in err_chain_dict:
             tag = f"scal2d_{ss}_err-{ee}"
@@ -340,9 +381,16 @@ def sens_3d_dict() -> dict[str,pyv.SensorArrayPoint]:
     for ss in sens_data_dict:
         sens_array = sens_3d_noerrs(sens_data_dict[ss])
 
+        pos_lock = sens_pos_3d_lock(sens_data_dict[ss].positions)
+        for kk in pos_lock:
+            if kk in ss:
+                pos_lock_key = kk
+                break
+
         err_chain_dict = err_chain_3d_dict(sens_array.get_field(),
                                            sens_data_dict[ss].positions,
-                                           sens_data_dict[ss].sample_times)
+                                           sens_data_dict[ss].sample_times,
+                                           pos_lock=pos_lock[pos_lock_key])
 
         for ee in err_chain_dict:
             tag = f"scal3d_{ss}_err-{ee}"
@@ -358,13 +406,6 @@ def sens_3d_dict() -> dict[str,pyv.SensorArrayPoint]:
 
     return sens
 
-
-def gen_gold(sens_dict: dict[str,pyv.SensorArrayPoint]) -> None:
-    for ss in sens_dict:
-        print(f"Generating gold output for case: {ss}")
-        measurements = sens_dict[ss].calc_measurements()
-        save_path = psensconst.GOLD_PATH / f"{ss}.npy"
-        np.save(save_path,measurements)
 
 
 

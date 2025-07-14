@@ -10,8 +10,7 @@ import pyvale.verif.psensscalar as psensscalar
 
 
 def main() -> None:
-    tag = "scalar"
-    
+    tag = "tensor"
     print(80*"=")
     print(f"Gold Output Generator for pyvale {tag} Point Sensors")
     print(80*"=")

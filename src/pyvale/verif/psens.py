@@ -14,11 +14,11 @@ Specifically, this module contains generic functions used across all types of
 point sensors.
 """
 
-
 import numpy as np
 import mooseherder as mh
 import pyvale as pyv
 import pyvale.verif.psensconst as psensconst
+
 
 def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
     sim_dims = pyv.get_sim_dims(sim_data)
@@ -29,8 +29,9 @@ def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
 
     return sample_times
 
+
 def sens_data_dict(sim_data: mh.SimData,
-                  sens_pos: list[np.ndarray]) -> dict[str,pyv.SensorData]:
+                   sens_pos: list[np.ndarray]) -> dict[str,pyv.SensorData]:
     sample_times = samp_times(sim_data)
 
     sens_data = {}
@@ -43,6 +44,7 @@ def sens_data_dict(sim_data: mh.SimData,
             )
 
     return sens_data
+
 
 def err_chain_basic() -> list[pyv.IErrCalculator]:
     chain_basic = []
@@ -81,4 +83,28 @@ def err_chain_dep() -> list[pyv.IErrCalculator]:
     chain_dep.append(pyv.ErrSysSaturation(meas_min=0.0,meas_max=100.0))
     return chain_dep
 
+
+def gen_gold(sens_dict: dict[str,pyv.SensorArrayPoint]) -> None:
+    for ss in sens_dict:
+        print(f"Generating gold output for case: {ss}")
+        measurements = sens_dict[ss].calc_measurements()
+        save_path = psensconst.GOLD_PATH / f"{ss}.npy"
+        np.save(save_path,measurements)
+
+
+def check_gold(sens_dict: dict[str,pyv.SensorArrayPoint]) -> list[str]:
+    fails = []
+    for ss in sens_dict:
+        measurements = sens_dict[ss].calc_measurements()
+
+        load_path = psensconst.GOLD_PATH / f"{ss}.npy"
+        if load_path.is_file():
+            gold = np.load(load_path)
+
+            if not np.allclose(measurements,gold):
+                fails.append(f"Gold check failed for: {ss}")
+        else:
+            fails.append(f"Gold file does not exist for: {ss}")
+
+    return fails
 

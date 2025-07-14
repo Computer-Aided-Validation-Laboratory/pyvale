@@ -52,7 +52,7 @@ disp_field = pyv.FieldVector(sim_data,field_name,field_comps,elem_dims=2)
 # which determines how many point sensors we have and their sampling times.
 # For vector field sensors we can also define the sensor orientation here
 # which we will demonstrate in the next example.
-n_sens = (2,3,1)
+n_sens = (1,4,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,150.0)
 z_lims = (0.0,0.0)
