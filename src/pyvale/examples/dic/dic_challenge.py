@@ -29,7 +29,7 @@ subset_radius = subset_size // 2
 # only correlate along the horizontal at the midpoint
 roi = pyvale.DICRegionOfInterest(ref_pattern)
 roi.rect_boundary(50,50,250-subset_radius,250-subset_radius) # left, right, top, bottom
-roi.imshow()
+roi.show_image()
 
 
 # %%

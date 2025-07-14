@@ -8,6 +8,7 @@
 
 import numpy as np
 import glob
+import os
 
 # import cython module
 from pyvale.dicresults import DICResults
@@ -59,10 +60,21 @@ def dic_data_import(data: str = "./",
         If no matching data files are found.
     """
 
+
+    print("")
+    print("Attempting DIC Data import...")
+    print("")
+
     files = sorted(glob.glob(data))
     filenames = files
     if not files:
         raise FileNotFoundError(f"No results found in: {data}")
+
+    print(f"Found {len(files)} files containing DIC results:")
+    for file in files:
+        print(f"  - {file}")
+    print("")
+
 
     # Read first file to define reference coordinates
     read_data = read_binary if binary else read_text
@@ -85,7 +97,6 @@ def dic_data_import(data: str = "./",
         shape = (len(files), len(y_unique), len(x_unique))
         arrays = [to_grid(a,shape,ss_x_ref, ss_y_ref, x_unique,y_unique) for a in arrays]
         return DICResults(X, Y, *arrays, filenames)
-
     else:
         return DICResults(ss_x_ref, ss_y_ref, *arrays, filenames)
 

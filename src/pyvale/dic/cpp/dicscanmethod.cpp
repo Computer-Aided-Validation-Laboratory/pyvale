@@ -93,9 +93,9 @@ namespace scanmethod {
                 util::append_results(img_num, ss, res, num_ss);
 
                 // update progress bar
-                //int progress = current_progress.fetch_add(1);
-                //util::update_progress_bar(bar, progress, num_ss, prev_pct);
-                //if (ss==100) exit(0);
+                int progress = current_progress.fetch_add(1);
+                util::update_progress_bar(bar, progress, num_ss, prev_pct);
+
             }
         }
         bar.mark_as_completed();

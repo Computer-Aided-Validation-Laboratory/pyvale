@@ -88,9 +88,9 @@ private:
 
 
 public:
-    std::vector<double> zx;
-    std::vector<double> zy;
-    std::vector<double> zxy;
+    std::vector<double> dx;
+    std::vector<double> dy;
+    std::vector<double> dxy;
     std::vector<double> tridiag_solution;
     std::vector<double> px_y;
     std::vector<double> px_x;

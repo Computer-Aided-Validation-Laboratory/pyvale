@@ -4,14 +4,15 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
-from re import A
-from pyqtgraph.Qt import QtWidgets, QtGui, QtCore
+from pyqtgraph.Qt import QtWidgets, QtCore
 import pyqtgraph as pg
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 import math
+import pickle
+import dill
 
 class DICRegionOfInterest:
     """
@@ -50,9 +51,11 @@ class DICRegionOfInterest:
             raise ValueError("Invalid image input")
 
         self.mask = np.zeros(self.ref_image.shape[:2], dtype=bool)
-        self.mask = self.mask.T
+        #self.mask = self.mask.T
         self.seed = [0,0]
         self.__roi_selected = False
+        self.roi_list = []
+        self.undo_list = []
 
         self.drawing_seed = False
         self.drawing_poly = False
@@ -90,12 +93,52 @@ class DICRegionOfInterest:
         btn_sub_poly = QtWidgets.QPushButton("Remove Polygon")
         btn_undo_prev = QtWidgets.QPushButton("Undo Shape")
         btn_redo_prev = QtWidgets.QPushButton("Redo Shape")
+        btn_open_roi = QtWidgets.QPushButton("Open ROI...")
+        btn_save_roi = QtWidgets.QPushButton("Save Current ROI...")
         btn_finished = QtWidgets.QPushButton("ROI Completed")
 
-        for btn in [btn_add_seed, btn_add_rect, btn_add_circle, btn_add_poly, btn_sub_rect, btn_sub_circle, btn_sub_poly, btn_undo_prev, btn_redo_prev, btn_finished]:
-            sidebar.addWidget(btn)
+        # Helper to create a styled title label
+        def make_title(text):
+            label = QtWidgets.QLabel(text)
+            label.setStyleSheet("font-weight: bold; font-size: 14px; margin-top: 10px; margin-bottom: 5px;")
+            return label
+
+        sidebar.addWidget(make_title("FILE ACTIONS"))
+        sidebar.addWidget(btn_open_roi)
+        sidebar.addWidget(btn_save_roi)
+        sidebar.addSpacing(20)
+
+
+        sidebar.addWidget(make_title("ADD SHAPES TO ROI"))
+        sidebar.addWidget(btn_add_rect)
+        sidebar.addWidget(btn_add_circle)
+        sidebar.addWidget(btn_add_poly)
+        sidebar.addSpacing(20)
+
+        sidebar.addWidget(make_title("Remove SHAPES FROM ROI"))
+        sidebar.addWidget(btn_sub_rect)
+        sidebar.addWidget(btn_sub_circle)
+        sidebar.addWidget(btn_sub_poly)
+        sidebar.addSpacing(20)
+
+        sidebar.addWidget(make_title("SEED LOCATION"))
+        sidebar.addWidget(btn_add_seed)
+        sidebar.addSpacing(20)
+
+        sidebar.addWidget(make_title("UNDO / REDO SHAPES"))
+        sidebar.addWidget(btn_undo_prev)
+        sidebar.addWidget(btn_redo_prev)
+        sidebar.addSpacing(100)
+
+
+        sidebar.addWidget(make_title("COMPLETION"))
+        sidebar.addWidget(btn_finished)
 
         sidebar.addStretch()
+
+        # init undo and redo to false because no shapes yet
+        btn_undo_prev.setEnabled(False)
+        btn_redo_prev.setEnabled(False)
 
         # Graphics view
         graphics_widget = pg.GraphicsLayoutWidget()
@@ -113,26 +156,34 @@ class DICRegionOfInterest:
         height, width = rotated.shape[:2]
         fill_array = np.zeros((height,width,4), dtype=np.uint8)
 
-        roi_list = []
+        self.roi_list = []
         add_list = []
         seed_list = []
-        undo_list = []
+        self.undo_list = []
         temp_mask = np.zeros((height, width), dtype=bool)
+
+        def update_button_states():
+            """Update the enabled state of undo and redo buttons based on current lists"""
+            btn_undo_prev.setEnabled(len(self.roi_list) > 0)
+            btn_redo_prev.setEnabled(len(self.undo_list) > 0)
 
         def clear_redo_stack():
             """Clear the redo stack when new shapes are added"""
-            nonlocal undo_list
-            undo_list = []
+            self.undo_list = []
+            update_button_states()
 
         def redraw_fill_layer():
             nonlocal fill_array, temp_mask
-            if not roi_list:
+            if not self.roi_list:
+                fill_layer.setImage(fill_array)
+                fill_array.fill(0)
+                temp_mask.fill(False)
                 fill_layer.setImage(fill_array)
                 return
 
             temp_mask.fill(False)
 
-            for n, roi in enumerate(roi_list):
+            for n, roi in enumerate(self.roi_list):
 
                 if isinstance(roi, pg.RectROI):
                     pos = roi.pos()
@@ -192,24 +243,47 @@ class DICRegionOfInterest:
         hoverpen=pg.mkPen('b', width=4)
 
         def undo_last():
-            if roi_list:
-                roi = roi_list.pop()
+            if self.roi_list:
+                roi = self.roi_list.pop()
                 add_flag = add_list.pop()
                 main_view.removeItem(roi)
                 # Store the undone shape in the redo stack
-                undo_list.append((roi, add_flag))
+                self.undo_list.append((roi, add_flag))
                 redraw_fill_layer()
+                update_button_states()
 
         def redo_last():
-            if undo_list:
-                roi, add_flag = undo_list.pop()
+            if self.undo_list:
+                roi, add_flag = self.undo_list.pop()
                 # Re-add the shape to the main lists and view
-                roi_list.append(roi)
+                self.roi_list.append(roi)
                 add_list.append(add_flag)
                 main_view.addItem(roi)
                 # Reconnect the signal handler
                 roi.sigRegionChanged.connect(redraw_fill_layer)
                 redraw_fill_layer()
+                update_button_states()
+
+        def open_interactive_roi():
+            print("test")
+            filename, _ = QtWidgets.QFileDialog.getOpenFileName(main_window, 'Open ROI', '', 'Pickle Files (*.pkl)')
+
+            if filename:
+                with open(filename, 'rb') as f:
+                    data = dill.load(f)
+
+                self.roi_list = data.get('roi_list', [])
+                self.undo_list = data.get('undo_list', [])
+
+                print("Loaded ROI list:", self.roi_list)
+                print("Loaded Undo list:", self.undo_list)
+
+        def save_interactive_roi():
+            filename, _ = QtWidgets.QFileDialog.getSaveFileName(main_window, 'Save ROI', filter='Pickle Files (*.pkl)')
+
+            if filename:
+                with open(filename, 'wb') as f:
+                    dill.dump({'roi_list': self.roi_list, 'self.undo_list': self.undo_list}, f)
 
         def finish():
             main_window.close()
@@ -314,7 +388,7 @@ class DICRegionOfInterest:
             if len(poly_points) >= 3:
                 clear_redo_stack()  # Clear redo stack when adding new shape
                 roi = pg.PolyLineROI(poly_points, closed=True, pen=addpen, hoverPen=hoverpen, handlePen=handlepen, handleHoverPen=hoverpen)
-                roi_list.append(roi)
+                self.roi_list.append(roi)
                 add_list.append(True)
                 main_view.addItem(roi)
                 for handle in roi.getHandles():
@@ -341,7 +415,7 @@ class DICRegionOfInterest:
             if len(poly_points) >= 3:
                 clear_redo_stack()  # Clear redo stack when adding new shape
                 roi = pg.PolyLineROI(poly_points, closed=True, pen=subpen, hoverPen=hoverpen, handlePen=handlepen, handleHoverPen=hoverpen)
-                roi_list.append(roi)
+                self.roi_list.append(roi)
                 add_list.append(False)
                 main_view.addItem(roi)
                 for handle in roi.getHandles():
@@ -399,7 +473,7 @@ class DICRegionOfInterest:
                         handle.buildPath()
                         handle.update()
                     main_view.addItem(roi)
-                    roi_list.append(roi)
+                    self.roi_list.append(roi)
                     add_list.append(True)
                     roi.sigRegionChanged.connect(redraw_fill_layer)
                     redraw_fill_layer()
@@ -411,16 +485,15 @@ class DICRegionOfInterest:
                 if event.button() == QtCore.Qt.MouseButton.LeftButton:
                     pos = event.scenePos()
                     start_point = main_view.mapSceneToView(pos)
-                    seedpen=pg.mkPen('y', width=1)
-                    seedhoverpen=pg.mkPen('b', width=1)
+                    seedpen=pg.mkPen('b', width=3)
+                    seedhoverpen=pg.mkPen('y', width=3)
                     x = math.floor(start_point.x()-subset_size/2)
                     y = math.floor(start_point.y()-subset_size/2)
-                    roi = pg.RectROI([x,y], [subset_size, subset_size], pen=seedpen, hoverPen=seedhoverpen, handlePen=seedpen, handleHoverPen=seedhoverpen)
+                    roi = pg.RectROI([x,y], [subset_size, subset_size], pen=seedpen, hoverPen=seedhoverpen, handlePen='#0000', handleHoverPen='#0000')
                     seed_list.append(roi)
                     handles = roi.getHandles()
                     for handle in handles:
                         roi.removeHandle(handle)
-                    roi.addTranslateHandle([0.5,0.5])
                     main_view.addItem(roi)
                     print(f"seed initially added at location: [{x}, {width-y}]")
                     finish_drawing_seed()
@@ -440,7 +513,7 @@ class DICRegionOfInterest:
                         handle.buildPath()
                         handle.update()
                     main_view.addItem(roi)
-                    roi_list.append(roi)
+                    self.roi_list.append(roi)
                     add_list.append(False)
                     roi.sigRegionChanged.connect(redraw_fill_layer)
                     redraw_fill_layer()
@@ -460,7 +533,7 @@ class DICRegionOfInterest:
                         handle.radius = 10
                         handle.buildPath()
                         handle.update()
-                    roi_list.append(roi)
+                    self.roi_list.append(roi)
                     add_list.append(True)
                     main_view.addItem(roi)
                     roi.sigRegionChanged.connect(redraw_fill_layer)
@@ -481,13 +554,29 @@ class DICRegionOfInterest:
                         handle.radius = 10
                         handle.buildPath()
                         handle.update()
-                    roi_list.append(roi)
+                    self.roi_list.append(roi)
                     add_list.append(False)
                     main_view.addItem(roi)
                     roi.sigRegionChanged.connect(redraw_fill_layer)
                     redraw_fill_layer()
                     print("circle added.")
                     finish_removing_circle()
+
+            # update status of undo and redo buttons
+            if len(self.undo_list) == 0:
+                btn_redo_prev.setEnabled(False)
+            else:
+                btn_redo_prev.setEnabled(True)
+
+            if len(self.roi_list) == 0:
+                btn_undo_prev.setEnabled(False)
+            else:
+                btn_undo_prev.setEnabled(True)
+
+
+
+
+
 
         main_view.scene().sigMouseClicked.connect(mouse_clicked)
         
@@ -500,6 +589,8 @@ class DICRegionOfInterest:
         btn_sub_poly.clicked.connect(start_removing_poly)
         btn_undo_prev.clicked.connect(undo_last)
         btn_redo_prev.clicked.connect(redo_last)
+        btn_save_roi.clicked.connect(save_interactive_roi)
+        btn_open_roi.clicked.connect(open_interactive_roi)
         btn_finished.clicked.connect(finish)
 
         main_layout.addLayout(sidebar)
@@ -518,11 +609,11 @@ class DICRegionOfInterest:
             print(f"Final seed location: [{x}, {y}]")
 
 
-    def reset_mask(self, image_shape: np.ndarray) -> np.ndarray:
+    def reset_mask(self):
         """
         Completely resets the roi mask to 0s.
         """
-        return np.zeros(image_shape[:2], dtype=bool)
+        self.mask[:] = False;
 
     def rect_boundary(self, left: int, right: int, top: int, bottom: int) -> None:
         """
@@ -536,7 +627,7 @@ class DICRegionOfInterest:
             top (int): Number of px to exclude from the top edge.
             bottom (int): Number of px to exclude from the bottom edge.
         """
-        self.mask = self.reset_mask(self.ref_image.shape)
+        self.reset_mask()
         self.mask[bottom:(self.ref_image.shape[0]-top), left:(self.ref_image.shape[1])-right] = 255
         self.__roi_selected = True
 
@@ -551,7 +642,7 @@ class DICRegionOfInterest:
             self.mask[top:bottom, left:right] = 255
             self.__roi_selected = True
 
-    def imsave(self, filename: str="./roi.tiff") -> None:
+    def save_image(self, filename: str="./roi.tiff") -> None:
         """
         Saves the image with the mask overlayed.
 
@@ -565,10 +656,10 @@ class DICRegionOfInterest:
             raise ValueError("No ROI selected with \'interactive_selection\' or \'rect_boundary\' ")
         overlay = self.ref_image.copy()
         overlay[self.mask] = (0, 255, 0)
-        result = cv2.addWeighted(self.ref_image, 0.7, overlay, 0.3, 0)
+        result = cv2.addWeighted(self.ref_image, 0.6, overlay, 0.4, 0)
         cv2.imwrite(filename, result)
 
-    def save(self, filename: str="./roi.dat", binary: bool=False) -> None:
+    def save_array(self, filename: str="./roi.dat", binary: bool=False) -> None:
         """
         Saves the roi as a binary mask or text file.
         
@@ -587,7 +678,7 @@ class DICRegionOfInterest:
             np.savetxt(filename, self.mask, fmt='%d', delimiter=' ')
 
 
-    def read(self, filename: str = "./roi.tiff", binary: bool = False) -> None:
+    def read_array(self, filename: str = "./roi.dat", binary: bool = False) -> None:
         """
         Load the ROI mask from a binary or text file and store it in `self.mask`.
 
@@ -623,7 +714,7 @@ class DICRegionOfInterest:
         self.__roi_selected = True
 
 
-    def imshow(self) -> None:
+    def show_image(self) -> None:
         """
         Displays the current mask in grayscale.
 
@@ -638,6 +729,9 @@ class DICRegionOfInterest:
 
         # Create a green mask image
         green_mask = np.zeros_like(self.ref_image)
+        print(self.ref_image.shape)
+        print(self.mask.shape)
+
         green_mask[self.mask,:] = [0, 255, 0]
 
         # Blend the original image and the mask
@@ -645,10 +739,10 @@ class DICRegionOfInterest:
         blended = blended.astype(np.uint8)
 
         # Display using Matplotlib
-        plt.figure(figsize=(8, 6))
+        plt.figure()
         plt.imshow(blended)
-        plt.title("Region Of Interest")
         plt.axis('off')
+        plt.tight_layout()
         plt.show()
 
 

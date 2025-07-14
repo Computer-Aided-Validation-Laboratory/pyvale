@@ -101,18 +101,8 @@ def strain_2d(data: DICResults | str,
 
 
 
-def strain_data_import(data: DICResults | str,
-                         window_size: int=5, 
-                         window_element: int=4,
-                         input_binary: bool=False,
-                         output_def_grad: bool=True,
-                         output_strain: bool=True,
-                         output_basepath: str="./",
-                         output_binary: bool=False,
-                         output_prefix: str="strain_",
-                         output_delimiter: str=" ",
-                         output_at_end: bool=False,
-                         strain_formulation: str="HENCKY",
-                         binary: bool=False,
-                         delimiter: str=" "):
-    print("test")
+# def strain_data_import(data: str = "./",
+#                    binary: bool = False,
+#                    layout: str = "matrix",
+#                    delimiter: str = " ") -> StrainResults:
+#     print("test")

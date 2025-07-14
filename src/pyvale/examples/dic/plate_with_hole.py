@@ -23,8 +23,8 @@ import pyvale
 # folder to the reference image. Or, if they follow a naming convention then you
 # can use a the wildcard operator '*' to select multiple files.
 subset_size = 31
-ref_img = "../../data/ref0000.tiff"
-def_img = "../../data/def000*.tiff"
+ref_img = "../../data/plate_hole_ref0000.tiff"
+def_img = "../../data/plate_hole_def000*.tiff"
 
 # %% 
 # We'll want to select our Region of Interset (ROI) using the interactive tool.
@@ -42,12 +42,12 @@ roi.interactive_selection(subset_size)
 # calculations with this set of images. For exceptionally large images, 
 # it's recommended to save with binary=True to reduce file size and the time 
 # it takes to save the array to disk.This can be done with:
-roi.save(filename="roi.dat",binary=False)
+roi.save_array(filename="roi.dat",binary=False)
 
 # For any future DIC calculations, you can read the ROI mask back in using the
 # :func:`roi.roiread` command. Remember to update the filename and the whether the ROI
 # mask has been saved in human readable or binary format.
-roi.read(filename="roi.dat")
+roi.read_array(filename="roi.dat")
 
 
 # %%
@@ -68,6 +68,7 @@ pyvale.dic_2d(reference=ref_img,
               subset_size=subset_size,
               subset_step=10,
               shape_function="AFFINE",
+              max_displacement=10,
               correlation_criteria="ZNSSD")
 
 # %%
