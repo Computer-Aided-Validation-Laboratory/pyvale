@@ -34,7 +34,7 @@ pyvale-output/
 !docs/source/_static/*.png
 
 # Keep these as they are gold output for regression tests
-# !tests/pointsensors/gold/*.npy
+!tests/pointsensors/gold/*.npy
 
 # Image deformation test cases
 *.pkl

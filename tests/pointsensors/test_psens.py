@@ -7,7 +7,8 @@ import pytest
 import numpy as np
 import pyvale.verif.psens as psens
 import pyvale.verif.psensscalar as psensscalar
-
+import pyvale.verif.psensvector as psensvector
+import pyvale.verif.psenstensor as psenstensor
 
 #-------------------------------------------------------------------------------
 # TODO: Tests
@@ -23,19 +24,31 @@ import pyvale.verif.psensscalar as psensscalar
 #-------------------------------------------------------------------------------
 
 def test_gold_scalar2d() -> None:
-    """Gold regression testing for all scalar field point sensors in 2D.
-    """
     fails = psens.check_gold(psensscalar.sens_2d_dict())
     assert not fails, "\n".join(fails)
 
-
 def test_gold_scalar3d() -> None:
-    """Gold regression testing for all scalar field point sensors in 3D.
-    """
     fails = psens.check_gold(psensscalar.sens_3d_dict())
     assert not fails, "\n".join(fails)
 
+def test_gold_vector2d() -> None:
+    fails = psens.check_gold(psensvector.sens_2d_dict())
+    assert not fails, "\n".join(fails)
 
+def test_gold_vector3d() -> None:
+    fails = psens.check_gold(psensvector.sens_3d_dict())
+    assert not fails, "\n".join(fails)
+
+def test_gold_tensor2d() -> None:
+    fails = psens.check_gold(psenstensor.sens_2d_dict())
+    assert not fails, "\n".join(fails)
+
+def test_gold_tensor3d() -> None:
+    fails = psens.check_gold(psenstensor.sens_3d_dict())
+    assert not fails, "\n".join(fails)
+
+
+#-------------------------------------------------------------------------------
 def test_get_meas_scalar() -> None:
     """Tests that get does not resample from probability distributions.
     """
