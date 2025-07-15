@@ -59,11 +59,11 @@ disp_field = pyv.FieldVector(sim_data,field_name,field_comps,elem_dims=3)
 # centre of each face of our 10mm cube. From here everything is the same as
 # for our 2D vector field sensor arrays.
 sensor_positions = np.array(((5.0,0.0,5.0),
-                                (5.0,10.0,5.0),
-                                (5.0,5.0,0.0),
-                                (5.0,5.0,10.0),
-                                (0.0,5.0,5.0),
-                                (10.0,5.0,5.0),))
+                             (5.0,10.0,5.0),
+                             (5.0,5.0,0.0),
+                             (5.0,5.0,10.0),
+                             (0.0,5.0,5.0),
+                             (10.0,5.0,5.0),))
 
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 

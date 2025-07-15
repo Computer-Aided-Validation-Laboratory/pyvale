@@ -17,7 +17,7 @@ This module contains developer utility functions used for verification testing
 of the point sensor simulation toolbox in pyvale.
 
 Specifically, this module contains functions used for testing point sensors
-applied to scalar field.
+applied to scalar fields.
 """
 
 # TODO: fix position locking for 3D field errors
@@ -113,86 +113,7 @@ def sens_data_3d_dict() -> dict[str,pyv.SensorData]:
     return psens.sens_data_dict(simdata_3d(),sens_pos_3d())
 
 
-def err_chain_sfield_2dxy(field: pyv.IField,
-                    sens_pos: np.ndarray,
-                    samp_times: np.ndarray | None,
-                    pos_lock: np.ndarray | None,
-                    ) -> list[pyv.IErrCalculator]:
-
-    if samp_times is None:
-        samp_times = field.get_time_steps()
-
-    pos_offset_xyz = np.array((1.0,1.0,0.0),dtype=np.float64)
-    pos_offset_xyz = np.tile(pos_offset_xyz,(sens_pos.shape[0],1))
-
-    time_offset = np.full((samp_times.shape[0],),0.1)
-
-    pos_rand = pyv.GenNormal(std=1.0,
-                             mean=0.0,
-                             seed=psensconst.GOLD_SEED) # units = mm
-    time_rand = pyv.GenNormal(std=0.1,
-                              mean=0.0,
-                              seed=psensconst.GOLD_SEED) # units = s
-
-    field_err_data = pyv.ErrFieldData(
-        pos_offset_xyz=pos_offset_xyz,
-        time_offset=time_offset,
-        pos_rand_xyz=(pos_rand,pos_rand,None),
-        time_rand=time_rand,
-        pos_lock_xyz=pos_lock,
-    )
-
-    err_chain = []
-    err_chain.append(pyv.ErrSysField(field,
-                                     field_err_data))
-    return err_chain
-
-
-def err_chain_sfield_dep_2dxy(field: pyv.IField,
-                        sens_pos: np.ndarray,
-                        samp_times: np.ndarray | None,
-                        pos_lock: np.ndarray | None,
-                        ) -> list[pyv.IErrCalculator]:
-
-    if samp_times is None:
-        samp_times = field.get_time_steps()
-
-    time_offset = 2.0*np.ones_like(samp_times)
-    time_error_data = pyv.ErrFieldData(time_offset=time_offset)
-
-    pos_offset = -1.0*np.ones_like(sens_pos)
-    pos_offset[:,2] = 0.0 # in 2d we only have offset in x and y so zero z
-    pos_error_data = pyv.ErrFieldData(pos_offset_xyz=pos_offset,
-                                      pos_lock_xyz=pos_lock)
-
-    # angle_offset = np.zeros_like(sens_pos)
-    # angle_offset[:,0] = 1.0 # only rotate about z in 2D
-    # angle_error_data = pyv.ErrFieldData(ang_offset_zyx=angle_offset)
-
-    err_chain = []
-    err_chain.append(pyv.ErrSysField(field,
-                                    time_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-    err_chain.append(pyv.ErrSysField(field,
-                                    time_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-
-    err_chain.append(pyv.ErrSysField(field,
-                                    pos_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-    err_chain.append(pyv.ErrSysField(field,
-                                    pos_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-    # err_chain.append(pyv.ErrSysField(field,
-    #                                 angle_error_data,
-    #                                 pyv.EErrDep.DEPENDENT))
-    # err_chain.append(pyv.ErrSysField(field,
-    #                                 angle_error_data,
-    #                                 pyv.EErrDep.DEPENDENT))
-    return err_chain
-
-
-def err_chain_sfield_3d(field: pyv.IField,
+def err_chain_sfield(field: pyv.IField,
                     sens_pos: np.ndarray,
                     samp_times: np.ndarray | None,
                     pos_lock: np.ndarray | None,
@@ -218,7 +139,7 @@ def err_chain_sfield_3d(field: pyv.IField,
         time_offset=time_offset,
         pos_rand_xyz=(pos_rand,pos_rand,pos_rand),
         time_rand=time_rand,
-        pos_lock_xyz = pos_lock,
+        pos_lock_xyz=pos_lock,
     )
 
     err_chain = []
@@ -227,7 +148,7 @@ def err_chain_sfield_3d(field: pyv.IField,
     return err_chain
 
 
-def err_chain_sfield_dep_3d(field: pyv.IField,
+def err_chain_sfield_dep(field: pyv.IField,
                         sens_pos: np.ndarray,
                         samp_times: np.ndarray | None,
                         pos_lock: np.ndarray | None,
@@ -243,10 +164,6 @@ def err_chain_sfield_dep_3d(field: pyv.IField,
     pos_error_data = pyv.ErrFieldData(pos_offset_xyz=pos_offset,
                                       pos_lock_xyz=pos_lock)
 
-    # angle_offset = np.zeros_like(sens_pos)
-    # angle_offset[:,0] = 1.0 # only rotate about z in 2D
-    # angle_error_data = pyv.ErrFieldData(ang_offset_zyx=angle_offset)
-
     err_chain = []
     err_chain.append(pyv.ErrSysField(field,
                                     time_error_data,
@@ -261,13 +178,9 @@ def err_chain_sfield_dep_3d(field: pyv.IField,
     err_chain.append(pyv.ErrSysField(field,
                                     pos_error_data,
                                     pyv.EErrDep.DEPENDENT))
-    # err_chain.append(pyv.ErrSysField(field,
-    #                                 angle_error_data,
-    #                                 pyv.EErrDep.DEPENDENT))
-    # err_chain.append(pyv.ErrSysField(field,
-    #                                 angle_error_data,
-    #                                 pyv.EErrDep.DEPENDENT))
     return err_chain
+
+
 
 
 def calib_assumed(signal: np.ndarray) -> np.ndarray:
@@ -295,8 +208,8 @@ def err_chain_2d_dict(field: pyv.IField,
     err_cases["basic"] = psens.err_chain_basic()
     err_cases["basic-gen"] = psens.err_chain_gen()
     err_cases["basic-dep"] = psens.err_chain_dep()
-    err_cases["field"] = err_chain_sfield_2dxy(field,sens_pos,samp_times,pos_lock)
-    err_cases["field-dep"] = err_chain_sfield_dep_2dxy(field,sens_pos,samp_times,pos_lock)
+    err_cases["field"] = err_chain_sfield(field,sens_pos,samp_times,pos_lock)
+    err_cases["field-dep"] = err_chain_sfield_dep(field,sens_pos,samp_times,pos_lock)
     err_cases["calib"] = err_chain_calib()
     return err_cases
 
@@ -311,8 +224,8 @@ def err_chain_3d_dict(field: pyv.IField,
     err_cases["basic"] = psens.err_chain_basic()
     err_cases["basic-gen"] = psens.err_chain_gen()
     err_cases["basic-dep"] = psens.err_chain_dep()
-    err_cases["field"] = err_chain_sfield_3d(field,sens_pos,samp_times,pos_lock)
-    err_cases["field-dep"] = err_chain_sfield_dep_3d(field,sens_pos,samp_times,pos_lock)
+    err_cases["field"] = err_chain_sfield(field,sens_pos,samp_times,pos_lock)
+    err_cases["field-dep"] = err_chain_sfield_dep(field,sens_pos,samp_times,pos_lock)
     err_cases["calib"] = err_chain_calib()
     return err_cases
 

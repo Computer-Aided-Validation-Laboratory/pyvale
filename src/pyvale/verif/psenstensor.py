@@ -7,7 +7,6 @@ import copy
 import pyvale as pyv
 import pyvale.verif.psensmech as psensmech
 
-
 """
 DEVELOPER VERIFICATION MODULE
 --------------------------------------------------------------------------------
@@ -15,19 +14,22 @@ This module contains developer utility functions used for verification testing
 of the point sensor simulation toolbox in pyvale.
 
 Specifically, this module contains functions used for testing point sensors
-applied to vector fields.
+applied to tensor fields.
 """
 
 # TODO
-# - Calibration errors for vector fields
-
+# - Calibration errors for tensor fields
 
 def sens_2d_noerrs(sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
     sim_data = psensmech.simdata_mech_2d()
-    descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
-    field = pyv.FieldVector(sim_data,
-                            field_key="disp",
-                            components=("disp_x","disp_y"),
+    descriptor = pyv.SensorDescriptorFactory.strain_descriptor()
+    field_name = "strain"
+    norm_comps = ("strain_xx","strain_yy")
+    dev_comps = ("strain_xy",)
+    field = pyv.FieldTensor(sim_data,
+                            field_name=field_name,
+                            norm_comps=norm_comps,
+                            dev_comps=dev_comps,
                             elem_dims=2)
     sens_array = pyv.SensorArrayPoint(sens_data,
                                       field,
@@ -37,10 +39,14 @@ def sens_2d_noerrs(sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
 
 def sens_3d_noerrs(sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
     sim_data = psensmech.simdata_mech_3d()
-    descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
-    field = pyv.FieldVector(sim_data,
-                            field_key="disp",
-                            components=("disp_x","disp_y","disp_z"),
+    descriptor = pyv.SensorDescriptorFactory.strain_descriptor()
+    field_name = "strain"
+    norm_comps = ("strain_xx","strain_yy","strain_zz")
+    dev_comps = ("strain_xy","strain_yz","strain_xz")
+    field = pyv.FieldTensor(sim_data,
+                            field_name=field_name,
+                            norm_comps=norm_comps,
+                            dev_comps=dev_comps,
                             elem_dims=3)
     sens_array =  pyv.SensorArrayPoint(sens_data,
                                        field,
@@ -66,7 +72,7 @@ def sens_2d_dict() -> dict[str,pyv.SensorArrayPoint]:
                                            pos_lock[pos_lock_key])
 
         for ee in err_chain_dict:
-            tag = f"vec2d_{ss}_err-{ee}"
+            tag = f"tens2d_{ss}_err-{ee}"
             sens[tag] = copy.deepcopy(sens_array)
 
             if err_chain_dict[ee] is not None:
@@ -99,7 +105,7 @@ def sens_3d_dict() -> dict[str,pyv.SensorArrayPoint]:
                                            pos_lock=pos_lock[pos_lock_key])
 
         for ee in err_chain_dict:
-            tag = f"vec3d_{ss}_err-{ee}"
+            tag = f"tens3d_{ss}_err-{ee}"
             sens[tag] = copy.deepcopy(sens_array)
 
             if err_chain_dict[ee] is not None:
