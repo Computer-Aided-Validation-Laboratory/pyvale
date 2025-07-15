@@ -18,35 +18,20 @@ class StrainResults:
 
     Attributes
     ----------
-    x : np.ndarray
-        The x-coordinates of the subset centers (in pixels).
-    y : np.ndarray
-        The y-coordinates of the subset centers (in pixels).
-    u : np.ndarray
-        Horizontal displacements at each subset location.
-    v : np.ndarray
-        Vertical displacements at each subset location.
-    mag : np.ndarray
-        Displacement magnitude at each subset location, typically computed as sqrt(u^2 + v^2).
-    cost : np.ndarray
-        Final cost or residual value from the correlation optimization (e.g., ZNSSD).
-    ftol : np.ndarray
-        Final `ftol` value from the optimization routine, indicating function tolerance.
-    xtol : np.ndarray
-        Final `xtol` value from the optimization routine, indicating solution tolerance.
-    niter : np.ndarray
-        Number of iterations taken to converge for each subset point.
+    window_x : np.ndarray
+        The x-coordinates of the strain window centre.
+    window_y : np.ndarray
+        The y-coordinates of the strain window centre.
+    def_grad : np.ndarray
+        The 2D deformation gradient.
+    eps : np.ndarray
+        The 2D strain tensor.
     filenames : list[str]
-        name of DIC result files that have been found
+        name of Strain result files that have been found
     """
 
-    ss_x: np.ndarray
-    ss_y: np.ndarray
-    u: np.ndarray
-    v: np.ndarray
-    mag: np.ndarray
-    cost: np.ndarray
-    ftol: np.ndarray
-    xtol: np.ndarray
-    niter: np.ndarray
+    window_x: np.ndarray
+    window_y: np.ndarray
+    def_grad: np.ndarray
+    eps: np.ndarray
     filenames: list[str]

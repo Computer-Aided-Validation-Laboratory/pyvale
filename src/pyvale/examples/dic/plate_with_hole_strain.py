@@ -14,6 +14,7 @@ have been generated in the current working directory ready to be used for the
 strain calculation
 """
 
+import matplotlib.pyplot as plt
 import pyvale
 
 
@@ -36,7 +37,39 @@ pyvale.strain_2d(data=dic_data, window_size=5, window_element=4)
 # %% 
 # The results can be read back into python following the completion of the
 # calculation by using the func:`pyvale.strainDataImport` command.
-#straindata = pyvale.strain_data_import()
+straindata = pyvale.strain_data_import(data="strain_dic_results_*", 
+                                       binary=False, delimiter=" ",
+                                       layout="matrix")
+
+# %%
+# As an example of some very simple visualisation, you could loop over the
+# number of deformed images and plot the displacement and cost values using the
+# below. You'll need to make sure you have matplotlib.pyplot installed and imported.
+fig, axes = plt.subplots(2, 2, figsize=(15, 5))
+axes = axes.flatten()
+
+# first deformation image
+im1 = axes[0].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0,:,:,0,0])
+im2 = axes[1].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0,:,:,0,1])
+im3 = axes[2].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0,:,:,1,0])
+im4 = axes[3].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0,:,:,1,1])
+
+# Titles
+axes[0].set_title('deformation gradient xx')
+axes[1].set_title('deformation gradient xy')
+axes[2].set_title('deformation gradient yx')
+axes[3].set_title('deformation gradient yy')
+
+
+fig.colorbar(im1, ax=axes[0])
+fig.colorbar(im2, ax=axes[1])
+fig.colorbar(im3, ax=axes[2])
+fig.colorbar(im4, ax=axes[3])
+
+
+# layout
+plt.show()
+
 
 
 

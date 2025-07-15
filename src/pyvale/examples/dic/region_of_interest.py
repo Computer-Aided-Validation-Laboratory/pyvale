@@ -20,8 +20,9 @@ import pyvale
 # Firstly we create an instance of the  ROI class. The reason we pass the reference image
 # here is that this image will be used as an underlay for the ROI selection
 # process.
-roi = pyvale.DICRegionOfInterest(ref_image="../../data/ref0000.tiff")
+roi = pyvale.DICRegionOfInterest(ref_image="../../data/plate_hole_ref0000.tiff")
 roi.interactive_selection(subset_size=31)
+exit(0)
 
 # %%
 # .. image:: ../../../../_static/roi_tool.gif
@@ -36,19 +37,19 @@ roi.interactive_selection(subset_size=31)
 # calculations with this set of images. For exceptionally large images, 
 # it's recommended to save with binary=True to reduce file size and the time 
 # it takes to save the array to disk.This can be done with:
-roi.save(filename="roi.dat",binary=False)
+roi.save_array(filename="roi.dat",binary=False)
 
 # %%
 # For any future DIC calculations, you can read the ROI mask back in using the
 # :func:`roi.roiread` command. Remember to update the filename and the whether the ROI
 # mask has been saved in human readable or binary format.
-roi.read(filename="roi.dat",binary=False)
+roi.read_array(filename="roi.dat",binary=False)
 
 # %%
 # if you are reading in a previously saved ROI. Then you can view it
 # overlayed over your reference image to check before proceeding with any
 # correlation. This can be done with the command:
-roi.imshow()
+roi.show_image()
 
 # %%
 # At present, there are a couple of other ways of selecting a region of
@@ -56,14 +57,14 @@ roi.imshow()
 # from the ROI, leaving a central region. This can be done with:
 roi.reset_mask()
 roi.rect_boundary(left=50,right=50,bottom=50,top=50)
-roi.imsave("rect_boundary.tiff")
+roi.save_image("rect_boundary.tiff")
 
 # %%
 # and this will exclude the 50 pixels along all edges from the correlation. You
 # can also select a specific region using the command:
 roi.reset_mask()
 roi.rect_region(x=200,y=200,size_x=200,size_y=200)
-roi.imsave("rect_region.tiff")
+roi.save_image("rect_region.tiff")
 
 # %%
 # .. list-table::

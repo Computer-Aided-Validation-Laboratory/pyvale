@@ -11,14 +11,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 import math
-import pickle
-import dill
+import yaml
 
 class DICRegionOfInterest:
     """
     A class for interactively selecting and manipulating ROI of an image before passing to the DIC engine. 
 
-    Users can:.
+    Users can:
     - Interactively select rectangular, circular, or polygonal regions on the image.
     - Add or subtract selected regions from the mask.
     - Undo and reset the mask changes.
@@ -31,6 +30,7 @@ class DICRegionOfInterest:
         image (np.ndarray): The image on which regions of interest are selected.
         mask (np.ndarray): A binary mask representing the selected regions of interest.
     """
+    
     def __init__(self, ref_image):
         """
         Initializes the DICRegionOfInterest class with an image.
@@ -41,7 +41,6 @@ class DICRegionOfInterest:
         Raises:
             ValueError: If the image cannot be loaded or is invalid.
         """
-
         if isinstance(ref_image, str):
             self.ref_image = cv2.imread(ref_image)
         else:
@@ -51,564 +50,616 @@ class DICRegionOfInterest:
             raise ValueError("Invalid image input")
 
         self.mask = np.zeros(self.ref_image.shape[:2], dtype=bool)
-        #self.mask = self.mask.T
-        self.seed = [0,0]
+        self.seed = [0, 0]
         self.__roi_selected = False
         self.roi_list = []
+        self.add_list = []
         self.undo_list = []
-
-        self.drawing_seed = False
-        self.drawing_poly = False
-        self.drawing_rect = False
-        self.drawing_circle = False
-        self.removing_poly = False
-        self.removing_rect = False
-        self.removing_circle = False
+        
+        # Drawing states
+        self.drawing_modes = {
+            'seed': False,
+            'rect': False,
+            'circle': False,
+            'poly': False
+        }
+        self.removing_modes = {
+            'rect': False,
+            'circle': False,
+            'poly': False
+        }
+        
+        # GUI elements (initialized in interactive_selection)
+        self.main_view = None
+        self.fill_layer = None
+        self.buttons = {}
+        self.poly_points = []
+        self.temp_mask = None
+        self.fill_array = None
+        self.height = None
+        self.width = None
+        self.subset_size = None
 
     def interactive_selection(self, subset_size):
         """
         Interactive GUI to select a region of interest (ROI) in the image using openCV.
-
-        User can select different shapes (rectangle, circle, polygon),
-        user has the option to add or subtract areas from mask.
-        Allows for undoing and resetting the mask.
         """
-
-        # Set up main window and layout
+        self.subset_size = subset_size
         self.__roi_selected = True
+        
+        # Initialize GUI
+        self._setup_gui()
+        self._setup_graphics()
+        self._connect_signals()
+        
+        # Show and run
+        self.main_window.show()
+        pg.exec()
+        
+        # Process final mask and seed
+        self._finalize_selection()
+
+    def _setup_gui(self):
+        """Setup the main GUI window and sidebar."""
         app = pg.mkQApp("ROI GUI")
-        main_window = QtWidgets.QWidget()
+        self.main_window = QtWidgets.QWidget()
         main_layout = QtWidgets.QHBoxLayout()
-        main_window.setLayout(main_layout)
-        main_window.resize(1000,1000)
+        self.main_window.setLayout(main_layout)
+        self.main_window.resize(1000, 1000)
 
-        # Sidebar
+        # Create sidebar
+        sidebar = self._create_sidebar()
+        
+        # Create graphics widget
+        self.graphics_widget = pg.GraphicsLayoutWidget()
+        
+        main_layout.addLayout(sidebar)
+        main_layout.addWidget(self.graphics_widget)
+
+    def _create_sidebar(self):
+        """Create the sidebar with all buttons."""
         sidebar = QtWidgets.QVBoxLayout()
-        btn_add_seed = QtWidgets.QPushButton("Add Reliability Guided Seed Location")
-        btn_add_rect = QtWidgets.QPushButton("Add Rectangle")
-        btn_add_circle = QtWidgets.QPushButton("Add Circle")
-        btn_add_poly = QtWidgets.QPushButton("Add Polygon")
-        btn_sub_rect = QtWidgets.QPushButton("Remove Rectangle")
-        btn_sub_circle = QtWidgets.QPushButton("Remove Circle")
-        btn_sub_poly = QtWidgets.QPushButton("Remove Polygon")
-        btn_undo_prev = QtWidgets.QPushButton("Undo Shape")
-        btn_redo_prev = QtWidgets.QPushButton("Redo Shape")
-        btn_open_roi = QtWidgets.QPushButton("Open ROI...")
-        btn_save_roi = QtWidgets.QPushButton("Save Current ROI...")
-        btn_finished = QtWidgets.QPushButton("ROI Completed")
-
-        # Helper to create a styled title label
+        
+        # Helper function for styled titles
         def make_title(text):
             label = QtWidgets.QLabel(text)
             label.setStyleSheet("font-weight: bold; font-size: 14px; margin-top: 10px; margin-bottom: 5px;")
             return label
 
-        sidebar.addWidget(make_title("FILE ACTIONS"))
-        sidebar.addWidget(btn_open_roi)
-        sidebar.addWidget(btn_save_roi)
-        sidebar.addSpacing(20)
-
-
-        sidebar.addWidget(make_title("ADD SHAPES TO ROI"))
-        sidebar.addWidget(btn_add_rect)
-        sidebar.addWidget(btn_add_circle)
-        sidebar.addWidget(btn_add_poly)
-        sidebar.addSpacing(20)
-
-        sidebar.addWidget(make_title("Remove SHAPES FROM ROI"))
-        sidebar.addWidget(btn_sub_rect)
-        sidebar.addWidget(btn_sub_circle)
-        sidebar.addWidget(btn_sub_poly)
-        sidebar.addSpacing(20)
-
-        sidebar.addWidget(make_title("SEED LOCATION"))
-        sidebar.addWidget(btn_add_seed)
-        sidebar.addSpacing(20)
-
-        sidebar.addWidget(make_title("UNDO / REDO SHAPES"))
-        sidebar.addWidget(btn_undo_prev)
-        sidebar.addWidget(btn_redo_prev)
-        sidebar.addSpacing(100)
-
-
-        sidebar.addWidget(make_title("COMPLETION"))
-        sidebar.addWidget(btn_finished)
-
-        sidebar.addStretch()
-
-        # init undo and redo to false because no shapes yet
-        btn_undo_prev.setEnabled(False)
-        btn_redo_prev.setEnabled(False)
-
-        # Graphics view
-        graphics_widget = pg.GraphicsLayoutWidget()
-        main_view = graphics_widget.addViewBox(lockAspect=True)
-        rotated = np.rot90(self.ref_image,k=-1)
-        img = pg.ImageItem(rotated)
-        main_view.addItem(img)
-        main_view.disableAutoRange('xy')
-        main_view.autoRange()
-
-        fill_layer = pg.ImageItem()
-        fill_layer.setZValue(1)
-        main_view.addItem(fill_layer)
-
-        height, width = rotated.shape[:2]
-        fill_array = np.zeros((height,width,4), dtype=np.uint8)
-
-        self.roi_list = []
-        add_list = []
-        seed_list = []
-        self.undo_list = []
-        temp_mask = np.zeros((height, width), dtype=bool)
-
-        def update_button_states():
-            """Update the enabled state of undo and redo buttons based on current lists"""
-            btn_undo_prev.setEnabled(len(self.roi_list) > 0)
-            btn_redo_prev.setEnabled(len(self.undo_list) > 0)
-
-        def clear_redo_stack():
-            """Clear the redo stack when new shapes are added"""
-            self.undo_list = []
-            update_button_states()
-
-        def redraw_fill_layer():
-            nonlocal fill_array, temp_mask
-            if not self.roi_list:
-                fill_layer.setImage(fill_array)
-                fill_array.fill(0)
-                temp_mask.fill(False)
-                fill_layer.setImage(fill_array)
-                return
-
-            temp_mask.fill(False)
-
-            for n, roi in enumerate(self.roi_list):
-
-                if isinstance(roi, pg.RectROI):
-                    pos = roi.pos()
-                    size = roi.size()
-                    x, y = int(pos[1]), int(pos[0])
-                    w, h = int(size[1]), int(size[0])
-                    x = max(0, min(x, width))
-                    y = max(0, min(y, height))
-                    w = max(0, min(w, width - x))
-                    h = max(0, min(h, height - y))
-                    if w > 0 and h > 0:
-                        temp_mask[y:y+h, x:x+w] = add_list[n]
-
-                elif isinstance(roi, pg.CircleROI):
-                    pos = roi.pos()
-                    size = roi.size()
-                    cx, cy = pos[1] + size[1]/2, pos[0] + size[0]/2
-                    rx, ry = size[1]/2, size[0]/2
-                    y_coords, x_coords = np.ogrid[:height, :width]
-                    circle_mask = ((x_coords - cx)/rx)**2 + ((y_coords - cy)/ry)**2 <= 1
-                    if add_list[n]:
-                        temp_mask |= circle_mask
-                    else:
-                        temp_mask &= ~circle_mask
-
-                elif isinstance(roi, pg.PolyLineROI):
-                    points = roi.getState()['points']
-                    pos = roi.pos()
-                    if len(points) >= 3:
-                        vertices = np.array([(p[1]+pos[1], p[0]+pos[0]) for p in points])
-                        path = Path(vertices)
-                        x_min, x_max = int(np.floor(vertices[:, 0].min())), int(np.ceil(vertices[:, 0].max()))
-                        y_min, y_max = int(np.floor(vertices[:, 1].min())), int(np.ceil(vertices[:, 1].max()))
-                        x_min = max(0, x_min)
-                        x_max = min(width, x_max)
-                        y_min = max(0, y_min)
-                        y_max = min(height, y_max)
-                        if x_max > x_min and y_max > y_min:
-                            xx, yy = np.meshgrid(np.arange(x_min, x_max), np.arange(y_min, y_max))
-                            points_grid = np.column_stack((xx.ravel(), yy.ravel()))
-                            inside = path.contains_points(points_grid)
-                            inside_2d = inside.reshape(y_max - y_min, x_max - x_min)
-                            if add_list[n]:
-                                temp_mask[y_min:y_max, x_min:x_max] |= inside_2d
-                            else:
-                                temp_mask[y_min:y_max, x_min:x_max] &= ~inside_2d
-
-            fill_array[:, :, 0] = 0
-            fill_array[:, :, 1] = 255
-            fill_array[:, :, 2] = 0
-            fill_array[:, :, 3] = temp_mask * 80
-            fill_layer.setImage(fill_array)
-
-        addpen=pg.mkPen('g', width=4)
-        subpen=pg.mkPen('r', width=4)
-        handlepen=pg.mkPen('b', width=4)
-        hoverpen=pg.mkPen('b', width=4)
-
-        def undo_last():
-            if self.roi_list:
-                roi = self.roi_list.pop()
-                add_flag = add_list.pop()
-                main_view.removeItem(roi)
-                # Store the undone shape in the redo stack
-                self.undo_list.append((roi, add_flag))
-                redraw_fill_layer()
-                update_button_states()
-
-        def redo_last():
-            if self.undo_list:
-                roi, add_flag = self.undo_list.pop()
-                # Re-add the shape to the main lists and view
-                self.roi_list.append(roi)
-                add_list.append(add_flag)
-                main_view.addItem(roi)
-                # Reconnect the signal handler
-                roi.sigRegionChanged.connect(redraw_fill_layer)
-                redraw_fill_layer()
-                update_button_states()
-
-        def open_interactive_roi():
-            print("test")
-            filename, _ = QtWidgets.QFileDialog.getOpenFileName(main_window, 'Open ROI', '', 'Pickle Files (*.pkl)')
-
-            if filename:
-                with open(filename, 'rb') as f:
-                    data = dill.load(f)
-
-                self.roi_list = data.get('roi_list', [])
-                self.undo_list = data.get('undo_list', [])
-
-                print("Loaded ROI list:", self.roi_list)
-                print("Loaded Undo list:", self.undo_list)
-
-        def save_interactive_roi():
-            filename, _ = QtWidgets.QFileDialog.getSaveFileName(main_window, 'Save ROI', filter='Pickle Files (*.pkl)')
-
-            if filename:
-                with open(filename, 'wb') as f:
-                    dill.dump({'roi_list': self.roi_list, 'self.undo_list': self.undo_list}, f)
-
-        def finish():
-            main_window.close()
-            pg.QtWidgets.QApplication.quit()
-            
-
-        poly_points = []
-        add_scatter = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush('b'))
-        sub_scatter = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush('r'))
-        add_line = pg.PlotDataItem(pen=pg.mkPen('b', width=3))
-        sub_line = pg.PlotDataItem(pen=pg.mkPen('r', width=3))
-        main_view.addItem(add_scatter)
-        main_view.addItem(sub_scatter)
-        main_view.addItem(add_line)
-        main_view.addItem(sub_line)
-
-        def start_drawing_seed():
-            self.drawing_seed = True
-            main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-            print("Click to add seed location...")
-
-        def finish_drawing_seed():
-            if not self.drawing_seed:
-                return
-            main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            clear_redo_stack()
-            btn_add_seed.setEnabled(False)
-            self.drawing_seed = False
-
-        def start_drawing_rect():
-            self.drawing_rect = True
-            main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-            print("Click to add rect.")
-
-        def finish_drawing_rect():
-            if not self.drawing_rect:
-                return
-            main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            clear_redo_stack()
-            self.drawing_rect = False
-
-        def start_removing_rect():
-            self.removing_rect = True
-            main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-            print("Click to add rect.")
-
-        def finish_removing_rect():
-            if not self.removing_rect:
-                return
-            main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            clear_redo_stack()
-            self.removing_rect = False
-
-        def start_drawing_circle():
-            self.drawing_circle = True
-            main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-            print("Click to add circle.")
-
-        def finish_drawing_circle():
-            if not self.drawing_circle:
-                return
-            main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            clear_redo_stack()
-            self.drawing_circle = False
-
-        def start_removing_circle():
-            self.removing_circle = True
-            main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-            print("Click to add circle.")
-
-        def finish_removing_circle():
-            if not self.removing_circle:
-                return
-            main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            clear_redo_stack()
-            self.removing_circle = False
-
-        def start_drawing_polygon():
-            nonlocal poly_points
-            self.drawing_poly = True
-            poly_points = []
-            add_scatter.setData([], [])
-            add_line.setData([], [])
-            main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-            print("Click to add polygon points. Right-click to finish.")
-
-        def start_removing_poly():
-            nonlocal poly_points
-            self.removing_poly = True
-            poly_points = []
-            sub_scatter.setData([], [])
-            sub_line.setData([], [])
-            main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-            print("Click to add polygon points. Right-click to finish.")
-
-        def finish_drawing_poly():
-            nonlocal poly_points
-            if not self.drawing_poly:
-                return
-            self.drawing_poly = False
-
-            if len(poly_points) >= 3:
-                clear_redo_stack()  # Clear redo stack when adding new shape
-                roi = pg.PolyLineROI(poly_points, closed=True, pen=addpen, hoverPen=hoverpen, handlePen=handlepen, handleHoverPen=hoverpen)
-                self.roi_list.append(roi)
-                add_list.append(True)
-                main_view.addItem(roi)
-                for handle in roi.getHandles():
-                        handle.radius = 10
-                        handle.buildPath()
-                        handle.update()
-                roi.sigRegionChanged.connect(redraw_fill_layer)
-                redraw_fill_layer()
-                print("Polygon added.")
-            else:
-                print("Need at least 3 points.")
-
-            poly_points = []
-            add_scatter.setData([], [])
-            add_line.setData([], [])
-            main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-
-        def finish_removing_poly():
-            nonlocal poly_points
-            if not self.removing_poly:
-                return
-            self.removing_poly = False
-
-            if len(poly_points) >= 3:
-                clear_redo_stack()  # Clear redo stack when adding new shape
-                roi = pg.PolyLineROI(poly_points, closed=True, pen=subpen, hoverPen=hoverpen, handlePen=handlepen, handleHoverPen=hoverpen)
-                self.roi_list.append(roi)
-                add_list.append(False)
-                main_view.addItem(roi)
-                for handle in roi.getHandles():
-                        handle.radius = 10
-                        handle.buildPath()
-                        handle.update()
-                roi.sigRegionChanged.connect(redraw_fill_layer)
-                redraw_fill_layer()
-                print("Polygon added.")
-            else:
-                print("Need at least 3 points.")
-
-            poly_points = []
-            sub_scatter.setData([], [])
-            sub_line.setData([], [])
-            main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-
-        def mouse_clicked(event):
-            if self.drawing_poly:
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    pos = event.scenePos()
-                    if main_view.sceneBoundingRect().contains(pos):
-                        mouse_point = main_view.mapSceneToView(pos)
-                        poly_points.append([mouse_point.x(), mouse_point.y()])
-                        add_scatter.setData([p[0] for p in poly_points], [p[1] for p in poly_points])
-                        if len(poly_points) > 1:
-                            add_line.setData([p[0] for p in poly_points], [p[1] for p in poly_points])
-                elif event.button() == QtCore.Qt.MouseButton.RightButton:
-                    finish_drawing_poly()
-
-            if self.removing_poly:
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    pos = event.scenePos()
-                    if main_view.sceneBoundingRect().contains(pos):
-                        mouse_point = main_view.mapSceneToView(pos)
-                        poly_points.append([mouse_point.x(), mouse_point.y()])
-                        sub_scatter.setData([p[0] for p in poly_points], [p[1] for p in poly_points])
-                        if len(poly_points) > 1:
-                            sub_line.setData([p[0] for p in poly_points], [p[1] for p in poly_points])
-                elif event.button() == QtCore.Qt.MouseButton.RightButton:
-                    finish_removing_poly()
-
-            elif self.drawing_rect:
-                main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    pos = event.scenePos()
-                    start_point = main_view.mapSceneToView(pos)
-                    roi = pg.RectROI(start_point, [height/6, width/6], pen=addpen, hoverPen=hoverpen, handlePen=handlepen, handleHoverPen=hoverpen)
-                    roi.addScaleHandle([1,0], [0.0,1.0])
-                    roi.addScaleHandle([0,1], [1.0,0.0])
-                    roi.addScaleHandle([0,0], [1.0,1.0])
-                    roi.addTranslateHandle([0.5,0.5])
-                    for handle in roi.getHandles():
-                        handle.radius = 10
-                        handle.buildPath()
-                        handle.update()
-                    main_view.addItem(roi)
-                    self.roi_list.append(roi)
-                    add_list.append(True)
-                    roi.sigRegionChanged.connect(redraw_fill_layer)
-                    redraw_fill_layer()
-                    print("rect added.")
-                    finish_drawing_rect()
-
-            elif self.drawing_seed:
-                main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    pos = event.scenePos()
-                    start_point = main_view.mapSceneToView(pos)
-                    seedpen=pg.mkPen('b', width=3)
-                    seedhoverpen=pg.mkPen('y', width=3)
-                    x = math.floor(start_point.x()-subset_size/2)
-                    y = math.floor(start_point.y()-subset_size/2)
-                    roi = pg.RectROI([x,y], [subset_size, subset_size], pen=seedpen, hoverPen=seedhoverpen, handlePen='#0000', handleHoverPen='#0000')
-                    seed_list.append(roi)
-                    handles = roi.getHandles()
-                    for handle in handles:
-                        roi.removeHandle(handle)
-                    main_view.addItem(roi)
-                    print(f"seed initially added at location: [{x}, {width-y}]")
-                    finish_drawing_seed()
-
-            elif self.removing_rect:
-                main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    pos = event.scenePos()
-                    start_point = main_view.mapSceneToView(pos)
-                    roi = pg.RectROI(start_point, [height/6, width/6], pen=subpen, hoverPen=hoverpen, handlePen=handlepen, handleHoverPen=hoverpen)
-                    roi.addScaleHandle([1,0], [0.0,1.0])
-                    roi.addScaleHandle([0,1], [1.0,0.0])
-                    roi.addScaleHandle([0,0], [1.0,1.0])
-                    roi.addTranslateHandle([0.5,0.5])
-                    for handle in roi.getHandles():
-                        handle.radius = 10
-                        handle.buildPath()
-                        handle.update()
-                    main_view.addItem(roi)
-                    self.roi_list.append(roi)
-                    add_list.append(False)
-                    roi.sigRegionChanged.connect(redraw_fill_layer)
-                    redraw_fill_layer()
-                    print("rect added.")
-                    finish_removing_rect()
-
-            elif self.drawing_circle:
-                main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    pos = event.scenePos()
-                    start_point = main_view.mapSceneToView(pos)
-                    x = start_point.x()-width/10
-                    y = start_point.y()-width/10
-                    roi = pg.CircleROI([x,y], radius=width/10, pen=addpen, hoverPen=hoverpen, handlePen=handlepen, handleHoverPen=hoverpen)
-                    roi.addTranslateHandle([0.5,0.5])
-                    for handle in roi.getHandles():
-                        handle.radius = 10
-                        handle.buildPath()
-                        handle.update()
-                    self.roi_list.append(roi)
-                    add_list.append(True)
-                    main_view.addItem(roi)
-                    roi.sigRegionChanged.connect(redraw_fill_layer)
-                    redraw_fill_layer()
-                    print("circle added.")
-                    finish_drawing_circle()
-                        
-            elif self.removing_circle:
-                main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    pos = event.scenePos()
-                    start_point = main_view.mapSceneToView(pos)
-                    x = start_point.x()-width/10
-                    y = start_point.y()-width/10
-                    roi = pg.CircleROI([x,y], radius=width/10, pen=subpen, hoverPen=hoverpen, handlePen=handlepen, handleHoverPen=hoverpen)
-                    roi.addTranslateHandle([0.5,0.5])
-                    for handle in roi.getHandles():
-                        handle.radius = 10
-                        handle.buildPath()
-                        handle.update()
-                    self.roi_list.append(roi)
-                    add_list.append(False)
-                    main_view.addItem(roi)
-                    roi.sigRegionChanged.connect(redraw_fill_layer)
-                    redraw_fill_layer()
-                    print("circle added.")
-                    finish_removing_circle()
-
-            # update status of undo and redo buttons
-            if len(self.undo_list) == 0:
-                btn_redo_prev.setEnabled(False)
-            else:
-                btn_redo_prev.setEnabled(True)
-
-            if len(self.roi_list) == 0:
-                btn_undo_prev.setEnabled(False)
-            else:
-                btn_undo_prev.setEnabled(True)
-
-
-
-
-
-
-        main_view.scene().sigMouseClicked.connect(mouse_clicked)
+        # Create all buttons
+        button_configs = [
+            ("FILE ACTIONS", [("open_roi", "Open ROI..."),
+                              ("save_roi", "Save Current ROI...")]),
+
+            ("ADD SHAPES TO ROI", [("add_rect", "Add Rectangle"),
+                                   ("add_circle", "Add Circle"),
+                                   ("add_poly", "Add Polygon")]),
+
+            ("REMOVE SHAPES FROM ROI", [("sub_rect", "Remove Rectangle"),
+                                        ("sub_circle", "Remove Circle"),
+                                        ("sub_poly", "Remove Polygon")]),
+
+            ("SEED LOCATION", [("add_seed", "Add Reliability Guided Seed Location")]),
+
+            ("UNDO / REDO SHAPES", [("undo_prev", "Undo Shape"),
+                                    ("redo_prev", "Redo Shape")]),
+
+            ("COMPLETION", [("finished", "ROI Completed")])
+        ]
+
+        self.buttons = {}
+        for section_title, button_list in button_configs:
+            sidebar.addWidget(make_title(section_title))
+            for btn_id, btn_text in button_list:
+                btn = QtWidgets.QPushButton(btn_text)
+                self.buttons[btn_id] = btn
+                sidebar.addWidget(btn)
+            sidebar.addSpacing(20)
+
+        # Initial button states
+        self.buttons['undo_prev'].setEnabled(False)
+        self.buttons['redo_prev'].setEnabled(False)
         
-        btn_add_seed.clicked.connect(start_drawing_seed)
-        btn_add_rect.clicked.connect(start_drawing_rect)
-        btn_add_circle.clicked.connect(start_drawing_circle)
-        btn_add_poly.clicked.connect(start_drawing_polygon)
-        btn_sub_rect.clicked.connect(start_removing_rect)
-        btn_sub_circle.clicked.connect(start_removing_circle)
-        btn_sub_poly.clicked.connect(start_removing_poly)
-        btn_undo_prev.clicked.connect(undo_last)
-        btn_redo_prev.clicked.connect(redo_last)
-        btn_save_roi.clicked.connect(save_interactive_roi)
-        btn_open_roi.clicked.connect(open_interactive_roi)
-        btn_finished.clicked.connect(finish)
+        sidebar.addStretch()
+        return sidebar
 
-        main_layout.addLayout(sidebar)
-        main_layout.addWidget(graphics_widget)
-        main_window.show()
-        pg.exec()
+    def _setup_graphics(self):
+        """Setup the graphics view and image display."""
+        self.main_view = self.graphics_widget.addViewBox(lockAspect=True)
+        
+        # Setup image
+        rotated = np.rot90(self.ref_image, k=-1)
+        img = pg.ImageItem(rotated)
+        self.main_view.addItem(img)
+        self.main_view.disableAutoRange('xy')
+        self.main_view.autoRange()
 
-        self.mask = np.flipud(temp_mask.T)
-        if len(seed_list) != 0:
-            pos = seed_list[0].pos()
+        # Setup fill layer
+        self.fill_layer = pg.ImageItem()
+        self.fill_layer.setZValue(1)
+        self.main_view.addItem(self.fill_layer)
+
+        self.height, self.width = rotated.shape[:2]
+        self.fill_array = np.zeros((self.height, self.width, 4), dtype=np.uint8)
+        self.temp_mask = np.zeros((self.height, self.width), dtype=bool)
+
+        # Setup drawing overlays
+        self._setup_drawing_overlays()
+
+    def _setup_drawing_overlays(self):
+        """Setup scatter plots and lines for polygon drawing."""
+        self.add_scatter = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush('b'))
+        self.sub_scatter = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush('r'))
+        self.add_line = pg.PlotDataItem(pen=pg.mkPen('b', width=3))
+        self.sub_line = pg.PlotDataItem(pen=pg.mkPen('r', width=3))
+        
+        for item in [self.add_scatter, self.sub_scatter, self.add_line, self.sub_line]:
+            self.main_view.addItem(item)
+
+    def _connect_signals(self):
+        """Connect all button signals to their handlers."""
+        signal_map = {
+            'add_seed': lambda: self._start_drawing_mode('seed'),
+            'add_rect': lambda: self._start_drawing_mode('rect'),
+            'add_circle': lambda: self._start_drawing_mode('circle'),
+            'add_poly': lambda: self._start_drawing_mode('poly'),
+            'sub_rect': lambda: self._start_removing_mode('rect'),
+            'sub_circle': lambda: self._start_removing_mode('circle'),
+            'sub_poly': lambda: self._start_removing_mode('poly'),
+            'undo_prev': self._undo_last,
+            'redo_prev': self._redo_last,
+            'save_roi': self._save_interactive_roi,
+            'open_roi': self._open_interactive_roi,
+            'finished': self._finish
+        }
+
+        for btn_id, handler in signal_map.items():
+            self.buttons[btn_id].clicked.connect(handler)
+
+        self.main_view.scene().sigMouseClicked.connect(self._mouse_clicked)
+
+    def _start_drawing_mode(self, mode):
+        """Start drawing mode for specified shape type."""
+        self._reset_all_modes()
+        self.drawing_modes[mode] = True
+        self.main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
+        
+        if mode == 'poly':
+            self.poly_points = []
+            self.add_scatter.setData([], [])
+            self.add_line.setData([], [])
+            print("Click to add polygon points. Right-click to finish.")
+        elif mode == 'seed':
+            self.buttons['add_seed'].setEnabled(False)
+            print("Click to add seed location...")
+        else:
+            print(f"Click to add {mode}.")
+
+    def _start_removing_mode(self, mode):
+        """Start removing mode for specified shape type."""
+        self._reset_all_modes()
+        self.removing_modes[mode] = True
+        self.main_view.setCursor(QtCore.Qt.CursorShape.CrossCursor)
+        
+        if mode == 'poly':
+            self.poly_points = []
+            self.sub_scatter.setData([], [])
+            self.sub_line.setData([], [])
+            print("Click to add polygon points. Right-click to finish.")
+        else:
+            print(f"Click to remove {mode}.")
+
+    def _reset_all_modes(self):
+        """Reset all drawing and removing modes."""
+        for mode in self.drawing_modes:
+            self.drawing_modes[mode] = False
+        for mode in self.removing_modes:
+            self.removing_modes[mode] = False
+
+    def _finish_mode(self):
+        """Finish current drawing/removing mode."""
+        self._reset_all_modes()
+        self.main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self._clear_redo_stack()
+
+    def _mouse_clicked(self, event):
+        """Handle mouse clicks for drawing shapes."""
+        if self.drawing_modes['poly'] or self.removing_modes['poly']:
+            self._handle_polygon_click(event)
+        elif self.drawing_modes['seed']:
+            self._handle_seed_click(event)
+        elif any(self.drawing_modes.values()) or any(self.removing_modes.values()):
+            self._handle_shape_click(event)
+
+    def _handle_polygon_click(self, event):
+        """Handle polygon drawing clicks."""
+        is_adding = self.drawing_modes['poly']
+        scatter = self.add_scatter if is_adding else self.sub_scatter
+        line = self.add_line if is_adding else self.sub_line
+        
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            pos = event.scenePos()
+            if self.main_view.sceneBoundingRect().contains(pos):
+                mouse_point = self.main_view.mapSceneToView(pos)
+                self.poly_points.append([mouse_point.x(), mouse_point.y()])
+                scatter.setData([p[0] for p in self.poly_points], [p[1] for p in self.poly_points])
+                if len(self.poly_points) > 1:
+                    line.setData([p[0] for p in self.poly_points], [p[1] for p in self.poly_points])
+                    
+        elif event.button() == QtCore.Qt.MouseButton.RightButton:
+            self._finish_polygon_drawing(is_adding)
+
+    def _handle_seed_click(self, event):
+        """Handle seed location clicks."""
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            pos = event.scenePos()
+            start_point = self.main_view.mapSceneToView(pos)
+            
+            x = math.floor(start_point.x() - self.subset_size / 2)
+            y = math.floor(start_point.y() - self.subset_size / 2)
+            
+            seed_roi = pg.RectROI(
+                [x, y], [self.subset_size, self.subset_size],
+                pen=pg.mkPen('b', width=3),
+                hoverPen=pg.mkPen('y', width=3),
+                handlePen='#0000',
+                handleHoverPen='#0000'
+            )
+            
+            # Remove all handles to make it non-interactive
+            for handle in seed_roi.getHandles():
+                seed_roi.removeHandle(handle)
+                
+            self.main_view.addItem(seed_roi)
+            self.seed_roi = seed_roi
+            print(f"Seed initially added at location: [{x}, {self.width-y}]")
+            self._finish_mode()
+
+    def _handle_shape_click(self, event):
+        """Handle rectangle and circle drawing clicks."""
+        if event.button() != QtCore.Qt.MouseButton.LeftButton:
+            return
+
+        pos = event.scenePos()
+        start_point = self.main_view.mapSceneToView(pos)
+        
+        # Determine shape type and add/remove mode
+        shape_type = None
+        is_adding = True
+        
+        for mode in ['rect', 'circle']:
+            if self.drawing_modes[mode]:
+                shape_type = mode
+                is_adding = True
+                break
+            elif self.removing_modes[mode]:
+                shape_type = mode
+                is_adding = False
+                break
+
+        if shape_type:
+            roi = self._create_shape_roi(shape_type, start_point, is_adding)
+            self._add_roi_to_scene(roi, is_adding)
+            self._finish_mode()
+
+    def _create_shape_roi(self, shape_type, start_point, is_adding):
+        """Create ROI object for rectangle or circle."""
+        pen = pg.mkPen('g', width=4) if is_adding else pg.mkPen('r', width=4)
+        hover_pen = pg.mkPen('b', width=4)
+        handle_pen = pg.mkPen('b', width=4)
+        
+        if shape_type == 'rect':
+            roi = pg.RectROI(
+                start_point, [self.height/6, self.width/6],
+                pen=pen, hoverPen=hover_pen, handlePen=handle_pen, handleHoverPen=hover_pen
+            )
+            roi.addScaleHandle([1, 0], [0.0, 1.0])
+            roi.addScaleHandle([0, 1], [1.0, 0.0])
+            roi.addScaleHandle([0, 0], [1.0, 1.0])
+            roi.addTranslateHandle([0.5, 0.5])
+            
+        elif shape_type == 'circle':
+            x = start_point.x() - self.width / 10
+            y = start_point.y() - self.width / 10
+            roi = pg.CircleROI(
+                [x, y], radius=self.width/10,
+                pen=pen, hoverPen=hover_pen, handlePen=handle_pen, handleHoverPen=hover_pen
+            )
+            roi.addTranslateHandle([0.5, 0.5])
+        
+        # Style handles
+        for handle in roi.getHandles():
+            handle.radius = 10
+            handle.buildPath()
+            handle.update()
+            
+        return roi
+
+    def _add_roi_to_scene(self, roi, is_adding):
+        """Add ROI to scene and lists."""
+        self.roi_list.append(roi)
+        self.add_list.append(is_adding)
+        self.main_view.addItem(roi)
+        roi.sigRegionChanged.connect(self._redraw_fill_layer)
+        self._redraw_fill_layer()
+        self._update_button_states()
+
+    def _finish_polygon_drawing(self, is_adding):
+        """Finish polygon drawing."""
+        if len(self.poly_points) >= 3:
+            pen = pg.mkPen('g', width=4) if is_adding else pg.mkPen('r', width=4)
+            hover_pen = pg.mkPen('b', width=4)
+            handle_pen = pg.mkPen('b', width=4)
+            
+            roi = pg.PolyLineROI(
+                self.poly_points, closed=True,
+                pen=pen, hoverPen=hover_pen, handlePen=handle_pen, handleHoverPen=hover_pen
+            )
+            
+            for handle in roi.getHandles():
+                handle.radius = 10
+                handle.buildPath()
+                handle.update()
+                
+            self._add_roi_to_scene(roi, is_adding)
+            print("Polygon added.")
+        else:
+            print("Need at least 3 points.")
+
+        # Clean up
+        self.poly_points = []
+        scatter = self.add_scatter if is_adding else self.sub_scatter
+        line = self.add_line if is_adding else self.sub_line
+        scatter.setData([], [])
+        line.setData([], [])
+        self._finish_mode()
+
+    def _redraw_fill_layer(self):
+        """Redraw the fill layer based on current ROIs."""
+        if not self.roi_list:
+            self.fill_array.fill(0)
+            self.temp_mask.fill(False)
+            self.fill_layer.setImage(self.fill_array)
+            return
+
+        self.temp_mask.fill(False)
+
+        for roi, is_adding in zip(self.roi_list, self.add_list):
+            if isinstance(roi, pg.RectROI):
+                self._apply_rect_mask(roi, is_adding)
+            elif isinstance(roi, pg.CircleROI):
+                self._apply_circle_mask(roi, is_adding)
+            elif isinstance(roi, pg.PolyLineROI):
+                self._apply_poly_mask(roi, is_adding)
+
+        # Update fill array
+        self.fill_array[:, :, 0] = 0
+        self.fill_array[:, :, 1] = 255
+        self.fill_array[:, :, 2] = 0
+        self.fill_array[:, :, 3] = self.temp_mask * 80
+        self.fill_layer.setImage(self.fill_array)
+
+    def _apply_rect_mask(self, roi, is_adding):
+        """Apply rectangle mask to temp_mask."""
+        pos = roi.pos()
+        size = roi.size()
+        x, y = int(pos[1]), int(pos[0])
+        w, h = int(size[1]), int(size[0])
+        
+        # Clamp to image bounds
+        x = max(0, min(x, self.width))
+        y = max(0, min(y, self.height))
+        w = max(0, min(w, self.width - x))
+        h = max(0, min(h, self.height - y))
+        
+        if w > 0 and h > 0:
+            self.temp_mask[y:y+h, x:x+w] = is_adding
+
+    def _apply_circle_mask(self, roi, is_adding):
+        """Apply circle mask to temp_mask."""
+        pos = roi.pos()
+        size = roi.size()
+        cx, cy = pos[1] + size[1]/2, pos[0] + size[0]/2
+        rx, ry = size[1]/2, size[0]/2
+        
+        y_coords, x_coords = np.ogrid[:self.height, :self.width]
+        circle_mask = ((x_coords - cx)/rx)**2 + ((y_coords - cy)/ry)**2 <= 1
+        
+        if is_adding:
+            self.temp_mask |= circle_mask
+        else:
+            self.temp_mask &= ~circle_mask
+
+    def _apply_poly_mask(self, roi, is_adding):
+        """Apply polygon mask to temp_mask."""
+        points = roi.getState()['points']
+        pos = roi.pos()
+        
+        if len(points) >= 3:
+            vertices = np.array([(p[1]+pos[1], p[0]+pos[0]) for p in points])
+            path = Path(vertices)
+            
+            x_min, x_max = int(np.floor(vertices[:, 0].min())), int(np.ceil(vertices[:, 0].max()))
+            y_min, y_max = int(np.floor(vertices[:, 1].min())), int(np.ceil(vertices[:, 1].max()))
+            
+            # Clamp to image bounds
+            x_min = max(0, x_min)
+            x_max = min(self.width, x_max)
+            y_min = max(0, y_min)
+            y_max = min(self.height, y_max)
+            
+            if x_max > x_min and y_max > y_min:
+                xx, yy = np.meshgrid(np.arange(x_min, x_max), np.arange(y_min, y_max))
+                points_grid = np.column_stack((xx.ravel(), yy.ravel()))
+                inside = path.contains_points(points_grid)
+                inside_2d = inside.reshape(y_max - y_min, x_max - x_min)
+                
+                if is_adding:
+                    self.temp_mask[y_min:y_max, x_min:x_max] |= inside_2d
+                else:
+                    self.temp_mask[y_min:y_max, x_min:x_max] &= ~inside_2d
+
+    def _update_button_states(self):
+        """Update the enabled state of undo and redo buttons."""
+        self.buttons['undo_prev'].setEnabled(len(self.roi_list) > 0)
+        self.buttons['redo_prev'].setEnabled(len(self.undo_list) > 0)
+
+    def _clear_redo_stack(self):
+        """Clear the redo stack when new shapes are added."""
+        self.undo_list = []
+        self._update_button_states()
+
+    def _undo_last(self):
+        """Undo the last ROI operation."""
+        if self.roi_list:
+            roi = self.roi_list.pop()
+            add_flag = self.add_list.pop()
+            self.main_view.removeItem(roi)
+            self.undo_list.append((roi, add_flag))
+            self._redraw_fill_layer()
+            self._update_button_states()
+
+    def _redo_last(self):
+        """Redo the last undone ROI operation."""
+        if self.undo_list:
+            roi, add_flag = self.undo_list.pop()
+            self.roi_list.append(roi)
+            self.add_list.append(add_flag)
+            self.main_view.addItem(roi)
+            roi.sigRegionChanged.connect(self._redraw_fill_layer)
+            self._redraw_fill_layer()
+            self._update_button_states()
+
+    def _save_interactive_roi(self):
+        """Save the current ROI to a YAML file."""
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.main_window, 'Save ROI', 'roi_interactive.yaml', filter='YAML Files (*.yaml)')
+
+        if filename:
+
+            # Ensure extension is added if user doesn't include it
+            if filename and not filename.endswith('.yaml'):
+                filename += '.yaml'
+
+            print("Saving to file:", filename)
+            serialized = [
+                self._get_roi_data(roi, add) 
+                for roi, add in zip(self.roi_list, self.add_list)
+            ]
+
+            with open(filename, 'w') as f:
+                yaml.dump(serialized, f, sort_keys=False)
+
+    def _open_interactive_roi(self):
+        """Open ROI from a YAML file."""
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self.main_window, 'Open ROI', filter='YAML Files (*.yaml)')
+        if filename:
+            with open(filename, 'r') as f:
+                data = yaml.safe_load(f)
+
+            # Clear existing ROIs
+            for roi in self.roi_list:
+                self.main_view.removeItem(roi)
+            self.roi_list = []
+            self.add_list = []
+
+            # Load ROIs from file
+            for entry in data:
+                roi = self._create_roi_from_data(entry)
+                self.roi_list.append(roi)
+                self.add_list.append(entry['add'])
+                self.main_view.addItem(roi)
+                roi.sigRegionChanged.connect(self._redraw_fill_layer)
+
+            self._redraw_fill_layer()
+            self._update_button_states()
+
+    def _create_roi_from_data(self, entry):
+        """Create ROI object from saved data."""
+        roi_type = entry['type']
+        is_adding = entry['add']
+        
+        pen = pg.mkPen('g', width=4) if is_adding else pg.mkPen('r', width=4)
+        hover_pen = pg.mkPen('b', width=4)
+        handle_pen = pg.mkPen('b', width=4)
+        
+        if roi_type == 'RectROI':
+            roi = pg.RectROI(entry['pos'], entry['size'], pen=pen, 
+                             hoverPen=hover_pen, handlePen=handle_pen,
+                             handleHoverPen=hover_pen)
+
+            roi.addScaleHandle([1, 0], [0.0, 1.0])
+            roi.addScaleHandle([0, 1], [1.0, 0.0])
+            roi.addScaleHandle([0, 0], [1.0, 1.0])
+            roi.addTranslateHandle([0.5, 0.5])
+
+        elif roi_type == 'CircleROI':
+            roi = pg.CircleROI(entry['pos'], entry['size'], pen=pen, 
+                               hoverPen=hover_pen, handlePen=handle_pen, 
+                               handleHoverPen=hover_pen)
+            roi.addTranslateHandle([0.5, 0.5])
+
+        elif roi_type == 'PolyLineROI':
+            points = [QtCore.QPointF(p[0], p[1]) for p in entry['points']]
+            roi = pg.PolyLineROI(points, closed=True,pen=pen, 
+                                 hoverPen=hover_pen, handlePen=handle_pen,
+                                 handleHoverPen=hover_pen)
+
+        else:
+            raise TypeError(f"Unsupported ROI type: {roi_type}")
+
+        #update handle sizes
+        for handle in roi.getHandles():
+            handle.radius = 10
+            handle.buildPath()
+            handle.update()
+            
+        return roi
+
+    def _finish(self):
+        """Finish ROI selection and close the GUI."""
+        self.main_window.close()
+        pg.QtWidgets.QApplication.quit()
+
+    def _finalize_selection(self):
+        """Process the final mask and seed location."""
+        self.mask = np.flipud(self.temp_mask.T)
+        
+        if hasattr(self, 'seed_roi'):
+            pos = self.seed_roi.pos()
             x = int(np.floor(pos.x()))
-            y = int(np.floor(width-pos.y()))
-            self.seed = [x,y]
-            if not self.mask[y,x]:
-                raise ValueError(f"seed location [{x}, {y}] is not within the mask")
+            y = int(np.floor(self.width - pos.y()))
+            self.seed = [x, y]
+            
+            if not self.mask[y, x]:
+                raise ValueError(f"Seed location [{x}, {y}] is not within the mask")
             print(f"Final seed location: [{x}, {y}]")
 
-
+    def _get_roi_data(self, roi_element, add: bool):
+        """Extract data from ROI element for serialization."""
+        if isinstance(roi_element, pg.RectROI):
+            return {
+                'type': 'RectROI',
+                'pos': [float(roi_element.pos().x()), float(roi_element.pos().y())],
+                'size': [float(roi_element.size().x()), float(roi_element.size().y())],
+                'add': bool(add)
+            }
+        elif isinstance(roi_element, pg.CircleROI):
+            return {
+                'type': 'CircleROI',
+                'pos': [float(roi_element.pos().x()), float(roi_element.pos().y())],
+                'size': [float(roi_element.size().x()), float(roi_element.size().y())],
+                'add': bool(add)
+            }
+        elif isinstance(roi_element, pg.PolyLineROI):
+            handle_pos = roi_element.getLocalHandlePositions()
+            points = [[float(p[1].x()), float(p[1].y())] for p in handle_pos]
+            return {
+                'type': 'PolyLineROI',
+                'points': points,
+                'add': bool(add)
+            }
+        else:
+            raise TypeError(f"Unsupported ROI type: {type(roi_element)}")
     def reset_mask(self):
         """
         Completely resets the roi mask to 0s.
