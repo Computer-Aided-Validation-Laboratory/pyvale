@@ -11,6 +11,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 import pyvale
 import mooseherder as mh
+import bpy
 
 # NOTE: These test may fail if you are not running bpy 4.4.0
 # It is a known issue that the render outputs between bpy 4.2.0 and 4.4.0 slightly
@@ -244,7 +245,7 @@ def test_max_bounces_happy(bounces, output, request, sample_scene, tmp_path):
                                                           render_data=render_data)
     output = request.getfixturevalue(output)
 
-    npt.assert_array_equal(image_array, output)
+    npt.assert_allclose(image_array, output, atol=1)
 
 def test_max_bounces_unhappy(sample_scene, tmp_path):
     bounces = 2.5
@@ -265,6 +266,11 @@ def test_max_bounces_unhappy(sample_scene, tmp_path):
 )
 def test_render_engine(engine, output, request, sample_scene, tmp_path):
     (_, _, cam_data, scene) = sample_scene
+    if engine == pyvale.RenderEngine.EEVEE:
+        gpu_present = pyvale.BlenderTools.check_for_GPU()
+        if gpu_present is False:
+            pytest.skip("Unsupported hardware for EEVEE")
+
     render_data = pyvale.RenderData(cam_data=cam_data,
                                     base_dir=tmp_path,
                                     engine=engine)
@@ -273,6 +279,7 @@ def test_render_engine(engine, output, request, sample_scene, tmp_path):
     output = request.getfixturevalue(output)
 
     npt.assert_allclose(image_array, output, atol=2)
+
 
 @pytest.fixture
 def half_watt_lighting():
