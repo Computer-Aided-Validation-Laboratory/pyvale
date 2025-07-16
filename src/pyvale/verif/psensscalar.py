@@ -181,8 +181,6 @@ def err_chain_sfield_dep(field: pyv.IField,
     return err_chain
 
 
-
-
 def calib_assumed(signal: np.ndarray) -> np.ndarray:
     return 24.3*signal + 0.616
 
@@ -207,10 +205,16 @@ def err_chain_2d_dict(field: pyv.IField,
     err_cases["none"] = None
     err_cases["basic"] = psens.err_chain_basic()
     err_cases["basic-gen"] = psens.err_chain_gen()
-    err_cases["basic-dep"] = psens.err_chain_dep()
     err_cases["field"] = err_chain_sfield(field,sens_pos,samp_times,pos_lock)
     err_cases["field-dep"] = err_chain_sfield_dep(field,sens_pos,samp_times,pos_lock)
     err_cases["calib"] = err_chain_calib()
+
+     # This has to be last so when we chain all errors together the saturation
+    # error is the last thing that happens
+    err_cases["basic-dep"] = psens.err_chain_dep()
+
+    err_cases["all"] = psens.err_chain_all(err_cases)
+
     return err_cases
 
 
@@ -223,10 +227,16 @@ def err_chain_3d_dict(field: pyv.IField,
     err_cases["none"] = None
     err_cases["basic"] = psens.err_chain_basic()
     err_cases["basic-gen"] = psens.err_chain_gen()
-    err_cases["basic-dep"] = psens.err_chain_dep()
     err_cases["field"] = err_chain_sfield(field,sens_pos,samp_times,pos_lock)
     err_cases["field-dep"] = err_chain_sfield_dep(field,sens_pos,samp_times,pos_lock)
     err_cases["calib"] = err_chain_calib()
+
+    # This has to be last so when we chain all errors together the saturation
+    # error is the last thing that happens
+    err_cases["basic-dep"] = psens.err_chain_dep()
+
+    err_cases["all"] = psens.err_chain_all(err_cases)
+
     return err_cases
 
 

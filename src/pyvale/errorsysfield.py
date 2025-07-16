@@ -402,7 +402,7 @@ def _perturb_sensor_angles(n_sensors: int,
             for jj,rand_ang in enumerate(rand_ang_zyx): # loop over components
                 if rand_ang is not None:
                     sensor_rot_angs[jj] = sensor_rot_angs[jj] + \
-                        rand_ang.generate(shape=1)
+                        rand_ang.generate(shape=(1,))[0]
 
         if angle_loc_zyx is not None:
             # No rotation about locked axes using mask

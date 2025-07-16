@@ -104,6 +104,26 @@ class ExperimentSimulator:
         self._exp_data = None
         self._exp_stats = None
 
+    def get_sim_list(self) -> list[mh.SimData]:
+        """Gets the list of simulations to run simulated experiments for.
+
+        Returns
+        -------
+        list[mh.SimData]
+            List of simulation data objects.
+        """
+        return self._sim_list
+
+    def get_sensor_arrays(self) -> list[ISensorArray]:
+        """Gets the sensor array list for this experiment.
+
+        Returns
+        -------
+        list[ISensorArray]
+            List of sensor arrays for the simulated experiment.
+        """
+        return self._sensor_arrays
+
     def run_experiments(self) -> list[np.ndarray]:
         """Runs the specified number of virtual experiments over the number of
         input simulation cases and virtual sensor arrays.

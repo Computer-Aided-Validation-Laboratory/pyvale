@@ -3,7 +3,6 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
-import copy
 import numpy as np
 import mooseherder as mh
 import pyvale as pyv
@@ -96,6 +95,7 @@ def sens_pos_3d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
 
     return pos_lock
 
+
 def sens_data_2d_dict() -> dict[str,pyv.SensorData]:
     return psens.sens_data_dict(simdata_mech_2d(),sens_pos_2d())
 
@@ -103,8 +103,8 @@ def sens_data_2d_dict() -> dict[str,pyv.SensorData]:
 def sens_data_3d_dict() -> dict[str,pyv.SensorData]:
     return psens.sens_data_dict(simdata_mech_3d(),sens_pos_3d())
 
-# TODO: add angle error
-def err_chain_vfield(field: pyv.IField,
+
+def err_chain_field(field: pyv.IField,
                           sens_pos: np.ndarray,
                           samp_times: np.ndarray | None,
                           pos_lock: np.ndarray | None,
@@ -143,7 +143,7 @@ def err_chain_vfield(field: pyv.IField,
     return err_chain
 
 
-def err_chain_vfield_dep(field: pyv.IField,
+def err_chain_field_dep(field: pyv.IField,
                         sens_pos: np.ndarray,
                         samp_times: np.ndarray | None,
                         pos_lock: np.ndarray | None,
@@ -183,6 +183,7 @@ def err_chain_vfield_dep(field: pyv.IField,
                                     pyv.EErrDep.DEPENDENT))
     return err_chain
 
+
 def err_chain_2d_dict(field: pyv.IField,
                       sens_pos: np.ndarray,
                       samp_times: np.ndarray | None,
@@ -192,9 +193,15 @@ def err_chain_2d_dict(field: pyv.IField,
     err_cases["none"] = None
     err_cases["basic"] = psens.err_chain_basic()
     err_cases["basic-gen"] = psens.err_chain_gen()
+    err_cases["field"] = err_chain_field(field,sens_pos,samp_times,pos_lock)
+    err_cases["field-dep"] = err_chain_field_dep(field,sens_pos,samp_times,pos_lock)
+
+    # This has to be last so when we chain all errors together the saturation
+    # error is the last thing that happens
     err_cases["basic-dep"] = psens.err_chain_dep()
-    err_cases["field"] = err_chain_vfield(field,sens_pos,samp_times,pos_lock)
-    err_cases["field-dep"] = err_chain_vfield_dep(field,sens_pos,samp_times,pos_lock)
+
+    err_cases["all"] = psens.err_chain_all(err_cases)
+
     return err_cases
 
 
@@ -207,7 +214,13 @@ def err_chain_3d_dict(field: pyv.IField,
     err_cases["none"] = None
     err_cases["basic"] = psens.err_chain_basic()
     err_cases["basic-gen"] = psens.err_chain_gen()
+    err_cases["field"] = err_chain_field(field,sens_pos,samp_times,pos_lock)
+    err_cases["field-dep"] = err_chain_field_dep(field,sens_pos,samp_times,pos_lock)
+
+    # This has to be last so when we chain all errors together the saturation
+    # error is the last thing that happens
     err_cases["basic-dep"] = psens.err_chain_dep()
-    err_cases["field"] = err_chain_vfield(field,sens_pos,samp_times,pos_lock)
-    err_cases["field-dep"] = err_chain_vfield_dep(field,sens_pos,samp_times,pos_lock)
+
+    err_cases["all"] = psens.err_chain_all(err_cases)
+
     return err_cases

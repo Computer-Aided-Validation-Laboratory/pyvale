@@ -63,7 +63,7 @@ z_lims = (0.0,0.0)
 tc_sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 tc_sens_data = pyv.SensorData(positions=tc_sens_pos,
-                                sample_times=sample_times)
+                              sample_times=sample_times)
 
 #%%
 # We use the sensor array factory to give us thermocouples with basic 2%

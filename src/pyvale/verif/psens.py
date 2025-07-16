@@ -20,7 +20,6 @@ import pyvale as pyv
 import pyvale.verif.psensconst as psensconst
 
 
-
 def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
     sim_dims = pyv.get_sim_dims(sim_data)
     sample_times = {}
@@ -32,7 +31,7 @@ def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
 
 
 def sens_data_dict(sim_data: mh.SimData,
-                   sens_pos: list[np.ndarray]) -> dict[str,pyv.SensorData]:
+                   sens_pos: dict[str,np.ndarray]) -> dict[str,pyv.SensorData]:
     sample_times = samp_times(sim_data)
 
     sens_data = {}
@@ -85,7 +84,17 @@ def err_chain_dep() -> list[pyv.IErrCalculator]:
     return chain_dep
 
 
-def gen_gold(sens_dict: dict[str,pyv.SensorArrayPoint]) -> None:
+def err_chain_all(err_dict: dict[str,list[pyv.IErrCalculator]]
+                  ) -> list[pyv.IErrCalculator]:
+    err_chain = []
+    for ee in err_dict:
+        if err_dict[ee] is not None:
+            for ss in err_dict[ee]:
+                err_chain.append(ss)
+    return err_chain
+
+
+def gen_gold_measurements(sens_dict: dict[str,pyv.SensorArrayPoint]) -> None:
     for ss in sens_dict:
         print(f"Generating gold output for case: {ss}")
         measurements = sens_dict[ss].calc_measurements()
@@ -93,7 +102,7 @@ def gen_gold(sens_dict: dict[str,pyv.SensorArrayPoint]) -> None:
         np.save(save_path,measurements)
 
 
-def check_gold(sens_dict: dict[str,pyv.SensorArrayPoint]) -> list[str]:
+def check_gold_measurements(sens_dict: dict[str,pyv.SensorArrayPoint]) -> list[str]:
     fails = []
     for ss in sens_dict:
         measurements = sens_dict[ss].calc_measurements()
@@ -108,4 +117,7 @@ def check_gold(sens_dict: dict[str,pyv.SensorArrayPoint]) -> list[str]:
             fails.append(f"Gold file does not exist for: {ss}")
 
     return fails
+
+def gen_gold_experiments(exp_sims: dict[str,pyv.ExperimentSimulator]) -> None:
+    pass
 

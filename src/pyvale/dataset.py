@@ -15,8 +15,6 @@ from enum import Enum
 from pathlib import Path
 from importlib.resources import files
 
-# TODO: finish doc strings for last functions
-
 SIM_CASE_COUNT = 26
 """Constant describing the number of simulation test case input files for moose
 and gmsh that come packaged with pyvale.

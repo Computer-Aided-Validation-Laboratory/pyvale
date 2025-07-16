@@ -26,7 +26,7 @@ def main() -> None:
             psenstensor.sens_3d_dict(),]
 
     for ss in sens:
-        psens.gen_gold(ss)
+        psens.gen_gold_measurements(ss)
 
     print(80*"-")
     print("Gold output generation complete.\n")

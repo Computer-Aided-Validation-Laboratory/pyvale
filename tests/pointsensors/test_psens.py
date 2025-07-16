@@ -4,7 +4,9 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 import pytest
+from typing import Callable, Dict, Any
 import numpy as np
+import pyvale as pyv
 import pyvale.verif.psens as psens
 import pyvale.verif.psensscalar as psensscalar
 import pyvale.verif.psensvector as psensvector
@@ -12,7 +14,6 @@ import pyvale.verif.psenstensor as psenstensor
 
 #-------------------------------------------------------------------------------
 # TODO: Tests
-# - Gold for vector and tensor fields
 # - Analytic test cases
 # - Gold for multi-physics experiments
 # - Logic for vector and tensor rotations
@@ -22,58 +23,73 @@ import pyvale.verif.psenstensor as psenstensor
 # - rotation of area averaging
 
 #-------------------------------------------------------------------------------
+# Regression gold tests
 
-def test_gold_scalar2d() -> None:
-    fails = psens.check_gold(psensscalar.sens_2d_dict())
+@pytest.mark.parametrize(
+    "get_sensors",
+    [
+        psensscalar.sens_2d_dict,
+        psensscalar.sens_3d_dict,
+        psensvector.sens_2d_dict,
+        psensvector.sens_3d_dict,
+        psenstensor.sens_2d_dict,
+        psenstensor.sens_3d_dict,
+    ],
+    ids=[
+        "scalar_2d",
+        "scalar_3d",
+        "vector_2d",
+        "vector_3d",
+        "tensor_2d",
+        "tensor_3d",
+    ],
+)
+def test_gold_combined(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+    sensors = get_sensors()
+    fails = psens.check_gold_measurements(sensors)
     assert not fails, "\n".join(fails)
-
-def test_gold_scalar3d() -> None:
-    fails = psens.check_gold(psensscalar.sens_3d_dict())
-    assert not fails, "\n".join(fails)
-
-def test_gold_vector2d() -> None:
-    fails = psens.check_gold(psensvector.sens_2d_dict())
-    assert not fails, "\n".join(fails)
-
-def test_gold_vector3d() -> None:
-    fails = psens.check_gold(psensvector.sens_3d_dict())
-    assert not fails, "\n".join(fails)
-
-def test_gold_tensor2d() -> None:
-    fails = psens.check_gold(psenstensor.sens_2d_dict())
-    assert not fails, "\n".join(fails)
-
-def test_gold_tensor3d() -> None:
-    fails = psens.check_gold(psenstensor.sens_3d_dict())
-    assert not fails, "\n".join(fails)
-
 
 #-------------------------------------------------------------------------------
-def test_get_meas_scalar() -> None:
-    """Tests that get does not resample from probability distributions.
-    """
+# Check that 'get_measurements' does not resample probability distributions
+
+def check_get_meas(sens_dict: dict[str,pyv.SensorArrayPoint]) -> list[str]:
     fails = []
-
-    sens_dict = psensscalar.sens_2d_dict()
-
     for ss in sens_dict:
         calc_meas = sens_dict[ss].calc_measurements()
         get_meas = sens_dict[ss].get_measurements()
 
         if not np.allclose(calc_meas, get_meas):
-            fails.append(f"2D, get does not equal calc for: {ss}")
+            fails.append(f"Get does not equal calc for: {ss}")
 
-    sens_dict = psensscalar.sens_3d_dict()
-    for ss in sens_dict:
-        calc_meas = sens_dict[ss].calc_measurements()
-        get_meas = sens_dict[ss].get_measurements()
+    return fails
 
-        if not np.allclose(calc_meas, get_meas):
-            fails.append(f"3D, get does not equal calc for: {ss}")
-
+@pytest.mark.parametrize(
+    "get_sensors",
+    [
+        psensscalar.sens_2d_dict,
+        psensscalar.sens_3d_dict,
+        psensvector.sens_2d_dict,
+        psensvector.sens_3d_dict,
+        psenstensor.sens_2d_dict,
+        psenstensor.sens_3d_dict,
+    ],
+    ids=[
+        "scalar_2d",
+        "scalar_3d",
+        "vector_2d",
+        "vector_3d",
+        "tensor_2d",
+        "tensor_3d",
+    ],
+)
+def test_get_meas_combined(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+    sensors = get_sensors()
+    fails = check_get_meas(sensors)
     assert not fails, "\n".join(fails)
 
-# TODO: check that for the last time step of all sensors the measurement is not zero
-# if it is zero we are interpolating outside the mesh
+#-------------------------------------------------------------------------------
+
+
+
 
 
