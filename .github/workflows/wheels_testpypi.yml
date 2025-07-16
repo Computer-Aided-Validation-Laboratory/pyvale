@@ -19,7 +19,7 @@ jobs:
       - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 13
         if: matrix.os == 'macos-13'
         run: |
-          echo "MACOSX_DEPLOYMENT_TARGET=13.0" >> $GITHUB_ENV
+          echo "MACOSX_DEPLOYMENT_TARGET=13.6" >> $GITHUB_ENV
 
       # Set GCC and Deployment Target for macOS 14
       - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 14
