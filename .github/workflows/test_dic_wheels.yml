@@ -1,4 +1,4 @@
-name: Build Wheels
+name: Build DIC Wheels
 
 on:
   workflow_dispatch:
