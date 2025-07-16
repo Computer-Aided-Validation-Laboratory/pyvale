@@ -7,7 +7,6 @@
 
 // STD library Header files
 #include <iostream>
-#include <fftw3.h>
 #include <string>
 #include <vector>
 #include <cmath>
@@ -331,34 +330,6 @@ namespace fourier {
 
         shift = std::move(smoothed);
     }
-
-
-
-    inline void destroy_fftw_plans(std::vector<fftw_plan>& plans) {
-        for (auto& plan : plans) {
-            if (plan != nullptr) {
-                fftw_destroy_plan(plan);
-            }
-        }
-        plans.clear();
-    }
-
-
-
-
-
-    inline void free_fftw_arrays(std::vector<fftw_complex*>& vec) {
-        for (auto& ptr : vec) {
-            if (ptr != nullptr) {
-                fftw_free(ptr);
-            }
-        }
-        vec.clear();
-    }
-
-
-
-
 
 
     double debugcost(const util::Subset &ss_ref, const util::Subset &ss_def){
