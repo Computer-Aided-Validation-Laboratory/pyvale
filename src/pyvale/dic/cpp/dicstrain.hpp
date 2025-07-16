@@ -11,7 +11,7 @@
 #include "dicutil.hpp"
 #include <vector>
 #include <cmath>
-#include <Eigen/Dense>
+#include "./Eigen/Dense"
 
 // Program Header files
 // pybind header files

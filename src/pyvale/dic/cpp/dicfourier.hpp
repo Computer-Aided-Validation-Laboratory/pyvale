@@ -13,13 +13,13 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
-#include <Eigen/Dense>
 
 // Program Header files
 #include "./dicinterpolator.hpp"
 #include "./defines.hpp"
 #include "./dicutil.hpp"
 #include "./pocketfft_hdronly.h"
+#include "./Eigen/Dense"
 
 namespace fourier {
 
