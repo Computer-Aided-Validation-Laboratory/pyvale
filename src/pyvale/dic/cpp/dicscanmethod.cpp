@@ -257,7 +257,8 @@ namespace scanmethod {
         }
 
         // Initialize binary mask for computed points (initialized to 0)
-        std::vector<int> computed_mask(ssdata[last_size].mask.size(), 0);
+        std::vector<std::atomic<int>> computed_mask(ssdata[last_size].mask.size());
+        for (auto& val : computed_mask) val.store(0);
 
         // queue for each thread
         std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
@@ -325,7 +326,7 @@ namespace scanmethod {
                 // append the results for the current subset to result vectors
                 util::append_results(img_num, idx, seed_res, num_ss);
 
-                computed_mask[idx] = 1;
+                computed_mask[idx].store(1);
 
                 // loop over the neighbours for the initial seed point
                 for (size_t n = 0; n < ssdata[last_size].neigh[idx].size(); n++) {
@@ -357,7 +358,7 @@ namespace scanmethod {
                     util::append_results(img_num, nidx, nres, num_ss);
 
                     // update mask
-                    computed_mask[nidx] = 1;
+                    computed_mask[idx].store(1);
 
                     // add this point to queue
                     local_q[0].push(rg::Point(nidx,nres.cost));
@@ -391,15 +392,17 @@ namespace scanmethod {
                 else {
                     // Try to steal from top of other local queues
                     while (!got_point && idle_iters < max_idle_iters) {
-                        for (size_t i = 0; i < local_q.size(); ++i) {
-                            if (!local_q[i].empty()) {
-                                current = local_q[i].top();
-                                local_q[i].pop();
-                                got_point = true;
-                                break;
+                        # pragma omp critical
+                        {
+                            for (size_t i = 0; i < local_q.size(); ++i) {
+                                if (!local_q[i].empty()) {
+                                    current = local_q[i].top();
+                                    local_q[i].pop();
+                                    got_point = true;
+                                    break;
+                                }
                             }
                         }
-
                         if (!got_point) {
                             ++idle_iters;
                             std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -425,13 +428,9 @@ namespace scanmethod {
                     // subset index of neighbour to the current point
                     int nidx = ssdata[last_size].neigh[current.idx][n];
 
-                    int expected;
-                    #pragma omp critical
-                    {
-                        expected = computed_mask[nidx];
-                        computed_mask[nidx] = 1;
-                    }
-                   if (expected == 0) {
+                    int expected = 0;
+                    expected = computed_mask[nidx].exchange(1);
+                    if (expected == 0) {
 
                         // coords of neigh
                         int nx = ssdata[last_size].coords[nidx*2];
