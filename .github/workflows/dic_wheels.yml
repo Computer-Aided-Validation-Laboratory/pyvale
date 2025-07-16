@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-    
+
       # Set GCC and Deployment Target for macOS 13
       - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 13
         if: matrix.os == 'macos-13'
@@ -31,7 +31,7 @@ jobs:
         if: startsWith(matrix.os, 'macos')
         run: |
           brew install libomp
-      
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         with:
@@ -71,7 +71,7 @@ jobs:
     environment: pypi
     permissions:
       id-token: write
-    
+
     steps:
       - uses: actions/download-artifact@v4
         with:
