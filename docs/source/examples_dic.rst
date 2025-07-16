@@ -9,5 +9,6 @@ Digital Image Correlation (DIC)
    examples/dic/region_of_interest.rst
    examples/dic/plate_with_hole.rst
    examples/dic/plate_with_hole_strain.rst
+   examples/dic/dic_blender.rst
    examples/dic/dic_challenge.rst
 
