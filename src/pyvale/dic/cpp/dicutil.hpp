@@ -134,6 +134,7 @@ namespace util {
         double xtol = 0.0;
         int iter = 0;
         double cost = 0.0;
+        bool converged = false;
 
         Results(size_t num_params) : p(num_params, 0.0) {}
     };
@@ -255,6 +256,10 @@ namespace util {
     
     inline void write_int(std::ofstream& out, int val) {
         out.write(reinterpret_cast<const char*>(&val), sizeof(int));
+    }
+
+    inline void write_bool(std::ofstream& out, int val) {
+        out.write(reinterpret_cast<const char*>(&val), sizeof(bool));
     }
 
     inline void write_dbl(std::ofstream& out, double val) {

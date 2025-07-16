@@ -28,6 +28,8 @@ class DICResults:
         Vertical displacements at each subset location.
     mag : np.ndarray
         Displacement magnitude at each subset location, typically computed as sqrt(u^2 + v^2).
+    converged : np.ndarray
+        boolean value for whether the subset has converged or not.
     cost : np.ndarray
         Final cost or residual value from the correlation optimization (e.g., ZNSSD).
     ftol : np.ndarray
@@ -45,6 +47,7 @@ class DICResults:
     u: np.ndarray
     v: np.ndarray
     mag: np.ndarray
+    converged: np.ndarray
     cost: np.ndarray
     ftol: np.ndarray
     xtol: np.ndarray

@@ -47,7 +47,7 @@ def dic_data_import(data: str = "./",
     DICResults
         A named container with the following fields:
             - X, Y (grid arrays if layout=="matrix"; otherwise, 1D integer arrays)
-            - u, v, m, cost, ftol, xtol, niter (arrays with shape depending on layout)
+            - u, v, m, converged, cost, ftol, xtol, niter (arrays with shape depending on layout)
             - filenames (python list)
 
     Raises
@@ -88,7 +88,7 @@ def dic_data_import(data: str = "./",
         frames.append(f)
 
     # Stack fields into arrays
-    arrays = [np.stack([frame[i] for frame in frames]) for i in range(7)]
+    arrays = [np.stack([frame[i] for frame in frames]) for i in range(8)]
 
     if layout == "matrix":
         x_unique = np.unique(ss_x_ref)
@@ -142,18 +142,19 @@ def read_binary(file: str, delimiter: str):
     u    = extract(8, np.float64, 8)
     v    = extract(8, np.float64, 16)
     m    = extract(8, np.float64, 24)
-    cost = extract(8, np.float64, 32)
-    ftol = extract(8, np.float64, 40)
-    xtol = extract(8, np.float64, 48)
-    niter = extract(4, np.int32, 56)
-    return ss_x, ss_y, u, v, m, cost, ftol, xtol, niter
+    conv = extract(1, np.bool_, 25)
+    cost = extract(8, np.float64, 33)
+    ftol = extract(8, np.float64, 41)
+    xtol = extract(8, np.float64, 49)
+    niter = extract(4, np.int32, 57)
+    return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter
 
 def read_text(file: str, delimiter: str):
     """
     Read a human-readable text DIC result file and extract DIC fields.
 
     Expects at least 9 columns:
-    [ss_x, ss_y, u, v, m, cost, ftol, xtol, niter]
+    [ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter]
 
     Parameters
     ----------
@@ -167,7 +168,7 @@ def read_text(file: str, delimiter: str):
     -------
     tuple of np.ndarray
         Arrays corresponding to:
-        (ss_x, ss_y, u, v, m, cost, ftol, xtol, niter)
+        (ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter)
 
     Raises
     ------
@@ -181,9 +182,10 @@ def read_text(file: str, delimiter: str):
     return (
         data[:, 0].astype(np.int32),  # ss_x
         data[:, 1].astype(np.int32),  # ss_y
-        data[:, 2], data[:, 3], data[:, 4],
-        data[:, 5], data[:, 6], data[:, 7],
-        data[:, 8].astype(np.int32)
+        data[:, 2], data[:, 3], data[:, 4], # u, v, mag
+        data[:, 5].astype(np.bool_), # convergence
+        data[:, 6], data[:, 7], data[:,8], # cost, ftol, xtol
+        data[:, 9].astype(np.int32) #niter
     )
 
 def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
@@ -194,6 +196,7 @@ def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
     Maps values using reference subset coordinates (ss_x_ref, ss_y_ref).
 
     Parameters
+    ol
     ----------
     data : np.ndarray
         Array of shape (n_frames, n_points) to be reshaped into (n_frames, height, width).

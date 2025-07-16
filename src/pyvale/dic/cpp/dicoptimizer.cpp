@@ -52,6 +52,7 @@ namespace optimizer {
         double ftol = 0;
         double xtol = 0;
         opt.lambda = 0.001;
+        bool converged = false;
 
 
         // trying relative instead of global coordinates for the optimization
@@ -83,6 +84,7 @@ namespace optimizer {
             // - cost is less than threshold
             if ((xtol < opt.precision) && (ftol < opt.precision) && (opt.costp < opt.opt_threshold)) {
                 //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+                converged=true; 
                 break;
             }
 
@@ -90,7 +92,6 @@ namespace optimizer {
             iter++;
         }
 
-        // assign 'results' for current subset
         util::Results res(opt.num_params);
         params_to_displacement(res, ss_x-global_x, ss_y-global_y, opt.p);
         res.iter = iter;
@@ -98,12 +99,12 @@ namespace optimizer {
         res.xtol = xtol;
         res.p = opt.p;
         res.cost = opt.costp;
+        res.converged = converged;
 
-        // if its a bad subset and hits max_iterations then reset p values to 0.0 to prevent bad seeding.
-        if (iter == opt.max_iter) {
+        // debugging
+        //if (iter == opt.max_iter) {
             //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
-            //std::fill(opt.p.begin(), opt.p.end(), 0.0);
-        }
+        //}
 
         return res;
     }

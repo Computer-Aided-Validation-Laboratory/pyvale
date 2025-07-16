@@ -30,6 +30,7 @@ namespace util {
     std::vector<double> ftol_arr;
     std::vector<double> xtol_arr;
     std::vector<double> cost_arr;
+    std::vector<bool> conv_arr;
     bool at_end;
 
 
@@ -321,6 +322,7 @@ namespace util {
             ftol_arr.resize(num_def_img * num_ss);
             xtol_arr.resize(num_def_img * num_ss);
             cost_arr.resize(num_def_img * num_ss);
+            conv_arr.resize(num_def_img * num_ss);
         }
         else {
             niter_arr.resize(num_ss);
@@ -330,6 +332,7 @@ namespace util {
             ftol_arr.resize(num_ss);
             xtol_arr.resize(num_ss);
             cost_arr.resize(num_ss);
+            conv_arr.resize(num_ss);
         }
     }
 
@@ -347,6 +350,7 @@ namespace util {
         ftol_arr[idx] = res.ftol;
         xtol_arr[idx] = res.xtol;
         cost_arr[idx] = res.cost;
+        conv_arr[idx] = res.converged;
         for (size_t i = 0; i < res.p.size(); i++){
             p_arr[idx_p+i] = res.p[i];
         }
@@ -402,6 +406,7 @@ namespace util {
                 write_dbl(outfile, u_arr[idx]);
                 write_dbl(outfile, v_arr[idx]);
                 write_dbl(outfile, mag);
+                write_bool(outfile, conv_arr[idx]);
                 write_dbl(outfile, cost_arr[idx]);
                 write_dbl(outfile, ftol_arr[idx]);
                 write_dbl(outfile, xtol_arr[idx]);
@@ -420,6 +425,7 @@ namespace util {
             outfile << "displacement_u" << delimiter;
             outfile << "displacement_v" << delimiter;
             outfile << "displacement_mag" << delimiter;
+            outfile << "converged" << delimiter;
             outfile << "cost" << delimiter;
             outfile << "ftol" << delimiter;
             outfile << "xtol" << delimiter;
@@ -444,6 +450,7 @@ namespace util {
                 //for (int p = 0; p < num_params; p++){
                 //    outfile << p_arr[idx_p+p] << delimiter;
                 //}
+                outfile << conv_arr[idx] << delimiter;
                 outfile << cost_arr[idx] << delimiter;
                 outfile << ftol_arr[idx] << delimiter;
                 outfile << xtol_arr[idx] << delimiter;

@@ -29,10 +29,11 @@ def test_dic_data_column_import():
     assert np.allclose(dicdata.u, raw_data[:, 2]), "Mismatch in u data column"
     assert np.allclose(dicdata.v, raw_data[:, 3]), "Mismatch in v data column"
     assert np.allclose(dicdata.mag, raw_data[:, 4]), "Mismatch in mag data column"
-    assert np.allclose(dicdata.cost, raw_data[:, 5]), "Mismatch in cost data column"
-    assert np.allclose(dicdata.ftol, raw_data[:, 6]), "Mismatch in ftol data column"
-    assert np.allclose(dicdata.xtol, raw_data[:, 7]), "Mismatch in xtol data column"
-    assert np.allclose(dicdata.niter, raw_data[:, 8]), "Mismatch in niter data column"
+    assert np.allclose(dicdata.converged, raw_data[:, 5]), "Mismatch in cost data column"
+    assert np.allclose(dicdata.cost, raw_data[:, 6]), "Mismatch in cost data column"
+    assert np.allclose(dicdata.ftol, raw_data[:, 7]), "Mismatch in ftol data column"
+    assert np.allclose(dicdata.xtol, raw_data[:, 8]), "Mismatch in xtol data column"
+    assert np.allclose(dicdata.niter, raw_data[:, 9]), "Mismatch in niter data column"
 
 
 def test_dic_data_matrix_import():

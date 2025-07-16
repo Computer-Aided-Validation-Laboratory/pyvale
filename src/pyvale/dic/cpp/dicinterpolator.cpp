@@ -104,25 +104,25 @@ double Interpolator::eval_bicubic(const int ss_x, const int ss_y, const double s
     int idx10 = idx_from_2d(xi + 1, yi, px_hori);
     int idx11 = idx_from_2d(xi + 1, yi + 1, px_hori);
 
-    double dminmin = image[idx00];
-    double dminmax = image[idx01];
-    double dmaxmin = image[idx10];
-    double dmaxmax = image[idx11];
+    double d00 = image[idx00];
+    double d01 = image[idx01];
+    double d10 = image[idx10];
+    double d11 = image[idx11];
 
-    double dxminmin = dx[idx00];
-    double dxminmax = dx[idx01];
-    double dxmaxmin = dx[idx10];
-    double dxmaxmax = dx[idx11];
+    double dx00 = dx[idx00];
+    double dx01 = dx[idx01];
+    double dx10 = dx[idx10];
+    double dx11 = dx[idx11];
 
-    double dyminmin = dy[idx00];
-    double dyminmax = dy[idx01];
-    double dymaxmin = dy[idx10];
-    double dymaxmax = dy[idx11];
+    double dy00 = dy[idx00];
+    double dy01 = dy[idx01];
+    double dy10 = dy[idx10];
+    double dy11 = dy[idx11];
 
-    double dxyminmin = dxy[idx00];
-    double dxyminmax = dxy[idx01];
-    double dxymaxmin = dxy[idx10];
-    double dxymaxmax = dxy[idx11];
+    double dxy00 = dxy[idx00];
+    double dxy01 = dxy[idx01];
+    double dxy10 = dxy[idx10];
+    double dxy11 = dxy[idx11];
 
     // polynomial terms
     double t0 = 1;
@@ -136,25 +136,25 @@ double Interpolator::eval_bicubic(const int ss_x, const int ss_y, const double s
 
     /* Perform bicubic interpolation */
     double result = 0.0;
-    result += dminmin*t0*u0;
-    result += dyminmin*t0*u1;
-    result += (-3*dminmin + 3*dminmax - 2*dyminmin - dyminmax)*t0*u2;
-    result += (2*dminmin - 2*dminmax + dyminmin + dyminmax)*t0*u3;
+    result += d00*t0*u0;
+    result += dy00*t0*u1;
+    result += (-3*d00 + 3*d01 - 2*dy00 - dy01)*t0*u2;
+    result += (2*d00 - 2*d01 + dy00 + dy01)*t0*u3;
 
-    result += dxminmin*t1*u0;
-    result += dxyminmin*t1*u1;
-    result += (-3*dxminmin + 3*dxminmax - 2*dxyminmin - dxyminmax)*t1*u2;
-    result += (2*dxminmin - 2*dxminmax + dxyminmin + dxyminmax)*t1*u3;
+    result += dx00*t1*u0;
+    result += dxy00*t1*u1;
+    result += (-3*dx00 + 3*dx01 - 2*dxy00 - dxy01)*t1*u2;
+    result += (2*dx00 - 2*dx01 + dxy00 + dxy01)*t1*u3;
 
-    result += (-3*dminmin + 3*dmaxmin - 2*dxminmin - dxmaxmin)*t2*u0;
-    result += (-3*dyminmin + 3*dymaxmin - 2*dxyminmin - dxymaxmin)*t2*u1;
-    result += (9*dminmin - 9*dmaxmin + 9*dmaxmax - 9*dminmax + 6*dxminmin + 3*dxmaxmin - 3*dxmaxmax - 6*dxminmax + 6*dyminmin - 6*dymaxmin - 3*dymaxmax + 3*dyminmax + 4*dxyminmin + 2*dxymaxmin + dxymaxmax + 2*dxyminmax)*t2*u2;
-    result += (-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 4*dxminmin - 2*dxmaxmin + 2*dxmaxmax + 4*dxminmax - 3*dyminmin + 3*dymaxmin + 3*dymaxmax - 3*dyminmax - 2*dxyminmin - dxymaxmin - dxymaxmax - 2*dxyminmax)*t2*u3;
+    result += (-3*d00 + 3*d10 - 2*dx00 - dx10)*t2*u0;
+    result += (-3*dy00 + 3*dy10 - 2*dxy00 - dxy10)*t2*u1;
+    result += (9*d00 - 9*d10 + 9*d11 - 9*d01 + 6*dx00 + 3*dx10 - 3*dx11 - 6*dx01 + 6*dy00 - 6*dy10 - 3*dy11 + 3*dy01 + 4*dxy00 + 2*dxy10 + dxy11 + 2*dxy01)*t2*u2;
+    result += (-6*d00 + 6*d10 - 6*d11 + 6*d01 - 4*dx00 - 2*dx10 + 2*dx11 + 4*dx01 - 3*dy00 + 3*dy10 + 3*dy11 - 3*dy01 - 2*dxy00 - dxy10 - dxy11 - 2*dxy01)*t2*u3;
 
-    result += (2*dminmin - 2*dmaxmin + dxminmin + dxmaxmin)*t3*u0;
-    result += (2*dyminmin - 2*dymaxmin + dxyminmin + dxymaxmin)*t3*u1;
-    result += (-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 3*dxminmin - 3*dxmaxmin + 3*dxmaxmax + 3*dxminmax - 4*dyminmin + 4*dymaxmin + 2*dymaxmax - 2*dyminmax - 2*dxyminmin - 2*dxymaxmin - dxymaxmax - dxyminmax)*t3*u2;
-    result += (4*dminmin - 4*dmaxmin + 4*dmaxmax - 4*dminmax + 2*dxminmin + 2*dxmaxmin - 2*dxmaxmax - 2*dxminmax + 2*dyminmin - 2*dymaxmin - 2*dymaxmax + 2*dyminmax + dxyminmin + dxymaxmin + dxymaxmax + dxyminmax)*t3*u3;
+    result += (2*d00 - 2*d10 + dx00 + dx10)*t3*u0;
+    result += (2*dy00 - 2*dy10 + dxy00 + dxy10)*t3*u1;
+    result += (-6*d00 + 6*d10 - 6*d11 + 6*d01 - 3*dx00 - 3*dx10 + 3*dx11 + 3*dx01 - 4*dy00 + 4*dy10 + 2*dy11 - 2*dy01 - 2*dxy00 - 2*dxy10 - dxy11 - dxy01)*t3*u2;
+    result += (4*d00 - 4*d10 + 4*d11 - 4*d01 + 2*dx00 + 2*dx10 - 2*dx11 - 2*dx01 + 2*dy00 - 2*dy10 - 2*dy11 + 2*dy01 + dxy00 + dxy10 + dxy11 + dxy01)*t3*u3;
 
     return result;
 }
@@ -173,23 +173,23 @@ double Interpolator::eval_bicubic_dx(const int ss_x, const int ss_y, const doubl
     int idx10 = idx_from_2d(xi + 1, yi, px_hori);
     int idx11 = idx_from_2d(xi + 1, yi + 1, px_hori);
 
-    double dminmin = image[idx00];
-    double dminmax = image[idx01];
-    double dmaxmin = image[idx10];
-    double dmaxmax = image[idx11];
+    double d00 = image[idx00];
+    double d01 = image[idx01];
+    double d10 = image[idx10];
+    double d11 = image[idx11];
 
-    double dxminmin = dx[idx00];
-    double dxminmax = dx[idx01];
-    double dxmaxmin = dx[idx10];
-    double dxmaxmax = dx[idx11];
-    double dyminmin = dy[idx00];
-    double dyminmax = dy[idx01];
-    double dymaxmin = dy[idx10];
-    double dymaxmax = dy[idx11];
-    double dxyminmin = dxy[idx00];
-    double dxyminmax = dxy[idx01];
-    double dxymaxmin = dxy[idx10];
-    double dxymaxmax = dxy[idx11];
+    double dx00 = dx[idx00];
+    double dx01 = dx[idx01];
+    double dx10 = dx[idx10];
+    double dx11 = dx[idx11];
+    double dy00 = dy[idx00];
+    double dy01 = dy[idx01];
+    double dy10 = dy[idx10];
+    double dy11 = dy[idx11];
+    double dxy00 = dxy[idx00];
+    double dxy01 = dxy[idx01];
+    double dxy10 = dxy[idx10];
+    double dxy11 = dxy[idx11];
 
     // polynomial terms
     double t0 = 1;
@@ -201,18 +201,18 @@ double Interpolator::eval_bicubic_dx(const int ss_x, const int ss_y, const doubl
     double u3 = u1*u2;
 
     double result = 0.0;
-    result += dxminmin *t0*u0;
-    result += dxyminmin*t0*u1;
-    result += (-3*dxminmin + 3*dxminmax - 2*dxyminmin - dxyminmax) *t0*u2;
-    result += (2*dxminmin - 2*dxminmax + dxyminmin + dxyminmax)*t0*u3;
-    result += 2*(-3*dminmin + 3*dmaxmin - 2*dxminmin - dxmaxmin)*t1*u0;
-    result += 2*(-3*dyminmin + 3*dymaxmin - 2*dxyminmin - dxymaxmin)*t1*u1;
-    result += 2*(9*dminmin - 9*dmaxmin + 9*dmaxmax - 9*dminmax + 6*dxminmin + 3*dxmaxmin - 3*dxmaxmax - 6*dxminmax + 6*dyminmin - 6*dymaxmin - 3*dymaxmax + 3*dyminmax + 4*dxyminmin + 2*dxymaxmin + dxymaxmax + 2*dxyminmax)*t1*u2;
-    result += 2*(-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 4*dxminmin - 2*dxmaxmin + 2*dxmaxmax + 4*dxminmax - 3*dyminmin + 3*dymaxmin + 3*dymaxmax - 3*dyminmax - 2*dxyminmin - dxymaxmin - dxymaxmax - 2*dxyminmax)*t1*u3;
-    result += 3*(2*dminmin - 2*dmaxmin + dxminmin + dxmaxmin)*t2 *u0;
-    result += 3*(2*dyminmin - 2*dymaxmin + dxyminmin + dxymaxmin)*t2*u1;
-    result += 3*(-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 3*dxminmin - 3*dxmaxmin + 3*dxmaxmax + 3*dxminmax - 4*dyminmin + 4*dymaxmin + 2*dymaxmax - 2*dyminmax - 2*dxyminmin - 2*dxymaxmin - dxymaxmax - dxyminmax)*t2*u2;
-    result += 3*(4*dminmin - 4*dmaxmin + 4*dmaxmax - 4*dminmax + 2*dxminmin + 2*dxmaxmin - 2*dxmaxmax - 2*dxminmax + 2*dyminmin - 2*dymaxmin - 2*dymaxmax + 2*dyminmax + dxyminmin + dxymaxmin + dxymaxmax + dxyminmax)*t2*u3;
+    result += dx00 *t0*u0;
+    result += dxy00*t0*u1;
+    result += (-3*dx00 + 3*dx01 - 2*dxy00 - dxy01) *t0*u2;
+    result += (2*dx00 - 2*dx01 + dxy00 + dxy01)*t0*u3;
+    result += 2*(-3*d00 + 3*d10 - 2*dx00 - dx10)*t1*u0;
+    result += 2*(-3*dy00 + 3*dy10 - 2*dxy00 - dxy10)*t1*u1;
+    result += 2*(9*d00 - 9*d10 + 9*d11 - 9*d01 + 6*dx00 + 3*dx10 - 3*dx11 - 6*dx01 + 6*dy00 - 6*dy10 - 3*dy11 + 3*dy01 + 4*dxy00 + 2*dxy10 + dxy11 + 2*dxy01)*t1*u2;
+    result += 2*(-6*d00 + 6*d10 - 6*d11 + 6*d01 - 4*dx00 - 2*dx10 + 2*dx11 + 4*dx01 - 3*dy00 + 3*dy10 + 3*dy11 - 3*dy01 - 2*dxy00 - dxy10 - dxy11 - 2*dxy01)*t1*u3;
+    result += 3*(2*d00 - 2*d10 + dx00 + dx10)*t2 *u0;
+    result += 3*(2*dy00 - 2*dy10 + dxy00 + dxy10)*t2*u1;
+    result += 3*(-6*d00 + 6*d10 - 6*d11 + 6*d01 - 3*dx00 - 3*dx10 + 3*dx11 + 3*dx01 - 4*dy00 + 4*dy10 + 2*dy11 - 2*dy01 - 2*dxy00 - 2*dxy10 - dxy11 - dxy01)*t2*u2;
+    result += 3*(4*d00 - 4*d10 + 4*d11 - 4*d01 + 2*dx00 + 2*dx10 - 2*dx11 - 2*dx01 + 2*dy00 - 2*dy10 - 2*dy11 + 2*dy01 + dxy00 + dxy10 + dxy11 + dxy01)*t2*u3;
     return result;
 
 }
@@ -229,23 +229,23 @@ double Interpolator::eval_bicubic_dy(const int ss_x, const int ss_y, const doubl
     size_t idx10 = idx_from_2d(xi + 1, yi, px_hori);
     size_t idx11 = idx_from_2d(xi + 1, yi + 1, px_hori);
 
-    double dminmin = image[idx00];
-    double dminmax = image[idx01];
-    double dmaxmin = image[idx10];
-    double dmaxmax = image[idx11];
+    double d00 = image[idx00];
+    double d01 = image[idx01];
+    double d10 = image[idx10];
+    double d11 = image[idx11];
 
-    double dxminmin = dx[idx00];
-    double dxminmax = dx[idx01];
-    double dxmaxmin = dx[idx10];
-    double dxmaxmax = dx[idx11];
-    double dyminmin = dy[idx00];
-    double dyminmax = dy[idx01];
-    double dymaxmin = dy[idx10];
-    double dymaxmax = dy[idx11];
-    double dxyminmin = dxy[idx00];
-    double dxyminmax = dxy[idx01];
-    double dxymaxmin = dxy[idx10];
-    double dxymaxmax = dxy[idx11];
+    double dx00 = dx[idx00];
+    double dx01 = dx[idx01];
+    double dx10 = dx[idx10];
+    double dx11 = dx[idx11];
+    double dy00 = dy[idx00];
+    double dy01 = dy[idx01];
+    double dy10 = dy[idx10];
+    double dy11 = dy[idx11];
+    double dxy00 = dxy[idx00];
+    double dxy01 = dxy[idx01];
+    double dxy10 = dxy[idx10];
+    double dxy11 = dxy[idx11];
 
     // polynomial terms
     double t0 = 1;
@@ -257,18 +257,18 @@ double Interpolator::eval_bicubic_dy(const int ss_x, const int ss_y, const doubl
     double t3 = t1*t2;
 
     double result = 0.0;
-    result += dyminmin*t0*u0;
-    result += 2*(-3*dminmin + 3*dminmax - 2*dyminmin - dyminmax)*t0*u1;
-    result += 3*(2*dminmin-2*dminmax + dyminmin + dyminmax)*t0*u2;
-    result += dxyminmin*t1*u0;
-    result += 2*(-3*dxminmin + 3*dxminmax - 2*dxyminmin - dxyminmax)*t1*u1;
-    result += 3*(2*dxminmin - 2*dxminmax + dxyminmin + dxyminmax)*t1*u2;
-    result += (-3*dyminmin + 3*dymaxmin - 2*dxyminmin - dxymaxmin)*t2*u0;
-    result += 2*(9*dminmin - 9*dmaxmin + 9*dmaxmax - 9*dminmax + 6*dxminmin + 3*dxmaxmin - 3*dxmaxmax - 6*dxminmax + 6*dyminmin - 6*dymaxmin - 3*dymaxmax + 3*dyminmax + 4*dxyminmin + 2*dxymaxmin + dxymaxmax + 2*dxyminmax)*t2*u1;
-    result += 3*(-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 4*dxminmin - 2*dxmaxmin + 2*dxmaxmax + 4*dxminmax - 3*dyminmin + 3*dymaxmin + 3*dymaxmax - 3*dyminmax - 2*dxyminmin - dxymaxmin - dxymaxmax - 2*dxyminmax)*t2*u2;
-    result += (2*dyminmin - 2*dymaxmin + dxyminmin + dxymaxmin)*t3*u0;
-    result += 2*(-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 3*dxminmin - 3*dxmaxmin + 3*dxmaxmax + 3*dxminmax - 4*dyminmin + 4*dymaxmin + 2*dymaxmax - 2*dyminmax - 2*dxyminmin - 2*dxymaxmin - dxymaxmax - dxyminmax)*t3*u1;
-    result += 3*(4*dminmin - 4*dmaxmin + 4*dmaxmax - 4*dminmax + 2*dxminmin + 2*dxmaxmin - 2*dxmaxmax - 2*dxminmax + 2*dyminmin - 2*dymaxmin - 2*dymaxmax + 2*dyminmax + dxyminmin + dxymaxmin + dxymaxmax + dxyminmax)*t3*u2;
+    result += dy00*t0*u0;
+    result += 2*(-3*d00 + 3*d01 - 2*dy00 - dy01)*t0*u1;
+    result += 3*(2*d00-2*d01 + dy00 + dy01)*t0*u2;
+    result += dxy00*t1*u0;
+    result += 2*(-3*dx00 + 3*dx01 - 2*dxy00 - dxy01)*t1*u1;
+    result += 3*(2*dx00 - 2*dx01 + dxy00 + dxy01)*t1*u2;
+    result += (-3*dy00 + 3*dy10 - 2*dxy00 - dxy10)*t2*u0;
+    result += 2*(9*d00 - 9*d10 + 9*d11 - 9*d01 + 6*dx00 + 3*dx10 - 3*dx11 - 6*dx01 + 6*dy00 - 6*dy10 - 3*dy11 + 3*dy01 + 4*dxy00 + 2*dxy10 + dxy11 + 2*dxy01)*t2*u1;
+    result += 3*(-6*d00 + 6*d10 - 6*d11 + 6*d01 - 4*dx00 - 2*dx10 + 2*dx11 + 4*dx01 - 3*dy00 + 3*dy10 + 3*dy11 - 3*dy01 - 2*dxy00 - dxy10 - dxy11 - 2*dxy01)*t2*u2;
+    result += (2*dy00 - 2*dy10 + dxy00 + dxy10)*t3*u0;
+    result += 2*(-6*d00 + 6*d10 - 6*d11 + 6*d01 - 3*dx00 - 3*dx10 + 3*dx11 + 3*dx01 - 4*dy00 + 4*dy10 + 2*dy11 - 2*dy01 - 2*dxy00 - 2*dxy10 - dxy11 - dxy01)*t3*u1;
+    result += 3*(4*d00 - 4*d10 + 4*d11 - 4*d01 + 2*dx00 + 2*dx10 - 2*dx11 - 2*dx01 + 2*dy00 - 2*dy10 - 2*dy11 + 2*dy01 + dxy00 + dxy10 + dxy11 + dxy01)*t3*u2;
 
     return result;
 }
@@ -286,25 +286,23 @@ InterpVals Interpolator::eval_bicubic_and_derivs(const int ss_x, const int ss_y,
     size_t idx10 = idx_from_2d(xi + 1, yi, px_hori);
     size_t idx11 = idx_from_2d(xi + 1, yi + 1, px_hori);
 
-    double dminmin = image[idx00];
-    double dminmax = image[idx01];
-    double dmaxmin = image[idx10];
-    double dmaxmax = image[idx11];
+    double d00 = image[idx00];
+    double d01 = image[idx01];
+    double d10 = image[idx10];
+    double d11 = image[idx11];
 
-    double dxminmin = dx[idx00];
-    double dxminmax = dx[idx01];
-    double dxmaxmin = dx[idx10];
-    double dxmaxmax = dx[idx11];
-    double dyminmin = dy[idx00];
-    double dyminmax = dy[idx01];
-    double dymaxmin = dy[idx10];
-    double dymaxmax = dy[idx11];
-    double dxyminmin = dxy[idx00];
-    double dxyminmax = dxy[idx01];
-    double dxymaxmin = dxy[idx10];
-    double dxymaxmax = dxy[idx11];
-
-    // distance between interpolation point and pixel value 
+    double dx00 = dx[idx00];
+    double dx01 = dx[idx01];
+    double dx10 = dx[idx10];
+    double dx11 = dx[idx11];
+    double dy00 = dy[idx00];
+    double dy01 = dy[idx01];
+    double dy10 = dy[idx10];
+    double dy11 = dy[idx11];
+    double dxy00 = dxy[idx00];
+    double dxy01 = dxy[idx01];
+    double dxy10 = dxy[idx10];
+    double dxy11 = dxy[idx11];
 
     // polynomial terms
     double t0 = 1;
@@ -320,48 +318,48 @@ InterpVals Interpolator::eval_bicubic_and_derivs(const int ss_x, const int ss_y,
     double result_dx = 0.0;
     double result_dy = 0.0;
 
-    result += dminmin*t0*u0;
-    result += dyminmin*t0*u1;
-    result += (-3*dminmin + 3*dminmax - 2*dyminmin - dyminmax)*t0*u2;
-    result += (2*dminmin - 2*dminmax + dyminmin + dyminmax)*t0*u3;
-    result += dxminmin*t1*u0;
-    result += dxyminmin*t1*u1;
-    result += (-3*dxminmin + 3*dxminmax - 2*dxyminmin - dxyminmax)*t1*u2;
-    result += (2*dxminmin - 2*dxminmax + dxyminmin + dxyminmax)*t1*u3;
-    result += (-3*dminmin + 3*dmaxmin - 2*dxminmin - dxmaxmin)*t2*u0;
-    result += (-3*dyminmin + 3*dymaxmin - 2*dxyminmin - dxymaxmin)*t2*u1;
-    result += (9*dminmin - 9*dmaxmin + 9*dmaxmax - 9*dminmax + 6*dxminmin + 3*dxmaxmin - 3*dxmaxmax - 6*dxminmax + 6*dyminmin - 6*dymaxmin - 3*dymaxmax + 3*dyminmax + 4*dxyminmin + 2*dxymaxmin + dxymaxmax + 2*dxyminmax)*t2*u2;
-    result += (-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 4*dxminmin - 2*dxmaxmin + 2*dxmaxmax + 4*dxminmax - 3*dyminmin + 3*dymaxmin + 3*dymaxmax - 3*dyminmax - 2*dxyminmin - dxymaxmin - dxymaxmax - 2*dxyminmax)*t2*u3;
-    result += (2*dminmin - 2*dmaxmin + dxminmin + dxmaxmin)*t3*u0;
-    result += (2*dyminmin - 2*dymaxmin + dxyminmin + dxymaxmin)*t3*u1;
-    result += (-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 3*dxminmin - 3*dxmaxmin + 3*dxmaxmax + 3*dxminmax - 4*dyminmin + 4*dymaxmin + 2*dymaxmax - 2*dyminmax - 2*dxyminmin - 2*dxymaxmin - dxymaxmax - dxyminmax)*t3*u2;
-    result += (4*dminmin - 4*dmaxmin + 4*dmaxmax - 4*dminmax + 2*dxminmin + 2*dxmaxmin - 2*dxmaxmax - 2*dxminmax + 2*dyminmin - 2*dymaxmin - 2*dymaxmax + 2*dyminmax + dxyminmin + dxymaxmin + dxymaxmax + dxyminmax)*t3*u3;
+    result += d00*t0*u0;
+    result += dy00*t0*u1;
+    result += (-3*d00 + 3*d01 - 2*dy00 - dy01)*t0*u2;
+    result += (2*d00 - 2*d01 + dy00 + dy01)*t0*u3;
+    result += dx00*t1*u0;
+    result += dxy00*t1*u1;
+    result += (-3*dx00 + 3*dx01 - 2*dxy00 - dxy01)*t1*u2;
+    result += (2*dx00 - 2*dx01 + dxy00 + dxy01)*t1*u3;
+    result += (-3*d00 + 3*d10 - 2*dx00 - dx10)*t2*u0;
+    result += (-3*dy00 + 3*dy10 - 2*dxy00 - dxy10)*t2*u1;
+    result += (9*d00 - 9*d10 + 9*d11 - 9*d01 + 6*dx00 + 3*dx10 - 3*dx11 - 6*dx01 + 6*dy00 - 6*dy10 - 3*dy11 + 3*dy01 + 4*dxy00 + 2*dxy10 + dxy11 + 2*dxy01)*t2*u2;
+    result += (-6*d00 + 6*d10 - 6*d11 + 6*d01 - 4*dx00 - 2*dx10 + 2*dx11 + 4*dx01 - 3*dy00 + 3*dy10 + 3*dy11 - 3*dy01 - 2*dxy00 - dxy10 - dxy11 - 2*dxy01)*t2*u3;
+    result += (2*d00 - 2*d10 + dx00 + dx10)*t3*u0;
+    result += (2*dy00 - 2*dy10 + dxy00 + dxy10)*t3*u1;
+    result += (-6*d00 + 6*d10 - 6*d11 + 6*d01 - 3*dx00 - 3*dx10 + 3*dx11 + 3*dx01 - 4*dy00 + 4*dy10 + 2*dy11 - 2*dy01 - 2*dxy00 - 2*dxy10 - dxy11 - dxy01)*t3*u2;
+    result += (4*d00 - 4*d10 + 4*d11 - 4*d01 + 2*dx00 + 2*dx10 - 2*dx11 - 2*dx01 + 2*dy00 - 2*dy10 - 2*dy11 + 2*dy01 + dxy00 + dxy10 + dxy11 + dxy01)*t3*u3;
 
-    result_dx += dxminmin *t0*u0;
-    result_dx += dxyminmin*t0*u1;
-    result_dx += (-3*dxminmin + 3*dxminmax - 2*dxyminmin - dxyminmax) *t0*u2;
-    result_dx += (2*dxminmin - 2*dxminmax + dxyminmin + dxyminmax)*t0*u3;
-    result_dx += 2*(-3*dminmin + 3*dmaxmin - 2*dxminmin - dxmaxmin)*t1*u0;
-    result_dx += 2*(-3*dyminmin + 3*dymaxmin - 2*dxyminmin - dxymaxmin)*t1*u1;
-    result_dx += 2*(9*dminmin - 9*dmaxmin + 9*dmaxmax - 9*dminmax + 6*dxminmin + 3*dxmaxmin - 3*dxmaxmax - 6*dxminmax + 6*dyminmin - 6*dymaxmin - 3*dymaxmax + 3*dyminmax + 4*dxyminmin + 2*dxymaxmin + dxymaxmax + 2*dxyminmax)*t1*u2;
-    result_dx += 2*(-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 4*dxminmin - 2*dxmaxmin + 2*dxmaxmax + 4*dxminmax - 3*dyminmin + 3*dymaxmin + 3*dymaxmax - 3*dyminmax - 2*dxyminmin - dxymaxmin - dxymaxmax - 2*dxyminmax)*t1*u3;
-    result_dx += 3*(2*dminmin - 2*dmaxmin + dxminmin + dxmaxmin)*t2 *u0;
-    result_dx += 3*(2*dyminmin - 2*dymaxmin + dxyminmin + dxymaxmin)*t2*u1;
-    result_dx += 3*(-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 3*dxminmin - 3*dxmaxmin + 3*dxmaxmax + 3*dxminmax - 4*dyminmin + 4*dymaxmin + 2*dymaxmax - 2*dyminmax - 2*dxyminmin - 2*dxymaxmin - dxymaxmax - dxyminmax)*t2*u2;
-    result_dx += 3*(4*dminmin - 4*dmaxmin + 4*dmaxmax - 4*dminmax + 2*dxminmin + 2*dxmaxmin - 2*dxmaxmax - 2*dxminmax + 2*dyminmin - 2*dymaxmin - 2*dymaxmax + 2*dyminmax + dxyminmin + dxymaxmin + dxymaxmax + dxyminmax)*t2*u3;
+    result_dx += dx00 *t0*u0;
+    result_dx += dxy00*t0*u1;
+    result_dx += (-3*dx00 + 3*dx01 - 2*dxy00 - dxy01) *t0*u2;
+    result_dx += (2*dx00 - 2*dx01 + dxy00 + dxy01)*t0*u3;
+    result_dx += 2*(-3*d00 + 3*d10 - 2*dx00 - dx10)*t1*u0;
+    result_dx += 2*(-3*dy00 + 3*dy10 - 2*dxy00 - dxy10)*t1*u1;
+    result_dx += 2*(9*d00 - 9*d10 + 9*d11 - 9*d01 + 6*dx00 + 3*dx10 - 3*dx11 - 6*dx01 + 6*dy00 - 6*dy10 - 3*dy11 + 3*dy01 + 4*dxy00 + 2*dxy10 + dxy11 + 2*dxy01)*t1*u2;
+    result_dx += 2*(-6*d00 + 6*d10 - 6*d11 + 6*d01 - 4*dx00 - 2*dx10 + 2*dx11 + 4*dx01 - 3*dy00 + 3*dy10 + 3*dy11 - 3*dy01 - 2*dxy00 - dxy10 - dxy11 - 2*dxy01)*t1*u3;
+    result_dx += 3*(2*d00 - 2*d10 + dx00 + dx10)*t2 *u0;
+    result_dx += 3*(2*dy00 - 2*dy10 + dxy00 + dxy10)*t2*u1;
+    result_dx += 3*(-6*d00 + 6*d10 - 6*d11 + 6*d01 - 3*dx00 - 3*dx10 + 3*dx11 + 3*dx01 - 4*dy00 + 4*dy10 + 2*dy11 - 2*dy01 - 2*dxy00 - 2*dxy10 - dxy11 - dxy01)*t2*u2;
+    result_dx += 3*(4*d00 - 4*d10 + 4*d11 - 4*d01 + 2*dx00 + 2*dx10 - 2*dx11 - 2*dx01 + 2*dy00 - 2*dy10 - 2*dy11 + 2*dy01 + dxy00 + dxy10 + dxy11 + dxy01)*t2*u3;
 
-    result_dy += dyminmin*t0*u0;
-    result_dy += 2*(-3*dminmin + 3*dminmax - 2*dyminmin - dyminmax)*t0*u1;
-    result_dy += 3*(2*dminmin-2*dminmax + dyminmin + dyminmax)*t0*u2;
-    result_dy += dxyminmin*t1*u0;
-    result_dy += 2*(-3*dxminmin + 3*dxminmax - 2*dxyminmin - dxyminmax)*t1*u1;
-    result_dy += 3*(2*dxminmin - 2*dxminmax + dxyminmin + dxyminmax)*t1*u2;
-    result_dy += (-3*dyminmin + 3*dymaxmin - 2*dxyminmin - dxymaxmin)*t2*u0;
-    result_dy += 2*(9*dminmin - 9*dmaxmin + 9*dmaxmax - 9*dminmax + 6*dxminmin + 3*dxmaxmin - 3*dxmaxmax - 6*dxminmax + 6*dyminmin - 6*dymaxmin - 3*dymaxmax + 3*dyminmax + 4*dxyminmin + 2*dxymaxmin + dxymaxmax + 2*dxyminmax)*t2*u1;
-    result_dy += 3*(-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 4*dxminmin - 2*dxmaxmin + 2*dxmaxmax + 4*dxminmax - 3*dyminmin + 3*dymaxmin + 3*dymaxmax - 3*dyminmax - 2*dxyminmin - dxymaxmin - dxymaxmax - 2*dxyminmax)*t2*u2;
-    result_dy += (2*dyminmin - 2*dymaxmin + dxyminmin + dxymaxmin)*t3*u0;
-    result_dy += 2*(-6*dminmin + 6*dmaxmin - 6*dmaxmax + 6*dminmax - 3*dxminmin - 3*dxmaxmin + 3*dxmaxmax + 3*dxminmax - 4*dyminmin + 4*dymaxmin + 2*dymaxmax - 2*dyminmax - 2*dxyminmin - 2*dxymaxmin - dxymaxmax - dxyminmax)*t3*u1;
-    result_dy += 3*(4*dminmin - 4*dmaxmin + 4*dmaxmax - 4*dminmax + 2*dxminmin + 2*dxmaxmin - 2*dxmaxmax - 2*dxminmax + 2*dyminmin - 2*dymaxmin - 2*dymaxmax + 2*dyminmax + dxyminmin + dxymaxmin + dxymaxmax + dxyminmax)*t3*u2;
+    result_dy += dy00*t0*u0;
+    result_dy += 2*(-3*d00 + 3*d01 - 2*dy00 - dy01)*t0*u1;
+    result_dy += 3*(2*d00-2*d01 + dy00 + dy01)*t0*u2;
+    result_dy += dxy00*t1*u0;
+    result_dy += 2*(-3*dx00 + 3*dx01 - 2*dxy00 - dxy01)*t1*u1;
+    result_dy += 3*(2*dx00 - 2*dx01 + dxy00 + dxy01)*t1*u2;
+    result_dy += (-3*dy00 + 3*dy10 - 2*dxy00 - dxy10)*t2*u0;
+    result_dy += 2*(9*d00 - 9*d10 + 9*d11 - 9*d01 + 6*dx00 + 3*dx10 - 3*dx11 - 6*dx01 + 6*dy00 - 6*dy10 - 3*dy11 + 3*dy01 + 4*dxy00 + 2*dxy10 + dxy11 + 2*dxy01)*t2*u1;
+    result_dy += 3*(-6*d00 + 6*d10 - 6*d11 + 6*d01 - 4*dx00 - 2*dx10 + 2*dx11 + 4*dx01 - 3*dy00 + 3*dy10 + 3*dy11 - 3*dy01 - 2*dxy00 - dxy10 - dxy11 - 2*dxy01)*t2*u2;
+    result_dy += (2*dy00 - 2*dy10 + dxy00 + dxy10)*t3*u0;
+    result_dy += 2*(-6*d00 + 6*d10 - 6*d11 + 6*d01 - 3*dx00 - 3*dx10 + 3*dx11 + 3*dx01 - 4*dy00 + 4*dy10 + 2*dy11 - 2*dy01 - 2*dxy00 - 2*dxy10 - dxy11 - dxy01)*t3*u1;
+    result_dy += 3*(4*d00 - 4*d10 + 4*d11 - 4*d01 + 2*dx00 + 2*dx10 - 2*dx11 - 2*dx01 + 2*dy00 - 2*dy10 - 2*dy11 + 2*dy01 + dxy00 + dxy10 + dxy11 + dxy01)*t3*u2;
 
     return {result, result_dx, result_dy};
 }

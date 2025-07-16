@@ -64,6 +64,11 @@ namespace scanmethod {
                                     conf.precision, conf.opt_threshold,
                                     conf.px_vert, conf.px_hori);
 
+            // if using SSD then not going to use opt_threshold. It can take
+            // any value. Convergence will be checked against precision only
+            if (conf.corr_crit=="SSD")
+                opt.opt_threshold = std::numeric_limits<double>::max();
+
 
             #pragma omp for
             for (int ss = 0; ss < num_ss; ss++){
@@ -89,6 +94,10 @@ namespace scanmethod {
                 double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
                 util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+
+                if (conf.corr_crit!="SSD")
+                    res.cost = 1-res.cost;
+
                 // append the results for the current subset to result vectors
                 util::append_results(img_num, ss, res, num_ss);
 
@@ -129,6 +138,11 @@ namespace scanmethod {
         optimizer::Parameters opt(conf.num_params, conf.max_iter, 
                                 conf.precision, conf.opt_threshold,
                                 conf.px_vert, conf.px_hori);
+
+        // if using SSD then not going to use opt_threshold. It can take
+        // any value. Convergence will be checked against precision only
+        if (conf.corr_crit=="SSD")
+            opt.opt_threshold = std::numeric_limits<double>::max();
 
 
         // brute force scan parameters
@@ -183,6 +197,12 @@ namespace scanmethod {
             double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
             double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
             util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+
+
+            // if its not SSD, then we need to flip the cost values so that 1.0
+            // is a perfect match rather than 0.0
+            if (conf.corr_crit!="SSD")
+                res.cost = 1-res.cost;
 
             // append the results for the current subset to result vectors
             util::append_results(img_num, ss, res, num_ss);
@@ -249,7 +269,14 @@ namespace scanmethod {
             util::Subset ss_ref(ss_size);
 
             // Optimization parameters
-            optimizer::Parameters opt(conf.num_params, conf.max_iter, conf.precision, conf.opt_threshold, px_vert, px_hori);
+            optimizer::Parameters opt(conf.num_params, conf.max_iter, 
+                                      conf.precision, conf.opt_threshold, 
+                                      px_vert, px_hori);
+
+            // if using SSD then not going to use opt_threshold. It can take
+            // any value. Convergence will be checked against precision only
+            if (conf.corr_crit=="SSD")
+                opt.opt_threshold = std::numeric_limits<double>::max();
 
             brute::Parameters brute(conf.bf_threshold, conf.max_disp);
 
@@ -259,8 +286,10 @@ namespace scanmethod {
                 fft_windows.push_back(std::make_unique<fourier::FFT>(ssdata[t].size));
             }
 
-            // TODO: for the seed location I'm going to overwride the max number of iterations to make sure we get a good convergence.
-            // this is hardcoded for now. Could do with updating so that the seed location is checked ahead of the main correlation run.
+            // TODO: for the seed location I'm going to overwride the max 
+            // number of iterations to make sure we get a good convergence.
+            // this is hardcoded for now. Could do with updating so that 
+            // the seed location is checked ahead of the main correlation run.
             opt.max_iter = 200;
 
             // ---------------------------------------------------------------------------------------------------------------------------
@@ -288,7 +317,10 @@ namespace scanmethod {
 
                 util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
 
-
+                // if its not SSD, then we need to flip the cost values so that 1.0
+                // is a perfect match rather than 0.0
+                if (conf.corr_crit!="SSD")
+                    seed_res.cost = 1.0-seed_res.cost;
 
                 // append the results for the current subset to result vectors
                 util::append_results(img_num, idx, seed_res, num_ss);
@@ -315,6 +347,11 @@ namespace scanmethod {
                     double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
                     double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
                     util::Results nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+                    
+                    // if its not SSD, then we need to flip the cost values so that 1.0
+                    // is a perfect match rather than 0.0
+                    if (conf.corr_crit!="SSD")
+                        nres.cost = 1.0-nres.cost;
 
                     // append the results for the current subset to result vectors
                     util::append_results(img_num, nidx, nres, num_ss);
@@ -323,7 +360,7 @@ namespace scanmethod {
                     computed_mask[nidx] = 1;
 
                     // add this point to queue
-                    local_q[0].push(rg::Point(nidx,1.0-0.5*nres.cost));
+                    local_q[0].push(rg::Point(nidx,nres.cost));
                 }
             }
 
@@ -420,11 +457,17 @@ namespace scanmethod {
                         double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
                         util::Results nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
 
+
+                        // if its not SSD, then we need to flip the cost values so that 1.0
+                        // is a perfect match rather than 0.0
+                        if (conf.corr_crit!="SSD")
+                            nres.cost = 1.0-nres.cost;
+
                         // append results
                         util::append_results(img_num, nidx, nres, num_ss);
 
                         // add results to temp neighbour results
-                        temp_neigh.emplace_back(nidx, 1.0-0.5*nres.cost);
+                        temp_neigh.emplace_back(nidx, nres.cost);
 
                         // update progress bar
                         int progress = current_progress.fetch_add(1);
@@ -506,6 +549,12 @@ namespace scanmethod {
                 double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
                 util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+                
+
+                // if its not SSD, then we need to flip the cost values so that 1.0
+                // is a perfect match rather than 0.0
+                if (conf.corr_crit!="SSD")
+                    res.cost = 1.0-res.cost;
 
                 // append optimization results to results vectors
                 util::append_results(img_num, ss, res, num_ss);
@@ -580,6 +629,11 @@ namespace scanmethod {
                 double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
                 util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+                
+                // if its not SSD, then we need to flip the cost values so that 1.0
+                // is a perfect match rather than 0.0
+                if (conf.corr_crit!="SSD")
+                    res.cost = 1.0-res.cost;
 
                 // append optimization results to results vectors
                 util::append_results(img_num, ss, res, num_ss);
