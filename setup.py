@@ -33,7 +33,7 @@ ext_dic = Extension(
     sorted(glob("src/pyvale/dic/cpp/dic*.cpp")),
     language="c++",
     include_dirs=[pybind11.get_include()],
-    extra_compile_args=['-g', '-O0', '-fopenmp'] if debug_mode else ['-O3', '-fopenmp'],
+    extra_compile_args=['-std=c++17', '-g', '-O0', '-fopenmp'] if debug_mode else ['-std=c++17', '-O3', '-fopenmp'],
     extra_link_args=['-fopenmp'] + (['-g'] if debug_mode else []),
 )
 
