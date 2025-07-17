@@ -550,10 +550,11 @@ namespace util {
     void update_progress_bar(indicators::ProgressBar &bar, int i, int num_ss, std::atomic<int> &prev_pct) {
         int curr_pct = static_cast<float>(i) / static_cast<float>(num_ss) * 100;
         int expected = prev_pct.load();
-    
+
         // Only update bar if we've passed the previous percentage
         if (curr_pct > expected && prev_pct.compare_exchange_strong(expected, curr_pct)) {
-            bar.set_progress(curr_pct);
+            #pragma omp critical
+                bar.set_progress(curr_pct);
         }
     }
 

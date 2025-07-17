@@ -28,7 +28,7 @@ namespace scanmethod {
 
 
     // for graceful exit
-    volatile bool stop_request(false);
+    std::atomic<bool> stop_request(false);
 
     void signalHandler(int signal) {
         if (signal == SIGINT) {
@@ -47,7 +47,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames, img_num, 100);
         std::atomic<int> current_progress = 0;
         std::atomic<int> prev_pct = 0;
 
@@ -263,8 +263,15 @@ namespace scanmethod {
         // queue for each thread
         std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
 
+        // Mutex vector to protect each queue
+        std::vector<std::mutex> queue_mutexes(omp_get_max_threads());
+
         # pragma omp parallel
         {
+
+            int tid = omp_get_thread_num();
+            std::priority_queue<rg::Point>& thread_q = local_q[tid];
+
             // Initialize ref and def subsets
             util::Subset ss_def(ss_size);
             util::Subset ss_ref(ss_size);
@@ -296,7 +303,7 @@ namespace scanmethod {
             // ---------------------------------------------------------------------------------------------------------------------------
             // PROCESS THE SEED SUBSET 
             // ---------------------------------------------------------------------------------------------------------------------------
-            if (omp_get_thread_num() == 0) {
+            if (tid == 0) {
 
                 // seed coordinates
                 int x = seed_x / ss_step;
@@ -327,6 +334,9 @@ namespace scanmethod {
                 util::append_results(img_num, idx, seed_res, num_ss);
 
                 computed_mask[idx].store(1);
+
+                // int progress = current_progress.fetch_add(1);
+                // util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
                 // loop over the neighbours for the initial seed point
                 for (size_t n = 0; n < ssdata[last_size].neigh[idx].size(); n++) {
@@ -361,7 +371,15 @@ namespace scanmethod {
                     computed_mask[idx].store(1);
 
                     // add this point to queue
-                    local_q[0].push(rg::Point(nidx,nres.cost));
+                    // Protect push with mutex
+                    {
+                        std::lock_guard<std::mutex> lock(queue_mutexes[0]);
+                        local_q[0].push(rg::Point(nidx,nres.cost));
+                    }
+
+                    // update progress bar
+                    // int progress = current_progress.fetch_add(1);
+                    // util::update_progress_bar(bar, progress, num_ss, prev_pct);
                 }
             }
 
@@ -369,58 +387,61 @@ namespace scanmethod {
             // ---------------------------------------------------------------------------------------------------------------------------
             // PROCESS ALL OTHER SUBSETS
             // ---------------------------------------------------------------------------------------------------------------------------
+            #pragma omp barrier
+
             opt.max_iter = conf.max_iter;
-            std::priority_queue<rg::Point>& thread_q = local_q[omp_get_thread_num()];
+
             std::vector<rg::Point> temp_neigh;
             temp_neigh.reserve(4);
 
             const int max_idle_iters = 100;
             rg::Point current(0, 0);
 
-            while (!stop_request) {
+                    while (!stop_request) {
+            bool got_point = false;
+            int idle_iters = 0;
 
-                // reset correlation values and got_point
-                bool got_point = false;
-                int idle_iters = 0;
-
-                // Try threads own queue
+            // Try own queue safely
+            {
+                std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
                 if (!thread_q.empty()) {
                     current = thread_q.top();
                     thread_q.pop();
                     got_point = true;
-                } 
-                else {
-                    // Try to steal from top of other local queues
-                    while (!got_point && idle_iters < max_idle_iters) {
-                        # pragma omp critical
-                        {
-                            for (size_t i = 0; i < local_q.size(); ++i) {
-                                if (!local_q[i].empty()) {
-                                    current = local_q[i].top();
-                                    local_q[i].pop();
-                                    got_point = true;
-                                    break;
-                                }
+                }
+            }
+
+            // Steal if nothing in own queue
+            if (!got_point) {
+                while (!got_point && idle_iters < max_idle_iters) {
+                    #pragma omp critical
+                    {
+                        for (size_t i = 0; i < local_q.size(); ++i) {
+                            std::lock_guard<std::mutex> lock(queue_mutexes[i]);
+                            if (!local_q[i].empty()) {
+                                current = local_q[i].top();
+                                local_q[i].pop();
+                                got_point = true;
+                                break;
                             }
                         }
-                        if (!got_point) {
-                            ++idle_iters;
-                            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                        }
+                    }
+                    if (!got_point) {
+                        ++idle_iters;
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     }
                 }
+            }
 
-                if (!got_point) {
-                    break;
-                }
+            if (!got_point) {
+                break;
+            }
 
-                temp_neigh.clear();
+            temp_neigh.clear();
 
 
                 // index of current point in results arrays
-                int idx_results;
-                if (save_at_end) idx_results = img_num * num_ss + current.idx;
-                else idx_results = current.idx;
+                int idx_results = save_at_end ? img_num * num_ss + current.idx : current.idx;
 
                 // loop over neighbouring points
                 for (size_t n = 0; n < ssdata[last_size].neigh[current.idx].size(); n++) {
@@ -463,7 +484,8 @@ namespace scanmethod {
                             nres.cost = 1.0-nres.cost;
 
                         // append results
-                        util::append_results(img_num, nidx, nres, num_ss);
+                        #pragma omp critical
+                            util::append_results(img_num, nidx, nres, num_ss);
 
                         // add results to temp neighbour results
                         temp_neigh.emplace_back(nidx, nres.cost);
@@ -476,6 +498,7 @@ namespace scanmethod {
                 }
 
                 for (const auto& neigh : temp_neigh) {
+                    std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
                     thread_q.push(neigh);
                 }
             }
@@ -556,7 +579,8 @@ namespace scanmethod {
                     res.cost = 1.0-res.cost;
 
                 // append optimization results to results vectors
-                util::append_results(img_num, ss, res, num_ss);
+                #pragma omp critical
+                    util::append_results(img_num, ss, res, num_ss);
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
