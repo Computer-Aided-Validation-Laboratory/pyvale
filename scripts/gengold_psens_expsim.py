@@ -15,18 +15,20 @@ def main() -> None:
     print(80*"=")
     print(f"Saving gold output to: {psensconst.GOLD_PATH}\n")
 
+    sim_list = psensmultiphys.simdata_list_2d()
+    for ss in sim_list:
+        print(f"{ss.time.shape=}")
+    print()
+
     exp_sims_2d = psensmultiphys.exp_sim_2d()
 
-    for ee in exp_sims_2d:
-        sensor_arrays = exp_sims_2d[ee].get_sensor_arrays()
-
-        print(80*"-")
-        print(f"{ee=}")
-        print(f"{len(sensor_arrays)=}")
-        print(80*"-")
-
+    for ii,ee in enumerate(exp_sims_2d):
         exp_data = exp_sims_2d[ee].run_experiments()
         exp_stats = exp_sims_2d[ee].calc_stats()
+        print(80*"=")
+        print(f"{type(exp_data[0])=}")
+        print(f"{type(exp_stats[0])=}")
+        print(80*"=")
 
 
 

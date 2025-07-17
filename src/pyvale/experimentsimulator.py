@@ -142,7 +142,7 @@ class ExperimentSimulator:
 
         for ii,aa in enumerate(self._sensor_arrays):
             meas_array = np.zeros((n_sims,self._num_exp_per_sim)+
-                                aa.get_measurement_shape())
+                                   aa.get_measurement_shape())
 
             for jj,ss in enumerate(self._sim_list):
                 aa.get_field().set_sim_data(ss)

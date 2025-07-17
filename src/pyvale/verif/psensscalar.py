@@ -240,36 +240,29 @@ def err_chain_3d_dict(field: pyv.IField,
     return err_cases
 
 
-def sens_2d_noerrs(sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
-    sim_data = simdata_2d()
+def sens_noerrs(sim_data: mh.SimData,
+                sens_data: pyv.SensorData,
+                elem_dims: int) -> pyv.SensorArrayPoint:
     descriptor = pyv.SensorDescriptorFactory.temperature_descriptor()
     field = pyv.FieldScalar(sim_data,
                             field_key="temperature",
-                            elem_dims=2)
-    sens_array = pyv.SensorArrayPoint(sens_data,
-                                field,
-                                descriptor)
-    return sens_array
-
-
-def sens_3d_noerrs(sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
-    sim_data = simdata_3d()
-    descriptor = pyv.SensorDescriptorFactory.temperature_descriptor()
-    field = pyv.FieldScalar(sim_data,
-                            field_key="temperature",
-                            elem_dims=3)
+                            elem_dims=elem_dims)
     sens_array =  pyv.SensorArrayPoint(sens_data,
                                        field,
                                        descriptor)
     return sens_array
 
 
-def sens_2d_dict() -> dict[str,pyv.SensorArrayPoint]:
-    sens_data_dict = sens_data_2d_dict()
+def sens_dict(sim_data: mh.SimData,
+              sens_data_dict: dict[str,pyv.SensorData],
+              tag: str
+              ) -> dict[str,pyv.SensorArrayPoint]:
 
     sens = {}
     for ss in sens_data_dict:
-        sens_array = sens_2d_noerrs(sens_data_dict[ss])
+        sens_array = sens_noerrs(sim_data,
+                                 sens_data_dict[ss],
+                                 elem_dims=2)
 
         pos_lock = sens_pos_2d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
@@ -283,7 +276,7 @@ def sens_2d_dict() -> dict[str,pyv.SensorArrayPoint]:
                                            pos_lock[pos_lock_key])
 
         for ee in err_chain_dict:
-            tag = f"scal2d_{ss}_err-{ee}"
+            tag = f"{tag}_{ss}_err-{ee}"
             sens[tag] = copy.deepcopy(sens_array)
 
             if err_chain_dict[ee] is not None:
@@ -296,38 +289,18 @@ def sens_2d_dict() -> dict[str,pyv.SensorArrayPoint]:
 
     return sens
 
+
+def sens_2d_dict() -> dict[str,pyv.SensorArrayPoint]:
+    sens_data_dict = sens_data_2d_dict()
+    sim_data = simdata_2d()
+    tag = "scal2D"
+    return sens_dict(sim_data,sens_data_dict,tag)
 
 def sens_3d_dict() -> dict[str,pyv.SensorArrayPoint]:
     sens_data_dict = sens_data_3d_dict()
-
-    sens = {}
-    for ss in sens_data_dict:
-        sens_array = sens_3d_noerrs(sens_data_dict[ss])
-
-        pos_lock = sens_pos_3d_lock(sens_data_dict[ss].positions)
-        for kk in pos_lock:
-            if kk in ss:
-                pos_lock_key = kk
-                break
-
-        err_chain_dict = err_chain_3d_dict(sens_array.get_field(),
-                                           sens_data_dict[ss].positions,
-                                           sens_data_dict[ss].sample_times,
-                                           pos_lock=pos_lock[pos_lock_key])
-
-        for ee in err_chain_dict:
-            tag = f"scal3d_{ss}_err-{ee}"
-            sens[tag] = copy.deepcopy(sens_array)
-
-            if err_chain_dict[ee] is not None:
-                err_int_opts = pyv.ErrIntOpts()
-                err_int = pyv.ErrIntegrator(err_chain_dict[ee],
-                                            sens_data_dict[ss],
-                                            sens[tag].get_measurement_shape(),
-                                            err_int_opts=err_int_opts)
-                sens[tag].set_error_integrator(err_int)
-
-    return sens
+    sim_data = simdata_3d()
+    tag = "scal3D"
+    return sens_dict(sim_data,sens_data_dict,tag)
 
 
 

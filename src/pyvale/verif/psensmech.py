@@ -105,10 +105,10 @@ def sens_data_3d_dict() -> dict[str,pyv.SensorData]:
 
 
 def err_chain_field(field: pyv.IField,
-                          sens_pos: np.ndarray,
-                          samp_times: np.ndarray | None,
-                          pos_lock: np.ndarray | None,
-                          ) -> list[pyv.IErrCalculator]:
+                    sens_pos: np.ndarray,
+                    samp_times: np.ndarray | None,
+                    pos_lock: np.ndarray | None,
+                    ) -> list[pyv.IErrCalculator]:
 
     if samp_times is None:
         samp_times = field.get_time_steps()

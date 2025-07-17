@@ -4,6 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 import copy
+import mooseherder as mh
 import pyvale as pyv
 import pyvale.verif.psensmech as psensmech
 
@@ -22,8 +23,8 @@ applied to vector fields.
 # - Calibration errors for vector fields
 
 
-def sens_2d_noerrs(sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
-    sim_data = psensmech.simdata_mech_2d()
+def sens_2d_noerrs(sim_data: mh.SimData,
+                   sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
     descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
     field = pyv.FieldVector(sim_data,
                             field_key="disp",
@@ -35,8 +36,8 @@ def sens_2d_noerrs(sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
     return sens_array
 
 
-def sens_3d_noerrs(sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
-    sim_data = psensmech.simdata_mech_3d()
+def sens_3d_noerrs(sim_data: mh.SimData,
+                   sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
     descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
     field = pyv.FieldVector(sim_data,
                             field_key="disp",
@@ -48,11 +49,12 @@ def sens_3d_noerrs(sens_data: pyv.SensorData) -> pyv.SensorArrayPoint:
     return sens_array
 
 def sens_2d_dict() -> dict[str,pyv.SensorArrayPoint]:
+    sim_data = psensmech.simdata_mech_2d()
     sens_data_dict = psensmech.sens_data_2d_dict()
 
     sens = {}
     for ss in sens_data_dict:
-        sens_array = sens_2d_noerrs(sens_data_dict[ss])
+        sens_array = sens_2d_noerrs(sim_data,sens_data_dict[ss])
 
         pos_lock = psensmech.sens_pos_2d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
@@ -81,11 +83,12 @@ def sens_2d_dict() -> dict[str,pyv.SensorArrayPoint]:
 
 
 def sens_3d_dict() -> dict[str,pyv.SensorArrayPoint]:
+    sim_data = psensmech.simdata_mech_3d()
     sens_data_dict = psensmech.sens_data_3d_dict()
 
     sens = {}
     for ss in sens_data_dict:
-        sens_array = sens_3d_noerrs(sens_data_dict[ss])
+        sens_array = sens_3d_noerrs(sim_data,sens_data_dict[ss])
 
         pos_lock = psensmech.sens_pos_3d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:

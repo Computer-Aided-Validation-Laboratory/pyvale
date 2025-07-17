@@ -104,14 +104,20 @@ def sens_data_3d_dict() -> dict[str,pyv.SensorData]:
 
 def exp_sim_2d() -> dict[str,pyv.ExperimentSimulator]:
     sens_data_dict = sens_data_2d_dict()
+    sim_list = simdata_list_2d()
 
     fields = ("scal","vect","tens")
     exp_sims = {}
     for ss in sens_data_dict:
+
         sens_noerrs = {}
-        sens_noerrs["scal"] = psensscalar.sens_2d_noerrs(sens_data_dict[ss])
-        sens_noerrs["vect"] = psensvector.sens_2d_noerrs(sens_data_dict[ss])
-        sens_noerrs["tens"] = psenstensor.sens_2d_noerrs(sens_data_dict[ss])
+        sens_noerrs["scal"] = psensscalar.sens_noerrs(sim_list[0],
+                                                      sens_data_dict[ss],
+                                                      elem_dims=2)
+        sens_noerrs["vect"] = psensvector.sens_2d_noerrs(sim_list[0],
+                                                         sens_data_dict[ss])
+        sens_noerrs["tens"] = psenstensor.sens_2d_noerrs(sim_list[0],
+                                                         sens_data_dict[ss])
 
         pos_lock = sens_pos_2d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
@@ -162,7 +168,7 @@ def exp_sim_2d() -> dict[str,pyv.ExperimentSimulator]:
                     err_int_opts = pyv.ErrIntOpts()
                     err_int = pyv.ErrIntegrator(err_chain_dict[ff][ee],
                                                 sens_data_dict[ss],
-                                                sens_noerrs[ff].get_measurement_shape(),
+                                                this_sens.get_measurement_shape(),
                                                 err_int_opts=err_int_opts)
                     this_sens.set_error_integrator(err_int)
 

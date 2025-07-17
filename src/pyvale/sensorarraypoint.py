@@ -159,15 +159,17 @@ class SensorArrayPoint(ISensorArray):
 
         return self._truth
 
-    def set_error_integrator(self, err_int: ErrIntegrator) -> None:
+    def set_error_integrator(self, err_int: ErrIntegrator | None) -> None:
         """Sets the error intergrator that will be used to calculate the sensor
         array measurement errors when `calc_measurements()` is called. See the
         `ErrIntegrator` class for further detail.
 
         Parameters
         ----------
-        err_int : ErrIntegrator
+        err_int : ErrIntegrator | None
             Error integration object with a chain of user defined sensor errors.
+            If None then no errors are calculated and the sensor performs pure
+            interpolation of the input fields.
         """
         self._error_integrator = err_int
 
