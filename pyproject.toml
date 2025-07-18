@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "Cython", "numpy", "pybind11"]
+requires = ["setuptools>=61.0", "wheel", "Cython>=3.0.0", "numpy<2.0.0",
+    "pybind11>=2.13.6"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -32,7 +33,7 @@ dependencies = [
   "pytest>=8.3.5",
   "pybind11>=2.13.6",
   "pyqtgraph>=0.13.7",
-  "opencv-python>=4.12"
+  "opencv-python<=4.9.0.80"
 ]
 
 [project.urls]
