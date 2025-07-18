@@ -9,67 +9,72 @@
 """
 Strain and Deformation Gradient Calculations
 ---------------------------------------------
-This example leads on from the previous one, so its assumed that the results
-have been generated in the current working directory ready to be used for the
-strain calculation
+
+This example follows on from the previous one. It assumes that the DIC results
+have already been generated in the current working directory and are ready to
+be used for strain calculations.
 """
 
 import matplotlib.pyplot as plt
 import pyvale
 
+# %%
+# You can calculate strain directly from the DIC results.
+# It's not necessary to load the data beforehand — you can simply pass the
+# filename (or pattern) to the `data` argument. If you used a custom delimiter
+# or saved in binary format, make sure to specify those as well.
+dic_data = pyvale.dic_data_import(data="dic_results_*.dat")
 
 # %%
-# you can perform a strain calculation on the DIC data. You don't have
-# to import the data first, you can simply set data argument to the name and location of
-# the output data (and you'll also need to set the delimiter and format if that
-# has been altered in anyway).
-dic_data = pyvale.dic_data_import(data="dic_results_*.dat")
- 
-# %%
-# At a minimum you'll need to set the strain window wize and
-# the element type to use over the strain window. The allowed options for the
-# window_elemnt is 4 (bilinear) or 9 (biquadratic). The output will contain, at
-# a minimum, the strain window locations and the deformation gradient. If the
-# user has provided a strain_formulation, then the 2D strain tensor will also
-# be included in the output files.
+# At a minimum, you need to specify the strain window size and the element type
+# used within the window. The valid options for `window_element` are:
+#
+# - `4` for bilinear
+# - `9` for biquadratic
+#
+# The output will always include the window coordinates and the full deformation
+# gradient tensor. If you also specify a `strain_formulation`, the corresponding
+# 2D strain tensor will be included in the output.
 pyvale.strain_2d(data=dic_data, window_size=5, window_element=4)
 
-# %% 
-# The results can be read back into python following the completion of the
-# calculation by using the func:`pyvale.strainDataImport` command.
-straindata = pyvale.strain_data_import(data="strain_dic_results_*", 
+# %%
+# Once the strain calculation is complete, you can import the results using
+# :func:`pyvale.strain_data_import`.
+#
+# Be sure to specify the delimiter, format (binary or not), and layout.
+straindata = pyvale.strain_data_import(data="strain_dic_results_*",
                                        binary=False, delimiter=" ",
                                        layout="matrix")
 
 # %%
-# As an example of some very simple visualisation, you could loop over the
-# number of deformed images and plot the displacement and cost values using the
-# below. You'll need to make sure you have matplotlib.pyplot installed and imported.
+# Here's a simple example of how to visualize the deformation gradient components
+# for the first deformation step using matplotlib.
 fig, axes = plt.subplots(2, 2, figsize=(15, 5))
 axes = axes.flatten()
+fig.suptitle('Deformation Gradient for ' + straindata.filenames[0])
 
-# first deformation image
-im1 = axes[0].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0,:,:,0,0])
-im2 = axes[1].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0,:,:,0,1])
-im3 = axes[2].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0,:,:,1,0])
-im4 = axes[3].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0,:,:,1,1])
+im1 = axes[0].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0, :, :, 0, 0])
+im2 = axes[1].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0, :, :, 0, 1])
+im3 = axes[2].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0, :, :, 1, 0])
+im4 = axes[3].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0, :, :, 1, 1])
 
-# Titles
+# titles
 axes[0].set_title('deformation gradient xx')
 axes[1].set_title('deformation gradient xy')
 axes[2].set_title('deformation gradient yx')
 axes[3].set_title('deformation gradient yy')
 
-
+# Colorbars
 fig.colorbar(im1, ax=axes[0])
 fig.colorbar(im2, ax=axes[1])
 fig.colorbar(im3, ax=axes[2])
 fig.colorbar(im4, ax=axes[3])
 
-
-# layout
+plt.tight_layout()
 plt.show()
 
-
-
-
+# %%
+# .. image:: ../../../../_static/plate_with_hole_def_grad.png
+#    :alt: Displacement and cost values
+#    :width: 800px
+#    :align: center

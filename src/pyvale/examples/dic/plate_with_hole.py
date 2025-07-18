@@ -5,62 +5,74 @@
 #License: MIT
 #Copyright (C) 2024 The Computer Aided Validation Team
 #================================================================================
-
 """
-Simple Example of a 2d plate with a hole
----------------------------------------------
+2D Plate with a Hole
+---------------------
 
-This example takes you through setting up A DIC and strain calculation for 1
+This example walks through setting up a DIC and strain calculation for the
+classic "plate with a hole" problem. The images used are synthetically generated,
+allowing for comparison to analytically known values.
 """
 
 import matplotlib.pyplot as plt
 import pyvale
 
 # %%
-# there'll be a couple of places where we'll be referring back to the reference
-# image, deformed image and subset size, so we'll define them here to start. For
-# series of deformed images, I'd recommend either having them in a seperate
-# folder to the reference image. Or, if they follow a naming convention then you
-# can use a the wildcard operator '*' to select multiple files.
+# We'll start by defining some variables that will be reused throughout the example:
+# the reference image, deformed image(s), and the subset size.
+# 
+# If you're working with a series of deformed images, it's a good idea to place
+# them in a separate folder or ensure they follow a consistent naming convention.
+# In such cases, the wildcard operator `*` can be used to select multiple files.
+#
+# The images used here are included in the `data <https://github.com/Computer-Aided-Validation-Laboratory/pyvale/tree/main/src/pyvale/data>`_ folder.
+# We've provided helper functions to load them regardless of your installation path.
 subset_size = 31
-ref_img = "../../data/plate_hole_ref0000.tiff"
-def_img = "../../data/plate_hole_def000*.tiff"
+ref_img = pyvale.DataSet.dic_plate_with_hole_ref()
+def_img = pyvale.DataSet.dic_plate_with_hole_def()
+print(ref_img)
+print(def_img)
 
-# %% 
-# We'll want to select our Region of Interset (ROI) using the interactive tool.
-# Firstly we create an instance of the  ROI class using
-# :class:`pyvale.dicregionofinterest.DICRegionOfInterest`. The reason we pass the reference image
-# here is that this image will be used as an underlay for the ROI selection
-# process.
+# %%
+# Next, we’ll select our Region of Interest (ROI) using the interactive tool.
+# Create an instance of the ROI class and pass the reference image
+# as input. This image will be shown as the underlay during any ROI selection or
+# visualization.
 roi = pyvale.DICRegionOfInterest(ref_img)
 roi.interactive_selection(subset_size)
 
 # %%
-# Once you've closed the ROI interactive selection, this will generate a mask
-# and seed location coordinates that can then be passed to the DIC engine. It
-# might be the case at this stage you'd want to save the mask for any future DIC
-# calculations with this set of images. For exceptionally large images, 
-# it's recommended to save with binary=True to reduce file size and the time 
-# it takes to save the array to disk.This can be done with:
-roi.save_array(filename="roi.dat",binary=False)
-
-# For any future DIC calculations, you can read the ROI mask back in using the
-# :func:`roi.roiread` command. Remember to update the filename and the whether the ROI
-# mask has been saved in human readable or binary format.
-roi.read_array(filename="roi.dat")
-
+# Once you've closed the ROI interactive window, a mask and seed location coordinates
+# will be generated. These are needed for the DIC engine.
+#
+# If you intend to reuse this ROI, it's a good idea to save it. For large images,
+# setting `binary=True` is recommended to reduce file size and write time.
+roi.save_array(filename="roi.dat", binary=False)
 
 # %%
-# Now for the main event, the 2D DIC engine can be run using the command
-# :func:`pyvale.dic2d.DIC2D`. There's a large number of arguments that can be passed to the
-# DIC engine so please consult the in-depth documentation for further details.
-# In all cases you'll need to specify your reference & deformed images, your ROI
-# mask, and subset information. By default, the engine will use an affine shape
-# function using a Zero Normalised Sum of Squared Differences (ZNSSD)
-# correlation criterion. The results will be saved to disk, you
-# can specify the filename, location, delimiter and format of the output data
-# using the appropriate flags. Again, please see the in-depth documentation for
-# further details.
+# To load a previously saved ROI for future use, use the `read_array` method.
+# Make sure the filename and format (binary or human-readable) match what was saved.
+roi.read_array(filename="roi.dat")
+
+# %%
+# Now we can run the 2D DIC engine using :func:`pyvale.dic_2d`.
+#
+# This function accepts many optional arguments — consult the documentation for full details.
+# At a minimum, you’ll need to specify:
+#
+# - Reference image
+# - Deformed image(s)
+# - ROI mask
+# - Seed coordinates
+# - Subset size
+#
+# By default, the engine uses an affine shape function with the Zero Normalised
+# Sum of Squared Differences (ZNSSD) correlation criterion.
+#
+# DIC Results are saved to disk. You can customize the filename, location, format, and delimiter using :func:
+# By default, the results will be saved with the prefix "dic_restults_" followed
+# by the original filename. The file extension will depend whether you've
+# specified to save in human-readable or binary format.
 pyvale.dic_2d(reference=ref_img,
               deformed=def_img,
               roi_mask=roi.mask,
@@ -72,32 +84,29 @@ pyvale.dic_2d(reference=ref_img,
               correlation_criteria="ZNSSD")
 
 # %%
-# If you've saved the results in human readable format, then feel free to use
-# whatever tool you'd like to perform and visualisation and further analysis. If
-# you'd like to use python, we've written a handly tool that can import the data
-# for further inspection. This can be done with the DICdata_import command. The
-# results will be placed in a DICResults object. You can find more information
-# about the structure of the dataclass here
-# :class:`pyvale.DICResults`. If the results
-# have been saved in binary format, or have a user specified delimiter, then
-# they'll also need to be specified. There's also the option to specify the
-# layout of the imported data. See :class:`pyvale.DICResults` for more details.
-# You can also look at :func:`pyvale.DICdata_import` for more info
+# If you saved the results in a human-readable format, you can use any tool
+# (e.g., Excel, Python, MATLAB) for post-processing.
+#
+# For convenience, we provide a utility function to import results back into Python
+# for analysis and visualization: :func:`pyvale.dic_data_import`.
+#
+# The returned object is an instance of :class:`pyvale.DICResults`. If the results
+# were saved in binary format or with a custom delimiter, be sure to specify those parameters.
 dicdata = pyvale.dic_data_import(data="dic_results_*.dat", delimiter=" ", binary=False)
 
 # %%
-# As an example of some very simple visualisation, you could loop over the
-# number of deformed images and plot the displacement and cost values using the
-# below. You'll need to make sure you have matplotlib.pyplot installed and imported.
+# As an example, here's a simple visualization of the displacement (u, v) and
+# correlation cost for the two deformed images using matplotlib. You'll need to 
+# Ensure `matplotlib.pyplot` is installed and imported.
 fig, axes = plt.subplots(2, 3, figsize=(15, 5))
 axes = axes.flatten()
 
-# first deformation image
+# First deformation image
 im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u[0])
 im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[0])
 im3 = axes[2].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[0])
 
-# second deformation image
+# Second deformation image
 im4 = axes[3].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u[1])
 im5 = axes[4].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[1])
 im6 = axes[5].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[1])
@@ -110,7 +119,7 @@ axes[3].set_title('u component (def0001.tiff)')
 axes[4].set_title('v component (def0001.tiff)')
 axes[5].set_title('cost (def0001.tiff)')
 
-
+# Colorbars
 fig.colorbar(im1, ax=axes[0])
 fig.colorbar(im2, ax=axes[1])
 fig.colorbar(im3, ax=axes[2])
@@ -118,15 +127,11 @@ fig.colorbar(im4, ax=axes[3])
 fig.colorbar(im5, ax=axes[4])
 fig.colorbar(im6, ax=axes[5])
 
-# layout
+plt.tight_layout()
 plt.show()
-
 
 # %%
 # .. image:: ../../../../_static/plate_with_hole.png
 #    :alt: Displacement and cost values
-#    :width: 600px
+#    :width: 800px
 #    :align: center
-
-
-

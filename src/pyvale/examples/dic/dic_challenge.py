@@ -10,27 +10,40 @@
 Comparison to the 2.0 2D DIC Challenge
 ---------------------------------------------
 
-This example takes you through setting up A DIC and strain calculation for 1
+The DIC challenge provides a framework for comparison and validation of existing
+DIC Codes. More information can be found at `https://idics.org/challenge/
+<https://idics.org/challenge/>`_. In this example we look at a comparison to a
+image generated with ±0.5 pixel sinusoidal vertical displacement amplitude “star” 
+pattern with varying spatial frequency. More information on the image creation
+can be found in the `original paper
+<https://link.springer.com/article/10.1007/s11340-021-00806-6>`_. In this
+example we'll look at the convergence to the peak vertical discplacement value
+of 0.5 pixels along a particular correlation direction. 
+
+As always, we'll start with importing the required libraries:
 """
 
 import pyvale
 import matplotlib.pyplot as plt
 
-ref_pattern = "../../data/DIC_Challenge_Star_Noise_Ref.tif"
-def_pattern = "../../data/DIC_Challenge_Star_Noise_Def.tif"
+
+# %%
+# There's a pair of DIC challenge images that come as part of the Pyvale install. We can preload them with:
+ref_pattern = pyvale.DataSet.dic_challenge_ref()
+def_pattern = pyvale.DataSet.dic_challenge_def()
 subset_size = 17
-subset_radius = subset_size // 2
 
 
 # %%
 # we need to select our region of interest. For this example, we are only
-# interested in the subsets along mid point. 
+# interested in the subsets along the mid horizontal line.
 # We can use :func:`roi.rect_boundary` to exclude a large border region so we
-# only correlate along the horizontal at the midpoint
-roi = pyvale.DICRegionOfInterest(ref_pattern)
-roi.rect_boundary(50,50,250-subset_radius,250-subset_radius) # left, right, top, bottom
+# only correlate along the horizontal at the midpoint for our selected subset
+# size
+roi = pyvale.DICRegionOfInterest(ref_image=ref_pattern)
+subset_radius = subset_size // 2
+roi.rect_boundary(left=50,right=50,top=250-subset_radius,bottom=250-subset_radius)
 roi.show_image()
-
 
 # %%
 # .. image:: ../../../../_static/dic_challenge_roi.png
@@ -41,12 +54,12 @@ roi.show_image()
 
 # %% 
 # To perform the correlation we need to select a seed point. Ideally, this is
-# somewhere in a region of a small displacement. Here we'll select it to be
-# [3500,250] which is close to the right hand boundary of the image along the
-# midpoint where the spatial frequency is lower. The results will be saved in
+# somewhere in the region where the displacements are small with low noise. 
+# Here we'll select it to be [3500,250], which is close to the right hand
+# boundary where the spatial frequency is lower. The results will be saved in
 # the current working directory with a filename prefix of subset_size_19_*.txt
 # If you are feeling adventorous you could investigate the effect of varying the
-# subset size by placing this script within some kind of loop.
+# subset size by placing the above and below sections in a loop.
 pyvale.dic_2d(reference=ref_pattern,
               deformed=def_pattern,
               roi_mask=roi.mask,
@@ -55,13 +68,16 @@ pyvale.dic_2d(reference=ref_pattern,
               seed=[3500,250],
               max_displacement=10)
 
-
 # %% 
 # We can import the results in the standard way
 dicdata = pyvale.dic_data_import(data="dic_results_DIC_Challenge*",
                                  layout='column', binary=False, delimiter=" ")
 
-
+# &&
+# Finally a simple plot of the calculated displacements at y=2500. This could be
+# extended and compared to other DIC engines used in the 2.0 DIC challenge. A
+# link to the dataset can be found under '2D-DIC Challenge 2.0' can be found
+# at `https://idics.org/challenge/ <https://idics.org/challenge/>`_
 plt.figure()
 plt.xlabel("subset x location [px]")
 plt.ylabel("Displacement [px]")

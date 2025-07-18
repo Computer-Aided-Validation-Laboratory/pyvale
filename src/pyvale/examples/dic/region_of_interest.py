@@ -7,22 +7,21 @@
 #================================================================================
 
 """
-Region of Interest (ROI) Selection
+Selecting a Region of Interest (ROI)
 ---------------------------------------------
 
-this is a test
-
+This example looks at the current core functionality of the Region of Interest
+(ROI) Selection Firsly we'll need to import `pyvale` itself.
 """
+
 import pyvale
 
 # %% 
-# We'll want to select our Region of Interset (ROI) using the interactive tool.
-# Firstly we create an instance of the  ROI class. The reason we pass the reference image
-# here is that this image will be used as an underlay for the ROI selection
-# process.
+# We'll begin by selecting our Region of Interest (ROI) using the interactive selection tool.
+# First, we create an instance of the ROI class. We pass a reference image to it, which is
+# displayed as the underlay during ROI selection.
 roi = pyvale.DICRegionOfInterest(ref_image="../../data/plate_hole_ref0000.tiff")
 roi.interactive_selection(subset_size=31)
-exit(0)
 
 # %%
 # .. image:: ../../../../_static/roi_tool.gif
@@ -31,37 +30,30 @@ exit(0)
 #    :align: center
 
 # %%
-# Once you've closed the ROI interactive selection, this will generate a mask
-# and seed location coordinates that can then be passed to the DIC engine. It
-# might be the case at this stage you'd want to save the mask for any future DIC
-# calculations with this set of images. For exceptionally large images, 
-# it's recommended to save with binary=True to reduce file size and the time 
-# it takes to save the array to disk.This can be done with:
+# After closing the interactive tool, a mask and a set of seed coordinates will be generated.
+# These can be used directly in the DIC engine. If you plan to reuse the ROI, it’s a good idea
+# to save it. For very large images, set `binary=True` to reduce file size and speed up saving.
 roi.save_array(filename="roi.dat",binary=False)
 
 # %%
-# For any future DIC calculations, you can read the ROI mask back in using the
-# :func:`roi.roiread` command. Remember to update the filename and the whether the ROI
-# mask has been saved in human readable or binary format.
+# To reuse the saved ROI mask in the future, load it using:
 roi.read_array(filename="roi.dat",binary=False)
 
 # %%
-# if you are reading in a previously saved ROI. Then you can view it
-# overlayed over your reference image to check before proceeding with any
-# correlation. This can be done with the command:
+# If you are loading a previously saved ROI, you may want to visualize it
+# overlaid on the reference image to verify it before proceeding with correlation.
 roi.show_image()
 
 # %%
-# At present, there are a couple of other ways of selecting a region of
-# interest programatically. Firstly, there's the option to remove a boundary
-# from the ROI, leaving a central region. This can be done with:
+# There are also programmatic ways to define an ROI.
+# For example, to exclude a boundary region and keep only the central part:
 roi.reset_mask()
 roi.rect_boundary(left=50,right=50,bottom=50,top=50)
 roi.save_image("rect_boundary.tiff")
 
 # %%
-# and this will exclude the 50 pixels along all edges from the correlation. You
-# can also select a specific region using the command:
+# This excludes 50 pixels along each edge of the image from the ROI.
+# Alternatively, to define a specific rectangular region:
 roi.reset_mask()
 roi.rect_region(x=200,y=200,size_x=200,size_y=200)
 roi.save_image("rect_region.tiff")
@@ -76,7 +68,7 @@ roi.save_image("rect_region.tiff")
 #          :width: 300px
 #          :align: center
 #
-#          ``roi.rect_boundary(left=50, right=50, bottom=50, top=50)``
+#          ``roi.rect_boundary(left=200, right=200, bottom=200, top=200)``
 #
 #      - .. figure:: ../../../../_static/rect_region.png
 #          :width: 300px
@@ -85,12 +77,12 @@ roi.save_image("rect_region.tiff")
 #          ``roi.rect_region(x=200, y=200, size_x=200, size_y=200)``
 
 # %%
-# this will create a ROI starting at pixel coordinates (200,200) with dimensions
-# (50,100).
+# The `rect_region` example above creates an ROI starting at pixel coordinates (200, 200)
+# with a size of 200×200 pixels.
 #
-# Of course you could manually edit the ROI however you'd like. I'd suggest
-# creating a initial ROI using `roi.rect_boundary(0,0,0,0)`. You can then
-# manipulate `roi.mask` as you would with any other 2D numpy array. 
+# You can also manually modify the ROI mask. A good starting point is:
+# `roi.rect_boundary(0, 0, 0, 0)` — this sets the ROI to include the full image.
+# From there, you can manipulate `roi.mask` as you would any other 2D NumPy array.
 
 
 
