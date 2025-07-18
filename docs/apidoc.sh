@@ -1,8 +1,12 @@
 echo "=========================================="
 echo " GENERATING PYTHON API DOCUMENTATION..."
 echo "=========================================="
+
 #generate the python api documentation
 sphinx-apidoc -f -o ./source --separate ../src/pyvale/ ../src/pyvale/data/* ../src/pyvale/examples/ --tocfile api_py
+
+#generate the c++ api documentation
+cd ./source && doxygen Doxyfile && cd ..
 
 if [ $? -ne 0 ]; then
     echo "... sphinx-apidoc failed!"

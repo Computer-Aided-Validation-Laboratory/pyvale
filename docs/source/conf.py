@@ -82,23 +82,32 @@ autodoc_default_options = {
 autoclass_content = 'class'  # Only class docstring, not __init__
 add_module_names = False  # Keep class names short
 
-# -- Autosummary configuration ----------------------------------------------
 
+
+
+# -- Autosummary configuration ----------------------------------------------
 autosummary_generate = True
 autosummary_generate_overwrite = True
 autosummary_imported_members = False
 
-# -- Breathe configuration (for C++ docs) -----------------------------------
 
-breathe_projects = {"test": "./doxygen/xml"}
-breathe_default_project = "test"
+
+
+# -- Breathe configuration (for C++ docs) -----------------------------------
+breathe_projects = {"pyvale": "./doxygen/xml"}
+breathe_default_project = "pyvale"
+
+
+
 
 # -- Code autolink configuration --------------------------------------------
-
 codeautolink_concat_default = True
 
-# -- Sphinx Gallery configuration -------------------------------------------
 
+
+
+
+# -- Sphinx Gallery configuration -------------------------------------------
 sphinx_gallery_conf = {
     # Path to your example scripts
     'examples_dirs': [
@@ -129,13 +138,17 @@ sphinx_gallery_conf = {
     'show_signature': True,
 }
 
-# -- Copy button configuration ----------------------------------------------
 
+
+
+# -- Copy button configuration ----------------------------------------------
 copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
 copybutton_prompt_is_regexp = True
 
-# -- MyST Parser configuration ----------------------------------------------
 
+
+
+# -- MyST Parser configuration ----------------------------------------------
 myst_enable_extensions = [
     "colon_fence",
     "deflist",
@@ -229,11 +242,9 @@ napoleon_type_aliases = {
 }
 
 # -- Custom CSS and JS files ------------------------------------------------
-
 html_js_files = []
 
 # -- Intersphinx mapping -----------------------------------------------------
-
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
