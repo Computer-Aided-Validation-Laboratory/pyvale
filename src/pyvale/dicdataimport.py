@@ -9,6 +9,7 @@
 import numpy as np
 import glob
 import os
+from pathlib import Path
 
 # import cython module
 from pyvale.dicresults import DICResults
@@ -19,7 +20,7 @@ calculations.
 """
 
 
-def dic_data_import(data: str = "./",
+def dic_data_import(data: str | Path,
                    binary: bool = False,
                    layout: str = "matrix",
                    delimiter: str = " ") -> DICResults:
@@ -27,18 +28,19 @@ def dic_data_import(data: str = "./",
     Import DIC result data from human readable text or binary files.
 
     Parameters
-    -----------
+    ----------
+
+    data : str or pathlib.Path
+        Path pattern to the data files (can include wildcards). Default is "./".
+
     layout : str, optional
         Format of the output data layout: "column" (flat array per frame) or "matrix" 
         (reshaped grid per frame). Default is "column".
-        
-    data : str, optional
-        Path pattern to the data files (can include wildcards). Default is "./".
-        
+
     binary : bool, optional
         If True, expects files in a specific binary format. If False, expects text data. 
         Default is False.
-        
+
     delimiter : str, optional
         Delimiter used in text data files. Ignored if binary=True. Default is a single space.
 
@@ -46,7 +48,7 @@ def dic_data_import(data: str = "./",
     -------
     DICResults
         A named container with the following fields:
-            - X, Y (grid arrays if layout=="matrix"; otherwise, 1D integer arrays)
+            - ss_x, ss_y (grid arrays if layout=="matrix"; otherwise, 1D integer arrays)
             - u, v, m, converged, cost, ftol, xtol, niter (arrays with shape depending on layout)
             - filenames (python list)
 
@@ -64,6 +66,10 @@ def dic_data_import(data: str = "./",
     print("")
     print("Attempting DIC Data import...")
     print("")
+
+    # convert to str 
+    if isinstance(data, Path):
+        data = str(data)
 
     files = sorted(glob.glob(data))
     filenames = files
@@ -99,6 +105,10 @@ def dic_data_import(data: str = "./",
         return DICResults(X, Y, *arrays, filenames)
     else:
         return DICResults(ss_x_ref, ss_y_ref, *arrays, filenames)
+
+
+
+
 
 def read_binary(file: str, delimiter: str):
     """
@@ -149,6 +159,9 @@ def read_binary(file: str, delimiter: str):
     niter = extract(4, np.int32, 57)
     return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter
 
+
+
+
 def read_text(file: str, delimiter: str):
     """
     Read a human-readable text DIC result file and extract DIC fields.
@@ -187,6 +200,10 @@ def read_text(file: str, delimiter: str):
         data[:, 6], data[:, 7], data[:,8], # cost, ftol, xtol
         data[:, 9].astype(np.int32) #niter
     )
+
+
+
+
 
 def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
     """

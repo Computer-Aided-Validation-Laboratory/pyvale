@@ -9,7 +9,7 @@ import glob
 import os
 import sys
 from PIL import Image
-from typing import Union
+from pathlib import Path
 
 """
 This module contains functions for checking arguments passed to the 2D DIC
@@ -326,8 +326,8 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
     return [new_x, new_y]
 
 
-def check_and_get_images(reference: Union[np.ndarray, str],
-                         deformed: Union[np.ndarray, str],
+def check_and_get_images(reference: np.ndarray | str | Path,
+                         deformed: np.ndarray | str | Path,
                          roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[str]]:
     """
     Load and validate reference and deformed images, checks consistency in shape/format.
@@ -345,9 +345,9 @@ def check_and_get_images(reference: Union[np.ndarray, str],
 
     Parameters
     ----------
-    reference : Union[np.ndarray, str]
+    reference : np.ndarray, str, pathlib.Path
         Either a NumPy array representing the reference image, or a file path to a reference image.
-    deformed : Union[np.ndarray, str]
+    deformed : np.ndarray, str, pathlib.Path
         Either a NumPy array representing a sequence of deformed images (shape: [N, H, W]),
         or a glob pattern string pointing to multiple image files.
     roi : np.ndarray
@@ -375,6 +375,13 @@ def check_and_get_images(reference: Union[np.ndarray, str],
 
     filenames = []
 
+
+    # Normalize Path or str to Path
+    if isinstance(reference, (str, Path)):
+        reference = Path(reference)
+    if isinstance(deformed, (str, Path)):
+        deformed = Path(deformed)
+
     # check matching filetypes 
     if type(reference) is not type(deformed):
         raise ValueError(
@@ -382,17 +389,16 @@ def check_and_get_images(reference: Union[np.ndarray, str],
             f"deformed={type(deformed)}")
 
 
-    # if the reference is a string rather than a numpy array
-    if isinstance(reference, str):
-        assert isinstance(deformed, str)
+    # File-based input
+    if isinstance(reference, Path):
+        assert isinstance(deformed, Path)
 
-        # check reference image exists 
-        if not os.path.isfile(reference):
+        if not reference.is_file():
             raise ValueError(f"Reference image does not exist: {reference}")
         print("Using reference image: ")
         print(f"  - {reference}\n")
 
-        # get shape. check channels
+        # Load reference image
         ref_arr = np.array(Image.open(reference))
         print(f"Reference image shape: {ref_arr.shape}")
         if ref_arr.ndim == 3:
@@ -400,12 +406,11 @@ def check_and_get_images(reference: Union[np.ndarray, str],
             ref_arr = ref_arr[:, :, 0]
         print("")
 
-        # deformed files
-        files = sorted(glob.glob(deformed))
+        # Find deformation image files
+        files = sorted(glob.glob(str(deformed)))
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
-        # can't find any deformed files
         print(f"Found {len(files)} deformation images:")
         for file in files:
             print(f"  - {file}")
@@ -419,13 +424,11 @@ def check_and_get_images(reference: Union[np.ndarray, str],
             if img.ndim == 3:
                 print(f"Deformed image {file} appears to have {img.shape[2]} channels. Using channel 0.")
                 img = img[:, :, 0]
-
-            # check deformed image shape matches reference
             if img.shape != ref_arr.shape:
-                raise ValueError(f"Shape mismatch: '{file}' has shape {img.shape}", f"expected {ref_arr.shape}")
-
+                raise ValueError(f"Shape mismatch: '{file}' has shape {img.shape}, expected {ref_arr.shape}")
             def_arr[i] = img
 
+    # Array-based input
     else:
         assert isinstance(reference, np.ndarray)
         assert isinstance(deformed, np.ndarray)
@@ -435,7 +438,6 @@ def check_and_get_images(reference: Union[np.ndarray, str],
         if (reference.shape != deformed[0].shape or reference.shape != roi.shape):
             raise ValueError(f"Shape mismatch: reference {reference.shape}, "
                              f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
-
     
     # it might be the case that the roi has been manipulated prior to DIC run
     # and therefore we need to to prevent the roi mask from being a 'view'

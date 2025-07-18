@@ -9,9 +9,11 @@ import pyqtgraph as pg
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.path import Path
+from matplotlib.path import Path as mplPath
 import math
 import yaml
+import os
+from pathlib import Path
 
 class DICRegionOfInterest:
     """
@@ -31,17 +33,20 @@ class DICRegionOfInterest:
         mask (np.ndarray): A binary mask representing the selected regions of interest.
     """
     
-    def __init__(self, ref_image):
+    def __init__(self, ref_image: str | np.ndarray | Path):
         """
-        Initializes the DICRegionOfInterest class with an image.
-
-        Args:
-            image (str or np.ndarray): Can be a path to an image file or an image array.
-
-        Raises:
+        Parameters
+        ----------
+        ref_image : str, numpy.ndarray, pathlib.Path
+            location of the reference image.
+        
+        Raises
+        ------
             ValueError: If the image cannot be loaded or is invalid.
         """
         if isinstance(ref_image, str):
+            self.ref_image = cv2.imread(ref_image)
+        elif isinstance(ref_image, Path):
             self.ref_image = cv2.imread(ref_image)
         else:
             self.ref_image = ref_image.copy()
@@ -477,7 +482,7 @@ class DICRegionOfInterest:
         
         if len(points) >= 3:
             vertices = np.array([(p[1]+pos[1], p[0]+pos[0]) for p in points])
-            path = Path(vertices)
+            path = mplPath(vertices)
             
             x_min, x_max = int(np.floor(vertices[:, 0].min())), int(np.ceil(vertices[:, 0].max()))
             y_min, y_max = int(np.floor(vertices[:, 1].min())), int(np.ceil(vertices[:, 1].max()))
@@ -693,35 +698,53 @@ class DICRegionOfInterest:
             self.mask[top:bottom, left:right] = 255
             self.__roi_selected = True
 
-    def save_image(self, filename: str="./roi.tiff") -> None:
+
+
+
+    def save_image(self, filename: str | Path) -> None:
         """
-        Saves the image with the mask overlayed.
+        Save the ROI overlayed over the reference image in .tiff image format.
 
-        Args:
-            filename (str): The path where the result image will be saved.
+        Parameters
+        ----------
+        filename : str or pathlib.Path
+            Filename of image
 
-        Raises:
-            ValueError: If no ROI is selected.
+        Raises
+        ------
+        ValueError
+            If no ROI has been selected
         """
         if not self.__roi_selected:
-            raise ValueError("No ROI selected with \'interactive_selection\' or \'rect_boundary\' ")
+            raise ValueError("No ROI selected with \'interactive_selection\', \'rect_boundary\', \'read_array\' or \'rect_region\'. ")
+
         overlay = self.ref_image.copy()
         overlay[self.mask] = (0, 255, 0)
         result = cv2.addWeighted(self.ref_image, 0.6, overlay, 0.4, 0)
         cv2.imwrite(filename, result)
 
-    def save_array(self, filename: str="./roi.dat", binary: bool=False) -> None:
+
+
+
+    def save_array(self, filename: str | Path, binary: bool=False) -> None:
         """
-        Saves the roi as a binary mask or text file.
-        
-        Args:
-            filename (str): The path where the result image will be saved.
-            binary (bool): If True, saves as a binary mask. If False, saves as a text file.
-        Raises:
-            ValueError: If no ROI is selected.
+        Save the ROI mask as a numpy binary or text file.
+
+        Parameters
+        ----------
+        filename : str or pathlib.Path
+            filename given to saved ROI mask
+        binary : bool
+            If True, saves from as a .npy binary file. 
+            If False, saves to a space delimited text file.
+
+        Raises
+        ------
+        ValueError
+            If no ROI has been selected.
         """
         if not self.__roi_selected:
-            raise ValueError("No ROI selected with \'interactive_selection\' or \'rect_boundary\' ")
+            raise ValueError("No ROI selected with \'interactive_selection\', \'rect_boundary\', \'read_array\' or \'rect_region\'. ")
         
         if binary:
             np.save(filename, self.mask)
@@ -729,13 +752,13 @@ class DICRegionOfInterest:
             np.savetxt(filename, self.mask, fmt='%d', delimiter=' ')
 
 
-    def read_array(self, filename: str = "./roi.dat", binary: bool = False) -> None:
+    def read_array(self, filename: str | Path, binary: bool = False) -> None:
         """
         Load the ROI mask from a binary or text file and store it in `self.mask`.
 
         Parameters
         ----------
-        filename : str
+        filename : str or pathlib.Path
             Path to the file to load.
         binary : bool
             If True, loads from a .npy binary file. If False, loads from a text file.
@@ -747,8 +770,6 @@ class DICRegionOfInterest:
         ValueError
             If the loaded data is not a valid mask.
         """
-        import os
-        import numpy as np
 
         if not os.path.exists(filename):
             raise FileNotFoundError(f"File '{filename}' does not exist.")

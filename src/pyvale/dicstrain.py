@@ -7,6 +7,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import glob
+from pathlib import Path
 
 from pyvale import dic2dcpp
 from pyvale.dicdataimport import dic_data_import
@@ -107,16 +108,59 @@ def strain_2d(data: DICResults | str,
 
 
 
-def strain_data_import(data: str = "./",
+def strain_data_import(data: str | Path,
                    binary: bool = False,
                    layout: str = "matrix",
                    delimiter: str = " ") -> StrainResults:
+    """
+    Import strain result data from human readable text or binary files.
+
+    Parameters
+    ----------
+
+    data : str or pathlib.Path
+        Path pattern to the data files (can include wildcards). Default is "./".
+
+    layout : str, optional
+        Format of the output data layout: "column" (flat array per frame) or "matrix" 
+        (reshaped grid per frame). Default is "column".
+
+    binary : bool, optional
+        If True, expects files in a specific binary format. If False, expects text data. 
+        Default is False.
+
+    delimiter : str, optional
+        Delimiter used in text data files. Ignored if binary=True. Default is a single space.
+
+    Returns
+    -------
+    StrainResults
+        A named container with the following fields:
+            - window_x, window_y (grid arrays if layout=="matrix"; otherwise, 1D integer arrays)
+            - def_grad, eps (deformation gradient and strain arrays with shape depending on layout)
+            - filenames (python list)
+
+    Raises
+    ------
+    ValueError:
+        If `layout` is not "column" or "matrix", or text data has insufficient columns,
+        or binary rows are malformed.
+        
+    FileNotFoundError:
+        If no matching data files are found.
+    """
+
 
 
 
     print("")
     print("Attempting Strain Data import...")
     print("")
+    
+    # convert to str 
+    if isinstance(data, Path):
+        data = str(data)
+
 
     files = sorted(glob.glob(data))
     filenames = files

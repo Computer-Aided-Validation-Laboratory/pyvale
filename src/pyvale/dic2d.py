@@ -7,14 +7,15 @@
 
 
 import numpy as np
+from pathlib import Path
 
 # import cython module
 import pyvale.dic2dcpp as dic2dcpp
 import pyvale.dicchecks as dicchecks
 
 
-def dic_2d(reference: np.ndarray | str,
-          deformed: np.ndarray | str,
+def dic_2d(reference: np.ndarray | str | Path,
+          deformed: np.ndarray | str | Path,
           roi_mask: np.ndarray,
           seed: list[int]=[],
           subset_size: int = 21,
@@ -42,9 +43,9 @@ def dic_2d(reference: np.ndarray | str,
 
     Parameters
     ----------
-    reference : np.ndarray or str
+    reference : np.ndarray, str or pathlib.Path
         The reference image (2D array) or path to the image file.
-    deformed : np.ndarray or str
+    deformed : np.ndarray, str or pathlib.Path
         The deformed image(s) (3D array for multiple images) or path/pattern to image files.
     roi_mask : np.ndarray
         A binary mask indicating the Region of Interest (ROI) for analysis (same size as image).
