@@ -368,8 +368,8 @@ namespace util {
         std::ofstream outfile;
 
         std::string file_ext;
-        if (saveconf.binary) file_ext=".bin";
-        else file_ext=".dat";
+        if (saveconf.binary) file_ext=".dic2d";
+        else file_ext=".csv";
 
         // Extract the base filename without extension
         std::string full_filename = filenames[img];

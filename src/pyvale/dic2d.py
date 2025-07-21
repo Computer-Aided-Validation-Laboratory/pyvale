@@ -17,7 +17,7 @@ import pyvale.dicchecks as dicchecks
 def dic_2d(reference: np.ndarray | str | Path,
           deformed: np.ndarray | str | Path,
           roi_mask: np.ndarray,
-          seed: list[int]=[],
+          seed: list[int],
           subset_size: int = 21,
           subset_step: int = 10,
           correlation_criteria: str="ZNSSD",
@@ -33,7 +33,7 @@ def dic_2d(reference: np.ndarray | str | Path,
           output_basepath: str="./",
           output_binary: bool=False,
           output_prefix: str="dic_results_",
-          output_delimiter: str=" ") -> None:
+          output_delimiter: str=",") -> None:
     """
     Perform 2D Digital Image Correlation (DIC) between a reference image and one or more deformed images.
 

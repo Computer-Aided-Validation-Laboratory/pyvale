@@ -307,8 +307,8 @@ namespace strain {
 
         // file extension
         std::string file_ext;
-        if (strain_save_conf.binary) file_ext=".bin";
-        else file_ext=".dat";
+        if (strain_save_conf.binary) file_ext=".dic2d";
+        else file_ext=".csv";
 
         // output filename
         outfile_str << strain_save_conf.basepath << "/" <<

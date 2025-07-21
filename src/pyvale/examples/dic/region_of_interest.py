@@ -20,7 +20,8 @@ import pyvale
 # We'll begin by selecting our Region of Interest (ROI) using the interactive selection tool.
 # First, we create an instance of the ROI class. We pass a reference image to it, which is
 # displayed as the underlay during ROI selection.
-roi = pyvale.DICRegionOfInterest(ref_image="../../data/plate_hole_ref0000.tiff")
+ref_img = pyvale.DataSet.dic_plate_with_hole_ref()
+roi = pyvale.DICRegionOfInterest(ref_image=ref_img)
 roi.interactive_selection(subset_size=31)
 
 # %%

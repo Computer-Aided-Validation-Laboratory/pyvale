@@ -15,18 +15,18 @@ from pyvale.dicresults import DICResults
 from pyvale.dicstrainresults import StrainResults
 
 def strain_2d(data: DICResults | str,
-                         window_size: int=5, 
-                         window_element: int=4,
-                         input_binary: bool=False,
-                         input_delimiter: str=" ",
-                         output_def_grad: bool=True,
-                         output_strain: bool=True,
-                         output_basepath: str="./",
-                         output_binary: bool=False,
-                         output_prefix: str="strain_",
-                         output_delimiter: str=" ",
-                         output_at_end: bool=False,
-                         strain_formulation: str="HENCKY"):
+              window_size: int=5, 
+              window_element: int=4,
+              input_binary: bool=False,
+              input_delimiter: str=" ",
+              output_def_grad: bool=True,
+              output_strain: bool=True,
+              output_basepath: str="./",
+              output_binary: bool=False,
+              output_prefix: str="strain_",
+              output_delimiter: str=",",
+              output_at_end: bool=False,
+              strain_formulation: str="HENCKY"):
     """
     Compute strain fields from DIC displacement data using a finite element smoothing approach.
 
