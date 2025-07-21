@@ -221,3 +221,7 @@ docs/source/examples/
 
 # doxygen folder generated when compiling docs
 docs/source/doxygen
+
+# rastercyth generated files
+src/pyvale/cython/rastercyth.c
+src/pyvale/cython/rastercyth.html
