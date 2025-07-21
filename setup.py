@@ -2,11 +2,8 @@ from setuptools import  setup, Extension
 from Cython.Build import cythonize
 import numpy
 import sys
-import os
 from glob import glob
 import pybind11
-import urllib.request
-import tarfile
 
 
 debug_mode = '--debug' in sys.argv
