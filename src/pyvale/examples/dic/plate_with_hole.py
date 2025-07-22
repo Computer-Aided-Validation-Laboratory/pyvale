@@ -15,6 +15,7 @@ allowing for comparison to analytically known values.
 """
 
 import matplotlib.pyplot as plt
+from pathlib import Path
 import pyvale
 
 # %%
@@ -30,8 +31,11 @@ import pyvale
 subset_size = 31
 ref_img = pyvale.DataSet.dic_plate_with_hole_ref()
 def_img = pyvale.DataSet.dic_plate_with_hole_def()
-print(ref_img)
-print(def_img)
+
+# create a directory for the the different outputs
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
 # Next, we’ll select our Region of Interest (ROI) using the interactive tool.
@@ -47,12 +51,13 @@ roi.interactive_selection(subset_size)
 #
 # If you intend to reuse this ROI, it's a good idea to save it. For large images,
 # setting `binary=True` is recommended to reduce file size and write time.
-roi.save_array(filename="roi.dat", binary=False)
+roi_file = output_path / "roi.dat"
+roi.save_array(filename=roi_file, binary=False)
 
 # %%
 # To load a previously saved ROI for future use, use the `read_array` method.
 # Make sure the filename and format (binary or human-readable) match what was saved.
-roi.read_array(filename="roi.dat")
+roi.read_array(filename=roi_file, binary=False)
 
 # %%
 # Now we can run the 2D DIC engine using :func:`pyvale.dic_2d`.
@@ -81,7 +86,10 @@ pyvale.dic_2d(reference=ref_img,
               subset_step=10,
               shape_function="AFFINE",
               max_displacement=10,
-              correlation_criteria="ZNSSD")
+              correlation_criteria="ZNSSD",
+              output_basepath=output_path,
+              output_delimiter=",",
+              output_prefix="dic_results_")
 
 # %%
 # If you saved the results in a human-readable format, you can use any tool
@@ -92,7 +100,8 @@ pyvale.dic_2d(reference=ref_img,
 #
 # The returned object is an instance of :class:`pyvale.DICResults`. If the results
 # were saved in binary format or with a custom delimiter, be sure to specify those parameters.
-dicdata = pyvale.dic_data_import(data="dic_results_*.dat", delimiter=" ", binary=False)
+dic_files = output_path / "dic_results_*.csv"
+dicdata = pyvale.dic_data_import(data=dic_files, delimiter=",", binary=False)
 
 # %%
 # As an example, here's a simple visualization of the displacement (u, v) and

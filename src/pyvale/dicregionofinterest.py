@@ -107,7 +107,7 @@ class DICRegionOfInterest:
     def _setup_gui(self):
         """Setup the main GUI window and sidebar."""
         app = pg.mkQApp("ROI GUI")
-        self.main_window = CustomMainWindow(seed_getter=lambda: self.seed)
+        self.main_window = CustomMainWindow(dic_obj=self)
         main_layout = QtWidgets.QHBoxLayout()
         self.main_window.setLayout(main_layout)
         self.main_window.resize(1000, 1000)
@@ -622,6 +622,9 @@ class DICRegionOfInterest:
 
     def _finish(self):
         """Finish ROI selection and close the GUI, with a check for empty seed."""
+
+        self._finalize_selection()
+
         if not self.seed:
             reply = QtWidgets.QMessageBox.question(
                 self.main_window,
@@ -630,7 +633,7 @@ class DICRegionOfInterest:
                 QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
                 QtWidgets.QMessageBox.StandardButton.No
             )
-            if reply == QtWidgets.QMessageBox.No:
+            if reply == QtWidgets.QMessageBox.StandardButton.No:
                 return
 
         self.main_window.close()
@@ -834,21 +837,24 @@ class DICRegionOfInterest:
 
 
 class CustomMainWindow(QtWidgets.QWidget):
-    def __init__(self, seed_getter, *args, **kwargs):
+    def __init__(self, dic_obj=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._get_seed = seed_getter  # Callable to fetch current seed value
-
+        self.dic_obj = dic_obj
+        
     def closeEvent(self, event):
-        seed = self._get_seed()
-        if not seed:
-            reply = QtWidgets.QMessageBox.question(
-                self,
-                "Exit Confirmation",
-                "No Seed location has been selected for reliability guided DIC. Are you sure you want to continue?",
-                QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
-                QtWidgets.QMessageBox.StandardButton.No
-            )
-            if reply == QtWidgets.QMessageBox.StandardButton.No:
-                event.ignore()
-                return
+        if self.dic_obj:
+            # Force finalization before checking seed
+            self.dic_obj._finalize_selection()
+            
+            if not self.dic_obj.seed:
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "Exit Confirmation",
+                    "No Seed location has been selected for reliability guided DIC. Are you sure you want to continue?",
+                    QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+                    QtWidgets.QMessageBox.StandardButton.No
+                )
+                if reply == QtWidgets.QMessageBox.StandardButton.No:
+                    event.ignore()
+                    return
         event.accept()

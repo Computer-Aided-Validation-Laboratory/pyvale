@@ -22,7 +22,7 @@ def check_output_directory(output_basepath: str,
     Check for existing output files in a directory and prompt user confirmation before overwriting.
 
     This function verifies whether the specified output directory exists and checks for any existing
-    files that match a given prefix and have `.dat` or `.bin` extensions. If such files are found,
+    files that match a given prefix and have `.csv` or `.dic2d` extensions. If such files are found,
     a list is displayed and the user is prompted to confirm whether to continue. If the user declines,
     the program exits to prevent data loss.
 
@@ -51,7 +51,7 @@ def check_output_directory(output_basepath: str,
     # Check for any matching files
     conflicting_files = [
         f for f in files 
-        if f.startswith(output_prefix) and (f.endswith(".dat") or f.endswith(".bin"))]
+        if f.startswith(output_prefix) and (f.endswith(".csv") or f.endswith(".dic2d"))]
 
     if conflicting_files:
         conflicting_files.sort()
@@ -444,6 +444,23 @@ def check_and_get_images(reference: np.ndarray | str | Path,
     roi_c = np.ascontiguousarray(roi)
 
     return ref_arr, def_arr, roi_c, filenames
+
+
+
+def check_strain_files(strain_files: str | Path) -> list[str]:
+   
+    filenames = []
+
+    # Find deformation image files
+    files = sorted(glob.glob(str(strain_files)))
+    if not files:
+        raise FileNotFoundError(f"No DIC data found: {strain_files}")
+
+    for file in files:
+        filenames.append(os.path.basename(file))
+
+    return filenames
+
 
 def print_title(a: str):
     line_width = 80

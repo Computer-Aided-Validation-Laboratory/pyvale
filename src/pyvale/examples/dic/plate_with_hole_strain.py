@@ -16,14 +16,25 @@ be used for strain calculations.
 """
 
 import matplotlib.pyplot as plt
+from pathlib import Path
 import pyvale
+
+# %%
+# We'll start by importing the DIC data from the previous example.
+
+# create a directory for the the different outputs
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
+
+# specify where our input data is
+input_data = output_path / "dic_results_*.csv"
 
 # %%
 # You can calculate strain directly from the DIC results.
 # It's not necessary to load the data beforehand — you can simply pass the
 # filename (or pattern) to the `data` argument. If you used a custom delimiter
 # or saved in binary format, make sure to specify those as well.
-dic_data = pyvale.dic_data_import(data="dic_results_*.dat")
 
 # %%
 # At a minimum, you need to specify the strain window size and the element type
@@ -35,15 +46,17 @@ dic_data = pyvale.dic_data_import(data="dic_results_*.dat")
 # The output will always include the window coordinates and the full deformation
 # gradient tensor. If you also specify a `strain_formulation`, the corresponding
 # 2D strain tensor will be included in the output.
-pyvale.strain_2d(data=dic_data, window_size=5, window_element=4)
+pyvale.strain_2d(data=input_data, window_size=5, window_element=4,
+                 output_basepath=output_path)
 
 # %%
 # Once the strain calculation is complete, you can import the results using
 # :func:`pyvale.strain_data_import`.
 #
 # Be sure to specify the delimiter, format (binary or not), and layout.
-straindata = pyvale.strain_data_import(data="strain_dic_results_*",
-                                       binary=False, delimiter=" ",
+strain_output = output_path / "strain_dic_results_*.csv"
+straindata = pyvale.strain_data_import(data=strain_output,
+                                       binary=False, delimiter=",",
                                        layout="matrix")
 
 # %%

@@ -14,6 +14,7 @@ This example looks at the current core functionality of the Region of Interest
 (ROI) Selection Firsly we'll need to import `pyvale` itself.
 """
 
+from pathlib import Path
 import pyvale
 
 # %% 
@@ -23,6 +24,11 @@ import pyvale
 ref_img = pyvale.DataSet.dic_plate_with_hole_ref()
 roi = pyvale.DICRegionOfInterest(ref_image=ref_img)
 roi.interactive_selection(subset_size=31)
+
+# create a directory for the the different outputs
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
 # .. image:: ../../../../_static/roi_tool.gif
@@ -34,11 +40,12 @@ roi.interactive_selection(subset_size=31)
 # After closing the interactive tool, a mask and a set of seed coordinates will be generated.
 # These can be used directly in the DIC engine. If you plan to reuse the ROI, it’s a good idea
 # to save it. For very large images, set `binary=True` to reduce file size and speed up saving.
-roi.save_array(filename="roi.dat",binary=False)
+roi_file = output_path / "roi.dat"
+roi.save_array(filename=roi_file,binary=False)
 
 # %%
 # To reuse the saved ROI mask in the future, load it using:
-roi.read_array(filename="roi.dat",binary=False)
+roi.read_array(filename=roi_file,binary=False)
 
 # %%
 # If you are loading a previously saved ROI, you may want to visualize it
@@ -50,14 +57,16 @@ roi.show_image()
 # For example, to exclude a boundary region and keep only the central part:
 roi.reset_mask()
 roi.rect_boundary(left=50,right=50,bottom=50,top=50)
-roi.save_image("rect_boundary.tiff")
+boundary_img = output_path / "rect_boundary.tiff"
+roi.save_image(boundary_img)
 
 # %%
 # This excludes 50 pixels along each edge of the image from the ROI.
 # Alternatively, to define a specific rectangular region:
 roi.reset_mask()
 roi.rect_region(x=200,y=200,size_x=200,size_y=200)
-roi.save_image("rect_region.tiff")
+region_img = output_path / "rect_region.tiff"
+roi.save_image(region_img)
 
 # %%
 # .. list-table::

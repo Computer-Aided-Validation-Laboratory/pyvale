@@ -30,7 +30,7 @@ def dic_2d(reference: np.ndarray | str | Path,
           max_displacement: int=128,
           scanning_method: str="RG",
           output_at_end: bool=False,
-          output_basepath: str="./",
+          output_basepath: Path | str = "./",
           output_binary: bool=False,
           output_prefix: str="dic_results_",
           output_delimiter: str=",") -> None:
@@ -70,7 +70,7 @@ def dic_2d(reference: np.ndarray | str | Path,
         Minimum correlation improvement threshold to continue iterations (default: 0.9).
     bf_threshold : float, optional
         Correlation threshold used in rigid bruteforce check for a subset to be considered a
-        good match(default: 0.2).
+        good match(default: 0.6).
     max_displacement : int, optional
         Estimate for the Maximum displacement in any direction (in pixels) (default: 128).
     scanning_method : str, optional
@@ -80,16 +80,16 @@ def dic_2d(reference: np.ndarray | str | Path,
         "FFT" for a multi-window FFT based approach (Good for large displacements)
     output_at_end : bool, optional
         If True, results will only be written at the end of processing (default: False).
-    output_basepath : str, optional
+    output_basepath : str or pathlib.Path, optional
         Directory path where output files will be written (default: "./").
     output_binary : bool, optional
         Whether to write output in binary format (default: False).
     output_prefix : str, optional
         Prefix for all output files (default: "dic_results_"). results will be
         named with output_prefix + original filename. THe extension will be
-        changed to ".dat" or ".bin" depending on whether outputting as a binary.
+        changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
     output_delimiter : str, optional
-        Delimiter used in text output files (default: " ").
+        Delimiter used in text output files (default: ",").
 
     Returns
     -------
@@ -111,7 +111,7 @@ def dic_2d(reference: np.ndarray | str | Path,
     dicchecks.check_interpolation(interpolation_routine)
     dicchecks.check_scanning_method(scanning_method)
     dicchecks.check_thresholds(opt_threshold, bf_threshold, opt_precision)
-    dicchecks.check_output_directory(output_basepath, output_prefix)
+    dicchecks.check_output_directory(str(output_basepath), output_prefix)
     dicchecks.check_subsets(subset_size, subset_step)
     updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, scanning_method, ref_arr.shape[1], ref_arr.shape[0], subset_size, subset_step)
     num_params = dicchecks.check_shape_function(shape_function)
@@ -139,7 +139,7 @@ def dic_2d(reference: np.ndarray | str | Path,
 
     # assigning c++ struct vals for save config
     saveconf = dic2dcpp.SaveConfig()
-    saveconf.basepath = output_basepath
+    saveconf.basepath = str(output_basepath)
     saveconf.binary = output_binary
     saveconf.prefix = output_prefix
     saveconf.delimiter = output_delimiter

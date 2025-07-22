@@ -23,8 +23,9 @@ of 0.5 pixels along a particular correlation direction.
 As always, we'll start with importing the required libraries:
 """
 
-import pyvale
 import matplotlib.pyplot as plt
+from pathlib import Path
+import pyvale
 
 
 # %%
@@ -44,6 +45,11 @@ roi = pyvale.DICRegionOfInterest(ref_image=ref_pattern)
 subset_radius = subset_size // 2
 roi.rect_boundary(left=50,right=50,top=250-subset_radius,bottom=250-subset_radius)
 roi.show_image()
+
+# create a directory for the the different outputs
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
 # .. image:: ../../../../_static/dic_challenge_roi.png
@@ -66,12 +72,14 @@ pyvale.dic_2d(reference=ref_pattern,
               subset_size=subset_size,
               subset_step=1,
               seed=[3500,250],
-              max_displacement=10)
+              max_displacement=10,
+              output_basepath=output_path)
 
 # %% 
 # We can import the results in the standard way
-dicdata = pyvale.dic_data_import(data="dic_results_DIC_Challenge*",
-                                 layout='column', binary=False, delimiter=" ")
+data_path = output_path / "dic_results_DIC_Challenge*.csv"
+dicdata = pyvale.dic_data_import(data=data_path, layout='column', 
+                                 binary=False, delimiter=",")
 
 # &&
 # Finally a simple plot of the calculated displacements at y=2500. This could be

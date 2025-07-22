@@ -10,18 +10,17 @@ import glob
 from pathlib import Path
 
 from pyvale import dic2dcpp
+from pyvale import dicchecks
 from pyvale.dicdataimport import dic_data_import
 from pyvale.dicresults import DICResults
 from pyvale.dicstrainresults import StrainResults
 
-def strain_2d(data: DICResults | str,
+def strain_2d(data: str | Path,
               window_size: int=5, 
               window_element: int=4,
               input_binary: bool=False,
-              input_delimiter: str=" ",
-              output_def_grad: bool=True,
-              output_strain: bool=True,
-              output_basepath: str="./",
+              input_delimiter: str=",",
+              output_basepath: Path | str="./",
               output_binary: bool=False,
               output_prefix: str="strain_",
               output_delimiter: str=",",
@@ -35,9 +34,13 @@ def strain_2d(data: DICResults | str,
 
     Parameters
     ----------
-    data : DICResults or str
-        A `DICResults` instance containing displacement and subset coordinates,
-        OR a path to files from which the data should be imported.
+    data : pathlib.Path or str
+        A pathlib.Path or str to files from which the data should be imported.
+    input_delimiter: str
+        delimiter used for the input dic results files (default: ",").
+    input_binary bool:
+        whether input data is in human-readable or binary format (default:
+        False).
     window_size : int, optional
         The size of the local window over which to compute strain (must be odd), by default 5.
     window_element : int, optional
@@ -46,10 +49,16 @@ def strain_2d(data: DICResults | str,
     strain_formulation : str, optional
         The strain definition to use: one of 'GREEN', 'ALMANSI', 'HENCKY', 'BIOT_EULER', 'BIOT_LAGRANGE'.
         Defaults to 'HENCKY'.
-    binary : bool, optional
-        Whether the input file is in binary format. Only relevant if `data` is a file path.
-    delimiter : str, optional
-        The delimiter used in the input file if it's in text format, by default " ".
+    output_basepath : str or pathlib.Path, optional
+        Directory path where output files will be written (default: "./").
+    output_binary : bool, optional
+        Whether to write output in binary format (default: False).
+    output_prefix : str, optional
+        Prefix for all output files (default: "strain_"). results will be
+        named with output_prefix + original filename. THe extension will be
+        changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
+    output_delimiter : str, optional
+        Delimiter used in text output files (default: ",").
 
     Raises
     ------
@@ -71,14 +80,11 @@ def strain_2d(data: DICResults | str,
     if window_size % 2 == 0:
         raise ValueError(f"Invalid strain window size: '{window_size}'. Must be an odd number.")
 
+    filenames = dicchecks.check_strain_files(strain_files=data)
+
     # Load data if a file path is given
-    if isinstance(data, str):
-        results = dic_data_import(layout="matrix", data=data,
+    results = dic_data_import(layout="matrix", data=str(data),
                                   binary=input_binary, delimiter=input_delimiter)
-    elif isinstance(data, DICResults):
-        results = data
-    else:
-        raise TypeError("data must be either a DICResults instance or a file path string.")
 
     # Extract dimensions from the validated object
     nss_x = results.ss_x.shape[1]
@@ -86,20 +92,24 @@ def strain_2d(data: DICResults | str,
     nimg = results.u.shape[0]
 
 
+    dicchecks.check_output_directory(str(output_basepath), output_prefix)
+
     # assigning c++ struct vals for save config
     strain_save_conf = dic2dcpp.SaveConfig()
-    strain_save_conf.basepath = output_basepath
+    strain_save_conf.basepath = str(output_basepath)
     strain_save_conf.binary = output_binary
     strain_save_conf.prefix = output_prefix
     strain_save_conf.delimiter = output_delimiter
     strain_save_conf.at_end = output_at_end
+
+    print(filenames)
 
     # Call to C++ backend
     dic2dcpp.strain_engine(results.ss_x, results.ss_y,
                            results.u, results.v,
                            nss_x, nss_y, nimg,
                            window_size, window_element, 
-                           strain_formulation, results.filenames,
+                           strain_formulation, filenames,
                            strain_save_conf)
 
 

@@ -44,7 +44,7 @@ namespace strain {
         INFO_OUT("Strain element (4 = bilinear, 9 is biquadratic):", q);
         INFO_OUT("Strain formulation:", form);
         INFO_OUT("Saving data to folder:", strain_save_conf.basepath)
-        INFO_OUT("Saving data as binary (`False` = human readable text):", strain_save_conf.binary)
+        INFO_OUT("Saving data as binary ", strain_save_conf.binary)
 
 
         const bool save_at_end = strain_save_conf.at_end;
@@ -310,9 +310,16 @@ namespace strain {
         if (strain_save_conf.binary) file_ext=".dic2d";
         else file_ext=".csv";
 
+        // Extract the base filename without extension
+        std::string full_filename = filenames[img_num];
+        size_t dot_pos = full_filename.find(".");
+        if (dot_pos != std::string::npos) {
+            full_filename = full_filename.substr(0, dot_pos);
+        }
+
         // output filename
         outfile_str << strain_save_conf.basepath << "/" <<
-        strain_save_conf.prefix << filenames[img_num];
+        strain_save_conf.prefix << full_filename << file_ext;
 
         // set the img var to 0 after opening file if not saving at end
         if (!strain_save_conf.at_end) img_num = 0;

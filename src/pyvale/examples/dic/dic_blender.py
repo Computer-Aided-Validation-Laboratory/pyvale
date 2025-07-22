@@ -22,6 +22,7 @@ changed.**
 """
 
 import matplotlib.pyplot as plt
+from pathlib import Path
 import numpy as np
 import pyvale
 import os
@@ -42,6 +43,11 @@ def_img = "./blenderimages/blenderimage_*.tiff"
 roi = pyvale.DICRegionOfInterest(ref_img)
 roi.interactive_selection(subset_size)
 
+#output_path
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
+
 # DIC Calculation
 pyvale.dic_2d(reference=ref_img,
               deformed=def_img,
@@ -52,10 +58,12 @@ pyvale.dic_2d(reference=ref_img,
               shape_function="AFFINE",
               max_displacement=20,
               correlation_criteria="ZNSSD",
+              output_basepath=output_path,
               output_prefix="blender_dic_")
 
 # Import the Results
-dicdata = pyvale.dic_data_import(data="blender_dic_*.dat", delimiter=" ", 
+data_path = output_path / "blender_dic_*.csv"
+dicdata = pyvale.dic_data_import(data=data_path, delimiter=",",
                                  layout='matrix', binary=False)
 
 # %%
