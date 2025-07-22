@@ -55,7 +55,7 @@ class DICRegionOfInterest:
             raise ValueError("Invalid image input")
 
         self.mask = np.zeros(self.ref_image.shape[:2], dtype=bool)
-        self.seed = [0, 0]
+        self.seed = []
         self.__roi_selected = False
         self.roi_list = []
         self.add_list = []
@@ -107,7 +107,7 @@ class DICRegionOfInterest:
     def _setup_gui(self):
         """Setup the main GUI window and sidebar."""
         app = pg.mkQApp("ROI GUI")
-        self.main_window = QtWidgets.QWidget()
+        self.main_window = CustomMainWindow(seed_getter=lambda: self.seed)
         main_layout = QtWidgets.QHBoxLayout()
         self.main_window.setLayout(main_layout)
         self.main_window.resize(1000, 1000)
@@ -621,7 +621,18 @@ class DICRegionOfInterest:
         return roi
 
     def _finish(self):
-        """Finish ROI selection and close the GUI."""
+        """Finish ROI selection and close the GUI, with a check for empty seed."""
+        if not self.seed:
+            reply = QtWidgets.QMessageBox.question(
+                self.main_window,
+                "Exit Confirmation",
+                "No Seed location has been selected for reliability guided DIC. Are you sure you want to continue?",
+                QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+                QtWidgets.QMessageBox.StandardButton.No
+            )
+            if reply == QtWidgets.QMessageBox.No:
+                return
+
         self.main_window.close()
         pg.QtWidgets.QApplication.quit()
 
@@ -665,11 +676,15 @@ class DICRegionOfInterest:
             }
         else:
             raise TypeError(f"Unsupported ROI type: {type(roi_element)}")
+    
+
     def reset_mask(self):
         """
         Completely resets the roi mask to 0s.
         """
         self.mask[:] = False;
+
+
 
     def rect_boundary(self, left: int, right: int, top: int, bottom: int) -> None:
         """
@@ -818,4 +833,22 @@ class DICRegionOfInterest:
         plt.show()
 
 
+class CustomMainWindow(QtWidgets.QWidget):
+    def __init__(self, seed_getter, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._get_seed = seed_getter  # Callable to fetch current seed value
 
+    def closeEvent(self, event):
+        seed = self._get_seed()
+        if not seed:
+            reply = QtWidgets.QMessageBox.question(
+                self,
+                "Exit Confirmation",
+                "No Seed location has been selected for reliability guided DIC. Are you sure you want to continue?",
+                QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+                QtWidgets.QMessageBox.StandardButton.No
+            )
+            if reply == QtWidgets.QMessageBox.StandardButton.No:
+                event.ignore()
+                return
+        event.accept()
