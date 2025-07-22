@@ -739,7 +739,7 @@ class DICRegionOfInterest:
         overlay = self.ref_image.copy()
         overlay[self.mask] = (0, 255, 0)
         result = cv2.addWeighted(self.ref_image, 0.6, overlay, 0.4, 0)
-        cv2.imwrite(filename, result)
+        cv2.imwrite(str(filename), result)
 
 
 
@@ -819,8 +819,6 @@ class DICRegionOfInterest:
 
         # Create a green mask image
         green_mask = np.zeros_like(self.ref_image)
-        print(self.ref_image.shape)
-        print(self.mask.shape)
 
         green_mask[self.mask,:] = [0, 255, 0]
 

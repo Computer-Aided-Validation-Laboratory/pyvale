@@ -218,8 +218,6 @@ def strain_data_import(data: str | Path,
         current_shape = arrays[0].shape # (file,x,y)
         def_grad = np.zeros(current_shape+(2,2))
         eps = np.zeros(current_shape+(2,2))
-        print(def_grad.shape)
-        print(eps.shape)
 
 
         def_grad[:,:,:,0,0] = arrays[0]
