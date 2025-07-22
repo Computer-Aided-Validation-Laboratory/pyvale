@@ -47,7 +47,7 @@ class DICRegionOfInterest:
         if isinstance(ref_image, str):
             self.ref_image = cv2.imread(ref_image)
         elif isinstance(ref_image, Path):
-            self.ref_image = cv2.imread(ref_image)
+            self.ref_image = cv2.imread(str(ref_image))
         else:
             self.ref_image = ref_image.copy()
 
