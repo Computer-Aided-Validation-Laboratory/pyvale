@@ -164,7 +164,6 @@ myst_enable_extensions = [
 ]
 
 # -- Options for HTML output ------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'furo'
 html_title = "Pyvale: The Python Validation Engine"
@@ -177,7 +176,7 @@ html_theme_options = {
     "sidebar_hide_name": False,
     "navigation_with_keys": True,
     "top_of_page_button": "edit",
-    "source_repository": "https://github.com/your-org/pyvale/",  # Update this URL
+    "source_repository": "https://github.com/Computer-Aided-Validation-Laboratory/pyvale/",
     "source_branch": "main",
     "source_directory": "docs/source/",
 }
@@ -225,7 +224,7 @@ texinfo_documents = [
 # -- Extension configuration -------------------------------------------------
 
 # Additional settings for better documentation
-nitpicky = False  # Set to True to be strict about references
+nitpicky = False
 nitpick_ignore = []
 
 # Suppress warnings
