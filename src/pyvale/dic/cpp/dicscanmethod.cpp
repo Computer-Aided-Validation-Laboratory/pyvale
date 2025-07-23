@@ -93,7 +93,7 @@ namespace scanmethod {
                 // perform optimization on subset from deformed image
                 double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
-                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                 if (conf.corr_crit!="SSD")
                     res.cost = 1-res.cost;
@@ -196,7 +196,7 @@ namespace scanmethod {
 
             double centre_x = ss_x + static_cast<double>(ssdata.size)/2.0 - 0.5;
             double centre_y = ss_y + static_cast<double>(ssdata.size)/2.0 - 0.5;
-            util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+            util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
 
             // if its not SSD, then we need to flip the cost values so that 1.0
@@ -323,7 +323,7 @@ namespace scanmethod {
                 double centre_x = seed_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = seed_y + static_cast<double>(ss_size)/2.0 - 0.5;
 
-                util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+                util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                 // if its not SSD, then we need to flip the cost values so that 1.0
                 // is a perfect match rather than 0.0
@@ -357,7 +357,7 @@ namespace scanmethod {
                     // perform optimization for seed point neighbours
                     double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
                     double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
-                    util::Results nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+                    util::Results nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
                     
                     // if its not SSD, then we need to flip the cost values so that 1.0
                     // is a perfect match rather than 0.0
@@ -397,51 +397,52 @@ namespace scanmethod {
             const int max_idle_iters = 100;
             rg::Point current(0, 0);
 
-                    while (!stop_request) {
-            bool got_point = false;
-            int idle_iters = 0;
+            while (!stop_request) {
+                bool got_point = false;
+                int idle_iters = 0;
 
-            // Try own queue safely
-            {
-                std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
-                if (!thread_q.empty()) {
-                    current = thread_q.top();
-                    thread_q.pop();
-                    got_point = true;
+                // Try own queue safely
+                {
+                    std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
+                    if (!thread_q.empty()) {
+                        current = thread_q.top();
+                        thread_q.pop();
+                        got_point = true;
+                    }
                 }
-            }
 
-            // Steal if nothing in own queue
-            if (!got_point) {
-                while (!got_point && idle_iters < max_idle_iters) {
-                    #pragma omp critical
-                    {
-                        for (size_t i = 0; i < local_q.size(); ++i) {
-                            std::lock_guard<std::mutex> lock(queue_mutexes[i]);
-                            if (!local_q[i].empty()) {
-                                current = local_q[i].top();
-                                local_q[i].pop();
-                                got_point = true;
-                                break;
+                // Steal if nothing in own queue
+                if (!got_point) {
+                    while (!got_point && idle_iters < max_idle_iters) {
+                        #pragma omp critical
+                        {
+                            for (size_t i = 0; i < local_q.size(); ++i) {
+                                std::lock_guard<std::mutex> lock(queue_mutexes[i]);
+                                if (!local_q[i].empty()) {
+                                    current = local_q[i].top();
+                                    local_q[i].pop();
+                                    got_point = true;
+                                    break;
+                                }
                             }
                         }
-                    }
-                    if (!got_point) {
-                        ++idle_iters;
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        if (!got_point) {
+                            ++idle_iters;
+                            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        }
                     }
                 }
-            }
 
-            if (!got_point) {
-                break;
-            }
+                if (!got_point) {
+                    break;
+                }
 
-            temp_neigh.clear();
+                temp_neigh.clear();
 
 
                 // index of current point in results arrays
                 int idx_results = save_at_end ? img_num * num_ss + current.idx : current.idx;
+                int idx_results_p = idx_results * opt.num_params;
 
                 // loop over neighbouring points
                 for (size_t n = 0; n < ssdata[last_size].neigh[current.idx].size(); n++) {
@@ -468,14 +469,14 @@ namespace scanmethod {
                         }
                         else {
                             for (int i = 0; i < opt.num_params; i++){
-                                opt.p[i] = util::p_arr[opt.num_params*idx_results+i];
+                                opt.p[i] = util::p_arr[idx_results_p+i];
                             }
                         }
 
                         // optimize
                         double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
                         double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
-                        util::Results nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+                        util::Results nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
 
                         // if its not SSD, then we need to flip the cost values so that 1.0
@@ -570,7 +571,7 @@ namespace scanmethod {
                 // perform optimization on subset from deformed image
                 double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
-                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
                 
 
                 // if its not SSD, then we need to flip the cost values so that 1.0
@@ -651,7 +652,7 @@ namespace scanmethod {
                 // perform optimization on subset from deformed image
                 double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
-                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt);
+                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
                 
                 // if its not SSD, then we need to flip the cost values so that 1.0
                 // is a perfect match rather than 0.0

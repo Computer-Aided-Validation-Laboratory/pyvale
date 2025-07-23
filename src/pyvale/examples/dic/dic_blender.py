@@ -7,7 +7,7 @@
 #================================================================================
 
 """
-DIC with Blender generated images from a virtual experiment 
+DIC with images generated from a virtual blender experiment 
 ---------------------------------------------
 
 This example looks at taking the virtual experiments conducted using the blender

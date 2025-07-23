@@ -113,7 +113,7 @@ namespace optimizer {
      * @param opt 
      * @return util::Results 
      */
-    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt);
+    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt, const std::string &corr_crit);
 
     /**
      * @brief calcutes the Sum of Squared Differences (SSD) between reference and deformed subsets.

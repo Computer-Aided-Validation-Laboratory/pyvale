@@ -46,7 +46,7 @@ namespace optimizer {
 
 
 
-    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt) {
+    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt, const std::string &corr_crit){
 
         int iter = 0;
         double ftol = 0;
@@ -82,13 +82,20 @@ namespace optimizer {
             // - rel change in parameters is less than user precision
             // - change in corr coeff is less than precision
             // - cost is less than threshold
-            if ((xtol < opt.precision) && (ftol < opt.precision) && (opt.costp < opt.opt_threshold)) {
-                //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
-                converged=true; 
-                break;
+            if (corr_crit != "SSD") {
+                if ((xtol < opt.precision) && (ftol < opt.precision) && (opt.costp < 1.0-opt.opt_threshold)) {
+                    //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+                    converged=true; 
+                    break;
+                }
             }
-
-
+            else {
+                if ((xtol < opt.precision) && (ftol < opt.precision)) {
+                    //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+                    converged=true; 
+                    break;
+                }
+            }
             iter++;
         }
 
