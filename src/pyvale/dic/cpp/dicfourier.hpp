@@ -268,7 +268,9 @@ namespace fourier {
     void mgwd(const std::vector<util::SubsetData> &ssdata,
               const double *img_ref,
               const double *img_def,
-              const Interpolator &interp_def);
+              const Interpolator &interp_def,
+              const bool fft_mad,
+              const double fft_mad_scale);
 
 
     void sgwd(const util::SubsetData &ssdata, 

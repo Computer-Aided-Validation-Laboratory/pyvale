@@ -50,6 +50,8 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     INFO_OUT("Correlation Criterion: ", conf.corr_crit);
     INFO_OUT("Shape Function: ", conf.shape_func);
     INFO_OUT("Interpolation Routine: ", conf.interp_routine);
+    INFO_OUT("FFT MAD outlier removal enabled: ", conf.fft_mad);
+    INFO_OUT("FFT MAD scale: ", conf.fft_mad_scale);
     INFO_OUT("Image Scan Method: ", conf.scan_method);
     INFO_OUT("Optimization Precision:", conf.precision);
     INFO_OUT("Optimization Threshold:", conf.opt_threshold);
@@ -190,6 +192,8 @@ PYBIND11_MODULE(dic2dcpp, m) {
         .def_readwrite("num_def_img", &util::Config::num_def_img)
         .def_readwrite("rg_seed", &util::Config::rg_seed)
         .def_readwrite("num_params", &util::Config::num_params)
+        .def_readwrite("fft_mad", &util::Config::fft_mad)
+        .def_readwrite("fft_mad_scale", &util::Config::fft_mad_scale)
         .def_readwrite("filenames", &util::Config::filenames);
 
     py::class_<util::SaveConfig>(m, "SaveConfig")

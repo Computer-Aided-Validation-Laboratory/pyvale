@@ -65,6 +65,8 @@ namespace util {
         std::string interp_routine;
         std::string scan_method;
         std::vector<std::string> filenames;
+        bool fft_mad;
+        double fft_mad_scale;
     };
 
 

@@ -243,7 +243,8 @@ namespace scanmethod {
         const int ss_step = ssdata[last_size].step;
 
 
-        fourier::mgwd(ssdata, img_ref, img_def, interp_def);
+        fourier::mgwd(ssdata, img_ref, img_def, interp_def, 
+                      conf.fft_mad, conf.fft_mad_scale);
 
         // progress bar
         indicators::ProgressBar bar;
@@ -519,7 +520,8 @@ namespace scanmethod {
 
         // for the first image perform the FFT windowing. later images will be
         // seeded with previous images
-        fourier::mgwd(ssdata, img_ref, img_def, interp_def);
+        fourier::mgwd(ssdata, img_ref, img_def, interp_def, 
+                      conf.fft_mad, conf.fft_mad_scale);
 
         const int nsizes = ssdata.size();
         const int last_size = nsizes-1;

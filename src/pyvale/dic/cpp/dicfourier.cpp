@@ -39,9 +39,13 @@ namespace fourier {
             // generate subset information for each window size.
             // for the last size all subsets need to sit within the ROI
             if (i==ss_sizes.size()-1)
-                window_data.push_back(util::gen_ss_list(img_roi, window_step, window_size, conf.px_hori, conf.px_vert, false));
+                window_data.push_back(util::gen_ss_list(img_roi, window_step,
+                                                        window_size, conf.px_hori, 
+                                                        conf.px_vert, false));
             else 
-                window_data.push_back(util::gen_ss_list(img_roi, window_step, window_size, conf.px_hori, conf.px_vert, true));
+                window_data.push_back(util::gen_ss_list(img_roi, window_step, 
+                                                        window_size, conf.px_hori, 
+                                                        conf.px_vert, true));
             
 
             // shifts for each subset size
@@ -69,7 +73,7 @@ namespace fourier {
 
     void remove_outliers(std::vector<double>& shift,
                          const util::SubsetData &ssdata,
-                         const double mad_scale = 3.0) {
+                         const double mad_scale) {
 
         std::vector<double> updated = shift;
 
@@ -129,7 +133,10 @@ namespace fourier {
         shift = std::move(updated);
     }
 
-    void mgwd(const std::vector<util::SubsetData> &ssdata, const double *img_ref, const double *img_def, const Interpolator &interp_def){
+    void mgwd(const std::vector<util::SubsetData> &ssdata, 
+              const double *img_ref, const double *img_def, 
+              const Interpolator &interp_def, const bool fft_mad, 
+              const double fft_mad_scale){
 
         const int px_hori = interp_def.px_hori;
         const int px_vert = interp_def.px_vert;
@@ -210,8 +217,12 @@ namespace fourier {
             }
 
             // remove outliers in fft
-            remove_outliers(shifts[i].x, ssdata[i], 3.0);
-            remove_outliers(shifts[i].y, ssdata[i], 3.0);
+            if (fft_mad){
+                remove_outliers(shifts[i].x, ssdata[i], fft_mad);
+                remove_outliers(shifts[i].y, ssdata[i], fft_mad);
+            }
+
+
             //smooth_field(shifts[i].x, ssdata[i], 7.0, 5);
             //smooth_field(shifts[i].y, ssdata[i], 7.0, 5);
 

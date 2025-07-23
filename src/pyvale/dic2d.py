@@ -29,6 +29,8 @@ def dic_2d(reference: np.ndarray | str | Path,
           bf_threshold: float=0.6,
           max_displacement: int=128,
           scanning_method: str="RG",
+          fft_mad: bool=False,
+          fft_mad_scale: float=3.0,
           output_at_end: bool=False,
           output_basepath: Path | str = "./",
           output_binary: bool=False,
@@ -78,6 +80,17 @@ def dic_2d(reference: np.ndarray | str | Path,
         "IMAGE_SCAN" for a standard scan across the image with no seeding 
         (best performance with for subpixel displacements with high quality images), 
         "FFT" for a multi-window FFT based approach (Good for large displacements)
+    fft_mad : bool, optional
+        The option to smooth FFT windowing data by identifying and replacing outliers using 
+        a robust statistical method. For each subset, the function collects values from its 
+        neighboring subsets (within a 5x5 window, i.e., radius = 2), computes the median and 
+        Median Absolute Deviation (MAD), and determines whether the value at the current 
+        subset is an outlier. If it is, the value is replaced with the median of 
+        its neighbors. (default: False)
+    fft_mad_scale : bool, optional
+        An outlier is defined as a value whose deviation from the local median exceeds 
+        `fft_mad_scale` times the MAD. This value choses the scaling factor that determines 
+        the threshold for detecting outliers relative to the MAD.
     output_at_end : bool, optional
         If True, results will only be written at the end of processing (default: False).
     output_basepath : str or pathlib.Path, optional
@@ -136,6 +149,8 @@ def dic_2d(reference: np.ndarray | str | Path,
     config.num_params = num_params
     config.rg_seed = updated_seed
     config.filenames = filenames
+    config.fft_mad = fft_mad
+    config.fft_mad_scale = fft_mad_scale
 
     # assigning c++ struct vals for save config
     saveconf = dic2dcpp.SaveConfig()
