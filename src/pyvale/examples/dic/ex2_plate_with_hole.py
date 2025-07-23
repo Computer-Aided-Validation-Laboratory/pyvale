@@ -68,16 +68,19 @@ roi.read_array(filename=roi_file, binary=False)
 # - Reference image
 # - Deformed image(s)
 # - ROI mask
-# - Seed coordinates
+# - Seed coordinates (If using a Reliability Guided approach)
 # - Subset size
 #
 # By default, the engine uses an affine shape function with the Zero Normalised
 # Sum of Squared Differences (ZNSSD) correlation criterion.
 #
-# DIC Results are saved to disk. You can customize the filename, location, format, and delimiter using :func:
-# By default, the results will be saved with the prefix "dic_restults_" followed
-# by the original filename. The file extension will depend whether you've
-# specified to save in human-readable or binary format.
+# At present, the DIC engine doesn't return any results to the user, instead the results are saved to disk.
+# You can customize the filename, location, format, and delimiter using 
+# the options options `output_basepath`, `output_prefix`, `output_delimiter`, and `output_binary`.
+# More info on these options can be found in the documentation for :func:`pyvale.dic_2d`.
+# By default, the results will be saved with the prefix `dic_results_` followed
+# by the original filename. The file extension will be replaced will either ".csv" or "dic2d"
+# depending on whether the results are being saved in human-readable or binary format.
 pyvale.dic_2d(reference=ref_img,
               deformed=def_img,
               roi_mask=roi.mask,
@@ -106,7 +109,7 @@ dicdata = pyvale.dic_data_import(data=dic_files, delimiter=",", binary=False)
 # %%
 # As an example, here's a simple visualization of the displacement (u, v) and
 # correlation cost for the two deformed images using matplotlib. You'll need to 
-# Ensure `matplotlib.pyplot` is installed and imported.
+# ensure you have `matplotlib.pyplot` installed and imported.
 fig, axes = plt.subplots(2, 3, figsize=(15, 5))
 axes = axes.flatten()
 

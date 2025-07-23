@@ -17,7 +17,7 @@ deformation example <https://computer-aided-validation-laboratory.github.io/pyva
 
 **We'd recommend downloading both examples (links can be
 found at the bottom of each example) and placing them within the same folder on 
-your machine. That way the relative file paths below will not need to be
+your device. That way the relative file paths below will not need to be
 changed.**
 """
 
