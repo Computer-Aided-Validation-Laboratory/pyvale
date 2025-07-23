@@ -28,6 +28,9 @@ jobs:
       
       - name: Install Pyvale
         run: |
+          sudo apt update
+          sudo apt install libegl1
+          sudo apt install libgl1 libxext6 libx11-6
           python -m pip install --upgrade pip
           pip install -e .
 
@@ -46,6 +49,8 @@ jobs:
         run: |
           cd docs
           bash apidoc.sh
+          make html
+          make clean 
           make html
       
       - name: Setup Pages
