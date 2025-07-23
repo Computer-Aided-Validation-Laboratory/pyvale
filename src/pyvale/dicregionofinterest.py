@@ -551,12 +551,25 @@ class DICRegionOfInterest:
                 for roi, add in zip(self.roi_list, self.add_list)
             ]
 
+            # add ROI to serialized data
+            if hasattr(self, 'seed_roi'):
+                self._finalize_selection()
+                seed_data = {
+                    'type': 'SeedROI',
+                    'pos': [self.seed[0], self.seed[1]],
+                    'size': [self.subset_size, self.subset_size],
+                    'add': True
+                }
+                serialized.append(seed_data)
+
             with open(filename, 'w') as f:
                 yaml.dump(serialized, f, sort_keys=False)
 
     def _open_interactive_roi(self):
         """Open ROI from a YAML file."""
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self.main_window, 'Open ROI', filter='YAML Files (*.yaml)')
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self.main_window, 'Open ROI', filter='YAML Files (*.yaml)'
+        )
         if filename:
             with open(filename, 'r') as f:
                 data = yaml.safe_load(f)
@@ -567,17 +580,33 @@ class DICRegionOfInterest:
             self.roi_list = []
             self.add_list = []
 
-            # Load ROIs from file
+            self.seed_roi = None  # Clear existing seed
+
             for entry in data:
-                roi = self._create_roi_from_data(entry)
-                self.roi_list.append(roi)
-                self.add_list.append(entry['add'])
-                self.main_view.addItem(roi)
-                roi.sigRegionChanged.connect(self._redraw_fill_layer)
+                if entry.get('type') == 'SeedROI':
+                    # Restore the seed ROI
+                    x, y = entry['pos']
+                    size = entry.get('size', [10, 10])  # fallback default
+                    self.seed_roi = pg.RectROI(
+                        [x, y], size,
+                        pen=pg.mkPen('b', width=3),
+                        hoverPen=pg.mkPen('y', width=3),
+                        handlePen='#0000',
+                        handleHoverPen='#0000'
+                    )
+                    self.main_view.addItem(self.seed_roi)
+
+                else:
+                    # Restore standard ROI
+                    roi = self._create_roi_from_data(entry)
+                    self.roi_list.append(roi)
+                    self.add_list.append(entry['add'])
+                    self.main_view.addItem(roi)
+                    roi.sigRegionChanged.connect(self._redraw_fill_layer)
 
             self._redraw_fill_layer()
             self._update_button_states()
-
+            
     def _create_roi_from_data(self, entry):
         """Create ROI object from saved data."""
         roi_type = entry['type']
