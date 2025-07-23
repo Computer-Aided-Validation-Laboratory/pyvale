@@ -318,5 +318,98 @@ class DataSet:
         return Path(files("pyvale.data")
                     .joinpath(f"case00_{elem_type.value}_out.e"))
 
+    @staticmethod
+    def dic_plate_with_hole_ref() -> Path:
+        """Path to the reference image for the plate with hole example.
+        1040x1540 image in .tiff format.
+
+        Parameters
+        ----------
+        elem_type : EElemTest
+            Enumeration specifying the element type for this test case.
+
+        Returns
+        -------
+        Path
+            Path to the reference image (*.tiff).
+        """
+        return Path(files("pyvale.data")
+                    .joinpath("plate_hole_ref0000.tiff"))
+
+    @staticmethod
+    def dic_plate_with_hole_def() -> Path:
+        """Path to the deformed images for the plate with hole example.
+        1040x1540 image in .tiff format.
+
+        Parameters
+        ----------
+        elem_type : EElemTest
+            Enumeration specifying the element type for this test case.
+
+        Returns
+        -------
+        Path
+            Path to the reference image (*.tiff).
+        """
+        return Path(files("pyvale.data")
+                    .joinpath("plate_hole_def*.tiff"))
+
+    @staticmethod
+    def dic_plate_rigid_ref() -> Path:
+        """Path to the reference image for the plate with hole example.
+        1040x1540 image in .tiff format.
+
+        Parameters
+        ----------
+        elem_type : EElemTest
+            Enumeration specifying the element type for this test case.
+
+        Returns
+        -------
+        Path
+            Path to the reference image (*.tiff).
+        """
+        return Path(files("pyvale.data")
+                    .joinpath("plate_rigid_ref0000.tiff"))
+
+    @staticmethod
+    def dic_plate_rigid_def() -> Path:
+        """Path to the deformed images for the plate with hole example.
+        1040x1540 image in .tiff format.
+
+        Returns
+        -------
+        Path
+            Path to the reference image (*.tiff).
+        """
+        return Path(files("pyvale.data")
+                    .joinpath("plate_rigid_def*.tiff"))
+
+
+
+    @staticmethod
+    def dic_challenge_ref() -> Path:
+        """Path to the reference images for the 2D dic challenge.
+
+        Returns
+        -------
+        Path
+            Path to the reference image (*.tiff).
+        """
+        return Path(files("pyvale.data")
+                    .joinpath("DIC_Challenge_Star_Noise_Ref.tif"))
+
+    @staticmethod
+    def dic_challenge_def() -> Path:
+        """Path to the reference images for the 2D dic challenge.
+
+        Returns
+        -------
+        Path
+            Path to the reference image (*.tiff).
+        """
+        return Path(files("pyvale.data")
+                    .joinpath("DIC_Challenge_Star_Noise_Def.tif"))
+
 
 

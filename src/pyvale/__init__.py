@@ -88,3 +88,14 @@ from pyvale.simtools import *
 from pyvale.output import *
 from pyvale.pyvaleexceptions import *
 
+from pyvale.experimentsimulator import *
+
+from pyvale.dicspecklegenerator import *
+from pyvale.dicspecklequality import *
+from pyvale.dicregionofinterest import *
+from pyvale.dic2d import *
+from pyvale.dicdataimport import *
+from pyvale.dicresults import *
+from pyvale.dic2dcpp import *
+from pyvale.dicstrain import *
+from pyvale.dicchecks import *
