@@ -1,5 +1,5 @@
 dicinterpolator.hpp
-==================
+=====================
 
 .. doxygenfile:: dicinterpolator.hpp
    :project: pyvale
