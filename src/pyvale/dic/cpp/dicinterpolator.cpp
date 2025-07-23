@@ -49,6 +49,8 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
 
     //interpolator data
     std::vector<double> data(px_hori,0);
+    
+    #pragma omp parallel for
     for (int j = 0; j < px_vert; j++){
 
         // get 1D data
@@ -63,6 +65,8 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
     }
 
     data.resize(px_vert,0);
+    
+    #pragma omp parallel for
     for (int i = 0; i < px_hori; ++i) {
 
         // get 1D data
@@ -78,6 +82,8 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
 
 
     data.resize(px_hori,0);
+
+    #pragma omp parallel for
     for (int j = 0; j < px_vert; j++){
 
         // get 1D data

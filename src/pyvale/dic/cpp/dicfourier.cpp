@@ -210,8 +210,8 @@ namespace fourier {
             }
 
             // remove outliers in fft
-            //remove_outliers(shifts[i].x, ssdata[i], 3.0);
-            //remove_outliers(shifts[i].y, ssdata[i], 3.0);
+            remove_outliers(shifts[i].x, ssdata[i], 3.0);
+            remove_outliers(shifts[i].y, ssdata[i], 3.0);
             //smooth_field(shifts[i].x, ssdata[i], 7.0, 5);
             //smooth_field(shifts[i].y, ssdata[i], 7.0, 5);
 

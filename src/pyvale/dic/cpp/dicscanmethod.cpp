@@ -462,7 +462,7 @@ namespace scanmethod {
                         util::extract_ss(ss_ref, nx, ny, px_hori, px_vert, img_ref);
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
-                        if (util::cost_arr[idx_results] > opt.opt_threshold){
+                        if (util::cost_arr[idx_results] < opt.opt_threshold){
                             std::fill(opt.p.begin(), opt.p.end(), 0.0);
                             opt.p[0] = fourier::shifts[last_size].x[nidx];
                             opt.p[1] = fourier::shifts[last_size].y[nidx];
