@@ -180,7 +180,7 @@ class ImageDef2D:
             edge_check = np.zeros_like(edge,dtype=np.int8)
             edge_check[edge >= 0.0] = 1
             edge_check = np.sum(edge_check, axis=0)
-            # Create a mask with the check, TODO check the 3 here for non triangles
+            # Create a mask with the check
             edge_mask_flat = edge_check == num_edges
             edge_mask_grid = np.reshape(edge_mask_flat,bound_coords_grid_shape)
 
@@ -536,6 +536,7 @@ def _deform_image_mask(def_image: np.ndarray,
                        ) -> tuple[np.ndarray,np.ndarray]:
 
     # This is slow - might be quicker to just deform an upsampled mask
+    # TODO: use cython image averaging it is way faster!
     px_disp_x = CameraTools.average_subpixel_image(subpx_disp_x,
                                                    cam_data.subsample)
     px_disp_y = CameraTools.average_subpixel_image(subpx_disp_y,

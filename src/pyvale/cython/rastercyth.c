@@ -12,7 +12,7 @@
             "-fopenmp"
         ],
         "include_dirs": [
-            "/tmp/pip-build-env-sxwjnwui/overlay/lib/python3.11/site-packages/numpy/_core/include"
+            "/home/lloydf/pyvale/.venv/lib/python3.11/site-packages/numpy/core/include"
         ],
         "name": "pyvale.cython.rastercyth",
         "sources": [

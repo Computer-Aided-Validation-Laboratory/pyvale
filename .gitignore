@@ -15,9 +15,11 @@ pyvale-env/
 *.gif
 *.tiff
 *.blend
+*.csv
 testoutput/
 exampleoutput/
 pyvale-output/
+blender*/
 
 # MOOSE / gmsh
 *-opt
