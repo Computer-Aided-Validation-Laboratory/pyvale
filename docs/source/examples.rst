@@ -16,3 +16,10 @@ Blender for Digital Image Correlation
    :maxdepth: 2
 
    examples_blender.rst
+
+Digital Image Correlation
+-------------------------------------
+.. toctree::
+   :maxdepth: 2
+
+   examples_dic.rst

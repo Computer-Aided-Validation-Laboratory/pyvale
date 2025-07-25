@@ -210,6 +210,13 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# cmake and make scripts for developer install
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+cpp/Makefile
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
@@ -227,3 +234,7 @@ docs/source/examples/
 
 # doxygen folder generated when compiling docs
 docs/source/doxygen
+
+# rastercyth generated files
+src/pyvale/cython/rastercyth.c
+src/pyvale/cython/rastercyth.html

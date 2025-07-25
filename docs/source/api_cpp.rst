@@ -1,18 +1,17 @@
 Detailed C++ API
 =================
 
-.. doxygenfile:: dicbruteforce.hpp
-   :project: test
-   :path: ../src/pyvale/dic
+.. toctree::
+   :maxdepth: 1
+   :caption: C++ Header Files
 
-.. doxygenfile:: dicscanmethod.hpp
-   :project: test
-   :path: ../src/pyvale/dic
-
-.. doxygenfile:: dicinterpolator.hpp
-   :project: test
-   :path: ../src/pyvale/dic
-
-.. doxygenfile:: dicstrain.hpp
-   :project: test
-   :path: ../src/pyvale/dic
+   cpp/dicbruteforce
+   cpp/dicfourier
+   cpp/dicinterpolator
+   cpp/dicmain
+   cpp/dicoptimizer
+   cpp/dicrg
+   cpp/dicscanmethod
+   cpp/dicsmooth
+   cpp/dicstrain
+   cpp/dicutil

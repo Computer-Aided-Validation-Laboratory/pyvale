@@ -94,12 +94,14 @@ class BlenderScene():
             new_cam.dof.use_dof = True
             new_cam.dof.aperture_fstop = cam_data.fstop
 
+        new_cam.clip_end = ((cam_data.pos_world[2] - cam_data.roi_cent_world[2])
+                            + 100)
+
         bpy.context.scene.camera = camera
         return camera
 
     def add_stereo_system(self, stereo_system: CameraStereo) -> tuple[bpy.data.objects,
                                                            bpy.data.objects]:
-        # TODO: Correct docstring
         """A method to add a stereo camera system within Blender, given an
         instance of the CameraStereo class (that describes a stereo system).
 

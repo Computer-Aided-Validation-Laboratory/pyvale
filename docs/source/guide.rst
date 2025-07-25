@@ -8,7 +8,7 @@ Pyvale is a virtual engineering laboratory that allows you to analyse sensor dep
 
 Pyvale will never completely replace the need to obtain real experimental data to validate engineering physics simulations. What it can do is reduce the time and cost of experiments by allowing you to perform smarter and more resilient experiments - while providing you the tools to analyse your experimental data to calibrate your simulation or calculate validation metrics.
 
-Another key motivation for pyvale was to provide open-source tools for simulating imaging sensors (e.g. digital image correlation and infra-red thermography) that could be used for large parallel sweeps on computing clusters without licensing restrictions or the need to build from source. With pyvale we aim to make easy for experimentalists and simulation engineers to simulate their imaging experiments with a simple python interface and underlying performant code.
+Another key motivation for pyvale was to provide open-source tools for simulating imaging sensors (e.g. digital image correlation and infra-red thermography) that could be used for large parallel sweeps on computing clusters without licensing restrictions or the need to build from source. With pyvale we aim to make it easy for experimentalists and simulation engineers to simulate their imaging experiments with a simple python interface and underlying performant code.
 
 At the moment we are developing the sensor simulation toolbox for pyvale with a focus on developing our imaging sensor simulation capability (particularly for digital image correlation). In the future we will be adding modules focused on: 1) sensor placement optimisation and experimental design; and 2) simulation calibration and calculating validation metrics.
 
@@ -123,9 +123,9 @@ How do I get started with pyvale?
 
 You can install pyvale from PyPI using ``pip install pyvale``. We recommend a virtual environment with python 3.11. If you are a new python user and need help setting up the correct python version and your virtual environment then go to our detailed :ref:`install guide <install_all>`.
 
-Once you have pyvale install you should get familiar with the core concepts of pyvale starting with the :ref:`basic examples <examples_basics>`. These examples come with some pre-packaged simulation data so you will not need to provide your own simulation to get started. With the core functionality of pyvale you will have everything you need to be able to build any custom sensor array that samples scalar (e.g. temperature), vector (e.g. displacement, velocity) or tensor fields (e.g. strain).
+Once you have pyvale installed you should get familiar with the core concepts of pyvale starting with the :ref:`basic examples <examples_basics>`. These examples come with some pre-packaged simulation data so you will not need to provide your own simulation to get started. With the core functionality of pyvale you will have everything you need to be able to build any custom sensor array that samples scalar (e.g. temperature), vector (e.g. displacement, velocity) or tensor fields (e.g. strain).
 
-After that you might want to look at some of the camera sensor simulation tools in pyvale including our digital image correlation rendering module (based on Blender) and our digital image correlation processing.
+After that you might want to look at some of the camera sensor simulation tools in pyvale including our digital image correlation rendering module (based on Blender) and our digital image correlation processing (which are still under developement).
 
 
 Creating your own sensor models

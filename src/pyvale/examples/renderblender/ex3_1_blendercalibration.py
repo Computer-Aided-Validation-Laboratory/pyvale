@@ -135,7 +135,11 @@ render_data = pyvale.RenderData(cam_data=(stereo_system.cam_data_0,
 # %%
 # The parameters for the calibration target's movement can then be set. This is
 # done by setting the minimum and maximum angle and plunge limits, as well as
-# the step value that they should be increased by.
+# the step value that they should be increased by. The x and y limit of the
+# calibration target's movement (from the origin) can also be set if you wish to
+# perform a calibration for a constrained optical setup. If these limits are not
+# passed in they will be initialised from the FOV to cover the whole FOV of the
+# cameras.
 
 calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
                                           angle_step=5,
