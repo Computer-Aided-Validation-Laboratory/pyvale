@@ -15,15 +15,7 @@ from mooseherder import (MooseConfig,
 
 #===============================================================================
 # Change this to run a different case
-<<<<<<< HEAD
-<<<<<<< HEAD
-CASE_STR = 'case21'
-=======
-CASE_STR = 'case16'
->>>>>>> deploy
-=======
 CASE_STR = 'case00_HEX27'
->>>>>>> main
 #===============================================================================
 
 CASE_FILES = (CASE_STR+'.geo',CASE_STR+'.i')

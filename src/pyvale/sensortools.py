@@ -104,48 +104,5 @@ def print_measurements(sens_array: ISensorArray,
     print()
 
 
-def print_dimensions(sim_data: mh.SimData) -> None:
-    """Diagnostic function for quickly finding the coordinate limits for from a
-    given simulation.
 
-    Parameters
-    ----------
-    sim_data : mh.SimData
-        Simulation data object containing the nodal coordinates.
-    """
-    print(80*"-")
-    print("SimData Dimensions:")
-    print(f"x [min,max] = [{np.min(sim_data.coords[:,0])}," + \
-          f"{np.max(sim_data.coords[:,0])}]")
-    print(f"y [min,max] = [{np.min(sim_data.coords[:,1])}," + \
-          f"{np.max(sim_data.coords[:,1])}]")
-    print(f"z [min,max] = [{np.min(sim_data.coords[:,2])}," + \
-          f"{np.max(sim_data.coords[:,2])}]")
-    print(f"t [min,max] = [{np.min(sim_data.time)},{np.max(sim_data.time)}]")
-    print(80*"-")
-
-def get_sim_dims(sim_data: mh.SimData) -> dict[str,tuple[float,float]]:
-    """Diagnostic function for extracting the dimensional limits in space and
-    time from a SimData object. Useful for finding the spatial dimensions over
-    which simulated sensors can be placed as well as the times over which they
-    can sampled the underlying field.
-
-    Parameters
-    ----------
-    sim_data : mh.SimData
-        Simulation data object containing the coordinates and time steps.
-
-    Returns
-    -------
-    dict[str,tuple[float,float]]
-        Dictionary of space and time coordinate limits keyed as 'x','y','z' for
-        the spatial dimensions and 't' for time. The dictionary will return a
-        tuple with the (min,max) of the given dimension.
-    """
-    sim_dims = {}
-    sim_dims["x"] = (np.min(sim_data.coords[:,0]),np.max(sim_data.coords[:,0]))
-    sim_dims["y"] = (np.min(sim_data.coords[:,1]),np.max(sim_data.coords[:,1]))
-    sim_dims["z"] = (np.min(sim_data.coords[:,2]),np.max(sim_data.coords[:,2]))
-    sim_dims["t"] = (np.min(sim_data.time),np.max(sim_data.time))
-    return sim_dims
 
