@@ -16,6 +16,7 @@ pyvale-env/
 *.tiff
 *.blend
 *.csv
+*.json
 testoutput/
 exampleoutput/
 pyvale-output/
