@@ -14,7 +14,7 @@ from scipy.spatial.transform import Rotation
 from scipy.signal import convolve2d
 import numba
 
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale
 
 

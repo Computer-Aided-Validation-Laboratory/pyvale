@@ -10,7 +10,7 @@ import time
 import numpy as np
 from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale as pyv
 
 # TODO

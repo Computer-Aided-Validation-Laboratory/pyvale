@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 from pyvale.imagesim.imagedefopts import ImageDefOpts
 from pyvale.imagesim.cameradataimagedef import CameraImageDef

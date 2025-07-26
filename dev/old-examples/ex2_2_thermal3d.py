@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale as pyv
 
 

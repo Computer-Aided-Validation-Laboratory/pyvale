@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 
 import pyvale
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 # CYTHON MODULE
 import camerac

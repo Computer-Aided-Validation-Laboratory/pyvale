@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from scipy.spatial.transform import Rotation
 import pyvista as pv
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 
 class IField(ABC):

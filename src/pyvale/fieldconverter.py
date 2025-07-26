@@ -12,7 +12,7 @@ compatible with the underlying machinery of pyvale.
 import numpy as np
 import pyvista as pv
 from pyvista import CellType
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 def simdata_to_pyvista(sim_data: mh.SimData,
                         components: tuple[str,...] | None,

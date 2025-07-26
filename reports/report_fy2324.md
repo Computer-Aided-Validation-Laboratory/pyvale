@@ -66,7 +66,7 @@ Here we use the code from the [first example](https://github.com/Applied-Materia
 ```python
 from pathlib import Path
 import matplotlib.pyplot as plt
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale
 
 data_path = Path('data/plate_2d_thermal_out.e')

@@ -1,43 +1,35 @@
-'''
-===============================================================================
-SweepReader Class
-
-Authors: Lloyd Fletcher, Rory Spencer
-===============================================================================
-'''
-
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 import os
 import json
 from pathlib import Path
 from multiprocessing.pool import Pool
-from mooseherder.directorymanager import DirectoryManager
-import mooseherder.directorymanager as dm
-from mooseherder.exodusreader import ExodusReader
-from mooseherder.simdata import SimData, SimReadConfig
+from pyvale.mooseherder.directorymanager import DirectoryManager
+import pyvale.mooseherder.directorymanager as dm
+from pyvale.mooseherder.exodusreader import ExodusReader
+from pyvale.mooseherder.simdata import SimData, SimReadConfig
 
 
 class SweepReader:
     """Used to read the output from one or more calls to mooseherd.run_para().
     has configurable options for reading in the variable sweep in parallel.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
     """
     def __init__(self,
                  dir_manager: DirectoryManager,
                  num_para_read: int = 1) -> None:
-        """__init__: Construct the sweep reader with a directory manager and
+        """Construct the sweep reader with a directory manager and
         the number of simulations to read in parallel.
 
-        Args:
-            dir_manager (DirectoryManager): the directory manager as used by
-                the mooseherd that ran the simulation sweep.
-            num_para_read (int, optional): number of simulation to read in
-                parallel. Defaults to 1.
+        Parameters
+        ----------
+        dir_manager : DirectoryManager
+            The directory manager as used by the mooseherd that ran the
+            simulation sweep.
+        num_para_read : int, optional
+            Number of simulation to read in parallel. Defaults to 1.
         """
         self._dir_manager = dir_manager
         self._output_files = list([])

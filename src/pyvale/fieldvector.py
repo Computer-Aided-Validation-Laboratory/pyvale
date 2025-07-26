@@ -7,7 +7,7 @@
 import numpy as np
 import pyvista as pv
 from scipy.spatial.transform import Rotation
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 from pyvale.field import IField
 from pyvale.fieldconverter import simdata_to_pyvista

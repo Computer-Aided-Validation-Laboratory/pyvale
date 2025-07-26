@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale as pyv
 
 def print_sim_data(sim_data: mh.SimData) -> None:

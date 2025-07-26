@@ -1,10 +1,9 @@
-"""
-===============================================================================
-SimRunner Abstract Base Class
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-Authors: Lloyd Fletcher
-===============================================================================
-"""
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -13,49 +12,20 @@ class SimRunner(ABC):
     input file which can be get or set. The simulation can then be run with the
     given input files and then the path to the simulation output file can be
     retrieved.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
     """
     @abstractmethod
     def get_input_file(self) -> Path | None:
-        """get_input_path"""
-
+        pass
 
     @abstractmethod
     def set_input_file(self, input_path: Path) -> None:
-        """set_input_file
-
-        Parameters
-        ----------
-        input_path: Path :
-            
-
-        Returns
-        -------
-
-        """
-
+        pass
 
     @abstractmethod
     def run(self, input_file: Path | None = None) -> None:
-        """run
-
-        Parameters
-        ----------
-        input_file: Path | None :
-             (Default value = None)
-
-        Returns
-        -------
-
-        """
+        pass
 
     @abstractmethod
     def get_output_path(self) -> Path | None:
-        """get_output_path"""
+        pass
 

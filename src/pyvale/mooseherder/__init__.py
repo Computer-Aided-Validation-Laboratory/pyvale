@@ -4,17 +4,17 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
-from mooseherder.inputmodifier import InputModifier
-from mooseherder.simrunner import SimRunner
-from mooseherder.mooserunner import MooseRunner
-from mooseherder.gmshrunner import GmshRunner
-from mooseherder.exodusreader import ExodusReader
-from mooseherder.mooseherd import MooseHerd
-from mooseherder.directorymanager import DirectoryManager
-from mooseherder.sweepreader import SweepReader
-from mooseherder.simdata import SimData
-from mooseherder.simdata import SimReadConfig
-from mooseherder.mooseconfig import MooseConfig
+from .inputmodifier import InputModifier
+from .simrunner import SimRunner
+from .mooserunner import MooseRunner
+from .gmshrunner import GmshRunner
+from .exodusreader import ExodusReader
+from .mooseherd import MooseHerd
+from .directorymanager import DirectoryManager
+from .sweepreader import SweepReader
+from .simdata import SimData
+from .simdata import SimReadConfig
+from .mooseconfig import MooseConfig
 
 
 __all__ = ["inputmodifier",

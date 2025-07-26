@@ -21,7 +21,7 @@ Test case: point strain sensors on a 2D plate with hole loaded in tension
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale as pyv
 
 #%%

@@ -16,7 +16,7 @@ import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 #still required tro make latex work.
 import pyvista as pv
 
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 from pyvale.sensorarraypoint import SensorArrayPoint
 from pyvale.fieldconverter import simdata_to_pyvista

@@ -8,7 +8,7 @@
 #NOTE: causes output to console to be suppressed unfortunately
 import pyvista as pv
 
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 from pyvale.sensorarraypoint import SensorArrayPoint
 from pyvale.fieldconverter import simdata_to_pyvista

@@ -24,7 +24,7 @@ Test case: Scalar field point sensors (thermocouples) on a 3D thermal simulation
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale as pyv
 
 #%%

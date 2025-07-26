@@ -1,14 +1,12 @@
-'''
-===============================================================================
-Gmsh Runner Class
-
-Authors: Rory Spencer, Lloyd Fletcher
-===============================================================================
-'''
-import os
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 import subprocess
 from pathlib import Path
-from mooseherder.simrunner import SimRunner
+from pyvale.mooseherder.simrunner import SimRunner
+
 
 class GmshRunner(SimRunner):
     """Used to call gmsh to create a mesh file to be used to run a finite

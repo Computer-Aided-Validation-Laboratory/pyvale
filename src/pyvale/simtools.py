@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 import numpy as np
-import mooseherder as mh
+import pyvale.mooseherder as mh
 from pyvale.rendermesh import RenderMesh
 
 class SimTools:

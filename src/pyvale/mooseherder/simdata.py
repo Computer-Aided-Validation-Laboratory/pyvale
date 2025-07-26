@@ -1,16 +1,18 @@
-"""===============================================================================
-SimData Class
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-Authors: Lloyd Fletcher
-===============================================================================
-"""
 from dataclasses import dataclass
 import numpy as np
 
 
 @dataclass
 class SimData:
-    """Data class for finite element simulation output."""
+    """Data class for simulation output. Allows for structured meshes with
+    connectivity tables or for point clouds."""
+
     num_spat_dims: int = 3
     ''' Number of spatial dimensions in the simulation, required to determine
     element types given that all coords are padded to [x,y,z]. Allows for 2D and
@@ -18,14 +20,13 @@ class SimData:
     '''
 
     time: np.ndarray | None = None
-    ''' Vector of time steps with dimensions [t].
-        Defaults to None.
+    ''' Vector of time steps with dimensions [t]. Defaults to None.
     '''
 
     coords: np.ndarray | None = None
     ''' Array of nodal coordinates in N by 3 where N is the number of nodes
-        columns are [x,y,z] coordinates and rows are the nth node.
-        Defaults to None.
+        columns are [x,y,z] coordinates and rows are the nth node. Defaults to
+        None.
     '''
 
     connect: dict[str,np.ndarray] | None = None
@@ -74,9 +75,9 @@ class SimData:
         Defaults to None.
     '''
 
-@dataclass
+@dataclass(slots=True)
 class SimReadConfig:
-    """Used to specify na mes of variables to be read into the SimData class.
+    """Used to specify names of variables to be read into the SimData class.
        This class allows the user to only extract the required variables by
        name.
     """

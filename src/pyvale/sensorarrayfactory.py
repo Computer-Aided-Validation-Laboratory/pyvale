@@ -6,7 +6,7 @@
 
 import numpy as np
 
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 from pyvale.fieldscalar import FieldScalar
 from pyvale.fieldvector import FieldVector

@@ -11,7 +11,7 @@ of input simulation cases and sensor arrays.
 
 from dataclasses import dataclass
 import numpy as np
-import mooseherder as mh
+import pyvale.mooseherder as mh
 from pyvale.sensorarray import ISensorArray
 
 

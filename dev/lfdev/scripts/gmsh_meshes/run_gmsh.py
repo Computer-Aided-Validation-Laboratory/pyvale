@@ -8,7 +8,7 @@ Copyright (C) 2025 The Computer Aided Validation Team
 '''
 from pathlib import Path
 import time
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 def main() -> None:
     gmsh_path = Path().home() / 'gmsh/bin/gmsh'

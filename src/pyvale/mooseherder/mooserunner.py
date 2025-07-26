@@ -1,27 +1,29 @@
-'''
-===============================================================================
-MOOSE Runner Class
-
-Authors: Lloyd Fletcher, Rory Spencer
-===============================================================================
-'''
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 import os
 import subprocess
 from pathlib import Path
-from mooseherder.simrunner import SimRunner
-from mooseherder.mooseconfig import MooseConfig
+from pyvale.mooseherder.simrunner import SimRunner
+from pyvale.mooseherder.mooseconfig import MooseConfig
+
 
 class MooseRunner(SimRunner):
     """Used to run MOOSE models (*.i) from python."""
     def __init__(self, config: MooseConfig):
-        """__init__: Constructor for MOOSE runner taking a MooseConfig object
+        """Constructor for MOOSE runner taking a MooseConfig object
         that contains the paths to the main MOOSE install, the MOOSE app and
         the MOOSE app name. Sets default parallelisation options to 1 MPI task
         and 1 thread. Sets environment variables required for MPI setup.
 
-        Args:
-            config (MooseConfig): moose configuration object containing the
-                required paths and app name to construct the command string.
+
+        Parameters
+        ----------
+        config : MooseConfig
+            moose configuration object containing the required paths and app
+            name to construct the command string.
         """
         self._config = config.get_config()
 
@@ -50,11 +52,6 @@ class MooseRunner(SimRunner):
         ----------
         n_threads : int
             Number of threads.
-
-
-        Returns
-        -------
-
         """
         # Need to make sure number is sensible based on cpu
         if n_threads <= 0:

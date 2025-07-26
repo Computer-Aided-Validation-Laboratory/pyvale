@@ -19,7 +19,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
 import pyvale
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 # %%
 # Here we load in a pre-generated MOOSE finite element simulation dataset that

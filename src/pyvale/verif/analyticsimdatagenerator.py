@@ -12,7 +12,7 @@ underlying physical fields. Useful for testing pyvale.
 from dataclasses import dataclass
 import numpy as np
 import sympy
-import mooseherder as mh
+import pyvale.mooseherder as mh
 from pyvale.verif.analyticmeshgen import rectangle_mesh_2d, fill_dims_2d
 
 

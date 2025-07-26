@@ -1,3 +1,9 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
 # ===============================================================================
 # EXODUS READER
 # Used to read output *.e from MOOSE simulations.
@@ -18,8 +24,8 @@
 from pathlib import Path
 import netCDF4 as nc
 import numpy as np
-from mooseherder.simdata import SimData, SimReadConfig
-from mooseherder.outputreader import OutputReader
+from pyvale.mooseherder.simdata import SimData, SimReadConfig
+from pyvale.mooseherder.outputreader import OutputReader
 
 
 class ExodusReader(OutputReader):

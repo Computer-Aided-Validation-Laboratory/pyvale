@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sympy as sym
 import scipy.integrate
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale
 import pyvale.visualisation.visualplotters
 

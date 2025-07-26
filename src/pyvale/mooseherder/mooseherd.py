@@ -1,31 +1,22 @@
-'''
-===============================================================================
-MOOSE Herd Class
-
-Authors: Lloyd Fletcher, Rory Spencer
-===============================================================================
-'''
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 import os
 import time
 import multiprocessing as mp
 from pathlib import Path
 from multiprocessing.pool import Pool
 
-from mooseherder.directorymanager import DirectoryManager
-from mooseherder.simrunner import SimRunner
-from mooseherder.inputmodifier import InputModifier
+from pyvale.mooseherder.directorymanager import DirectoryManager
+from pyvale.mooseherder.simrunner import SimRunner
+from pyvale.mooseherder.inputmodifier import InputModifier
 
 
 class MooseHerdError(Exception):
     """MooseHerdError: custom error class for flagging errors with the moose
     herd.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
     """
 
 class MooseHerd:
@@ -37,13 +28,6 @@ class MooseHerd:
     call run on all the SimRunners in order. Uses the DirectoryManager class to
     create/clear and log the directories in which each parallel worker is
     creating input files and running simulations.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
     """
     def __init__(self, sim_runners: list[SimRunner],
                  input_mods: list[InputModifier],

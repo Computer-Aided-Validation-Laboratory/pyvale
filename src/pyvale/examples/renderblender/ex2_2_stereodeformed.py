@@ -18,7 +18,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
 import pyvale
-import mooseherder as mh
+import pyvale.mooseherder as mh
 
 # %%
 # The simulation results are loaded in here in the same way as the previous
