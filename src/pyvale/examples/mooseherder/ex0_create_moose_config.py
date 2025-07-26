@@ -1,27 +1,20 @@
-"""
-==============================================================================
-EXAMPLE: Create moose-config.json
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-Author: Lloyd Fletcher
-==============================================================================
-"""
 from pathlib import Path
 from mooseherder import MooseConfig
 
+config = {'main_path': Path.home()/ 'moose',
+        'app_path': Path.home() / 'proteus',
+        'app_name': 'proteus-opt'}
 
-def main() -> None:
-    """main: create moose config json
-    """
-    config = {'main_path': Path.home()/ 'moose',
-            'app_path': Path.home() / 'proteus',
-            'app_name': 'proteus-opt'}
+moose_config = MooseConfig(config)
 
-    moose_config = MooseConfig(config)
-
-    save_path = Path.cwd() / 'moose-config.json'
-    moose_config.save_config(save_path)
+save_path = Path.cwd() / 'moose-config.json'
+moose_config.save_config(save_path)
 
 
-if __name__ == "__main__":
-    main()
 

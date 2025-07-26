@@ -1,11 +1,9 @@
-'''
-==============================================================================
-EXAMPLE: Run Gmsh+MOOSE in parallel multiple times then read sweep results
-with a specific read config to extract certain time steps.
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-Author: Lloyd Fletcher, Rory Spencer
-==============================================================================
-'''
 import time
 from pathlib import Path
 from pprint import pprint

@@ -1,10 +1,9 @@
-"""
-==============================================================================
-EXAMPLE: Full functionality, code only, only print at start and end
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-Author: Lloyd Fletcher
-==============================================================================
-"""
 from pathlib import Path
 from mooseherder import (MooseHerd,
                          MooseRunner,

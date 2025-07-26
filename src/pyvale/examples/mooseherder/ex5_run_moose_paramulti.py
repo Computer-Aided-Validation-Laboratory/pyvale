@@ -1,10 +1,9 @@
-'''
-==============================================================================
-EXMAPLE: Run MOOSE in sequential then parallel mode with mooseherder
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-Author: Lloyd Fletcher, Rory Spencer
-==============================================================================
-'''
 from pathlib import Path
 from mooseherder import (MooseHerd,
                          MooseRunner,

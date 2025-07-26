@@ -1,10 +1,9 @@
-'''
-==============================================================================
-EXAMPLE: Read existing sweep results
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-Author: Lloyd Fletcher
-==============================================================================
-'''
 import time
 from pprint import pprint
 from pathlib import Path

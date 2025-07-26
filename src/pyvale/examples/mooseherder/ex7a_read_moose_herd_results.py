@@ -1,10 +1,9 @@
-'''
-==============================================================================
-EXAMPLE: Run MOOSE in sequential then parallel mode then read sweep results
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-Author: Lloyd Fletcher, Rory Spencer
-==============================================================================
-'''
 import time
 from pathlib import Path
 from pprint import pprint
