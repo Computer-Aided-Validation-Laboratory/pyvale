@@ -20,6 +20,7 @@ testoutput/
 exampleoutput/
 pyvale-output/
 blender*/
+tests/mooseherder/output/
 
 # MOOSE / gmsh
 *-opt
