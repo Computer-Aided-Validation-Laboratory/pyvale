@@ -4,14 +4,21 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+mooseherder:
+================================================================================
+
+In this example we ...
+"""
+
 import time
 from pprint import pprint
 from pathlib import Path
 from typing import Any
 import numpy as np
-from mooseherder import (MooseRunner,
-                         MooseConfig,
-                         ExodusReader)
+from pyvale.mooseherder import (MooseRunner,
+                                MooseConfig,
+                                ExodusReader)
 
 USER_DIR = Path.home()
 

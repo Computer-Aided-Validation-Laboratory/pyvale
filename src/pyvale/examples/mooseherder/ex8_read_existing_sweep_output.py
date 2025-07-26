@@ -4,11 +4,18 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+mooseherder:
+================================================================================
+
+In this example we ...
+"""
+
 import time
 from pprint import pprint
 from pathlib import Path
-from mooseherder import DirectoryManager
-from mooseherder import SweepReader
+from pyvale.mooseherder import DirectoryManager
+from pyvale.mooseherder import SweepReader
 
 
 def main() -> None:

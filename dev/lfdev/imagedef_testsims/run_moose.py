@@ -6,7 +6,7 @@ Copyright (C) 2025 The Computer Aided Validation Team
 """
 import time
 from pathlib import Path
-from mooseherder import (MooseConfig,
+from pyvale.mooseherder import (MooseConfig,
                          MooseRunner)
 
 MOOSE_FILE = "mechplate2d_shear.i"

@@ -8,7 +8,7 @@ Authors: Lloyd Fletcher
 import os
 from pathlib import Path
 import pytest
-from mooseherder.inputmodifier import InputModifier
+from pyvale.mooseherder.inputmodifier import InputModifier
 
 
 @pytest.fixture

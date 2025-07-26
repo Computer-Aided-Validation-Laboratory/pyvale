@@ -4,8 +4,15 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+mooseherder:
+================================================================================
+
+In this example we ...
+"""
+
 from pathlib import Path
-from mooseherder import InputModifier
+from pyvale.mooseherder import InputModifier
 
 GMSH_INPUT = Path("scripts/gmsh/gmsh_tens_spline_2d.geo")
 

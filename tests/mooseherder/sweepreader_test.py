@@ -6,8 +6,8 @@ Authors: Lloyd Fletcher
 ==============================================================================
 '''
 import pytest
-from mooseherder.sweepreader import SweepReader
-from mooseherder.directorymanager import DirectoryManager
+from pyvale.mooseherder.sweepreader import SweepReader
+from pyvale.mooseherder.directorymanager import DirectoryManager
 import tests.herdchecker as hc
 
 

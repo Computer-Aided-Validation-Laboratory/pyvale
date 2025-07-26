@@ -10,8 +10,8 @@ from dataclasses import fields
 import pytest
 import numpy as np
 import numpy.typing as npt
-from mooseherder.exodusreader import ExodusReader
-from mooseherder.simdata import SimData
+from pyvale.mooseherder.exodusreader import ExodusReader
+from pyvale.mooseherder.simdata import SimData
 import tests.herdchecker as hc
 
 NUM_TIME_STEPS = 4

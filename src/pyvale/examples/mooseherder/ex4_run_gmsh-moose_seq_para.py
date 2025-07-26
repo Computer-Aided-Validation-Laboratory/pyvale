@@ -4,13 +4,20 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+mooseherder:
+================================================================================
+
+In this example we ...
+"""
+
 from pathlib import Path
-from mooseherder import (MooseHerd,
-                         MooseRunner,
-                         MooseConfig,
-                         GmshRunner,
-                         InputModifier,
-                         DirectoryManager)
+from pyvale.mooseherder import (MooseHerd,
+                                MooseRunner,
+                                MooseConfig,
+                                GmshRunner,
+                                InputModifier,
+                                DirectoryManager)
 
 USER_DIR = Path.home()
 

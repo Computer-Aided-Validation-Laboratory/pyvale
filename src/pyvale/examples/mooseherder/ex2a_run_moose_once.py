@@ -1,14 +1,20 @@
-"""
-==============================================================================
-EXAMPLE: Run MOOSE using mooseherder once
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
 
-Author: Lloyd Fletcher
-==============================================================================
 """
+mooseherder:
+================================================================================
+
+In this example we ...
+"""
+
 import time
 from pathlib import Path
-from mooseherder import (MooseConfig,
-                         MooseRunner)
+from pyvale.mooseherder import (MooseConfig,
+                                MooseRunner)
 
 print("-"*80)
 print('EXAMPLE: Run MOOSE once')

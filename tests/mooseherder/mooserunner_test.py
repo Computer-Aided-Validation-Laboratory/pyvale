@@ -9,7 +9,7 @@ Authors: Lloyd Fletcher
 import os
 from pathlib import Path
 import pytest
-from mooseherder.mooserunner import MooseRunner
+from pyvale.mooseherder.mooserunner import MooseRunner
 import tests.herdchecker as hc
 
 

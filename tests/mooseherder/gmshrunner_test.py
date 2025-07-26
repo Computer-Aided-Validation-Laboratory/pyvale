@@ -8,7 +8,7 @@ Authors: Lloyd Fletcher
 import os
 from pathlib import Path
 import pytest
-from mooseherder.gmshrunner import GmshRunner
+from pyvale.mooseherder.gmshrunner import GmshRunner
 
 USER_DIR = Path.home()
 

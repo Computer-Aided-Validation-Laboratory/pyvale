@@ -8,7 +8,7 @@ Authors: Lloyd Fletcher
 
 from pathlib import Path
 import pytest
-from mooseherder.directorymanager import DirectoryManager
+from pyvale.mooseherder.directorymanager import DirectoryManager
 import tests.herdchecker as hc
 
 

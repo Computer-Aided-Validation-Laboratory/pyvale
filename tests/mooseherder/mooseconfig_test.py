@@ -8,7 +8,7 @@ Authors: Lloyd Fletcher
 import os
 from pathlib import Path
 import pytest
-from mooseherder.mooseconfig import MooseConfig, MooseConfigError
+from pyvale.mooseherder.mooseconfig import MooseConfig, MooseConfigError
 import tests.herdchecker as hc
 
 

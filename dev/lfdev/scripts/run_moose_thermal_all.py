@@ -9,8 +9,8 @@ Copyright (C) 2025 The Computer Aided Validation Team
 
 import os
 from pathlib import Path
-from mooseherder.mooseconfig import MooseConfig
-from mooseherder.mooserunner import MooseRunner
+from pyvale.mooseherder.mooseconfig import MooseConfig
+from pyvale.mooseherder.mooserunner import MooseRunner
 
 USER_DIR = Path.home()
 

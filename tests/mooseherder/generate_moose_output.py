@@ -8,7 +8,7 @@ Author: Lloyd Fletcher
 import time
 import os
 from pathlib import Path
-from mooseherder import MooseRunner
+from pyvale.mooseherder import MooseRunner
 
 USER_DIR = Path().home()
 

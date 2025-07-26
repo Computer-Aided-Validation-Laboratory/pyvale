@@ -8,8 +8,8 @@ Authors: Lloyd Fletcher
 import os
 import pytest
 from pytest import MonkeyPatch
-from mooseherder.mooseherd import MooseHerd
-from mooseherder.directorymanager import DirectoryManager
+from pyvale.mooseherder.mooseherd import MooseHerd
+from pyvale.mooseherder.directorymanager import DirectoryManager
 import tests.herdchecker as hct
 
 

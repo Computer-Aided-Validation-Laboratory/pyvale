@@ -18,7 +18,7 @@ import numpy as np
 from numpy.random import default_rng
 import matplotlib.pyplot as plt
 
-from mooseherder import SimData
+from pyvale.mooseherder import SimData
 import pyvale.imagesim.imagedefdiags as idd
 
 

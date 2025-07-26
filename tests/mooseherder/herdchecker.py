@@ -10,12 +10,12 @@ import os
 from typing import Any
 from pathlib import Path
 from pprint import pprint
-from mooseherder.inputmodifier import InputModifier
-from mooseherder.mooserunner import MooseRunner
-from mooseherder.mooseconfig import MooseConfig
-from mooseherder.gmshrunner import GmshRunner
-from mooseherder.mooseherd import MooseHerd
-from mooseherder.directorymanager import DirectoryManager
+from pyvale.mooseherder.inputmodifier import InputModifier
+from pyvale.mooseherder.mooserunner import MooseRunner
+from pyvale.mooseherder.mooseconfig import MooseConfig
+from pyvale.mooseherder.gmshrunner import GmshRunner
+from pyvale.mooseherder.mooseherd import MooseHerd
+from pyvale.mooseherder.directorymanager import DirectoryManager
 
 
 NUM_DIRS = 4

@@ -4,11 +4,18 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+mooseherder:
+================================================================================
+
+In this example we ...
+"""
+
 import time
 import os
 import shutil
 from pathlib import Path
-from mooseherder import (MooseConfig,
+from pyvale.mooseherder import (MooseConfig,
                         GmshRunner,
                         MooseRunner)
 

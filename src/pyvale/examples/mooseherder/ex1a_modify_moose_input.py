@@ -4,17 +4,22 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+mooseherder: 
+================================================================================
+
+In this example we ...
+"""
+
 from pathlib import Path
-from mooseherder import InputModifier
+from pyvale.mooseherder import InputModifier
 
-MOOSE_INPUT = Path("scripts/moose/moose-mech-simple.i")
-
-
+moose_input = Path("scripts/moose/moose-mech-simple.i")
 
 print("-"*80)
 print("EXAMPLE: Modify MOOSE input script")
 print("-"*80)
-moose_mod = InputModifier(MOOSE_INPUT, comment_char="#", end_char="")
+moose_mod = InputModifier(moose_input, comment_char="#", end_char="")
 
 print("Variables found the top of the MOOSE input file:")
 print(moose_mod.get_vars())

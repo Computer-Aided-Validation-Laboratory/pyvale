@@ -4,9 +4,16 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+mooseherder:
+================================================================================
+
+In this example we ...
+"""
+
 import time
 from pathlib import Path
-from mooseherder import GmshRunner
+from pyvale.mooseherder import GmshRunner
 
 USER_DIR = Path.home()
 

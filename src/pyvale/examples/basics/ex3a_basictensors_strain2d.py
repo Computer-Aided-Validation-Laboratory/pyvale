@@ -23,7 +23,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import pyvale.mooseherder as mh
-from mooseherder import SimData
+from pyvale.mooseherder import SimData
 import pyvale as pyv
 
 #%%

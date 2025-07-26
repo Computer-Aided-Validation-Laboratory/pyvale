@@ -4,6 +4,13 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+"""
+mooseherder: Create configuration file
+================================================================================
+
+In this example we ...
+"""
+
 from pathlib import Path
 from pyvale.mooseherder import MooseConfig
 
