@@ -1,7 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-MOOSE Herder
-"""
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
 from mooseherder.inputmodifier import InputModifier
 from mooseherder.simrunner import SimRunner

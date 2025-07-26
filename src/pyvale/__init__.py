@@ -98,3 +98,5 @@ from pyvale.dicresults import *
 from pyvale.dic2dcpp import *
 from pyvale.dicstrain import *
 from pyvale.dicchecks import *
+
+# mooseherder module

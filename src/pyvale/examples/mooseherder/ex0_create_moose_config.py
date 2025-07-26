@@ -5,7 +5,7 @@
 # ==============================================================================
 
 from pathlib import Path
-from mooseherder import MooseConfig
+from pyvale.mooseherder import MooseConfig
 
 config = {'main_path': Path.home()/ 'moose',
         'app_path': Path.home() / 'proteus',
