@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-mooseherder:
+Using multiple calls to run parallel sweeps
 ================================================================================
 
 In this example we ...
@@ -24,9 +24,6 @@ USER_DIR = Path.home()
 def main():
     """main: run moose once, sequential then parallel.
     """
-    print("-"*80)
-    print('EXMAPLE: Herd Setup')
-    print("-"*80)
 
     # Setup the MOOSE input modifier and runner
     moose_input = Path('scripts/moose/moose-mech-simple.i')

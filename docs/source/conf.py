@@ -1,4 +1,4 @@
-import os 
+import os
 import sys
 import inspect
 from sphinx_gallery.sorting import FileNameSortKey
@@ -113,13 +113,15 @@ sphinx_gallery_conf = {
     'examples_dirs': [
         '../../src/pyvale/examples/basics',
         '../../src/pyvale/examples/dic',
-        '../../src/pyvale/examples/renderblender'
+        '../../src/pyvale/examples/renderblender',
+        '../../src/pyvale/examples/mooseherder',
     ],
     # Path to where to save gallery generated output
     'gallery_dirs': [
         'examples/basics',
         'examples/dic/',
-        'examples/renderblender'
+        'examples/renderblender',
+        'examples/mooseherder',
     ],
     # Pattern to identify example files
     'filename_pattern': '/plot_',

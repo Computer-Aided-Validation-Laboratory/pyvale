@@ -28,7 +28,7 @@ import pyvale as pyv
 # First we load our simulation asa `SimData` object. In this case we are
 # loading a 10mm cube loaded in tension in the y direction with the addition
 # of a thermal gradient in the y direction.
-data_path = pyv.DataSet.element_case_path(pyv.EElemTest.HEX20)
+data_path = pyv.DataSet.element_case_output_path(pyv.EElemTest.HEX20)
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
 #%%

@@ -30,7 +30,7 @@ def simdata_mech_2d() -> mh.SimData:
 
 
 def simdata_mech_3d() -> mh.SimData:
-    data_path = pyv.DataSet.element_case_path(pyv.EElemTest.HEX20)
+    data_path = pyv.DataSet.element_case_output_path(pyv.EElemTest.HEX20)
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_comps = ("disp_x","disp_y","disp_z")
     sim_data = pyv.scale_length_units(scale=1000.0,

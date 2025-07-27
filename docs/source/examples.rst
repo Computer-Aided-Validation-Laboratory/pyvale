@@ -23,3 +23,10 @@ Digital Image Correlation
    :maxdepth: 2
 
    examples_dic.rst
+
+Mooseherder
+-------------------------------------
+.. toctree::
+   :maxdepth: 2
+
+   examples_mooseherder.rst

@@ -35,10 +35,10 @@ def simdata_list_2d() -> list[mh.SimData]:
 
 
 def simdata_list_3d() -> list[mh.SimData]:
-    data_paths = [pyv.DataSet.element_case_path(pyv.EElemTest.TET4),
-                  pyv.DataSet.element_case_path(pyv.EElemTest.TET10),
-                  pyv.DataSet.element_case_path(pyv.EElemTest.HEX8),
-                  pyv.DataSet.element_case_path(pyv.EElemTest.HEX20)]
+    data_paths = [pyv.DataSet.element_case_output_path(pyv.EElemTest.TET4),
+                  pyv.DataSet.element_case_output_path(pyv.EElemTest.TET10),
+                  pyv.DataSet.element_case_output_path(pyv.EElemTest.HEX8),
+                  pyv.DataSet.element_case_output_path(pyv.EElemTest.HEX20)]
     disp_comps = ("disp_x","disp_y","disp_z")
     return load_simdata_list(data_paths,disp_comps)
 

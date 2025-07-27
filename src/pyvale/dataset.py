@@ -295,10 +295,33 @@ class DataSet:
         return Path(files("pyvale.data").joinpath("case25_out.e"))
 
     @staticmethod
-    def element_case_path(elem_type: EElemTest) -> Path:
+    def element_case_input_path(elem_type: EElemTest) -> Path:
+        """Path to a MOOSE simulation input file (.i) for a simple test
+        case. This case is a 10mm cube undergoing thermo-mechanical loading
+        solved for the temperature, displacement and strain fields. This case is
+        solved using a variety of tetrahedral and hexahedral elements with
+        linear or quadratic shapes functions. These simulation cases are
+        intended for testing purposes and contain a minimal number of elements.
+
+        Parameters
+        ----------
+        elem_type : EElemTest
+            Enumeration specifying the element type for this test case.
+
+        Returns
+        -------
+        Path
+            Path to the moose input file (.i) for this simulation case.
+        """
+        return Path(files("pyvale.simcases")
+                    .joinpath(f"case00_{elem_type.value}.i"))
+
+
+    @staticmethod
+    def element_case_output_path(elem_type: EElemTest) -> Path:
         """Path to a MOOSE simulation output in exodus format. This case is a
         10mm cube undergoing thermo-mechanical loading solved for the
-        temperature displacement and strain fields. This case is solved using a
+        temperature, displacement and strain fields. This case is solved using a
         variety of tetrahedral and hexahedral elements with linear or quadratic
         shapes functions. These simulation cases are intended for testing
         purposes and contain a minimal number of elements.

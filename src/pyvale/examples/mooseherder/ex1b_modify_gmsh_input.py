@@ -5,42 +5,73 @@
 # ==============================================================================
 
 """
-mooseherder:
+Modifying gmsh input files
 ================================================================================
 
-In this example we ...
+In this example we will use mooseherder's input modifier to programmatically
+change variables in a gmsh .geo script.
 """
+#%%
+# We start with imports: We need paths to help us getting and saving our
+# moose input files. We need pyvale to get an example input file as well as
+# the mooseherder input modifier to change the variables in the input file.
 
 from pathlib import Path
+import pyvale as pyv
 from pyvale.mooseherder import InputModifier
 
-GMSH_INPUT = Path("scripts/gmsh/gmsh_tens_spline_2d.geo")
+#%%
+# We are going to use a gmsh geo file that is for a 2D rectangular plate with a
+# hole in the center which we retrieve from pyvales simulation library. We then
+# use this to create an input modifier which has the correct comment string '//'
+# for gmsh and the required line terminator ";".
+gmsh_input = pyv.DataSet.sim_case_gmsh_file_path(case_num=17)
+gmsh_mod = InputModifier(gmsh_input, "//", ";")
 
-
-print("-"*80)
-print("EXAMPLE: Modify gmsh input script")
-print("-"*80)
-gmsh_mod = InputModifier(GMSH_INPUT, "//", ";")
-
-print("Variables found the top of the gmsh input file:")
+#%%
+# Note that the input modifier class only looks for variables between specified
+# sentinel characters in comment lines which starts with _* and ends with **.
+# Here is an example of what the variable block looks like in the gmsh input
+# file, noting the comment '//' followed by the sentinel characters '_*' to
+# start and '**' to end:
+#
+#//_* MOOSEHERDER VARIABLES - START
+#lengX = 10e-3;   // m
+#lengY = 10e-3;   // m
+#lengZ = 10e-3;   // m
+#//_* MOOSEHERDER VARIABLES - END
+#
+# We then print the variables found in the gmsh input file to the console which
+# are returned to us as a dictionary keyed by the variables string name in the
+# file:
 print(gmsh_mod.get_vars())
 print()
 
-new_vars = {"p0": 0.0018, "p1": 0.0012, "p2": 0.001}
+#%%
+# We can update the variables in the input modifier using a dictionary keyed by
+# the variable names we want to change and the values being what we want to
+# change them to. We do not have to use numeric values for these we can use
+# expressions in strings.
+new_vars = {"plate_width": 150e-3, "plate_height": "plate_width + 100e-3"}
 gmsh_mod.update_vars(new_vars)
 
-print("New variables inserted:")
+#%%
+# Now we print the variables that are currently in the input modifier to check
+# our modification worked.
 print(gmsh_mod.get_vars())
 print()
 
-gmsh_save = Path("scripts/gmsh_tens_spline_2d-mod_vars.geo")
+#%%
+# Finally we want to save the modified input file to disk so we can run it with
+# gmsh. First we create the standard pyvale-output directory so we can save the
+# file there. Then we save the gmsh input file to the directory with a suitable
+# name. Have a look at the file in the directory to ensure our modifications
+# have worked.
+
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
+
+gmsh_save = output_path/"gmsh-mod-vars.geo"
 gmsh_mod.write_file(gmsh_save)
-
-print("Modified input script written to:")
-print(gmsh_save)
-print()
-
-print("Example complete.")
-print("-"*80)
-print()
 
