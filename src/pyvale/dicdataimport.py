@@ -23,7 +23,7 @@ calculations.
 def dic_data_import(data: str | Path,
                    binary: bool = False,
                    layout: str = "matrix",
-                   delimiter: str = " ") -> DICResults:
+                   delimiter: str = ",") -> DICResults:
     """
     Import DIC result data from human readable text or binary files.
 
