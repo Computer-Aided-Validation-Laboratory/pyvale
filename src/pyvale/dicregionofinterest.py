@@ -84,6 +84,7 @@ class DICRegionOfInterest:
         self.height = None
         self.width = None
         self.subset_size = None
+        self.coord_label = None
 
     def interactive_selection(self, subset_size):
         """
@@ -117,6 +118,8 @@ class DICRegionOfInterest:
         
         # Create graphics widget
         self.graphics_widget = pg.GraphicsLayoutWidget()
+
+
         
         main_layout.addLayout(sidebar)
         main_layout.addWidget(self.graphics_widget)
@@ -165,7 +168,27 @@ class DICRegionOfInterest:
         self.buttons['undo_prev'].setEnabled(False)
         self.buttons['redo_prev'].setEnabled(False)
         
+        self.coord_label = QtWidgets.QLabel("(-, -)")
+        self.coord_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+
+        # Set fixed width to handle largest expected value comfortably
+        self.coord_label.setMinimumWidth(350)
+        self.coord_label.setMaximumWidth(350)
+
+        self.coord_label.setStyleSheet("""
+            QLabel {
+                background-color: rgba(0, 0, 0, 150);
+                color: white;
+                padding: 5px;
+                border-radius: 3px;
+                font-family: monospace;
+                font-size: 12px;
+            }
+        """)
+        
         sidebar.addStretch()
+        sidebar.addWidget(self.coord_label)
+        
         return sidebar
 
     def _setup_graphics(self):
@@ -222,6 +245,24 @@ class DICRegionOfInterest:
             self.buttons[btn_id].clicked.connect(handler)
 
         self.main_view.scene().sigMouseClicked.connect(self._mouse_clicked)
+        self.main_view.scene().sigMouseMoved.connect(self._mouse_moved)
+
+
+    def _mouse_moved(self, pos):
+        """Handle mouse movement to update coordinate display."""
+        if self.main_view.sceneBoundingRect().contains(pos):
+            mouse_point = self.main_view.mapSceneToView(pos)
+            # Convert from graphics coordinates to image coordinates
+            img_x = int(round(mouse_point.x()))
+            img_y = int(round(self.width - mouse_point.y()))
+            
+            # Clamp coordinates to image bounds
+            img_x = max(0, min(img_x, self.height - 1))
+            img_y = max(0, min(img_y, self.width - 1))
+            
+            self.coord_label.setText(f"({img_x}, {img_y})")
+        else:
+            self.coord_label.setText("(-, -)")
 
     def _start_drawing_mode(self, mode):
         """Start drawing mode for specified shape type."""
