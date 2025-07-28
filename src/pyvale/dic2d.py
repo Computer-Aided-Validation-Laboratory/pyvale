@@ -6,6 +6,7 @@
 
 
 
+import os
 import numpy as np
 from pathlib import Path
 
@@ -27,6 +28,7 @@ def dic_2d(reference: np.ndarray | str | Path,
           opt_precision: float=0.001,
           opt_threshold: float=0.9,
           bf_threshold: float=0.6,
+          num_threads: int | None = None,
           max_displacement: int=128,
           scanning_method: str="RG",
           fft_mad: bool=False,
@@ -70,6 +72,8 @@ def dic_2d(reference: np.ndarray | str | Path,
         Precision threshold for iterative optimization convergence (default: 0.001).
     opt_threshold : float, optional
         Minimum correlation improvement threshold to continue iterations (default: 0.9).
+    num_threads : int, optional
+        Number of threads to use for parallel computation (default: None, uses all available).
     bf_threshold : float, optional
         Correlation threshold used in rigid bruteforce check for a subset to be considered a
         good match(default: 0.6).
@@ -159,6 +163,11 @@ def dic_2d(reference: np.ndarray | str | Path,
     saveconf.prefix = output_prefix
     saveconf.delimiter = output_delimiter
     saveconf.at_end = output_at_end
+
+
+    #set the number of OMP threads
+    if num_threads is not None:
+        dic2dcpp.set_num_threads(num_threads)
 
     # calling the c++ dic engine
     dic2dcpp.dic_engine(ref_arr, def_arr, roi_c, config, saveconf)

@@ -172,6 +172,11 @@ void build_info(){
 }
 
 
+void set_num_threads(int n) {
+    omp_set_num_threads(n);
+}
+
+
 
 PYBIND11_MODULE(dic2dcpp, m) {
     py::class_<util::Config>(m, "Config")
@@ -208,6 +213,7 @@ PYBIND11_MODULE(dic2dcpp, m) {
     m.def("build_info", &build_info, "build information");
     m.def("dic_engine", &DICengine, "Run 2D analysis on input images with config");
     m.def("strain_engine", &strain::engine, "Strain C++ calculations");
+    m.def("set_num_threads", &set_num_threads, "Set the number of OpenMP threads");
 }
 
 
