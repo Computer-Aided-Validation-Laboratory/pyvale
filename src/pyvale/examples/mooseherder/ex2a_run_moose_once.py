@@ -8,43 +8,49 @@
 Running MOOSE once
 ================================================================================
 
-In this example we ...
+In this example we will run a single MOOSE simulation
 """
 
 import time
 from pathlib import Path
+import pyvale as pyv
 from pyvale.mooseherder import (MooseConfig,
                                 MooseRunner)
 
-print("-"*80)
-print('EXAMPLE: Run MOOSE once')
-print("-"*80)
 
-config_path = Path.cwd() / 'moose-config.json'
-moose_config = MooseConfig().read_config(config_path)
-print(f'Reading MOOSE config from: \n{str(config_path)}\n')
+#%%
+#
+config = {'main_path': Path.home()/ 'moose',
+          'app_path': Path.home() / 'proteus',
+          'app_name': 'proteus-opt'}
+moose_config = MooseConfig(config)
 
-print('Creating the MooseRunner with the specified config.\n')
+#%%
+#
 moose_runner = MooseRunner(moose_config)
 
-print('Setting the input file and run parallelisation options.\n')
-
 moose_runner.set_run_opts(n_tasks = 1,
-                            n_threads = 8,
-                            redirect_out = False)
+                          n_threads = 8,
+                          redirect_out = False)
 
-input_file = Path('scripts/moose/moose-mech-simple.i')
-moose_runner.set_input_file(input_file)
+#%%
+#
+moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
+moose_runner.set_input_file(moose_input)
 
-# Run the MOOSE!
-print('Running moose with:')
+#%%
+#
 print(moose_runner.get_arg_list())
+print()
 
+#%%
+#
 start_time = time.perf_counter()
 moose_runner.run()
 run_time = time.perf_counter() - start_time
 
 print()
+print("-"*80)
 print(f'MOOSE run time = {run_time:.3f} seconds')
 print("-"*80)
 print()

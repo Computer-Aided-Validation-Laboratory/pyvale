@@ -11,33 +11,40 @@ Run Gmsh then MOOSE once
 In this example we ...
 """
 
+#%%
+#
+
 import time
-import os
 import shutil
 from pathlib import Path
+import pyvale as pyv
 from pyvale.mooseherder import (MooseConfig,
-                        GmshRunner,
-                        MooseRunner)
+                                GmshRunner,
+                                MooseRunner)
 
 
-USER_DIR = Path.home()
+#%%
+#
 
-print("-"*80)
-print('EXAMPLE: Run Gmsh+MOOSE once')
-print("-"*80)
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
-gmsh_path = USER_DIR / 'gmsh/bin/gmsh'
+gmsh_file = pyv.DataSet.sim_case_gmsh_file_path(case_num=17)
+gmsh_input = output_path / gmsh_file.name
+
+moose_file = pyv.DataSet.sim_case_input_file_path(case_num=17)
+moose_input = output_path / moose_file.name
+
+shutil.copyfile(moose_file,moose_input)
+shutil.copyfile(gmsh_file,gmsh_input)
+
+#%%
+#
+gmsh_path = Path.home() / 'gmsh/bin/gmsh'
 gmsh_runner = GmshRunner(gmsh_path)
 
-gmsh_input = Path('scripts/gmsh/gmsh_tens_spline_2d.geo')
 gmsh_runner.set_input_file(gmsh_input)
-
-print('Gmsh path:' + str(gmsh_path))
-print('Gmsh input:' + str(gmsh_input))
-print()
-
-print('Running gmsh...')
-print()
 
 gmsh_start = time.perf_counter()
 gmsh_runner.run()
@@ -45,39 +52,29 @@ gmsh_run_time = time.perf_counter()-gmsh_start
 
 config_path = Path.cwd() / 'moose-config.json'
 
-print(f'Reading MOOSE config from: \n{str(config_path)}\n')
+#%%
+#
+config = {'main_path': Path.home()/ 'moose',
+          'app_path': Path.home() / 'proteus',
+          'app_name': 'proteus-opt'}
+moose_config = MooseConfig(config)
 
-moose_config = MooseConfig()
-moose_config.read_config(config_path)
-
-print('Creating the MooseRunner with the specified config.\n')
 
 moose_runner = MooseRunner(moose_config)
 
-
-print('Setting the input file and run parallelisation options.\n')
-
 moose_runner.set_run_opts(n_tasks = 1,
-                        n_threads = 4,
-                        redirect_out = True)
-input_file = Path('scripts/moose/moose-mech-gmsh.i')
-moose_runner.set_input_file(input_file)
+                          n_threads = 4,
+                          redirect_out = True)
 
-# Copy mesh file into the directory
-moose_mesh_file = os.path.split(input_file)[0]+'/mesh_tens_spline_2d.msh'
-moose_mesh_file = input_file.parent / 'mesh_tens_spline_2d.msh'
-msh_file = Path('scripts/gmsh/mesh_tens_spline_2d.msh')
-shutil.copyfile(msh_file,moose_mesh_file)
+moose_runner.set_input_file(moose_input)
 
-# Run the MOOSE!
-print('Running moose with:')
-print(moose_runner.get_arg_list())
-print()
 
 moose_start = time.perf_counter()
 moose_runner.run()
 moose_run_time = time.perf_counter() - moose_start
 
+
+print("-"*80)
 print(f'Gmsh run time = {gmsh_run_time:.2f} seconds')
 print(f'MOOOSE run time = {moose_run_time:.2f} seconds')
 print("-"*80)

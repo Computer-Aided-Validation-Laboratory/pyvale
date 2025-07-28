@@ -8,55 +8,37 @@
 Running Gmsh once
 ================================================================================
 
-In this example we ...
+In this example we will run a gmsh script to generate a mesh file using the
+GmshRunner class.
 """
 
+#%%
+#
 import time
 from pathlib import Path
+import pyvale as pyv
 from pyvale.mooseherder import GmshRunner
 
-USER_DIR = Path.home()
 
-print("-"*80)
-print('EXAMPLE: Run Gmsh 2D once')
-print("-"*80)
-gmsh_path = USER_DIR / 'gmsh/bin/gmsh'
+#%%
+#
+gmsh_path = Path.home() / 'gmsh/bin/gmsh'
 gmsh_runner = GmshRunner(gmsh_path)
 
-gmsh_input = Path('scripts/gmsh/gmsh_tens_spline_2d.geo')
+gmsh_input = pyv.DataSet.sim_case_gmsh_file_path(case_num=17)
 gmsh_runner.set_input_file(gmsh_input)
 
-print('Gmsh path:' + str(gmsh_path))
-print('Gmsh input:' + str(gmsh_input))
 
-print('Running gmsh...')
+#%%
+#
 start_time = time.perf_counter()
 gmsh_runner.run(gmsh_input,parse_only=True)
 run_time = time.perf_counter() - start_time
 
 print()
-print(f'Gmsh 2D run time = {run_time :.3f} seconds')
+print("-"*80)
+print(f'Gmsh run time = {run_time :.3f} seconds')
 print("-"*80)
 print()
 
-print("-"*80)
-print('EXAMPLE: Run Gmsh 3D once')
-print("-"*80)
-gmsh_path = USER_DIR / 'gmsh/bin/gmsh'
-gmsh_runner = GmshRunner(gmsh_path)
 
-gmsh_input = Path('scripts/gmsh/gmsh_tens_spline_3d.geo')
-gmsh_runner.set_input_file(gmsh_input)
-
-print('Gmsh path:' + str(gmsh_path))
-print('Gmsh input:' + str(gmsh_input))
-
-print('Running gmsh...')
-start_time = time.perf_counter()
-gmsh_runner.run(gmsh_input,parse_only=True)
-run_time = time.perf_counter() - start_time
-
-print()
-print(f'Gmsh 3D run time = {run_time :.3f} seconds')
-print("-"*80)
-print()
