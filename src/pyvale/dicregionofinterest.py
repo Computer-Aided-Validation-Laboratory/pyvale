@@ -883,20 +883,30 @@ class DICRegionOfInterest:
             ValueError: If no ROI is selected.
         """
 
-        
-        if not self.__roi_selected:
-                raise ValueError("No ROI selected with 'interactive_selection' or 'rect_boundary'")
+        # Convert grayscale image to 3-channel if needed
+        if self.ref_image.ndim == 2:
+            ref_image_color = cv2.cvtColor(self.ref_image.astype(np.uint8), cv2.COLOR_GRAY2BGR)
+        else:
+            ref_image_color = self.ref_image
 
         # Create a green mask image
-        green_mask = np.zeros_like(self.ref_image)
+        if self.ref_image.ndim == 3:
+            green_mask = np.zeros_like(self.ref_image)
+        elif self.ref_image.ndim == 2:
+            h, w = self.ref_image.shape
+            green_mask = np.zeros((h, w, 3), dtype=self.ref_image.dtype)
+        else:
+            raise ValueError(f"Unsupported image shape: {self.ref_image.shape}")
 
-        green_mask[self.mask,:] = [0, 255, 0]
+        # Apply the green mask
+        green_mask[self.mask, :] = [0, 255, 0]
 
-        # Blend the original image and the mask
-        blended = self.ref_image.astype(float) * 0.7 + green_mask.astype(float) * 0.3
+        # Blend the original image and the green mask
+        blended = ref_image_color.astype(float) * 0.7 + green_mask.astype(float) * 0.3
         blended = blended.astype(np.uint8)
 
         # Display using Matplotlib
+        import matplotlib.pyplot as plt
         plt.figure()
         plt.imshow(blended)
         plt.axis('off')

@@ -435,7 +435,11 @@ def check_and_get_images(reference: np.ndarray | str | Path,
         ref_arr = reference
         def_arr = deformed
 
-        if (reference.shape != deformed[0].shape or reference.shape != roi.shape):
+        # user might only pass a single deformed image. need to convert to 'stack'
+        if (reference.shape == deformed.shape):
+            def_arr = def_arr.reshape((1,def_arr.shape[0],def_arr.shape[1]))
+
+        elif (reference.shape != deformed[0].shape or reference.shape != roi.shape):
             raise ValueError(f"Shape mismatch: reference {reference.shape}, "
                              f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
     
