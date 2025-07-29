@@ -13,8 +13,8 @@ change variables in a moose .i input script.
 """
 
 #%%
-# We start with our imports: We need paths to help us getting and saving our
-# moose input files. We need pyvale to get an example input file as well as
+# First we start with imports, we need paths to help us to get and save our
+# input files. We need pyvale to get an example input file as well as
 # the mooseherder input modifier to change the variables in the input file.
 
 from pathlib import Path

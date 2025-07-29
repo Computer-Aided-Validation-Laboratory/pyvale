@@ -20,12 +20,11 @@ from pyvale.mooseherder import (MooseHerd,
 
 USER_DIR = Path.home()
 
-print("-"*80)
-print('EXAMPLE: Herd Setup')
-print("-"*80)
 
-config_path = Path.cwd() / 'moose-config.json'
-moose_config = MooseConfig().read_config(config_path)
+config = {'main_path': Path.home()/ 'moose',
+          'app_path': Path.home() / 'proteus',
+          'app_name': 'proteus-opt'}
+moose_config = MooseConfig(config)
 moose_input = Path('scripts/moose/moose-mech-simple.i')
 
 moose_modifier = InputModifier(moose_input,'#','')
@@ -66,8 +65,7 @@ for vv in moose_vars:
 
 print()
 print("-"*80)
-print('EXAMPLE: Run MOOSE once')
-print("-"*80)
+print('Run MOOSE once')
 
 # Single run saved in sim-workdir-1
 herd.run_once(0,moose_vars[0])
@@ -77,8 +75,7 @@ print("-"*80)
 print()
 
 print("-"*80)
-print('EXAMPLE: Run MOOSE sequentially')
-print("-"*80)
+print('Run MOOSE sweep sequentially')
 
 # Run all variable combinations (8) sequentially in sim-workdir-1
 herd.run_sequential(moose_vars)
@@ -88,12 +85,12 @@ print("-"*80)
 print()
 
 print("-"*80)
-print('EXAMPLE: Run MOOSE in parallel')
-print("-"*80)
+print('Run MOOSE in parallel')
 
 # Run all variable combinations across 4 MOOSE instances with two runs saved in
 # each sim-workdir
-herd.run_para(moose_vars)
+if __name__ == "__main__":
+    herd.run_para(moose_vars)
 
 print(f'Run time (para) = {herd.get_sweep_time():.3f} seconds')
 print("-"*80)

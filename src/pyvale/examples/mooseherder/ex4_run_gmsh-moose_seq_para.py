@@ -22,24 +22,27 @@ from pyvale.mooseherder import (MooseHerd,
 USER_DIR = Path.home()
 
 print("-"*80)
-print('EXAMPLE: Herd Setup')
+print("EXAMPLE: Herd Setup")
 print("-"*80)
 
 # Setup MOOSE runner and input modifier
-moose_input = Path('scripts/moose/moose-mech-gmsh.i')
-moose_modifier = InputModifier(moose_input,'#','')
+moose_input = Path("scripts/moose/moose-mech-gmsh.i")
+moose_modifier = InputModifier(moose_input,"#","")
 
-moose_config = MooseConfig().read_config(Path.cwd() / 'moose-config.json')
+config = {'main_path': Path.home()/ 'moose',
+          'app_path': Path.home() / 'proteus',
+          'app_name': 'proteus-opt'}
+moose_config = MooseConfig(config)
 moose_runner = MooseRunner(moose_config)
 moose_runner.set_run_opts(n_tasks = 1,
                             n_threads = 2,
                             redirect_out = True)
 
 # Setup Gmsh
-gmsh_input = Path('scripts/gmsh/gmsh_tens_spline_2d.geo')
-gmsh_modifier = InputModifier(gmsh_input,'//',';')
+gmsh_input = Path("scripts/gmsh/gmsh_tens_spline_2d.geo")
+gmsh_modifier = InputModifier(gmsh_input,"//",";")
 
-gmsh_path = USER_DIR / 'gmsh/bin/gmsh'
+gmsh_path = USER_DIR / "gmsh/bin/gmsh"
 gmsh_runner = GmshRunner(gmsh_path)
 gmsh_runner.set_input_file(gmsh_input)
 
@@ -51,9 +54,9 @@ dir_manager = DirectoryManager(n_dirs=4)
 # Start the herd and create working directories
 herd = MooseHerd(sim_runners,input_modifiers,dir_manager)
 herd.set_num_para_sims(n_para=4)
-# Don't have to clear directories on creation of the herd but we do so here
-# so that directory creation doesn't raise errors
-dir_manager.set_base_dir(Path('examples/'))
+# Don"t have to clear directories on creation of the herd but we do so here
+# so that directory creation doesn"t raise errors
+dir_manager.set_base_dir(Path("examples/"))
 dir_manager.clear_dirs()
 dir_manager.create_dirs()
 
@@ -66,43 +69,42 @@ var_sweep = list([])
 for nn in p0:
     for ee in p1:
         for pp in p2:
-            var_sweep.append([{'p0':nn,'p1':ee,'p2':pp},None])
+            var_sweep.append([{"p0":nn,"p1":ee,"p2":pp},None])
 
-print('Herd sweep variables:')
+print("Herd sweep variables:")
 for vv in var_sweep:
     print(vv)
 
 print()
 print("-"*80)
-print('EXAMPLE: Run Gmsh+MOOSE once, modify gmsh only')
-print("-"*80)
+print("Run Gmsh+MOOSE once, modify gmsh only")
 
 # Single run saved in sim-workdir-1
 herd.run_once(0,var_sweep[0])
 
-print(f'Run time (once) = {herd.get_iter_time():.3f}) seconds')
+print(f"Run time (once) = {herd.get_iter_time():.3f}) seconds")
 print("-"*80)
 print()
 
 print("-"*80)
-print('EXAMPLE 4b: Run MOOSE sequentially, modify gmsh only')
+print("Run MOOSE sequentially, modify gmsh only")
 print("-"*80)
 
 # Run all variable combinations (8) sequentially in sim-workdir-1
 herd.run_sequential(var_sweep)
 
-print(f'Run time (sequential) = {herd.get_sweep_time():.3f} seconds')
+print(f"Run time (sequential) = {herd.get_sweep_time():.3f} seconds")
 print("-"*80)
 print()
 print("-"*80)
-print('EXAMPLE: Run MOOSE in parallel, modify gmsh only')
-print("-"*80)
+print("Run MOOSE in parallel, modify gmsh only")
 
 # Run all variable combinations across 4 MOOSE instances with two runs saved in
 # each sim-workdir
-herd.run_para(var_sweep)
+if __name__ == "__main__":
+    herd.run_para(var_sweep)
 
-print(f'Run time (parallel) = {herd.get_sweep_time():.3f} seconds')
+print(f"Run time (parallel) = {herd.get_sweep_time():.3f} seconds")
 print("-"*80)
 print()
 

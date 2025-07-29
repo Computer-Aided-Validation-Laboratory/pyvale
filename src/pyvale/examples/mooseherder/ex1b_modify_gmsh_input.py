@@ -12,8 +12,9 @@ In this example we will use mooseherder's input modifier to programmatically
 change variables in a gmsh .geo script.
 """
 #%%
-# We start with imports: We need paths to help us getting and saving our
-# moose input files. We need pyvale to get an example input file as well as
+#%%
+# First we start with imports, we need paths to help us to get and save our
+# input files. We need pyvale to get an example input file as well as
 # the mooseherder input modifier to change the variables in the input file.
 
 from pathlib import Path
@@ -22,7 +23,7 @@ from pyvale.mooseherder import InputModifier
 
 #%%
 # We are going to use a gmsh geo file that is for a 2D rectangular plate with a
-# hole in the center which we retrieve from pyvales simulation library. We then
+# hole in the center which we retrieve from pyvale's simulation library. We then
 # use this to create an input modifier which has the correct comment string '//'
 # for gmsh and the required line terminator ";".
 gmsh_input = pyv.DataSet.sim_case_gmsh_file_path(case_num=17)
