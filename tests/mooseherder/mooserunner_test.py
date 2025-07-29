@@ -1,17 +1,17 @@
-'''
-==============================================================================
-TEST: MooseRunner
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
-Authors: Lloyd Fletcher
-==============================================================================
-'''
 
 import os
 from pathlib import Path
 import pytest
 from pyvale.mooseherder.mooserunner import MooseRunner
-import tests.herdchecker as hc
+import tests.mooseherder.herdchecker as hc
 
+MOOSE_INPUT_PATH = Path.cwd()/"tests"/"mooseherder"/"moose"
 
 @pytest.fixture()
 def runner() -> MooseRunner:
@@ -20,15 +20,15 @@ def runner() -> MooseRunner:
 
 @pytest.fixture()
 def input_path() -> Path:
-    return Path('tests/moose/moose-test.i')
+    return MOOSE_INPUT_PATH / "moose-test.i"
 
 @pytest.fixture()
 def input_noexist() -> Path:
-    return Path('tests/moose/moose-test-noexist.i')
+    return MOOSE_INPUT_PATH / "moose-test-noexist.i"
 
 @pytest.fixture()
 def input_broken() -> Path:
-    return Path('tests/moose/moose-test-broken.i')
+    return MOOSE_INPUT_PATH / "moose-test-broken.i"
 
 @pytest.fixture()
 def input_runner(input_path: Path) -> MooseRunner:
@@ -108,7 +108,7 @@ def test_set_input_file(runner: MooseRunner, input_path: Path) -> None:
 
 def test_set_input_file_err(runner: MooseRunner) -> None:
     with pytest.raises(FileNotFoundError) as err_info:
-        new_input = Path('tests/moose/moose-test-noexist.i')
+        new_input = MOOSE_INPUT_PATH/"moose-test-noexist.i"
         runner.set_input_file(new_input)
 
     msg, = err_info.value.args
@@ -118,13 +118,13 @@ def test_set_input_file_err(runner: MooseRunner) -> None:
 def test_get_input_strs(runner: MooseRunner, input_runner: MooseRunner) -> None:
     assert runner.get_input_dir() is None
     assert runner.get_input_tag() == ''
-    assert input_runner.get_input_dir() == Path('tests/moose/')
+    assert input_runner.get_input_dir() == MOOSE_INPUT_PATH
     assert input_runner.get_input_tag() == 'moose-test'
 
 
 def test_get_output_path(runner: MooseRunner,input_runner: MooseRunner):
     assert runner.get_output_path() is None
-    assert input_runner.get_output_path() == Path('tests/moose/moose-test_out.e')
+    assert input_runner.get_output_path() == MOOSE_INPUT_PATH/"moose-test_out.e"
 
 
 @pytest.mark.parametrize(

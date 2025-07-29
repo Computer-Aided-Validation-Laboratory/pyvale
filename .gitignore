@@ -21,7 +21,6 @@ testoutput/
 exampleoutput/
 pyvale-output/
 blender*/
-tests/mooseherder/output/
 
 # MOOSE / gmsh
 *-opt
@@ -39,6 +38,10 @@ tests/mooseherder/output/
 
 # Keep these as they are gold output for regression tests
 !tests/pointsensors/gold/*.npy
+!tests/mooseherder/output_gold/*.e
+!tests/mooseherder/output_gold/*.csv
+!tests/mooseherder/output_gold/sim-workdir-*/*.e
+!tests/mooseherder/output_gold/sim-workdir-*/*.json
 
 # Image deformation test cases
 *.pkl

@@ -1,16 +1,14 @@
-'''
-==============================================================================
-TEST: MooseHerd Tests
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
-Authors: Lloyd Fletcher
-==============================================================================
-'''
 import os
 import pytest
-from pytest import MonkeyPatch
 from pyvale.mooseherder.mooseherd import MooseHerd
 from pyvale.mooseherder.directorymanager import DirectoryManager
-import tests.herdchecker as hct
+import tests.mooseherder.herdchecker as hct
 
 
 @pytest.fixture

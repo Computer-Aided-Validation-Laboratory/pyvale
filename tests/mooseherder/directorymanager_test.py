@@ -1,15 +1,13 @@
-'''
-==============================================================================
-TEST: DirectoryManager
-
-Authors: Lloyd Fletcher
-==============================================================================
-'''
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
 from pathlib import Path
 import pytest
 from pyvale.mooseherder.directorymanager import DirectoryManager
-import tests.herdchecker as hc
+import tests.mooseherder.herdchecker as hc
 
 
 @pytest.fixture

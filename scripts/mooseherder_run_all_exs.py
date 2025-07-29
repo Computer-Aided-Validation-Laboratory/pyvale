@@ -1,16 +1,15 @@
-'''
-==============================================================================
-RUN ALL: helper script to run all examples to check for errors
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
-Author: Lloyd Fletcher
-==============================================================================
-'''
 import os
 import subprocess
 from pathlib import Path
 from pprint import pprint
 
-EXAMPLE_DIR = Path('examples/')
+EXAMPLE_DIR = Path('src/pyvale/examples/mooseherder')
 all_files = os.listdir(EXAMPLE_DIR)
 
 example_files = list([])

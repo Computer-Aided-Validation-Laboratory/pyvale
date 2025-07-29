@@ -1,14 +1,13 @@
-'''
-==============================================================================
-TEST: SweepReader
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
-Authors: Lloyd Fletcher
-==============================================================================
-'''
 import pytest
 from pyvale.mooseherder.sweepreader import SweepReader
 from pyvale.mooseherder.directorymanager import DirectoryManager
-import tests.herdchecker as hc
+import tests.mooseherder.herdchecker as hc
 
 
 @pytest.fixture
@@ -29,6 +28,3 @@ def test_init_sweep_reader(sweep_reader: SweepReader) -> None:
     assert sweep_reader._n_para_read == hc.NUM_PARA
     assert len(sweep_reader._output_files) == 0
 
-
-def test_read_output_key(sweep_reader: SweepReader) -> None:
-    pass

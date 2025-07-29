@@ -1,10 +1,8 @@
-'''
-==============================================================================
-HerdChecker: Helper functions for testing MooseHerder
-
-Authors: Lloyd Fletcher
-==============================================================================
-'''
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
 import os
 from typing import Any
@@ -21,17 +19,17 @@ from pyvale.mooseherder.directorymanager import DirectoryManager
 NUM_DIRS = 4
 NUM_PARA = 4
 NUM_CALLS = 3
-BASE_DIR = Path('tests/')
+BASE_DIR = Path.cwd()/"tests"/"mooseherder"
 
 MOOSE_PATH = Path.home()/'moose'
 MOOSE_APP_PATH = Path().home()/'proteus'
 MOOSE_APP_NAME = 'proteus-opt'
-MOOSE_INPUT = Path('tests/moose/moose-test.i')
+MOOSE_INPUT = BASE_DIR/"moose"/"moose-test.i"
 
 GMSH_APP_PATH = Path().home() / 'gmsh/bin/gmsh'
-GMSH_INPUT = Path('tests/gmsh/gmsh-test.geo')
+GMSH_INPUT = BASE_DIR/"gmsh/gmsh-test.geo"
 
-OUTPUT_PATH = Path('tests/output/')
+OUTPUT_PATH = BASE_DIR/"output_gold"
 
 
 def create_moose_config() -> MooseConfig:

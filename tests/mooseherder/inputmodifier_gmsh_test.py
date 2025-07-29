@@ -1,19 +1,19 @@
-'''
-==============================================================================
-TEST: InputModifier with Gmsh
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
-Authors: Lloyd Fletcher
-==============================================================================
-'''
 import os
 from pathlib import Path
 import pytest
 from pyvale.mooseherder.inputmodifier import InputModifier
 
+GMSH_INPUT_PATH = Path.cwd()/"tests"/"mooseherder"/"gmsh"
 
 @pytest.fixture
 def gmsh_mod():
-    input_file = Path('tests/gmsh/gmsh-test.geo')
+    input_file = GMSH_INPUT_PATH/"gmsh-test.geo"
     return InputModifier(input_file,'//',';')
 
 
@@ -22,11 +22,10 @@ def setup_teardown_gmsh():
     # Setup here
     yield
     # Teardown here - remove output files
-    test_dir = 'tests/gmsh/'
-    all_files = os.listdir(test_dir)
+    all_files = os.listdir(GMSH_INPUT_PATH)
     for ff in all_files:
         if '-mod' in ff:
-            os.remove(test_dir + ff)
+            os.remove(GMSH_INPUT_PATH/ff)
 
 
 def test_gmsh_find_vars(gmsh_mod):
@@ -73,7 +72,7 @@ def test_gmsh_write_file(gmsh_mod):
                 'p2': 0.001}
     gmsh_mod.update_vars(new_vars)
 
-    mod_file = Path('tests/gmsh/gmsh_vartest-mod.geo')
+    mod_file = GMSH_INPUT_PATH/"gmsh_vartest-mod.geo"
     gmsh_mod.write_file(mod_file)
     assert os.path.isfile(mod_file)
 

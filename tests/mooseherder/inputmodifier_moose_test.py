@@ -1,19 +1,19 @@
-"""
-==============================================================================
-TEST: InputModifier with MOOSE
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
-Authors: Lloyd Fletcher
-==============================================================================
-"""
 import os
 from pathlib import Path
 import pytest
 from pyvale.mooseherder.inputmodifier import InputModifier
 
+MOOSE_INPUT_PATH = Path.cwd()/"tests"/"mooseherder"/"moose"
 
 @pytest.fixture
 def moose_mod() -> InputModifier:
-    input_file = Path("tests/moose/moose-test.i")
+    input_file = MOOSE_INPUT_PATH/"moose-test.i"
     return InputModifier(input_file, "#", "")
 
 
@@ -22,11 +22,10 @@ def setup_teardown_moose():
     # Setup here
     yield
     # Teardown here - remove output files
-    test_dir = Path("tests/moose/")
-    all_files = os.listdir(test_dir)
+    all_files = os.listdir(MOOSE_INPUT_PATH)
     for ff in all_files:
         if "-mod" in ff:
-            os.remove(test_dir / ff)
+            os.remove(MOOSE_INPUT_PATH / ff)
 
 
 def test_moose_find_vars(moose_mod: InputModifier) -> None:
@@ -97,7 +96,7 @@ def test_moose_write_file(moose_mod: InputModifier) -> None:
     new_vars = {"n_elem_y": 25, "e_modulus": 2e9, "e_type": "QUAD8"}
     moose_mod.update_vars(new_vars)
 
-    mod_file = Path("tests/moose/moose-test-mod.i")
+    mod_file = MOOSE_INPUT_PATH/"moose-test-mod.i"
     moose_mod.write_file(mod_file)
     assert os.path.isfile(mod_file)
 
@@ -128,7 +127,7 @@ def test_moose_get_var_keys(moose_mod: InputModifier):
 
 
 def test_moose_get_input_file(moose_mod: InputModifier):
-    assert moose_mod.get_input_file() == Path("tests/moose/moose-test.i")
+    assert moose_mod.get_input_file() == MOOSE_INPUT_PATH/"moose-test.i"
 
 
 @pytest.mark.parametrize(

@@ -1,10 +1,9 @@
-'''
-==============================================================================
-TEST: ExodusReader
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
-Authors: Lloyd Fletcher
-==============================================================================
-'''
 from pathlib import Path
 from dataclasses import fields
 import pytest
@@ -12,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from pyvale.mooseherder.exodusreader import ExodusReader
 from pyvale.mooseherder.simdata import SimData
-import tests.herdchecker as hc
+import tests.mooseherder.herdchecker as hc
 
 NUM_TIME_STEPS = 4
 NUM_NODES = 441

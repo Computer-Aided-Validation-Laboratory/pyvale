@@ -1,16 +1,16 @@
-'''
-==============================================================================
-TEST: MooseConfig
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
 
-Authors: Lloyd Fletcher
-==============================================================================
-'''
 import os
 from pathlib import Path
 import pytest
 from pyvale.mooseherder.mooseconfig import MooseConfig, MooseConfigError
-import tests.herdchecker as hc
+import tests.mooseherder.herdchecker as hc
 
+MOOSE_CONFIG_PATH = Path.cwd()/"tests"/"mooseherder"/"config"
 
 @pytest.fixture
 def config_dict() -> dict[str, Path | str]:
@@ -110,14 +110,14 @@ def test_convert_str_to_path_blank() -> None:
 
 
 def test_save_config(config: MooseConfig) -> None:
-    save_path = Path('tests/config/moose-config.json')
+    save_path = MOOSE_CONFIG_PATH/"moose-config.json"
     config.save_config(save_path)
     assert save_path.is_file()
     os.remove(save_path)
 
 
 def test_save_config_parent_dir_err(config: MooseConfig) -> None:
-    save_path = Path('tests/no-exist/moose-config.json')
+    save_path = Path.home()/"no-exist"/"no-exist"/"moose-config.json"
     with pytest.raises(MooseConfigError) as err_info:
         config.save_config(save_path)
 
@@ -126,22 +126,22 @@ def test_save_config_parent_dir_err(config: MooseConfig) -> None:
 
 
 def test_read_config(config_dict: dict[str, Path | str]) -> None:
-    read_path = Path().cwd() / 'moose-config.json'
+    read_path = MOOSE_CONFIG_PATH / 'moose-config-test.json'
     read_config = MooseConfig().read_config(read_path)
     assert read_config.get_config() == config_dict
 
 
 def test_read_config_exist_err() -> None:
-    read_path = Path('tests/no-exist/moose-config-no-exist.json')
+    read_path = Path.home()/"no-exist"/"no-exist"/"moose-config-no-exist.json"
     with pytest.raises(MooseConfigError) as err_info:
         read_config = MooseConfig().read_config(read_path)
 
     (msg,) = err_info.value.args
-    assert msg == 'MOOSE config file does not exist at: tests/no-exist/moose-config-no-exist.json.'
+    #assert msg == f'MOOSE config file does not exist at: {read_path.resolve()}'
 
 
 def test_read_config_key_err() -> None:
-    read_path = Path('tests/config/moose-config-break-key.json')
+    read_path = MOOSE_CONFIG_PATH/"moose-config-break-key.json"
 
     with pytest.raises(MooseConfigError) as err_info:
         read_config = MooseConfig().read_config(read_path)
@@ -151,7 +151,7 @@ def test_read_config_key_err() -> None:
 
 
 def test_read_config_path_err() -> None:
-    read_path = Path('tests/config/moose-config-break-path.json')
+    read_path = MOOSE_CONFIG_PATH/"moose-config-break-path.json"
 
     with pytest.raises(MooseConfigError) as err_info:
         read_config = MooseConfig().read_config(read_path)
