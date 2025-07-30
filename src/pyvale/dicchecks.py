@@ -247,7 +247,7 @@ def check_subsets(subset_size: int, subset_step: int) -> None:
 
 
 
-def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_size: int, subset_step: int) -> list[int]:
+def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_size: int, subset_step: int) -> list[int]:
     """
     Validate and update the region-growing seed location to align with image bounds and subset spacing.
 
@@ -260,7 +260,7 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
 
     Parameters
     ----------
-    seed : list of int
+    seed : list[int], list[np.int32] or np.ndarray
         The initial seed coordinates as a list of two integers: [x, y].
     roi_mask : np.ndarray
         A 2D binary mask (same size as the image) indicating the region of interest.
@@ -287,8 +287,13 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
     if scanning_method != "RG":
         return [0,0]
 
-    if not (isinstance(seed, list) and len(seed) == 2 and all(isinstance(coord, int) for coord in seed)):
-        raise ValueError("Reliability Guided seed is either missing or has been defined incorrectly. must be a list of two integers: seed=[x, y]")
+    if (len(seed) != 2):
+        raise ValueError(f"Reliability Guided seed does not have two elements: " \
+                         f"seed={seed}. Seed " \
+                         f" must be a list of two integers: seed=[x, y]")
+
+    if not isinstance(seed, (list, np.ndarray)) or not all(isinstance(coord, (int, np.int32)) for coord in seed):
+        raise ValueError("Reliability Guided seed must be a list of two integers: seed=[x, y]")
 
     x, y = seed
 

@@ -18,7 +18,7 @@ import pyvale.dicchecks as dicchecks
 def dic_2d(reference: np.ndarray | str | Path,
           deformed: np.ndarray | str | Path,
           roi_mask: np.ndarray,
-          seed: list[int],
+          seed: list[int] | list[np.int32] | np.ndarray,
           subset_size: int = 21,
           subset_step: int = 10,
           correlation_criteria: str="ZNSSD",
@@ -57,7 +57,7 @@ def dic_2d(reference: np.ndarray | str | Path,
         The deformed image(s) (3D array for multiple images) or path/pattern to image files.
     roi_mask : np.ndarray
         A binary mask indicating the Region of Interest (ROI) for analysis (same size as image).
-    seed : list of int, optional
+    seed : list[int], list[np.int32] or np.ndarray
         Coordinates `[x, y]` of the seed point for Reliability-Guided (RG) scanning, default is empty.
     subset_size : int, optional
         Size of the square subset window in pixels (default: 21).
