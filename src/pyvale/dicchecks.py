@@ -447,6 +447,10 @@ def check_and_get_images(reference: np.ndarray | str | Path,
         elif (reference.shape != deformed[0].shape or reference.shape != roi.shape):
             raise ValueError(f"Shape mismatch: reference {reference.shape}, "
                              f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
+        
+
+        # need to set some dummy filenames in the case that the user passes numpy arrays
+        filenames = [f"deformed image {i}" for i in range(def_arr.shape[0])]
     
     # it might be the case that the roi has been manipulated prior to DIC run
     # and therefore we need to to prevent the roi mask from being a 'view'
