@@ -37,7 +37,11 @@ def dic_2d(reference: np.ndarray | str | Path,
           output_basepath: Path | str = "./",
           output_binary: bool=False,
           output_prefix: str="dic_results_",
-          output_delimiter: str=",") -> None:
+          output_delimiter: str=",",
+          output_unconverged: bool=False,
+          output_shape_params: bool=False,
+          debug_level: int=0) -> None:
+
     """
     Perform 2D Digital Image Correlation (DIC) between a reference image and one or more deformed images.
 
@@ -107,6 +111,12 @@ def dic_2d(reference: np.ndarray | str | Path,
         changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
     output_delimiter : str, optional
         Delimiter used in text output files (default: ",").
+    output_unconverged : bool, optional
+        If True, subset results as they were for the final iteration of the optimization 
+        that did not converge will be saved (default: False).
+    output_shape_params : bool, optional
+        If True, all shape parameters will be saved in the output files (default: False).
+    debug_level:
 
     Returns
     -------
@@ -155,6 +165,7 @@ def dic_2d(reference: np.ndarray | str | Path,
     config.filenames = filenames
     config.fft_mad = fft_mad
     config.fft_mad_scale = fft_mad_scale
+    config.debug_level = debug_level
 
     # assigning c++ struct vals for save config
     saveconf = dic2dcpp.SaveConfig()
@@ -163,6 +174,8 @@ def dic_2d(reference: np.ndarray | str | Path,
     saveconf.prefix = output_prefix
     saveconf.delimiter = output_delimiter
     saveconf.at_end = output_at_end
+    saveconf.output_unconverged = output_unconverged
+    saveconf.shape_params = output_shape_params
 
 
     #set the number of OMP threads

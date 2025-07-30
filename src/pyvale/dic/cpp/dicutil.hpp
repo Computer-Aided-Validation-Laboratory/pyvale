@@ -67,6 +67,7 @@ namespace util {
         std::vector<std::string> filenames;
         bool fft_mad;
         double fft_mad_scale;
+        unsigned int debug_level;
     };
 
 
@@ -89,6 +90,8 @@ namespace util {
         std::string delimiter;
         bool binary;
         bool at_end;
+        bool output_unconverged;
+        bool shape_params;
 
 
     };
@@ -136,7 +139,7 @@ namespace util {
         double xtol = 0.0;
         int iter = 0;
         double cost = 0.0;
-        bool converged = false;
+        uint8_t converged = false;
 
         Results(size_t num_params) : p(num_params, 0.0) {}
     };
@@ -190,8 +193,8 @@ namespace util {
      * @param ss_def      Pointer to the destination subset (`util::Subset`) where extracted pixel 
      *                    values and coordinates are stored.
      */            
-    void extract_ss(util::Subset &ss_def, 
-                    const int ss_x, const int ss_y, 
+    void extract_ss(util::Subset &ss_ref,
+                    const int ss_x, const int ss_y,
                     const int px_hori,
                     const int px_vert,
                     const double *img_def);
@@ -260,8 +263,8 @@ namespace util {
         out.write(reinterpret_cast<const char*>(&val), sizeof(int));
     }
 
-    inline void write_bool(std::ofstream& out, int val) {
-        out.write(reinterpret_cast<const char*>(&val), sizeof(bool));
+    inline void write_uint8t(std::ofstream& out, int val) {
+        out.write(reinterpret_cast<const char*>(&val), sizeof(uint8_t));
     }
 
     inline void write_dbl(std::ofstream& out, double val) {

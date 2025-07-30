@@ -81,6 +81,9 @@ namespace strain {
                 results.x[sw] = x0;
                 results.y[sw] = y0;
 
+                // TODO: through a warning. NAN out the entire window.
+                // it should be up to the user whether they correct with
+                // outlier removal / smoothing.
                 results.valid_window[sw] = fill_window(ss_x, ss_y, u, v, img_num,
                                                 sw, window, nss_x,
                                                 nss_y, sw_size);

@@ -38,6 +38,8 @@ class DICResults:
         Final `xtol` value from the optimization routine, indicating solution tolerance.
     niter : np.ndarray
         Number of iterations taken to converge for each subset point.
+    shape_params : np.ndarray | None
+        Optional shape parameters if output during DIC calculation (e.g., affine, rigid).
     filenames : list[str]
         name of DIC result files that have been found
     """
@@ -52,4 +54,5 @@ class DICResults:
     ftol: np.ndarray
     xtol: np.ndarray
     niter: np.ndarray
+    shape_params: np.ndarray
     filenames: list[str]

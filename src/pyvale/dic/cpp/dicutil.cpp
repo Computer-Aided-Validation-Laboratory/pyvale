@@ -30,7 +30,7 @@ namespace util {
     std::vector<double> ftol_arr;
     std::vector<double> xtol_arr;
     std::vector<double> cost_arr;
-    std::vector<bool> conv_arr;
+    std::vector<uint8_t> conv_arr;
     bool at_end;
 
 
@@ -189,11 +189,15 @@ namespace util {
                             }
                         } 
 
-                        // When partial count num of px in roi
+                        // When partial count num of px in roi. if its outside
+                        // the image its still not valid
                         else {
-                            if (is_valid_in_dims(px_x, px_y, px_hori, px_vert) &&
-                                is_valid_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
+                            if (is_valid_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
                                 valid_count++;
+                            }
+                            if (!is_valid_in_dims(px_x, px_y, px_hori, px_vert)) {
+                                valid = false;
+                                break;
                             }
                         }
                     }
@@ -202,7 +206,7 @@ namespace util {
                 }
 
                 // TODO: this is hardcoded so that atleast 70% of pixels in subset must be in ROI
-                if (partial) {
+                if (partial && valid) {
                     if (valid_count >= (ss_size*ss_size) * (0.70)) {
                         valid = true;
                     } else {
@@ -394,23 +398,44 @@ namespace util {
                 int idx = img * ssdata.num + i;
                 //int idx_p = num_params*idx;
 
+                // if the subset has not converged, set values to nan
+                if (!saveconf.output_unconverged && !conv_arr[idx]) {
+                    u_arr[idx] = NAN;
+                    v_arr[idx] = NAN;
+                    for (int p = 0; p < num_params; p++){
+                        p_arr[num_params*idx+p] = NAN;
+                    }
+                    cost_arr[idx] = NAN;
+                    ftol_arr[idx] = NAN;
+                    xtol_arr[idx] = NAN;
+                }
+
+
                 double mag = std::sqrt(u_arr[idx]*u_arr[idx]+
                                        v_arr[idx]*v_arr[idx]);
 
                 // convert from corner to centre subset coords
                 double ss_x = ssdata.coords[2*i  ] + static_cast<double>(ssdata.size)/2.0 - 0.5;
                 double ss_y = ssdata.coords[2*i+1] + static_cast<double>(ssdata.size)/2.0 - 0.5;
+                
 
                 write_int(outfile, ss_x);
                 write_int(outfile, ss_y);
                 write_dbl(outfile, u_arr[idx]);
                 write_dbl(outfile, v_arr[idx]);
                 write_dbl(outfile, mag);
-                write_bool(outfile, conv_arr[idx]);
+                write_uint8t(outfile, conv_arr[idx]);
                 write_dbl(outfile, cost_arr[idx]);
                 write_dbl(outfile, ftol_arr[idx]);
                 write_dbl(outfile, xtol_arr[idx]);
                 write_int(outfile, niter_arr[idx]);
+
+                if (saveconf.shape_params) {
+                    for (int p = 0; p < num_params; p++){
+                        write_dbl(outfile, p_arr[num_params*idx+p]);
+                    }
+                }
+
             }
 
             outfile.close();
@@ -429,7 +454,18 @@ namespace util {
             outfile << "cost" << delimiter;
             outfile << "ftol" << delimiter;
             outfile << "xtol" << delimiter;
-            outfile << "num_iterations\n";
+            outfile << "num_iterations";
+
+            // column headers for shape parameters
+            if (saveconf.shape_params) {
+                for (int p = 0; p < num_params; p++){
+                    outfile << delimiter;
+                    outfile << "shape_p" << p;
+                }
+            }
+
+            // newline after headers
+            outfile << "\n";
 
             for (int i = 0; i < ssdata.num; i++) {
 
@@ -440,6 +476,18 @@ namespace util {
                 double ss_x = ssdata.coords[2*i  ] + static_cast<double>(ssdata.size)/2.0 - 0.5;
                 double ss_y = ssdata.coords[2*i+1] + static_cast<double>(ssdata.size)/2.0 - 0.5;
 
+                // if the subset has not converged, set values to nan
+                if (!saveconf.output_unconverged && !conv_arr[idx]) {
+                    u_arr[idx] = NAN;
+                    v_arr[idx] = NAN;
+                    for (int p = 0; p < num_params; p++){
+                        p_arr[num_params*idx+p] = NAN;
+                    }
+                    cost_arr[idx] = NAN;
+                    ftol_arr[idx] = NAN;
+                    xtol_arr[idx] = NAN;
+                }
+
 
                 outfile << ss_x << delimiter;
                 outfile << ss_y << delimiter;
@@ -447,14 +495,24 @@ namespace util {
                 outfile << v_arr[idx] << delimiter;
                 outfile << sqrt(u_arr[idx]*u_arr[idx]+
                                 v_arr[idx]*v_arr[idx]) << delimiter;
-                //for (int p = 0; p < num_params; p++){
-                //    outfile << p_arr[idx_p+p] << delimiter;
-                //}
-                outfile << conv_arr[idx] << delimiter;
+                outfile << static_cast<int>(conv_arr[idx]) << delimiter;
                 outfile << cost_arr[idx] << delimiter;
                 outfile << ftol_arr[idx] << delimiter;
                 outfile << xtol_arr[idx] << delimiter;
-                outfile << niter_arr[idx] << "\n";
+                outfile << niter_arr[idx];
+                
+                // write shape parameters if requested
+                if (saveconf.shape_params) {
+                    for (int p = 0; p < num_params; p++){
+                        outfile << delimiter;
+                        outfile << p_arr[num_params*idx+p];
+                    }
+                }
+
+                // newline after each subset
+                outfile << "\n";
+
+
             }
             outfile.close();
         }
