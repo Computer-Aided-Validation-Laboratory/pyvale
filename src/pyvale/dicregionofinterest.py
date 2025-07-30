@@ -577,7 +577,7 @@ class DICRegionOfInterest:
             self._update_button_states()
 
     def _save_interactive_roi(self):
-        """Save the current ROI to a YAML file."""
+        """Save the current ROI to a YAML file. This only works with the interactive GUI."""
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.main_window, 'Save ROI', 'roi_interactive.yaml', filter='YAML Files (*.yaml)')
 
         if filename:
@@ -607,7 +607,7 @@ class DICRegionOfInterest:
                 yaml.dump(serialized, f, sort_keys=False)
 
     def _open_interactive_roi(self):
-        """Open ROI from a YAML file."""
+        """Open ROI from a YAML file. This only works with the interactive GUI."""
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.main_window, 'Open ROI', filter='YAML Files (*.yaml)'
         )
@@ -872,6 +872,111 @@ class DICRegionOfInterest:
             raise ValueError("Loaded ROI mask contains values other than 0 and 1.")
 
         self.__roi_selected = True
+
+
+    def save_yaml(self,  filename: str | Path) -> None:
+        """
+        Save the current ROI to a YAML file. This only works with the after having run the interactive GUI.
+
+        Parameters
+        ----------
+        filename : str or pathlib.Path
+            Filename of the YAML file to save the ROI data.
+
+        Raises
+        ------
+        ValueError
+            If no ROI has been selected.
+        """
+
+        if filename:
+
+            # Ensure extension is added if user doesn't include it
+            if filename and not filename.endswith('.yaml'):
+                filename += '.yaml'
+
+            print("Saving to file:", filename)
+            serialized = [
+                self._get_roi_data(roi, add) 
+                for roi, add in zip(self.roi_list, self.add_list)
+            ]
+
+            # add ROI to serialized data
+            if hasattr(self, 'seed_roi'):
+                self._finalize_selection()
+                seed_data = {
+                    'type': 'SeedROI',
+                    'pos': [self.seed[0], self.seed[1]],
+                    'size': [self.subset_size, self.subset_size],
+                    'add': True
+                }
+                serialized.append(seed_data)
+
+            with open(filename, 'w') as f:
+                yaml.dump(serialized, f, sort_keys=False)
+
+    def read_yaml(self, filename: str | Path) -> None:
+        """
+        Load the ROI from a YAML file and restore the state of the GUI.
+        This method will clear existing ROIs and restore the state from the YAML file.
+
+        Parameters
+        ----------
+        filename : str or pathlib.Path
+            Path to the YAML file containing the ROI data.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the specified file does not exist.
+        ValueError
+            If the loaded data is not a valid ROI format.
+        """
+
+        # need to create a temp qapplication so I can import the ROI.
+        self.__roi_selected = True
+        
+        # Initialize GUI
+        self._setup_gui()
+        self._setup_graphics()
+        self._connect_signals()
+
+        if filename:
+            with open(filename, 'r') as f:
+                data = yaml.safe_load(f)
+
+            self.roi_list = []
+            self.add_list = []
+
+            self.seed_roi = None  # Clear existing seed
+
+            for entry in data:
+                if entry.get('type') == 'SeedROI':
+                    # Restore the seed ROI
+                    x, y = entry['pos']
+                    print(x,y)
+                    size = entry.get('size', [10, 10])  # fallback default
+                    self.seed_roi = pg.RectROI(
+                        [x, y], size,
+                        pen=pg.mkPen('b', width=3),
+                        hoverPen=pg.mkPen('y', width=3),
+                        handlePen='#0000',
+                        handleHoverPen='#0000'
+                    )
+                    self.main_view.addItem(self.seed_roi)
+
+                else:
+                    # Restore standard ROI
+                    roi = self._create_roi_from_data(entry)
+                    self.roi_list.append(roi)
+                    self.add_list.append(entry['add'])
+                    self.main_view.addItem(roi)
+                    roi.sigRegionChanged.connect(self._redraw_fill_layer)
+
+            self._redraw_fill_layer()
+            self._update_button_states()
+            self._finalize_selection()
+
 
 
     def show_image(self) -> None:
