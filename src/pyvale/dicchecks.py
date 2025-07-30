@@ -55,7 +55,7 @@ def check_output_directory(output_basepath: str,
 
     if conflicting_files:
         conflicting_files.sort()
-        print("The following output files already exist and may be overwritten:")
+        print("WARNING: The following output files already exist and may be overwritten:")
         for f in conflicting_files:
             print(f"  - {os.path.join(output_basepath, f)}")
         print("")
