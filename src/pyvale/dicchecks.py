@@ -60,11 +60,13 @@ def check_output_directory(output_basepath: str,
             print(f"  - {os.path.join(output_basepath, f)}")
         print("")
 
-        user_input = input("Do you want to continue? (y/n): ").strip().lower()
 
-        if user_input not in ("y", "yes", "Y", "YES"):
-            print("Aborting to avoid overwriting data in output directory.")
-            exit(0)
+        ###### TURNING USER INPUT OFF FOR NOW ######
+        # user_input = input("Do you want to continue? (y/n): ").strip().lower()
+
+        # if user_input not in ("y", "yes", "Y", "YES"):
+        #     print("Aborting to avoid overwriting data in output directory.")
+        #     exit(0)
 
 
 def check_correlation_criteria(correlation_criteria: str) -> None:
