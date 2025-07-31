@@ -10,6 +10,11 @@ Running MOOSE once
 
 In this example we will run a single moose simulation from a moose input .i file
 using a 'runner' object.
+
+To run this example you will need to have moose installed on your system. We use
+the proteus moose build which you will find here:
+https://github.com/aurora-multiphysics/proteus. Or you can build you own moose
+app: https://mooseframework.inl.gov/.
 """
 
 import time
