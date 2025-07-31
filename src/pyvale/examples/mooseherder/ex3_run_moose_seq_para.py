@@ -8,92 +8,142 @@
 Running a parameter sweep of a MOOSE simulation
 ================================================================================
 
-In this example we ...
+In this example we will perform a parameter sweep of a moose simulation showing
+the capability of the 'herder' workflow manager which can be passed a list of
+'input modifiers' and 'runners'. The 'herder' will then use the 'input
+modifiers' to update simulation parameters and then call the respective 'runner'
+using the modified input file. In this example we will also see that the
+'herder' can be used to execute a parameter sweep sequentially or in parallel.
 """
 
 from pathlib import Path
+import itertools
+import numpy as np
+import pyvale as pyv
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 InputModifier,
                                 DirectoryManager,
-                                MooseConfig)
+                                MooseConfig,
+                                sweep_param_grid)
 
-USER_DIR = Path.home()
 
+
+
+#%%
+#
+moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
+moose_modifier = InputModifier(moose_input,'#','')
 
 config = {'main_path': Path.home()/ 'moose',
           'app_path': Path.home() / 'proteus',
           'app_name': 'proteus-opt'}
 moose_config = MooseConfig(config)
-moose_input = Path('scripts/moose/moose-mech-simple.i')
 
-moose_modifier = InputModifier(moose_input,'#','')
 moose_runner = MooseRunner(moose_config)
 moose_runner.set_run_opts(n_tasks = 1,
                         n_threads = 2,
                         redirect_out = True)
 
+#%%
+#
 dir_manager = DirectoryManager(n_dirs=4)
-
-# Start the herd and create working directories
 herd = MooseHerd([moose_runner],[moose_modifier],dir_manager)
 
-# Set the parallelisation options, we have 8 combinations of variables and
-# 4 MOOSE intances running, so 2 runs will be saved in each working directory
+
 herd.set_num_para_sims(n_para=4)
 
-    # Send all the output to the examples directory and clear out old output
-dir_manager.set_base_dir(Path('examples/'))
+
+#%%
+#
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
+
+dir_manager.set_base_dir(output_path)
 dir_manager.clear_dirs()
 dir_manager.create_dirs()
 
-# Create variables to sweep in a list of dictionaries, 8 combinations possible.
-n_elem_y = [10,20]
-e_mod = [1e9,2e9]
+#%%
+#
+# Needs to be list[list[dict]] - outer list is simulation iteration,
+# inner list is what is passed to each runner/inputmodifier
+
+n_elem_x = [2,3,4]
+leng_x = [10e-3,15e-3]
 p_rat = [0.3,0.35]
-moose_vars = list([])
-for nn in n_elem_y:
-    for ee in e_mod:
+sweep_vars = []
+for nn in n_elem_x:
+    for ll in leng_x:
         for pp in p_rat:
-            # Needs to be list[list[dict]] - outer list is simulation iteration,
-            # inner list is what is passed to each runner/inputmodifier
-            moose_vars.append([{'n_elem_y':nn,'e_modulus':ee,'p_ratio':pp}])
+            sweep_vars.append([{'nElemX':nn,'lengX':ll,'PRatio':pp},])
 
-print('Herd sweep variables:')
-for vv in moose_vars:
+print('Parameter sweep variables:')
+for vv in sweep_vars:
     print(vv)
-
-print()
-print("-"*80)
-print('Run MOOSE once')
-
-# Single run saved in sim-workdir-1
-herd.run_once(0,moose_vars[0])
-
-print(f'Run time (once) = {herd.get_iter_time():.3f} seconds')
-print("-"*80)
 print()
 
-print("-"*80)
-print('Run MOOSE sweep sequentially')
 
-# Run all variable combinations (8) sequentially in sim-workdir-1
-herd.run_sequential(moose_vars)
+moose_params = {"nElemX": [2,3,4],"lengX":np.array([10e-3,15e-3]),"PRatio":[0.3,0.35]}
+gmsh_params = {"plate_width": [150e-3,100e-3], "plate_height": ["plate_width + 100e-3",]}
+params = [gmsh_params,moose_params]
 
-print(f'Run time (seq) = {herd.get_sweep_time():.3f} seconds')
-print("-"*80)
-print()
+sweep_params = sweep_param_grid(params)
 
-print("-"*80)
-print('Run MOOSE in parallel')
+for ss in sweep_params:
+    print(ss)
 
-# Run all variable combinations across 4 MOOSE instances with two runs saved in
-# each sim-workdir
-if __name__ == "__main__":
-    herd.run_para(moose_vars)
 
-print(f'Run time (para) = {herd.get_sweep_time():.3f} seconds')
-print("-"*80)
-print()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# #%%
+# #
+# # Single run saved in sim-workdir-1
+# herd.run_once(0,sweep_vars[0])
+# time_run_once = herd.get_iter_time()
+
+
+# #%%
+# #
+# # Run all variable combinations (8) sequentially in sim-workdir-1
+# herd.run_sequential(sweep_vars)
+# time_run_seq = herd.get_sweep_time()
+
+# #%%
+# #
+# # Run all variable combinations across 4 MOOSE instances with two runs saved in
+# # each sim-workdir
+# if __name__ == "__main__":
+#     herd.run_para(sweep_vars)
+#     time_run_para = herd.get_sweep_time()
+
+
+# #%%
+# #
+# print("-"*80)
+# print(f'Run time (one iter)             = {time_run_once:.3f} seconds')
+# print(f'Est. time (one iter x num sims) = {(time_run_once*len(sweep_vars)):.3f} seconds')
+# print()
+# print(f'Run time (seq)      = {time_run_seq:.3f} seconds')
+# print(f'Run time (para)     = {time_run_para:.3f} seconds')
+# print("-"*80)
+# print()
 
 

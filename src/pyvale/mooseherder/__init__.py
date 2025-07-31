@@ -15,6 +15,7 @@ from .sweepreader import SweepReader
 from .simdata import SimData
 from .simdata import SimReadConfig
 from .mooseconfig import MooseConfig
+from .sweeptools import sweep_param_grid
 
 
 __all__ = ["inputmodifier",
