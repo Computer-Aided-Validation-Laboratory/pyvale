@@ -627,6 +627,7 @@ class DICRegionOfInterest:
                 if entry.get('type') == 'SeedROI':
                     # Restore the seed ROI
                     x, y = entry['pos']
+                    y = self.width-y
                     size = entry.get('size', [10, 10])  # fallback default
                     self.seed_roi = pg.RectROI(
                         [x, y], size,
@@ -712,13 +713,13 @@ class DICRegionOfInterest:
     def _finalize_selection(self):
         """Process the final mask and seed location."""
         self.mask = np.flipud(self.temp_mask.T)
-        
+
         if hasattr(self, 'seed_roi'):
             pos = self.seed_roi.pos()
             x = int(np.floor(pos.x()))
             y = int(np.floor(self.width - pos.y()))
             self.seed = [x, y]
-            
+
             if not self.mask[y, x]:
                 raise ValueError(f"Seed location [{x}, {y}] is not within the mask")
             print(f"Final seed location: [{x}, {y}]")
@@ -954,7 +955,7 @@ class DICRegionOfInterest:
                 if entry.get('type') == 'SeedROI':
                     # Restore the seed ROI
                     x, y = entry['pos']
-                    print(x,y)
+                    y = self.width-y
                     size = entry.get('size', [10, 10])  # fallback default
                     self.seed_roi = pg.RectROI(
                         [x, y], size,
