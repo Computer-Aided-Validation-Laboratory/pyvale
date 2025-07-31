@@ -299,6 +299,9 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
 
     x, y = seed
 
+    if x < 0 or x >= px_hori or y < 0 or y >= px_vert:
+        raise ValueError(f"Seed ({x}, {y}) goes outside the image bounds: ({px_hori}, {px_vert})")
+
     corner_x = x - subset_size//2
     corner_y = y - subset_size//2
 
@@ -309,16 +312,10 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
     new_x = round_to_step(corner_x, subset_step)
     new_y = round_to_step(corner_y, subset_step)
 
-
-    # Clamp to image bounds
-    new_x = min(max(new_x, 0), px_hori - 1)
-    new_y = min(max(new_y, 0), px_vert - 1)
-
     # check if all pixel values within the seed location are within the ROI
     # seed coordinates are the central pixel to the subset
     max_x = new_x + subset_size//2+1
     max_y = new_y + subset_size//2+1
-
 
     # Check if all pixel values in the ROI are valid
     for i in range(corner_x, max_x):
