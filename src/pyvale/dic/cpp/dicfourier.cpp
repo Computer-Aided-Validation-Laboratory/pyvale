@@ -12,11 +12,13 @@
 #include <cmath>
 #include <algorithm>
 #include <omp.h>
+#include <csignal>
 
 // Program Header files
 #include "./defines.hpp"
 #include "./dicutil.hpp"
 #include "./dicfourier.hpp"
+#include "./dicsignalhandler.hpp"
 
 namespace fourier {
 
@@ -134,8 +136,10 @@ namespace fourier {
     }
 
     void mgwd(const std::vector<util::SubsetData> &ssdata, 
-              const double *img_ref, const double *img_def, 
-              const Interpolator &interp_def, const bool fft_mad, 
+              const double *img_ref,
+              const double *img_def,
+              const Interpolator &interp_def,
+              const bool fft_mad, 
               const double fft_mad_scale){
 
         const int px_hori = interp_def.px_hori;
@@ -150,11 +154,21 @@ namespace fourier {
             //util::Timer timer("FFT windowing for subset size: " + std::to_string(ssdata[i].size));
 
             const int ss_size = ssdata[i].size;
+            const int num_ss  = ssdata[i].num;
 
             std::fill(shifts[i].x.begin(), shifts[i].x.end(), 0.0);
             std::fill(shifts[i].y.begin(), shifts[i].y.end(), 0.0);
 
-            #pragma omp parallel
+            indicators::ProgressBar bar;
+            std::atomic<int> current_progress = 0;
+            int prev_pct = 0;
+
+            if (g_debug_level == 1){
+                std::string bar_title = "FFT windowing for size: " + std::to_string(ss_size);
+                util::create_progress_bar(bar, bar_title, ssdata[i].num);
+            }
+
+            #pragma omp parallel shared(stop_request)
             {
 
 
@@ -164,6 +178,11 @@ namespace fourier {
                 // loop over subsets for each size/step
                 #pragma omp for
                 for (int ss = 0; ss < ssdata[i].num; ss++){
+
+                    // exit when ctrl+C
+                    if (stop_request){
+                        continue;
+                    }
 
                     int ss_x = ssdata[i].coords[2*ss];
                     int ss_y = ssdata[i].coords[2*ss+1];
@@ -213,6 +232,12 @@ namespace fourier {
                     //util::extract_ss_subpx(fft.ss_def, ss_x+shifts[i].x[ss], ss_y+shifts[i].y[ss], interp_def);
                     //shifts[i].cost[ss] = debugcost(fft.ss_ref,fft.ss_def);
                     shifts[i].max_val[ss] = max_val;
+
+
+                    if (g_debug_level == 1){
+                        int progress = current_progress.fetch_add(1);
+                        if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                    }
                 }
             }
 
@@ -221,7 +246,6 @@ namespace fourier {
                 remove_outliers(shifts[i].x, ssdata[i], fft_mad);
                 remove_outliers(shifts[i].y, ssdata[i], fft_mad);
             }
-
 
             //smooth_field(shifts[i].x, ssdata[i], 7.0, 5);
             //smooth_field(shifts[i].y, ssdata[i], 7.0, 5);
@@ -233,7 +257,15 @@ namespace fourier {
             //    std::cout << shifts[i].cost[ss] << std::endl;
             //}
             //std::cout << std::endl;
+
+            if (g_debug_level == 1){
+                int progress = current_progress;
+                util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
+                bar.mark_as_completed();
+                indicators::show_console_cursor(true);
+            }
         }
+
 
 
     }

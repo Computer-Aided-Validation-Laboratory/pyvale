@@ -276,8 +276,8 @@ namespace util {
                                   const int ss_size, const int ss_step, const int max_disp);
 
     void create_progress_bar(indicators::ProgressBar &bar,
-                             const std::vector<std::string> &filenames,
-                             const int img_num, const int num_ss);
+                             const std::string &bar_title,
+                             const int num_ss);
 
     void update_progress_bar(indicators::ProgressBar &bar, int i, int num_ss, int &prev_pct);
 }

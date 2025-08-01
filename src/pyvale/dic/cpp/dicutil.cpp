@@ -590,8 +590,8 @@ namespace util {
     }
 
     void create_progress_bar(indicators::ProgressBar &bar,
-                             const std::vector<std::string> &filenames,
-                             const int img_num, const int num_ss){
+                             const std::string &bar_title,
+                             const int num_ss){
         //Hide cursor
         indicators::show_console_cursor(false);
         bar.set_option(indicators::option::BarWidth{50});
@@ -600,7 +600,7 @@ namespace util {
         bar.set_option(indicators::option::Lead{"#"});
         bar.set_option(indicators::option::Remainder{"-"});
         bar.set_option(indicators::option::End{"]"});
-        bar.set_option(indicators::option::PrefixText{filenames[img_num]});
+        bar.set_option(indicators::option::PrefixText{bar_title});
         bar.set_option(indicators::option::ShowPercentage{true});
         bar.set_option(indicators::option::ShowElapsedTime{true});
     }

@@ -27,6 +27,7 @@
 #include "./dicutil.hpp"
 #include "./dicstrain.hpp"
 #include "./dicfourier.hpp"
+#include "./dicsignalhandler.hpp"
 
 // cuda Header files
 #include "../cuda/malloc.hpp"
@@ -41,7 +42,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
                util::SaveConfig &saveconf){
 
     // Register signal handler for Ctrl+C and set debug_level
-    signal(SIGINT, scanmethod::signalHandler);
+    signal(SIGINT, signalHandler);
     g_debug_level = conf.debug_level;
 
     // ------------------------------------------------------------------------
@@ -143,7 +144,6 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
         if (!saveconf.at_end)
             util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params, conf.filenames);
-
     }
 
     if (saveconf.at_end)

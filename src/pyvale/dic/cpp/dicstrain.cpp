@@ -71,7 +71,7 @@ namespace strain {
         for (int img_num = 0; img_num < nimg; img_num++) {
 
             indicators::ProgressBar bar;
-            util::create_progress_bar(bar, filenames, img_num, nwindows);
+            util::create_progress_bar(bar, filenames[img_num], nwindows);
             int prev_pct = 0;
 
             // loop over strain windows within the image

@@ -23,18 +23,10 @@
 #include "./indicators.hpp"
 #include "./cursor_control.hpp"
 #include "./dicfourier.hpp"
+#include "./dicsignalhandler.hpp"
 
 namespace scanmethod {
 
-
-    // for graceful exit
-    std::atomic<bool> stop_request(false);
-
-    void signalHandler(int signal) {
-        if (signal == SIGINT) {
-            stop_request = true;
-        }
-    }
 
     void image(const double *img_ref,
                const Interpolator &interp_def,
@@ -47,7 +39,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, 100);
+        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
         int prev_pct = 0;
 
@@ -129,7 +121,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
         int prev_pct = 0;
 
@@ -253,7 +245,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress(0);
         //int prev_pct(0);
         int prev_pct = 0;
@@ -540,7 +532,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
         int prev_pct = 0;
 
@@ -621,7 +613,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
         int prev_pct = 0;
 
