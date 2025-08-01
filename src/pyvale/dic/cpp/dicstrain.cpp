@@ -6,6 +6,7 @@
 
 // STD library Header files
 #include <cmath>
+#include <omp.h>
 #include <vector>
 #include <iostream>
 #include <iomanip>
@@ -70,8 +71,8 @@ namespace strain {
         for (int img_num = 0; img_num < nimg; img_num++) {
 
             indicators::ProgressBar bar;
-            util::create_progress_bar(bar, filenames, img_num, nwindows);
-            std::atomic<int> prev_pct = 0;
+            util::create_progress_bar(bar, filenames[img_num], nwindows);
+            int prev_pct = 0;
 
             // loop over strain windows within the image
             for (int sw = 0; sw < nwindows; sw++){
@@ -81,6 +82,9 @@ namespace strain {
                 results.x[sw] = x0;
                 results.y[sw] = y0;
 
+                // TODO: through a warning. NAN out the entire window.
+                // it should be up to the user whether they correct with
+                // outlier removal / smoothing.
                 results.valid_window[sw] = fill_window(ss_x, ss_y, u, v, img_num,
                                                 sw, window, nss_x,
                                                 nss_y, sw_size);
@@ -102,7 +106,7 @@ namespace strain {
                                    deform_grad, eps, nwindows, img_num);
                 }
 
-                util::update_progress_bar(bar, sw, nwindows, prev_pct);
+                if (omp_get_thread_num() == 0) util::update_progress_bar(bar, sw, nwindows, prev_pct);
 
             }
 

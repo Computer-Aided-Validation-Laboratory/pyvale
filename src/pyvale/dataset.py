@@ -397,7 +397,7 @@ class DataSet:
             Path to the reference image (*.tiff).
         """
         return Path(files("pyvale.data")
-                    .joinpath("DIC_Challenge_Star_Noise_Ref.tif"))
+                    .joinpath("DIC_Challenge_Star_Noise_Ref.tiff"))
 
     @staticmethod
     def dic_challenge_def() -> Path:
@@ -409,7 +409,7 @@ class DataSet:
             Path to the reference image (*.tiff).
         """
         return Path(files("pyvale.data")
-                    .joinpath("DIC_Challenge_Star_Noise_Def.tif"))
+                    .joinpath("DIC_Challenge_Star_Noise_Def.tiff"))
 
 
 

@@ -11,7 +11,9 @@
 
 // Program Header files
 #include "./dicinterpolator.hpp"
-
+#include "./dicutil.hpp"
+#include "defines.hpp"
+#include "./dicsignalhandler.hpp"
 
 
 inline int idx_from_2d(const int x, const int y, const int length){
@@ -49,9 +51,26 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
 
     //interpolator data
     std::vector<double> data(px_hori,0);
+
+
+    indicators::ProgressBar bar;
+    std::atomic<int> current_progress = 0;
+    int prev_pct = 0;
+    int niters = px_vert+px_hori+px_hori;
+
+    if (g_debug_level == 1){
+        std::string bar_title = "Creating Interpolator: ";
+        util::create_progress_bar(bar, bar_title, niters);
+    }
+
     
     //#pragma omp parallel for
     for (int j = 0; j < px_vert; j++){
+
+        // exit if ctrl+C
+        if (stop_request){
+            continue;
+        }
 
         // get 1D data
         for (int i = 0; i < px_hori; i++) {
@@ -62,12 +81,23 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
         for (int i = 0; i < px_hori; i++){
             dx[j*px_hori + i] = cspline_eval_deriv(px_x, data, px_x[i], px_hori);
         }
+
+        // update progress bar if enabled
+        if (g_debug_level == 1){
+            int progress = current_progress.fetch_add(1);
+            util::update_progress_bar(bar, progress, niters, prev_pct);
+        }
     }
 
     data.resize(px_vert,0);
     
     //#pragma omp parallel for
     for (int i = 0; i < px_hori; ++i) {
+
+        // exit if ctrl+C
+        if (stop_request){
+            continue;
+        }
 
         // get 1D data
         for (int j = 0; j < px_vert; j++){
@@ -78,6 +108,12 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
         for (int j = 0; j < px_vert; j++){
             dy[j*px_hori + i] = cspline_eval_deriv(px_y, data, px_y[j], px_vert);
         }
+
+        // update progress bar if enabled
+        if (g_debug_level == 1){
+            int progress = current_progress.fetch_add(1);
+            util::update_progress_bar(bar, progress, niters, prev_pct);
+        }
     }
 
 
@@ -85,6 +121,11 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
 
     //#pragma omp parallel for
     for (int j = 0; j < px_vert; j++){
+
+        // exit if ctrl+C
+        if (stop_request){
+            continue;
+        }
 
         // get 1D data
         for (int i = 0; i < px_hori; i++) {
@@ -95,6 +136,20 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
         for (int i = 0; i < px_hori; i++){
             dxy[j*px_hori + i] = cspline_eval_deriv(px_x, data, px_x[i], px_hori);
         }
+
+        // update progress bar if enabled
+        if (g_debug_level == 1){
+            int progress = current_progress.fetch_add(1);
+            util::update_progress_bar(bar, progress, niters, prev_pct);
+        }
+    }
+
+
+    if (g_debug_level == 1){
+        int progress = current_progress;
+        util::update_progress_bar(bar, progress-1, niters, prev_pct);
+        bar.mark_as_completed();
+        indicators::show_console_cursor(true);
     }
 }
 

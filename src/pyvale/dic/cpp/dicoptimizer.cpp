@@ -52,7 +52,7 @@ namespace optimizer {
         double ftol = 0;
         double xtol = 0;
         opt.lambda = 0.001;
-        bool converged = false;
+        uint8_t converged = false;
 
 
         // trying relative instead of global coordinates for the optimization
@@ -69,6 +69,9 @@ namespace optimizer {
             optimize_cost(ss_ref, ss_def, interp_def, opt, global_x, global_y);
             update_lambda(opt.costp, opt.costpdp, opt.p, opt.pdp, opt.lambda, opt.num_params);
 
+            // TODO: have a look at removing the two square roots in the below. Can we get away without
+            // it? cache is locally and perform the square root only once?
+
             // relative change of all parameters
             xtol = std::sqrt(std::inner_product(opt.dp.begin(), opt.dp.end(), opt.dp.begin(), 0.0)) / 
                           std::sqrt(std::inner_product( opt.p.begin(),  opt.p.end(),  opt.p.begin(), 0.0));
@@ -78,6 +81,8 @@ namespace optimizer {
             // variation on correlation coefficient
             ftol = std::abs(opt.costpdp - opt.costp);
 
+
+            // TODO: convert ssd if statement into func pointer.
             // convergence criteria
             // - rel change in parameters is less than user precision
             // - change in corr coeff is less than precision
