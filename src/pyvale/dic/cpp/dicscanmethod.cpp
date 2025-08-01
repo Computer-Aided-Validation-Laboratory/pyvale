@@ -620,7 +620,7 @@ namespace scanmethod {
         const int ss_size = ssdata.size;
 
         // progress bar
-        indicators::ProgressBar bar
+        indicators::ProgressBar bar;
         util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
         std::atomic<int> current_progress = 0;
         int prev_pct = 0;
