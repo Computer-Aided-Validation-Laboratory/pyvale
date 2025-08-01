@@ -34,13 +34,15 @@ We start by importing what we need for this example.
 """
 
 from pathlib import Path
+import numpy as np
 import pyvale as pyv
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 MooseConfig,
                                 GmshRunner,
                                 InputModifier,
-                                DirectoryManager)
+                                DirectoryManager,
+                                sweep_param_grid)
 
 #%%
 # First we setup our input modifer and runner for gmsh using the same 2D plate
@@ -60,7 +62,8 @@ gmsh_runner.set_input_file(gmsh_input)
 #%%
 # Next we setup our moose input modifier and runner in the same way as we have
 # done in previous examples. We set our parallelisation options for moose here
-# as well as redirecting stdout to file.
+# as well as redirecting stdout to file to save our terminal when we run in
+# parallel.
 moose_input = pyv.DataSet.sim_case_input_file_path(case_num=sim_case)
 moose_modifier = InputModifier(moose_input,"#","")
 
@@ -74,7 +77,10 @@ moose_runner.set_run_opts(n_tasks = 1,
                           redirect_out = True)
 
 #%%
-# Setup herd composition
+# We can now setup our 'herd' workflow manager making sure me place gmsh ahead
+# of moose in the input modifier and runner lists so it is executed first to
+# generate our mesh. We setup our directories and number of simulations to run
+# in paralle as we have done previously.
 num_para_sims: int = 4
 
 sim_runners = [gmsh_runner,moose_runner]
@@ -85,27 +91,29 @@ herd = MooseHerd(sim_runners,input_modifiers,dir_manager)
 herd.set_num_para_sims(n_para=num_para_sims)
 
 
-# Don"t have to clear directories on creation of the herd but we do so here
-# so that directory creation doesn"t raise errors
-dir_manager.set_base_dir(Path("examples/"))
+#%%
+# We need somewhere to run our simulations and store the output so we create our
+# standard pyvale output directory and then we set this as the base directory
+# for our directory manager. We clear any old output directories and then create
+# new ones ready to write our simulation output to.
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
+
+dir_manager.set_base_dir(output_path)
 dir_manager.clear_dirs()
 dir_manager.create_dirs()
 
-# Create variables to sweep in a list of dictionaries for mesh parameters
-# 2^3=8 combinations possible
-p0 = [1E-3,2E-3]
-p1 = [1.5E-3,2E-3]
-p2 = [1E-3,3E-3]
-var_sweep = list([])
-for nn in p0:
-    for ee in p1:
-        for pp in p2:
-            var_sweep.append([{"p0":nn,"p1":ee,"p2":pp},None])
 
-print("Herd sweep variables:")
-for vv in var_sweep:
-    print(vv)
+gmsh_params = {"plate_width": np.array([150e-3,100e-3]),
+               "plate_height": "plate_width + 100e-3"}
+moose_params = None
+params = [gmsh_params,moose_params]
+sweep_params = sweep_param_grid(params)
 
+print("\nParameter sweep variables by simulation:")
+for ii,pp in enumerate(sweep_params):
+    print(f"Sim: {ii}, Params [gmsh,moose]: {pp}")
 
 
 

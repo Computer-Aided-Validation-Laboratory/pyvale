@@ -32,7 +32,7 @@ from pyvale.mooseherder import (MooseHerd,
                                 DirectoryManager,
                                 SweepReader)
 
-NUM_PARA_RUNS = 3
+num_para_runs: int = 3
 
 moose_input = Path('scripts/moose/moose-mech-simple.i')
 moose_modifier = InputModifier(moose_input,'#','')
@@ -64,7 +64,7 @@ for nn in n_elem_y:
 
 
 if __name__ == '__main__':
-    for _ in range(NUM_PARA_RUNS):
+    for _ in range(num_para_runs):
         herd.run_para(moose_vars)
 
     sweep_reader = SweepReader(dir_manager,num_para_read=4)
