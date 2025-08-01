@@ -8,7 +8,8 @@
 Reading exodus output from a parameter sweep
 ================================================================================
 
-In this example we ...
+In this example we run a parallel sweep of a moose simulation and then read the
+results of the whole sweep using the sweep reader class.
 
 **Installing moose**: To run this example you will need to have installed moose
 on your system. As moose supports unix operating systems windows users will need
@@ -23,109 +24,127 @@ We start by importing what we need for this example.
 
 import time
 from pathlib import Path
-from pprint import pprint
+import numpy as np
+import pyvale as pyv
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 MooseConfig,
                                 InputModifier,
                                 DirectoryManager,
-                                SweepReader)
+                                SweepReader,
+                                sweep_param_grid)
 
+#%%
+# In this first section we setup our herd workflow manager to run a parameter
+# sweep of our moose simulation as we have done in previous examples. We run
+# the parameter sweep and print the solve time to the terminal. The sweep
+# output is in the standard pyvale-output directory we have used previously.
+# In the next section we will read the output from the parameter sweep below.
 
-
-
-# Setup the MOOSE input modifier and runner
-moose_input = Path('scripts/moose/moose-mech-simple.i')
+moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
 moose_modifier = InputModifier(moose_input,'#','')
 
-moose_config = MooseConfig().read_config(Path.cwd() / 'moose-config.json')
+config = {'main_path': Path.home()/ 'moose',
+          'app_path': Path.home() / 'proteus',
+          'app_name': 'proteus-opt'}
+moose_config = MooseConfig(config)
+
 moose_runner = MooseRunner(moose_config)
 moose_runner.set_run_opts(n_tasks = 1,
-                            n_threads = 2,
-                            redirect_out = True)
+                          n_threads = 2,
+                          redirect_out = True)
 
-dir_manager = DirectoryManager(n_dirs=4)
-
-# Start the herd and create working directories
+num_para_sims: int = 4
+dir_manager = DirectoryManager(n_dirs=num_para_sims)
 herd = MooseHerd([moose_runner],[moose_modifier],dir_manager)
+herd.set_num_para_sims(n_para=num_para_sims)
 
-# Set the parallelisation options, we have 8 combinations of variables and
-# 4 MOOSE intances running, so 2 runs will be saved in each working directory
-herd.set_num_para_sims(n_para=4)
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
-    # Send all the output to the examples directory and clear out old output
-dir_manager.set_base_dir(Path('examples/'))
-dir_manager.clear_dirs()
-dir_manager.create_dirs()
+dir_manager.set_base_dir(output_path)
+dir_manager.reset_dirs()
 
-# Create variables to sweep in a list of dictionaries, 8 combinations possible.
-n_elem_y = [10,20]
-e_mod = [1e9,2e9]
-p_rat = [0.3,0.35]
-moose_vars = list([])
-for nn in n_elem_y:
-    for ee in e_mod:
-        for pp in p_rat:
-            # Needs to be list[list[dict]] - outer list is simulation iteration,
-            # inner list is what is passed to each runner/inputmodifier
-            moose_vars.append([{'n_elem_y':nn,'e_modulus':ee,'p_ratio':pp}])
+moose_params = {"nElemX": (2,3),
+                "lengX": np.array([10e-3,15e-3]),
+                "PRatio":(0.3,0.35)}
+params = [moose_params,]
+sweep_params = sweep_param_grid(params)
 
-print('Herd sweep variables:')
-pprint(moose_vars)
 
-print()
-print('Running MOOSE in parallel.')
-herd.run_para(moose_vars)
+if __name__ == "__main__":
+    print('Running simulation parameter sweep in parallel.')
+    herd.run_para(sweep_params)
+    print(f'Run time (parallel) = {herd.get_sweep_time():.3f} seconds\n')
 
-print(f'Run time (parallel) = {herd.get_sweep_time():.3f} seconds')
-print("-"*80)
-print()
 
-print("-"*80)
-print('EXAMPLE: Read Herd Output')
-print("-"*80)
+#%%
+# To read the sweep output files we first create our sweep reader and pass it
+# the same directory manager we used to run the sweep. We also set the number
+# of simulation outputs to read in parallel when we call the read parallel
+# function. We will see below that we can still read sequentially by calling
+# read sequential functions and if the simulation output files are small it is
+# likely to be faster to read them sequentially.
+#
+# We first use our sweep reader to inspect the output path keys to find the
+# simulation output files that exist in the simulation working directories.
+
 sweep_reader = SweepReader(dir_manager,num_para_read=4)
 output_files = sweep_reader.read_all_output_keys()
 
-print('Herd output files (from output_keys.json):')
-pprint(output_files)
+print('Sweep output files (from output_keys.json):')
+for ff in output_files:
+    print(f"    {ff}")
 print()
 
-print("-"*80)
-print('Reading the first output file, no SimReadConfig = read all.')
-print('Returns as SimData object.')
-single_sim_data = sweep_reader.read_results_once(output_files[0])
-print(type(single_sim_data))
-print()
+#%%
+# Using the sweep reader we can read the results for a single simulation chain
+# from the sweep. Our simulation chain only has a single moose simulation so
+# the list of ``SimData`` objects we are returned only has a single element.
+# We then use a helper function to print the contents of the ``SimData`` object
+# to the terminal.
+#
+# We suggest you check out the documentation for the ``SimData`` object as it
+# includes a detailed description of each of the relevant fields you might want
+# to use for post-processing.
+sim_data_list = sweep_reader.read_results_once(output_files[0])
+pyv.SimTools.print_sim_data(sim_data_list[0])
 
-print("-"*80)
-print('Reading all output files sequentially as a list(SimData).')
-print('All function parameters blank to read everything.')
-print()
+#%%
+# We can use the sweep reader to read results for each simulation chain in the
+# sweep sequentially with read sequential function. The sweep results we are
+# returned is a list of list of data classes where the outer list corresponds to
+# the unique simulation chain in the sweep and the inner list corresponds to the
+# the results for the particular simulation tool in the chain.
+#
+# After reading the sweep results we print the inner and outer list lengths. We
+# have 8 unique simulation chains with a single simulation tool (moose) in the
+# chain.
 start_time = time.perf_counter()
-sweep_results_seq = sweep_reader.read_results_sequential()
+sweep_results_seq = sweep_reader.read_sequential()
 read_time_seq = time.perf_counter() - start_time
 
-print(f'Number of simulations read: {len(sweep_results_seq ):d}')
-
-print("-"*80)
-print('Reading all output files in parallel as list(SimData).')
-print('All function parameters blank to read everything.')
+print("Outer list = unique simulation chain:")
+print(f"    {len(sweep_results_seq)=}")
+print("Inner list = particular simulation tool in the chain:")
+print(f"    {len(sweep_results_seq[0])=}")
+print("'SimData' object for the particular simulation tool:")
+print(f"    {type(sweep_results_seq[0][0])=}")
 print()
 
+#%%
+# Finally, we read the same sweep in parallel making sure we include a main
+# guard as we will be using the multi-processing package to do this. We then
+# print the read time to the console for the sequential and parallel reads.
 if __name__ == '__main__':
     start_time = time.perf_counter()
     sweep_results_para = sweep_reader.read_results_para()
     read_time_para = time.perf_counter() - start_time
 
-    print(f'Number of simulations outputs: {len(sweep_results_para):d}')
-
 print()
-print("="*80)
+print("-"*80)
 print(f'Read time sequential = {read_time_seq:.6f} seconds')
 print(f'Read time parallel   = {read_time_para:.6f} seconds')
-print("="*80)
+print("-"*80)
 print()
-
-
-

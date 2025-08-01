@@ -68,7 +68,6 @@ dir_manager = DirectoryManager(n_dirs=num_para_sims)
 herd = MooseHerd([moose_runner],[moose_modifier],dir_manager)
 herd.set_num_para_sims(n_para=num_para_sims)
 
-
 #%%
 # We need somewhere to run our simulations and store the output so we create our
 # standard pyvale output directory and then we set this as the base directory
@@ -79,8 +78,7 @@ if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
 dir_manager.set_base_dir(output_path)
-dir_manager.clear_dirs()
-dir_manager.create_dirs()
+dir_manager.reset_dirs()
 
 #%%
 # We now need to generate the parameter combinations we want to run using our

@@ -259,7 +259,7 @@ class SweepReader:
         return data_list
 
 
-    def read_results_sequential(self,
+    def read_sequential(self,
                                 sweep_iter: int | None = None,
                                 read_config: SimReadConfig | None = None
                                 ) -> list[list[SimData]]:

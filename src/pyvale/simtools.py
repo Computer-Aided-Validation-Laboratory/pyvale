@@ -40,7 +40,7 @@ class SimTools:
         sim_data : mh.SimData
             SimData to print shapes of numpy arrays.
         """
-        print(80*"-")
+        print()
         if sim_data.time is not None:
             print(f"{sim_data.time.shape=}")
         print()
@@ -69,7 +69,6 @@ class SimTools:
         print("sim_data.glob_vars")
         print_dict(sim_data.glob_vars)
 
-        print(80*"-")
 
     @staticmethod
     def print_dimensions(sim_data: mh.SimData) -> None:
