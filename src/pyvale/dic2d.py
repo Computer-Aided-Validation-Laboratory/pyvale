@@ -7,8 +7,12 @@
 
 
 import os
+import io
+import sys
 import numpy as np
 from pathlib import Path
+
+import pybind11
 
 # import cython module
 import pyvale.dic2dcpp as dic2dcpp
@@ -183,4 +187,5 @@ def dic_2d(reference: np.ndarray | str | Path,
         dic2dcpp.set_num_threads(num_threads)
 
     # calling the c++ dic engine
-    dic2dcpp.dic_engine(ref_arr, def_arr, roi_c, config, saveconf)
+    with dic2dcpp.ostream_redirect(stdout=True, stderr=True):
+        dic2dcpp.dic_engine(ref_arr, def_arr, roi_c, config, saveconf)

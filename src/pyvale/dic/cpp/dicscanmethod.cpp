@@ -49,7 +49,7 @@ namespace scanmethod {
         indicators::ProgressBar bar;
         util::create_progress_bar(bar, conf.filenames, img_num, 100);
         std::atomic<int> current_progress = 0;
-        std::atomic<int> prev_pct = 0;
+        int prev_pct = 0;
 
         // loop over subsets within the ROI
         #pragma omp parallel shared(stop_request)
@@ -103,10 +103,13 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }
+
+        int progress = current_progress;
+        util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
         bar.mark_as_completed();
         indicators::show_console_cursor(true);
 
@@ -128,7 +131,7 @@ namespace scanmethod {
         indicators::ProgressBar bar;
         util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
         std::atomic<int> current_progress = 0;
-        std::atomic<int> prev_pct = 0;
+        int prev_pct = 0;
 
         // initialise subsets
         util::Subset ss_def(ss_size);
@@ -211,9 +214,11 @@ namespace scanmethod {
 
             // update progress bar
             int progress = current_progress.fetch_add(1);
-            util::update_progress_bar(bar, progress, num_ss, prev_pct);
+            if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
         }
+        int progress = current_progress;
+        util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
         bar.mark_as_completed();
         indicators::show_console_cursor(true);
     }
@@ -250,7 +255,8 @@ namespace scanmethod {
         indicators::ProgressBar bar;
         util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
         std::atomic<int> current_progress(0);
-        std::atomic<int> prev_pct(0);
+        //int prev_pct(0);
+        int prev_pct = 0;
 
         // quick check for the initial seed point
         if (!rg::is_valid_point(seed_x, seed_y, ssdata[last_size])) {
@@ -494,7 +500,7 @@ namespace scanmethod {
 
                         // update progress bar
                         int progress = current_progress.fetch_add(1);
-                        util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                        if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
                     }
                 }
@@ -505,6 +511,8 @@ namespace scanmethod {
                 }
             }
         }
+        int progress = current_progress;
+        util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
         bar.mark_as_completed();
         indicators::show_console_cursor(true);
 
@@ -534,7 +542,7 @@ namespace scanmethod {
         indicators::ProgressBar bar;
         util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
         std::atomic<int> current_progress = 0;
-        std::atomic<int> prev_pct = 0;
+        int prev_pct = 0;
 
         // loop over subsets within the ROI
         #pragma omp parallel shared(stop_request)
@@ -587,7 +595,7 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }
@@ -612,10 +620,10 @@ namespace scanmethod {
         const int ss_size = ssdata.size;
 
         // progress bar
-        indicators::ProgressBar bar;
+        indicators::ProgressBar bar
         util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
         std::atomic<int> current_progress = 0;
-        std::atomic<int> prev_pct = 0;
+        int prev_pct = 0;
 
         // loop over subsets within the ROI
         #pragma omp parallel shared(stop_request)
@@ -666,7 +674,7 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }

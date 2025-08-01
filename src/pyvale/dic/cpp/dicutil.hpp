@@ -279,7 +279,7 @@ namespace util {
                              const std::vector<std::string> &filenames,
                              const int img_num, const int num_ss);
 
-    void update_progress_bar(indicators::ProgressBar &bar, int i, int num_ss, std::atomic<int> &prev_pct);
+    void update_progress_bar(indicators::ProgressBar &bar, int i, int num_ss, int &prev_pct);
 }
 
 #endif //DICUTIL

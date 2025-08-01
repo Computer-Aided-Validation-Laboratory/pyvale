@@ -605,17 +605,15 @@ namespace util {
         bar.set_option(indicators::option::ShowElapsedTime{true});
     }
 
-    void update_progress_bar(indicators::ProgressBar &bar, int i, int num_ss, std::atomic<int> &prev_pct) {
-        int curr_pct = static_cast<float>(i) / static_cast<float>(num_ss) * 100;
-        int expected = prev_pct.load();
+    void update_progress_bar(indicators::ProgressBar &bar, int i, int num_ss, int &prev_pct) {
+        int curr_pct = static_cast<int>((static_cast<float>(i) / num_ss) * 100.0f);
 
-        // Only update bar if we've passed the previous percentage
-        if (curr_pct > expected && prev_pct.compare_exchange_strong(expected, curr_pct)) {
-            #pragma omp critical
-                bar.set_progress(curr_pct);
+        // Only update if we've passed a new percentage
+        if (curr_pct > prev_pct) {
+            prev_pct = curr_pct;
+            bar.set_progress(curr_pct);
         }
     }
-
 
 
 }

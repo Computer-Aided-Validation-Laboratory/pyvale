@@ -16,6 +16,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <pybind11/iostream.h>
 
 // Program Header files
 #include "./dicinterpolator.hpp"
@@ -171,6 +172,9 @@ void set_num_threads(int n) {
 
 
 PYBIND11_MODULE(dic2dcpp, m) {
+
+    py::add_ostream_redirect(m, "ostream_redirect");
+
     py::class_<util::Config>(m, "Config")
         .def(py::init<>())
         .def_readwrite("ss_step", &util::Config::ss_step)
