@@ -9,10 +9,18 @@ Creating a configuration file
 ================================================================================
 
 In this example we generate a json config file which help mooseherder find the
-paths to moose apps we want to use in the future. To run these examples you will
-need to have moose installed on your system. We use the proteus moose build
-which you will find here: https://github.com/aurora-multiphysics/proteus. Or
-you can build you own moose app: https://mooseframework.inl.gov/.
+paths to moose apps we want to use in the future.
+
+
+**Installing moose**: To run future examples you will need to have moose
+on your system. As moose supports unix operating systems windows users will need
+to use windows subsystem for linux (WSL). We use the proteus moose build which
+can be found here: https://github.com/aurora-multiphysics/proteus. Build scripts
+for common linux distributions can be found in the 'scripts' directory of the
+repo. You can also create your own moose build using instructions here:
+https://mooseframework.inl.gov/.
+
+We start by importing what we need for this example.
 """
 
 #%%#

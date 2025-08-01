@@ -9,6 +9,16 @@ Reading exodus output from a MOOSE simulation
 ================================================================================
 
 In this example we ...
+
+**Installing moose**: To run this example you will need to have installed moose
+on your system. As moose supports unix operating systems windows users will need
+to use windows subsystem for linux (WSL). We use the proteus moose build which
+can be found here: https://github.com/aurora-multiphysics/proteus. Build scripts
+for common linux distributions can be found in the 'scripts' directory of the
+repo. You can also create your own moose build using instructions here:
+https://mooseframework.inl.gov/.
+
+We start by importing what we need for this example.
 """
 
 import time
@@ -20,17 +30,20 @@ from pyvale.mooseherder import (MooseRunner,
                                 MooseConfig,
                                 ExodusReader)
 
-
+#%%
+# First we define a helper function that will print the data we have read in our
+# exodus output to the terminal.
 def print_attrs(in_obj: Any) -> None:
     _ = [print(aa) for aa in dir(in_obj) if '__' not in aa]
 
 
+#%%
 # Create the moose runner with correct paths to moose and apps
 moose_config = MooseConfig().read_config(Path.cwd() / 'moose-config.json')
 moose_runner = MooseRunner(moose_config)
 
-# Set input and parallelisation options
 moose_runner.set_run_opts(n_tasks = 1, n_threads = 4,redirect_out = True)
+
 input_file = Path('scripts/moose/moose-mech-simple.i')
 moose_runner.set_input_file(input_file)
 

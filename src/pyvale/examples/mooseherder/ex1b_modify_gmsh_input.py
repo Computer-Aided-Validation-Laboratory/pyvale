@@ -10,12 +10,9 @@ Modifying gmsh input files
 
 In this example we will use mooseherder's input modifier to programmatically
 change variables in a gmsh .geo script.
+
+We start by importing the packages we need for this example.
 """
-#%%
-#%%
-# First we start with imports, we need paths to help us to get and save our
-# input files. We need pyvale to get an example input file as well as
-# the mooseherder input modifier to change the variables in the input file.
 
 from pathlib import Path
 import pyvale as pyv

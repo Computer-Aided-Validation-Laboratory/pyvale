@@ -10,6 +10,11 @@ Running Gmsh once
 
 In this example we will run a gmsh script to generate a mesh file using the
 GmshRunner class.
+
+**Installing gmsh**: For this example you will need to have a gmsh executable
+which can be downloaded and installed from here: https://gmsh.info/#Download
+
+We start by importing what we need for this example.
 """
 
 import time

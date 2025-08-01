@@ -9,6 +9,16 @@ Reading exodus output from a parameter sweep
 ================================================================================
 
 In this example we ...
+
+**Installing moose**: To run this example you will need to have installed moose
+on your system. As moose supports unix operating systems windows users will need
+to use windows subsystem for linux (WSL). We use the proteus moose build which
+can be found here: https://github.com/aurora-multiphysics/proteus. Build scripts
+for common linux distributions can be found in the 'scripts' directory of the
+repo. You can also create your own moose build using instructions here:
+https://mooseframework.inl.gov/.
+
+We start by importing what we need for this example.
 """
 
 import time

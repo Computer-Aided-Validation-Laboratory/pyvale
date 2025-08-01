@@ -15,6 +15,19 @@ script when the Save command is called. It is possible to use the input
 modifiers we have seen previously to update this file name as a variable in the
 moose input script but for this example we have set things manually inside the
 moose input script.
+
+**Installing moose**: To run this example you will need to have installed moose
+on your system. As moose supports unix operating systems windows users will need
+to use windows subsystem for linux (WSL). We use the proteus moose build which
+can be found here: https://github.com/aurora-multiphysics/proteus. Build scripts
+for common linux distributions can be found in the 'scripts' directory of the
+repo. You can also create your own moose build using instructions here:
+https://mooseframework.inl.gov/.
+
+**Installing gmsh**: For this example you will need to have a gmsh executable
+which can be downloaded and installed from here: https://gmsh.info/#Download
+
+We start by importing what we need for this example.
 """
 
 import time
@@ -24,7 +37,6 @@ import pyvale as pyv
 from pyvale.mooseherder import (MooseConfig,
                                 GmshRunner,
                                 MooseRunner)
-
 
 #%%
 # We need to make sure the output .msh file from gmsh can be found by our moose

@@ -14,6 +14,16 @@ the capability of the 'herder' workflow manager which can be passed a list of
 modifiers' to update simulation parameters and then call the respective 'runner'
 using the modified input file. In this example we will also see that the
 'herder' can be used to execute a parameter sweep sequentially or in parallel.
+
+**Installing moose**: To run this example you will need to have installed moose
+on your system. As moose supports unix operating systems windows users will need
+to use windows subsystem for linux (WSL). We use the proteus moose build which
+can be found here: https://github.com/aurora-multiphysics/proteus. Build scripts
+for common linux distributions can be found in the 'scripts' directory of the
+repo. You can also create your own moose build using instructions here:
+https://mooseframework.inl.gov/.
+
+We start by importing what we need for this example.
 """
 
 from pathlib import Path
@@ -30,7 +40,9 @@ from pyvale.mooseherder import (MooseHerd,
 # First we are going to setup an input modifier and a runner for our moose
 # simulation. Here we need to make sure that when we set our moose
 # parallelisation options we leave enough threads for all the simulations that
-# are running at once base on our CPU.
+# are running at once base on our CPU. It is also helpful to redirect stdout to
+# file so that our terminal does not become a mess when we start running our
+# simulations in parallel.
 moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
 moose_modifier = InputModifier(moose_input,'#','')
 
