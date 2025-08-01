@@ -3,11 +3,31 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
+from typing import Any
+import dataclasses
 import numpy as np
 import pyvale.mooseherder as mh
 from pyvale.rendermesh import RenderMesh
 
+
 class SimTools:
+    @staticmethod
+    def print_dataclass_fields(in_data: Any) -> None:
+        """Diagnostic function
+
+        Parameters
+        ----------
+        in_data : Any
+            A data class to print the type and fields for as well as the type of
+            each of the fields.
+        """
+
+        print(f"Data class fields for: {type(in_data)}")
+        for field in dataclasses.fields(in_data):
+            if not field.name.startswith('__'):
+                print(f"    {field.name}: {field.type}")
+        print()
+
     @staticmethod
     def print_sim_data(sim_data: mh.SimData) -> None:
         """Diagnostic function for inspecting a sim data object to work out shapes
@@ -31,17 +51,22 @@ class SimTools:
 
         def print_dict(in_dict: dict | None) -> None:
             if in_dict is None:
+                print("    None\n")
                 return
 
-            print(f"{in_dict.keys()=}")
+            print(f"keys={in_dict.keys()}")
             for kk in in_dict:
                 print(f"    {kk}.shape={in_dict[kk].shape}")
 
             print()
 
+        print("sim_data.connect")
         print_dict(sim_data.connect)
+        print("sim_data.node_vars")
         print_dict(sim_data.node_vars)
+        print("sim_data.elem_vars")
         print_dict(sim_data.elem_vars)
+        print("sim_data.glob_vars")
         print_dict(sim_data.glob_vars)
 
         print(80*"-")

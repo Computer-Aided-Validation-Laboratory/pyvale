@@ -99,19 +99,18 @@ dir_manager.create_dirs()
 # we print the unique combinations of parameters to the terminal as well as the
 # total number of simulations to check everything is working as expected.
 
-
-moose_params = {"nElemX": [2,3,4],
-                "lengX":np.array([10e-3,15e-3]),
-                "PRatio":[0.3,]}
+moose_params = {"nElemX": (2,3,4),
+                "lengX": np.array([10e-3,15e-3]),
+                "PRatio":(0.3,)}
 params = [moose_params,]
 sweep_params = sweep_param_grid(params)
 
-print("Parameter sweep variables:")
-for ss in sweep_params:
-    print(ss)
+print("\nParameter sweep variables by simulation:")
+for ii,pp in enumerate(sweep_params):
+    print(f"Sim: {ii}, Params [moose,]: {pp}")
 
 print()
-print(f"Total number of simulations = {len(sweep_params)}")
+print(f"Total simulations = {len(sweep_params)}")
 print()
 
 #%%

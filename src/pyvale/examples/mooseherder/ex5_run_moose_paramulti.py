@@ -22,78 +22,110 @@ for common linux distributions can be found in the 'scripts' directory of the
 repo. You can also create your own moose build using instructions here:
 https://mooseframework.inl.gov/.
 
-We start by importing what we need for this example.
+We start by importing what we need for this example. For this example the
+everything at the start is similar to previous examples where we have setup
+our herd workflow manager. So, if you feel confident with things so far then
+skip down to the last section.
 """
 
 from pathlib import Path
+import numpy as np
+import pyvale as pyv
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 MooseConfig,
                                 InputModifier,
-                                DirectoryManager)
+                                DirectoryManager,
+                                sweep_param_grid)
 
-NUM_PARA_RUNS = 3
-USER_DIR = Path.home()
+#%%
+# First we setup an input modifier and runner for our moose simulation in
+# exactly the same way as we have done in previous examples.
 
-# Setup the MOOSE input modifier and runner
-moose_input = Path('scripts/moose/moose-mech-simple.i')
+moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
 moose_modifier = InputModifier(moose_input,'#','')
 
 config = {'main_path': Path.home()/ 'moose',
         'app_path': Path.home() / 'proteus',
         'app_name': 'proteus-opt'}
 moose_config = MooseConfig(config)
+
 moose_runner = MooseRunner(moose_config)
 moose_runner.set_run_opts(n_tasks = 1,
-                            n_threads = 2,
-                            redirect_out = True)
+                          n_threads = 2,
+                          redirect_out = True)
 
-dir_manager = DirectoryManager(n_dirs=4)
-
-# Start the herd and create working directories
+#%%
+# We use the moose input modifier and runner to create our herd workflow manager
+# as we have seen in previous examples.
+num_para_sims: int = 4
+dir_manager = DirectoryManager(n_dirs=num_para_sims)
 herd = MooseHerd([moose_runner],[moose_modifier],dir_manager)
+herd.set_num_para_sims(n_para=num_para_sims)
 
-# Set the parallelisation options, we have 8 combinations of variables and
-# 4 MOOSE intances running, so 2 runs will be saved in each working directory
-herd.set_num_para_sims(n_para=4)
+#%%
+# We need somewhere to run our simulations and store the output so we create our
+# standard pyvale output directory as we have done in previous examples and then
+# pass this to our directory manager.
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
-    # Send all the output to the examples directory and clear out old output
-dir_manager.set_base_dir(Path('examples/'))
-dir_manager.clear_dirs()
-dir_manager.create_dirs()
+dir_manager.set_base_dir(output_path)
+dir_manager.reset_dirs()
 
-# Create variables to sweep in a list of dictionaries, 8 combinations possible.
-n_elem_y = [10,20]
-e_mod = [1e9,2e9]
-p_rat = [0.3,0.35]
-moose_vars = list([])
-for nn in n_elem_y:
-    for ee in e_mod:
-        for pp in p_rat:
-            # Needs to be list[list[dict]] - outer list is simulation iteration,
-            # inner list is what is passed to each runner/inputmodifier
-            moose_vars.append([{'n_elem_y':nn,'e_modulus':ee,'p_ratio':pp}])
+#%%
+# We generate a grid sweep of the variables we are interested in analysing as
+# we have done previously and then print this to the console so we can check
+# all combinations of variables that we want are present and that the total
+# number of simulations makes sense.
 
-print('Herd sweep variables:')
-for vv in moose_vars:
-    print(vv)
+moose_params = {"nElemX": (2,3),
+                "lengX": np.array([10e-3,15e-3]),
+                "PRatio":(0.3,)}
+params = [moose_params,]
+sweep_params = sweep_param_grid(params)
 
+print("\nParameter sweep variables by simulation:")
+for ii,pp in enumerate(sweep_params):
+    print(f"Sim: {ii}, Params [moose,]: {pp}")
 
 print()
-print("-"*80)
-print('EXMAPLE: Run MOOSE in parallel x3')
-print("-"*80)
+print(f"Total simulations = {len(sweep_params)}")
+print()
 
-# Run all variable combinations across 4 MOOSE instances with two runs saved in
-# each sim-workdir
+#%%
+# Here we are going to run the parameter sweep a certain number of times and
+# while storing the total time to complete the parameter sweep each time. Once
+# we have completed all the parameter sweeps we print the time taken for each
+# sweep and the average sweep time to the console.
+#
+# Now if we inspect the simulation working directories in our pyvale-output
+# directory we will see that all runs have been stored. If we need to clear
+# the directories in between parallel sweeps we can call
+# ``dir_manager.reset_dirs()`` and then we will only be left with one copy of
+# the sweep output. Retaining all simulations is useful if we want to update
+# the parameters we are passing to the ``run_para`` function every time it
+# is called.
+
+num_para_runs: int = 3
+
 if __name__ == '__main__':
-    for rr in range(NUM_PARA_RUNS):
-        herd.run_para(moose_vars)
+    sweep_times = np.zeros((num_para_runs,),dtype=np.float64)
+    for rr in range(num_para_runs):
+        herd.run_para(sweep_params)
+        sweep_times[rr] = herd.get_sweep_time()
 
-        print(f'Run time (para {rr+1}) = {herd.get_sweep_time():.3f} seconds')
-        print("-"*80)
 
-print()
+print(80*"-")
+for ii,ss in enumerate(sweep_times):
+    print(f"Sweep {ii} took: {ss:.3f}seconds")
+
+print(80*"-")
+print(f"Average sweep time: {np.mean(sweep_times):.3f} seconds")
+print(80*"-")
+
+
 
 
 

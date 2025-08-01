@@ -147,7 +147,7 @@ class DirectoryManager:
 
 
     def create_dirs(self) -> list[Path]:
-        """create_dirs: Creates the specified number of directories based on
+        """Creates the specified number of directories based on
         the sub_dir name within the base directory.
 
         Parameters
@@ -167,15 +167,8 @@ class DirectoryManager:
 
 
     def clear_dirs(self) -> None:
-        """clear_dirs: deletes all working directories in the base directory
+        """Deletes all working directories in the base directory
         that have the corresponding sub-directory name and their contents.
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-
         """
         all_dirs = os.listdir(self._base_dir)
         for dd in all_dirs:
@@ -183,9 +176,21 @@ class DirectoryManager:
                 if self._sub_dir in dd:
                     shutil.rmtree(self._base_dir / dd)
 
+    def reset_dirs(self) -> list[Path]:
+        """Helper function that first clears the working directories if they
+        exist and then creates new working directories ready for a simulation
+        sweep.
+
+        Returns
+        -------
+        list[Path]
+            List of paths to the created working directories
+        """
+        self.clear_dirs()
+        return self.create_dirs()
 
     def get_all_run_dirs(self) -> list[Path]:
-        """get_all_run_dirs: returns the list of paths to all the directories
+        """Returns the list of paths to all the directories
         that can be used to run simulations.
 
         Parameters
