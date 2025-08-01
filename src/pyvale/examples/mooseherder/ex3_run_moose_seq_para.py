@@ -135,7 +135,9 @@ herd.run_sequential(sweep_params)
 time_run_seq = herd.get_sweep_time()
 
 #%%
-# Finally, we can run our parameter sweep in parallel a
+# Finally, we can run our parameter sweep in parallel. We need a main guard here
+# as we use the multi-processing package. We also store the sweep time for this
+# case to compare our sequential to parallel run time.
 if __name__ == "__main__":
     herd.run_para(sweep_params)
     time_run_para = herd.get_sweep_time()
