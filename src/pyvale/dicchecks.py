@@ -55,16 +55,18 @@ def check_output_directory(output_basepath: str,
 
     if conflicting_files:
         conflicting_files.sort()
-        print("The following output files already exist and may be overwritten:")
+        print("WARNING: The following output files already exist and may be overwritten:")
         for f in conflicting_files:
             print(f"  - {os.path.join(output_basepath, f)}")
         print("")
 
-        user_input = input("Do you want to continue? (y/n): ").strip().lower()
 
-        if user_input not in ("y", "yes", "Y", "YES"):
-            print("Aborting to avoid overwriting data in output directory.")
-            exit(0)
+        ###### TURNING USER INPUT OFF FOR NOW ######
+        # user_input = input("Do you want to continue? (y/n): ").strip().lower()
+
+        # if user_input not in ("y", "yes", "Y", "YES"):
+        #     print("Aborting to avoid overwriting data in output directory.")
+        #     exit(0)
 
 
 def check_correlation_criteria(correlation_criteria: str) -> None:
@@ -247,7 +249,7 @@ def check_subsets(subset_size: int, subset_step: int) -> None:
 
 
 
-def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_size: int, subset_step: int) -> list[int]:
+def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_size: int, subset_step: int) -> list[int]:
     """
     Validate and update the region-growing seed location to align with image bounds and subset spacing.
 
@@ -260,7 +262,7 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
 
     Parameters
     ----------
-    seed : list of int
+    seed : list[int], list[np.int32] or np.ndarray
         The initial seed coordinates as a list of two integers: [x, y].
     roi_mask : np.ndarray
         A 2D binary mask (same size as the image) indicating the region of interest.
@@ -287,10 +289,18 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
     if scanning_method != "RG":
         return [0,0]
 
-    if not (isinstance(seed, list) and len(seed) == 2 and all(isinstance(coord, int) for coord in seed)):
-        raise ValueError("Reliability Guided seed is either missing or has been defined incorrectly. must be a list of two integers: seed=[x, y]")
+    if (len(seed) != 2):
+        raise ValueError(f"Reliability Guided seed does not have two elements: " \
+                         f"seed={seed}. Seed " \
+                         f" must be a list of two integers: seed=[x, y]")
+
+    if not isinstance(seed, (list, np.ndarray)) or not all(isinstance(coord, (int, np.int32)) for coord in seed):
+        raise ValueError("Reliability Guided seed must be a list of two integers: seed=[x, y]")
 
     x, y = seed
+
+    if x < 0 or x >= px_hori or y < 0 or y >= px_vert:
+        raise ValueError(f"Seed ({x}, {y}) goes outside the image bounds: ({px_hori}, {px_vert})")
 
     corner_x = x - subset_size//2
     corner_y = y - subset_size//2
@@ -302,16 +312,10 @@ def check_and_update_rg_seed(seed: list[int], roi_mask: np.ndarray, scanning_met
     new_x = round_to_step(corner_x, subset_step)
     new_y = round_to_step(corner_y, subset_step)
 
-
-    # Clamp to image bounds
-    new_x = min(max(new_x, 0), px_hori - 1)
-    new_y = min(max(new_y, 0), px_vert - 1)
-
     # check if all pixel values within the seed location are within the ROI
     # seed coordinates are the central pixel to the subset
     max_x = new_x + subset_size//2+1
     max_y = new_y + subset_size//2+1
-
 
     # Check if all pixel values in the ROI are valid
     for i in range(corner_x, max_x):
@@ -435,9 +439,17 @@ def check_and_get_images(reference: np.ndarray | str | Path,
         ref_arr = reference
         def_arr = deformed
 
-        if (reference.shape != deformed[0].shape or reference.shape != roi.shape):
+        # user might only pass a single deformed image. need to convert to 'stack'
+        if (reference.shape == deformed.shape):
+            def_arr = def_arr.reshape((1,def_arr.shape[0],def_arr.shape[1]))
+
+        elif (reference.shape != deformed[0].shape or reference.shape != roi.shape):
             raise ValueError(f"Shape mismatch: reference {reference.shape}, "
                              f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
+        
+
+        # need to set some dummy filenames in the case that the user passes numpy arrays
+        filenames = [f"deformed image {i}" for i in range(def_arr.shape[0])]
     
     # it might be the case that the roi has been manipulated prior to DIC run
     # and therefore we need to to prevent the roi mask from being a 'view'

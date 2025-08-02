@@ -36,8 +36,8 @@ def test_image_scan_znssd_affine():
                 output_basepath=test_dir,
                 output_prefix="test_image_scan_znssd_affine_")
 
-    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_image_scan_znssd_affine_plate_rigid.dat"))
-    test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_affine_plate_rigid_def0000.dat"))
+    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_image_scan_znssd_affine_plate_rigid.csv"))
+    test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_affine_plate_rigid_def0000.csv"))
 
 
     with open(ref_file) as f1, open(test_file) as f2:
@@ -60,8 +60,8 @@ def test_image_scan_znssd_rigid():
                 output_basepath=test_dir,
                 output_prefix="test_image_scan_znssd_rigid_")
 
-    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_image_scan_znssd_rigid_plate_rigid.dat"))
-    test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_rigid_plate_rigid_def0000.dat"))
+    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_image_scan_znssd_rigid_plate_rigid.csv"))
+    test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_rigid_plate_rigid_def0000.csv"))
 
 
     with open(ref_file) as f1, open(test_file) as f2:
@@ -84,8 +84,8 @@ def test_image_scan_nssd_affine():
                 output_basepath=test_dir,
                 output_prefix="test_image_scan_nssd_affine_")
 
-    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_image_scan_nssd_affine_plate_rigid.dat"))
-    test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_nssd_affine_plate_rigid_def0000.dat"))
+    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_image_scan_nssd_affine_plate_rigid.csv"))
+    test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_nssd_affine_plate_rigid_def0000.csv"))
 
 
     with open(ref_file) as f1, open(test_file) as f2:
@@ -108,8 +108,8 @@ def test_rg_znssd_affine():
                 output_basepath=test_dir,
                 output_prefix="test_rg_znssd_affine_")
 
-    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_rg_znssd_affine_plate_rigid.dat"))
-    test_file = os.path.abspath(os.path.join(test_dir, "./test_rg_znssd_affine_plate_rigid_def0000.dat"))
+    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_rg_znssd_affine_plate_rigid.csv"))
+    test_file = os.path.abspath(os.path.join(test_dir, "./test_rg_znssd_affine_plate_rigid_def0000.csv"))
 
 
     with open(ref_file) as f1, open(test_file) as f2:
@@ -133,8 +133,8 @@ def test_fft_znssd_affine():
                 output_basepath=test_dir,
                 output_prefix="test_fft_znssd_affine_")
     
-    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_fft_znssd_affine_plate_rigid.dat"))
-    test_file = os.path.abspath(os.path.join(test_dir, "./test_fft_znssd_affine_plate_rigid_def0000.dat"))
+    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_fft_znssd_affine_plate_rigid.csv"))
+    test_file = os.path.abspath(os.path.join(test_dir, "./test_fft_znssd_affine_plate_rigid_def0000.csv"))
 
 
     with open(ref_file) as f1, open(test_file) as f2:

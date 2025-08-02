@@ -38,7 +38,7 @@ jobs:
       strategy:
         fail-fast: false
         matrix:
-          os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-14]
+          os: [ubuntu-latest, windows-latest, macos-13, macos-14]
   
       steps:
         - uses: actions/checkout@v3
@@ -65,6 +65,14 @@ jobs:
             echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
             echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
             echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
+
+        - name: Install dependencies for ubuntu-latest
+          if: matrix.os == 'ubuntu-latest'
+          run: |
+            sudo apt update
+            sudo apt install libegl1
+            sudo apt install libgl1 libxext6 libx11-6
+        
 
         - name: Test package installation
           run: |

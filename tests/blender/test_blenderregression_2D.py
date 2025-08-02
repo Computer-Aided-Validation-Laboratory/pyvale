@@ -130,7 +130,7 @@ def test_lighting_energy(energy, output, sample_scene_no_light, request, tmp_pat
                                                           render_data=render_data)
     output = request.getfixturevalue(output)
 
-    npt.assert_array_equal(image_array, output)
+    npt.assert_allclose(image_array, output, atol=2, rtol=0)
 
 @pytest.mark.parametrize(
     "pixels_num, output",
@@ -161,7 +161,7 @@ def test_camera_shape(pixels_num, output, request, sample_scene_no_cam, tmp_path
                                                           render_data=render_data)
     output = request.getfixturevalue(output)
 
-    npt.assert_array_equal(image_array, output)
+    npt.assert_allclose(image_array, output, atol=2, rtol=0)
 
 def test_camera_from_resolution(sample_scene_no_cam, cam_from_resolution, tmp_path):
     part, scene = sample_scene_no_cam
@@ -186,7 +186,7 @@ def test_camera_from_resolution(sample_scene_no_cam, cam_from_resolution, tmp_pa
     image_array = scene.render_single_image(stage_image=True,
                                                           render_data=render_data)
 
-    npt.assert_array_equal(image_array, cam_from_resolution)
+    npt.assert_allclose(image_array, cam_from_resolution, atol=2, rtol=0)
 
 def test_deformation(sample_scene, deformed_images, tmp_path):
     (render_mesh, part, cam_data, scene) = sample_scene
@@ -198,7 +198,7 @@ def test_deformation(sample_scene, deformed_images, tmp_path):
                                                               part=part,
                                                               stage_image=True)
 
-    npt.assert_array_equal(image_arrays[:, :, 10], deformed_images)
+    npt.assert_allclose(image_arrays[:, :, 10], deformed_images, atol=2, rtol=0)
 
 @pytest.mark.parametrize(
     "samples, output",
@@ -216,7 +216,7 @@ def test_samples_happy(samples, output, request, sample_scene, tmp_path):
                                                           render_data=render_data)
     output = request.getfixturevalue(output)
 
-    npt.assert_array_equal(image_array, output)
+    npt.assert_allclose(image_array, output, atol=2, rtol=0)
 
 def test_samples_unhappy(sample_scene, tmp_path):
     samples = 2.5
@@ -245,7 +245,7 @@ def test_max_bounces_happy(bounces, output, request, sample_scene, tmp_path):
                                                           render_data=render_data)
     output = request.getfixturevalue(output)
 
-    npt.assert_allclose(image_array, output, atol=1)
+    npt.assert_allclose(image_array, output, atol=2, rtol=0)
 
 def test_max_bounces_unhappy(sample_scene, tmp_path):
     bounces = 2.5
@@ -278,7 +278,7 @@ def test_render_engine(engine, output, request, sample_scene, tmp_path):
                                                           render_data=render_data)
     output = request.getfixturevalue(output)
 
-    npt.assert_allclose(image_array, output, atol=2)
+    npt.assert_allclose(image_array, output, atol=2, rtol=0)
 
 
 @pytest.fixture

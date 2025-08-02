@@ -84,6 +84,7 @@ class DICRegionOfInterest:
         self.height = None
         self.width = None
         self.subset_size = None
+        self.coord_label = None
 
     def interactive_selection(self, subset_size):
         """
@@ -117,6 +118,8 @@ class DICRegionOfInterest:
         
         # Create graphics widget
         self.graphics_widget = pg.GraphicsLayoutWidget()
+
+
         
         main_layout.addLayout(sidebar)
         main_layout.addWidget(self.graphics_widget)
@@ -165,7 +168,27 @@ class DICRegionOfInterest:
         self.buttons['undo_prev'].setEnabled(False)
         self.buttons['redo_prev'].setEnabled(False)
         
+        self.coord_label = QtWidgets.QLabel("(-, -)")
+        self.coord_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+
+        # Set fixed width to handle largest expected value comfortably
+        self.coord_label.setMinimumWidth(350)
+        self.coord_label.setMaximumWidth(350)
+
+        self.coord_label.setStyleSheet("""
+            QLabel {
+                background-color: rgba(0, 0, 0, 150);
+                color: white;
+                padding: 5px;
+                border-radius: 3px;
+                font-family: monospace;
+                font-size: 12px;
+            }
+        """)
+        
         sidebar.addStretch()
+        sidebar.addWidget(self.coord_label)
+        
         return sidebar
 
     def _setup_graphics(self):
@@ -222,6 +245,24 @@ class DICRegionOfInterest:
             self.buttons[btn_id].clicked.connect(handler)
 
         self.main_view.scene().sigMouseClicked.connect(self._mouse_clicked)
+        self.main_view.scene().sigMouseMoved.connect(self._mouse_moved)
+
+
+    def _mouse_moved(self, pos):
+        """Handle mouse movement to update coordinate display."""
+        if self.main_view.sceneBoundingRect().contains(pos):
+            mouse_point = self.main_view.mapSceneToView(pos)
+            # Convert from graphics coordinates to image coordinates
+            img_x = int(round(mouse_point.x()))
+            img_y = int(round(self.width - mouse_point.y()))
+            
+            # Clamp coordinates to image bounds
+            img_x = max(0, min(img_x, self.height - 1))
+            img_y = max(0, min(img_y, self.width - 1))
+            
+            self.coord_label.setText(f"({img_x}, {img_y})")
+        else:
+            self.coord_label.setText("(-, -)")
 
     def _start_drawing_mode(self, mode):
         """Start drawing mode for specified shape type."""
@@ -536,7 +577,7 @@ class DICRegionOfInterest:
             self._update_button_states()
 
     def _save_interactive_roi(self):
-        """Save the current ROI to a YAML file."""
+        """Save the current ROI to a YAML file. This only works with the interactive GUI."""
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.main_window, 'Save ROI', 'roi_interactive.yaml', filter='YAML Files (*.yaml)')
 
         if filename:
@@ -566,7 +607,7 @@ class DICRegionOfInterest:
                 yaml.dump(serialized, f, sort_keys=False)
 
     def _open_interactive_roi(self):
-        """Open ROI from a YAML file."""
+        """Open ROI from a YAML file. This only works with the interactive GUI."""
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.main_window, 'Open ROI', filter='YAML Files (*.yaml)'
         )
@@ -586,6 +627,7 @@ class DICRegionOfInterest:
                 if entry.get('type') == 'SeedROI':
                     # Restore the seed ROI
                     x, y = entry['pos']
+                    y = self.width-y
                     size = entry.get('size', [10, 10])  # fallback default
                     self.seed_roi = pg.RectROI(
                         [x, y], size,
@@ -671,13 +713,13 @@ class DICRegionOfInterest:
     def _finalize_selection(self):
         """Process the final mask and seed location."""
         self.mask = np.flipud(self.temp_mask.T)
-        
+
         if hasattr(self, 'seed_roi'):
             pos = self.seed_roi.pos()
             x = int(np.floor(pos.x()))
             y = int(np.floor(self.width - pos.y()))
             self.seed = [x, y]
-            
+
             if not self.mask[y, x]:
                 raise ValueError(f"Seed location [{x}, {y}] is not within the mask")
             print(f"Final seed location: [{x}, {y}]")
@@ -833,6 +875,111 @@ class DICRegionOfInterest:
         self.__roi_selected = True
 
 
+    def save_yaml(self,  filename: str | Path) -> None:
+        """
+        Save the current ROI to a YAML file. This only works with the after having run the interactive GUI.
+
+        Parameters
+        ----------
+        filename : str or pathlib.Path
+            Filename of the YAML file to save the ROI data.
+
+        Raises
+        ------
+        ValueError
+            If no ROI has been selected.
+        """
+
+        if filename:
+
+            # Ensure extension is added if user doesn't include it
+            if filename and not filename.endswith('.yaml'):
+                filename += '.yaml'
+
+            print("Saving to file:", filename)
+            serialized = [
+                self._get_roi_data(roi, add) 
+                for roi, add in zip(self.roi_list, self.add_list)
+            ]
+
+            # add ROI to serialized data
+            if hasattr(self, 'seed_roi'):
+                self._finalize_selection()
+                seed_data = {
+                    'type': 'SeedROI',
+                    'pos': [self.seed[0], self.seed[1]],
+                    'size': [self.subset_size, self.subset_size],
+                    'add': True
+                }
+                serialized.append(seed_data)
+
+            with open(filename, 'w') as f:
+                yaml.dump(serialized, f, sort_keys=False)
+
+    def read_yaml(self, filename: str | Path) -> None:
+        """
+        Load the ROI from a YAML file and restore the state of the GUI.
+        This method will clear existing ROIs and restore the state from the YAML file.
+
+        Parameters
+        ----------
+        filename : str or pathlib.Path
+            Path to the YAML file containing the ROI data.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the specified file does not exist.
+        ValueError
+            If the loaded data is not a valid ROI format.
+        """
+
+        # need to create a temp qapplication so I can import the ROI.
+        self.__roi_selected = True
+        
+        # Initialize GUI
+        self._setup_gui()
+        self._setup_graphics()
+        self._connect_signals()
+
+        if filename:
+            with open(filename, 'r') as f:
+                data = yaml.safe_load(f)
+
+            self.roi_list = []
+            self.add_list = []
+
+            self.seed_roi = None  # Clear existing seed
+
+            for entry in data:
+                if entry.get('type') == 'SeedROI':
+                    # Restore the seed ROI
+                    x, y = entry['pos']
+                    y = self.width-y
+                    size = entry.get('size', [10, 10])  # fallback default
+                    self.seed_roi = pg.RectROI(
+                        [x, y], size,
+                        pen=pg.mkPen('b', width=3),
+                        hoverPen=pg.mkPen('y', width=3),
+                        handlePen='#0000',
+                        handleHoverPen='#0000'
+                    )
+                    self.main_view.addItem(self.seed_roi)
+
+                else:
+                    # Restore standard ROI
+                    roi = self._create_roi_from_data(entry)
+                    self.roi_list.append(roi)
+                    self.add_list.append(entry['add'])
+                    self.main_view.addItem(roi)
+                    roi.sigRegionChanged.connect(self._redraw_fill_layer)
+
+            self._redraw_fill_layer()
+            self._update_button_states()
+            self._finalize_selection()
+
+
+
     def show_image(self) -> None:
         """
         Displays the current mask in grayscale.
@@ -842,20 +989,30 @@ class DICRegionOfInterest:
             ValueError: If no ROI is selected.
         """
 
-        
-        if not self.__roi_selected:
-                raise ValueError("No ROI selected with 'interactive_selection' or 'rect_boundary'")
+        # Convert grayscale image to 3-channel if needed
+        if self.ref_image.ndim == 2:
+            ref_image_color = cv2.cvtColor(self.ref_image.astype(np.uint8), cv2.COLOR_GRAY2BGR)
+        else:
+            ref_image_color = self.ref_image
 
         # Create a green mask image
-        green_mask = np.zeros_like(self.ref_image)
+        if self.ref_image.ndim == 3:
+            green_mask = np.zeros_like(self.ref_image)
+        elif self.ref_image.ndim == 2:
+            h, w = self.ref_image.shape
+            green_mask = np.zeros((h, w, 3), dtype=self.ref_image.dtype)
+        else:
+            raise ValueError(f"Unsupported image shape: {self.ref_image.shape}")
 
-        green_mask[self.mask,:] = [0, 255, 0]
+        # Apply the green mask
+        green_mask[self.mask, :] = [0, 255, 0]
 
-        # Blend the original image and the mask
-        blended = self.ref_image.astype(float) * 0.7 + green_mask.astype(float) * 0.3
+        # Blend the original image and the green mask
+        blended = ref_image_color.astype(float) * 0.7 + green_mask.astype(float) * 0.3
         blended = blended.astype(np.uint8)
 
         # Display using Matplotlib
+        import matplotlib.pyplot as plt
         plt.figure()
         plt.imshow(blended)
         plt.axis('off')
