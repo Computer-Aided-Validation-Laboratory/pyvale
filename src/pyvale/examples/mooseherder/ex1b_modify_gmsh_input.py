@@ -28,16 +28,8 @@ gmsh_mod = InputModifier(gmsh_input, "//", ";")
 
 #%%
 # Note that the input modifier class only looks for variables between specified
-# sentinel characters in comment lines which starts with _* and ends with **.
-# Here is an example of what the variable block looks like in the gmsh input
-# file, noting the comment '//' followed by the sentinel characters '_*' to
-# start and '**' to end:
-#
-#//_* MOOSEHERDER VARIABLES - START
-#lengX = 10e-3;   // m
-#lengY = 10e-3;   // m
-#lengZ = 10e-3;   // m
-#//_* MOOSEHERDER VARIABLES - END
+# sentinel characters in comment lines which starts with '_*' and ends with '**'
+# . An example variable block can be found in the gmsh input file.
 #
 # We then print the variables found in the gmsh input file to the console which
 # are returned to us as a dictionary keyed by the variables string name in the
