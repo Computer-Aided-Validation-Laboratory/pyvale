@@ -7,28 +7,16 @@ from pathlib import Path
 
 
 class InputModifier:
-    """Class to modify variables in generic text-based input files.
-
-    Once variables have been modified by the user by passing in a dictionary of
+    """Class to modify variables in generic text-based input files. Once
+    variables have been modified by the user by passing in a dictionary of
     new variables the input can be written to file.
-
-    Variable definition blocks should begin #comment character#* and end
-    #comment character#**, e.g. //_* and //** for gmsh or #_* and #** for
-    moose.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
     """
 
     def __init__(
         self,
         input_file: Path,
-        comment_char="#",
-        end_char="",
+        comment_chars="#",
+        end_chars="",
         var_start="_*",
         var_end="**",
     ) -> None:
@@ -36,15 +24,23 @@ class InputModifier:
         any variables that are at the top of the file. Default comment_char
         and end_char are set based on reading MOOSE *.i files.
 
-        Args:
-            input_file (str): Path to the input text file.
-            comment_char (str): character(s) describing what a comment look
-                like in the file.
-            end_char (str): character (if any) that ends a line, i.e. ; for gmsh
-            var_start (str): character sequence used to specify the start of
-                the variable block to edit.
-            var_end (str): character sequence used to specify the end of the
-                variabled block to edit.
+
+        Parameters
+        ----------
+        input_file : Path
+            Path to the input text file.
+        comment_chars : str, optional
+            Character or characters for a comment in the input file, by default
+            "#".
+        end_chars : str, optional
+            Character or characters for a line ending the file. If there is no
+            line ending character this should be an empty string, by default "".
+        var_start : str, optional
+            Character sequence to look for in comments for starting the block of
+            text to look for variables in, by default "_*".
+        var_end : str, optional
+            Character sequence to look for in comment for ending the block of
+            text to look for variables in, by default "**"
         """
         self._vars = dict({})
         self._input_file = input_file
@@ -52,8 +48,8 @@ class InputModifier:
         with open(self._input_file, "r", encoding="utf-8") as in_file:
             self._input_lines = in_file.readlines()
 
-        self._comment_char = comment_char
-        self._end_char = end_char
+        self._comment_char = comment_chars
+        self._end_char = end_chars
 
         self._var_start_str = var_start
         self._var_end_str = var_end

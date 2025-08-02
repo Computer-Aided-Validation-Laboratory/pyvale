@@ -25,7 +25,7 @@ from pyvale.mooseherder import InputModifier
 # we pass an empty string. In the next example we will modify a gmsh script
 # where we will need to specify a line ending character.
 moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
-moose_mod = InputModifier(moose_input, comment_char="#", end_char="")
+moose_mod = InputModifier(moose_input, comment_chars="#", end_chars="")
 
 #%%
 # Note that the input modifier class only looks for variables between specified
