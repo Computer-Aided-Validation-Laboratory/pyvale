@@ -21,5 +21,4 @@ Mooseherder
    examples/mooseherder/ex7c_read_multi_gmshmoose_results
    examples/mooseherder/ex7d_readconfig_multi_gmshmoose_results
    examples/mooseherder/ex8_read_existing_sweep_output
-   examples/mooseherder/ex9_full_functionality_no_print
 
