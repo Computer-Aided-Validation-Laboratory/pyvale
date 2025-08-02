@@ -31,7 +31,8 @@ class MooseHerd:
     """
     def __init__(self, sim_runners: list[SimRunner],
                  input_mods: list[InputModifier],
-                 dir_manager: DirectoryManager) -> None:
+                 dir_manager: DirectoryManager,
+                 num_para_sims: int = 1) -> None:
         """__init__
 
         Args:
@@ -48,7 +49,7 @@ class MooseHerd:
         self._modifiers = input_mods
         self._dir_manager = dir_manager
 
-        self._n_para_sims = 2
+        self._n_para_sims = num_para_sims
 
         self._input_names = [f'sim-{ii+1}' for ii,_ in enumerate(sim_runners)]
 

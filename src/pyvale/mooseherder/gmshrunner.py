@@ -3,6 +3,7 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
+
 import subprocess
 from pathlib import Path
 from pyvale.mooseherder.simrunner import SimRunner
@@ -11,25 +12,22 @@ from pyvale.mooseherder.simrunner import SimRunner
 class GmshRunner(SimRunner):
     """Used to call gmsh to create a mesh file to be used to run a finite
     element simulation. Implements the SimRunner abstract interface so that it
-    can be used by the herd.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
+    can be used by the herd workflow manager.
     """
-    def __init__(self, gmsh_app: Path | None = None):
-        """Create a gmsh runner with path to the gmsh app.
 
-        Args:
-            gmsh_app (Path, optional): full path to the gmsh app. Defaults to None.
+    def __init__(self, gmsh_path: Path | None = None):
+        """Initialiser for the GmshRunner.
+
+        Parameters
+        ----------
+        gmsh_path : Path | None, optional
+            Path to the gmsh executable, by default None
         """
-        if gmsh_app is None:
+
+        if gmsh_path is None:
             self._gmsh_app = None
         else:
-            self.set_gmsh_app(gmsh_app)
+            self.set_gmsh_app(gmsh_path)
 
         self._input_path = None
         self._arg_list = []

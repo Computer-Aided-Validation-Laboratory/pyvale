@@ -8,7 +8,11 @@
 Read parameter sweep results for a Gmsh and MOOSE simulation
 ================================================================================
 
-In this example we ...
+In this example we will read the results from a sweep that includes gmsh and
+moose in the simulation chain. A key difference here in the results output is
+that gmsh does not create output we want to read so the inner list of our
+results list of lists will have 'None' in its 0 index and then the ``SimData``
+data object from our moose simulation in the 1 index.
 
 **Installing moose**: To run this example you will need to have installed moose
 on your system. As moose supports unix operating systems windows users will need
@@ -26,98 +30,96 @@ We start by importing what we need for this example.
 
 import time
 from pathlib import Path
-from pprint import pprint
+import numpy as np
+import pyvale as pyv
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 GmshRunner,
                                 MooseConfig,
                                 InputModifier,
                                 DirectoryManager,
-                                SweepReader)
+                                SweepReader,
+                                sweep_param_grid)
 
-NUM_PARA_RUNS = 3
+#%%
+# The first part of this example is the same as the previous example we have
+# seen running a parallel parameter sweep for gmsh+moose using the herd workflow
+# manager. If you are not familiar with the code below go back to the example
+# entitled 'Running a parameter sweep of a Gmsh and MOOSE simulation'.
+# Otherwise you can skip down to the next code block where we will read the
+# output of the sweep and compare it to what we have seen previously.
+sim_case: int = 17
 
+gmsh_input = pyv.DataSet.sim_case_gmsh_file_path(case_num=sim_case)
+gmsh_modifier = InputModifier(gmsh_input,"//",";")
 
-# Setup the MOOSE input modifier and runner
-moose_input = Path('scripts/moose/moose-mech-simple.i')
-moose_modifier = InputModifier(moose_input,'#','')
-
-moose_config = MooseConfig().read_config(Path.cwd() / 'moose-config.json')
-moose_runner = MooseRunner(moose_config)
-moose_runner.set_run_opts(n_tasks = 1,
-                            n_threads = 2,
-                            redirect_out = True)
-
-# Setup Gmsh
-gmsh_input = Path('scripts/gmsh/gmsh_tens_spline_2d.geo')
-gmsh_modifier = InputModifier(gmsh_input,'//',';')
-
-gmsh_path = Path.home() / 'gmsh/bin/gmsh'
-gmsh_runner = GmshRunner(gmsh_path)
+gmsh_runner = GmshRunner(gmsh_path=(Path.home() / "gmsh/bin/gmsh"))
 gmsh_runner.set_input_file(gmsh_input)
 
-# Setup herd composition
-sim_runners = [gmsh_runner,moose_runner]
-input_modifiers = [gmsh_modifier,moose_modifier]
-dir_manager = DirectoryManager(n_dirs=4)
+moose_input = pyv.DataSet.sim_case_input_file_path(case_num=sim_case)
+moose_modifier = InputModifier(moose_input,"#","")
 
-# Start the herd and create working directories
-herd = MooseHerd(sim_runners,input_modifiers,dir_manager)
-# Set the parallelisation options, we have 8 combinations of variables and
-# 4 MOOSE intances running, so 2 runs will be saved in each working directory
-herd.set_num_para_sims(n_para=4)
+moose_config = MooseConfig({'main_path': Path.home()/ 'moose',
+                            'app_path': Path.home() / 'proteus',
+                            'app_name': 'proteus-opt'})
+moose_runner = MooseRunner(moose_config)
+moose_runner.set_run_opts(n_tasks = 1,
+                          n_threads = 2,
+                          redirect_out = True)
 
-    # Send all the output to the examples directory and clear out old output
-dir_manager.set_base_dir(Path('examples/'))
-dir_manager.clear_dirs()
-dir_manager.create_dirs()
+num_para_sims: int = 4
+dir_manager = DirectoryManager(n_dirs=num_para_sims)
+herd = MooseHerd([gmsh_runner,moose_runner],
+                 [gmsh_modifier,moose_modifier],
+                 dir_manager,
+                 num_para_sims)
 
-# Create variables to sweep in a list of dictionaries, 8 combinations possible.
-p0 = [1E-3,2E-3]
-p1 = [1.5E-3,2E-3]
-p2 = [1E-3,3E-3]
-var_sweep = list([])
-for nn in p0:
-    for ee in p1:
-        for pp in p2:
-            var_sweep.append([{'p0':nn,'p1':ee,'p2':pp},None])
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
-print('Herd sweep variables:')
-pprint(var_sweep)
-print()
+dir_manager.set_base_dir(output_path)
+dir_manager.reset_dirs()
 
-# Run all variable combinations across 4 MOOSE instances with two runs saved in
-# each sim-workdir
-if __name__ ==  "__main__":
-    for rr in range(NUM_PARA_RUNS):
-        herd.run_para(var_sweep)
+gmsh_params = {"plate_width": np.array([150e-3,100e-3]),
+               "plate_height": ("plate_width + 100e-3",
+                                "plate_width + 50e-3")}
+moose_params = None
+sweep_params = sweep_param_grid([gmsh_params,moose_params])
 
-        print(f'Run time (para {rr+1}) = {herd.get_sweep_time():.3f} seconds')
-        print('------------------------------------------')
+if __name__ == "__main__":
+    herd.run_para(sweep_params)
+    time_run_para = herd.get_sweep_time()
 
-print("-"*80)
-print('EXAMPLE: Read Herd Sweep Output')
-print("-"*80)
+
+print(f'Sweep run time (para) = {time_run_para:.3f} seconds\n')
+
+#%%
+# We now pass the directory manager we used for the sweep to our sweep reader
+# and then we read in the sweep results sequentially. As we have seen before
+# our sweep results are given as a list of lists where the outer list is the
+# unique simulation chain in our parameter sweep and the inner list corresponds
+# to each simulation tool in the chain. In this case we have gmsh and moose so
+# our inner list should have a length of 2.
+
 sweep_reader = SweepReader(dir_manager,num_para_read=4)
-output_files = sweep_reader.read_all_output_keys()
 
-print('Herd output files (from output_keys.json):')
-pprint(output_files)
+start_time = time.perf_counter()
+sweep_results_seq = sweep_reader.read_sequential()
+read_time_seq = time.perf_counter() - start_time
+
+print(f'Read time sequential = {read_time_seq:.6f} seconds\n')
+
+print("Outer list = unique simulation chain:")
+print(f"    {len(sweep_results_seq)=}")
+print("Inner list = particular simulation tool in the chain:")
+print(f"    {len(sweep_results_seq[0])=}")
 print()
 
-print("-"*80)
-print('Reading all output files in parallel as list(SimData).')
-print()
-
-if __name__ ==  "__main__":
-    start_time = time.perf_counter()
-    read_all = sweep_reader.read_results_para()
-    read_time_para = time.perf_counter() - start_time
-
-print(f'Number of simulations outputs: {len(read_all):d}')
-print()
-print("="*80)
-print(f'Read time parallel   = {read_time_para:.6f} seconds')
-print("="*80)
-print()
-
+#%%
+# As gmsh does not have any simulation output we can read as a ``SimData``
+# object we see that our inner sweep results list has 'None' in the position
+# corresponding to gmsh (the 0 index). We also see we have our moose output as
+# a ``SimData`` object at the 1 index of the inner list.
+print(f"{type(sweep_results_seq[0][0])=}")
+print(f"{type(sweep_results_seq[0][1])=}")
