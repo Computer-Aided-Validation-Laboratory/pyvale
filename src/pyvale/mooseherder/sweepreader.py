@@ -36,7 +36,7 @@ class SweepReader:
         self._n_para_read = num_para_read
 
 
-    def read_output_key(self, sweep_iter: int) -> list[list[Path | None]]:
+    def read_output_file_key(self, sweep_iter: int) -> list[list[Path | None]]:
         """read_output_key: reads the output key json file produced by running
         the variable sweep. The output key file maps which simulation were run
         in a given sub directory.
@@ -67,7 +67,7 @@ class SweepReader:
         return dm.output_str_to_paths(output_files)
 
 
-    def read_all_output_keys(self) -> list[list[Path | None]]:
+    def read_all_output_file_keys(self) -> list[list[Path | None]]:
         """read_all_output_keys: as read_output_keys() but finds all output key
         files in the first sub-directory and reads them.
 
@@ -97,7 +97,7 @@ class SweepReader:
         output_files = list([])
         for output_path in output_paths:
             sweep_iter = output_path.name.split('.')[0].split('-')[-1]
-            output_files = output_files + self.read_output_key(int(sweep_iter))
+            output_files = output_files + self.read_output_file_key(int(sweep_iter))
 
         self._output_files = output_files
         return self._output_files
@@ -348,9 +348,9 @@ class SweepReader:
 
         """
         if self._output_files == '':
-            self._output_files = self.read_output_key(sweep_iter=1)
+            self._output_files = self.read_output_file_key(sweep_iter=1)
 
         if sweep_iter is None:
-            self.read_all_output_keys()
+            self.read_all_output_file_keys()
 
 

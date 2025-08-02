@@ -43,11 +43,11 @@ dir_manager.set_base_dir(output_base_path)
 # We then use the reader check for
 sweep_reader = SweepReader(dir_manager,num_para_read=4)
 
-output_files = sweep_reader.read_all_output_keys()
+output_files = sweep_reader.read_all_output_file_keys()
 sweep_variables = sweep_reader.read_all_sweep_var_files()
 
 print('Output files in json keys:')
-pprint(sweep_reader.read_all_output_keys())
+pprint(sweep_reader.read_all_output_file_keys())
 print()
 
 print('Parameter sweep variables found:')

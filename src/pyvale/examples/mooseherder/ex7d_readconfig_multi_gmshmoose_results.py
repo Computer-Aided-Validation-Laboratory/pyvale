@@ -8,7 +8,12 @@
 Using read config to extract specific variables from a sweep
 ================================================================================
 
-In this example we ...
+In this example we are going to use a read configuration object to control what
+variables are read from our simulation output. This is useful for when we might
+only want to read a subset of the simulation data for post-processing. For
+example a post processor like 'max_temp' from 'glob_vars' without reading in the
+full temperature field. This can help save memory when reading in data from
+large sweeps.
 
 **Installing moose**: To run this example you will need to have installed moose
 on your system. As moose supports unix operating systems windows users will need
@@ -23,124 +28,114 @@ We start by importing what we need for this example.
 
 import time
 from pathlib import Path
-from pprint import pprint
 import numpy as np
-
+import pyvale as pyv
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 MooseConfig,
                                 InputModifier,
-                                GmshRunner,
                                 DirectoryManager,
                                 ExodusReader,
-                                SweepReader)
+                                SweepReader,
+                                sweep_param_grid)
 
-NUM_PARA_RUNS = 3
+#%%
+# The first part of this example is the same as our previous example called:
+# 'Using multiple calls to run parallel sweeps'. For a detailed explanation of
+# the code below head to that example. For now we use this to generate multiple
+# sets of outputs and then use a sweep reader to read this all in below.
 
-
-
-# Setup the MOOSE input modifier and runner
-moose_input = Path('scripts/moose/moose-mech-simple.i')
+moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
 moose_modifier = InputModifier(moose_input,'#','')
 
-moose_config = MooseConfig().read_config(Path.cwd() / 'moose-config.json')
+config = {'main_path': Path.home()/ 'moose',
+        'app_path': Path.home() / 'proteus',
+        'app_name': 'proteus-opt'}
+moose_config = MooseConfig(config)
+
 moose_runner = MooseRunner(moose_config)
 moose_runner.set_run_opts(n_tasks = 1,
-                            n_threads = 2,
-                            redirect_out = True)
+                          n_threads = 2,
+                          redirect_out = True)
 
-# Setup Gmsh
-gmsh_input = Path('scripts/gmsh/gmsh_tens_spline_2d.geo')
-gmsh_modifier = InputModifier(gmsh_input,'//',';')
+num_para_sims: int = 4
+dir_manager = DirectoryManager(n_dirs=num_para_sims)
+herd = MooseHerd([moose_runner],[moose_modifier],dir_manager)
+herd.set_num_para_sims(n_para=num_para_sims)
 
-gmsh_path = Path.home() / 'gmsh/bin/gmsh'
-gmsh_runner = GmshRunner(gmsh_path)
-gmsh_runner.set_input_file(gmsh_input)
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
-# Setup herd composition
-sim_runners = [gmsh_runner,moose_runner]
-input_modifiers = [gmsh_modifier,moose_modifier]
-dir_manager = DirectoryManager(n_dirs=4)
+dir_manager.set_base_dir(output_path)
+dir_manager.reset_dirs()
 
-# Start the herd and create working directories
-herd = MooseHerd(sim_runners,input_modifiers,dir_manager)
-# Set the parallelisation options, we have 8 combinations of variables and
-# 4 MOOSE intances running, so 2 runs will be saved in each working directory
-herd.set_num_para_sims(n_para=4)
+moose_params = {"nElemX": (2,3),
+                "lengX": np.array([10e-3,15e-3]),
+                "PRatio":(0.3,)}
+params = [moose_params,]
+sweep_params = sweep_param_grid(params)
 
-    # Send all the output to the examples directory and clear out old output
-dir_manager.set_base_dir(Path('examples/'))
-dir_manager.clear_dirs()
-dir_manager.create_dirs()
+print("\nParameter sweep variables by simulation:")
+for ii,pp in enumerate(sweep_params):
+    print(f"Sim: {ii}, Params [moose,]: {pp}")
 
-# Create variables to sweep in a list of dictionaries, 8 combinations possible.
-p0 = [1E-3,2E-3]
-p1 = [1.5E-3,2E-3]
-p2 = [1E-3,3E-3]
-var_sweep = list([])
-for nn in p0:
-    for ee in p1:
-        for pp in p2:
-            var_sweep.append([{'p0':nn,'p1':ee,'p2':pp},None])
+num_para_runs: int = 3
+if __name__ == '__main__':
+    sweep_times = np.zeros((num_para_runs,),dtype=np.float64)
+    for rr in range(num_para_runs):
+        herd.run_para(sweep_params)
+        sweep_times[rr] = herd.get_sweep_time()
 
-print('Herd sweep variables:')
-pprint(var_sweep)
+print()
+for ii,ss in enumerate(sweep_times):
+    print(f"Sweep {ii} took: {ss:.3f}seconds")
 print()
 
-# Run all variable combinations across 4 MOOSE instances with two runs saved in
-# each sim-workdir
-for rr in range(NUM_PARA_RUNS):
-    herd.run_para(var_sweep)
 
-    print(f'Run time (para {rr+1}) = {herd.get_sweep_time():.3f} seconds')
-    print('------------------------------------------')
-
-print("-"*80)
-print('EXAMPLE: Read Herd Sweep Output')
-print("-"*80)
+#%%
+# Now we create a sweep reader as we have done before and we will use this to
+# read the json keys containing the paths to all the output files. The output
+# file paths have the same list of lists structure we get when we read the
+# sweep data where the outer list corresponds to the unique simulation chain and
+# the inner list corresponds to position of the specific simulation tool in the
+# chain.
+#
 
 sweep_reader = SweepReader(dir_manager,num_para_read=4)
-output_files = sweep_reader.read_all_output_keys()
+output_file_paths = sweep_reader.read_all_output_file_keys()
 
-print('Herd output files (from output_keys.json):')
-pprint(output_files)
-print()
 
-print('Extracting SimReadConfig from the first moose run at:')
-print(output_files[0][1])
-print()
+#%%
+# When we used a read configuration with our exodus reader previously we saw
+# that it can be simpler to get the read configuration that covers everything
+# in our file and then edit it to extract what we want. Here we are use our
+# exodus reader to extract the read configuration fo the first simulation.
+# We also get the original sim data so we can compare to the case when we use
+# a read configuration to control what we read.
+#
+# Now we want to edit the read configuration so that we only read every second
+# time step from our simulation output files. We do this by getting the
+# original time steps with our exodus reader and then using this to change the
+# ``time_inds`` field of our read configuration to extract every second step.
+exodus_reader = ExodusReader(output_file_paths[0][0])
+sim_data_orig = exodus_reader.read_all_sim_data()
 
-exodus_reader = ExodusReader(output_files[0][1]) # type: ignore
 read_config = exodus_reader.get_read_config()
-
 sim_time = exodus_reader.get_time()
-read_config.time_inds = np.arange(0,sim_time.shape[0],2) # type: ignore
+read_config.time_inds = np.arange(0,sim_time.shape[0],2)
 
-print('Simulation time steps from the first MOOSE run:')
-print('sim_time=')
-print(sim_time)
+#%%
+# Now we read the sweep results using our read configuration and then check
+# extracted simulation data object to see that we have every second time step.
+sweep_results_seq = sweep_reader.read_sequential(read_config=read_config)
+
+print("Comparison of time steps extracted:")
+print()
+print(f"{sim_data_orig.time.shape=}")
+print(f"{sweep_results_seq[0][0].time.shape=}")
+print()
+print(f"{sim_data_orig.node_vars['disp_x'].shape=}")
+print(f"{sweep_results_seq[0][0].node_vars['disp_x'].shape=}")
 print()
 
-print('Indices of the time steps that will be extracted from the sims.')
-print('read_config.time_inds=')
-print(read_config.time_inds)
-print()
-
-print("-"*80)
-print('Reading all output files in parallel as list(SimData).')
-print()
-
-if __name__ == '__main__':
-    start_time = time.perf_counter()
-    read_all = sweep_reader.read_results_para(read_config=read_config)
-    read_time_para = time.perf_counter() - start_time
-
-print(f'Number of simulations outputs: {len(read_all):d}')
-print('Time steps extracted from the first MOOSE simulation:')
-print(read_all[0][1].time)
-print()
-
-print("="*80)
-print(f'Read time parallel   = {read_time_para:.6f} seconds')
-print("="*80)
-print()

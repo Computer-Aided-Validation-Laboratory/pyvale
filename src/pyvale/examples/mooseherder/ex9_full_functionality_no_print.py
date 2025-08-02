@@ -68,6 +68,6 @@ if __name__ == '__main__':
         herd.run_para(moose_vars)
 
     sweep_reader = SweepReader(dir_manager,num_para_read=4)
-    sweep_reader.read_all_output_keys()
+    sweep_reader.read_all_output_file_keys()
     read_all = sweep_reader.read_results_para()
 

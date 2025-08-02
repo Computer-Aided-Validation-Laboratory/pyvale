@@ -91,7 +91,7 @@ if __name__ == "__main__":
 # simulation output files that exist in the simulation working directories.
 
 sweep_reader = SweepReader(dir_manager,num_para_read=4)
-output_files = sweep_reader.read_all_output_keys()
+output_files = sweep_reader.read_all_output_file_keys()
 
 print('Sweep output files (from output_keys.json):')
 for ff in output_files:
