@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # pyvale modules
-import pyvale
 import pyvale.dic as dic
 
 # %%

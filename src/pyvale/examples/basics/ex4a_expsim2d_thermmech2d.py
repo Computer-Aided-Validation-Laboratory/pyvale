@@ -23,8 +23,11 @@ Test case: thermo-mechanical analysis of a 2D plate with a temperature gradient.
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
 
 #%%
 # Here we get a list of paths to a set of 3 simulations in this case the
@@ -32,7 +35,7 @@ import pyvale as pyv
 # coefficient on the other. The mechanical deformation is a result of
 # thermal expansion. The 3 simulation cases cover a nominal thermal
 # and a perturbation of +/-10%.
-data_paths = pyv.DataSet.thermomechanical_2d_experiment_paths()
+data_paths = dataset.thermomechanical_2d_experiment_paths()
 elem_dims: int = 2
 
 #%%

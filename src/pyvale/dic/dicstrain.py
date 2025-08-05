@@ -10,7 +10,10 @@ import glob
 from pathlib import Path
 
 # pyvale
+import pyvale.dic.dic2dcpp as dic2dcpp
 from pyvale.dic.dicstrainresults import StrainResults
+from pyvale.dic.dicchecks import check_strain_files, check_output_directory
+from pyvale.dic.dicdataimport import data_import
 
 def strain_two_dimensional(data: str | Path,
               window_size: int=5, 
@@ -92,7 +95,7 @@ def strain_two_dimensional(data: str | Path,
     check_output_directory(str(output_basepath), output_prefix)
 
     # assigning c++ struct vals for save config
-    strain_save_conf = dic.dic2dcpp.SaveConfig()
+    strain_save_conf = dic2dcpp.SaveConfig()
     strain_save_conf.basepath = str(output_basepath)
     strain_save_conf.binary = output_binary
     strain_save_conf.prefix = output_prefix
@@ -102,7 +105,7 @@ def strain_two_dimensional(data: str | Path,
     print(filenames)
 
     # Call to C++ backend
-    dic.dic2dcpp.strain_engine(results.ss_x, results.ss_y,
+    dic2dcpp.strain_engine(results.ss_x, results.ss_y,
                            results.u, results.v,
                            nss_x, nss_y, nimg,
                            window_size, window_element, 

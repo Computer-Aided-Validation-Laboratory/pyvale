@@ -24,8 +24,10 @@ changed.**
 import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
-import pyvale
 import os
+
+# Pyvale imports
+import pyvale.dic as dic
 
 #subset size
 subset_size = 21
@@ -40,7 +42,7 @@ ref_img = "./blenderimages/reference.tiff"
 def_img = "./blenderimages/blenderimage_*.tiff"
 
 # Interactive ROI selection
-roi = pyvale.dic.RegionOfInterest(ref_img)
+roi = dic.RegionOfInterest(ref_img)
 roi.interactive_selection(subset_size)
 
 #output_path
@@ -49,7 +51,7 @@ if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
 # DIC Calculation
-pyvale.dic.two_dimensional(reference=ref_img,
+dic.two_dimensional(reference=ref_img,
                            deformed=def_img,
                            roi_mask=roi.mask,
                            seed=roi.seed,
@@ -63,7 +65,7 @@ pyvale.dic.two_dimensional(reference=ref_img,
 
 # Import the Results
 data_path = output_path / "blender_dic_*.csv"
-dicdata = pyvale.dic.data_import(data=data_path, delimiter=",",
+dicdata = dic.data_import(data=data_path, delimiter=",",
                                  layout='matrix', binary=False)
 
 # %%

@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # Pyvale
-from pyvale.cameradata import CameraData
-from pyvale.output import Outputs
+from pyvale.sensorsim.cameradata import CameraData
+from pyvale.sensorsim.output import Outputs
 
 #TODO: docstrings
 

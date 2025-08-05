@@ -20,14 +20,17 @@ Test case: thermo-mechanical analysis of a divertor heatsink in 3D
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
 
 #%%
 # First we get the path to simulation output file and then read the
 # simulation into a `SimData`  object. In this case our simulation is a
 # thermomechanical model of a divertor heatsink.
-sim_path = pyv.DataSet.thermomechanical_3d_path()
+sim_path = dataset.thermomechanical_3d_path()
 sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 elem_dims: int = 3
 

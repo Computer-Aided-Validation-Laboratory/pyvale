@@ -8,13 +8,17 @@ from pathlib import Path
 import bpy
 
 # Pyvale 
-from pyvale.cameradata import CameraData
-import pyvale.blender as blender
-from pyvale.simtools import SimTools
-from pyvale.camerastereo import CameraStereo
-from pyvale.rendermesh import RenderMesh
-from pyvale.pyvaleexceptions import BlenderError
+from pyvale.sensorsim.cameradata import CameraData
+from pyvale.sensorsim.simtools import SimTools
+from pyvale.sensorsim.camerastereo import CameraStereo
+from pyvale.sensorsim.rendermesh import RenderMesh
 
+from pyvale.blender.blenderexceptions import BlenderError
+from pyvale.blender.blendertools import Tools
+from pyvale.blender.blenderlightdata import LightData
+from pyvale.blender.blenderrenderdata import RenderEngine, RenderData
+from pyvale.blender.blendermaterialdata import MaterialData
+from pyvale.blender.blendercalibrationdata import CalibrationData
 
 class Scene():
     """Namespace for creating a scene within Blender.
@@ -118,7 +122,7 @@ class Scene():
         cam1 = self.add_camera(stereo_system.cam_data_1)
         return cam0, cam1
 
-    def add_light(self, light_data: blender.LightData) -> bpy.data.objects:
+    def add_light(self, light_data: LightData) -> bpy.data.objects:
         """A method to add a light object within Blender.
 
         Parameters
@@ -221,7 +225,7 @@ class Scene():
     def add_speckle(self,
                     part: bpy.data.objects,
                     speckle_path: Path | None,
-                    mat_data: blender.MaterialData | None,
+                    mat_data: MaterialData | None,
                     mm_px_resolution: float,
                     cal: bool = False) -> None:
         """A method to add a speckle pattern to an existing mesh object within
@@ -248,15 +252,15 @@ class Scene():
             a Blender part object. When set to True, the part object is UV
             unwrapped differently to ensure the correct scaling, by default False
         """
-        blender.Tools.clear_material_nodes(part)
+        Tools.clear_material_nodes(part)
         if mat_data is None:
-            mat_data = blender.MaterialData()
+            mat_data = MaterialData()
         if speckle_path.exists():
-            blender.Tools.add_image_texture(mat_data=mat_data, image_path=speckle_path)
+            Tools.add_image_texture(mat_data=mat_data, image_path=speckle_path)
         else:
             speckle_pattern = np.array() # Generate speckle pattern array
-            blender.Tools.add_image_texture(mat_data=mat_data, image_array=speckle_pattern)
-        blender.Tools.uv_unwrap_part(part, mm_px_resolution, cal)
+            Tools.add_image_texture(mat_data=mat_data, image_array=speckle_pattern)
+        Tools.uv_unwrap_part(part, mm_px_resolution, cal)
 
     def _debug_deform(self,
                       render_mesh: RenderMesh,
@@ -285,11 +289,11 @@ class Scene():
             deformed_nodes = SimTools.get_deformed_nodes(timestep,
                                                          render_mesh)
             if deformed_nodes is not None:
-                blender.Tools.deform_single_timestep(part, deformed_nodes)
-                blender.Tools.set_new_frame(part)
+                Tools.deform_single_timestep(part, deformed_nodes)
+                Tools.set_new_frame(part)
 
     def render_single_image(self,
-                            render_data: blender.RenderData,
+                            render_data: RenderData,
                             stage_image: bool | None = True) -> None | np.ndarray:
         """A method to render an images(s) of the current scene in Blender.
         Depending on the number of cameras, either one or two images will be
@@ -322,10 +326,10 @@ class Scene():
         bpy.context.scene.render.threads = render_data.threads
         bpy.context.scene.render.image_settings.file_format = "TIFF"
 
-        if render_data.engine == blender.RenderEngine.CYCLES:
+        if render_data.engine == RenderEngine.CYCLES:
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
-        elif render_data.engine == blender.RenderEngine.EEVEE:
+        elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
         if not render_data.base_dir.is_dir():
@@ -349,7 +353,7 @@ class Scene():
                 bpy.context.scene.render.filepath = str(filepath)
                 if stage_image:
                     bpy.ops.render.render(write_still=True)
-                    image_array = blender.Tools.save_render_as_array(filepath)
+                    image_array = Tools.save_render_as_array(filepath)
                     image_arrays.append(image_array)
                 else:
                     bpy.ops.render.render(write_still=True)
@@ -366,7 +370,7 @@ class Scene():
             bpy.context.scene.render.filepath = str(filepath)
             if stage_image:
                 bpy.ops.render.render(write_still=True)
-                image_array = blender.Tools.save_render_as_array(filepath)
+                image_array = Tools.save_render_as_array(filepath)
                 return image_array
             else:
                 bpy.ops.render.render(write_still=True)
@@ -374,7 +378,7 @@ class Scene():
     def render_deformed_images(self,
                                render_mesh: RenderMesh,
                                sim_spat_dim: int,
-                               render_data: blender.RenderData,
+                               render_data: RenderData,
                                part: bpy.data.objects,
                                stage_image: bool | None = True) -> None | np.ndarray:
         """A method to deform the mesh object at all timesteps, and render
@@ -420,10 +424,10 @@ class Scene():
         bpy.context.scene.render.threads = render_data.threads
         bpy.context.scene.render.image_settings.file_format = "TIFF"
 
-        if render_data.engine == blender.RenderEngine.CYCLES:
+        if render_data.engine == RenderEngine.CYCLES:
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
-        elif render_data.engine == blender.RenderEngine.EEVEE:
+        elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
         if not render_data.base_dir.is_dir():
@@ -438,8 +442,8 @@ class Scene():
             deformed_nodes = SimTools.get_deformed_nodes(timestep,
                                                          render_mesh)
             if deformed_nodes is not None:
-                blender.Tools.deform_single_timestep(part, deformed_nodes)
-                blender.Tools.set_new_frame(part)
+                Tools.deform_single_timestep(part, deformed_nodes)
+                Tools.set_new_frame(part)
 
                 if isinstance(render_data.cam_data, tuple):
                     cam_count = 0
@@ -453,7 +457,7 @@ class Scene():
                         bpy.context.scene.render.filepath = str(filepath)
                         if stage_image:
                             bpy.ops.render.render(write_still=True)
-                            image_array = blender.Tools.save_render_as_array(filepath)
+                            image_array = Tools.save_render_as_array(filepath)
                             image_arrays.append(image_array)
                         else:
                             bpy.ops.render.render(write_still=True)
@@ -466,7 +470,7 @@ class Scene():
                     bpy.context.scene.render.filepath = str(filepath)
                     if stage_image:
                         bpy.ops.render.render(write_still=True)
-                        image_array = blender.Tools.save_render_as_array(filepath)
+                        image_array = Tools.save_render_as_array(filepath)
                         image_arrays.append(image_array)
                     else:
                         bpy.ops.render.render(write_still=True)

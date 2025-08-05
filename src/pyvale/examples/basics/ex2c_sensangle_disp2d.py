@@ -23,14 +23,17 @@ Test case: point displacement sensors on a 2D plate with hole loaded in tension
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
 
 #%%
 # First we are going to setup the same displacement sensor array on the 2D
 # solid mechanics test case we have used previously. This will serve as a
 # baseline with no sensor rotation.
-data_path = pyv.DataSet.mechanical_2d_path()
+data_path = dataset.mechanical_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
 field_name = "disp"

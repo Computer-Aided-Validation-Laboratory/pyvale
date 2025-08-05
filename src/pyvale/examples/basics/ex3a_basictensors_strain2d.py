@@ -22,9 +22,11 @@ Test case: point strain sensors on a 2D plate with hole loaded in tension
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-from pyvale.mooseherder import SimData
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
 
 #%%
 # First we load the same 2D solid mechanics simulation we used previously
@@ -32,11 +34,11 @@ import pyvale as pyv
 # vector field examples except we will need to specify the string keys for
 # the normal a deviatoric components of our tensor field (as they appear in
 # our `SimData` object).
-data_path: Path = pyv.DataSet.mechanical_2d_path()
-sim_data: SimData = mh.ExodusReader(data_path).read_all_sim_data()
-sim_data: SimData = pyv.scale_length_units(scale=1000.0,
-                                            sim_data=sim_data,
-                                            disp_comps=("disp_x","disp_y"))
+data_path: Path = dataset.mechanical_2d_path()
+sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+sim_data = pyv.scale_length_units(scale=1000.0,
+                                  sim_data=sim_data,
+                                  disp_comps=("disp_x","disp_y"))
 
 n_sens = (2,3,1)
 x_lims = (0.0,100.0)

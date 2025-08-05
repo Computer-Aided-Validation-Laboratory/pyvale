@@ -21,15 +21,18 @@ Test case: Simple 3D cube thermo-mechanical in tension with temp gradient.
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
 
 
 #%%
 # First we load our simulation as a `SimData` object. In this case we are
 # loading a 10mm cube loaded in tension in the y direction with the addition
 # of a thermal gradient in the y direction.
-data_path = pyv.DataSet.element_case_output_path(pyv.EElemTest.HEX20)
+data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
 #%%
@@ -43,8 +46,8 @@ sim_data = pyv.scale_length_units(scale=1000.0,
 
 #%%
 # We use a helper function to print the extent of the dimensions in our
-# `SimData` object to help us locate our sensors on the cube.
-pyv.print_dimensions(sim_data)
+# `SimTools` object to help us locate our sensors on the cube.
+pyv.SimTools.print_dimensions(sim_data)
 
 descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
 

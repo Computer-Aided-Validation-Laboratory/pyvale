@@ -10,10 +10,14 @@ from PIL import Image
 import bpy
 
 # Pyvale
-import pyvale.blender as blender
-from pyvale.cameratools import CameraTools
-from pyvale.output import Outputs
-from pyvale.pyvaleexceptions import BlenderError
+from pyvale.sensorsim.cameratools import CameraTools
+from pyvale.sensorsim.output import Outputs
+
+
+from pyvale.blender.blenderexceptions import BlenderError
+from pyvale.blender.blenderrenderdata import RenderEngine, RenderData
+from pyvale.blender.blendermaterialdata import MaterialData
+from pyvale.blender.blendercalibrationdata import CalibrationData
 
 class Tools:
     """Namespace for tools used within the pyvale Blender module.
@@ -146,7 +150,7 @@ class Tools:
         """
         if part.data.shape_keys is None:
             part.shape_key_add()
-            blender.Tools.set_new_frame(part)
+            Tools.set_new_frame(part)
         shape_key = part.shape_key_add()
         part.data.shape_keys.use_relative = False
 
@@ -207,7 +211,7 @@ class Tools:
         part.select_set(False)
 
     @staticmethod
-    def add_image_texture(mat_data: blender.MaterialData,
+    def add_image_texture(mat_data: MaterialData,
                           image_path: Path | None = None,
                           image_array: np.ndarray | None = None) -> None:
         """A method to add an image texture to a Blender object, this will
@@ -293,7 +297,7 @@ class Tools:
         return image_array
 
     @staticmethod
-    def number_calibration_images(calibration_data: blender.CalibrationData) -> int:
+    def number_calibration_images(calibration_data: CalibrationData) -> int:
         """A function to calculate the number of calibration images that will
         be rendered, given the calibration target's movement limits.
 
@@ -320,8 +324,8 @@ class Tools:
         return number_cal_images
 
 
-    def render_calibration_images(render_data: blender.RenderData,
-                           calibration_data: blender.CalibrationData,
+    def render_calibration_images(render_data: RenderData,
+                           calibration_data: CalibrationData,
                            part: bpy.data.objects) -> int:
         """A method to render a set of calibration images, which can be used to
         calculate the intrinsic and extrinsic parameters.
@@ -352,10 +356,10 @@ class Tools:
         bpy.context.scene.render.threads = render_data.threads
         bpy.context.scene.render.image_settings.file_format = "TIFF"
 
-        if render_data.engine == blender.RenderEngine.CYCLES:
+        if render_data.engine == RenderEngine.CYCLES:
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
-        elif render_data.engine == blender.RenderEngine.EEVEE:
+        elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
         if not render_data.base_dir.is_dir():

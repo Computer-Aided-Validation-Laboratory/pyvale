@@ -19,15 +19,18 @@ Test case: point strain sensors on a 2D plate with hole loaded in tension
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
 
 #%%
 # First we load the same 2D solid mechanics simulation of a plate with a
 # hole loaded in tension as a `SimData` object. We scale the units to mm
 # from SI including the coordinates and displacement. Strain is unitless so
 # we leave it alone.
-data_path = pyv.DataSet.mechanical_2d_path()
+data_path = dataset.mechanical_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 sim_data = pyv.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,

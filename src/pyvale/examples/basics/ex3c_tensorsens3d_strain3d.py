@@ -21,14 +21,17 @@ Test case: point strain sensors on a 2D plate with hole loaded in tension
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
 
 #%%
 # First we load our simulation asa `SimData` object. In this case we are
 # loading a 10mm cube loaded in tension in the y direction with the addition
 # of a thermal gradient in the y direction.
-data_path = pyv.DataSet.element_case_output_path(pyv.EElemTest.HEX20)
+data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
 #%%

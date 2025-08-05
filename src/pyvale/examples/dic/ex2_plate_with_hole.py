@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # pyvale modules
-import pyvale
+import pyvale.dataset as dataset
 import pyvale.dic as dic
 
 # %%
@@ -32,8 +32,8 @@ import pyvale.dic as dic
 # The images used here are included in the `data <https://github.com/Computer-Aided-Validation-Laboratory/pyvale/tree/main/src/pyvale/data>`_ folder.
 # We've provided helper functions to load them regardless of your installation path.
 subset_size = 31
-ref_img = pyvale.DataSet.dic_plate_with_hole_ref()
-def_img = pyvale.DataSet.dic_plate_with_hole_def()
+ref_img = dataset.dic_plate_with_hole_ref()
+def_img = dataset.dic_plate_with_hole_def()
 
 # create a directory for the the different outputs
 output_path = Path.cwd() / "pyvale-output"

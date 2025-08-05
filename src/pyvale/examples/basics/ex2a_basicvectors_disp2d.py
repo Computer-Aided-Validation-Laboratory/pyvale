@@ -20,8 +20,11 @@ Test case: point displacement sensors on a 2D plate with hole loaded in tension
 """
 
 import matplotlib.pyplot as plt
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
 
 #%%
 # Here we load a pre-packaged dataset from pyvale that is the output of a
@@ -29,7 +32,7 @@ import pyvale as pyv
 # rectangular plate with a central hole that is loaded in tension (we will
 # see a visualisation of the mesh and results later). We use `mooseherder` to
 # load the exodus file into a `SimData` object.
-data_path = pyv.DataSet.mechanical_2d_path()
+data_path = dataset.mechanical_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
 #%%

@@ -24,8 +24,12 @@ Test case: Scalar field point sensors (thermocouples) on a 3D thermal simulation
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
+
 
 #%%
 # First we use everything we learned from the first three examples to build
@@ -33,7 +37,7 @@ import pyvale as pyv
 # analysed in the previous examples. Then we will look at a new type of
 # systematic error called a field error which requires additional
 # interpolation of the underlying physical field to be measured.
-data_path = pyv.DataSet.thermal_3d_path()
+data_path = dataset.thermal_3d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 sim_data = pyv.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,

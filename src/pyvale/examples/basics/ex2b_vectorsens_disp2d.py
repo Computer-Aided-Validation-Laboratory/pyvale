@@ -19,14 +19,18 @@ Test case: point displacement sensors on a 2D plate with hole loaded in tension
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
+
 
 
 #%%
 # First we load the same 2D solid mechanics simulation we had previously as
 # a `SimData` object and then we scale everything to millimeters.
-data_path = pyv.DataSet.mechanical_2d_path()
+data_path = dataset.mechanical_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 field_name = "disp"
 field_comps = ("disp_x","disp_y")

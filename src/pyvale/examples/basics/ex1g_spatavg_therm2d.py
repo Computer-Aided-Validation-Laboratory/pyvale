@@ -16,8 +16,11 @@ Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
 
 #%%
 # First we are going to build a custom sensor array so we can control how
@@ -29,7 +32,7 @@ import pyvale as pyv
 # area averaged without and area averaging error. The first part of this is
 # the same as the 3D thermal example we have used previously then we control
 # the area averaging using the sensor data object.
-data_path = pyv.DataSet.thermal_2d_path()
+data_path = dataset.thermal_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 sim_data = pyv.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,

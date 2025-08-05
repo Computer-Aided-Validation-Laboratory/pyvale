@@ -10,6 +10,7 @@ from .blendermaterialdata import MaterialData
 from .blenderrenderdata import RenderData, RenderEngine
 from .blenderscene import Scene
 from .blendertools import Tools
+from .blenderexceptions import BlenderError
 
 __all__ = ["CalibrationData",
            "LightData",
@@ -18,4 +19,5 @@ __all__ = ["CalibrationData",
            "RenderData",
            "RenderEngine",
            "Scene",
-           "Tools"]
+           "Tools",
+           "BlenderError"]

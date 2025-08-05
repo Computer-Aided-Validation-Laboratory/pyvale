@@ -40,8 +40,8 @@ else:
 
 
 ext_cython = Extension(
-    "pyvale.cython.rastercyth",
-    ["src/pyvale/cython/rastercyth.py"],
+    "pyvale.sensorsim.cython.rastercyth",
+    ["src/pyvale/sensorsim/cython/rastercyth.py"],
     include_dirs=[numpy.get_include()],
     extra_compile_args=[openmp_flag],
     extra_link_args=[openmp_flag],

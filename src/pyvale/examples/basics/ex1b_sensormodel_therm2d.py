@@ -29,8 +29,11 @@ Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 """
 
 import matplotlib.pyplot as plt
+
+# Pyvale imports
+import pyvale.sensorsim as pyv
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.dataset as dataset
 
 
 #%%
@@ -40,7 +43,7 @@ import pyvale as pyv
 # Here we load a pre-generated MOOSE finite element simulation dataset that
 # comes packaged with pyvale. The simulation is a 2D rectangular plate with
 # a bi-directional temperature gradient.
-data_path = pyv.DataSet.thermal_2d_path()
+data_path = dataset.thermal_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 field_key: str = "temperature"
 
