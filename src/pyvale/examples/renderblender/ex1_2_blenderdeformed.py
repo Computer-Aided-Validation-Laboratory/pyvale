@@ -19,6 +19,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
 import pyvale
+import pyvale.blender as blender
 import pyvale.mooseherder as mh
 
 # %%
@@ -62,7 +63,7 @@ base_dir = Path.cwd()
 # A scene is initialised using the `BlenderScene` class. All the subsequent
 # objects and actions necessary are then methods of this class.
 
-scene = pyvale.BlenderScene()
+scene = blender.Scene()
 
 # %%
 # The next thing that can be added to the scene is a sample.
@@ -75,9 +76,9 @@ scene = pyvale.BlenderScene()
 part = scene.add_part(render_mesh, sim_spat_dim=3)
 # Set the part location
 part_location = np.array([0, 0, 0])
-pyvale.BlenderTools.move_blender_obj(part=part, pos_world=part_location)
+blender.Tools.move_blender_obj(part=part, pos_world=part_location)
 part_rotation = Rotation.from_euler("xyz", [0, 0, 0], degrees=True)
-pyvale.BlenderTools.rotate_blender_obj(part=part, rot_world=part_rotation)
+blender.Tools.rotate_blender_obj(part=part, rot_world=part_rotation)
 
 # %%
 # A camera can then be added to the scene.
@@ -101,7 +102,7 @@ camera.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
 # Blender offers different light types: Point, Sun, Spot and Area.
 # The light can also be moved and rotated like the camera.
 
-light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
+light_data = blender.LightData(type=blender.LightType.POINT,
                                      pos_world=(0, 0, 400),
                                      rot_world=Rotation.from_euler("xyz",
                                                                    [0, 0, 0]),
@@ -121,7 +122,7 @@ light.rotation_euler = (0, 0, 0)
 # It should be noted that for a bigger camera or sample you may need to generate
 # a larger speckle pattern.
 
-material_data = pyvale.BlenderMaterialData()
+material_data = blender.MaterialData()
 speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
 mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data)
 scene.add_speckle(part=part,
@@ -137,9 +138,9 @@ scene.add_speckle(part=part,
 # Firstly, all the rendering parameters must be set, including parameters such as
 # the number of threads to use.
 
-render_data = pyvale.RenderData(cam_data=cam_data,
-                                base_dir=base_dir,
-                                threads=8)
+render_data = blender.RenderData(cam_data=cam_data,
+                                 base_dir=base_dir,
+                                 threads=8)
 
 # %%
 # A series of deformed images can then be rendered.
@@ -167,4 +168,4 @@ print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
 # There is also the option to save the scene as a Blender project file.
 # This file can be opened with the Blender GUI to view the scene.
 
-pyvale.BlenderTools.save_blender_file(base_dir)
+blender.Tools.save_blender_file(base_dir)

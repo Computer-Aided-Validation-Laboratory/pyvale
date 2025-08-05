@@ -16,7 +16,10 @@ allowing for comparison to analytically known values.
 
 import matplotlib.pyplot as plt
 from pathlib import Path
+
+# pyvale modules
 import pyvale
+import pyvale.dic as dic
 
 # %%
 # We'll start by defining some variables that will be reused throughout the example:
@@ -42,7 +45,7 @@ if not output_path.is_dir():
 # Create an instance of the ROI class and pass the reference image
 # as input. This image will be shown as the underlay during any ROI selection or
 # visualization.
-roi = pyvale.DICRegionOfInterest(ref_img)
+roi = dic.RegionOfInterest(ref_img)
 roi.interactive_selection(subset_size)
 
 # %%
@@ -77,22 +80,22 @@ roi.read_array(filename=roi_file, binary=False)
 # At present, the DIC engine doesn't return any results to the user, instead the results are saved to disk.
 # You can customize the filename, location, format, and delimiter using 
 # the options options `output_basepath`, `output_prefix`, `output_delimiter`, and `output_binary`.
-# More info on these options can be found in the documentation for :func:`pyvale.dic_2d`.
+# More info on these options can be found in the documentation for :func:`dic.two_dimensional`.
 # By default, the results will be saved with the prefix `dic_results_` followed
 # by the original filename. The file extension will be replaced will either ".csv" or "dic2d"
 # depending on whether the results are being saved in human-readable or binary format.
-pyvale.dic_2d(reference=ref_img,
-              deformed=def_img,
-              roi_mask=roi.mask,
-              seed=roi.seed,
-              subset_size=subset_size,
-              subset_step=10,
-              shape_function="AFFINE",
-              max_displacement=10,
-              correlation_criteria="ZNSSD",
-              output_basepath=output_path,
-              output_delimiter=",",
-              output_prefix="dic_results_")
+dic.two_dimensional(reference=ref_img,
+                    deformed=def_img,
+                    roi_mask=roi.mask,
+                    seed=roi.seed,
+                    subset_size=subset_size,
+                    subset_step=10,
+                    shape_function="AFFINE",
+                    max_displacement=10,
+                    correlation_criteria="ZNSSD",
+                    output_basepath=output_path,
+                    output_delimiter=",",
+                    output_prefix="dic_results_")
 
 # %%
 # If you saved the results in a human-readable format, you can use any tool
@@ -104,7 +107,7 @@ pyvale.dic_2d(reference=ref_img,
 # The returned object is an instance of :class:`pyvale.DICResults`. If the results
 # were saved in binary format or with a custom delimiter, be sure to specify those parameters.
 dic_files = output_path / "dic_results_*.csv"
-dicdata = pyvale.dic_data_import(data=dic_files, delimiter=",", binary=False)
+dicdata = dic.data_import(data=dic_files, delimiter=",", binary=False)
 
 # %%
 # As an example, here's a simple visualization of the displacement (u, v) and

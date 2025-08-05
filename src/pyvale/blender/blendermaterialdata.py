@@ -8,7 +8,7 @@ from dataclasses import dataclass
 #TODO: docstrings
 
 @dataclass(slots=True)
-class BlenderMaterialData():
+class MaterialData():
     # TODO: Add other material properties here
     roughness: float = 1.0
     metallic: float = 0.0

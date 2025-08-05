@@ -66,19 +66,19 @@ if not output_path.is_dir():
 # the current working directory with a filename prefix of subset_size_19_*.txt
 # If you are feeling adventorous you could investigate the effect of varying the
 # subset size by placing the above and below sections in a loop.
-pyvale.dic_2d(reference=ref_pattern,
-              deformed=def_pattern,
-              roi_mask=roi.mask,
-              subset_size=subset_size,
-              subset_step=1,
-              seed=[3500,250],
-              max_displacement=10,
-              output_basepath=output_path)
+pyvale.dic.two_dimensional(reference=ref_pattern,
+                           deformed=def_pattern,
+                           roi_mask=roi.mask,
+                           subset_size=subset_size,
+                           subset_step=1,
+                           seed=[3500,250],
+                           max_displacement=10,
+                           output_basepath=output_path)
 
 # %% 
 # We can import the results in the standard way
 data_path = output_path / "dic_results_DIC_Challenge*.csv"
-dicdata = pyvale.dic_data_import(data=data_path, layout='column', 
+dicdata = pyvale.dic.data_import(data=data_path, layout='column', 
                                  binary=False, delimiter=",")
 
 # &&

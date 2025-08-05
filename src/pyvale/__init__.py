@@ -74,28 +74,10 @@ from pyvale.visualimages import *
 from pyvale.visualimagedef import *
 
 from pyvale.experimentsimulator import *
-
-from pyvale.blendercalibrationdata import *
-from pyvale.blenderlightdata import *
-from pyvale.blendermaterialdata import *
-from pyvale.blenderrenderdata import *
-from pyvale.blenderscene import *
-from pyvale.blendertools import *
-from pyvale.simtools import *
-
 from pyvale.output import *
 from pyvale.pyvaleexceptions import *
 
-from pyvale.experimentsimulator import *
-
-from pyvale.dicspecklegenerator import *
-from pyvale.dicspecklequality import *
-from pyvale.dicregionofinterest import *
-from pyvale.dic2d import *
-from pyvale.dicdataimport import *
-from pyvale.dicresults import *
-from pyvale.dic2dcpp import *
-from pyvale.dicstrain import *
-from pyvale.dicchecks import *
-
-# mooseherder module
+# submodules
+from . import dic
+from . import blender
+from . import mooseherder

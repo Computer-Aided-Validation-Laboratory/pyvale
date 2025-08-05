@@ -9,13 +9,10 @@ import numpy as np
 import glob
 from pathlib import Path
 
-from pyvale import dic2dcpp
-from pyvale import dicchecks
-from pyvale.dicdataimport import dic_data_import
-from pyvale.dicresults import DICResults
-from pyvale.dicstrainresults import StrainResults
+# pyvale
+from pyvale.dic.dicstrainresults import StrainResults
 
-def strain_2d(data: str | Path,
+def strain_two_dimensional(data: str | Path,
               window_size: int=5, 
               window_element: int=4,
               input_binary: bool=False,
@@ -80,10 +77,10 @@ def strain_2d(data: str | Path,
     if window_size % 2 == 0:
         raise ValueError(f"Invalid strain window size: '{window_size}'. Must be an odd number.")
 
-    filenames = dicchecks.check_strain_files(strain_files=data)
+    filenames = check_strain_files(strain_files=data)
 
     # Load data if a file path is given
-    results = dic_data_import(layout="matrix", data=str(data),
+    results = data_import(layout="matrix", data=str(data),
                                   binary=input_binary, delimiter=input_delimiter)
 
     # Extract dimensions from the validated object
@@ -92,10 +89,10 @@ def strain_2d(data: str | Path,
     nimg = results.u.shape[0]
 
 
-    dicchecks.check_output_directory(str(output_basepath), output_prefix)
+    check_output_directory(str(output_basepath), output_prefix)
 
     # assigning c++ struct vals for save config
-    strain_save_conf = dic2dcpp.SaveConfig()
+    strain_save_conf = dic.dic2dcpp.SaveConfig()
     strain_save_conf.basepath = str(output_basepath)
     strain_save_conf.binary = output_binary
     strain_save_conf.prefix = output_prefix
@@ -105,7 +102,7 @@ def strain_2d(data: str | Path,
     print(filenames)
 
     # Call to C++ backend
-    dic2dcpp.strain_engine(results.ss_x, results.ss_y,
+    dic.dic2dcpp.strain_engine(results.ss_x, results.ss_y,
                            results.u, results.v,
                            nss_x, nss_y, nimg,
                            window_size, window_element, 

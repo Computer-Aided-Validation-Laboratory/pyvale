@@ -17,7 +17,10 @@ be used for strain calculations.
 
 import matplotlib.pyplot as plt
 from pathlib import Path
+
+# pyvale modules
 import pyvale
+import pyvale.dic as dic
 
 # %%
 # We'll start by importing the DIC data from the previous example.
@@ -46,8 +49,8 @@ input_data = output_path / "dic_results_*.csv"
 # The output will always include the window coordinates and the full deformation
 # gradient tensor. If you also specify a `strain_formulation`, the corresponding
 # 2D strain tensor will be included in the output.
-pyvale.strain_2d(data=input_data, window_size=5, window_element=4,
-                 output_basepath=output_path)
+dic.strain_two_dimensional(data=input_data, window_size=5, window_element=4,
+                           output_basepath=output_path)
 
 # %%
 # Once the strain calculation is complete, you can import the results using
@@ -55,9 +58,9 @@ pyvale.strain_2d(data=input_data, window_size=5, window_element=4,
 #
 # Be sure to specify the delimiter, format (binary or not), and layout.
 strain_output = output_path / "strain_dic_results_*.csv"
-straindata = pyvale.strain_data_import(data=strain_output,
-                                       binary=False, delimiter=",",
-                                       layout="matrix")
+straindata = dic.strain_data_import(data=strain_output,
+                                    binary=False, delimiter=",",
+                                    layout="matrix")
 
 # %%
 # Here's a simple example of how to visualize the deformation gradient components

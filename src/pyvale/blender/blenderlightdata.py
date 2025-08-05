@@ -10,17 +10,17 @@ from scipy.spatial.transform import Rotation
 
 #TODO: docstrings
 
-class BlenderLightType(Enum):
+class LightType(Enum):
     POINT = 'POINT'
     SUN = 'SUN'
     SPOT = 'SPOT'
     AREA = 'AREA'
 
 @dataclass(slots=True)
-class BlenderLightData():
+class LightData():
     pos_world: np.ndarray
     rot_world: Rotation
     energy: int # NOTE: In Watts
-    type: BlenderLightType = BlenderLightType.POINT
+    type: LightType = LightType.POINT
     shadow_soft_size: float = 1.5
 

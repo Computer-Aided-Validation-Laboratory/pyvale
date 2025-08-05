@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 
 @dataclass(slots=True)
-class DICResults:
+class Results:
     """
     Data container for Digital Image Correlation (DIC) analysis results.
 

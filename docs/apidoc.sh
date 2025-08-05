@@ -33,7 +33,7 @@ sed -i '/^Module contents$/,/^ *:undoc-members:/d' source/pyvale.rst
 
 # Remove the dic2dcpp file. This is not needed for the python detailed api
 # documentation
-rm ./source/pyvale.dic2dcpp.rst
+rm ./source/pyvale.dic.dic2dcpp.rst
 
 
 echo "PYTHON API DOCUMENTATION GENERATED SUCCESSFULLY!"

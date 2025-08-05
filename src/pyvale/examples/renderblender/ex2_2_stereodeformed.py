@@ -17,7 +17,10 @@ Test case: mechanical analysis of a plate with a hole loaded in tension.
 import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
+
+#pyvale modules
 import pyvale
+import pyvale.blender as blender
 import pyvale.mooseherder as mh
 
 # %%
@@ -60,7 +63,7 @@ base_dir = Path.cwd()
 # In order to create a DIC setup in Blender, first a scene must be created.
 # A scene is initialised using the `BlenderScene` class. All the subsequent
 # objects and actions necessary are then methods of this class.
-scene = pyvale.BlenderScene()
+scene = blender.Scene()
 
 # %%
 # The next thing that can be added to the scene is a sample.
@@ -72,10 +75,10 @@ scene = pyvale.BlenderScene()
 part = scene.add_part(render_mesh, sim_spat_dim=3)
 # Set the part location
 part_location = np.array([0, 0, 0])
-pyvale.BlenderTools.move_blender_obj(part=part, pos_world=part_location)
+blender.Tools.move_blender_obj(part=part, pos_world=part_location)
 # Set part rotation
 part_rotation = Rotation.from_euler("xyz", [0, 0, 0], degrees=True)
-pyvale.BlenderTools.rotate_blender_obj(part=part, rot_world=part_rotation)
+blender.Tools.rotate_blender_obj(part=part, rot_world=part_rotation)
 
 # %%
 # The cameras can then be initialised. A stereo camera system is defined by a
@@ -107,10 +110,13 @@ if stereo_setup == "symmetric":
     stereo_system = pyvale.CameraTools.symmetric_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
-if stereo_setup == "faceon":
+elif stereo_setup == "faceon":
     stereo_system = pyvale.CameraTools.faceon_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
+else:
+    raise ValueError(f"Unknown stereo_setup: {stereo_setup}")
+
 cam0, cam1 = scene.add_stereo_system(stereo_system)
 
 # %%
@@ -128,7 +134,7 @@ stereo_system.save_calibration(base_dir)
 # A light can the be added to the scene.
 # Blender offers different light types: Point, Sun, Spot and Area.
 # The light can also be moved and rotated like the camera.
-light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
+light_data = blender.LightData(type=blender.LightType.POINT,
                                      pos_world=(0, 0, 400),
                                      rot_world=Rotation.from_euler("xyz",
                                                                    [0, 0, 0]),
@@ -138,7 +144,7 @@ light.location = (0, 0, 410)
 light.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
 
 # Apply the speckle pattern
-material_data = pyvale.BlenderMaterialData()
+material_data = blender.MaterialData()
 speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
 # NOTE: If you wish to use a bigger camera, you will need to generate a
 # bigger speckle pattern generator
@@ -169,7 +175,7 @@ scene.add_speckle(part=part,
 # the number of threads to use.
 # Differently to a 2D DIC system, both cameras' parameters must be specified in
 # the `RenderData` object.
-render_data = pyvale.RenderData(cam_data=(stereo_system.cam_data_0,
+render_data = blender.RenderData(cam_data=(stereo_system.cam_data_0,
                                             stereo_system.cam_data_1),
                                 base_dir=base_dir,
                                 threads=8)
@@ -200,5 +206,4 @@ print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
 # There is also the option to save the scene as a Blender project file.
 # This file can be opened with the Blender GUI to view the scene.
 
-pyvale.BlenderTools.save_blender_file(base_dir)
-
+blender.Tools.save_blender_file(base_dir)

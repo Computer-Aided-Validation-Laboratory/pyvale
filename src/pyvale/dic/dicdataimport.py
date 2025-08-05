@@ -11,8 +11,8 @@ import glob
 import os
 from pathlib import Path
 
-# import cython module
-from pyvale.dicresults import DICResults
+# Pyvale modules
+from pyvale.dic.dicresults import Results
 
 """
 Module responsible for handling importing of DIC results from completed
@@ -20,10 +20,10 @@ calculations.
 """
 
 
-def dic_data_import(data: str | Path,
+def data_import(data: str | Path,
                    binary: bool = False,
                    layout: str = "matrix",
-                   delimiter: str = ",") -> DICResults:
+                   delimiter: str = ",") -> Results:
     """
     Import DIC result data from human readable text or binary files.
 
@@ -46,7 +46,7 @@ def dic_data_import(data: str | Path,
 
     Returns
     -------
-    DICResults
+    Results
         A named container with the following fields:
             - ss_x, ss_y (grid arrays if layout=="matrix"; otherwise, 1D integer arrays)
             - u, v, m, converged, cost, ftol, xtol, niter (arrays with shape depending on layout)
@@ -57,7 +57,7 @@ def dic_data_import(data: str | Path,
     ValueError:
         If `layout` is not "column" or "matrix", or text data has insufficient columns,
         or binary rows are malformed.
-        
+        import cython module
     FileNotFoundError:
         If no matching data files are found.
     """
@@ -129,7 +129,7 @@ def dic_data_import(data: str | Path,
 
 
 
-        return DICResults(X, Y, arrays[0], arrays[1], arrays[2], arrays[3],
+        return Results(X, Y, arrays[0], arrays[1], arrays[2], arrays[3],
                           arrays[4], arrays[5], arrays[6], arrays[7], 
                           shape_params, filenames)
     # column layout
@@ -151,7 +151,7 @@ def dic_data_import(data: str | Path,
             shape_params[:,:,4] = arrays[12]
             shape_params[:,:,5] = arrays[13]
 
-        return DICResults(ss_x_ref, ss_y_ref, arrays[0], arrays[1], arrays[2], arrays[3],
+        return Results(ss_x_ref, ss_y_ref, arrays[0], arrays[1], arrays[2], arrays[3],
                           arrays[4], arrays[5], arrays[6], arrays[7], 
                           shape_params, filenames)
 

@@ -6,45 +6,40 @@
 
 
 
-import os
-import io
-import sys
 import numpy as np
 from pathlib import Path
 
-import pybind11
-
-# import cython module
-import pyvale.dic2dcpp as dic2dcpp
-import pyvale.dicchecks as dicchecks
+# pyvale
+import pyvale.dic.dic2dcpp as dic2dcpp
+import pyvale.dic.dicchecks as dicchecks
 
 
-def dic_2d(reference: np.ndarray | str | Path,
-          deformed: np.ndarray | str | Path,
-          roi_mask: np.ndarray,
-          seed: list[int] | list[np.int32] | np.ndarray,
-          subset_size: int = 21,
-          subset_step: int = 10,
-          correlation_criteria: str="ZNSSD",
-          shape_function: str="AFFINE",
-          interpolation_routine: str="BICUBIC",
-          max_iterations: int=40,
-          opt_precision: float=0.001,
-          opt_threshold: float=0.9,
-          bf_threshold: float=0.6,
-          num_threads: int | None = None,
-          max_displacement: int=128,
-          scanning_method: str="RG",
-          fft_mad: bool=False,
-          fft_mad_scale: float=3.0,
-          output_at_end: bool=False,
-          output_basepath: Path | str = "./",
-          output_binary: bool=False,
-          output_prefix: str="dic_results_",
-          output_delimiter: str=",",
-          output_unconverged: bool=False,
-          output_shape_params: bool=False,
-          debug_level: int=0) -> None:
+def two_dimensional(reference: np.ndarray | str | Path,
+                    deformed: np.ndarray | str | Path,
+                    roi_mask: np.ndarray,
+                    seed: list[int] | list[np.int32] | np.ndarray,
+                    subset_size: int = 21,
+                    subset_step: int = 10,
+                    correlation_criteria: str="ZNSSD",
+                    shape_function: str="AFFINE",
+                    interpolation_routine: str="BICUBIC",
+                    max_iterations: int=40,
+                    opt_precision: float=0.001,
+                    opt_threshold: float=0.9,
+                    bf_threshold: float=0.6,
+                    num_threads: int | None = None,
+                    max_displacement: int=128,
+                    scanning_method: str="RG",
+                    fft_mad: bool=False,
+                    fft_mad_scale: float=3.0,
+                    output_at_end: bool=False,
+                    output_basepath: Path | str = "./",
+                    output_binary: bool=False,
+                    output_prefix: str="dic_results_",
+                    output_delimiter: str=",",
+                    output_unconverged: bool=False,
+                    output_shape_params: bool=False,
+                    debug_level: int=0) -> None:
 
     """
     Perform 2D Digital Image Correlation (DIC) between a reference image and one or more deformed images.

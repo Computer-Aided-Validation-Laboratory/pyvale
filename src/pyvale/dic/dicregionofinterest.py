@@ -15,7 +15,7 @@ import yaml
 import os
 from pathlib import Path
 
-class DICRegionOfInterest:
+class RegionOfInterest:
     """
     A class for interactively selecting and manipulating ROI of an image before passing to the DIC engine. 
 

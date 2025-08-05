@@ -6,27 +6,27 @@ Examples
 Basics for Point Sensors
 ------------------------
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-   examples_basics.rst
+   examples_basics
 
 Blender for Digital Image Correlation
 -------------------------------------
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-   examples_blender.rst
+   examples_blender
 
 Digital Image Correlation
 -------------------------------------
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-   examples_dic.rst
+   examples_dic
 
 Mooseherder
 -------------------------------------
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-   examples_mooseherder.rst
+   examples_mooseherder
