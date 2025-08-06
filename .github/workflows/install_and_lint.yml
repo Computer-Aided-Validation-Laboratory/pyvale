@@ -82,7 +82,3 @@ jobs:
         - name: Smoke test
           run: |
             python -c "import pyvale"
-
-        - name: Run Blender pytests
-          run: |
-            pytest -v tests/blender/.

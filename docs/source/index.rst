@@ -26,8 +26,8 @@ Useful for experimental design, sensor placement optimisation, testing simulatio
    guide
    install/install
    examples/examples
-   api/api_py
-   api/api_cpp
+   api_py
+   api_cpp
    dev_guide/dev_guide
    cite
 

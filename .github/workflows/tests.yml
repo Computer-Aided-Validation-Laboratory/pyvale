@@ -1,0 +1,44 @@
+name: Run tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest] 
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'  # or another version you need
+
+      - name: Install dependencies for ubuntu-latest
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt update
+          sudo apt install -y libegl1 libgl1 libxext6 libx11-6
+
+      - name: Upgrade pip and install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Smoke test
+        run: |
+          python -c "import pyvale"
+
+      - name: Run pytests
+        run: |
+          pip install pytest
+          pytest -v tests/blender/. tests/dic/. tests/pointsensors
