@@ -10,8 +10,13 @@ import numpy.testing as npt
 import numpy as np
 from scipy.spatial.transform import Rotation
 import yaml
-import pyvale
-import mooseherder as mh
+
+
+# Pyvale imports 
+import pyvale.sensorsim as pyv
+import pyvale.dataset as dataset
+import pyvale.mooseherder as mh
+import pyvale.blender as blender
 
 # NOTE: These test may fail if you are not running bpy 4.4.0
 # It is a known issue that the render outputs between bpy 4.2.0 and 4.4.0 slightly
@@ -25,32 +30,32 @@ import mooseherder as mh
 
 @pytest.fixture
 def sample_scene_no_cam():
-    data_path = pyvale.DataSet.mechanical_2d_path()
+    data_path = dataset.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     disp_comps = ("disp_x","disp_y")
-    sim_data = pyvale.scale_length_units(1000.0,sim_data,disp_comps)
-    render_mesh = pyvale.create_render_mesh(sim_data,
+    sim_data = pyv.scale_length_units(1000.0,sim_data,disp_comps)
+    render_mesh = pyv.create_render_mesh(sim_data,
                                         ("disp_y","disp_x"),
                                         sim_spat_dim=2,
                                         field_disp_keys=disp_comps)
 
-    scene = pyvale.BlenderScene()
+    scene = blender.Scene()
     part = scene.add_part(render_mesh, sim_spat_dim=3)
-    light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
+    light_data = blender.LightData(type=blender.LightType.POINT,
                                          pos_world=(0, 0, 400),
                                          rot_world=Rotation.from_euler("xyz",
                                                                        [0, 0, 0]),
                                          energy=1)
     light = scene.add_light(light_data)
-    cam_data_0 = pyvale.CameraData(pixels_num=np.array([20, 20]),
+    cam_data_0 = pyv.CameraData(pixels_num=np.array([20, 20]),
                                  pixels_size=np.array([0.00345, 0.00345]),
                                  pos_world=np.array([0, 0, 500]),
                                  rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
                                  roi_cent_world=(0, 0, 0),
                                  focal_length=15)
-    material_data = pyvale.BlenderMaterialData()
-    speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
-    mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data_0)
+    material_data = blender.MaterialData()
+    speckle_path = dataset.dic_pattern_5mpx_path()
+    mm_px_resolution = pyv.CameraTools.calculate_mm_px_resolution(cam_data_0)
     scene.add_speckle(part=part,
                                     speckle_path=speckle_path,
                                     mat_data=material_data,
@@ -60,7 +65,7 @@ def sample_scene_no_cam():
 @pytest.fixture
 def sample_stereo_scene(sample_scene_no_cam):
     cam_data_0, part, render_mesh, scene = sample_scene_no_cam
-    stereo_system = pyvale.CameraTools.faceon_stereo_cameras(cam_data_0=cam_data_0,
+    stereo_system = pyv.CameraTools.faceon_stereo_cameras(cam_data_0=cam_data_0,
                                                   stereo_angle=15.0)
     cam0, cam1 = scene.add_stereo_system(stereo_system)
     return (stereo_system, part, render_mesh, scene)
@@ -75,15 +80,15 @@ def sample_stereo_scene(sample_scene_no_cam):
 def test_stereo_convenience_cameras(placement, output, request, sample_scene_no_cam, tmp_path):
     (cam_data_0, _, _, scene) = sample_scene_no_cam
     if placement == "symmetric":
-        stereo_system = pyvale.CameraTools.symmetric_stereo_cameras(
+        stereo_system = pyv.CameraTools.symmetric_stereo_cameras(
             cam_data_0=cam_data_0,
             stereo_angle=15.0)
     elif placement == "faceon":
-        stereo_system = pyvale.CameraTools.faceon_stereo_cameras(
+        stereo_system = pyv.CameraTools.faceon_stereo_cameras(
             cam_data_0=cam_data_0,
             stereo_angle=15.0)
     cam0, cam1 = scene.add_stereo_system(stereo_system)
-    render_data = pyvale.RenderData(cam_data=(stereo_system.cam_data_0,
+    render_data = blender.RenderData(cam_data=(stereo_system.cam_data_0,
                                               stereo_system.cam_data_1),
                                     base_dir=tmp_path)
     image_array = scene.render_single_image(stage_image=True,
@@ -94,7 +99,7 @@ def test_stereo_convenience_cameras(placement, output, request, sample_scene_no_
 
 def test_stereo_deformation(sample_stereo_scene, deformed_images, tmp_path):
     (stereo_system, part, render_mesh, scene) = sample_stereo_scene
-    render_data = pyvale.RenderData(cam_data=(stereo_system.cam_data_0,
+    render_data = blender.RenderData(cam_data=(stereo_system.cam_data_0,
                                               stereo_system.cam_data_1),
                                     base_dir=tmp_path)
     image_arrays = scene.render_deformed_images(render_mesh=render_mesh,
@@ -106,11 +111,11 @@ def test_stereo_deformation(sample_stereo_scene, deformed_images, tmp_path):
     npt.assert_allclose(image_array, deformed_images, atol=2, rtol=0)
 
 def test_cal_images():
-    calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
+    calibration_data = blender.CalibrationData(angle_lims=(-10, 10),
                                               angle_step=5,
                                               plunge_lims=(-5, 5),
                                               plunge_step=5)
-    number_cal_images = pyvale.BlenderTools.number_calibration_images(calibration_data)
+    number_cal_images = blender.Tools.number_calibration_images(calibration_data)
 
     assert number_cal_images == 675
 
@@ -132,7 +137,7 @@ def test_cameras_from_calib(tmp_path, sample_stereo_scene):
 
     params = yaml.safe_load(output.read_text())
 
-    camerastereo = pyvale.CameraStereo.from_calibration(calib_path=output,
+    camerastereo = pyv.CameraStereo.from_calibration(calib_path=output,
                                                         pos_world_0=np.array([0, 0, 500]),
                                                         rot_world_0=Rotation.from_euler(
                                                             "xyz", [0, 0, 0]),
