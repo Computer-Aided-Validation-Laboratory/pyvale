@@ -41,13 +41,15 @@ class FieldScalar(IField):
 
         self._field_key = field_key
         self._elem_dims = elem_dims
+        self._sim_data =  None
+        self._pyvista_vis = None
 
-        self._sim_data = sim_data
-        (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
-            self._sim_data,
-            (self._field_key,),
-            self._elem_dims
-        )
+        # TODO: this will need to change, will probably need to wrap this and
+        # the visualiser in a consistent interface class
+        self._pyvista_grid = None
+
+        # TODO: this will need to change for non connectivity data
+        self.set_sim_data(sim_data)
 
     def set_sim_data(self, sim_data: mh.SimData) -> None:
         """Sets the `SimData` object that will be interpolated to obtain sensor
@@ -60,6 +62,10 @@ class FieldScalar(IField):
             Mooseherder SimData object. Contains a mesh and a simulated
             physical field.
         """
+
+        # TODO:
+        # - this will need to change based on mesh or non-mesh data
+        # - will still need to return a visualiser even when using interpolator
         self._sim_data = sim_data
         (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
             sim_data,
@@ -158,6 +164,8 @@ class FieldScalar(IField):
             An array of sampled (interpolated) values with the following
             dimensions: shape=(num_points,num_components,num_time_steps).
         """
+        # TODO
+        # - Use an if statement here to dispatch between
         return sample_pyvista_grid((self._field_key,),
                                 self._pyvista_grid,
                                 self._sim_data.time,

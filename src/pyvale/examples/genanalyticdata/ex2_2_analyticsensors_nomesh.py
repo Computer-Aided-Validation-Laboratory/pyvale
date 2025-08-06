@@ -3,7 +3,7 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
-
+import copy
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvale as pyv
@@ -16,6 +16,8 @@ def main() -> None:
     # Field slope of 10/lengY in Y
     # Field max in top corner of 220, field min in bottom corner 20
     (sim_data,_) = va.AnalyticCaseFactory.scalar_linear_2d()
+    sim_data_nomesh = copy.deepcopy(sim_data)
+    sim_data_nomesh.connect = None
 
     descriptor = pyv.SensorDescriptorFactory.temperature_descriptor()
 
@@ -37,37 +39,37 @@ def main() -> None:
         sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
     sensor_data = pyv.SensorData(positions=sens_pos,
-                                         sample_times=sample_times)
+                                 sample_times=sample_times)
 
     tc_array = pyv.SensorArrayPoint(sensor_data,
-                                       t_field,
-                                       descriptor)
+                                    t_field,
+                                    descriptor)
 
-    errors_on = {'indep_sys': True,
-                 'rand': True,
-                 'dep_sys': True}
+    # errors_on = {'indep_sys': True,
+    #              'rand': True,
+    #              'dep_sys': True}
 
-    error_chain = []
-    if errors_on['indep_sys']:
-        error_chain.append(pyv.ErrSysOffset(offset=-5.0))
-        error_chain.append(pyv.ErrSysUnif(low=-5.0,
-                                            high=5.0))
-        gen_norm = pyv.GenNormal(std=1.0)
+    # error_chain = []
+    # if errors_on['indep_sys']:
+    #     error_chain.append(pyv.ErrSysOffset(offset=-5.0))
+    #     error_chain.append(pyv.ErrSysUnif(low=-5.0,
+    #                                         high=5.0))
+    #     gen_norm = pyv.GenNormal(std=1.0)
 
-    if errors_on['rand']:
-        error_chain.append(pyv.ErrRandNormPercent(std_percent=1.0))
-        error_chain.append(pyv.ErrRandUnifPercent(low_percent=-1.0,
-                                            high_percent=1.0))
+    # if errors_on['rand']:
+    #     error_chain.append(pyv.ErrRandNormPercent(std_percent=1.0))
+    #     error_chain.append(pyv.ErrRandUnifPercent(low_percent=-1.0,
+    #                                         high_percent=1.0))
 
-    if errors_on['dep_sys']:
-        error_chain.append(pyv.ErrSysDigitisation(bits_per_unit=2**8/100))
-        error_chain.append(pyv.ErrSysSaturation(meas_min=0.0,meas_max=300.0))
+    # if errors_on['dep_sys']:
+    #     error_chain.append(pyv.ErrSysDigitisation(bits_per_unit=2**8/100))
+    #     error_chain.append(pyv.ErrSysSaturation(meas_min=0.0,meas_max=300.0))
 
-    if len(error_chain) > 0:
-        error_integrator = pyv.ErrIntegrator(error_chain,
-                                                  sensor_data,
-                                                  tc_array.get_measurement_shape())
-        tc_array.set_error_integrator(error_integrator)
+    # if len(error_chain) > 0:
+    #     error_integrator = pyv.ErrIntegrator(error_chain,
+    #                                               sensor_data,
+    #                                               tc_array.get_measurement_shape())
+    #     tc_array.set_error_integrator(error_integrator)
 
     measurements = tc_array.get_measurements()
 
