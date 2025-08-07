@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation
 import pyvale.mooseherder as mh
 
 from pyvale.field import IField
-from pyvale.fieldconverter import simdata_to_pyvista
+from pyvale.fieldconverter import (simdata_to_pyvista_interp,
+                                   simdata_to_pyvista_vis)
 from pyvale.fieldsampler import sample_pyvista_grid
 
 
@@ -20,8 +21,8 @@ class FieldScalar(IField):
 
     Implements the `IField` interface.
     """
-    __slots__ = ("_field_key","_elem_dims","_sim_data","_pyvista_grid",
-                 "_pyvista_vis")
+    __slots__ = ("_field_key","_elem_dims","_sim_data","_interpolator",
+                 "_visualiser")
 
     def __init__(self,
                  sim_data: mh.SimData,
@@ -42,11 +43,11 @@ class FieldScalar(IField):
         self._field_key = field_key
         self._elem_dims = elem_dims
         self._sim_data =  None
-        self._pyvista_vis = None
+        self._visualiser = None
 
         # TODO: this will need to change, will probably need to wrap this and
         # the visualiser in a consistent interface class
-        self._pyvista_grid = None
+        self._interpolator = None
 
         # TODO: this will need to change for non connectivity data
         self.set_sim_data(sim_data)
@@ -67,11 +68,12 @@ class FieldScalar(IField):
         # - this will need to change based on mesh or non-mesh data
         # - will still need to return a visualiser even when using interpolator
         self._sim_data = sim_data
-        (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
-            sim_data,
-            (self._field_key,),
-            self._elem_dims
-        )
+
+        self._visualiser = simdata_to_pyvista_vis(sim_data,
+                                                  self._elem_dims)
+        self._interpolator = simdata_to_pyvista_interp(sim_data,
+                                                       (self._field_key,),
+                                                       self._elem_dims)
 
     def get_sim_data(self) -> mh.SimData:
         """Gets the simulation data object associated with this field. Used by
@@ -105,7 +107,7 @@ class FieldScalar(IField):
             Pyvista unstructured grid object containing only a mesh without any
             physical field data attached.
         """
-        return self._pyvista_vis
+        return self._visualiser
 
     def get_all_components(self) -> tuple[str, ...]:
         """Gets the string key for the component of the physical field. A scalar
@@ -164,10 +166,9 @@ class FieldScalar(IField):
             An array of sampled (interpolated) values with the following
             dimensions: shape=(num_points,num_components,num_time_steps).
         """
-        # TODO
-        # - Use an if statement here to dispatch between
+        # TODO: use interface to dispatch to interpolator wrapper
         return sample_pyvista_grid((self._field_key,),
-                                self._pyvista_grid,
+                                self._interpolator,
                                 self._sim_data.time,
                                 points,
                                 times)

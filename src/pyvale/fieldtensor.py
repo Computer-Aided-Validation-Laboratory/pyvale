@@ -10,8 +10,10 @@ from scipy.spatial.transform import Rotation
 import pyvale.mooseherder as mh
 
 from pyvale.field import IField
-from pyvale.fieldconverter import simdata_to_pyvista
+from pyvale.fieldconverter import (simdata_to_pyvista_vis,
+                                   simdata_to_pyvista_interp)
 from pyvale.fieldsampler import sample_pyvista_grid
+#TODO: cythonise these transformations
 from pyvale.fieldtransform import (transform_tensor_2d,
                                    transform_tensor_2d_batch,
                                    transform_tensor_3d,
@@ -26,7 +28,7 @@ class FieldTensor(IField):
 
     Implements the `IField` interface.
     """
-    __slots__ = ("_field_key","_spat_dims","_time_steps","_pyvista_grid",
+    __slots__ = ("_field_key","_elem_dims","_time_steps","_interpolator",
                  "_norm_components","_dev_components")
 
     def __init__(self,
@@ -52,14 +54,13 @@ class FieldTensor(IField):
         self._field_key = field_name
         self._norm_components = norm_comps
         self._dev_components = dev_comps
-        self._spat_dims = elem_dims
-
+        self._elem_dims = elem_dims
         self._sim_data = sim_data
-        (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
-            self._sim_data,
-            self._norm_components+self._dev_components,
-            self._spat_dims
-        )
+        self._visualiser = None
+        self._interpolator = None
+
+        self.set_sim_data(sim_data)
+
 
     def set_sim_data(self, sim_data: mh.SimData) -> None:
         """Sets the `SimData` object that will be interpolated to obtain sensor
@@ -73,11 +74,13 @@ class FieldTensor(IField):
             physical field.
         """
         self._sim_data = sim_data
-        (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
+        self._visualiser = simdata_to_pyvista_vis(sim_data,self._elem_dims)
+        self._interpolator = simdata_to_pyvista_interp(
             sim_data,
-            self._norm_components+self._dev_components,
-            self._spat_dims
+            self._norm_components + self._dev_components,
+            self._elem_dims,
         )
+
 
     def get_sim_data(self) -> mh.SimData:
         """Gets the simulation data object associated with this field. Used by
@@ -111,7 +114,7 @@ class FieldTensor(IField):
             Pyvista unstructured grid object containing only a mesh without any
             physical field data attached.
         """
-        return self._pyvista_vis
+        return self._visualiser
 
     def get_all_components(self) -> tuple[str, ...]:
         """Gets the string keys for the component of the physical field. For
@@ -173,7 +176,7 @@ class FieldTensor(IField):
             dimensions: shape=(num_points,num_components,num_time_steps).
         """
         field_data =  sample_pyvista_grid(self._norm_components+self._dev_components,
-                                    self._pyvista_grid,
+                                    self._interpolator,
                                     self._sim_data.time,
                                     points,
                                     times)
@@ -194,7 +197,7 @@ class FieldTensor(IField):
             rmat = angles[0].as_matrix().T
 
             #TODO: assumes 2D in the x-y plane
-            if self._spat_dims == 2:
+            if self._elem_dims == 2:
                 rmat = rmat[:2,:2]
                 field_data = transform_tensor_2d_batch(rmat,field_data)
             else:
@@ -202,7 +205,7 @@ class FieldTensor(IField):
 
         else: #  Need to rotate each sensor using individual rotation = loop :(
             #TODO: assumes 2D in the x-y plane
-            if self._spat_dims == 2:
+            if self._elem_dims == 2:
                 for ii,rr in enumerate(angles):
                     rmat = rr.as_matrix().T
                     rmat = rmat[:2,:2]

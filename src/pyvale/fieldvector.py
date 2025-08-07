@@ -10,12 +10,13 @@ from scipy.spatial.transform import Rotation
 import pyvale.mooseherder as mh
 
 from pyvale.field import IField
-from pyvale.fieldconverter import simdata_to_pyvista
+from pyvale.fieldconverter import (simdata_to_pyvista_interp,
+                                   simdata_to_pyvista_vis)
 from pyvale.fieldsampler import sample_pyvista_grid
 from pyvale.fieldtransform import (transform_vector_2d,
-                                        transform_vector_2d_batch,
-                                        transform_vector_3d,
-                                        transform_vector_3d_batch)
+                                   transform_vector_2d_batch,
+                                   transform_vector_3d,
+                                   transform_vector_3d_batch)
 
 class FieldVector(IField):
     """Class for sampling (interpolating) vector fields from simulations to
@@ -23,8 +24,8 @@ class FieldVector(IField):
 
     Implements the `IField` interface.
     """
-    __slots__ = ("_field_key","_components","_spat_dims","_sim_data",
-                 "_pyvista_grid","_pyvista_vis")
+    __slots__ = ("_field_key","_components","_elem_dims","_sim_data",
+                 "_interpolator","_visualiser")
 
     def __init__(self,
                  sim_data: mh.SimData,
@@ -47,14 +48,12 @@ class FieldVector(IField):
         """
         self._field_key = field_key
         self._components = components
-        self._spat_dims = elem_dims
-
+        self._elem_dims = elem_dims
         self._sim_data = sim_data
-        (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
-            self._sim_data,
-            self._components,
-            self._spat_dims
-        )
+        self._interpolator = None
+        self._visualiser = None
+
+        self.set_sim_data(sim_data)
 
     def set_sim_data(self, sim_data: mh.SimData) -> None:
         """Sets the `SimData` object that will be interpolated to obtain sensor
@@ -68,11 +67,11 @@ class FieldVector(IField):
             physical field.
         """
         self._sim_data = sim_data
-        (self._pyvista_grid,self._pyvista_vis) = simdata_to_pyvista(
-            sim_data,
-            self._components,
-            self._spat_dims
-        )
+        self._visualiser = simdata_to_pyvista_vis(sim_data,
+                                                  self._elem_dims)
+        self._interpolator = simdata_to_pyvista_interp(sim_data,
+                                                       self._components,
+                                                       self._elem_dims)
 
     def get_sim_data(self) -> mh.SimData:
         """Gets the simulation data object associated with this field. Used by
@@ -106,7 +105,7 @@ class FieldVector(IField):
             Pyvista unstructured grid object containing only a mesh without any
             physical field data attached.
         """
-        return self._pyvista_vis
+        return self._visualiser
 
     def get_all_components(self) -> tuple[str, ...]:
         """Gets the string keys for the component of the physical field. For
@@ -168,8 +167,9 @@ class FieldVector(IField):
             dimensions: shape=(num_points,num_components,num_time_steps).
         """
 
+        # TODO: Need interface call here
         field_data = sample_pyvista_grid(self._components,
-                                self._pyvista_grid,
+                                self._interpolator,
                                 self._sim_data.time,
                                 points,
                                 times)
@@ -189,7 +189,7 @@ class FieldVector(IField):
             rmat = angles[0].as_matrix().T
 
             #TODO: assumes 2D in the x-y plane
-            if self._spat_dims == 2:
+            if self._elem_dims == 2:
                 rmat = rmat[:2,:2]
                 field_data = transform_vector_2d_batch(rmat,field_data)
             else:
@@ -197,7 +197,7 @@ class FieldVector(IField):
 
         else: # Need to rotate each sensor using individual rotation = loop :(
             #TODO: assumes 2D in the x-y plane
-            if self._spat_dims == 2:
+            if self._elem_dims == 2:
                 for ii,rr in enumerate(angles):
                     rmat = rr.as_matrix().T
                     rmat = rmat[:2,:2]

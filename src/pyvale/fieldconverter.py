@@ -14,12 +14,13 @@ import pyvista as pv
 from pyvista import CellType
 import pyvale.mooseherder as mh
 
-def simdata_to_pyvista(sim_data: mh.SimData,
-                        components: tuple[str,...] | None,
-                        elem_dims: int
-                        ) -> tuple[pv.UnstructuredGrid,pv.UnstructuredGrid]:
+
+def simdata_to_pyvista_interp(sim_data: mh.SimData,
+                              components: tuple[str,...] | None,
+                              elem_dims: int
+                              ) -> pv.UnstructuredGrid:
     """Converts the mesh and field data in a `SimData` object into a pyvista
-    UnstructuredGrid for sampling (interpolating) the data and visualisation.
+    UnstructuredGrid for interpolating the data.
 
     Parameters
     ----------
@@ -34,9 +35,60 @@ def simdata_to_pyvista(sim_data: mh.SimData,
 
     Returns
     -------
-    tuple[pv.UnstructuredGrid,pv.UnstructuredGrid]
-        The first UnstructuredGrid has the field components attached as dataset
-        arrays. The second has no field data attached for visualisation.
+    pv.UnstructuredGrid
+        As pyvista grid with attached field data to allow for interpolation on
+        the mesh using the element shape functions.
+    """
+    pv_grid = _gen_pyvista_grid(sim_data,elem_dims)
+
+    if components is not None and sim_data.node_vars is not None:
+        for cc in components:
+            pv_grid[cc] = sim_data.node_vars[cc]
+
+    return pv_grid
+
+
+def simdata_to_pyvista_vis(sim_data: mh.SimData,
+                           elem_dims: int) -> pv.UnstructuredGrid:
+    """Converts the mesh and field data in a `SimData` object into a pyvista
+    UnstructuredGrid for visualisation.
+
+    Parameters
+    ----------
+    sim_data : mh.SimData
+        Object containing a mesh and associated field data from a simulation.
+    elem_dim : int
+        Number of spatial dimensions (2 or 3) used to determine the element
+        types in the mesh from the number of nodes per element.
+
+    Returns
+    -------
+    pv.UnstructuredGrid
+        A pyvista unstructured grid that has no field data attached for
+        visualisation purposes.
+    """
+
+    return _gen_pyvista_grid(sim_data,elem_dims)
+
+
+def _gen_pyvista_grid(sim_data: mh.SimData,
+                      elem_dims: int) -> pv.UnstructuredGrid:
+    """Helper function for generating a blank pyvista unstructure grid mesh from
+    a SimData object.
+
+    Parameters
+    ----------
+    sim_data : mh.SimData
+        Object containing a mesh and associated field data from a simulation.
+    elem_dims : int
+        Number of spatial dimensions (2 or 3) used to determine the element
+        types in the mesh from the number of nodes per element.
+
+
+    Returns
+    -------
+    pv.UnstructuredGrid
+        A pyvista unstructured grid that has no field data attached.
     """
     flat_connect = np.array([],dtype=np.int64)
     cell_types = np.array([],dtype=np.int64)
@@ -65,13 +117,7 @@ def simdata_to_pyvista(sim_data: mh.SimData,
 
     points = sim_data.coords
     pv_grid = pv.UnstructuredGrid(cells, cell_types, points)
-    pv_grid_vis = pv.UnstructuredGrid(cells, cell_types, points)
-
-    if components is not None and sim_data.node_vars is not None:
-        for cc in components:
-            pv_grid[cc] = sim_data.node_vars[cc]
-
-    return (pv_grid,pv_grid_vis)
+    return pv_grid
 
 
 def scale_length_units(scale: float,
@@ -208,7 +254,7 @@ def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
 
     return face_data
 
-
+#TODO: make this support triangular prisms in 3D.
 def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType | None:
     """Helper function to identify the pyvista element type in the mesh.
 
@@ -253,7 +299,7 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType | Non
 
     return cell_type
 
-
+#TODO: make this support triangular prisms in 3D.
 def _exodus_to_pyvista_connect(cell_type: CellType,
                                connect: np.ndarray) -> np.ndarray:
     """Helper function that specifies the nodal winding map for higher order
@@ -290,7 +336,7 @@ def _exodus_to_pyvista_connect(cell_type: CellType,
 
     return connect
 
-
+#TODO: make this support triangular prisms in 3D.
 def _get_surf_map(nodes_per_elem: int) -> np.ndarray:
     """Helper function specifying the mapping from 3D tet and hex elements to
     the individual faces consistent with the exodus output format.

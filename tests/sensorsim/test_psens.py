@@ -46,6 +46,7 @@ import pyvale.verif.psenstensor as psenstensor
 )
 def test_gold_combined(get_sensors: Callable[[], Dict[str, Any]]) -> None:
     sensors = get_sensors()
+
     fails = psens.check_gold_measurements(sensors)
     assert not fails, "\n".join(fails)
 

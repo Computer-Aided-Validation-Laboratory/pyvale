@@ -4,45 +4,28 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+from pyvale.fieldinterp import FieldInterp
 import numpy as np
 import pyvista as pv
-from pyvale.field import IField
-from pyvale.sensordata import SensorData
-from pyvale.integratorfactory import build_spatial_averager
+from scipy.spatial.transform import Rotation
 
 
-def sample_field_with_sensor_data(field: IField, sensor_data: SensorData
-                                  ) -> np.ndarray:
-    """Samples (interpolates) an `IField` object using the parameters specified
-    in the `SensorData` object.
+class FieldInterpMesh(FieldInterp):
 
-    Parameters
-    ----------
-    field : IField
-        The simulated physical field that the sensors will samples from. This is
-        normally a `FieldScalar`, `FieldVector` or `FieldTensor`.
-    sensor_data : SensorData
-        Contains sensor array parameters including: number of sensors, positions
-        and sample times. See the `SensorData` class for more information.
+    def __init__() -> None:
+          pass
 
-    Returns
-    -------
-    np.ndarray
-        Array of sampled sensor measurements with shape=(num_sensors,
-        num_field_components,num_time_steps).
-    """
-    if sensor_data.spatial_averager is None:
-        return field.sample_field(sensor_data.positions,
-                                  sensor_data.sample_times,
-                                  sensor_data.angles)
-
-    spatial_integrator = build_spatial_averager(field,sensor_data)
-    return spatial_integrator.calc_averages()
+    def interp_field(self,
+                    points: np.ndarray,
+                    times: np.ndarray | None = None,
+                    angles: tuple[Rotation,...] | None = None,
+                    ) -> np.ndarray:
+        return sample_pyvista_grid()
 
 
-# TODO: move this into the fieldinterpmesh object
+
 def sample_pyvista_grid(components: tuple[str,...],
-                        pyvista_grid: pv.UnstructuredGrid,
+                        pyvista_interp: pv.UnstructuredGrid,
                         sim_time_steps: np.ndarray,
                         points: np.ndarray,
                         sample_times: np.ndarray | None = None
@@ -61,7 +44,7 @@ def sample_pyvista_grid(components: tuple[str,...],
         String keys for the components to be sampled in the pyvista grid object.
         Useful for only interpolating the field components of interest for speed
         and memory reduction.
-    pyvista_grid : pv.UnstructuredGrid
+    pyvista_interp : pv.UnstructuredGrid
         Pyvista grid object containing the simulation mesh and the components of
         the physical field that will be sampled.
     sim_time_steps : np.ndarray
@@ -83,7 +66,7 @@ def sample_pyvista_grid(components: tuple[str,...],
         num_field_components,num_time_steps).
     """
     pv_points = pv.PolyData(points)
-    sample_data = pv_points.sample(pyvista_grid)
+    sample_data = pv_points.sample(pyvista_interp)
 
     n_comps = len(components)
     (n_sensors,n_time_steps) = np.array(sample_data[components[0]]).shape
@@ -106,6 +89,3 @@ def sample_pyvista_grid(components: tuple[str,...],
                                                     sample_at_sim_time[:,ii,:])
 
     return sample_at_spec_time
-
-
-

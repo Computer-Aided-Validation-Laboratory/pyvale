@@ -14,5 +14,5 @@ of the point sensor simulation toolbox in pyvale.
 Specifically, this module contains constants used for verification testing.
 """
 
-GOLD_PATH: Path = Path.cwd() / "tests" / "pointsensors" / "gold"
+GOLD_PATH: Path = Path.cwd() / "tests" / "sensorsim" / "gold"
 GOLD_SEED: int = 123

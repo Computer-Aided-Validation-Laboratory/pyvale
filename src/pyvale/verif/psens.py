@@ -21,7 +21,7 @@ import pyvale.verif.psensconst as psensconst
 
 
 def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
-    sim_dims = pyv.get_sim_dims(sim_data)
+    sim_dims = pyv.SimTools.get_sim_dims(sim_data)
     sample_times = {}
 
     sample_times["sim"] = None
@@ -104,17 +104,18 @@ def gen_gold_measurements(sens_dict: dict[str,pyv.SensorArrayPoint]) -> None:
 
 def check_gold_measurements(sens_dict: dict[str,pyv.SensorArrayPoint]) -> list[str]:
     fails = []
+
     for ss in sens_dict:
         measurements = sens_dict[ss].calc_measurements()
+        gold_path = psensconst.GOLD_PATH / f"{ss}.npy"
 
-        load_path = psensconst.GOLD_PATH / f"{ss}.npy"
-        if load_path.is_file():
-            gold = np.load(load_path)
+        if gold_path.is_file():
+            gold = np.load(gold_path)
 
             if not np.allclose(measurements,gold):
                 fails.append(f"Gold check failed for: {ss}")
         else:
-            fails.append(f"Gold file does not exist for: {ss}")
+            fails.append(f"Gold file does not exist for: {ss}, path: {gold_path}")
 
     return fails
 

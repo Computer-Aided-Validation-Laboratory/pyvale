@@ -13,13 +13,14 @@ import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 # See: https://github.com/pyvista/pyvista/discussions/2928
 #NOTE: causes output to console to be suppressed unfortunately
 #NOTE: May 2025, the console suppression output is fixed but the vtk import is
-#still required tro make latex work.
+#still required to make latex work.
 import pyvista as pv
 
 import pyvale.mooseherder as mh
 
 from pyvale.sensorarraypoint import SensorArrayPoint
-from pyvale.fieldconverter import simdata_to_pyvista
+from pyvale.fieldconverter import (simdata_to_pyvista_vis,
+                                   simdata_to_pyvista_interp)
 from pyvale.visualopts import (VisOptsSimSensors,VisOptsImageSave)
 from pyvale.visualtools import (create_pv_plotter,
                                      get_colour_lims,
@@ -195,9 +196,8 @@ def plot_sim_mesh(sim_data: mh.SimData,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    (_,sim_vis) = simdata_to_pyvista(sim_data=sim_data,
-                                    components=None,
-                                    elem_dims=elem_dims)
+    (_,sim_vis) = simdata_to_pyvista_vis(sim_data=sim_data,
+                                         elem_dims=elem_dims)
 
     pv_plot = create_pv_plotter(vis_opts)
     pv_plot.add_mesh(sim_vis,
@@ -240,9 +240,9 @@ def plot_sim_data(sim_data: mh.SimData,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    (_,sim_vis) = simdata_to_pyvista(sim_data,
-                                              (component,),
-                                              elem_dims)
+    (_,sim_vis) = simdata_to_pyvista_interp(sim_data,
+                                            (component,),
+                                            elem_dims)
 
     sim_vis[component] = sim_data.node_vars[component][:,time_step]
 
