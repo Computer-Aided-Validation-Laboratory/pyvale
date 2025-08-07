@@ -28,7 +28,6 @@ Useful for experimental design, sensor placement optimisation, testing simulatio
    examples/examples
    api_py
    api_cpp
-   dev_guide/dev_guide
    cite
 
 Contributors
