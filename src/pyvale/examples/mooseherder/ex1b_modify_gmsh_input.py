@@ -15,7 +15,9 @@ We start by importing the packages we need for this example.
 """
 
 from pathlib import Path
-import pyvale as pyv
+
+# Pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import InputModifier
 
 #%%
@@ -23,21 +25,13 @@ from pyvale.mooseherder import InputModifier
 # hole in the center which we retrieve from pyvale's simulation library. We then
 # use this to create an input modifier which has the correct comment string '//'
 # for gmsh and the required line terminator ";".
-gmsh_input = pyv.DataSet.sim_case_gmsh_file_path(case_num=17)
+gmsh_input = dataset.sim_case_gmsh_file_path(case_num=17)
 gmsh_mod = InputModifier(gmsh_input, "//", ";")
 
 #%%
 # Note that the input modifier class only looks for variables between specified
-# sentinel characters in comment lines which starts with _* and ends with **.
-# Here is an example of what the variable block looks like in the gmsh input
-# file, noting the comment '//' followed by the sentinel characters '_*' to
-# start and '**' to end:
-#
-#//_* MOOSEHERDER VARIABLES - START
-#lengX = 10e-3;   // m
-#lengY = 10e-3;   // m
-#lengZ = 10e-3;   // m
-#//_* MOOSEHERDER VARIABLES - END
+# sentinel characters in comment lines which starts with '_*' and ends with '**'
+# . An example variable block can be found in the gmsh input file.
 #
 # We then print the variables found in the gmsh input file to the console which
 # are returned to us as a dictionary keyed by the variables string name in the

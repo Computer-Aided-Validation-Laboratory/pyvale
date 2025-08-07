@@ -10,8 +10,10 @@ import time
 import numpy as np
 from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
+
+# Pyvale imports
+import pyvale.sensorsim as sens
 import pyvale.mooseherder as mh
-import pyvale as pyv
 
 # TODO
 # - Fix the image averaging function to use cython
@@ -34,17 +36,17 @@ def main() -> None:
     # This a path to an exodus *.e output file from MOOSE, this can be
     # replaced with a path to your own simulation file
     sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case21_out.e"
-    #sim_path = pyv.DataSet.render_mechanical_3d_path()
+    #sim_path = sens.DataSet.render_mechanical_3d_path()
 
     disp_comps = ("disp_x","disp_y","disp_z")
 
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
     # Scale m -> mm
-    sim_data = pyv.scale_length_units(1000.0,sim_data,disp_comps)
+    sim_data = sens.scale_length_units(1000.0,sim_data,disp_comps)
 
     # Extracts the surface mesh from a full 3d simulation for rendering
-    render_mesh = pyv.create_render_mesh(sim_data,
+    render_mesh = sens.create_render_mesh(sim_data,
                                         ("disp_y","disp_x"),
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
@@ -59,7 +61,7 @@ def main() -> None:
     meshes[1].set_pos(np.array((0.0,12.5,0.0)))
     meshes[1].set_rot(Rotation.from_euler("zyx",(0.0, 0.0, 0.0),degrees=True))
     meshes[1].fields_disp = None
-    coords_all = pyv.get_all_coords_world(meshes)
+    coords_all = sens.get_all_coords_world(meshes)
 
     print()
     print(80*"-")
@@ -85,7 +87,7 @@ def main() -> None:
     fov_scale_factor: float = 1.0
 
     (roi_pos_world,
-     cam_pos_world) = pyv.CameraTools.pos_fill_frame(
+     cam_pos_world) = sens.CameraTools.pos_fill_frame(
          coords_world=coords_all,
          pixel_num=pixel_num,
          pixel_size=pixel_size,
@@ -94,7 +96,7 @@ def main() -> None:
          frame_fill=fov_scale_factor,
      )
 
-    cam_data = pyv.CameraData(
+    cam_data = sens.CameraData(
         pixels_num=pixel_num,
         pixels_size=pixel_size,
         pos_world=cam_pos_world,
@@ -115,7 +117,7 @@ def main() -> None:
     print(cam_data.world_to_cam_mat)
     print(80*"-")
 
-    scene = pyv.RenderScene([cam_data,cam_data],meshes)
+    scene = sens.RenderScene([cam_data,cam_data],meshes)
 
     frames_per_camera = (scene.meshes[0].fields_render.shape[1]
                         *scene.meshes[0].fields_render.shape[2])
@@ -139,8 +141,8 @@ def main() -> None:
     print(80*"=")
     print("IN MEM: Raster Loop start")
 
-    raster_opts = pyv.RasterOpts(parallel=8)
-    renderer = pyv.RasterNumpy(raster_opts)
+    raster_opts = sens.RasterOpts(parallel=8)
+    renderer = sens.RasterNumpy(raster_opts)
 
     time_start_loop = time.perf_counter()
 
@@ -183,7 +185,7 @@ def main() -> None:
 
     plot_on = True
     if plot_on:
-        (fig,ax) = pyv.plot_field_image(images[1][:,:,-1,0],
+        (fig,ax) = sens.plot_field_image(images[1][:,:,-1,0],
                                         title_str="Disp. y, [mm]")
 
     plt.show()

@@ -16,8 +16,11 @@ Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as sens
+import pyvale.dataset as dataset
 
 #%%
 # First we are going to build a custom sensor array so we can control how
@@ -29,16 +32,16 @@ import pyvale as pyv
 # area averaged without and area averaging error. The first part of this is
 # the same as the 3D thermal example we have used previously then we control
 # the area averaging using the sensor data object.
-data_path = pyv.DataSet.thermal_2d_path()
+data_path = dataset.thermal_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)
 
-descriptor = pyv.SensorDescriptorFactory.temperature_descriptor()
+descriptor = sens.SensorDescriptorFactory.temperature_descriptor()
 
 field_key = "temperature"
-t_field = pyv.FieldScalar(sim_data,
+t_field = sens.FieldScalar(sim_data,
                                 field_key=field_key,
                                 elem_dims=2)
 
@@ -46,7 +49,7 @@ n_sens = (4,1,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,50.0)
 z_lims = (0.0,0.0)
-sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 sample_times = np.linspace(0.0,np.max(sim_data.time),50) # | None
 
@@ -59,15 +62,15 @@ sample_times = np.linspace(0.0,np.max(sim_data.time),50) # | None
 # additional integration point requires an additional interpolation of the
 # physical field.
 sensor_dims = np.array([20.0,20.0,0]) # units = mm
-sensor_data = pyv.SensorData(positions=sens_pos,
+sensor_data = sens.SensorData(positions=sens_pos,
                                 sample_times=sample_times,
-                                spatial_averager=pyv.EIntSpatialType.QUAD4PT,
+                                spatial_averager=sens.EIntSpatialType.QUAD4PT,
                                 spatial_dims=sensor_dims)
 
 #%%
 # We have added spatial averaging to our sensor data so we can now create
 # our sensor array as we have done in previous examples.
-tc_array = pyv.SensorArrayPoint(sensor_data,
+tc_array = sens.SensorArrayPoint(sensor_data,
                                 t_field,
                                 descriptor)
 
@@ -75,8 +78,8 @@ tc_array = pyv.SensorArrayPoint(sensor_data,
 # We are also going to create a field error that includes area averaging as
 # an error. We do this by adding the option to our field error data class
 # specifying rectangular integration with 1 point.
-area_avg_err_data = pyv.ErrFieldData(
-    spatial_averager=pyv.EIntSpatialType.RECT1PT,
+area_avg_err_data = sens.ErrFieldData(
+    spatial_averager=sens.EIntSpatialType.RECT1PT,
     spatial_dims=np.array((5.0,5.0)),
 )
 
@@ -85,9 +88,9 @@ area_avg_err_data = pyv.ErrFieldData(
 # with any of our other error models but we will isolate it for now so we
 # can see what it does.
 err_chain = []
-err_chain.append(pyv.ErrSysField(t_field,
+err_chain.append(sens.ErrSysField(t_field,
                                     area_avg_err_data))
-error_int = pyv.ErrIntegrator(err_chain,
+error_int = sens.ErrIntegrator(err_chain,
                                 sensor_data,
                                 tc_array.get_measurement_shape())
 tc_array.set_error_integrator(error_int)
@@ -107,11 +110,11 @@ time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 print(f"These are the last {time_last} virtual measurements of sensor "
         + f"{sens_print}:")
 
-pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
+sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 
 print(80*"-")
 
-pyv.plot_time_traces(tc_array,field_key)
+sens.plot_time_traces(tc_array,field_key)
 plt.show()
 
 #%%

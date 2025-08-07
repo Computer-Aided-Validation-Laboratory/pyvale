@@ -29,7 +29,9 @@ We start by importing what we need for this example.
 import time
 from pathlib import Path
 import numpy as np
-import pyvale as pyv
+
+#pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 MooseConfig,
@@ -45,7 +47,7 @@ from pyvale.mooseherder import (MooseHerd,
 # the code below head to that example. For now we use this to generate multiple
 # sets of outputs and then use a sweep reader to read this all in below.
 
-moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
+moose_input = dataset.element_case_input_path(dataset.EElemTest.HEX20)
 moose_modifier = InputModifier(moose_input,'#','')
 
 config = {'main_path': Path.home()/ 'moose',

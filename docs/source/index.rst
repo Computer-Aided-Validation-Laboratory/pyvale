@@ -24,11 +24,9 @@ Useful for experimental design, sensor placement optimisation, testing simulatio
    :caption: Contents:
 
    guide
-   install
-   examples
+   install/install
+   examples/examples
    api_py
-   custom_sensors
-   dev_guide
    api_cpp
    cite
 

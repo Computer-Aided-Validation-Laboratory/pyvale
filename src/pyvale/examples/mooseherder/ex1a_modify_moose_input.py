@@ -15,7 +15,9 @@ We start by importing the packages we need for this example.
 """
 
 from pathlib import Path
-import pyvale as pyv
+
+# Pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import InputModifier
 
 #%%
@@ -24,25 +26,13 @@ from pyvale.mooseherder import InputModifier
 # character(s) as '#' and moose input files do not have a line end character so
 # we pass an empty string. In the next example we will modify a gmsh script
 # where we will need to specify a line ending character.
-moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
+moose_input = dataset.element_case_input_path(dataset.EElemTest.HEX20)
 moose_mod = InputModifier(moose_input, comment_chars="#", end_chars="")
 
 #%%
 # Note that the input modifier class only looks for variables between specified
-# sentinel characters in comment lines which starts with _* and ends with **.
-# Here is an example of what the variable block looks like in the moose input
-# file, noting the comment '#' followed by the sentinel characters '_*' to start
-# and '**' to end:
-#
-##_* MOOSEHERDER VARIABLES - START
-#endTime = 20
-#timeStep = 1
-#
-## Geometric Properties
-#lengX = 10e-3   # m
-#lengY = 10e-3   # m
-#lengZ = 10e-3   # m
-##_* MOOSEHERDER VARIABLES - END
+# sentinel characters in comment lines which starts with '_*' and ends with '**'
+# . An example of what variable block can be found in the moose input file.
 #
 # We then print the variables found in the moose input file to the console which
 # are returned to us as a dictionary keyed by the variables string name in the

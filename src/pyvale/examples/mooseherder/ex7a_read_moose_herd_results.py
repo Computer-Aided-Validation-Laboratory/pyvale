@@ -25,7 +25,10 @@ We start by importing what we need for this example.
 import time
 from pathlib import Path
 import numpy as np
-import pyvale as pyv
+
+#pyvale imports
+import pyvale.sensorsim as sens
+import pyvale.dataset as dataset
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 MooseConfig,
@@ -41,7 +44,7 @@ from pyvale.mooseherder import (MooseHerd,
 # output is in the standard pyvale-output directory we have used previously.
 # In the next section we will read the output from the parameter sweep below.
 
-moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
+moose_input = dataset.element_case_input_path(dataset.EElemTest.HEX20)
 moose_modifier = InputModifier(moose_input,'#','')
 
 config = {'main_path': Path.home()/ 'moose',
@@ -109,7 +112,7 @@ print()
 # includes a detailed description of each of the relevant fields you might want
 # to use for post-processing.
 sim_data_list = sweep_reader.read_results_once(output_files[0])
-pyv.SimTools.print_sim_data(sim_data_list[0])
+sens.SimTools.print_sim_data(sim_data_list[0])
 
 #%%
 # We can use the sweep reader to read results for each simulation chain in the

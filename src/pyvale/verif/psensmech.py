@@ -5,9 +5,10 @@
 #===============================================================================
 import numpy as np
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as sens
 import pyvale.verif.psens as psens
 import pyvale.verif.psensconst as psensconst
+import pyvale.dataset as dataset
 
 """
 DEVELOPER VERIFICATION MODULE
@@ -21,25 +22,25 @@ field point sensors.
 """
 
 def simdata_mech_2d() -> mh.SimData:
-    data_path = pyv.DataSet.mechanical_2d_path()
+    data_path = dataset.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-    sim_data = pyv.scale_length_units(scale=1000.0,
+    sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
                                       disp_comps=("disp_x","disp_y"))
     return sim_data
 
 
 def simdata_mech_3d() -> mh.SimData:
-    data_path = pyv.DataSet.element_case_output_path(pyv.EElemTest.HEX20)
+    data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_comps = ("disp_x","disp_y","disp_z")
-    sim_data = pyv.scale_length_units(scale=1000.0,
+    sim_data = sens.scale_length_units(scale=1000.0,
                                         sim_data=sim_data,
                                         disp_comps=field_comps)
     return sim_data
 
 def sens_pos_2d() -> dict[str,np.ndarray]:
-    sim_dims = pyv.SimTools.get_sim_dims(simdata_mech_2d())
+    sim_dims = sens.SimTools.get_sim_dims(simdata_mech_2d())
     sens_pos = {}
 
     x_lims = sim_dims["x"]
@@ -47,10 +48,10 @@ def sens_pos_2d() -> dict[str,np.ndarray]:
     z_lims = (0,0)
 
     n_sens = (1,4,1)
-    sens_pos["line-4"] = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-4"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
     n_sens = (2,3,1)
-    sens_pos["grid-23"] = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["grid-23"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
     return sens_pos
 
@@ -96,19 +97,19 @@ def sens_pos_3d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
     return pos_lock
 
 
-def sens_data_2d_dict() -> dict[str,pyv.SensorData]:
+def sens_data_2d_dict() -> dict[str,sens.SensorData]:
     return psens.sens_data_dict(simdata_mech_2d(),sens_pos_2d())
 
 
-def sens_data_3d_dict() -> dict[str,pyv.SensorData]:
+def sens_data_3d_dict() -> dict[str,sens.SensorData]:
     return psens.sens_data_dict(simdata_mech_3d(),sens_pos_3d())
 
 
-def err_chain_field(field: pyv.IField,
+def err_chain_field(field: sens.IField,
                     sens_pos: np.ndarray,
                     samp_times: np.ndarray | None,
                     pos_lock: np.ndarray | None,
-                    ) -> list[pyv.IErrCalculator]:
+                    ) -> list[sens.IErrCalculator]:
 
     if samp_times is None:
         samp_times = field.get_time_steps()
@@ -118,17 +119,17 @@ def err_chain_field(field: pyv.IField,
 
     time_offset = np.full((samp_times.shape[0],),0.1)
 
-    pos_rand = pyv.GenNormal(std=1.0,
+    pos_rand = sens.GenNormal(std=1.0,
                              mean=0.0,
                              seed=psensconst.GOLD_SEED) # units = mm
-    time_rand = pyv.GenNormal(std=0.1,
+    time_rand = sens.GenNormal(std=0.1,
                               mean=0.0,
                               seed=psensconst.GOLD_SEED) # units = s
-    ang_rand = pyv.GenUniform(low=-1.0,
+    ang_rand = sens.GenUniform(low=-1.0,
                               high=1.0,
                               seed=psensconst.GOLD_SEED)
 
-    field_err_data = pyv.ErrFieldData(
+    field_err_data = sens.ErrFieldData(
         pos_offset_xyz=pos_offset_xyz,
         time_offset=time_offset,
         pos_rand_xyz=(pos_rand,pos_rand,pos_rand),
@@ -138,57 +139,57 @@ def err_chain_field(field: pyv.IField,
     )
 
     err_chain = []
-    err_chain.append(pyv.ErrSysField(field,
+    err_chain.append(sens.ErrSysField(field,
                                      field_err_data))
     return err_chain
 
 
-def err_chain_field_dep(field: pyv.IField,
+def err_chain_field_dep(field: sens.IField,
                         sens_pos: np.ndarray,
                         samp_times: np.ndarray | None,
                         pos_lock: np.ndarray | None,
-                        ) -> list[pyv.IErrCalculator]:
+                        ) -> list[sens.IErrCalculator]:
 
     if samp_times is None:
         samp_times = field.get_time_steps()
 
     time_offset = 2.0*np.ones_like(samp_times)
-    time_error_data = pyv.ErrFieldData(time_offset=time_offset)
+    time_error_data = sens.ErrFieldData(time_offset=time_offset)
 
     pos_offset = -1.0*np.ones_like(sens_pos)
-    pos_error_data = pyv.ErrFieldData(pos_offset_xyz=pos_offset,
+    pos_error_data = sens.ErrFieldData(pos_offset_xyz=pos_offset,
                                       pos_lock_xyz=pos_lock)
 
     angle_offset = np.ones_like(sens_pos)
-    angle_error_data = pyv.ErrFieldData(ang_offset_zyx=angle_offset)
+    angle_error_data = sens.ErrFieldData(ang_offset_zyx=angle_offset)
 
     err_chain = []
-    err_chain.append(pyv.ErrSysField(field,
+    err_chain.append(sens.ErrSysField(field,
                                     time_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-    err_chain.append(pyv.ErrSysField(field,
+                                    sens.EErrDep.DEPENDENT))
+    err_chain.append(sens.ErrSysField(field,
                                     time_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-    err_chain.append(pyv.ErrSysField(field,
+                                    sens.EErrDep.DEPENDENT))
+    err_chain.append(sens.ErrSysField(field,
                                     pos_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-    err_chain.append(pyv.ErrSysField(field,
+                                    sens.EErrDep.DEPENDENT))
+    err_chain.append(sens.ErrSysField(field,
                                     pos_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-    err_chain.append(pyv.ErrSysField(field,
+                                    sens.EErrDep.DEPENDENT))
+    err_chain.append(sens.ErrSysField(field,
                                     angle_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-    err_chain.append(pyv.ErrSysField(field,
+                                    sens.EErrDep.DEPENDENT))
+    err_chain.append(sens.ErrSysField(field,
                                     angle_error_data,
-                                    pyv.EErrDep.DEPENDENT))
+                                    sens.EErrDep.DEPENDENT))
     return err_chain
 
 
-def err_chain_2d_dict(field: pyv.IField,
+def err_chain_2d_dict(field: sens.IField,
                       sens_pos: np.ndarray,
                       samp_times: np.ndarray | None,
                       pos_lock: np.ndarray | None
-                      ) -> dict[str,list[pyv.IErrCalculator]]:
+                      ) -> dict[str,list[sens.IErrCalculator]]:
     err_cases = {}
     err_cases["none"] = None
     err_cases["basic"] = psens.err_chain_basic()
@@ -205,11 +206,11 @@ def err_chain_2d_dict(field: pyv.IField,
     return err_cases
 
 
-def err_chain_3d_dict(field: pyv.IField,
+def err_chain_3d_dict(field: sens.IField,
                       sens_pos: np.ndarray,
                       samp_times: np.ndarray | None,
                       pos_lock: np.ndarray | None
-                      ) -> dict[str,list[pyv.IErrCalculator]]:
+                      ) -> dict[str,list[sens.IErrCalculator]]:
     err_cases = {}
     err_cases["none"] = None
     err_cases["basic"] = psens.err_chain_basic()

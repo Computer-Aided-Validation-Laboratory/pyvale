@@ -18,8 +18,11 @@ Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 
 from pathlib import Path
 import matplotlib.pyplot as plt
+
+# Pyvale imports
+import pyvale.sensorsim as sens
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.dataset as dataset
 
 #%%
 # Here we load a pre-generated MOOSE finite element simulation dataset that
@@ -28,13 +31,13 @@ import pyvale as pyv
 # to your own MOOSE simulation with exodus output (*.e). Note that the
 # field_key must match the name of your variable in your MOOSE simulation.
 # We use `mooseherder` to load the exodus file into a `SimData` object.
-data_path = pyv.DataSet.thermal_2d_path()
+data_path = dataset.thermal_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
 #%%
 # Scale to mm to make 3D visualisation scaling easier as pyvista scales
 # everything to unity
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)
 
@@ -46,14 +49,14 @@ n_sens = (3,2,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,50.0)
 z_lims = (0.0,0.0)
-sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 #%%
 # This dataclass contains the parameters to build our sensor array. We can
 # also customise the output frequency, the sensor area and the sensor
 # orientation. For now we will use the defaults which assumes an ideal point
 # sensor sampling at the simulation time steps.
-sens_data = pyv.SensorData(positions=sens_pos)
+sens_data = sens.SensorData(positions=sens_pos)
 
 #%%
 # Now that we have our sensor locations we can use the sensor factory to
@@ -63,7 +66,7 @@ sens_data = pyv.SensorData(positions=sens_pos)
 # If you want to remove the simulated errors and just interpolate at the
 # sensor locations then user `.thermocouples_no_errs()`.
 field_key: str = "temperature"
-tc_array = pyv.SensorArrayFactory \
+tc_array = sens.SensorArrayFactory \
     .thermocouples_basic_errs(sim_data,
                                 sens_data,
                                 elem_dims=2,
@@ -93,7 +96,7 @@ if not output_path.is_dir():
 # This creates a pyvista visualisation of the sensor locations on the
 # simulation mesh. The plot will can be shown in interactive mode by calling
 # `pv_plot.show()`.
-pv_plot = pyv.plot_point_sensors_on_sim(tc_array,field_key)
+pv_plot = sens.plot_point_sensors_on_sim(tc_array,field_key)
 
 #%%
 # We determined manually by moving camera in interative mode and then
@@ -125,7 +128,7 @@ print(80*"-"+"\n")
 # markers shows the simulated sensor traces. In later examples we will see
 # how to configure this plot but for now we note we that we are returned a
 # matplotlib figure and axes object which allows for further customisation.
-(fig,ax) = pyv.plot_time_traces(tc_array,field_key)
+(fig,ax) = sens.plot_time_traces(tc_array,field_key)
 
 #%%
 # We can also save the sensor trace plot as a vector and raster graphic

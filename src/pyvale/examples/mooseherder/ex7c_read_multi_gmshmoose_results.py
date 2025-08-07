@@ -31,7 +31,9 @@ We start by importing what we need for this example.
 import time
 from pathlib import Path
 import numpy as np
-import pyvale as pyv
+
+#pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 GmshRunner,
@@ -50,13 +52,13 @@ from pyvale.mooseherder import (MooseHerd,
 # output of the sweep and compare it to what we have seen previously.
 sim_case: int = 17
 
-gmsh_input = pyv.DataSet.sim_case_gmsh_file_path(case_num=sim_case)
+gmsh_input = dataset.sim_case_gmsh_file_path(case_num=sim_case)
 gmsh_modifier = InputModifier(gmsh_input,"//",";")
 
 gmsh_runner = GmshRunner(gmsh_path=(Path.home() / "gmsh/bin/gmsh"))
 gmsh_runner.set_input_file(gmsh_input)
 
-moose_input = pyv.DataSet.sim_case_input_file_path(case_num=sim_case)
+moose_input = dataset.sim_case_input_file_path(case_num=sim_case)
 moose_modifier = InputModifier(moose_input,"#","")
 
 moose_config = MooseConfig({'main_path': Path.home()/ 'moose',
