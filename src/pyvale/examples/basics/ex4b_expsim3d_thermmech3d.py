@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 # Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
@@ -38,7 +38,7 @@ elem_dims: int = 3
 # We scale our length and displacement units to mm to help with
 # visualisation.
 disp_comps = ("disp_x","disp_y","disp_z")
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=disp_comps)
 
@@ -62,15 +62,15 @@ x_lims = (12.5,12.5)
 y_lims = (0.0,33.0)
 z_lims = (0.0,12.0)
 n_sens = (1,4,1)
-tc_sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+tc_sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
-tc_sens_data = pyv.SensorData(positions=tc_sens_pos,
+tc_sens_data = sens.SensorData(positions=tc_sens_pos,
                                 sample_times=sample_times)
 #%%
 # We use the sensor array factory to create our thermocouple array with no
 # errors.
 tc_field_name = "temperature"
-tc_array = pyv.SensorArrayFactory \
+tc_array = sens.SensorArrayFactory \
     .thermocouples_no_errs(sim_data,
                             tc_sens_data,
                             elem_dims=elem_dims,
@@ -79,30 +79,30 @@ tc_array = pyv.SensorArrayFactory \
 # Now we build our error chain starting with some basic errors on the order
 # of 1 degree.
 tc_err_chain = []
-tc_err_chain.append(pyv.ErrSysUnif(low=1.0,high=1.0))
-tc_err_chain.append(pyv.ErrRandNorm(std=1.0))
+tc_err_chain.append(sens.ErrSysUnif(low=1.0,high=1.0))
+tc_err_chain.append(sens.ErrRandNorm(std=1.0))
 
 #%%
 # Now we add positioning error for our thermocouples.
 tc_pos_uncert = 0.1 # units = mm
-tc_pos_rand = (pyv.GenNormal(std=tc_pos_uncert),
-                pyv.GenNormal(std=tc_pos_uncert),
-                pyv.GenNormal(std=tc_pos_uncert))
+tc_pos_rand = (sens.GenNormal(std=tc_pos_uncert),
+                sens.GenNormal(std=tc_pos_uncert),
+                sens.GenNormal(std=tc_pos_uncert))
 
 #%%
 # We block translation in x so the thermocouples stay attached.
 tc_pos_lock = np.full(tc_sens_pos.shape,False,dtype=bool)
 tc_pos_lock[:,0] = True
 
-tc_field_err_data = pyv.ErrFieldData(pos_rand_xyz=tc_pos_rand,
+tc_field_err_data = sens.ErrFieldData(pos_rand_xyz=tc_pos_rand,
                                         pos_lock_xyz=tc_pos_lock)
-tc_err_chain.append(pyv.ErrSysField(tc_array.get_field(),
+tc_err_chain.append(sens.ErrSysField(tc_array.get_field(),
 
                                     tc_field_err_data))
 #%%
 # We have finished our error chain so we can build our error integrator and
 # attach it to our thermocouple array.
-tc_error_int = pyv.ErrIntegrator(tc_err_chain,
+tc_error_int = sens.ErrIntegrator(tc_err_chain,
                                     tc_sens_data,
                                     tc_array.get_measurement_shape())
 tc_array.set_error_integrator(tc_error_int)
@@ -110,7 +110,7 @@ tc_array.set_error_integrator(tc_error_int)
 #%%
 # We visualise our thermcouple locations on our mesh to make sure they are
 # in the correct positions.
-pv_plot = pyv.plot_point_sensors_on_sim(tc_array,"temperature")
+pv_plot = sens.plot_point_sensors_on_sim(tc_array,"temperature")
 pv_plot.camera_position = [(59.354, 43.428, 69.946),
                             (-2.858, 13.189, 4.523),
                             (-0.215, 0.948, -0.233)]
@@ -130,9 +130,9 @@ x_lims = (9.4,9.4)
 y_lims = (0.0,33.0)
 z_lims = (12.0,12.0)
 n_sens = (1,4,1)
-sg_sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sg_sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
-sg_sens_data = pyv.SensorData(positions=sg_sens_pos,
+sg_sens_data = sens.SensorData(positions=sg_sens_pos,
                                 sample_times=sample_times)
 
 #%%
@@ -141,7 +141,7 @@ sg_sens_data = pyv.SensorData(positions=sg_sens_pos,
 sg_field_name = "strain"
 sg_norm_comps = ("strain_xx","strain_yy","strain_zz")
 sg_dev_comps = ("strain_xy","strain_yz","strain_xz")
-sg_array = pyv.SensorArrayFactory \
+sg_array = sens.SensorArrayFactory \
     .strain_gauges_no_errs(sim_data,
                             sg_sens_data,
                             elem_dims=elem_dims,
@@ -153,30 +153,30 @@ sg_array = pyv.SensorArrayFactory \
 # Now we build our error chain starting with some basic errors on the order
 # of 1 percent.
 sg_err_chain = []
-sg_err_chain.append(pyv.ErrSysUnifPercent(low_percent=1.0,high_percent=1.0))
-sg_err_chain.append(pyv.ErrRandNormPercent(std_percent=1.0))
+sg_err_chain.append(sens.ErrSysUnifPercent(low_percent=1.0,high_percent=1.0))
+sg_err_chain.append(sens.ErrRandNormPercent(std_percent=1.0))
 
 #%%
 # We are going to add +/-2 degree rotation uncertainty to our strain gauges.
 angle_uncert = 2.0
-angle_rand_zyx = (pyv.GenUniform(low=-angle_uncert,high=angle_uncert), # units = deg
-                    pyv.GenUniform(low=-angle_uncert,high=angle_uncert),
-                    pyv.GenUniform(low=-angle_uncert,high=angle_uncert))
+angle_rand_zyx = (sens.GenUniform(low=-angle_uncert,high=angle_uncert), # units = deg
+                    sens.GenUniform(low=-angle_uncert,high=angle_uncert),
+                    sens.GenUniform(low=-angle_uncert,high=angle_uncert))
 
 #%%
 # We only allow rotation on the face the strain gauges are on
 angle_lock = np.full(sg_sens_pos.shape,True,dtype=bool)
 angle_lock[:,0] = False   # Allow rotation about z
 
-sg_field_err_data = pyv.ErrFieldData(ang_rand_zyx=angle_rand_zyx,
+sg_field_err_data = sens.ErrFieldData(ang_rand_zyx=angle_rand_zyx,
                                         ang_lock_zyx=angle_lock)
-sg_err_chain.append(pyv.ErrSysField(sg_array.get_field(),
+sg_err_chain.append(sens.ErrSysField(sg_array.get_field(),
                                     sg_field_err_data))
 
 #%%
 # We have finished our error chain so we can build our error integrator and
 # attach it to our thermocouple array.
-sg_error_int = pyv.ErrIntegrator(sg_err_chain,
+sg_error_int = sens.ErrIntegrator(sg_err_chain,
                                     sg_sens_data,
                                     sg_array.get_measurement_shape())
 sg_array.set_error_integrator(sg_error_int)
@@ -184,7 +184,7 @@ sg_array.set_error_integrator(sg_error_int)
 #%%
 # Now we visualise the strain gauge locations to make sure they are where
 # we expect them to be.
-pv_plot = pyv.plot_point_sensors_on_sim(sg_array,"strain_yy")
+pv_plot = sens.plot_point_sensors_on_sim(sg_array,"strain_yy")
 pv_plot.camera_position = [(59.354, 43.428, 69.946),
                             (-2.858, 13.189, 4.523),
                             (-0.215, 0.948, -0.233)]
@@ -203,7 +203,7 @@ pv_plot.show()
 # all points on the graph.
 sim_list = [sim_data,]
 sensor_arrays = [tc_array,sg_array]
-exp_sim = pyv.ExperimentSimulator(sim_list,
+exp_sim = sens.ExperimentSimulator(sim_list,
                                     sensor_arrays,
                                     num_exp_per_sim=100)
 
@@ -249,11 +249,11 @@ print(80*"=")
 # the median as the centre line and to fill between the min and max values.
 # Note that the default here is to plot the mean and fill between 3 times
 # the standard deviation.
-trace_opts = pyv.TraceOptsExperiment(plot_all_exp_points=True,
-                                        centre=pyv.EExpVisCentre.MEDIAN,
-                                        fill_between=pyv.EExpVisBounds.MINMAX)
+trace_opts = sens.TraceOptsExperiment(plot_all_exp_points=True,
+                                        centre=sens.EExpVisCentre.MEDIAN,
+                                        fill_between=sens.EExpVisBounds.MINMAX)
 
-(fig,ax) = pyv.plot_exp_traces(exp_sim,
+(fig,ax) = sens.plot_exp_traces(exp_sim,
                                 component="temperature",
                                 sens_array_num=0,
                                 sim_num=0,
@@ -262,7 +262,7 @@ if save_figs:
     fig.savefig(fig_save_path/(save_tag+"_tc_traces.png"),
             dpi=300, format='png', bbox_inches='tight')
 
-(fig,ax) = pyv.plot_exp_traces(exp_sim,
+(fig,ax) = sens.plot_exp_traces(exp_sim,
                                 component="strain_yy",
                                 sens_array_num=1,
                                 sim_num=0,

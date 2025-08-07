@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 # Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
@@ -41,7 +41,7 @@ sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 # the variable names you have in your SimData object.
 field_name = "disp"
 field_comps = ("disp_x","disp_y")
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=field_comps)
 
@@ -56,11 +56,11 @@ n_sens = (2,3,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,150.0)
 z_lims = (0.0,0.0)
-sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
-sens_data = pyv.SensorData(positions=sens_pos)
+sens_data = sens.SensorData(positions=sens_pos)
 
-disp_sens_array = pyv.SensorArrayFactory \
+disp_sens_array = sens.SensorArrayFactory \
                     .disp_sensors_basic_errs(sim_data,
                                                 sens_data,
                                                 elem_dims=2,
@@ -95,7 +95,7 @@ time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 print(f"These are the last {time_last} virtual measurements of sensor "
         + f"{sens_print}:")
 
-pyv.print_measurements(disp_sens_array,sens_print,comp_print,time_print)
+sens.print_measurements(disp_sens_array,sens_print,comp_print,time_print)
 
 print(80*"-")
 
@@ -104,13 +104,13 @@ print(80*"-")
 # simulation mesh and visulise the sensor locations with respect to these
 # fields.
 for ff in field_comps:
-    pv_plot = pyv.plot_point_sensors_on_sim(disp_sens_array,ff)
+    pv_plot = sens.plot_point_sensors_on_sim(disp_sens_array,ff)
     pv_plot.show(cpos="xy")
 
 #%%
 # We can also plot the traces for each component of the displacement field.
 for ff in field_comps:
-    pyv.plot_time_traces(disp_sens_array,ff)
+    sens.plot_time_traces(disp_sens_array,ff)
 
 plt.show()
 

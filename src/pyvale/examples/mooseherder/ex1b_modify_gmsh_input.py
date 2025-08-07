@@ -15,7 +15,9 @@ We start by importing the packages we need for this example.
 """
 
 from pathlib import Path
-import pyvale as pyv
+
+# Pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import InputModifier
 
 #%%
@@ -23,7 +25,7 @@ from pyvale.mooseherder import InputModifier
 # hole in the center which we retrieve from pyvale's simulation library. We then
 # use this to create an input modifier which has the correct comment string '//'
 # for gmsh and the required line terminator ";".
-gmsh_input = pyv.DataSet.sim_case_gmsh_file_path(case_num=17)
+gmsh_input = dataset.sim_case_gmsh_file_path(case_num=17)
 gmsh_mod = InputModifier(gmsh_input, "//", ";")
 
 #%%

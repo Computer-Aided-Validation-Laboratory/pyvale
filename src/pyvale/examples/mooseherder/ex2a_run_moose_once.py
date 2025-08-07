@@ -24,7 +24,9 @@ We start by importing what we need for this example.
 
 import time
 from pathlib import Path
-import pyvale as pyv
+
+#pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import (MooseConfig,
                                 MooseRunner)
 
@@ -53,7 +55,7 @@ moose_runner.set_run_opts(n_tasks = 1,
 # Let's grab a simple thermo-mechanical cube test case from pyvale's moose
 # simulation library and we will set this as the input file to run with our
 # 'runner'.
-moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
+moose_input = dataset.element_case_input_path(dataset.EElemTest.HEX20)
 moose_runner.set_input_file(moose_input)
 
 #%%

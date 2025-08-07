@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 
 # Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
@@ -37,26 +37,26 @@ data_path = dataset.mechanical_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 field_name = "disp"
 field_comps = ("disp_x","disp_y")
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=field_comps)
 
-descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
+descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
 
-disp_field = pyv.FieldVector(sim_data,field_name,field_comps,elem_dims=2)
+disp_field = sens.FieldVector(sim_data,field_name,field_comps,elem_dims=2)
 
 n_sens = (2,3,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,150.0)
 z_lims = (0.0,0.0)
-sensor_positions = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sensor_positions = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-sensor_data = pyv.SensorData(positions=sensor_positions,
+sensor_data = sens.SensorData(positions=sensor_positions,
                                 sample_times=sample_times)
 
-disp_sens_array = pyv.SensorArrayPoint(sensor_data,
+disp_sens_array = sens.SensorArrayPoint(sensor_data,
                                         disp_field,
                                         descriptor)
 
@@ -69,16 +69,16 @@ disp_sens_array = pyv.SensorArrayPoint(sensor_data,
 # We will apply a position offset of -1.0mm in the x and y axes.
 pos_offset = -1.0*np.ones_like(sensor_positions)
 pos_offset[:,2] = 0.0 # in 2d we only have offset in x and y so zero z
-pos_error_data = pyv.ErrFieldData(pos_offset_xyz=pos_offset)
+pos_error_data = sens.ErrFieldData(pos_offset_xyz=pos_offset)
 
 #%%
 # We will apply a rotation offset about the z axis of 1 degree
 angle_offset = np.zeros_like(sensor_positions)
 angle_offset[:,0] = 1.0 # only rotate about z in 2D
-angle_error_data = pyv.ErrFieldData(ang_offset_zyx=angle_offset)
+angle_error_data = sens.ErrFieldData(ang_offset_zyx=angle_offset)
 
 time_offset = 2.0*np.ones_like(disp_sens_array.get_sample_times())
-time_error_data = pyv.ErrFieldData(time_offset=time_offset)
+time_error_data = sens.ErrFieldData(time_offset=time_offset)
 
 #%%
 # Now we add all our field errors to our error chain. We add each error
@@ -86,25 +86,25 @@ time_error_data = pyv.ErrFieldData(time_offset=time_offset)
 # error dependence to `DEPENDENT` so that the sensor state is accumulated
 # over the error chain as field errors are `INDEPENDENT` by default.
 err_chain = []
-err_chain.append(pyv.ErrSysField(disp_field,
+err_chain.append(sens.ErrSysField(disp_field,
                                     time_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-err_chain.append(pyv.ErrSysField(disp_field,
+                                    sens.EErrDep.DEPENDENT))
+err_chain.append(sens.ErrSysField(disp_field,
                                     time_error_data,
-                                    pyv.EErrDep.DEPENDENT))
+                                    sens.EErrDep.DEPENDENT))
 
-err_chain.append(pyv.ErrSysField(disp_field,
+err_chain.append(sens.ErrSysField(disp_field,
                                     pos_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-err_chain.append(pyv.ErrSysField(disp_field,
+                                    sens.EErrDep.DEPENDENT))
+err_chain.append(sens.ErrSysField(disp_field,
                                     pos_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-err_chain.append(pyv.ErrSysField(disp_field,
+                                    sens.EErrDep.DEPENDENT))
+err_chain.append(sens.ErrSysField(disp_field,
                                     angle_error_data,
-                                    pyv.EErrDep.DEPENDENT))
-err_chain.append(pyv.ErrSysField(disp_field,
+                                    sens.EErrDep.DEPENDENT))
+err_chain.append(sens.ErrSysField(disp_field,
                                     angle_error_data,
-                                    pyv.EErrDep.DEPENDENT))
+                                    sens.EErrDep.DEPENDENT))
 
 #%%
 # Instead of setting the dependence for each individual error above we could
@@ -115,13 +115,13 @@ err_chain.append(pyv.ErrSysField(disp_field,
 # each error in the chain to the total error rather than just being able to
 # analyse the total systematic and total random error which is the default.
 # Note that this option will use more memory.
-err_int_opts = pyv.ErrIntOpts(force_dependence=pyv.EErrDep.DEPENDENT,
+err_int_opts = sens.ErrIntOpts(force_dependence=sens.EErrDep.DEPENDENT,
                                 store_all_errs=True)
 
 #%%
 # Now we build our error integrator, add it to our sensor array and then run
 # our sensor simulation to obtain some virtual measurements.
-error_int = pyv.ErrIntegrator(err_chain,
+error_int = sens.ErrIntegrator(err_chain,
                                 sensor_data,
                                 disp_sens_array.get_measurement_shape(),
                                 err_int_opts)
@@ -187,13 +187,13 @@ print("ROTATED SENSORS WITH ANGLE ERRORS:")
 print(f"These are the last {time_last} virtual measurements of sensor "
         + f"{sens_print} for {field_comps[comp_print]}:")
 
-pyv.print_measurements(disp_sens_array,sens_print,comp_print,time_print)
+sens.print_measurements(disp_sens_array,sens_print,comp_print,time_print)
 
 print(80*"-")
 
 #%%
 # Finally, we plot the time traces for all field components.
 for ff in field_comps:
-    pyv.plot_time_traces(disp_sens_array,ff)
+    sens.plot_time_traces(disp_sens_array,ff)
 
 plt.show()

@@ -20,7 +20,7 @@ from scipy.spatial.transform import Rotation
 from pathlib import Path
 
 #pyvale modules
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 import pyvale.blender as blender
 import pyvale.mooseherder as mh
@@ -44,11 +44,11 @@ sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 # The `disp_comps` are the expected direction of displacement. Since this is a
 # 3D deformation test case, displacement is expected in the x, y and z directions.
 disp_comps = ("disp_x","disp_y", "disp_z")
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                      sim_data=sim_data,
                                      disp_comps=disp_comps)
 
-render_mesh = pyv.create_render_mesh(sim_data,
+render_mesh = sens.create_render_mesh(sim_data,
                                         ("disp_y","disp_x"),
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
@@ -95,7 +95,7 @@ blender.Tools.rotate_blender_obj(part=part, rot_world=part_rotation)
 # This camera can then be added to the Blender scene.
 # The camera can also be moved and rotated.
 
-cam_data = pyv.CameraData(pixels_num=np.array([1540, 1040]),
+cam_data = sens.CameraData(pixels_num=np.array([1540, 1040]),
                             pixels_size=np.array([0.00345, 0.00345]),
                             pos_world=(0, 0, 400),
                             rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
@@ -133,7 +133,7 @@ light.rotation_euler = (0, 0, 0)
 material_data = blender.MaterialData()
 speckle_path = dataset.dic_pattern_5mpx_path()
 
-mm_px_resolution = pyv.CameraTools.calculate_mm_px_resolution(cam_data)
+mm_px_resolution = sens.CameraTools.calculate_mm_px_resolution(cam_data)
 scene.add_speckle(part=part,
                   speckle_path=speckle_path,
                   mat_data=material_data,

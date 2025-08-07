@@ -30,7 +30,9 @@ skip down to the last section.
 
 from pathlib import Path
 import numpy as np
-import pyvale as pyv
+
+#pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 MooseConfig,
@@ -42,7 +44,7 @@ from pyvale.mooseherder import (MooseHerd,
 # First we setup an input modifier and runner for our moose simulation in
 # exactly the same way as we have done in previous examples.
 
-moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
+moose_input = dataset.element_case_input_path(dataset.EElemTest.HEX20)
 moose_modifier = InputModifier(moose_input,'#','')
 
 config = {'main_path': Path.home()/ 'moose',

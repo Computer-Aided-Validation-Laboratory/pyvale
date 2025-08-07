@@ -27,7 +27,10 @@ from pathlib import Path
 from typing import Any
 import dataclasses
 import numpy as np
-import pyvale as pyv
+
+#pyvale imports
+import pyvale.dataset as dataset
+import pyvale.sensorsim as sens
 from pyvale.mooseherder import (MooseRunner,
                                 MooseConfig,
                                 ExodusReader)
@@ -51,7 +54,7 @@ output_path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
-moose_file = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
+moose_file = dataset.element_case_input_path(dataset.EElemTest.HEX20)
 moose_input = output_path / moose_file.name
 
 shutil.copyfile(moose_file,moose_input)
@@ -105,7 +108,7 @@ print()
 # recommend you check this out to understand the terminal output.
 all_sim_data = exodus_reader.read_all_sim_data()
 print("SimData from 'read_all':")
-pyv.SimTools.print_sim_data(all_sim_data)
+sens.SimTools.print_sim_data(all_sim_data)
 
 #%%
 # We are now going to read specific variables from the exodus output using a
@@ -116,7 +119,7 @@ pyv.SimTools.print_sim_data(all_sim_data)
 # dicitionary keys to read based on what is already in the exodus file.
 
 read_config = exodus_reader.get_read_config()
-pyv.SimTools.print_dataclass_fields(read_config)
+sens.SimTools.print_dataclass_fields(read_config)
 
 #%%
 # We set the 'node_vars' field to None to prevent the nodal variables being read

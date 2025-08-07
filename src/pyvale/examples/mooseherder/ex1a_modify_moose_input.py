@@ -15,7 +15,9 @@ We start by importing the packages we need for this example.
 """
 
 from pathlib import Path
-import pyvale as pyv
+
+# Pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import InputModifier
 
 #%%
@@ -24,7 +26,7 @@ from pyvale.mooseherder import InputModifier
 # character(s) as '#' and moose input files do not have a line end character so
 # we pass an empty string. In the next example we will modify a gmsh script
 # where we will need to specify a line ending character.
-moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
+moose_input = dataset.element_case_input_path(dataset.EElemTest.HEX20)
 moose_mod = InputModifier(moose_input, comment_chars="#", end_chars="")
 
 #%%

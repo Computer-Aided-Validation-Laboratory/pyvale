@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 # Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 
@@ -34,7 +34,7 @@ data_path = dataset.mechanical_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 field_name = "disp"
 field_comps = ("disp_x","disp_y")
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=field_comps)
 
@@ -49,7 +49,7 @@ sim_data = pyv.scale_length_units(scale=1000.0,
 # parameter does not need to match the number of field components. For
 # example: it is possible to have a surface mesh (elem_dims=2) where we
 # have all 3 components of the displacement field.
-disp_field = pyv.FieldVector(sim_data,field_name,field_comps,elem_dims=2)
+disp_field = sens.FieldVector(sim_data,field_name,field_comps,elem_dims=2)
 
 #%%
 # As we saw previously for scalar fields we define our sensor data object
@@ -60,14 +60,14 @@ n_sens = (1,4,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,150.0)
 z_lims = (0.0,0.0)
-sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 #%%
 # We set custom sampling times here but we could also set this to None so
 # that the sensors sample at the simulation time steps.
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-sens_data = pyv.SensorData(positions=sens_pos,
+sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times)
 
 #%%
@@ -75,7 +75,7 @@ sens_data = pyv.SensorData(positions=sens_pos,
 # sensor which will be used for labelling sensor placement visualisation or
 # for time traces. It is also possible to use the sensor descriptor factory
 # to get the same sensor descriptor object with these defaults.
-descriptor = pyv.SensorDescriptor(name="Disp.",
+descriptor = sens.SensorDescriptor(name="Disp.",
                                     symbol=r"u",
                                     units=r"mm",
                                     tag="DS",
@@ -85,7 +85,7 @@ descriptor = pyv.SensorDescriptor(name="Disp.",
 # The point sensor array class is generic and will take any field class
 # that implements the field interface. So here we just pass in the vector
 # field to create our vector field sensor array.
-disp_sens_array = pyv.SensorArrayPoint(sens_data,
+disp_sens_array = sens.SensorArrayPoint(sens_data,
                                         disp_field,
                                         descriptor)
 
@@ -95,9 +95,9 @@ disp_sens_array = pyv.SensorArrayPoint(sens_data,
 # the next example we will look at some field errors to do with sensor
 # orientation that
 error_chain = []
-error_chain.append(pyv.ErrSysUnif(low=-0.01,high=0.01))  # units = mm
-error_chain.append(pyv.ErrRandNorm(std=0.01))            # units = mm
-error_int = pyv.ErrIntegrator(error_chain,
+error_chain.append(sens.ErrSysUnif(low=-0.01,high=0.01))  # units = mm
+error_chain.append(sens.ErrRandNorm(std=0.01))            # units = mm
+error_int = sens.ErrIntegrator(error_chain,
                                 sens_data,
                                 disp_sens_array.get_measurement_shape())
 disp_sens_array.set_error_integrator(error_int)
@@ -109,13 +109,13 @@ disp_sens_array.calc_measurements()
 # simulation mesh and visulise the sensor locations with respect to these
 # fields.
 for ff in field_comps:
-    pv_plot = pyv.plot_point_sensors_on_sim(disp_sens_array,ff)
+    pv_plot = sens.plot_point_sensors_on_sim(disp_sens_array,ff)
     pv_plot.show(cpos="xy")
 
 #%%
 # We can also plot the traces for each component of the displacement field.
 for ff in field_comps:
-    pyv.plot_time_traces(disp_sens_array,ff)
+    sens.plot_time_traces(disp_sens_array,ff)
 
 plt.show()
 

@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 # Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 
@@ -72,7 +72,7 @@ print()
 # simulation as the temperatures are within our calibrated range.
 data_path = dataset.thermal_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)
 
@@ -80,15 +80,15 @@ n_sens = (4,1,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,50.0)
 z_lims = (0.0,0.0)
-sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 sample_times = np.linspace(0.0,np.max(sim_data.time),50) # | None
 
-sensor_data = pyv.SensorData(positions=sens_pos,
+sensor_data = sens.SensorData(positions=sens_pos,
                                 sample_times=sample_times)
 
 field_key: str = "temperature"
-tc_array = pyv.SensorArrayFactory \
+tc_array = sens.SensorArrayFactory \
     .thermocouples_no_errs(sim_data,
                             sensor_data,
                             elem_dims=2,
@@ -100,11 +100,11 @@ tc_array = pyv.SensorArrayFactory \
 # that the truth calibration function must be inverted numerically so to
 # increase accuracy the number of divisions can be increased. However, 1e4
 # divisions should be suitable for most applications.
-cal_err = pyv.ErrSysCalibration(calib_assumed,
+cal_err = sens.ErrSysCalibration(calib_assumed,
                                 calib_truth,
                                 signal_calib_range,
                                 n_cal_divs=10000)
-sys_err_int = pyv.ErrIntegrator([cal_err],
+sys_err_int = sens.ErrIntegrator([cal_err],
                                     sensor_data,
                                     tc_array.get_measurement_shape())
 tc_array.set_error_integrator(sys_err_int)
@@ -123,10 +123,10 @@ time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 print(f"These are the last {time_last} virtual measurements of sensor "
         + f"{sens_print}:")
 
-pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
+sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 
 print(80*"-")
 
-pyv.plot_time_traces(tc_array,field_key)
+sens.plot_time_traces(tc_array,field_key)
 plt.show()
 

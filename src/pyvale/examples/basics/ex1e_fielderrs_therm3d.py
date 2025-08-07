@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 
 # Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 
@@ -39,7 +39,7 @@ import pyvale.dataset as dataset
 # interpolation of the underlying physical field to be measured.
 data_path = dataset.thermal_3d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)
 
@@ -47,15 +47,15 @@ n_sens = (1,4,1)
 x_lims = (12.5,12.5)
 y_lims = (0.0,33.0)
 z_lims = (0.0,12.0)
-sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 sample_times = np.linspace(0.0,np.max(sim_data.time),50) # | None
 
-sensor_data = pyv.SensorData(positions=sens_pos,
+sensor_data = sens.SensorData(positions=sens_pos,
                                 sample_times=sample_times)
 
 field_key: str = "temperature"
-tc_array = pyv.SensorArrayFactory \
+tc_array = sens.SensorArrayFactory \
     .thermocouples_no_errs(sim_data,
                             sensor_data,
                             elem_dims=3,
@@ -80,8 +80,8 @@ time_offset = np.full((sample_times.shape[0],),0.1)
 #%%
 # Using the `Gen*` random generators in pyvale we can randomly perturb the
 # position or sampling times of our virtual sensors.
-pos_rand = pyv.GenNormal(std=1.0) # units = mm
-time_rand = pyv.GenNormal(std=0.1) # units = s
+pos_rand = sens.GenNormal(std=1.0) # units = mm
+time_rand = sens.GenNormal(std=0.1) # units = s
 
 #%%
 # Now we put everything into our field error data class ready to build our
@@ -89,7 +89,7 @@ time_rand = pyv.GenNormal(std=0.1) # units = s
 # to geta feel for the other types of supported field errors. We will look
 # at the orientation and area averaging errors when we look at vector and
 # tensor fields in later examples.
-field_err_data = pyv.ErrFieldData(
+field_err_data = sens.ErrFieldData(
     pos_offset_xyz=pos_offset_xyz,
     time_offset=time_offset,
     pos_rand_xyz=(None,pos_rand,pos_rand),
@@ -109,9 +109,9 @@ err_chain = []
 # A field error needs to know which field it should interpolate for error
 # calculations so we provide the field from the sensor array as well as the
 # field error error data class.
-err_chain.append(pyv.ErrSysField(tc_array.get_field(),
+err_chain.append(sens.ErrSysField(tc_array.get_field(),
                                     field_err_data))
-err_int = pyv.ErrIntegrator(err_chain,
+err_int = sens.ErrIntegrator(err_chain,
                             sensor_data,
                             tc_array.get_measurement_shape())
 tc_array.set_error_integrator(err_int)
@@ -132,7 +132,7 @@ time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 print(f"These are the last {time_last} virtual measurements of sensor "
         + f"{sens_print}:")
 
-pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
+sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 
 print(80*"-")
 
@@ -146,7 +146,7 @@ if not output_path.is_dir():
 #%%
 # If we analyse the time traces we can see offsets in the sensor value and
 # the sampling times which we expect from our field error setup.
-(fig,ax) = pyv.plot_time_traces(tc_array,field_key)
+(fig,ax) = sens.plot_time_traces(tc_array,field_key)
 
 save_traces = output_path/"field_ex1_5_sensortraces.png"
 fig.savefig(save_traces, dpi=300, bbox_inches="tight")
@@ -157,7 +157,7 @@ plt.show()
 #%%
 # It is also possible to view the perturbed sensor locations on the
 # simulation mesh if we create a plot after running the sensor simulation.
-pv_plot = pyv.plot_point_sensors_on_sim(tc_array,field_key)
+pv_plot = sens.plot_point_sensors_on_sim(tc_array,field_key)
 pv_plot.camera_position = [(59.354, 43.428, 69.946),
                             (-2.858, 13.189, 4.523),
                             (-0.215, 0.948, -0.233)]

@@ -19,7 +19,7 @@ from scipy.spatial.transform import Rotation
 from pathlib import Path
 
 # Pyvale imports
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 import pyvale.blender as blender
 import pyvale.mooseherder as mh
@@ -40,11 +40,11 @@ sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 # 3D deformation test case, displacement is expected in the x, y and z directions.
 
 disp_comps = ("disp_x","disp_y", "disp_z")
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                      sim_data=sim_data,
                                      disp_comps=disp_comps)
 
-render_mesh = pyv.create_render_mesh(sim_data,
+render_mesh = sens.create_render_mesh(sim_data,
                                         ("disp_y","disp_x"),
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
@@ -98,7 +98,7 @@ blender.Tools.rotate_blender_obj(part=part, rot_world=part_rotation)
 # between the two. The cameras can then be added to the Blender scene using the
 # `add_stereo_system` method.
 
-cam_data_0 = pyv.CameraData(pixels_num=np.array([1540, 1040]),
+cam_data_0 = sens.CameraData(pixels_num=np.array([1540, 1040]),
                                pixels_size=np.array([0.00345, 0.00345]),
                                pos_world=np.array([0, 0, 400]),
                                rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
@@ -108,11 +108,11 @@ cam_data_0 = pyv.CameraData(pixels_num=np.array([1540, 1040]),
 # "faceon" to get a face-on stereo system
 stereo_setup = "faceon"
 if stereo_setup == "symmetric":
-    stereo_system = pyv.CameraTools.symmetric_stereo_cameras(
+    stereo_system = sens.CameraTools.symmetric_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
 elif stereo_setup == "faceon":
-    stereo_system = pyv.CameraTools.faceon_stereo_cameras(
+    stereo_system = sens.CameraTools.faceon_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
 else:
@@ -161,7 +161,7 @@ speckle_path = dataset.dic_pattern_5mpx_path()
 # It should be noted that for a bigger camera or sample you may need to generate
 # a larger speckle pattern.
 
-mm_px_resolution = pyv.CameraTools.calculate_mm_px_resolution(cam_data_0)
+mm_px_resolution = sens.CameraTools.calculate_mm_px_resolution(cam_data_0)
 scene.add_speckle(part=part,
                   speckle_path=speckle_path,
                   mat_data=material_data,

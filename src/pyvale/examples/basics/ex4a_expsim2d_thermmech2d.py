@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 
 # Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
@@ -46,7 +46,7 @@ disp_comps = ("disp_x","disp_y")
 sim_list = []
 for pp in data_paths:
     sim_data = mh.ExodusReader(pp).read_all_sim_data()
-    sim_data = pyv.scale_length_units(scale=1000.0,
+    sim_data = sens.scale_length_units(scale=1000.0,
                                         sim_data=sim_data,
                                         disp_comps=disp_comps)
     sim_list.append(sim_data)
@@ -63,9 +63,9 @@ n_sens = (4,1,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,50.0)
 z_lims = (0.0,0.0)
-tc_sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+tc_sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
-tc_sens_data = pyv.SensorData(positions=tc_sens_pos,
+tc_sens_data = sens.SensorData(positions=tc_sens_pos,
                               sample_times=sample_times)
 
 #%%
@@ -75,7 +75,7 @@ tc_sens_data = pyv.SensorData(positions=tc_sens_pos,
 # we run our experiment the field object that relies on this will switch the
 # sim data for the required simulation in our list.
 tc_field_name = "temperature"
-tc_array = pyv.SensorArrayFactory \
+tc_array = sens.SensorArrayFactory \
     .thermocouples_basic_errs(sim_list[0],
                                 tc_sens_data,
                                 elem_dims=elem_dims,
@@ -85,8 +85,8 @@ tc_array = pyv.SensorArrayFactory \
 #%%
 # We place 3 strain gauges along the direction of the temperature gradient.
 n_sens = (3,1,1)
-sg_sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
-sg_sens_data = pyv.SensorData(positions=sg_sens_pos,
+sg_sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sg_sens_data = sens.SensorData(positions=sg_sens_pos,
                                 sample_times=sample_times)
 
 #%%
@@ -94,7 +94,7 @@ sg_sens_data = pyv.SensorData(positions=sg_sens_pos,
 sg_field_name = "strain"
 sg_norm_comps = ("strain_xx","strain_yy")
 sg_dev_comps = ("strain_xy",)
-sg_array = pyv.SensorArrayFactory \
+sg_array = sens.SensorArrayFactory \
     .strain_gauges_basic_errs(sim_list[0],
                                 sg_sens_data,
                                 elem_dims=elem_dims,
@@ -109,7 +109,7 @@ sg_array = pyv.SensorArrayFactory \
 # use this to create an experiment simulator while specifying how many
 # simulate experiments we want to run per simulation and sensor array.
 sensor_arrays = [tc_array,sg_array]
-exp_sim = pyv.ExperimentSimulator(sim_list,
+exp_sim = sens.ExperimentSimulator(sim_list,
                                     sensor_arrays,
                                     num_exp_per_sim=1000)
 
@@ -166,12 +166,12 @@ print(80*"=")
 # deviation. In the next example we will see how to control these plots.
 # For now we will plot the temperature traces for the first simulation and
 # the strain traces for the third simulation in our list of SimData objects.
-(fig,ax) = pyv.plot_exp_traces(exp_sim,
+(fig,ax) = sens.plot_exp_traces(exp_sim,
                                 component="temperature",
                                 sens_array_num=0,
                                 sim_num=0)
 
-(fig,ax) = pyv.plot_exp_traces(exp_sim,
+(fig,ax) = sens.plot_exp_traces(exp_sim,
                                 component="strain_yy",
                                 sens_array_num=1,
                                 sim_num=2)

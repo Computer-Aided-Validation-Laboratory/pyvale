@@ -19,7 +19,9 @@ We start by importing what we need for this example.
 
 import time
 from pathlib import Path
-import pyvale as pyv
+
+#pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import GmshRunner
 
 #%%
@@ -32,7 +34,7 @@ gmsh_runner = GmshRunner(gmsh_path)
 #%%
 # Next we grab a gmsh file from pyvale simulation library and we set this as the
 # input file for our runner.
-gmsh_input = pyv.DataSet.sim_case_gmsh_file_path(case_num=17)
+gmsh_input = dataset.sim_case_gmsh_file_path(case_num=17)
 gmsh_runner.set_input_file(gmsh_input)
 
 #%%

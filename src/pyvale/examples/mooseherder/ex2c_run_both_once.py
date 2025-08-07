@@ -33,7 +33,9 @@ We start by importing what we need for this example.
 import time
 import shutil
 from pathlib import Path
-import pyvale as pyv
+
+#pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import (MooseConfig,
                                 GmshRunner,
                                 MooseRunner)
@@ -52,10 +54,10 @@ output_path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
-gmsh_file = pyv.DataSet.sim_case_gmsh_file_path(case_num=17)
+gmsh_file = dataset.sim_case_gmsh_file_path(case_num=17)
 gmsh_input = output_path / gmsh_file.name
 
-moose_file = pyv.DataSet.sim_case_input_file_path(case_num=17)
+moose_file = dataset.sim_case_input_file_path(case_num=17)
 moose_input = output_path / moose_file.name
 
 shutil.copyfile(moose_file,moose_input)

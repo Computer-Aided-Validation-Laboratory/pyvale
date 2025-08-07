@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 
 # Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
@@ -36,7 +36,7 @@ import pyvale.dataset as dataset
 # our `SimData` object).
 data_path: Path = dataset.mechanical_2d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                   sim_data=sim_data,
                                   disp_comps=("disp_x","disp_y"))
 
@@ -44,11 +44,11 @@ n_sens = (2,3,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,150.0)
 z_lims = (0.0,0.0)
-sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-sens_data = pyv.SensorData(positions=sens_pos,
+sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times)
 
 #%%
@@ -59,7 +59,7 @@ sens_data = pyv.SensorData(positions=sens_pos,
 # have seen previously for scalar and vector fields.
 norm_comps = ("strain_xx","strain_yy")
 dev_comps = ("strain_xy",)
-straingauge_array = pyv.SensorArrayFactory \
+straingauge_array = sens.SensorArrayFactory \
                         .strain_gauges_basic_errs(sim_data,
                                                     sens_data,
                                                     elem_dims=2,
@@ -97,7 +97,7 @@ time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 print(f"These are the last {time_last} virtual measurements of sensor "
         + f"{sens_print}:")
 
-pyv.print_measurements(straingauge_array,sens_print,comp_print,time_print)
+sens.print_measurements(straingauge_array,sens_print,comp_print,time_print)
 
 print(80*"-")
 
@@ -105,12 +105,12 @@ print(80*"-")
 # We can plot a given component of our tensor field and display our sensor
 # locations with respect to the field.
 plot_field = "strain_yy"
-pv_plot = pyv.plot_point_sensors_on_sim(straingauge_array,plot_field)
+pv_plot = sens.plot_point_sensors_on_sim(straingauge_array,plot_field)
 pv_plot.show(cpos="xy")
 
 #%%
 # We can also plot time traces for all components of the tensor field.
 for cc in (norm_comps+dev_comps):
-    pyv.plot_time_traces(straingauge_array,cc)
+    sens.plot_time_traces(straingauge_array,cc)
 
 plt.show()

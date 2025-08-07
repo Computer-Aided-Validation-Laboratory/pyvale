@@ -6,7 +6,9 @@
 import pytest
 from typing import Callable, Dict, Any
 import numpy as np
-import pyvale as pyv
+
+# Pyvale imports 
+import pyvale.sensorsim as sens
 import pyvale.verif.psens as psens
 import pyvale.verif.psensscalar as psensscalar
 import pyvale.verif.psensvector as psensvector
@@ -52,7 +54,7 @@ def test_gold_combined(get_sensors: Callable[[], Dict[str, Any]]) -> None:
 #-------------------------------------------------------------------------------
 # Check that 'get_measurements' does not resample probability distributions
 
-def check_get_meas(sens_dict: dict[str,pyv.SensorArrayPoint]) -> list[str]:
+def check_get_meas(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[str]:
     fails = []
     for ss in sens_dict:
         calc_meas = sens_dict[ss].calc_measurements()

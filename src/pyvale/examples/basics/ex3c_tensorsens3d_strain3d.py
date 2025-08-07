@@ -24,7 +24,7 @@ from scipy.spatial.transform import Rotation
 
 # Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
@@ -39,7 +39,7 @@ sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 # displacement field component here for scaling. Note that you don't need to
 # scale the displacements here if you only want to analyse strains.
 disp_comps = ("disp_x","disp_y","disp_z")
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=disp_comps)
 
@@ -51,7 +51,7 @@ sim_data = pyv.scale_length_units(scale=1000.0,
 field_name = "strain"
 norm_comps = ("strain_xx","strain_yy","strain_zz")
 dev_comps = ("strain_xy","strain_yz","strain_xz")
-strain_field = pyv.FieldTensor(sim_data,
+strain_field = sens.FieldTensor(sim_data,
                                 field_name=field_name,
                                 norm_comps=norm_comps,
                                 dev_comps=dev_comps,
@@ -83,7 +83,7 @@ sens_angles = (Rotation.from_euler("zyx", [0, 0, 0], degrees=True),
                 Rotation.from_euler("zyx", [0, 0, 45], degrees=True),)
 
 
-sens_data = pyv.SensorData(positions=sensor_positions,
+sens_data = sens.SensorData(positions=sensor_positions,
                             sample_times=sample_times,
                             angles=sens_angles)
 
@@ -92,14 +92,14 @@ sens_data = pyv.SensorData(positions=sensor_positions,
 # the sensor locations and time traces for our sensors. For the strain
 # gauges we are modelling here we could also use the descriptor factory to
 # get these defaults.
-descriptor = pyv.SensorDescriptor(name="Strain",
+descriptor = sens.SensorDescriptor(name="Strain",
                                     symbol=r"\varepsilon",
                                     units=r"-",
                                     tag="SG",
                                     components=('xx','yy','zz','xy','yz','xz'))
 
 
-straingauge_array = pyv.SensorArrayPoint(sens_data,
+straingauge_array = sens.SensorArrayPoint(sens_data,
                                             strain_field,
                                             descriptor)
 
@@ -107,22 +107,22 @@ straingauge_array = pyv.SensorArrayPoint(sens_data,
 # We can add any errors we like to our error chain. Here we add some basic
 # percentage errors.
 error_chain = []
-error_chain.append(pyv.ErrSysUnif(low=-0.1e-3,high=0.1e-3))
-error_chain.append(pyv.ErrRandNormPercent(std_percent=1.0))
+error_chain.append(sens.ErrSysUnif(low=-0.1e-3,high=0.1e-3))
+error_chain.append(sens.ErrRandNormPercent(std_percent=1.0))
 
 #%%
 # Now we add a field error to perturb the positions of each sensor on its
 # relevant face and then add a +/- 2deg angle error.
 
 pos_uncert = 0.1 # units = mm
-pos_rand_xyz = (pyv.GenNormal(std=pos_uncert),
-                pyv.GenNormal(std=pos_uncert),
-                pyv.GenNormal(std=pos_uncert))
+pos_rand_xyz = (sens.GenNormal(std=pos_uncert),
+                sens.GenNormal(std=pos_uncert),
+                sens.GenNormal(std=pos_uncert))
 
 angle_uncert = 2.0
-angle_rand_zyx = (pyv.GenUniform(low=-angle_uncert,high=angle_uncert), # units = deg
-                    pyv.GenUniform(low=-angle_uncert,high=angle_uncert),
-                    pyv.GenUniform(low=-angle_uncert,high=angle_uncert))
+angle_rand_zyx = (sens.GenUniform(low=-angle_uncert,high=angle_uncert), # units = deg
+                    sens.GenUniform(low=-angle_uncert,high=angle_uncert),
+                    sens.GenUniform(low=-angle_uncert,high=angle_uncert))
 
 #%%
 # We are going to lock position perturbation so that the sensors stay on the
@@ -140,15 +140,15 @@ angle_lock[0:2,1] = False   # Allow rotation about y
 angle_lock[2:4,0] = False   # Allow rotation about z
 angle_lock[4:6,2] = False   # Allow rotation about x
 
-field_error_data = pyv.ErrFieldData(pos_rand_xyz=pos_rand_xyz,
+field_error_data = sens.ErrFieldData(pos_rand_xyz=pos_rand_xyz,
                                     pos_lock_xyz=pos_lock,
                                     ang_rand_zyx=angle_rand_zyx,
                                     ang_lock_zyx=angle_lock)
-sys_err_field = pyv.ErrSysField(strain_field,field_error_data)
+sys_err_field = sens.ErrSysField(strain_field,field_error_data)
 error_chain.append(sys_err_field)
 
 
-error_int = pyv.ErrIntegrator(error_chain,
+error_int = sens.ErrIntegrator(error_chain,
                                 sens_data,
                                 straingauge_array.get_measurement_shape())
 straingauge_array.set_error_integrator(error_int)
@@ -178,7 +178,7 @@ print("ROTATED SENSORS WITH ANGLE ERRORS:")
 print(f"These are the last {time_last} virtual measurements of sensor "
         + f"{sens_print} for {norm_comps[comp_print]}:")
 
-pyv.print_measurements(straingauge_array,sens_print,comp_print,time_print)
+sens.print_measurements(straingauge_array,sens_print,comp_print,time_print)
 
 print(80*"-")
 
@@ -186,12 +186,12 @@ print(80*"-")
 # We can plot a given component of our tensor field and display our sensor
 # locations with respect to the field.
 plot_field = "strain_yy"
-pv_plot = pyv.plot_point_sensors_on_sim(straingauge_array,plot_field)
+pv_plot = sens.plot_point_sensors_on_sim(straingauge_array,plot_field)
 pv_plot.show(cpos="xy")
 
 #%%
 # We can also plot time traces for all components of the tensor field.
 for cc in (norm_comps+dev_comps):
-    pyv.plot_time_traces(straingauge_array,cc)
+    sens.plot_time_traces(straingauge_array,cc)
 
 plt.show()

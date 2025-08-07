@@ -31,7 +31,7 @@ Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 import matplotlib.pyplot as plt
 
 # Pyvale imports
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.mooseherder as mh
 import pyvale.dataset as dataset
 
@@ -50,7 +50,7 @@ field_key: str = "temperature"
 #%%
 # Scale to mm to make 3D visualisation scaling easier as pyvista scales
 # everything to unity
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)
 
@@ -62,14 +62,14 @@ n_sens = (4,1,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,50.0)
 z_lims = (0.0,0.0)
-sens_pos = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 #%%
 # This dataclass contains the parameters to build our sensor array. We can
 # also customise the output frequency, the sensor area and the sensor
 # orientation. For now we will use the defaults which assumes an ideal point
 # sensor sampling at the simulation time steps.
-sens_data = pyv.SensorData(positions=sens_pos)
+sens_data = sens.SensorData(positions=sens_pos)
 
 #%%
 # Now that we have our sensor locations we can use the sensor factory to
@@ -77,7 +77,7 @@ sens_data = pyv.SensorData(positions=sens_pos)
 # examples we will see how to customise sensor parameters and errors.
 # This basic thermocouple array includes a 5% systematic and random error -
 # We are specifically using exaggerated errors here for visualisation.
-tc_array = pyv.SensorArrayFactory \
+tc_array = sens.SensorArrayFactory \
     .thermocouples_basic_errs(sim_data,
                                 sens_data,
                                 elem_dims=2,
@@ -114,16 +114,16 @@ print(80*"-")
 print(f"Looking at the last {time_last} virtual measurements for sensor"
         +f" {sens_print}:")
 
-pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
+sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 
 print(80*"-")
 print("If we call the `calc_measurements()` method then the errors are "
         + "re-calculated.")
 measurements = tc_array.calc_measurements()
 
-pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
+sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 
-(fig,ax) = pyv.plot_time_traces(tc_array,field_key)
+(fig,ax) = sens.plot_time_traces(tc_array,field_key)
 ax.set_title("Exp 1: called calc_measurements()")
 
 print(80*"-")
@@ -131,9 +131,9 @@ print("If we call the `get_measurements()` method then the errors are the "
         + "same:")
 measurements = tc_array.get_measurements()
 
-pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
+sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 
-(fig,ax) = pyv.plot_time_traces(tc_array,field_key)
+(fig,ax) = sens.plot_time_traces(tc_array,field_key)
 ax.set_title("Exp 2: called get_measurements()")
 
 print(80*"-")
@@ -141,9 +141,9 @@ print("If we call the `calc_measurements()` method again we generate / "
         "sample new errors:")
 measurements = tc_array.calc_measurements()
 
-pyv.print_measurements(tc_array,sens_print,comp_print,time_print)
+sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 
-(fig,ax) = pyv.plot_time_traces(tc_array,field_key)
+(fig,ax) = sens.plot_time_traces(tc_array,field_key)
 ax.set_title("Exp 3: called calc_measurements()")
 
 print(80*"-")

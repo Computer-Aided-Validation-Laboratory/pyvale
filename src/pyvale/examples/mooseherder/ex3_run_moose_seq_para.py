@@ -28,7 +28,9 @@ We start by importing what we need for this example.
 
 from pathlib import Path
 import numpy as np
-import pyvale as pyv
+
+#pyvale imports
+import pyvale.dataset as dataset
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 InputModifier,
@@ -43,7 +45,7 @@ from pyvale.mooseherder import (MooseHerd,
 # are running at once base on our CPU. It is also helpful to redirect stdout to
 # file so that our terminal does not become a mess when we start running our
 # simulations in parallel.
-moose_input = pyv.DataSet.element_case_input_path(pyv.EElemTest.HEX20)
+moose_input = dataset.element_case_input_path(dataset.EElemTest.HEX20)
 moose_modifier = InputModifier(moose_input,'#','')
 
 config = {'main_path': Path.home()/ 'moose',

@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 
 # Pyvale imports
 import pyvale.mooseherder as mh
-import pyvale.sensorsim as pyv
+import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 
@@ -40,22 +40,22 @@ sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 # displacement field component here.
 field_name = "disp"
 field_comps = ("disp_x","disp_y","disp_z")
-sim_data = pyv.scale_length_units(scale=1000.0,
+sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=field_comps)
 
 #%%
 # We use a helper function to print the extent of the dimensions in our
 # `SimTools` object to help us locate our sensors on the cube.
-pyv.SimTools.print_dimensions(sim_data)
+sens.SimTools.print_dimensions(sim_data)
 
-descriptor = pyv.SensorDescriptorFactory.displacement_descriptor()
+descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
 
 #%%
 # We pass in the string keys for the three vector field components as they
 # appear in our `SimData` object as well as specifying that our elements are
 # 3 dimensional.
-disp_field = pyv.FieldVector(sim_data,field_name,field_comps,elem_dims=3)
+disp_field = sens.FieldVector(sim_data,field_name,field_comps,elem_dims=3)
 
 #%%
 # Here we manually define our sensor positions to place a sensor on the
@@ -70,10 +70,10 @@ sensor_positions = np.array(((5.0,0.0,5.0),
 
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-sensor_data = pyv.SensorData(positions=sensor_positions,
+sensor_data = sens.SensorData(positions=sensor_positions,
                                 sample_times=sample_times)
 
-disp_sens_array = pyv.SensorArrayPoint(sensor_data,
+disp_sens_array = sens.SensorArrayPoint(sensor_data,
                                         disp_field,
                                         descriptor)
 
@@ -82,7 +82,7 @@ measurements = disp_sens_array.calc_measurements()
 #%%
 # Let's have a look at the y displacement field in relation to the location
 # of our displacement sensors.
-pv_plot = pyv.plot_point_sensors_on_sim(disp_sens_array,"disp_y")
+pv_plot = sens.plot_point_sensors_on_sim(disp_sens_array,"disp_y")
 pv_plot.show()
 
 #%%
@@ -99,7 +99,7 @@ time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 print(f"These are the last {time_last} virtual measurements of sensor "
         + f"{sens_print} for {field_comps[comp_print]}:")
 
-pyv.print_measurements(disp_sens_array,sens_print,comp_print,time_print)
+sens.print_measurements(disp_sens_array,sens_print,comp_print,time_print)
 
 print(80*"-")
 
@@ -109,6 +109,6 @@ print(80*"-")
 # maximum y displacement, and that all sensors on the sides of the cube
 # should give the same results.
 for ff in field_comps:
-    pyv.plot_time_traces(disp_sens_array,ff)
+    sens.plot_time_traces(disp_sens_array,ff)
 
 plt.show()
