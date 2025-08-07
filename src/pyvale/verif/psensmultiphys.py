@@ -7,7 +7,7 @@ from pathlib import Path
 import copy
 import numpy as np
 import pyvale.mooseherder as mh
-import pyvale as pyv
+import pyvale.sensorsim as sens
 import pyvale.verif.psens as psens
 import pyvale.verif.psensscalar as psensscalar
 import pyvale.verif.psensvector as psensvector
@@ -20,7 +20,7 @@ def load_simdata_list(data_paths: list[Path],
     sim_list = []
     for pp in data_paths:
         sim_data = mh.ExodusReader(pp).read_all_sim_data()
-        sim_data = pyv.scale_length_units(scale=1000.0,
+        sim_data = sens.scale_length_units(scale=1000.0,
                                             sim_data=sim_data,
                                             disp_comps=disp_comps)
         sim_list.append(sim_data)
@@ -29,23 +29,23 @@ def load_simdata_list(data_paths: list[Path],
 
 
 def simdata_list_2d() -> list[mh.SimData]:
-    data_paths = pyv.DataSet.thermomechanical_2d_experiment_paths()
+    data_paths = sens.DataSet.thermomechanical_2d_experiment_paths()
     disp_comps = ("disp_x","disp_y")
     return load_simdata_list(data_paths,disp_comps)
 
 
 def simdata_list_3d() -> list[mh.SimData]:
-    data_paths = [pyv.DataSet.element_case_output_path(pyv.EElemTest.TET4),
-                  pyv.DataSet.element_case_output_path(pyv.EElemTest.TET10),
-                  pyv.DataSet.element_case_output_path(pyv.EElemTest.HEX8),
-                  pyv.DataSet.element_case_output_path(pyv.EElemTest.HEX20)]
+    data_paths = [sens.DataSet.element_case_output_path(sens.EElemTest.TET4),
+                  sens.DataSet.element_case_output_path(sens.EElemTest.TET10),
+                  sens.DataSet.element_case_output_path(sens.EElemTest.HEX8),
+                  sens.DataSet.element_case_output_path(sens.EElemTest.HEX20)]
     disp_comps = ("disp_x","disp_y","disp_z")
     return load_simdata_list(data_paths,disp_comps)
 
 
 def sens_pos_2d() -> dict[str,np.ndarray]:
     # Geometry does not change
-    sim_dims = pyv.get_sim_dims(simdata_list_2d()[0])
+    sim_dims = sens.get_sim_dims(simdata_list_2d()[0])
     sens_pos = {}
 
     x_lims = sim_dims["x"]
@@ -53,7 +53,7 @@ def sens_pos_2d() -> dict[str,np.ndarray]:
     z_lims = (0,0)
 
     n_sens = (2,2,1)
-    sens_pos["grid-22"] = pyv.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["grid-22"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
     return sens_pos
 
@@ -94,15 +94,15 @@ def sens_pos_3d() -> dict[str,np.ndarray]:
                                       (10.0,5.0,5.0),)) # yz
     return sens_pos
 
-def sens_data_2d_dict() -> dict[str,pyv.SensorData]:
+def sens_data_2d_dict() -> dict[str,sens.SensorData]:
     # Time steps don't change so can take first sim here
     return psens.sens_data_dict(simdata_list_2d()[0],sens_pos_2d())
 
-def sens_data_3d_dict() -> dict[str,pyv.SensorData]:
+def sens_data_3d_dict() -> dict[str,sens.SensorData]:
     # Time steps don't change so can take first sim here
     return psens.sens_data_dict(simdata_list_3d()[0],sens_pos_3d())
 
-def exp_sim_2d() -> dict[str,pyv.ExperimentSimulator]:
+def exp_sim_2d() -> dict[str,sens.ExperimentSimulator]:
     sens_data_dict = sens_data_2d_dict()
     sim_list = simdata_list_2d()
 
@@ -165,8 +165,8 @@ def exp_sim_2d() -> dict[str,pyv.ExperimentSimulator]:
                 # print(f"{ee=}")
                 # print(80*"-")
                 if err_chain_dict[ff][ee] is not None:
-                    err_int_opts = pyv.ErrIntOpts()
-                    err_int = pyv.ErrIntegrator(err_chain_dict[ff][ee],
+                    err_int_opts = sens.ErrIntOpts()
+                    err_int = sens.ErrIntegrator(err_chain_dict[ff][ee],
                                                 sens_data_dict[ss],
                                                 this_sens.get_measurement_shape(),
                                                 err_int_opts=err_int_opts)
@@ -176,7 +176,7 @@ def exp_sim_2d() -> dict[str,pyv.ExperimentSimulator]:
 
             sim_list = simdata_list_2d()
             sensor_arrays = [sens_noerrs["scal"],sens_noerrs["vect"],sens_noerrs["tens"]]
-            exp_sim = pyv.ExperimentSimulator(sim_list,
+            exp_sim = sens.ExperimentSimulator(sim_list,
                                              sensor_arrays,
                                              num_exp_per_sim=10)
             exp_sims[tag] = exp_sim
