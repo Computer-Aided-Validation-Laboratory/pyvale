@@ -5,10 +5,12 @@
 #===============================================================================
 import copy
 import numpy as np
+
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.verif.psens as psens
 import pyvale.verif.psensconst as psensconst
+import pyvale.dataset as dataset
 
 """
 DEVELOPER VERIFICATION MODULE
@@ -23,7 +25,7 @@ applied to scalar fields.
 # TODO: fix position locking for 3D field errors
 
 def simdata_2d() -> mh.SimData:
-    data_path = sens.DataSet.thermal_2d_path()
+    data_path = dataset.thermal_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
@@ -32,7 +34,7 @@ def simdata_2d() -> mh.SimData:
 
 
 def simdata_3d() -> mh.SimData:
-    data_path = sens.DataSet.thermal_3d_path()
+    data_path = dataset.thermal_3d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
@@ -41,7 +43,7 @@ def simdata_3d() -> mh.SimData:
 
 
 def sens_pos_2d() -> dict[str,np.ndarray]:
-    sim_dims = sens.get_sim_dims(simdata_2d())
+    sim_dims = sens.SimTools.get_sim_dims(simdata_2d())
     sens_pos = {}
 
     x_lims = sim_dims["x"]
@@ -58,7 +60,7 @@ def sens_pos_2d() -> dict[str,np.ndarray]:
 
 
 def sens_pos_3d() -> dict[str,np.ndarray]:
-    sim_dims = sens.get_sim_dims(simdata_3d())
+    sim_dims = sens.SimTools.get_sim_dims(simdata_3d())
 
     sens_pos = {}
 
@@ -254,11 +256,11 @@ def sens_noerrs(sim_data: mh.SimData,
 
 
 def sens_dict(sim_data: mh.SimData,
-              sens_data_dict: dict[str,sens.SensorData],
+              sens_data_dict: dict[str, sens.SensorData],
               tag: str
-              ) -> dict[str,sens.SensorArrayPoint]:
+              ) -> dict[str, sens.SensorArrayPoint]:
 
-    sens = {}
+    sens_dict = {}
     for ss in sens_data_dict:
         sens_array = sens_noerrs(sim_data,
                                  sens_data_dict[ss],
@@ -276,18 +278,21 @@ def sens_dict(sim_data: mh.SimData,
                                            pos_lock[pos_lock_key])
 
         for ee in err_chain_dict:
-            tag = f"{tag}_{ss}_err-{ee}"
-            sens[tag] = copy.deepcopy(sens_array)
+            full_tag = f"{tag}_{ss}_err-{ee}"
+            sens_dict[full_tag] = copy.deepcopy(sens_array)
 
             if err_chain_dict[ee] is not None:
                 err_int_opts = sens.ErrIntOpts()
-                err_int = sens.ErrIntegrator(err_chain_dict[ee],
-                                            sens_data_dict[ss],
-                                            sens[tag].get_measurement_shape(),
-                                            err_int_opts=err_int_opts)
-                sens[tag].set_error_integrator(err_int)
+                err_int = sens.ErrIntegrator(
+                    err_chain_dict[ee],
+                    sens_data_dict[ss],
+                    sens_dict[full_tag].get_measurement_shape(),
+                    err_int_opts=err_int_opts
+                )
+                sens_dict[full_tag].set_error_integrator(err_int)
 
-    return sens
+    return sens_dict
+
 
 
 def sens_2d_dict() -> dict[str,sens.SensorArrayPoint]:

@@ -59,7 +59,7 @@ def sens_2d_dict() -> dict[str,sens.SensorArrayPoint]:
     sim_data = psensmech.simdata_mech_2d()
     sens_data_dict = psensmech.sens_data_2d_dict()
 
-    sens = {}
+    sens_dict = {}
     for ss in sens_data_dict:
         sens_array = sens_2d_noerrs(sim_data,sens_data_dict[ss])
 
@@ -76,24 +76,24 @@ def sens_2d_dict() -> dict[str,sens.SensorArrayPoint]:
 
         for ee in err_chain_dict:
             tag = f"tens2d_{ss}_err-{ee}"
-            sens[tag] = copy.deepcopy(sens_array)
+            sens_dict[tag] = copy.deepcopy(sens_array)
 
             if err_chain_dict[ee] is not None:
                 err_int_opts = sens.ErrIntOpts()
                 err_int = sens.ErrIntegrator(err_chain_dict[ee],
                                             sens_data_dict[ss],
-                                            sens[tag].get_measurement_shape(),
+                                            sens_dict[tag].get_measurement_shape(),
                                             err_int_opts=err_int_opts)
-                sens[tag].set_error_integrator(err_int)
+                sens_dict[tag].set_error_integrator(err_int)
 
-    return sens
+    return sens_dict
 
 
 def sens_3d_dict() -> dict[str,sens.SensorArrayPoint]:
     sim_data = psensmech.simdata_mech_3d()
     sens_data_dict = psensmech.sens_data_3d_dict()
 
-    sens = {}
+    sens_dict = {}
     for ss in sens_data_dict:
         sens_array = sens_3d_noerrs(sim_data,sens_data_dict[ss])
 
@@ -110,14 +110,14 @@ def sens_3d_dict() -> dict[str,sens.SensorArrayPoint]:
 
         for ee in err_chain_dict:
             tag = f"tens3d_{ss}_err-{ee}"
-            sens[tag] = copy.deepcopy(sens_array)
+            sens_dict[tag] = copy.deepcopy(sens_array)
 
             if err_chain_dict[ee] is not None:
                 err_int_opts = sens.ErrIntOpts()
                 err_int = sens.ErrIntegrator(err_chain_dict[ee],
                                             sens_data_dict[ss],
-                                            sens[tag].get_measurement_shape(),
+                                            sens_dict[tag].get_measurement_shape(),
                                             err_int_opts=err_int_opts)
-                sens[tag].set_error_integrator(err_int)
+                sens_dict[tag].set_error_integrator(err_int)
 
-    return sens
+    return sens_dict

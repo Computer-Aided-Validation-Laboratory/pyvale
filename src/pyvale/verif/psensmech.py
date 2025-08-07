@@ -8,6 +8,7 @@ import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.verif.psens as psens
 import pyvale.verif.psensconst as psensconst
+import pyvale.dataset as dataset
 
 """
 DEVELOPER VERIFICATION MODULE
@@ -21,7 +22,7 @@ field point sensors.
 """
 
 def simdata_mech_2d() -> mh.SimData:
-    data_path = sens.DataSet.mechanical_2d_path()
+    data_path = dataset.mechanical_2d_path()
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
@@ -30,7 +31,7 @@ def simdata_mech_2d() -> mh.SimData:
 
 
 def simdata_mech_3d() -> mh.SimData:
-    data_path = sens.DataSet.element_case_output_path(sens.EElemTest.HEX20)
+    data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
     sim_data = mh.ExodusReader(data_path).read_all_sim_data()
     field_comps = ("disp_x","disp_y","disp_z")
     sim_data = sens.scale_length_units(scale=1000.0,
@@ -39,7 +40,7 @@ def simdata_mech_3d() -> mh.SimData:
     return sim_data
 
 def sens_pos_2d() -> dict[str,np.ndarray]:
-    sim_dims = sens.get_sim_dims(simdata_mech_2d())
+    sim_dims = sens.SimTools.get_sim_dims(simdata_mech_2d())
     sens_pos = {}
 
     x_lims = sim_dims["x"]

@@ -13,6 +13,7 @@ import pyvale.verif.psensscalar as psensscalar
 import pyvale.verif.psensvector as psensvector
 import pyvale.verif.psenstensor as psenstensor
 import pyvale.verif.psensmech as psensmech
+import pyvale.dataset as dataset
 
 
 def load_simdata_list(data_paths: list[Path],
@@ -29,23 +30,23 @@ def load_simdata_list(data_paths: list[Path],
 
 
 def simdata_list_2d() -> list[mh.SimData]:
-    data_paths = sens.DataSet.thermomechanical_2d_experiment_paths()
+    data_paths = dataset.thermomechanical_2d_experiment_paths()
     disp_comps = ("disp_x","disp_y")
     return load_simdata_list(data_paths,disp_comps)
 
 
 def simdata_list_3d() -> list[mh.SimData]:
-    data_paths = [sens.DataSet.element_case_output_path(sens.EElemTest.TET4),
-                  sens.DataSet.element_case_output_path(sens.EElemTest.TET10),
-                  sens.DataSet.element_case_output_path(sens.EElemTest.HEX8),
-                  sens.DataSet.element_case_output_path(sens.EElemTest.HEX20)]
+    data_paths = [dataset.element_case_output_path(dataset.EElemTest.TET4),
+                  dataset.element_case_output_path(dataset.EElemTest.TET10),
+                  dataset.element_case_output_path(dataset.EElemTest.HEX8),
+                  dataset.element_case_output_path(dataset.EElemTest.HEX20)]
     disp_comps = ("disp_x","disp_y","disp_z")
     return load_simdata_list(data_paths,disp_comps)
 
 
 def sens_pos_2d() -> dict[str,np.ndarray]:
     # Geometry does not change
-    sim_dims = sens.get_sim_dims(simdata_list_2d()[0])
+    sim_dims = sens.SimTools.get_sim_dims(simdata_list_2d()[0])
     sens_pos = {}
 
     x_lims = sim_dims["x"]
@@ -165,7 +166,7 @@ def exp_sim_2d() -> dict[str,sens.ExperimentSimulator]:
                 # print(f"{ee=}")
                 # print(80*"-")
                 if err_chain_dict[ff][ee] is not None:
-                    err_int_opts = sens.ErrIntOpts()
+                    err_int_opts = sens.ErrIntOpts
                     err_int = sens.ErrIntegrator(err_chain_dict[ff][ee],
                                                 sens_data_dict[ss],
                                                 this_sens.get_measurement_shape(),

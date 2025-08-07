@@ -21,7 +21,7 @@ import pyvale.verif.psensconst as psensconst
 
 
 def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
-    sim_dims = sens.get_sim_dims(sim_data)
+    sim_dims = sens.SimTools.get_sim_dims(sim_data)
     sample_times = {}
 
     sample_times["sim"] = None
@@ -107,7 +107,7 @@ def check_gold_measurements(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[
     for ss in sens_dict:
         measurements = sens_dict[ss].calc_measurements()
 
-        load_path = psensconst.GOLD_PATH / f"{ss}.npy"
+        load_path = psensconst.GOLD_PATH / f"{ss.lower()}.npy"
         if load_path.is_file():
             gold = np.load(load_path)
 
