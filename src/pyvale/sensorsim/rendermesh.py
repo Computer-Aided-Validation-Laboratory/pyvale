@@ -79,7 +79,7 @@ def create_render_mesh(sim_data: mh.SimData,
     if field_disp_keys is not None:
         extract_keys = field_render_keys+field_disp_keys
 
-    (pv_grid,_) = simdata_to_pyvista_interp(sim_data,
+    pv_grid = simdata_to_pyvista_interp(sim_data,
                                             extract_keys,
                                             elem_dims=sim_spat_dim)
 
