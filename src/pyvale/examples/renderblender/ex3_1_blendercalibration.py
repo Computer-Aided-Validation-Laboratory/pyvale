@@ -15,9 +15,10 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
 
-# Pyvale modules
-import pyvale
+# Pyvale imports
+import pyvale.sensorsim as sens
 import pyvale.blender as blender
+import pyvale.dataset as dataset
 
 # %%
 # Firstly, a save path must be set.
@@ -60,7 +61,7 @@ target = scene.add_cal_target(target_size=np.array([150, 100, 10]))
 # are the camera parameters for the first camera, and the desired stereo angle
 # between the two. The cameras can then be added to the Blender scene using the
 # `add_stereo_system` method.
-cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
+cam_data_0 = sens.CameraData(pixels_num=np.array([1540, 1040]),
                                pixels_size=np.array([0.00345, 0.00345]),
                                pos_world=np.array([0, 0, 400]),
                                rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
@@ -70,11 +71,11 @@ cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
 # "faceon" to get a face-on stereo system
 stereo_setup = "faceon"
 if stereo_setup == "symmetric":
-    stereo_system = pyvale.CameraTools.symmetric_stereo_cameras(
+    stereo_system = sens.CameraTools.symmetric_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
 elif stereo_setup == "faceon":
-    stereo_system = pyvale.CameraTools.faceon_stereo_cameras(
+    stereo_system = sens.CameraTools.faceon_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
 else:
@@ -119,10 +120,10 @@ light.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
 # pattern.
 
 material_data = blender.MaterialData()
-speckle_path = Path.cwd() / "src/pyvale/data/cal_target.tiff"
-mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data_0)
+cal_target = dataset.cal_target()
+mm_px_resolution = sens.CameraTools.calculate_mm_px_resolution(cam_data_0)
 scene.add_speckle(part=target,
-                  speckle_path=speckle_path,
+                  speckle_path=cal_target,
                   mat_data=material_data,
                   mm_px_resolution=mm_px_resolution,
                   cal=True)
