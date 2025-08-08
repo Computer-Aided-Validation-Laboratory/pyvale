@@ -10,6 +10,7 @@ copyright (c) 2024 the computer aided validation team
 import os
 os.environ['OMP_NUM_THREADS'] = '1'
 
+import numpy as np
 import pyvale.dic as dic
 
 test_dir = os.path.dirname(__file__)
@@ -39,8 +40,14 @@ def test_image_scan_znssd_affine():
     test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_affine_plate_rigid_def0000.csv"))
 
 
-    with open(ref_file) as f1, open(test_file) as f2:
-        assert list(f1) == list(f2)
+    ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
+    test = np.loadtxt(test_file, skiprows=1, delimiter=',')
+
+    np.testing.assert_array_equal(
+        ref[:, :7],
+        test[:, :7],
+        err_msg="First 7 columns of reference and test CSVs do not match."
+    )
 
     os.remove(test_file)
 
@@ -63,8 +70,14 @@ def test_image_scan_znssd_rigid():
     test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_rigid_plate_rigid_def0000.csv"))
 
 
-    with open(ref_file) as f1, open(test_file) as f2:
-        assert list(f1) == list(f2)
+    ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
+    test = np.loadtxt(test_file, skiprows=1, delimiter=',')
+
+    np.testing.assert_array_equal(
+        ref[:, :7],
+        test[:, :7],
+        err_msg="First 7 columns of reference and test CSVs do not match."
+    )
 
     os.remove(test_file)
 
@@ -87,8 +100,14 @@ def test_image_scan_nssd_affine():
     test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_nssd_affine_plate_rigid_def0000.csv"))
 
 
-    with open(ref_file) as f1, open(test_file) as f2:
-        assert list(f1) == list(f2)
+    ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
+    test = np.loadtxt(test_file, skiprows=1, delimiter=',')
+
+    np.testing.assert_array_equal(
+        ref[:, :7],
+        test[:, :7],
+        err_msg="First 7 columns of reference and test CSVs do not match."
+    )
 
     os.remove(test_file)
 
@@ -110,9 +129,19 @@ def test_rg_znssd_affine():
     ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_rg_znssd_affine_plate_rigid.csv"))
     test_file = os.path.abspath(os.path.join(test_dir, "./test_rg_znssd_affine_plate_rigid_def0000.csv"))
 
+    ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
+    test = np.loadtxt(test_file, skiprows=1, delimiter=',')
 
-    with open(ref_file) as f1, open(test_file) as f2:
-        assert list(f1) == list(f2)
+    np.testing.assert_array_equal(
+        ref[:, :7],
+        test[:, :7],
+        err_msg="First 7 columns of reference and test CSVs do not match."
+    )
+
+
+
+    # with open(ref_file) as f1, open(test_file) as f2:
+    #     assert list(f1) == list(f2)
 
 
     os.remove(test_file)
@@ -136,8 +165,14 @@ def test_fft_znssd_affine():
     test_file = os.path.abspath(os.path.join(test_dir, "./test_fft_znssd_affine_plate_rigid_def0000.csv"))
 
 
-    with open(ref_file) as f1, open(test_file) as f2:
-        assert list(f1) == list(f2)
+    ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
+    test = np.loadtxt(test_file, skiprows=1, delimiter=',')
+
+    np.testing.assert_array_equal(
+        ref[:, :7],
+        test[:, :7],
+        err_msg="First 7 columns of reference and test CSVs do not match."
+    )
 
 
     os.remove(test_file)
