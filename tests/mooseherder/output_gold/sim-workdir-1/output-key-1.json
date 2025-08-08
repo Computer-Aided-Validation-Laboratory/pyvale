@@ -1,0 +1,26 @@
+[
+    [
+        "tests/output/sim-workdir-1/sim-1_out.e"
+    ],
+    [
+        "tests/output/sim-workdir-2/sim-2_out.e"
+    ],
+    [
+        "tests/output/sim-workdir-3/sim-3_out.e"
+    ],
+    [
+        "tests/output/sim-workdir-4/sim-4_out.e"
+    ],
+    [
+        "tests/output/sim-workdir-2/sim-5_out.e"
+    ],
+    [
+        "tests/output/sim-workdir-1/sim-6_out.e"
+    ],
+    [
+        "tests/output/sim-workdir-4/sim-7_out.e"
+    ],
+    [
+        "tests/output/sim-workdir-3/sim-8_out.e"
+    ]
+]

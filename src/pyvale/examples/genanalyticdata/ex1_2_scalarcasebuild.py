@@ -7,11 +7,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sympy
-import pyvale
+import pyvale.verif as va
 
 def main() -> None:
 
-    case_data = pyvale.AnalyticData2D()
+    case_data = va.AnalyticData2D()
     case_data.length_x = 10.0
     case_data.length_y = 7.5
     n_elem_mult = 10
@@ -27,7 +27,7 @@ def main() -> None:
     case_data.offsets_time = (0.0,)
 
 
-    data_gen = pyvale.AnalyticSimDataGen(case_data)
+    data_gen = va.AnalyticSimDataGen(case_data)
     sim_data = data_gen.generate_sim_data()
 
     (grid_x,grid_y,grid_field) = data_gen.get_visualisation_grid()

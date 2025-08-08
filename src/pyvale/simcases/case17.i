@@ -13,8 +13,8 @@ timeStep = 1
 topDispRate = ${fparse 1.5e-3 / 60}  # m/s
 
 # Material Properties: OFHC Copper 250degC
-cuEMod= 108e9   # Pa
-cuPRatio = 0.33     # -
+EMod= 108e9   # Pa
+PRatio = 0.33     # -
 
 #** MOOSEHERDER VARIABLES - END
 #-------------------------------------------------------------------------
@@ -71,8 +71,8 @@ cuPRatio = 0.33     # -
 [Materials]
     [elasticity]
         type = ComputeIsotropicElasticityTensor
-        youngs_modulus = ${cuEMod}
-        poissons_ratio = ${cuPRatio}
+        youngs_modulus = ${EMod}
+        poissons_ratio = ${PRatio}
     []
     [stress]
         type = ComputeFiniteStrainElasticStress

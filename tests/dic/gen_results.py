@@ -14,10 +14,10 @@ os.environ['OMP_NUM_THREADS'] = '1'
 import pyvale
 ref_pattern = "../../src/pyvale/data/plate_rigid_ref0000.tiff"
 def_pattern = "../../src/pyvale/data/plate_rigid_def0000.tiff"
-roi = pyvale.DICRegionOfInterest(ref_image=ref_pattern)
+roi = pyvale.dic.RegionOfInterest(ref_image=ref_pattern)
 roi.rect_region(x=200,y=200,size_x=100,size_y=100)
 
-pyvale.dic_2d(reference=ref_pattern,
+pyvale.dic.two_dimensional(reference=ref_pattern,
             deformed=def_pattern,
             roi_mask=roi.mask,
             seed=[250,250],
@@ -30,7 +30,7 @@ pyvale.dic_2d(reference=ref_pattern,
             scanning_method="IMAGE_SCAN",
             output_prefix="test_image_scan_znssd_affine_")
 
-pyvale.dic_2d(reference=ref_pattern,
+pyvale.dic.two_dimensional(reference=ref_pattern,
             deformed=def_pattern,
             roi_mask=roi.mask,
             seed=[250,250],
@@ -43,7 +43,7 @@ pyvale.dic_2d(reference=ref_pattern,
             scanning_method="IMAGE_SCAN",
             output_prefix="test_image_scan_znssd_rigid_")
 
-pyvale.dic_2d(reference=ref_pattern,
+pyvale.dic.two_dimensional(reference=ref_pattern,
             deformed=def_pattern,
             roi_mask=roi.mask,
             seed=[250,250],
@@ -56,7 +56,7 @@ pyvale.dic_2d(reference=ref_pattern,
             scanning_method="IMAGE_SCAN",
             output_prefix="test_image_scan_nssd_affine_")
 
-pyvale.dic_2d(reference=ref_pattern,
+pyvale.dic.two_dimensional(reference=ref_pattern,
             deformed=def_pattern,
             roi_mask=roi.mask,
             seed=[250,250],
@@ -69,7 +69,7 @@ pyvale.dic_2d(reference=ref_pattern,
             scanning_method="RG",
             output_prefix="test_rg_znssd_affine_")
 
-pyvale.dic_2d(reference=ref_pattern,
+pyvale.dic.two_dimensional(reference=ref_pattern,
             deformed=def_pattern,
             roi_mask=roi.mask,
             seed=[250,250],

@@ -8,7 +8,7 @@ Copyright (C) 2025 The Computer Aided Validation Team
 '''
 from pathlib import Path
 import numpy as np
-from mooseherder import (MooseHerd,
+from pyvale.mooseherder import (MooseHerd,
                          MooseRunner,
                          MooseConfig,
                          InputModifier,

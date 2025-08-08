@@ -1,2 +1,2 @@
-Point Sensor Examples
-============================
+Basics Examples
+==================

@@ -9,21 +9,13 @@ Copyright (C) 2025 The Computer Aided Validation Team
 import time
 from pathlib import Path
 from importlib.resources import files
-from mooseherder import (MooseConfig,
+from pyvale.mooseherder import (MooseConfig,
                          MooseRunner,
                          GmshRunner)
 
 #===============================================================================
 # Change this to run a different case
-<<<<<<< HEAD
-<<<<<<< HEAD
-CASE_STR = 'case21'
-=======
-CASE_STR = 'case16'
->>>>>>> deploy
-=======
 CASE_STR = 'case00_HEX27'
->>>>>>> main
 #===============================================================================
 
 CASE_FILES = (CASE_STR+'.geo',CASE_STR+'.i')

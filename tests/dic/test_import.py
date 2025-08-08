@@ -10,20 +10,19 @@ copyright (c) 2024 the computer aided validation team
 import os
 os.environ['OMP_NUM_THREADS'] = '1'
 
-import pytest
-import pyvale
 import numpy as np
+import pyvale.dic as dic
 
 test_dir = os.path.dirname(__file__)
 
 
 def test_dic_data_column_import():
 
-    filename = "./reference/ref_image_scan_znssd_affine_plate_rigid.dat"
+    filename = "./reference/ref_image_scan_znssd_affine_plate_rigid.csv"
     datafile = os.path.abspath(os.path.join(test_dir,filename))
-    dicdata = pyvale.dic_data_import(data=datafile, binary=False, layout='column', delimiter=" ")
+    dicdata = dic.data_import(data=datafile, binary=False, layout='column', delimiter=",")
 
-    raw_data = np.loadtxt(datafile, delimiter=" ", skiprows=1)
+    raw_data = np.loadtxt(datafile, delimiter=",", skiprows=1)
     assert np.allclose(dicdata.ss_x, raw_data[:, 0]), "Mismatch in ss_x data column"
     assert np.allclose(dicdata.ss_y, raw_data[:, 1]), "Mismatch in ss_y data column"
     assert np.allclose(dicdata.u, raw_data[:, 2]), "Mismatch in u data column"
@@ -38,11 +37,11 @@ def test_dic_data_column_import():
 
 def test_dic_data_matrix_import():
 
-    filename = "./reference/ref_image_scan_znssd_affine_plate_rigid.dat"
+    filename = "./reference/ref_image_scan_znssd_affine_plate_rigid.csv"
     datafile = os.path.abspath(os.path.join(test_dir,filename))
-    dicdata = pyvale.dic_data_import(data=datafile, binary=False, layout='matrix', delimiter=" ")
+    dicdata = dic.data_import(data=datafile, binary=False, layout='matrix', delimiter=",")
 
-    raw_data = np.loadtxt(datafile, delimiter=" ", skiprows=1)
+    raw_data = np.loadtxt(datafile, delimiter=",", skiprows=1)
 
     # loop over all x and y values in raw_data and check if they exist in the
     # matrix format of the dicdata

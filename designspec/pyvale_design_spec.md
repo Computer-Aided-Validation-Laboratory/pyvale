@@ -6,17 +6,18 @@ Qualification of fusion technology is reliant on simulations to predict the perf
 A key parameter of validation experiments is the deployment of sensor arrays to measure the components response. There are currently no commercial tools available that can simulate and optimise the placement of diverse arrays of sensors for multi-physics conditions with realistic constraints (e.g., cost, reliability, and accuracy). Such a tool would have immediate benefits for reducing costs of the experimental programme required to qualify fusion components such as the breeder blankets and divertors. Enabling digital twins for future fusion power plants will also require sensors and data transfer to the digital model. It is envisaged that a sensor simulation and optimisation tool would decrease the cost and increase the reliability of the hardware and cyber/physical interfaces for fusion plant digital twins.
 
 ## Aims & Objectives
-The aim of this project is to develop a software engine that can use an input multi-physics simulation to produce a set of simulated sensor dataset with realistic uncertainties to be used for optimisation. This software engine will be developed as a python package to allow for ease of use by the scientific and engineering community. The package will be called the python validation engine, `pyvale`. Furthermore, `pyvale` is made open-source with an MIT license allowing for commercial use. The main objectives of `pyvale` are to:
+The aim of the `pyvale` project is to develop a software engine that can use an input multi-physics simulation to produce a set of simulated sensor dataset with realistic uncertainties to be used for experiment optimisation. This software engine will be developed as a python package to allow for ease of use by the scientific and engineering community.  `pyvale` is made open-source with an MIT license allowing for commercial use. The main objectives of `pyvale` are to:
 
 1. Provide a toolbox of sensor simulation models with realistic uncertainties which can be applied to an input multi-physics simulation with a particular focus on camera-based sensors.
 2. Create an experimental design and sensor placement optimisation workflow that utilises the sensor model library.
 3. Develop a simulation calibration and validation framework that can be used with the sensor model library or with real experimental data.
 
-A key focus of `pyvale` is developement of open-source scalable tools that can be used to simulate uncertainties for camera-based sensors. Current commercial solutions for simulating DIC have restrictive licenses that do not allow deployment on clusters for large optimisation analyses.
+A key focus of `pyvale` is developement of open-source scalable and accesible tools that can be used to simulate uncertainties for camera-based sensors. Current commercial solutions for simulating cameras have restrictive licenses that do not allow deployment on clusters for large optimisation analyses.
 
 ## `pyvale` Design Philosophy
-- Scientists and engineers want a python interface: Write computationally demanding algorithms in lower level languages like Cython, C or CUDA but provide a Python interface for users
+- Scientists and engineers want a python interface: Write computationally demanding algorithms in lower level languages like Cython, C/C++ but provide a Python interface for users
 - Users want to get started quickly but have the option to customise everything: provide good defaults to simplify the interface
+- Good docs and examples make it easy for users:
 
 ## Sensor Simulation Toolbox Specification
 A simulated sensor will produce a simulated measurement $M$ which is defined to be: $M = T + E_{S} + E_{R}$ where $T$ is the ground truth value taken from the given input multi-physics simulation, $E_{S}$ includes any sources of systematic measurement error (e.g. averaging, digitisation, calibration), and $E_{R}$ includes any sources of random errors (e.g. noise).

@@ -1,6 +1,6 @@
 
 from pathlib import Path
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale
 
 def main() -> None:

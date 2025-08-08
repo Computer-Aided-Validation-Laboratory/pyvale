@@ -15,9 +15,12 @@ pyvale-env/
 *.gif
 *.tiff
 *.blend
+*.csv
+*.json
 testoutput/
 exampleoutput/
 pyvale-output/
+blender*/
 
 # MOOSE / gmsh
 *-opt
@@ -33,12 +36,27 @@ pyvale-output/
 !images/*.svg
 !docs/source/_static/*.png
 
+# Keep these as they are gold output for regression tests
+!tests/sensorsim/gold/*.npy
+!tests/mooseherder/output_gold/*.e
+!tests/mooseherder/output_gold/*.csv
+!tests/mooseherder/output_gold/sim-workdir-*/*.e
+!tests/mooseherder/output_gold/sim-workdir-*/*.json
+
 # Image deformation test cases
 *.pkl
 *.dill
 imdefcase*_*/
 deformed_images/
 src/deformed_images/
+
+# Cython diagnostics
+src/pyvale/cython/*.html
+
+# Zig libraries
+*.so
+*.a
+*.o
 
 #-------------------------------------------------------------------------------
 # Python Standard Ignore

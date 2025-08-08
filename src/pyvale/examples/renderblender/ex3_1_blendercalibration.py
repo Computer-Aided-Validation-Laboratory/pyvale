@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Blender example: Rendering calibration images
+Rendering calibration images
 ---------------------------------------------
 
 This example takes you through how to render calibration images for a given DIC
@@ -14,7 +14,11 @@ setup.
 import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
-import pyvale
+
+# Pyvale imports
+import pyvale.sensorsim as sens
+import pyvale.blender as blender
+import pyvale.dataset as dataset
 
 # %%
 # Firstly, a save path must be set.
@@ -31,7 +35,7 @@ base_dir = Path.cwd()
 # In order to create a DIC setup in Blender, first a scene must be created.
 # A scene is initialised using the `BlenderScene` class. All the subsequent
 # objects and actions necessary are then methods of this class.
-scene = pyvale.BlenderScene()
+scene = blender.Scene()
 
 # %%
 # The next thing to add to the scene is the calibration target.
@@ -57,7 +61,7 @@ target = scene.add_cal_target(target_size=np.array([150, 100, 10]))
 # are the camera parameters for the first camera, and the desired stereo angle
 # between the two. The cameras can then be added to the Blender scene using the
 # `add_stereo_system` method.
-cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
+cam_data_0 = sens.CameraData(pixels_num=np.array([1540, 1040]),
                                pixels_size=np.array([0.00345, 0.00345]),
                                pos_world=np.array([0, 0, 400]),
                                rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
@@ -67,13 +71,16 @@ cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
 # "faceon" to get a face-on stereo system
 stereo_setup = "faceon"
 if stereo_setup == "symmetric":
-    stereo_system = pyvale.CameraTools.symmetric_stereo_cameras(
+    stereo_system = sens.CameraTools.symmetric_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
-if stereo_setup == "faceon":
-    stereo_system = pyvale.CameraTools.faceon_stereo_cameras(
+elif stereo_setup == "faceon":
+    stereo_system = sens.CameraTools.faceon_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
+else:
+    raise ValueError(f"Unknown stereo_setup: {stereo_setup}")
+
 scene.add_stereo_system(stereo_system)
 
 # %%
@@ -95,7 +102,7 @@ stereo_system.save_calibration(base_dir)
 # Blender offers different light types: Point, Sun, Spot and Area.
 # The light can also be moved and rotated like the camera.
 
-light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
+light_data = blender.LightData(type=blender.LightType.POINT,
                                      pos_world=(0, 0, 200),
                                      rot_world=Rotation.from_euler("xyz",
                                                                   [0, 0, 0]),
@@ -112,11 +119,11 @@ light.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
 # calibration target pattern will not be scaled in the same way as a speckle
 # pattern.
 
-material_data = pyvale.BlenderMaterialData()
-speckle_path = Path.cwd() / "src/pyvale/data/cal_target.tiff"
-mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data_0)
+material_data = blender.MaterialData()
+cal_target = dataset.cal_target()
+mm_px_resolution = sens.CameraTools.calculate_mm_px_resolution(cam_data_0)
 scene.add_speckle(part=target,
-                  speckle_path=speckle_path,
+                  speckle_path=cal_target,
                   mat_data=material_data,
                   mm_px_resolution=mm_px_resolution,
                   cal=True)
@@ -128,7 +135,7 @@ scene.add_speckle(part=target,
 # rendered.Firstly, all the rendering parameters must be set, including
 # parameters such as the number of threads to use.
 
-render_data = pyvale.RenderData(cam_data=(stereo_system.cam_data_0,
+render_data = blender.RenderData(cam_data=(stereo_system.cam_data_0,
                                             stereo_system.cam_data_1),
                                 base_dir=base_dir)
 
@@ -141,7 +148,7 @@ render_data = pyvale.RenderData(cam_data=(stereo_system.cam_data_0,
 # passed in they will be initialised from the FOV to cover the whole FOV of the
 # cameras.
 
-calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
+calibration_data = blender.CalibrationData(angle_lims=(-10, 10),
                                           angle_step=5,
                                           plunge_lims=(-5, 5),
                                           plunge_step=5)
@@ -151,7 +158,7 @@ calibration_data = pyvale.CalibrationData(angle_lims=(-10, 10),
 # rendered before rendering them. The only input that is needed is the
 # `calibration_data` specified above.
 
-number_calibration_images = pyvale.BlenderTools.number_calibration_images(calibration_data)
+number_calibration_images = blender.Tools.number_calibration_images(calibration_data)
 print("Number of calibration images to be rendered:", number_calibration_images)
 
 # %%
@@ -159,7 +166,7 @@ print("Number of calibration images to be rendered:", number_calibration_images)
 # calibration target according to movement limits set above, and will also move
 # the target rigidly across the FOV of the camera, in order to characterise the
 # entire FOV of the cameras.
-pyvale.BlenderTools.render_calibration_images(render_data,
+blender.Tools.render_calibration_images(render_data,
                                               calibration_data,
                                               target)
 
@@ -172,4 +179,4 @@ print("Save directory of the images:", (render_data.base_dir / "calimages"))
 # There is also the option to save the scene as a Blender project file.
 # This file can be opened with the Blender GUI to view the scene.
 
-pyvale.BlenderTools.save_blender_file(base_dir)
+blender.Tools.save_blender_file(base_dir)
