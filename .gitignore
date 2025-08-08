@@ -37,7 +37,7 @@ blender*/
 !docs/source/_static/*.png
 
 # Keep these as they are gold output for regression tests
-!tests/pointsensors/gold/*.npy
+!tests/sensorsim/gold/*.npy
 !tests/mooseherder/output_gold/*.e
 !tests/mooseherder/output_gold/*.csv
 !tests/mooseherder/output_gold/sim-workdir-*/*.e
