@@ -72,7 +72,7 @@ class FieldScalar(IField):
             self._interpolator = None #FieldInterpPoints()
         else:
             self._interpolator = FieldInterpMesh(self._sim_data,
-                                                 self._field_key,
+                                                 (self._field_key,),
                                                  self._elem_dims)
 
     def get_sim_data(self) -> mh.SimData:

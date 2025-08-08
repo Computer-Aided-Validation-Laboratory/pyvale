@@ -26,11 +26,10 @@ def main() -> None:
                                   field_key=field_key,
                                   elem_dims=2)
 
-    scal_field_nm = sens.FieldScalar(sim_data_nomesh,
-                                     field_key=field_key,
-                                     elem_dims=2)
+    # scal_field_nm = sens.FieldScalar(sim_data_nomesh,
+    #                                  field_key=field_key,
+    #                                  elem_dims=2)
 
-    return
 
     n_sens = (4,1,1)
     x_lims = (0.0,10.0)
