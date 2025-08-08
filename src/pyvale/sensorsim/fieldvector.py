@@ -70,8 +70,7 @@ class FieldVector(IField):
             physical field.
         """
         self._sim_data = sim_data
-
-        # TODO: this will need to be fixed for point clouds
+        
         self._visualiser = simdata_to_pyvista_vis(sim_data,
                                                   self._elem_dims)
         if self._sim_data.connect is None:

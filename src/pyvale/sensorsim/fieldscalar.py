@@ -37,7 +37,8 @@ class FieldScalar(IField):
             String key for the scalar field component in the `SimData` object.
         elem_dims : int
             Number of spatial dimensions (2 or 3) used for identifying element
-            types.
+            types. If point cloud data then set to the number of dimensions of
+            the problem as 2D triangulation is much faster than 3D.
         """
 
         self._field_key = field_key
@@ -65,7 +66,6 @@ class FieldScalar(IField):
 
         self._sim_data = sim_data
 
-        # TODO: this will need to be fixed for point clouds
         self._visualiser = simdata_to_pyvista_vis(sim_data,
                                                   self._elem_dims)
         if self._sim_data.connect is None:

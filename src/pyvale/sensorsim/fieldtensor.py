@@ -77,12 +77,6 @@ class FieldTensor(IField):
         self._sim_data = sim_data
         self._visualiser = simdata_to_pyvista_vis(sim_data,self._elem_dims)
 
-        self._interpolator = simdata_to_pyvista_interp(
-            sim_data,
-            self._norm_components + self._dev_components,
-            self._elem_dims,
-        )
-
         if self._sim_data.connect is None:
             self._interpolator = None #FieldInterpPoints()
         else:

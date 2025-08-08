@@ -4,12 +4,13 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-from pyvale.sensorsim.fieldinterp import FieldInterp
+
 import numpy as np
 import pyvista as pv
 import pyvale.mooseherder as mh
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
-
+from pyvale.sensorsim.fieldinterp import (FieldInterp,
+                                          interp_to_sample_time)
 
 class FieldInterpMesh(FieldInterp):
     """TODO
@@ -40,7 +41,7 @@ class FieldInterpMesh(FieldInterp):
 
     def interp_field(self,
                      points: np.ndarray,
-                     times: np.ndarray | None = None,
+                     sample_times: np.ndarray | None = None,
                      ) -> np.ndarray:
         """_summary_
 
@@ -60,7 +61,7 @@ class FieldInterpMesh(FieldInterp):
                                    self._pyvista_interp,
                                    self._sim_time_steps,
                                    points,
-                                   times)
+                                   sample_times)
 
 
 def sample_pyvista_grid(components: tuple[str,...],
@@ -117,14 +118,7 @@ def sample_pyvista_grid(components: tuple[str,...],
     if sample_times is None:
         return sample_at_sim_time
 
-    def sample_time_interp(x):
-        return np.interp(sample_times, sim_time_steps, x)
+    return interp_to_sample_time(sample_at_sim_time,
+                                 sim_time_steps,
+                                 sample_times)
 
-    n_time_steps = sample_times.shape[0]
-    sample_at_spec_time = np.empty((n_sensors,n_comps,n_time_steps))
-
-    for ii,cc in enumerate(components):
-        sample_at_spec_time[:,ii,:] = np.apply_along_axis(sample_time_interp,-1,
-                                                    sample_at_sim_time[:,ii,:])
-
-    return sample_at_spec_time

@@ -39,6 +39,7 @@ def simdata_to_pyvista_interp(sim_data: mh.SimData,
         As pyvista grid with attached field data to allow for interpolation on
         the mesh using the element shape functions.
     """
+
     pv_grid = _gen_pyvista_grid(sim_data,elem_dims)
 
     if components is not None and sim_data.node_vars is not None:
@@ -49,9 +50,10 @@ def simdata_to_pyvista_interp(sim_data: mh.SimData,
 
 
 def simdata_to_pyvista_vis(sim_data: mh.SimData,
-                           elem_dims: int) -> pv.UnstructuredGrid:
+                           elem_dims: int
+                           ) -> pv.UnstructuredGrid | pv.PolyData:
     """Converts the mesh and field data in a `SimData` object into a pyvista
-    UnstructuredGrid for visualisation.
+    UnstructuredGrid or PolyData object for visualisation.
 
     Parameters
     ----------
@@ -59,16 +61,21 @@ def simdata_to_pyvista_vis(sim_data: mh.SimData,
         Object containing a mesh and associated field data from a simulation.
     elem_dim : int
         Number of spatial dimensions (2 or 3) used to determine the element
-        types in the mesh from the number of nodes per element.
+        types in the mesh from the number of nodes per element. Set to the
+        dimensionality of the problem for point cloud data as 2D triangulation
+        will be much faster if possible.
 
     Returns
     -------
-    pv.UnstructuredGrid
-        A pyvista unstructured grid that has no field data attached for
-        visualisation purposes.
+    pv.UnstructuredGrid | pv.PolyData
+        A pyvista unstructured grid or poly data object that has no field data
+        attached for visualisation purposes.
     """
+    if sim_data.connect is None:
+        return pv.PolyData(sim_data.coords)
 
     return _gen_pyvista_grid(sim_data,elem_dims)
+
 
 
 def _gen_pyvista_grid(sim_data: mh.SimData,
