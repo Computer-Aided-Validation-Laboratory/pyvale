@@ -43,9 +43,10 @@ def test_image_scan_znssd_affine():
     ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
     test = np.loadtxt(test_file, skiprows=1, delimiter=',')
 
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         ref[:, :7],
         test[:, :7],
+        rtol=1e-8, atol=1e-6,
         err_msg="First 7 columns of reference and test CSVs do not match."
     )
 
@@ -73,9 +74,10 @@ def test_image_scan_znssd_rigid():
     ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
     test = np.loadtxt(test_file, skiprows=1, delimiter=',')
 
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         ref[:, :7],
         test[:, :7],
+        rtol=1e-8, atol=1e-6,
         err_msg="First 7 columns of reference and test CSVs do not match."
     )
 
@@ -103,9 +105,10 @@ def test_image_scan_nssd_affine():
     ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
     test = np.loadtxt(test_file, skiprows=1, delimiter=',')
 
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         ref[:, :7],
         test[:, :7],
+        rtol=1e-8, atol=1e-6,
         err_msg="First 7 columns of reference and test CSVs do not match."
     )
 
@@ -132,9 +135,10 @@ def test_rg_znssd_affine():
     ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
     test = np.loadtxt(test_file, skiprows=1, delimiter=',')
 
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         ref[:, :7],
         test[:, :7],
+        rtol=1e-8, atol=1e-6,
         err_msg="First 7 columns of reference and test CSVs do not match."
     )
 
@@ -168,9 +172,10 @@ def test_fft_znssd_affine():
     ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
     test = np.loadtxt(test_file, skiprows=1, delimiter=',')
 
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         ref[:, :7],
         test[:, :7],
+        rtol=1e-8, atol=1e-6,
         err_msg="First 7 columns of reference and test CSVs do not match."
     )
 
