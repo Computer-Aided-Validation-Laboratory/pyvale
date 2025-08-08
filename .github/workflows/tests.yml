@@ -41,4 +41,4 @@ jobs:
       - name: Run pytests
         run: |
           pip install pytest
-          pytest -v tests/blender/. tests/dic/. tests/pointsensors
+          pytest -v tests/blender/. tests/dic/. tests/sensorsim
