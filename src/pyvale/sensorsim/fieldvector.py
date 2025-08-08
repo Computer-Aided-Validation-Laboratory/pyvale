@@ -12,7 +12,8 @@ import pyvale.mooseherder as mh
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldconverter import (simdata_to_pyvista_interp,
                                    simdata_to_pyvista_vis)
-from pyvale.sensorsim.fieldsampler import sample_pyvista_grid
+from pyvale.sensorsim.fieldinterpmesh import FieldInterpMesh
+from pyvale.sensorsim.fieldinterppoints import FieldInterpPoints
 from pyvale.sensorsim.fieldtransform import (transform_vector_2d,
                                    transform_vector_2d_batch,
                                    transform_vector_3d,
@@ -49,10 +50,12 @@ class FieldVector(IField):
         self._field_key = field_key
         self._components = components
         self._elem_dims = elem_dims
-        self._sim_data = sim_data
+
+        # NOTE: these get set in the function call to `set_sim_data` - this is
+        # separated out to allow inserting a new simdata object
+        self._sim_data = None
         self._interpolator = None
         self._visualiser = None
-
         self.set_sim_data(sim_data)
 
     def set_sim_data(self, sim_data: mh.SimData) -> None:
@@ -67,11 +70,16 @@ class FieldVector(IField):
             physical field.
         """
         self._sim_data = sim_data
+
+        # TODO: this will need to be fixed for point clouds
         self._visualiser = simdata_to_pyvista_vis(sim_data,
                                                   self._elem_dims)
-        self._interpolator = simdata_to_pyvista_interp(sim_data,
-                                                       self._components,
-                                                       self._elem_dims)
+        if self._sim_data.connect is None:
+            self._interpolator = None #FieldInterpPoints()
+        else:
+            self._interpolator = FieldInterpMesh(self._sim_data,
+                                                 self._components,
+                                                 self._elem_dims)
 
     def get_sim_data(self) -> mh.SimData:
         """Gets the simulation data object associated with this field. Used by
@@ -167,12 +175,7 @@ class FieldVector(IField):
             dimensions: shape=(num_points,num_components,num_time_steps).
         """
 
-        # TODO: Need interface call here
-        field_data = sample_pyvista_grid(self._components,
-                                self._interpolator,
-                                self._sim_data.time,
-                                points,
-                                times)
+        field_data = self._interpolator.interp_field(points,times)
 
         if angles is None:
             return field_data

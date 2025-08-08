@@ -11,13 +11,14 @@ import pyvale.mooseherder as mh
 
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldconverter import (simdata_to_pyvista_vis,
-                                   simdata_to_pyvista_interp)
-from pyvale.sensorsim.fieldsampler import sample_pyvista_grid
+                                            simdata_to_pyvista_interp)
+from pyvale.sensorsim.fieldinterpmesh import FieldInterpMesh
+from pyvale.sensorsim.fieldinterppoints import FieldInterpPoints
 #TODO: cythonise these transformations
 from pyvale.sensorsim.fieldtransform import (transform_tensor_2d,
-                                   transform_tensor_2d_batch,
-                                   transform_tensor_3d,
-                                   transform_tensor_3d_batch)
+                                            transform_tensor_2d_batch,
+                                            transform_tensor_3d,
+                                            transform_tensor_3d_batch)
 
 # TODO:
 # - Checking to ensure normal and dev components are consistent
@@ -75,11 +76,20 @@ class FieldTensor(IField):
         """
         self._sim_data = sim_data
         self._visualiser = simdata_to_pyvista_vis(sim_data,self._elem_dims)
+
         self._interpolator = simdata_to_pyvista_interp(
             sim_data,
             self._norm_components + self._dev_components,
             self._elem_dims,
         )
+
+        if self._sim_data.connect is None:
+            self._interpolator = None #FieldInterpPoints()
+        else:
+            self._interpolator = FieldInterpMesh(self._sim_data,
+                                                 self._norm_components
+                                                 + self._dev_components,
+                                                 self._elem_dims)
 
 
     def get_sim_data(self) -> mh.SimData:
@@ -175,11 +185,7 @@ class FieldTensor(IField):
             An array of sampled (interpolated) values with the following
             dimensions: shape=(num_points,num_components,num_time_steps).
         """
-        field_data =  sample_pyvista_grid(self._norm_components+self._dev_components,
-                                    self._interpolator,
-                                    self._sim_data.time,
-                                    points,
-                                    times)
+        field_data = self._interpolator.interp_field(points,times)
 
         if angles is None:
             return field_data
@@ -189,7 +195,6 @@ class FieldTensor(IField):
         # For Z rotation: sin negative in row 1.
         # TRANSFORMATION= coords rotate with object fixed
         # For Z transformation: sin negative in row 2, transpose scipy mat.
-
 
         # If we only have one angle we assume all sensors have the same angle
         # and we can batch process the rotations

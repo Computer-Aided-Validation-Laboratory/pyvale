@@ -24,6 +24,9 @@ from .fieldvector import *
 from .fieldtensor import *
 from .fieldconverter import *
 from .fieldtransform import *
+from .fieldinterp import *
+from .fieldinterpmesh import *
+from .fieldinterppoints import*
 
 from .integratorspatial import *
 from .integratorquadrature import *

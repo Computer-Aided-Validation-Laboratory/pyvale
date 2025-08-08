@@ -4,24 +4,63 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-from pyvale.fieldinterp import FieldInterp
+from pyvale.sensorsim.fieldinterp import FieldInterp
 import numpy as np
 import pyvista as pv
-from scipy.spatial.transform import Rotation
+import pyvale.mooseherder as mh
+from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
 
 
 class FieldInterpMesh(FieldInterp):
+    """TODO
+    """
 
-    def __init__() -> None:
-          pass
+    __slots__ = ("_sim_time_steps","_components","_pyvista_interp")
+
+    def __init__(self,
+                 sim_data: mh.SimData,
+                 components: tuple[str,...],
+                 elem_dims: int,
+                 ) -> None:
+        """
+        Parameters
+        ----------
+        sim_data : mh.SimData
+            _description_
+        components : tuple[str,...]
+            _description_
+        elem_dims : int
+            _description_
+        """
+        self._sim_time_steps = sim_data.time
+        self._components = components
+        self._pyvista_interp = simdata_to_pyvista_interp(sim_data,
+                                                         self._components,
+                                                         elem_dims=elem_dims)
 
     def interp_field(self,
-                    points: np.ndarray,
-                    times: np.ndarray | None = None,
-                    angles: tuple[Rotation,...] | None = None,
-                    ) -> np.ndarray:
-        return sample_pyvista_grid()
+                     points: np.ndarray,
+                     times: np.ndarray | None = None,
+                     ) -> np.ndarray:
+        """_summary_
 
+        Parameters
+        ----------
+        points : np.ndarray
+            _description_
+        times : np.ndarray | None, optional
+            _description_, by default None
+
+        Returns
+        -------
+        np.ndarray
+            _description_
+        """
+        return sample_pyvista_grid(self._components,
+                                   self._pyvista_interp,
+                                   self._sim_time_steps,
+                                   points,
+                                   times)
 
 
 def sample_pyvista_grid(components: tuple[str,...],
