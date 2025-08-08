@@ -428,5 +428,16 @@ def dic_challenge_def() -> Path:
     return Path(files("pyvale.data")
                 .joinpath("DIC_Challenge_Star_Noise_Def.tiff"))
 
+def cal_target() -> Path:
+    """Path to example calibration target.
+
+    Returns
+    -------
+    Path
+        Path to the image (*.tiff).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("cal_target.tiff"))
+
 
 
