@@ -7,49 +7,86 @@
 import numpy as np
 from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator
+import pyvale.mooseherder as mh
 from pyvale.sensorsim.fieldinterp import (FieldInterp,
                                           interp_to_sample_time)
 
+class Collapse2Dto3DError(Exception):
+    pass
+
+
 class FieldInterpPoints(FieldInterp):
+    __slots__ = ("_sim_time_steps", "_components","_elem_dims","_interp_funcs")
 
     def __init__(self,
-                 coords: np.ndarray,
-                 sim_time_steps: np.ndarray,
+                 sim_data: mh.SimData,
                  components: tuple[str,...],
+                 elem_dims: int,
                  ) -> None:
-        pass
-        # self._coords = coords
-        # self._sim_time_steps = sim_time_steps
-        # self._components = components
 
-        # self._triangulation = Delaunay()
-        # self._interp_funcs = []
+        self._sim_time_steps = sim_data.time
+        self._components = components
+        self._elem_dims = elem_dims
 
-        # for ii in range(self._sim_time_steps.shape[0]):
-        #     interp = LinearNDInterpolator(coords,)
-        #     self._interp_funcs.append(interp)
+        # Collapse problem to 2D
+        coords = sim_data.coords
+        if self._elem_dims == 2:
+            coords = _coords_to_2D(coords)
+
+        # We do this once instead of inside the loop to save a lot of time as
+        # the coordinates don't change between frames
+        triang = Delaunay(coords)
+
+        self._interp_funcs = {}
+        for cc in self._components:
+            interp_frames = []
+            for tt in range(self._sim_time_steps.shape[0]):
+                interp = LinearNDInterpolator(triang,
+                                              sim_data.node_vars[cc][:,tt])
+                interp_frames.append(interp)
+
+            self._interp_funcs[cc] = interp_frames
 
 
     def interp_field(self,
                     points: np.ndarray,
                     sample_times: np.ndarray | None = None,
                     ) -> np.ndarray:
-        pass
-        # n_points = points.shape[0]
-        # n_comps = len(self._components)
-        # n_sim_time = self._sim_time_steps.shape[0]
-        # sample_at_sim_time = np.empty((n_points,n_comps,n_sim_time),
-        #                               dtype=np.float64)
 
-        # for ii in range(self._sim_time_steps.shape[0]):
+        if self._elem_dims == 2:
+            points = _coords_to_2D(points)
 
-        #     sample_at_sim_time[:,]
+        n_points = points.shape[0]
+        n_comps = len(self._components)
+        n_sim_time = self._sim_time_steps.shape[0]
+        sample_at_sim_time = np.empty((n_points,n_comps,n_sim_time),
+                                      dtype=np.float64)
+
+        for ii,cc in enumerate(self._components):
+            for tt in range(self._sim_time_steps.shape[0]):
+                interp_func = self._interp_funcs[cc][tt]
+                sample_at_sim_time[:,ii,tt] = interp_func(points)
+
+        if sample_times is None:
+            return sample_at_sim_time
+
+        return interp_to_sample_time(sample_at_sim_time,
+                                     self._sim_time_steps,
+                                     sample_times)
 
 
+def _coords_to_2D(coords_3d: np.ndarray) -> np.ndarray:
 
-        # if sample_times is None:
-        #     return sample_at_sim_time
+    zero_ax = None
+    for ii in range(coords_3d.shape[1]):
+        if np.allclose(coords_3d[:,ii],0):
+            zero_ax = ii
+            break
 
-        # return interp_to_sample_time(sample_at_sim_time,
-        #                             sim_time_steps,
-        #                             sample_times)
+    if zero_ax is None:
+        raise Collapse2Dto3DError("No coordinate axis is close to zero, unable" \
+            "to collapse problem to 2D. Check coords in SimData object.")
+
+    coords_2d = np.delete(coords_3d,zero_ax,axis=1)
+    return coords_2d
+

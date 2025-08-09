@@ -108,7 +108,7 @@ print()
 # recommend you check this out to understand the terminal output.
 all_sim_data = exodus_reader.read_all_sim_data()
 print("SimData from 'read_all':")
-sens.SimTools.print_sim_data(all_sim_data)
+sens.simtools.print_sim_data(all_sim_data)
 
 #%%
 # We are now going to read specific variables from the exodus output using a
@@ -119,7 +119,7 @@ sens.SimTools.print_sim_data(all_sim_data)
 # dicitionary keys to read based on what is already in the exodus file.
 
 read_config = exodus_reader.get_read_config()
-sens.SimTools.print_dataclass_fields(read_config)
+sens.simtools.print_dataclass_fields(read_config)
 
 #%%
 # We set the 'node_vars' field to None to prevent the nodal variables being read

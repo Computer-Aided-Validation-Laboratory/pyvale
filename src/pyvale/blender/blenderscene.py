@@ -7,9 +7,9 @@ import numpy as np
 from pathlib import Path
 import bpy
 
-# Pyvale 
+# Pyvale
 from pyvale.sensorsim.cameradata import CameraData
-from pyvale.sensorsim.simtools import SimTools
+import pyvale.sensorsim.simtools as simtools
 from pyvale.sensorsim.camerastereo import CameraStereo
 from pyvale.sensorsim.rendermesh import RenderMesh
 
@@ -178,7 +178,7 @@ class Scene():
         bpy.data.objects
             The Blender part object that is created.
         """
-        nodes_centred = SimTools.centre_mesh_nodes(render_mesh.coords,
+        nodes_centred = simtools.centre_mesh_nodes(render_mesh.coords,
                                               sim_spat_dim)
         vertices = np.delete(nodes_centred, 3, axis=1)
         faces = render_mesh.connectivity
@@ -280,13 +280,13 @@ class Scene():
             The Blender part object which is to be deformed, normally as sample
             object.
         """
-        render_mesh.coords = SimTools.centre_mesh_nodes(render_mesh.coords,
+        render_mesh.coords = simtools.centre_mesh_nodes(render_mesh.coords,
                                                         sim_spat_dim)
         timesteps = render_mesh.fields_render.shape[1]
 
 
         for timestep in range(1, timesteps):
-            deformed_nodes = SimTools.get_deformed_nodes(timestep,
+            deformed_nodes = simtools.get_deformed_nodes(timestep,
                                                          render_mesh)
             if deformed_nodes is not None:
                 Tools.deform_single_timestep(part, deformed_nodes)
@@ -412,7 +412,7 @@ class Scene():
                 3D setups, the images in the stack alternate between camera 0 and
                 camera 1.
         """
-        render_mesh.coords = SimTools.centre_mesh_nodes(render_mesh.coords,
+        render_mesh.coords = simtools.centre_mesh_nodes(render_mesh.coords,
                                                         sim_spat_dim)
         timesteps = render_mesh.fields_render.shape[1]
 
@@ -439,7 +439,7 @@ class Scene():
 
         image_arrays = []
         for timestep in range(0, timesteps):
-            deformed_nodes = SimTools.get_deformed_nodes(timestep,
+            deformed_nodes = simtools.get_deformed_nodes(timestep,
                                                          render_mesh)
             if deformed_nodes is not None:
                 Tools.deform_single_timestep(part, deformed_nodes)

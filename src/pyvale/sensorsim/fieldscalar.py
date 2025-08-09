@@ -69,7 +69,9 @@ class FieldScalar(IField):
         self._visualiser = simdata_to_pyvista_vis(sim_data,
                                                   self._elem_dims)
         if self._sim_data.connect is None:
-            self._interpolator = None #FieldInterpPoints()
+            self._interpolator = FieldInterpPoints(self._sim_data,
+                                                   (self._field_key,),
+                                                   self._elem_dims)
         else:
             self._interpolator = FieldInterpMesh(self._sim_data,
                                                  (self._field_key,),

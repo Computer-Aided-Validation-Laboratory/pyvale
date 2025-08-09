@@ -21,7 +21,7 @@ import pyvale.verif.psensconst as psensconst
 
 
 def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
-    sim_dims = sens.SimTools.get_sim_dims(sim_data)
+    sim_dims = sens.simtools.get_sim_dims(sim_data)
     sample_times = {}
 
     sample_times["sim"] = None

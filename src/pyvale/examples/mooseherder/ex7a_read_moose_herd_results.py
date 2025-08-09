@@ -112,7 +112,7 @@ print()
 # includes a detailed description of each of the relevant fields you might want
 # to use for post-processing.
 sim_data_list = sweep_reader.read_results_once(output_files[0])
-sens.SimTools.print_sim_data(sim_data_list[0])
+sens.simtools.print_sim_data(sim_data_list[0])
 
 #%%
 # We can use the sweep reader to read results for each simulation chain in the

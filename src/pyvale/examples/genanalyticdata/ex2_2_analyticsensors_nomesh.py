@@ -9,12 +9,14 @@ import numpy as np
 import pyvale.sensorsim as sens
 import pyvale.verif as va
 
+
 def main() -> None:
     # 10x7.5 plate with bi-directional field gradient
     # 40x30 elements [x,y]
     # Field slope of 20/lengX in X
     # Field slope of 10/lengY in Y
     # Field max in top corner of 220, field min in bottom corner 20
+
     (sim_data,_) = va.AnalyticCaseFactory.scalar_linear_2d()
     sim_data_nomesh = copy.deepcopy(sim_data)
     sim_data_nomesh.connect = None
@@ -26,9 +28,9 @@ def main() -> None:
                                   field_key=field_key,
                                   elem_dims=2)
 
-    # scal_field_nm = sens.FieldScalar(sim_data_nomesh,
-    #                                  field_key=field_key,
-    #                                  elem_dims=2)
+    scal_field_nm = sens.FieldScalar(sim_data_nomesh,
+                                     field_key=field_key,
+                                     elem_dims=2)
 
 
     n_sens = (4,1,1)
@@ -50,18 +52,36 @@ def main() -> None:
                                     scal_field,
                                     descriptor)
 
-    measurements = tc_array.get_measurements()
+    tc_array_nm = sens.SensorArrayPoint(sensor_data,
+                                        scal_field_nm,
+                                        descriptor)
 
+
+    meas = tc_array.get_measurements()
+    meas_nm = tc_array_nm.get_measurements()
+
+    print(80*"-")
+    print("MESH INTERP")
     sens.print_measurements(tc_array,
                             slice(0,1), # Sensor 1
                             slice(0,1), # Component 1: scalar field = 1 component
-                            slice (measurements.shape[2]-5,measurements.shape[2]))
+                            slice (meas.shape[2]-5,meas.shape[2]))
 
-    # (fig,_) = sens.plot_time_traces(tc_array,field_key)
+    print("POINT INTERP")
+    sens.print_measurements(tc_array_nm,
+                            slice(0,1), # Sensor 1
+                            slice(0,1), # Component 1: scalar field = 1 component
+                            slice (meas_nm.shape[2]-5,meas_nm.shape[2]))
+
+    print(f"{np.allclose(meas,meas_nm)=}")
+    print(80*"-")
+
+    # (fig,ax) = sens.plot_time_traces(tc_array,field_key)
+    # ax.set_title("Mesh Interp.")
     # plt.show()
 
-    # pv_plot = sens.plot_point_sensors_on_sim(tc_array,field_key)
-    # pv_plot.show(cpos="xy")
+    pv_plot = sens.plot_point_sensors_on_sim(tc_array_nm,field_key)
+    pv_plot.show(cpos="xy")
 
 if __name__ == '__main__':
     main()

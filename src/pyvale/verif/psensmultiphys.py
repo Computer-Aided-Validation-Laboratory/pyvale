@@ -46,7 +46,7 @@ def simdata_list_3d() -> list[mh.SimData]:
 
 def sens_pos_2d() -> dict[str,np.ndarray]:
     # Geometry does not change
-    sim_dims = sens.SimTools.get_sim_dims(simdata_list_2d()[0])
+    sim_dims = sens.simtools.get_sim_dims(simdata_list_2d()[0])
     sens_pos = {}
 
     x_lims = sim_dims["x"]

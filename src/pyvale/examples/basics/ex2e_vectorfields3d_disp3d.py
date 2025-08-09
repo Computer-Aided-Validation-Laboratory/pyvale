@@ -46,8 +46,8 @@ sim_data = sens.scale_length_units(scale=1000.0,
 
 #%%
 # We use a helper function to print the extent of the dimensions in our
-# `SimTools` object to help us locate our sensors on the cube.
-sens.SimTools.print_dimensions(sim_data)
+# `simtools` object to help us locate our sensors on the cube.
+sens.simtools.print_dimensions(sim_data)
 
 descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
 

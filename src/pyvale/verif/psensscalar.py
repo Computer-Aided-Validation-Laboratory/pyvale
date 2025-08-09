@@ -43,7 +43,7 @@ def simdata_3d() -> mh.SimData:
 
 
 def sens_pos_2d() -> dict[str,np.ndarray]:
-    sim_dims = sens.SimTools.get_sim_dims(simdata_2d())
+    sim_dims = sens.simtools.get_sim_dims(simdata_2d())
     sens_pos = {}
 
     x_lims = sim_dims["x"]
@@ -60,7 +60,7 @@ def sens_pos_2d() -> dict[str,np.ndarray]:
 
 
 def sens_pos_3d() -> dict[str,np.ndarray]:
-    sim_dims = sens.SimTools.get_sim_dims(simdata_3d())
+    sim_dims = sens.simtools.get_sim_dims(simdata_3d())
 
     sens_pos = {}
 
