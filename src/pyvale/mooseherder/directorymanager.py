@@ -11,22 +11,19 @@ from pathlib import Path
 
 class DirectoryManager:
     """Manages directories for running simulations in parallel with the
-        mooseherd.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
+    mooseherd.
     """
-    def __init__(self, n_dirs: int = 1) -> None:
-        """__init__
+    __slots__ = ("_n_dirs","_sub_dir","_base_dir","_run_dirs","_output_paths",
+                 "_output_key_tag","_sweep_var_tag")
 
-        Args:
-            n_dirs (int, optional): number of directories to be created.
-            Defaults to 1.
+    def __init__(self, n_dirs: int = 1) -> None:
         """
+        Parameters
+        ----------
+        n_dirs : int, optional
+            Number of working directories to be created, by default 1.
+        """
+
         self._n_dirs = n_dirs
         self._sub_dir = 'sim-workdir'
         self._base_dir = Path().cwd()
@@ -48,8 +45,7 @@ class DirectoryManager:
         Returns
         -------
         list[Path]
-
-
+            List of paths to the working directories to run simulations in.
         """
         run_dirs = list([])
         for nn in range(self._n_dirs): # type: ignore
@@ -69,10 +65,6 @@ class DirectoryManager:
             string to be used to name the created
             sub-directories within the base directory.
         sub_dir_name: str :
-
-
-        Returns
-        -------
 
         """
         self._sub_dir = sub_dir_name

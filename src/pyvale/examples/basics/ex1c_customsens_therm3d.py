@@ -36,7 +36,7 @@ import pyvale.dataset as dataset
 # we start by loading our simulation data:
 
 data_path = dataset.thermal_3d_path()
-sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)

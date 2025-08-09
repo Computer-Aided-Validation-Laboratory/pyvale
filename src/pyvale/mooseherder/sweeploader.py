@@ -9,14 +9,16 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 from pyvale.mooseherder.directorymanager import DirectoryManager
 import pyvale.mooseherder.directorymanager as dm
-from pyvale.mooseherder.exodusreader import ExodusReader
-from pyvale.mooseherder.simdata import SimData, SimReadConfig
+from pyvale.mooseherder.exodusloader import ExodusLoader
+from pyvale.mooseherder.simdata import SimData, SimLoadConfig
 
 
-class SweepReader:
+class SweepLoader:
     """Used to read the output from one or more calls to mooseherd.run_para().
     has configurable options for reading in the variable sweep in parallel.
     """
+    __slots__ = ("_dir_manager","_output_files","_n_para_read")
+
     def __init__(self,
                  dir_manager: DirectoryManager,
                  num_para_read: int = 1) -> None:
@@ -222,7 +224,7 @@ class SweepReader:
 
     def read_results_once(self,
                           output_files: list[Path | None],
-                          read_config: SimReadConfig | None = None
+                          read_config: SimLoadConfig | None = None
                           ) -> list[SimData | None]:
         """read_results_once: reads a specific simulation at the specified
         path based on the specified read configuration. If the read
@@ -250,7 +252,7 @@ class SweepReader:
                 data_list.append(None)
             else:
                 #TODO: replace with output reader ABC
-                reader = ExodusReader(ff)
+                reader = ExodusLoader(ff)
                 if read_config is None:
                     data_list.append(reader.read_all_sim_data())
                 else:
@@ -261,7 +263,7 @@ class SweepReader:
 
     def read_sequential(self,
                                 sweep_iter: int | None = None,
-                                read_config: SimReadConfig | None = None
+                                read_config: SimLoadConfig | None = None
                                 ) -> list[list[SimData]]:
         """read_results_sequential: reads the variable sweep results
         sequentially. Can read a specific iteration with a specific read config
@@ -296,7 +298,7 @@ class SweepReader:
 
     def read_results_para(self,
                           sweep_iter: int | None = None,
-                          read_config: SimReadConfig | None = None
+                          read_config: SimLoadConfig | None = None
                           ) -> list[list[SimData]]:
         """read_results_para: reads the variable sweep results in parallel
         Can read a specific iteration with a specific read config but defaults

@@ -17,7 +17,7 @@ def main() -> None:
     """Basics
     """
     data_path = Path('data/examplesims/monoblock_3d_thermal_out.e')
-    sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
     field_name = list(sim_data.node_vars.keys())[0] # type: ignore
     # Scale m to mm to make 3D visualisation scaling correct for pyvista
     sim_data = pyv.scale_length_units(1000.0,sim_data)

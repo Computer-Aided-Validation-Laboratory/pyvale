@@ -12,7 +12,7 @@ from scipy.spatial.transform import Rotation
 import yaml
 
 
-# Pyvale imports 
+# Pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 import pyvale.mooseherder as mh
@@ -31,7 +31,7 @@ import pyvale.blender as blender
 @pytest.fixture
 def sample_scene_no_cam():
     data_path = dataset.mechanical_2d_path()
-    sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
     disp_comps = ("disp_x","disp_y")
     sim_data = sens.scale_length_units(1000.0,sim_data,disp_comps)
     render_mesh = sens.create_render_mesh(sim_data,

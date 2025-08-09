@@ -13,7 +13,7 @@ from pyvale.mooseherder import (MooseHerd,
                          MooseConfig,
                          InputModifier,
                          DirectoryManager,
-                         SweepReader)
+                         SweepLoader)
 
 USER_DIR = Path.home()
 DATA_DIR = Path('dev/lf-dev/')

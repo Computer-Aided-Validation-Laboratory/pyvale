@@ -51,7 +51,7 @@ def main() -> None:
 
         print(f'\nLoading SimData from exodus in path:\n{sim_path}')
 
-        exodus_reader = mh.ExodusReader(sim_path / sim_file)
+        exodus_reader = mh.ExodusLoader(sim_path / sim_file)
         sim_data = exodus_reader.read_all_sim_data()
 
     else:

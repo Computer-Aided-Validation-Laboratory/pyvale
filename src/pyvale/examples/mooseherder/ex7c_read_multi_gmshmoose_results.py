@@ -40,7 +40,7 @@ from pyvale.mooseherder import (MooseHerd,
                                 MooseConfig,
                                 InputModifier,
                                 DirectoryManager,
-                                SweepReader,
+                                SweepLoader,
                                 sweep_param_grid)
 
 #%%
@@ -104,7 +104,7 @@ print(f'Sweep run time (para) = {time_run_para:.3f} seconds\n')
 # to each simulation tool in the chain. In this case we have gmsh and moose so
 # our inner list should have a length of 2.
 
-sweep_reader = SweepReader(dir_manager,num_para_read=4)
+sweep_reader = SweepLoader(dir_manager,num_para_read=4)
 
 start_time = time.perf_counter()
 sweep_results_seq = sweep_reader.read_sequential()

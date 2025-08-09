@@ -33,7 +33,7 @@ import pyvale.dataset as dataset
 # see a visualisation of the mesh and results later). We use `mooseherder` to
 # load the exodus file into a `SimData` object.
 data_path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
 
 #%%
 # We scale our SI simulation to mm including the displacement fields which

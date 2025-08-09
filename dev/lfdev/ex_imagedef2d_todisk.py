@@ -13,7 +13,7 @@ import pyvale as pyv
 
 def main() -> None:
     sim_path = pyv.DataSet.mechanical_2d_path()
-    sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(sim_path).read_all_sim_data()
 
     image_path = pyv.DataSet.dic_pattern_5mpx_path()
     image_speckle = pyv.ImageTools.load_image_greyscale(image_path)

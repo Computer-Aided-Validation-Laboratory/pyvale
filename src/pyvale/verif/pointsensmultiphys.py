@@ -8,11 +8,11 @@ import copy
 import numpy as np
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.verif.psens as psens
-import pyvale.verif.psensscalar as psensscalar
-import pyvale.verif.psensvector as psensvector
-import pyvale.verif.psenstensor as psenstensor
-import pyvale.verif.psensmech as psensmech
+import pyvale.verif.pointsens as pointsens
+import pyvale.verif.pointsensscalar as pointsensscalar
+import pyvale.verif.pointsensvector as pointsensvector
+import pyvale.verif.pointsenstensor as pointsenstensor
+import pyvale.verif.pointsensmech as pointsensmech
 import pyvale.dataset as dataset
 
 
@@ -20,7 +20,7 @@ def load_simdata_list(data_paths: list[Path],
                       disp_comps: tuple[str,...]) -> list[mh.SimData]:
     sim_list = []
     for pp in data_paths:
-        sim_data = mh.ExodusReader(pp).read_all_sim_data()
+        sim_data = mh.ExodusLoader(pp).read_all_sim_data()
         sim_data = sens.scale_length_units(scale=1000.0,
                                             sim_data=sim_data,
                                             disp_comps=disp_comps)
@@ -97,11 +97,11 @@ def sens_pos_3d() -> dict[str,np.ndarray]:
 
 def sens_data_2d_dict() -> dict[str,sens.SensorData]:
     # Time steps don't change so can take first sim here
-    return psens.sens_data_dict(simdata_list_2d()[0],sens_pos_2d())
+    return pointsens.sens_data_dict(simdata_list_2d()[0],sens_pos_2d())
 
 def sens_data_3d_dict() -> dict[str,sens.SensorData]:
     # Time steps don't change so can take first sim here
-    return psens.sens_data_dict(simdata_list_3d()[0],sens_pos_3d())
+    return pointsens.sens_data_dict(simdata_list_3d()[0],sens_pos_3d())
 
 def exp_sim_2d() -> dict[str,sens.ExperimentSimulator]:
     sens_data_dict = sens_data_2d_dict()
@@ -112,12 +112,12 @@ def exp_sim_2d() -> dict[str,sens.ExperimentSimulator]:
     for ss in sens_data_dict:
 
         sens_noerrs = {}
-        sens_noerrs["scal"] = psensscalar.sens_noerrs(sim_list[0],
+        sens_noerrs["scal"] = pointsensscalar.sens_noerrs(sim_list[0],
                                                       sens_data_dict[ss],
                                                       elem_dims=2)
-        sens_noerrs["vect"] = psensvector.sens_2d_noerrs(sim_list[0],
+        sens_noerrs["vect"] = pointsensvector.sens_2d_noerrs(sim_list[0],
                                                          sens_data_dict[ss])
-        sens_noerrs["tens"] = psenstensor.sens_2d_noerrs(sim_list[0],
+        sens_noerrs["tens"] = pointsenstensor.sens_2d_noerrs(sim_list[0],
                                                          sens_data_dict[ss])
 
         pos_lock = sens_pos_2d_lock(sens_data_dict[ss].positions)
@@ -127,21 +127,21 @@ def exp_sim_2d() -> dict[str,sens.ExperimentSimulator]:
                 break
 
         err_chain_dict={}
-        err_chain_dict["scal"] = psensscalar.err_chain_2d_dict(
+        err_chain_dict["scal"] = pointsensscalar.err_chain_2d_dict(
             sens_noerrs["scal"].get_field(),
             sens_data_dict[ss].positions,
             sens_data_dict[ss].sample_times,
             pos_lock[pos_lock_key]
         )
 
-        err_chain_dict["vect"] = psensmech.err_chain_2d_dict(
+        err_chain_dict["vect"] = pointsensmech.err_chain_2d_dict(
             sens_noerrs["vect"].get_field(),
             sens_data_dict[ss].positions,
             sens_data_dict[ss].sample_times,
             pos_lock[pos_lock_key]
         )
 
-        err_chain_dict["tens"] = psensmech.err_chain_2d_dict(
+        err_chain_dict["tens"] = pointsensmech.err_chain_2d_dict(
             sens_noerrs["tens"].get_field(),
             sens_data_dict[ss].positions,
             sens_data_dict[ss].sample_times,

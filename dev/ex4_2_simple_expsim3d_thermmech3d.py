@@ -12,7 +12,7 @@ import pyvale as pyv
 
 #-------------------------------------------------------------------------------
 sim_path = pyv.DataSet.thermomechanical_3d_path()
-sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(sim_path).read_all_sim_data()
 sim_data = pyv.scale_length_units(scale=1000.0,
                                   sim_data=sim_data)
 

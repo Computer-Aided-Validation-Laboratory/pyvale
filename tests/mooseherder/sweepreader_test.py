@@ -5,7 +5,7 @@
 #===============================================================================
 
 import pytest
-from pyvale.mooseherder.sweepreader import SweepReader
+from pyvale.mooseherder.sweeploader import SweepLoader
 from pyvale.mooseherder.directorymanager import DirectoryManager
 import tests.mooseherder.herdchecker as hc
 
@@ -18,11 +18,11 @@ def dir_manager() -> DirectoryManager:
 
 
 @pytest.fixture
-def sweep_reader(dir_manager) -> SweepReader:
-    return SweepReader(dir_manager,hc.NUM_PARA)
+def sweep_reader(dir_manager) -> SweepLoader:
+    return SweepLoader(dir_manager,hc.NUM_PARA)
 
 
-def test_init_sweep_reader(sweep_reader: SweepReader) -> None:
+def test_init_sweep_reader(sweep_reader: SweepLoader) -> None:
     assert sweep_reader is not None
     assert sweep_reader._dir_manager is not None
     assert sweep_reader._n_para_read == hc.NUM_PARA

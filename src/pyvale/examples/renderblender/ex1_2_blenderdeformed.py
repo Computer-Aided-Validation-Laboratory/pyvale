@@ -31,7 +31,7 @@ import pyvale.mooseherder as mh
 # simulation output in exodus format (*.e).
 
 data_path = dataset.render_mechanical_3d_path()
-sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
 
 # %%
 # This is then scaled to mm, as all lengths in Blender are to be set in mm.

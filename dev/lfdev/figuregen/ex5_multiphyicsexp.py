@@ -22,7 +22,7 @@ def main() -> None:
 
     sim_list = []
     for pp in data_paths:
-        sim_data = mh.ExodusReader(pp).read_all_sim_data()
+        sim_data = mh.ExodusLoader(pp).read_all_sim_data()
         # Scale to mm to make 3D visualisation scaling easier
         sim_data.coords = sim_data.coords*1000.0 # type: ignore
         sim_list.append(sim_data)

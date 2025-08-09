@@ -33,7 +33,7 @@ import pyvale.dataset as dataset
 # loading a 10mm cube loaded in tension in the y direction with the addition
 # of a thermal gradient in the y direction.
 data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
-sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
 
 #%%
 # As we are creating a 3D vector field sensor we now have a third

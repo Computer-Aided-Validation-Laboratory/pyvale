@@ -25,7 +25,7 @@ def main() -> None:
     sim_path = sens.DataSet.render_mechanical_3d_path()
     #sim_path = sens.DataSet.render_simple_block_path()
     #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
-    sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(sim_path).read_all_sim_data()
 
     disp_comps = ("disp_x","disp_y","disp_z")
 

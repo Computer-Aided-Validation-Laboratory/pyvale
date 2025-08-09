@@ -13,7 +13,7 @@ import numpy as np
 import sympy
 import pyvale.mooseherder as mh
 from pyvale.verif.analyticsimdatagenerator import (AnalyticData2D,
-                                                  AnalyticSimDataGen)
+                                                   AnalyticSimDataGen)
 
 
 def standard_case_2d() -> AnalyticData2D:

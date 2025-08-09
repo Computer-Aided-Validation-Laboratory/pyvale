@@ -5,16 +5,16 @@
 # ==============================================================================
 from abc import ABC, abstractmethod
 from pathlib import Path
-from pyvale.mooseherder.simdata import SimData, SimReadConfig
+from pyvale.mooseherder.simdata import SimData, SimLoadConfig
 
 
-class OutputReader(ABC):
+class OutputLoader(ABC):
     @abstractmethod
     def __init__(self, output_file: Path) -> None:
         pass
 
     @abstractmethod
-    def read_sim_data(self, read_config: SimReadConfig) -> SimData:
+    def read_sim_data(self, read_config: SimLoadConfig) -> SimData:
         pass
 
     @abstractmethod

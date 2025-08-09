@@ -130,7 +130,7 @@ def main() -> None:
         # 3D cylinder, mechanical, tets
         data_path = Path('src/pyvale/simcases/case21_out.e')
 
-    sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
     field_keys = tuple(sim_data.node_vars.keys())
     # Scale to mm to make 3D visualisation scaling easier
     sim_data.coords = sim_data.coords*1000.0

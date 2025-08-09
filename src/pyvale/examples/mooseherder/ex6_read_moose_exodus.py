@@ -33,7 +33,7 @@ import pyvale.dataset as dataset
 import pyvale.sensorsim as sens
 from pyvale.mooseherder import (MooseRunner,
                                 MooseConfig,
-                                ExodusReader)
+                                ExodusLoader)
 
 #%%
 # We also define a helper function that will print all attriubutes of a
@@ -89,7 +89,7 @@ print("-"*80)
 # want to read. By default moose creates an exodus output with the input file
 # name with "_out.e" appended.
 output_exodus = output_path / (moose_input.stem + "_out.e")
-exodus_reader = ExodusReader(output_exodus)
+exodus_reader = ExodusLoader(output_exodus)
 
 print("\nReading exodus file with ExodusReader:")
 print(output_exodus.resolve())

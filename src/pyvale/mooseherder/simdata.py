@@ -5,10 +5,11 @@
 # ==============================================================================
 
 from dataclasses import dataclass
+from collections.abc import Iterable
 import numpy as np
 
 
-@dataclass
+@dataclass(slots=True)
 class SimData:
     """Data class for simulation output. Allows for structured meshes with
     connectivity tables or for point clouds."""
@@ -76,7 +77,7 @@ class SimData:
     """
 
 @dataclass(slots=True)
-class SimReadConfig:
+class SimLoadConfig:
     """Used to specify names of variables to be read into the SimData class.
        This class allows the user to only extract the required variables by
        name.
@@ -84,9 +85,9 @@ class SimReadConfig:
     time: bool = True
     coords: bool = True
     connect: bool = True
-    sidesets: np.ndarray | None = None
-    node_vars: np.ndarray | None = None
-    elem_vars: list[tuple[str,int]] | None = None
-    glob_vars: np.ndarray | None = None
-    time_inds: np.ndarray | None = None
+    sidesets: Iterable[str] | None = None
+    node_vars: Iterable[str] | None = None
+    elem_vars: Iterable[tuple[str,int]] | None = None
+    glob_vars: Iterable[str] | None = None
+    time_inds: Iterable[str] | None = None
 

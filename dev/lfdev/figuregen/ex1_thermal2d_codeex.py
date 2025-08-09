@@ -18,7 +18,7 @@ import pyvale.mooseherder as mh
 import pyvale
 
 data_path = Path('src/data/case13_out.e')
-data_reader = mh.ExodusReader(data_path)
+data_reader = mh.ExodusLoader(data_path)
 sim_data = data_reader.read_all_sim_data()
 
 FIELD_KEY = 'temperature'

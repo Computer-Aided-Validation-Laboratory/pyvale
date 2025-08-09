@@ -29,22 +29,32 @@ class MooseHerd:
     create/clear and log the directories in which each parallel worker is
     creating input files and running simulations.
     """
+
+    __slots__ = ("_runners","_modifiers","_dir_manager","_n_para_sims",
+                 "_input_names","_keep_all","_var_sweep","_sweep_iter",
+                "_sweep_run_time","_sim_iter","_iter_run_time")
+
     def __init__(self, sim_runners: list[SimRunner],
                  input_mods: list[InputModifier],
                  dir_manager: DirectoryManager,
                  num_para_sims: int = 1) -> None:
-        """__init__
-
-        Args:
-            sim_runners (list[SimRunner]): list of objects that inherit from
-                the SimRunner ABC in the order they need to be run. The mesh
-                needs to be created before runnning moose so a common chain
-                would be [GmshRunner,MooseRunner].
-            input_mods (list[InputModifier]): list of InputModifiers to create
-                the required input scripts for the SimRunners.
-            dir_manager (DirectoryManager): used to control how many and
-                which directories are used to run the simulations.
         """
+        Parameters
+        ----------
+        sim_runners : list[SimRunner]
+            list of objects that inherit from the SimRunner ABC in the order
+            they need to be run. The mesh needs to be created before runnning
+            moose so a common chain would be [GmshRunner,MooseRunner].
+        input_mods : list[InputModifier]
+            list of InputModifiers to create the required input scripts for
+            the SimRunners.
+        dir_manager : DirectoryManager
+            Used to control how many and which directories are used to run the
+            simulations.
+        num_para_sims : int, optional
+            Number of simulations to run in parallel, by default 1
+        """
+
         self._runners = sim_runners
         self._modifiers = input_mods
         self._dir_manager = dir_manager
@@ -53,15 +63,17 @@ class MooseHerd:
 
         self._input_names = [f'sim-{ii+1}' for ii,_ in enumerate(sim_runners)]
 
-        self._keep_all = True
+        self._keep_all: bool = True
 
         self._var_sweep = list([])
 
-        self._sweep_iter = 0
-        self._sweep_run_time = -1.0
+        self._sweep_iter: int = 0
+        self._sweep_run_time: float = -1.0
 
-        self._sim_iter = 0
-        self._iter_run_time = -1.0
+        self._sim_iter: int = 0
+        self._iter_run_time: float = -1.0
+
+
 
 
     def set_input_copy_names(self, input_names: list[str] | None = None) -> None:

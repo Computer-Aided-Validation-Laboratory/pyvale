@@ -6,8 +6,7 @@
 import copy
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.verif.psensmech as psensmech
-
+import pyvale.verif.pointsensmech as pointsensmech
 
 """
 DEVELOPER VERIFICATION MODULE
@@ -16,19 +15,22 @@ This module contains developer utility functions used for verification testing
 of the point sensor simulation toolbox in pyvale.
 
 Specifically, this module contains functions used for testing point sensors
-applied to vector fields.
+applied to tensor fields.
 """
 
 # TODO
-# - Calibration errors for vector fields
-
+# - Calibration errors for tensor fields
 
 def sens_2d_noerrs(sim_data: mh.SimData,
                    sens_data: sens.SensorData) -> sens.SensorArrayPoint:
-    descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
-    field = sens.FieldVector(sim_data,
-                            field_key="disp",
-                            components=("disp_x","disp_y"),
+    descriptor = sens.SensorDescriptorFactory.strain_descriptor()
+    field_name = "strain"
+    norm_comps = ("strain_xx","strain_yy")
+    dev_comps = ("strain_xy",)
+    field = sens.FieldTensor(sim_data,
+                            field_name=field_name,
+                            norm_comps=norm_comps,
+                            dev_comps=dev_comps,
                             elem_dims=2)
     sens_array = sens.SensorArrayPoint(sens_data,
                                       field,
@@ -38,37 +40,42 @@ def sens_2d_noerrs(sim_data: mh.SimData,
 
 def sens_3d_noerrs(sim_data: mh.SimData,
                    sens_data: sens.SensorData) -> sens.SensorArrayPoint:
-    descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
-    field = sens.FieldVector(sim_data,
-                            field_key="disp",
-                            components=("disp_x","disp_y","disp_z"),
+    descriptor = sens.SensorDescriptorFactory.strain_descriptor()
+    field_name = "strain"
+    norm_comps = ("strain_xx","strain_yy","strain_zz")
+    dev_comps = ("strain_xy","strain_yz","strain_xz")
+    field = sens.FieldTensor(sim_data,
+                            field_name=field_name,
+                            norm_comps=norm_comps,
+                            dev_comps=dev_comps,
                             elem_dims=3)
     sens_array =  sens.SensorArrayPoint(sens_data,
                                        field,
                                        descriptor)
     return sens_array
 
+
 def sens_2d_dict() -> dict[str,sens.SensorArrayPoint]:
-    sim_data = psensmech.simdata_mech_2d()
-    sens_data_dict = psensmech.sens_data_2d_dict()
+    sim_data = pointsensmech.simdata_mech_2d()
+    sens_data_dict = pointsensmech.sens_data_2d_dict()
 
     sens_dict = {}
     for ss in sens_data_dict:
         sens_array = sens_2d_noerrs(sim_data,sens_data_dict[ss])
 
-        pos_lock = psensmech.sens_pos_2d_lock(sens_data_dict[ss].positions)
+        pos_lock = pointsensmech.sens_pos_2d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
             if kk in ss:
                 pos_lock_key = kk
                 break
 
-        err_chain_dict = psensmech.err_chain_2d_dict(sens_array.get_field(),
+        err_chain_dict = pointsensmech.err_chain_2d_dict(sens_array.get_field(),
                                            sens_data_dict[ss].positions,
                                            sens_data_dict[ss].sample_times,
                                            pos_lock[pos_lock_key])
 
         for ee in err_chain_dict:
-            tag = f"vec2d_{ss}_err-{ee}"
+            tag = f"tens2d_{ss}_err-{ee}"
             sens_dict[tag] = copy.deepcopy(sens_array)
 
             if err_chain_dict[ee] is not None:
@@ -83,26 +90,26 @@ def sens_2d_dict() -> dict[str,sens.SensorArrayPoint]:
 
 
 def sens_3d_dict() -> dict[str,sens.SensorArrayPoint]:
-    sim_data = psensmech.simdata_mech_3d()
-    sens_data_dict = psensmech.sens_data_3d_dict()
+    sim_data = pointsensmech.simdata_mech_3d()
+    sens_data_dict = pointsensmech.sens_data_3d_dict()
 
     sens_dict = {}
     for ss in sens_data_dict:
         sens_array = sens_3d_noerrs(sim_data,sens_data_dict[ss])
 
-        pos_lock = psensmech.sens_pos_3d_lock(sens_data_dict[ss].positions)
+        pos_lock = pointsensmech.sens_pos_3d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
             if kk in ss:
                 pos_lock_key = kk
                 break
 
-        err_chain_dict = psensmech.err_chain_3d_dict(sens_array.get_field(),
+        err_chain_dict = pointsensmech.err_chain_3d_dict(sens_array.get_field(),
                                            sens_data_dict[ss].positions,
                                            sens_data_dict[ss].sample_times,
                                            pos_lock=pos_lock[pos_lock_key])
 
         for ee in err_chain_dict:
-            tag = f"vec3d_{ss}_err-{ee}"
+            tag = f"tens3d_{ss}_err-{ee}"
             sens_dict[tag] = copy.deepcopy(sens_array)
 
             if err_chain_dict[ee] is not None:

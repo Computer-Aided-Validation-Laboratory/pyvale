@@ -8,8 +8,8 @@ import numpy as np
 
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.verif.psens as psens
-import pyvale.verif.psensconst as psensconst
+import pyvale.verif.pointsens as pointsens
+import pyvale.verif.pointsensconst as pointsensconst
 import pyvale.dataset as dataset
 
 """
@@ -26,7 +26,7 @@ applied to scalar fields.
 
 def simdata_2d() -> mh.SimData:
     data_path = dataset.thermal_2d_path()
-    sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
                                       disp_comps=None)
@@ -35,7 +35,7 @@ def simdata_2d() -> mh.SimData:
 
 def simdata_3d() -> mh.SimData:
     data_path = dataset.thermal_3d_path()
-    sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
                                       disp_comps=None)
@@ -108,11 +108,11 @@ def sens_pos_3d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
 
 
 def sens_data_2d_dict() -> dict[str,sens.SensorData]:
-    return psens.sens_data_dict(simdata_2d(),sens_pos_2d())
+    return pointsens.sens_data_dict(simdata_2d(),sens_pos_2d())
 
 
 def sens_data_3d_dict() -> dict[str,sens.SensorData]:
-    return psens.sens_data_dict(simdata_3d(),sens_pos_3d())
+    return pointsens.sens_data_dict(simdata_3d(),sens_pos_3d())
 
 
 def err_chain_sfield(field: sens.IField,
@@ -131,10 +131,10 @@ def err_chain_sfield(field: sens.IField,
 
     pos_rand = sens.GenNormal(std=1.0,
                              mean=0.0,
-                             seed=psensconst.GOLD_SEED) # units = mm
+                             seed=pointsensconst.GOLD_SEED) # units = mm
     time_rand = sens.GenNormal(std=0.1,
                               mean=0.0,
-                              seed=psensconst.GOLD_SEED) # units = s
+                              seed=pointsensconst.GOLD_SEED) # units = s
 
     field_err_data = sens.ErrFieldData(
         pos_offset_xyz=pos_offset_xyz,
@@ -205,17 +205,17 @@ def err_chain_2d_dict(field: sens.IField,
                       ) -> dict[str,list[sens.IErrCalculator]]:
     err_cases = {}
     err_cases["none"] = None
-    err_cases["basic"] = psens.err_chain_basic()
-    err_cases["basic-gen"] = psens.err_chain_gen()
+    err_cases["basic"] = pointsens.err_chain_basic()
+    err_cases["basic-gen"] = pointsens.err_chain_gen()
     err_cases["field"] = err_chain_sfield(field,sens_pos,samp_times,pos_lock)
     err_cases["field-dep"] = err_chain_sfield_dep(field,sens_pos,samp_times,pos_lock)
     err_cases["calib"] = err_chain_calib()
 
      # This has to be last so when we chain all errors together the saturation
     # error is the last thing that happens
-    err_cases["basic-dep"] = psens.err_chain_dep()
+    err_cases["basic-dep"] = pointsens.err_chain_dep()
 
-    err_cases["all"] = psens.err_chain_all(err_cases)
+    err_cases["all"] = pointsens.err_chain_all(err_cases)
 
     return err_cases
 
@@ -227,17 +227,17 @@ def err_chain_3d_dict(field: sens.IField,
                       ) -> dict[str,list[sens.IErrCalculator]]:
     err_cases = {}
     err_cases["none"] = None
-    err_cases["basic"] = psens.err_chain_basic()
-    err_cases["basic-gen"] = psens.err_chain_gen()
+    err_cases["basic"] = pointsens.err_chain_basic()
+    err_cases["basic-gen"] = pointsens.err_chain_gen()
     err_cases["field"] = err_chain_sfield(field,sens_pos,samp_times,pos_lock)
     err_cases["field-dep"] = err_chain_sfield_dep(field,sens_pos,samp_times,pos_lock)
     err_cases["calib"] = err_chain_calib()
 
     # This has to be last so when we chain all errors together the saturation
     # error is the last thing that happens
-    err_cases["basic-dep"] = psens.err_chain_dep()
+    err_cases["basic-dep"] = pointsens.err_chain_dep()
 
-    err_cases["all"] = psens.err_chain_all(err_cases)
+    err_cases["all"] = pointsens.err_chain_all(err_cases)
 
     return err_cases
 

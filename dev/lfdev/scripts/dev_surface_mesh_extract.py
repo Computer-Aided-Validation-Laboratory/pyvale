@@ -5,7 +5,7 @@ import pyvale
 
 def main() -> None:
     data_path = Path("src/pyvale/simcases/case21_out.e")
-    sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
 
     (pv_grid,pv_grid_vis) = pyvale.simdata_to_pyvista(sim_data,
                                                            None,

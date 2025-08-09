@@ -9,10 +9,10 @@ import numpy as np
 
 # Pyvale imports
 import pyvale.sensorsim as sens
-import pyvale.verif.psens as psens
-import pyvale.verif.psensscalar as psensscalar
-import pyvale.verif.psensvector as psensvector
-import pyvale.verif.psenstensor as psenstensor
+import pyvale.verif.pointsens as pointsens
+import pyvale.verif.pointsensscalar as pointsensscalar
+import pyvale.verif.pointsensvector as pointsensvector
+import pyvale.verif.pointsenstensor as pointsenstensor
 
 #-------------------------------------------------------------------------------
 # TODO: Tests
@@ -30,12 +30,12 @@ import pyvale.verif.psenstensor as psenstensor
 @pytest.mark.parametrize(
     "get_sensors",
     [
-        psensscalar.sens_2d_dict,
-        psensscalar.sens_3d_dict,
-        psensvector.sens_2d_dict,
-        psensvector.sens_3d_dict,
-        psenstensor.sens_2d_dict,
-        psenstensor.sens_3d_dict,
+        pointsensscalar.sens_2d_dict,
+        pointsensscalar.sens_3d_dict,
+        pointsensvector.sens_2d_dict,
+        pointsensvector.sens_3d_dict,
+        pointsenstensor.sens_2d_dict,
+        pointsenstensor.sens_3d_dict,
     ],
     ids=[
         "scalar_2d",
@@ -48,7 +48,7 @@ import pyvale.verif.psenstensor as psenstensor
 )
 def test_gold_combined(get_sensors: Callable[[], Dict[str, Any]]) -> None:
     sensors = get_sensors()
-    fails = psens.check_gold_measurements(sensors)
+    fails = pointsens.check_gold_measurements(sensors)
     assert not fails, "\n".join(fails)
 
 #-------------------------------------------------------------------------------
@@ -68,12 +68,12 @@ def check_get_meas(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[str]:
 @pytest.mark.parametrize(
     "get_sensors",
     [
-        psensscalar.sens_2d_dict,
-        psensscalar.sens_3d_dict,
-        psensvector.sens_2d_dict,
-        psensvector.sens_3d_dict,
-        psenstensor.sens_2d_dict,
-        psenstensor.sens_3d_dict,
+        pointsensscalar.sens_2d_dict,
+        pointsensscalar.sens_3d_dict,
+        pointsensvector.sens_2d_dict,
+        pointsensvector.sens_3d_dict,
+        pointsenstensor.sens_2d_dict,
+        pointsenstensor.sens_3d_dict,
     ],
     ids=[
         "scalar_2d",

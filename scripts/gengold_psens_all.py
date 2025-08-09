@@ -4,11 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
-import pyvale.verif.psens as psens
-import pyvale.verif.psensconst as psensconst
-import pyvale.verif.psensscalar as psensscalar
-import pyvale.verif.psensvector as psensvector
-import pyvale.verif.psenstensor as psenstensor
+import pyvale.verif.pointsens as pointsens
+import pyvale.verif.pointsensconst as pointsensconst
+import pyvale.verif.pointsensscalar as pointsensscalar
+import pyvale.verif.pointsensvector as pointsensvector
+import pyvale.verif.pointsenstensor as pointsenstensor
 
 
 def main() -> None:
@@ -16,17 +16,17 @@ def main() -> None:
     print(80*"=")
     print("Gold Output Generator for pyvale Point Sensors")
     print(80*"=")
-    print(f"Saving gold output to: {psensconst.GOLD_PATH}\n")
+    print(f"Saving gold output to: {pointsensconst.GOLD_PATH}\n")
 
-    sens = [psensscalar.sens_2d_dict(),
-            psensscalar.sens_3d_dict(),
-            psensvector.sens_2d_dict(),
-            psensvector.sens_3d_dict(),
-            psenstensor.sens_2d_dict(),
-            psenstensor.sens_3d_dict(),]
+    sens = [pointsensscalar.sens_2d_dict(),
+            pointsensscalar.sens_3d_dict(),
+            pointsensvector.sens_2d_dict(),
+            pointsensvector.sens_3d_dict(),
+            pointsenstensor.sens_2d_dict(),
+            pointsenstensor.sens_3d_dict(),]
 
     for ss in sens:
-        psens.gen_gold_measurements(ss)
+        pointsens.gen_gold_measurements(ss)
 
     print(80*"-")
     print("Gold output generation complete.\n")

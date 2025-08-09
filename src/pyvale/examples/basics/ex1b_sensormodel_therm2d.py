@@ -44,7 +44,7 @@ import pyvale.dataset as dataset
 # comes packaged with pyvale. The simulation is a 2D rectangular plate with
 # a bi-directional temperature gradient.
 data_path = dataset.thermal_2d_path()
-sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
 field_key: str = "temperature"
 
 #%%

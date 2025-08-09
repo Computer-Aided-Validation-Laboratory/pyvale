@@ -24,33 +24,32 @@
 from pathlib import Path
 import netCDF4 as nc
 import numpy as np
-from pyvale.mooseherder.simdata import SimData, SimReadConfig
-from pyvale.mooseherder.outputreader import OutputReader
+from pyvale.mooseherder.simdata import SimData, SimLoadConfig
+from pyvale.mooseherder.outputloader import OutputLoader
 
 
-class ExodusReader(OutputReader):
+class ExodusLoader(OutputLoader):
     """Class to read exodus files output by MOOSE using the netCDF package.
     This class handles extracting the data from the exodus file and creates
     a SimData object with the required data. Most used cases are covered with
     by creating an ExodusReader and then calling either read_sim_data() or
     read_all_sim_data() specified at the bottom of the class.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
     """
+
+    __slots__ = ("_exodus_path","_data")
+
     def __init__(self, output_file: Path) -> None:
-        """__init__: Construct class by reading the exodus file using the
-        netCDF package. The exodus file must exist.
+        """
+        Parameters
+        ----------
+        output_file : Path
+            Construct class by reading the exodus file using the
+            netCDF package. The exodus file must exist.
 
-        Args:
-            output_file (Path): path to the exodus file to read
-
-        Raises:
-            FileNotFoundError: the specified exodus file does not exist
+        Raises
+        ------
+        FileNotFoundError
+            The specified exodus file does not exist.
         """
 
         if not output_file.is_file() and output_file.suffix != '.e':
@@ -671,7 +670,7 @@ class ExodusReader(OutputReader):
         for vv in self._data.variables:
             print(vv)
 
-    def get_read_config(self) -> SimReadConfig:
+    def get_read_config(self) -> SimLoadConfig:
         """get_read_config: constructs a SimReadConfig object by extracting
         all the variable names found in the exodus dataset. Useful for creating
         a mostly populated SimReadConfig and removing variables that are
@@ -687,7 +686,7 @@ class ExodusReader(OutputReader):
             extracted from the exodus dataset. See mooseherder.simdata.
 
         """
-        read_config = SimReadConfig()
+        read_config = SimLoadConfig()
 
         read_config.sidesets = self.get_sideset_names()
         read_config.node_vars = self.get_node_var_names()
@@ -698,7 +697,7 @@ class ExodusReader(OutputReader):
 
 
     def read_sim_data(self,
-                      read_config: SimReadConfig) -> SimData:
+                      read_config: SimLoadConfig) -> SimData:
         """read_sim_data: reads the simulation data based on the specified
         SimReadConfig object.
 

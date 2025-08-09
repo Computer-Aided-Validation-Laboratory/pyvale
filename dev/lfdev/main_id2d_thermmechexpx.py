@@ -35,7 +35,7 @@ def main() -> None:
     # Load simulation data:
     main_path = Path.home()/"test"/"pyvDIC2D"
     sim_path = main_path/"data"/"dobone3d_ODIN_plas_ad_out.e"
-    sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(sim_path).read_all_sim_data()
 
     print_sim_data(sim_data)
 

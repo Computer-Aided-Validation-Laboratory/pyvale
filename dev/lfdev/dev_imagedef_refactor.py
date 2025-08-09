@@ -20,7 +20,7 @@ def main() -> None:
     #sim_file = "platehole2d_out.e"
     sim_file = "mechplate2d_shear_out.e"
     sim_path = Path("dev/lfdev/imagedef_testsims") / sim_file
-    sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(sim_path).read_all_sim_data()
 
     image_path = pyvale.DataSet.dic_pattern_5mpx_path()
     image_speckle = pyvale.CameraTools.load_image(image_path)

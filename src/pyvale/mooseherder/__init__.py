@@ -8,12 +8,12 @@ from .inputmodifier import InputModifier
 from .simrunner import SimRunner
 from .mooserunner import MooseRunner
 from .gmshrunner import GmshRunner
-from .exodusreader import ExodusReader
+from .exodusloader import ExodusLoader
 from .mooseherd import MooseHerd
 from .directorymanager import DirectoryManager
-from .sweepreader import SweepReader
+from .sweeploader import SweepLoader
 from .simdata import SimData
-from .simdata import SimReadConfig
+from .simdata import SimLoadConfig
 from .mooseconfig import MooseConfig
 from .sweeptools import sweep_param_grid
 
@@ -22,11 +22,11 @@ __all__ = ["InputModifier",
             "SimRunner",
             "MooseRunner",
             "GmshRunner",
-            "ExodusReader",
+            "ExodusLoader",
             "mooseherd",
             "DirectoryManager",
-            "SweepReader",
+            "SweepLoader",
             "SimData",
-            "SimReadConfig",
+            "SimLoadConfig",
             "MooseConfig",
             "sweep_param_grid"]

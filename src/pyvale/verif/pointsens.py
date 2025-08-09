@@ -17,7 +17,7 @@ point sensors.
 import numpy as np
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.verif.psensconst as psensconst
+import pyvale.verif.pointsensconst as pointsensconst
 
 
 def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
@@ -51,14 +51,14 @@ def err_chain_basic() -> list[sens.IErrCalculator]:
     chain_basic.append(sens.ErrSysOffset(offset=-1.0))
     chain_basic.append(sens.ErrSysUnif(low=-1.0,
                                       high=1.0,
-                                      seed=psensconst.GOLD_SEED))
+                                      seed=pointsensconst.GOLD_SEED))
     chain_basic.append(sens.ErrSysUnifPercent(low_percent=-1.0,
                                              high_percent=1.0,
-                                             seed=psensconst.GOLD_SEED))
+                                             seed=pointsensconst.GOLD_SEED))
     chain_basic.append(sens.ErrRandNorm(std=1.0,
-                                       seed=psensconst.GOLD_SEED))
+                                       seed=pointsensconst.GOLD_SEED))
     chain_basic.append(sens.ErrRandNormPercent(std_percent=1.0,
-                                              seed=psensconst.GOLD_SEED))
+                                              seed=pointsensconst.GOLD_SEED))
     return chain_basic
 
 
@@ -66,13 +66,13 @@ def err_chain_gen() -> list[sens.IErrCalculator]:
     chain_gen = []
     chain_gen.append(sens.ErrSysOffset(offset=-1.0))
     chain_gen.append(sens.ErrSysGen(
-        sens.GenUniform(low=-1.0,high=1.0,seed=psensconst.GOLD_SEED)))
+        sens.GenUniform(low=-1.0,high=1.0,seed=pointsensconst.GOLD_SEED)))
     chain_gen.append(sens.ErrSysGenPercent(
-        sens.GenUniform(low=-1.0,high=1.0,seed=psensconst.GOLD_SEED)))
+        sens.GenUniform(low=-1.0,high=1.0,seed=pointsensconst.GOLD_SEED)))
     chain_gen.append(sens.ErrRandGen(
-        sens.GenNormal(std=1.0,seed=psensconst.GOLD_SEED)))
+        sens.GenNormal(std=1.0,seed=pointsensconst.GOLD_SEED)))
     chain_gen.append(sens.ErrRandGenPercent(
-        sens.GenNormal(std=1.0,seed=psensconst.GOLD_SEED)))
+        sens.GenNormal(std=1.0,seed=pointsensconst.GOLD_SEED)))
     return chain_gen
 
 
@@ -98,7 +98,7 @@ def gen_gold_measurements(sens_dict: dict[str,sens.SensorArrayPoint]) -> None:
     for ss in sens_dict:
         print(f"Generating gold output for case: {ss}")
         measurements = sens_dict[ss].calc_measurements()
-        save_path = psensconst.GOLD_PATH / f"{ss}.npy"
+        save_path = pointsensconst.GOLD_PATH / f"{ss}.npy"
         np.save(save_path,measurements)
 
 
@@ -107,9 +107,9 @@ def check_gold_measurements(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[
 
     for ss in sens_dict:
         measurements = sens_dict[ss].calc_measurements()
-        gold_path = psensconst.GOLD_PATH / f"{ss}.npy"
+        gold_path = pointsensconst.GOLD_PATH / f"{ss}.npy"
 
-        load_path = psensconst.GOLD_PATH / f"{ss.lower()}.npy"
+        load_path = pointsensconst.GOLD_PATH / f"{ss.lower()}.npy"
         if load_path.is_file():
             gold = np.load(load_path)
 
