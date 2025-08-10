@@ -254,9 +254,9 @@ class SweepLoader:
                 #TODO: replace with output reader ABC
                 reader = ExodusLoader(ff)
                 if read_config is None:
-                    data_list.append(reader.read_all_sim_data())
+                    data_list.append(reader.load_all_sim_data())
                 else:
-                    data_list.append(reader.read_sim_data(read_config))
+                    data_list.append(reader.load_sim_data(read_config))
 
         return data_list
 

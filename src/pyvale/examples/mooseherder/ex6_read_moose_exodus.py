@@ -106,7 +106,7 @@ print()
 # we can see the structure of the dataclass. The documentation for the
 # ``SimData`` class provides descriptions of each of the fields and we
 # recommend you check this out to understand the terminal output.
-all_sim_data = exodus_reader.read_all_sim_data()
+all_sim_data = exodus_reader.load_all_sim_data()
 print("SimData from 'read_all':")
 sens.simtools.print_sim_data(all_sim_data)
 
@@ -126,7 +126,7 @@ sens.simtools.print_dataclass_fields(read_config)
 # from the exodus file. We then use the read function to return a ``SimData``
 # object and we print the 'node_vars' field to verify that it has not been read.
 read_config.node_vars = None
-sim_data = exodus_reader.read_sim_data(read_config)
+sim_data = exodus_reader.load_sim_data(read_config)
 
 print("Read config without 'node_vars':")
 print(f"    {sim_data.node_vars=}")
@@ -138,7 +138,7 @@ print()
 read_config.time = False
 read_config.coords = False
 read_config.connect = False
-sim_data = exodus_reader.read_sim_data(read_config)
+sim_data = exodus_reader.load_sim_data(read_config)
 
 print("Read config without time, coords and connectivity:")
 print(f"    {sim_data.time=}")
@@ -155,7 +155,7 @@ print()
 # format "connectivityX" in the connectivity dictionary).
 
 read_config.node_vars = ("disp_x",)
-sim_data = exodus_reader.read_sim_data(read_config)
+sim_data = exodus_reader.load_sim_data(read_config)
 print("Read config only extracting x displacement:")
 print(f"    {sim_data.node_vars.keys()=}")
 print(f"    {sim_data.node_vars['disp_x'].shape=}")

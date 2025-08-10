@@ -286,12 +286,12 @@ def test_get_read_config(reader: ExodusLoader) -> None:
 
 def test_read_sim_data(reader: ExodusLoader) -> None:
     config = reader.get_read_config()
-    data = reader.read_sim_data(config)
+    data = reader.load_sim_data(config)
     check_sim_data(data)
 
 
 def test_read_all_sim_data(reader: ExodusLoader) -> None:
-    data = reader.read_all_sim_data()
+    data = reader.load_all_sim_data()
     check_sim_data(data)
 
 

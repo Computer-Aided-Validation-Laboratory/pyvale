@@ -89,5 +89,5 @@ class SimLoadConfig:
     node_vars: Iterable[str] | None = None
     elem_vars: Iterable[tuple[str,int]] | None = None
     glob_vars: Iterable[str] | None = None
-    time_inds: Iterable[str] | None = None
+    time_inds: Iterable[int] | slice | None = None
 

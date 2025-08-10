@@ -696,7 +696,7 @@ class ExodusLoader(OutputLoader):
         return read_config
 
 
-    def read_sim_data(self,
+    def load_sim_data(self,
                       read_config: SimLoadConfig) -> SimData:
         """read_sim_data: reads the simulation data based on the specified
         SimReadConfig object.
@@ -736,7 +736,7 @@ class ExodusLoader(OutputLoader):
         return data
 
 
-    def read_all_sim_data(self) -> SimData:
+    def load_all_sim_data(self) -> SimData:
         """read_all_sim_data: gets all simulation data from the exodus dataset.
 
         Parameters

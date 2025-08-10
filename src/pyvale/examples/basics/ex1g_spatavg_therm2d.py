@@ -33,7 +33,7 @@ import pyvale.dataset as dataset
 # the same as the 3D thermal example we have used previously then we control
 # the area averaging using the sensor data object.
 data_path = dataset.thermal_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)

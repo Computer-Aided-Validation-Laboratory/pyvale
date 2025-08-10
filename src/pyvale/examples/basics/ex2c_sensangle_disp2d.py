@@ -34,7 +34,7 @@ import pyvale.dataset as dataset
 # solid mechanics test case we have used previously. This will serve as a
 # baseline with no sensor rotation.
 data_path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
 field_name = "disp"
 field_comps = ("disp_x","disp_y")

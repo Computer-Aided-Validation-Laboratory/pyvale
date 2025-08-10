@@ -31,7 +31,7 @@ import pyvale.dataset as dataset
 # simulation into a `SimData`  object. In this case our simulation is a
 # thermomechanical model of a divertor heatsink.
 sim_path = dataset.thermomechanical_3d_path()
-sim_data = mh.ExodusLoader(sim_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 elem_dims: int = 3
 
 #%%

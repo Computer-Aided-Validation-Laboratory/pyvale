@@ -40,7 +40,7 @@ import pyvale.dataset as dataset
 # a thermocouple sensor array for the same 3D thermal simulation we have
 # analysed in the previous example.
 data_path = dataset.thermal_3d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)

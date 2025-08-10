@@ -38,7 +38,7 @@ import pyvale.dataset as dataset
 # systematic error called a field error which requires additional
 # interpolation of the underlying physical field to be measured.
 data_path = dataset.thermal_3d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)

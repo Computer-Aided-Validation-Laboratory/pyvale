@@ -34,7 +34,7 @@ import pyvale.mooseherder as mh
 # into a `SimData` object.
 
 data_path = dataset.render_mechanical_3d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
 # %%
 

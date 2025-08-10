@@ -31,7 +31,7 @@ import pyvale.dataset as dataset
 # from SI including the coordinates and displacement. Strain is unitless so
 # we leave it alone.
 data_path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=("disp_x","disp_y"))

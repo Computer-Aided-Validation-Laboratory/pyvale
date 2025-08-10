@@ -71,7 +71,7 @@ print()
 # thermocouples that we analysed in the first two examples. We use this
 # simulation as the temperatures are within our calibrated range.
 data_path = dataset.thermal_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)

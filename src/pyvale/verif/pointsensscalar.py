@@ -26,7 +26,7 @@ applied to scalar fields.
 
 def simdata_2d() -> mh.SimData:
     data_path = dataset.thermal_2d_path()
-    sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
                                       disp_comps=None)
@@ -35,7 +35,7 @@ def simdata_2d() -> mh.SimData:
 
 def simdata_3d() -> mh.SimData:
     data_path = dataset.thermal_3d_path()
-    sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
                                       disp_comps=None)

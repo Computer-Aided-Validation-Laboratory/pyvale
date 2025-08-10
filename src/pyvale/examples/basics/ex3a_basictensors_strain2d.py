@@ -35,7 +35,7 @@ import pyvale.dataset as dataset
 # the normal a deviatoric components of our tensor field (as they appear in
 # our `SimData` object).
 data_path: Path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                   sim_data=sim_data,
                                   disp_comps=("disp_x","disp_y"))

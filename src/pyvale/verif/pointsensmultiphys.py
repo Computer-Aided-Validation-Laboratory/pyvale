@@ -20,7 +20,7 @@ def load_simdata_list(data_paths: list[Path],
                       disp_comps: tuple[str,...]) -> list[mh.SimData]:
     sim_list = []
     for pp in data_paths:
-        sim_data = mh.ExodusLoader(pp).read_all_sim_data()
+        sim_data = mh.ExodusLoader(pp).load_all_sim_data()
         sim_data = sens.scale_length_units(scale=1000.0,
                                             sim_data=sim_data,
                                             disp_comps=disp_comps)

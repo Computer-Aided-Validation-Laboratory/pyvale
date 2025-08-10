@@ -34,7 +34,7 @@ import pyvale.dataset as dataset
 # We start by building the same displacement sensor array applied to a 2D
 # solid mechanics simulation that we have analysed previously.
 data_path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 field_name = "disp"
 field_comps = ("disp_x","disp_y")
 sim_data = sens.scale_length_units(scale=1000.0,

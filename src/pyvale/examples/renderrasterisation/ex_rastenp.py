@@ -40,7 +40,7 @@ def main() -> None:
 
     disp_comps = ("disp_x","disp_y","disp_z")
 
-    sim_data = mh.ExodusLoader(sim_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 
     # Scale m -> mm
     sim_data = sens.scale_length_units(1000.0,sim_data,disp_comps)

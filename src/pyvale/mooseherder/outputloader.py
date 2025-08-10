@@ -4,19 +4,14 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 from abc import ABC, abstractmethod
-from pathlib import Path
 from pyvale.mooseherder.simdata import SimData, SimLoadConfig
 
 
 class OutputLoader(ABC):
     @abstractmethod
-    def __init__(self, output_file: Path) -> None:
+    def load_sim_data(self, read_config: SimLoadConfig) -> SimData:
         pass
 
     @abstractmethod
-    def read_sim_data(self, read_config: SimLoadConfig) -> SimData:
-        pass
-
-    @abstractmethod
-    def read_all_sim_data(self) -> SimData:
+    def load_all_sim_data(self) -> SimData:
         pass
