@@ -77,19 +77,26 @@ imgpoints_l = []
 imgpoints_r = []
 
 # testing blender images
-path = "../../../../datasets/stereobenchmarks/calibration/faceon_calibration/"
-prefix = "cal_"
-ext = ".tiff"
-prefill = 0
+# path = "../../../../datasets/stereobenchmarks/calibration/faceon_calibration/"
+# prefix = "cal_"
+# ext = ".tiff"
+# prefill = 0
 
 # testing matchID calibration images
-# path = "../../../../datasetsdatasets/matchid_calib/DEMO_Calibration"
-# prefix = "Calibration_"
-# ext = ".tiff"
-# prefill = 4
+path = "../../../../datasets/matchid_calib/DEMO_Calibration"
+prefix = "Calibration_"
+ext = ".tiff"
+prefill = 4
 #
 
-for i in range(0, 160):
+
+path_l = os.path.join(path, f"{prefix}0000_0{ext}")
+path_r = os.path.join(path, f"{prefix}0000_1{ext}")
+im_l = cv2.imread(path_l, cv2.IMREAD_GRAYSCALE)
+im_r = cv2.imread(path_r, cv2.IMREAD_GRAYSCALE)
+img_size = (im_l.shape[1], im_l.shape[0])
+
+for i in range(0, 80):
     num = str(i).zfill(prefill)
     path_l = os.path.join(path, f"{prefix}{num}_0{ext}")
     path_r = os.path.join(path, f"{prefix}{num}_1{ext}")
@@ -102,7 +109,6 @@ for i in range(0, 160):
         print(f"Skipping missing pair: {path_l} {path_r}")
         continue
 
-    img_size = (im_l.shape[1], im_l.shape[0])
 
 
     # Detect LIGHT blobs
@@ -184,48 +190,52 @@ for i in range(0, 160):
 
 
     # debugging plot
-    # fig, axes = plt.subplots(1, 4, figsize=(20, 6))
-    #
-    # # Convert KeyPoints to NumPy arrays
-    # light_l = np.array([kp.pt for kp in keypoints_lght_l], dtype=np.float32)
-    # light_r = np.array([kp.pt for kp in keypoints_lght_r], dtype=np.float32)
-    #
-    # # # Left image with detected circles
-    # axes[0].imshow(im_l, cmap='gray')
-    # axes[0].plot(light_l[:, 0], light_l[:, 1], 'gx', markersize=10)
-    # axes[0].plot(pts_l[:, 0], pts_l[:, 1], 'ro', markersize=5)
-    # axes[0].set_title('Left Image with \n Detected Circles')
-    #
-    # # Right image with detected circles
-    # axes[1].imshow(im_r, cmap='gray')
-    # axes[1].plot(light_r[:, 0], light_r[:, 1], 'gx', markersize=10)
-    # axes[1].plot(pts_r[:, 0], pts_r[:, 1], 'ro', markersize=5)
-    # axes[1].set_title('Right Image with \n Detected Circles')
-    #
-    # axes[2].plot(transformed_l[:, 0], transformed_l[:, 1], 'ro', markersize=5)
-    # axes[2].plot(filtered_points_2d[:, 0], filtered_points_2d[:, 1], 'x', markersize=5)
-    # axes[2].invert_yaxis()
-    # axes[2].set_title('left circles mapped to \n to grid reference frame ')
-    #
-    # axes[3].plot(transformed_r[:, 0], transformed_r[:, 1], 'ro', markersize=5)
-    # axes[3].plot(filtered_points_2d[:, 0], filtered_points_2d[:, 1], 'x', markersize=5)
-    # axes[3].invert_yaxis()
-    # axes[3].set_title('right cricles mapped to \n to grid reference frame ')
-    #
-    #
-    # # Save the figure to a temporary PNG file
-    # # filename = f"output/frame_{i:03d}.png"
-    # # plt.savefig(filename)
-    # # plt.close(fig)
+    fig, axes = plt.subplots(1, 4, figsize=(20, 6))
+    
+    # Convert KeyPoints to NumPy arrays
+    light_l = np.array([kp.pt for kp in keypoints_lght_l], dtype=np.float32)
+    light_r = np.array([kp.pt for kp in keypoints_lght_r], dtype=np.float32)
+    
+    # # Left image with detected circles
+    axes[0].imshow(im_l, cmap='gray')
+    axes[0].plot(light_l[0, 0], light_l[0, 1], 'co', markersize=5)
+    axes[0].plot(light_l[1, 0], light_l[1, 1], 'yo', markersize=5)
+    axes[0].plot(light_l[2, 0], light_l[2, 1], 'mo', markersize=5)
+    axes[0].plot(pts_l[:, 0], pts_l[:, 1], 'ro', markersize=5)
+    axes[0].set_title('Left Image with \n Detected Circles')
+    
+    # Right image with detected circles
+    axes[1].imshow(im_r, cmap='gray')
+    axes[1].plot(light_r[0, 0], light_r[0, 1], 'co', markersize=5)
+    axes[1].plot(light_r[1, 0], light_r[1, 1], 'yo', markersize=5)
+    axes[1].plot(light_r[2, 0], light_r[2, 1], 'mo', markersize=5)
+    axes[1].plot(pts_r[:, 0], pts_r[:, 1], 'ro', markersize=5)
+    axes[1].set_title('Right Image with \n Detected Circles')
+    
+    axes[2].plot(transformed_l[:, 0], transformed_l[:, 1], 'ro', markersize=5)
+    axes[2].plot(filtered_points_2d[:, 0], filtered_points_2d[:, 1], 'x', markersize=5)
+    axes[2].invert_yaxis()
+    axes[2].set_title('left circles mapped to \n to grid reference frame ')
+    
+    axes[3].plot(transformed_r[:, 0], transformed_r[:, 1], 'ro', markersize=5)
+    axes[3].plot(filtered_points_2d[:, 0], filtered_points_2d[:, 1], 'x', markersize=5)
+    axes[3].invert_yaxis()
+    axes[3].set_title('right cricles mapped to \n to grid reference frame ')
+
+
+    # Save the figure to a temporary PNG file
+    filename = f"output/frame_{i:03d}.png"
+    plt.savefig(filename)
+    plt.close(fig)
     # plt.show()
-    #
+    
     # np.savetxt("matched_l.txt", matched_l, fmt='%.2f')
     # np.savetxt("matched_r.txt", matched_r, fmt='%.2f')
     # np.savetxt("matched_f.txt", matched_f, fmt='%.2f')
-
-    # print("matched_f:",matched_f.shape)
-    # print("matched_l:",matched_l.shape)
-    # print("matched_r:",matched_r.shape)
+    
+    print("matched_f:",matched_f.shape)
+    print("matched_l:",matched_l.shape)
+    print("matched_r:",matched_r.shape)
 
     # Append for calibration
     matched_f = np.hstack((matched_f, np.zeros((matched_f.shape[0], 1), dtype=matched_f.dtype)))
@@ -238,6 +248,41 @@ for i in range(0, 160):
 
 print(f"Running calibration with {len(objpoints)} valid image pairs...")
 
+# --- Step 1: Calibrate left and right cameras separately ---
+ret_l, Kl, Dl, rvecs_l, tvecs_l = cv2.calibrateCamera(objpoints, imgpoints_l, img_size, None, None)
+ret_r, Kr, Dr, rvecs_r, tvecs_r = cv2.calibrateCamera(objpoints, imgpoints_r, img_size, None, None)
+
+# --- Step 2: Stereo calibration using fixed intrinsics ---
+ret, Kl, Dl, Kr, Dr, R, T, E, F = cv2.stereoCalibrate(
+    objectPoints=objpoints,
+    imagePoints1=imgpoints_l,
+    imagePoints2=imgpoints_r,
+    cameraMatrix1=Kl,
+    distCoeffs1=Dl,
+    cameraMatrix2=Kr,
+    distCoeffs2=Dr,
+    imageSize=img_size,
+    flags=cv2.CALIB_FIX_INTRINSIC
+)
+
+# --- Step 3: Per-view reprojection errors ---
+errors_left = []
+errors_right = []
+
+for i, objp in enumerate(objpoints):
+    # Left camera projection
+    imgpts_l_proj, _ = cv2.projectPoints(objp, rvecs_l[i], tvecs_l[i], Kl, Dl)
+    err_l = np.sqrt(np.mean(np.sum((imgpoints_l[i] - imgpts_l_proj.squeeze())**2, axis=1)))
+    errors_left.append(err_l)
+
+    # Right camera projection
+    imgpts_r_proj, _ = cv2.projectPoints(objp, rvecs_r[i], tvecs_r[i], Kr, Dr)
+    err_r = np.sqrt(np.mean(np.sum((imgpoints_r[i] - imgpts_r_proj.squeeze())**2, axis=1)))
+    errors_right.append(err_r)
+
+print(f"Stereo RMS error: {ret:.4f} px")
+print(f"Mean left RMS error: {np.mean(errors_left):.4f} px")
+print(f"Mean right RMS error: {np.mean(errors_right):.4f} px")
 ret, Kl, Dl, Kr, Dr, R, T, E, F = cv2.stereoCalibrate(
     objectPoints=objpoints,
     imagePoints1=imgpoints_l,
@@ -247,7 +292,7 @@ ret, Kl, Dl, Kr, Dr, R, T, E, F = cv2.stereoCalibrate(
     cameraMatrix2=None,
     distCoeffs2=None,
     imageSize=img_size,
-    flags=0
+    flags=cv2.CALIB_FIX_ASPECT_RATIO
 )
 
 # === Output Results ===
