@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pyvale"
 version = "2025.8.1"
-description = "An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
+description = "Your virtual engineering lab: An all-in-one package for sensor simulation, uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
 ]
@@ -32,7 +32,8 @@ dependencies = [
   "pytest>=8.3.5",
   "pybind11>=2.13.6",
   "pyqtgraph>=0.13.7",
-  "opencv-python<=4.9.0.80"
+  "opencv-python<=4.9.0.80",
+  "pandas>=2.3.1",
 ]
 
 [tool.pytest.ini_options]
@@ -42,8 +43,8 @@ pythonpath = [
 ]
 
 [project.urls]
-"Repository" = "https://github.com/Digital-Validation-Laboratory/pyvale"
-"Issue Tracker" = "https://github.com/Digital-Validation-Laboratory/pyvale/issues"
+"Repository" = "https://github.com/Computer-Aided-Validation-Laboratory/pyvale"
+"Issue Tracker" = "https://github.com/Computer-Aided-Validation-Laboratory/pyvale/issues"
 
 [tool.setuptools.package-data]
 "pyvale.data" = ["*.e","*.tiff"]

@@ -13,7 +13,7 @@ import tests.mooseherder.herdchecker as hc
 @pytest.fixture
 def dir_manager() -> DirectoryManager:
     this_manager = DirectoryManager(hc.NUM_DIRS)
-    this_manager.set_base_dir(hc.OUTPUT_PATH)
+    this_manager.set_base_dir(hc.OUTPUT_GOLD_PATH)
     return this_manager
 
 

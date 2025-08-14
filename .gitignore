@@ -20,6 +20,7 @@ pyvale-env/
 testoutput/
 exampleoutput/
 pyvale-output/
+pyvale-input/
 blender*/
 
 # MOOSE / gmsh
@@ -42,6 +43,8 @@ blender*/
 !tests/mooseherder/output_gold/*.csv
 !tests/mooseherder/output_gold/sim-workdir-*/*.e
 !tests/mooseherder/output_gold/sim-workdir-*/*.json
+!tests/mooseherder/txt_gold/*.csv
+!tests/mooseherder/txt_gold/*.npy
 
 # Image deformation test cases
 *.pkl

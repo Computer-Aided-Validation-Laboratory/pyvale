@@ -8,11 +8,10 @@ import numpy as np
 from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator
 import pyvale.mooseherder as mh
+from pyvale.sensorsim.simtools import (coords_to_2D)
 from pyvale.sensorsim.fieldinterp import (FieldInterp,
                                           interp_to_sample_time)
 
-class Collapse2Dto3DError(Exception):
-    pass
 
 
 class FieldInterpPoints(FieldInterp):
@@ -31,7 +30,7 @@ class FieldInterpPoints(FieldInterp):
         # Collapse problem to 2D
         coords = sim_data.coords
         if self._elem_dims == 2:
-            coords = _coords_to_2D(coords)
+            coords = coords_to_2D(coords)
 
         # We do this once instead of inside the loop to save a lot of time as
         # the coordinates don't change between frames
@@ -54,7 +53,7 @@ class FieldInterpPoints(FieldInterp):
                     ) -> np.ndarray:
 
         if self._elem_dims == 2:
-            points = _coords_to_2D(points)
+            points = coords_to_2D(points)
 
         n_points = points.shape[0]
         n_comps = len(self._components)
@@ -73,20 +72,4 @@ class FieldInterpPoints(FieldInterp):
         return interp_to_sample_time(sample_at_sim_time,
                                      self._sim_time_steps,
                                      sample_times)
-
-
-def _coords_to_2D(coords_3d: np.ndarray) -> np.ndarray:
-
-    zero_ax = None
-    for ii in range(coords_3d.shape[1]):
-        if np.allclose(coords_3d[:,ii],0):
-            zero_ax = ii
-            break
-
-    if zero_ax is None:
-        raise Collapse2Dto3DError("No coordinate axis is close to zero, unable" \
-            "to collapse problem to 2D. Check coords in SimData object.")
-
-    coords_2d = np.delete(coords_3d,zero_ax,axis=1)
-    return coords_2d
 

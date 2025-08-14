@@ -23,7 +23,7 @@ from scipy import ndimage
 from pyvale.sensorsim.rasternp import edge_function, RasterNP
 from pyvale.sensorsim.cameradata2d import CameraData2D
 from pyvale.sensorsim.cameratools import CameraTools
-from pyvale.sensorsim.imagetools import ImageTools
+from pyvale.sensorsim.imagetools import ImageTools, EImageType
 
 
 @dataclass(slots=True)
@@ -442,7 +442,10 @@ class ImageDef2D:
             save_file = id_opts.save_path / str(f'{id_opts.save_tag}_'+
                     f'{ImageTools.get_num_str(im_num=ff,width=4)}'+
                     '.tiff')
-            ImageTools.save_tiff(save_file,def_image,cam_data.bits)
+            ImageTools.save_image(save_file,
+                                  def_image,
+                                  EImageType.TIFF,
+                                  cam_data.bits)
 
             if print_on:
                 tocf = time.perf_counter()

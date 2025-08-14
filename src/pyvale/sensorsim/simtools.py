@@ -175,3 +175,47 @@ def get_deformed_nodes(timestep: int,
     return deformed_nodes
 
 
+class Collapse2Dto3DError(Exception):
+    pass
+
+
+def coords_to_2D(coords_3d: np.ndarray) -> np.ndarray:
+
+    zero_axs = get_sim_zero_axs(coords_3d)
+    num_zero_ax = np.sum(zero_axs)
+
+    if num_zero_ax == 0:
+        raise Collapse2Dto3DError("No coordinate axis is close to zero, unable" \
+            "to collapse problem to 2D. Check coords in SimData object.")
+
+    if num_zero_ax > 1:
+        raise Collapse2Dto3DError("Two coordinate axes are close to zero," \
+            " problem is 1D cannot collapse problem to 2D. Check coords in " \
+            "SimData object.")
+
+    ax_to_zero = np.argmax(zero_axs != 0)
+    coords_2d = np.delete(coords_3d,ax_to_zero,axis=1)
+    return coords_2d
+
+
+def get_sim_zero_axs(coords_3d: np.ndarray) -> np.ndarray:
+
+    zero_axs = np.zeros((3,),dtype=np.uintp)
+    for ii in range(coords_3d.shape[1]):
+        if np.allclose(coords_3d[:,ii],0):
+            zero_axs[ii] = 1
+
+    return zero_axs
+
+
+def is_sim_2D(coords_3d: np.ndarray) -> bool:
+
+    zero_axs = get_sim_zero_axs(coords_3d)
+
+    if np.sum(zero_axs) == 1:
+        return True
+
+    return False
+
+
+
