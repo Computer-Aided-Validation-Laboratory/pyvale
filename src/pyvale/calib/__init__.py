@@ -4,4 +4,4 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
-from .dot_detection import StereoCalibration
+from .dot_detection import dot_detection, stereo_calibration
