@@ -33,7 +33,7 @@ def main() -> None:
 
     save_opts = SimDataSaveOpts(fields_save_by=ESaveFieldOpt.BOTH,
                                 array_format = ESaveArray.BOTH,
-                                sim_tag="sim0")
+                                sim_tag="hex20")
 
     save_sim_data_to_arrays(output_path,sim_data,save_opts)
 
