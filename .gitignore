@@ -17,10 +17,10 @@ pyvale-env/
 *.blend
 *.csv
 *.json
-testoutput/
-exampleoutput/
 pyvale-output/
 pyvale-input/
+test-output/
+test-input/
 blender*/
 
 # MOOSE / gmsh

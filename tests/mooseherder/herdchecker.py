@@ -32,6 +32,7 @@ GMSH_INPUT = BASE_DIR/"gmsh/gmsh-test.geo"
 OUTPUT_GOLD_PATH = BASE_DIR/"output_gold"
 TXT_GOLD_PATH = BASE_DIR/"txt_gold"
 
+TEMP_OUTPUT_PATH = Path.cwd() / "test-output"
 
 
 def create_moose_config() -> MooseConfig:
@@ -197,4 +198,5 @@ def debug_print(to_print: Any) -> None:
     pprint(to_print)
     print('-'*80)
     print()
+
 
