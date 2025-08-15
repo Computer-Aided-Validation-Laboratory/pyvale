@@ -18,9 +18,10 @@ from scipy.optimize import least_squares
 
 
 def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
-                    cam1: Path | list[Path] | np.ndarray | str,
-                    grid_height: int, grid_width: int,
-                    grid_spacing: float) -> tuple[list, list, list, np.ndarray]:
+                  cam1: Path | list[Path] | np.ndarray | str,
+                  grid_height: int, grid_width: int,
+                  grid_spacing: float,
+                  visualisation: bool=False) -> tuple[list, list, list, np.ndarray]:
 
 
     files_cam0 = []
@@ -141,14 +142,61 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         keypoints_dark_cam0 = detector_dark.detect(img0)
         keypoints_dark_cam1 = detector_dark.detect(img1)
 
-        # im_with_keypoints_l = cv2.drawKeypoints(img0, keypoints_dark_cam0, None, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # im_with_keypoints_r = cv2.drawKeypoints(img1, keypoints_dark_cam1, None, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # im_with_keypoints_l = cv2.drawKeypoints(im_with_keypoints_l, keypoints_lght_cam0, None, (0,255,0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # im_with_keypoints_r = cv2.drawKeypoints(im_with_keypoints_r, keypoints_lght_cam1, None, (0,255,0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # side_by_side = np.hstack((im_with_keypoints_l, im_with_keypoints_r))
-        # cv2.namedWindow("Stereo Keypoints", cv2.WINDOW_NORMAL)
-        # cv2.imshow("Stereo Keypoints", side_by_side)
-        # cv2.waitKey(0)
+
+        if visualisation:
+
+            # Convert grayscale images to BGR for visualization
+            img0_color = cv2.cvtColor(img0, cv2.COLOR_GRAY2BGR)
+            img1_color = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
+
+            # Make overlays for left and right images in color
+            overlay_l = img0_color.copy()
+            overlay_r = img1_color.copy()
+
+            alpha = 0.5  # 0 = fully transparent, 1 = fully opaque
+            r = 20      # radius for circles
+
+            # Draw dark cam0 keypoints in red
+            for kp in keypoints_dark_cam0:
+                x, y = map(int, kp.pt)
+                cv2.circle(overlay_l, (x, y), r, (0, 0, 255), thickness=-1)
+
+            # Draw dark cam1 keypoints in red
+            for kp in keypoints_dark_cam1:
+                x, y = map(int, kp.pt)
+                cv2.circle(overlay_r, (x, y), r, (0, 0, 255), thickness=-1)
+
+            # Draw light cam0 keypoints in green
+            for kp in keypoints_lght_cam0:
+                x, y = map(int, kp.pt)
+                cv2.circle(overlay_l, (x, y), r, (0, 255, 0), thickness=-1)
+
+            # Draw light cam1 keypoints in green
+            for kp in keypoints_lght_cam1:
+                x, y = map(int, kp.pt)
+                cv2.circle(overlay_r, (x, y), r, (0, 255, 0), thickness=-1)
+
+            # Blend overlays with original color images
+            im_with_keypoints_l = cv2.addWeighted(overlay_l, alpha, img0_color, 1 - alpha, 0)
+            im_with_keypoints_r = cv2.addWeighted(overlay_r, alpha, img1_color, 1 - alpha, 0)
+
+            # Combine side-by-side
+            side_by_side = np.hstack((im_with_keypoints_l, im_with_keypoints_r))
+
+            # Show result
+            cv2.namedWindow("Stereo Keypoints", cv2.WINDOW_NORMAL)
+            cv2.imshow("Stereo Keypoints", side_by_side)
+            cv2.resizeWindow("Stereo Keypoints", 1200, 600)
+            cv2.waitKey(1)
+            # im_with_keypoints_l = cv2.drawKeypoints(img0, keypoints_dark_cam0, None, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            # im_with_keypoints_r = cv2.drawKeypoints(img1, keypoints_dark_cam1, None, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            # im_with_keypoints_l = cv2.drawKeypoints(im_with_keypoints_l, keypoints_lght_cam0, None, (0,255,0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            # im_with_keypoints_r = cv2.drawKeypoints(im_with_keypoints_r, keypoints_lght_cam1, None, (0,255,0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            # side_by_side = np.hstack((im_with_keypoints_l, im_with_keypoints_r))
+            # cv2.namedWindow("Stereo Keypoints", cv2.WINDOW_NORMAL)
+            # cv2.imshow("Stereo Keypoints", side_by_side)
+            # cv2.waitKey(0)
+
 
 
         # there should always be 3 points in keypoints_lght_cam0 and keypoints_lght_cam1
@@ -330,8 +378,6 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
     
 
     return dots_cam0, dots_cam1, gridpoints, img_dims
-
-
 
 def stereo_calibration(dots_cam0, dots_cam1, grid, img_dims, method: str="bundle_adjustment") -> None:
 
@@ -1045,5 +1091,4 @@ def angle_between(p1, p2, p3):
     cos_theta = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
     angle = np.arccos(np.clip(cos_theta, -1.0, 1.0))
     return np.degrees(angle)
-
 
