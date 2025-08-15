@@ -99,9 +99,9 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
 
     for i in range(0, num_file_pairs):
 
-        print("\033[1mRunning Dot detection on:\033[0m\n"
-                f" - {files_cam0[i]} \n"
-                f" - {files_cam1[i]}")
+        print("Running Dot detection on image pair: "
+                f"{os.path.basename(files_cam0[i])}, "
+                f"{os.path.basename(files_cam1[i])}")
 
         # read images
         img0 = cv2.imread(str(files_cam0[i]), cv2.IMREAD_GRAYSCALE)
@@ -201,9 +201,9 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
 
         # there should always be 3 points in keypoints_lght_cam0 and keypoints_lght_cam1
         if len(keypoints_lght_cam0) != 3 or len(keypoints_lght_cam1) != 3:
-            print(f"Skipping pair due to insufficient light blobs.")
-            print("left:", len(keypoints_lght_cam0))
-            print("right:", len(keypoints_lght_cam1))
+            print(f"WARNING: Skipping pair due to insufficient light blobs."
+                  f"left: {len(keypoints_lght_cam0)}"
+                  f"right: {len(keypoints_lght_cam1)}")
             continue
 
         # Convert KeyPoints to NumPy arrays
@@ -359,8 +359,9 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
 
 
         print(f"Points found in cam0: {len(pts_cam0_raw)+len(light_pts_cam0)}, "
-                f"cam1: {len(pts_cam1_raw)+len(light_pts_cam1)}, "
-                f"mutual: {matched_grid.shape[0]}")
+              f"cam1: {len(pts_cam1_raw)+len(light_pts_cam1)}, "
+              f"mutual: {matched_grid.shape[0]}")
+        print()
 
         # test_gridpoints = []
         # test_dots_cam0 = []
