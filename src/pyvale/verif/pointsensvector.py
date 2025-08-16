@@ -23,7 +23,7 @@ applied to vector fields.
 # - Calibration errors for vector fields
 
 
-def sens_2d_noerrs(sim_data: mh.SimData,
+def sens_array_2d_noerrs(sim_data: mh.SimData,
                    sens_data: sens.SensorData) -> sens.SensorArrayPoint:
     descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
     field = sens.FieldVector(sim_data,
@@ -36,7 +36,7 @@ def sens_2d_noerrs(sim_data: mh.SimData,
     return sens_array
 
 
-def sens_3d_noerrs(sim_data: mh.SimData,
+def sens_array_3d_noerrs(sim_data: mh.SimData,
                    sens_data: sens.SensorData) -> sens.SensorArrayPoint:
     descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
     field = sens.FieldVector(sim_data,
@@ -49,13 +49,13 @@ def sens_3d_noerrs(sim_data: mh.SimData,
     return sens_array
 
 
-def sens_2d_dict() -> dict[str,sens.SensorArrayPoint]:
+def sens_arrays_2d_dict() -> dict[str,sens.SensorArrayPoint]:
     sim_data = pointsensmech.simdata_mech_2d()
     sens_data_dict = pointsensmech.sens_data_2d_dict()
 
     sens_dict = {}
     for ss in sens_data_dict:
-        sens_array = sens_2d_noerrs(sim_data,sens_data_dict[ss])
+        sens_array = sens_array_2d_noerrs(sim_data,sens_data_dict[ss])
 
         pos_lock = pointsensmech.sens_pos_2d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
@@ -83,13 +83,13 @@ def sens_2d_dict() -> dict[str,sens.SensorArrayPoint]:
     return sens_dict
 
 
-def sens_3d_dict() -> dict[str,sens.SensorArrayPoint]:
+def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
     sim_data = pointsensmech.simdata_mech_3d()
     sens_data_dict = pointsensmech.sens_data_3d_dict()
 
     sens_dict = {}
     for ss in sens_data_dict:
-        sens_array = sens_3d_noerrs(sim_data,sens_data_dict[ss])
+        sens_array = sens_array_3d_noerrs(sim_data,sens_data_dict[ss])
 
         pos_lock = pointsensmech.sens_pos_3d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:

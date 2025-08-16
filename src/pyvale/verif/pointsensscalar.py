@@ -255,7 +255,7 @@ def sens_noerrs(sim_data: mh.SimData,
     return sens_array
 
 
-def gen_sens_dict_2d(sim_data: mh.SimData,
+def gen_sens_array_dict_2d(sim_data: mh.SimData,
                     sens_data_dict: dict[str, sens.SensorData],
                     tag: str
                     ) -> dict[str, sens.SensorArrayPoint]:
@@ -291,7 +291,7 @@ def gen_sens_dict_2d(sim_data: mh.SimData,
 
     return sens_dict
 
-def gen_sens_dict_3d(sim_data: mh.SimData,
+def gen_sens_array_dict_3d(sim_data: mh.SimData,
                     sens_data_dict: dict[str,sens.SensorData],
                     tag: str,
                     ) -> dict[str,sens.SensorArrayPoint]:
@@ -329,17 +329,17 @@ def gen_sens_dict_3d(sim_data: mh.SimData,
 
 
 
-def sens_2d_dict() -> dict[str,sens.SensorArrayPoint]:
+def sens_arrays_2d_dict() -> dict[str,sens.SensorArrayPoint]:
     sens_data_dict = sens_data_2d_dict()
     sim_data = simdata_2d()
     tag = "scal2d"
-    return gen_sens_dict_2d(sim_data,sens_data_dict,tag)
+    return gen_sens_array_dict_2d(sim_data,sens_data_dict,tag)
 
-def sens_3d_dict() -> dict[str,sens.SensorArrayPoint]:
+def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
     sens_data_dict = sens_data_3d_dict()
     sim_data = simdata_3d()
     tag = "scal3d"
-    return gen_sens_dict_3d(sim_data,sens_data_dict,tag)
+    return gen_sens_array_dict_3d(sim_data,sens_data_dict,tag)
 
 
 

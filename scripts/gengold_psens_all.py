@@ -18,12 +18,12 @@ def main() -> None:
     print(80*"=")
     print(f"Saving gold output to: {pointsensconst.GOLD_PATH}\n")
 
-    sens = [pointsensscalar.sens_2d_dict(),
-            pointsensscalar.sens_3d_dict(),
-            pointsensvector.sens_2d_dict(),
-            pointsensvector.sens_3d_dict(),
-            pointsenstensor.sens_2d_dict(),
-            pointsenstensor.sens_3d_dict(),]
+    sens = [pointsensscalar.sens_arrays_2d_dict(),
+            pointsensscalar.sens_arrays_3d_dict(),
+            pointsensvector.sens_arrays_2d_dict(),
+            pointsensvector.sens_arrays_3d_dict(),
+            pointsenstensor.sens_arrays_2d_dict(),
+            pointsenstensor.sens_arrays_3d_dict(),]
 
     for ss in sens:
         pointsens.gen_gold_measurements(ss)

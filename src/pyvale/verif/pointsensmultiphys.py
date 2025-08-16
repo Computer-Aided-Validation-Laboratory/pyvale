@@ -115,9 +115,9 @@ def exp_sim_2d() -> dict[str,sens.ExperimentSimulator]:
         sens_noerrs["scal"] = pointsensscalar.sens_noerrs(sim_list[0],
                                                       sens_data_dict[ss],
                                                       elem_dims=2)
-        sens_noerrs["vect"] = pointsensvector.sens_2d_noerrs(sim_list[0],
+        sens_noerrs["vect"] = pointsensvector.sens_array_2d_noerrs(sim_list[0],
                                                          sens_data_dict[ss])
-        sens_noerrs["tens"] = pointsenstensor.sens_2d_noerrs(sim_list[0],
+        sens_noerrs["tens"] = pointsenstensor.sens_array_2d_noerrs(sim_list[0],
                                                          sens_data_dict[ss])
 
         pos_lock = sens_pos_2d_lock(sens_data_dict[ss].positions)

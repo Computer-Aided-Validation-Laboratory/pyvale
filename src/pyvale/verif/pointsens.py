@@ -120,6 +120,4 @@ def check_gold_measurements(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[
 
     return fails
 
-def gen_gold_experiments(exp_sims: dict[str,sens.ExperimentSimulator]) -> None:
-    pass
 

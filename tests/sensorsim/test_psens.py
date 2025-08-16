@@ -30,12 +30,12 @@ import pyvale.verif.pointsenstensor as pointsenstensor
 @pytest.mark.parametrize(
     "get_sensors",
     [
-        pointsensscalar.sens_2d_dict,
-        pointsensscalar.sens_3d_dict,
-        pointsensvector.sens_2d_dict,
-        pointsensvector.sens_3d_dict,
-        pointsenstensor.sens_2d_dict,
-        pointsenstensor.sens_3d_dict,
+        pointsensscalar.sens_arrays_2d_dict,
+        pointsensscalar.sens_arrays_3d_dict,
+        pointsensvector.sens_arrays_2d_dict,
+        pointsensvector.sens_arrays_3d_dict,
+        pointsenstensor.sens_arrays_2d_dict,
+        pointsenstensor.sens_arrays_3d_dict,
     ],
     ids=[
         "scalar_2d",
@@ -68,12 +68,12 @@ def check_get_meas(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[str]:
 @pytest.mark.parametrize(
     "get_sensors",
     [
-        pointsensscalar.sens_2d_dict,
-        pointsensscalar.sens_3d_dict,
-        pointsensvector.sens_2d_dict,
-        pointsensvector.sens_3d_dict,
-        pointsenstensor.sens_2d_dict,
-        pointsenstensor.sens_3d_dict,
+        pointsensscalar.sens_arrays_2d_dict,
+        pointsensscalar.sens_arrays_3d_dict,
+        pointsensvector.sens_arrays_2d_dict,
+        pointsensvector.sens_arrays_3d_dict,
+        pointsenstensor.sens_arrays_2d_dict,
+        pointsenstensor.sens_arrays_3d_dict,
     ],
     ids=[
         "scalar_2d",
