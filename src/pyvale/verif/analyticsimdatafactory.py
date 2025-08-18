@@ -26,7 +26,7 @@ def standard_case_2d(field_keys: tuple[str,...]) -> AnalyticData2D:
     AnalyticCaseData2D
         _description_
     """
-    case_data = AnalyticData2D(field_leys = field_keys)
+    case_data = AnalyticData2D(field_keys = field_keys)
     case_data.length_x = 10.0
     case_data.length_y = 7.5
     n_elem_mult = 10
@@ -34,7 +34,6 @@ def standard_case_2d(field_keys: tuple[str,...]) -> AnalyticData2D:
     case_data.num_elem_y = 3*n_elem_mult
     case_data.time_steps = np.linspace(0.0,1.0,11)
     return case_data
-
 
 
 def scalar_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
@@ -63,7 +62,6 @@ def scalar_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
     return (sim_data,data_gen)
 
 
-
 def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
     """_summary_
 
@@ -90,20 +88,38 @@ def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
 
 def vector_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
     field_keys = ("x","y")
-    case_data = standard_case_2d()
-
-    (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
-
-
-
-def tensor_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
-    field_keys = ("xx","yy","xy")
-    case_data = standard_case_2d()
-    case_data.field_keys = field_keys
+    case_data = standard_case_2d(field_keys)
 
     (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
 
     for kk in field_keys:
+        case_data.funcs_x[kk] = 20.0/case_data.length_x * sym_x
+        case_data.funcs_y[kk] = 10.0/case_data.length_y * sym_y
+        case_data.funcs_t[kk] = sym_t
+        case_data.offset_space_x[kk] = 20.0
+        case_data.offset_space_y[kk] = 0.0
+        case_data.offset_time[kk] = 0.0
+
+    data_gen = AnalyticSimDataGen(case_data)
+    sim_data = data_gen.generate_sim_data()
+    return (sim_data,data_gen)
 
 
+def tensor_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
+    field_keys = ("xx","yy","xy")
+    case_data = standard_case_2d(field_keys)
+
+    (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
+
+    for kk in field_keys:
+        case_data.funcs_x[kk] = 20.0/case_data.length_x * sym_x
+        case_data.funcs_y[kk] = 10.0/case_data.length_y * sym_y
+        case_data.funcs_t[kk] = sym_t
+        case_data.offset_space_x[kk] = 20.0
+        case_data.offset_space_y[kk] = 0.0
+        case_data.offset_time[kk] = 0.0
+
+    data_gen = AnalyticSimDataGen(case_data)
+    sim_data = data_gen.generate_sim_data()
+    return (sim_data,data_gen)
 

@@ -17,7 +17,7 @@ def main() -> None:
     # Field slope of 10/lengY in Y
     # Field max in top corner of 220, field min in bottom corner 20
 
-    (sim_data,_) = va.AnalyticCaseFactory.scalar_linear_2d()
+    (sim_data,_) = va.analyticsimdatafactory.scalar_linear_2d()
     sim_data_nomesh = copy.deepcopy(sim_data)
     sim_data_nomesh.connect = None
 
