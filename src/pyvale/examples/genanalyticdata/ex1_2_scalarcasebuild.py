@@ -24,7 +24,7 @@ def main() -> None:
     case_data.funcs_y = (10.0/case_data.length_y * sym_y,)
     case_data.funcs_t = (sym_t,)
     case_data.offsets_space = (20.0,)
-    case_data.offsets_time = (0.0,)
+    case_data.offset_time = (0.0,)
 
 
     data_gen = va.AnalyticSimDataGen(case_data)

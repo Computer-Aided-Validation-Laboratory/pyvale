@@ -53,20 +53,20 @@ class AnalyticData2D:
     key for a scalar field: ("scalar",).
     """
 
-    funcs_x: tuple[sympy.Expr,...] | None = None
+    funcs_x: dict[str,sympy.Expr]
     """Analytic functions describing the field variation as a function of the x
     coordinate. This tuple should have the same number of functions as the
     number of field keys. Analytic functions in x, y and t are multiplied
     together so setting a function to a constant of 1 will have no effect.
     """
-    funcs_y: tuple[sympy.Expr,...] | None = None
+    funcs_y: dict[str,sympy.Expr]
     """Analytic functions describing the field variation as a function of the y
     coordinate. This tuple should have the same number of functions as the
     number of field keys. Analytic functions in x, y and t are multiplied
     together so setting a function to a constant of 1 will have no effect.
     """
 
-    funcs_t: tuple[sympy.Expr,...] | None = None
+    funcs_t: dict[str,sympy.Expr]
     """Analytic functions describing the field variation as a function of time
     This tuple should have the same number of functions as the number of field
     keys. Analytic functions in x, y and t are multiplied together so setting a
@@ -81,12 +81,17 @@ class AnalyticData2D:
     are the symbols used to describe the analytic field functions.
     """
 
-    offsets_space: tuple[float,...] = (0.0,)
+    offset_space_x: dict[str,float]
     """Constants which are added to the physical field functions in each spatial
     dimensions.
     """
 
-    offsets_time: tuple[float,...] = (0.0,)
+    offset_space_y: dict[str,float]
+    """Constants which are added to the physical field functions in each spatial
+    dimensions.
+    """
+
+    offset_time: dict[str,float]
     """Constant which is added to the physical field function in time.
     """
 
@@ -94,6 +99,31 @@ class AnalyticData2D:
     """Number of nodes per element. Currently only rectangular meshes and with
     4 nodes per element are supported. Defaults to 4.
     """
+
+    def __post_init__(self) -> None:
+
+        # Set everything to have no effect if the key is not found. That way
+        # we can iterate over keys
+        for kk in self.field_keys:
+            if kk not in self.funcs_x:
+                self.funcs_x[kk] = 1.0
+
+            if kk not in self.funcs_y:
+                self.funcs_y[kk] = 1.0
+
+            if kk not in self.funcs_t:
+                self.funcs_t[kk] = 1.0
+
+            if kk not in self.offset_space_x:
+                self.offset_space_x[kk] = 0.0
+
+            if kk not in self.offset_space_y:
+                self.offset_space_y[kk] = 0.0
+
+            if kk not in self.offset_time:
+                self.offset_time[kk] = 0.0
+
+
 
 
 class AnalyticSimDataGen:
@@ -128,7 +158,7 @@ class AnalyticSimDataGen:
                                           case_data.funcs_y[ii] +
                                           case_data.offsets_space[ii]) *
                                         (case_data.funcs_t[ii] +
-                                         case_data.offsets_time[ii]))
+                                         case_data.offset_time[ii]))
 
             self.field_lam_funcs[kk] = sympy.lambdify(case_data.symbols,
                                                 self.field_sym_funcs[kk],

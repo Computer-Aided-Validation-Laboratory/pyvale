@@ -16,7 +16,7 @@ from pyvale.verif.analyticsimdatagenerator import (AnalyticData2D,
                                                    AnalyticSimDataGen)
 
 
-def standard_case_2d() -> AnalyticData2D:
+def standard_case_2d(field_keys: tuple[str,...]) -> AnalyticData2D:
     """Created the standard 2D analytic test case which is a plate with
     dimensions 10x7.5 (x,y), number of elements 40x30 (x,y), and time steps of
     0 to 10 in increments of 1.
@@ -26,7 +26,7 @@ def standard_case_2d() -> AnalyticData2D:
     AnalyticCaseData2D
         _description_
     """
-    case_data = AnalyticData2D()
+    case_data = AnalyticData2D(field_leys = field_keys)
     case_data.length_x = 10.0
     case_data.length_y = 7.5
     n_elem_mult = 10
@@ -36,56 +36,74 @@ def standard_case_2d() -> AnalyticData2D:
     return case_data
 
 
-class AnalyticCaseFactory:
-    """Namespace for function used to build pre-defined 2D meshes and fields
-    based on analytic functions for testing the sensor simulation functionality
-    of pyvale.
+
+def scalar_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
+    """_summary_
+
+    Returns
+    -------
+    tuple[mh.SimData,AnalyticSimDataGenerator]
+        _description_
     """
+    field_key = "scalar"
+    case_data = standard_case_2d((field_key,))
 
-    @staticmethod
-    def scalar_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
-        """_summary_
+    (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
 
-        Returns
-        -------
-        tuple[mh.SimData,AnalyticSimDataGenerator]
-            _description_
-        """
-        case_data = standard_case_2d()
-        (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
-        case_data.funcs_x = (20.0/case_data.length_x * sym_x,)
-        case_data.funcs_y = (10.0/case_data.length_y * sym_y,)
-        case_data.funcs_t = (sym_t,)
-        case_data.offsets_space = (20.0,)
-        case_data.offsets_time = (0.0,)
+    case_data.funcs_x = {field_key: 20.0/case_data.length_x * sym_x,}
+    case_data.funcs_y = {field_key: 10.0/case_data.length_y * sym_y,}
+    case_data.funcs_t = {field_key: sym_t,}
+    case_data.offset_space_x = {field_key: 20.0,}
+    case_data.offset_time = {field_key: 0.0,}
 
-        data_gen = AnalyticSimDataGen(case_data)
+    data_gen = AnalyticSimDataGen(case_data)
 
-        sim_data = data_gen.generate_sim_data()
+    sim_data = data_gen.generate_sim_data()
 
-        return (sim_data,data_gen)
+    return (sim_data,data_gen)
 
-    @staticmethod
-    def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
-        """_summary_
 
-        Returns
-        -------
-        tuple[mh.SimData,AnalyticSimDataGenerator]
-            _description_
-        """
-        case_data = standard_case_2d()
-        (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
-        case_data.funcs_x = (sym_x*(sym_x - case_data.length_x),)
-        case_data.funcs_y = (sym_y*(sym_y - case_data.length_y),)
-        case_data.funcs_t = (sym_t,)
 
-        data_gen = AnalyticSimDataGen(case_data)
+def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
+    """_summary_
 
-        sim_data = data_gen.generate_sim_data()
+    Returns
+    -------
+    tuple[mh.SimData,AnalyticSimDataGenerator]
+        _description_
+    """
+    field_key = "scalar"
+    case_data = standard_case_2d((field_key,))
 
-        return (sim_data,data_gen)
+    (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
 
+    case_data.funcs_x = {field_key: sym_x*(sym_x - case_data.length_x),}
+    case_data.funcs_y = {field_key: sym_y*(sym_y - case_data.length_y),}
+    case_data.funcs_t = {field_key: sym_t,}
+
+    data_gen = AnalyticSimDataGen(case_data)
+
+    sim_data = data_gen.generate_sim_data()
+
+    return (sim_data,data_gen)
+
+
+def vector_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
+    field_keys = ("x","y")
+    case_data = standard_case_2d()
+
+    (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
+
+
+
+def tensor_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
+    field_keys = ("xx","yy","xy")
+    case_data = standard_case_2d()
+    case_data.field_keys = field_keys
+
+    (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
+
+    for kk in field_keys:
 
 
 
