@@ -44,7 +44,7 @@ def scalar_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
     tuple[mh.SimData,AnalyticSimDataGenerator]
         _description_
     """
-    field_key = "scalar"
+    field_key = "temperature"
     case_data = standard_case_2d((field_key,))
 
     (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
@@ -70,7 +70,7 @@ def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
     tuple[mh.SimData,AnalyticSimDataGenerator]
         _description_
     """
-    field_key = "scalar"
+    field_key = "temperature"
     case_data = standard_case_2d((field_key,))
 
     (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
@@ -87,7 +87,7 @@ def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
 
 
 def vector_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
-    field_keys = ("x","y")
+    field_keys = ("disp_x","disp_y")
     case_data = standard_case_2d(field_keys)
 
     (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")
@@ -106,7 +106,7 @@ def vector_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
 
 
 def tensor_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
-    field_keys = ("xx","yy","xy")
+    field_keys = ("strain_xx","strain_yy","strain_xy")
     case_data = standard_case_2d(field_keys)
 
     (sym_y,sym_x,sym_t) = sympy.symbols("y,x,t")

@@ -10,6 +10,7 @@ import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.verif.pointsens as pointsens
 import pyvale.verif.pointsensconst as pointsensconst
+import pyvale.verif.analyticsimdatafactory as asd
 import pyvale.dataset as dataset
 
 """
@@ -33,20 +34,24 @@ def simdata_2d() -> mh.SimData:
     return sim_data
 
 
-def simdata_2d_nomesh() -> mh.SimData:
-    sim_data = simdata_2d()
+def simdata_2d_analytic() -> mh.SimData:
+    (sim_data,_) = asd.scalar_linear_2d()
+    return sim_data
+
+def simdata_2d_analytic_nomesh() -> mh.SimData:
+    (sim_data,_) = asd.scalar_linear_2d()
     sim_data.connect = None
     return sim_data
 
 
 def simdata_3d() -> mh.SimData:
+    # Monoblock 3D thermal transient
     data_path = dataset.thermal_3d_path()
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
                                       disp_comps=None)
     return sim_data
-
 
 def simdata_3d_nomesh() -> mh.SimData:
     sim_data = simdata_3d()
@@ -83,7 +88,7 @@ def sens_pos_3d() -> dict[str,np.ndarray]:
     sens_pos["line-y-xy"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
     n_sens = (1,4,1)
-    x_lims = (9.4,9.4)
+    x_lims = (9.4,9.4) # Monoblock offset front face
     y_lims = sim_dims["y"]
     z_lims = (sim_dims["z"][1],sim_dims["z"][1])
     sens_pos["line-y-yz"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
@@ -340,19 +345,39 @@ def gen_sens_array_dict_3d(sim_data: mh.SimData,
     return sens_dict
 
 
-
+#-------------------------------------------------------------------------------
 def sens_arrays_2d_dict() -> dict[str,sens.SensorArrayPoint]:
     sens_data_dict = sens_data_2d_dict()
     sim_data = simdata_2d()
     tag = "scal2d"
     return gen_sens_array_dict_2d(sim_data,sens_data_dict,tag)
 
+
+def sens_arrays_2d_analytic_dict() -> dict[str,sens.SensorArrayPoint]:
+    sens_data_dict = sens_data_2d_dict()
+    sim_data = simdata_2d_analytic()
+    tag = "scal2d_analytic"
+    return gen_sens_array_dict_2d(sim_data,sens_data_dict,tag)#
+
+def sens_arrays_2d_analytic_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
+    sens_data_dict = sens_data_2d_dict()
+    sim_data = simdata_2d_analytic_nomesh()
+    tag = "scal2d_analytic_nomesh"
+    return gen_sens_array_dict_2d(sim_data,sens_data_dict,tag)#
+
+
+#-------------------------------------------------------------------------------
 def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
     sens_data_dict = sens_data_3d_dict()
     sim_data = simdata_3d()
     tag = "scal3d"
     return gen_sens_array_dict_3d(sim_data,sens_data_dict,tag)
 
+def sens_arrays_3d_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
+    sens_data_dict = sens_data_3d_dict()
+    sim_data = simdata_3d_nomesh()
+    tag = "scal3d_nomesh"
+    return gen_sens_array_dict_3d(sim_data,sens_data_dict,tag)
 
 
 
