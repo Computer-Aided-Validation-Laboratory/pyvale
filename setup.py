@@ -47,6 +47,15 @@ ext_cython = Extension(
     extra_link_args=[openmp_flag],
 )
 
+ext_calib = Extension(
+    'pyvale.calib.calibcpp',
+    sorted(glob("src/pyvale/calib/cpp/*.cpp")),
+    language="c++",
+    include_dirs=[pybind11.get_include()],
+    extra_compile_args=compile_flags,
+    extra_link_args=link_flags,
+)
+
 ext_dic = Extension(
     'pyvale.dic.dic2dcpp',
     sorted(glob("src/pyvale/dic/cpp/dic*.cpp")),
@@ -56,7 +65,9 @@ ext_dic = Extension(
     extra_link_args=link_flags,
 )
 
-ext_modules = cythonize([ext_cython], annotate=True) + [ext_dic]
+
+
+ext_modules = cythonize([ext_cython], annotate=True) + [ext_calib] + [ext_dic]
 
 setup(
     ext_modules=cythonize(ext_modules,
