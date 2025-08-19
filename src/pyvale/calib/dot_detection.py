@@ -15,7 +15,7 @@ from pathlib import Path
 import glob
 from scipy.optimize import least_squares
 
-
+import pyvale.calib.calibcpp as calibcpp
 
 def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
                   cam1: Path | list[Path] | np.ndarray | str,
@@ -26,7 +26,7 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
 
     files_cam0 = []
     files_cam1 = []
-    
+
     # Check cam0 and cam1 are same type
     if type(cam0) is not type(cam1):
         raise ValueError(
@@ -65,9 +65,9 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
 
     # Generate full 3D grid
     fullgrid_3d = np.zeros((grid_width * grid_height, 3), np.float32)
-    fullgrid_3d[:, :2] = np.mgrid[0:grid_width, 0:grid_height].T.reshape(-1, 2)
+    fullgrid_3d[:, :2] = np.mgrid[-2:grid_width-2, -2:grid_height-2].T.reshape(-1, 2)
     fullgrid_3d[:, :2] *= grid_spacing
-    
+
 
     missing_idx = np.array([
         [2, grid_height-2-1],
@@ -75,7 +75,7 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         [9, grid_height-2-1],
     ])
 
-    missing_grid = (missing_idx * grid_spacing)
+    missing_grid = (missing_idx * grid_spacing - 2*grid_spacing)
     missing_grid = missing_grid.astype(np.float32)
 
     # Convert to flat indices
@@ -238,13 +238,18 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         valid_indices = indices[valid_mask]
         valid_dist = dist[valid_mask]
         valid_pts = pts_cam0_raw[valid_mask]
+        valid_kps = np.array(keypoints_dark_cam0)[valid_mask]
 
         best_for_grid = {}
-        for pt, idx, d in zip(valid_pts, valid_indices, valid_dist):
+        best_kps = {}
+        for pt, idx, d, kp in zip(valid_pts, valid_indices, valid_dist, valid_kps):
             if idx not in best_for_grid or d < best_for_grid[idx][1]:
                 best_for_grid[idx] = (pt, d)
+                best_kps[idx] = kp
+
 
         matched_cam0 = np.array([v[0] for v in best_for_grid.values()])
+        matched_kps0 = [best_kps[i] for i in best_for_grid.keys()]
         matched_grid = finalgrid_2d[list(best_for_grid.keys())]
 
 
@@ -259,21 +264,45 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         valid_indices = indices[valid_mask]
         valid_dist = dist[valid_mask]
         valid_pts = pts_cam1_raw[valid_mask]
+        valid_kps = np.array(keypoints_dark_cam1)[valid_mask]
 
         best_for_grid = {}
-        for pt, idx, d in zip(valid_pts, valid_indices, valid_dist):
+        best_kps = {}
+        for pt, idx, d, kp in zip(valid_pts, valid_indices, valid_dist, valid_kps):
             if idx not in best_for_grid or d < best_for_grid[idx][1]:
                 best_for_grid[idx] = (pt, d)
+                best_kps[idx] = kp
 
         unique_indices = sorted(best_for_grid.keys())
         matched_cam1 = np.array([best_for_grid[i][0] for i in unique_indices])
+        matched_kps1 = np.array([best_kps[i] for i in unique_indices])
         matched_cam0 = matched_cam0[unique_indices]
         matched_grid = matched_grid[unique_indices]
+        matched_kps0 = [matched_kps0[i] for i in unique_indices]
 
         # Add back in the light points
         matched_grid = np.append(matched_grid, missing_grid, axis=0)
         matched_cam0 = np.append(matched_cam0, light_pts_cam0_ordered, axis=0)
         matched_cam1 = np.append(matched_cam1, light_pts_cam1_ordered, axis=0)
+
+        # ret, corners0 = cv2.findCirclesGrid(matched_cam0, (4,8), None, flags = cv2.CALIB_CB_SYMMETRIC_GRID)
+        # ret, corners1 = cv2.findCirclesGrid(matched_cam0, (4,8), None, flags = cv2.CALIB_CB_SYMMETRIC_GRID)
+        # print(corners0)
+        # print(ret)
+
+
+        #
+        #
+        # pts = matched_cam0.reshape(-1,1,2).astype(np.float32)
+        # criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.001)
+        # refined_cam0 = cv2.cornerSubPix(
+        #     img0, pts,
+        #     winSize=(50,50),     # local search window
+        #     zeroZone=(-1,-1),  # no exclusion
+        #     criteria=criteria
+        # )
+        # print(refined_cam0)
+        #
         # np.savetxt("matched_cam0",matched_cam0)
         # np.savetxt("matched_cam1",matched_cam1)
         # np.savetxt("matched_grid",matched_grid)
@@ -310,41 +339,45 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         # cv2.imshow("Stereo Keypoints", side_by_side)
         # cv2.waitKey(0)
 
-        # # # debugging plot
+        # # debugging plot
         # pts_cam0 = matched_cam0.reshape(-1, 2)
         # pts_cam1 = matched_cam1.reshape(-1, 2)
         # fig, axes = plt.subplots(1, 4, figsize=(20, 6))
-        
+        #
         # # # Left image with detected circles
         # axes[0].imshow(img0, cmap='gray')
         # axes[0].plot(light_pts_cam0_ordered[0, 0], light_pts_cam0_ordered[0, 1], 'co', markersize=5)
         # axes[0].plot(light_pts_cam0_ordered[1, 0], light_pts_cam0_ordered[1, 1], 'yo', markersize=5)
         # axes[0].plot(light_pts_cam0_ordered[2, 0], light_pts_cam0_ordered[2, 1], 'mo', markersize=5)
         # axes[0].plot(pts_cam0[:, 0], pts_cam0[:, 1], 'ro', markersize=5)
+        # # corners0 = corners0.reshape(-1,2)
+        # # axes[0].plot(corners0[:, 0], corners0[:, 1], 'bo', markersize=2)
         # axes[0].set_title('Left Image with \n Detected Circles')
-        
+        #
         # # Right image with detected circles
         # axes[1].imshow(img1, cmap='gray')
         # axes[1].plot(light_pts_cam1_ordered[0, 0], light_pts_cam1_ordered[0, 1], 'co', markersize=5)
         # axes[1].plot(light_pts_cam1_ordered[1, 0], light_pts_cam1_ordered[1, 1], 'yo', markersize=5)
         # axes[1].plot(light_pts_cam1_ordered[2, 0], light_pts_cam1_ordered[2, 1], 'mo', markersize=5)
         # axes[1].plot(pts_cam1[:, 0], pts_cam1[:, 1], 'ro', markersize=5)
+        # # corners1 = corners1.reshape(-1,2)
+        # # axes[1].plot(corners1[:, 0], corners1[:, 1], 'bo', markersize=2)
         # axes[1].set_title('Right Image with \n Detected Circles')
-        
+        #
         # axes[2].plot(transformed_cam0[:, 0], transformed_cam0[:, 1], 'ro', markersize=5)
-        # axes[2].plot(__finalgrid_2d[:, 0], __finalgrid_2d[:, 1], 'x', markersize=5)
+        # axes[2].plot(finalgrid_2d[:, 0], finalgrid_2d[:, 1], 'x', markersize=5)
         # axes[2].invert_yaxis()
         # axes[2].set_title('left circles mapped to \n to grid reference frame ')
-        
+        #
         # axes[3].plot(transformed_cam1[:, 0], transformed_cam1[:, 1], 'ro', markersize=5)
-        # axes[3].plot(__finalgrid_2d[:, 0], __finalgrid_2d[:, 1], 'x', markersize=5)
+        # axes[3].plot(finalgrid_2d[:, 0], finalgrid_2d[:, 1], 'x', markersize=5)
         # axes[3].invert_yaxis()
         # axes[3].set_title('right cricles mapped to \n to grid reference frame ')
-
+        #
         # # Save the figure to a temporary PNG file
-        # filename = f"output/frame_{i:03d}.png"
-        # plt.savefig(filename)
-        # plt.close(fig)
+        # # filename = f"output/frame_{i:03d}.png"
+        # # plt.savefig(filename)
+        # # plt.close(fig)
         # plt.show()
         #
         # # np.savetxt("matched_cam0.txt", matched_cam0, fmt='%.2f')
@@ -400,9 +433,62 @@ def stereo_calibration(dots_cam0, dots_cam1, grid, img_dims, method: str="bundle
         bundle(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs)
     elif method=="zhang":
         zhang(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs)
-    else:
+    elif method=="cpp":
+        cpp(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs) 
+    else:    
         raise ValueError(f"ERROR: Unknown calibration method: {method}. "
-                   f"Allowed options: 'bundle', 'zhang'")
+                   f"Allowed options: 'bundle', 'zhang', 'cpp'")
+
+
+
+
+def cpp(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
+
+    flat_dots_cam0 = np.concatenate(dots_cam0,axis=0).astype(np.float64).ravel().tolist()
+    flat_dots_cam1 = np.concatenate(dots_cam1,axis=0).astype(np.float64).ravel().tolist()
+    flat_grid = np.concatenate(grid, axis=0).astype(np.int32).ravel().tolist()
+    lengths = np.array([arr.shape[0] for arr in dots_cam1],dtype=np.int32).tolist()
+
+    # initial parameter guess
+    flags = cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_ZERO_TANGENT_DIST
+    _, K0, D0, rvecs0, tvecs0 = cv2.calibrateCamera(grid, dots_cam0, img_dims, None, None, flags=flags)
+    _, K1, D1, rvecs1, tvecs1 = cv2.calibrateCamera(grid, dots_cam1, img_dims, None, None, flags=flags)
+
+    ret, K0_stereo, D0_stereo, K1_stereo, D1_stereo, R_stereo, T_stereo, E, F = cv2.stereoCalibrate(
+        grid, dots_cam0, dots_cam1,
+        K0, D0, K1, D1,
+        img_dims,
+        flags=cv2.CALIB_FIX_INTRINSIC
+    )
+
+    rvec_stereo, _ = cv2.Rodrigues(R_stereo)
+
+    D0 = D0.flatten()
+    D1 = D1.flatten()
+
+    fx0, fy0, cx0, cy0 = K0[0, 0], K0[1, 1], K0[0, 2], K0[1, 2]
+    fx1, fy1, cx1, cy1 = K1[0, 0], K1[1, 1], K1[0, 2], K1[1, 2]
+
+
+    # Initial poses from intrinsics_cam0
+    initial_poses_cam0 = []
+    for i in range(num_file_pairs):
+            initial_poses_cam0.extend(rvecs0[i].flatten())
+            initial_poses_cam0.extend(tvecs0[i].flatten())
+
+
+    # full list of initial parameters
+    initial_params = np.hstack([fx0, fy0, cx0, cy0, D0,
+                                fx1, fy1, cx1, cy1, D1,
+                                rvec_stereo.flatten(), T_stereo.flatten(),
+                                initial_poses_cam0])
+
+    
+    flat_initial_params = initial_params.ravel().tolist()
+    print(flat_initial_params)
+
+    calibcpp.stereo_calibration(flat_initial_params,flat_dots_cam0, flat_dots_cam1, flat_grid, 
+                                lengths, img_dims[0], img_dims[1], num_file_pairs)
 
 
 
@@ -412,61 +498,114 @@ def zhang(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
     print(f"Running calibration with {len(grid)} valid image pairs...")
 
     # Left and Right cam calib
-    _, Kl, Dl, rvecs_cam0, tvecs_cam0 = cv2.calibrateCamera(grid, dots_cam0, img_dims, None, None)
-    _, Kr, Dr, rvecs_cam1, tvecs_cam1 = cv2.calibrateCamera(grid, dots_cam1, img_dims, None, None)
+    _, K0, D0, rvec0, tvec0 = cv2.calibrateCamera(grid, dots_cam0, img_dims, None, None)
+    _, K1, D1, rvec1, tvec1 = cv2.calibrateCamera(grid, dots_cam1, img_dims, None, None)
 
-    # --- Step 3: Per-view reprojection errors ---
-    errors_cam0 = []
-    errors_cam1 = []
+    error0 = []
+    error1 = []
 
     for i, objp in enumerate(grid):
 
+        # Projected points
+        projected_points_opt0, _ = cv2.projectPoints(objp, rvec0[i], tvec0[i], K0, D0)
+        projected_points_opt1, _ = cv2.projectPoints(objp, rvec1[i], tvec1[i], K1, D1)
 
-        # Left camera projection
-        imgpts_cam0_proj, _ = cv2.projectPoints(objp, rvecs_cam0[i], tvecs_cam0[i], Kl, Dl)
-        imgpts_cam0_proj = imgpts_cam0_proj.reshape(-1, 2)
-        err_cam0 = cv2.norm(dots_cam0[i], imgpts_cam0_proj, cv2.NORM_L2)/len(dots_cam0[i])
-        errors_cam0.append(err_cam0)
+        # Ensure points are Nx2 arrays
+        projected_points_opt0 = projected_points_opt0.reshape(-1, 2)
+        projected_points_opt1 = projected_points_opt1.reshape(-1, 2)
 
-        np.savetxt("imgpts_cam0_proj", imgpts_cam0_proj)
-        np.savetxt("dots_cam0", dots_cam0[i])
+        dots_cam0_i = dots_cam0[i].reshape(-1, 2)
+        dots_cam1_i = dots_cam1[i].reshape(-1, 2)
 
-        # Right camera projection
-        imgpts_cam1_proj, _ = cv2.projectPoints(objp, rvecs_cam1[i], tvecs_cam1[i], Kr, Dr)
-        imgpts_cam1_proj = imgpts_cam1_proj.reshape(-1, 2)
-        err_cam1 = cv2.norm(dots_cam1[i], imgpts_cam1_proj, cv2.NORM_L2)/len(dots_cam1[i])
-        errors_cam1.append(err_cam1)
+        # Compute RMS reprojection error
+        diff0 = np.sqrt(np.sum((dots_cam0_i - projected_points_opt0)**2, axis=1))
+        diff1 = np.sqrt(np.sum((dots_cam1_i - projected_points_opt1)**2, axis=1))
 
-        np.savetxt("./output/imgpts_cam0_proj_"+str(i), imgpts_cam0_proj)
-        np.savetxt("./output/imgpts_cam1_proj_"+str(i), imgpts_cam1_proj)
-        np.savetxt("./output/dots_cam0_"+str(i), dots_cam0[i])
-        np.savetxt("./output/dots_cam1_"+str(i), dots_cam1[i])
+        error0 = np.mean(diff0)
+        error1 = np.mean(diff1)
+        print("ERROR", error0, error1)
+
+    print(f"Mean left RMS error: {np.mean(error0):.4f} px")
+    print(f"Mean right RMS error: {np.mean(error1):.4f} px")
 
     # stereo calib
-    ret, Kl, Dl, Kr, Dr, R, T, E, F = cv2.stereoCalibrate(
+    ret, K0_opt, D0_opt, K1_opt, D1_opt, R, T, E, F = cv2.stereoCalibrate(
         objectPoints=grid,
         imagePoints1=dots_cam0,
         imagePoints2=dots_cam1,
-        cameraMatrix1=Kl,
-        distCoeffs1=Dl,
-        cameraMatrix2=Kr,
-        distCoeffs2=Dr,
+        cameraMatrix1=K0,
+        distCoeffs1=D0,
+        cameraMatrix2=K1,
+        distCoeffs2=D1,
         imageSize=img_dims,
         flags=0
     )
 
-    print(f"Stereo RMS error: {ret:.4f} px")
-    print(f"Mean left RMS error: {np.mean(errors_cam0):.4f} px")
-    print(f"Mean right RMS error: {np.mean(errors_cam1):.4f} px")
-
     print("\n--- Calibration Results ---")
     print("Calibration RMS error:", ret)
-    print('\nLeft Camera Matrix:\n', Kl)
-    print('Left Distortion Coefficients:\n', Dl)
-    print('\nRight Camera Matrix:\n', Kr)
-    print('Right Distortion Coefficients:\n', Dr)
+    print('\nLeft Camera Matrix:\n', K0_opt)
+    print('Left Distortion Coefficients:\n', D0_opt)
+    print('\nRight Camera Matrix:\n', K1_opt)
+    print('Right Distortion Coefficients:\n', D1_opt)
     print('\nRotation Matrix (R):\n', R)
     print('Translation Vector (T):\n', T)
+
+    error0 = []
+    error1 = []
+
+
+    _, K0_test, D0_test, rvec0_opt, tvec0_opt = cv2.calibrateCamera(
+        objectPoints=grid,
+        imagePoints=dots_cam0,
+        imageSize=img_dims,
+        cameraMatrix=K0_opt,
+        distCoeffs=D0_opt,
+        flags=cv2.CALIB_FIX_INTRINSIC
+    )
+
+    _, K1_test, D1_test, rvec1_opt, tvec1_opt = cv2.calibrateCamera(
+        objectPoints=grid,
+        imagePoints=dots_cam1,
+        imageSize=img_dims,
+        cameraMatrix=K1_opt,
+        distCoeffs=D1_opt,
+        flags=cv2.CALIB_FIX_INTRINSIC
+    )
+
+
+    for i, objp in enumerate(grid):
+
+        # Projected points
+        projected_points_opt0, _ = cv2.projectPoints(objp, rvec0[i], tvec0[i], K0_opt, D0_opt)
+        projected_points_opt1, _ = cv2.projectPoints(objp, rvec1[i], tvec1[i], K1_opt, D1_opt)
+
+        # Ensure points are Nx2 arrays
+        projected_points_opt0 = projected_points_opt0.reshape(-1, 2)
+        projected_points_opt1 = projected_points_opt1.reshape(-1, 2)
+
+        dots_cam0_i = dots_cam0[i].reshape(-1, 2)
+        dots_cam1_i = dots_cam1[i].reshape(-1, 2)
+
+        # Compute RMS reprojection error
+        diff0 = np.sqrt(np.sum((dots_cam0_i - projected_points_opt0)**2, axis=1))
+        diff1 = np.sqrt(np.sum((dots_cam1_i - projected_points_opt1)**2, axis=1))
+
+        error0 = np.mean(diff0)
+        error1 = np.mean(diff1)
+        print("ERROR", error0, error1)
+
+        fig, ax = plt.subplots(1, 2, figsize=(20, 6))
+        ax[0].scatter(dots_cam0_i[:, 0], dots_cam0_i[:, 1], label='Observed', c='blue')
+        ax[0].scatter(projected_points_opt0[:, 0], projected_points_opt0[:, 1], label='Projected', c='red', marker='x')
+        ax[1].scatter(dots_cam1_i[:, 0], dots_cam1_i[:, 1], label='Observed', c='blue')
+        ax[1].scatter(projected_points_opt1[:, 0], projected_points_opt1[:, 1], label='Projected', c='red', marker='x')
+        plt.gca().invert_yaxis()  # Optional: match image coordinates
+        plt.ticklabel_format(style='plain')
+        plt.grid(True)
+        plt.show()
+
+    print(f"Mean left RMS error: {np.mean(error0):.4f} px")
+    print(f"Mean right RMS error: {np.mean(error1):.4f} px")
 
     # Save as .npy (NumPy binary)
     # np.save('stereo_calibration.npy', {
@@ -498,110 +637,58 @@ def zhang(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
     #     yaml.dump(calib_data, f)
 
 def bundle(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
-    
-    # First need to get an initial reconstruction for each image pair before
-    # we pass to bundle adjustment simultaneuos paratemeter non-liniear optimization
 
-    # we'll take an average of the converged intrinsics for the seed
-    intrin_cam0, intrin_cam1 = initial_reconstruction(dots_cam0,
-                                                      dots_cam1, grid,
-                                                      img_dims,
-                                                      num_file_pairs)
+    flags = cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_ZERO_TANGENT_DIST
+    _, K0, D0, rvecs0, tvecs0 = cv2.calibrateCamera(grid, dots_cam0, img_dims, None, None, flags=flags)
+    _, K1, D1, rvecs1, tvecs1 = cv2.calibrateCamera(grid, dots_cam1, img_dims, None, None, flags=flags)
 
-    # camera matrix
-    mean_K0 = np.mean([d["K"] for d in intrin_cam0 if d["success"]], axis=0)
-    mean_K1 = np.mean([d["K"] for d in intrin_cam1 if d["success"]], axis=0)
+    ret, K0_stereo, D0_stereo, K1_stereo, D1_stereo, R_stereo, T_stereo, E, F = cv2.stereoCalibrate(
+        grid, dots_cam0, dots_cam1,
+        K0, D0, K1, D1,
+        img_dims,
+        flags=cv2.CALIB_FIX_INTRINSIC
+    )
 
-    # Distortion
-    mean_D0 = np.mean([d["D"] for d in intrin_cam0 if d["success"]], axis=0)
-    mean_D1 = np.mean([d["D"] for d in intrin_cam1 if d["success"]], axis=0)
+    rvec_stereo, _ = cv2.Rodrigues(R_stereo)
 
-    fx0, fy0, cx0, cy0 = mean_K0[0, 0], mean_K0[1, 1], mean_K0[0, 2], mean_K0[1, 2]
-    fx1, fy1, cx1, cy1 = mean_K1[0, 0], mean_K1[1, 1], mean_K1[0, 2], mean_K1[1, 2]
-    mean_D0 = mean_D0.flatten()
-    mean_D1 = mean_D1.flatten()
+    D0 = D0.flatten()
+    D1 = D1.flatten()
 
-    # initial guess for translation and rotation between cameras
-    mean_rvec0 = np.mean([d["rvec"] for d in intrin_cam0 if d["success"]], axis=0)
-    mean_rvec1 = np.mean([d["rvec"] for d in intrin_cam1 if d["success"]], axis=0)
-    R0, _ = cv2.Rodrigues(mean_rvec0)
-    R1, _ = cv2.Rodrigues(mean_rvec1)
-    R_rel = R1 @ R0.T
-    rvec_stereo, _ = cv2.Rodrigues(R_rel)
-    # rvec_stereo = np.zeros(3)
-
-
-    mean_tvec0 = np.mean([d["tvec"] for d in intrin_cam0 if d["success"]], axis=0)
-    mean_tvec1 = np.mean([d["tvec"] for d in intrin_cam1 if d["success"]], axis=0)
-    tvec_stereo = mean_tvec1 - (R_rel @ mean_tvec0)
-    # tvec_stereo = np.array([1.0, 0.0, 0.0])
-    
-    print(rvec_stereo)
-    print(tvec_stereo)
+    fx0, fy0, cx0, cy0 = K0[0, 0], K0[1, 1], K0[0, 2], K0[1, 2]
+    fx1, fy1, cx1, cy1 = K1[0, 0], K1[1, 1], K1[0, 2], K1[1, 2]
 
 
     # Initial poses from intrinsics_cam0
     initial_poses_cam0 = []
-    for d in intrin_cam0:
-        if d["success"]:
-            initial_poses_cam0.extend(d["rvec"].flatten())
-            initial_poses_cam0.extend(d["tvec"].flatten())
+    for i in range(num_file_pairs):
+            initial_poses_cam0.extend(rvecs0[i].flatten())
+            initial_poses_cam0.extend(tvecs0[i].flatten())
+
 
     # full list of initial parameters
-    initial_params = np.hstack([fx0, fy0, cx0, cy0, mean_D0,
-                                fx1, fy1, cx1, cy1, mean_D1,
-                                rvec_stereo.flatten(), tvec_stereo.flatten(),
+    initial_params = np.hstack([fx0, fy0, cx0, cy0, D0,
+                                fx1, fy1, cx1, cy1, D1,
+                                rvec_stereo.flatten(), T_stereo.flatten(),
                                 initial_poses_cam0])
 
-
-    # adjustment to make distortion parameters less volatile in opt
-    scales = np.ones_like(initial_params)
-    scales[4:9] = 0.1   # Left distortion
-    scales[13:18] = 0.1 # Right distortion
-    scales[18:21] = 0.1 # stereo rotation likely to be small
-
-    # default bound values
-    lower_bounds = -np.inf * np.ones_like(initial_params)
-    upper_bounds =  np.inf * np.ones_like(initial_params)
-
-    # keep all focal lengths positive
-    lower_bounds[0] = 1.0   # fx0
-    lower_bounds[1] = 1.0   # fy0
-    lower_bounds[9] = 1.0   # fx1
-    lower_bounds[10] = 1.0  # fy1
-
-    # Filter successful images
-    success_indices = [i for i, d in enumerate(intrin_cam0) if d["success"]]
-    gridpoints_success = [grid[i] for i in success_indices]
-    dots_cam0_success = [dots_cam0[i] for i in success_indices]
-    dots_cam1_success = [dots_cam1[i] for i in success_indices]
-    intrin_cam0_success = [intrin_cam0[i] for i in success_indices]
-    intrin_cam1_success = [intrin_cam1[i] for i in success_indices]
-
-    num_success = len(success_indices)
-    print("num soccessful:", success_indices)
-
-
-    # optimization
     result = least_squares(
         bundle_adjustment_error,
         initial_params,
-        jac='2-point',
-        args=(gridpoints_success, dots_cam0_success, dots_cam1_success, num_success),
+        args=(grid, dots_cam0, dots_cam1, num_file_pairs),
         verbose=2,
-        xtol=0.001,
-        ftol=0.005,
-        max_nfev=200,
-        x_scale=scales,
-        bounds=(lower_bounds, upper_bounds)
+        max_nfev=500,  # Increased iterations for complex optimization
+        # x_scale=scales,
+        # bounds=(lower_bounds, upper_bounds),
+        ftol=1e-10,     # Tighter tolerance for better accuracy
+        xtol=None
     )
 
-    # --- Step 7: Extract results ---
+     # --- Step 7: Extract results ---
     opt = result.x
     fx0, fy0, cx0, cy0 = opt[0:4]
-    k0 = opt[4:9]
+    D0_opt = opt[4:9]
     fx1, fy1, cx1, cy1 = opt[9:13]
-    k1 = opt[13:18]
+    D1_opt = opt[13:18]
     rvec_stereo = opt[18:21]
     tvec_stereo = opt[21:24]
     base = 24 + 0 * 6
@@ -617,17 +704,15 @@ def bundle(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
 
     print("\n--- Optimized Left Camera Intrinsics ---")
     print("K0:\n", K0_opt)
-    print("Distortion:", k0)
+    print("Distortion:", D0_opt)
 
     print("\n--- Optimized Right Camera Intrinsics ---")
     print("K1:\n", K1_opt)
-    print("Distortion:", k1)
+    print("Distortion:", D1_opt)
 
     print("\n--- Stereo Transform (Right from Left) ---")
     print("Rotation Vector:", rvec_stereo)
     print("Translation Vector:", tvec_stereo)
-
-    import matplotlib.pyplot as plt
 
     # ADD THIS: Calculate right camera pose from stereo transform
     R_stereo, _ = cv2.Rodrigues(rvec_stereo)
@@ -640,34 +725,68 @@ def bundle(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
     rvec1, _ = cv2.Rodrigues(R1)
     tvec1 = T1.flatten()  # Make sure it's 1D for cv2.projectPoints
 
-    # Projected points
-    projected_points_opt0, _ = cv2.projectPoints(grid[0], rvec0, tvec0, K0_opt, k0)
-    projected_points_opt1, _ = cv2.projectPoints(grid[0], rvec1, tvec1, K1_opt, k1)
 
-    # get the detected dots
-    dots_cam0 = dots_cam0[0].reshape(-1, 2)
-    dots_cam1 = dots_cam1[0].reshape(-1, 2)
+    # Compute right camera pose from stereo transform
+    R_stereo, _ = cv2.Rodrigues(rvec_stereo)
+    R0, _ = cv2.Rodrigues(rvec0)
+    T0 = tvec0.reshape(3, 1)
 
-    # reshape for error calc
-    projected_points_opt0 = projected_points_opt0.reshape(-1, 2)
-    projected_points_opt1 = projected_points_opt1.reshape(-1, 2)
-    
-    # error
-    err_cam0 = cv2.norm(dots_cam0[0], projected_points_opt0, cv2.NORM_L2)/len(dots_cam0)
-    err_cam1 = cv2.norm(dots_cam1[0], projected_points_opt1, cv2.NORM_L2)/len(dots_cam1)
-    print("ERROR", err_cam0)
-    print("ERROR", err_cam1)
+    R1 = R_stereo @ R0
+    T1 = R_stereo @ T0 + tvec_stereo.reshape(3, 1)
+    rvec1, _ = cv2.Rodrigues(R1)
+    tvec1 = T1.flatten()
 
+    # Loop over all image pairs
+    for i in range(num_file_pairs):
+        rvec_i = opt[base + i*6 : base + i*6 + 3]
+        tvec_i = opt[base + i*6 + 3 : base + i*6 + 6]
 
-    fig, ax = plt.subplots(1, 2, figsize=(20, 6))
-    ax[0].scatter(dots_cam0[:, 0], dots_cam0[:, 1], label='Observed', c='blue')
-    ax[0].scatter(projected_points_opt0[:, 0], projected_points_opt0[:, 1], label='Projected', c='red', marker='x')
-    ax[1].scatter(dots_cam1[:, 0], dots_cam1[:, 1], label='Observed', c='blue')
-    ax[1].scatter(projected_points_opt1[:, 0], projected_points_opt1[:, 1], label='Projected', c='red', marker='x')
-    plt.gca().invert_yaxis()  # Optional: match image coordinates
-    plt.ticklabel_format(style='plain')
-    plt.grid(True)
-    plt.show()
+        # Project points to cam0
+        proj0, _ = cv2.projectPoints(grid[i], rvec_i, tvec_i, K0_opt, D0_opt)
+        proj0 = proj0.reshape(-1, 2)
+
+        # Compose pose for cam1
+        R_i, _ = cv2.Rodrigues(rvec_i)
+        R1_i = R_stereo @ R_i
+        T1_i = R_stereo @ tvec_i.reshape(3, 1) + tvec_stereo.reshape(3, 1)
+        rvec1_i, _ = cv2.Rodrigues(R1_i)
+        tvec1_i = T1_i.flatten()
+
+        # Project points to cam1
+        proj1, _ = cv2.projectPoints(grid[i], rvec1_i, tvec1_i, K1_opt, D1_opt)
+        proj1 = proj1.reshape(-1, 2)
+
+        # Observed points
+        obs0 = dots_cam0[i].reshape(-1, 2)
+        obs1 = dots_cam1[i].reshape(-1, 2)
+
+        print(np.sqrt((obs0 - proj0)**2))
+        print(np.sqrt((obs1 - proj1)**2))
+
+        # RMS error
+        err0 = np.sqrt(np.sum((obs0 - proj0)**2, axis=1)).mean()
+        err1 = np.sqrt(np.sum((obs1 - proj1)**2, axis=1)).mean()
+        print(f"Image {i}: RMS Error cam0 = {err0:.3f}, cam1 = {err1:.3f}")
+
+        # Plot
+        fig, ax = plt.subplots(1, 2, figsize=(16, 6))
+        ax[0].scatter(obs0[:, 0], obs0[:, 1], c='blue', label='Observed')
+        ax[0].scatter(proj0[:, 0], proj0[:, 1], c='red', marker='x', label='Projected')
+        ax[0].set_title(f'Camera 0 - Image {i}')
+        ax[0].invert_yaxis()
+        ax[0].legend()
+        ax[0].grid(True)
+
+        ax[1].scatter(obs1[:, 0], obs1[:, 1], c='blue', label='Observed')
+        ax[1].scatter(proj1[:, 0], proj1[:, 1], c='red', marker='x', label='Projected')
+        ax[1].set_title(f'Camera 1 - Image {i}')
+        ax[1].invert_yaxis()
+        ax[1].legend()
+        ax[1].grid(True)
+
+        plt.tight_layout()
+        plt.show()
+
 
 
 
@@ -710,18 +829,18 @@ def initial_reconstruction(dots_cam0, dots_cam1, grid,
         # Perform optimization on intrinsics for cam 0
         result_cam0 = least_squares(reprojection_intrinsics_error, initial_params_cam0,
                                     args=(grid[i], dots_cam0[i]),
-                                    verbose=0, xtol=0.005, ftol=0.001, x_scale=scales,
+                                    verbose=0, xtol=1e-10, ftol=1e-10, x_scale=scales,
                                     bounds=(lower_bounds, upper_bounds))
         
         # Perform optimization on intrinsics for cam 1
         result_cam1 = least_squares(reprojection_intrinsics_error, initial_params_cam1,
                                     args=(grid[i], dots_cam1[i]),
-                                    verbose=0, xtol=0.005, ftol=0.001, x_scale=scales,
+                                    verbose=0, xtol=1e-10, ftol=1e-10, x_scale=scales,
                                     bounds=(lower_bounds, upper_bounds))
 
         # update initial guess based on converged results from nonlinear opt
-        if result_cam0.success: initial_params_cam0 = result_cam0.x
-        if result_cam1.success: initial_params_cam1 = result_cam1.x
+        # if result_cam0.success: initial_params_cam0 = result_cam0.x
+        # if result_cam1.success: initial_params_cam1 = result_cam1.x
 
         # intrinsic parameters cam0
         fx, fy, cx, cy = result_cam0.x[0:4]
@@ -755,21 +874,33 @@ def initial_reconstruction(dots_cam0, dots_cam1, grid,
         
         
         # Error for the new projected points for cam0
+        
+        # Ensure points are Nx2 arrays
         projected_points_opt0 = projected_points_opt0.reshape(-1, 2)
-        err_cam0 = cv2.norm(dots_cam0[i], projected_points_opt0, cv2.NORM_L2)/len(dots_cam0[i])
-        print("ERROR cam0", err_cam0)
+        projected_points_opt1 = projected_points_opt1.reshape(-1, 2)
+
+        dots_cam0_i = dots_cam0[i].reshape(-1, 2)
+        dots_cam1_i = dots_cam1[i].reshape(-1, 2)
+
+        # Compute RMS reprojection error
+        diff0 = np.sqrt(np.sum((dots_cam0_i - projected_points_opt0)**2, axis=1))
+        diff1 = np.sqrt(np.sum((dots_cam1_i - projected_points_opt1)**2, axis=1))
+
+        error0 = np.mean(diff0)
+        error1 = np.mean(diff1)
+        print(K0_opt[0,0], K0_opt[0,2], K0_opt[1,1], K0_opt[1,2], D0_opt[0],D0_opt[1],D0_opt[2],D0_opt[3],D0_opt[4], error0, error1)
 
         # Error for the new projected points for cam1
-        projected_points_opt1 = projected_points_opt1.reshape(-1, 2)
-        err_cam1 = cv2.norm(dots_cam1[i], projected_points_opt1, cv2.NORM_L2)/len(dots_cam1[i])
-        print("ERROR cam1", err_cam1)
+        # projected_points_opt1 = projected_points_opt1.reshape(-1, 2)
+        # err_cam1 = cv2.norm(dots_cam1[i], projected_points_opt1, cv2.NORM_L2)/len(dots_cam1[i])
+        # print("ERROR cam1", err_cam1)
 
         intrinsics_cam0.append({
             "K": K0_opt,
             "D": D0_opt,
             "rvec": rvec_cam0,
             "tvec": tvec_cam0,
-            "err": err_cam0,
+            "err": error0,
             "success": result_cam0.success
         })
 
@@ -778,7 +909,7 @@ def initial_reconstruction(dots_cam0, dots_cam1, grid,
             "D": D1_opt,
             "rvec": rvec_cam1,
             "tvec": tvec_cam1,
-            "err": err_cam1,
+            "err": error1,
             "success": result_cam1.success
         })
 
@@ -807,8 +938,11 @@ def initial_reconstruction(dots_cam0, dots_cam1, grid,
 
     return intrinsics_cam0, intrinsics_cam1
 
-def reprojection_intrinsics_error(params, gridpoints, dots):
 
+
+
+
+def reprojection_intrinsics_error(params, gridpoints, dots):
 
     fx, fy, cx, cy = params[0:4]
     k1, k2, p1, p2, k3 = params[4:9]
@@ -832,7 +966,7 @@ def reprojection_intrinsics_error(params, gridpoints, dots):
 
     # Residuals
     #residuals = np.linalg.norm(projected_points - imgpoints, axis=1)
-    residuals = (np.abs(projected_dots - dots)).flatten()
+    residuals = (projected_dots - dots).flatten()
     return residuals
 
     
@@ -888,79 +1022,53 @@ def bundle_adjustment_error(params, gridpoints, dots_cam0, dots_cam1, num_img):
 
     return np.array(residuals)
 
-def bundle_adjustment_jac(params, gridpoints, dots_cam0, dots_cam1, num_img):
-    """
-    Analytical Jacobian for stereo bundle adjustment.
-    Returns a 2*num_points*num_img x num_params Jacobian for least_squares.
-    """
-    # Extract intrinsics
-    fx0, fy0, cx0, cy0 = params[0:4]
-    D0 = params[4:9]
-    fx1, fy1, cx1, cy1 = params[9:13]
-    D1 = params[13:18]
+def bundle_adjustment_error_test(params, grid_points, dots_cam0, dots_cam1, num_poses, K0, K1):
+    idx = 0
 
-    rvec_stereo = params[18:21]
-    tvec_stereo = params[21:24]
+    D0 = params[idx:idx+5].astype(np.float64)
+    idx += 5
+    D1 = params[idx:idx+5].astype(np.float64)
+    idx += 5
+
+    rvec_stereo = params[idx:idx+3].astype(np.float64)
+    idx += 3
+    tvec_stereo = params[idx:idx+3].astype(np.float64)
+    idx += 3
+
     R_stereo, _ = cv2.Rodrigues(rvec_stereo)
 
-    K0 = np.array([[fx0, 0, cx0],
-                   [0, fy0, cy0],
-                   [0,  0,   1]])
-    K1 = np.array([[fx1, 0, cx1],
-                   [0, fy1, cy1],
-                   [0,  0,   1]])
+    total_residuals = []
 
-    pose0_start = 24
-    n_points = gridpoints[0].shape[0]
-    n_residuals = 2 * n_points * num_img * 2  # 2 cameras
-    n_params = params.size
+    for pose_idx in range(num_poses):
+        rvec_target = params[idx:idx+3].astype(np.float64)
+        tvec_target = params[idx+3:idx+6].astype(np.float64)
+        idx += 6
 
-    J = np.zeros((n_residuals, n_params))
+        grid_3d = grid_points[pose_idx].astype(np.float64)
+        obs_cam0 = dots_cam0[pose_idx].astype(np.float64)
+        obs_cam1 = dots_cam1[pose_idx].astype(np.float64)
 
-    row = 0
-    for i in range(num_img):
-        # cam0
-        rvec0 = params[pose0_start + i*6 : pose0_start + i*6 + 3]
-        tvec0 = params[pose0_start + i*6 + 3 : pose0_start + i*6 + 6]
+        proj_cam0, _ = cv2.projectPoints(grid_3d, rvec_target, tvec_target, K0, D0)
+        proj_cam0 = proj_cam0.reshape(-1, 2)
 
-        # Project points and get Jacobian
-        proj0, jac0 = cv2.projectPoints(gridpoints[i], rvec0, tvec0, K0, D0)
-        proj0 = proj0.reshape(-1, 2)
+        R_target, _ = cv2.Rodrigues(rvec_target)
+        R_composed = R_stereo @ R_target
+        t_composed = R_stereo @ tvec_target + tvec_stereo
+        rvec_composed, _ = cv2.Rodrigues(R_composed)
 
-        # Assign jac0 to the correct slice
-        # cv2.projectPoints returns jac shape (2N, 12): [rvec(3), tvec(3), fx, fy, cx, cy, k1..k5]
-        # Map them to our params ordering
-        # rvec/tvec of cam0
-        J[row:row+2*n_points, pose0_start + i*6 : pose0_start + i*6 + 6] = jac0[:, :6]
-        # intrinsics cam0
-        J[row:row+2*n_points, 0:4] = jac0[:, 6:10]  # fx, fy, cx, cy
-        J[row:row+2*n_points, 4:9] = jac0[:, 10:15]  # D0
-        row += 2*n_points
+        proj_cam1, _ = cv2.projectPoints(grid_3d, rvec_composed, t_composed, K1, D1)
+        proj_cam1 = proj_cam1.reshape(-1, 2)
 
-        # cam1 (derived from cam0 + stereo)
-        R0, _ = cv2.Rodrigues(rvec0)
-        T0 = tvec0.reshape(3,1)
-        R1 = R_stereo @ R0
-        T1 = R_stereo @ T0 + tvec_stereo.reshape(3,1)
-        rvec1, _ = cv2.Rodrigues(R1)
-        tvec1 = T1
+        residuals_cam0 = (obs_cam0 - proj_cam0).flatten()
+        residuals_cam1 = (obs_cam1 - proj_cam1).flatten()
 
-        proj1, jac1 = cv2.projectPoints(gridpoints[i], rvec1, tvec1, K1, D1)
-        proj1 = proj1.reshape(-1, 2)
+        total_residuals.extend(residuals_cam0)
+        total_residuals.extend(residuals_cam1)
 
-        # cam1 jacobian mapping
-        # rvec/tvec stereo
-        J[row:row+2*n_points, 18:24] = jac1[:, :6]  # approximate: rotation+translation w.r.t stereo extrinsics
-        # cam0 pose affects cam1 through stereo, so this is more complex
-        # for simplicity, assign main contribution
-        J[row:row+2*n_points, pose0_start + i*6 : pose0_start + i*6 + 6] = jac1[:, :6]
-        # intrinsics cam1
-        J[row:row+2*n_points, 9:13] = jac1[:, 6:10]
-        J[row:row+2*n_points, 13:18] = jac1[:, 10:15]
+    return np.array(total_residuals)
 
-        row += 2*n_points
 
-    return J
+
 
 def visualisation():
 
@@ -1061,8 +1169,6 @@ def get_file_list(path0: Path, path1: Path):
         files_cam0 = filtered_cam0
         files_cam1 = filtered_cam1
 
-        print(filtered_cam0)
-        print(filtered_cam1)
     else:
         files_cam0 = [Path(f) for f in sorted_cam0]
         files_cam1 = [Path(f) for f in sorted_cam1]
