@@ -49,8 +49,8 @@ def simdata_mech_3d_nomesh() -> mh.SimData:
     return sim_data
 
 
-def sens_pos_2d() -> dict[str,np.ndarray]:
-    sim_dims = sens.simtools.get_sim_dims(simdata_mech_2d())
+def sens_pos_2d(sim_data: mh.SimData) -> dict[str,np.ndarray]:
+    sim_dims = sens.simtools.get_sim_dims(sim_data)
     sens_pos = {}
 
     x_lims = sim_dims["x"]
@@ -66,15 +66,38 @@ def sens_pos_2d() -> dict[str,np.ndarray]:
     return sens_pos
 
 
-def sens_pos_3d() -> dict[str,np.ndarray]:
+def sens_pos_3d(sim_data: mh.SimData) -> dict[str,np.ndarray]:
+    sim_dims = sens.simtools.get_sim_dims(sim_data)
+    (x_min,x_max) = sim_dims["x"]
+    (y_min,y_max) = sim_dims["y"]
+    (z_min,z_max) = sim_dims["z"]
+    x_len = x_max-x_min
+    y_len = y_max-y_min
+    z_len = z_max-z_min
+
     sens_pos = {}
-    sens_pos["cent-cube"] = np.array(((5.0,0.0,5.0),    # xz
-                                      (5.0,10.0,5.0),   # xz
-                                      (5.0,5.0,0.0),    # xy
-                                      (5.0,5.0,10.0),   # xy
-                                      (0.0,5.0,5.0),    # yz
-                                      (10.0,5.0,5.0),)) # yz
+
+
+    sens_pos["cent-cube"] = np.array((
+        (x_min+x_len/2, y_min,          z_min+z_len/2), # xz
+        (x_min+x_len/2, y_min+y_len,    z_min+z_len/2), # xz
+        (x_min+x_len/2, y_min+y_len/2,  z_min),         # xy
+        (x_min+x_len/2, y_min+y_len/2,  z_min+z_len),   # xy
+        (x_min,         y_min+y_len/2,  z_min+z_len/2), # yz
+        (x_min+x_len,   y_min+y_len/2,  z_min+z_len/2), # yz
+    ))
+
+    # check = np.array(((5.0,0.0,5.0),    # xz
+    #                 (5.0,10.0,5.0),   # xz
+    #                 (5.0,5.0,0.0),    # xy
+    #                 (5.0,5.0,10.0),   # xy
+    #                 (0.0,5.0,5.0),    # yz
+    #                 (10.0,5.0,5.0),)) # yz
+
+    # assert np.allclose(check,sens_pos["cent-cube"]), "Cube coords wrong in mech.sens_pos_3d"
+
     return sens_pos
+
 
 def sens_pos_2d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
     pos_lock = {}
@@ -82,11 +105,11 @@ def sens_pos_2d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
 
     lock = np.full_like(sens_pos,False,dtype=bool)
     lock[:,zz] = True # lock z
-    pos_lock["line-4"] = None
+    pos_lock["line-4"] = lock
 
     lock = np.full_like(sens_pos,False,dtype=bool)
     lock[:,zz] = True # lock z
-    pos_lock["grid-23"] = None
+    pos_lock["grid-23"] = lock
 
     return pos_lock
 
@@ -107,12 +130,12 @@ def sens_pos_3d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
     return pos_lock
 
 
-def sens_data_2d_dict() -> dict[str,sens.SensorData]:
-    return pointsens.sens_data_dict(simdata_mech_2d(),sens_pos_2d())
+def sens_data_2d_dict(sim_data: mh.SimData) -> dict[str,sens.SensorData]:
+    return pointsens.sens_data_dict(sim_data,sens_pos_2d(sim_data))
 
 
-def sens_data_3d_dict() -> dict[str,sens.SensorData]:
-    return pointsens.sens_data_dict(simdata_mech_3d(),sens_pos_3d())
+def sens_data_3d_dict(sim_data: mh.SimData) -> dict[str,sens.SensorData]:
+    return pointsens.sens_data_dict(sim_data,sens_pos_3d(sim_data))
 
 
 def err_chain_field(field: sens.IField,

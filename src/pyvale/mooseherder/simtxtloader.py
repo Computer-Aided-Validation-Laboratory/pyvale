@@ -38,9 +38,7 @@ class SimTxtLoadOpts:
 #
 # TODO: future
 # - Harmonise field slices and SimReadConfig
-# - Support the case of one field per file, currently supports one time
-#   step per file
-# - Loading global variables
+
 
 class SimTxtLoader(OutputLoader):
 

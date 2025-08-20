@@ -17,10 +17,22 @@ def main() -> None:
     print(f"Saving gold output to: {pointsensconst.GOLD_PATH}\n")
 
     print(f"Generating 2D gold output for {tag} field point sensors...")
-    pointsens.gen_gold_measurements(pointsensvector.sens_arrays_2d_dict())
+    pointsens.gen_gold_measurements(
+        pointsensvector.sens_arrays_2d_dict()
+    )
+    pointsens.gen_gold_measurements(
+        pointsensvector.sens_arrays_2d_analytic_dict()
+    )
+    pointsens.gen_gold_measurements(
+        pointsensvector.sens_arrays_2d_analytic_nomesh_dict()
+    )
 
     print(f"Generating 3D gold output for {tag} field point sensors...")
-    pointsens.gen_gold_measurements(pointsensvector.sens_arrays_3d_dict())
-
+    pointsens.gen_gold_measurements(
+        pointsensvector.sens_arrays_3d_dict()
+    )
+    pointsens.gen_gold_measurements(
+        pointsensvector.sens_arrays_3d_nomesh_dict()
+    )
 if __name__ == "__main__":
     main()

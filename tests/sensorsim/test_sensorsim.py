@@ -35,10 +35,6 @@ import pyvale.verif.pointsenstensor as pointsenstensor
         pointsensscalar.sens_arrays_2d_analytic_nomesh_dict,
         pointsensscalar.sens_arrays_3d_dict,
         pointsensscalar.sens_arrays_3d_nomesh_dict,
-        pointsensvector.sens_arrays_2d_dict,
-        pointsensvector.sens_arrays_3d_dict,
-        pointsenstensor.sens_arrays_2d_dict,
-        pointsenstensor.sens_arrays_3d_dict,
     ],
     ids=[
         "scalar_2d",
@@ -46,16 +42,60 @@ import pyvale.verif.pointsenstensor as pointsenstensor
         "scalar_2d_analytic_nomesh",
         "scalar_3d",
         "scalar_3d_nomesh",
-        "vector_2d",
-        "vector_3d",
-        "tensor_2d",
-        "tensor_3d",
     ],
 )
-def test_gold_combined(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+def test_gold_sens_scalar(get_sensors: Callable[[], Dict[str, Any]]) -> None:
     sensors = get_sensors()
     fails = pointsens.check_gold_measurements(sensors)
     assert not fails, "\n".join(fails)
+
+@pytest.mark.parametrize(
+    "get_sensors",
+    [
+        pointsensvector.sens_arrays_2d_dict,
+        pointsensvector.sens_arrays_2d_analytic_dict,
+        pointsensvector.sens_arrays_2d_analytic_nomesh_dict,
+        pointsensvector.sens_arrays_3d_dict,
+        pointsensvector.sens_arrays_3d_nomesh_dict,
+
+    ],
+    ids=[
+        "vector_2d",
+        "vector_2d_analytic",
+        "vector_2d_analytic_nomesh",
+        "vector_3d",
+        "vector_3d_nomesh",
+    ],
+)
+def test_gold_sens_vector(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+    sensors = get_sensors()
+    fails = pointsens.check_gold_measurements(sensors)
+    assert not fails, "\n".join(fails)
+
+
+@pytest.mark.parametrize(
+    "get_sensors",
+    [
+        pointsenstensor.sens_arrays_2d_dict,
+        pointsenstensor.sens_arrays_2d_analytic_dict,
+        pointsenstensor.sens_arrays_2d_analytic_nomesh_dict,
+        pointsenstensor.sens_arrays_3d_dict,
+        pointsenstensor.sens_arrays_3d_nomesh_dict,
+
+    ],
+    ids=[
+        "tensor_2d",
+        "tensor_2d_analytic",
+        "tensor_2d_analytic_nomesh",
+        "tensor_3d",
+        "tensor_3d_nomesh",
+    ],
+)
+def test_gold_sens_tensor(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+    sensors = get_sensors()
+    fails = pointsens.check_gold_measurements(sensors)
+    assert not fails, "\n".join(fails)
+
 
 #-------------------------------------------------------------------------------
 # Check that 'get_measurements' does not resample probability distributions

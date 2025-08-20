@@ -130,32 +130,32 @@ def gen_sens_arrays_3d_dict(sim_data: mh.SimData,
 #-------------------------------------------------------------------------------
 def sens_arrays_2d_dict() -> dict[str,sens.SensorArrayPoint]:
     sim_data = pointsensmech.simdata_mech_2d()
-    sens_data_dict = pointsensmech.sens_data_2d_dict()
+    sens_data_dict = pointsensmech.sens_data_2d_dict(sim_data)
     tag = "vec2d"
     return gen_sens_arrays_2d_dict(sim_data,sens_data_dict,tag)
 
 def sens_arrays_2d_analytic_dict() -> dict[str,sens.SensorArrayPoint]:
     sim_data = simdata_vec_2d_analytic()
-    sens_data_dict = pointsensmech.sens_data_2d_dict()
+    sens_data_dict = pointsensmech.sens_data_2d_dict(sim_data)
     tag = "vec2d_analytic"
     return gen_sens_arrays_2d_dict(sim_data,sens_data_dict,tag)
 
 def sens_arrays_2d_analytic_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
     sim_data = simdata_vec_2d_analytic_nomesh()
-    sens_data_dict = pointsensmech.sens_data_2d_dict()
+    sens_data_dict = pointsensmech.sens_data_2d_dict(sim_data)
     tag = "vec2d_analytic_nomesh"
     return gen_sens_arrays_2d_dict(sim_data,sens_data_dict,tag)
 
 
 def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
     sim_data = pointsensmech.simdata_mech_3d()
-    sens_data_dict = pointsensmech.sens_data_3d_dict()
+    sens_data_dict = pointsensmech.sens_data_3d_dict(sim_data)
     tag = "vec3d"
     return gen_sens_arrays_3d_dict(sim_data,sens_data_dict,tag)
 
 
 def sens_arrays_3d_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
     sim_data = pointsensmech.simdata_mech_3d_nomesh()
-    sens_data_dict = pointsensmech.sens_data_3d_dict()
+    sens_data_dict = pointsensmech.sens_data_3d_dict(sim_data)
     tag = "vec3d"
     return gen_sens_arrays_3d_dict(sim_data,sens_data_dict,tag)
