@@ -59,8 +59,8 @@ def simdata_3d_nomesh() -> mh.SimData:
     return sim_data
 
 
-def sens_pos_2d() -> dict[str,np.ndarray]:
-    sim_dims = sens.simtools.get_sim_dims(simdata_2d())
+def sens_pos_2d(sim_data: mh.SimData) -> dict[str,np.ndarray]:
+    sim_dims = sens.simtools.get_sim_dims(sim_data)
     sens_pos = {}
 
     x_lims = sim_dims["x"]
@@ -76,8 +76,8 @@ def sens_pos_2d() -> dict[str,np.ndarray]:
     return sens_pos
 
 
-def sens_pos_3d() -> dict[str,np.ndarray]:
-    sim_dims = sens.simtools.get_sim_dims(simdata_3d())
+def sens_pos_3d(sim_data) -> dict[str,np.ndarray]:
+    sim_dims = sens.simtools.get_sim_dims(sim_data)
 
     sens_pos = {}
 
@@ -85,13 +85,13 @@ def sens_pos_3d() -> dict[str,np.ndarray]:
     x_lims = (sim_dims["x"][1],sim_dims["x"][1])
     y_lims = sim_dims["y"]
     z_lims = sim_dims["z"]
-    sens_pos["line-y-xy"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-y-yz"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
     n_sens = (1,4,1)
     x_lims = (9.4,9.4) # Monoblock offset front face
     y_lims = sim_dims["y"]
     z_lims = (sim_dims["z"][1],sim_dims["z"][1])
-    sens_pos["line-y-yz"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-y-xy"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
     return sens_pos
 
@@ -101,11 +101,11 @@ def sens_pos_2d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
 
     lock = np.full_like(sens_pos,False,dtype=bool)
     lock[:,2] = True # lock z
-    pos_lock["line-4"] = None
+    pos_lock["line-4"] = lock
 
     lock = np.full_like(sens_pos,False,dtype=bool)
     lock[:,2] = True # lock z
-    pos_lock["grid-22"] = None
+    pos_lock["grid-22"] = lock
 
     return pos_lock
 
@@ -114,22 +114,22 @@ def sens_pos_3d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
     pos_lock = {}
 
     lock = np.full_like(sens_pos,False,dtype=bool)
-    lock[:,2] = True # lock z
-    pos_lock["line-y-xy"] = lock
+    lock[:,0] = True # lock x
+    pos_lock["line-y-yz"] = lock
 
     lock = np.full_like(sens_pos,False,dtype=bool)
-    lock[:,0] = True # lock x
-    pos_lock["line-y-yz"] = None
+    lock[:,2] = True # lock z
+    pos_lock["line-y-xy"] = lock
 
     return pos_lock
 
 
-def sens_data_2d_dict() -> dict[str,sens.SensorData]:
-    return pointsens.sens_data_dict(simdata_2d(),sens_pos_2d())
+def sens_data_2d_dict(sim_data: mh.SimData) -> dict[str,sens.SensorData]:
+    return pointsens.sens_data_dict(sim_data,sens_pos_2d(sim_data))
 
 
-def sens_data_3d_dict() -> dict[str,sens.SensorData]:
-    return pointsens.sens_data_dict(simdata_3d(),sens_pos_3d())
+def sens_data_3d_dict(sim_data: mh.SimData) -> dict[str,sens.SensorData]:
+    return pointsens.sens_data_dict(sim_data,sens_pos_3d(sim_data))
 
 
 def err_chain_sfield(field: sens.IField,
@@ -181,7 +181,7 @@ def err_chain_sfield_dep(field: sens.IField,
 
     pos_offset = -1.0*np.ones_like(sens_pos)
     pos_error_data = sens.ErrFieldData(pos_offset_xyz=pos_offset,
-                                      pos_lock_xyz=pos_lock)
+                                       pos_lock_xyz=pos_lock)
 
     err_chain = []
     err_chain.append(sens.ErrSysField(field,
@@ -259,9 +259,10 @@ def err_chain_3d_dict(field: sens.IField,
     return err_cases
 
 
-def sens_noerrs(sim_data: mh.SimData,
-                sens_data: sens.SensorData,
-                elem_dims: int) -> sens.SensorArrayPoint:
+def sens_array_noerrs(sim_data: mh.SimData,
+                    sens_data: sens.SensorData,
+                    elem_dims: int) -> sens.SensorArrayPoint:
+
     descriptor = sens.SensorDescriptorFactory.temperature_descriptor()
     field = sens.FieldScalar(sim_data,
                             field_key="temperature",
@@ -279,9 +280,9 @@ def gen_sens_array_dict_2d(sim_data: mh.SimData,
 
     sens_dict = {}
     for ss in sens_data_dict:
-        sens_array = sens_noerrs(sim_data,
-                                 sens_data_dict[ss],
-                                 elem_dims=2)
+        sens_array = sens_array_noerrs(sim_data,
+                                    sens_data_dict[ss],
+                                    elem_dims=2)
 
         pos_lock = sens_pos_2d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
@@ -289,6 +290,7 @@ def gen_sens_array_dict_2d(sim_data: mh.SimData,
                 pos_lock_key = kk
                 break
 
+        check_lock = pos_lock[pos_lock_key]
         err_chain_dict = err_chain_2d_dict(sens_array.get_field(),
                                            sens_data_dict[ss].positions,
                                            sens_data_dict[ss].sample_times,
@@ -315,9 +317,9 @@ def gen_sens_array_dict_3d(sim_data: mh.SimData,
 
     sens_dict = {}
     for ss in sens_data_dict:
-        sens_array = sens_noerrs(sim_data,
-                                 sens_data_dict[ss],
-                                 elem_dims=3)
+        sens_array = sens_array_noerrs(sim_data,
+                                       sens_data_dict[ss],
+                                       elem_dims=3)
 
         pos_lock = sens_pos_3d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
@@ -347,35 +349,35 @@ def gen_sens_array_dict_3d(sim_data: mh.SimData,
 
 #-------------------------------------------------------------------------------
 def sens_arrays_2d_dict() -> dict[str,sens.SensorArrayPoint]:
-    sens_data_dict = sens_data_2d_dict()
     sim_data = simdata_2d()
+    sens_data_dict = sens_data_2d_dict(sim_data)
     tag = "scal2d"
     return gen_sens_array_dict_2d(sim_data,sens_data_dict,tag)
 
 
 def sens_arrays_2d_analytic_dict() -> dict[str,sens.SensorArrayPoint]:
-    sens_data_dict = sens_data_2d_dict()
     sim_data = simdata_2d_analytic()
+    sens_data_dict = sens_data_2d_dict(sim_data)
     tag = "scal2d_analytic"
     return gen_sens_array_dict_2d(sim_data,sens_data_dict,tag)#
 
 def sens_arrays_2d_analytic_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
-    sens_data_dict = sens_data_2d_dict()
     sim_data = simdata_2d_analytic_nomesh()
+    sens_data_dict = sens_data_2d_dict(sim_data)
     tag = "scal2d_analytic_nomesh"
     return gen_sens_array_dict_2d(sim_data,sens_data_dict,tag)#
 
 
 #-------------------------------------------------------------------------------
 def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
-    sens_data_dict = sens_data_3d_dict()
     sim_data = simdata_3d()
+    sens_data_dict = sens_data_3d_dict(sim_data)
     tag = "scal3d"
     return gen_sens_array_dict_3d(sim_data,sens_data_dict,tag)
 
 def sens_arrays_3d_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
-    sens_data_dict = sens_data_3d_dict()
     sim_data = simdata_3d_nomesh()
+    sens_data_dict = sens_data_3d_dict(sim_data)
     tag = "scal3d_nomesh"
     return gen_sens_array_dict_3d(sim_data,sens_data_dict,tag)
 

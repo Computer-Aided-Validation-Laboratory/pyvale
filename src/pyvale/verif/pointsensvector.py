@@ -7,6 +7,7 @@ import copy
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.verif.pointsensmech as pointsensmech
+import pyvale.verif.analyticsimdatafactory as asd
 
 
 """
@@ -21,6 +22,15 @@ applied to vector fields.
 
 # TODO
 # - Calibration errors for vector fields
+
+def simdata_vec_2d_analytic() -> mh.SimData:
+    (sim_data,_) = asd.vector_linear_2d()
+    return sim_data
+
+def simdata_vec_2d_analytic_nomesh() -> mh.SimData:
+    sim_data = simdata_vec_2d_analytic()
+    sim_data.connect = None
+    return sim_data
 
 
 def sens_array_2d_noerrs(sim_data: mh.SimData,
@@ -48,11 +58,11 @@ def sens_array_3d_noerrs(sim_data: mh.SimData,
                                        descriptor)
     return sens_array
 
-
-def sens_arrays_2d_dict() -> dict[str,sens.SensorArrayPoint]:
-    sim_data = pointsensmech.simdata_mech_2d()
-    sens_data_dict = pointsensmech.sens_data_2d_dict()
-
+#-------------------------------------------------------------------------------
+def gen_sens_arrays_2d_dict(sim_data: mh.SimData,
+                            sens_data_dict: dict[str,sens.SensorData],
+                            sens_tag: str,
+                            ) -> dict[str,sens.SensorArrayPoint]:
     sens_dict = {}
     for ss in sens_data_dict:
         sens_array = sens_array_2d_noerrs(sim_data,sens_data_dict[ss])
@@ -69,7 +79,7 @@ def sens_arrays_2d_dict() -> dict[str,sens.SensorArrayPoint]:
                                            pos_lock[pos_lock_key])
 
         for ee in err_chain_dict:
-            tag = f"vec2d_{ss}_err-{ee}"
+            tag = f"{sens_tag}_{ss}_err-{ee}"
             sens_dict[tag] = copy.deepcopy(sens_array)
 
             if err_chain_dict[ee] is not None:
@@ -83,10 +93,10 @@ def sens_arrays_2d_dict() -> dict[str,sens.SensorArrayPoint]:
     return sens_dict
 
 
-def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
-    sim_data = pointsensmech.simdata_mech_3d()
-    sens_data_dict = pointsensmech.sens_data_3d_dict()
-
+def gen_sens_arrays_3d_dict(sim_data: mh.SimData,
+                            sens_data_dict: dict[str,sens.SensorData],
+                            sens_tag: str,
+                            ) -> dict[str,sens.SensorArrayPoint]:
     sens_dict = {}
     for ss in sens_data_dict:
         sens_array = sens_array_3d_noerrs(sim_data,sens_data_dict[ss])
@@ -103,7 +113,7 @@ def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
                                            pos_lock=pos_lock[pos_lock_key])
 
         for ee in err_chain_dict:
-            tag = f"vec3d_{ss}_err-{ee}"
+            tag = f"{sens_tag}_{ss}_err-{ee}"
             sens_dict[tag] = copy.deepcopy(sens_array)
 
             if err_chain_dict[ee] is not None:
@@ -115,3 +125,37 @@ def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
                 sens_dict[tag].set_error_integrator(err_int)
 
     return sens_dict
+
+
+#-------------------------------------------------------------------------------
+def sens_arrays_2d_dict() -> dict[str,sens.SensorArrayPoint]:
+    sim_data = pointsensmech.simdata_mech_2d()
+    sens_data_dict = pointsensmech.sens_data_2d_dict()
+    tag = "vec2d"
+    return gen_sens_arrays_2d_dict(sim_data,sens_data_dict,tag)
+
+def sens_arrays_2d_analytic_dict() -> dict[str,sens.SensorArrayPoint]:
+    sim_data = simdata_vec_2d_analytic()
+    sens_data_dict = pointsensmech.sens_data_2d_dict()
+    tag = "vec2d_analytic"
+    return gen_sens_arrays_2d_dict(sim_data,sens_data_dict,tag)
+
+def sens_arrays_2d_analytic_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
+    sim_data = simdata_vec_2d_analytic_nomesh()
+    sens_data_dict = pointsensmech.sens_data_2d_dict()
+    tag = "vec2d_analytic_nomesh"
+    return gen_sens_arrays_2d_dict(sim_data,sens_data_dict,tag)
+
+
+def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
+    sim_data = pointsensmech.simdata_mech_3d()
+    sens_data_dict = pointsensmech.sens_data_3d_dict()
+    tag = "vec3d"
+    return gen_sens_arrays_3d_dict(sim_data,sens_data_dict,tag)
+
+
+def sens_arrays_3d_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
+    sim_data = pointsensmech.simdata_mech_3d_nomesh()
+    sens_data_dict = pointsensmech.sens_data_3d_dict()
+    tag = "vec3d"
+    return gen_sens_arrays_3d_dict(sim_data,sens_data_dict,tag)

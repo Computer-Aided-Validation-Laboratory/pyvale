@@ -15,7 +15,8 @@ from pyvale.sensorsim.fieldinterp import (FieldInterp,
 
 
 class FieldInterpPoints(FieldInterp):
-    __slots__ = ("_sim_time_steps", "_components","_elem_dims","_interp_funcs")
+    __slots__ = ("_sim_time_steps", "_components","_elem_dims","_interp_funcs",
+                 "_coords")
 
     def __init__(self,
                  sim_data: mh.SimData,
@@ -28,13 +29,13 @@ class FieldInterpPoints(FieldInterp):
         self._elem_dims = elem_dims
 
         # Collapse problem to 2D
-        coords = sim_data.coords
+        self._coords = sim_data.coords
         if self._elem_dims == 2:
-            coords = coords_to_2D(coords)
+            self._coords = coords_to_2D(self._coords)
 
         # We do this once instead of inside the loop to save a lot of time as
         # the coordinates don't change between frames
-        triang = Delaunay(coords)
+        triang = Delaunay(self._coords)
 
         self._interp_funcs = {}
         for cc in self._components:

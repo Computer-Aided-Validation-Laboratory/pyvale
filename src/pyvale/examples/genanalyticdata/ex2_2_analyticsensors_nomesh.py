@@ -19,6 +19,8 @@ def main() -> None:
 
     (sim_data,_) = va.analyticsimdatafactory.scalar_linear_2d()
     sim_data_nomesh = copy.deepcopy(sim_data)
+
+    # When we have a point cloud and no mesh the connectivity table is None
     sim_data_nomesh.connect = None
 
     descriptor = sens.SensorDescriptorFactory.temperature_descriptor()

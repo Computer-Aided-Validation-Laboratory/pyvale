@@ -31,7 +31,10 @@ import pyvale.verif.pointsenstensor as pointsenstensor
     "get_sensors",
     [
         pointsensscalar.sens_arrays_2d_dict,
+        pointsensscalar.sens_arrays_2d_analytic_dict,
+        pointsensscalar.sens_arrays_2d_analytic_nomesh_dict,
         pointsensscalar.sens_arrays_3d_dict,
+        pointsensscalar.sens_arrays_3d_nomesh_dict,
         pointsensvector.sens_arrays_2d_dict,
         pointsensvector.sens_arrays_3d_dict,
         pointsenstensor.sens_arrays_2d_dict,
@@ -39,7 +42,10 @@ import pyvale.verif.pointsenstensor as pointsenstensor
     ],
     ids=[
         "scalar_2d",
+        "scalar_2d_analytic",
+        "scalar_2d_analytic_nomesh",
         "scalar_3d",
+        "scalar_3d_nomesh",
         "vector_2d",
         "vector_3d",
         "tensor_2d",
@@ -69,7 +75,10 @@ def check_get_meas(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[str]:
     "get_sensors",
     [
         pointsensscalar.sens_arrays_2d_dict,
+        pointsensscalar.sens_arrays_2d_analytic_dict,
+        pointsensscalar.sens_arrays_2d_analytic_nomesh_dict,
         pointsensscalar.sens_arrays_3d_dict,
+        pointsensscalar.sens_arrays_3d_nomesh_dict,
         pointsensvector.sens_arrays_2d_dict,
         pointsensvector.sens_arrays_3d_dict,
         pointsenstensor.sens_arrays_2d_dict,
@@ -77,7 +86,10 @@ def check_get_meas(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[str]:
     ],
     ids=[
         "scalar_2d",
+        "scalar_2d_analytic",
+        "scalar_2d_analytic_nomesh",
         "scalar_3d",
+        "scalar_3d_nomesh",
         "vector_2d",
         "vector_3d",
         "tensor_2d",

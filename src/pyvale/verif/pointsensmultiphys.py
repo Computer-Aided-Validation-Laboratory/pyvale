@@ -112,7 +112,7 @@ def exp_sim_2d() -> dict[str,sens.ExperimentSimulator]:
     for ss in sens_data_dict:
 
         sens_noerrs = {}
-        sens_noerrs["scal"] = pointsensscalar.sens_noerrs(sim_list[0],
+        sens_noerrs["scal"] = pointsensscalar.sens_array_noerrs(sim_list[0],
                                                       sens_data_dict[ss],
                                                       elem_dims=2)
         sens_noerrs["vect"] = pointsensvector.sens_array_2d_noerrs(sim_list[0],

@@ -29,6 +29,10 @@ def simdata_mech_2d() -> mh.SimData:
                                       disp_comps=("disp_x","disp_y"))
     return sim_data
 
+def simdata_mesh_2d_nomesh() -> mh.SimData:
+    sim_data = simdata_mech_2d()
+    sim_data.connect = None
+    return sim_data
 
 def simdata_mech_3d() -> mh.SimData:
     data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
@@ -38,6 +42,12 @@ def simdata_mech_3d() -> mh.SimData:
                                         sim_data=sim_data,
                                         disp_comps=field_comps)
     return sim_data
+
+def simdata_mech_3d_nomesh() -> mh.SimData:
+    sim_data = simdata_mech_3d()
+    sim_data.connect = None
+    return sim_data
+
 
 def sens_pos_2d() -> dict[str,np.ndarray]:
     sim_dims = sens.simtools.get_sim_dims(simdata_mech_2d())

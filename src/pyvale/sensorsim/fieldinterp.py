@@ -32,6 +32,6 @@ def interp_to_sample_time(sample_at_sim_time: np.ndarray,
 
     for ii in range(n_comps):
         sample_at_spec_time[:,ii,:] = np.apply_along_axis(sample_time_interp,-1,
-                                                    sample_at_sim_time[:,ii,:])
+                                            sample_at_sim_time[:,ii,:])
 
     return sample_at_spec_time
