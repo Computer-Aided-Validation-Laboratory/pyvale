@@ -119,10 +119,6 @@ def check_get_meas(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[str]:
         pointsensscalar.sens_arrays_2d_analytic_nomesh_dict,
         pointsensscalar.sens_arrays_3d_dict,
         pointsensscalar.sens_arrays_3d_nomesh_dict,
-        pointsensvector.sens_arrays_2d_dict,
-        pointsensvector.sens_arrays_3d_dict,
-        pointsenstensor.sens_arrays_2d_dict,
-        pointsenstensor.sens_arrays_3d_dict,
     ],
     ids=[
         "scalar_2d",
@@ -130,20 +126,87 @@ def check_get_meas(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[str]:
         "scalar_2d_analytic_nomesh",
         "scalar_3d",
         "scalar_3d_nomesh",
-        "vector_2d",
-        "vector_3d",
-        "tensor_2d",
-        "tensor_3d",
     ],
 )
-def test_get_meas_combined(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+def test_get_meas_scalar(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+    sensors = get_sensors()
+    fails = check_get_meas(sensors)
+    assert not fails, "\n".join(fails)
+
+@pytest.mark.parametrize(
+    "get_sensors",
+    [
+        pointsensvector.sens_arrays_2d_dict,
+        pointsensvector.sens_arrays_2d_analytic_dict,
+        pointsensvector.sens_arrays_2d_analytic_nomesh_dict,
+        pointsensvector.sens_arrays_3d_dict,
+        pointsensvector.sens_arrays_3d_nomesh_dict,
+    ],
+    ids=[
+        "vector_2d",
+        "vector_2d_analytic",
+        "vector_2d_analytic_nomesh",
+        "vector_3d",
+        "vector_3d_nomesh",
+    ],
+)
+def test_get_meas_vector(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+    sensors = get_sensors()
+    fails = check_get_meas(sensors)
+    assert not fails, "\n".join(fails)
+
+@pytest.mark.parametrize(
+    "get_sensors",
+    [
+        pointsenstensor.sens_arrays_2d_dict,
+        pointsenstensor.sens_arrays_2d_analytic_dict,
+        pointsenstensor.sens_arrays_2d_analytic_nomesh_dict,
+        pointsenstensor.sens_arrays_3d_dict,
+        pointsenstensor.sens_arrays_3d_nomesh_dict,
+    ],
+    ids=[
+        "tensor_2d",
+        "tensor_2d_analytic",
+        "tensor_2d_analytic_nomesh",
+        "tensor_3d",
+        "tensor_3d_nomesh",
+    ],
+)
+def test_get_meas_tensor(get_sensors: Callable[[], Dict[str, Any]]) -> None:
     sensors = get_sensors()
     fails = check_get_meas(sensors)
     assert not fails, "\n".join(fails)
 
 #-------------------------------------------------------------------------------
+# Analytic field comparison tests
 
 
+@pytest.mark.parametrize(
+    "get_sensors",
+    [
+        pointsensscalar.sens_arrays_2d_dict,
+        pointsensscalar.sens_arrays_2d_analytic_dict,
+        pointsensscalar.sens_arrays_2d_analytic_nomesh_dict,
+        pointsensscalar.sens_arrays_3d_dict,
+        pointsensscalar.sens_arrays_3d_nomesh_dict,
+    ],
+    ids=[
+        "scalar_2d",
+        "scalar_2d_analytic",
+        "scalar_2d_analytic_nomesh",
+        "scalar_3d",
+        "scalar_3d_nomesh",
+    ],
+)
+def test_analytic_interp_scalar(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+    sensors = get_sensors()
+
+    fails = []
+
+    for ss in sensors:
+        meas = sensors[ss].calc_measurements()
+
+    assert not fails, "\n".join(fails)
 
 
 

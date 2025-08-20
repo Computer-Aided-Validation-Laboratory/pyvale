@@ -290,7 +290,6 @@ def gen_sens_array_dict_2d(sim_data: mh.SimData,
                 pos_lock_key = kk
                 break
 
-        check_lock = pos_lock[pos_lock_key]
         err_chain_dict = err_chain_2d_dict(sens_array.get_field(),
                                            sens_data_dict[ss].positions,
                                            sens_data_dict[ss].sample_times,
