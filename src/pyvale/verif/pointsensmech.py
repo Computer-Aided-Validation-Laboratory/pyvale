@@ -147,12 +147,12 @@ def err_chain_field(field: sens.IField,
     if samp_times is None:
         samp_times = field.get_time_steps()
 
-    pos_offset_xyz = np.array((1.0,1.0,-1.0),dtype=np.float64)
+    pos_offset_xyz = np.array((0.5,0.5,-0.5),dtype=np.float64)
     pos_offset_xyz = np.tile(pos_offset_xyz,(sens_pos.shape[0],1))
 
     time_offset = np.full((samp_times.shape[0],),0.1)
 
-    pos_rand = sens.GenNormal(std=1.0,
+    pos_rand = sens.GenNormal(std=0.1,
                              mean=0.0,
                              seed=pointsensconst.GOLD_SEED) # units = mm
     time_rand = sens.GenNormal(std=0.1,
@@ -186,10 +186,10 @@ def err_chain_field_dep(field: sens.IField,
     if samp_times is None:
         samp_times = field.get_time_steps()
 
-    time_offset = 2.0*np.ones_like(samp_times)
+    time_offset = 0.1*np.ones_like(samp_times)
     time_error_data = sens.ErrFieldData(time_offset=time_offset)
 
-    pos_offset = -1.0*np.ones_like(sens_pos)
+    pos_offset = -0.2*np.ones_like(sens_pos)
     pos_error_data = sens.ErrFieldData(pos_offset_xyz=pos_offset,
                                       pos_lock_xyz=pos_lock)
 

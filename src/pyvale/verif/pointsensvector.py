@@ -157,5 +157,5 @@ def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
 def sens_arrays_3d_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
     sim_data = pointsensmech.simdata_mech_3d_nomesh()
     sens_data_dict = pointsensmech.sens_data_3d_dict(sim_data)
-    tag = "vec3d"
+    tag = "vec3d_nomesh"
     return gen_sens_arrays_3d_dict(sim_data,sens_data_dict,tag)
