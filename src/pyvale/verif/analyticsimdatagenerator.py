@@ -141,8 +141,6 @@ class AnalyticData2D:
                 self.offset_time[kk] = 0.0
 
 
-
-
 class AnalyticSimDataGen:
     """Class for generating analytic field data as a `SimData` object to test
     the sensor simulation functionality of pyvale. Provides tools to evaluate
