@@ -25,7 +25,7 @@ def main() -> None:
 
     descriptor = sens.SensorDescriptorFactory.temperature_descriptor()
 
-    field_key = 'scalar'
+    field_key = 'temperature'
     scal_field = sens.FieldScalar(sim_data,
                                   field_key=field_key,
                                   elem_dims=2)
