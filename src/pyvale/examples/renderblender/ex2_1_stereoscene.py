@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Blender example: Creating a scene with stereo DIC
+Creating a scene with stereo DIC
 -------------------------------------------------
 
 This example takes you through creating a scene and adding all the necessary
@@ -18,15 +18,19 @@ Test case: mechanical analysis of a plate with a hole loaded in tension.
 import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
-import pyvale
-import mooseherder as mh
+
+# Pyvale imports
+import pyvale.sensorsim as sens
+import pyvale.dataset as dataset
+import pyvale.blender as blender
+import pyvale.mooseherder as mh
 
 # %%
 # The simulation results are loaded in here in the same way as the previous
 # example. As mentioned this `data_path` can be replaced with your own MOOSE
 # simulation output in exodus format (*.e).
 
-data_path = pyvale.DataSet.render_mechanical_3d_path()
+data_path = dataset.render_mechanical_3d_path()
 sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 
 # %%
@@ -37,11 +41,11 @@ sim_data = mh.ExodusReader(data_path).read_all_sim_data()
 # 3D deformation test case, displacement is expected in the x, y and z directions.
 
 disp_comps = ("disp_x","disp_y", "disp_z")
-sim_data = pyvale.scale_length_units(scale=1000.0,
-                                        sim_data=sim_data,
-                                        disp_comps=disp_comps)
+sim_data = sens.scale_length_units(scale=1000.0,
+                                  sim_data=sim_data,
+                                  disp_comps=disp_comps)
 
-render_mesh = pyvale.create_render_mesh(sim_data,
+render_mesh = sens.create_render_mesh(sim_data,
                                     ("disp_y","disp_x"),
                                     sim_spat_dim=3,
                                     field_disp_keys=disp_comps)
@@ -59,9 +63,9 @@ base_dir = Path.cwd()
 # Creating the scene
 # ^^^^^^^^^^^^^^^^^^
 # In order to create a DIC setup in Blender, first a scene must be created.
-# A scene is initialised using the `BlenderScene` class. All the subsequent
+# A scene is initialised using the `blender.Scene` class. All the subsequent
 # objects and actions necessary are then methods of this class.
-scene = pyvale.BlenderScene()
+scene = blender.Scene()
 
 # %%
 # The next thing that can be added to the scene is a sample.
@@ -73,10 +77,10 @@ scene = pyvale.BlenderScene()
 part = scene.add_part(render_mesh, sim_spat_dim=3)
 # Set the part location
 part_location = np.array([0, 0, 0])
-pyvale.BlenderTools.move_blender_obj(part=part, pos_world=part_location)
+blender.Tools.move_blender_obj(part=part, pos_world=part_location)
 # Set part rotation
 part_rotation = Rotation.from_euler("xyz", [0, 0, 0], degrees=True)
-pyvale.BlenderTools.rotate_blender_obj(part=part, rot_world=part_rotation)
+blender.Tools.rotate_blender_obj(part=part, rot_world=part_rotation)
 
 # %%
 # The cameras can then be initialised. A stereo camera system is defined by a
@@ -95,23 +99,26 @@ pyvale.BlenderTools.rotate_blender_obj(part=part, rot_world=part_rotation)
 # between the two. The cameras can then be added to the Blender scene using the
 # `add_stereo_system` method.
 
-cam_data_0 = pyvale.CameraData(pixels_num=np.array([1540, 1040]),
-                                pixels_size=np.array([0.00345, 0.00345]),
-                                pos_world=np.array([0, 0, 400]),
-                                rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
-                                roi_cent_world=(0, 0, 0),
-                                focal_length=15.0)
+cam_data_0 = sens.CameraData(pixels_num=np.array([1540, 1040]),
+                            pixels_size=np.array([0.00345, 0.00345]),
+                            pos_world=np.array([0, 0, 400]),
+                            rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
+                            roi_cent_world=(0, 0, 0),
+                            focal_length=15.0)
 # Set this to "symmetric" to get a symmetric stereo system or set this to
 # "faceon" to get a face-on stereo system
 stereo_setup = "faceon"
 if stereo_setup == "symmetric":
-    stereo_system = pyvale.CameraTools.symmetric_stereo_cameras(
+    stereo_system = sens.CameraTools.symmetric_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
-if stereo_setup == "faceon":
-    stereo_system = pyvale.CameraTools.faceon_stereo_cameras(
+elif stereo_setup == "faceon":
+    stereo_system = sens.CameraTools.faceon_stereo_cameras(
         cam_data_0=cam_data_0,
         stereo_angle=15.0)
+else:
+    raise ValueError(f"Unknown stereo_setup: {stereo_setup}")
+
 cam0, cam1 = scene.add_stereo_system(stereo_system)
 
 # %%
@@ -130,7 +137,7 @@ stereo_system.save_calibration(base_dir)
 # Blender offers different light types: Point, Sun, Spot and Area.
 # The light can also be moved and rotated like the camera.
 
-light_data = pyvale.BlenderLightData(type=pyvale.BlenderLightType.POINT,
+light_data = blender.LightData(type=blender.LightType.POINT,
                                      pos_world=(0, 0, 400),
                                      rot_world=Rotation.from_euler("xyz",
                                                                    [0, 0, 0]),
@@ -150,10 +157,10 @@ light.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
 # It should be noted that for a bigger camera or sample you may need to generate
 # a larger speckle pattern.
 
-material_data = pyvale.BlenderMaterialData()
-speckle_path = pyvale.DataSet.dic_pattern_5mpx_path()
+material_data = blender.MaterialData()
+speckle_path = dataset.dic_pattern_5mpx_path()
 
-mm_px_resolution = pyvale.CameraTools.calculate_mm_px_resolution(cam_data_0)
+mm_px_resolution = sens.CameraTools.calculate_mm_px_resolution(cam_data_0)
 scene.add_speckle(part=part,
                   speckle_path=speckle_path,
                   mat_data=material_data,
@@ -168,10 +175,10 @@ scene.add_speckle(part=part,
 # Differently to a 2D DIC system, both cameras' parameters must be specified in
 # the `RenderData` object.
 
-render_data = pyvale.RenderData(cam_data=(stereo_system.cam_data_0,
+render_data = blender.RenderData(cam_data=(stereo_system.cam_data_0,
                                             stereo_system.cam_data_1),
-                                base_dir=base_dir,
-                                threads=8)
+                                 base_dir=base_dir,
+                                 threads=8)
 
 # %%
 # A single set of images of the scene can then be rendered.
@@ -192,4 +199,4 @@ print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
 # There is also the option to save the scene as a Blender project file.
 # This file can be opened with the Blender GUI to view the scene.
 
-pyvale.BlenderTools.save_blender_file(base_dir)
+blender.Tools.save_blender_file(base_dir)

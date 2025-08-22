@@ -14,7 +14,7 @@ Copyright (C) 2025 The Computer Aided Validation Team
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale
 
 data_path = Path('src/data/case13_out.e')

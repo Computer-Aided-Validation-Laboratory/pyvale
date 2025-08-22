@@ -7,16 +7,19 @@
 
 from pathlib import Path
 import numpy as np
-import mooseherder as mh
-import pyvale as pyv
+
+# Pyvale Imports
+import pyvale.sensorsim as sens
+import pyvale.mooseherder as mh
+import pyvale.dataset as dataset
 
 
 def main() -> None:
-    sim_path = pyv.DataSet.mechanical_2d_path()
+    sim_path = dataset.mechanical_2d_path()
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 
-    image_path = pyv.DataSet.dic_pattern_5mpx_path()
-    image_speckle = pyv.ImageTools.load_image_greyscale(image_path)
+    image_path = dataset.dic_pattern_5mpx_path()
+    image_speckle = sens.ImageTools.load_image_greyscale(image_path)
 
     save_path = Path.cwd()/"pyvale-output"
     if not save_path.is_dir():
@@ -36,12 +39,12 @@ def main() -> None:
     print(80*"-")
 
 
-    cam_data = pyv.CameraData2D(pixels_count=np.array((1040,1540)),
+    cam_data = sens.CameraData2D(pixels_count=np.array((1040,1540)),
                                    leng_per_px=0.1e-3,
                                    bits=8,
                                    roi_cent_world=np.mean(coords,axis=0),
                                    subsample=3)
-    id_opts = pyv.ImageDefOpts(save_path=save_path,
+    id_opts = sens.ImageDefOpts(save_path=save_path,
                                   crop_on=True,
                                   add_static_ref=True)
 
@@ -51,7 +54,7 @@ def main() -> None:
      image_mask,
      image_input,
      disp_x,
-     disp_y) = pyv.ImageDef2D.preprocess(cam_data,
+     disp_y) = sens.ImageDef2D.preprocess(cam_data,
                                             image_speckle,
                                             coords,
                                             connectivity,
@@ -65,7 +68,7 @@ def main() -> None:
     print(f"{disp.shape=}")
 
 
-    pyv.ImageDef2D.deform_images_to_disk(cam_data,
+    sens.ImageDef2D.deform_images_to_disk(cam_data,
                                             upsampled_image,
                                             coords,
                                             connectivity,

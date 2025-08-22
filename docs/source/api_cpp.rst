@@ -1,6 +1,11 @@
 Detailed C++ API
 =================
 
+
+Digital Image Correlation
+-------------------------
+
+
 .. toctree::
    :maxdepth: 1
    :caption: C++ Header Files

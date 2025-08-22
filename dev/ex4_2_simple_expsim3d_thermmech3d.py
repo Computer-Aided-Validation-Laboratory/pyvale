@@ -6,7 +6,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale as pyv
 
 

@@ -25,13 +25,18 @@ As always, we'll start with importing the required libraries:
 
 import matplotlib.pyplot as plt
 from pathlib import Path
-import pyvale
+
+# Pyvale imports
+import pyvale.dataset as dataset
+import pyvale.dic as dic
+
 
 
 # %%
-# There's a pair of DIC challenge images that come as part of the Pyvale install. We can preload them with:
-ref_pattern = pyvale.DataSet.dic_challenge_ref()
-def_pattern = pyvale.DataSet.dic_challenge_def()
+# There's a pair of DIC challenge images that come as part of the Pyvale install. 
+# We can preload them with:
+ref_pattern = dataset.dic_challenge_ref()
+def_pattern = dataset.dic_challenge_def()
 subset_size = 17
 
 
@@ -41,7 +46,7 @@ subset_size = 17
 # We can use :func:`roi.rect_boundary` to exclude a large border region so we
 # only correlate along the horizontal at the midpoint for our selected subset
 # size
-roi = pyvale.DICRegionOfInterest(ref_image=ref_pattern)
+roi = dic.RegionOfInterest(ref_image=ref_pattern)
 subset_radius = subset_size // 2
 roi.rect_boundary(left=50,right=50,top=250-subset_radius,bottom=250-subset_radius)
 roi.show_image()
@@ -66,19 +71,19 @@ if not output_path.is_dir():
 # the current working directory with a filename prefix of subset_size_19_*.txt
 # If you are feeling adventorous you could investigate the effect of varying the
 # subset size by placing the above and below sections in a loop.
-pyvale.dic_2d(reference=ref_pattern,
-              deformed=def_pattern,
-              roi_mask=roi.mask,
-              subset_size=subset_size,
-              subset_step=1,
-              seed=[3500,250],
-              max_displacement=10,
-              output_basepath=output_path)
+dic.two_dimensional(reference=ref_pattern,
+                    deformed=def_pattern,
+                    roi_mask=roi.mask,
+                    subset_size=subset_size,
+                    subset_step=1,
+                    seed=[3500,250],
+                    max_displacement=10,
+                    output_basepath=output_path)
 
 # %% 
 # We can import the results in the standard way
 data_path = output_path / "dic_results_DIC_Challenge*.csv"
-dicdata = pyvale.dic_data_import(data=data_path, layout='column', 
+dicdata = dic.data_import(data=data_path, layout='column', 
                                  binary=False, delimiter=",")
 
 # &&

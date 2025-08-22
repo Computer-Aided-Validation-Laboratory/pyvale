@@ -50,5 +50,12 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
 void build_info();
 
+/**
+ * @brief Sets the number of threads to be used by the DIC engine.
+ *
+ * @param n The number of threads to set for the DIC engine.
+ */
+void set_num_threads(int n);
+
 #endif // DICMAIN_H
 

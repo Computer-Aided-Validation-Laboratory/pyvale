@@ -23,18 +23,10 @@
 #include "./indicators.hpp"
 #include "./cursor_control.hpp"
 #include "./dicfourier.hpp"
+#include "./dicsignalhandler.hpp"
 
 namespace scanmethod {
 
-
-    // for graceful exit
-    std::atomic<bool> stop_request(false);
-
-    void signalHandler(int signal) {
-        if (signal == SIGINT) {
-            stop_request = true;
-        }
-    }
 
     void image(const double *img_ref,
                const Interpolator &interp_def,
@@ -47,11 +39,11 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, 100);
+        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
-        std::atomic<int> prev_pct = 0;
+        int prev_pct = 0;
 
-               // loop over subsets within the ROI
+        // loop over subsets within the ROI
         #pragma omp parallel shared(stop_request)
         {
 
@@ -103,10 +95,13 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }
+
+        int progress = current_progress;
+        util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
         bar.mark_as_completed();
         indicators::show_console_cursor(true);
 
@@ -126,9 +121,9 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
-        std::atomic<int> prev_pct = 0;
+        int prev_pct = 0;
 
         // initialise subsets
         util::Subset ss_def(ss_size);
@@ -211,9 +206,11 @@ namespace scanmethod {
 
             // update progress bar
             int progress = current_progress.fetch_add(1);
-            util::update_progress_bar(bar, progress, num_ss, prev_pct);
+            if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
         }
+        int progress = current_progress;
+        util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
         bar.mark_as_completed();
         indicators::show_console_cursor(true);
     }
@@ -242,15 +239,16 @@ namespace scanmethod {
         const int ss_size = ssdata[last_size].size;
         const int ss_step = ssdata[last_size].step;
 
-
+        //TODO: sort this function name out
         fourier::mgwd(ssdata, img_ref, img_def, interp_def, 
                       conf.fft_mad, conf.fft_mad_scale);
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress(0);
-        std::atomic<int> prev_pct(0);
+        //int prev_pct(0);
+        int prev_pct = 0;
 
         // quick check for the initial seed point
         if (!rg::is_valid_point(seed_x, seed_y, ssdata[last_size])) {
@@ -259,7 +257,7 @@ namespace scanmethod {
 
         // Initialize binary mask for computed points (initialized to 0)
         std::vector<std::atomic<int>> computed_mask(ssdata[last_size].mask.size());
-        for (auto& val : computed_mask) val.store(0);
+        for (auto& val : computed_mask) val.store(0); 
 
         // queue for each thread
         std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
@@ -287,7 +285,7 @@ namespace scanmethod {
             if (conf.corr_crit=="SSD")
                 opt.opt_threshold = std::numeric_limits<double>::max();
 
-            brute::Parameters brute(conf.bf_threshold, conf.max_disp);
+            // brute::Parameters brute(conf.bf_threshold, conf.max_disp);
 
             std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
@@ -299,6 +297,8 @@ namespace scanmethod {
             // number of iterations to make sure we get a good convergence.
             // this is hardcoded for now. Could do with updating so that 
             // the seed location is checked ahead of the main correlation run.
+
+            // TODO: opt.seed_iter exposed to user.
             opt.max_iter = 200;
 
             // ---------------------------------------------------------------------------------------------------------------------------
@@ -336,9 +336,6 @@ namespace scanmethod {
 
                 computed_mask[idx].store(1);
 
-                // int progress = current_progress.fetch_add(1);
-                // util::update_progress_bar(bar, progress, num_ss, prev_pct);
-
                 // loop over the neighbours for the initial seed point
                 for (size_t n = 0; n < ssdata[last_size].neigh[idx].size(); n++) {
 
@@ -369,7 +366,7 @@ namespace scanmethod {
                     util::append_results(img_num, nidx, nres, num_ss);
 
                     // update mask
-                    computed_mask[idx].store(1);
+                    computed_mask[nidx].store(1);
 
                     // add this point to queue
                     // Protect push with mutex
@@ -390,6 +387,7 @@ namespace scanmethod {
             // ---------------------------------------------------------------------------------------------------------------------------
             #pragma omp barrier
 
+            // TODO: reset seed location using the last computed point
             opt.max_iter = conf.max_iter;
 
             std::vector<rg::Point> temp_neigh;
@@ -494,7 +492,7 @@ namespace scanmethod {
 
                         // update progress bar
                         int progress = current_progress.fetch_add(1);
-                        util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                        if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
                     }
                 }
@@ -505,6 +503,8 @@ namespace scanmethod {
                 }
             }
         }
+        int progress = current_progress;
+        util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
         bar.mark_as_completed();
         indicators::show_console_cursor(true);
 
@@ -532,9 +532,9 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
-        std::atomic<int> prev_pct = 0;
+        int prev_pct = 0;
 
         // loop over subsets within the ROI
         #pragma omp parallel shared(stop_request)
@@ -587,7 +587,7 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }
@@ -613,9 +613,9 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames, img_num, num_ss);
+        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
-        std::atomic<int> prev_pct = 0;
+        int prev_pct = 0;
 
         // loop over subsets within the ROI
         #pragma omp parallel shared(stop_request)
@@ -666,7 +666,7 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }

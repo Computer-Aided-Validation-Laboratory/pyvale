@@ -1,0 +1,58 @@
+[
+    [
+        {
+            "n_elem_y": 10,
+            "e_modulus": 1000000000.0,
+            "p_ratio": 0.3
+        }
+    ],
+    [
+        {
+            "n_elem_y": 10,
+            "e_modulus": 1000000000.0,
+            "p_ratio": 0.35
+        }
+    ],
+    [
+        {
+            "n_elem_y": 10,
+            "e_modulus": 2000000000.0,
+            "p_ratio": 0.3
+        }
+    ],
+    [
+        {
+            "n_elem_y": 10,
+            "e_modulus": 2000000000.0,
+            "p_ratio": 0.35
+        }
+    ],
+    [
+        {
+            "n_elem_y": 20,
+            "e_modulus": 1000000000.0,
+            "p_ratio": 0.3
+        }
+    ],
+    [
+        {
+            "n_elem_y": 20,
+            "e_modulus": 1000000000.0,
+            "p_ratio": 0.35
+        }
+    ],
+    [
+        {
+            "n_elem_y": 20,
+            "e_modulus": 2000000000.0,
+            "p_ratio": 0.3
+        }
+    ],
+    [
+        {
+            "n_elem_y": 20,
+            "e_modulus": 2000000000.0,
+            "p_ratio": 0.35
+        }
+    ]
+]

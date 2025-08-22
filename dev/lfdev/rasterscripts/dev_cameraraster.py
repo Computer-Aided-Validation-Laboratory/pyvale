@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale
 
 

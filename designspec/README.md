@@ -11,10 +11,13 @@ The following can be used for linking compiled code to a python interface:
 - Cython
 - Pybind
 
+For Zig we support a custom build process through our `setup.py` that pulls in the Zig compiler on pypi to build and dynamically link Zig libraries through C and Cython.
+
 GPU programming must be vendor agnostic. The following can be used for GPU programming:
 - [HIP](https://github.com/ROCm/hip)
 
-##  Python coding guide
+
+## Python coding guide
 We have non-software engineers and scientists working on the project so these guidelines are based on non-specialist python knowledge:
 
 - Work in your own 'feature' branch, merge into 'dev' - don't push to main (it should be protected and yell at you)!

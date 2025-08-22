@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from setuptools import  setup, Extension
 from Cython.Build import cythonize
 import numpy
@@ -34,17 +40,15 @@ else:
 
 
 ext_cython = Extension(
-    "pyvale.cython.rastercyth",
-    ["src/pyvale/cython/rastercyth.py"],
+    "pyvale.sensorsim.cython.rastercyth",
+    ["src/pyvale/sensorsim/cython/rastercyth.py"],
     include_dirs=[numpy.get_include()],
     extra_compile_args=[openmp_flag],
     extra_link_args=[openmp_flag],
 )
 
-
-
 ext_dic = Extension(
-    'pyvale.dic2dcpp',
+    'pyvale.dic.dic2dcpp',
     sorted(glob("src/pyvale/dic/cpp/dic*.cpp")),
     language="c++",
     include_dirs=[pybind11.get_include()],

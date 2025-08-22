@@ -5,7 +5,7 @@
 #===============================================================================
 
 import numpy as np
-import mooseherder as mh
+import pyvale.mooseherder as mh
 import pyvale as pyv
 
 # # TODO: make this work for sim_data with multiple connectivity
@@ -132,7 +132,7 @@ import pyvale as pyv
 
 
 def main() -> None:
-    sim_path = pyv.DataSet.element_case_path(pyv.EElemTest.HEX27)
+    sim_path = pyv.DataSet.element_case_output_path(pyv.EElemTest.HEX27)
     #sim_path = pyv.DataSet.thermomechanical_3d_path()
     sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
 

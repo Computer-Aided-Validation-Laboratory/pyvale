@@ -8,7 +8,7 @@
 
 """
 DIC with images generated from a virtual blender experiment 
----------------------------------------------
+------------------------------------------------------------
 
 This example looks at taking the virtual experiments conducted using the blender
 module and taking it one step further and performing a DIC calculation on the
@@ -24,8 +24,10 @@ changed.**
 import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
-import pyvale
 import os
+
+# Pyvale imports
+import pyvale.dic as dic
 
 #subset size
 subset_size = 21
@@ -40,7 +42,7 @@ ref_img = "./blenderimages/reference.tiff"
 def_img = "./blenderimages/blenderimage_*.tiff"
 
 # Interactive ROI selection
-roi = pyvale.DICRegionOfInterest(ref_img)
+roi = dic.RegionOfInterest(ref_img)
 roi.interactive_selection(subset_size)
 
 #output_path
@@ -49,21 +51,21 @@ if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
 # DIC Calculation
-pyvale.dic_2d(reference=ref_img,
-              deformed=def_img,
-              roi_mask=roi.mask,
-              seed=roi.seed,
-              subset_size=subset_size,
-              subset_step=10,
-              shape_function="AFFINE",
-              max_displacement=20,
-              correlation_criteria="ZNSSD",
-              output_basepath=output_path,
-              output_prefix="blender_dic_")
+dic.two_dimensional(reference=ref_img,
+                           deformed=def_img,
+                           roi_mask=roi.mask,
+                           seed=roi.seed,
+                           subset_size=subset_size,
+                           subset_step=10,
+                           shape_function="AFFINE",
+                           max_displacement=20,
+                           correlation_criteria="ZNSSD",
+                           output_basepath=output_path,
+                           output_prefix="blender_dic_")
 
 # Import the Results
 data_path = output_path / "blender_dic_*.csv"
-dicdata = pyvale.dic_data_import(data=data_path, delimiter=",",
+dicdata = dic.data_import(data=data_path, delimiter=",",
                                  layout='matrix', binary=False)
 
 # %%

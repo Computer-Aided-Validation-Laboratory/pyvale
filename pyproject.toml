@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvale"
-version = "2025.7.1"
+version = "2025.8.1"
 description = "An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
@@ -14,7 +14,6 @@ license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = "==3.11.*"
 dependencies = [
-  "mooseherder>=0.1.0",
   "numpy<2.0.0",
   "scipy>=1.14.0",
   "netCDF4>=1.6.5",
@@ -34,6 +33,12 @@ dependencies = [
   "pybind11>=2.13.6",
   "pyqtgraph>=0.13.7",
   "opencv-python<=4.9.0.80"
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src",
+    "tests"
 ]
 
 [project.urls]

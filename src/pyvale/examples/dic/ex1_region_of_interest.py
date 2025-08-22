@@ -15,14 +15,17 @@ This example looks at the current core functionality of the Region of Interest
 """
 
 from pathlib import Path
-import pyvale
+
+# pyvale modules
+import pyvale.dataset as dataset
+import pyvale.dic as dic
 
 # %% 
 # We'll begin by selecting our Region of Interest (ROI) using the interactive selection tool.
 # First, we create an instance of the ROI class. We pass a reference image to it, which is
 # displayed as the underlay during ROI selection.
-ref_img = pyvale.DataSet.dic_plate_with_hole_ref()
-roi = pyvale.DICRegionOfInterest(ref_image=ref_img)
+ref_img = dataset.dic_plate_with_hole_ref()
+roi = dic.RegionOfInterest(ref_image=ref_img)
 roi.interactive_selection(subset_size=31)
 
 # create a directory for the the different outputs

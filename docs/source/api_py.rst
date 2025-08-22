@@ -1,7 +1,16 @@
-Detailed Python API
-========================
+
+Detailed Python API 
+--------------------
+
 
 .. toctree::
-   :maxdepth: 4
+   :caption: Modules
+   :maxdepth: 1
 
-   pyvale
+   pyvale.sensorsim
+   pyvale.blender
+   pyvale.dic
+   pyvale.mooseherder
+   pyvale.verif
+   pyvale.dataset
+

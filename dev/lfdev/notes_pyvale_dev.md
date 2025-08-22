@@ -1,20 +1,15 @@
 # Notes: `pyvale` developement
 
-## pyvale hackathon
-- Conversation about docs
-- Get docs deployed so people can test point sensors with the docs
 
-- LF TODO agenda for hackathon
-- Dogbone tensile test - load cell?
-- STC multi-physics with thermcouples and DIC
 
 
 ## TODO: `pyvale` point sensors
 --------------------------------------------------------------------------------
-- EXAMPLES:
-    - Finish basics examples update
-    - Show how all errors can be extracted from the error integrator
-    - Example showing how surface meshes can be generated for speeding up computation
+- **TESTS**
+    - Tests for vector and tensor rotations
+    - Tests for analytic fields and field integration
+    - End-end tests based on examples
+
 
 - EXPERIMENT ERROR ANALYSIS MODULE / UQ MODULE
     - Extracts which errors in the chain are contributing the most for each sensor
@@ -26,7 +21,6 @@
     - Should be able to fix this with a good old 4x4 sensor_to_world matrix.
 
 - TODO PRIORITY:
-    - Docstrings
     - Tests
     - Field errors assume all sensors sample at the same time but it should be possible to have all sensors sampling at different times.
 - Area/volume/line averaging:

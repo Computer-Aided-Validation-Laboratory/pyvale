@@ -14,3 +14,5 @@ file(GLOB DIC_SRC_FILES dic*.cpp)
 pybind11_add_module(dic2dcpp MODULE ${DIC_SRC_FILES})
 target_link_libraries(dic2dcpp PRIVATE ${FFTW_LIBRARIES} OpenMP::OpenMP_CXX)
 
+# Add -O3 optimization
+target_compile_options(dic2dcpp PRIVATE -O3)
