@@ -7,14 +7,8 @@
 from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
-<<<<<<< HEAD:src/pyvale/visualtraceplotter.py
-import math
-from pyvale.sensorarraypoint import SensorArrayPoint
-from pyvale.visualopts import (PlotOptsGeneral,
-=======
 from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
->>>>>>> dev:src/pyvale/sensorsim/visualtraceplotter.py
                                TraceOptsSensor)
 
 def subplot_calc(sensors):
