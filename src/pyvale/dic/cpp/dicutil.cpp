@@ -192,12 +192,12 @@ namespace util {
                         // When partial count num of px in roi. if its outside
                         // the image its still not valid
                         else {
-                            if (is_valid_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
-                                valid_count++;
-                            }
                             if (!is_valid_in_dims(px_x, px_y, px_hori, px_vert)) {
                                 valid = false;
                                 break;
+                            }
+                            if (is_valid_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
+                                valid_count++;
                             }
                         }
                     }
