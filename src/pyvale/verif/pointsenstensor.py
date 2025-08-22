@@ -32,7 +32,9 @@ def simdata_tens_2d_analytic_nomesh() -> mh.SimData:
     return sim_data
 
 def sens_array_2d_noerrs(sim_data: mh.SimData,
-                   sens_data: sens.SensorData) -> sens.SensorArrayPoint:
+                         sens_data: sens.SensorData,
+                         elem_dims: int = 2,
+                         ) -> sens.SensorArrayPoint:
     descriptor = sens.SensorDescriptorFactory.strain_descriptor()
     field_name = "strain"
     norm_comps = ("strain_xx","strain_yy")
@@ -41,7 +43,7 @@ def sens_array_2d_noerrs(sim_data: mh.SimData,
                             field_name=field_name,
                             norm_comps=norm_comps,
                             dev_comps=dev_comps,
-                            elem_dims=2)
+                            elem_dims=elem_dims)
     sens_array = sens.SensorArrayPoint(sens_data,
                                       field,
                                       descriptor)
@@ -49,7 +51,9 @@ def sens_array_2d_noerrs(sim_data: mh.SimData,
 
 
 def sens_array_3d_noerrs(sim_data: mh.SimData,
-                   sens_data: sens.SensorData) -> sens.SensorArrayPoint:
+                         sens_data: sens.SensorData,
+                         elem_dims: int = 3,
+                         ) -> sens.SensorArrayPoint:
     descriptor = sens.SensorDescriptorFactory.strain_descriptor()
     field_name = "strain"
     norm_comps = ("strain_xx","strain_yy","strain_zz")
@@ -58,7 +62,7 @@ def sens_array_3d_noerrs(sim_data: mh.SimData,
                             field_name=field_name,
                             norm_comps=norm_comps,
                             dev_comps=dev_comps,
-                            elem_dims=3)
+                            elem_dims=elem_dims)
     sens_array =  sens.SensorArrayPoint(sens_data,
                                        field,
                                        descriptor)

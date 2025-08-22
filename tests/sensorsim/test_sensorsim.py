@@ -183,17 +183,18 @@ def test_get_meas_tensor(get_sensors: Callable[[], Dict[str, Any]]) -> None:
 
 #-------------------------------------------------------------------------------
 # Analytic field comparison tests
-
-def analytic_interp_scalar(sim_data: mh.SimData,
-                           analytic_gen: asg.AnalyticSimDataGen) -> list[str]:
-
-    sens_data_dict = pointsensscalar.sens_data_2d_dict(sim_data)
+def analytic_interp_2d(sim_data: mh.SimData,
+                        analytic_gen: asg.AnalyticSimDataGen,
+                        sens_data_2d_dict: Callable,
+                        sens_array_noerrs: Callable,
+                        rtol: float = 1e-5) -> list[str]:
+    sens_data_dict = sens_data_2d_dict(sim_data)
 
     fails = []
     for ss in sens_data_dict:
-        sens_array = pointsensscalar.sens_array_noerrs(sim_data,
-                                                       sens_data_dict[ss],
-                                                       elem_dims=2)
+        sens_array = sens_array_noerrs(sim_data,
+                                       sens_data_dict[ss],
+                                       elem_dims=2)
         meas_sens = sens_array.get_measurements()
 
         sens_pos = sens_data_dict[ss].positions
@@ -205,7 +206,7 @@ def analytic_interp_scalar(sim_data: mh.SimData,
 
         for mm in meas_analytic:
             comp_ind = sens_array.get_field().get_component_index(mm)
-            if not np.allclose(meas_analytic[mm],meas_sens[:,comp_ind,:]):
+            if not np.allclose(meas_analytic[mm],meas_sens[:,comp_ind,:],rtol):
                 fails.append(f"SENSOR DATA: {ss}, FIELD: {mm}")
 
     if fails:
@@ -216,94 +217,62 @@ def analytic_interp_scalar(sim_data: mh.SimData,
 
 def test_analytic_interp_scalar_2d() -> None:
     (sim_data,analytic_gen) = asd.scalar_linear_2d()
-    fails = analytic_interp_scalar(sim_data,analytic_gen)
+    fails = analytic_interp_2d(sim_data,
+                               analytic_gen,
+                               pointsensscalar.sens_data_2d_dict,
+                               pointsensscalar.sens_array_noerrs,
+                               rtol=1e-5)
     assert not fails, "\n".join(fails)
+
 
 def test_analytic_interp_scalar_nomesh_2d() -> None:
     (sim_data,analytic_gen) = asd.scalar_linear_2d()
     sim_data.connect = None
-    fails = analytic_interp_scalar(sim_data,analytic_gen)
+    fails = analytic_interp_2d(sim_data,
+                               analytic_gen,
+                               pointsensscalar.sens_data_2d_dict,
+                               pointsensscalar.sens_array_noerrs,
+                               rtol=1e-3)
     assert not fails, "\n".join(fails)
 
 
-def analytic_interp_vector(sim_data: mh.SimData,
-                           analytic_gen: asg.AnalyticSimDataGen) -> list[str]:
-
-    sens_data_dict = pointsensmech.sens_data_2d_dict(sim_data)
-
-    fails = []
-    for ss in sens_data_dict:
-        sens_array = pointsensvector.sens_array_2d_noerrs(sim_data,
-                                                          sens_data_dict[ss])
-        meas_sens = sens_array.get_measurements()
-
-        sens_pos = sens_data_dict[ss].positions
-        sens_times = sens_data_dict[ss].sample_times
-
-        # dict[str,np.ndarray]
-        meas_analytic = analytic_gen.evaluate_all_fields_truth(sens_pos,
-                                                              sens_times)
-
-        for mm in meas_analytic:
-            comp_ind = sens_array.get_field().get_component_index(mm)
-            if not np.allclose(meas_analytic[mm],meas_sens[:,comp_ind,:]):
-                fails.append(f"SENSOR DATA: {ss}, FIELD: {mm}")
-
-    if fails:
-        fails.insert(0,"Analytic interp does not match.")
-
-    return fails
-
 def test_analytic_interp_vector_2d() -> None:
     (sim_data,analytic_gen) = asd.vector_linear_2d()
-    fails = analytic_interp_vector(sim_data,analytic_gen)
+    fails = analytic_interp_2d(sim_data,
+                               analytic_gen,
+                               pointsensmech.sens_data_2d_dict,
+                               pointsensvector.sens_array_2d_noerrs,
+                               rtol=1e-5)
     assert not fails, "\n".join(fails)
 
 def test_analytic_interp_vector_nomesh_2d() -> None:
     (sim_data,analytic_gen) = asd.vector_linear_2d()
     sim_data.connect = None
-    fails = analytic_interp_vector(sim_data,analytic_gen)
+    fails = analytic_interp_2d(sim_data,
+                               analytic_gen,
+                               pointsensmech.sens_data_2d_dict,
+                               pointsensvector.sens_array_2d_noerrs,
+                               rtol=1e-3)
     assert not fails, "\n".join(fails)
 
-
-
-def analytic_interp_tensor(sim_data: mh.SimData,
-                           analytic_gen: asg.AnalyticSimDataGen) -> list[str]:
-
-    sens_data_dict = pointsensmech.sens_data_2d_dict(sim_data)
-
-    fails = []
-    for ss in sens_data_dict:
-        sens_array = pointsenstensor.sens_array_2d_noerrs(sim_data,
-                                                          sens_data_dict[ss])
-        meas_sens = sens_array.get_measurements()
-
-        sens_pos = sens_data_dict[ss].positions
-        sens_times = sens_data_dict[ss].sample_times
-
-        # dict[str,np.ndarray]
-        meas_analytic = analytic_gen.evaluate_all_fields_truth(sens_pos,
-                                                              sens_times)
-
-        for mm in meas_analytic:
-            comp_ind = sens_array.get_field().get_component_index(mm)
-            if not np.allclose(meas_analytic[mm],meas_sens[:,comp_ind,:]):
-                fails.append(f"SENSDAT:{ss},FIELD:{mm},{meas_analytic[mm].shape=},{meas_sens[:,comp_ind,:].shape=}")
-
-    if fails:
-        fails.insert(0,"Analytic interp does not match.")
-
-    return fails
 
 def test_analytic_interp_tensor_2d() -> None:
     (sim_data,analytic_gen) = asd.tensor_linear_2d()
-    fails = analytic_interp_tensor(sim_data,analytic_gen)
+    fails = analytic_interp_2d(sim_data,
+                               analytic_gen,
+                               pointsensmech.sens_data_2d_dict,
+                               pointsenstensor.sens_array_2d_noerrs,
+                               rtol=1e-5)
     assert not fails, "\n".join(fails)
+
 
 def test_analytic_interp_tensor_nomesh_2d() -> None:
     (sim_data,analytic_gen) = asd.tensor_linear_2d()
     sim_data.connect = None
-    fails = analytic_interp_tensor(sim_data,analytic_gen)
+    fails = analytic_interp_2d(sim_data,
+                               analytic_gen,
+                               pointsensmech.sens_data_2d_dict,
+                               pointsenstensor.sens_array_2d_noerrs,
+                               rtol=1e-3)
     assert not fails, "\n".join(fails)
-
 
