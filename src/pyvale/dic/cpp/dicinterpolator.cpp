@@ -8,6 +8,7 @@
 // STD library Header files
 #include <vector>
 #include <iostream>
+#include <omp.h>
 
 // Program Header files
 #include "./dicinterpolator.hpp"
@@ -50,7 +51,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
     }
 
     //interpolator data
-    std::vector<double> data(px_hori,0);
+    //std::vector<double> data(px_hori,0);
 
 
     indicators::ProgressBar bar;
@@ -64,7 +65,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
     }
 
     
-    //#pragma omp parallel for
+    #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request) 
     for (int j = 0; j < px_vert; j++){
 
         // exit if ctrl+C
@@ -72,26 +73,29 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
             continue;
         }
 
-        // get 1D data
+        // thread local data
+        std::vector<double> data(px_hori, 0.0);
+        std::vector<double> local_tridiag_sol(px_hori,0.0);
+
+        // populate thread local image data
         for (int i = 0; i < px_hori; i++) {
             data[i] = image[j*px_hori + i];
         }
 
-        cspline_init(px_x, data);
+        cspline_init(px_x, data, local_tridiag_sol);
         for (int i = 0; i < px_hori; i++){
-            dx[j*px_hori + i] = cspline_eval_deriv(px_x, data, px_x[i], px_hori);
+            dx[j*px_hori + i] = cspline_eval_deriv(px_x, data, local_tridiag_sol, px_x[i], px_hori);
         }
 
         // update progress bar if enabled
         if (g_debug_level == 1){
             int progress = current_progress.fetch_add(1);
-            util::update_progress_bar(bar, progress, niters, prev_pct);
+            if (omp_get_thread_num() == 0) util::update_progress_bar(bar, progress, niters, prev_pct);
         }
+
     }
 
-    data.resize(px_vert,0);
-    
-    //#pragma omp parallel for
+    #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request) 
     for (int i = 0; i < px_hori; ++i) {
 
         // exit if ctrl+C
@@ -99,48 +103,55 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
             continue;
         }
 
+        // thread local data
+        std::vector<double> data(px_vert, 0.0);
+        std::vector<double> local_tridiag_sol(px_vert,0.0);
+
         // get 1D data
         for (int j = 0; j < px_vert; j++){
             data[j] = image[j*px_hori + i];
         }
 
-        cspline_init(px_y, data);
+        cspline_init(px_y, data, local_tridiag_sol);
         for (int j = 0; j < px_vert; j++){
-            dy[j*px_hori + i] = cspline_eval_deriv(px_y, data, px_y[j], px_vert);
+            dy[j*px_hori + i] = cspline_eval_deriv(px_y, data, local_tridiag_sol, px_y[j], px_vert);
         }
 
         // update progress bar if enabled
         if (g_debug_level == 1){
             int progress = current_progress.fetch_add(1);
-            util::update_progress_bar(bar, progress, niters, prev_pct);
+            if (omp_get_thread_num() == 0) util::update_progress_bar(bar, progress, niters, prev_pct);
         }
     }
 
 
-    data.resize(px_hori,0);
+    //data.resize(px_hori,0);
 
-    //#pragma omp parallel for
+    #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request) 
     for (int j = 0; j < px_vert; j++){
 
         // exit if ctrl+C
         if (stop_request){
             continue;
         }
+        // thread local data
+        std::vector<double> data(px_hori, 0.0);
+        std::vector<double> local_tridiag_sol(px_hori,0.0);
 
         // get 1D data
         for (int i = 0; i < px_hori; i++) {
             data[i] = dy[j*px_hori + i];
         }
 
-        cspline_init(px_x, data);
+        cspline_init(px_x, data, local_tridiag_sol);
         for (int i = 0; i < px_hori; i++){
-            dxy[j*px_hori + i] = cspline_eval_deriv(px_x, data, px_x[i], px_hori);
+            dxy[j*px_hori + i] = cspline_eval_deriv(px_x, data, local_tridiag_sol, px_x[i], px_hori);
         }
 
         // update progress bar if enabled
         if (g_debug_level == 1){
             int progress = current_progress.fetch_add(1);
-            util::update_progress_bar(bar, progress, niters, prev_pct);
+            if (omp_get_thread_num() == 0) util::update_progress_bar(bar, progress, niters, prev_pct);
         }
     }
 
@@ -508,7 +519,8 @@ inline int Interpolator::index_lookup(const std::vector<double> &px, double x) c
 
 
 
-void Interpolator::cspline_init(std::vector<double> &px, std::vector<double> &data){
+void Interpolator::cspline_init(const std::vector<double> &px, const std::vector<double> &data, 
+                                std::vector<double> &tridiag_solution){
 
 
     int num_points = px.size();
@@ -518,7 +530,6 @@ void Interpolator::cspline_init(std::vector<double> &px, std::vector<double> &da
     std::vector<double> diagonal(num_points);
     std::vector<double> off_diagonal(num_points);
     std::vector<double> rhs(num_points);
-    tridiag_solution.resize(num_points,0.0);
 
     for (int i = 0; i < sys_size; i++)
     {
@@ -580,7 +591,8 @@ void Interpolator::cspline_init(std::vector<double> &px, std::vector<double> &da
     }  
 }
 
-double Interpolator::cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data, double value, int length) {
+double Interpolator::cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data,
+                                        std::vector<double> &local_tridiag_sol, double value, int length) {
 
     // Find the interval containing the evaluation point
     int index = index_lookup(px, value);
@@ -605,7 +617,7 @@ double Interpolator::cspline_eval_deriv(std::vector<double> &px, std::vector<dou
 
     // Calculate cubic spline coefficients for this interval
     double b_i, c_i, d_i;
-    coeff_calc(tridiag_solution, dy, dx, index, &b_i, &c_i, &d_i);
+    coeff_calc(local_tridiag_sol, dy, dx, index, &b_i, &c_i, &d_i);
 
     // Evaluate derivative: dy/dx = b + 2c*delx + 3d*delx^2
     double dydx = b_i + delx*(2.0*c_i + 3.0*d_i*delx);
