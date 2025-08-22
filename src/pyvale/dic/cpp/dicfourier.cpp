@@ -48,11 +48,10 @@ namespace fourier {
                 window_data.push_back(util::gen_ss_list(img_roi, window_step, 
                                                         window_size, conf.px_hori, 
                                                         conf.px_vert, true));
-            
 
             // shifts for each subset size
             Shift shift;
-            shift.num_neigh = 4;
+            shift.max_num_neigh = 4;
 
             // resize vectors
             shift.x.resize(window_data[i].num);
@@ -63,13 +62,11 @@ namespace fourier {
             // we need the neighbours in the previous window size for all sizes 
             // except the first
             if (i > 0){
-                shift.neighlist.resize(shift.num_neigh*window_data[i].num);
                 shift.gen_neighlist(window_data[i], window_data[i-1]);
             }
 
-            // add the shifts for the current window to the vector
+        // add the shifts for the current window to the vector
             shifts.push_back(shift);
-
         }
     }
 
@@ -275,7 +272,7 @@ namespace fourier {
                                        const double ss_x, const double ss_y,
                                        const std::vector<Shift>& shifts,
                                        const std::vector<util::SubsetData>& ssdata) {
-        const double epsilon = 1.0e-8;
+        const double epsilon = 10.0;
         double weight_sum_x = 0.0;
         double weight_sum_y = 0.0;
         double weight_tot = 0.0;
@@ -288,9 +285,9 @@ namespace fourier {
         if (i > 0){
 
             // weighted average of 4 nearest neighbours
-            for (size_t j = 0; j < shifts[i].num_neigh; ++j) {
+            for (size_t j = 0; j < shifts[i].num_neigh_list[ss]; ++j) {
 
-                int nidx = shifts[i].neighlist[ss*shifts[i].num_neigh+j];
+                int nidx = shifts[i].neigh_list[ss*shifts[i].max_num_neigh+j];
                 int neigh_x = ssdata[i-1].coords[2*nidx];
                 int neigh_y = ssdata[i-1].coords[2*nidx+1];
 
@@ -300,19 +297,17 @@ namespace fourier {
 
                 double weight = 1.0 / (dist_sq + epsilon);
 
-                //std::cout << nidx << " " << neigh_x << " " << neigh_y << " " << dx << " " << dy << " " << dist_sq << " " << weight << std::endl;
-                sum_x += shifts[i-1].x[nidx];
-                sum_y += shifts[i-1].y[nidx];
-                //weight_sum_x += shifts[i-1].x[nidx] * weight;
-                //weight_sum_y += shifts[i-1].y[nidx] * weight;
-                //weight_tot += weight;
+                //sum_x += shifts[i-1].x[nidx];
+                //sum_y += shifts[i-1].y[nidx];
+                weight_sum_x += shifts[i-1].x[nidx] * weight;
+                weight_sum_y += shifts[i-1].y[nidx] * weight;
+                weight_tot += weight;
             }
 
-            //std::cout << std::endl;
-            prev_x = sum_x / shifts[i].num_neigh;
-            prev_y = sum_y / shifts[i].num_neigh;
-            //prev_x = weight_sum_x / weight_tot;
-            //prev_y = weight_sum_y / weight_tot;
+            //prev_x = sum_x / shifts[i].num_neigh_list[ss];
+            //prev_y = sum_y / shifts[i].num_neigh_list[ss];
+            prev_x = weight_sum_x / weight_tot;
+            prev_y = weight_sum_y / weight_tot;
         }
         return {prev_x, prev_y};
     }
@@ -489,7 +484,7 @@ namespace fourier {
 
         // shifts for each subset size
         Shift shift;
-        shift.num_neigh = 4;
+        shift.max_num_neigh = 4;
 
         // resize vectors
         shift.x.resize(ssdata.num);

@@ -26,7 +26,7 @@ namespace fourier {
     struct Shift {
 
         // number of neighbours to use for removing outliers
-        size_t num_neigh;
+        size_t max_num_neigh;
 
         //integer shifts
         std::vector<double> x;
@@ -35,7 +35,8 @@ namespace fourier {
         std::vector<double> max_val;
 
         // list of neighbours from prev window
-        std::vector<int> neighlist;
+        std::vector<int> neigh_list;
+        std::vector<int> num_neigh_list;
 
         void gen_neighlist(const util::SubsetData ssdata,
                            const util::SubsetData ssdata_prev) {
@@ -43,6 +44,15 @@ namespace fourier {
             //util::Timer timer("nearest neighbour collection for :");
 
             const int prev_step = ssdata_prev.step;
+
+
+            // a list containing the number of neighbours from the previous
+            // window size for each subset in the current window size
+            num_neigh_list.resize(ssdata.num);
+
+            // we know the neigh_list is going to be a max size of
+            // max_neigh*num_ss. we can resize this later once populated
+            neigh_list.resize(max_num_neigh*ssdata.num);
 
             // For each subset, find 4 nearest neighbours in ssdata_prev
             #pragma omp parallel for
@@ -83,13 +93,12 @@ namespace fourier {
                     }
                 }
 
-                // Partial sort to get 4 nearest neighbours
-                if (dist_index_list.size() > num_neigh) {
-                    std::nth_element(dist_index_list.begin(), dist_index_list.begin() + num_neigh, dist_index_list.end());
-                    dist_index_list.resize(num_neigh);
-                }
-                else {
-                    std::cerr << "Could not find " << num_neigh << " neighbours for point (" << ss_x << ", " << ss_y << ")." << std::endl;
+                // either use max_num_neigh or size of list if less than max_num_neigh
+                int num_neigh = std::min(max_num_neigh, dist_index_list.size());
+
+                // can't find any neighbours.
+                if (num_neigh == 0){
+                    std::cerr << "Could not find any neighbours from the previous FFT window size for point (" << ss_x << ", " << ss_y << ")." << std::endl;
                     std::cerr << "Number of neighbours: " << dist_index_list.size() << std::endl;
                     std::cerr << "Neighbours from previous window: " << std::endl;
                     for (size_t n = 0; n < dist_index_list.size(); n++){
@@ -102,17 +111,16 @@ namespace fourier {
                     exit(EXIT_FAILURE);
                 }
 
+                num_neigh_list[ss] = num_neigh;
+                std::nth_element(dist_index_list.begin(), dist_index_list.begin() + num_neigh, dist_index_list.end());
+                dist_index_list.resize(num_neigh);
 
                 // Store neighbours indices into neighlist
                 for (size_t i = 0; i < num_neigh; ++i) {
-                    //std::cout << ss_x << " " << ss_y << std::endl;
-                    neighlist[ss*num_neigh+i] = dist_index_list[i].second;
-                    //int nidx = neighlist[ss*num_neigh+i];
-                    //std::cout << ssdata_prev.coords[nidx*2] << " " << ssdata_prev.coords[nidx*2+1] << std::endl; 
+                    neigh_list[ss*max_num_neigh+i] = dist_index_list[i].second;
                 }
-                //std::cout << std::endl;
+
             }
-            //exit(0);
         }
     };
 
