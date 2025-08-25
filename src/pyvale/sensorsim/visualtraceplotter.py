@@ -7,17 +7,18 @@
 from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
                                TraceOptsSensor)
 
 def subplot_calc(sensors):
     xtrue = True
-    coord = [1,2]
-    sensor_num = len(sensors)/5
+    coord = [1,1]
+    sensor_num = len(sensors)/4
     if sensor_num > 1:
         subplot_num = math.ceil(sensor_num)
-        length = math.sqrt(subplot_num)
+        coord = [1,subplot_num]
     return coord
 
 # TODO: this should probably take an ISensorarray
@@ -83,6 +84,14 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                            layout="constrained")
     fig.set_dpi(plot_opts.resolution)
 
+    #print(type(ax[0]))
+    #<class 'matplotlib.axes._axes.Axes'>
+
+    if isinstance(ax, np.ndarray) == False:
+        print("Im not numpy")
+        ax = np.array(ax)
+
+    current_plot = 0
 
     #---------------------------------------------------------------------------
     # Plot simulation and truth lines
@@ -92,24 +101,28 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                                       None,
                                       sensor_array._sensor_data.angles)
         for ii,ss in enumerate(sensors_to_plot):
-            for i, axs in enumerate(ax.flat):
-                axs.plot(sim_time,
-                        sim_vals[ss,comp_ind,:],
-                        trace_opts.sim_line,
-                        lw=plot_opts.lw,
-                        ms=plot_opts.ms,
-                        color=plot_opts.colors[ii % plot_opts.colors_num])
+            if (ii+1) % 4 == 0:
+                current_plot = current_plot+1
+            ax[current_plot].plot(sim_time,
+                    sim_vals[ss,comp_ind,:],
+                    trace_opts.sim_line,
+                    lw=plot_opts.lw,
+                    ms=plot_opts.ms,
+                    color=plot_opts.colors[ii % plot_opts.colors_num])
+        current_plot = 0
 
     if trace_opts.truth_line is not None:
         truth = sensor_array.get_truth()
         for ii,ss in enumerate(sensors_to_plot):
-            for i, axs in enumerate(ax.flat):
-                axs.plot(samp_time,
-                        truth[ss,comp_ind,:],
-                        trace_opts.truth_line,
-                        lw=plot_opts.lw,
-                        ms=plot_opts.ms,
-                        color=plot_opts.colors[ii % plot_opts.colors_num])
+            if (ii+1) % 4 == 0:
+                current_plot = current_plot+1
+            ax[current_plot].plot(samp_time,
+                    truth[ss,comp_ind,:],
+                    trace_opts.truth_line,
+                    lw=plot_opts.lw,
+                    ms=plot_opts.ms,
+                    color=plot_opts.colors[ii % plot_opts.colors_num])
+        current_plot = 0
 
     sensor_tags = descriptor.create_sensor_tags(num_sens)
     lines = []
@@ -119,39 +132,42 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         if sensors_perturbed is not None:
             if sensors_perturbed.sample_times is not None:
                 sensor_time = sensors_perturbed.sample_times
-        for i, axs in enumerate(ax.flat):
-            line, = axs.plot(sensor_time,
-                    measurements[ss,comp_ind,:],
-                    trace_opts.meas_line,
-                    label=sensor_tags[ss],
-                    lw=plot_opts.lw,
-                    ms=plot_opts.ms,
-                    color=plot_opts.colors[ii % plot_opts.colors_num])
+        #for i, axs in enumerate(ax.flat):
+        if (ii+1) % 4 == 0:
+            current_plot = current_plot+1
+        line, = ax[current_plot].plot(sensor_time,
+                measurements[ss,comp_ind,:],
+                trace_opts.meas_line,
+                label=sensor_tags[ss],
+                lw=plot_opts.lw,
+                ms=plot_opts.ms,
+                color=plot_opts.colors[ii % plot_opts.colors_num])
 
         lines.append(line)
+    current_plot = 0
 
     #---------------------------------------------------------------------------
     # Axis / legend labels and options
-    for i, axs in enumerate(ax.flat):
-        axs.set_xlabel(trace_opts.time_label,
-                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
-        axs.set_ylabel(descriptor.create_label(comp_ind),
-                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+    #for i, axs in enumerate(ax.flat):
+    ax[current_plot].set_xlabel(trace_opts.time_label,
+                fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+    ax[current_plot].set_ylabel(descriptor.create_label(comp_ind),
+                fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
 
     if trace_opts.time_min_max is None:
         min_time = np.min((np.min(samp_time),np.min(sensor_time)))
         max_time = np.max((np.max(samp_time),np.max(sensor_time)))
-        for i, axs in enumerate(ax.flat):
-            axs.set_xlim((min_time,max_time)) # type: ignore
+        #for i, axs in enumerate(ax.flat):
+        ax[current_plot].set_xlim((min_time,max_time)) # type: ignore
     else:
-        for i, axs in enumerate(ax.flat):
-            axs.set_xlim(trace_opts.time_min_max)
+        #for i, axs in enumerate(ax.flat):
+        ax[current_plot].set_xlim(trace_opts.time_min_max)
 
     if trace_opts.legend_loc is not None:
-        for i, axs in enumerate(ax.flat):
-            axs.legend(handles=lines,
-                    prop={"size":plot_opts.font_leg_size},
-                    loc=trace_opts.legend_loc)
+        #for i, axs in enumerate(ax.flat):
+        ax[current_plot].legend(handles=lines,
+                prop={"size":plot_opts.font_leg_size},
+                loc=trace_opts.legend_loc)
 
 
     plt.grid(True)
