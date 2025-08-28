@@ -12,6 +12,7 @@
 #include <sstream>
 #include <vector>
 #include <cmath>
+#include <omp.h>
 
 // Program Header files
 #include "./dicinterpolator.hpp"
@@ -159,24 +160,88 @@ namespace util {
         ssdata.mask.resize(ssdata.num_in_mask, -1);
         ssdata.coords.resize(2*ssdata.num_in_mask, -1);
 
-        // First pass: collect valid subset centers and idx them
-        // TODO: Parallelise this with openMP
+
+        // temp array for storing subset coords for each thread
+        std::vector<int> thread_counts(omp_get_max_threads(), 0);
+
+       // First pass: count valid subsets per thread
+        #pragma omp parallel for collapse(2)
+        for (int j = 0; j < num_ss_y; j++) {
+            for (int i = 0; i < num_ss_x; i++) {
+
+                const int ss_x = i * ss_step;
+                const int ss_y = j * ss_step;
+
+                // pixel range of subset
+                const int xmin = ss_x;
+                const int ymin = ss_y;
+                const int xmax = ss_x + ss_size-1;
+                const int ymax = ss_y + ss_size-1;
+
+                bool valid = true;
+                int valid_count = 0;
+
+                for (int px_y = ymin; px_y <= ymax && valid; px_y++) {
+                    for (int px_x = xmin; px_x <= xmax && valid; px_x++) {
+
+                        if (!partial) {
+                            if (!is_valid_in_dims(px_x, px_y, px_hori, px_vert) ||
+                                !is_valid_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
+                                valid = false;
+                                break;
+                            }
+                        }
+                        else {
+                            if (!is_valid_in_dims(px_x, px_y, px_hori, px_vert)) {
+                                valid = false;
+                                break;
+                            }
+                            if (is_valid_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) valid_count++;
+                        }
+                    }
+                }
+
+                if (partial && valid) {
+                    valid = (valid_count >= (ss_size * ss_size) * 0.70);
+                }
+
+                if (valid) {
+                    int tid = omp_get_thread_num();
+                    thread_counts[tid]++;
+                }
+            }
+        }
+
+        // Compute prefix sum to get offsets
+        std::vector<int> thread_offsets(omp_get_max_threads(), 0);
+        for (int t = 1; t < thread_offsets.size(); t++)
+            thread_offsets[t] = thread_offsets[t-1] + thread_counts[t-1];
+
+        int total_valid = thread_offsets.back() + thread_counts.back();
+        ssdata.coords.resize(2 * total_valid);
+        ssdata.num = total_valid;
+
+        // Reset thread counts to use as writing indices
+        std::fill(thread_counts.begin(), thread_counts.end(), 0);
+
+        #pragma omp parallel for collapse(2)
         for (int j = 0; j < num_ss_y; j++) {
             for (int i = 0; i < num_ss_x; i++) {
 
                 // calculate the coordinates of the subset
-                int ss_x = i * ss_step;
-                int ss_y = j * ss_step;
+                const int ss_x = i * ss_step;
+                const int ss_y = j * ss_step;
 
                 // pixel range of subset
-                int xmin = ss_x;
-                int ymin = ss_y;
-                int xmax = ss_x + ss_size-1;
-                int ymax = ss_y + ss_size-1;
+                const int xmin = ss_x;
+                const int ymin = ss_y;
+                const int xmax = ss_x + ss_size-1;
+                const int ymax = ss_y + ss_size-1;
 
                 // check if subset is within image and ROI.
                 bool valid = true;
                 int  valid_count = 0;
+
                 for (int px_y = ymin; px_y <= ymax && valid; px_y++) {
                     for (int px_x = xmin; px_x <= xmax && valid; px_x++) {
 
@@ -196,40 +261,34 @@ namespace util {
                                 valid = false;
                                 break;
                             }
-                            if (is_valid_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
-                                valid_count++;
-                            }
+                            if (is_valid_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) valid_count++;
                         }
                     }
 
                     if (!valid && !partial) break;
                 }
 
-                // TODO: this is hardcoded so that atleast 70% of pixels in subset must be in ROI
                 if (partial && valid) {
-                    if (valid_count >= (ss_size*ss_size) * (0.70)) {
-                        valid = true;
-                    } else {
-                        valid = false;
-                    }
+                    valid = (valid_count >= (ss_size * ss_size) * 0.70);
                 }
 
                 // if its a valid subset. add it to a list of coordinates
                 if (valid) {
-                    ssdata.coords[2*subset_counter] = ss_x;
-                    ssdata.coords[2*subset_counter+1] = ss_y;
-                    ssdata.mask[j * num_ss_x + i] = subset_counter;
-                    subset_counter++;
+                    const int tid = omp_get_thread_num();
+                    const int offset = thread_offsets[tid] + thread_counts[tid];
+                    ssdata.coords[2*offset] = ss_x;
+                    ssdata.coords[2*offset + 1] = ss_y;
+                    ssdata.mask[j * num_ss_x + i] = offset;
+                    thread_counts[tid]++;
                 }
             }
         }
 
-        ssdata.coords.resize(2*subset_counter);
-        ssdata.num = subset_counter;
+        // resize neighbour list
         ssdata.neigh.resize(ssdata.num);
 
         // neighbours for each of the above subset
-        // TODO: Parallelise with openMP
+        #pragma omp parallel for collapse(2)
         for (int j = 0; j < num_ss_y; ++j) {
             for (int i = 0; i < num_ss_x; ++i) {
 
@@ -238,7 +297,9 @@ namespace util {
 
                 if (idx == -1) continue;
 
-                std::vector<int> temp_neigh;
+                // Clear inner vector and reserve space for 4 neighbors (up/down/left/right)
+                ssdata.neigh[idx].clear();
+                ssdata.neigh[idx].reserve(4);
 
                 for (int d = 0; d < 4; ++d) {
                     int ni = i + dx[d] / ss_step;
@@ -247,67 +308,12 @@ namespace util {
                     if (ni >= 0 && ni < num_ss_x && nj >= 0 && nj < num_ss_y) {
                         int neigh_idx = ssdata.mask[nj * num_ss_x + ni];
                         if (neigh_idx != -1) {
-                            temp_neigh.push_back(neigh_idx);
+                            ssdata.neigh[idx].push_back(neigh_idx);
                         }
                     }
                 }
-
-                ssdata.neigh[idx] = temp_neigh;
-
-                // debugging
-                //int ss_x = ssdata.coords[2*idx];
-                //int ss_y = ssdata.coords[2*idx+1];
-                //std::cout << idx << " " << ss_x << " " << ss_y << " ";
-                //for (int n = 0; n <  ssdata.neigh[idx].size(); n++){
-                //    int nidx = ssdata.neigh[idx][n];
-                //    std::cout << ssdata.coords[2*nidx] << " " << ssdata.coords[2*nidx+1] << " ";
-                //}
-                //std::cout << std::endl;
             }
         }
-
-        //for (const auto& kv : ssdata.coords_to_idx) {
-        //    const std::pair<int, int>& coord = kv.first;
-        //    int center_idx = kv.second;
-
-        //    std::vector<int> temp_neigh;
-
-        //    for (int i = 0; i < 4; ++i) {
-        //        int neigh_x = coord.first + dx[i];
-        //        int neigh_y = coord.second + dy[i];
-
-        //        int xmin = neigh_x;
-        //        int ymin = neigh_y;
-        //        int xmax = neigh_x + ss_size;
-        //        int ymax = neigh_y + ss_size;
-
-        //        bool valid = true;
-
-        //        // checking if the neigbour is valid
-        //        for (int y = ymin; y <= ymax && valid; ++y) {
-        //            for (int x = xmin; x <= xmax && valid; ++x) {
-
-        //                if(!is_valid_pixel(x,y,px_hori,
-        //                                   px_vert,img_roi)){
-
-        //                    valid = false;
-        //                    break;
-        //                }
-
-        //            }
-        //        }
-
-        //        if (valid) {
-        //            auto it = ssdata.coords_to_idx.find({neigh_x, neigh_y});
-        //            if (it != ssdata.coords_to_idx.end()) {
-        //                temp_neigh.push_back(it->second);
-        //            }
-        //        }
-        //    }
-
-        //    ssdata.neigh[center_idx] = std::move(temp_neigh);
-        //}
-
         return ssdata;
     }
 
