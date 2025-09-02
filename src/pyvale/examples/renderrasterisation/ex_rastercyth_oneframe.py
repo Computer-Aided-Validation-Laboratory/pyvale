@@ -28,7 +28,7 @@ def main() -> None:
         # replaced with a path to your own simulation file
         #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
 
-        sim_path = sens.DataSet.render_simple_block_path()
+        sim_path = sens.dataset.render_simple_block_path()
         #sim_path = sens.DataSet.render_mechanical_3d_path()
         sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 

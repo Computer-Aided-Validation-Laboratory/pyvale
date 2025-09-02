@@ -20,10 +20,12 @@ def main() -> None:
     data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
-    output_path = Path.cwd() / "tests" / "mooseherder" / "txt_gold"
+    project_root = Path(__file__).resolve().parents[1]
+    output_path = project_root / "tests" / "mooseherder" / "txt_gold"
+    
     if not output_path.is_dir():
-        raise FileNotFoundError("Gold output directory does not exist, check" \
-            "base directory and create the directory if needed.")
+        raise FileNotFoundError(f"Gold output directory '{output_path}'" \
+            "does not exist, check base directory")
 
     print(f"Saving gold output to:\n    {output_path.resolve()}")
 

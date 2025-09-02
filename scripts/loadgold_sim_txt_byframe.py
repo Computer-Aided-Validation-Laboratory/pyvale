@@ -15,7 +15,8 @@ def main() -> None:
     data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
-    gold_path = Path.cwd()/"tests"/"mooseherder"/"txt_gold"
+    project_root = Path(__file__).resolve().parents[1]
+    gold_path = project_root/"tests"/"mooseherder"/"txt_gold"
 
     load_opts = mh.SimTxtLoadOpts()
     save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
