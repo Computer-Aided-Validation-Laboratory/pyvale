@@ -64,8 +64,13 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
         util::create_progress_bar(bar, bar_title, niters);
     }
 
-    
-    #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request) 
+    #ifdef _MSC_VER
+        // Windows/MSVC - no explicit sharing of member variables
+        #pragma omp parallel for shared(px_hori, px_vert, stop_request)
+    #else
+        // Linux/GCC - explicit sharing works
+        #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request)
+    #endif
     for (int j = 0; j < px_vert; j++){
 
         // exit if ctrl+C
@@ -95,7 +100,13 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
 
     }
 
-    #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request) 
+    #ifdef _MSC_VER
+        // Windows/MSVC - no explicit sharing of member variables
+        #pragma omp parallel for shared(px_hori, px_vert, stop_request)
+    #else
+        // Linux/GCC - explicit sharing works
+        #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request)
+    #endif
     for (int i = 0; i < px_hori; ++i) {
 
         // exit if ctrl+C
@@ -126,8 +137,14 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
 
 
     //data.resize(px_hori,0);
-
-    #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request) 
+    //
+    #ifdef _MSC_VER
+    // Windows/MSVC - no explicit sharing of member variables
+        #pragma omp parallel for shared(px_hori, px_vert, stop_request)
+    #else
+        // Linux/GCC - explicit sharing works
+        #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request)
+    #endif 
     for (int j = 0; j < px_vert; j++){
 
         // exit if ctrl+C

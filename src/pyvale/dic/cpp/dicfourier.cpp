@@ -165,7 +165,7 @@ namespace fourier {
                 util::create_progress_bar(bar, bar_title, ssdata[i].num);
             }
 
-            #pragma omp parallel shared(stop_request)
+            #pragma omp parallel shared(stop_request, shifts, ssdata, interp_def, ss_size)
             {
 
 
@@ -173,7 +173,7 @@ namespace fourier {
                 fourier::FFT fft(ss_size);
 
                 // loop over subsets for each size/step
-                #pragma omp for
+                #pragma omp for schedule(dynamic,10)
                 for (int ss = 0; ss < ssdata[i].num; ss++){
 
                     // exit when ctrl+C
@@ -181,8 +181,8 @@ namespace fourier {
                         continue;
                     }
 
-                    int ss_x = ssdata[i].coords[2*ss];
-                    int ss_y = ssdata[i].coords[2*ss+1];
+                    const int ss_x = ssdata[i].coords[2*ss];
+                    const int ss_y = ssdata[i].coords[2*ss+1];
 
                     // get the seed for the new window size
                     auto [prev_x, prev_y] = get_prev_shift(i, ss, ss_x, ss_y, shifts, ssdata);
