@@ -93,7 +93,6 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     }
 
 
-
     // resize the results based on subset information
     util::resize_results(conf.num_def_img, ssdata.back().num,
                          conf.num_params, saveconf.at_end);
@@ -149,6 +148,11 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     if (saveconf.at_end)
         for (int img_num = 0; img_num < conf.num_def_img; img_num++)
             util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params, conf.filenames);
+
+    // TODO: don't have shifts as a global var. Should probably make fourier
+    // stuff a class at some point in the future
+    fourier::shifts.clear();
+    fourier::shifts.shrink_to_fit();
 }
 
 
