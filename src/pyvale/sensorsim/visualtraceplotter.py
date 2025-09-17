@@ -12,10 +12,14 @@ from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
                                TraceOptsSensor)
 
-def subplot_calc(sensors):
-    xtrue = True
+def subplot_calc(total_sensors,sensors_per_plot):
+    """
+    Automatically calculate the number of subplots based on
+    the total number of sensors to be plot and the maximum per subplot
+    """
+    # change to account for x and y...
     coord = [1,1]
-    sensor_num = len(sensors)/4
+    sensor_num = len(total_sensors)/sensors_per_plot
     if sensor_num > 1:
         subplot_num = math.ceil(sensor_num)
         coord = [1,subplot_num]
@@ -74,22 +78,26 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     else:
         sensors_to_plot = trace_opts.sensors_to_plot
 
+    if trace_opts.sensors_per_plot is None:
+        sensors_per_plot = len(sensors_to_plot)+1
+
     #---------------------------------------------------------------------------
     # Figure canvas setup
 
-    coords = subplot_calc(sensors_to_plot)
-    print(coords)
+    coords = subplot_calc(sensors_to_plot, sensors_per_plot)
 
     fig, ax = plt.subplots(coords[0], coords[1], figsize=plot_opts.single_fig_size_landscape,
                            layout="constrained")
     fig.set_dpi(plot_opts.resolution)
 
-    #print(type(ax[0]))
-    #<class 'matplotlib.axes._axes.Axes'>
-
+        
     if isinstance(ax, np.ndarray) == False:
-        print("Im not numpy")
-        ax = np.array(ax)
+        # For a single subplot ax is a 0 dimensional np array
+        # Make ax a list here so that it can be indexed as ax[0]
+        # alongside 1-dimensional ax np arrays
+        ax = [ax]
+    else:
+        ax = ax.flatten()
 
     current_plot = 0
 
@@ -101,7 +109,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                                       None,
                                       sensor_array._sensor_data.angles)
         for ii,ss in enumerate(sensors_to_plot):
-            if (ii+1) % 4 == 0:
+            if (ii+1) % sensors_per_plot == 0:
                 current_plot = current_plot+1
             ax[current_plot].plot(sim_time,
                     sim_vals[ss,comp_ind,:],
@@ -114,14 +122,14 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     if trace_opts.truth_line is not None:
         truth = sensor_array.get_truth()
         for ii,ss in enumerate(sensors_to_plot):
-            if (ii+1) % 4 == 0:
-                current_plot = current_plot+1
             ax[current_plot].plot(samp_time,
                     truth[ss,comp_ind,:],
                     trace_opts.truth_line,
                     lw=plot_opts.lw,
                     ms=plot_opts.ms,
                     color=plot_opts.colors[ii % plot_opts.colors_num])
+            if (ii+1) % sensors_per_plot == 0:
+                current_plot = current_plot+1
         current_plot = 0
 
     sensor_tags = descriptor.create_sensor_tags(num_sens)
@@ -133,8 +141,6 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
             if sensors_perturbed.sample_times is not None:
                 sensor_time = sensors_perturbed.sample_times
         #for i, axs in enumerate(ax.flat):
-        if (ii+1) % 4 == 0:
-            current_plot = current_plot+1
         line, = ax[current_plot].plot(sensor_time,
                 measurements[ss,comp_ind,:],
                 trace_opts.meas_line,
@@ -142,6 +148,8 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                 lw=plot_opts.lw,
                 ms=plot_opts.ms,
                 color=plot_opts.colors[ii % plot_opts.colors_num])
+        if (ii+1) % sensors_per_plot == 0:
+            current_plot = current_plot+1
 
         lines.append(line)
     current_plot = 0

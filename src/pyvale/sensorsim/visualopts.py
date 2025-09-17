@@ -221,6 +221,8 @@ class TraceOptsSensor:
     time range is plotted. Defaults to None.
     """
 
+    sensors_per_plot: int | None = None
+
 
 class EExpVisCentre(enum.Enum):
     """Enumeration for plotting the center of the distribution of a series of
