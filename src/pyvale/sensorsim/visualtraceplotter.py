@@ -12,18 +12,23 @@ from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
                                TraceOptsSensor)
 
-def subplot_calc(total_sensors,sensors_per_plot):
+
+
+def subplot_calc(total_sensors, sensors_per_plot):
     """
     Automatically calculate the number of subplots based on
     the total number of sensors to be plot and the maximum per subplot
     """
-    # change to account for x and y...
     coord = [1,1]
     sensor_num = len(total_sensors)/sensors_per_plot
     if sensor_num > 1:
-        subplot_num = math.ceil(sensor_num)
-        coord = [1,subplot_num]
+        squares = math.sqrt(sensor_num)
+        coordx = math.ceil(squares)
+        coordy = round(squares)
+
+        coord = [coordy, coordx]
     return coord
+
 
 # TODO: this should probably take an ISensorarray
 def plot_time_traces(sensor_array: SensorArrayPoint,
@@ -83,7 +88,6 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
 
     #---------------------------------------------------------------------------
     # Figure canvas setup
-
     coords = subplot_calc(sensors_to_plot, sensors_per_plot)
 
     fig, ax = plt.subplots(coords[0], coords[1], figsize=plot_opts.single_fig_size_landscape,
@@ -98,6 +102,8 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         ax = [ax]
     else:
         ax = ax.flatten()
+
+    print(ax)
 
     current_plot = 0
 
@@ -140,7 +146,6 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         if sensors_perturbed is not None:
             if sensors_perturbed.sample_times is not None:
                 sensor_time = sensors_perturbed.sample_times
-        #for i, axs in enumerate(ax.flat):
         line, = ax[current_plot].plot(sensor_time,
                 measurements[ss,comp_ind,:],
                 trace_opts.meas_line,
@@ -156,7 +161,6 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
 
     #---------------------------------------------------------------------------
     # Axis / legend labels and options
-    #for i, axs in enumerate(ax.flat):
     ax[current_plot].set_xlabel(trace_opts.time_label,
                 fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
     ax[current_plot].set_ylabel(descriptor.create_label(comp_ind),
@@ -165,20 +169,17 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     if trace_opts.time_min_max is None:
         min_time = np.min((np.min(samp_time),np.min(sensor_time)))
         max_time = np.max((np.max(samp_time),np.max(sensor_time)))
-        #for i, axs in enumerate(ax.flat):
         ax[current_plot].set_xlim((min_time,max_time)) # type: ignore
     else:
-        #for i, axs in enumerate(ax.flat):
         ax[current_plot].set_xlim(trace_opts.time_min_max)
 
     if trace_opts.legend_loc is not None:
-        #for i, axs in enumerate(ax.flat):
         ax[current_plot].legend(handles=lines,
                 prop={"size":plot_opts.font_leg_size},
                 loc=trace_opts.legend_loc)
 
-
-    plt.grid(True)
+    for i in ax:
+        i.grid(True)
     plt.draw()
 
     return (fig,ax)
