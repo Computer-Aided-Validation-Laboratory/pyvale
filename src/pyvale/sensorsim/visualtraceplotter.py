@@ -78,8 +78,18 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     if trace_opts is None:
         trace_opts = TraceOptsSensor()
 
+
     if trace_opts.sensors_to_plot is None:
-        sensors_to_plot = range(num_sens)
+        if num_sens <= trace_opts.total_sensors:
+            sensors_to_plot = range(num_sens)
+            print(f"Only {num_sens} sensors to plot")
+            print("Plotting all sensors")
+        else:
+            n = num_sens/trace_opts.total_sensors
+            step = math.ceil(n)
+            print("Lots of sensors...")
+            print(f"Plotting sensor after every {step}...")
+            sensors_to_plot = range(0, num_sens, step)
     else:
         sensors_to_plot = trace_opts.sensors_to_plot
 
@@ -88,6 +98,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
 
     #---------------------------------------------------------------------------
     # Figure canvas setup
+    
     coords = subplot_calc(sensors_to_plot, sensors_per_plot)
 
     fig, ax = plt.subplots(coords[0], coords[1], figsize=plot_opts.single_fig_size_landscape,
@@ -102,8 +113,6 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         ax = [ax]
     else:
         ax = ax.flatten()
-
-    print(ax)
 
     current_plot = 0
 

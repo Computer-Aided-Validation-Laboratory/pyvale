@@ -222,6 +222,13 @@ class TraceOptsSensor:
     """
 
     sensors_per_plot: int | None = None
+    """The maximum amount of sensors that should be plot on a subplot. If none then
+    maximum will be the total number of sensors. Defaults to None.
+    """
+
+    total_sensors: int = 1000
+    """The maximum number of sensors to be plot. Defaults to 1000
+    """
 
 
 class EExpVisCentre(enum.Enum):
