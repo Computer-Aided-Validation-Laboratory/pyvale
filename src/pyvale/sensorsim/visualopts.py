@@ -211,6 +211,10 @@ class TraceOptsSensor:
     """Matplotlib line style for the virtual sensor measurement traces.
     """
 
+    total_sensors: int = 1000
+    """The maximum number of sensors to be plot. Defaults to 1000
+    """
+
     sensors_to_plot: np.ndarray | None = None
     """Array (1D) of indices for the sensors to plot. If None then all sensors
     are plotted. Defaults to None.
@@ -226,9 +230,6 @@ class TraceOptsSensor:
     maximum will be the total number of sensors. Defaults to None.
     """
 
-    total_sensors: int = 1000
-    """The maximum number of sensors to be plot. Defaults to 1000
-    """
 
 
 class EExpVisCentre(enum.Enum):

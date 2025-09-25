@@ -21,12 +21,13 @@ def subplot_calc(total_sensors, sensors_per_plot):
     """
     coord = [1,1]
     sensor_num = len(total_sensors)/sensors_per_plot
+
     if sensor_num > 1:
         squares = math.sqrt(sensor_num)
         coordx = math.ceil(squares)
         coordy = round(squares)
-
         coord = [coordy, coordx]
+
     return coord
 
 
@@ -71,6 +72,8 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     if component is not None:
         comp_ind = sensor_array._field.get_component_index(component)
 
+
+
     #---------------------------------------------------------------------------
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
@@ -107,7 +110,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
 
         
     if isinstance(ax, np.ndarray) == False:
-        # For a single subplot ax is a 0 dimensional np array
+        # For a single subplot ax is a 0-dimensional np array
         # Make ax a list here so that it can be indexed as ax[0]
         # alongside 1-dimensional ax np arrays
         ax = [ax]
@@ -149,9 +152,11 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
 
     sensor_tags = descriptor.create_sensor_tags(num_sens)
     lines = []
+    linestemp = []
     
     for ii,ss in enumerate(sensors_to_plot):
         sensor_time = samp_time
+
         if sensors_perturbed is not None:
             if sensors_perturbed.sample_times is not None:
                 sensor_time = sensors_perturbed.sample_times
@@ -162,7 +167,15 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                 lw=plot_opts.lw,
                 ms=plot_opts.ms,
                 color=plot_opts.colors[ii % plot_opts.colors_num])
+        linestemp.append(line)
+
         if (ii+1) % sensors_per_plot == 0:
+            if trace_opts.legend_loc is not None:   
+                ax[current_plot].legend(handles=linestemp,
+                    prop={"size":plot_opts.font_leg_size},
+                    loc=trace_opts.legend_loc)
+            linestemp = []
+            
             current_plot = current_plot+1
 
         lines.append(line)
@@ -182,10 +195,11 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     else:
         ax[current_plot].set_xlim(trace_opts.time_min_max)
 
-    if trace_opts.legend_loc is not None:
-        ax[current_plot].legend(handles=lines,
-                prop={"size":plot_opts.font_leg_size},
-                loc=trace_opts.legend_loc)
+    if trace_opts.legend_loc is not None:    
+        if len(ax) == 1:
+            ax[0].legend(handles=lines,
+                    prop={"size":plot_opts.font_leg_size},
+                    loc=trace_opts.legend_loc)
 
     for i in ax:
         i.grid(True)
