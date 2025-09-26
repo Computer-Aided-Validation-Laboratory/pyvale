@@ -99,6 +99,8 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     if trace_opts.sensors_per_plot is None:
         sensors_per_plot = len(sensors_to_plot)+1
 
+    sensors_per_plot = 2
+
     #---------------------------------------------------------------------------
     # Figure canvas setup
     
@@ -173,7 +175,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
             if trace_opts.legend_loc is not None:   
                 ax[current_plot].legend(handles=linestemp,
                     prop={"size":plot_opts.font_leg_size},
-                    loc=trace_opts.legend_loc)
+                    loc=trace_opts.legend_loc, bbox_to_anchor=(1, 1))
             linestemp = []
             
             current_plot = current_plot+1
@@ -199,7 +201,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         if len(ax) == 1:
             ax[0].legend(handles=lines,
                     prop={"size":plot_opts.font_leg_size},
-                    loc=trace_opts.legend_loc)
+                    loc=trace_opts.legend_loc, bbox_to_anchor=(1, 1))
 
     for i in ax:
         i.grid(True)
