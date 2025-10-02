@@ -143,3 +143,5 @@ plt.show()
 #%%
 # That is it for this example. In the next one we will look at the `pyvale`
 # simulated measurement model.
+
+sens.animate_trace_with_sensors(tc_array,field_key)

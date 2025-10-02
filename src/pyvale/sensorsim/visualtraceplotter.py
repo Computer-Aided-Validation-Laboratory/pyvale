@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import math
 from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
-                               TraceOptsSensor)
+                                         TraceOptsSensor)
 
 
 
