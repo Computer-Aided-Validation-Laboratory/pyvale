@@ -98,12 +98,18 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     else:
         sensors_to_plot = trace_opts.sensors_to_plot
 
+    sensors_to_plot = [1,2,3,4]
+
     if trace_opts.sensors_per_plot is None:
+        sensors_per_plot = len(sensors_to_plot)+1
+    elif trace_opts.sensors_per_plot > num_sens:
+        print("Sensors per plot cannot be more than the total number of sensors")
+        print(f"Defaulting to {num_sens} sensors per plot")
         sensors_per_plot = len(sensors_to_plot)+1
     else:
         sensors_per_plot = trace_opts.sensors_per_plot
 
-    #sensors_per_plot = 2
+    sensors_per_plot = 6
 
     #---------------------------------------------------------------------------
     # Figure canvas setup
@@ -125,8 +131,6 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         ax = [ax]
     else:
         ax = ax.flatten()
-
-    print(len(ax))
 
     current_plot = 0
 
@@ -168,6 +172,8 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     for ii,ss in enumerate(sensors_to_plot):
         sensor_time = samp_time
 
+        print(f"ii is {ii} and ss is {ss}")
+
         if sensors_perturbed is not None:
             if sensors_perturbed.sample_times is not None:
                 sensor_time = sensors_perturbed.sample_times
@@ -190,6 +196,17 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
             current_plot = current_plot+1
 
         lines.append(line)
+        
+        if ss == sensors_to_plot[-1]:
+            if (ii+1) % sensors_per_plot == 0:
+                pass
+            else:
+                if trace_opts.legend_loc is not None:   
+                    ax[current_plot].legend(handles=linestemp,
+                        prop={"size":plot_opts.font_leg_size},
+                        loc=trace_opts.legend_loc, bbox_to_anchor=(1, 1))
+                linestemp = []
+
     current_plot = 0
 
     #---------------------------------------------------------------------------

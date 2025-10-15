@@ -44,7 +44,8 @@ def test_fixture(make_data):
 
 testdata = [(2, 4),
             (6, 1),
-            (None, 1)
+            (None, 1),
+            (7, 1)
             ]
 
 @pytest.mark.parametrize("sensors_per_plot, expected", testdata)
