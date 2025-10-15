@@ -100,8 +100,10 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
 
     if trace_opts.sensors_per_plot is None:
         sensors_per_plot = len(sensors_to_plot)+1
+    else:
+        sensors_per_plot = trace_opts.sensors_per_plot
 
-    sensors_per_plot = 2
+    #sensors_per_plot = 2
 
     #---------------------------------------------------------------------------
     # Figure canvas setup

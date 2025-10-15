@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 import pyvale.mooseherder as mh
 import pyvale.dataset as dataset
+from pyvale.sensorsim.visualopts import TraceOptsSensor
 
 
 @pytest.fixture
@@ -33,17 +34,27 @@ def make_data():
                                 field_name=field_key)
     
     measurements = tc_array.calc_measurements()
-    #print(f"\nMeasurements for last sensor:\n{measurements[-1,0,:]}\n")
 
-    """
-
-    output_path = Path.cwd() / "pyvale-output"
-    if not output_path.is_dir():
-        output_path.mkdir(parents=True, exist_ok=True)"""
-
-    (fig,ax) = sens.plot_time_traces(tc_array,field_key)
-
-    return fig, ax
+    return tc_array, field_key
 
 
+def test_fixture(make_data):
+
+    assert make_data[0] != None
+
+testdata = [(2, 4),
+            (6, 1),
+            (None, 1)
+            ]
+
+@pytest.mark.parametrize("sensors_per_plot, expected", testdata)
+def test_subplot_made(make_data, sensors_per_plot, expected):
+
+    num_sens = make_data[0]._sensor_data.positions.shape[0]
+    if sensors_per_plot == None:
+        sensors_per_plot = num_sens
+    trace_opts_class = TraceOptsSensor(sensors_per_plot=sensors_per_plot)
+    (fig,ax) = sens.plot_time_traces(make_data[0],make_data[1], trace_opts=trace_opts_class)
+
+    assert len(ax) == expected
 
