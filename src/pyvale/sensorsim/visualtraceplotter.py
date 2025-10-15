@@ -81,6 +81,8 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     if trace_opts is None:
         trace_opts = TraceOptsSensor()
 
+    if trace_opts.one_line is None:
+        trace_opts.one_line = False
 
     if trace_opts.sensors_to_plot is None:
         if num_sens <= trace_opts.total_sensors:
@@ -103,8 +105,11 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
 
     #---------------------------------------------------------------------------
     # Figure canvas setup
-    
-    coords = subplot_calc(sensors_to_plot, sensors_per_plot)
+
+    if trace_opts.one_line == False:
+        coords = subplot_calc(sensors_to_plot, sensors_per_plot)
+    else:
+        coords = (1,math.ceil(len(sensors_to_plot)/sensors_per_plot))
 
     fig, ax = plt.subplots(coords[0], coords[1], figsize=plot_opts.single_fig_size_landscape,
                            layout="constrained")
@@ -118,6 +123,8 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         ax = [ax]
     else:
         ax = ax.flatten()
+
+    print(len(ax))
 
     current_plot = 0
 

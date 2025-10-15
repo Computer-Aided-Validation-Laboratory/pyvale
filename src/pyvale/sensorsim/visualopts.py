@@ -230,6 +230,10 @@ class TraceOptsSensor:
     maximum will be the total number of sensors. Defaults to None.
     """
 
+    one_line: bool | None = None
+    """If True, create subplot on horizontal axis only
+    """
+
 
 
 class EExpVisCentre(enum.Enum):
