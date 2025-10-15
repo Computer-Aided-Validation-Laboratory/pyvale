@@ -98,7 +98,8 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     else:
         sensors_to_plot = trace_opts.sensors_to_plot
 
-    sensors_to_plot = [1,2,3,4]
+    if sensors_to_plot == 0:
+        print("No sensors to plot")
 
     if trace_opts.sensors_per_plot is None:
         sensors_per_plot = len(sensors_to_plot)+1
@@ -108,6 +109,11 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         sensors_per_plot = len(sensors_to_plot)+1
     else:
         sensors_per_plot = trace_opts.sensors_per_plot
+
+    if sensors_per_plot > 10:
+        print("More than 10 sensors per plot may affect plot readability")
+        print("Defaulting to 10 sensors per plot...")
+        sensors_per_plot = 10
 
     sensors_per_plot = 6
 
