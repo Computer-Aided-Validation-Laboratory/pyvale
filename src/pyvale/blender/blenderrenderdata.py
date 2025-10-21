@@ -25,6 +25,7 @@ class RenderEngine(Enum):
 class RenderData:
     cam_data: CameraData | tuple[CameraData, CameraData]
     base_dir: Path = Outputs.base_dir
+    dir_name: str = "images"
     samples: int = 2
     engine: RenderEngine = RenderEngine.CYCLES
     max_bounces: int = 12

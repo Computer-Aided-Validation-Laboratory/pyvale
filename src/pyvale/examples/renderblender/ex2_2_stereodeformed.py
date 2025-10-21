@@ -56,7 +56,9 @@ render_mesh = sens.create_render_mesh(sim_data,
 # (e.g. blenderimages).
 # If no base directory is specified, it will be set as your home directory.
 
-base_dir = Path.cwd()
+base_dir = Path.cwd() / "pyvale-output"
+if not base_dir.is_dir():
+    base_dir.mkdir(parents=True, exist_ok=True)
 
 # %%
 # Creating the scene
@@ -179,6 +181,7 @@ scene.add_speckle(part=part,
 render_data = blender.RenderData(cam_data=(stereo_system.cam_data_0,
                                             stereo_system.cam_data_1),
                                 base_dir=base_dir,
+                                dir_name="blender-stereo-def",
                                 threads=8)
 
 # %%
@@ -201,7 +204,7 @@ scene.render_deformed_images(render_mesh=render_mesh,
 # %%
 # The rendered image will be saved to this filepath:
 
-print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
+print("Save directory of the image:", (render_data.base_dir / render_data.dir_name))
 
 # %%
 # There is also the option to save the scene as a Blender project file.

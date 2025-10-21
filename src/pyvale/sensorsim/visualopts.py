@@ -69,7 +69,7 @@ class PlotOptsGeneral:
     """Line width for traces on plots.
     """
 
-    cmap_seq: str = "cividis"
+    cmap_seq: str = "viridis"
     """The colormap to use for monotonic fields
     """
 

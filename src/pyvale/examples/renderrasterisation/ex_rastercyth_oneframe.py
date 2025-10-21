@@ -3,12 +3,11 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
-
+from pathlib import Path
 import time
 import numpy as np
 from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
-import imagebenchmarks as ib
 
 # Pyvale imports
 import pyvale.sensorsim as sens
@@ -22,68 +21,65 @@ def main() -> None:
     print(80*"=")
     print()
 
-    benchmark = False
-    if not benchmark:
-        # This a path to an exodus *.e output file from MOOSE, this can be
-        # replaced with a path to your own simulation file
-        #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
+    # This a path to an exodus *.e output file from MOOSE, this can be
+    # replaced with a path to your own simulation file
+    sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
 
-        sim_path = sens.dataset.render_simple_block_path()
-        #sim_path = sens.DataSet.render_mechanical_3d_path()
-        sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
+    #sim_path = sens.dataset.render_simple_block_path()
+    #sim_path = sens.dataSet.render_mechanical_3d_path()
+    sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 
-        disp_comps = ("disp_x","disp_y","disp_z")
+    disp_comps = ("disp_x","disp_y","disp_z")
 
-        # Scale m -> mm
-        sim_data = sens.scale_length_units(1000.0,sim_data,disp_comps)
+    # Scale m -> mm
+    sim_data = sens.scale_length_units(1000.0,sim_data,disp_comps)
 
-        print()
-        print(f"{np.max(np.abs(sim_data.node_vars['disp_x']))=}")
-        print(f"{np.max(np.abs(sim_data.node_vars['disp_y']))=}")
-        print(f"{np.max(np.abs(sim_data.node_vars['disp_z']))=}")
-        print()
+    print()
+    print(f"{np.max(np.abs(sim_data.node_vars['disp_x']))=}")
+    print(f"{np.max(np.abs(sim_data.node_vars['disp_y']))=}")
+    print(f"{np.max(np.abs(sim_data.node_vars['disp_z']))=}")
+    print()
 
-        # Extracts the surface mesh from a full 3d simulation for rendering
-        render_mesh = sens.create_render_mesh(sim_data,
-                                            ("disp_y","disp_x","disp_z"),
-                                            sim_spat_dim=3,
-                                            field_disp_keys=disp_comps)
+    # Extracts the surface mesh from a full 3d simulation for rendering
+    render_mesh = sens.create_render_mesh(sim_data,
+                                        ("disp_y","disp_x","disp_z"),
+                                        sim_spat_dim=3,
+                                        field_disp_keys=disp_comps)
 
 
-        pixel_num = np.array((960,1280),dtype=np.int32)
-        pixel_size = np.array((5.3e-3,5.3e-3),dtype=np.float64)
-        focal_leng: float = 50.0
-        cam_rot = Rotation.from_euler("ZYX",(0.0,-30.0,-10.0),degrees=True)
-        fov_scale_factor: float = 1.1
+    pixel_num = np.array((960,1280),dtype=np.int32)
+    pixel_size = np.array((5.3e-3,5.3e-3),dtype=np.float64)
+    focal_leng: float = 50.0
+    cam_rot = Rotation.from_euler("ZYX",(0.0,-30.0,-10.0),degrees=True)
+    fov_scale_factor: float = 1.1
 
-        (roi_pos_world,
-        cam_pos_world) = sens.CameraTools.pos_fill_frame(
-            coords_world=render_mesh.coords,
-            pixel_num=pixel_num,
-            pixel_size=pixel_size,
-            focal_leng=focal_leng,
-            cam_rot=cam_rot,
-            frame_fill=fov_scale_factor,
-        )
+    (roi_pos_world,
+    cam_pos_world) = sens.CameraTools.pos_fill_frame(
+        coords_world=render_mesh.coords,
+        pixel_num=pixel_num,
+        pixel_size=pixel_size,
+        focal_leng=focal_leng,
+        cam_rot=cam_rot,
+        frame_fill=fov_scale_factor,
+    )
 
-        cam_data = sens.CameraData(
-            pixels_num=pixel_num,
-            pixels_size=pixel_size,
-            pos_world=cam_pos_world,
-            rot_world=cam_rot,
-            roi_cent_world=roi_pos_world,
-            focal_length=focal_leng,
-            sub_samp=2,
-            back_face_removal=True,
-        )
+    cam_data = sens.CameraData(
+        pixels_num=pixel_num,
+        pixels_size=pixel_size,
+        pos_world=cam_pos_world,
+        rot_world=cam_rot,
+        roi_cent_world=roi_pos_world,
+        focal_length=focal_leng,
+        sub_samp=2,
+        back_face_removal=True,
+    )
 
-    else:
-        case_ind = 0
-        (case_ident,render_mesh,cam_data) = ib.load_benchmark_by_index(case_ind)
-        print(80*"=")
-        print("BENCHMARK IDENTIFIER:")
-        print(f"{case_ident}")
-        print(80*"=")
+    # case_ind = 0
+    # (case_ident,render_mesh,cam_data) = ib.load_benchmark_by_index(case_ind)
+    # print(80*"=")
+    # print("BENCHMARK IDENTIFIER:")
+    # print(f"{case_ident}")
+    # print(80*"=")
 
 
     print()

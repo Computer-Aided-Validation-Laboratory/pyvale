@@ -4,6 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+from pathlib import Path
 import time
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -24,9 +25,9 @@ def main() -> None:
 
     # This a path to an exodus *.e output file from MOOSE, this can be
     # replaced with a path to your own simulation file
-    sim_path = sens.DataSet.render_mechanical_3d_path()
+    #sim_path = sens.DataSet.render_mechanical_3d_path()
     #sim_path = sens.DataSet.render_simple_block_path()
-    #sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
+    sim_path = Path.home()/"pyvale"/"src"/"pyvale"/"simcases"/"case26_out.e"
     sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 
     disp_comps = ("disp_x","disp_y","disp_z")
@@ -42,7 +43,7 @@ def main() -> None:
 
     # Extracts the surface mesh from a full 3d simulation for rendering
     render_mesh = sens.create_render_mesh(sim_data,
-                                        ("disp_y","disp_x"),
+                                        ("disp_x","disp_y","disp_z"),
                                         sim_spat_dim=3,
                                         field_disp_keys=disp_comps)
 
@@ -66,7 +67,8 @@ def main() -> None:
     pixel_num = np.array((960,1280),dtype=np.int32)
     pixel_size = np.array((5.3e-3,5.3e-3),dtype=np.float64)
     focal_leng: float = 50.0
-    cam_rot = Rotation.from_euler("zyx",(0.0,-30.0,-10.0),degrees=True)
+    #cam_rot = Rotation.from_euler("zyx",(0.0,-30.0,-10.0),degrees=True)
+    cam_rot = Rotation.from_euler("zyx",(0.0,0.0,0.0),degrees=True)
     fov_scale_factor: float = 1.1
 
     (roi_pos_world,
@@ -142,14 +144,14 @@ def main() -> None:
 
     #===========================================================================
     # PLOTTING
-    plot_on = False
+    plot_on = True
     plot_frames = (-1,)#range(3)
     plot_field = 0
 
-    # depth_to_plot = np.copy(np.asarray(depth_buffer[:,:,plot_frame]))
-    # depth_to_plot[depth_buffer[:,:,plot_frame] > 10*cam_data.image_dist] = np.nan
-    # image_to_plot = np.copy(np.asarray(image_buffer[:,:,plot_frame,plot_field]))
-    # image_to_plot[depth_buffer[:,:,plot_frame] > 10*cam_data.image_dist] = np.nan
+    depth_to_plot = np.copy(np.asarray(depth_buffer[:,:,:]))
+    depth_to_plot[depth_buffer[:,:,:] > 10*cam_data.image_dist] = np.nan
+    image_to_plot = np.copy(np.asarray(image_buffer[:,:,:,:]))
+    image_to_plot[depth_buffer[:,:,:] > 10*cam_data.image_dist] = np.nan
 
     if plot_on:
         plot_opts = sens.PlotOptsGeneral()
@@ -158,7 +160,7 @@ def main() -> None:
             (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
                                     layout='constrained')
             fig.set_dpi(plot_opts.resolution)
-            cset = plt.imshow(depth_buffer[:,:,ff],
+            cset = plt.imshow(depth_to_plot[:,:,ff],
                             cmap=plt.get_cmap(plot_opts.cmap_seq))
                             #origin='lower')
             ax.set_aspect('equal','box')
@@ -172,7 +174,7 @@ def main() -> None:
             (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
                                     layout='constrained')
             fig.set_dpi(plot_opts.resolution)
-            cset = plt.imshow(image_buffer[:,:,ff,plot_field],
+            cset = plt.imshow(image_to_plot[:,:,ff,0],
                             cmap=plt.get_cmap(plot_opts.cmap_seq))
                             #origin='lower')
             ax.set_aspect('equal','box')
@@ -183,6 +185,33 @@ def main() -> None:
             ax.set_ylabel(r"y ($px$)",
                         fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
 
+            (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
+                                    layout='constrained')
+            fig.set_dpi(plot_opts.resolution)
+            cset = plt.imshow(image_to_plot[:,:,ff,1],
+                            cmap=plt.get_cmap(plot_opts.cmap_seq))
+                            #origin='lower')
+            ax.set_aspect('equal','box')
+            fig.colorbar(cset)
+            ax.set_title(f"Field Image: {ff}",fontsize=plot_opts.font_head_size)
+            ax.set_xlabel(r"x ($px$)",
+                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+            ax.set_ylabel(r"y ($px$)",
+                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+
+            (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_square,
+                                    layout='constrained')
+            fig.set_dpi(plot_opts.resolution)
+            cset = plt.imshow(image_to_plot[:,:,ff,2],
+                            cmap=plt.get_cmap(plot_opts.cmap_seq))
+                            #origin='lower')
+            ax.set_aspect('equal','box')
+            fig.colorbar(cset)
+            ax.set_title(f"Field Image: {ff}",fontsize=plot_opts.font_head_size)
+            ax.set_xlabel(r"x ($px$)",
+                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+            ax.set_ylabel(r"y ($px$)",
+                        fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
         plt.show()
 
 

@@ -7,7 +7,7 @@ import copy
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvale.sensorsim as sens
-import pyvale.verif as va
+import pyvale.verif as verif
 
 
 def main() -> None:
@@ -17,7 +17,7 @@ def main() -> None:
     # Field slope of 10/lengY in Y
     # Field max in top corner of 220, field min in bottom corner 20
 
-    (sim_data,_) = va.analyticsimdatafactory.scalar_linear_2d()
+    (sim_data,_) = verif.analyticsimdatafactory.scalar_linear_2d()
     sim_data_nomesh = copy.deepcopy(sim_data)
 
     # When we have a point cloud and no mesh the connectivity table is None

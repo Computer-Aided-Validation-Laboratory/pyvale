@@ -60,7 +60,9 @@ render_mesh = sens.create_render_mesh(sim_data,
 # (e.g. blenderimages).
 # If no base directory is specified, it will be set as your home directory.
 
-base_dir = Path.cwd()
+base_dir = Path.cwd() / "pyvale-output"
+if not base_dir.is_dir():
+    base_dir.mkdir(parents=True, exist_ok=True)
 
 # %%
 # Creating the scene
@@ -111,9 +113,9 @@ camera.rotation_euler = (0, 0, 0) # NOTE: The default is an XYZ Euler angle
 # The light can also be moved and rotated like the camera.
 
 light_data = blender.LightData(type=blender.LightType.POINT,
-                                    pos_world=(0, 0, 400),
-                                    rot_world=Rotation.from_euler("xyz",
-                                                                  [0, 0, 0]),
+                               pos_world=(0, 0, 400),
+                               rot_world=Rotation.from_euler("xyz",
+                                                             [0, 0, 0]),
                                      energy=1)
 light = scene.add_light(light_data)
 light.location = (0, 0, 410)
@@ -148,6 +150,7 @@ scene.add_speckle(part=part,
 
 render_data = blender.RenderData(cam_data=cam_data,
                                 base_dir=base_dir,
+                                dir_name="blender-scene",
                                 threads=8)
 
 # %%
@@ -162,7 +165,7 @@ scene.render_single_image(stage_image=False,
 # %%
 # The rendered image will be saved to this filepath:
 
-print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
+print("Save directory of the image:", (render_data.base_dir / render_data.dir_name))
 
 # %%
 # There is also the option to save the scene as a Blender project file.

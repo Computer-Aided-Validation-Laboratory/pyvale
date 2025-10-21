@@ -27,7 +27,11 @@ import pyvale.dataset as dataset
 # (e.g. blenderimages).
 # If no base directory is specified, it will be set as your home directory.
 
-base_dir = Path.cwd()
+base_dir = Path.cwd() / "pyvale-output" / "blender-calib"
+if not base_dir.is_dir():
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+
 
 # %%
 # Creating the scene
@@ -137,7 +141,8 @@ scene.add_speckle(part=target,
 
 render_data = blender.RenderData(cam_data=(stereo_system.cam_data_0,
                                             stereo_system.cam_data_1),
-                                base_dir=base_dir)
+                                base_dir=base_dir,
+                                dir_name="blender-stereo-cal")
 
 # %%
 # The parameters for the calibration target's movement can then be set. This is
@@ -167,13 +172,13 @@ print("Number of calibration images to be rendered:", number_calibration_images)
 # the target rigidly across the FOV of the camera, in order to characterise the
 # entire FOV of the cameras.
 blender.Tools.render_calibration_images(render_data,
-                                              calibration_data,
-                                              target)
+                                        calibration_data,
+                                        target)
 
 # %%
 # The rendered images will be saved to this filepath:
 
-print("Save directory of the images:", (render_data.base_dir / "calimages"))
+print("Save directory of the images:", (render_data.base_dir / render_data.dir_name))
 
 # %%
 # There is also the option to save the scene as a Blender project file.

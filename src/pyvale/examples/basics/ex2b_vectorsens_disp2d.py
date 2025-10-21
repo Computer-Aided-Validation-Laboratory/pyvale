@@ -39,7 +39,7 @@ sim_data = sens.scale_length_units(scale=1000.0,
                                     disp_comps=field_comps)
 
 #%%
-# This is the key different between building a vector field sensor vs a
+# This is the key difference between building a vector field sensor vs a
 # scalar field sensor. Here we create a vector field object which we will
 # pass to our sensor array. In later examples we will see that the process
 # is the same for tensor fields (e.g. strain) where we create a tensor field

@@ -165,7 +165,7 @@ scene.render_deformed_images(render_mesh,
 # %%
 # The rendered image will be saved to this filepath:
 
-print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
+print("Save directory of the image:", (render_data.base_dir / render_data.dir_name))
 
 # %%
 # There is also the option to save the scene as a Blender project file.

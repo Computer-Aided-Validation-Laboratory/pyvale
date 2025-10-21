@@ -335,7 +335,7 @@ class Scene():
         if not render_data.base_dir.is_dir():
             raise BlenderError("The specified save directory does not exist")
 
-        save_dir = render_data.base_dir / "blenderimages"
+        save_dir = render_data.base_dir / render_data.dir_name
         if not save_dir.is_dir():
             save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -433,7 +433,7 @@ class Scene():
         if not render_data.base_dir.is_dir():
             raise BlenderError("The specified save directory does not exist")
 
-        save_dir = render_data.base_dir / "blenderimages"
+        save_dir = render_data.base_dir / render_data.dir_name
         if not save_dir.is_dir():
             save_dir.mkdir(parents=True, exist_ok=True)
 
