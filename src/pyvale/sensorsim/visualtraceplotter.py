@@ -136,6 +136,16 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
             sensors_to_plot = range(0, num_sens, step)
     else:
         sensors_to_plot = trace_opts.sensors_to_plot
+        print(f"sensors to plot = {sensors_to_plot}")
+        sensor_list = [x+1 for x in range(num_sens)]
+        print(f"total sensors = {sensor_list}")
+        fake_sensors = list(filter(lambda x: x not in sensor_list, sensors_to_plot))
+        print(f"The sensors {fake_sensors} do not exist")
+        for i in sensors_to_plot:
+            if i not in sensor_list:
+                print(f"[{i}] not a valid sensor. Removing from sensors to plot")
+                sensors_to_plot.remove(i)
+        sensors_to_plot = sensors_to_plot
 
     if sensors_to_plot == 0:
         print("No sensors to plot")
@@ -154,9 +164,9 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         print("Defaulting to 10 sensors per plot...")
         sensors_per_plot = 10
 
-    sensors_to_plot = [1,2,3,4]
+    #sensors_to_plot = [1,2,3,4]
 
-    sensors_per_plot = 2
+    #sensors_per_plot = 2
 
     #---------------------------------------------------------------------------
     # Figure canvas setup
