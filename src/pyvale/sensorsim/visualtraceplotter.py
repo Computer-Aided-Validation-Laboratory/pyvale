@@ -11,6 +11,7 @@ import math
 from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
                                          TraceOptsSensor)
+from pyvale.sensorsim.plotter_log import logger
 
 
 
@@ -126,42 +127,46 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     if trace_opts.sensors_to_plot is None:
         if num_sens <= trace_opts.total_sensors:
             sensors_to_plot = range(num_sens)
-            print(f"Only {num_sens} sensors to plot")
-            print("Plotting all sensors")
+            #print(f"Only {num_sens} sensors to plot")
+            #print("Plotting all sensors")
+            logger.debug(f"Only {num_sens} sensors to plot. Plotting all sensors")
         else:
             n = num_sens/trace_opts.total_sensors
             step = math.ceil(n)
-            print("Lots of sensors...")
-            print(f"Plotting sensor after every {step}...")
+            #print("Lots of sensors...")
+            #print(f"Plotting sensor after every {step}...")
+            logger.info(f"Lots of sensors... Plotting sensor after every {step}... ")
             sensors_to_plot = range(0, num_sens, step)
     else:
         sensors_to_plot = trace_opts.sensors_to_plot
-        print(f"sensors to plot = {sensors_to_plot}")
         sensor_list = [x+1 for x in range(num_sens)]
-        print(f"total sensors = {sensor_list}")
         fake_sensors = list(filter(lambda x: x not in sensor_list, sensors_to_plot))
         print(f"The sensors {fake_sensors} do not exist")
         for i in sensors_to_plot:
             if i not in sensor_list:
-                print(f"[{i}] not a valid sensor. Removing from sensors to plot")
+                #print(f"[{i}] not a valid sensor number. Removing from sensors to plot")
+                logger.warning(f"[{i}] not a valid sensor number. Removing from sensors to plot")
                 sensors_to_plot.remove(i)
         sensors_to_plot = sensors_to_plot
 
     if sensors_to_plot == 0:
-        print("No sensors to plot")
+        #print("No sensors to plot")
+        logger.warning("No sensors found to plot")
 
     if trace_opts.sensors_per_plot is None:
         sensors_per_plot = len(sensors_to_plot)+1
     elif trace_opts.sensors_per_plot > num_sens:
-        print("Sensors per plot cannot be more than the total number of sensors")
-        print(f"Defaulting to {num_sens} sensors per plot")
+        #print("Sensors per plot cannot be more than the total number of sensors")
+        #print(f"Defaulting to {num_sens} sensors per plot")
+        logger.warning(f"Sensors per plot cannot be more than the total number of sensors. Defaulting to {num_sens} sensors per plot")
         sensors_per_plot = len(sensors_to_plot)+1
     else:
         sensors_per_plot = trace_opts.sensors_per_plot
 
     if sensors_per_plot > 10:
-        print("More than 10 sensors per plot may affect plot readability")
-        print("Defaulting to 10 sensors per plot...")
+        #print("More than 10 sensors per plot may affect plot readability")
+        #print("Defaulting to 10 sensors per plot...")
+        logger.warning(f"More than 10 sensors per plot may affect plot readability, Defaulting to 10 sensors per plot...")
         sensors_per_plot = 10
 
     #sensors_to_plot = [1,2,3,4]
@@ -185,6 +190,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         # For a single subplot ax is a 0-dimensional np array
         # Make ax a list here so that it can be indexed as ax[0]
         # alongside 1-dimensional ax np arrays
+        logger.debug(f"0-dimensional ax has been converted to a list [ax]")
         ax = [ax]
     else:
         ax = ax.flatten()

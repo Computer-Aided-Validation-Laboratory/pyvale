@@ -21,5 +21,5 @@ console_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
-console_handler.setLevel(50)
-file_handler.setLevel(10)
+console_handler.setLevel(30)
+#file_handler.setLevel(10)
