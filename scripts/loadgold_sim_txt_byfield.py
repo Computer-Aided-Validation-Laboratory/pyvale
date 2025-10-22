@@ -22,7 +22,6 @@ def main() -> None:
     save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
 
     suffix = ".npy"
-
     coord_path = gold_path / (save_opts.get_coord_name() + suffix)
     time_path = gold_path / (save_opts.get_time_name() + suffix)
 

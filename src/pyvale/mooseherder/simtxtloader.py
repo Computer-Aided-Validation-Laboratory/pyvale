@@ -17,7 +17,6 @@ class SimLoadErr(Exception):
     pass
 
 
-#-------------------------------------------------------------------------------
 @dataclass(slots=True)
 class SimTxtLoadOpts:
     delimiter: str = ","
@@ -27,17 +26,6 @@ class SimTxtLoadOpts:
     node_field_header: int | None = 0
     elem_field_header: int | None = 0
     threads_num: int | None = None
-
-
-#-------------------------------------------------------------------------------
-# TODO:
-# - field outputs in format: rows=n_pts, cols=fields
-#   - check n_pts matches num coords
-#   - check n_files matches num time steps
-# - how to deal with glob vars?
-#
-# TODO: future
-# - Harmonise field slices and SimReadConfig
 
 
 class SimTxtLoader(OutputLoader):
@@ -193,7 +181,6 @@ class SimTxtLoader(OutputLoader):
 
 
 
-#-------------------------------------------------------------------------------
 def load_data_files(files_path: Path,
                     files_pattern: str,
                     field_slices: dict[str,slice],
