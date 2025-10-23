@@ -1,8 +1,8 @@
 import numpy as np
 from scipy import ndimage
 from perlin_numpy import (
-    generate_perlin_noise_2d, generate_fractal_noise_2d
-)
+    generate_perlin_noise_2d, generate_fractal_noise_2d)
+import opensimplex as simplex
 
 def pixelsInDisk(cent_x: int, cent_y: int, 
                  screen_size_width: int, screen_size_height: int, 
@@ -140,6 +140,10 @@ def generate_speckles_perlin_noise(screen_size_width: int, screen_size_height: i
                                    foreground_colour: int,
                                    bit_depth: int, background_colour: int, type_gen: str,
                                    **kwargs) -> np.ndarray:
+    
+    """This function uses noise implementation from perlin-numpy package 
+    (https://github.com/pvigier/perlin-numpy/tree/master)"""
+
     """Generate a speckle pattern image using Perlin or fractal noise. """
     """ Inputs: """
     """ screen_size_width, screen_size_height: dimensions of the image """
@@ -175,3 +179,46 @@ def generate_speckles_perlin_noise(screen_size_width: int, screen_size_height: i
     image = image.astype(np.uint16 if bit_depth == 16 else np.uint8)
 
     return image
+
+def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: int,
+                                   foreground_colour: int,
+                                   bit_depth: int, background_colour: int,
+                                   feature_size: float,
+                                   seed: int) -> np.ndarray:
+     
+    """This function uses noise implementation from opensimplex package
+    (https://pypi.org/project/opensimplex/)
+    (https://code.larus.se/lmas/opensimplex)"""
+
+    """Generate a speckle pattern image using OpenSimplex noise (patent-free). """
+    """ Inputs: """
+    """ screen_size_width, screen_size_height: dimensions of the image """
+    """ foreground_colour: colour value for the speckles """
+    """ bit_depth: bit depth of the image (8 or 16) """
+    """ background_colour: colour value for the background """
+    """ feature_size: controls the size of features in the noise pattern (speckle size) """
+    """ seed: seed for the noise generation """
+    """ Output: speckle pattern image as a 2D numpy array """
+
+    simplex.seed(seed)
+
+    # image: np.ndarray = np.zeros((screen_size_height,screen_size_width))
+
+    # for y in range(0, screen_size_height):
+    #     for x in range(0, screen_size_width):
+    #         value = simplex.noise2(x/feature_size, y/feature_size)
+    #         image[y, x] = value
+
+    ix, iy = np.arange(screen_size_width), np.arange(screen_size_height)
+    image = simplex.noise2array(ix/feature_size, iy/feature_size)
+
+    # scale to background and foreground colours
+    min_val = np.min(image)
+    max_val = np.max(image)
+    print(f"Min and max values before scaling: {min_val}, {max_val}")
+    image = (image - min_val) / (max_val - min_val)  # Normalise to [0, 1]
+    image = image * (foreground_colour - background_colour) + background_colour
+    image = image.astype(np.uint16 if bit_depth == 16 else np.uint8)
+
+    return image
+    
