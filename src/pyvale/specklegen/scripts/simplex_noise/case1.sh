@@ -1,6 +1,10 @@
 SIMULATION="simplex_noise"
 CASE="case1"
 
+if [ ! -d logs/$SIMULATION ]; then
+  mkdir -p logs/$SIMULATION
+fi
+
 > logs/$SIMULATION/$CASE.log
 
 for SPECKLE_SIZE_WIDTH in 10 15 20 30 40

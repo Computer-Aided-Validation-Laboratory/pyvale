@@ -1,6 +1,10 @@
 SIMULATION="perlin_noise"
 CASE="case1"
 
+if [ ! -d logs/$SIMULATION ]; then
+  mkdir -p logs/$SIMULATION
+fi
+
 > logs/$SIMULATION/$CASE.log
 
 for RES_WIDTH in 10 25 100    

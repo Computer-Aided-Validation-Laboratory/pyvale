@@ -1,6 +1,10 @@
 SIMULATION="reduce_overlap"
 CASE="case2"
 
+if [ ! -d logs/$SIMULATION ]; then
+  mkdir -p logs/$SIMULATION
+fi
+
 > logs/$SIMULATION/$CASE.log
 
 for SPECKLE_SIZE in $(seq 10 5 25)             

@@ -102,7 +102,7 @@ def main() -> None:
     print(f"Contrast (std/mean): {np.round(contrast, 3)}")
     print(f"Skewness: {np.round(skew, 3)}")
     print(f"Kurtosis: {np.round(kurt, 3)}")
-    print(f"Shannon entropy: {entropy}")
+    print(f"Shannon entropy: {np.round(entropy, 3)}")
     print(f"Peak to mean ratio: {np.round(peak_to_mean, 3)}")
     print(f"Average speckle size (full width at half maximum): {np.round(avg_speckle_size_fwhm, 3)} pixels")
     print(f"Average speckle size (1/e^2): {np.round(avg_speckle_size_e2, 3)} pixels")

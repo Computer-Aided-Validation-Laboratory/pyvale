@@ -216,7 +216,7 @@ def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: 
     # scale to background and foreground colours
     min_val = np.min(image)
     max_val = np.max(image)
-    print(f"Min and max values before scaling: {min_val}, {max_val}")
+    # print(f"Min and max values before scaling: {min_val}, {max_val}")
     image = (image - min_val) / (max_val - min_val)  # Normalise to [0, 1]
     image = image * (foreground_colour - background_colour) + background_colour
     image = image.astype(np.uint16 if bit_depth == 16 else np.uint8)
