@@ -183,7 +183,7 @@ def generate_speckles_perlin_noise(screen_size_width: int, screen_size_height: i
 def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: int,
                                    foreground_colour: int,
                                    bit_depth: int, background_colour: int,
-                                   feature_size: float,
+                                   feature_size_width: float, feature_size_height: float,
                                    seed: int) -> np.ndarray:
      
     """This function uses noise implementation from opensimplex package
@@ -196,7 +196,8 @@ def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: 
     """ foreground_colour: colour value for the speckles """
     """ bit_depth: bit depth of the image (8 or 16) """
     """ background_colour: colour value for the background """
-    """ feature_size: controls the size of features in the noise pattern (speckle size) """
+    """ feature_size_width: controls the size of features in the noise pattern (speckle size width-wise) """
+    """ feature_size_height: controls the size of features in the noise pattern (speckle size height-wise) """
     """ seed: seed for the noise generation """
     """ Output: speckle pattern image as a 2D numpy array """
 
@@ -210,7 +211,7 @@ def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: 
     #         image[y, x] = value
 
     ix, iy = np.arange(screen_size_width), np.arange(screen_size_height)
-    image = simplex.noise2array(ix/feature_size, iy/feature_size)
+    image = simplex.noise2array(ix/feature_size_width, iy/feature_size_height)
 
     # scale to background and foreground colours
     min_val = np.min(image)

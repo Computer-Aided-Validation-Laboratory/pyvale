@@ -40,7 +40,8 @@ def main() -> None:
     print('Start')
 
     # Extract parameteres and revert to default values if not provided by user
-    speckle_size = args.speckle_size if args.speckle_size is not None else 5.0
+    speckle_size_width = args.speckle_size_width if args.speckle_size_width is not None else 5.0
+    speckle_size_height = args.speckle_size_height if args.speckle_size_height is not None else 5.0
     screen_size_width = args.screen_size_width if args.screen_size_width is not None else 500
     screen_size_height = args.screen_size_height if args.screen_size_height is not None else 400
     bit_depth = args.bit_depth if args.bit_depth is not None else 8
@@ -50,7 +51,7 @@ def main() -> None:
     assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
     assert theme in ['black_on_white', 'white_on_black'], "Theme should be either 'black_on_white' or 'white_on_black'."
     
-    subfolder = f"/{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{speckle_size}_{seed}"
+    subfolder = f"/{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{speckle_size_width}_{speckle_size_height}_{seed}"
     print(subfolder)
     save_path = args.output_path + subfolder
     if not os.path.exists(save_path):
@@ -64,7 +65,8 @@ def main() -> None:
     image = generate_speckles_simplex_noise(screen_size_width, screen_size_height,
                                             foreground_colour,
                                             bit_depth, background_colour,
-                                            feature_size=speckle_size,
+                                            feature_size_width=speckle_size_width,
+                                            feature_size_height=speckle_size_height,
                                             seed=seed)
     
     # Diagnostics
@@ -106,6 +108,7 @@ def main() -> None:
     print(f"Average speckle size (1/e^2): {np.round(avg_speckle_size_e2, 3)} pixels")
     print(f"R_squared: Horisontal fit: {np.round(H_fit_stats['R_squared'], 3)}, Vertical fit: {np.round(V_fit_stats['R_squared'], 3)}")
 
+    speckle_size = (speckle_size_width + speckle_size_height) / 2
     error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size
     print(f"Percentage error between requested speckle size and measured speckle size from FWHM: {np.round(error, 3)} %")
     error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size
