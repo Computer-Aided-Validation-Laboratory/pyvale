@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Custom tensor field sensors (strain gauges) in 3D
+Custom tensor field sensors (strain gauges) in 3D
 ================================================================================
 
 In this example we build a custom tensor field sensor array (i.e. a strain gauge

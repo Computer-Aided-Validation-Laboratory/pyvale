@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Basics: Multi-physics experiment simulation in 3D
+"""Multi-physics experiment simulation in 3D
 ================================================================================
 
 In the previous example we performed a series of simulated experiments on a set

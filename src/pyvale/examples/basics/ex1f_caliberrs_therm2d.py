@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Sensor calibration systematic errors
+Sensor calibration systematic errors
 ================================================================================
 
 In this example we show how `pyvale` can simulate sensor calibration errors with

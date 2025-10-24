@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Custom vector field sensors
+Custom vector field sensors
 ================================================================================
 
 In this example we build a custom vector field sensor array which mimics the

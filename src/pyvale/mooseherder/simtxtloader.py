@@ -9,16 +9,22 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 import pandas as pd
-from pyvale.mooseherder.outputloader import OutputLoader
+from pyvale.mooseherder.outputloader import IOutputLoader
 from pyvale.mooseherder.simdata import SimData, SimLoadConfig
 
-#-------------------------------------------------------------------------------
+
 class SimLoadErr(Exception):
+    """Custom exception for errors when loading simulation data from file.
+    """
     pass
 
 
 @dataclass(slots=True)
 class SimTxtLoadOpts:
+    """Dataclass of options for loading simulation data from plain delimited 
+    text files.
+    """
+
     delimiter: str = ","
     coord_header: int | None = 0
     time_header: int | None = 0
@@ -28,7 +34,11 @@ class SimTxtLoadOpts:
     threads_num: int | None = None
 
 
-class SimTxtLoader(OutputLoader):
+class SimTxtLoader(IOutputLoader):
+    """Class for loading simulation data from 
+
+    Implements the `IOutputLoader` interface.
+    """
 
     __slots__ = ("_coords","_time_steps","_files_path","_file_patterns",
                  "_field_slices","_load_opts","_glob_file","_glob_slices")
@@ -42,7 +52,7 @@ class SimTxtLoader(OutputLoader):
                  glob_file: str | None,
                  glob_slices: dict[str,slice] | None,
                  load_opts: SimTxtLoadOpts | None = None) -> None:
-
+        
         if coords is None:
             self._coords = None
         else:
@@ -92,11 +102,11 @@ class SimTxtLoader(OutputLoader):
         if isinstance(self._files_pattern,str):
             # Load all fields from a single time series of files
             node_vars = load_data_files(self._files_path,
-                                      self._files_pattern,
-                                      self._field_slices,
-                                      self._load_opts.node_field_header,
-                                      load_config.time_inds,
-                                      self._load_opts)
+                                        self._files_pattern,
+                                        self._field_slices,
+                                        self._load_opts.node_field_header,
+                                        load_config.time_inds,
+                                        self._load_opts)
 
         elif isinstance(self._files_pattern,dict):
             # Load each node variable in any number of files
@@ -176,6 +186,7 @@ class SimTxtLoader(OutputLoader):
 
     # NOTE: interface function
     def load_all_sim_data(self) -> SimData:
+        # Default load config reads all available data 
         load_config = SimLoadConfig()
         return self.load_sim_data(load_config)
 
@@ -247,6 +258,7 @@ def load_data_files(files_path: Path,
             for ii,ff in enumerate(data_files):
                 args = (ff,
                         field_slices,
+                        header,
                         load_opts.delimiter)
 
                 process = pool.apply_async(_load_one_array, args=args)

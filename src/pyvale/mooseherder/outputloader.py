@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from pyvale.mooseherder.simdata import SimData, SimLoadConfig
 
 
-class OutputLoader(ABC):
+class IOutputLoader(ABC):
     @abstractmethod
     def load_sim_data(self, read_config: SimLoadConfig) -> SimData:
         pass

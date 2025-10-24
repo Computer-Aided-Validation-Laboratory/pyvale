@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Sensor angles for vector fields
+Sensor angles for vector fields
 ================================================================================
 
 In this example we demonstrate how to setup vector field sensors at custom

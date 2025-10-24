@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Tensor field sensors (strain gauges)
+Tensor field sensors (strain gauges)
 ================================================================================
 
 In this example we use the sensor array factory to build a set of strain

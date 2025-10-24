@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Field-based systematic errors
+Field-based systematic errors
 ================================================================================
 
 In this example we give an overview of field-based systematic errors. Field

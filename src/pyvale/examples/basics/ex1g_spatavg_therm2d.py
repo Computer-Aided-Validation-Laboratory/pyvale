@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Sensor spatial averaging and averaging errors
+Sensor spatial averaging and averaging errors
 ================================================================================
 
 In this example we show how `pyvale` can simulate sensor spatial averaging for

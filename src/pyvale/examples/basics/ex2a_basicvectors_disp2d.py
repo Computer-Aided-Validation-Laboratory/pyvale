@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Vector field (displacement) sensors
+Vector field (displacement) sensors
 ================================================================================
 
 In this example we use the sensor array factory to build a set of displacement

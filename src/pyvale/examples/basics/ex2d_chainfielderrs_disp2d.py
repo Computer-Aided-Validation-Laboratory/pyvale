@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Chaining field errors
+Chaining field errors
 ================================================================================
 
 In this example we show how field errors can be chained together and accumulated

@@ -23,3 +23,5 @@ Basics
    basics/ex3c_tensorsens3d_strain3d.rst
    basics/ex4a_expsim2d_thermmech2d.rst
    basics/ex4b_expsim3d_thermmech3d.rst
+   basics/ex5_meshfreesensors.rst
+   basics/ex6_customsimdata.rst

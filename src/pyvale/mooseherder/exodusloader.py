@@ -25,10 +25,10 @@ from pathlib import Path
 import netCDF4 as nc
 import numpy as np
 from pyvale.mooseherder.simdata import SimData, SimLoadConfig
-from pyvale.mooseherder.outputloader import OutputLoader
+from pyvale.mooseherder.outputloader import IOutputLoader
 
 
-class ExodusLoader(OutputLoader):
+class ExodusLoader(IOutputLoader):
     """Class to read exodus files output by MOOSE using the netCDF package.
     This class handles extracting the data from the exodus file and creates
     a SimData object with the required data. Most used cases are covered with

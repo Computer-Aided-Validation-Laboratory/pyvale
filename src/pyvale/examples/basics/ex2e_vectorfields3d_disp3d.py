@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: 3D vector field sensors
+3D vector field sensors
 ================================================================================
 
 In all our previous examples we have looked at a 2D solid mechanics simulation

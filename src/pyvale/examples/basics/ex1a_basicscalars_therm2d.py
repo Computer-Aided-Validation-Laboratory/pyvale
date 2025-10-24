@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Pyvale point sensor simulation
+Pyvale point sensor simulation
 ================================================================================
 
 In this example we introduce the basic features of `pyvale` for point sensor

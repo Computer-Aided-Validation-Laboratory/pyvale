@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Basics: Multi-physics experiment simulation in 2D
+"""Multi-physics experiment simulation in 2D
 ================================================================================
 
 In previous examples we have built our virtual sensor array and used this to
