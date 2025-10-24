@@ -96,7 +96,7 @@ namespace optimizer {
             }
             else {
                 if ((xtol < opt.precision) && (ftol < opt.precision)) {
-                    //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+                    debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
                     converged=true; 
                     break;
                 }
@@ -114,9 +114,9 @@ namespace optimizer {
         res.converged = converged;
 
         // debugging
-        //if (iter == opt.max_iter) {
-            //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
-        //}
+        if (iter == opt.max_iter) {
+          debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+        }
 
         return res;
     }
@@ -185,6 +185,20 @@ namespace optimizer {
                 opt.g[3] += dshape_df*dfdx*def_y;
                 opt.g[4] += dshape_df*dfdy*def_x;
                 opt.g[5] += dshape_df*dfdy*def_y;
+            }
+            else if (num_params == 12) {
+                opt.g[0]  += dshape_df * dfdx;
+                opt.g[1]  += dshape_df * dfdy;
+                opt.g[2]  += dshape_df * dfdx * def_x;
+                opt.g[3]  += dshape_df * dfdx * def_y;
+                opt.g[4]  += dshape_df * dfdy * def_x;
+                opt.g[5]  += dshape_df * dfdy * def_y;
+                opt.g[6]  += dshape_df * dfdx * def_x*def_x;
+                opt.g[7]  += dshape_df * dfdx * def_x*def_y;
+                opt.g[8]  += dshape_df * dfdx * def_y*def_y;
+                opt.g[9]  += dshape_df * dfdy * def_x*def_x;
+                opt.g[10] += dshape_df * dfdy * def_x*def_y;
+                opt.g[11] += dshape_df * dfdy * def_y*def_y;
             }
 
         }
@@ -259,24 +273,43 @@ namespace optimizer {
 
         // loop over the subset values
         for (int i = 0; i < num_px; i++){
+
+            const double def_x_i = ss_def.x[i];
+            const double def_y_i = ss_def.y[i];
+            const double dfdx_i = dfdx[i];
+            const double dfdy_i = dfdy[i];
             
             // derivative of shape function with repsect to parameters
-            dshape_dp(opt.dfdp, ss_def.x[i], ss_def.y[i], dfdx[i], dfdy[i]);
+            dshape_dp(opt.dfdp, def_x_i, def_y_i, dfdx_i, dfdy_i);
 
             double dshape_df = - inv_sum_squared_def * (ss_ref.vals[i] * inv_sum_squared_ref - ss_def.vals[i] * inv_sum_squared_def);
 
 
             if (num_params == 2) {
-                opt.g[0] += dshape_df * dfdx[i];
-                opt.g[1] += dshape_df * dfdy[i];
+                opt.g[0] += dshape_df * dfdx_i;
+                opt.g[1] += dshape_df * dfdy_i;
             }
             else if (num_params == 6) {
-                opt.g[0] += dshape_df * dfdx[i];
-                opt.g[1] += dshape_df * dfdy[i];
-                opt.g[2] += dshape_df * dfdx[i] * ss_def.x[i];
-                opt.g[3] += dshape_df * dfdx[i] * ss_def.y[i];
-                opt.g[4] += dshape_df * dfdy[i] * ss_def.x[i];
-                opt.g[5] += dshape_df * dfdy[i] * ss_def.y[i];
+                opt.g[0] += dshape_df * dfdx_i;
+                opt.g[1] += dshape_df * dfdy_i;
+                opt.g[2] += dshape_df * dfdx_i * def_x_i;
+                opt.g[3] += dshape_df * dfdx_i * def_y_i;
+                opt.g[4] += dshape_df * dfdy_i * def_x_i;
+                opt.g[5] += dshape_df * dfdy_i * def_y_i;
+            }
+            else if (num_params == 12) {
+                opt.g[0]  += dshape_df * dfdx_i;
+                opt.g[1]  += dshape_df * dfdy_i;
+                opt.g[2]  += dshape_df * dfdx_i * def_x_i;
+                opt.g[3]  += dshape_df * dfdx_i * def_y_i;
+                opt.g[4]  += dshape_df * dfdy_i * def_x_i;
+                opt.g[5]  += dshape_df * dfdy_i * def_y_i;
+                opt.g[6]  += dshape_df * dfdx_i * def_x_i*def_x_i;
+                opt.g[7]  += dshape_df * dfdx_i * def_x_i*def_y_i;
+                opt.g[8]  += dshape_df * dfdx_i * def_y_i*def_y_i;
+                opt.g[9]  += dshape_df * dfdy_i * def_x_i*def_x_i;
+                opt.g[10] += dshape_df * dfdy_i * def_x_i*def_y_i;
+                opt.g[11] += dshape_df * dfdy_i * def_y_i*def_y_i;
             }
 
             // Upper triangle of Hessian Matrix
@@ -380,8 +413,13 @@ namespace optimizer {
         // loop over the subset values
         for (int i = 0; i < num_px; i++){
 
+            const double def_x_i = ss_def.x[i];
+            const double def_y_i = ss_def.y[i];
+            const double dfdx_i = dfdx[i];
+            const double dfdy_i = dfdy[i];
+
             // derivative of shape function with repsect to parameters
-            dshape_dp(opt.dfdp, ss_def.x[i], ss_def.y[i], dfdx[i], dfdy[i]);
+            dshape_dp(opt.dfdp, def_x_i, def_y_i, dfdx_i, dfdy_i);
 
             double dshape_df = - inv_sum_squared_def * ((ss_ref.vals[i] - mean_ref) * inv_sum_squared_ref - (ss_def.vals[i] - mean_def) * inv_sum_squared_def);
 
@@ -390,12 +428,26 @@ namespace optimizer {
                 opt.g[1] += dshape_df * dfdy[i];
             }
             else if (num_params == 6) {
-                opt.g[0] += dshape_df * dfdx[i];
-                opt.g[1] += dshape_df * dfdy[i];
-                opt.g[2] += dshape_df * dfdx[i] * ss_def.x[i];
-                opt.g[3] += dshape_df * dfdx[i] * ss_def.y[i];
-                opt.g[4] += dshape_df * dfdy[i] * ss_def.x[i];
-                opt.g[5] += dshape_df * dfdy[i] * ss_def.y[i];
+                opt.g[0] += dshape_df * dfdx_i;
+                opt.g[1] += dshape_df * dfdy_i;
+                opt.g[2] += dshape_df * dfdx_i * def_x_i;
+                opt.g[3] += dshape_df * dfdx_i * def_y_i;
+                opt.g[4] += dshape_df * dfdy_i * def_x_i;
+                opt.g[5] += dshape_df * dfdy_i * def_y_i;
+            }
+            else if (num_params == 12) {
+                opt.g[0]  += dshape_df * dfdx_i;
+                opt.g[1]  += dshape_df * dfdy_i;
+                opt.g[2]  += dshape_df * dfdx_i * def_x_i;
+                opt.g[3]  += dshape_df * dfdx_i * def_y_i;
+                opt.g[4]  += dshape_df * dfdy_i * def_x_i;
+                opt.g[5]  += dshape_df * dfdy_i * def_y_i;
+                opt.g[6]  += dshape_df * dfdx_i * def_x_i*def_x_i;
+                opt.g[7]  += dshape_df * dfdx_i * def_x_i*def_y_i;
+                opt.g[8]  += dshape_df * dfdx_i * def_y_i*def_y_i;
+                opt.g[9]  += dshape_df * dfdy_i * def_x_i*def_x_i;
+                opt.g[10] += dshape_df * dfdy_i * def_x_i*def_y_i;
+                opt.g[11] += dshape_df * dfdy_i * def_y_i*def_y_i;
             }
 
             // Upper triangle of Hessian Matrix
@@ -442,8 +494,8 @@ namespace optimizer {
 
         // calculate cost function for current parameter values
         for (int i = 0; i < num_px; i++){
-            double def_norm = (ss_def.vals[i] - mean_def) * inv_sum_squared_def;
-            double ref_norm = (ss_ref.vals[i] - mean_ref) * inv_sum_squared_ref;
+            const double def_norm = (ss_def.vals[i] - mean_def) * inv_sum_squared_def;
+            const double ref_norm = (ss_ref.vals[i] - mean_ref) * inv_sum_squared_ref;
             opt.costp += (ref_norm - def_norm) * (ref_norm - def_norm);
         }
 
@@ -467,8 +519,8 @@ namespace optimizer {
 
 
         for (int i = 0; i < num_px; ++i) {
-            double def_norm = (ss_def.vals[i] - mean_def) * inv_sum_squared_def;
-            double ref_norm = (ss_ref.vals[i] - mean_ref) * inv_sum_squared_ref;
+            const double def_norm = (ss_def.vals[i] - mean_def) * inv_sum_squared_def;
+            const double ref_norm = (ss_ref.vals[i] - mean_ref) * inv_sum_squared_ref;
             opt.costpdp += (ref_norm - def_norm) * (ref_norm - def_norm);
         }
 
@@ -595,7 +647,8 @@ namespace optimizer {
     }
 
     inline void quad(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
-
+        x_new = p[0] + (1.0+p[2])*x + p[3]*y + p[6]*x*x + p[7]*x*y + p[8]*y*y;
+        y_new = p[1] + (1.0+p[5])*y + p[4]*x + p[9]*x*x + p[10]*x*y + p[11]*y*y;
     }
 
     inline void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy){
@@ -616,8 +669,27 @@ namespace optimizer {
             dfdp[1] = dfdy;
     }
 
-    inline void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p){
+    inline void dquad_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy){
+        dfdp[0]  = dfdx;
+        dfdp[1]  = dfdy;
+        dfdp[2]  = dfdx * x;
+        dfdp[3]  = dfdx * y;
+        dfdp[4]  = dfdy * x;
+        dfdp[5]  = dfdy * y;
+        dfdp[6]  = dfdx * x*x;
+        dfdp[7]  = dfdx * x*y;
+        dfdp[8]  = dfdx * y*y;
+        dfdp[9]  = dfdy * x*x;
+        dfdp[10] = dfdy * x*y;
+        dfdp[11] = dfdy * y*y;
+    }
 
+    inline void quad_parameters_to_displacement(util::Results &res, double ss_x, double ss_y, std::vector<double> &p){
+        double x_new = p[0] + (1.0+p[2])*ss_x + p[3]*ss_y + p[6]*ss_x*ss_x + p[7]*ss_x*ss_y + p[8]*ss_y*ss_y;
+        double y_new = p[1] + (1.0+p[5])*ss_y + p[4]*ss_x + p[9]*ss_x*ss_x + p[10]*ss_x*ss_y + p[11]*ss_y*ss_y;
+        res.u = x_new - ss_x;
+        res.v = y_new - ss_y;
+        res.mag = std::sqrt(res.u * res.u + res.v * res.v);
     }
 
     inline void affine_parameters_to_displacement(util::Results &res, double ss_x, double ss_y, std::vector<double> &p){
@@ -629,8 +701,8 @@ namespace optimizer {
     }
 
     inline void rigid_parameters_to_displacement(util::Results &res, double ss_x, double ss_y, std::vector<double> &p){
-        res.u = -p[0];
-        res.v = -p[1];
+        res.u = p[0];
+        res.v = p[1];
         res.mag = std::sqrt(res.u*res.u + res.v*res.v);
     }
 
@@ -652,13 +724,20 @@ namespace optimizer {
             shape_function = rigid;
             dshape_dp = drigid_dp;
             params_to_displacement = rigid_parameters_to_displacement;
-        } else if (shape_func == "AFFINE") {
+        }
+        else if (shape_func == "AFFINE") {
             shape_function = affine;
             dshape_dp = daffine_dp;
             params_to_displacement = affine_parameters_to_displacement;
-        } else {
+        }
+        else if (shape_func == "QUAD") {
+            shape_function = quad;
+            dshape_dp = dquad_dp;
+            params_to_displacement = quad_parameters_to_displacement;
+        }
+        else {
             std::cerr << "Unexpected Shape Function: '" << shape_func << "'" << std::endl;
-            std::cerr << "Allowed Values: 'RIGID', 'AFFINE'." << std::endl;
+            std::cerr << "Allowed Values: 'RIGID', 'AFFINE', 'QUAD'." << std::endl;
             exit(EXIT_FAILURE);
         }
     }

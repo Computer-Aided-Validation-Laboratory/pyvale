@@ -55,7 +55,7 @@ def check_output_directory(output_basepath: str,
 
     if conflicting_files:
         conflicting_files.sort()
-        print("WARNING: The following output files already exist and may be overwritten:")
+        #print("WARNING: The following output files already exist and may be overwritten:")
         for f in conflicting_files:
             print(f"  - {os.path.join(output_basepath, f)}")
         print("")
@@ -99,13 +99,13 @@ def check_correlation_criteria(correlation_criteria: str) -> None:
 def check_shape_function(shape_function: str) -> int:
     """
     Checks whether input `shape_function` is one of the allowed
-    values ("RIGID" or "AFFINE"). If valid, it returns the number of transformation
+    values ("RIGID", "AFFINE" or "QUAD"). If valid, it returns the number of transformation
     parameters associated with that shape function.
 
     Parameters
     ----------
     shape_function : str
-        The shape function type. Must be either "RIGID" or "AFFINE".
+        The shape function type. Must be either "RIGID", "AFFINE" or "QUAD".
 
     Returns
     -------
@@ -113,6 +113,7 @@ def check_shape_function(shape_function: str) -> int:
         The number of parameters for the specified shape function:
         - 2 for "RIGID"
         - 6 for "AFFINE"
+        - 12 for "QUAD"
 
     Raises
     ------
@@ -124,9 +125,11 @@ def check_shape_function(shape_function: str) -> int:
         num_params = 2
     elif (shape_function=="AFFINE"): 
         num_params = 6
+    elif (shape_function=="QUAD"): 
+        num_params = 12
     else:
         raise ValueError(f"Invalid shape_function: {shape_function}. "
-                         f"Allowed values are: 'AFFINE', 'RIGID'.")
+                         f"Allowed values are: 'AFFINE', 'RIGID', 'QUAD'.")
 
     return num_params
 
@@ -318,8 +321,8 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
     max_y = new_y + subset_size//2+1
 
     # Check if all pixel values in the ROI are valid
-    for i in range(corner_x, max_x):
-        for j in range(corner_y, max_y):
+    for i in range(new_x, max_x):
+        for j in range(new_y, max_y):
 
             if i < 0 or i >= px_hori or j < 0 or j >= px_vert:
                 raise ValueError(f"Seed ({x}, {y}) goes outside the image bounds at pixel ({i}, {j})")

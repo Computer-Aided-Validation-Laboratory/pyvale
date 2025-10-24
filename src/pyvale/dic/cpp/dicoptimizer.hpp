@@ -70,7 +70,7 @@ namespace optimizer {
      * @brief Initializes the optimizer with the correlation criteria and shape function. Calls setCostFunction and setShapeFunction.
      * 
      * @param[in] corr_crit string for the correlation criteria, e.g. "SSD", "NSSD", "ZNSSD".
-     * @param[in] shape_func string for the shape function, e.g. "AFFINE", "RIGID".
+     * @param[in] shape_func string for the shape function, e.g. "AFFINE", "RIGID", "QUAD".
      */
     void init(std::string &corr_crit, std::string &shape_func);
 
@@ -84,7 +84,7 @@ namespace optimizer {
     /**
      * @brief This function gets called before the corrolation optimization starts. Sets the function pointer for the user specified shape function.
      * 
-     * @param[in] shape_func string for the shape function, e.g. "AFFINE", "RIGID".
+     * @param[in] shape_func string for the shape function, e.g. "AFFINE", "RIGID", "QUAD".
      */
     void setShapeFunction(const std::string& shape_func);
 
@@ -255,7 +255,17 @@ namespace optimizer {
      * @param[in] y 
      * @param[in] p 
      */
-    inline void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    inline void dquad_dp(std::vector<double> &dfdp, double x, double y, double dfdy);
+
+    /**
+     * @brief Funcion to convert affine shape function parameters to displacement values
+     * 
+     * @param[out] displacements values (u,v, magnitude) are added to results
+     * @param[in] ss_x subset x coordinate
+     * @param[in] ss_y subset y coordinate
+     * @param[in] p shape function parameters
+     */
+    void quad_parameters_to_displacement(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
 
     /**
      * @brief Funcion to convert affine shape function parameters to displacement values
