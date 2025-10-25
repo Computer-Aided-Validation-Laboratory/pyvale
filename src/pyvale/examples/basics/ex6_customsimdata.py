@@ -82,7 +82,8 @@ mh.save_sim_data_to_arrays(output_path,sim_data,save_opts)
 # for the case where we have saved by field name.
 
 #%%
-#
+# Before we load the data we will specify a common file suffix and the paths to
+# the coordinate and time files.
 
 suffix = ".csv" # can be changed to ".npy"
 coord_path = output_path / ("hex20_coords" + suffix)
@@ -122,7 +123,7 @@ field_pattern = f"hex20_node_field_frame*{suffix}"
 # our `SimData` object which we can now use with the rest of the `pyvale` tools.
 load_opts = mh.SimTxtLoadOpts(threads_num=4)
 
-sim_loader = mh.SimTxtLoader(files_path=output_path,
+sim_loader = mh.SimTxtLoader(fields_path=output_path,
                              coords=coord_path,
                              time_steps=time_path,
                              node_file_pattern=field_pattern,
@@ -142,13 +143,13 @@ print(80*"-")
 sens.print_sim_data(sim_data_load)
 
 #%%
-# Now we will load the data 'by field' as this is the simplest case.
-#
+# Now we will load the data 'by field' which is the simplest case as it is most
+# similar to how the `SimData` object stores our nodal fields. Here our 
+# `field_slices` dictionary is again keyed by the field variable names we want
+# in our `SimData` object but this time each value is an empty slice
 
-load_opts = mh.SimTxtLoadOpts(node_field_header=None,
-                              threads_num=None)
 
-field_slices = {"disp_x": slice(None),
+field_slices = {"disp_x": None,
                 "disp_y": slice(None),
                 "disp_z": slice(None),
                 "temperature": slice(None),}
@@ -159,15 +160,14 @@ field_patterns = {}
 for ff in field_slices:
     field_patterns[ff] = f"{prefix}_{ff}{suffix}"
 
-# print("Field Patterns Dictionary:")
-# for ff in field_patterns:
-    # print(f"{ff}: {field_patterns[ff]}")
-# print()
 
 #%%
-#
+# 
 
-sim_loader = mh.SimTxtLoader(files_path=output_path,
+load_opts = mh.SimTxtLoadOpts(node_field_header=None,
+                              threads_num=None)
+
+sim_loader = mh.SimTxtLoader(fields_path=output_path,
                              coords=coord_path,
                              time_steps=time_path,
                              node_file_pattern=field_patterns,
@@ -182,7 +182,6 @@ print(80*"-")
 print("SIM DATA: by field")
 print(80*"-")
 sens.print_sim_data(sim_data_load)
-
 
 #%%
 # That's it for this example! We will leave it as an exercise to load the strain

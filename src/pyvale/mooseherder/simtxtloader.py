@@ -28,6 +28,7 @@ class SimTxtLoadOpts:
     delimiter: str = ","
     coord_header: int | None = 0
     time_header: int | None = 0
+    connect_header: int | None = None
     glob_header: int | None = 0
     node_field_header: int | None = 0
     elem_field_header: int | None = 0
@@ -40,17 +41,20 @@ class SimTxtLoader(IOutputLoader):
     Implements the `IOutputLoader` interface.
     """
 
-    __slots__ = ("_coords","_time_steps","_files_path","_file_patterns",
-                 "_field_slices","_load_opts","_glob_file","_glob_slices")
+    __slots__ = ("_coords","_time_steps","_fields_path","_file_patterns",
+                 "_field_slices","_load_opts","_connect","_glob_file",
+                 "_glob_slices")
 
     def __init__(self,
-                 files_path: Path,
+                 fields_path: Path,
                  coords: Path | np.ndarray | None,
                  time_steps: Path | np.ndarray | None,
                  node_file_pattern: str | dict[str,str],
-                 node_slices: dict[str, slice],
-                 glob_file: str | None,
-                 glob_slices: dict[str,slice] | None,
+                 node_slices: dict[str, slice|None],
+                 connect_path: Path | None = None,
+                 connect_file_pattern: str | list[str] | None = None,
+                 glob_file: Path | None = None,
+                 glob_slices: dict[str,slice] | None = None,
                  load_opts: SimTxtLoadOpts | None = None) -> None:
         
         if coords is None:
@@ -70,7 +74,8 @@ class SimTxtLoader(IOutputLoader):
             if self._time_steps.ndim != 1:
                 self._time_steps = self._time_steps[:,0]
 
-        self._files_path = files_path
+
+        self._fields_path = fields_path
 
         if isinstance(node_file_pattern,dict):
             if node_file_pattern.keys() != node_slices.keys():
@@ -93,6 +98,19 @@ class SimTxtLoader(IOutputLoader):
         self._load_opts = load_opts
 
 
+    def _load_connectivity(file_pattern: str | list[str]) -> None:
+        self._connect = {}
+    
+        if isinstance(file_pattern,str):
+            
+        else:
+            for ff in file_pattern:
+                self._connect[ff] = _load_or_set_var( ,
+                                                     self._load_opts.connect_header,
+                                                     self._load_opts.delimiter) 
+            
+
+
     # NOTE: interface function
     def load_sim_data(self, load_config: SimLoadConfig) -> SimData:
 
@@ -101,7 +119,7 @@ class SimTxtLoader(IOutputLoader):
 
         if isinstance(self._files_pattern,str):
             # Load all fields from a single time series of files
-            node_vars = load_data_files(self._files_path,
+            node_vars = load_data_files(self._fields_path,
                                         self._files_pattern,
                                         self._field_slices,
                                         self._load_opts.node_field_header,
@@ -117,7 +135,7 @@ class SimTxtLoader(IOutputLoader):
                 for kk in field_keys:
                     slices_to_ext[kk] = self._field_slices[kk]
 
-                this_node_vars = load_data_files(self._files_path,
+                this_node_vars = load_data_files(self._fields_path,
                                                  file_pattern,
                                                  slices_to_ext,
                                                  self._load_opts.node_field_header,
@@ -133,7 +151,7 @@ class SimTxtLoader(IOutputLoader):
 
         if self._glob_file is not None and self._glob_slices is not None:
 
-            glob_file = self._files_path/self._glob_file
+            glob_file = self._fields_path/self._glob_file
             if not glob_file.is_file():
                 raise SimLoadErr(f"Global variables file:'{glob_file.resolve()}'"
                                   + "does not exist.")
@@ -192,21 +210,21 @@ class SimTxtLoader(IOutputLoader):
 
 
 
-def load_data_files(files_path: Path,
+def load_data_files(fields_path: Path,
                     files_pattern: str,
-                    field_slices: dict[str,slice],
+                    field_slices: dict[str,slice|None],
                     header: int | None,
                     frames: slice | None = None,
                     load_opts: SimTxtLoadOpts | None = None
                     ) -> dict[str,np.ndarray]:
 
-    if not files_path.is_dir():
-        raise FileNotFoundError(f"Text data path '{files_path}' does not exist.")
+    if not fields_path.is_dir():
+        raise FileNotFoundError(f"Text data path '{fields_path}' does not exist.")
 
     if load_opts is None:
         load_opts = SimTxtLoadOpts()
 
-    data_files = list(files_path.glob(files_pattern))
+    data_files = list(fields_path.glob(files_pattern))
     data_files = sorted(data_files)
     if not data_files:
         raise FileNotFoundError("No text files found that match the specified" +
@@ -227,6 +245,11 @@ def load_data_files(files_path: Path,
     if frames is not None:
         data_files = data_files[frames]
 
+    # Handle the case of the value being `None` as an empty slice to extract all
+    for ff in field_slices:   
+        if field_slices[ff] is None:
+            field_slices[ff] = slice(None)
+        
 
     # We load the first csv to find out what shape of data we are expecting
     data = _load_nparray(data_files[0], header, load_opts.delimiter)
@@ -235,6 +258,7 @@ def load_data_files(files_path: Path,
     # shape to hold our data as shape=(num_frames,num_points,slice.len)
     field_data: dict[str,np.ndarray] = {}
     for ff in field_slices:
+        
         # shape=(num_points,slice.len)
         field_temp = data[:,field_slices[ff]]
         # shape=(num_points,num_frames,slice.len)
