@@ -144,7 +144,7 @@ class SensorDescriptor:
         return sensor_names
 
 
-class SensorDescriptorFactory:
+class DescriptorFactory:
     """A factory for building common sensor descriptors for scalar, vector and
     tensor fields. Builds descriptors for thermcouples, displacement sensors
     and strain sensors.
@@ -167,6 +167,22 @@ class SensorDescriptorFactory:
         return descriptor
 
     @staticmethod
+    def scalar_descriptor() -> SensorDescriptor:
+        """Creates a generic scalar field sensor descriptor. 
+
+        Returns
+        -------
+        SensorDescriptor
+            The default scalar field sensor descriptor.
+        """
+        descriptor = SensorDescriptor(name="scalar",
+                                      symbol="scal.",
+                                      units=r"units",
+                                      tag="S")
+        return descriptor
+
+
+    @staticmethod
     def displacement_descriptor() -> SensorDescriptor:
         """Creates a generic displacement sensor descriptor. Assumes units of mm
         and vector components of x,y,z.
@@ -180,6 +196,23 @@ class SensorDescriptorFactory:
                                       symbol="u",
                                       units=r"mm",
                                       tag="DS",
+                                      components=("x","y","z"))
+        return descriptor
+
+    @staticmethod
+    def vector_descriptor() -> SensorDescriptor:
+        """Creates a generic vector field sensor descriptor. Assumes vector 
+        components of x,y,z.
+
+        Returns
+        -------
+        SensorDescriptor
+            The default vector sensor descriptor.
+        """
+        descriptor = SensorDescriptor(name="vector",
+                                      symbol="vect.",
+                                      units=r"unit",
+                                      tag="V",
                                       components=("x","y","z"))
         return descriptor
 
@@ -204,6 +237,34 @@ class SensorDescriptorFactory:
                                       symbol=r"\varepsilon",
                                       units=r"-",
                                       tag="SG")
+
+        if spat_dims == 2:
+            descriptor.components = ("xx","yy","xy")
+        else:
+            descriptor.components = ("xx","yy","zz","xy","yz","xz")
+
+        return descriptor
+
+    @staticmethod
+    def strain_descriptor(spat_dims: int = 3) -> SensorDescriptor:
+        """Creates a generic tensor field sensor descriptor. Assumes that the 
+        components are xx,yy,xy for 2D and xx,yy,zz,xy,yz,xz for 3D.
+
+        Parameters
+        ----------
+        spat_dims : int, optional
+            Number of spatial dimensions used for setting the components of the
+            tensor strain field, by default 3.
+
+        Returns
+        -------
+        SensorDescriptor
+            The default tesnors sensor descriptor.
+        """
+        descriptor = SensorDescriptor(name="tensor",
+                                      symbol=r"tens.",
+                                      units=r"unit",
+                                      tag="T")
 
         if spat_dims == 2:
             descriptor.components = ("xx","yy","xy")

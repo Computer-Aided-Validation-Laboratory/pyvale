@@ -8,6 +8,8 @@ import numpy as np
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.errorintegrator import ErrIntegrator
+from pyvale.sensorsim.errorcalculator import (IErrCalculator,
+                                              ErrIntOpts)
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.sensordata import SensorData
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
@@ -159,19 +161,47 @@ class SensorArrayPoint(ISensorArray):
 
         return self._truth
 
-    def set_error_integrator(self, err_int: ErrIntegrator | None) -> None:
+    def get_error_integrator(self) -> ErrIntegrator:
+        """Gets the error integrator allowing the user to interpret error 
+        sources in the error chain and to separate random and systematic error 
+        contributions.
+
+        Returns
+        -------
+        ErrIntegrator | None
+            The error integrator.
+        """
+        return self._error_integrator
+
+    def set_error_chain(self, 
+                        err_chain: list[IErrCalculator] | None,
+                        err_int_opts: ErrIntOpts | None = None) -> None:
         """Sets the error intergrator that will be used to calculate the sensor
         array measurement errors when `calc_measurements()` is called. See the
         `ErrIntegrator` class for further detail.
 
         Parameters
         ----------
-        err_int : ErrIntegrator | None
-            Error integration object with a chain of user defined sensor errors.
-            If None then no errors are calculated and the sensor performs pure
-            interpolation of the input fields.
+        err_chain : list[IErrCalculator] | None
+            Chain of user defined errors that will be evaluated in order as part 
+            of the sensor simulation. Set to None to remove error calculation 
+            and perform direct interpolation of the simulation to the virtual
+            sensor locations.
+        err_int_opts : ErrIntOpts | None, optional
+            Sets the options of virtual sensor error integration, by default 
+            None. If None default options are used.
         """
-        self._error_integrator = err_int
+        if err_chain is None:
+            self._error_integrator = None
+            return None
+
+        if err_int_opts is None:
+            err_int_opts = ErrIntOpts()
+
+        self._error_integrator = ErrIntegrator(err_chain,
+                                               self._sensor_data,
+                                               self.get_measurement_shape(),
+                                               err_int_opts)
 
     def get_sensor_data_perturbed(self) -> SensorData | None:
         """Gets the final sensor array parameters after all errors in the error
@@ -182,7 +212,7 @@ class SensorArrayPoint(ISensorArray):
         -------
         SensorData | None
             The accumulated sensor array parameters as a SensorData object.
-            Returns None if no error integrator has been specified.
+            Returns None if no error chain has been specified.
         """
         if self._error_integrator is None:
             return None
