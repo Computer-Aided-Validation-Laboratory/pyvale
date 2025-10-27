@@ -17,7 +17,7 @@ from pyvale.dic.dicdataimport import data_import
 
 def strain_two_dimensional(data: str | Path,
               window_size: int=5, 
-              window_element: int=4,
+              window_element: int=9,
               input_binary: bool=False,
               input_delimiter: str=",",
               output_basepath: Path | str="./",
