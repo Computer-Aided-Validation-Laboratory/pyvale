@@ -121,7 +121,7 @@ def strain_two_dimensional(data: str | Path,
 def strain_data_import(data: str | Path,
                    binary: bool = False,
                    layout: str = "matrix",
-                   delimiter: str = " ") -> StrainResults:
+                   delimiter: str = ",") -> StrainResults:
     """
     Import strain result data from human readable text or binary files.
 
