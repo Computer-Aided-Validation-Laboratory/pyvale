@@ -17,7 +17,7 @@ def pixelsInDisk(cent_x: int, cent_y: int,
         " foreground_colour: colour value to set for the disk pixels"
         " image: 2D numpy array representing the image"
         " check_overlap: if True, check for overlap with existing foreground pixels and does not modify the image"
-        " Output: modifies the image array"
+        " Output: 0 if overlap detected, 1 if no overlap (when check_overlap is True), otherwise modifies the image"
 
         box_max_x = int(np.ceil(cent_x + speckle_size / 2))
         box_min_x = int(np.floor(cent_x - speckle_size / 2))

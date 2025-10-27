@@ -27,7 +27,7 @@ echo "Updating generated RST files..."
 # sed -i '0,/dataset.dataset/s/dataset.dataset/pyvale.dataset/' source/pyvale.dataset.dataset.rst || error_exit "Failed to update dataset title"
 
 # Modules to process
-modules=("dic" "blender" "mooseherder" "sensorsim" "verif" "dataset")
+modules=("dic" "blender" "mooseherder" "sensorsim" "verif" "dataset" "specklegen")
 
 for mod in "${modules[@]}"; do
     rst="source/pyvale.${mod}.rst"

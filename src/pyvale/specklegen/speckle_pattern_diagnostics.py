@@ -3,15 +3,20 @@ import matplotlib.pyplot as plt
 import matplotlib
 import seaborn as sns
 import scipy.fftpack
-from scipy.signal import correlate
 from scipy.optimize import curve_fit
-from scipy.signal import fftconvolve
 from scipy.stats import skew, kurtosis
 from skimage.measure import shannon_entropy
 
 def speckle_pattern_diagnostics(image: np.ndarray, dynamic_range: int,  
                                 save_path: str) -> dict:
 
+    """ Perform diagnostics on the speckle pattern image."""
+    """Input: """
+    """ image: 2D numpy array representing the speckle pattern """
+    """ dynamic_range: maximum pixel value based on bit depth """
+    """ save_path: path to save the diagnostic plots """
+    """ Output: dictionary with diagnostic results """
+    
     HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V, h_profile, v_profile = speckle_size(image)
     avg_speckle_size_fwhm = np.mean([HFWHM, VFWHM])
     avg_speckle_size_e2 = np.mean([HeSquared, VeSquared])

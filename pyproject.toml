@@ -32,7 +32,11 @@ dependencies = [
   "pytest>=8.3.5",
   "pybind11>=2.13.6",
   "pyqtgraph>=0.13.7",
-  "opencv-python<=4.9.0.80"
+  "opencv-python<=4.9.0.80",
+  "seaborn>=0.13.2",
+  "skimage>=0.0",
+  "perlin_numpy>=0.0.0",
+  "opensimplex>=0.4.5.1"
 ]
 
 [tool.pytest.ini_options]
