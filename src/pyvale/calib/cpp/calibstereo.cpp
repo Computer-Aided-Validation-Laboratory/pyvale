@@ -37,28 +37,62 @@ void stereo_calibration(const std::vector<double> &init_params,
     }
 
     // run optimization routine
-    optimization::Result result = optimization::bundle_adjustment(opt, dots_cam0, dots_cam1, grid, num_img, lengths);
+    optimization::Output output = optimization::bundle_adjustment(opt, dots_cam0, dots_cam1, grid, num_img, lengths);
 
     // calculate the error for each image based on the final residuals
     std::vector<double> err0(num_img,0.0);
     std::vector<double> err1(num_img,0.0);
-    // if (formulation=="RMS"){
-    //
-    //
-    //     for (int img = 0; img < num_img; img++){
-    //         for (int d = 0; d < lengths[img]; d++){
-    //
-    //             err0[img] += (reproj0[img](0))
-    //
-    //         }
-    //     }
-    //
-    //
-    //
-    // }
+
+    std::string formulation = "MatchID";
+
+    int img_start = 0;
+    for (int img = 0; img < num_img; img++){
+        for (int d = 0; d < lengths[img]; d++){
+
+            const int idx_x = img_start+2*d+0;
+            const int idx_y = img_start+2*d+1;
 
 
+            // length diff for cam0
+            const double dx0 = output.proj0[idx_x] - dots_cam0[idx_x];
+            const double dy0 = output.proj0[idx_y] - dots_cam0[idx_y];
+
+            // length diff for cam1
+            const double dx1 = output.proj1[idx_x] - dots_cam1[idx_x];
+            const double dy1 = output.proj1[idx_y] - dots_cam1[idx_y];
+
+            if (formulation=="MatchID"){
+                err0[img] += (dx0*dx0 + dy0*dy0)/(2.0*lengths[img]);
+                err1[img] += (dx1*dx1 + dy1*dy1)/(2.0*lengths[img]);
+            }
+            else if (formulation=="RMS"){
+                err0[img] += (dx0*dx0 + dy0*dy0)/(lengths[img]);
+                err1[img] += (dx1*dx1 + dy1*dy1)/(lengths[img]);
+            }
+            else if (formulation=="mean"){
+                err0[img] += std::sqrt(dx0*dx0 + dy0*dy0)/(lengths[img]);
+                err1[img] += std::sqrt(dx1*dx1 + dy1*dy1)/(lengths[img]);
+            }
+            else {
+                std::cout << "Unknown Reprojection Error formulation: '" << formulation << "'." << std::endl;
+                std::cout << "Allowed options: 'MatchID', 'RMS', 'mean'." << std::endl;
+            }
+
+
+
+        }
+
+        if (formulation=="RMS"){
+            err0[img] = std::sqrt(err0[img]);
+            err1[img] = std::sqrt(err1[img]);
+        }
+
+        img_start += lengths[img];
+        std::cout << "error image " << img << ": " << err0[img] << " (L) " << err1[img] << " (R) " << std::endl;
+    }
 }
+
+
 
 PYBIND11_MODULE(calibcpp, m) {
     m.def("stereo_calibration", &stereo_calibration, "stereo_calibration");

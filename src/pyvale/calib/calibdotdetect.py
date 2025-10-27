@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import glob
 from scipy.optimize import least_squares
+import multiprocessing as mp
 
 import pyvale.calib.calibcpp as calibcpp
 
@@ -137,67 +138,9 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
             num_file_pairs = num_file_pairs-1
             continue
 
-
         # Detect DARK blobs
         keypoints_dark_cam0 = detector_dark.detect(img0)
         keypoints_dark_cam1 = detector_dark.detect(img1)
-
-
-        if visualisation:
-
-            # Convert grayscale images to BGR for visualization
-            img0_color = cv2.cvtColor(img0, cv2.COLOR_GRAY2BGR)
-            img1_color = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
-
-            # Make overlays for left and right images in color
-            overlay_l = img0_color.copy()
-            overlay_r = img1_color.copy()
-
-            alpha = 0.5  # 0 = fully transparent, 1 = fully opaque
-            r = 20      # radius for circles
-
-            # Draw dark cam0 keypoints in red
-            for kp in keypoints_dark_cam0:
-                x, y = map(int, kp.pt)
-                cv2.circle(overlay_l, (x, y), r, (0, 0, 255), thickness=-1)
-
-            # Draw dark cam1 keypoints in red
-            for kp in keypoints_dark_cam1:
-                x, y = map(int, kp.pt)
-                cv2.circle(overlay_r, (x, y), r, (0, 0, 255), thickness=-1)
-
-            # Draw light cam0 keypoints in green
-            for kp in keypoints_lght_cam0:
-                x, y = map(int, kp.pt)
-                cv2.circle(overlay_l, (x, y), r, (0, 255, 0), thickness=-1)
-
-            # Draw light cam1 keypoints in green
-            for kp in keypoints_lght_cam1:
-                x, y = map(int, kp.pt)
-                cv2.circle(overlay_r, (x, y), r, (0, 255, 0), thickness=-1)
-
-            # Blend overlays with original color images
-            im_with_keypoints_l = cv2.addWeighted(overlay_l, alpha, img0_color, 1 - alpha, 0)
-            im_with_keypoints_r = cv2.addWeighted(overlay_r, alpha, img1_color, 1 - alpha, 0)
-
-            # Combine side-by-side
-            side_by_side = np.hstack((im_with_keypoints_l, im_with_keypoints_r))
-
-            # Show result
-            cv2.namedWindow("Stereo Keypoints", cv2.WINDOW_NORMAL)
-            cv2.imshow("Stereo Keypoints", side_by_side)
-            cv2.resizeWindow("Stereo Keypoints", 1200, 600)
-            cv2.waitKey(1)
-            # im_with_keypoints_l = cv2.drawKeypoints(img0, keypoints_dark_cam0, None, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            # im_with_keypoints_r = cv2.drawKeypoints(img1, keypoints_dark_cam1, None, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            # im_with_keypoints_l = cv2.drawKeypoints(im_with_keypoints_l, keypoints_lght_cam0, None, (0,255,0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            # im_with_keypoints_r = cv2.drawKeypoints(im_with_keypoints_r, keypoints_lght_cam1, None, (0,255,0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            # side_by_side = np.hstack((im_with_keypoints_l, im_with_keypoints_r))
-            # cv2.namedWindow("Stereo Keypoints", cv2.WINDOW_NORMAL)
-            # cv2.imshow("Stereo Keypoints", side_by_side)
-            # cv2.waitKey(0)
-
-
 
         # there should always be 3 points in keypoints_lght_cam0 and keypoints_lght_cam1
         if len(keypoints_lght_cam0) != 3 or len(keypoints_lght_cam1) != 3:
@@ -252,7 +195,6 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         matched_kps0 = [best_kps[i] for i in best_for_grid.keys()]
         matched_grid = finalgrid_2d[list(best_for_grid.keys())]
 
-
         #########################################################
         # map cam1 to grid. keep mutual points from prev matching
         #########################################################
@@ -285,105 +227,6 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         matched_cam0 = np.append(matched_cam0, light_pts_cam0_ordered, axis=0)
         matched_cam1 = np.append(matched_cam1, light_pts_cam1_ordered, axis=0)
 
-        # ret, corners0 = cv2.findCirclesGrid(matched_cam0, (4,8), None, flags = cv2.CALIB_CB_SYMMETRIC_GRID)
-        # ret, corners1 = cv2.findCirclesGrid(matched_cam0, (4,8), None, flags = cv2.CALIB_CB_SYMMETRIC_GRID)
-        # print(corners0)
-        # print(ret)
-
-
-        #
-        #
-        # pts = matched_cam0.reshape(-1,1,2).astype(np.float32)
-        # criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.001)
-        # refined_cam0 = cv2.cornerSubPix(
-        #     img0, pts,
-        #     winSize=(50,50),     # local search window
-        #     zeroZone=(-1,-1),  # no exclusion
-        #     criteria=criteria
-        # )
-        # print(refined_cam0)
-        #
-        # np.savetxt("matched_cam0",matched_cam0)
-        # np.savetxt("matched_cam1",matched_cam1)
-        # np.savetxt("matched_grid",matched_grid)
-
-
-        # print(matched_cam0.shape)
-        # print(matched_cam1.shape)
-        # print(matched_grid.shape)
-
-
-        # np.savetxt("matched_cam0_old",matched_cam0)
-        # np.savetxt("matched_cam1_old",matched_cam1)
-        # np.savetxt("matched_grid",matched_grid)
-
-        # H, _ = cv2.findHomography(matched_grid, matched_cam0, method=0)
-        # M, _ = cv2.findHomography(matched_grid, matched_cam1, method=0)
-        # matched_cam0 = cv2.perspectiveTransform(matched_grid.reshape(-1, 1, 2), H).reshape(-1, 2)
-        # matched_cam1 = cv2.perspectiveTransform(matched_grid.reshape(-1, 1, 2), M).reshape(-1, 2)
-
-
-
-        # np.savetxt("matched_cam0_new",updated_cam0_points)
-        # np.savetxt("matched_cam1_new",updated_cam1_points)
-
-        #########################################################
-        # Debugging
-        #########################################################
-        # im_with_keypoints_cam0 = cv2.drawKeypoints(img0, keypoints_dark_cam0, None, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_cam1ICH_KEYPOINTS)
-        # im_with_keypoints_cam1 = cv2.drawKeypoints(img1, keypoints_dark_cam1, None, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_cam1ICH_KEYPOINTS)
-        # im_with_keypoints_cam0 = cv2.drawKeypoints(im_with_keypoints_cam0, keypoints_lght_cam0, None, (0,255,0), cv2.DRAW_MATCHES_FLAGS_DRAW_cam1ICH_KEYPOINTS)
-        # im_with_keypoints_cam1 = cv2.drawKeypoints(im_with_keypoints_cam1, keypoints_lght_cam1, None, (0,255,0), cv2.DRAW_MATCHES_FLAGS_DRAW_cam1ICH_KEYPOINTS)
-        # side_by_side = np.hstack((im_with_keypoints_cam0, im_with_keypoints_cam1))
-        # cv2.namedWindow("Stereo Keypoints", cv2.WINDOW_NORMAL)
-        # cv2.imshow("Stereo Keypoints", side_by_side)
-        # cv2.waitKey(0)
-
-        # # debugging plot
-        # pts_cam0 = matched_cam0.reshape(-1, 2)
-        # pts_cam1 = matched_cam1.reshape(-1, 2)
-        # fig, axes = plt.subplots(1, 4, figsize=(20, 6))
-        #
-        # # # Left image with detected circles
-        # axes[0].imshow(img0, cmap='gray')
-        # axes[0].plot(light_pts_cam0_ordered[0, 0], light_pts_cam0_ordered[0, 1], 'co', markersize=5)
-        # axes[0].plot(light_pts_cam0_ordered[1, 0], light_pts_cam0_ordered[1, 1], 'yo', markersize=5)
-        # axes[0].plot(light_pts_cam0_ordered[2, 0], light_pts_cam0_ordered[2, 1], 'mo', markersize=5)
-        # axes[0].plot(pts_cam0[:, 0], pts_cam0[:, 1], 'ro', markersize=5)
-        # # corners0 = corners0.reshape(-1,2)
-        # # axes[0].plot(corners0[:, 0], corners0[:, 1], 'bo', markersize=2)
-        # axes[0].set_title('Left Image with \n Detected Circles')
-        #
-        # # Right image with detected circles
-        # axes[1].imshow(img1, cmap='gray')
-        # axes[1].plot(light_pts_cam1_ordered[0, 0], light_pts_cam1_ordered[0, 1], 'co', markersize=5)
-        # axes[1].plot(light_pts_cam1_ordered[1, 0], light_pts_cam1_ordered[1, 1], 'yo', markersize=5)
-        # axes[1].plot(light_pts_cam1_ordered[2, 0], light_pts_cam1_ordered[2, 1], 'mo', markersize=5)
-        # axes[1].plot(pts_cam1[:, 0], pts_cam1[:, 1], 'ro', markersize=5)
-        # # corners1 = corners1.reshape(-1,2)
-        # # axes[1].plot(corners1[:, 0], corners1[:, 1], 'bo', markersize=2)
-        # axes[1].set_title('Right Image with \n Detected Circles')
-        #
-        # axes[2].plot(transformed_cam0[:, 0], transformed_cam0[:, 1], 'ro', markersize=5)
-        # axes[2].plot(finalgrid_2d[:, 0], finalgrid_2d[:, 1], 'x', markersize=5)
-        # axes[2].invert_yaxis()
-        # axes[2].set_title('left circles mapped to \n to grid reference frame ')
-        #
-        # axes[3].plot(transformed_cam1[:, 0], transformed_cam1[:, 1], 'ro', markersize=5)
-        # axes[3].plot(finalgrid_2d[:, 0], finalgrid_2d[:, 1], 'x', markersize=5)
-        # axes[3].invert_yaxis()
-        # axes[3].set_title('right cricles mapped to \n to grid reference frame ')
-        #
-        # # Save the figure to a temporary PNG file
-        # # filename = f"output/frame_{i:03d}.png"
-        # # plt.savefig(filename)
-        # # plt.close(fig)
-        # plt.show()
-        #
-        # # np.savetxt("matched_cam0.txt", matched_cam0, fmt='%.2f')
-        # # np.savetxt("matched_cam1.txt", matched_cam1, fmt='%.2f')
-        # # np.savetxt("matched_grid.txt", matched_grid, fmt='%.2f')
-
         # Append for calibration
         matched_grid = np.hstack((matched_grid, np.zeros((matched_grid.shape[0], 1), dtype=matched_grid.dtype)))
         gridpoints.append(matched_grid)
@@ -395,21 +238,6 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
               f"cam1: {len(pts_cam1_raw)+len(light_pts_cam1)}, "
               f"mutual: {matched_grid.shape[0]}")
         print()
-
-        # test_gridpoints = []
-        # test_dots_cam0 = []
-        # test_dots_cam1 = []
-        # test_gridpoints.append(matched_grid)
-        # test_dots_cam0.append(matched_cam0)
-        # test_dots_cam1.append(matched_cam1)
-        # _, Kl, Dl, rvecs_cam0, tvecs_cam0 = cv2.calibrateCamera(test_gridpoints, test_dots_cam0, img_size, None, None)
-        # _, Kr, Dr, rvecs_cam1, tvecs_cam1 = cv2.calibrateCamera(test_gridpoints, test_dots_cam1, img_size, None, None)
-        # print('\nLeft Camera Matrix:\n', Kl)
-        # print('Left Distortion Coefficients:\n', Dl)
-        # print('\nRight Camera Matrix:\n', Kr)
-        # print('Right Distortion Coefficients:\n', Dr)
-        # print()
-    
 
     return dots_cam0, dots_cam1, gridpoints, img_dims
 

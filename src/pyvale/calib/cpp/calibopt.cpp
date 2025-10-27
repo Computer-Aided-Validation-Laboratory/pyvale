@@ -13,8 +13,8 @@
 #include <vector>
 
 // eigen header files
-#include "./Eigen/Dense"
-#include "./Eigen/Geometry"
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 // pyvale header files
 #include "./calibopt.hpp"
@@ -23,7 +23,7 @@
 
 namespace optimization {
 
-    optimization::Result bundle_adjustment(Parameters &opt, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1, 
+    optimization::Output bundle_adjustment(Parameters &opt, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1, 
                                            const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths){
 
         int iter = 0;
@@ -50,7 +50,7 @@ namespace optimization {
 
         //return the residuals from the final iteration 
         opt.p = opt.pdp;
-        optimization::Result final_results = calc_residuals(opt.p, dots_cam0, dots_cam1, grid, num_img, lengths, true);
+        optimization::Output final_results = calc_residuals(opt.p, dots_cam0, dots_cam1, grid, num_img, lengths, false);
 
         return final_results;
     }
@@ -61,7 +61,7 @@ namespace optimization {
 
 
         // Compute residuals at current point. p get updated in this
-        optimization::Result res = calc_residuals(opt.p, dots_cam0, dots_cam1, grid, num_img, lengths, false);
+        optimization::Output res = calc_residuals(opt.p, dots_cam0, dots_cam1, grid, num_img, lengths, false);
 
         // calculate jacobian
         Eigen::MatrixXd J = calc_jac(opt.p, res.residuals, dots_cam0, dots_cam1, grid, num_img, lengths);
@@ -86,7 +86,7 @@ namespace optimization {
 
 
         // Evaluate new cost
-        optimization::Result res_new = calc_residuals(opt.pdp, dots_cam0, dots_cam1, grid, num_img, lengths, false);
+        optimization::Output res_new = calc_residuals(opt.pdp, dots_cam0, dots_cam1, grid, num_img, lengths, false);
         opt.costp = 0.0;
         opt.costpdp = 0.0;
         for (int i = 0; i < res_new.residuals.size(); i++){
@@ -175,7 +175,7 @@ namespace optimization {
 
 
 
-        optimization::Result calc_residuals(std::vector<double> &p, const std::vector<double> &dots_cam0,
+        optimization::Output calc_residuals(std::vector<double> &p, const std::vector<double> &dots_cam0,
                                             const std::vector<double> &dots_cam1, const std::vector<double> &grid, 
                                             const size_t num_img, const std::vector<int> &lengths,
                                             const bool print_flag){
@@ -211,18 +211,30 @@ namespace optimization {
         Eigen::VectorXd residuals(2*dots_cam0.size());
         std::vector<double> proj0(2*dots_cam0.size());
         std::vector<double> proj1(2*dots_cam0.size());
+
+        std::vector<int> img_offsets(num_img);
         int count = 0;
+        for (size_t i = 0; i < num_img; i++) {
+            img_offsets[i] = count;
+            count += lengths[i];
+        }
+
 
         // loop over all imgs in stereo_calibration
+        #pragma omp parallel for
         for (size_t i = 0; i < num_img; i++){
 
+            // rotation vector
             Eigen::Vector3d rvec0(p[start_cam0 + i*6],
-                                p[start_cam0 + i*6 + 1],
-                                p[start_cam0 + i*6 + 2]);
-            Eigen::Vector3d tvec0(p[start_cam0 + i*6 + 3],
-                                p[start_cam0 + i*6 + 4],
-                                p[start_cam0 + i*6 + 5]);
+                                  p[start_cam0 + i*6 + 1],
+                                  p[start_cam0 + i*6 + 2]);
 
+            // translation vector
+            Eigen::Vector3d tvec0(p[start_cam0 + i*6 + 3],
+                                  p[start_cam0 + i*6 + 4],
+                                  p[start_cam0 + i*6 + 5]);
+
+            // rotation matrix
             Eigen::Matrix3d R0 = rodrigues_to_matrix(rvec0);
 
             // Cam1 pose (derived from cam0 + stereo)
@@ -246,13 +258,10 @@ namespace optimization {
                 rvec1 = angle * axis;
             }
 
-
-
             //convert grid for this image to a vector of eigen 3d points
             std::vector<Eigen::Vector3d> grid_img_i(lengths[i]);
             int idx_start_3d = 0;
             int idx_start_2d = 0;
-
 
             //get start index of the grid for this image
             for (int j = 0; j < i; j++){
@@ -270,24 +279,31 @@ namespace optimization {
             std::vector<double> proj0_i = project_points(grid_img_i, rvec0, tvec0, K0, D0);
             std::vector<double> proj1_i = project_points(grid_img_i, rvec1, T1, K1, D1);
 
+            // offset in results arrays for local copy
+            int local_offset = img_offsets[i];
+
             // residuals
             for (size_t j = 0; j < lengths[i]; j++) {
+
+                //global index
+                int global_idx = local_offset+j;
+
                 if (print_flag) {
                     std::cout << std::setprecision(10) << dots_cam0[idx_start_2d+2*j+0] << " " << dots_cam0[idx_start_2d+2*j+1] << " ";
                     std::cout << std::setprecision(10) << proj0_i[2*j+0] << " " << proj0_i[2*j+1] << std::endl;
                 }
 
                 // residuals
-                residuals[4*count+0] = proj0_i[2*j+0] - dots_cam0[idx_start_2d+2*j+0];
-                residuals[4*count+1] = proj0_i[2*j+1] - dots_cam0[idx_start_2d+2*j+1];
-                residuals[4*count+2] = proj1_i[2*j+0] - dots_cam1[idx_start_2d+2*j+0];
-                residuals[4*count+3] = proj1_i[2*j+1] - dots_cam1[idx_start_2d+2*j+1];
+                residuals[4*global_idx+0] = proj0_i[2*j+0] - dots_cam0[idx_start_2d+2*j+0];
+                residuals[4*global_idx+1] = proj0_i[2*j+1] - dots_cam0[idx_start_2d+2*j+1];
+                residuals[4*global_idx+2] = proj1_i[2*j+0] - dots_cam1[idx_start_2d+2*j+0];
+                residuals[4*global_idx+3] = proj1_i[2*j+1] - dots_cam1[idx_start_2d+2*j+1];
 
                 // populate master reprojection array for every image
-                proj0[4*count+0] = proj0_i[2*j+0];
-                proj0[4*count+1] = proj0_i[2*j+1];
-                proj1[4*count+2] = proj1_i[2*j+0];
-                proj1[4*count+3] = proj1_i[2*j+1];
+                proj0[2*global_idx+0] = proj0_i[2*j+0];
+                proj0[2*global_idx+1] = proj0_i[2*j+1];
+                proj1[2*global_idx+0] = proj1_i[2*j+0];
+                proj1[2*global_idx+1] = proj1_i[2*j+1];
 
                 // increment count
                 count++;
@@ -309,11 +325,12 @@ namespace optimization {
 
 
         // perturb one parameter at a time
+        #pragma omp parallel for
         for (int j = 0; j < n; j++) {
             std::vector<double> p_prime = p;
             p_prime[j] += h;
 
-        auto [r_prime, proj0, proj1] = calc_residuals(p_prime, dots_cam0, dots_cam1, grid, num_img, lengths, false);
+            auto [r_prime, proj0, proj1] = calc_residuals(p_prime, dots_cam0, dots_cam1, grid, num_img, lengths, false);
 
             for (int i = 0; i < m; i++) {
                 jac(i, j) = (r_prime[i] - r[i]) / h;

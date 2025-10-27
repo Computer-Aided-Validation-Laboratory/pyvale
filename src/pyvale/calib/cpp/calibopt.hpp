@@ -55,14 +55,14 @@ namespace optimization {
     };
 
 
-    struct Result {
+    struct Output {
         Eigen::VectorXd residuals;
         std::vector<double> proj0;
         std::vector<double> proj1;
     };
 
     // master optimization routine
-    Result bundle_adjustment(Parameters &opt, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1,
+    optimization::Output bundle_adjustment(Parameters &opt, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1,
                             const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths);
 
     // single iteration of optimization
@@ -74,7 +74,7 @@ namespace optimization {
                             const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths);
 
     // calculate residuals
-    optimization::Result calc_residuals(std::vector<double> &p, const std::vector<double> &dots_cam0, 
+    optimization::Output calc_residuals(std::vector<double> &p, const std::vector<double> &dots_cam0, 
                                 const std::vector<double> &dots_cam1, const std::vector<double> &grid, 
                                 const size_t num_img,  const std::vector<int> &lengths, const bool print_flag);
 
