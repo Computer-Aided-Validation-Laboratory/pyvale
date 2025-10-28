@@ -11,7 +11,8 @@ import math
 from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
                                          TraceOptsSensor)
-from pyvale.sensorsim.plotter_log import logger
+from pyvale.sensorsim.plotting_logs import logger
+from pyvale.sensorsim.logger import Logger
 
 
 
@@ -101,6 +102,10 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         (fig,ax).
     """
     #---------------------------------------------------------------------------
+    mylogger = Logger(__name__)
+    mylogger.make_logger()
+    mylogger.put_error()
+    logger.info(f"Starting plotting process")
     field = sensor_array._field
     samp_time = sensor_array.get_sample_times()
     measurements = sensor_array.get_measurements()
@@ -127,14 +132,10 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     if trace_opts.sensors_to_plot is None:
         if num_sens <= trace_opts.total_sensors:
             sensors_to_plot = range(num_sens)
-            #print(f"Only {num_sens} sensors to plot")
-            #print("Plotting all sensors")
             logger.debug(f"Only {num_sens} sensors to plot. Plotting all sensors")
         else:
             n = num_sens/trace_opts.total_sensors
             step = math.ceil(n)
-            #print("Lots of sensors...")
-            #print(f"Plotting sensor after every {step}...")
             logger.info(f"Lots of sensors... Plotting sensor after every {step}... ")
             sensors_to_plot = range(0, num_sens, step)
     else:
@@ -144,34 +145,25 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         print(f"The sensors {fake_sensors} do not exist")
         for i in sensors_to_plot:
             if i not in sensor_list:
-                #print(f"[{i}] not a valid sensor number. Removing from sensors to plot")
                 logger.warning(f"[{i}] not a valid sensor number. Removing from sensors to plot")
                 sensors_to_plot.remove(i)
         sensors_to_plot = sensors_to_plot
 
     if sensors_to_plot == 0:
-        #print("No sensors to plot")
         logger.warning("No sensors found to plot")
 
     if trace_opts.sensors_per_plot is None:
         sensors_per_plot = len(sensors_to_plot)+1
     elif trace_opts.sensors_per_plot > num_sens:
-        #print("Sensors per plot cannot be more than the total number of sensors")
-        #print(f"Defaulting to {num_sens} sensors per plot")
         logger.warning(f"Sensors per plot cannot be more than the total number of sensors. Defaulting to {num_sens} sensors per plot")
         sensors_per_plot = len(sensors_to_plot)+1
     else:
         sensors_per_plot = trace_opts.sensors_per_plot
 
     if sensors_per_plot > 10:
-        #print("More than 10 sensors per plot may affect plot readability")
-        #print("Defaulting to 10 sensors per plot...")
         logger.warning(f"More than 10 sensors per plot may affect plot readability, Defaulting to 10 sensors per plot...")
         sensors_per_plot = 10
 
-    #sensors_to_plot = [1,2,3,4]
-
-    #sensors_per_plot = 2
 
     #---------------------------------------------------------------------------
     # Figure canvas setup
@@ -246,12 +238,14 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                 ms=plot_opts.ms,
                 color=plot_opts.colors[ii % plot_opts.colors_num])
         linestemp.append(line)
+        logger.info(f"{line} has been plot")
 
         if (ii+1) % sensors_per_plot == 0:
             make_labels(trace_opts.legend_loc, 
                         ax[current_plot], 
                         plot_opts.font_leg_size,
                         linestemp)
+            logger.info(f"Legend labels made for sensors: {linestemp}")
             linestemp = []
             
             current_plot = current_plot+1
@@ -266,6 +260,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                             ax[current_plot], 
                             plot_opts.font_leg_size,
                             linestemp)
+                logger.info(f"Legend labels made for sensors: {linestemp}")
 
     current_plot = 0
 
