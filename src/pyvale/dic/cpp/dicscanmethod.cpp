@@ -413,7 +413,7 @@ namespace scanmethod {
                 // Steal if nothing in own queue
                 if (!got_point) {
                     while (!got_point && idle_iters < max_idle_iters) {
-                        #pragma omp critical
+                        #pragma omp critical(queue_check)
                         {
                             for (size_t i = 0; i < local_q.size(); ++i) {
                                 std::lock_guard<std::mutex> lock(queue_mutexes[i]);
@@ -484,7 +484,7 @@ namespace scanmethod {
                             nres.cost = 1.0-nres.cost;
 
                         // append results
-                        #pragma omp critical
+                        #pragma omp critical(append_results)
                             util::append_results(img_num, nidx, nres, num_ss);
 
                         // add results to temp neighbour results
@@ -582,7 +582,7 @@ namespace scanmethod {
                     res.cost = 1.0-res.cost;
 
                 // append optimization results to results vectors
-                #pragma omp critical
+                #pragma omp critical(append_results)
                     util::append_results(img_num, ss, res, num_ss);
 
                 // update progress bar
