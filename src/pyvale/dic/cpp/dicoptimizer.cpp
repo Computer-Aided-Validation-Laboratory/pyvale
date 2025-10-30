@@ -96,7 +96,7 @@ namespace optimizer {
             }
             else {
                 if ((xtol < opt.precision) && (ftol < opt.precision)) {
-                    debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+                    //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
                     converged=true; 
                     break;
                 }
@@ -114,9 +114,9 @@ namespace optimizer {
         res.converged = converged;
 
         // debugging
-        if (iter == opt.max_iter) {
-          debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
-        }
+        //if (iter == opt.max_iter) {
+        //  debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+        //}
 
         return res;
     }
