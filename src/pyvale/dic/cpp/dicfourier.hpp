@@ -38,29 +38,29 @@ namespace fourier {
         std::vector<int> neigh_list;
         std::vector<int> num_neigh_list;
 
-        void gen_neighlist(const util::SubsetData ssdata,
-                           const util::SubsetData ssdata_prev) {
+        void gen_neighlist(const subset::Grid ss_grid,
+                           const subset::Grid ss_grid_prev) {
 
             //util::Timer timer("nearest neighbour collection for :");
 
-            const int prev_step = ssdata_prev.step;
+            const int prev_step = ss_grid_prev.step;
 
 
             // a list containing the number of neighbours from the previous
             // window size for each subset in the current window size
-            num_neigh_list.resize(ssdata.num);
+            num_neigh_list.resize(ss_grid.num);
 
             // we know the neigh_list is going to be a max size of
             // max_neigh*num_ss. we can resize this later once populated
-            neigh_list.resize(max_num_neigh*ssdata.num);
+            neigh_list.resize(max_num_neigh*ss_grid.num);
 
-            // For each subset, find 4 nearest neighbours in ssdata_prev
+            // For each subset, find 4 nearest neighbours in ss_grid_prev
             #pragma omp parallel for
-            for (int ss = 0; ss < ssdata.num; ++ss) {
+            for (int ss = 0; ss < ss_grid.num; ++ss) {
 
                 // corner of subset
-                const int ss_x = ssdata.coords[2*ss];
-                const int ss_y = ssdata.coords[2*ss+1];
+                const int ss_x = ss_grid.coords[2*ss];
+                const int ss_y = ss_grid.coords[2*ss+1];
 
                 // Vector to store pairs of (distance, index)
                 std::vector<std::pair<double, int>> dist_index_list;
@@ -72,18 +72,18 @@ namespace fourier {
                 // range of neighbour search
                 int min_x = std::max(0,idx_x-5);
                 int min_y = std::max(0,idx_y-5);
-                int max_x = std::min(ssdata_prev.num_ss_x,idx_x+6);
-                int max_y = std::min(ssdata_prev.num_ss_y,idx_y+6);
+                int max_x = std::min(ss_grid_prev.num_ss_x,idx_x+6);
+                int max_y = std::min(ss_grid_prev.num_ss_y,idx_y+6);
 
                 for (int y = min_y; y < max_y; y++){
                     for (int x = min_x; x < max_x; x++){
 
                     // check if point is a valid subset
-                    int nss_idx = ssdata_prev.mask[y*ssdata_prev.num_ss_x+x];
+                    int nss_idx = ss_grid_prev.mask[y*ss_grid_prev.num_ss_x+x];
                     if (nss_idx == -1) continue;
 
-                    int nss_x = ssdata_prev.coords[2*nss_idx];
-                    int nss_y = ssdata_prev.coords[2*nss_idx+1];
+                    int nss_x = ss_grid_prev.coords[2*nss_idx];
+                    int nss_y = ss_grid_prev.coords[2*nss_idx+1];
 
                     double dx = (nss_x) - ss_x;
                     double dy = (nss_y) - ss_y;
@@ -103,8 +103,8 @@ namespace fourier {
                     std::cerr << "Neighbours from previous window: " << std::endl;
                     for (size_t n = 0; n < dist_index_list.size(); n++){
                         int nss_idx = dist_index_list[n].second;
-                        int nss_x = ssdata_prev.coords[2*nss_idx];
-                        int nss_y = ssdata_prev.coords[2*nss_idx+1];
+                        int nss_x = ss_grid_prev.coords[2*nss_idx];
+                        int nss_y = ss_grid_prev.coords[2*nss_idx+1];
                         std::cerr << "(" << nss_x << ", " << nss_y << "), ";
                     }
                     std::cerr << std::endl;
@@ -131,8 +131,8 @@ namespace fourier {
         int n_complex;
         
         // input data
-        util::Subset ss_def;
-        util::Subset ss_ref;
+        subset::Pixels ss_def;
+        subset::Pixels ss_ref;
 
         // output data
         std::vector<std::complex<double>> fft_def;
@@ -268,12 +268,12 @@ namespace fourier {
         }
     };
 
-    void init(std::vector<util::SubsetData> &ssdata,
+    void init(std::vector<subset::Grid> &ss_grid,
               std::vector<int> &ss_sizes,
               std::vector<int> &ss_steps,
               const bool *img_roi, const util::Config &conf);
 
-    void mgwd(const std::vector<util::SubsetData> &ssdata,
+    void mgwd(const std::vector<subset::Grid> &ss_grid,
               const double *img_ref,
               const double *img_def,
               const Interpolator &interp_def,
@@ -281,7 +281,7 @@ namespace fourier {
               const double fft_mad_scale);
 
 
-    void sgwd(const util::SubsetData &ssdata, 
+    void sgwd(const subset::Grid &ss_grid, 
               const int window_size,
               const double *img_ref,
               const double *img_def,
@@ -290,13 +290,13 @@ namespace fourier {
     std::pair<double, double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,
                                        const std::vector<Shift>& shifts,
-                                       const std::vector<util::SubsetData>& ssdata);
+                                       const std::vector<subset::Grid>& ss_grid);
 
-    double debugcost(util::Subset &ss_ref, util::Subset &ss_def);
+    double debugcost(subset::Pixels &ss_ref, subset::Pixels &ss_def);
 
     void zero_norm_subsets(std::vector<double>& def_vals, std::vector<double>& ref_vals, int ss_size);
 
-   void smooth_field(std::vector<double>& shift, const util::SubsetData& ssdata, double sigma, int radius);
+   void smooth_field(std::vector<double>& shift, const subset::Grid& ss_grid, double sigma, int radius);
    void test(double &peak_x, double &peak_y, int ss_x, int ss_y, const int window_size, const double *img_ref, const double *img_def, const Interpolator &interp_def);
 }
 

@@ -20,7 +20,6 @@
 
 // Program Header files
 #include "./dicinterpolator.hpp"
-#include "./dicbruteforce.hpp"
 #include "./dicoptimizer.hpp"
 #include "./dicscanmethod.hpp"
 #include "./defines.hpp"
@@ -28,9 +27,11 @@
 #include "./dicstrain.hpp"
 #include "./dicfourier.hpp"
 #include "./dicsignalhandler.hpp"
+#include "./dicshapefunc.hpp"
 
 // cuda Header files
 #include "../cuda/malloc.hpp"
+#include "dicsubset.hpp"
 
 namespace py = pybind11;
 
@@ -78,27 +79,31 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // ------------------------------------------------------------------------
     // get a list of ss coordinates within RIO;
     // ------------------------------------------------------------------------
-    std::vector<util::SubsetData> ssdata;
+    std::vector<subset::Grid> ss_grids;
     std::vector<int> ss_sizes, ss_steps;
     if ((conf.scan_method == "FFT") || (conf.scan_method == "RG")){
         util::Timer timer("subset list initialisation");
         util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.max_disp);
-        fourier::init(ssdata, ss_sizes, ss_steps, img_roi, conf);
+        fourier::init(ss_grids, ss_sizes, ss_steps, img_roi, conf);
     }
     else {
         util::Timer timer("subset list initialisation");
-        ssdata.push_back(util::gen_ss_list(img_roi, conf.ss_step,
+        ss_grids.push_back(subset::create_grid(img_roi, conf.ss_step,
                                            conf.ss_size, conf.px_hori, 
                                            conf.px_vert));
     }
 
 
     // resize the results based on subset information
-    util::resize_results(conf.num_def_img, ssdata.back().num,
+    util::resize_results(conf.num_def_img, ss_grids.back().num,
                          conf.num_params, saveconf.at_end);
 
-    // initialise the LM optimizer with shape func and corr crit
-    optimizer::init(conf.corr_crit, conf.shape_func);
+
+    // set relevent shape function
+    shapefunc::set(conf.shape_func);
+
+    // set cost function to use in optimization
+    optimizer::set_cost_function(conf.corr_crit);
 
     // initialise the brute force scan
     // std::string brute_method = "EXPANDING_WAVEFRONT";
@@ -123,33 +128,29 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
         // raster scan
         if (conf.scan_method=="IMAGE_SCAN") 
-            scanmethod::image(img_ref, interp_def, ssdata[0], conf, img_num);
-
-        // raster with brute force
-        else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") 
-            scanmethod::image_with_bf(img_ref, img_def, interp_def, ssdata[0], conf, img_num);
+            scanmethod::image(img_ref, interp_def, ss_grids[0], conf, img_num);
 
         // reliability Guided
         else if (conf.scan_method=="RG")
-            scanmethod::reliability_guided(img_ref, img_def, interp_def, ssdata, conf, img_num, saveconf.at_end);
+            scanmethod::reliability_guided(img_ref, img_def, interp_def, ss_grids, conf, img_num, saveconf.at_end);
 
         // multi window fft
         else if (conf.scan_method=="FFT")
-            scanmethod::multi_window_fourier(img_ref, img_def, interp_def, ssdata, conf, img_num);
+            scanmethod::multi_window_fourier(img_ref, img_def, interp_def, ss_grids, conf, img_num);
 
         // single window fft
         else if (conf.scan_method=="FFT_test")
-            scanmethod::single_window_fourier(img_ref, img_def, interp_def, ssdata[0], conf, img_num);
+            scanmethod::single_window_fourier(img_ref, img_def, interp_def, ss_grids[0], conf, img_num);
 
         if (!saveconf.at_end)
-            util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params, conf.filenames);
+            util::save_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.num_params, conf.filenames);
 
         if (stop_request) break;
     }
 
     if (saveconf.at_end)
         for (int img_num = 0; img_num < conf.num_def_img; img_num++)
-            util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params, conf.filenames);
+            util::save_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.num_params, conf.filenames);
 
     // TODO: don't have shifts as a global var. Should probably make fourier
     // stuff a class at some point in the future

@@ -19,12 +19,14 @@
 #include "./dicutil.hpp"
 #include "./dicfourier.hpp"
 #include "./dicsignalhandler.hpp"
+#include "./dicsubset.hpp"
+#include "./dicinterpolator.hpp"
 
 namespace fourier {
 
     std::vector<Shift> shifts;
 
-    void init(std::vector<util::SubsetData> &window_data,
+    void init(std::vector<subset::Grid> &window_data,
               std::vector<int> &ss_sizes,
               std::vector<int> &ss_steps,
               const bool *img_roi, const util::Config &conf){
@@ -41,11 +43,11 @@ namespace fourier {
             // generate subset information for each window size.
             // for the last size all subsets need to sit within the ROI
             if (i==ss_sizes.size()-1)
-                window_data.push_back(util::gen_ss_list(img_roi, window_step,
+                window_data.push_back(subset::create_grid(img_roi, window_step,
                                                         window_size, conf.px_hori, 
                                                         conf.px_vert, false));
             else 
-                window_data.push_back(util::gen_ss_list(img_roi, window_step, 
+                window_data.push_back(subset::create_grid(img_roi, window_step, 
                                                         window_size, conf.px_hori, 
                                                         conf.px_vert, true));
 
@@ -71,35 +73,35 @@ namespace fourier {
     }
 
     void remove_outliers(std::vector<double>& shift,
-                         const util::SubsetData &ssdata,
+                         const subset::Grid &ss_grid,
                          const double mad_scale) {
 
         std::vector<double> updated = shift;
 
         int radius = 2;
 
-        for (int ss = 0; ss < ssdata.num; ss++) {
+        for (int ss = 0; ss < ss_grid.num; ss++) {
             
             // subset coords
-            int ss_x = ssdata.coords[2*ss];
-            int ss_y = ssdata.coords[2*ss+1];
+            int ss_x = ss_grid.coords[2*ss];
+            int ss_y = ss_grid.coords[2*ss+1];
 
             // subset x and y index in 2d mask
-            int idx_x = ss_x / ssdata.step;
-            int idx_y = ss_y / ssdata.step;
+            int idx_x = ss_x / ss_grid.step;
+            int idx_y = ss_y / ss_grid.step;
 
             std::vector<double> neigh_vals;
 
             int min_x = std::max(0, idx_x-radius);
             int min_y = std::max(0, idx_y-radius);
-            int max_y = std::min(ssdata.num_ss_y, idx_y+radius+1);
-            int max_x = std::min(ssdata.num_ss_x, idx_x+radius+1);
+            int max_y = std::min(ss_grid.num_ss_y, idx_y+radius+1);
+            int max_x = std::min(ss_grid.num_ss_x, idx_x+radius+1);
 
             for (int y = min_y; y < max_y; ++y) {
                 for (int x = min_x; x < max_x; ++x) {
 
                     // index of neighbour 
-                    int nss_idx = ssdata.mask[y*ssdata.num_ss_x+x];
+                    int nss_idx = ss_grid.mask[y*ss_grid.num_ss_x+x];
 
                     // check if invalid neigh
                     if (nss_idx == -1 || nss_idx == ss) continue; 
@@ -132,7 +134,7 @@ namespace fourier {
         shift = std::move(updated);
     }
 
-    void mgwd(const std::vector<util::SubsetData> &ssdata, 
+    void mgwd(const std::vector<subset::Grid> &ss_grid, 
               const double *img_ref,
               const double *img_def,
               const Interpolator &interp_def,
@@ -146,12 +148,12 @@ namespace fourier {
         bool subpx = true;
 
         // Loop over window size
-        for (size_t i = 0; i < ssdata.size(); i++){
+        for (size_t i = 0; i < ss_grid.size(); i++){
 
-            //util::Timer timer("FFT windowing for subset size: " + std::to_string(ssdata[i].size));
+            //util::Timer timer("FFT windowing for subset size: " + std::to_string(ss_grid[i].size));
 
-            const int ss_size = ssdata[i].size;
-            const int num_ss  = ssdata[i].num;
+            const int ss_size = ss_grid[i].size;
+            const int num_ss  = ss_grid[i].num;
 
             std::fill(shifts[i].x.begin(), shifts[i].x.end(), 0.0);
             std::fill(shifts[i].y.begin(), shifts[i].y.end(), 0.0);
@@ -162,10 +164,10 @@ namespace fourier {
 
             if (g_debug_level == 1){
                 std::string bar_title = "FFT windowing for size: " + std::to_string(ss_size);
-                util::create_progress_bar(bar, bar_title, ssdata[i].num);
+                util::create_progress_bar(bar, bar_title, ss_grid[i].num);
             }
 
-            #pragma omp parallel shared(stop_request, shifts, ssdata, interp_def, ss_size)
+            #pragma omp parallel shared(stop_request, shifts, ss_grid, interp_def, ss_size)
             {
 
 
@@ -174,26 +176,26 @@ namespace fourier {
 
                 // loop over subsets for each size/step
                 #pragma omp for schedule(dynamic,10)
-                for (int ss = 0; ss < ssdata[i].num; ss++){
+                for (int ss = 0; ss < ss_grid[i].num; ss++){
 
                     // exit when ctrl+C
                     if (stop_request){
                         continue;
                     }
 
-                    const int ss_x = ssdata[i].coords[2*ss];
-                    const int ss_y = ssdata[i].coords[2*ss+1];
+                    const int ss_x = ss_grid[i].coords[2*ss];
+                    const int ss_y = ss_grid[i].coords[2*ss+1];
 
                     // get the seed for the new window size
-                    auto [prev_x, prev_y] = get_prev_shift(i, ss, ss_x, ss_y, shifts, ssdata);
+                    auto [prev_x, prev_y] = get_prev_shift(i, ss, ss_x, ss_y, shifts, ss_grid);
                     double ss_x_shft = ss_x+prev_x;
                     double ss_y_shft = ss_y+prev_y;
 
                     // populate fft.ss_ref with reference subset values
-                    util::extract_ss(fft.ss_ref,ss_x, ss_y, px_hori, px_vert, img_ref);
+                    subset::get_px_from_img(fft.ss_ref,ss_x, ss_y, px_hori, px_vert, img_ref);
 
                     // populate fft.ss_def with interpolator value
-                    util::extract_ss_subpx(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
+                    subset::get_subpx_from_img(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
 
                     // zero normalise the subsets
                     zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, ss_size);
@@ -226,7 +228,7 @@ namespace fourier {
                     }
 
                     // this isn't essential. storing peak amplitude and cost value for shifts
-                    //util::extract_ss_subpx(fft.ss_def, ss_x+shifts[i].x[ss], ss_y+shifts[i].y[ss], interp_def);
+                    //subset::get_subpx_from_img(fft.ss_def, ss_x+shifts[i].x[ss], ss_y+shifts[i].y[ss], interp_def);
                     //shifts[i].cost[ss] = debugcost(fft.ss_ref,fft.ss_def);
                     shifts[i].max_val[ss] = max_val;
 
@@ -240,15 +242,15 @@ namespace fourier {
 
             // remove outliers in fft
             if (fft_mad){
-                remove_outliers(shifts[i].x, ssdata[i], fft_mad);
-                remove_outliers(shifts[i].y, ssdata[i], fft_mad);
+                remove_outliers(shifts[i].x, ss_grid[i], fft_mad);
+                remove_outliers(shifts[i].y, ss_grid[i], fft_mad);
             }
 
-            //smooth_field(shifts[i].x, ssdata[i], 7.0, 5);
-            //smooth_field(shifts[i].y, ssdata[i], 7.0, 5);
+            //smooth_field(shifts[i].x, ss_grid[i], 7.0, 5);
+            //smooth_field(shifts[i].y, ss_grid[i], 7.0, 5);
 
-            //for (int ss = 0; ss < ssdata[i].num; ss++){
-            //    std::cout << ssdata[i].coords[2*ss] << " " << ssdata[i].coords[2*ss+1] << " ";
+            //for (int ss = 0; ss < ss_grid[i].num; ss++){
+            //    std::cout << ss_grid[i].coords[2*ss] << " " << ss_grid[i].coords[2*ss+1] << " ";
             //    std::cout << shifts[i].x[ss] << " " << shifts[i].y[ss] << " ";
             //    std::cout << shifts[i].max_val[ss] << " ";
             //    std::cout << shifts[i].cost[ss] << std::endl;
@@ -271,7 +273,7 @@ namespace fourier {
      std::pair<double,double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,
                                        const std::vector<Shift>& shifts,
-                                       const std::vector<util::SubsetData>& ssdata) {
+                                       const std::vector<subset::Grid>& ss_grid) {
         const double epsilon = 10.0;
         double weight_sum_x = 0.0;
         double weight_sum_y = 0.0;
@@ -288,8 +290,8 @@ namespace fourier {
             for (size_t j = 0; j < shifts[i].num_neigh_list[ss]; ++j) {
 
                 int nidx = shifts[i].neigh_list[ss*shifts[i].max_num_neigh+j];
-                int neigh_x = ssdata[i-1].coords[2*nidx];
-                int neigh_y = ssdata[i-1].coords[2*nidx+1];
+                int neigh_x = ss_grid[i-1].coords[2*nidx];
+                int neigh_y = ss_grid[i-1].coords[2*nidx+1];
 
                 double dx = ss_x - neigh_x;
                 double dy = ss_y - neigh_y;
@@ -314,14 +316,14 @@ namespace fourier {
 
 
     void smooth_field(std::vector<double>& shift,
-                    const util::SubsetData& ssdata,
+                    const subset::Grid& ss_grid,
                     double sigma = 1.0,
                     int radius = 2) {
 
         std::vector<double> smoothed = shift;
 
-        const int width = ssdata.num_ss_x;
-        const int height = ssdata.num_ss_y;
+        const int width = ss_grid.num_ss_x;
+        const int height = ss_grid.num_ss_y;
 
         // Precompute Gaussian weights
         std::vector<std::vector<double>> weights(2 * radius + 1, std::vector<double>(2 * radius + 1));
@@ -335,7 +337,7 @@ namespace fourier {
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
 
-                int center_idx = ssdata.mask[y * width + x];
+                int center_idx = ss_grid.mask[y * width + x];
                 if (center_idx == -1) continue;
 
                 double sum = 0.0;
@@ -349,7 +351,7 @@ namespace fourier {
                         int nx = x + dx;
                         if (nx < 0 || nx >= width) continue;
 
-                        int n_idx = ssdata.mask[ny * width + nx];
+                        int n_idx = ss_grid.mask[ny * width + nx];
                         if (n_idx == -1) continue;
 
                         double val = shift[n_idx];
@@ -370,7 +372,7 @@ namespace fourier {
     }
 
 
-    double debugcost(const util::Subset &ss_ref, const util::Subset &ss_def){
+    double debugcost(const subset::Pixels &ss_ref, const subset::Pixels &ss_def){
         const int num_px = ss_def.num_px;
         double cost = 0.0;
         double mean_ref = 0.0;
@@ -472,12 +474,12 @@ namespace fourier {
 
 
 
-   void sgwd(const util::SubsetData &ssdata, const int window_size, const double *img_ref, const double *img_def, const Interpolator &interp_def){
+   void sgwd(const subset::Grid &ss_grid, const int window_size, const double *img_ref, const double *img_def, const Interpolator &interp_def){
 
         const int px_hori = interp_def.px_hori;
         const int px_vert = interp_def.px_vert;
         
-        const int ss_size = ssdata.size;
+        const int ss_size = ss_grid.size;
 
         // TODO: Add a proper flag for this 
         bool subpx = true;
@@ -487,10 +489,10 @@ namespace fourier {
         shift.max_num_neigh = 4;
 
         // resize vectors
-        shift.x.resize(ssdata.num);
-        shift.y.resize(ssdata.num);
-        shift.cost.resize(ssdata.num);
-        shift.max_val.resize(ssdata.num);
+        shift.x.resize(ss_grid.num);
+        shift.y.resize(ss_grid.num);
+        shift.cost.resize(ss_grid.num);
+        shift.max_val.resize(ss_grid.num);
 
         shifts.push_back(shift);
 
@@ -503,10 +505,10 @@ namespace fourier {
 
             // loop over subsets for each size/step
             #pragma omp for
-            for (int ss = 0; ss < ssdata.num; ss++){
+            for (int ss = 0; ss < ss_grid.num; ss++){
                 std::cout << ss << std::endl;
-                int ss_x = ssdata.coords[2*ss];
-                int ss_y = ssdata.coords[2*ss+1];
+                int ss_x = ss_grid.coords[2*ss];
+                int ss_y = ss_grid.coords[2*ss+1];
 
                 // get the seed for the new window size
                 int ss_x_shft, ss_y_shft;
@@ -539,7 +541,7 @@ namespace fourier {
                 }
 
                 // populate fft.ss_def with interpolator values
-                util::extract_ss_subpx(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
+                subset::get_subpx_from_img(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
 
                 // zero normalise the subsets
                 //zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, ss_size);
@@ -581,17 +583,17 @@ namespace fourier {
                 shifts[0].y[ss] = peak_y;
 
                 // this isn't essential. storing peak amplitude and cost value for shifts
-                //util::extract_ss_subpx(fft.ss_def, ss_x+shifts[i].x[ss], ss_y+shifts[i].y[ss], interp_def);
+                //subset::get_px_from_img_subpx(fft.ss_def, ss_x+shifts[i].x[ss], ss_y+shifts[i].y[ss], interp_def);
                 //shifts[i].cost[ss] = debugcost(fft.ss_ref,fft.ss_def);
             }
         }
 
         // remove outliers in fft
-        //remove_outliers(shifts[0].x, ssdata[i], 4.0);
-        //remove_outliers(shifts[0].y, ssdata[i], 4.0);
+        //remove_outliers(shifts[0].x, ss_grid[i], 4.0);
+        //remove_outliers(shifts[0].y, ss_grid[i], 4.0);
 
-        for (int ss = 0; ss < ssdata.num; ss++){
-            std::cout << ssdata.coords[2*ss] << " " << ssdata.coords[2*ss+1] << " ";
+        for (int ss = 0; ss < ss_grid.num; ss++){
+            std::cout << ss_grid.coords[2*ss] << " " << ss_grid.coords[2*ss+1] << " ";
             std::cout << shifts[0].x[ss] << " " << shifts[0].y[ss] << " ";
             std::cout << shifts[0].max_val[ss] << " ";
             std::cout << shifts[0].cost[ss] << std::endl;
@@ -639,7 +641,7 @@ namespace fourier {
         }
 
         // populate fft.ss_def with interpolator values
-        util::extract_ss_subpx(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
+        subset::get_subpx_from_img(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
 
         // zero normalise the subsets
         fourier::zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, window_size);

@@ -31,13 +31,13 @@ void signalHandler(int signal);
  * 
  * @param img_ref pointer to reference image
  * @param img_def pointer to deformed image
- * @param ssdata pointer to subset information
+ * @param ss_grid pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
 void image(const double *img_ref,
            const Interpolator &interp_def,
-           const util::SubsetData &ssdata,
+           const subset::Grid &ss_grid,
            const util::Config &conf,
            const int img_num);
 
@@ -51,14 +51,14 @@ void image(const double *img_ref,
  * 
  * @param img_ref pointer to reference image
  * @param img_def pointer to deformed image
- * @param ssdata pointer to subset information
+ * @param ss_grid pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
 void image_with_bf(const double *img_ref,
                    const double *img_def,
                    const Interpolator &interp_def,
-                   const util::SubsetData &ssdata,
+                   const subset::Grid &ss_grid,
                    const util::Config &conf,
                    const int img_num);
 
@@ -72,14 +72,14 @@ void image_with_bf(const double *img_ref,
  * 
  * @param img_ref pointer to reference image
  * @param img_def pointer to deformed image
- * @param ssdata pointer to subset information
+ * @param ss_grid pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
 void reliability_guided(const double *img_ref,
                         const double *img_def,
                         const Interpolator &interp_def,
-                        const std::vector<util::SubsetData> &ssdata,
+                        const std::vector<subset::Grid> &ss_grid,
                         const util::Config &conf,
                         const int img_num,
                         const bool save_at_end);
@@ -94,21 +94,21 @@ void reliability_guided(const double *img_ref,
  * 
  * @param img_ref pointer to reference image
  * @param img_def pointer to deformed image
- * @param ssdata pointer to subset information
+ * @param ss_grid pointer to subset information
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
 void multi_window_fourier(const double *img_ref,
                           const double *img_def,
                           const Interpolator &interp_def,
-                          const std::vector<util::SubsetData> &ssdata, 
+                          const std::vector<subset::Grid> &ss_grid, 
                           const util::Config &conf,
                           const int img_num);
 
 void single_window_fourier(const double *img_ref,
                            const double *img_def,
                            const Interpolator &interp_def,
-                           const util::SubsetData &ssdata,
+                           const subset::Grid &ss_grid,
                            const util::Config &conf,
                            const int img_num);
 

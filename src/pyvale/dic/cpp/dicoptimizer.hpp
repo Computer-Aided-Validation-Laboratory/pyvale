@@ -67,26 +67,11 @@ namespace optimizer {
     };
 
     /**
-     * @brief Initializes the optimizer with the correlation criteria and shape function. Calls setCostFunction and setShapeFunction.
-     * 
-     * @param[in] corr_crit string for the correlation criteria, e.g. "SSD", "NSSD", "ZNSSD".
-     * @param[in] shape_func string for the shape function, e.g. "AFFINE", "RIGID", "QUAD".
-     */
-    void init(std::string &corr_crit, std::string &shape_func);
-
-    /**
      * @brief This function gets called before the corrolation optimization starts. Sets the function pointer for the user specified shape function.
      * 
      * @param[in] corr_crit string for the correlation criteria, e.g. "SSD", "NSSD", "ZNSSD".
      */
-    void setCostFunction(const std::string& corr_crit);
-
-    /**
-     * @brief This function gets called before the corrolation optimization starts. Sets the function pointer for the user specified shape function.
-     * 
-     * @param[in] shape_func string for the shape function, e.g. "AFFINE", "RIGID", "QUAD".
-     */
-    void setShapeFunction(const std::string& shape_func);
+    void set_cost_function(const std::string& corr_crit);
 
     /**
      * @brief 
@@ -99,7 +84,7 @@ namespace optimizer {
      * @param xtol 
      * @param p 
      */
-    void debugPrint(int ss_x, int ss_y, int iter, double costp, double ftol, double xtol, const std::vector<double>& p);
+    void debug_print(int ss_x, int ss_y, int iter, double costp, double ftol, double xtol, const std::vector<double>& p);
 
 
     /**
@@ -113,7 +98,7 @@ namespace optimizer {
      * @param opt 
      * @return util::Results 
      */
-    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt, const std::string &corr_crit);
+    util::Results solve(const double ss_x, const double ss_y, subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt, const std::string &corr_crit);
 
     /**
      * @brief calcutes the Sum of Squared Differences (SSD) between reference and deformed subsets.
@@ -123,7 +108,7 @@ namespace optimizer {
      * @param[in] interp_def interpolator for deformed image 
      * @param[in,out] opt Optimization parameters including gradient, Hessian, etc. 
      */
-    void   ssd(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
+    void   ssd(const subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
 
     /**
      * @brief calcutes the Normalized Sum of Squared Differences (NSSD) between reference and deformed subsets.
@@ -133,7 +118,7 @@ namespace optimizer {
      * @param[in] interp_def interpolator for deformed image 
      * @param[in,out] opt Optimization parameters including gradient, Hessian, etc. 
      */
-    void  nssd(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
+    void  nssd(const subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
 
     /**
      * @brief calcutes the Zero Normalized Sum of Squared Differences (ZNSSD) between reference and deformed subsets.
@@ -143,7 +128,7 @@ namespace optimizer {
      * @param[in] interp_def interpolator for deformed image 
      * @param[in,out] opt Optimization parameters including gradient, Hessian, etc. 
      */
-    void znssd(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
+    void znssd(const subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
 
 
     /**
