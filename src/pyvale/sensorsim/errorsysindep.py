@@ -5,16 +5,16 @@
 # ==============================================================================
 
 import numpy as np
-from pyvale.sensorsim.errorcalculator import (IErrCalculator,
+from pyvale.sensorsim.errorsimulator import (IErrSimulator,
                                          EErrType,
                                          EErrDep)
 from pyvale.sensorsim.generatorsrandom import IGenRandom
 from pyvale.sensorsim.sensordata import SensorData
 
 
-class ErrSysOffset(IErrCalculator):
+class ErrSysOffset(IErrSimulator):
     """Systematic error calculator applying a constant offset to all simulated
-    sensor measurements. Implements the `IErrCalculator` interface.
+    sensor measurements. Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_offset","_err_dep")
 
@@ -75,7 +75,7 @@ class ErrSysOffset(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -99,10 +99,10 @@ class ErrSysOffset(IErrCalculator):
         return (self._offset*np.ones(shape=err_basis.shape),sens_data)
 
 
-class ErrSysOffsetPercent(IErrCalculator):
+class ErrSysOffsetPercent(IErrSimulator):
     """Systematic error calculator applying a constant offset as a percentage of
     the sensor reading to each individual simulated sensor measurement.
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_offset_percent","_err_dep")
 
@@ -157,7 +157,7 @@ class ErrSysOffsetPercent(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -184,10 +184,10 @@ class ErrSysOffsetPercent(IErrCalculator):
                 sens_data)
 
 
-class ErrSysUnif(IErrCalculator):
+class ErrSysUnif(IErrSimulator):
     """Systematic error calculator for applying an offset to each sensor that is
     sampled from a uniform probability distribution specified by its upper and
-    lower bounds. Implements the `IErrCalculator` interface.
+    lower bounds. Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_low","_high","_rng","_err_dep")
 
@@ -258,7 +258,7 @@ class ErrSysUnif(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -292,7 +292,7 @@ class ErrSysUnif(IErrCalculator):
         return (sys_errs,sens_data)
 
 
-class ErrSysUnifPercent(IErrCalculator):
+class ErrSysUnifPercent(IErrSimulator):
     """Systematic error calculator for applying a percentage offset to each
     sensor that is sampled from a uniform probability distribution specified by
     its upper and lower bounds.
@@ -301,7 +301,7 @@ class ErrSysUnifPercent(IErrCalculator):
     dependence is `INDEPENDENT` or based on the accumulated sensor measurement
     if the dependence is `DEPENDENT`.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_low","_high","_rng","_err_dep")
 
@@ -364,7 +364,7 @@ class ErrSysUnifPercent(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -398,11 +398,11 @@ class ErrSysUnifPercent(IErrCalculator):
         return (err_basis*sys_errs,sens_data)
 
 
-class ErrSysNorm(IErrCalculator):
+class ErrSysNorm(IErrSimulator):
     """Systematic error calculator for applying an offset to each individual
     sensor in the array based on sampling from a normal distribution specified
     by its standard deviation and mean. Note that the offset is constant for
-    each sensor over time. Implements the `IErrCalculator` interface.
+    each sensor over time. Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_std","_rng","_err_dep")
 
@@ -471,7 +471,7 @@ class ErrSysNorm(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -505,7 +505,7 @@ class ErrSysNorm(IErrCalculator):
         return (sys_errs,sens_data)
 
 
-class ErrSysNormPercent(IErrCalculator):
+class ErrSysNormPercent(IErrSimulator):
     """Systematic error calculator for applying a percentage offset to each
     individual sensor in the array based on sampling from a normal distribution
     specified by its standard deviation and mean. Note that the offset is
@@ -515,7 +515,7 @@ class ErrSysNormPercent(IErrCalculator):
     dependence is `INDEPENDENT` or based on the accumulated sensor measurement
     if the dependence is `DEPENDENT`.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_std","_rng","_err_dep")
 
@@ -574,7 +574,7 @@ class ErrSysNormPercent(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -609,12 +609,12 @@ class ErrSysNormPercent(IErrCalculator):
         return (err_basis*sys_errs,sens_data)
 
 
-class ErrSysGen(IErrCalculator):
+class ErrSysGen(IErrSimulator):
     """Systematic error calculator for applying a unique offset to each sensor
     by sample from a user specified probability distribution (an implementation
     of the `IGeneratorRandom` interface).
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_generator","_err_dep")
 
@@ -669,7 +669,7 @@ class ErrSysGen(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -702,7 +702,7 @@ class ErrSysGen(IErrCalculator):
         return (sys_errs,sens_data)
 
 
-class ErrSysGenPercent(IErrCalculator):
+class ErrSysGenPercent(IErrSimulator):
     """Systematic error calculator for applying a unique percentage offset to
     each sensor by sample from a user specified probability distribution (an
     implementation of the `IGeneratorRandom` interface). This class assumes the
@@ -713,7 +713,7 @@ class ErrSysGenPercent(IErrCalculator):
     dependence is `INDEPENDENT` or based on the accumulated sensor measurement
     if the dependence is `DEPENDENT`.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_generator","_err_dep")
 
@@ -768,7 +768,7 @@ class ErrSysGenPercent(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:

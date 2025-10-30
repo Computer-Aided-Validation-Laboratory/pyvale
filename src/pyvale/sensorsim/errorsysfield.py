@@ -13,7 +13,7 @@ from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
 from pyvale.sensorsim.sensordata import SensorData
 from pyvale.sensorsim.integratortype import EIntSpatialType
-from pyvale.sensorsim.errorcalculator import (IErrCalculator,
+from pyvale.sensorsim.errorsimulator import (IErrSimulator,
                                     EErrType,
                                     EErrDep)
 from pyvale.sensorsim.errordriftcalc import IDriftCalculator
@@ -101,7 +101,7 @@ class ErrFieldData:
     """
 
 
-class ErrSysField(IErrCalculator):
+class ErrSysField(IErrSimulator):
     """Class for calculating field based systematic errors. Field based errors
     are errors that require interpolation or sampling of the simulated physical
     field such as perturbations of the sensor position or sampling time.
@@ -110,7 +110,7 @@ class ErrSysField(IErrCalculator):
     area averaging) are calculated first before performing a single
     interpolation with the perturbed sensor state.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_field","_sensor_data_perturbed","_field_err_data","_err_dep")
 
@@ -177,7 +177,7 @@ class ErrSysField(IErrCalculator):
 
         return self._sensor_data_perturbed
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:

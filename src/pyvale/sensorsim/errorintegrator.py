@@ -7,7 +7,7 @@
 import copy
 from dataclasses import dataclass
 import numpy as np
-from pyvale.sensorsim.errorcalculator import (IErrCalculator,
+from pyvale.sensorsim.errorsimulator import (IErrSimulator,
                                               EErrType,
                                               EErrDep)
 from pyvale.sensorsim.sensordata import SensorData
@@ -40,7 +40,7 @@ class ErrIntOpts:
 
 class ErrIntegrator:
     """Class for managing sensor error integration. Takes a list of objects that
-    implement the `IErrCalculator` interface (i.e. the error chain) and loops
+    implement the `IErrSimulator` interface (i.e. the error chain) and loops
     through them calculating each errors contribution to the total measurement
     error and sums this over all errors in the chain. In addition to the total
     error a sum of the random and systematic errors (see `EErrType`) is
@@ -64,15 +64,15 @@ class ErrIntegrator:
                  "_sens_data_initial")
 
     def __init__(self,
-                 err_chain: list[IErrCalculator],
+                 err_chain: list[IErrSimulator],
                  sensor_data_initial: SensorData,
                  meas_shape: tuple[int,int,int],
                  err_int_opts: ErrIntOpts | None = None) -> None:
         """
         Parameters
         ----------
-        err_chain : list[IErrCalculator]
-            List of error objects implementing the IErrCalculator interface.
+        err_chain : list[IErrSimulator]
+            List of error objects implementing the IErrSimulator interface.
         sensor_data_initial : SensorData
             Object holding the initial sensor array parameters before they are
             modified by the error chain.
@@ -109,7 +109,7 @@ class ErrIntegrator:
         self._errs_total = np.zeros(meas_shape)
 
 
-    def set_error_chain(self, err_chain: list[IErrCalculator]) -> None:
+    def set_error_chain(self, err_chain: list[IErrSimulator]) -> None:
         """Sets the error chain that will be looped over to calculate the sensor
         measurement errors. If the error integration options are forcing error
         dependence then all errors in the chain will have their dependence set
@@ -117,8 +117,8 @@ class ErrIntegrator:
 
         Parameters
         ----------
-        err_chain : list[IErrCalculator]
-            List of error calculators implementing the IErrCalculator interface.
+        err_chain : list[IErrSimulator]
+            List of error calculators implementing the IErrSimulator interface.
         """
         self._err_chain = err_chain
 
@@ -186,11 +186,11 @@ class ErrIntegrator:
         for ii,ee in enumerate(self._err_chain):
 
             if ee.get_error_dep() == EErrDep.DEPENDENT:
-                (error_array,sens_data) = ee.calc_errs(truth+self._errs_total,
+                (error_array,sens_data) = ee.sim_errs(truth+self._errs_total,
                                                        self._sens_data_accumulated)
 
             else:
-                (error_array,sens_data) = ee.calc_errs(truth,
+                (error_array,sens_data) = ee.sim_errs(truth,
                                                        self._sens_data_initial)
 
             self._sens_data_accumulated = sens_data
@@ -234,12 +234,12 @@ class ErrIntegrator:
         for ee in self._err_chain:
 
             if ee.get_error_dep() == EErrDep.DEPENDENT:
-                (error_array,sens_data) = ee.calc_errs(
+                (error_array,sens_data) = ee.sim_errs(
                     truth+self._errs_total,
                     self._sens_data_accumulated
                 )
             else:
-                (error_array,sens_data) = ee.calc_errs(truth,
+                (error_array,sens_data) = ee.sim_errs(truth,
                                                        self._sens_data_initial)
 
             self._sens_data_accumulated = sens_data

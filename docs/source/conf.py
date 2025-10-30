@@ -111,16 +111,16 @@ codeautolink_concat_default = True
 sphinx_gallery_conf = {
     # Path to your example scripts
     'examples_dirs': [
-        '../../src/pyvale/examples/sensorsimbasics',
-        '../../src/pyvale/examples/sensorsimadvanced',
+        '../../src/pyvale/examples/basicsensorsim',
+        '../../src/pyvale/examples/advancedsensorsim',
         '../../src/pyvale/examples/dic',
         '../../src/pyvale/examples/renderblender',
         '../../src/pyvale/examples/mooseherder',
     ],
     # Path to where to save gallery generated output
     'gallery_dirs': [
-        'examples/sensorsimbasics',
-        'examples/sensorsimadvanced',
+        'examples/basicsensorsim',
+        'examples/advancedsensorsim',
         'examples/dic',
         'examples/renderblender',
         'examples/mooseherder',

@@ -20,8 +20,6 @@ interface perspective is that there is no connectivity table in the `SimData`
 object created by the user. Otherwise creating a sensor array is exactly the
 same as all previous examples - apart from the computational overhead of the
 mesh free interpolation.
-
-Test case: analytic rectangular 2D bi-linear field
 """
 
 import copy
@@ -109,11 +107,11 @@ descriptor = sens.SensorDescriptorFactory.temperature_descriptor()
 #%%
 # Creating the `SensorArrarPoint` objects is exactly the same for the mesh free
 # and mesh based cases - we just need to pass in the correct `FieldScalar`.
-tc_array = sens.SensorArrayPoint(sensor_data,
+tc_array = sens.SensorFactoryPoint(sensor_data,
                                  scal_field,
                                  descriptor)
 
-tc_array_nomesh = sens.SensorArrayPoint(sensor_data,
+tc_array_nomesh = sens.SensorFactoryPoint(sensor_data,
                                         scal_field_nomesh,
                                         descriptor)
 

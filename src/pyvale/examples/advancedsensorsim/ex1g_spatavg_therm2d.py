@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Sensor spatial averaging and averaging errors
+Sensor spatial averaging and averaging errors
 ================================================================================
 
 In this example we show how `pyvale` can simulate sensor spatial averaging for
@@ -17,7 +17,7 @@ Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -70,7 +70,7 @@ sensor_data = sens.SensorData(positions=sens_pos,
 #%%
 # We have added spatial averaging to our sensor data so we can now create
 # our sensor array as we have done in previous examples.
-tc_array = sens.SensorArrayPoint(sensor_data,
+tc_array = sens.SensorFactoryPoint(sensor_data,
                                 t_field,
                                 descriptor)
 

@@ -15,7 +15,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
 
-# Pyvale imports
+# pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.blender as blender
 import pyvale.dataset as dataset

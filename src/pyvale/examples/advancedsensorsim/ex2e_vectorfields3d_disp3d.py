@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: 3D vector field sensors
+3D vector field sensors
 ================================================================================
 
 In all our previous examples we have looked at a 2D solid mechanics simulation
@@ -22,7 +22,7 @@ Test case: Simple 3D cube thermo-mechanical in tension with temp gradient.
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -73,7 +73,7 @@ sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 sensor_data = sens.SensorData(positions=sensor_positions,
                                 sample_times=sample_times)
 
-disp_sens_array = sens.SensorArrayPoint(sensor_data,
+disp_sens_array = sens.SensorFactoryPoint(sensor_data,
                                         disp_field,
                                         descriptor)
 

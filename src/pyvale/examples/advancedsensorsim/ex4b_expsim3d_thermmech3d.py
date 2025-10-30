@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -57,6 +57,7 @@ if not fig_save_path.is_dir():
 # for the sensors to sample at the simulation time steps.
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
+
 x_lims = (12.5,12.5)
 y_lims = (0.0,33.0)
 z_lims = (0.0,12.0)
@@ -85,8 +86,8 @@ tc_err_chain.append(sens.ErrRandNorm(std=1.0))
 # Now we add positioning error for our thermocouples.
 tc_pos_uncert = 0.1 # units = mm
 tc_pos_rand = (sens.GenNormal(std=tc_pos_uncert),
-               sens.GenNormal(std=tc_pos_uncert),
-               sens.GenNormal(std=tc_pos_uncert))
+                sens.GenNormal(std=tc_pos_uncert),
+                sens.GenNormal(std=tc_pos_uncert))
 
 #%%
 # We block translation in x so the thermocouples stay attached.
@@ -249,8 +250,8 @@ print(80*"=")
 # Note that the default here is to plot the mean and fill between 3 times
 # the standard deviation.
 trace_opts = sens.TraceOptsExperiment(plot_all_exp_points=True,
-                                      centre=sens.EExpVisCentre.MEDIAN,
-                                      fill_between=sens.EExpVisBounds.MINMAX)
+                                        centre=sens.EExpVisCentre.MEDIAN,
+                                        fill_between=sens.EExpVisBounds.MINMAX)
 
 (fig,ax) = sens.plot_exp_traces(exp_sim,
                                 component="temperature",

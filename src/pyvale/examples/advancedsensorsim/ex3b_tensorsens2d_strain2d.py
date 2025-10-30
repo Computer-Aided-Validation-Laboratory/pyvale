@@ -20,7 +20,7 @@ Test case: point strain sensors on a 2D plate with hole loaded in tension
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -78,7 +78,7 @@ descriptor = sens.SensorDescriptor(name="Strain",
 
 #%%
 # We build our point sensor array as normal.
-straingauge_array = sens.SensorArrayPoint(sens_data,
+straingauge_array = sens.SensorFactoryPoint(sens_data,
                                             strain_field,
                                             descriptor)
 

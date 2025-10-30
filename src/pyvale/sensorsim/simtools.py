@@ -17,7 +17,7 @@ class EElemDims(Enum):
 
 
 def print_dataclass_fields(in_data: Any) -> None:
-    """Diagnostic function
+    """Diagnostic function to print all fields of a dataclass.
 
     Parameters
     ----------

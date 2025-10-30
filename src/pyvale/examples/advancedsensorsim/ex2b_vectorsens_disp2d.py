@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Custom vector field sensors
+Custom vector field sensors
 ================================================================================
 
 In this example we build a custom vector field sensor array which mimics the
@@ -20,7 +20,7 @@ Test case: point displacement sensors on a 2D plate with hole loaded in tension
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -85,7 +85,7 @@ descriptor = sens.SensorDescriptor(name="Disp.",
 # The point sensor array class is generic and will take any field class
 # that implements the field interface. So here we just pass in the vector
 # field to create our vector field sensor array.
-disp_sens_array = sens.SensorArrayPoint(sens_data,
+disp_sens_array = sens.SensorFactoryPoint(sens_data,
                                         disp_field,
                                         descriptor)
 

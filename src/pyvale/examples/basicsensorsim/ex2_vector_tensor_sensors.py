@@ -5,23 +5,17 @@
 # ==============================================================================
 
 """
-Vector field (displacement) sensors
+Vector and tensor field sensors
 ================================================================================
 
-In this example we use the sensor array factory to build a set of displacement
-sensors that can sample the displacement vector field from a solid mechanics
-simulation. In the next example we will examine how we can build custom vector
-field sensors as we did for scalar field in the first set of examples.
-
-Note that this tutorial assumes you are familiar with the use of `pyvale` for
-scalar fields as described in the first set of examples.
-
-Test case: point displacement sensors on a 2D plate with hole loaded in tension
+In this example we use the sensor factory to build a set of vector and tensor 
+field sensors that sample the displacement and strain fields from a solid 
+mechanics simulation.
 """
 
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset

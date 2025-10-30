@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Field-based systematic errors
+Field-based systematic errors
 ================================================================================
 
 In this example we give an overview of field-based systematic errors. Field
@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -55,7 +55,7 @@ sensor_data = sens.SensorData(positions=sens_pos,
                                 sample_times=sample_times)
 
 field_key: str = "temperature"
-tc_array = sens.SensorArrayFactory \
+tc_array = sens.SensorFactory \
     .thermocouples_no_errs(sim_data,
                             sensor_data,
                             elem_dims=3,

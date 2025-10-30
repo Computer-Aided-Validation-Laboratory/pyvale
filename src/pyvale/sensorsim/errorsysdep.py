@@ -8,7 +8,7 @@ import enum
 from typing import Callable
 import numpy as np
 from pyvale.sensorsim.sensordata import SensorData
-from pyvale.sensorsim.errorcalculator import (IErrCalculator,
+from pyvale.sensorsim.errorsimulator import (IErrSimulator,
                                          EErrType,
                                          EErrDep)
 
@@ -42,10 +42,10 @@ def _select_round_method(method: ERoundMethod) -> Callable:
     return np.round
 
 
-class ErrSysRoundOff(IErrCalculator):
+class ErrSysRoundOff(IErrSimulator):
     """Systematic error calculator for round off error. The user can specify the
     floor, ceiling or nearest integer method for rounding. The user can also
-    specify a base to round to that defaults 1. Implements the `IErrCalculator`
+    specify a base to round to that defaults 1. Implements the `IErrSimulator`
     interface.
     """
     __slots__ = ("_base","_method","_err_dep")
@@ -105,7 +105,7 @@ class ErrSysRoundOff(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -131,10 +131,10 @@ class ErrSysRoundOff(IErrCalculator):
         return (rounded_measurements - err_basis,sens_data)
 
 
-class ErrSysDigitisation(IErrCalculator):
+class ErrSysDigitisation(IErrSimulator):
     """Systematic error calculator for digitisation error base on a user
     specified number of bits per physical unit and rounding method. Implements
-    the `IErrCalculator` interface.
+    the `IErrSimulator` interface.
     """
     __slots__ = ("_units_per_bit","_method","_err_dep")
 
@@ -193,7 +193,7 @@ class ErrSysDigitisation(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -220,9 +220,9 @@ class ErrSysDigitisation(IErrCalculator):
         return (rounded_measurements - err_basis,sens_data)
 
 
-class ErrSysSaturation(IErrCalculator):
+class ErrSysSaturation(IErrSimulator):
     """Systematic error calculator for saturation error base on user specified
-    minimum and maximum measurement values. Implements the `IErrCalculator`
+    minimum and maximum measurement values. Implements the `IErrSimulator`
     interface.
 
     NOTE: For this error to function as expected and clamp the measurement
@@ -295,7 +295,7 @@ class ErrSysSaturation(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:

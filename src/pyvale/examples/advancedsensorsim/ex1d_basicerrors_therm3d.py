@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Overview of the basic error library
+Overview of the basic error library
 ================================================================================
 
 Building on what we learned in examples 1.1-1.3 we now have a look at the basic
@@ -29,7 +29,7 @@ to your error chain.
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -56,7 +56,7 @@ sensor_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times)
 
 field_key: str = "temperature"
-tc_array = sens.SensorArrayFactory \
+tc_array = sens.SensorFactory \
     .thermocouples_no_errs(sim_data,
                             sensor_data,
                             elem_dims=3,

@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Sensor model & `get_measurements()` vs `sim_measurements()`
+Sensor model & `get_measurements()` vs `sim_measurements()`
 ================================================================================
 
 In this example we explain the `pyvale` virtual sensor measurement model. For a
@@ -30,7 +30,7 @@ Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.mooseherder as mh
 import pyvale.dataset as dataset
@@ -77,7 +77,7 @@ sens_data = sens.SensorData(positions=sens_pos)
 # examples we will see how to customise sensor parameters and errors.
 # This basic thermocouple array includes a 5% systematic and random error -
 # We are specifically using exaggerated errors here for visualisation.
-tc_array = sens.SensorArrayFactory \
+tc_array = sens.SensorFactory \
     .thermocouples_basic_errs(sim_data,
                                 sens_data,
                                 elem_dims=2,

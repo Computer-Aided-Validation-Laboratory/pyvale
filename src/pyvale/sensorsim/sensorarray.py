@@ -21,9 +21,9 @@ class ISensorArray(ABC):
 
     The random and systematic errors are calculated by a user specified error
     integrator (`ErrIntegrator` class). This class contains a chain of different
-    types of user selected errors (implementations of the `IErrCalculator`
+    types of user selected errors (implementations of the `IErrSimulator`
     interface). Further information can be found in the `ErrIntegrator` class
-    and in implementations of the `IErrCalculator` interface.
+    and in implementations of the `IErrSimulator` interface.
 
     In `pyvale`, function and methods with `calc` in their name will cause
     probability distributions to be resampled and any additional calculations,

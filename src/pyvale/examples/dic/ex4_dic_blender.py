@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import os
 
-# Pyvale imports
+# pyvale imports
 import pyvale.dic as dic
 
 #subset size

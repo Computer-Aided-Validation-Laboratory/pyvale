@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Pyvale point sensor simulation
+Pyvale point sensor simulation
 ================================================================================
 
 In this example we introduce the basic features of `pyvale` for point sensor
@@ -19,7 +19,7 @@ Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.mooseherder as mh
 import pyvale.dataset as dataset
@@ -66,7 +66,7 @@ sens_data = sens.SensorData(positions=sens_pos)
 # If you want to remove the simulated errors and just interpolate at the
 # sensor locations then user `.thermocouples_no_errs()`.
 field_key: str = "temperature"
-tc_array = sens.SensorArrayFactory \
+tc_array = sens.SensorFactory \
     .thermocouples_basic_errs(sim_data,
                                 sens_data,
                                 elem_dims=2,

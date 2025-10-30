@@ -9,7 +9,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.mooseherder as mh
 

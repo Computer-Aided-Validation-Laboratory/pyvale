@@ -42,9 +42,10 @@ class EErrDep(enum.Enum):
     DEPENDENT = enum.auto()
 
 
-class IErrCalculator(ABC):
-    """Interface (abstract base class) for sensor error calculation allowing for
-    chaining of errors.
+class IErrSimulator(ABC):
+    """Interface (abstract base class) for sensor error simulation allowing a 
+    list of simulated errors (i.e. an error chain) to be constructed and 
+    executed in order.
     """
 
     @abstractmethod
@@ -78,11 +79,11 @@ class IErrCalculator(ABC):
         """
 
     @abstractmethod
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
-        """Abstract method that calculates the error array based on the input
+        """Abstract method that simulates the error array based on the input
         err_basis array. The output error array will be the same shape as the
         input err_basis array.
 

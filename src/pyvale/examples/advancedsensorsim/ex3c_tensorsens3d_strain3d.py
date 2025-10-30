@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Custom tensor field sensors (strain gauges) in 3D
+Custom tensor field sensors (strain gauges) in 3D
 ================================================================================
 
 In this example we build a custom tensor field sensor array (i.e. a strain gauge
@@ -22,7 +22,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -99,7 +99,7 @@ descriptor = sens.SensorDescriptor(name="Strain",
                                     components=('xx','yy','zz','xy','yz','xz'))
 
 
-straingauge_array = sens.SensorArrayPoint(sens_data,
+straingauge_array = sens.SensorFactoryPoint(sens_data,
                                             strain_field,
                                             descriptor)
 

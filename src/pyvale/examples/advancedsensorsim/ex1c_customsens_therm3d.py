@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -29,7 +29,7 @@ import pyvale.dataset as dataset
 # `IField` (i.e. `FieldScaler`, `FieldVector`, `FieldTensor`) and a
 # `SensorData` object. For labelling visualisations (e.g. axis labels and
 # unit labels) we can also provide a `SensorDescriptor` object.
-# Once we have built our `SensorArrayPoint` object from these we can then
+# Once we have built our `SensorFactoryPoint` object from these we can then
 # attach custom chains of different types of random and systematic errors
 # to be evaluated when we run our measurement simulation. This example is
 # based on the same thermal example we have used in the last two examples so
@@ -89,7 +89,7 @@ else:
 # We can now build our custom point sensor array. This sensor array has no
 # errors so if we call `get_measurements()` or `sim_measurements()` we will
 # be able to extract the simulation truth values at the sensor locations.
-tc_array = sens.SensorArrayPoint(sensor_data,
+tc_array = sens.SensorFactoryPoint(sensor_data,
                                 t_field,
                                 descriptor)
 

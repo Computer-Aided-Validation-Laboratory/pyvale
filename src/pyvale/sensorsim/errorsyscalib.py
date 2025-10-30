@@ -6,7 +6,7 @@
 
 from typing import Callable
 import numpy as np
-from pyvale.sensorsim.errorcalculator import (IErrCalculator,
+from pyvale.sensorsim.errorsimulator import (IErrSimulator,
                                          EErrType,
                                          EErrDep)
 from pyvale.sensorsim.sensordata import SensorData
@@ -14,13 +14,13 @@ from pyvale.sensorsim.sensordata import SensorData
 # TODO: add option to use Newton's method for function inversion instead of a
 # cal table.
 
-class ErrSysCalibration(IErrCalculator):
+class ErrSysCalibration(IErrSimulator):
     """Systematic error calculator for calibration errors. The user specifies an
     assumed calibration and a ground truth calibration function. The ground
     truth calibration function is inverted and linearly interpolated numerically
     based on the number of divisions specified by the user.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_assumed_cali","_truth_calib","_cal_range","_n_cal_divs",
                  "_err_dep","_truth_calc_table")
@@ -100,7 +100,7 @@ class ErrSysCalibration(IErrCalculator):
         """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:

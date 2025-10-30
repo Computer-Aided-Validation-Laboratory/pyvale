@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Vector field (displacement) sensors
+Vector field (displacement) sensors
 ================================================================================
 
 In this example we use the sensor array factory to build a set of displacement
@@ -21,7 +21,7 @@ Test case: point displacement sensors on a 2D plate with hole loaded in tension
 
 import matplotlib.pyplot as plt
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -60,7 +60,7 @@ sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
 
 sens_data = sens.SensorData(positions=sens_pos)
 
-disp_sens_array = sens.SensorArrayFactory \
+disp_sens_array = sens.SensorFactory \
                     .disp_sensors_basic_errs(sim_data,
                                                 sens_data,
                                                 elem_dims=2,

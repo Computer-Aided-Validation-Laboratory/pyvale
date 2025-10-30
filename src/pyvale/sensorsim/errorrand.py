@@ -6,17 +6,17 @@
 
 import numpy as np
 from pyvale.sensorsim.sensordata import SensorData
-from pyvale.sensorsim.errorcalculator import (IErrCalculator,
+from pyvale.sensorsim.errorsimulator import (IErrSimulator,
                                          EErrType,
                                          EErrDep)
 from pyvale.sensorsim.generatorsrandom import IGenRandom
 
 
-class ErrRandUnif(IErrCalculator):
+class ErrRandUnif(IErrSimulator):
     """Random error calculator based on uniform sampling of an interval
     specified by its upper and lower bound.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("low","high","rng","err_dep")
 
@@ -93,7 +93,7 @@ class ErrRandUnif(IErrCalculator):
         """
         return EErrType.RANDOM
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -121,7 +121,7 @@ class ErrRandUnif(IErrCalculator):
         return (rand_errs,sens_data)
 
 
-class ErrRandUnifPercent(IErrCalculator):
+class ErrRandUnifPercent(IErrSimulator):
     """Random error calculator based on a percentage error based on sampling
     from a uniform probability distribution specified by its upper and lower
     bound (in percent).
@@ -130,7 +130,7 @@ class ErrRandUnifPercent(IErrCalculator):
     dependence is `INDEPENDENT` or based on the accumulated sensor measurement
     if the dependence is `DEPENDENT`.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("low","high","rng","err_dep")
 
@@ -204,7 +204,7 @@ class ErrRandUnifPercent(IErrCalculator):
         """
         return EErrType.RANDOM
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -232,13 +232,13 @@ class ErrRandUnifPercent(IErrCalculator):
         return (err_basis*norm_rand,sens_data)
 
 
-class ErrRandNorm(IErrCalculator):
+class ErrRandNorm(IErrSimulator):
     """Random error calculator based on sampling of a normal (Gaussian)
     distribution specified using the standard deviation with an assumed zero
     mean. A non-zero mean is a systematic error and should be specified using
     `ErrSysOffset`.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("std","rng","err_dep")
 
@@ -301,7 +301,7 @@ class ErrRandNorm(IErrCalculator):
         """
         return EErrType.RANDOM
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -329,7 +329,7 @@ class ErrRandNorm(IErrCalculator):
         return (rand_errs,sens_data)
 
 
-class ErrRandNormPercent(IErrCalculator):
+class ErrRandNormPercent(IErrSimulator):
     """Sensor random error calculator based on sampling of a normal (Gaussian)
     distribution specified using the standard deviation with an assumed zero
     mean. This error is calculated as a percentage of the input error basis.
@@ -340,7 +340,7 @@ class ErrRandNormPercent(IErrCalculator):
     dependence is `INDEPENDENT` or based on the accumulated sensor measurement
     if the dependence is `DEPENDENT`.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_std","_rng","_err_dep")
 
@@ -400,7 +400,7 @@ class ErrRandNormPercent(IErrCalculator):
         """
         return EErrType.RANDOM
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -428,11 +428,11 @@ class ErrRandNormPercent(IErrCalculator):
         return (err_basis*self._std*norm_rand,sens_data)
 
 
-class ErrRandGen(IErrCalculator):
+class ErrRandGen(IErrSimulator):
     """Sensor random error calculator based on sampling a user specified random
     number generator implementing the `IGeneratorRandom` interface.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_generator","_err_dep")
 
@@ -490,7 +490,7 @@ class ErrRandGen(IErrCalculator):
         """
         return EErrType.RANDOM
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
@@ -516,7 +516,7 @@ class ErrRandGen(IErrCalculator):
         return (rand_errs,sens_data)
 
 
-class ErrRandGenPercent(IErrCalculator):
+class ErrRandGenPercent(IErrSimulator):
     """Random error calculator based on sampling a user specified random
     number generator implementing the `IGeneratorRandom` interface. This class
     assumes the random generator is for a percentage error based on the input
@@ -526,7 +526,7 @@ class ErrRandGenPercent(IErrCalculator):
     dependence is `INDEPENDENT` or based on the accumulated sensor measurement
     if the dependence is `DEPENDENT`.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_generator","_err_dep")
 
@@ -580,7 +580,7 @@ class ErrRandGenPercent(IErrCalculator):
         """
         return EErrType.RANDOM
 
-    def calc_errs(self,
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:

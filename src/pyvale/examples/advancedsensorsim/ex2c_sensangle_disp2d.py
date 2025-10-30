@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Sensor angles for vector fields
+Sensor angles for vector fields
 ================================================================================
 
 In this example we demonstrate how to setup vector field sensors at custom
@@ -24,7 +24,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 
-# Pyvale imports
+# pyvale imports
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
@@ -58,7 +58,7 @@ sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 sens_data_norot = sens.SensorData(positions=sens_pos,
                                     sample_times=sample_times)
 
-disp_sens_norot = sens.SensorArrayPoint(sens_data_norot,
+disp_sens_norot = sens.SensorFactoryPoint(sens_data_norot,
                                         disp_field,
                                         descriptor)
 
@@ -85,7 +85,7 @@ sens_data_rot = sens.SensorData(positions=sens_pos,
                                 sample_times=sample_times,
                                 angles=sens_angles)
 
-disp_sens_rot = sens.SensorArrayPoint(sens_data_rot,
+disp_sens_rot = sens.SensorFactoryPoint(sens_data_rot,
                                         disp_field,
                                         descriptor)
 

@@ -9,7 +9,7 @@ from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.errorintegrator import (ErrIntegrator,
                                               ErrIntOpts)
-from pyvale.sensorsim.errorcalculator import IErrCalculator
+from pyvale.sensorsim.errorsimulator import IErrSimulator
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.sensordata import SensorData
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
@@ -29,9 +29,9 @@ class SensorArrayPoint(ISensorArray):
 
     The random and systematic errors are calculated by a user specified error
     integrator (`ErrIntegrator` class). This class contains a chain of different
-    types of user selected errors (implementations of the `IErrCalculator`
+    types of user selected errors (implementations of the `IErrSimulator`
     interface). Further information can be found in the `ErrIntegrator` class
-    and in implementations of the `IErrCalculator` interface.
+    and in implementations of the `IErrSimulator` interface.
 
     In `pyvale`, function and methods with `calc` in their name will cause
     probability distributions to be resampled and any additional calculations,
@@ -174,7 +174,7 @@ class SensorArrayPoint(ISensorArray):
         return self._error_integrator
 
     def set_error_chain(self, 
-                        err_chain: list[IErrCalculator] | None,
+                        err_chain: list[IErrSimulator] | None,
                         err_int_opts: ErrIntOpts | None = None) -> None:
         """Sets the error intergrator that will be used to calculate the sensor
         array measurement errors when `sim_measurements()` is called. See the
@@ -182,7 +182,7 @@ class SensorArrayPoint(ISensorArray):
 
         Parameters
         ----------
-        err_chain : list[IErrCalculator] | None
+        err_chain : list[IErrSimulator] | None
             Chain of user defined errors that will be evaluated in order as part 
             of the sensor simulation. Set to None to remove error calculation 
             and perform direct interpolation of the simulation to the virtual
