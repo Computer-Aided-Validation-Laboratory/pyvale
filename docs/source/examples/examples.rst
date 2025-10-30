@@ -3,12 +3,21 @@
 Examples
 ================
 
-Basics for Point Sensors
+Sensor Simulation Basics
 ------------------------
 .. toctree::
    :maxdepth: 2
 
-   examples_basics
+   examples_sensorsim_basics
+
+
+Sensor Simulation Advanced
+--------------------------
+.. toctree::
+   :maxdepth: 2
+
+   examples_sensorsim_advanced
+
 
 Blender for Digital Image Correlation
 -------------------------------------

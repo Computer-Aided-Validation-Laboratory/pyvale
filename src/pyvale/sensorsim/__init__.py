@@ -36,7 +36,7 @@ from .integratorfactory import *
 from .sensordescriptor import *
 from .sensortools import *
 from .sensorarray import *
-from .sensorarrayfactory import *
+from .sensorfactory import *
 from .sensorarraypoint import *
 from .sensordata import *
 

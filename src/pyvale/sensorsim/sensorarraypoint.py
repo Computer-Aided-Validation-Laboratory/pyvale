@@ -7,9 +7,9 @@
 import numpy as np
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.sensorarray import ISensorArray
-from pyvale.sensorsim.errorintegrator import ErrIntegrator
-from pyvale.sensorsim.errorcalculator import (IErrCalculator,
+from pyvale.sensorsim.errorintegrator import (ErrIntegrator,
                                               ErrIntOpts)
+from pyvale.sensorsim.errorcalculator import IErrCalculator
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.sensordata import SensorData
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data

@@ -45,7 +45,7 @@ elem_dims: int = 2
 disp_comps = ("disp_x","disp_y")
 sim_list = []
 for pp in data_paths:
-    sim_data = mh.ExodusReader(pp).read_all_sim_data()
+    sim_data = mh.ExodusLoader(pp).read_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                         sim_data=sim_data,
                                         disp_comps=disp_comps)

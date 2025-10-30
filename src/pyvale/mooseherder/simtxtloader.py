@@ -41,18 +41,18 @@ class SimTxtLoader(IOutputLoader):
     Implements the `IOutputLoader` interface.
     """
 
-    __slots__ = ("_coords","_time_steps","_fields_path","_file_patterns",
+    __slots__ = ("_coords","_time_steps","_fields_dir","_file_patterns",
                  "_field_slices","_load_opts","_connect","_glob_file",
                  "_glob_slices")
 
     def __init__(self,
-                 fields_path: Path,
+                 fields_dir: Path,
                  coords: Path | np.ndarray | None,
                  time_steps: Path | np.ndarray | None,
-                 node_file_pattern: str | dict[str,str],
+                 node_files: str | dict[str,str],
                  node_slices: dict[str, slice|None],
-                 connect_path: Path | None = None,
-                 connect_file_pattern: str | list[str] | None = None,
+                 connect_dir: Path | None = None,
+                 connect_files: str | list[str] | None = None,
                  glob_file: Path | None = None,
                  glob_slices: dict[str,slice] | None = None,
                  load_opts: SimTxtLoadOpts | None = None) -> None:
@@ -74,23 +74,29 @@ class SimTxtLoader(IOutputLoader):
             if self._time_steps.ndim != 1:
                 self._time_steps = self._time_steps[:,0]
 
+        self._fields_dir = fields_dir
 
-        self._fields_path = fields_path
-
-        if isinstance(node_file_pattern,dict):
-            if node_file_pattern.keys() != node_slices.keys():
-                raise SimLoadErr("Keys of the file pattern and field" \
-                " slice dictionaries do not match.")
+        if isinstance(node_files,dict):
+            if node_files.keys() != node_slices.keys():
+                raise SimLoadErr("Keys of the file pattern and field" +
+                                 " slice dictionaries do not match.")
 
             # We invert the keys and values of this dictionary grouping
             # duplicate keys as values - that way we can loop over this and use
             # the value lists to index into the slices opening a file with a
             # given pattern a single time.
-            self._files_pattern = _inv_group_dict(node_file_pattern)
+            self._files_pattern = _inv_group_dict(node_files)
 
         else:
-            self._files_pattern = node_file_pattern
+            self._files_pattern = node_files
 
+        if connect_dir is not None:
+            if connect_files is None:
+                raise SimLoadErr("Connectivity file pattern must be specified" + 
+                    " alongside the connectivity path, e.g. str(connect*.csv)")
+                
+            self._connect = self._load_connectivity(conn)
+            
         self._glob_file = glob_file
         self._glob_slices = glob_slices
 
@@ -98,18 +104,30 @@ class SimTxtLoader(IOutputLoader):
         self._load_opts = load_opts
 
 
-    def _load_connectivity(file_pattern: str | list[str]) -> None:
+    def _load_connectivity(connect_dir: Path,
+                           connect_pattern: str | list[str],
+                          ) -> dict[str,np.ndarray]:
         self._connect = {}
-    
-        if isinstance(file_pattern,str):
-            
-        else:
-            for ff in file_pattern:
-                self._connect[ff] = _load_or_set_var( ,
-                                                     self._load_opts.connect_header,
-                                                     self._load_opts.delimiter) 
-            
 
+        connect_files= []
+        if isinstance(connect_pattern,str):
+            connect_files = list(connect_dir.glob(connect_pattern))
+        elif isinstance(connect_pattern,list):
+            for ff in connect_pattern:
+                connect_files.append(connect_dir / ff)
+        else:
+            raise SimLoadErr("Connectivity file pattern must be a string" +
+                             " or a  list.")    
+
+        for ff in connect_files:
+            file_key = ff.stem
+            self._connect[file_key] = _load_nparray(
+                ff,
+                self._load_opts.connect_header,
+                self._load_opts.delimiter
+            ) 
+        
+        return self._connect
 
     # NOTE: interface function
     def load_sim_data(self, load_config: SimLoadConfig) -> SimData:
@@ -119,7 +137,7 @@ class SimTxtLoader(IOutputLoader):
 
         if isinstance(self._files_pattern,str):
             # Load all fields from a single time series of files
-            node_vars = load_data_files(self._fields_path,
+            node_vars = load_data_files(self._fields_dir,
                                         self._files_pattern,
                                         self._field_slices,
                                         self._load_opts.node_field_header,
@@ -135,7 +153,7 @@ class SimTxtLoader(IOutputLoader):
                 for kk in field_keys:
                     slices_to_ext[kk] = self._field_slices[kk]
 
-                this_node_vars = load_data_files(self._fields_path,
+                this_node_vars = load_data_files(self._fields_dir,
                                                  file_pattern,
                                                  slices_to_ext,
                                                  self._load_opts.node_field_header,
@@ -151,7 +169,7 @@ class SimTxtLoader(IOutputLoader):
 
         if self._glob_file is not None and self._glob_slices is not None:
 
-            glob_file = self._fields_path/self._glob_file
+            glob_file = self._fields_dir/self._glob_file
             if not glob_file.is_file():
                 raise SimLoadErr(f"Global variables file:'{glob_file.resolve()}'"
                                   + "does not exist.")
@@ -210,7 +228,7 @@ class SimTxtLoader(IOutputLoader):
 
 
 
-def load_data_files(fields_path: Path,
+def load_data_files(fields_dir: Path,
                     files_pattern: str,
                     field_slices: dict[str,slice|None],
                     header: int | None,
@@ -218,13 +236,13 @@ def load_data_files(fields_path: Path,
                     load_opts: SimTxtLoadOpts | None = None
                     ) -> dict[str,np.ndarray]:
 
-    if not fields_path.is_dir():
-        raise FileNotFoundError(f"Text data path '{fields_path}' does not exist.")
+    if not fields_dir.is_dir():
+        raise FileNotFoundError(f"Text data path '{fields_dir}' does not exist.")
 
     if load_opts is None:
         load_opts = SimTxtLoadOpts()
 
-    data_files = list(fields_path.glob(files_pattern))
+    data_files = list(fields_dir.glob(files_pattern))
     data_files = sorted(data_files)
     if not data_files:
         raise FileNotFoundError("No text files found that match the specified" +

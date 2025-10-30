@@ -31,7 +31,7 @@ import pyvale.dataset as dataset
 # First we load the same 2D solid mechanics simulation we had previously as
 # a `SimData` object and then we scale everything to millimeters.
 data_path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
 field_name = "disp"
 field_comps = ("disp_x","disp_y")
 sim_data = sens.scale_length_units(scale=1000.0,

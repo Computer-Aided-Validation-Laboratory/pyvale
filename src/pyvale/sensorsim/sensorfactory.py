@@ -15,6 +15,7 @@ from pyvale.sensorsim.sensordescriptor import (DescriptorFactory,
                                                SensorDescriptor) 
 from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint, SensorData
 from pyvale.sensorsim.errorintegrator import ErrIntegrator
+from pyvale.sensorsim.errorcalculator import IErrCalculator
 from pyvale.sensorsim.errorsysindep import ErrSysUnifPercent
 from pyvale.sensorsim.errorrand import ErrRandNormPercent
 from pyvale.sensorsim.errorsysdep import (ErrSysDigitisation,
@@ -65,7 +66,7 @@ class SensorFactory:
                                                   descriptor)
                                                   
         err_chain = basic_err_chain(sys_err_pc=sys_err_pc,
-                                    rand_err_pc=rand_err_pc
+                                    rand_err_pc=rand_err_pc)
                                 
         sens_array.set_error_chain(err_chain)
         return sens_array
@@ -138,7 +139,7 @@ class SensorFactory:
                           descriptor: SensorDescriptor | None = None,
                           sys_err_pc: float = 1.0,
                           rand_err_pc: float = 1.0,
-                          ) -> SensorArrayPoint
+                          ) -> SensorArrayPoint:
 
         sens_array = SensorFactory.vector_no_errs(sim_data,
                                                   sensor_data,

@@ -32,7 +32,7 @@ import pyvale.dataset as dataset
 # field_key must match the name of your variable in your MOOSE simulation.
 # We use `mooseherder` to load the exodus file into a `SimData` object.
 data_path = dataset.thermal_2d_path()
-sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
 
 #%%
 # Scale to mm to make 3D visualisation scaling easier as pyvista scales
