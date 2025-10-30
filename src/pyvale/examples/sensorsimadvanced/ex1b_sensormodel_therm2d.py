@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Sensor model & `get_measurements()` vs `calc_measurements()`
+Basics: Sensor model & `get_measurements()` vs `sim_measurements()`
 ================================================================================
 
 In this example we explain the `pyvale` virtual sensor measurement model. For a
@@ -20,9 +20,9 @@ However, systematic errors cannot easily be accounted for without a forward
 model of the source of the error. Characterising the contribution of systematic
 errors to the total measurement error is a key application of `pyvale`.
 
-A sensor array has two key methods: `get_measurements()` and `calc_measurements`
+A sensor array has two key methods: `get_measurements()` and `sim_measurements`
 . Calling `get_measurements()` retrieves the results for the current simulated
-experiment whereas calling `calc_measurements()` will generate a new simulated
+experiment whereas calling `sim_measurements()` will generate a new simulated
 experiment by sampling / calculating the systematic and random errors.
 
 Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
@@ -38,13 +38,13 @@ import pyvale.dataset as dataset
 
 #%%
 # The first part of this example is the similar to basics example 1.1, so
-# feel free to skip to after the first call to `calc_measurements()`.
+# feel free to skip to after the first call to `sim_measurements()`.
 #
 # Here we load a pre-generated MOOSE finite element simulation dataset that
 # comes packaged with pyvale. The simulation is a 2D rectangular plate with
 # a bi-directional temperature gradient.
 data_path = dataset.thermal_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 field_key: str = "temperature"
 
 #%%
@@ -85,13 +85,13 @@ tc_array = sens.SensorArrayFactory \
                                 errs_pc=5.0)
 
 #%%
-# We have built our sensor array so now we can call `calc_measurements()` to
+# We have built our sensor array so now we can call `sim_measurements()` to
 # generate simulated sensor traces.
-measurements = tc_array.calc_measurements()
+measurements = tc_array.sim_measurements()
 
 #%%
 # From here we are going to experiment with repeated calls to
-# `calc_measurements()` and `get_measurements()` for our sensor array. We
+# `sim_measurements()` and `get_measurements()` for our sensor array. We
 # will print the results to the console as well as plotting time traces of
 # the simulated sensor output. All further explanations are in the print
 # statements below.
@@ -117,14 +117,14 @@ print(f"Looking at the last {time_last} virtual measurements for sensor"
 sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 
 print(80*"-")
-print("If we call the `calc_measurements()` method then the errors are "
+print("If we call the `sim_measurements()` method then the errors are "
         + "re-calculated.")
-measurements = tc_array.calc_measurements()
+measurements = tc_array.sim_measurements()
 
 sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 
 (fig,ax) = sens.plot_time_traces(tc_array,field_key)
-ax.set_title("Exp 1: called calc_measurements()")
+ax.set_title("Exp 1: called sim_measurements()")
 
 print(80*"-")
 print("If we call the `get_measurements()` method then the errors are the "
@@ -137,14 +137,14 @@ sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 ax.set_title("Exp 2: called get_measurements()")
 
 print(80*"-")
-print("If we call the `calc_measurements()` method again we generate / "
+print("If we call the `sim_measurements()` method again we generate / "
         "sample new errors:")
-measurements = tc_array.calc_measurements()
+measurements = tc_array.sim_measurements()
 
 sens.print_measurements(tc_array,sens_print,comp_print,time_print)
 
 (fig,ax) = sens.plot_time_traces(tc_array,field_key)
-ax.set_title("Exp 3: called calc_measurements()")
+ax.set_title("Exp 3: called sim_measurements()")
 
 print(80*"-")
 

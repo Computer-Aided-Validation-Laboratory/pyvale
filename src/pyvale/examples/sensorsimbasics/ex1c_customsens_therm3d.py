@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Building a point sensor array from scratch with custom errors
+Building a point sensor array from scratch with custom errors
 ================================================================================
 
 Here we build a custom point sensor array from scratch that is similar to the
@@ -36,7 +36,7 @@ import pyvale.dataset as dataset
 # we start by loading our simulation data:
 
 data_path = dataset.thermal_3d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)
@@ -87,7 +87,7 @@ else:
 
 #%%
 # We can now build our custom point sensor array. This sensor array has no
-# errors so if we call `get_measurements()` or `calc_measurements()` we will
+# errors so if we call `get_measurements()` or `sim_measurements()` we will
 # be able to extract the simulation truth values at the sensor locations.
 tc_array = sens.SensorArrayPoint(sensor_data,
                                 t_field,
@@ -184,7 +184,7 @@ if len(error_chain) > 0:
 #%%
 # Now that we have added our error chain we can run a simulation to sample
 # from all our error sources.
-measurements = tc_array.calc_measurements()
+measurements = tc_array.sim_measurements()
 
 #%%
 # We display the simulation results by printing to the console and by

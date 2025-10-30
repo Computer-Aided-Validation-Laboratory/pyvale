@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Tensor field sensors (strain gauges)
+Tensor field sensors (strain gauges)
 ================================================================================
 
 In this example we use the sensor array factory to build a set of strain
@@ -35,7 +35,7 @@ import pyvale.dataset as dataset
 # the normal a deviatoric components of our tensor field (as they appear in
 # our `SimData` object).
 data_path: Path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                   sim_data=sim_data,
                                   disp_comps=("disp_x","disp_y"))
@@ -59,7 +59,7 @@ sens_data = sens.SensorData(positions=sens_pos,
 # have seen previously for scalar and vector fields.
 norm_comps = ("strain_xx","strain_yy")
 dev_comps = ("strain_xy",)
-straingauge_array = sens.SensorArrayFactory \
+straingauge_array = sens.SensorFactory \
                         .strain_gauges_basic_errs(sim_data,
                                                     sens_data,
                                                     elem_dims=2,
@@ -74,7 +74,7 @@ straingauge_array = sens.SensorArrayFactory \
 # components in the order they are specified in the tuples with the normal
 # components first followed by the deviatoric. In our case this will be
 # (strain_xx,strain_yy,strain_xy).
-measurements = straingauge_array.calc_measurements()
+measurements = straingauge_array.sim_measurements()
 
 #%%
 # Here we print the shape of the measurement array so we can see that the

@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Sensor calibration systematic errors
+Sensor calibration systematic errors
 ================================================================================
 
 In this example we show how `pyvale` can simulate sensor calibration errors with
@@ -71,7 +71,7 @@ print()
 # thermocouples that we analysed in the first two examples. We use this
 # simulation as the temperatures are within our calibrated range.
 data_path = dataset.thermal_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
                                     disp_comps=None)
@@ -88,7 +88,7 @@ sensor_data = sens.SensorData(positions=sens_pos,
                                 sample_times=sample_times)
 
 field_key: str = "temperature"
-tc_array = sens.SensorArrayFactory \
+tc_array = sens.SensorFactory \
     .thermocouples_no_errs(sim_data,
                             sensor_data,
                             elem_dims=2,
@@ -111,7 +111,7 @@ tc_array.set_error_integrator(sys_err_int)
 
 #%%
 # Now we run our sensor simulation to see what our calibration does.
-measurements = tc_array.calc_measurements()
+measurements = tc_array.sim_measurements()
 
 print(80*"-")
 

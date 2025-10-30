@@ -32,7 +32,7 @@ import pyvale.dataset as dataset
 # field_key must match the name of your variable in your MOOSE simulation.
 # We use `mooseherder` to load the exodus file into a `SimData` object.
 data_path = dataset.thermal_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
 #%%
 # Scale to mm to make 3D visualisation scaling easier as pyvista scales
@@ -73,9 +73,9 @@ tc_array = sens.SensorArrayFactory \
                                 field_name=field_key)
 
 #%%
-# We have built our sensor array so now we can call `calc_measurements()` to
+# We have built our sensor array so now we can call `sim_measurements()` to
 # generate simulated sensor traces.
-measurements = tc_array.calc_measurements()
+measurements = tc_array.sim_measurements()
 print(f"\nMeasurements for last sensor:\n{measurements[-1,0,:]}\n")
 
 #%%

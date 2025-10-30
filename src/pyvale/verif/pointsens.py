@@ -97,7 +97,7 @@ def err_chain_all(err_dict: dict[str,list[sens.IErrCalculator]]
 def gen_gold_measurements(sens_dict: dict[str,sens.SensorArrayPoint]) -> None:
     for ss in sens_dict:
         print(f"Generating gold output for case: {ss}")
-        measurements = sens_dict[ss].calc_measurements()
+        measurements = sens_dict[ss].sim_measurements()
         save_path = pointsensconst.GOLD_PATH / f"{ss}.npy"
         np.save(save_path,measurements)
 
@@ -106,7 +106,7 @@ def check_gold_measurements(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[
     fails = []
 
     for ss in sens_dict:
-        measurements = sens_dict[ss].calc_measurements()
+        measurements = sens_dict[ss].sim_measurements()
         gold_path = pointsensconst.GOLD_PATH / f"{ss}.npy"
 
         load_path = pointsensconst.GOLD_PATH / f"{ss.lower()}.npy"

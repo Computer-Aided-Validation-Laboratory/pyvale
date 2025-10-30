@@ -39,9 +39,9 @@ class SensorArrayPoint(ISensorArray):
     the name will directly return the previously calculated values without
     resampling probability distributions.
 
-    Calling the class method `calc_measurements()` will create and return an
+    Calling the class method `sim_measurements()` will create and return an
     array of simulated sensor measurements with the following shape=(num_sensors
-    ,num_field_component,num_time_steps). When calling `calc_measurements()` all
+    ,num_field_component,num_time_steps). When calling `sim_measurements()` all
     sensor errors that are based on probability distributions are resampled and
     any required interpolations are performed (e.g. a random perturbation of the
     sensor positions requiring interpolation at the perturbed sensor location).
@@ -177,7 +177,7 @@ class SensorArrayPoint(ISensorArray):
                         err_chain: list[IErrCalculator] | None,
                         err_int_opts: ErrIntOpts | None = None) -> None:
         """Sets the error intergrator that will be used to calculate the sensor
-        array measurement errors when `calc_measurements()` is called. See the
+        array measurement errors when `sim_measurements()` is called. See the
         `ErrIntegrator` class for further detail.
 
         Parameters
@@ -267,7 +267,7 @@ class SensorArrayPoint(ISensorArray):
 
         return self._error_integrator.get_errs_total()
 
-    def calc_measurements(self) -> np.ndarray:
+    def sim_measurements(self) -> np.ndarray:
         """Calculates a set of sensor measurements using the specified sensor
         array parameters and the error intergator if specified. Calculates
         measurements as: measurement = truth + systematic errors + random errors
@@ -294,7 +294,7 @@ class SensorArrayPoint(ISensorArray):
 
     def get_measurements(self) -> np.ndarray:
         """Returns the current set of simulated measurements if theses have been
-        calculated. If these have not been calculated then 'calc_measurements()'
+        calculated. If these have not been calculated then 'sim_measurements()'
         is called and a set of measurements in then returned.
 
         Returns
@@ -305,6 +305,6 @@ class SensorArrayPoint(ISensorArray):
             num_sensors,num_field_components,num_time_steps).
         """
         if self._measurements is None:
-            self._measurements = self.calc_measurements()
+            self._measurements = self.sim_measurements()
 
         return self._measurements

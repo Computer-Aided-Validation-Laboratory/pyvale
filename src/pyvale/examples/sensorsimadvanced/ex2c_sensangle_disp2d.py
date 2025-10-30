@@ -34,7 +34,7 @@ import pyvale.dataset as dataset
 # solid mechanics test case we have used previously. This will serve as a
 # baseline with no sensor rotation.
 data_path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
 field_name = "disp"
 field_comps = ("disp_x","disp_y")
@@ -62,7 +62,7 @@ disp_sens_norot = sens.SensorArrayPoint(sens_data_norot,
                                         disp_field,
                                         descriptor)
 
-disp_sens_norot.calc_measurements()
+disp_sens_norot.sim_measurements()
 
 #%%
 # To create our sensor array with rotated sensors we need to add a tuple of
@@ -107,7 +107,7 @@ sys_err_int = sens.ErrIntegrator([sys_err_rot],
                                 disp_sens_rot.get_measurement_shape())
 disp_sens_rot.set_error_integrator(sys_err_int)
 
-measurements = disp_sens_rot.calc_measurements()
+measurements = disp_sens_rot.sim_measurements()
 
 
 #%%

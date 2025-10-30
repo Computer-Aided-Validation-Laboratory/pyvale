@@ -31,9 +31,9 @@ class ISensorArray(ABC):
     the name will directly return the previously calculated values without
     resampling probability distributions.
 
-    Calling the class method `calc_measurements()` will create and return an
+    Calling the class method `sim_measurements()` will create and return an
     array of simulated sensor measurements with the following shape=(num_sensors
-    ,num_field_component,num_time_steps). When calling `calc_measurements()` all
+    ,num_field_component,num_time_steps). When calling `sim_measurements()` all
     sensor errors that are based on probability distributions are resampled and
     any required interpolations are performed (e.g. a random perturbation of the
     sensor positions requiring interpolation at the perturbed sensor location).
@@ -137,7 +137,7 @@ class ISensorArray(ABC):
         pass
 
     @abstractmethod
-    def calc_measurements(self) -> np.ndarray:
+    def sim_measurements(self) -> np.ndarray:
         """Abstract method. Calculates measurements as: measurement = truth +
         systematic errors + random errors. The truth is calculated once and is
         interpolated from the input simulation field. The errors are calculated
@@ -159,7 +159,7 @@ class ISensorArray(ABC):
     def get_measurements(self) -> np.ndarray:
         """Abstract method. Returns the current set of simulated measurements if
         theses have been calculated. If these have not been calculated then
-        'calc_measurements()' is called and a set of measurements in then
+        'sim_measurements()' is called and a set of measurements in then
         returned.
 
         NOTE: this is a 'get' method and does not sample from probability

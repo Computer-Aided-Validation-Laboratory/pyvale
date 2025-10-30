@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Basics: Chaining field errors
+Chaining field errors
 ================================================================================
 
 In this example we show how field errors can be chained together and accumulated
@@ -34,7 +34,7 @@ import pyvale.dataset as dataset
 # We start by building the same displacement sensor array applied to a 2D
 # solid mechanics simulation that we have analysed previously.
 data_path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 field_name = "disp"
 field_comps = ("disp_x","disp_y")
 sim_data = sens.scale_length_units(scale=1000.0,
@@ -127,7 +127,7 @@ error_int = sens.ErrIntegrator(err_chain,
                                 err_int_opts)
 disp_sens_array.set_error_integrator(error_int)
 
-measurements = disp_sens_array.calc_measurements()
+measurements = disp_sens_array.sim_measurements()
 
 #%%
 # Here we will print to the console the time, position and angle of from the

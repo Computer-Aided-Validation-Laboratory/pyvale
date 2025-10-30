@@ -148,7 +148,7 @@ class ExperimentSimulator:
                 aa.get_field().set_sim_data(ss)
 
                 for ee in range(self._num_exp_per_sim):
-                    meas_array[jj,ee,:,:,:] = aa.calc_measurements()
+                    meas_array[jj,ee,:,:,:] = aa.sim_measurements()
 
             self._exp_data[ii] = meas_array
 

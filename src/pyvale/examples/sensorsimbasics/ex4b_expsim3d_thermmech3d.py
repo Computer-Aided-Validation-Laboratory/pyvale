@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Basics: Multi-physics experiment simulation in 3D
+"""Multi-physics experiment simulation in 3D
 ================================================================================
 
 In the previous example we performed a series of simulated experiments on a set
@@ -31,7 +31,7 @@ import pyvale.dataset as dataset
 # simulation into a `SimData`  object. In this case our simulation is a
 # thermomechanical model of a divertor heatsink.
 sim_path = dataset.thermomechanical_3d_path()
-sim_data = mh.ExodusLoader(sim_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 elem_dims: int = 3
 
 #%%
@@ -57,7 +57,6 @@ if not fig_save_path.is_dir():
 # for the sensors to sample at the simulation time steps.
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-
 x_lims = (12.5,12.5)
 y_lims = (0.0,33.0)
 z_lims = (0.0,12.0)
@@ -70,7 +69,7 @@ tc_sens_data = sens.SensorData(positions=tc_sens_pos,
 # We use the sensor array factory to create our thermocouple array with no
 # errors.
 tc_field_name = "temperature"
-tc_array = sens.SensorArrayFactory \
+tc_array = sens.SensorFactory \
     .thermocouples_no_errs(sim_data,
                             tc_sens_data,
                             elem_dims=elem_dims,
@@ -86,8 +85,8 @@ tc_err_chain.append(sens.ErrRandNorm(std=1.0))
 # Now we add positioning error for our thermocouples.
 tc_pos_uncert = 0.1 # units = mm
 tc_pos_rand = (sens.GenNormal(std=tc_pos_uncert),
-                sens.GenNormal(std=tc_pos_uncert),
-                sens.GenNormal(std=tc_pos_uncert))
+               sens.GenNormal(std=tc_pos_uncert),
+               sens.GenNormal(std=tc_pos_uncert))
 
 #%%
 # We block translation in x so the thermocouples stay attached.
@@ -141,7 +140,7 @@ sg_sens_data = sens.SensorData(positions=sg_sens_pos,
 sg_field_name = "strain"
 sg_norm_comps = ("strain_xx","strain_yy","strain_zz")
 sg_dev_comps = ("strain_xy","strain_yz","strain_xz")
-sg_array = sens.SensorArrayFactory \
+sg_array = sens.SensorFactory \
     .strain_gauges_no_errs(sim_data,
                             sg_sens_data,
                             elem_dims=elem_dims,
@@ -250,8 +249,8 @@ print(80*"=")
 # Note that the default here is to plot the mean and fill between 3 times
 # the standard deviation.
 trace_opts = sens.TraceOptsExperiment(plot_all_exp_points=True,
-                                        centre=sens.EExpVisCentre.MEDIAN,
-                                        fill_between=sens.EExpVisBounds.MINMAX)
+                                      centre=sens.EExpVisCentre.MEDIAN,
+                                      fill_between=sens.EExpVisBounds.MINMAX)
 
 (fig,ax) = sens.plot_exp_traces(exp_sim,
                                 component="temperature",

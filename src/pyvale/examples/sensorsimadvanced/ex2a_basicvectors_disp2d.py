@@ -33,7 +33,7 @@ import pyvale.dataset as dataset
 # see a visualisation of the mesh and results later). We use `mooseherder` to
 # load the exodus file into a `SimData` object.
 data_path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
 #%%
 # We scale our SI simulation to mm including the displacement fields which
@@ -72,7 +72,7 @@ disp_sens_array = sens.SensorArrayFactory \
 # We run our sensor simulation as normal but we note that the second
 # dimension of our measurement array will have the two vector components in
 # the order we specified them in the field keys.
-measurements = disp_sens_array.calc_measurements()
+measurements = disp_sens_array.sim_measurements()
 
 #%%
 # Here we print the shape of the measurement array so we can see that the

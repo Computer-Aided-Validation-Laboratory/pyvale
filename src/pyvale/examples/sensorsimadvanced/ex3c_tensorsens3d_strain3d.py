@@ -32,7 +32,7 @@ import pyvale.dataset as dataset
 # loading a 10mm cube loaded in tension in the y direction with the addition
 # of a thermal gradient in the y direction.
 data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
 #%%
 # As we are creating a 3D tensor field sensor we now have a third
@@ -158,7 +158,7 @@ straingauge_array.set_error_integrator(error_int)
 # that the second dimension of our measurement array will contain our tensor
 # components in the order they are specified in the tuples with the normal
 # components first followed by the deviatoric.
-measurements = straingauge_array.calc_measurements()
+measurements = straingauge_array.sim_measurements()
 
 #%%
 # We print some of the results for one of the sensors so we can see the

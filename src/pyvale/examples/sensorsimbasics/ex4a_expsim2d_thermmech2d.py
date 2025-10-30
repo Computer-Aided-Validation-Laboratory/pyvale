@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Basics: Multi-physics experiment simulation in 2D
+"""Multi-physics experiment simulation in 2D
 ================================================================================
 
 In previous examples we have built our virtual sensor array and used this to
@@ -45,7 +45,7 @@ elem_dims: int = 2
 disp_comps = ("disp_x","disp_y")
 sim_list = []
 for pp in data_paths:
-    sim_data = mh.ExodusLoader(pp).read_all_sim_data()
+    sim_data = mh.ExodusLoader(pp).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                         sim_data=sim_data,
                                         disp_comps=disp_comps)
@@ -75,7 +75,7 @@ tc_sens_data = sens.SensorData(positions=tc_sens_pos,
 # we run our experiment the field object that relies on this will switch the
 # sim data for the required simulation in our list.
 tc_field_name = "temperature"
-tc_array = sens.SensorArrayFactory \
+tc_array = sens.SensorFactory \
     .thermocouples_basic_errs(sim_list[0],
                                 tc_sens_data,
                                 elem_dims=elem_dims,
@@ -94,7 +94,7 @@ sg_sens_data = sens.SensorData(positions=sg_sens_pos,
 sg_field_name = "strain"
 sg_norm_comps = ("strain_xx","strain_yy")
 sg_dev_comps = ("strain_xy",)
-sg_array = sens.SensorArrayFactory \
+sg_array = sens.SensorFactory \
     .strain_gauges_basic_errs(sim_list[0],
                                 sg_sens_data,
                                 elem_dims=elem_dims,

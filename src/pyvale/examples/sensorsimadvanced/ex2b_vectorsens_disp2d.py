@@ -31,7 +31,7 @@ import pyvale.dataset as dataset
 # First we load the same 2D solid mechanics simulation we had previously as
 # a `SimData` object and then we scale everything to millimeters.
 data_path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusLoader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 field_name = "disp"
 field_comps = ("disp_x","disp_y")
 sim_data = sens.scale_length_units(scale=1000.0,
@@ -102,7 +102,7 @@ error_int = sens.ErrIntegrator(error_chain,
                                 disp_sens_array.get_measurement_shape())
 disp_sens_array.set_error_integrator(error_int)
 
-disp_sens_array.calc_measurements()
+disp_sens_array.sim_measurements()
 
 #%%
 # Now that we have multiple field components we can plot each of them on the
