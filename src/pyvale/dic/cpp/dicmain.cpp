@@ -143,6 +143,8 @@ void DICengine(const py::array_t<double>& img_ref_arr,
 
         if (!saveconf.at_end)
             util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params, conf.filenames);
+
+        if (stop_request) break;
     }
 
     if (saveconf.at_end)
