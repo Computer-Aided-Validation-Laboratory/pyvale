@@ -106,6 +106,9 @@ class RegionOfInterest:
         # Process seed
         self._finalize_seed_selection()
 
+        # finalize mask
+        self.mask = temp_mask
+
     def _setup_gui(self):
         """Setup the main GUI window and sidebar."""
         app = pg.mkQApp("ROI GUI")
@@ -601,7 +604,7 @@ class RegionOfInterest:
                 self._finalize_seed_selection()
                 seed_data = {
                     'type': 'SeedROI',
-                    'pos': [self.seed[0], self.height-self.seed[1]],
+                    'pos': [self.seed[0], self.seed[1]],
                     'size': [self.subset_size, self.subset_size],
                     'add': True
                 }
@@ -631,9 +634,9 @@ class RegionOfInterest:
                 if entry.get('type') == 'SeedROI':
                     # Restore the seed ROI
                     x, y = entry['pos']
-                    y = self.height - y  # convert to graphics coordinates
+                    #y = self.height - y  # convert to graphics coordinates
                     w,h = entry.get('size', [21, 21])  # fallback default
-                    y = self.width-y
+                    #y = self.width-y
                     print(x,y,w,h)
                     self.seed_roi = pg.RectROI(
                         [x, y], [w, h],
@@ -732,7 +735,7 @@ class RegionOfInterest:
         if hasattr(self, 'seed_roi'):
             pos = self.seed_roi.pos()
             x = int(np.floor(pos.x()))
-            y = int(np.floor(self.height - pos.y()))
+            y = int(np.floor(pos.y()))
             self.seed = [x, y]
 
             #if not mask[y, x]:
@@ -955,8 +958,8 @@ class RegionOfInterest:
         
         # Initialize GUI
         self._setup_gui()
-        gui_mask_rgb, gui_mask = self._setup_graphics()
-        self._connect_signals(gui_mask_rgb, gui_mask)
+        fill_array, temp_mask = self._setup_graphics()
+        self._connect_signals(fill_array, temp_mask)
 
         if filename:
             with open(filename, 'r') as f:
@@ -971,7 +974,7 @@ class RegionOfInterest:
                 if entry.get('type') == 'SeedROI':
                     # Restore the seed ROI
                     x, y = entry['pos']
-                    y = self.width-y
+                    #y = self.width-y
                     size = entry.get('size', [10, 10])  # fallback default
                     self.seed_roi = pg.RectROI(
                         [x, y], size,
@@ -988,11 +991,15 @@ class RegionOfInterest:
                     self.roi_list.append(roi)
                     self.add_list.append(entry['add'])
                     self.main_view.addItem(roi)
-                    roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(gui_mask_rgb, gui_mask))
+                    roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
 
-            self._redraw_fill_layer(gui_mask_rgb, gui_mask)
+            self._redraw_fill_layer(fill_array, temp_mask)
             self._update_button_states()
             self._finalize_seed_selection()
+
+            #finalize mask
+            self.mask = temp_mask
+            
 
 
 
