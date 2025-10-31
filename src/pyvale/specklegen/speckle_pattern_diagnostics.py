@@ -7,15 +7,22 @@ from scipy.optimize import curve_fit
 from scipy.stats import skew, kurtosis
 from skimage.measure import shannon_entropy
 
-def speckle_pattern_diagnostics(image: np.ndarray, dynamic_range: int,  
-                                save_path: str) -> dict:
 
-    """ Perform diagnostics on the speckle pattern image."""
-    """Input: """
-    """ image: 2D numpy array representing the speckle pattern """
-    """ dynamic_range: maximum pixel value based on bit depth """
-    """ save_path: path to save the diagnostic plots """
-    """ Output: dictionary with diagnostic results """
+def speckle_pattern_statistics(image: np.ndarray, dynamic_range: int) -> dict:
+    """A function to perform diagnostics on the speckle pattern image.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        2D numpy array representing the speckle pattern
+    dynamic_range : int
+        Maximum pixel value (irradiance) based on bit depth
+
+    Returns
+    -------
+    dict
+        Dictionary with diagnostic results
+    """
     
     HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V, h_profile, v_profile = speckle_size(image)
     avg_speckle_size_fwhm = np.mean([HFWHM, VFWHM])
@@ -53,6 +60,30 @@ def speckle_pattern_diagnostics(image: np.ndarray, dynamic_range: int,
         "V_fit_stats": V_fit_stats
     }
 
+    return results
+
+def speckle_pattern_plots(image: np.ndarray, dynamic_range: int,  
+                                save_path: str = None) -> dict:
+    """A function to generate and save diagnostic plots for the speckle pattern.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        2D numpy array representing the speckle pattern
+    dynamic_range : int
+        Maximum pixel value (irradiance) based on bit depth
+    save_path : str (optional)
+        Path to save the generated plots using example formatting to the folder if provided
+
+    Returns
+    -------
+    dict
+        Dictionary containing figures and axes of the generated plots
+    """
+    
+    HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V, h_profile, v_profile = speckle_size(image)
+    plots = {}
+
     # Set Seaborn theme
     sns.set_theme(style="darkgrid")
     matplotlib.rcParams['font.family'] = 'Sans-serif'
@@ -69,8 +100,12 @@ def speckle_pattern_diagnostics(image: np.ndarray, dynamic_range: int,
     ax.set_xlabel("Position [pixel]", fontsize=fontsize1-2)
     ax.set_ylabel("Position [pixel]", fontsize=fontsize1-2)
     ax.set_title("Speckle pattern", fontsize=fontsize1)
-    # plt.savefig(f"{save_path}/speckle_pattern.tiff", dpi=300, format='tiff', bbox_inches='tight')
-    plt.savefig(f"{save_path}/speckle_pattern.jpg", dpi=300, format='jpg', bbox_inches='tight')
+
+    if save_path is not None:
+        plt.savefig(f"{save_path}/speckle_pattern.jpg", dpi=300, format='jpg', bbox_inches='tight')
+
+    plots['speckle_pattern_fig'] = fig
+    plots['speckle_pattern_ax'] = ax
 
     f_image = scipy.fftpack.fft2(image)
     f_image_shifted = scipy.fftpack.fftshift(f_image)
@@ -85,8 +120,12 @@ def speckle_pattern_diagnostics(image: np.ndarray, dynamic_range: int,
     ax.set_title("Spatial frequency (log scale)", fontsize=fontsize1)
     ax.set_xlabel("Frequency [1/pixel]", fontsize=fontsize1-2)
     ax.set_ylabel("Frequency [1/pixel]", fontsize=fontsize1-2)
-    # plt.savefig(f"{save_path}/PSD_spectrum.tiff", dpi=300, format='tiff', bbox_inches='tight')
-    plt.savefig(f"{save_path}/frequency_spectrum.jpg", dpi=300, format='jpg', bbox_inches='tight')
+
+    if save_path is not None:
+        plt.savefig(f"{save_path}/frequency_spectrum.jpg", dpi=300, format='jpg', bbox_inches='tight')
+
+    plots['frequency_spectrum_fig'] = fig
+    plots['frequency_spectrum_ax'] = ax
 
     fig, axes = plt.subplots(1, 1, figsize=(7.0, 5.0))
     ax = axes
@@ -95,11 +134,14 @@ def speckle_pattern_diagnostics(image: np.ndarray, dynamic_range: int,
     ax.set_xlabel("Pixel value", fontsize=fontsize1-2)
     ax.set_ylabel("Density (log scale)", fontsize=fontsize1-2)
     ax.tick_params(axis='both', which='major', labelsize=fontsize1-2)
-    # plt.savefig(f"{save_path}/pixel_value_histogram.tiff", dpi=300, format='tiff', bbox_inches='tight')
-    plt.savefig(f"{save_path}/pixel_value_histogram.jpg", dpi=300, format='jpg', bbox_inches='tight')
+
+    if save_path is not None:
+        plt.savefig(f"{save_path}/pixel_value_histogram.jpg", dpi=300, format='jpg', bbox_inches='tight')
+
+    plots['pixel_value_histogram_fig'] = fig
+    plots['pixel_value_histogram_ax'] = ax
 
     plt.figure(figsize=(7.0, 5.0))
-    fontsize1= 17
     x_H = np.arange(1, h_profile.size + 1)
     x_V = np.arange(1, v_profile.size + 1)
     plt.subplot(2, 1, 1)
@@ -121,11 +163,51 @@ def speckle_pattern_diagnostics(image: np.ndarray, dynamic_range: int,
     plt.legend(fontsize=fontsize1-2)
     plt.tick_params(axis='both', which='major', labelsize=fontsize1-2)
     plt.tight_layout()
-    plt.savefig(f"{save_path}/autocovariance.jpg", dpi=300, format='jpg', bbox_inches='tight')
+    
+    if save_path is not None:
+        plt.savefig(f"{save_path}/autocovariance.jpg", dpi=300, format='jpg', bbox_inches='tight')
 
-    return results
+    # Extract figure and axis
+    fig = plt.gcf()
+    ax = plt.gca()
+
+    plots['autocovariance_fig'] = fig
+    plots['autocovariance_ax'] = ax
+
+    return plots
 
 def speckle_size(image: np.ndarray) -> tuple:
+    """ A function to calculate speckle size from the autocovariance of the speckle pattern.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        2D numpy array representing the speckle pattern
+
+    Returns
+    -------
+    tuple
+        HFWHM : float
+            Full width at half maximum for horisontal profile.
+        HeSquared : float
+            1/e^2 width for horisontal profile.
+        H_fit_stats : dict
+            R-squared goodness of fit for horisontal profile.
+        VFWHM : float
+            Full width at half maximum for vertical profile.
+        VeSquared : float
+            1/e^2 width for vertical profile.
+        V_fit_stats : dict
+            R-squared goodness of fit for vertical profile.
+        popt_H : array
+            Optimal parameters for horisontal Gaussian fit.
+        popt_V : array
+            Optimal parameters for vertical Gaussian fit.
+        h_profile : np.ndarray
+            Horisontal autocovariance profile.
+        v_profile : np.ndarray
+            Vertical autocovariance profile.    
+    """    
     # image = (image - np.mean(image)) / np.std(image)
     image = (image - np.mean(image))
     
@@ -144,9 +226,56 @@ def speckle_size(image: np.ndarray) -> tuple:
     return HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V, h_profile, v_profile
 
 def gaussian(x: np.ndarray, a1: float, b1: float, c1: float) -> np.ndarray:
-        return a1 * np.exp(-((x - b1)/c1) ** 2)
+    """A function to model Gaussian distribution.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Input array.
+    a1 : float
+        Peak amplitude (height)
+    b1 : float
+        Center position (mean)
+    c1 : float
+        Standard deviation (width, spread)
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """      
+    return a1 * np.exp(-((x - b1)/c1) ** 2)
 
 def fit_gaussian(H: np.ndarray, V: np.ndarray) -> tuple:
+    """ Fit Gaussian functions to the horisontal and vertical autocovariance profiles.
+
+    Parameters
+    ----------
+    H : np.ndarray
+        Horisontal autocovariance profile.
+    V : np.ndarray
+        Vertical autocovariance profile.
+
+    Returns
+    -------
+    tuple
+        HFWHM : float
+            Full width at half maximum for horisontal profile.
+        HeSquared : float
+            1/e^2 width for horisontal profile.
+        H_fit_stats : dict
+            R-squared goodness of fit for horisontal profile.
+        VFWHM : float
+            Full width at half maximum for vertical profile.
+        VeSquared : float
+            1/e^2 width for vertical profile.
+        V_fit_stats : dict
+            R-squared goodness of fit for vertical profile.
+        popt_H : array
+            Optimal parameters for horisontal Gaussian fit.
+        popt_V : array
+            Optimal parameters for vertical Gaussian fit.
+    """    
      
     range_H = np.arange(1, H.size + 1)
     range_V = np.arange(1, V.size + 1)

@@ -8,17 +8,34 @@ def pixelsInDisk(cent_x: int, cent_y: int,
                  screen_size_width: int, screen_size_height: int, 
                  speckle_size: float, foreground_colour: int, image: np.ndarray,
                  check_overlap: bool) -> int:
-        
-        """ Set pixels in a disk shape on the image array, disk centered at (cent_x, cent_y) with given speckle_size """
-        "Inputs:"
-        " cent_x, cent_y: center coordinates of the disk"
-        " screen_size_width, screen_size_height: dimensions of the image"
-        " speckle_size: diameter of the disk"
-        " foreground_colour: colour value to set for the disk pixels"
-        " image: 2D numpy array representing the image"
-        " check_overlap: if True, check for overlap with existing foreground pixels and does not modify the image"
-        " Output: 0 if overlap detected, 1 if no overlap (when check_overlap is True), otherwise modifies the image"
-
+        """A function to set pixels in a disk shape on the image array
+    
+        Parameters
+        ----------
+        cent_x : int
+            Center x coordinate of the disk
+        cent_y : int
+            Center y coordinate of the disk
+        screen_size_width : int
+            Dimension of the image width-wise (pixels)
+        screen_size_height : int
+            Dimension of the image height-wise (pixels)
+        speckle_size : float
+            Diameter of the speckle disk (pixels)
+        foreground_colour : int
+           Colour value to set for the speckle pixels
+        image : np.ndarray
+            2D numpy array representing the image
+        check_overlap : bool
+            If True, check for overlap with existing foreground pixels and does not modify the image
+            If False, sets the pixels in the disk shape to the foreground colour
+    
+        Returns
+        -------
+        int
+           0 if overlap detected, 1 if no overlap (when check_overlap is True), otherwise a function modifies the image
+        """        
+    
         box_max_x = int(np.ceil(cent_x + speckle_size / 2))
         box_min_x = int(np.floor(cent_x - speckle_size / 2))
         
@@ -52,26 +69,62 @@ def pixelsInDisk(cent_x: int, cent_y: int,
                         image[yy, xx] = foreground_colour
 
 
-def generate_speckles(screen_size_width: int, screen_size_height: int, 
-                      speckle_size: float, foreground_colour: int,
-                      total_speckles: int, reduce_overlap: bool,
-                      bit_depth: int, background_colour: int,
-                      sigma: float, attempts_tot: int = 100) -> np.ndarray:
-     
-        """ Generate a speckle pattern image with given parameters """
-        """ The speckles are disks of given speckle_size, placed randomly on the image, based on the uniform probability distribution """
-        """ Inputs: """
-        """ screen_size_width, screen_size_height: dimensions of the image """
-        """ speckle_size: diameter of each speckle disk """
-        """ foreground_colour: colour value for the speckles """
-        """ total_speckles: total number of speckles to place """
-        """ reduce_overlap: if True, attempts to reduce overlap between speckles """
-        """ bit_depth: bit depth of the image (8 or 16) """
-        """ background_colour: colour value for the background """
-        """ sigma: standard deviation for Gaussian blur applied after speckle placement """
-        """ attempts_tot: maximum number of attempts to place each speckle without overlap """
-        """ Output: speckle pattern image as a 2D numpy array and speckle generation stats """
+def generate_speckles_random_disks(screen_size_width: int, screen_size_height: int, 
+                                   feature_size_width: float, feature_size_height: float,
+                                   foreground_colour: int, background_colour: int,
+                                   bit_depth: int, type_gen: str, seed: int, **kwargs) -> np.ndarray:
+        """A function to generate a speckle pattern image by randomly placing disk-shaped speckles
+        based on uniform probability distribution.
+    
+        Parameters
+        ----------
+        screen_size_width : int
+            Dimension of the image width-wise (pixels)
+        screen_size_height : int
+            Dimension of the image height-wise (pixels)
+        feature_size_width : float
+            Speckle size width-wise
+        feature_size_height : float
+            Speckle size height-wise
+        foreground_colour : int
+            Colour value for the speckles
+        background_colour : int
+            Colour value for the background
+        bit_depth : int
+            Bit depth of the image (8 or 16)
+        type_gen : str
+            Type of noise to generate (must be 'random_disks' for this function)
+        seed : int
+            Random seed for the noise generation
+        total_speckles : int
+            Total number of speckles to place
+        reduce_overlap : bool
+            If True, attempts to reduce overlap between speckles
+        sigma : float
+            Standard deviation for Gaussian blur applied after speckle placement
+        attempts_tot : int (optional)
+            Maximum number of attempts to place each speckle without overlap (if reduce_overlap is True)
+    
+        Returns
+        -------
+        np.ndarray
+            Speckle pattern image as a 2D numpy array and speckle generation stats
+        """      
 
+        speckle_size = (feature_size_width + feature_size_height) / 2
+        total_speckles = kwargs.get("total_speckles")
+        reduce_overlap = kwargs.get("reduce_overlap")
+        sigma = kwargs.get("sigma")
+        attempts_tot = kwargs.get("attempts_tot", 100)
+
+        # check that non of the required parameters are None
+        assert speckle_size is not None, "speckle_size parameter is required."
+        assert total_speckles is not None, "total_speckles parameter is required."
+        assert reduce_overlap is not None, "reduce_overlap parameter is required."
+        assert sigma is not None, "sigma parameter is required."
+        assert type_gen == "random_disks", "Type_gen must be 'random_disks' for this function."
+
+        np.random.seed(seed)
         image: np.ndarray = np.ones((screen_size_height,screen_size_width),
                                     dtype=np.uint16 if bit_depth == 16 else np.uint8) * background_colour
         
@@ -127,7 +180,6 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
                 results[i, 3] = cent_x
                 results[i, 4] = cent_y
              
-            
         # Apply Gaussian blur
         image_blur = np.copy(image)
         image_blur = ndimage.gaussian_filter(image_blur, sigma=sigma)
@@ -135,38 +187,170 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
         return image_blur, results
 
 
-def generate_speckles_perlin_noise(screen_size_width: int, screen_size_height: int,
-                                   res_width: int, res_height: int,
-                                   foreground_colour: int,
-                                   bit_depth: int, background_colour: int, type_gen: str,
-                                   **kwargs) -> np.ndarray:
+def generate_speckles_random_disks_grid(screen_size_width: int, screen_size_height: int, 
+                                   feature_size_width: float, feature_size_height: float,
+                                   foreground_colour: int, background_colour: int,
+                                   bit_depth: int, type_gen: str, seed: int, **kwargs) -> np.ndarray:
+        """A function to generate a speckle pattern image by randomly perturbating a grid of regularly-placed
+        disk-shaped speckles based on disrete uniform probability distribution.
     
-    """This function uses noise implementation from perlin-numpy package 
-    (https://github.com/pvigier/perlin-numpy/tree/master)"""
+        Parameters
+        ----------
+        screen_size_width : int
+            Dimension of the image width-wise (pixels)
+        screen_size_height : int
+            Dimension of the image height-wise (pixels)
+        feature_size_width : float
+            Speckle size width-wise
+        feature_size_height : float
+            Speckle size height-wise
+        foreground_colour : int
+            Colour value for the speckles
+        background_colour : int
+            Colour value for the background
+        bit_depth : int
+            Bit depth of the image (8 or 16)
+        type_gen : str
+            Type of noise to generate (must be 'random_disks_grid' for this function)
+        seed : int
+            Random seed for the noise generation
+        total_speckles : int
+            Total number of speckles to place
+        sigma : float
+            Standard deviation for Gaussian blur applied after speckle placement
+        perturbation_max : float
+            Maximum amount to move speckles by during grid perturbation
+    
+        Returns
+        -------
+        np.ndarray
+            Speckle pattern image as a 2D numpy array and speckle generation stats
+        """        
+    
+        speckle_size = (feature_size_width + feature_size_height) / 2
+        total_speckles = kwargs.get("total_speckles")
+        sigma = kwargs.get("sigma")
+        perturbation_max = kwargs.get("perturbation_max")
 
-    """Generate a speckle pattern image using Perlin or fractal noise. """
-    """ Inputs: """
-    """ screen_size_width, screen_size_height: dimensions of the image """
-    """ res_width, res_height: number of periods of noise to generate along 2 axes """
-    """ foreground_colour: colour value for the speckles """
-    """ bit_depth: bit depth of the image (8 or 16) """
-    """ background_colour: colour value for the background """
-    """ type_gen: type of noise to generate ('perlin' or 'fractal')"""
-    """ kwargs: Additional keyword arguments for fractal noise generation (e.g., octaves)"""
-    """ Output: speckle pattern image as a 2D numpy array """
+        # check that none of the required parameters are None
+        assert speckle_size is not None, "speckle_size parameter is required."
+        assert total_speckles is not None, "total_speckles parameter is required."
+        assert sigma is not None, "sigma parameter is required."
+        assert type_gen == "random_disks_grid", "Type_gen must be 'random_disks_grid' for this function."
+
+        np.random.seed(seed)
+        image: np.ndarray = np.ones((screen_size_height,screen_size_width),
+                                    dtype=np.uint16 if bit_depth == 16 else np.uint8) * background_colour
+        
+        results = np.zeros([total_speckles, 5])  # speckle number, attempts, with/without/not checked overlap (1/0/2), cent_x, cent_y
+        
+        # Calculate the size of each grid cell and create initial speckle positions
+        grid_cols = int(np.sqrt(total_speckles))
+        grid_rows = int(np.ceil(total_speckles / grid_cols))
+        grid_cell_width = screen_size_width // grid_cols
+        grid_cell_height = screen_size_height // grid_rows
+
+        i = np.arange(grid_rows)
+        j = np.arange(grid_cols)
+        speckle_positions_x = j * grid_cell_width + grid_cell_width // 2 + speckle_size // 2
+        speckle_positions_y = i * grid_cell_height + grid_cell_height // 2 + speckle_size // 2
+        speckle_positions = np.array(np.meshgrid(speckle_positions_x, speckle_positions_y)).T.reshape(-1, 2)
+
+        # Remove extra speckle positions randomly
+        total_speckles_diff = len(speckle_positions) - total_speckles
+        
+        if total_speckles_diff > 0:
+            remove_indices = np.random.choice(len(speckle_positions), total_speckles_diff, replace=False)
+            mask = np.ones(len(speckle_positions), dtype=bool)
+            mask[remove_indices] = False
+            speckle_positions = speckle_positions[mask]
+                       
+        # Perturb each speckle's position
+        perturbations = np.random.randint(-perturbation_max, perturbation_max, size=(total_speckles, 2))
+        perturbed_positions = []
+        check_overlap = False
+        for idx, (x, y) in enumerate(speckle_positions):
+            # Add random perturbation to the x and y coordinates
+            x_offset, y_offset = perturbations[idx]
+            new_x = np.clip(x + x_offset, 0, screen_size_width - 1)
+            new_y = np.clip(y + y_offset, 0, screen_size_height - 1)
+            perturbed_positions.append((new_x, new_y))
+
+            pixelsInDisk(new_x, new_y, 
+                         screen_size_width, screen_size_height, 
+                         speckle_size, foreground_colour, image, check_overlap)
+            
+            results[idx, 0] = idx + 1
+            results[idx, 1] = 1
+            results[idx, 2] = 2
+            results[idx, 3] = new_x
+            results[idx, 4] = new_y
+
+        # Apply Gaussian blur
+        image_blur = np.copy(image)
+        image_blur = ndimage.gaussian_filter(image_blur, sigma=sigma)
+                    
+        return image_blur, results
+
+def generate_speckles_perlin_noise(screen_size_width: int, screen_size_height: int, 
+                                   feature_size_width: float, feature_size_height: float,
+                                   foreground_colour: int, background_colour: int,
+                                   bit_depth: int, type_gen: str, seed: int, **kwargs) -> np.ndarray:
+    """A function to generate a speckle pattern image using Perlin noise or fractal noise.
+    This function uses noise implementation from perlin-numpy package
+    (https://github.com/pvigier/perlin-numpy/tree/master)
+
+    Parameters
+    ----------
+    screen_size_width : int
+        Dimension of the image width-wise (pixels)
+    screen_size_height : int
+        Dimension of the image height-wise (pixels)
+    feature_size_width : float
+        Speckle size width-wise
+    feature_size_height : float
+        Speckle size height-wise
+    foreground_colour : int
+        Colour value for the speckles
+    background_colour : int
+        Colour value for the background
+    bit_depth : int
+        Bit depth of the image (8 or 16)
+    type_gen : str
+        Type of noise to generate (must be 'perlin' or 'fractal' for this function)
+    seed : int
+        Random seed for the noise generation
+    lacunarity : float (optional)
+        Lacunarity parameter for fractal noise (required if type_gen is 'fractal')
+    octaves : int (optional)
+        Number of octaves for fractal noise (required if type_gen is 'fractal')
+
+    Returns
+    -------
+    np.ndarray
+        Speckle pattern image as a 2D numpy array
+    """    
+
+    res_width = int(screen_size_width / feature_size_width)
+    res_height = int(screen_size_height / feature_size_height)
+
+    np.random.seed(seed)
+
+    assert type_gen in ["perlin", "fractal"], "type_gen must be either 'perlin' or 'fractal' for this function."
 
     if type_gen == "perlin":
-        # screen size must be a multiple of res
-        assert screen_size_width % res_width == 0, "The screen size must be a multiple of res."
-        assert screen_size_height % res_height == 0, "The screen size must be a multiple of res."
+        assert screen_size_width % res_width == 0, "The screen width must be a multiple of res_width."
+        assert screen_size_height % res_height == 0, "The screen height must be a multiple of res_height."
         image = generate_perlin_noise_2d(shape = (screen_size_height, screen_size_width), 
                                           res = (res_height, res_width))
         
-    if type_gen == "fractal":
-        # screen size must be a multiple of lacunarity^(octaves-1)*res
-        assert screen_size_width % res_width == 0, "The screen size must be a multiple of lacunarity^(octaves-1)*res."
-        assert screen_size_height % res_height == 0, "The screen size must be a multiple of lacunarity^(octaves-1)*res."
-        octaves = kwargs["octaves"]
+    elif type_gen == "fractal":
+        lacunarity = kwargs.get("lacunarity", None)
+        octaves = kwargs.get("octaves", None)
+        assert lacunarity is not None, "lacunarity parameter is required for fractal noise."
+        assert octaves is not None, "octaves parameter is required for fractal noise."
+        assert screen_size_width % (lacunarity ** (octaves - 1) * res_width) == 0, "The screen width must be a multiple of lacunarity^(octaves-1)*res_width."
+        assert screen_size_height % (lacunarity ** (octaves - 1) * res_height) == 0, "The screen height must be a multiple of lacunarity^(octaves-1)*res_height."
         image = generate_fractal_noise_2d(shape = (screen_size_height, screen_size_width), 
                                           res = (res_height, res_width),
                                           octaves = octaves)
@@ -175,40 +359,56 @@ def generate_speckles_perlin_noise(screen_size_width: int, screen_size_height: i
     min_val = np.min(image)
     max_val = np.max(image)
     image = (image - min_val) / (max_val - min_val)  # Normalise to [0, 1]
-    image = image * (foreground_colour - background_colour) + background_colour
+
+    if foreground_colour >= background_colour:
+        # Black speckles on white background
+        image = image * (foreground_colour - background_colour) + background_colour
+    else:
+        # White speckles on black background
+        image = (1 - image) * (background_colour - foreground_colour) + foreground_colour
+
     image = image.astype(np.uint16 if bit_depth == 16 else np.uint8)
 
     return image
 
-def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: int,
-                                   foreground_colour: int,
-                                   bit_depth: int, background_colour: int,
+def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: int, 
                                    feature_size_width: float, feature_size_height: float,
-                                   seed: int) -> np.ndarray:
-     
-    """This function uses noise implementation from opensimplex package
+                                   foreground_colour: int, background_colour: int,
+                                   bit_depth: int, type_gen: str, seed: int, **kwargs) -> np.ndarray:
+    """A function to generate a speckle pattern image using Simplex noise.
+    This function uses noise implementation from opensimplex package
     (https://pypi.org/project/opensimplex/)
-    (https://code.larus.se/lmas/opensimplex)"""
+    (https://code.larus.se/lmas/opensimplex)
 
-    """Generate a speckle pattern image using OpenSimplex noise (patent-free). """
-    """ Inputs: """
-    """ screen_size_width, screen_size_height: dimensions of the image """
-    """ foreground_colour: colour value for the speckles """
-    """ bit_depth: bit depth of the image (8 or 16) """
-    """ background_colour: colour value for the background """
-    """ feature_size_width: controls the size of features in the noise pattern (speckle size width-wise) """
-    """ feature_size_height: controls the size of features in the noise pattern (speckle size height-wise) """
-    """ seed: seed for the noise generation """
-    """ Output: speckle pattern image as a 2D numpy array """
+    Parameters
+    ----------
+    screen_size_width : int
+        Dimension of the image width-wise (pixels)
+    screen_size_height : int
+        Dimension of the image height-wise (pixels)
+    feature_size_width : float
+        Speckle size width-wise
+    feature_size_height : float
+        Speckle size height-wise
+    foreground_colour : int
+        Colour value for the speckles
+    background_colour : int
+        Colour value for the background
+    bit_depth : int
+        Bit depth of the image (8 or 16)
+    type_gen : str
+        Type of noise to generate (must be 'simplex' for this function)
+    seed : int
+        Random seed for the noise generation
 
+    Returns
+    -------
+    np.ndarray
+        Speckle pattern image as a 2D numpy array
+    """    
+
+    assert type_gen == "simplex", "Type_gen must be 'simplex' for this function."
     simplex.seed(seed)
-
-    # image: np.ndarray = np.zeros((screen_size_height,screen_size_width))
-
-    # for y in range(0, screen_size_height):
-    #     for x in range(0, screen_size_width):
-    #         value = simplex.noise2(x/feature_size, y/feature_size)
-    #         image[y, x] = value
 
     ix, iy = np.arange(screen_size_width), np.arange(screen_size_height)
     image = simplex.noise2array(ix/feature_size_width, iy/feature_size_height)
@@ -216,10 +416,74 @@ def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: 
     # scale to background and foreground colours
     min_val = np.min(image)
     max_val = np.max(image)
-    # print(f"Min and max values before scaling: {min_val}, {max_val}")
     image = (image - min_val) / (max_val - min_val)  # Normalise to [0, 1]
-    image = image * (foreground_colour - background_colour) + background_colour
+
+    if foreground_colour >= background_colour:
+        # Black speckles on white background
+        image = image * (foreground_colour - background_colour) + background_colour
+    else:
+        # White speckles on black background
+        image = (1 - image) * (background_colour - foreground_colour) + foreground_colour
+
     image = image.astype(np.uint16 if bit_depth == 16 else np.uint8)
 
     return image
+
+def generate_speckles(screen_size_width: int, screen_size_height: int, 
+                      feature_size_width: float, feature_size_height: float, 
+                      foreground_colour: int, background_colour: int,
+                      bit_depth: int, type_gen: str, 
+                      seed: int, **kwargs) -> np.ndarray:
+    """A function to generate a speckle pattern image using specified generation method.
+    Speckle generation methods include 'random_disks', "random_disks_grid", 'perlin', 'fractal', and 'simplex'.
+
+    Parameters
+    ----------
+    screen_size_width : int
+        Dimension of the image width-wise (pixels)
+    screen_size_height : int
+        Dimension of the image height-wise (pixels)
+    feature_size_width : float
+        Speckle size width-wise
+    feature_size_height : float
+        Speckle size height-wise
+    foreground_colour : int
+        Colour value for the speckles
+    background_colour : int
+        Colour value for the background
+    bit_depth : int
+        Bit depth of the image (8 or 16)
+    type_gen : str
+        Type of noise to generate (must be one of 'random_disks', "random_disks_grid", 'perlin', 'fractal', 'simplex')
+    seed : int
+        Random seed for the noise generation
+
+    Returns
+    -------
+    np.ndarray
+        Speckle pattern image as a 2D numpy array and speckle generation stats (if applicable)
+
+    Raises
+    ------
+    ValueError
+        Unknown speckle generation type
+    """    
+     
+    assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
+    dispatch = {
+        "random_disks": generate_speckles_random_disks,
+        "random_disks_grid": generate_speckles_random_disks_grid,
+        "perlin": generate_speckles_perlin_noise,
+        "fractal": generate_speckles_perlin_noise,
+        "simplex": generate_speckles_simplex_noise
+    }
+
+    generate = dispatch.get(type_gen)
+    if generate:
+        return generate(screen_size_width, screen_size_height, 
+                    feature_size_width, feature_size_height,
+                    foreground_colour, background_colour,
+                    bit_depth, type_gen, seed, **kwargs)
+    else:
+        raise ValueError(f"Unknown speckle generation type: {type_gen}")
     
