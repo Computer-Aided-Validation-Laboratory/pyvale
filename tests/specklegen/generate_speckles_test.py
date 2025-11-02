@@ -74,17 +74,28 @@ def test_generate_speckles_basic_no_overlap(width: int, height: int, speckle_siz
     total_speckles = 5
     sigma = 1.0
     bit_depth = 8
-
-    image, results = specklegen.generate_speckles(width, height, speckle_size, fg_colour, total_speckles, 
-                                      reduce_overlap=False, bit_depth=bit_depth,
-                                      background_colour=bg_colour, sigma=sigma)
-
-    assert image.shape == (height, width)
-    assert results.shape == (total_speckles, 5)
-
-    # All speckles should have attempt count = 1 and overlap flag = 2 (not checked)
-    assert np.all(results[:, 1] == 1)
-    assert np.all(results[:, 2] == 2)
+    feature_size_width = speckle_size
+    feature_size_height = speckle_size
+    seed = 123
+    type_gens = ["random_disks", "random_disks_grid"]
+    reduce_overlap=False
+    perturbation_max = 6
+    
+    for type_gen in type_gens:
+        image, results = specklegen.generate_speckles(width, height,
+                                               feature_size_width, feature_size_height,
+                                               fg_colour, bg_colour,
+                                               bit_depth, type_gen, seed,
+                                               total_speckles=total_speckles,
+                                               reduce_overlap=reduce_overlap,
+                                               sigma=sigma, perturbation_max=perturbation_max)
+    
+        assert image.shape == (height, width)
+        assert results.shape == (total_speckles, 5)
+    
+        # All speckles should have attempt count = 1 and overlap flag = 2 (not checked)
+        assert np.all(results[:, 1] == 1)
+        assert np.all(results[:, 2] == 2)
 
 
 @pytest.mark.parametrize("total_speckles", total_speckles_range)
@@ -94,10 +105,20 @@ def test_generate_speckles_with_overlap_reduction(width: int, height: int, speck
     bg_colour = 0
     sigma = 1.0
     bit_depth = 8
+    feature_size_width = speckle_size
+    feature_size_height = speckle_size
+    seed = 123
+    type_gen = "random_disks"
+    reduce_overlap=True
+    attempts_tot=50
 
-    image, results = specklegen.generate_speckles(width, height, speckle_size, fg_colour, total_speckles, 
-                                      reduce_overlap=True, bit_depth=bit_depth,
-                                      background_colour=bg_colour, sigma=sigma, attempts_tot=50)
+    image, results = specklegen.generate_speckles(width, height,
+                                           feature_size_width, feature_size_height,
+                                           fg_colour, bg_colour,
+                                           bit_depth, type_gen, seed,
+                                           total_speckles=total_speckles,
+                                           reduce_overlap=reduce_overlap,
+                                           sigma=sigma, attempts_tot=attempts_tot)
 
     assert image.shape == (height, width)
     assert results.shape == (total_speckles, 5)
@@ -112,14 +133,25 @@ def test_generate_speckles_bit_depth(width: int, height: int, speckle_size: int,
     bg_colour = 0
     sigma = 0
     bit_depth = 16
+    feature_size_width = speckle_size
+    feature_size_height = speckle_size
+    seed = 123
+    type_gens = ["random_disks", "random_disks_grid"]
+    reduce_overlap=False
+    perturbation_max = 6
 
-    image, results = specklegen.generate_speckles(width, height, speckle_size, fg_colour, total_speckles,
-                                      reduce_overlap=False, bit_depth=bit_depth,
-                                      background_colour=bg_colour, sigma=sigma)
-
-    assert image.dtype == np.uint16
-    assert image.max() <= fg_colour
-    assert results.shape == (total_speckles, 5)
+    for type_gen in type_gens:
+        image, results = specklegen.generate_speckles(width, height,
+                                               feature_size_width, feature_size_height,
+                                               fg_colour, bg_colour,
+                                               bit_depth, type_gen, seed,
+                                               total_speckles=total_speckles,
+                                               reduce_overlap=reduce_overlap,
+                                               sigma=sigma, perturbation_max=perturbation_max)
+    
+        assert image.dtype == np.uint16
+        assert image.max() <= fg_colour
+        assert results.shape == (total_speckles, 5)
 
 @pytest.mark.parametrize("total_speckles", total_speckles_range)
 def test_generate_speckles_blur(width: int, height: int, speckle_size: int, 
@@ -128,12 +160,24 @@ def test_generate_speckles_blur(width: int, height: int, speckle_size: int,
     bg_colour = 0
     sigma = 1.5
     bit_depth = 8
+    feature_size_width = speckle_size
+    feature_size_height = speckle_size
+    seed = 123
+    type_gens = ["random_disks", "random_disks_grid"]
+    reduce_overlap=False
+    perturbation_max = 6
 
-    image, results = specklegen.generate_speckles(width, height, speckle_size, fg_colour, total_speckles,
-                                      reduce_overlap=False, bit_depth=bit_depth,
-                                      background_colour=bg_colour, sigma=sigma)
+    for type_gen in type_gens:
+        image, results = specklegen.generate_speckles(width, height,
+                                               feature_size_width, feature_size_height,
+                                               fg_colour, bg_colour,
+                                               bit_depth, type_gen, seed,
+                                               total_speckles=total_speckles,
+                                               reduce_overlap=reduce_overlap,
+                                               sigma=sigma, perturbation_max=perturbation_max)
+    
+        assert np.any(image != 0)
+        assert np.any(image != fg_colour)
+        assert image.shape == (height, width)
+        assert results.shape == (total_speckles, 5)
 
-    assert np.any(image != 0)
-    assert np.any(image != fg_colour)
-    assert image.shape == (height, width)
-    assert results.shape == (total_speckles, 5)
