@@ -9,90 +9,85 @@ Specklegen: Speckle pattern generation using isotropic Perlin noise
 ================================================================================
 Script to generate a synthetic speckle pattern made using isotropic Perlin noise, run diagnostics on the generated image, and save both the image
 and diagnostics to the selected folder. Isotroic Perlin noise in this case means that the speckle size is the same in both horisontal and vertical directions.
+
+This is a gradient-based noise algorithm that generates smooth and continuous random patterns. 
+It produces a texture with gradually occurring transitions. 
+Perlin noise achieves this by assigning random gradient vectors to grid points and then smoothly interpolating between them to create natural-looking transitions. 
 """
 
 import numpy as np
-import argparse
+import time
 import json
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) 
-import pyvale.specklegen as specklegen
+# import pyvale.specklegen as specklegen
+
+import specklegen as specklegen
 
 #%%
 # Here we parse command line arguments to set the speckle pattern parameters.
 # For ease of use in this example script we set parameter values directly in the
 # code rather than via bash script.
-# The parameters are set to generate isotropic Perlin noise in this example. The number of periods width- and height-wise are the same.
-parser = argparse.ArgumentParser(description='Generate random speckle patterns with specified parameters.')
-args = parser.parse_args()
+# The parameters are set to generate isotropic Perlin noise in this example. 
+# Perlin noise is defined by the number of noise periods width- and height-wise. 
+# They can be calculated from the corresponding width and height of a feature, which is a speckle size in our case, together with a screen size.
+# The noise period is obtained by dividing a screen size by a speckle size. 
+# It should be noted that the screen size should be a multiple of the noise period number, otherwise the function would produce an error. 
 
-args.screen_size_width = 1000
-args.screen_size_height = 800
-args.bit_depth = 8
-args.theme = 'white_on_black'
-args.octaves = None
-args.type_gen = "perlin"
-args.res_width = 25
-args.res_height = 25
-args.output_path = "src/pyvale/examples/specklegen/output/ex2a"
-
-print('Args in simulation:')
-print(args)
-print('')
-print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-print('')
+speckle_size = 20
+screen_size_width = 1000
+screen_size_height = 800
+bit_depth = 8
+theme = 'white_on_black'
+seed = 10
+type_gen = "perlin"
+output_path = "src/pyvale/examples/specklegen/output/ex2a"
 
 print('Start')
 
-# Extract parameteres and revert to default values if not provided by user
-screen_size_width = args.screen_size_width if args.screen_size_width is not None else 500
-screen_size_height = args.screen_size_height if args.screen_size_height is not None else 400
-bit_depth = args.bit_depth if args.bit_depth is not None else 8
-theme = args.theme if args.theme is not None else 'white_on_black'
-octaves = args.octaves if args.octaves is not None else "Not defined"
-
-type_gen = args.type_gen
-res_width = args.res_width
-res_height = args.res_height
-
-assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
 assert theme in ['black_on_white', 'white_on_black'], "Theme should be either 'black_on_white' or 'white_on_black'."
 
-if type_gen == "perlin":
-    subfolder = f"/{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{type_gen}_{res_width}_{res_height}"
-elif type_gen == "fractal":
-    subfolder = f"/{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{type_gen}_{res_width}_{res_height}_{octaves}"
+subfolder = f"/{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{seed}"
 print(subfolder)
-save_path = args.output_path + subfolder
+save_path = output_path + subfolder
 if not os.path.exists(save_path):
     os.makedirs(save_path)
-
 
 #%%
 # We now generate the speckle pattern using the specified parameters.
 # The background and foreground colours are set based on the chosen theme and bit depth.
+# It should be noted that there is no need to calculate the total number of speckles to generate like we did in the previous examples. 
+
 dynamic_range: int = 2**bit_depth - 1
 background_colour = 0 if theme == 'white_on_black' else dynamic_range
 foreground_colour = dynamic_range if theme == 'white_on_black' else 0
+
+feature_size_width = speckle_size
+feature_size_height = speckle_size
     
 # Generate speckle pattern
-if type_gen == "perlin":
-    image = specklegen.generate_speckles_perlin_noise(screen_size_width, screen_size_height, 
-                                           res_height, res_width,
-                                           foreground_colour, bit_depth, background_colour, type_gen)
-elif type_gen == "fractal":
-    image = specklegen.generate_speckles_perlin_noise(screen_size_width, screen_size_height, 
-                                           res_height, res_width,
-                                           foreground_colour, bit_depth, background_colour, type_gen,
-                                           octaves=octaves)
-
+time_start = time.time()
+image = specklegen.generate_speckles(screen_size_width, screen_size_height,
+                                     feature_size_width, feature_size_height,
+                                     foreground_colour, background_colour,
+                                     bit_depth, type_gen, seed)
+time_end = time.time()
+time_taken = time_end - time_start
+print(f"Time taken for speckle generation: {np.round(time_taken, 3)} seconds")
+    
 #%%
-# Now we run diagnostics on the generated speckle pattern and save the results.
-# Finally we print out the key statistics to the console.
+# Now we run diagnostics on the generated speckle pattern and save the results. 
+# Finally, we print out the key statistics to the console. 
+# The plots are saved in the provided output folder. However, the diagnostic function outputs the matplotlib figures and axes,  
+# so the plot formatting could be changed from the default one used by the function.
+# The black-to-white ratio is already close to unity, 
+# so there is no need to perform any additional operations related to speckle overlap reduction, like we did in ex1a, ex1b, and ex1c. 
+
 print("")
 print('Starting speckle pattern diagnostics...')
-results = specklegen.speckle_pattern_diagnostics(image, dynamic_range, save_path)
+results = specklegen.speckle_pattern_statistics(image, dynamic_range)
+plots = specklegen.speckle_pattern_plots(image, dynamic_range, save_path)
 
 # save the diagnostics results
 with open(f"{save_path}/speckle_pattern_diagnostics.json", 'w') as f:
@@ -128,9 +123,12 @@ print(f"Average speckle size (full width at half maximum): {np.round(avg_speckle
 print(f"Average speckle size (1/e^2): {np.round(avg_speckle_size_e2, 3)} pixels")
 print(f"R_squared: Horisontal fit: {np.round(H_fit_stats['R_squared'], 3)}, Vertical fit: {np.round(V_fit_stats['R_squared'], 3)}")
 
+# The relative errors beetween the specified speckle size and the speckle size approximated using cautocovariance are calculated. 
+error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size
+print(f"Percentage error between requested speckle size and measured speckle size from FWHM: {np.round(error, 3)} %")
+error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size
+print(f"Percentage error between requested speckle size and measured speckle size from 1/e^2: {np.round(error, 3)} %")
 np.save(f"{save_path}/image.npy", image)
 print("")
 print('End :)')
-print("")
-print("")
 print("")

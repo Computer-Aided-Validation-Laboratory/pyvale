@@ -5,11 +5,15 @@
 # ==============================================================================
 
 """
-Specklegen: Speckle pattern generation using random disk placement with checking for overlap
+Specklegen: Speckle pattern generation using isotropic fractal noise
 ================================================================================
-Script to generate a synthetic speckle pattern made from randomly placed circular
-speckles (disks), run diagnostics on the generated image, and save both the image
-and diagnostics to the selected folder.
+Script to generate a synthetic speckle pattern made using isotropic fractal noise, run diagnostics on the generated image, and save both the image
+and diagnostics to the selected folder. Isotroic fractal noise in this case means that the speckle size is the same in both horisontal and vertical directions.
+
+The fractal noise pattern is usually characterised by self-similarity across multiple scales. 
+It is commonly used to produce realistic, organic textures. 
+Fractal noise combines smooth but irregular variations at different levels of detail by layering several frequencies of Perlin noise (octaves), 
+each with its own amplitude. 
 """
 
 import numpy as np
@@ -26,8 +30,16 @@ import specklegen as specklegen
 # Here we parse command line arguments to set the speckle pattern parameters.
 # For ease of use in this example script we set parameter values directly in the
 # code rather than via bash script.
-# The parameter responsible for reducing overlap is set to 'True' in this example.
-# Additionally, we have an extra parameter specifying the maximum number of attempts to place each speckle without overlap.
+# The parameters are set to generate isotropic fractal noise in this example. 
+# Fractal noise is defined by the number of noise periods width- and height-wise.
+# They can be calculated from the corresponding width and height of a feature, which is a speckle size in our case, together with a screen size.
+# The noise period (res) is obtained by dividing a screen size by a speckle size.
+
+# Additionally, we see two new parameters here: octaves and lacunarity. 
+# Octaves define a number of detail levels in the generated pattern.  
+# Lacunarity is a frequency factor between two octaves. It essentially defines the amount of detail added or removed at each octave. 
+# It should be noted that the screen size should be a multiple of the lacunarity^(octaves-1)*res, otherwise the function would produce an error. 
+# Consequently, the restrictions placed on the relationship between octaves, lacunarity, speckle and screen sizes make the parameter definition more complex. 
 
 speckle_size = 20
 screen_size_width = 1000
@@ -35,75 +47,54 @@ screen_size_height = 800
 bit_depth = 8
 theme = 'white_on_black'
 seed = 10
-sigma = 4.0
-reduce_overlap = True
-type_gen = "random_disks"
-attempts_tot = 300
-output_path = "src/pyvale/examples/specklegen/output/ex1b"
+type_gen = "fractal"
+octaves = 3
+lacunarity = 2
+output_path = "src/pyvale/examples/specklegen/output/ex3a"
 
 print('Start')
 
 assert theme in ['black_on_white', 'white_on_black'], "Theme should be either 'black_on_white' or 'white_on_black'."
 
-if reduce_overlap:
-    print("Reducing overlap between speckles")
-else:
-    print("Not reducing overlap between speckles")
-
-subfolder = f"/{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{seed}_{sigma}_{reduce_overlap}"
+subfolder = f"/{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{seed}"
 print(subfolder)
 save_path = output_path + subfolder
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
 #%%
-# We calculate parameteres aiming for approximately 50/50 black-to-white ratio.
 # We now generate the speckle pattern using the specified parameters.
 # The background and foreground colours are set based on the chosen theme and bit depth.
-# We simply pass on one additional parameter to the function.
+# We simply pass on the two additional parameters to the function. 
 
-speckle_area = np.pi * (speckle_size / 2) ** 2
-total_area = screen_size_width * screen_size_height
-total_speckles = int((0.5 * total_area) / speckle_area)
-print(f"Total number of speckles = {total_speckles}")
 dynamic_range: int = 2**bit_depth - 1
 background_colour = 0 if theme == 'white_on_black' else dynamic_range
 foreground_colour = dynamic_range if theme == 'white_on_black' else 0
-    
+
 feature_size_width = speckle_size
 feature_size_height = speckle_size
     
 # Generate speckle pattern
 time_start = time.time()
-image, results = specklegen.generate_speckles(screen_size_width, screen_size_height,
-                                   feature_size_width, feature_size_height,
-                                   foreground_colour, background_colour,
-                                   bit_depth, type_gen, seed,
-                                   total_speckles=total_speckles,
-                                   reduce_overlap=reduce_overlap,
-                                   sigma=sigma, attempts_tot=attempts_tot)
+image = specklegen.generate_speckles(screen_size_width, screen_size_height,
+                                     feature_size_width, feature_size_height,
+                                     foreground_colour, background_colour,
+                                     bit_depth, type_gen, seed,
+                                     octaves=octaves, lacunarity=lacunarity)
 time_end = time.time()
 time_taken = time_end - time_start
 print(f"Time taken for speckle generation: {np.round(time_taken, 3)} seconds")
-
-# save the speckle placement results
-np.savetxt(f"{save_path}/speckle_placement_results.csv", results, delimiter=",", 
-           header="speckle_number, attempts, overlap(1/0/2), cent_x, cent_y", comments='', fmt=['%d', '%d', '%d', '%.3f', '%.3f'])
     
 #%%
 # Now we run diagnostics on the generated speckle pattern and save the results. 
-
 # Finally, we print out the key statistics to the console. 
-
 # The plots are saved in the provided output folder. However, the diagnostic function outputs the matplotlib figures and axes,  
+# so the plot formatting could be changed from the default one used by the function.
+# The black-to-white ratio is already close to unity, 
+# so there is no need to perform any additional operations related to speckle overlap reduction, like we did in ex1a, ex1b, and ex1c. 
+# Compared with the previous example (ex2a), the generated speckle pattern does exhibit more textured appearance. 
+# However, this makes the pattern less realistic and hence less suitable for our applications.
 
-# so the plot formatting could be changed from the default one used by the function. 
-
-# The speckles are placed in such a way as to reduce the overlap between them as much as possible. 
-
-# As a consequence of this, it can be seen that the black-to-white ratio in this example is considerably closer to unity than in the previous example (ex1a). 
-# This can also be supported by the irradiance value histogram. 
-# The number of 0 irradiance values, corresponding to black colour, and the 255 values, corresponding to white colour, became much more equal. 
 print("")
 print('Starting speckle pattern diagnostics...')
 results = specklegen.speckle_pattern_statistics(image, dynamic_range)
@@ -151,6 +142,4 @@ print(f"Percentage error between requested speckle size and measured speckle siz
 np.save(f"{save_path}/image.npy", image)
 print("")
 print('End :)')
-print("")
-print("")
 print("")

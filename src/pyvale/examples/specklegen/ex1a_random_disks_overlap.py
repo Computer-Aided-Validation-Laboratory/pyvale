@@ -13,65 +13,44 @@ and diagnostics to the selected folder.
 """
 
 import numpy as np
-import argparse
+import time
 import json
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) 
-import pyvale.specklegen as specklegen
+# import pyvale.specklegen as specklegen
+
+import specklegen as specklegen
 
 #%%
 # Here we parse command line arguments to set the speckle pattern parameters.
 # For ease of use in this example script we set parameter values directly in the
 # code rather than via bash script.
 # The parameter responsible for reducing overlap is set to 'False' in this example.
-parser = argparse.ArgumentParser(description='Generate random speckle patterns with specified parameters.')
-args = parser.parse_args()
-args.speckle_size = 25
-args.screen_size_width = 1000
-args.screen_size_height = 800
-args.bit_depth = 8
-args.theme = 'white_on_black'
-args.random_seed = 10
-args.sigma = 4.0
-args.reduce_overlap = 'False'
-args.output_path = "src/pyvale/examples/specklegen/output/ex1a"
-args.attempts = None
 
-print('Args in simulation:')
-print(args)
-print('')
-print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-print('')
+speckle_size = 20
+screen_size_width = 1000
+screen_size_height = 800
+bit_depth = 8
+theme = 'white_on_black'
+seed = 10
+sigma = 4.0
+reduce_overlap = False
+type_gen = "random_disks"
+output_path = "src/pyvale/examples/specklegen/output/ex1a"
 
 print('Start')
 
-# Extract parameteres and revert to default values if not provided by user
-speckle_size = args.speckle_size if args.speckle_size is not None else 5.0
-screen_size_width = args.screen_size_width if args.screen_size_width is not None else 500
-screen_size_height = args.screen_size_height if args.screen_size_height is not None else 400
-bit_depth = args.bit_depth if args.bit_depth is not None else 8
-theme = args.theme if args.theme is not None else 'white_on_black'
-random_seed = args.random_seed if args.random_seed is not None else 10
-sigma = args.sigma if args.sigma is not None else 1.0
-reduce_overlap = args.reduce_overlap
-attempts = args.attempts if args.attempts is not None else 100
-
-assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
 assert theme in ['black_on_white', 'white_on_black'], "Theme should be either 'black_on_white' or 'white_on_black'."
-assert reduce_overlap in ['True', 'False'], "reduce_overlap should be either 'True' or 'False' (a string)."
 
-reduce_overlap_bool = True if reduce_overlap == "True" else False
-if reduce_overlap_bool:
+if reduce_overlap:
     print("Reducing overlap between speckles")
 else:
     print("Not reducing overlap between speckles")
 
-np.random.seed(random_seed)
-
-subfolder = f"/{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{random_seed}_{sigma}_{reduce_overlap}"
+subfolder = f"/{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{seed}_{sigma}_{reduce_overlap}"
 print(subfolder)
-save_path = args.output_path + subfolder
+save_path = output_path + subfolder
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
@@ -87,24 +66,46 @@ print(f"Total number of speckles = {total_speckles}")
 dynamic_range: int = 2**bit_depth - 1
 background_colour = 0 if theme == 'white_on_black' else dynamic_range
 foreground_colour = dynamic_range if theme == 'white_on_black' else 0
+
+feature_size_width = speckle_size
+feature_size_height = speckle_size
     
 # Generate speckle pattern
-image, results = specklegen.generate_speckles(screen_size_width, screen_size_height, 
-                 speckle_size, foreground_colour,
-                 total_speckles, reduce_overlap_bool,
-                 bit_depth, background_colour,
-                 sigma, attempts)
+time_start = time.time()
+image, results = specklegen.generate_speckles(screen_size_width, screen_size_height,
+                                   feature_size_width, feature_size_height,
+                                   foreground_colour, background_colour,
+                                   bit_depth, type_gen, seed,
+                                   total_speckles=total_speckles,
+                                   reduce_overlap=reduce_overlap,
+                                   sigma=sigma)
+time_end = time.time()
+time_taken = time_end - time_start
+print(f"Time taken for speckle generation: {np.round(time_taken, 3)} seconds")
 
 # save the speckle placement results
 np.savetxt(f"{save_path}/speckle_placement_results.csv", results, delimiter=",", 
            header="speckle_number, attempts, overlap(1/0/2), cent_x, cent_y", comments='', fmt=['%d', '%d', '%d', '%.3f', '%.3f'])
     
 #%%
-# Now we run diagnostics on the generated speckle pattern and save the results.
-# Finally we print out the key statistics to the console.
+# Now we run diagnostics on the generated speckle pattern and save the results. 
+
+# Finally, we print out the key statistics to the console. 
+
+# The plots are saved in the provided output folder. However, the diagnostic function outputs the matplotlib figures and axes,  
+
+# so the plot formatting could be changed from the default one used by the function. 
+
+# We aim to achieve black-to-white ratio as close to unity as possible. Unity ratio means 50/50 distribution of black and white colours. 
+# However, in this example, black-to-white ratio considerably deviates from unity. 
+# It is also visible in the irradiance value histogram. 
+# The proportion of 0 irradiance values, corresponding to black colour, overweighs the 255 values, corresponding to white colour. 
+# This is a result of speckle overlap.
+
 print("")
 print('Starting speckle pattern diagnostics...')
-results = specklegen.speckle_pattern_diagnostics(image, dynamic_range, save_path)
+results = specklegen.speckle_pattern_statistics(image, dynamic_range)
+plots = specklegen.speckle_pattern_plots(image, dynamic_range, save_path)
 
 # save the diagnostics results
 with open(f"{save_path}/speckle_pattern_diagnostics.json", 'w') as f:
@@ -140,6 +141,7 @@ print(f"Average speckle size (full width at half maximum): {np.round(avg_speckle
 print(f"Average speckle size (1/e^2): {np.round(avg_speckle_size_e2, 3)} pixels")
 print(f"R_squared: Horisontal fit: {np.round(H_fit_stats['R_squared'], 3)}, Vertical fit: {np.round(V_fit_stats['R_squared'], 3)}")
 
+# The relative errors beetween the specified speckle size and the speckle size approximated using cautocovariance are calculated. 
 error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size
 print(f"Percentage error between requested speckle size and measured speckle size from FWHM: {np.round(error, 3)} %")
 error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size
@@ -147,6 +149,4 @@ print(f"Percentage error between requested speckle size and measured speckle siz
 np.save(f"{save_path}/image.npy", image)
 print("")
 print('End :)')
-print("")
-print("")
 print("")
