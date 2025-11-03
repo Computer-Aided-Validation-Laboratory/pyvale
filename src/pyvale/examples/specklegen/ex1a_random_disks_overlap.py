@@ -66,7 +66,6 @@ foreground_colour = dynamic_range if theme == 'white_on_black' else 0
 feature_size_width = speckle_size
 feature_size_height = speckle_size
     
-# Generate speckle pattern
 time_start = time.time()
 image, results = specklegen.generate_speckles(screen_size_width, screen_size_height,
                                    feature_size_width, feature_size_height,
@@ -79,19 +78,14 @@ time_end = time.time()
 time_taken = time_end - time_start
 print(f"Time taken for speckle generation: {np.round(time_taken, 3)} seconds")
 
-# save the speckle placement results
 np.savetxt(f"{save_path}/speckle_placement_results.csv", results, delimiter=",", 
            header="speckle_number, attempts, overlap(1/0/2), cent_x, cent_y", comments='', fmt=['%d', '%d', '%d', '%.3f', '%.3f'])
     
 #%%
 # Now we run diagnostics on the generated speckle pattern and save the results. 
-
 # Finally, we print out the key statistics to the console. 
-
 # The plots are saved in the provided output folder. However, the diagnostic function outputs the matplotlib figures and axes,  
-
 # so the plot formatting could be changed from the default one used by the function. 
-
 # We aim to achieve black-to-white ratio as close to unity as possible. Unity ratio means 50/50 distribution of black and white colours. 
 # However, in this example, black-to-white ratio considerably deviates from unity. 
 # It is also visible in the irradiance value histogram. 
@@ -103,7 +97,6 @@ print('Starting speckle pattern diagnostics...')
 results = specklegen.speckle_pattern_statistics(image, dynamic_range)
 plots = specklegen.speckle_pattern_plots(image, dynamic_range, save_path)
 
-# save the diagnostics results
 with open(f"{save_path}/speckle_pattern_diagnostics.json", 'w') as f:
     json.dump(results, f, indent=4)
 
@@ -137,7 +130,8 @@ print(f"Average speckle size (full width at half maximum): {np.round(avg_speckle
 print(f"Average speckle size (1/e^2): {np.round(avg_speckle_size_e2, 3)} pixels")
 print(f"R_squared: Horisontal fit: {np.round(H_fit_stats['R_squared'], 3)}, Vertical fit: {np.round(V_fit_stats['R_squared'], 3)}")
 
-# The relative errors beetween the specified speckle size and the speckle size approximated using cautocovariance are calculated. 
+#%%
+# Finally, the relative errors beetween the specified speckle size and the speckle size approximated using cautocovariance are calculated. 
 error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size
 print(f"Percentage error between requested speckle size and measured speckle size from FWHM: {np.round(error, 3)} %")
 error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size

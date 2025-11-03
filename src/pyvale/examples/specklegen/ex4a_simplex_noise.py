@@ -56,7 +56,6 @@ foreground_colour = dynamic_range if theme == 'white_on_black' else 0
 feature_size_width = speckle_size
 feature_size_height = speckle_size
     
-# Generate speckle pattern
 time_start = time.time()
 image = specklegen.generate_speckles(screen_size_width, screen_size_height,
                                      feature_size_width, feature_size_height,
@@ -79,7 +78,6 @@ print('Starting speckle pattern diagnostics...')
 results = specklegen.speckle_pattern_statistics(image, dynamic_range)
 plots = specklegen.speckle_pattern_plots(image, dynamic_range, save_path)
 
-# save the diagnostics results
 with open(f"{save_path}/speckle_pattern_diagnostics.json", 'w') as f:
     json.dump(results, f, indent=4)
 
@@ -113,7 +111,8 @@ print(f"Average speckle size (full width at half maximum): {np.round(avg_speckle
 print(f"Average speckle size (1/e^2): {np.round(avg_speckle_size_e2, 3)} pixels")
 print(f"R_squared: Horisontal fit: {np.round(H_fit_stats['R_squared'], 3)}, Vertical fit: {np.round(V_fit_stats['R_squared'], 3)}")
 
-# The relative errors beetween the specified speckle size and the speckle size approximated using cautocovariance are calculated. 
+#%%
+# Finally, the relative errors beetween the specified speckle size and the speckle size approximated using cautocovariance are calculated. 
 error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size
 print(f"Percentage error between requested speckle size and measured speckle size from FWHM: {np.round(error, 3)} %")
 error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size
