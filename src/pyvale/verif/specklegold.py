@@ -14,15 +14,9 @@ Specifically, this module contains gold measurement generation function.
 """
 
 import numpy as np
-# import pyvale.verif.specklegneconst as specklegneconst
-
-
-import sys
 import os
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(parent_dir)
-import src.pyvale.verif.specklegneconst as specklegneconst
-import src.pyvale.specklegen as specklegen
+import pyvale.verif.specklegneconst as specklegneconst
+import pyvale.specklegen as specklegen
 
 
 def gen_gold_measurements(param_dict: dict) -> None:

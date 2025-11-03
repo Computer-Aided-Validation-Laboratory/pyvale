@@ -15,12 +15,8 @@ and diagnostics to the selected folder.
 import numpy as np
 import time
 import json
-import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) 
-# import pyvale.specklegen as specklegen
-
-import specklegen as specklegen
+import pyvale.specklegen as specklegen
 
 #%%
 # Here we parse command line arguments to set the speckle pattern parameters.

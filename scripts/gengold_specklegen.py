@@ -4,15 +4,8 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
-# import pyvale.verif.specklegold as specklegold
-# import pyvale.verif.specklegneconst as specklegneconst
-
-import sys
-import os
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(parent_dir)
-import src.pyvale.verif.specklegold as specklegold
-import src.pyvale.verif.specklegneconst as specklegneconst
+import pyvale.verif.specklegold as specklegold
+import pyvale.verif.specklegneconst as specklegneconst
 
 def main() -> None:
 

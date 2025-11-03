@@ -19,3 +19,4 @@ from . import blender
 from . import sensorsim
 from . import mooseherder
 from . import dataset
+from . import specklegen
