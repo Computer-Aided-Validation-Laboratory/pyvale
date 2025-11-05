@@ -10,6 +10,7 @@
 
 // Program Header files
 #include "./dicsubset.hpp"
+#include "./dicshapefunc.hpp"
 
 
 
@@ -69,6 +70,42 @@ namespace subset {
 
                 // debugging
                 //std::cout << ss_def.x[count] << " " << ss_def.y[count] << " " << ss_def.vals[count] << std::endl;
+
+                count++;
+            }
+        }
+        if (count!=ss_def.size*ss_def.size){
+            std::cerr << "count for subpixel population is not the same as the number of subset pixels.";
+            std::cout << "count: " << count << std::endl;
+            std::cerr << "number of pixels: " << ss_def.size*ss_def.size << std::endl; 
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    void get_subpx_from_shape_params(subset::Pixels &ss_def, 
+                                     const double subpx_x, const double subpx_y,
+                                     const std::vector<double>& p,
+                                     const Interpolator &interp_def){
+
+        int count = 0;
+
+        for (int y = 0; y < ss_def.size; y++){
+            for (int x = 0; x < ss_def.size; x++){
+                if (count >= ss_def.size*ss_def.size){
+                    std::cerr << "issue with count for subpixel subset population" << std::endl;
+                    std::cerr << "count: " << count << std::endl;
+                    std::cerr << "subset size: " << ss_def.size << std::endl;
+                    std::cerr << "num px (size*size): " << ss_def.size*ss_def.size << std::endl;
+                    std::cerr << "subpixel value: " << subpx_x+x << " " << subpx_y+y << std::endl;
+                    std::cerr << "subset coordinates: " << " " <<  subpx_x << " " << subpx_y << " " << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+
+                // get coordinate values based on shape function parameters
+                shapefunc::get_pixel(ss_def.x[count], ss_def.y[count], subpx_x+x, subpx_y+y, p);
+                
+                // get pixel values from interpolator
+                ss_def.vals[count] = interp_def.eval_bicubic(0, 0, ss_def.x[count], ss_def.y[count]);
 
                 count++;
             }

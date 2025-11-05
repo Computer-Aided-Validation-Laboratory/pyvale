@@ -88,6 +88,14 @@ namespace subset {
                           const Interpolator &interp_def);
 
     /**
+     *
+     */
+    void get_subpx_from_shape_params(subset::Pixels &ss_def, 
+                                     const double subpx_x, const double subpx_y,
+                                     const std::vector<double>& p,
+                                     const Interpolator &interp_def);
+
+    /**
      * @brief Generates a list of subsets based on the provided image ROI and parameters.
      * 
      * This function creates a list of subsets (defined by their coordinates) from a binary mask 
