@@ -15,7 +15,7 @@ import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 #NOTE: May 2025, the console suppression output is fixed but the vtk import is
 #still required to make latex work.
 import pyvista as pv
-
+from typing import List
 import pyvale.mooseherder as mh
 
 from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
@@ -259,7 +259,7 @@ def plot_sim_data(sim_data: mh.SimData,
 
 
 def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
-                              component: str,
+                              component: str | List[str],
                               time_step: int = -1,
                               vis_opts: VisOptsSimSensors | None = None,
                               image_save_opts: VisOptsImageSave | None = None,
@@ -294,22 +294,33 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
+    """
+    if type(component) == list:
+        if len(component) == 1:
+            component = component[0]"""
+    
+    if type(component) == str:
+        component = [component]
+
     sim_data = sensor_array._field.get_sim_data()
     vis_opts.colour_bar_lims = get_colour_lims(
-        sim_data.node_vars[component][:,time_step],
+        sim_data.node_vars[component[0]][:,time_step],
         vis_opts.colour_bar_lims)
 
-    pv_plot = create_pv_plotter(vis_opts)
+    pv_plot = create_pv_plotter(len(component), vis_opts)
 
-    pv_plot = add_sensor_points_pert(pv_plot,sensor_array,vis_opts)
-    pv_plot = add_sensor_points_nom(pv_plot,sensor_array,vis_opts)
-    (pv_plot,_) = add_sim_field(pv_plot,
-                                sensor_array,
-                                component,
-                                time_step,
-                                vis_opts)
+    for i in range(len(component)):
 
-    pv_plot.camera_position = vis_opts.camera_position
+        pv_plot.subplot(0,i)
+        pv_plot = add_sensor_points_pert(pv_plot,sensor_array,vis_opts)
+        pv_plot = add_sensor_points_nom(pv_plot,sensor_array,vis_opts)
+        (pv_plot,_) = add_sim_field(pv_plot,
+                                    sensor_array,
+                                    component[i],
+                                    time_step,
+                                    vis_opts)
+
+        pv_plot.camera_position = vis_opts.camera_position
 
     if image_save_opts is not None:
         save_pv_image(pv_plot,image_save_opts)

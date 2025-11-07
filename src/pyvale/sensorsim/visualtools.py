@@ -21,7 +21,7 @@ from pyvale.sensorsim.visualopts import (VisOptsSimSensors,
                                     VisOptsAnimation,
                                     EAnimationType)
 
-def create_pv_plotter(vis_opts: VisOptsSimSensors) -> pv.Plotter:
+def create_pv_plotter(subplots, vis_opts: VisOptsSimSensors) -> pv.Plotter:
     """Creates a pyvista plotter based on the input options.
 
     Parameters
@@ -34,7 +34,8 @@ def create_pv_plotter(vis_opts: VisOptsSimSensors) -> pv.Plotter:
     pv.Plotter
         Blank pyvista plotter object with the given settings.
     """
-    pv_plot = pv.Plotter(window_size=vis_opts.window_size_px)
+
+    pv_plot = pv.Plotter(shape=(1,subplots), window_size=vis_opts.window_size_px)
     pv_plot.set_background(vis_opts.background_colour)
     pv.global_theme.font.color = vis_opts.font_colour
     pv_plot.add_axes_at_origin(labels_off=True)
