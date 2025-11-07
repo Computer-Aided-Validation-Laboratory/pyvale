@@ -62,7 +62,7 @@ x_lims = (12.5,12.5)
 y_lims = (0.0,33.0)
 z_lims = (0.0,12.0)
 n_sens = (1,4,1)
-tc_sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+tc_sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
 tc_sens_data = sens.SensorData(positions=tc_sens_pos,
                                 sample_times=sample_times)
@@ -130,7 +130,7 @@ x_lims = (9.4,9.4)
 y_lims = (0.0,33.0)
 z_lims = (12.0,12.0)
 n_sens = (1,4,1)
-sg_sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sg_sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
 sg_sens_data = sens.SensorData(positions=sg_sens_pos,
                                 sample_times=sample_times)

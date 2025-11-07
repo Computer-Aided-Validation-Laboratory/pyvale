@@ -63,7 +63,7 @@ n_sens = (4,1,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,50.0)
 z_lims = (0.0,0.0)
-tc_sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+tc_sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
 tc_sens_data = sens.SensorData(positions=tc_sens_pos,
                               sample_times=sample_times)
@@ -85,7 +85,7 @@ tc_array = sens.SensorFactory \
 #%%
 # We place 3 strain gauges along the direction of the temperature gradient.
 n_sens = (3,1,1)
-sg_sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sg_sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 sg_sens_data = sens.SensorData(positions=sg_sens_pos,
                                 sample_times=sample_times)
 

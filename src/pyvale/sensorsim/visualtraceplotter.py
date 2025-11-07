@@ -9,13 +9,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
-                               TraceOptsSensor)
+                                         TraceOptsSensor)
 
 
 
 # TODO: this should probably take an ISensorarray
 def plot_time_traces(sensor_array: SensorArrayPoint,
-                     component: str | None  = None,
+                     comp_key: str | None  = None,
                      trace_opts: TraceOptsSensor | None = None,
                      plot_opts: PlotOptsGeneral | None = None
                      ) -> tuple[Any,Any]:
@@ -26,7 +26,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     ----------
     sensor_array : SensorArrayPoint
         _description
-    component : str | None
+    comp_key : str | None
         String key for the field component to plot, by default None. If None
         then the first component in the measurement array is plotted
     trace_opts : TraceOptsSensor | None, optional
@@ -51,8 +51,8 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     sensors_perturbed = sensor_array.get_sensor_data_perturbed()
 
     comp_ind = 0
-    if component is not None:
-        comp_ind = sensor_array._field.get_component_index(component)
+    if comp_key is not None:
+        comp_ind = sensor_array._field.get_component_index(comp_key)
 
     #---------------------------------------------------------------------------
     if plot_opts is None:

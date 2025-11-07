@@ -39,7 +39,7 @@ def main() -> None:
     x_lims = (0.0,10.0)
     y_lims = (0.0,7.5)
     z_lims = (0.0,0.0)
-    sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
     use_sim_time = False
     if use_sim_time:

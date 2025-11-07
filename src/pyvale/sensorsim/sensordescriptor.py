@@ -82,7 +82,7 @@ class SensorDescriptor:
             label = label + symbol
 
         if self.units != "":
-            label = label + "\n" + rf"[${self.units}$]"
+            label = label + rf" [${self.units}$]"
 
         return label
 
@@ -151,7 +151,7 @@ class DescriptorFactory:
     """
 
     @staticmethod
-    def temperature_descriptor() -> SensorDescriptor:
+    def temperature() -> SensorDescriptor:
         """Creates a generic temperature sensor descriptor. Assumes the sensor
         is measuring a temperature in degrees C.
 
@@ -167,7 +167,7 @@ class DescriptorFactory:
         return descriptor
 
     @staticmethod
-    def scalar_descriptor() -> SensorDescriptor:
+    def scalar() -> SensorDescriptor:
         """Creates a generic scalar field sensor descriptor. 
 
         Returns
@@ -183,7 +183,7 @@ class DescriptorFactory:
 
 
     @staticmethod
-    def displacement_descriptor() -> SensorDescriptor:
+    def displacement() -> SensorDescriptor:
         """Creates a generic displacement sensor descriptor. Assumes units of mm
         and vector components of x,y,z.
 
@@ -200,7 +200,7 @@ class DescriptorFactory:
         return descriptor
 
     @staticmethod
-    def vector_descriptor() -> SensorDescriptor:
+    def vector() -> SensorDescriptor:
         """Creates a generic vector field sensor descriptor. Assumes vector 
         components of x,y,z.
 
@@ -217,7 +217,7 @@ class DescriptorFactory:
         return descriptor
 
     @staticmethod
-    def strain_descriptor(spat_dims: int = 3) -> SensorDescriptor:
+    def strain(spat_dims: int = 3) -> SensorDescriptor:
         """Creates a generic strain sensor descriptor. Assumes strain is
         unitless and that the components are xx,yy,xy for 2D and xx,yy,zz,xy,yz,
         xz for 3D.
@@ -246,7 +246,7 @@ class DescriptorFactory:
         return descriptor
 
     @staticmethod
-    def strain_descriptor(spat_dims: int = 3) -> SensorDescriptor:
+    def strain(spat_dims: int = 3) -> SensorDescriptor:
         """Creates a generic tensor field sensor descriptor. Assumes that the 
         components are xx,yy,xy for 2D and xx,yy,zz,xy,yz,xz for 3D.
 

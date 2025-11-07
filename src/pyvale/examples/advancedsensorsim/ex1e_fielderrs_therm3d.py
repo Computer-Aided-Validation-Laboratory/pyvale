@@ -47,7 +47,7 @@ n_sens = (1,4,1)
 x_lims = (12.5,12.5)
 y_lims = (0.0,33.0)
 z_lims = (0.0,12.0)
-sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
 sample_times = np.linspace(0.0,np.max(sim_data.time),50) # | None
 

@@ -320,13 +320,15 @@ class Tools:
                                calibration_data.angle_lims[0]) /
                                calibration_data.angle_step) + 1)
 
-        number_cal_images = int(number_angle_steps * number_angle_steps * number_plunge_steps * 9)
+        number_cal_images = int(number_angle_steps 
+                                * number_angle_steps 
+                                * number_plunge_steps * 9)
         return number_cal_images
 
 
     def render_calibration_images(render_data: RenderData,
-                           calibration_data: CalibrationData,
-                           part: bpy.data.objects) -> int:
+                                  calibration_data: CalibrationData,
+                                  part: bpy.data.objects) -> int:
         """A method to render a set of calibration images, which can be used to
         calculate the intrinsic and extrinsic parameters.
 

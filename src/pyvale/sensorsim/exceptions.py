@@ -7,4 +7,7 @@
 class VisError(Exception):
     pass
 
+class Collapse2Dto3DError(Exception):
+    pass
+
 

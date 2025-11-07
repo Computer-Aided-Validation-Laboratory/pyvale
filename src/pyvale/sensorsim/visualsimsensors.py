@@ -259,7 +259,7 @@ def plot_sim_data(sim_data: mh.SimData,
 
 
 def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
-                              component: str,
+                              comp_key: str,
                               time_step: int = -1,
                               vis_opts: VisOptsSimSensors | None = None,
                               image_save_opts: VisOptsImageSave | None = None,
@@ -272,7 +272,7 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
     ----------
     sensor_array : SensorArrayPoint
         Sensor array containing the sensors to plot and the field to display.
-    component : str
+    comp_key : str
         String key for accessing the nodal field to visualise in the sim data
         object.
     time_step : int, optional
@@ -283,8 +283,7 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
         dataclass is created.
     image_save_opts : VisOptsImageSave | None, optional
         Dataclass containing options for saving image of the virtual sensor
-        visualisation, by default None. If None a default options dataclass is
-        created.
+        visualisation, by default None. If None an image is not saved.
 
     Returns
     -------
@@ -296,7 +295,7 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
 
     sim_data = sensor_array._field.get_sim_data()
     vis_opts.colour_bar_lims = get_colour_lims(
-        sim_data.node_vars[component][:,time_step],
+        sim_data.node_vars[comp_key][:,time_step],
         vis_opts.colour_bar_lims)
 
     pv_plot = create_pv_plotter(vis_opts)
@@ -305,7 +304,7 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
     pv_plot = add_sensor_points_nom(pv_plot,sensor_array,vis_opts)
     (pv_plot,_) = add_sim_field(pv_plot,
                                 sensor_array,
-                                component,
+                                comp_key,
                                 time_step,
                                 vis_opts)
 

@@ -91,7 +91,7 @@ print(f"Mesh free  = {nomesh_time:.3f} milliseconds\n")
 # descriptor for a temperature field as we are working with a scalar field in
 # this case.
 sim_dims = sens.simtools.get_sim_dims(sim_data)
-sens_pos = sens.create_sensor_pos_array(num_sensors=(4,2,1),
+sens_pos = sens.gen_pos_grid_inside(num_sensors=(4,2,1),
                                         x_lims=sim_dims["x"],
                                         y_lims=sim_dims["y"],
                                         z_lims=(0.0,0.0))

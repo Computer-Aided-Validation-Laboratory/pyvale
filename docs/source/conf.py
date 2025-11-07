@@ -114,7 +114,7 @@ sphinx_gallery_conf = {
         '../../src/pyvale/examples/basicsensorsim',
         '../../src/pyvale/examples/advancedsensorsim',
         '../../src/pyvale/examples/dic',
-        '../../src/pyvale/examples/renderblender',
+        '../../src/pyvale/examples/blenderimagedef',
         '../../src/pyvale/examples/mooseherder',
     ],
     # Path to where to save gallery generated output
@@ -122,7 +122,7 @@ sphinx_gallery_conf = {
         'examples/basicsensorsim',
         'examples/advancedsensorsim',
         'examples/dic',
-        'examples/renderblender',
+        'examples/blenderimagedef',
         'examples/mooseherder',
     ],
     # Pattern to identify example files

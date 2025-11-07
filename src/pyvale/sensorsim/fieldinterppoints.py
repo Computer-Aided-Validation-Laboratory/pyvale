@@ -11,26 +11,26 @@ import pyvale.mooseherder as mh
 from pyvale.sensorsim.simtools import (coords_to_2D)
 from pyvale.sensorsim.fieldinterp import (FieldInterp,
                                           interp_to_sample_time)
-
+from pyvale.sensorsim.enums import EDim
 
 
 class FieldInterpPoints(FieldInterp):
-    __slots__ = ("_sim_time_steps", "_components","_elem_dims","_interp_funcs",
-                 "_coords")
+    __slots__ = ("_sim_time_steps", "_comp_keys","_spatial_dims",
+                 "_interp_funcs","_coords")
 
     def __init__(self,
                  sim_data: mh.SimData,
-                 components: tuple[str,...],
-                 elem_dims: int,
+                 comp_keys: tuple[str,...],
+                 spatial_dims: EDim,
                  ) -> None:
 
         self._sim_time_steps = sim_data.time
-        self._components = components
-        self._elem_dims = elem_dims
+        self._comp_keys = comp_keys
+        self._spatial_dims = spatial_dims
 
         # Collapse problem to 2D
         self._coords = sim_data.coords
-        if self._elem_dims == 2:
+        if self._spatial_dims == EDim.TWOD:
             self._coords = coords_to_2D(self._coords)
 
         # We do this once instead of inside the loop to save a lot of time as
@@ -38,7 +38,7 @@ class FieldInterpPoints(FieldInterp):
         triang = Delaunay(self._coords)
 
         self._interp_funcs = {}
-        for cc in self._components:
+        for cc in self._comp_keys:
             interp_frames = []
             for tt in range(self._sim_time_steps.shape[0]):
                 interp = LinearNDInterpolator(triang,
@@ -53,16 +53,16 @@ class FieldInterpPoints(FieldInterp):
                     sample_times: np.ndarray | None = None,
                     ) -> np.ndarray:
 
-        if self._elem_dims == 2:
+        if self._spatial_dims == EDim.TWOD:
             points = coords_to_2D(points)
 
         n_points = points.shape[0]
-        n_comps = len(self._components)
+        n_comps = len(self._comp_keys)
         n_sim_time = self._sim_time_steps.shape[0]
         sample_at_sim_time = np.empty((n_points,n_comps,n_sim_time),
                                       dtype=np.float64)
 
-        for ii,cc in enumerate(self._components):
+        for ii,cc in enumerate(self._comp_keys):
             for tt in range(self._sim_time_steps.shape[0]):
                 interp_func = self._interp_funcs[cc][tt]
                 sample_at_sim_time[:,ii,tt] = interp_func(points)

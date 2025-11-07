@@ -8,7 +8,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 
+# TODO: docstrings!
 class FieldInterp(ABC):
+
     @abstractmethod
     def interp_field(self,
                     points: np.ndarray,

@@ -59,7 +59,7 @@ n_sens = (1,4,1)
 x_lims = (12.5,12.5)
 y_lims = (0.0,33.0)
 z_lims = (0.0,12.0)
-sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
 #%%
 # We are also going to specify the times at which we would like to simulate

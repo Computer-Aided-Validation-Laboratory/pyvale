@@ -4,16 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 from typing import Any
-from enum import Enum
 import dataclasses
 import numpy as np
 import pyvale.mooseherder as mh
 from pyvale.sensorsim.rendermesh import RenderMesh
-
-
-class EElemDims(Enum):
-    TWOD = 2
-    THREED = 3
+from pyvale.sensorsim.exceptions import Collapse2Dto3DError
 
 
 def print_dataclass_fields(in_data: Any) -> None:
@@ -174,9 +169,6 @@ def get_deformed_nodes(timestep: int,
     deformed_nodes = coords + added_disp
     return deformed_nodes
 
-
-class Collapse2Dto3DError(Exception):
-    pass
 
 
 def coords_to_2D(coords_3d: np.ndarray) -> np.ndarray:

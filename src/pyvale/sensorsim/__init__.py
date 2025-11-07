@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-The python validation engine (`.) is your virtual engineering laboratory:
+The python validation engine is your virtual engineering laboratory:
 An all-in-one package for sensor simulation, sensor uncertainty quantification,
 sensor placement optimisation and simulation calibration/validation. Used to
 simulate experimental data from an input multi-physics simulation by explicitly

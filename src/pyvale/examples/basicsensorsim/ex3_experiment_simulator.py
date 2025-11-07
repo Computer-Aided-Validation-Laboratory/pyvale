@@ -7,7 +7,14 @@
 """Multi-physics experiment simulation
 ================================================================================
 
-In this example...
+In the previous example we performed a series of simulated experiments on a set
+of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of
+a divertor armour heatsink to show how we can run simulated experiments in 3D.
+
+Note that this tutorial assumes you are familiar with the use of `pyvale` for
+scalar and tensor fields as described in the previous examples.
+
+Test case: thermo-mechanical analysis of a divertor heatsink in 3D
 """
 
 from pathlib import Path
@@ -50,11 +57,12 @@ if not fig_save_path.is_dir():
 # for the sensors to sample at the simulation time steps.
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
+
 x_lims = (12.5,12.5)
 y_lims = (0.0,33.0)
 z_lims = (0.0,12.0)
 n_sens = (1,4,1)
-tc_sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+tc_sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
 tc_sens_data = sens.SensorData(positions=tc_sens_pos,
                                 sample_times=sample_times)
@@ -78,8 +86,8 @@ tc_err_chain.append(sens.ErrRandNorm(std=1.0))
 # Now we add positioning error for our thermocouples.
 tc_pos_uncert = 0.1 # units = mm
 tc_pos_rand = (sens.GenNormal(std=tc_pos_uncert),
-               sens.GenNormal(std=tc_pos_uncert),
-               sens.GenNormal(std=tc_pos_uncert))
+                sens.GenNormal(std=tc_pos_uncert),
+                sens.GenNormal(std=tc_pos_uncert))
 
 #%%
 # We block translation in x so the thermocouples stay attached.
@@ -122,7 +130,7 @@ x_lims = (9.4,9.4)
 y_lims = (0.0,33.0)
 z_lims = (12.0,12.0)
 n_sens = (1,4,1)
-sg_sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sg_sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
 sg_sens_data = sens.SensorData(positions=sg_sens_pos,
                                 sample_times=sample_times)
@@ -242,8 +250,8 @@ print(80*"=")
 # Note that the default here is to plot the mean and fill between 3 times
 # the standard deviation.
 trace_opts = sens.TraceOptsExperiment(plot_all_exp_points=True,
-                                      centre=sens.EExpVisCentre.MEDIAN,
-                                      fill_between=sens.EExpVisBounds.MINMAX)
+                                        centre=sens.EExpVisCentre.MEDIAN,
+                                        fill_between=sens.EExpVisBounds.MINMAX)
 
 (fig,ax) = sens.plot_exp_traces(exp_sim,
                                 component="temperature",
