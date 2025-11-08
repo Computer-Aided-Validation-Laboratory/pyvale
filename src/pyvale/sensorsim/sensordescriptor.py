@@ -12,6 +12,7 @@ plots and visualisations for virtual sensor simulations.
 
 from dataclasses import dataclass
 import numpy as np
+from pyvale.sensorsim.enums import EDim
 
 
 @dataclass(slots=True)
@@ -217,16 +218,16 @@ class DescriptorFactory:
         return descriptor
 
     @staticmethod
-    def strain(spat_dims: int = 3) -> SensorDescriptor:
+    def strain(spatial_dims: EDim = EDim.THREED) -> SensorDescriptor:
         """Creates a generic strain sensor descriptor. Assumes strain is
         unitless and that the components are xx,yy,xy for 2D and xx,yy,zz,xy,yz,
         xz for 3D.
 
         Parameters
         ----------
-        spat_dims : int, optional
+        spatial_dims : EDim, optional
             Number of spatial dimensions used for setting the components of the
-            tensor strain field, by default 3.
+            tensor strain field, by default EDim.THREED.
 
         Returns
         -------
@@ -238,7 +239,7 @@ class DescriptorFactory:
                                       units=r"-",
                                       tag="SG")
 
-        if spat_dims == 2:
+        if spatial_dims == EDim.TWOD:
             descriptor.components = ("xx","yy","xy")
         else:
             descriptor.components = ("xx","yy","zz","xy","yz","xz")
@@ -246,15 +247,15 @@ class DescriptorFactory:
         return descriptor
 
     @staticmethod
-    def strain(spat_dims: int = 3) -> SensorDescriptor:
+    def tensor(spatial_dims: EDim = EDim.THREED) -> SensorDescriptor:
         """Creates a generic tensor field sensor descriptor. Assumes that the 
         components are xx,yy,xy for 2D and xx,yy,zz,xy,yz,xz for 3D.
 
         Parameters
         ----------
-        spat_dims : int, optional
+        spatial_dims : EDim, optional
             Number of spatial dimensions used for setting the components of the
-            tensor strain field, by default 3.
+            tensor strain field, by default EDim.THREED.
 
         Returns
         -------
@@ -266,7 +267,7 @@ class DescriptorFactory:
                                       units=r"unit",
                                       tag="T")
 
-        if spat_dims == 2:
+        if spatial_dims == EDim.TWOD:
             descriptor.components = ("xx","yy","xy")
         else:
             descriptor.components = ("xx","yy","zz","xy","yz","xz")

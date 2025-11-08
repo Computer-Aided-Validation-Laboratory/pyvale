@@ -118,7 +118,7 @@ class FieldVector(IField):
         """
         return self._visualiser
 
-    def get_all_comp_keys(self) -> tuple[str, ...]:
+    def get_all_components(self) -> tuple[str, ...]:
         """Gets the string keys for the component of the physical field. For
         example: a vector field might have ('disp_x','disp_y','disp_z') in 3D
         and just ('disp_x','disp_y') in 2D.

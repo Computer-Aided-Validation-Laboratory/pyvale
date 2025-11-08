@@ -1,12 +1,45 @@
+# --- Core Sphinx Builder ---
 sphinx
-sphinx-codeautolink
-sphinx-autodoc-typehints
-sphinx-copybutton
-breathe
+babel                      # For language support/i18n
+docutils                   # For RST parsing (fundamental)
+imagesize                  # For image dimension handling
+pygments                   # For code highlighting
+snowballstemmer            # For search indexing (used by epub3 builder)
+
+# --- Theme and Parser ---
 furo
+alabaster
 myst-parser
+
+# --- Sphinx Extensions (Directly Listed in conf.py) ---
+sphinx-codeautolink
+sphinx-copybutton
+breathe                    # For C++ documentation integration
+sphinx-gallery             # For example gallery generation
+
+# --- Extension Dependencies ---
+sphinx-autodoc-typehints   # You use 'autodoc' which benefits from this
+ipywidgets                 # Often required by sphinx-gallery examples (e.g., matplotlib output)
+matplotlib                 # Required for plotting in sphinx-gallery examples
+pillow                     # Required for various image/gallery operations
+
+# --- Specific sphinxcontrib Extensions (Explicitly added to resolve previous errors) ---
+sphinxcontrib-applehelp    # Needed if the epub3 builder triggers it (which is common)
+sphinxcontrib-devhelp
+sphinxcontrib-htmlhelp
+sphinxcontrib-jsmath
+sphinxcontrib-qthelp       # Added proactively for completeness
+sphinxcontrib-serializinghtml
+
+# --- Your Project Dependencies (From your original list) ---
+certifi
+idna
+jinja2
+markupsafe
+packaging
+requests
+roman_numerals
 trame
 trame-vtk
 trame-vuetify
-ipywidgets
-sphinx-gallery
+urllib3

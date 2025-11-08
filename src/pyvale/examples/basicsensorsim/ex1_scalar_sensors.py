@@ -28,10 +28,10 @@ import pyvale.dataset as dataset
 
 
 #%%
-# 1. Load Physics 
+# 1. Load physics 
 # ---------------
 # Here we load a MOOSE finite element simulation dataset that comes packaged 
-# with `pyvale` in exodus (*.e format). `pyvale` loads simulations into a 
+# with `pyvale` in exodus (*.e) format. `pyvale` loads simulations into a 
 # `SimData` object  which contains the nodal coordinates, simulation time steps, 
 # the nodal physics variables and optionally the element connectivity tables.
 #
@@ -142,6 +142,7 @@ print(f"\nThese are the last {time_last} virtual measurements of sensor "
 
 sens.print_measurements(sens_array,sens_print,comp_print,time_print)
 print("\n"+80*"-")
+
 #%%
 # 4. Visualise simulation & results
 # ---------------------------------

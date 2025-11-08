@@ -134,7 +134,7 @@ def _gen_pyvista_grid(sim_data: mh.SimData,
 
 def scale_length_units(scale: float,
                        sim_data: mh.SimData,
-                       disp_comps: tuple[str,...] | None = None,
+                       disp_keys: tuple[str,...] | None = None,
                        ) -> mh.SimData:
     """Used to scale the length units of a simulation. Commonly used to convert
     SI units to mm for use with visualisation tools and rendering algorithms.
@@ -146,7 +146,7 @@ def scale_length_units(scale: float,
         if specified.
     sim_data : mh.SimData
         Simulation dataclass that will be scaled.
-    disp_comps : tuple[str,...] | None, optional
+    disp_keys : tuple[str,...] | None, optional
         Tuple of string keys for the displacement keys to be scaled, by default
         None. If None then the displacements are not scaled.
 
@@ -157,8 +157,8 @@ def scale_length_units(scale: float,
     """
     sim_data.coords = sim_data.coords*scale
 
-    if disp_comps is not None:
-        for cc in disp_comps:
+    if disp_keys is not None:
+        for cc in disp_keys:
             sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
 
     return sim_data

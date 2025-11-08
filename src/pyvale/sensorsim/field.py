@@ -80,13 +80,13 @@ class IField(ABC):
         """
 
     @abstractmethod
-    def get_component_index(self,component: str) -> int:
+    def get_component_index(self,comp_key: str) -> int:
         """Gets the index for a component of the physical field. Used for
         getting the index of a component in the sensor measurement array.
 
         Parameters
         ----------
-        component : str
+        comp_key : str
             String key for the field component (e.g. 'temperature' or 'disp_x').
 
         Returns
