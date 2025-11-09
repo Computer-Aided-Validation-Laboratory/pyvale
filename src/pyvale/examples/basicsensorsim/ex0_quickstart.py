@@ -29,7 +29,7 @@ data_path: Path = dataset.thermomechanical_3d_path()
 sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
-                                               disp_comps=None)
+                                               disp_keys=None)
 
 #%% 
 # 2. Create a virtual sensor array

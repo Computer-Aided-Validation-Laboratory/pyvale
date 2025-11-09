@@ -98,7 +98,7 @@ angle_offset = np.zeros_like(sens_pos)
 angle_offset[:,0] = 2.0 # only rotate about z in 2D
 angle_rand = (sens.GenNormal(std=2.0),None,None)
 angle_error_data = sens.ErrFieldData(ang_offset_zyx=angle_offset,
-                                    ang_rand_zyx=angle_rand)
+                                     ang_rand_zyx=angle_rand)
 
 
 sys_err_rot = sens.ErrSysField(disp_field,angle_error_data)

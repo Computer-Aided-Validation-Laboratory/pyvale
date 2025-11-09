@@ -86,7 +86,7 @@ time_rand = sens.GenNormal(std=0.1) # units = s
 #%%
 # Now we put everything into our field error data class ready to build our
 # field error object. Have a look at the other parameters in this data class
-# to geta feel for the other types of supported field errors. We will look
+# to get a feel for the other types of supported field errors. We will look
 # at the orientation and area averaging errors when we look at vector and
 # tensor fields in later examples.
 field_err_data = sens.ErrFieldData(

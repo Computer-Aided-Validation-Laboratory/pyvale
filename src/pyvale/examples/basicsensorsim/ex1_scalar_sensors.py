@@ -15,6 +15,24 @@ using the `pyvale` sensor factory. We also introduce some key concepts for
 simulated sensor measurements as well as the data structures they are stored in.
 Finally we run a sensor simulation, visualise the virtual sensor locations and
 plot the simulated sensor traces.
+
+Before we begin the example we will briefly describe the `pyvale` sensor 
+measurement simulation model. In `pyvale` a simulated measurement is given by:
+
+    measurement = truth + systematic errors + random errors
+
+The truth is interpolated from the input physics simulation to the virtual 
+sensor positions and times. The systematic and random errors are evaluated for 
+each masurement simulation by sampling probability distributions in a sequence 
+called an error chain. 
+
+`pyvale` provides a library of common systematic (position uncertainty, 
+spatial/temporal averaging, digitisation, calibration, etc.) and random errors 
+(probability distribution in absolute units or as a percentage of the truth 
+etc.). These errors all implement the `IErrSimulator` interface allowing a user 
+to plug-and-play any combination of simulated errors in their error chain.
+
+Ok, now let's simulate some temperature measurements!
 """
 
 from pathlib import Path
@@ -43,7 +61,7 @@ sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
 sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
-                                               disp_comps=None)
+                                               disp_keys=None)
 #%%
 # .. note::
 #   You can load your own exodus (*.e) file here by changing the path or you can
@@ -95,7 +113,8 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_no_errs(
 # `pyvale` will evaluate these errors in the order they are specified in the
 # list when we simulate our measurements.
 #
-# `pyvale` has a library of systematic and random errors we can choose from
+# The error chain is the core of the `pyvale` sensor simulation engine and 
+# `pyvale`
 
 err_chain: list[sens.IErrSimulator] = [sens.ErrSysUnif(low=-5.0,high=5.0),]
 err_chain.append(sens.ErrRandNorm(std=5.0))
@@ -166,6 +185,7 @@ pv_plot = sens.plot_point_sensors_on_sim(sens_array,
                                          comp_key="temperature")
 
 # Camera position determined in interactive mode and printed to terminal
+# print(f"{pv_plot.camera_position=}") 
 pv_plot.camera_position = [(59.354, 43.428, 69.946),
                            (-2.858, 13.189, 4.523),
                            (-0.215, 0.948, -0.233)]
@@ -176,10 +196,6 @@ pv_plot.screenshot(save_render.with_suffix(".png"))
 
 # Uncomment this to display sensor locations on the mesh in interactive mode
 # pv_plot.show()
-
-print("Sensor visualisation camera position:")
-print(pv_plot.camera_position)
-print(80*"-"+"\n")
 
 #%%
 # This creates a plot of the time traces for all of our sensors. The solid line 

@@ -8,10 +8,18 @@
 Vector and tensor field sensors
 ================================================================================
 
-TODO
+In this example we will show how `pyvale` can be used to simulate vector and 
+tensor field sensors demonstrated by displacement and strain sensors. We show 
+some of the additional sensor array setup parameters such  as the sensor 
+orientation for vector and tensor sensors. We also introduce a new type of 
+simulated error called a 'field error' which can be used to simulate uncertainty 
+in sensor positions, sampling time, orientation and sensor averaging area.
+ 
 """
+
 from pathlib import Path
 import numpy as np
+from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 
 # pyvale imports
@@ -23,13 +31,9 @@ import pyvale.dataset as dataset
 # 1. Load physics 
 # ---------------
 # As we did in the last example we load a finite element simulation dataset that 
-# comes packaged with `pyvale` in exodus (*.e) format. `pyvale` loads 
-# simulations into a `SimData` object  which contains the nodal coordinates, 
-# simulation time steps, the nodal physics variables and optionally the element 
-# connectivity tables.
-#
-# We also convert the length units of our simulation from meters to milli-meters
-# as our visualisation tools are based on unit scaling by default.
+# comes packaged with `pyvale` in exodus (*.e) format. We also convert the 
+# length units of our simulation from meters to milli-meters as our 
+# visualisation tools are based on unit scaling by default.
 
 data_path: Path = dataset.mechanical_2d_path()
 sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
@@ -47,7 +51,12 @@ sim_data: mh.SimData  = sens.scale_length_units(scale=1000.0,
 # Creating a vector or tensor field sensor array is similar to what we
 # have already done for scalar fields we just need to specify the string
 # keys for the field components we want to use in the sim data object we have 
-# loaded. 
+# loaded. For vector and tensor field sensors we can also specify a sensor
+# orientation which we demonstrate here. 
+#
+# The information we provide in the `SensorData` object is treated as the ground
+# truth so any 'field errors' we simulate later are calculated with respect to 
+# this. 
 
 sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(2,2,1),
                                                 x_lims=(0.0,100.0),
@@ -56,8 +65,12 @@ sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(2,2,1),
 
 sample_times: np.ndarray = np.linspace(0.0,np.max(sim_data.time),50)
 
+sens_angles: tuple[Rotation] = sens_pos.shape[0] * \
+    (Rotation.from_euler("zyx",[90,0,0], degrees=True),)
+
 disp_sens_data = sens.SensorData(positions=sens_pos,
-                                 sample_times=sample_times)
+                                 sample_times=sample_times,
+                                 angles=sens_angles)
 
 disp_sens: sens.SensorArrayPoint = sens.SensorFactory.vector_no_errs(
     sim_data,
@@ -68,11 +81,21 @@ disp_sens: sens.SensorArrayPoint = sens.SensorFactory.vector_no_errs(
 )
 
 #%%
+# .. note::
+#   Sensor angles can be specified individually for all sensors or if all 
+#   sensors have the same angle a single element tuple can be used. This has the
+#   advantage that the rotations can be batch executed in one numpy call for 
+#   speed. So we could have used `sens_angles = (Rotation.from_euler("zyx", 
+#   [90,0,0],degrees=True),)` above.       
+
+#%%
 # For the tensor field sensors we have to separately specify the string keys for
-# the normal and deviatoric tensor components.
+# the normal and deviatoric tensor components, otheriwse it is the same as for
+# the vector field sensor. 
 
 strain_sens_data = sens.SensorData(positions=sens_pos,
-                                   sample_times=sample_times)
+                                   sample_times=sample_times,
+                                   angles=sens_angles)
 
 strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_no_errs(
     sim_data,
@@ -83,42 +106,55 @@ strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_no_errs(
     descriptor=sens.DescriptorFactory.strain(sens.EDim.TWOD),
 )
 
-
 #%%
 # 2.1. Add measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# Now we are going to create an error that allows us to add uncertainty in the
+# sensor position and angle (as well as the sampling time and area averaging). 
+# In `pyvale` these are called field errors because we have to re-interpolate 
+# the field to evaluate them. In this case we will have a constant offset and 
+# random perturbation in the sensor positions and angle. We use the same type of
+# field error for both sensor arrays for simplicity and add a probabilistic 
+# random error.
 #
+# First we setup the data structures that will tell our error chain how to 
+# configure and evaluate our field errors. Everything that can be evaluated in
+# a field error is captured in the `ErrFieldData` dataclass. 
 
 pos_offset_xyz = np.array((1.0,1.0,0.0),dtype=np.float64)
 pos_offset_xyz = np.tile(pos_offset_xyz,(sens_pos.shape[0],1))
 
-time_offset = np.full((sample_times.shape[0],),0.1)
+pos_rand = sens.GenUniform(low=-1.0,high=1.0)  # units = mm
 
-pos_rand = sens.GenNormal(std=1.0)  # units = mm
-time_rand = sens.GenNormal(std=0.1) # units = s
+angle_offset = np.zeros_like(sens_pos)
+angle_offset[:,0] = 1.0 # only rotate about z in 2D, units = degrees
 
-field_err_data = sens.ErrFieldData(
-    pos_offset_xyz=pos_offset_xyz,
-    time_offset=time_offset,
-    pos_rand_xyz=(pos_rand,pos_rand,None),
-    time_rand=time_rand
-)
+angle_rand = sens.GenUniform(low=-2.0,high=2.0)
+
+field_err_data = sens.ErrFieldData(pos_offset_xyz=pos_offset_xyz,
+                                   pos_rand_xyz=(pos_rand,pos_rand,None),
+                                   ang_offset_zyx=angle_offset,
+                                   ang_rand_zyx=(angle_rand,None,None))
+
+#%%
+# We build and set our error chains in exactly the same way as we did before
+# noting that our field errors need a reference to the field that they will have
+# to interpolate.
 
 disp_err_chain: list[sens.IErrSimulator] = []
-disp_err_chain.append(sens.ErrRandNormPercent(std_percent=1.0))
+disp_err_chain.append(sens.ErrRandNormPercent(std_percent=2.0))
 disp_err_chain.append(sens.ErrSysField(disp_sens.get_field(),
                                        field_err_data))
 
 disp_sens.set_error_chain(disp_err_chain)
 
 strain_err_chain: list[sens.IErrSimulator] = []
-strain_err_chain.append(sens.ErrRandUnifPercent(low_percent=-1.0,
-                                                high_percent=1.0))
+strain_err_chain.append(sens.ErrRandUnifPercent(low_percent=-2.0,
+                                                high_percent=2.0))
 strain_err_chain.append(sens.ErrSysField(strain_sens.get_field(),
                                          field_err_data))
 
 strain_sens.set_error_chain(strain_err_chain)
-
 
 #%%
 # 3. Simulate measurements   
@@ -130,8 +166,8 @@ strain_sens.set_error_chain(strain_err_chain)
 #
 # We also print some of the virtual displacement and strain measurements to 
 # the console along with the shapes of the measurement arrays so we can compare
-# them. Note that for the tensor sensors the components are ordered as normal
-# then deviatoric.
+# them. Note that for the tensor sensors the measurement array axis is ordered
+# so that the normal components are followed by the deviatoric.
 
 disp_meas: np.ndarray = disp_sens.sim_measurements()
 strain_meas: np.ndarray = strain_sens.sim_measurements()
@@ -159,7 +195,10 @@ print("\n"+80*"-")
 #%%
 # 4. Visualise simulation & results
 # ---------------------------------
-# TODO
+# Now we visualise the sensor locations on the mesh and save these images to 
+# disk. As we have used sensor positioning errors in our error chain the 
+# perturbed sensor locations are shown on the sensor location visualisation as
+# different coloured spheres without labels.
 
 output_path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
@@ -181,7 +220,8 @@ save_render = output_path / "basic_sensorsim_ex2_strain_locs.svg"
 pv_plot.save_graphic(save_render)
 
 #%%
-# We can also plot the traces for each component of
+# We also plot and save the time traces for our virtual  sensors for all 
+# components of the displacement and strain fields and save them to disk.
 for kk in disp_keys:
     (fig,ax) = sens.plot_time_traces(disp_sens,kk)
 
@@ -195,5 +235,5 @@ for kk in strain_keys:
     fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 
 # Uncomment to show all traces plots
-# plt.show()
+plt.show()
 
