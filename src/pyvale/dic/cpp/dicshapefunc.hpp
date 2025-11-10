@@ -12,21 +12,21 @@
 #include "./Eigen/Dense"
 
 // Program Header files
-#include "./dicutil.hpp"
+#include "./dicresults.hpp"
 
 
 
 namespace shapefunc {
 
     // Function pointer 
-    extern void (*get_pixel)(double &, double &, double, double, std::vector<double> &);
+    extern void (*get_pixel)(double &, double &, const double, const double, const std::vector<double> &);
     extern void (*get_dshape_dp)(std::vector<double>&, double, double, double, double);
-    extern void (*get_displacement)(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
+    extern void (*get_displacement)(Result &result, double ss_x, double ss_y, std::vector<double> &p);
 
     // Shape function declarations
-    inline void get_pixel_affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
-    inline void get_pixel_rigid(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
-    inline void get_pixel_quad(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    inline void get_pixel_affine(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+    inline void get_pixel_rigid(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+    inline void get_pixel_quad(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
 
     int num_params(std::string &shape_func);
 
