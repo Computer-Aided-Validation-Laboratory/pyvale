@@ -46,8 +46,8 @@ import pyvale.dataset as dataset
 
 
 #%%
-# 1. Load physics 
-# ---------------
+# 1. Load physics simulation data 
+# -------------------------------
 # Here we load a MOOSE finite element simulation dataset that comes packaged 
 # with `pyvale` in exodus (*.e) format. `pyvale` loads simulations into a 
 # `SimData` object  which contains the nodal coordinates, simulation time steps, 
@@ -69,7 +69,7 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
 #   files. See the advanced example 'Bring your own simulation data'.      
 
 #%%
-# 2. Create virtual sensor arrays
+# 2. Build virtual sensor arrays
 # -------------------------------
 # First, we need to specify the position of our virtual sensors and the times 
 # that they should take simulated measurements as a numpy array. `pyvale` has 
@@ -122,8 +122,8 @@ err_chain.append(sens.ErrRandNorm(std=5.0))
 sens_array.set_error_chain(err_chain)
 
 #%%
-# 3. Simulate measurements   
-# ------------------------
+# 3. Run a simulated experiment   
+# -----------------------------
 # We have built our sensor array so now we can call `.sim_measurements()` to
 # generate simulated sensor traces. When we call this function `pyvale` will 
 # calculate the ground truth (if not already complete from a previous sim), then
@@ -134,7 +134,7 @@ sens_array.set_error_chain(err_chain)
 # are resamples. However, if we call `.get_measurements()` then we are returned
 # the previously simulated values. Throughout `pyvale` methods prefixed with 
 # `get` can be expected to return previous values if they exist whereas `sim`
-# methods will actually perform a simulation. 
+# or `calc `methods will actually perform a simulation or calculation. 
 measurements: np.ndarray = sens_array.sim_measurements()
 
 truth: np.ndarray = sens_array.get_truth()
@@ -163,8 +163,8 @@ sens.print_measurements(sens_array,sens_print,comp_print,time_print)
 print("\n"+80*"-")
 
 #%%
-# 4. Visualise simulation & results
-# ---------------------------------
+# 4. Analyse & visualise the results
+# ----------------------------------
 # We can now visualise the sensor locations on the simulation mesh and the
 # simulated sensor traces using `pyvale` visualisation tools which are built on
 # `pyvista` for meshes and `matplotlib` for sensor traces. `pyvale` will return
@@ -190,12 +190,22 @@ pv_plot.camera_position = [(59.354, 43.428, 69.946),
                            (-2.858, 13.189, 4.523),
                            (-0.215, 0.948, -0.233)]
 
-save_render = output_path / "basic_sensorsim_ex1_locs.svg"
-pv_plot.save_graphic(save_render) # only for .svg .eps .ps .pdf .tex
-pv_plot.screenshot(save_render.with_suffix(".png"))
 
-# Uncomment this to display sensor locations on the mesh in interactive mode
+save_render: Path = output_path / "basics_ex1_locs.png"
+pv_plot.off_screen = True
+pv_plot.screenshot(save_render)
+
+# Uncomment to save a vector graphic
+# pv_plot.save_graphic(save_render.with_suffix(".svg")) 
+
+# Uncomment to show interactive figure and set off_screen = False above
 # pv_plot.show()
+
+# %%
+# .. image:: ../../../../_static/basics_ex1_locs.png
+#    :alt: Simulated temperature sensor traces.
+#    :width: 800px
+#    :align: center
 
 #%%
 # This creates a plot of the time traces for all of our sensors. The solid line 
@@ -205,9 +215,14 @@ pv_plot.screenshot(save_render.with_suffix(".png"))
 # allows for further customisation.
 (fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
 
-save_traces = output_path/"basic_sensorsim_ex1_traces.png"
+save_traces = output_path/"basics_ex1_traces.png"
 fig.savefig(save_traces, dpi=300, bbox_inches="tight")
-fig.savefig(save_traces.with_suffix(".svg"), dpi=300, bbox_inches="tight")
 
 # Uncomment this to display the sensor trace plot 
 # plt.show()
+
+# %%
+# .. image:: ../../../../_static/basics_ex1_traces.png
+#    :alt: Simulated temperature sensor traces.
+#    :width: 500px
+#    :align: center

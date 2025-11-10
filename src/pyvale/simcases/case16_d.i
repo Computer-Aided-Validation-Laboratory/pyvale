@@ -13,20 +13,23 @@ heatTransCoeff= 125.0e3 # W.m^-2.K^-1
 surfHeatFlux= 4.67e6    # W.m^-2, taken from Adels first paper
 timeConst = 1   # s
 
+# Multiplier for biasing material properties
+bias = 0.9
+
 # Material Properties:
 # Thermal Props: Copper-Chromium-Zirconium pg.148 at 200degC
 cucrzrDensity = 8816.0  # kg.m^-3
-cucrzrThermCond = 343.0 # W.m^-1.K^-1
+cucrzrThermCond = ${fparse bias*343.0} # W.m^-1.K^-1
 cucrzrSpecHeat = 407.0  # J.kg^-1.K^-1
 
 # Thermal Props: Pure (OFHC) Copper at 250degC
 cuDensity = 8829.0  # kg.m^-3
-cuThermCond = 384.0 # W.m^-1.K^-1
+cuThermCond = ${fparse bias*384.0} # W.m^-1.K^-1
 cuSpecHeat = 406.0  # J.kg^-1.K^-1
 
 # Thermal Props: Tungsten at 600degC
 wDensity = 19150.0  # kg.m^-3
-wThermCond = 127.0 # W.m^-1.K^-1
+wThermCond = ${fparse bias*127.0} # W.m^-1.K^-1
 wSpecHeat = 147.0  # J.kg^-1.K^-1
 
 # Mechanical Props: Copper-Chromium-Zirconium at 200degC
@@ -43,9 +46,9 @@ wPRatio = 0.29      # -
 
 # Thermo-mechanical coupling
 stressFreeTemp = ${coolantTemp} # degC
-cucrzrThermExp =  17.7e-6 # 1/degC
-cuThermExp = 17.8e-6 # 1/degC
-wThermExp = 4.72e-6 # 1/degC
+cucrzrThermExp =  ${fparse bias*17.7e-6} # 1/degC
+cuThermExp = ${fparse bias*17.8e-6} # 1/degC
+wThermExp = ${fparse bias*4.72e-6} # 1/degC
 
 # Mesh file string
 mesh_file = 'case16.msh'

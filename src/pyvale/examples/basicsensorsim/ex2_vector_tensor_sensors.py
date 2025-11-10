@@ -28,8 +28,8 @@ import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
-# 1. Load physics 
-# ---------------
+# 1. Load physics simulation data 
+# -------------------------------
 # As we did in the last example we load a finite element simulation dataset that 
 # comes packaged with `pyvale` in exodus (*.e) format. We also convert the 
 # length units of our simulation from meters to milli-meters as our 
@@ -46,8 +46,8 @@ sim_data: mh.SimData  = sens.scale_length_units(scale=1000.0,
                                                 disp_keys=disp_keys)
 
 #%%
-# 2. Create sensor arrays
-# -----------------------
+# 2. Build virtual sensor arrays
+# ------------------------------
 # Creating a vector or tensor field sensor array is similar to what we
 # have already done for scalar fields we just need to specify the string
 # keys for the field components we want to use in the sim data object we have 
@@ -121,15 +121,15 @@ strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_no_errs(
 # configure and evaluate our field errors. Everything that can be evaluated in
 # a field error is captured in the `ErrFieldData` dataclass. 
 
-pos_offset_xyz = np.array((1.0,1.0,0.0),dtype=np.float64)
+pos_offset_xyz = np.array((2.0,2.0,0.0),dtype=np.float64)
 pos_offset_xyz = np.tile(pos_offset_xyz,(sens_pos.shape[0],1))
 
-pos_rand = sens.GenUniform(low=-1.0,high=1.0)  # units = mm
+pos_rand = sens.GenUniform(low=-2.0,high=2.0)  # units = mm
 
 angle_offset = np.zeros_like(sens_pos)
 angle_offset[:,0] = 1.0 # only rotate about z in 2D, units = degrees
 
-angle_rand = sens.GenUniform(low=-2.0,high=2.0)
+angle_rand = sens.GenUniform(low=-5.0,high=5.0)
 
 field_err_data = sens.ErrFieldData(pos_offset_xyz=pos_offset_xyz,
                                    pos_rand_xyz=(pos_rand,pos_rand,None),
@@ -157,8 +157,8 @@ strain_err_chain.append(sens.ErrSysField(strain_sens.get_field(),
 strain_sens.set_error_chain(strain_err_chain)
 
 #%%
-# 3. Simulate measurements   
-# ------------------------
+# 3. Run a simulated experiment   
+# -----------------------------
 # We run our sensor simulation as normal but we note that the second
 # dimension of our measurement array will have either 2 vector components  for 
 # the displacement sensors in 2D or 3 tensor components for the strain sensors
@@ -193,8 +193,8 @@ print("\n"+80*"-")
 
 
 #%%
-# 4. Visualise simulation & results
-# ---------------------------------
+# 4. Analyse & visualise the results
+# ----------------------------------
 # Now we visualise the sensor locations on the mesh and save these images to 
 # disk. As we have used sensor positioning errors in our error chain the 
 # perturbed sensor locations are shown on the sensor location visualisation as
@@ -206,34 +206,66 @@ if not output_path.is_dir():
 
 
 pv_plot = sens.plot_point_sensors_on_sim(disp_sens,"disp_y")
-# Uncomment to show a visualisation of the displacement sensors
+pv_plot.camera_position = "xy"
+
+save_render = output_path / "basics_ex2_disp_locs.png"
+pv_plot.off_screen = True
+pv_plot.screenshot(save_render)
+
+# Uncomment to show interactive figure and set off_screen = False above
 # pv_plot.show(cpos="xy")
 
-save_render = output_path / "basic_sensorsim_ex2_disp_locs.svg"
-pv_plot.save_graphic(save_render)
+# %%
+# .. image:: ../../../../_static/basics_ex2_disp_locs.png
+#    :alt: Location of virtual strain sensors
+#    :width: 800px
+#    :align: center
 
 pv_plot = sens.plot_point_sensors_on_sim(strain_sens,"strain_yy")
+pv_plot.camera_position = "xy"
+
+save_render = output_path / "basics_ex2_strain_locs.png"
+pv_plot.off_screen = True
+pv_plot.screenshot(save_render)
+
 # Uncomment to show a visualisation of the strain sensors
 # pv_plot.show(cpos="xy")
 
-save_render = output_path / "basic_sensorsim_ex2_strain_locs.svg"
-pv_plot.save_graphic(save_render)
+# %%
+# .. image:: ../../../../_static/basics_ex2_strain_locs.png
+#    :alt: Location of virtual strain sensors
+#    :width: 800px
+#    :align: center
 
 #%%
 # We also plot and save the time traces for our virtual  sensors for all 
 # components of the displacement and strain fields and save them to disk.
+
 for kk in disp_keys:
     (fig,ax) = sens.plot_time_traces(disp_sens,kk)
 
-    save_traces = output_path/f"basic_sensorsim_ex1_traces_{kk}.svg"
+    save_traces = output_path/f"basics_ex2_traces_{kk}.png"
     fig.savefig(save_traces, dpi=300, bbox_inches="tight")
+
+
+# %%
+# .. image:: ../../../../_static/basics_ex2_traces_disp_y.png
+#    :alt: Simulated displacement sensor traces.
+#    :width: 500px
+#    :align: center
     
 for kk in strain_keys:
     (fig,ax) = sens.plot_time_traces(strain_sens,kk)
     
-    save_traces = output_path/f"basic_sensorsim_ex1_traces_{kk}.svg"
+    save_traces = output_path/f"basics_ex2_traces_{kk}.png"
     fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 
 # Uncomment to show all traces plots
-plt.show()
+# plt.show()
+
+# %%
+# .. image:: ../../../../_static/basics_ex2_traces_strain_yy.png
+#    :alt: Simulated strain sensor traces
+#    :width: 500px
+#    :align: center
 

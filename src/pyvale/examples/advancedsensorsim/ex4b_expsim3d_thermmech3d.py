@@ -97,8 +97,7 @@ tc_pos_lock[:,0] = True
 tc_field_err_data = sens.ErrFieldData(pos_rand_xyz=tc_pos_rand,
                                         pos_lock_xyz=tc_pos_lock)
 tc_err_chain.append(sens.ErrSysField(tc_array.get_field(),
-
-                                    tc_field_err_data))
+                                     tc_field_err_data))
 #%%
 # We have finished our error chain so we can build our error integrator and
 # attach it to our thermocouple array.

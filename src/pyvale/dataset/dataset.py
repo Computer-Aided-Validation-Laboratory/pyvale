@@ -238,7 +238,7 @@ def thermomechanical_3d_path() -> Path:
 
 
 def thermomechanical_2d_experiment_paths() -> list[Path]:
-    """Path to a MOOSE simulation output in exodus format. This case is a
+    """List of paths to MOOSE simulation output in exodus format. This case is a
     thermo-mechanical analysis of a 2D plate with a heat flux applied on one
     edge and a heat transfer coefficient applied on the opposing edge. The
     mechanical deformation results from thermal expansion due to the imposed
@@ -254,12 +254,40 @@ def thermomechanical_2d_experiment_paths() -> list[Path]:
 
     Returns
     -------
-    Path
-        Path to the exodus (*.e) output file for this simulation case.
+    list[Path]
+        Paths to the exodus (*.e) output files for this simulated experiment.
     """
     return [Path(files("pyvale.data").joinpath("case18_1_out.e")),
             Path(files("pyvale.data").joinpath("case18_2_out.e")),
             Path(files("pyvale.data").joinpath("case18_3_out.e"))]
+
+def thermomechanical_3d_experiment_paths() -> list[Path]:
+    """List of paths to MOOSE simulation output in exodus format. This case is a
+    thermo-mechanical analysis of a 3D monoblock divertor armour with a heat
+    flux applied on the top surface and a heat transfer coefficient applied on 
+    the inner surface of the pipe. The mechanical deformation results from 
+    thermal expansion due to the imposed temperature gradient. This model is 
+    solved for the scalar temperature field, vector displacement and tensor 
+    strain field.
+
+    Here we analyse 3 separate experiments where the thermal conductivity and
+    thermal expansion coefficients of the material are perturbed from the 
+    nominal case by +/-10%.
+
+    The simulation parameters can be found in the corresponding MOOSE input
+    file: case16.i which can be retrieved using `sim_case_input_file_path`
+    in this class.
+
+    Returns
+    -------
+    list[Path]
+        Paths to the exodus (*.e) output files for this simulated experiment.
+    """
+
+    return [Path(files("pyvale.data").joinpath("case16_out.e")),
+            Path(files("pyvale.data").joinpath("case16_u_out.e")),
+            Path(files("pyvale.data").joinpath("case16_d_out.e"))]
+    
 
 
 def render_mechanical_3d_path() -> Path:

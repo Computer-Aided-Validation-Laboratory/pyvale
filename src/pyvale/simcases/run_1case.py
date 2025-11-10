@@ -15,7 +15,7 @@ from pyvale.mooseherder import (MooseConfig,
 
 #===============================================================================
 # Change this to run a different case
-CASE_STR = 'case00_HEX27'
+CASE_STR = 'case16_d'
 #===============================================================================
 
 CASE_FILES = (CASE_STR+'.geo',CASE_STR+'.i')
@@ -31,7 +31,7 @@ def main() -> None:
         gmsh_start = time.perf_counter()
         gmsh_runner.run(CASE_DIR / CASE_FILES[0],parse_only=False)
         gmsh_run_time = time.perf_counter()-gmsh_start
-
+    
     config = {'main_path': USER_DIR / 'moose',
               'app_path': USER_DIR / 'proteus',
               'app_name': 'proteus-opt'}
