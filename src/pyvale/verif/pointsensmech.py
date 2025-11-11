@@ -26,7 +26,7 @@ def simdata_mech_2d() -> mh.SimData:
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
-                                      disp_comps=("disp_x","disp_y"))
+                                      disp_keys=("disp_x","disp_y"))
     return sim_data
 
 def simdata_mesh_2d_nomesh() -> mh.SimData:
@@ -40,7 +40,7 @@ def simdata_mech_3d() -> mh.SimData:
     field_comps = ("disp_x","disp_y","disp_z")
     sim_data = sens.scale_length_units(scale=1000.0,
                                         sim_data=sim_data,
-                                        disp_comps=field_comps)
+                                        disp_keys=field_comps)
     return sim_data
 
 def simdata_mech_3d_nomesh() -> mh.SimData:
@@ -58,10 +58,10 @@ def sens_pos_2d(sim_data: mh.SimData) -> dict[str,np.ndarray]:
     z_lims = (0,0)
 
     n_sens = (1,4,1)
-    sens_pos["line-4"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-4"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
     n_sens = (2,3,1)
-    sens_pos["grid-23"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["grid-23"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
     return sens_pos
 
@@ -142,7 +142,7 @@ def err_chain_field(field: sens.IField,
                     sens_pos: np.ndarray,
                     samp_times: np.ndarray | None,
                     pos_lock: np.ndarray | None,
-                    ) -> list[sens.IErrCalculator]:
+                    ) -> list[sens.IErrSimulator]:
 
     if samp_times is None:
         samp_times = field.get_time_steps()
@@ -181,7 +181,7 @@ def err_chain_field_dep(field: sens.IField,
                         sens_pos: np.ndarray,
                         samp_times: np.ndarray | None,
                         pos_lock: np.ndarray | None,
-                        ) -> list[sens.IErrCalculator]:
+                        ) -> list[sens.IErrSimulator]:
 
     if samp_times is None:
         samp_times = field.get_time_steps()
@@ -222,7 +222,7 @@ def err_chain_2d_dict(field: sens.IField,
                       sens_pos: np.ndarray,
                       samp_times: np.ndarray | None,
                       pos_lock: np.ndarray | None
-                      ) -> dict[str,list[sens.IErrCalculator]]:
+                      ) -> dict[str,list[sens.IErrSimulator]]:
     err_cases = {}
     err_cases["none"] = None
     err_cases["basic"] = pointsens.err_chain_basic()
@@ -243,7 +243,7 @@ def err_chain_3d_dict(field: sens.IField,
                       sens_pos: np.ndarray,
                       samp_times: np.ndarray | None,
                       pos_lock: np.ndarray | None
-                      ) -> dict[str,list[sens.IErrCalculator]]:
+                      ) -> dict[str,list[sens.IErrSimulator]]:
     err_cases = {}
     err_cases["none"] = None
     err_cases["basic"] = pointsens.err_chain_basic()

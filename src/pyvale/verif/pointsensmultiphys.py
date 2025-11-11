@@ -17,13 +17,13 @@ import pyvale.dataset as dataset
 
 
 def load_simdata_list(data_paths: list[Path],
-                      disp_comps: tuple[str,...]) -> list[mh.SimData]:
+                      disp_keys: tuple[str,...]) -> list[mh.SimData]:
     sim_list = []
     for pp in data_paths:
         sim_data = mh.ExodusLoader(pp).load_all_sim_data()
         sim_data = sens.scale_length_units(scale=1000.0,
                                             sim_data=sim_data,
-                                            disp_comps=disp_comps)
+                                            disp_keys=disp_keys)
         sim_list.append(sim_data)
 
     return sim_list
@@ -31,8 +31,8 @@ def load_simdata_list(data_paths: list[Path],
 
 def simdata_list_2d() -> list[mh.SimData]:
     data_paths = dataset.thermomechanical_2d_experiment_paths()
-    disp_comps = ("disp_x","disp_y")
-    return load_simdata_list(data_paths,disp_comps)
+    disp_keys = ("disp_x","disp_y")
+    return load_simdata_list(data_paths,disp_keys)
 
 
 def simdata_list_3d() -> list[mh.SimData]:
@@ -40,8 +40,8 @@ def simdata_list_3d() -> list[mh.SimData]:
                   dataset.element_case_output_path(dataset.EElemTest.TET10),
                   dataset.element_case_output_path(dataset.EElemTest.HEX8),
                   dataset.element_case_output_path(dataset.EElemTest.HEX20)]
-    disp_comps = ("disp_x","disp_y","disp_z")
-    return load_simdata_list(data_paths,disp_comps)
+    disp_keys = ("disp_x","disp_y","disp_z")
+    return load_simdata_list(data_paths,disp_keys)
 
 
 def sens_pos_2d() -> dict[str,np.ndarray]:
@@ -54,7 +54,7 @@ def sens_pos_2d() -> dict[str,np.ndarray]:
     z_lims = (0,0)
 
     n_sens = (2,2,1)
-    sens_pos["grid-22"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["grid-22"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
     return sens_pos
 

@@ -36,10 +36,9 @@ def simdata_vec_2d_analytic_nomesh() -> mh.SimData:
 def sens_array_2d_noerrs(sim_data: mh.SimData,
                    sens_data: sens.SensorData,
                    elem_dims: int = 2) -> sens.SensorArrayPoint:
-    descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
+    descriptor = sens.DescriptorFactory.displacement()
     field = sens.FieldVector(sim_data,
-                            field_key="disp",
-                            components=("disp_x","disp_y"),
+                            comp_keys=("disp_x","disp_y"),
                             elem_dims=elem_dims)
     sens_array = sens.SensorArrayPoint(sens_data,
                                       field,
@@ -50,10 +49,9 @@ def sens_array_2d_noerrs(sim_data: mh.SimData,
 def sens_array_3d_noerrs(sim_data: mh.SimData,
                    sens_data: sens.SensorData,
                    elem_dims: int = 3) -> sens.SensorArrayPoint:
-    descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
+    descriptor = sens.DescriptorFactory.displacement()
     field = sens.FieldVector(sim_data,
-                            field_key="disp",
-                            components=("disp_x","disp_y","disp_z"),
+                            comp_keys=("disp_x","disp_y","disp_z"),
                             elem_dims=elem_dims)
     sens_array =  sens.SensorArrayPoint(sens_data,
                                        field,

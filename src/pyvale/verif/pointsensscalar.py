@@ -30,7 +30,7 @@ def simdata_2d() -> mh.SimData:
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
-                                      disp_comps=None)
+                                      disp_keys=None)
     return sim_data
 
 
@@ -50,7 +50,7 @@ def simdata_3d() -> mh.SimData:
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                       sim_data=sim_data,
-                                      disp_comps=None)
+                                      disp_keys=None)
     return sim_data
 
 def simdata_3d_nomesh() -> mh.SimData:
@@ -68,10 +68,10 @@ def sens_pos_2d(sim_data: mh.SimData) -> dict[str,np.ndarray]:
     z_lims = (0,0)
 
     n_sens = (4,1,1)
-    sens_pos["line-4"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-4"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
     n_sens = (2,2,1)
-    sens_pos["grid-22"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["grid-22"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
     return sens_pos
 
@@ -85,13 +85,13 @@ def sens_pos_3d(sim_data) -> dict[str,np.ndarray]:
     x_lims = (sim_dims["x"][1],sim_dims["x"][1])
     y_lims = sim_dims["y"]
     z_lims = sim_dims["z"]
-    sens_pos["line-y-yz"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-y-yz"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
     n_sens = (1,4,1)
     x_lims = (9.4,9.4) # Monoblock offset front face
     y_lims = sim_dims["y"]
     z_lims = (sim_dims["z"][1],sim_dims["z"][1])
-    sens_pos["line-y-xy"] = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-y-xy"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
     return sens_pos
 
@@ -136,7 +136,7 @@ def err_chain_sfield(field: sens.IField,
                     sens_pos: np.ndarray,
                     samp_times: np.ndarray | None,
                     pos_lock: np.ndarray | None,
-                    ) -> list[sens.IErrCalculator]:
+                    ) -> list[sens.IErrSimulator]:
 
     if samp_times is None:
         samp_times = field.get_time_steps()
@@ -171,7 +171,7 @@ def err_chain_sfield_dep(field: sens.IField,
                         sens_pos: np.ndarray,
                         samp_times: np.ndarray | None,
                         pos_lock: np.ndarray | None,
-                        ) -> list[sens.IErrCalculator]:
+                        ) -> list[sens.IErrSimulator]:
 
     if samp_times is None:
         samp_times = field.get_time_steps()
@@ -206,7 +206,7 @@ def calib_assumed(signal: np.ndarray) -> np.ndarray:
 def calib_truth(signal: np.ndarray) -> np.ndarray:
     return -0.01897 + 25.41881*signal - 0.42456*signal**2 + 0.04365*signal**3
 
-def err_chain_calib() -> list[sens.IErrCalculator]:
+def err_chain_calib() -> list[sens.IErrSimulator]:
     signal_calib_range = np.array((0.0,6.0),dtype=np.float64)
     cal_err = sens.ErrSysCalibration(calib_assumed,
                                     calib_truth,
@@ -219,7 +219,7 @@ def err_chain_2d_dict(field: sens.IField,
                       sens_pos: np.ndarray,
                       samp_times: np.ndarray | None,
                       pos_lock: np.ndarray | None
-                      ) -> dict[str,list[sens.IErrCalculator]]:
+                      ) -> dict[str,list[sens.IErrSimulator]]:
     err_cases = {}
     err_cases["none"] = None
     err_cases["basic"] = pointsens.err_chain_basic()
@@ -241,7 +241,7 @@ def err_chain_3d_dict(field: sens.IField,
                       sens_pos: np.ndarray,
                       samp_times: np.ndarray | None,
                       pos_lock: np.ndarray | None
-                      ) -> dict[str,list[sens.IErrCalculator]]:
+                      ) -> dict[str,list[sens.IErrSimulator]]:
     err_cases = {}
     err_cases["none"] = None
     err_cases["basic"] = pointsens.err_chain_basic()
@@ -260,16 +260,18 @@ def err_chain_3d_dict(field: sens.IField,
 
 
 def sens_array_noerrs(sim_data: mh.SimData,
-                    sens_data: sens.SensorData,
-                    elem_dims: int) -> sens.SensorArrayPoint:
+                      sens_data: sens.SensorData,
+                     spatial_dims: sens.EDim) -> sens.SensorArrayPoint:
 
-    descriptor = sens.SensorDescriptorFactory.temperature_descriptor()
+    descriptor = sens.DescriptorFactory.temperature()
+
     field = sens.FieldScalar(sim_data,
-                            field_key="temperature",
-                            elem_dims=elem_dims)
+                             comp_key="temperature",
+                             spatial_dims=spatial_dims)
+
     sens_array =  sens.SensorArrayPoint(sens_data,
-                                       field,
-                                       descriptor)
+                                        field,
+                                        descriptor)
     return sens_array
 
 
@@ -282,7 +284,7 @@ def gen_sens_array_dict_2d(sim_data: mh.SimData,
     for ss in sens_data_dict:
         sens_array = sens_array_noerrs(sim_data,
                                     sens_data_dict[ss],
-                                    elem_dims=2)
+                                    spatial_dims=sens.EDim.TWOD)
 
         pos_lock = sens_pos_2d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
@@ -301,11 +303,8 @@ def gen_sens_array_dict_2d(sim_data: mh.SimData,
 
             if err_chain_dict[ee] is not None:
                 err_int_opts = sens.ErrIntOpts()
-                err_int = sens.ErrIntegrator(err_chain_dict[ee],
-                                            sens_data_dict[ss],
-                                            sens_dict[key].get_measurement_shape(),
-                                            err_int_opts=err_int_opts)
-                sens_dict[key].set_error_integrator(err_int)
+                sens_dict[key].set_error_chain(err_chain_dict[ee],
+                                               err_int_opts)
 
     return sens_dict
 
@@ -318,7 +317,7 @@ def gen_sens_array_dict_3d(sim_data: mh.SimData,
     for ss in sens_data_dict:
         sens_array = sens_array_noerrs(sim_data,
                                        sens_data_dict[ss],
-                                       elem_dims=3)
+                                       spatial_dims=3)
 
         pos_lock = sens_pos_3d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
@@ -337,11 +336,7 @@ def gen_sens_array_dict_3d(sim_data: mh.SimData,
 
             if err_chain_dict[ee] is not None:
                 err_int_opts = sens.ErrIntOpts()
-                err_int = sens.ErrIntegrator(err_chain_dict[ee],
-                                            sens_data_dict[ss],
-                                            sens_dict[key].get_measurement_shape(),
-                                            err_int_opts=err_int_opts)
-                sens_dict[key].set_error_integrator(err_int)
+                sens_dict[key].set_error_chain(err_chain_dict[ee],err_int_opts)
 
     return sens_dict
 

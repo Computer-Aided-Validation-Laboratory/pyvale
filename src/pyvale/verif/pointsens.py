@@ -46,7 +46,7 @@ def sens_data_dict(sim_data: mh.SimData,
     return sens_data
 
 
-def err_chain_basic() -> list[sens.IErrCalculator]:
+def err_chain_basic() -> list[sens.IErrSimulator]:
     chain_basic = []
     chain_basic.append(sens.ErrSysOffset(offset=-1.0))
     chain_basic.append(sens.ErrSysUnif(low=-1.0,
@@ -62,7 +62,7 @@ def err_chain_basic() -> list[sens.IErrCalculator]:
     return chain_basic
 
 
-def err_chain_gen() -> list[sens.IErrCalculator]:
+def err_chain_gen() -> list[sens.IErrSimulator]:
     chain_gen = []
     chain_gen.append(sens.ErrSysOffset(offset=-1.0))
     chain_gen.append(sens.ErrSysGen(
@@ -76,7 +76,7 @@ def err_chain_gen() -> list[sens.IErrCalculator]:
     return chain_gen
 
 
-def err_chain_dep() -> list[sens.IErrCalculator]:
+def err_chain_dep() -> list[sens.IErrSimulator]:
     chain_dep = []
     chain_dep.append(sens.ErrSysRoundOff(sens.ERoundMethod.ROUND,0.1))
     chain_dep.append(sens.ErrSysDigitisation(bits_per_unit=2**16/100))
@@ -84,8 +84,8 @@ def err_chain_dep() -> list[sens.IErrCalculator]:
     return chain_dep
 
 
-def err_chain_all(err_dict: dict[str,list[sens.IErrCalculator]]
-                  ) -> list[sens.IErrCalculator]:
+def err_chain_all(err_dict: dict[str,list[sens.IErrSimulator]]
+                  ) -> list[sens.IErrSimulator]:
     err_chain = []
     for ee in err_dict:
         if err_dict[ee] is not None:

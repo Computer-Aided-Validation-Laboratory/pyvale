@@ -35,7 +35,7 @@ def sens_array_2d_noerrs(sim_data: mh.SimData,
                          sens_data: sens.SensorData,
                          elem_dims: int = 2,
                          ) -> sens.SensorArrayPoint:
-    descriptor = sens.SensorDescriptorFactory.strain_descriptor()
+    descriptor = sens.DescriptorFactory.strain()
     field_name = "strain"
     norm_comps = ("strain_xx","strain_yy")
     dev_comps = ("strain_xy",)
@@ -54,7 +54,7 @@ def sens_array_3d_noerrs(sim_data: mh.SimData,
                          sens_data: sens.SensorData,
                          elem_dims: int = 3,
                          ) -> sens.SensorArrayPoint:
-    descriptor = sens.SensorDescriptorFactory.strain_descriptor()
+    descriptor = sens.DescriptorFactory.strain()
     field_name = "strain"
     norm_comps = ("strain_xx","strain_yy","strain_zz")
     dev_comps = ("strain_xy","strain_yz","strain_xz")
