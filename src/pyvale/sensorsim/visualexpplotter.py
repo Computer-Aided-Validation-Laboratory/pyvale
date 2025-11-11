@@ -18,12 +18,14 @@ from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
                                EExpVisBounds,
                                EExpVisCentre)
 from pyvale.sensorsim.experimentsimulator import ExperimentSimulator
+from pyvale.sensorsim.experimentstats import calc_sensor_array_stats
 
 
 def plot_exp_traces(exp_sim: ExperimentSimulator,
                     component: str,
                     sens_array_num: int,
                     sim_num: int,
+                    
                     trace_opts: TraceOptsExperiment | None = None,
                     plot_opts: PlotOptsGeneral | None = None) -> tuple[Any,Any]:
     """Plots time traces for summary statistics of virtual sensor traces over
@@ -66,16 +68,19 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
         plot_opts = PlotOptsGeneral()
 
     descriptor = exp_sim._sensor_arrays[sens_array_num]._descriptor
-    comp_ind = exp_sim._sensor_arrays[sens_array_num].get_field().get_component_index(component)
+    comp_ind = (
+        exp_sim._sensor_arrays[sens_array_num]
+        .get_field()
+        .get_component_index(component)
+    )
     samp_time = exp_sim._sensor_arrays[sens_array_num].get_sample_times()
     num_sens = exp_sim._sensor_arrays[sens_array_num].get_measurement_shape()[0]
 
     exp_data = exp_sim._exp_data
-    exp_stats = exp_sim._exp_stats
 
-    if exp_data is None or exp_stats is None:
+    if exp_data is None:
         raise VisError("Before visualising virtual experiment traces the " \
-        "virtual experiments must be run. exp_data or exp_stats is None.")
+        "virtual experiments must be run. exp_data is None.")
 
     if trace_opts.sensors_to_plot is None:
         sensors_to_plot = range(num_sens)
@@ -102,11 +107,15 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
 
     sensor_tags = descriptor.create_sensor_tags(num_sens)
     lines = []
+
+    # TODO: limit this to only calculate what we need for the fill and centre 
+    exp_stats = calc_sensor_array_stats(exp_data[sens_array_num])
+    
     for ss in sensors_to_plot:
         if trace_opts.centre == EExpVisCentre.MEDIAN:
-            trace_centre = exp_stats[sens_array_num].med[sim_num,ss,comp_ind,:]
+            trace_centre = exp_stats.med[sim_num,ss,comp_ind,:]
         else:
-            trace_centre = exp_stats[sens_array_num].mean[sim_num,ss,comp_ind,:]
+            trace_centre = exp_stats.mean[sim_num,ss,comp_ind,:]
 
         line, = ax.plot(samp_time,
                 trace_centre,
@@ -118,25 +127,22 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
         lines.append(line)
 
         if trace_opts.fill_between is not None:
-            upper = np.zeros_like(exp_stats[sens_array_num].min)
-            lower = np.zeros_like(exp_stats[sens_array_num].min)
-
-            if trace_opts.fill_between == EExpVisBounds.MINMAX:
-                upper = trace_opts.fill_scale*exp_stats[sens_array_num].min
-                lower = trace_opts.fill_scale*exp_stats[sens_array_num].max
+            if trace_opts.fill_between == EExpVisBounds.MINMAX:  
+                upper = trace_opts.fill_scale*exp_stats.min
+                lower = trace_opts.fill_scale*exp_stats.max
             elif trace_opts.fill_between == EExpVisBounds.QUARTILE:
-                upper = trace_opts.fill_scale*exp_stats[sens_array_num].q25
-                lower = trace_opts.fill_scale*exp_stats[sens_array_num].q75
+                upper = trace_opts.fill_scale*exp_stats.q25
+                lower = trace_opts.fill_scale*exp_stats.q75
             elif trace_opts.fill_between == EExpVisBounds.STD:
                 upper = trace_centre + \
-                        trace_opts.fill_scale*exp_stats[sens_array_num].std
+                        trace_opts.fill_scale*exp_stats.std
                 lower = trace_centre - \
-                        trace_opts.fill_scale*exp_stats[sens_array_num].std
+                        trace_opts.fill_scale*exp_stats.std
             elif trace_opts.fill_between == EExpVisBounds.MAD:
                 upper = trace_centre + \
-                        trace_opts.fill_scale*exp_stats[sens_array_num].mad
+                        trace_opts.fill_scale*exp_stats.mad
                 lower = trace_centre - \
-                        trace_opts.fill_scale*exp_stats[sens_array_num].mad
+                        trace_opts.fill_scale*exp_stats.mad
 
             ax.fill_between(samp_time,
                 upper[sim_num,ss,comp_ind,:],
@@ -147,9 +153,16 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     #---------------------------------------------------------------------------
     # Plot simulation and truth line
     if trace_opts.sim_line is not None:
-        sim_time = exp_sim._sensor_arrays[sens_array_num].get_field().get_time_steps()
-        sim_vals = exp_sim._sensor_arrays[sens_array_num].get_field().sample_field(
-                   exp_sim._sensor_arrays[sens_array_num]._positions)
+        sim_time = (
+            exp_sim._sensor_arrays[sens_array_num]
+            .get_field()
+            .get_time_steps()
+        )
+        sim_vals = (
+            exp_sim._sensor_arrays[sens_array_num]
+            .get_field()
+            .sample_field(exp_sim._sensor_arrays[sens_array_num]._positions)
+        )
 
         for ss in sensors_to_plot:
             ax.plot(sim_time,

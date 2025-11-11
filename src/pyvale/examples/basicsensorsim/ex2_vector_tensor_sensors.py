@@ -107,8 +107,8 @@ strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_no_errs(
 )
 
 #%%
-# 2.1. Add measurement errors
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # Now we are going to create an error that allows us to add uncertainty in the
 # sensor position and angle (as well as the sampling time and area averaging). 
 # In `pyvale` these are called field errors because we have to re-interpolate 
@@ -191,6 +191,13 @@ print(f"The last {time_last} virtual measurements of sensor "
 sens.print_measurements(strain_sens,sens_print,comp_print,time_print)
 print("\n"+80*"-")
 
+# %%
+# Example terminal output:
+#
+# .. image:: ../../../../_static/basics_ex2_term_out.png
+#    :alt: Terminal output showing simulated measurements and error array shapes
+#    :width: 700px
+#    :align: center
 
 #%%
 # 4. Analyse & visualise the results

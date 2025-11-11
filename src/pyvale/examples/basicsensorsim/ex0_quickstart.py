@@ -13,10 +13,10 @@ overall workflow for the `pyvale` sensor simulation engine - to see if `pyvale`
 is the right virtual laboratory for them. 
 
 The general workflow for the sensor simulation engine in pyvale is:
-1. Load physics simulation data
-2. Build virtual sensor arrays
-3. Create & run a simulated experiment
-4. Analyse & visualise the results
+1. Load physics simulation data;
+2. Build virtual sensor arrays (with errors);
+3. Create & run a simulated experiment; and
+4. Analyse & visualise the results.
 
 Users with experience in scientific and engineering simulation will recognise 
 the workflow as: setup/pre-processing; run simulation; post-processing, analysis
@@ -79,8 +79,8 @@ sensor_arrays: list[sens.ISensorArray] = [sens_array,]
 exp_sim = sens.ExperimentSimulator(sim_list,
                                    sensor_arrays)
 
-exp_data = exp_sim.run_experiments(num_exp_per_sim=100)
-exp_stats = exp_sim.calc_stats()
+exp_data: list[np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
+exp_stats: list[sens.ExperimentStats] = sens.calc_experiment_stats(exp_data)
 
 
 #%%

@@ -76,6 +76,8 @@ from .visualimagedef import *
 from .simtools import *
 
 from .experimentsimulator import *
+from .experimentstats import *
+
 from .output import *
 from .exceptions import *
 

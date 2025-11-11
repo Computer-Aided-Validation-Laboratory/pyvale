@@ -106,8 +106,8 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_no_errs(
 )
 
 #%%
-# 2.1. Add measurement errors
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # Now we add some simulated errors to our sensor array with an `error_chain` 
 # which is a list of objects that implement the `IErrSimulator` interface. 
 # `pyvale` will evaluate these errors in the order they are specified in the
@@ -116,7 +116,7 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_no_errs(
 # The error chain is the core of the `pyvale` sensor simulation engine and 
 # `pyvale`
 
-err_chain: list[sens.IErrSimulator] = [sens.ErrSysUnif(low=-5.0,high=5.0),]
+err_chain: list[sens.IErrSimulator] = [sens.ErrSysUnif(low=-10.0,high=10.0),]
 err_chain.append(sens.ErrRandNorm(std=5.0))
 
 sens_array.set_error_chain(err_chain)
@@ -162,6 +162,13 @@ print(f"\nThese are the last {time_last} virtual measurements of sensor "
 sens.print_measurements(sens_array,sens_print,comp_print,time_print)
 print("\n"+80*"-")
 
+# %%
+#
+# .. image:: ../../../../_static/basics_ex1_term_out.png
+#    :alt: Terminal output showing the simulated measurements
+#    :width: 700px
+#    :align: center
+
 #%%
 # 4. Analyse & visualise the results
 # ----------------------------------
@@ -202,6 +209,7 @@ pv_plot.screenshot(save_render)
 # pv_plot.show()
 
 # %%
+#
 # .. image:: ../../../../_static/basics_ex1_locs.png
 #    :alt: Simulated temperature sensor traces.
 #    :width: 800px
@@ -222,6 +230,7 @@ fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 # plt.show()
 
 # %%
+#
 # .. image:: ../../../../_static/basics_ex1_traces.png
 #    :alt: Simulated temperature sensor traces.
 #    :width: 500px
