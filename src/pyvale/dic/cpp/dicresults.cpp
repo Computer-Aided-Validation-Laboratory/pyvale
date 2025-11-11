@@ -14,7 +14,7 @@
 
 
 
-ResultArrays::ResultArrays(int num_def_img, int num_ss, int num_params, bool at_end){
+OptResultArrays::OptResultArrays(int num_def_img, int num_ss, int num_params, bool at_end){
 
     util::Timer timer("resizing of result arrays:");
     this->at_end = at_end;
@@ -43,7 +43,7 @@ ResultArrays::ResultArrays(int num_def_img, int num_ss, int num_params, bool at_
     }
 }
 
-void ResultArrays::append(Result &res, int img_num, int ss) {
+void OptResultArrays::append(OptResult &res, int img_num, int ss) {
     int idx;
     if (at_end) idx = img_num * num_ss + ss;
     else idx = ss;
@@ -61,18 +61,18 @@ void ResultArrays::append(Result &res, int img_num, int ss) {
     }
 }
 
-int ResultArrays::index(const int subset_idx, const int img_num){
+int OptResultArrays::index(const int subset_idx, const int img_num){
     int idx = at_end ? (img_num) * num_ss + subset_idx : subset_idx;
     return idx;
 }
 
-int ResultArrays::index_parameters(const int subset_idx, const int img_num){
+int OptResultArrays::index_parameters(const int subset_idx, const int img_num){
     int idx = index(subset_idx, img_num) * num_params;
     return idx;
 }
 
 
-void ResultArrays::write_to_disk(int img, const util::SaveConfig &saveconf,
+void OptResultArrays::write_to_disk(int img, const util::SaveConfig &saveconf,
                     const subset::Grid &ss_grid, const int num_def_img,
                     const std::vector<std::string> &filenames){
 

@@ -20,8 +20,7 @@
 #include "./dicinterpolator.hpp"
 #include "./dicoptimizer.hpp"
 #include "./dicshapefunc.hpp"
-#include "./dicutil.hpp"
-#include "./defines.hpp"
+#include "./dicresults.hpp"
 
 
 namespace optimizer {
@@ -33,7 +32,7 @@ namespace optimizer {
     void (*optimize_cost)(const subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &Interp, optimizer::Parameters &opt, const int global_x, const int global_y);
 
 
-    util::Results solve(const double ss_x, const double ss_y, subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt, const std::string &corr_crit){
+    OptResult solve(const double ss_x, const double ss_y, subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt, const std::string &corr_crit){
 
         int iter = 0;
         double ftol = 0;
@@ -76,14 +75,14 @@ namespace optimizer {
             // - cost is less than threshold
             if (corr_crit != "SSD") {
                 if ((xtol < opt.precision) && (ftol < opt.precision) && (opt.costp < 1.0-opt.opt_threshold)) {
-                    //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+                    //debug_print(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
                     converged=true; 
                     break;
                 }
             }
             else {
                 if ((xtol < opt.precision) && (ftol < opt.precision)) {
-                    //debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+                    //debug_print(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
                     converged=true; 
                     break;
                 }
@@ -91,7 +90,7 @@ namespace optimizer {
             iter++;
         }
 
-        util::Results res(opt.num_params);
+        OptResult res(opt.num_params);
         shapefunc::get_displacement(res, ss_x-global_x, ss_y-global_y, opt.p);
         res.iter = iter;
         res.ftol = ftol;
@@ -100,9 +99,12 @@ namespace optimizer {
         res.cost = opt.costp;
         res.converged = converged;
 
+       if (corr_crit!="SSD") 
+            res.cost = 1.0-res.cost;
+
         // debugging
         //if (iter == opt.max_iter) {
-        //  debugPrint(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
+        //  debug_print(ss_x, ss_y, iter, opt.costp, ftol, xtol, opt.p);
         //}
 
         return res;
@@ -382,6 +384,10 @@ namespace optimizer {
             mean_ref += ss_ref.vals[i];
             mean_def += ss_def.vals[i];
 
+            // std::cout << opt.p[0] << " " << opt.p[1] << " ";
+            // std::cout << global_x << " " << global_y << " ";
+            // std::cout << ss_ref.x[i] << " " << ss_ref.y[i] << " " << ss_ref.vals[i] << " ";
+            // std::cout << ss_def.x[i] << " " << ss_def.y[i] << " " << ss_def.vals[i] << std::endl;
         }
 
         mean_def /= num_px;

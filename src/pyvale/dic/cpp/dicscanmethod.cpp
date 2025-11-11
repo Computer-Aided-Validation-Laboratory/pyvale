@@ -6,6 +6,7 @@
 
 
 // STD library Header files
+#include <cstdlib>
 #include <queue>
 #include <atomic>
 #include <thread>
@@ -23,15 +24,19 @@
 #include "./cursor_control.hpp"
 #include "./dicfourier.hpp"
 #include "./dicsignalhandler.hpp"
+#include "./dicsubset.hpp"
+#include "./dicresults.hpp"
+#include "dicstrain.hpp"
 
 namespace scanmethod {
 
 
     void image(const double *img_ref,
                const Interpolator &interp_def,
-               const subset::Grid &ss_grid, 
+               const subset::Grid &ss_grid,
                const util::Config &conf,
-               const int img_num){
+               const int img_num,
+               OptResultArrays &result_arrays){
 
         const int num_ss = ss_grid.num;
         const int ss_size = ss_grid.size;
@@ -53,13 +58,8 @@ namespace scanmethod {
             // optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter,
                                     conf.precision, conf.opt_threshold,
-                                    conf.px_vert, conf.px_hori);
-
-            // if using SSD then not going to use opt_threshold. It can take
-            // any value. Convergence will be checked against precision only
-            if (conf.corr_crit=="SSD")
-                opt.opt_threshold = std::numeric_limits<double>::max();
-
+                                    conf.px_vert, conf.px_hori,
+                                    conf.corr_crit);
 
             #pragma omp for
             for (int ss = 0; ss < num_ss; ss++){
@@ -84,13 +84,10 @@ namespace scanmethod {
                 // perform optimization on subset from deformed image
                 double centre_x = ss_x + static_cast<double>(ss_grid.size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ss_grid.size)/2.0 - 0.5;
-                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
-
-                if (conf.corr_crit!="SSD")
-                    res.cost = 1-res.cost;
+                OptResult res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                 // append the results for the current subset to result vectors
-                util::append_results(img_num, ss, res, num_ss);
+                result_arrays.append(res, img_num, ss);
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
@@ -106,13 +103,13 @@ namespace scanmethod {
 
     }
 
-    void reliability_guided(const double *img_ref,
-                            const double *img_def,
-                            const Interpolator &interp_def,
-                            const std::vector<subset::Grid> &ss_grid,
-                            const util::Config &conf,
-                            const int img_num,
-                            const bool save_at_end){
+    void multi_grid_reliability_guided(const double *img_ref,
+                                       const double *img_def,
+                                       const Interpolator &interp_def,
+                                       const std::vector<subset::Grid> &ss_grid,
+                                       const util::Config &conf,
+                                       const int img_num,
+                                       OptResultArrays &result_arrays){
 
         // assign some consts for readability
         const int px_hori = conf.px_hori;
@@ -126,7 +123,7 @@ namespace scanmethod {
         const int ss_step = ss_grid[last_size].step;
 
         //TODO: sort this function name out
-        fourier::mgwd(ss_grid, img_ref, img_def, interp_def, 
+        fourier::multi_grid(ss_grid, img_ref, img_def, interp_def, 
                       conf.fft_mad, conf.fft_mad_scale);
 
         // progress bar
@@ -164,14 +161,8 @@ namespace scanmethod {
             // Optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
                                       conf.precision, conf.opt_threshold, 
-                                      px_vert, px_hori);
-
-            // if using SSD then not going to use opt_threshold. It can take
-            // any value. Convergence will be checked against precision only
-            if (conf.corr_crit=="SSD")
-                opt.opt_threshold = std::numeric_limits<double>::max();
-
-            // brute::Parameters brute(conf.bf_threshold, conf.max_disp);
+                                      px_vert, px_hori,
+                                      conf.corr_crit);
 
             std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
@@ -210,15 +201,10 @@ namespace scanmethod {
                 double centre_x = seed_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = seed_y + static_cast<double>(ss_size)/2.0 - 0.5;
 
-                util::Results seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
-
-                // if its not SSD, then we need to flip the cost values so that 1.0
-                // is a perfect match rather than 0.0
-                if (conf.corr_crit!="SSD")
-                    seed_res.cost = 1.0-seed_res.cost;
+                OptResult seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                 // append the results for the current subset to result vectors
-                util::append_results(img_num, idx, seed_res, num_ss);
+                result_arrays.append(seed_res, img_num, idx);
 
                 computed_mask[idx].store(1);
 
@@ -241,15 +227,10 @@ namespace scanmethod {
                     // perform optimization for seed point neighbours
                     double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
                     double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
-                    util::Results nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
-                    
-                    // if its not SSD, then we need to flip the cost values so that 1.0
-                    // is a perfect match rather than 0.0
-                    if (conf.corr_crit!="SSD")
-                        nres.cost = 1.0-nres.cost;
+                    OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                     // append the results for the current subset to result vectors
-                    util::append_results(img_num, nidx, nres, num_ss);
+                    result_arrays.append(nres, img_num, nidx);
 
                     // update mask
                     computed_mask[nidx].store(1);
@@ -326,8 +307,8 @@ namespace scanmethod {
 
 
                 // index of current point in results arrays
-                int idx_results = save_at_end ? img_num * num_ss + current.idx : current.idx;
-                int idx_results_p = idx_results * opt.num_params;
+                int idx_results = result_arrays.index(current.idx, img_num);
+                int idx_results_p = result_arrays.index_parameters(current.idx, img_num);
 
                 // loop over neighbouring points
                 for (size_t n = 0; n < ss_grid[last_size].neigh[current.idx].size(); n++) {
@@ -347,31 +328,25 @@ namespace scanmethod {
                         subset::get_px_from_img(ss_ref, nx, ny, px_hori, px_vert, img_ref);
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
-                        if (util::cost_arr[idx_results] < opt.opt_threshold){
+                        if (result_arrays.cost[idx_results] < opt.opt_threshold){
                             std::fill(opt.p.begin(), opt.p.end(), 0.0);
                             opt.p[0] = fourier::shifts[last_size].x[nidx];
                             opt.p[1] = fourier::shifts[last_size].y[nidx];
                         }
                         else {
                             for (int i = 0; i < opt.num_params; i++){
-                                opt.p[i] = util::p_arr[idx_results_p+i];
+                                opt.p[i] = result_arrays.p[idx_results_p+i];
                             }
                         }
 
                         // optimize
                         double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
                         double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
-                        util::Results nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
-
-
-                        // if its not SSD, then we need to flip the cost values so that 1.0
-                        // is a perfect match rather than 0.0
-                        if (conf.corr_crit!="SSD")
-                            nres.cost = 1.0-nres.cost;
+                        OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                         // append results
                         #pragma omp critical(append_results)
-                            util::append_results(img_num, nidx, nres, num_ss);
+                            result_arrays.append(nres, img_num, nidx);
 
                         // add results to temp neighbour results
                         temp_neigh.emplace_back(nidx, nres.cost);
@@ -396,17 +371,349 @@ namespace scanmethod {
 
     }
 
+    void incremental_reliability_guided(const double *img_ref,
+                                        const double *img_def,
+                                        const Interpolator &interp_ref,
+                                        const Interpolator &interp_def,
+                                        const std::vector<subset::Grid> &ss_grid,
+                                        const util::Config &conf,
+                                        const int img_num_ref,
+                                        const int img_num_def,
+                                        OptResultArrays &result_arrays){
+
+
+        // assign some consts for readability
+        const int px_hori = conf.px_hori;
+        const int px_vert = conf.px_vert;
+        int seed_x = conf.rg_seed.first;
+        int seed_y = conf.rg_seed.second;
+        const int nsizes = ss_grid.size();
+        const int last_size = nsizes-1;
+        const int num_ss = ss_grid[last_size].num;
+        const int ss_size = ss_grid[last_size].size;
+        const int ss_step = ss_grid[last_size].step;
+
+        // get start location of displacements in previous image
+        double *prev_img_u = result_arrays.u.data() + result_arrays.index(0,std::max(0,img_num_ref-1));
+        double *prev_img_v = result_arrays.v.data() + result_arrays.index(0,std::max(0,img_num_ref-1));
+
+        // get rigid shifts from fourier
+        // fourier::single_grid(ss_grid[last_size], prev_img_u, prev_img_v,
+        //                      conf.max_disp, img_ref, img_def, interp_def);
+
+        indicators::ProgressBar bar;
+        util::create_progress_bar(bar, conf.filenames[img_num_def], num_ss);
+        std::atomic<int> current_progress(0);
+        int prev_pct = 0;
+
+        // quick check for the initial seed point
+        // if (!rg::is_valid_point(seed_x, seed_y, ss_grid[last_size])) {
+        //     return;
+        // }
+
+        // Initialize binary mask for computed points (initialized to 0)
+        std::vector<std::atomic<int>> computed_mask(ss_grid[last_size].mask.size());
+        for (auto& val : computed_mask) val.store(0); 
+
+        // queue for each thread
+        std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
+
+        // Mutex vector to protect each queue
+        std::vector<std::mutex> queue_mutexes(omp_get_max_threads());
+
+        # pragma omp parallel
+        {
+
+            int tid = omp_get_thread_num();
+            std::priority_queue<rg::Point>& thread_q = local_q[tid];
+
+            // Initialize ref and def subsets
+            subset::Pixels ss_def(ss_size);
+            subset::Pixels ss_ref(ss_size);
+
+            // Optimization parameters
+            optimizer::Parameters opt(conf.num_params, conf.max_iter, 
+                                      conf.precision, conf.opt_threshold, 
+                                      px_vert, px_hori,
+                                      conf.corr_crit);
+
+            std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
+
+            for (size_t t = 0; t < ss_grid.size(); ++t) {
+                fft_windows.push_back(std::make_unique<fourier::FFT>(ss_grid[t].size));
+            }
+
+            // TODO: opt.seed_iter exposed to user.
+            opt.max_iter = 200;
+
+            // ---------------------------------------------------------------------------------------------------------------------------
+            // PROCESS THE SEED SUBSET 
+            // ---------------------------------------------------------------------------------------------------------------------------
+            if (tid == 0) {
+
+                // seed coordinates
+                int x = seed_x / ss_step;
+                int y = seed_y / ss_step;
+                int idx = ss_grid[last_size].mask[y * ss_grid[last_size].num_ss_x + x];
+
+
+                // need to add offset based on previous image displacements
+                double seed_x_new = seed_x + prev_img_u[idx];
+                double seed_y_new = seed_y + prev_img_v[idx];
+
+                // reference subset based on results from previous image
+                subset::get_subpx_from_img(ss_ref, seed_x_new, seed_y_new, interp_ref);
+
+
+                // if the first image. Take the optimization parameters from rigid fourier
+                std::fill(opt.p.begin(), opt.p.end(), 0.0);
+                fourier::get_single_window_fftcc_peak(opt.p[0], opt.p[1],
+                                                      seed_x_new, seed_y_new,
+                                                      ss_size, conf.max_disp,
+                                                      img_ref, img_def,
+                                                      interp_def);
+
+
+                //std::cout << "PEAK " << opt.p[0] << " " << opt.p[1] << std::endl;
+                double centre_x = seed_x_new + static_cast<double>(ss_size)/2.0 - 0.5;
+                double centre_y = seed_y_new + static_cast<double>(ss_size)/2.0 - 0.5;
+                
+                OptResult seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
+
+                if (!seed_res.converged){
+                    std::cout << "ERROR: unsuccesful convergence at seed location." << std::endl;
+                    std::cout << "Please select a different seed location." << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+
+                // add deformation from reference image to new results
+                seed_res.u += prev_img_u[idx];
+                seed_res.v += prev_img_v[idx];
+
+                // append the results for the current subset to result vectors
+                result_arrays.append(seed_res, img_num_def-1, idx);
+
+                // mark subset as computed
+                computed_mask[idx].store(1);
+
+                // loop over the neighbours for the initial seed point
+                for (size_t n = 0; n < ss_grid[last_size].neigh[idx].size(); n++) {
+
+                    // subset index of neighbour to the current point
+                    int nidx = ss_grid[last_size].neigh[idx][n];
+
+                    double nx = ss_grid[last_size].coords[nidx*2];
+                    double ny = ss_grid[last_size].coords[nidx*2+1];
+                        
+
+                    // need to add displacements from previous image
+                    nx += prev_img_u[nidx];
+                    ny += prev_img_v[nidx];
+
+
+                    subset::get_subpx_from_img(ss_ref, nx, ny, interp_ref);
+
+                    // get initial guess at parameter values from seed point
+                    int index_p = result_arrays.index_parameters(idx,img_num_def-1);
+                    for (int i = 0; i < opt.num_params; i++){
+                        opt.p[i] = result_arrays.p[index_p+i];
+                    }
+
+                    // perform optimization for seed point neighbours
+                    double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
+                    double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
+                    OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
+
+                    // add deformation from reference image to new results
+                    nres.u += prev_img_u[nidx];
+                    nres.v += prev_img_v[nidx];
+
+                    if (!nres.converged){
+                        std::cout << "ERROR: unsuccesful convergence at neighbouring point to seed." << std::endl;
+                        std::cout << "Please select a different seed location." << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+
+                    // append the results for the current subset to result vectors
+                    result_arrays.append(nres, img_num_def-1, nidx);
+
+                    // update mask
+                    computed_mask[nidx].store(1);
+
+                    // add this point to queue
+                    // Protect push with mutex
+                    {
+                        std::lock_guard<std::mutex> lock(queue_mutexes[0]);
+                        local_q[0].push(rg::Point(nidx,nres.cost));
+                    }
+
+                    // update progress bar
+                    int progress = current_progress.fetch_add(1);
+                    util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                }
+            }
+
+
+            // ---------------------------------------------------------------------------------------------------------------------------
+            // PROCESS ALL OTHER SUBSETS
+            // ---------------------------------------------------------------------------------------------------------------------------
+            #pragma omp barrier
+
+            // TODO: reset seed location using the last computed point
+            opt.max_iter = conf.max_iter;
+
+            std::vector<rg::Point> temp_neigh;
+            temp_neigh.reserve(4);
+
+            const int max_idle_iters = 100;
+            rg::Point current(0, 0);
+
+            while (!stop_request) {
+                bool got_point = false;
+                int idle_iters = 0;
+
+                // Try own queue safely
+                {
+                    std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
+                    if (!thread_q.empty()) {
+                        current = thread_q.top();
+                        thread_q.pop();
+                        got_point = true;
+                    }
+                }
+
+                // Steal if nothing in own queue
+                if (!got_point) {
+                    while (!got_point && idle_iters < max_idle_iters) {
+                        #pragma omp critical(queue_check)
+                        {
+                            for (size_t i = 0; i < local_q.size(); ++i) {
+                                std::lock_guard<std::mutex> lock(queue_mutexes[i]);
+                                if (!local_q[i].empty()) {
+                                    current = local_q[i].top();
+                                    local_q[i].pop();
+                                    got_point = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!got_point) {
+                            ++idle_iters;
+                            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        }
+                    }
+                }
+
+                if (!got_point) {
+                    break;
+                }
+
+                temp_neigh.clear();
+
+
+                // index of current point in results arrays
+                int idx_results_def = result_arrays.index(current.idx, img_num_def-1);
+                int idx_results_def_p = result_arrays.index_parameters(current.idx, img_num_def-1);
+
+
+                // loop over neighbouring points
+                for (size_t n = 0; n < ss_grid[last_size].neigh[current.idx].size(); n++) {
+
+                    // subset index of neighbour to the current point
+                    int nidx = ss_grid[last_size].neigh[current.idx][n];
+
+                    int expected = 0;
+                    expected = computed_mask[nidx].exchange(1);
+                    if (expected == 0) {
+
+                        // coords of neigh
+                        double nx = ss_grid[last_size].coords[nidx*2];
+                        double ny = ss_grid[last_size].coords[nidx*2+1];
+
+                        // add displacements from reference image
+                        nx += prev_img_u[nidx];
+                        ny += prev_img_v[nidx];
+
+                        // temporarily fill p with results from prev img to get
+                        // updated reference subset
+                        int idx_results_ref = result_arrays.index(nidx, img_num_ref);
+                        int idx_results_p_ref = result_arrays.index_parameters(nidx, img_num_ref);
+
+                        for (int i = 0; i < opt.num_params; i++){
+                                opt.p[i] = result_arrays.p[idx_results_p_ref+i];
+                        }
+
+                        subset::get_subpx_from_shape_params(ss_ref, nx, ny, opt.p, interp_ref);
+
+
+                        // if the neighbouring subset had not met correlation threshold then try values from fft windowing
+                        if (result_arrays.cost[idx_results_def] < opt.opt_threshold){
+                            std::fill(opt.p.begin(), opt.p.end(), 0.0);
+                            fourier::get_single_window_fftcc_peak(opt.p[0], opt.p[1],
+                                                                  nx, ny,
+                                                                  ss_size, conf.max_disp,
+                                                                  img_ref, img_def,
+                                                                  interp_def);
+                        }
+                        else {
+                            for (int i = 0; i < opt.num_params; i++){
+                                opt.p[i] = result_arrays.p[idx_results_def_p+i];
+                            }
+                        }
+
+                        // optimize
+                        double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
+                        double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
+
+                        OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
+
+                        // add deformation from reference image to new results
+                        if (nres.converged){
+                            nres.u += prev_img_u[nidx];
+                            nres.v += prev_img_v[nidx];
+                        }
+                        else {
+                            nres.u = prev_img_u[nidx];
+                            nres.v = prev_img_v[nidx];
+                        }
+
+                        // append results
+                        #pragma omp critical(append_results)
+                            result_arrays.append(nres, img_num_def-1, nidx);
+
+                        // add results to temp neighbour results
+                        temp_neigh.emplace_back(nidx, nres.cost);
+
+                        // update progress bar
+                        int progress = current_progress.fetch_add(1);
+                        if (tid==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
+
+                    }
+                }
+
+                for (const auto& neigh : temp_neigh) {
+                    std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
+                    thread_q.push(neigh);
+                }
+            }
+        }
+        int progress = current_progress;
+        util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
+        bar.mark_as_completed();
+        indicators::show_console_cursor(true);
+    }
 
     void multi_window_fourier(const double *img_ref,
                               const double *img_def,
                               const Interpolator &interp_def,
                               const std::vector<subset::Grid> &ss_grid,
                               const util::Config &conf,
-                              const int img_num){
+                              const int img_num,
+                              OptResultArrays &result_arrays){
 
         // for the first image perform the FFT windowing. later images will be
         // seeded with previous images
-        fourier::mgwd(ss_grid, img_ref, img_def, interp_def, 
+        fourier::multi_grid(ss_grid, img_ref, img_def, interp_def, 
                       conf.fft_mad, conf.fft_mad_scale);
 
         const int nsizes = ss_grid.size();
@@ -432,8 +739,9 @@ namespace scanmethod {
 
             // optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                    conf.precision, conf.opt_threshold,
-                                    conf.px_vert, conf.px_hori);
+                                      conf.precision, conf.opt_threshold,
+                                      conf.px_vert, conf.px_hori,
+                                      conf.corr_crit);
             
 
             #pragma omp for
@@ -459,17 +767,12 @@ namespace scanmethod {
                 // perform optimization on subset from deformed image
                 double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
-                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
-                
+                OptResult res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
-                // if its not SSD, then we need to flip the cost values so that 1.0
-                // is a perfect match rather than 0.0
-                if (conf.corr_crit!="SSD")
-                    res.cost = 1.0-res.cost;
 
                 // append optimization results to results vectors
                 #pragma omp critical(append_results)
-                    util::append_results(img_num, ss, res, num_ss);
+                    result_arrays.append(res, img_num, ss);
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
@@ -483,15 +786,16 @@ namespace scanmethod {
 
 
     void single_window_fourier(const double *img_ref,
-                              const double *img_def,
-                              const Interpolator &interp_def,
-                              const subset::Grid &ss_grid,
-                              const util::Config &conf,
-                              const int img_num){
+                               const double *img_def,
+                               const Interpolator &interp_def,
+                               const subset::Grid &ss_grid,
+                               const util::Config &conf,
+                               const int img_num,
+                               OptResultArrays &result_arrays){
 
         // for the first image perform the FFT windowing. later images will be
         // seeded with previous images
-        fourier::sgwd(ss_grid, 256, img_ref, img_def, interp_def);
+        //fourier::single_grid(ss_grid, 256, img_ref, img_def, interp_def);
 
         // get number of subsets and the size for the smalllest window size
         const int num_ss  = ss_grid.num;
@@ -514,7 +818,8 @@ namespace scanmethod {
             // optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
                                     conf.precision, conf.opt_threshold,
-                                    conf.px_vert, conf.px_hori);
+                                    conf.px_vert, conf.px_hori,
+                                    conf.corr_crit);
 
 
             #pragma omp for
@@ -540,15 +845,10 @@ namespace scanmethod {
                 // perform optimization on subset from deformed image
                 double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
                 double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
-                util::Results res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
-                
-                // if its not SSD, then we need to flip the cost values so that 1.0
-                // is a perfect match rather than 0.0
-                if (conf.corr_crit!="SSD")
-                    res.cost = 1.0-res.cost;
+                OptResult res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                 // append optimization results to results vectors
-                util::append_results(img_num, ss, res, num_ss);
+                result_arrays.append(res, img_num, ss);
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);

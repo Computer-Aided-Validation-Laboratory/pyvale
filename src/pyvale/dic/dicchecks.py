@@ -183,7 +183,7 @@ def check_scanning_method(scanning_method: str) -> None:
 
     """
 
-    allowed_values = {"RG", "IMAGE_SCAN", "FFT", "IMAGE_SCAN_WITH_BF", "FFT_test"}
+    allowed_values = {"RG", "RG_incremental", "IMAGE_SCAN", "FFT", "IMAGE_SCAN_WITH_BF", "FFT_test"}
 
     if scanning_method not in allowed_values:
         raise ValueError(f"Invalid scanning_method: {scanning_method}. "
@@ -289,7 +289,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
         If the seed is improperly formatted, out of image bounds, or not a list of two integers.
     """
 
-    if scanning_method != "RG":
+    if scanning_method not in ("RG", "RG_incremental"):
         return [0,0]
 
     if (len(seed) != 2):
@@ -335,7 +335,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
 
 def check_and_get_images(reference: np.ndarray | str | Path,
                          deformed: np.ndarray | str | Path,
-                         roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[str]]:
+                         roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """
     Load and validate reference and deformed images, checks consistency in shape/format.
 
@@ -363,12 +363,10 @@ def check_and_get_images(reference: np.ndarray | str | Path,
 
     Returns
     -------
-    ref_arr : np.ndarray
-        The reference image as a 2D NumPy array.
-    def_arr : np.ndarray
+    image_stack: np.ndarray
         A 3D NumPy array containing all deformed images with shape (N, H, W).
     filenames : list of str
-        List of base filenames of deformed images (empty if deformed images were passed as arrays).
+        List of base filenames of all images (empty if images are passed as arrays).
 
     Raises
     ------
@@ -412,6 +410,8 @@ def check_and_get_images(reference: np.ndarray | str | Path,
             print(f"Reference image appears to have {ref_arr.shape[2]} channels. Using channel 0.")
             ref_arr = ref_arr[:, :, 0]
         print("")
+
+        filenames.append(os.path.basename(reference))
 
         # Find deformation image files
         files = sorted(glob.glob(str(deformed)))
@@ -458,7 +458,10 @@ def check_and_get_images(reference: np.ndarray | str | Path,
     # and therefore we need to to prevent the roi mask from being a 'view'
     roi_c = np.ascontiguousarray(roi)
 
-    return ref_arr, def_arr, roi_c, filenames
+    # Build image stack: reference first, then deformed images
+    image_stack = np.concatenate(([ref_arr], def_arr), axis=0)
+
+    return image_stack, roi_c, filenames
 
 
 

@@ -21,7 +21,7 @@ namespace shapefunc {
     // Function pointer 
     extern void (*get_pixel)(double &, double &, const double, const double, const std::vector<double> &);
     extern void (*get_dshape_dp)(std::vector<double>&, double, double, double, double);
-    extern void (*get_displacement)(Result &result, double ss_x, double ss_y, std::vector<double> &p);
+    extern void (*get_displacement)(OptResult &result, double ss_x, double ss_y, std::vector<double> &p);
 
     // Shape function declarations
     inline void get_pixel_affine(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);

@@ -18,7 +18,7 @@ namespace shapefunc {
     // Function pointer 
     void (*get_pixel)(double &, double &, const double, const double, const std::vector<double> &);
     void (*get_dshape_dp)(std::vector<double>&, double, double, double, double);
-    void (*get_displacement)(Result &results, double ss_x, double ss_y, std::vector<double> &p);
+    void (*get_displacement)(OptResult &results, double ss_x, double ss_y, std::vector<double> &p);
 
 
     // Shape function declarations
@@ -37,7 +37,7 @@ namespace shapefunc {
         y_new = p[1] + (1.0+p[5])*y + p[4]*x + p[9]*x*x + p[10]*x*y + p[11]*y*y;
     }
 
-    inline void get_displacement_from_quad(Result &res, double ss_x, double ss_y, std::vector<double> &p){
+    inline void get_displacement_from_quad(OptResult &res, double ss_x, double ss_y, std::vector<double> &p){
         double x_new = p[0] + (1.0+p[2])*ss_x + p[3]*ss_y + p[6]*ss_x*ss_x + p[7]*ss_x*ss_y + p[8]*ss_y*ss_y;
         double y_new = p[1] + (1.0+p[5])*ss_y + p[4]*ss_x + p[9]*ss_x*ss_x + p[10]*ss_x*ss_y + p[11]*ss_y*ss_y;
         res.u = x_new - ss_x;
@@ -45,7 +45,7 @@ namespace shapefunc {
         res.mag = std::sqrt(res.u * res.u + res.v * res.v);
     }
 
-    inline void get_displacement_from_affine(Result &res, double ss_x, double ss_y, std::vector<double> &p){
+    inline void get_displacement_from_affine(OptResult &res, double ss_x, double ss_y, std::vector<double> &p){
         double x_new = p[0] + (1.0+p[2]) * ss_x + p[3] * ss_y;
         double y_new = p[1] + (1.0+p[5]) * ss_y + p[4] * ss_x;
         res.u = x_new - ss_x;
@@ -53,7 +53,7 @@ namespace shapefunc {
         res.mag = std::sqrt(res.u * res.u + res.v * res.v);
     }
 
-    inline void get_displacement_from_rigid(Result &res, double ss_x, double ss_y, std::vector<double> &p){
+    inline void get_displacement_from_rigid(OptResult &res, double ss_x, double ss_y, std::vector<double> &p){
         res.u = p[0];
         res.v = p[1];
         res.mag = std::sqrt(res.u*res.u + res.v*res.v);

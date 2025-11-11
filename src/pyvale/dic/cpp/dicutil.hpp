@@ -88,35 +88,6 @@ namespace util {
     };
 
 
-    // result arrays.
-    extern std::vector<int> niter_arr;
-    extern std::vector<double> u_arr; 
-    extern std::vector<double> v_arr;
-    extern std::vector<double> p_arr;
-    extern std::vector<double> ftol_arr;
-    extern std::vector<double> xtol_arr;
-    extern std::vector<double> cost_arr;
-
-
-
-
-
-    struct Results {
-        std::vector<double> p;
-        double u = 0.0;
-        double v = 0.0;
-        double mag = 0.0;
-        double ftol = 0.0;
-        double xtol = 0.0;
-        int iter = 0;
-        double cost = 0.0;
-        uint8_t converged = false;
-
-        Results(size_t num_params) : p(num_params, 0.0) {}
-    };
-
-
-
     /**
      * @brief Represents an image with pixel data and dimensions.
      * 
@@ -148,24 +119,6 @@ namespace util {
                        int px_hori,
                        int px_vert);
 
-
-           
-    
-
-    void append_results(int img_num, int ss, 
-                        util::Results &res, int num_ss);
-
-    void resize_results(int num_def_img, int num_ss,
-                        int num_params, bool at_end);
-
-    void save_to_disk(int img, const util::SaveConfig &saveconf,
-                      const subset::Grid &ss_grid, const int num_def_img,
-                      const int num_params, const std::vector<std::string> &filenames);
-
-
-
-
-    
     inline void write_int(std::ofstream& out, int val) {
         out.write(reinterpret_cast<const char*>(&val), sizeof(int));
     }

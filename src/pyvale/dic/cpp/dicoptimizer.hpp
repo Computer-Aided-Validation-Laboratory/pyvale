@@ -12,7 +12,7 @@
 #include <vector>
 
 // Program Header files
-#include "./dicutil.hpp"
+#include "./dicresults.hpp"
 #include "./dicinterpolator.hpp"
 
 
@@ -45,7 +45,8 @@ namespace optimizer {
 
         // Constructor to initialize vectors and other parameters
         Parameters(int num_params_, int max_iter_, double precision_, 
-                   double opt_threshold_, int px_vert_, int px_hori_)
+                   double opt_threshold_, int px_vert_, int px_hori_,
+                   const std::string& corr_crit)
             :
             num_params(num_params_),
             lambda(0.01),
@@ -63,7 +64,10 @@ namespace optimizer {
             precision(precision_),
             opt_threshold(opt_threshold_),
             px_vert(px_vert_),
-            px_hori(px_hori_) {}
+            px_hori(px_hori_) {
+                if (corr_crit == "SSD")
+                    opt_threshold = std::numeric_limits<double>::max();
+            }
     };
 
     /**
@@ -96,9 +100,9 @@ namespace optimizer {
      * @param ss_def 
      * @param interp_ref 
      * @param opt 
-     * @return util::Results 
+     * @return OptResult 
      */
-    util::Results solve(const double ss_x, const double ss_y, subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt, const std::string &corr_crit);
+    OptResult solve(const double ss_x, const double ss_y, subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt, const std::string &corr_crit);
 
     /**
      * @brief calcutes the Sum of Squared Differences (SSD) between reference and deformed subsets.
@@ -250,7 +254,7 @@ namespace optimizer {
      * @param[in] ss_y subset y coordinate
      * @param[in] p shape function parameters
      */
-    void quad_parameters_to_displacement(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
+    void quad_parameters_to_displacement(OptResult &results, double ss_x, double ss_y, std::vector<double> &p);
 
     /**
      * @brief Funcion to convert affine shape function parameters to displacement values
@@ -260,7 +264,7 @@ namespace optimizer {
      * @param[in] ss_y subset y coordinate
      * @param[in] p shape function parameters
      */
-    void affine_parameters_to_displacement(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
+    void affine_parameters_to_displacement(OptResult &results, double ss_x, double ss_y, std::vector<double> &p);
 
     /**
      * @brief Funcion to convert affine shape function parameters to displacement values
@@ -270,7 +274,7 @@ namespace optimizer {
      * @param[in] ss_y subset y coordinate
      * @param[in] p shape function parameters
      */
-    void rigid_parameters_to_displacement(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
+    void rigid_parameters_to_displacement(OptResult &results, double ss_x, double ss_y, std::vector<double> &p);
 
 }
 

@@ -14,7 +14,7 @@
 // Program Header files
 #include "./dicutil.hpp"
 
-struct Result {
+struct OptResult {
     std::vector<double> p;
     double u = 0.0;
     double v = 0.0;
@@ -24,11 +24,11 @@ struct Result {
     int iter = 0;
     double cost = 0.0;
     uint8_t converged = false;
-    Result(size_t num_params) : p(num_params, 0.0) {}
+    OptResult(size_t num_params) : p(num_params, 0.0) {}
 };
 
 
-class ResultArrays {
+class OptResultArrays {
 
     private:
         int num_ss;
@@ -46,8 +46,8 @@ class ResultArrays {
         std::vector<double> cost;
         std::vector<uint8_t> conv;
 
-        ResultArrays(int num_def_img, int num_ss, int num_params, bool conf_at_end);
-        void append(Result &res, int img_num, int ss);
+        OptResultArrays(int num_def_img, int num_ss, int num_params, bool conf_at_end);
+        void append(OptResult &res, int img_num, int ss);
         int index(const int subset_idx, const int img_num);
         int index_parameters(const int subset_idx, const int img_num);
         void write_to_disk(int img, const util::SaveConfig &saveconf,
