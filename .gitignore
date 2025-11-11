@@ -241,5 +241,5 @@ docs/source/examples/
 docs/source/doxygen
 
 # rastercyth generated files
-src/pyvale/cython/rastercyth.c
-src/pyvale/cython/rastercyth.html
+src/pyvale/sensorsim/cython/rastercyth.c
+src/pyvale/sensorsim/cython/rastercyth.html
