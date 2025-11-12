@@ -11,12 +11,12 @@
 #include <omp.h>
 
 // common_cpp header files
+#include "../../common_cpp/util.hpp"
 #include "../../common_cpp/defines.hpp"
 #include "../../common_cpp/dicsignalhandler.hpp"
 
 // DIC Header files
 #include "./dicinterpolator.hpp"
-#include "./dicutil.hpp"
 
 
 inline int idx_from_2d(const int x, const int y, const int length){
@@ -63,7 +63,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
 
     if (g_debug_level == 1){
         std::string bar_title = "Creating Interpolator: ";
-        util::create_progress_bar(bar, bar_title, niters);
+        common_util::create_progress_bar(bar, bar_title, niters);
     }
 
     #ifdef _MSC_VER
@@ -95,7 +95,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
         // update progress bar if enabled
         if (g_debug_level == 1){
             int progress = current_progress.fetch_add(1);
-            if (omp_get_thread_num() == 0) util::update_progress_bar(bar, progress, niters, prev_pct);
+            if (omp_get_thread_num() == 0) common_util::update_progress_bar(bar, progress, niters, prev_pct);
         }
 
     }
@@ -129,7 +129,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
         // update progress bar if enabled
         if (g_debug_level == 1){
             int progress = current_progress.fetch_add(1);
-            if (omp_get_thread_num() == 0) util::update_progress_bar(bar, progress, niters, prev_pct);
+            if (omp_get_thread_num() == 0) common_util::update_progress_bar(bar, progress, niters, prev_pct);
         }
     }
 
@@ -165,14 +165,14 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
         // update progress bar if enabled
         if (g_debug_level == 1){
             int progress = current_progress.fetch_add(1);
-            if (omp_get_thread_num() == 0) util::update_progress_bar(bar, progress, niters, prev_pct);
+            if (omp_get_thread_num() == 0) common_util::update_progress_bar(bar, progress, niters, prev_pct);
         }
     }
 
 
     if (g_debug_level == 1){
         int progress = current_progress;
-        util::update_progress_bar(bar, progress-1, niters, prev_pct);
+        common_util::update_progress_bar(bar, progress-1, niters, prev_pct);
         bar.mark_as_completed();
         indicators::show_console_cursor(true);
     }

@@ -14,8 +14,8 @@
 #include <omp.h>
 #include <vector>
 
-// eigen header filesfiles
-#include "./Eigen/Dense"
+// common_cpp header filesfiles
+#include "../../common_cpp/Eigen/Dense"
 
 
 namespace optimization {

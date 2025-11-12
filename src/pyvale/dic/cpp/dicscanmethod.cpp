@@ -47,7 +47,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
+        common_util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
         int prev_pct = 0;
 
@@ -93,13 +93,13 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }
 
         int progress = current_progress;
-        util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
+        common_util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
         bar.mark_as_completed();
         indicators::show_console_cursor(true);
 
@@ -130,7 +130,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
+        common_util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress(0);
         //int prev_pct(0);
         int prev_pct = 0;
@@ -246,7 +246,7 @@ namespace scanmethod {
 
                     // update progress bar
                     // int progress = current_progress.fetch_add(1);
-                    // util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                    // common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
                 }
             }
 
@@ -355,7 +355,7 @@ namespace scanmethod {
 
                         // update progress bar
                         int progress = current_progress.fetch_add(1);
-                        if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                        if (omp_get_thread_num()==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
                     }
                 }
@@ -367,7 +367,7 @@ namespace scanmethod {
             }
         }
         int progress = current_progress;
-        util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
+        common_util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
         bar.mark_as_completed();
         indicators::show_console_cursor(true);
 
@@ -404,7 +404,7 @@ namespace scanmethod {
         //                      conf.max_disp, img_ref, img_def, interp_def);
 
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames[img_num_def], num_ss);
+        common_util::create_progress_bar(bar, conf.filenames[img_num_def], num_ss);
         std::atomic<int> current_progress(0);
         int prev_pct = 0;
 
@@ -551,7 +551,7 @@ namespace scanmethod {
 
                     // update progress bar
                     int progress = current_progress.fetch_add(1);
-                    util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                    common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
                 }
             }
 
@@ -688,7 +688,7 @@ namespace scanmethod {
 
                         // update progress bar
                         int progress = current_progress.fetch_add(1);
-                        if (tid==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                        if (tid==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
                     }
                 }
@@ -700,7 +700,7 @@ namespace scanmethod {
             }
         }
         int progress = current_progress;
-        util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
+        common_util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
         bar.mark_as_completed();
         indicators::show_console_cursor(true);
     }
@@ -727,7 +727,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
+        common_util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
         int prev_pct = 0;
 
@@ -778,7 +778,7 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }
@@ -805,7 +805,7 @@ namespace scanmethod {
 
         // progress bar
         indicators::ProgressBar bar;
-        util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
+        common_util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
         std::atomic<int> current_progress = 0;
         int prev_pct = 0;
 
@@ -854,7 +854,7 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
 
             }
         }

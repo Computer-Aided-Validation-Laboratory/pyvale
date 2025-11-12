@@ -16,58 +16,6 @@ This module contains functions for checking arguments passed to the 2D DIC
 Engine.
 """
 
-def check_output_directory(output_basepath: str,
-                           output_prefix: str) -> None:
-    """
-    Check for existing output files in a directory and prompt user confirmation before overwriting.
-
-    This function verifies whether the specified output directory exists and checks for any existing
-    files that match a given prefix and have `.csv` or `.dic2d` extensions. If such files are found,
-    a list is displayed and the user is prompted to confirm whether to continue. If the user declines,
-    the program exits to prevent data loss.
-
-    Parameters
-    ----------
-    output_basepath : str
-        Path to the output directory where files are or will be saved.
-    output_prefix : str
-        Filename prefix used to identify potential conflicting output files.
-
-    Raises
-    ------
-    SystemExit
-        If the output directory does not exist or the user chooses not to proceed after
-        being warned about existing files.
-    """
-
-    # check if there's output files
-    try:
-        files = os.listdir(output_basepath)
-    except FileNotFoundError:
-        print("")
-        print(f"Output directory '{output_basepath}' does not exist.")
-        sys.exit(1)
-
-    # Check for any matching files
-    conflicting_files = [
-        f for f in files 
-        if f.startswith(output_prefix) and (f.endswith(".csv") or f.endswith(".dic2d"))]
-
-    if conflicting_files:
-        conflicting_files.sort()
-        #print("WARNING: The following output files already exist and may be overwritten:")
-        for f in conflicting_files:
-            print(f"  - {os.path.join(output_basepath, f)}")
-        print("")
-
-
-        ###### TURNING USER INPUT OFF FOR NOW ######
-        # user_input = input("Do you want to continue? (y/n): ").strip().lower()
-
-        # if user_input not in ("y", "yes", "Y", "YES"):
-        #     print("Aborting to avoid overwriting data in output directory.")
-        #     exit(0)
-
 
 def check_correlation_criteria(correlation_criteria: str) -> None:
     """
@@ -464,20 +412,6 @@ def check_and_get_images(reference: np.ndarray | str | Path,
     return image_stack, roi_c, filenames
 
 
-
-def check_strain_files(strain_files: str | Path) -> list[str]:
-   
-    filenames = []
-
-    # Find deformation image files
-    files = sorted(glob.glob(str(strain_files)))
-    if not files:
-        raise FileNotFoundError(f"No DIC data found: {strain_files}")
-
-    for file in files:
-        filenames.append(os.path.basename(file))
-
-    return filenames
 
 
 def print_title(a: str):

@@ -12,7 +12,8 @@ from pathlib import Path
 # pyvale
 import pyvale.dic.dic2dcpp as dic2dcpp
 import pyvale.dic.dicchecks as dicchecks
-
+import pyvale.common_py.util as common_py_util
+import pyvale.common_cpp.common_cpp as common_cpp
 
 def two_dimensional(reference: np.ndarray | str | Path,
                     deformed: np.ndarray | str | Path,
@@ -137,7 +138,7 @@ def two_dimensional(reference: np.ndarray | str | Path,
     dicchecks.check_interpolation(interpolation_routine)
     dicchecks.check_scanning_method(scanning_method)
     dicchecks.check_thresholds(opt_threshold, bf_threshold, opt_precision)
-    dicchecks.check_output_directory(str(output_basepath), output_prefix)
+    common_py_util.check_output_directory(str(output_basepath), output_prefix)
     dicchecks.check_subsets(subset_size, subset_step)
     updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, scanning_method, image_stack.shape[2], image_stack.shape[1], subset_size, subset_step)
     num_params = dicchecks.check_shape_function(shape_function)
@@ -169,7 +170,7 @@ def two_dimensional(reference: np.ndarray | str | Path,
     print(filenames)
 
     # assigning c++ struct vals for save config
-    saveconf = dic2dcpp.SaveConfig()
+    saveconf = common_cpp.SaveConfig()
     saveconf.basepath = str(output_basepath)
     saveconf.binary = output_binary
     saveconf.prefix = output_prefix

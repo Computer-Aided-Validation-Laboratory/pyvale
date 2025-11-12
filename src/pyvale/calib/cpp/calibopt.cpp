@@ -12,13 +12,13 @@
 #include <iomanip>
 #include <vector>
 
-// eigen header files
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
+// common_cpp Header files
+#include "../../common_cpp/defines.hpp"
+#include "../../common_cpp/Eigen/Dense"
+#include "../../common_cpp/Eigen/Geometry"
 
 // pyvale header files
 #include "./calibopt.hpp"
-#include "../../dic/cpp/defines.hpp"
 
 
 namespace optimization {

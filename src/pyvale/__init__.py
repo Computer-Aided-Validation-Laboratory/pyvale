@@ -15,6 +15,7 @@ virtually testing digital shadows/twins.
 """
 
 from . import dic
+from . import strain
 from . import blender
 from . import sensorsim
 from . import mooseherder

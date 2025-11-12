@@ -5,7 +5,6 @@
 // ================================================================================
 
 // STD library Header files
-#include <Eigen/Core>
 #include <iostream>
 #include <cstring>
 #include <omp.h>
@@ -15,6 +14,10 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/iostream.h>
+
+// common_cpp header files
+#include "../../common_cpp/Eigen/Core"
+
 
 // pyvale header files
 #include "./calibopt.hpp"

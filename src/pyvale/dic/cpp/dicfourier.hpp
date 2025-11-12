@@ -15,12 +15,12 @@
 #include <complex>
 
 // common header files 
-#include "../../common_cpp/defines.hpp"
 #include "../../common_cpp/pocketfft_hdronly.h"
 #include "../../common_cpp/Eigen/Dense"
 
 // DIC Header files
 #include "./dicinterpolator.hpp"
+#include "./dicsubset.hpp"
 #include "./dicutil.hpp"
 
 namespace fourier {

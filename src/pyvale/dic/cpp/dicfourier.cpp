@@ -15,11 +15,11 @@
 #include <csignal>
 
 // Common Header files
+#include "../../common_cpp/util.hpp"
 #include "../../common_cpp/defines.hpp"
 #include "../../common_cpp/dicsignalhandler.hpp"
 
 // DIC Header files
-#include "dicutil.hpp"
 #include "dicfourier.hpp"
 #include "dicsubset.hpp"
 #include "dicinterpolator.hpp"
@@ -166,7 +166,7 @@ namespace fourier {
 
             if (g_debug_level == 1){
                 std::string bar_title = "FFT windowing for size: " + std::to_string(ss_size);
-                util::create_progress_bar(bar, bar_title, ss_grid[i].num);
+                common_util::create_progress_bar(bar, bar_title, ss_grid[i].num);
             }
 
             #pragma omp parallel shared(stop_request, shifts, ss_grid, interp_def, ss_size)
@@ -224,7 +224,7 @@ namespace fourier {
 
                     if (g_debug_level == 1){
                         int progress = current_progress.fetch_add(1);
-                        if (omp_get_thread_num()==0) util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                        if (omp_get_thread_num()==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
                     }
                 }
             }
@@ -248,7 +248,7 @@ namespace fourier {
 
             if (g_debug_level == 1){
                 int progress = current_progress;
-                util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
+                common_util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
                 bar.mark_as_completed();
                 indicators::show_console_cursor(true);
             }

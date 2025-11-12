@@ -16,7 +16,7 @@
 
 OptResultArrays::OptResultArrays(int num_def_img, int num_ss, int num_params, bool at_end){
 
-    Timer timer("resizing of result arrays:");
+    common_util::Timer timer("resizing of result arrays:");
     this->at_end = at_end;
     this->num_ss = num_ss;
     this->num_params = num_params;
@@ -72,7 +72,7 @@ int OptResultArrays::index_parameters(const int subset_idx, const int img_num){
 }
 
 
-void OptResultArrays::write_to_disk(int img, const SaveConfig &saveconf,
+void OptResultArrays::write_to_disk(int img, const common_util::SaveConfig &saveconf,
                     const subset::Grid &ss_grid, const int num_def_img,
                     const std::vector<std::string> &filenames){
 
@@ -129,20 +129,20 @@ void OptResultArrays::write_to_disk(int img, const SaveConfig &saveconf,
             double ss_x = ss_grid.coords[2*i  ] + static_cast<double>(ss_grid.size)/2.0 - 0.5;
             double ss_y = ss_grid.coords[2*i+1] + static_cast<double>(ss_grid.size)/2.0 - 0.5;
 
-            util::write_int(outfile, ss_x);
-            util::write_int(outfile, ss_y);
-            util::write_dbl(outfile, u[idx]);
-            util::write_dbl(outfile, v[idx]);
-            util::write_dbl(outfile, mag);
-            util::write_uint8t(outfile, conv[idx]);
-            util::write_dbl(outfile, cost[idx]);
-            util::write_dbl(outfile, ftol[idx]);
-            util::write_dbl(outfile, xtol[idx]);
-            util::write_int(outfile, niter[idx]);
+            common_util::write_int(outfile, ss_x);
+            common_util::write_int(outfile, ss_y);
+            common_util::write_dbl(outfile, u[idx]);
+            common_util::write_dbl(outfile, v[idx]);
+            common_util::write_dbl(outfile, mag);
+            common_util::write_uint8t(outfile, conv[idx]);
+            common_util::write_dbl(outfile, cost[idx]);
+            common_util::write_dbl(outfile, ftol[idx]);
+            common_util::write_dbl(outfile, xtol[idx]);
+            common_util::write_int(outfile, niter[idx]);
 
             if (saveconf.shape_params) {
                 for (int pidx = 0; pidx < num_params; pidx++){
-                    util::write_dbl(outfile, p[num_params*idx+pidx]);
+                    common_util::write_dbl(outfile, p[num_params*idx+pidx]);
                 }
             }
 

@@ -45,19 +45,8 @@ PYBIND11_MODULE(dic2dcpp, m) {
         .def_readwrite("fft_mad_scale", &util::Config::fft_mad_scale)
         .def_readwrite("filenames", &util::Config::filenames)
         .def_readwrite("debug_level", &util::Config::debug_level);
-
-    py::class_<SaveConfig>(m, "SaveConfig")
-        .def(py::init<>())
-        .def_readwrite("basepath", &SaveConfig::basepath)
-        .def_readwrite("binary", &SaveConfig::binary)
-        .def_readwrite("prefix", &SaveConfig::prefix)
-        .def_readwrite("delimiter", &SaveConfig::delimiter)
-        .def_readwrite("at_end", &SaveConfig::at_end)
-        .def_readwrite("output_unconverged", &SaveConfig::output_unconverged)
-        .def_readwrite("shape_params", &SaveConfig::shape_params);
-
+    
     // Bind the engine function
     m.def("dic_engine", &DICengine, "Run DIC analysis on input images with config");
-    m.def("set_num_threads", &set_num_threads, "Set number of OMP threads");
 }
 

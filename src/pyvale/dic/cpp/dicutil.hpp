@@ -88,28 +88,11 @@ namespace util {
                        int px_hori,
                        int px_vert);
 
-    inline void write_int(std::ofstream& out, int val) {
-        out.write(reinterpret_cast<const char*>(&val), sizeof(int));
-    }
-
-    inline void write_uint8t(std::ofstream& out, int val) {
-        out.write(reinterpret_cast<const char*>(&val), sizeof(uint8_t));
-    }
-
-    inline void write_dbl(std::ofstream& out, double val) {
-        out.write(reinterpret_cast<const char*>(&val), sizeof(double));
-    }
-
     int next_pow2(int n);
 
     void gen_size_and_step_vector(std::vector<int> &ss_sizes, std::vector<int> &ss_steps, 
                                   const int ss_size, const int ss_step, const int max_disp);
 
-    void create_progress_bar(indicators::ProgressBar &bar,
-                             const std::string &bar_title,
-                             const int num_ss);
-
-    void update_progress_bar(indicators::ProgressBar &bar, int i, int num_ss, int &prev_pct);
 }
 
 #endif //DICUTIL

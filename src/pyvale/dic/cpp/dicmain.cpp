@@ -43,7 +43,7 @@ namespace py = pybind11;
 void DICengine(const py::array_t<double>& img_stack_arr,
                const py::array_t<bool>&   img_roi_arr, 
                util::Config &conf,
-               SaveConfig &saveconf){
+               common_util::SaveConfig &saveconf){
 
     // Register signal handler for Ctrl+C and set debug_level
     signal(SIGINT, signalHandler);
@@ -84,12 +84,12 @@ void DICengine(const py::array_t<double>& img_stack_arr,
     std::vector<subset::Grid> ss_grids;
     std::vector<int> ss_sizes, ss_steps;
     if ((conf.scan_method == "FFT") || (conf.scan_method == "RG") || (conf.scan_method == "RG_incremental")) {
-        Timer timer("subset list initialisation");
+        common_util::Timer timer("subset list initialisation");
         util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.max_disp);
         fourier::init(ss_grids, ss_sizes, ss_steps, img_roi, conf);
     }
     else {
-        Timer timer("subset list initialisation");
+        common_util::Timer timer("subset list initialisation");
         ss_grids.push_back(subset::create_grid(img_roi, conf.ss_step,
                                            conf.ss_size, conf.px_hori, 
                                            conf.px_vert));
@@ -118,7 +118,7 @@ void DICengine(const py::array_t<double>& img_stack_arr,
     // -----------------------------------------------------------------------
     std::cout << std::endl;
     TITLE("Starting Correlation")
-    Timer timer("DIC Engine:");
+    common_util::Timer timer("DIC Engine:");
 
 
     // pointer to reference image at start of stack
@@ -198,6 +198,4 @@ void build_info(){
 }
 
 
-void set_num_threads(int n) {
-    omp_set_num_threads(n);
-}
+

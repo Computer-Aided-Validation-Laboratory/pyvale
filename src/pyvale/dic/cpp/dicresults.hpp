@@ -53,7 +53,7 @@ class OptResultArrays {
         void append(OptResult &res, int img_num, int ss);
         int index(const int subset_idx, const int img_num);
         int index_parameters(const int subset_idx, const int img_num);
-        void write_to_disk(int img, const SaveConfig &saveconf,
+        void write_to_disk(int img, const common_util::SaveConfig &saveconf,
                            const subset::Grid &ss_grid, const int num_def_img,
                            const std::vector<std::string> &filenames);
 };
