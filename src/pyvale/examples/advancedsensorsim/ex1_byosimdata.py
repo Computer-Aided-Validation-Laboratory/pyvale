@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Bring your own Simulation Data
+"""Bring your own simulation data 
 ================================================================================
 
 In this example we demonstrate how you can load your own simulation data from
@@ -117,6 +117,8 @@ field_slices = {"disp_x": slice(0,1),
 
 field_pattern = f"hex20_node_field_frame*{suffix}"
 
+connect_pattern = f"hex20_connect*" 
+
 #%%
 # We create our load options specifying that we will load the data single 
 # threaded and not using the multi-processing library (the default). For loading
@@ -128,13 +130,16 @@ field_pattern = f"hex20_node_field_frame*{suffix}"
 # 
 # We can now create our loader and use it to load all the simulation data into
 # our `SimData` object which we can now use with the rest of the `pyvale` tools.
-load_opts = mh.SimTxtLoadOpts(threads_num=4)
 
-sim_loader = mh.SimTxtLoader(fields_path=output_path,
+load_opts = mh.SimTxtLoadOpts(threads_num=None)
+
+sim_loader = mh.SimTxtLoader(fields_dir=output_path,
                              coords=coord_path,
                              time_steps=time_path,
-                             node_file_pattern=field_pattern,
+                             node_files=field_pattern,
                              node_slices=field_slices,
+                             connect_dir=output_path,
+                             connect_files=connect_pattern,
                              glob_file=None,
                              glob_slices=None,
                              load_opts=load_opts)
@@ -148,21 +153,20 @@ print(80*"-")
 print("SIM DATA: by time")
 print(80*"-")
 sens.print_sim_data(sim_data_load)
+print()
 
 #%%
 # 3. Load SimData 'by field'
 # --------------------------
 #
 # Now we will load the data 'by field' which is the simplest case as it is most
-# similar to how the `SimData` object stores our nodal fields. Here our 
-# `field_slices` dictionary is again keyed by the field variable names we want
-# in our `SimData` object but this time each value is an empty slice
+# similar to how the `SimData` object stores our nodal fields. Specifically, 
+# each nodal variable is a numpy array where the first dimension corresponds to
+# the position in the coordinate array and the second dimension is the time 
+# step. Here we don't need to slice into field arrays so can just provide a set 
+# of the keys we want our node varibles to have in our `SimData` object.
 
-
-field_slices = {"disp_x": None,
-                "disp_y": slice(None),
-                "disp_z": slice(None),
-                "temperature": slice(None),}
+field_slices = {"disp_x","disp_y","disp_z","temperature"}
 
 prefix = "hex20_node_field"
 
@@ -170,18 +174,21 @@ field_patterns = {}
 for ff in field_slices:
     field_patterns[ff] = f"{prefix}_{ff}{suffix}"
 
-
 #%%
-# 
+# When we load data 'by field' the files generally do no have header rows so we
+# set this to None in the load options. Other than that loading the simulation 
+# data into our `SimData` object is exactly the same as we did previously. 
 
 load_opts = mh.SimTxtLoadOpts(node_field_header=None,
                               threads_num=None)
 
-sim_loader = mh.SimTxtLoader(fields_path=output_path,
+sim_loader = mh.SimTxtLoader(fields_dir=output_path,
                              coords=coord_path,
                              time_steps=time_path,
-                             node_file_pattern=field_patterns,
+                             node_files=field_patterns,
                              node_slices=field_slices,
+                             connect_dir=output_path,
+                             connect_files=connect_pattern,
                              glob_file=None,
                              glob_slices=None,
                              load_opts=load_opts)

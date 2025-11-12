@@ -11,7 +11,7 @@
             "-fopenmp"
         ],
         "include_dirs": [
-            "/home/lloydf/.cache/uv/builds-v0/.tmpB3XpFb/lib/python3.11/site-packages/numpy/core/include"
+            "/tmp/pip-build-env-lqqrc2fr/overlay/lib/python3.11/site-packages/numpy/core/include"
         ],
         "name": "pyvale.sensorsim.cython.rastercyth",
         "sources": [

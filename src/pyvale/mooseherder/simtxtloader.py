@@ -50,13 +50,17 @@ class SimTxtLoader(IOutputLoader):
                  coords: Path | np.ndarray | None,
                  time_steps: Path | np.ndarray | None,
                  node_files: str | dict[str,str],
-                 node_slices: dict[str, slice|None],
+                 node_slices: dict[str, slice|None] | set[str],
                  connect_dir: Path | None = None,
                  connect_files: str | list[str] | None = None,
                  glob_file: Path | None = None,
                  glob_slices: dict[str,slice] | None = None,
                  load_opts: SimTxtLoadOpts | None = None) -> None:
         
+        self._glob_file = glob_file
+        self._glob_slices = glob_slices
+        self._load_opts = load_opts
+
         if coords is None:
             self._coords = None
         else:
@@ -76,8 +80,16 @@ class SimTxtLoader(IOutputLoader):
 
         self._fields_dir = fields_dir
 
+        # If the node_slices is a set then we turn it into a dictionary with
+        # empty slice - this is the case where we load 'by field' and don't
+        # need to slice out columns.
+        if isinstance(node_slices,set):
+            self._field_slices = {kk: slice(None) for kk in node_slices}
+        else:
+            self._field_slices = node_slices
+
         if isinstance(node_files,dict):
-            if node_files.keys() != node_slices.keys():
+            if node_files.keys() != self._field_slices.keys():
                 raise SimLoadErr("Keys of the file pattern and field" +
                                  " slice dictionaries do not match.")
 
@@ -95,18 +107,13 @@ class SimTxtLoader(IOutputLoader):
                 raise SimLoadErr("Connectivity file pattern must be specified" + 
                     " alongside the connectivity path, e.g. str(connect*.csv)")
                 
-            self._connect = self._load_connectivity(conn)
+            self._connect = self._load_connectivity(connect_dir,connect_files)
             
-        self._glob_file = glob_file
-        self._glob_slices = glob_slices
 
-        self._field_slices = node_slices
-        self._load_opts = load_opts
-
-
-    def _load_connectivity(connect_dir: Path,
+    def _load_connectivity(self,
+                           connect_dir: Path,
                            connect_pattern: str | list[str],
-                          ) -> dict[str,np.ndarray]:
+                           ) -> dict[str,np.ndarray]:
         self._connect = {}
 
         connect_files= []
@@ -133,6 +140,7 @@ class SimTxtLoader(IOutputLoader):
     def load_sim_data(self, load_config: SimLoadConfig) -> SimData:
 
         sim_data = SimData(coords = self._coords,
+                           connect = self._connect,
                            time=self._time_steps)
 
         if isinstance(self._files_pattern,str):
