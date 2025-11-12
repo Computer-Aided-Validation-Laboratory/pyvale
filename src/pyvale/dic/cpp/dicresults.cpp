@@ -16,7 +16,7 @@
 
 OptResultArrays::OptResultArrays(int num_def_img, int num_ss, int num_params, bool at_end){
 
-    util::Timer timer("resizing of result arrays:");
+    Timer timer("resizing of result arrays:");
     this->at_end = at_end;
     this->num_ss = num_ss;
     this->num_params = num_params;
@@ -72,7 +72,7 @@ int OptResultArrays::index_parameters(const int subset_idx, const int img_num){
 }
 
 
-void OptResultArrays::write_to_disk(int img, const util::SaveConfig &saveconf,
+void OptResultArrays::write_to_disk(int img, const SaveConfig &saveconf,
                     const subset::Grid &ss_grid, const int num_def_img,
                     const std::vector<std::string> &filenames){
 

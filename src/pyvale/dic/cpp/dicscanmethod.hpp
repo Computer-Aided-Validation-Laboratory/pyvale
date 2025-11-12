@@ -20,11 +20,6 @@ namespace scanmethod {
 
 
 
-void signalHandler(int signal);
-
-
-
-
 /**
  * @brief straightforward image scan method. 
      * Loops over the subsets as a raster across the image.

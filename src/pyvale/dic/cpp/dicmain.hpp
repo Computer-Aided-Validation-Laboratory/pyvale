@@ -6,9 +6,15 @@
 #ifndef DICMAIN_H
 #define DICMAIN_H
 
+// Pybind11 Header Files
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
-#include "dicutil.hpp"
+
+// common_cpp header files
+#include "../../common_cpp/util.hpp"
+
+// DIC Header Files
+#include "./dicutil.hpp"
 
 namespace py = pybind11;
 
@@ -28,7 +34,7 @@ namespace py = pybind11;
  * @param conf Configuration parameters for the DIC engine (subset size, correlation method, etc.).
  *             This is an instance of `util::Config`.
  * @param saveconf Output configuration for saving DIC results to disk.
- *                 This is an instance of `util::SaveConfig`.
+ *                 This is an instance of `SaveConfig`.
  *
  * @details
  * The function supports multiple scan methods including raster scan, brute force,
@@ -42,11 +48,10 @@ namespace py = pybind11;
  * @note This function is intended to be called via the Python interface using pybind11.
  *       Image arrays are expected to be contiguous and C-style (row-major) in memory.
  */
-void DICengine(const py::array_t<double>& img_ref_arr,
-               const py::array_t<double>& img_def_stack_arr,
+void DICengine(const py::array_t<double>& img_stack_arr,
                const py::array_t<bool>& img_roi_arr,
                util::Config& conf,
-               util::SaveConfig& saveconf);
+               SaveConfig& saveconf);
 
 void build_info();
 

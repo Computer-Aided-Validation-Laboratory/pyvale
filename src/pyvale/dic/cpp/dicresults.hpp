@@ -11,8 +11,11 @@
 #include <vector>
 #include <cstdint>
 
-// Program Header files
-#include "./dicutil.hpp"
+// common_cpp Header files
+#include "../../common_cpp/util.hpp"
+
+// DIC Header files
+#include "./dicsubset.hpp"
 
 struct OptResult {
     std::vector<double> p;
@@ -50,7 +53,7 @@ class OptResultArrays {
         void append(OptResult &res, int img_num, int ss);
         int index(const int subset_idx, const int img_num);
         int index_parameters(const int subset_idx, const int img_num);
-        void write_to_disk(int img, const util::SaveConfig &saveconf,
+        void write_to_disk(int img, const SaveConfig &saveconf,
                            const subset::Grid &ss_grid, const int num_def_img,
                            const std::vector<std::string> &filenames);
 };

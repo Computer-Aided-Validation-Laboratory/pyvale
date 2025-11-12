@@ -9,9 +9,11 @@
 
 // STD library Header files
 #include <vector>
-#include "./Eigen/Dense"
 
-// Program Header files
+// common_cpp header files
+#include "../../common_cpp/Eigen/Dense"
+
+// DIC Header files
 #include "./dicresults.hpp"
 
 

@@ -6,6 +6,7 @@
 
 
 // STD library Header files
+#include <atomic>
 #include <iostream>
 #include <cstring>
 #include <omp.h>
@@ -18,21 +19,23 @@
 #include <pybind11/stl.h>
 #include <pybind11/iostream.h>
 
-// Program Header files
+// common_cpp header files
+#include "../../common_cpp/dicsignalhandler.hpp"
+#include "../../common_cpp/defines.hpp"
+#include "../../common_cpp/util.hpp"
+
+// DIC Header files
 #include "./dicinterpolator.hpp"
 #include "./dicoptimizer.hpp"
 #include "./dicscanmethod.hpp"
-#include "./defines.hpp"
 #include "./dicutil.hpp"
-#include "./dicstrain.hpp"
 #include "./dicfourier.hpp"
-#include "./dicsignalhandler.hpp"
 #include "./dicshapefunc.hpp"
 #include "./dicresults.hpp"
+#include "dicsubset.hpp"
 
 // cuda Header files
-#include "../cuda/malloc.hpp"
-#include "dicsubset.hpp"
+//#include "../cuda/malloc.hpp"
 
 namespace py = pybind11;
 
@@ -40,7 +43,7 @@ namespace py = pybind11;
 void DICengine(const py::array_t<double>& img_stack_arr,
                const py::array_t<bool>&   img_roi_arr, 
                util::Config &conf,
-               util::SaveConfig &saveconf){
+               SaveConfig &saveconf){
 
     // Register signal handler for Ctrl+C and set debug_level
     signal(SIGINT, signalHandler);
@@ -81,12 +84,12 @@ void DICengine(const py::array_t<double>& img_stack_arr,
     std::vector<subset::Grid> ss_grids;
     std::vector<int> ss_sizes, ss_steps;
     if ((conf.scan_method == "FFT") || (conf.scan_method == "RG") || (conf.scan_method == "RG_incremental")) {
-        util::Timer timer("subset list initialisation");
+        Timer timer("subset list initialisation");
         util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.max_disp);
         fourier::init(ss_grids, ss_sizes, ss_steps, img_roi, conf);
     }
     else {
-        util::Timer timer("subset list initialisation");
+        Timer timer("subset list initialisation");
         ss_grids.push_back(subset::create_grid(img_roi, conf.ss_step,
                                            conf.ss_size, conf.px_hori, 
                                            conf.px_vert));
@@ -115,7 +118,7 @@ void DICengine(const py::array_t<double>& img_stack_arr,
     // -----------------------------------------------------------------------
     std::cout << std::endl;
     TITLE("Starting Correlation")
-    util::Timer timer("DIC Engine:");
+    Timer timer("DIC Engine:");
 
 
     // pointer to reference image at start of stack
@@ -198,53 +201,3 @@ void build_info(){
 void set_num_threads(int n) {
     omp_set_num_threads(n);
 }
-
-
-
-PYBIND11_MODULE(dic2dcpp, m) {
-
-    py::add_ostream_redirect(m, "ostream_redirect");
-
-    py::class_<util::Config>(m, "Config")
-        .def(py::init<>())
-        .def_readwrite("ss_step", &util::Config::ss_step)
-        .def_readwrite("ss_size", &util::Config::ss_size)
-        .def_readwrite("max_iter", &util::Config::max_iter)
-        .def_readwrite("precision", &util::Config::precision)
-        .def_readwrite("opt_threshold", &util::Config::opt_threshold)
-        .def_readwrite("bf_threshold", &util::Config::bf_threshold)
-        .def_readwrite("max_disp", &util::Config::max_disp)
-        .def_readwrite("corr_crit", &util::Config::corr_crit)
-        .def_readwrite("shape_func", &util::Config::shape_func)
-        .def_readwrite("interp_routine", &util::Config::interp_routine)
-        .def_readwrite("scan_method", &util::Config::scan_method)
-        .def_readwrite("px_hori", &util::Config::px_hori)
-        .def_readwrite("px_vert", &util::Config::px_vert)
-        .def_readwrite("num_def_img", &util::Config::num_def_img)
-        .def_readwrite("rg_seed", &util::Config::rg_seed)
-        .def_readwrite("num_params", &util::Config::num_params)
-        .def_readwrite("fft_mad", &util::Config::fft_mad)
-        .def_readwrite("fft_mad_scale", &util::Config::fft_mad_scale)
-        .def_readwrite("filenames", &util::Config::filenames)
-        .def_readwrite("debug_level", &util::Config::debug_level);
-
-    py::class_<util::SaveConfig>(m, "SaveConfig")
-        .def(py::init<>())
-        .def_readwrite("basepath", &util::SaveConfig::basepath)
-        .def_readwrite("binary", &util::SaveConfig::binary)
-        .def_readwrite("prefix", &util::SaveConfig::prefix)
-        .def_readwrite("delimiter", &util::SaveConfig::delimiter)
-        .def_readwrite("at_end", &util::SaveConfig::at_end)
-        .def_readwrite("output_unconverged", &util::SaveConfig::output_unconverged)
-        .def_readwrite("shape_params", &util::SaveConfig::shape_params);
-
-    // Bind the engine function
-    m.def("build_info", &build_info, "build information");
-    m.def("dic_engine", &DICengine, "Run 2D analysis on input images with config");
-    m.def("strain_engine", &strain::engine, "Strain C++ calculations");
-    m.def("set_num_threads", &set_num_threads, "Set the number of OpenMP threads");
-}
-
-
-
-

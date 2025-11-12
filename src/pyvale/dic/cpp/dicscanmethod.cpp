@@ -14,19 +14,23 @@
 #include <omp.h>
 #include <csignal>
 
+// pybind headers
+#include <pybind11/pybind11.h>
+
+// common_cpp headers
+#include "../../common_cpp/defines.hpp"
+#include "../../common_cpp/indicators.hpp"
+#include "../../common_cpp/dicsignalhandler.hpp"
+
+
 // Program Header files
 #include "./dicinterpolator.hpp"
 #include "./dicoptimizer.hpp"
-#include "./defines.hpp"
 #include "./dicutil.hpp"
 #include "./dicrg.hpp"
-#include "./indicators.hpp"
-#include "./cursor_control.hpp"
 #include "./dicfourier.hpp"
-#include "./dicsignalhandler.hpp"
 #include "./dicsubset.hpp"
 #include "./dicresults.hpp"
-#include "dicstrain.hpp"
 
 namespace scanmethod {
 
@@ -65,9 +69,7 @@ namespace scanmethod {
             for (int ss = 0; ss < num_ss; ss++){
 
                 // exit the main DIC loop when ctrl+C is hit
-                if (stop_request){
-                    continue;
-                }
+                if (stop_request) continue;
 
                 // subset coordinate list takes central locations. 
                 // Converting to top left corner for optimization routine

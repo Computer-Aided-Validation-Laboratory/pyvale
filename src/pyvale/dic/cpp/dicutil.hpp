@@ -9,18 +9,15 @@
 #define DICUTIL_H
 
 // STD library Header files
-#include <chrono>
 #include <vector>
 #include <string>
-#include <iostream>
 #include <fstream>
-#include <atomic>
+
+// common_cpp header files
+#include "../../common_cpp/indicators.hpp"
 
 // program Header files
-#include "./dicinterpolator.hpp"
-#include "./dicsubset.hpp"
-#include "./indicators.hpp"
-#include "./defines.hpp"
+
 
 namespace util {
 
@@ -32,21 +29,7 @@ namespace util {
         }
     };
 
-    class Timer {
-    public:
-        Timer(const std::string& label)
-            : label_(label), start_(std::chrono::high_resolution_clock::now()) {}
 
-        ~Timer() {
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> elapsed = end - start_;
-            INFO_OUT("Time taken for " + label_, elapsed.count() << " [s]");
-        }
-
-    private:
-        std::string label_;
-        std::chrono::high_resolution_clock::time_point start_;
-    };
 
     struct Config {
         int ss_step;
@@ -72,20 +55,6 @@ namespace util {
     };
 
 
-
-
-    struct SaveConfig {
-
-        std::string basepath;
-        std::string prefix;
-        std::string delimiter;
-        bool binary;
-        bool at_end;
-        bool output_unconverged;
-        bool shape_params;
-
-
-    };
 
 
     /**

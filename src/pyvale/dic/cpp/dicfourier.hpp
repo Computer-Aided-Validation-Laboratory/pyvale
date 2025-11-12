@@ -14,12 +14,14 @@
 #include <cmath>
 #include <complex>
 
-// Program Header files
+// common header files 
+#include "../../common_cpp/defines.hpp"
+#include "../../common_cpp/pocketfft_hdronly.h"
+#include "../../common_cpp/Eigen/Dense"
+
+// DIC Header files
 #include "./dicinterpolator.hpp"
-#include "./defines.hpp"
 #include "./dicutil.hpp"
-#include "./pocketfft_hdronly.h"
-#include "./Eigen/Dense"
 
 namespace fourier {
 
@@ -41,7 +43,7 @@ namespace fourier {
         void gen_neighlist(const subset::Grid ss_grid,
                            const subset::Grid ss_grid_prev) {
 
-            //util::Timer timer("nearest neighbour collection for :");
+            //Timer timer("nearest neighbour collection for :");
 
             const int prev_step = ss_grid_prev.step;
 

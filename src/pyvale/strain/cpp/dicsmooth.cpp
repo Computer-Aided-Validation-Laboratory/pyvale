@@ -9,8 +9,8 @@
 
 // Program Header files
 #include "./dicsmooth.hpp"
-#include "./defines.hpp"
-#include "./Eigen/Dense"
+#include "../../common_cpp/defines.hpp"
+#include "../../common_cpp/Eigen/Dense"
 
 namespace smooth {
 

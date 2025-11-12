@@ -14,8 +14,10 @@
 #include <cmath>
 #include <omp.h>
 
-// Program Header files
-#include "./indicators.hpp"
+// common_cpp Header files
+#include "../../common_cpp/indicators.hpp"
+
+// DIC Header files
 #include "./dicutil.hpp"
 #include "./dicsubset.hpp"
 

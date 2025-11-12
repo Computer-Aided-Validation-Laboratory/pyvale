@@ -10,11 +10,13 @@
 #include <iostream>
 #include <omp.h>
 
-// Program Header files
+// common_cpp header files
+#include "../../common_cpp/defines.hpp"
+#include "../../common_cpp/dicsignalhandler.hpp"
+
+// DIC Header files
 #include "./dicinterpolator.hpp"
 #include "./dicutil.hpp"
-#include "defines.hpp"
-#include "./dicsignalhandler.hpp"
 
 
 inline int idx_from_2d(const int x, const int y, const int length){
@@ -25,7 +27,7 @@ inline int idx_from_2d(const int x, const int y, const int length){
 
 Interpolator::Interpolator(double*img, int px_hori, int px_vert){
 
-    //util::Timer timer("interpolator initialisation");
+    //Timer timer("interpolator initialisation");
 
     // intitialise vars used globally within Interpolator.
     this->image = img;
@@ -74,9 +76,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
     for (int j = 0; j < px_vert; j++){
 
         // exit if ctrl+C
-        if (stop_request){
-            continue;
-        }
+        if (stop_request) continue;
 
         // thread local data
         std::vector<double> data(px_hori, 0.0);
@@ -110,9 +110,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
     for (int i = 0; i < px_hori; ++i) {
 
         // exit if ctrl+C
-        if (stop_request){
-            continue;
-        }
+        if (stop_request) continue;
 
         // thread local data
         std::vector<double> data(px_vert, 0.0);
@@ -148,9 +146,8 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
     for (int j = 0; j < px_vert; j++){
 
         // exit if ctrl+C
-        if (stop_request){
-            continue;
-        }
+        if (stop_request) continue;
+
         // thread local data
         std::vector<double> data(px_hori, 0.0);
         std::vector<double> local_tridiag_sol(px_hori,0.0);

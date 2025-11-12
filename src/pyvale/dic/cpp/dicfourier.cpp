@@ -14,13 +14,15 @@
 #include <omp.h>
 #include <csignal>
 
-// Program Header files
-#include "./defines.hpp"
-#include "./dicutil.hpp"
-#include "./dicfourier.hpp"
-#include "./dicsignalhandler.hpp"
-#include "./dicsubset.hpp"
-#include "./dicinterpolator.hpp"
+// Common Header files
+#include "../../common_cpp/defines.hpp"
+#include "../../common_cpp/dicsignalhandler.hpp"
+
+// DIC Header files
+#include "dicutil.hpp"
+#include "dicfourier.hpp"
+#include "dicsubset.hpp"
+#include "dicinterpolator.hpp"
 
 namespace fourier {
 
@@ -32,7 +34,7 @@ namespace fourier {
               const bool *img_roi, const util::Config &conf){
 
         // timer for the initialisation
-        //util::Timer timer("entire FFT initislisation");
+        //Timer timer("entire FFT initislisation");
         
         // loop over the window sizes
         for (size_t i = 0; i < ss_sizes.size(); i++) {
@@ -150,7 +152,7 @@ namespace fourier {
         // Loop over window size
         for (size_t i = 0; i < ss_grid.size(); i++){
 
-            //util::Timer timer("FFT windowing for subset size: " + std::to_string(ss_grid[i].size));
+            //Timer timer("FFT windowing for subset size: " + std::to_string(ss_grid[i].size));
 
             const int ss_size = ss_grid[i].size;
             const int num_ss  = ss_grid[i].num;
@@ -179,9 +181,7 @@ namespace fourier {
                 for (int ss = 0; ss < ss_grid[i].num; ss++){
 
                     // exit when ctrl+C
-                    if (stop_request){
-                        continue;
-                    }
+                    if (stop_request) continue;
 
                     const int ss_x = ss_grid[i].coords[2*ss];
                     const int ss_y = ss_grid[i].coords[2*ss+1];
