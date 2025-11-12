@@ -9,11 +9,12 @@
 
 In this example we demonstrate how you can load your own simulation data from
 either plain text or numpy binary array files into a `SimData` object for use
-with the pyvale sensor simulation engine. Here we only demonstrate loading the
-data - please refer to the earlier examples on how to use the `SimData` object
-with the pyvale sensor simulation engine.
+with the pyvale sensor simulation engine. We do this by first converting and 
+saving an exodus simulation output file in plain text so we can see the format
+that is expected when we load the data.
 
-Test case: Simple cube thermo-mechanical multi-physics in 3D.
+This example only demonstrates how to load simulation data into a `SimData`
+object 
 """
 
 from pathlib import Path
@@ -27,6 +28,9 @@ import pyvale.dataset as dataset
 
 
 #%%
+# 1. Save existing SimData to csv 
+# --------------------------------
+#
 # We are going to start by loading one the pre-packaged simulation datasets in
 # exodus format that comes with `pyvale`. We are then going to take the
 # `SimData` object and save it to the csv/txt format and numpy array formats
@@ -90,6 +94,9 @@ coord_path = output_path / ("hex20_coords" + suffix)
 time_path = output_path / ("hex20_time" + suffix)
 
 #%%
+# 2. Load SimData 'by time'
+# -------------------------
+#
 # First let's load the data 'by time'. This is a bit more complicated than 'by
 # field' as we need to specify how to slice into each frame to extract each
 # nodal field variable as well as specifying the wildcard pattern to search for
@@ -143,6 +150,9 @@ print(80*"-")
 sens.print_sim_data(sim_data_load)
 
 #%%
+# 3. Load SimData 'by field'
+# --------------------------
+#
 # Now we will load the data 'by field' which is the simplest case as it is most
 # similar to how the `SimData` object stores our nodal fields. Here our 
 # `field_slices` dictionary is again keyed by the field variable names we want

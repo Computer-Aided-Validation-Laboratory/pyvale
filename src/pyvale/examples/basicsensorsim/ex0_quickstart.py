@@ -42,7 +42,7 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                disp_keys=None)
 
 #%% 
-# 2. Create a virtual sensor array
+# 2. Build a virtual sensor array
 # --------------------------------
 sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
                                                     x_lims=(12.5,12.5),

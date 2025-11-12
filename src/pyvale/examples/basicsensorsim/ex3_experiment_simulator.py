@@ -154,7 +154,7 @@ strain_sens.set_error_chain(strain_err_chain)
 
 #%%
 # 3. Create & run simulated experiments
-# ------------------------------------
+# -------------------------------------
 # We can now run our experiments over all simulations for all our virtual  
 # sensor arrays. We are returned a list of numpy arrays. The index in the list 
 # corresponds to the position of the virtual sensor array in the  input list. So 
