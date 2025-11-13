@@ -1,6 +1,15 @@
+// ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
+
 #pragma once
 
+// STD header files
 #include <limits>
+
+// ray tracer header files
 #include "rteigentypes.h"
 
 struct Ray {
@@ -14,4 +23,3 @@ struct Ray {
 inline EiVector3d ray_at_t(const double t, const Ray& ray) {
     return ray.origin + t * ray.direction;
 };
-// return direction.normalized(); // for normalizing ray direction; can keep it inline, just have it here so I don't forget it's an option

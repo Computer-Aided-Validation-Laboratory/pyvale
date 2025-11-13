@@ -1,5 +1,14 @@
+// ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
+
+// STD header files
 #include <iostream>
 #include <limits>
+
+// ray tracer header files
 #include "rtrayintersection.h"
 
 EiVectorD3d cross_rowwise(const EiVectorD3d& mat1, const EiVectorD3d& mat2) {
@@ -48,7 +57,6 @@ IntersectionOutput intersect_plane(const Ray& ray,
 		int node_1 = connectivity_ptr[i * 3 + 1];
 		int node_2 = connectivity_ptr[i * 3 + 2];
         for (int j = 0; j < 3; j++) {
-            //std::cout<<node_coords_arr[i][j] << " ";
             //edge0(i, j) = node_coords.at(node_1, j) - node_coords.at(node_0, j);
 			edge0(i, j) = node_coords_ptr[node_1 * 3 + j] - node_coords_ptr[node_0 * 3 + j];
             //nodes0(i, j) = node_coords.at(node_0, j);

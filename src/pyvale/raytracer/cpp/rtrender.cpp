@@ -1,10 +1,12 @@
-#include "rtrender.h"
-#include "rthitrecord.h"
-#include "rtrayintersection.h"
-#include "rtmathutils.h"
+// ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
+
+// STD header files
 #include <fstream>
 #include <iostream>
-
 
 inline EiVector3d get_face_color(Eigen::Index minRowIndex,
     const double* face_color_ptr) {

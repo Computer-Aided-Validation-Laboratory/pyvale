@@ -1,6 +1,15 @@
+// ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
+
 #pragma once
 
+// STD header files
 #include <limits>
+
+// raytracer header files
 #include "rteigentypes.h"
 #include "rtray.h"
 

@@ -1,13 +1,14 @@
+# TESTING BATTLEFIELD
+
 from ast import List
 import numpy as np
 from dataclasses import dataclass, field
-
-import pyvale.dataset as dataset
 import timeit
 
-from rtcamera import Camera
-from rtsimdataloader import add_mesh_to_scene
-from rtscene import Scene
+import pyvale.dataset as dataset
+from pyvale.raytracer.rtcamera import Camera
+from pyvale.raytracer.rtsimdataloader import add_mesh_to_scene
+from pyvale.raytracer.rtscene import Scene
 
 #################################################### INPUT #####################################################
 # Output image dimensions

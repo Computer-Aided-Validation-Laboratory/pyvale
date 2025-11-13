@@ -1,9 +1,15 @@
+// ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
+
 #pragma once
-#include "Eigen/Dense"
+#include "../../common_cpp/Eigen/Dense"
 
 // Define aliases for the vectors and matrices from Eigen library.
-// Can't use the convenience typedefs like Matrix4d or Vector3d because everything in Eigen is column-major, whereas
-// C++, NumPy, and ScratchAPixel all use the row-major, so there is too much room for mistakes.
+// Cannot use the convenience typedefs like Matrix4d or Vector3d because everything in Eigen is column-major, whereas
+// we want it to be compatible with the C-layout (row-major)
 using EiMatrix4d = Eigen::Matrix<double, 4, 4, Eigen::StorageOptions::RowMajor>; // Shape (4,4)
 using EiVector3d = Eigen::Matrix<double, 1, 3, Eigen::StorageOptions::RowMajor>; // Vector; shape (3)
 using EiMatrixDd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>; // Dynamic-size matrix (Dd = dynamic double)

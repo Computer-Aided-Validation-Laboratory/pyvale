@@ -1,12 +1,21 @@
+// ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
+
 #pragma once
 
+// STD header files 
+#include<vector>
 #include <array>
+
+// pybind header files
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
-#include <string>
-#include<vector>
 
+// raytracer header files
 #include "rteigentypes.h"
 #include "rtcamera.h"
 #include "rtray.h"

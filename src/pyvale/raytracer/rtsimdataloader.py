@@ -1,7 +1,14 @@
+# ================================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ================================================================================
+
+import numpy as np
+
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import numpy as np
-import rtscene
+import pyvale.raytracer.rtscene 
 
 def simdata_to_mesh(pypath, field_components, fields_to_render, scale):
     # Convert the simulation output into a SimData object
