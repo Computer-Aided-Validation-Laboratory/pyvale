@@ -294,15 +294,14 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    """
-    if type(component) == list:
-        if len(component) == 1:
-            component = component[0]"""
-    
     if type(component) == str:
         component = [component]
 
-    sim_data = sensor_array._field.get_sim_data()
+    if type(sensor_array) == SensorArrayPoint:
+        sensor_array = [sensor_array]
+
+    #sim_data = sensor_array._field.get_sim_data()
+    sim_data = sensor_array[0]._field.get_sim_data()
     vis_opts.colour_bar_lims = get_colour_lims(
         sim_data.node_vars[component[0]][:,time_step],
         vis_opts.colour_bar_lims)
@@ -311,16 +310,23 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
 
     for i in range(len(component)):
 
+        sim_data = sensor_array[i]._field.get_sim_data()
+        vis_opts.colour_bar_lims = get_colour_lims(
+            sim_data.node_vars[component[i]][:,time_step],
+            vis_opts.colour_bar_lims)
+
         pv_plot.subplot(0,i)
-        pv_plot = add_sensor_points_pert(pv_plot,sensor_array,vis_opts)
-        pv_plot = add_sensor_points_nom(pv_plot,sensor_array,vis_opts)
+        pv_plot = add_sensor_points_pert(pv_plot,sensor_array[i],vis_opts)
+        pv_plot = add_sensor_points_nom(pv_plot,sensor_array[i],vis_opts)
         (pv_plot,_) = add_sim_field(pv_plot,
-                                    sensor_array,
+                                    sensor_array[i],
                                     component[i],
                                     time_step,
                                     vis_opts)
 
         pv_plot.camera_position = vis_opts.camera_position
+
+        
 
     if image_save_opts is not None:
         save_pv_image(pv_plot,image_save_opts)
