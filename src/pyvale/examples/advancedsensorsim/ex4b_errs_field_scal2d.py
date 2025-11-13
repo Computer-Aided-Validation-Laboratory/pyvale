@@ -56,7 +56,7 @@ sensor_data = sens.SensorData(positions=sens_pos,
 
 field_key: str = "temperature"
 tc_array = sens.SensorFactory \
-    .thermocouples_no_errs(sim_data,
+    .thermocouples(sim_data,
                             sensor_data,
                             elem_dims=3,
                             field_name=field_key)

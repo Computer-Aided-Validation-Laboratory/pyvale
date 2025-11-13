@@ -202,4 +202,6 @@ sens.print_sim_data(sim_data_load)
 
 #%%
 # That's it for this example! We will leave it as an exercise to load the strain
-# fields from the files in the output directory.
+# fields from the files in the output directory and to connect the `SimData` 
+# object you have just loaded to the rest of the `pyvale` sensor simulation 
+# engine

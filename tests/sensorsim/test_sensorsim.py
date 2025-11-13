@@ -107,7 +107,7 @@ def test_gold_sens_tensor(get_sensors: Callable[[], Dict[str, Any]]) -> None:
 def check_get_meas(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[str]:
     fails = []
     for ss in sens_dict:
-        calc_meas = sens_dict[ss].calc_measurements()
+        calc_meas = sens_dict[ss].sim_measurements()
         get_meas = sens_dict[ss].get_measurements()
 
         if not np.allclose(calc_meas, get_meas):
@@ -194,7 +194,7 @@ def analytic_interp_2d(sim_data: mh.SimData,
     for ss in sens_data_dict:
         sens_array = sens_array_noerrs(sim_data,
                                        sens_data_dict[ss],
-                                       elem_dims=2)
+                                       spatial_dims=sens.EDim.TWOD)
         meas_sens = sens_array.get_measurements()
 
         sens_pos = sens_data_dict[ss].positions

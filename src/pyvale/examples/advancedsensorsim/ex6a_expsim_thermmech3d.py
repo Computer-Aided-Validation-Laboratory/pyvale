@@ -71,7 +71,7 @@ tc_sens_data = sens.SensorData(positions=tc_sens_pos,
 # errors.
 tc_field_name = "temperature"
 tc_array = sens.SensorFactory \
-    .thermocouples_no_errs(sim_data,
+    .thermocouples(sim_data,
                             tc_sens_data,
                             elem_dims=elem_dims,
                             field_name=tc_field_name)
@@ -141,7 +141,7 @@ sg_field_name = "strain"
 sg_norm_comps = ("strain_xx","strain_yy","strain_zz")
 sg_dev_comps = ("strain_xy","strain_yz","strain_xz")
 sg_array = sens.SensorFactory \
-    .strain_gauges_no_errs(sim_data,
+    .strain_gauges(sim_data,
                             sg_sens_data,
                             elem_dims=elem_dims,
                             field_name=sg_field_name,

@@ -32,12 +32,12 @@ from pyvale.sensorsim.enums import EDim
 
 class SensorFactory:
     @staticmethod
-    def scalar_no_errs(sim_data: mh.SimData,
-                       sensor_data: SensorData,
-                       comp_key: str,
-                       spatial_dims: EDim,
-                       descriptor: SensorDescriptor | None = None 
-                       ) -> SensorArrayPoint:
+    def scalar(sim_data: mh.SimData,
+               sensor_data: SensorData,
+               comp_key: str,
+               spatial_dims: EDim,
+               descriptor: SensorDescriptor | None = None 
+               ) -> SensorArrayPoint:
 
         if descriptor is None:
             descriptor = DescriptorFactory.scalar()
@@ -48,37 +48,14 @@ class SensorFactory:
                                       s_field,
                                       descriptor)
         return sens_array
-          
-    @staticmethod
-    def scalar_basic_errs(sim_data: mh.SimData,
-                          sensor_data: SensorData,
-                          comp_key: str,
-                          spatial_dims: EDim,
-                          descriptor: SensorDescriptor | None = None,
-                          sys_err_pc: float = 1.0,
-                          rand_err_pc: float = 1.0, 
-                          ) -> SensorArrayPoint:
-                          
-        sens_array = SensorFactory.scalar_no_errs(sim_data,
-                                                  sensor_data,
-                                                  comp_key,
-                                                  spatial_dims,
-                                                  descriptor)
-                                                  
-        err_chain = basic_err_chain(sys_err_pc=sys_err_pc,
-                                    rand_err_pc=rand_err_pc)
-                                
-        sens_array.set_error_chain(err_chain)
-        return sens_array
-
 
     @staticmethod
-    def vector_no_errs(sim_data: mh.SimData,
-                       sensor_data: SensorData,
-                       comp_keys: tuple[str,...],
-                       spatial_dims: EDim,
-                       descriptor: SensorDescriptor | None = None,
-                       ) -> SensorArrayPoint:
+    def vector(sim_data: mh.SimData,
+               sensor_data: SensorData,
+               comp_keys: tuple[str,...],
+               spatial_dims: EDim,
+               descriptor: SensorDescriptor | None = None,
+               ) -> SensorArrayPoint:
 
         if descriptor is None:
             descriptor = DescriptorFactory.vector()
@@ -92,33 +69,13 @@ class SensorFactory:
         return sens_array
 
     @staticmethod
-    def vector_basic_errs(sim_data: mh.SimData,
-                          sensor_data: SensorData,
-                          comp_keys: tuple[str,...],
-                          spatial_dims: EDim,
-                          descriptor: SensorDescriptor | None = None,
-                          sys_err_pc: float = 1.0,
-                          rand_err_pc: float = 1.0,
-                          ) -> SensorArrayPoint:
-
-        sens_array = SensorFactory.vector_no_errs(sim_data,
-                                                  sensor_data,
-                                                  comp_keys,
-                                                  spatial_dims,
-                                                  descriptor)
-        err_chain = basic_err_chain(sys_err_pc=sys_err_pc,
-                                    rand_err_pc=rand_err_pc)
-        sens_array.set_error_chain(err_chain)
-        return sens_array
-
-    @staticmethod
-    def tensor_no_errs(sim_data: mh.SimData,
-                       sensor_data: SensorData,
-                       norm_comp_keys: tuple[str,...],
-                       dev_comp_keys: tuple[str,...],
-                       spatial_dims: EDim,
-                       descriptor: SensorDescriptor | None = None,
-                       ) -> SensorArrayPoint:
+    def tensor(sim_data: mh.SimData,
+               sensor_data: SensorData,
+               norm_comp_keys: tuple[str,...],
+               dev_comp_keys: tuple[str,...],
+               spatial_dims: EDim,
+               descriptor: SensorDescriptor | None = None,
+               ) -> SensorArrayPoint:
 
         if descriptor is None:
             descriptor = DescriptorFactory.tensor(spatial_dims)
@@ -132,27 +89,69 @@ class SensorFactory:
                                       descriptor)
 
         return sens_array
+          
+    # @staticmethod
+    # def scalar_basic_errs(sim_data: mh.SimData,
+    #                       sensor_data: SensorData,
+    #                       comp_key: str,
+    #                       spatial_dims: EDim,
+    #                       descriptor: SensorDescriptor | None = None,
+    #                       sys_err_pc: float = 1.0,
+    #                       rand_err_pc: float = 1.0, 
+    #                       ) -> SensorArrayPoint:
+    #                       
+    #     sens_array = SensorFactory.scalar(sim_data,
+    #                                               sensor_data,
+    #                                               comp_key,
+    #                                               spatial_dims,
+    #                                               descriptor)
+    #                                               
+    #     err_chain = basic_err_chain(sys_err_pc=sys_err_pc,
+    #                                 rand_err_pc=rand_err_pc)
+    #                             
+    #     sens_array.set_error_chain(err_chain)
+    #     return sens_array
 
-    @staticmethod
-    def tensor_basic_errs(sim_data: mh.SimData,
-                          sensor_data: SensorData,
-                          norm_comp_keys: tuple[str,...],
-                          dev_comp_keys: tuple[str,...],
-                          spatial_dims: EDim,
-                          descriptor: SensorDescriptor | None = None,
-                          ) -> SensorArrayPoint:
+#     @staticmethod
+#     def vector_basic_errs(sim_data: mh.SimData,
+#                           sensor_data: SensorData,
+#                           comp_keys: tuple[str,...],
+#                           spatial_dims: EDim,
+#                           descriptor: SensorDescriptor | None = None,
+#                           sys_err_pc: float = 1.0,
+#                           rand_err_pc: float = 1.0,
+#                           ) -> SensorArrayPoint:
+# 
+#         sens_array = SensorFactory.vector(sim_data,
+#                                                   sensor_data,
+#                                                   comp_keys,
+#                                                   spatial_dims,
+#                                                   descriptor)
+#         err_chain = basic_err_chain(sys_err_pc=sys_err_pc,
+#                                     rand_err_pc=rand_err_pc)
+#         sens_array.set_error_chain(err_chain)
+#         return sens_array
 
-        sens_array = SensorFactory.tensor_no_errs(sim_data,
-                                                  sensor_data,
-                                                  norm_comp_keys,
-                                                  dev_comp_keys,
-                                                  spatial_dims,
-                                                  descriptor)
-        err_chain = basic_err_chain(sys_err_pc=sys_err_pc,
-                                    rand_err_pc=rand_err_pc)
-        sens_array.set_error_chain(err_chain)
-
-        return sens_array
+#     @staticmethod
+#     def tensor_basic_errs(sim_data: mh.SimData,
+#                           sensor_data: SensorData,
+#                           norm_comp_keys: tuple[str,...],
+#                           dev_comp_keys: tuple[str,...],
+#                           spatial_dims: EDim,
+#                           descriptor: SensorDescriptor | None = None,
+#                           ) -> SensorArrayPoint:
+# 
+#         sens_array = SensorFactory.tensor(sim_data,
+#                                                   sensor_data,
+#                                                   norm_comp_keys,
+#                                                   dev_comp_keys,
+#                                                   spatial_dims,
+#                                                   descriptor)
+#         err_chain = basic_err_chain(sys_err_pc=sys_err_pc,
+#                                     rand_err_pc=rand_err_pc)
+#         sens_array.set_error_chain(err_chain)
+# 
+#         return sens_array
 
 
 

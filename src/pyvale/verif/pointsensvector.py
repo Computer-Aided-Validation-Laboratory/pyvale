@@ -35,11 +35,12 @@ def simdata_vec_2d_analytic_nomesh() -> mh.SimData:
 
 def sens_array_2d_noerrs(sim_data: mh.SimData,
                    sens_data: sens.SensorData,
-                   elem_dims: int = 2) -> sens.SensorArrayPoint:
+                   spatial_dims: sens.EDim = sens.EDim.TWOD,
+                   ) -> sens.SensorArrayPoint:
     descriptor = sens.DescriptorFactory.displacement()
     field = sens.FieldVector(sim_data,
                             comp_keys=("disp_x","disp_y"),
-                            elem_dims=elem_dims)
+                            spatial_dims=spatial_dims)
     sens_array = sens.SensorArrayPoint(sens_data,
                                       field,
                                       descriptor)
@@ -48,11 +49,12 @@ def sens_array_2d_noerrs(sim_data: mh.SimData,
 
 def sens_array_3d_noerrs(sim_data: mh.SimData,
                    sens_data: sens.SensorData,
-                   elem_dims: int = 3) -> sens.SensorArrayPoint:
+                   spatial_dims: sens.EDim = sens.EDim.THREED
+                   ) -> sens.SensorArrayPoint:
     descriptor = sens.DescriptorFactory.displacement()
     field = sens.FieldVector(sim_data,
                             comp_keys=("disp_x","disp_y","disp_z"),
-                            elem_dims=elem_dims)
+                            spatial_dims=spatial_dims)
     sens_array =  sens.SensorArrayPoint(sens_data,
                                        field,
                                        descriptor)
@@ -84,11 +86,8 @@ def gen_sens_arrays_2d_dict(sim_data: mh.SimData,
 
             if err_chain_dict[ee] is not None:
                 err_int_opts = sens.ErrIntOpts()
-                err_int = sens.ErrIntegrator(err_chain_dict[ee],
-                                            sens_data_dict[ss],
-                                            sens_dict[tag].get_measurement_shape(),
-                                            err_int_opts=err_int_opts)
-                sens_dict[tag].set_error_integrator(err_int)
+                sens_dict[tag].set_error_chain(err_chain_dict[ee],
+                                               err_int_opts)
 
     return sens_dict
 
@@ -118,11 +117,8 @@ def gen_sens_arrays_3d_dict(sim_data: mh.SimData,
 
             if err_chain_dict[ee] is not None:
                 err_int_opts = sens.ErrIntOpts()
-                err_int = sens.ErrIntegrator(err_chain_dict[ee],
-                                            sens_data_dict[ss],
-                                            sens_dict[tag].get_measurement_shape(),
-                                            err_int_opts=err_int_opts)
-                sens_dict[tag].set_error_integrator(err_int)
+                sens_dict[tag].set_error_chain(err_chain_dict[ee],
+                                               err_int_opts)
 
     return sens_dict
 

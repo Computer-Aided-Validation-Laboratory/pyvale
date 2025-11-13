@@ -113,8 +113,8 @@ def exp_sim_2d() -> dict[str,sens.ExperimentSimulator]:
 
         sens_noerrs = {}
         sens_noerrs["scal"] = pointsensscalar.sens_array_noerrs(sim_list[0],
-                                                      sens_data_dict[ss],
-                                                      elem_dims=2)
+                                                sens_data_dict[ss],
+                                                spatial_dims=sens.EDim.TWOD)
         sens_noerrs["vect"] = pointsensvector.sens_array_2d_noerrs(sim_list[0],
                                                          sens_data_dict[ss])
         sens_noerrs["tens"] = pointsenstensor.sens_array_2d_noerrs(sim_list[0],
@@ -166,12 +166,9 @@ def exp_sim_2d() -> dict[str,sens.ExperimentSimulator]:
                 # print(f"{ee=}")
                 # print(80*"-")
                 if err_chain_dict[ff][ee] is not None:
-                    err_int_opts = sens.ErrIntOpts
-                    err_int = sens.ErrIntegrator(err_chain_dict[ff][ee],
-                                                sens_data_dict[ss],
-                                                this_sens.get_measurement_shape(),
-                                                err_int_opts=err_int_opts)
-                    this_sens.set_error_integrator(err_int)
+                    err_int_opts = sens.ErrIntOpts()q
+                    this_sens.set_error_chain(err_chain_dict[ff][ee],
+                                              err_int_opts)
 
                 sensor_arrays.append(this_sens)
 

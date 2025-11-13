@@ -34,6 +34,8 @@ import pyvale.verif as verif
 
 
 #%%
+# 1. Create analytic simulation data
+# ----------------------------------
 # For this example we are going to use a generated analytic dataset instead of
 # a finite element simulation as we want an analytic function for the measured
 # field that is linear so we can see that mesh-free interpolation matches the
@@ -64,17 +66,17 @@ sim_data_nomesh.connect = None
 # case shown here with 1200 elements creating the `Field` is about 10 times
 # slower than the mesh based case.
 
-field_key = 'temperature'
+comp_key = 'temperature'
 start_time = time.perf_counter()
 scal_field = sens.FieldScalar(sim_data,
-                              field_key=field_key,
-                              elem_dims=2)
+                              comp_key=comp_key,
+                              spatial_dims=sens.EDim.TWOD)
 mesh_time = (time.perf_counter() - start_time)*1000.0
 
 start_time = time.perf_counter()
 scal_field_nomesh = sens.FieldScalar(sim_data_nomesh,
-                                     field_key=field_key,
-                                     elem_dims=2)
+                                     comp_key=comp_key,
+                                     spatial_dims=sens.EDim.TWOD)
 nomesh_time = (time.perf_counter() - start_time)*1000.0
 
 print(80*"-")
@@ -101,20 +103,24 @@ sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 sensor_data = sens.SensorData(positions=sens_pos,
                              sample_times=sample_times)
 
-descriptor = sens.SensorDescriptorFactory.temperature_descriptor()
+descriptor = sens.DescriptorFactory.temperature()
 
 
 #%%
 # Creating the `SensorArrarPoint` objects is exactly the same for the mesh free
 # and mesh based cases - we just need to pass in the correct `FieldScalar`.
-tc_array = sens.SensorFactoryPoint(sensor_data,
+tc_array = sens.SensorFactory.scalar(sensor_data,
                                  scal_field,
                                  descriptor)
 
-tc_array_nomesh = sens.SensorFactoryPoint(sensor_data,
+tc_array_nomesh = sens.SensorFactory.scalar(sensor_data,
                                         scal_field_nomesh,
                                         descriptor)
 
+print(80*"-")
+print("Sensor Array Creation Times:")
+print(f"Mesh based = {mesh_time:.3f} milliseconds")
+print(f"Mesh free  = {nomesh_time:.3f} milliseconds\n")
 
 #%%
 # Now we can simulate some measurements for the mesh based and mesh free cases
