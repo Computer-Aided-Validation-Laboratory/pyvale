@@ -10,6 +10,7 @@ import pyvale.mooseherder as mh
 from pyvale.sensorsim.rendermesh import RenderMesh
 from pyvale.sensorsim.exceptions import Collapse2Dto3DError
 
+#TODO: doctsrings!
 
 def print_dataclass_fields(in_data: Any) -> None:
     """Diagnostic function to print all fields of a dataclass.
@@ -168,6 +169,38 @@ def get_deformed_nodes(timestep: int,
     coords = np.delete(render_mesh.coords, 3, axis=1)
     deformed_nodes = coords + added_disp
     return deformed_nodes
+
+
+def scale_length_units(scale: float,
+                       sim_data: mh.SimData,
+                       disp_keys: tuple[str,...] | None = None,
+                       ) -> mh.SimData:
+    """Used to scale the length units of a simulation. Commonly used to convert
+    SI units to mm for use with visualisation tools and rendering algorithms.
+
+    Parameters
+    ----------
+    scale : float
+        Scale multiplier used to scale the coordinates and displacement fields
+        if specified.
+    sim_data : mh.SimData
+        Simulation dataclass that will be scaled.
+    disp_keys : tuple[str,...] | None, optional
+        Tuple of string keys for the displacement keys to be scaled, by default
+        None. If None then the displacements are not scaled.
+
+    Returns
+    -------
+    mh.SimData
+        Simulation dataclass with scaled length units.
+    """
+    sim_data.coords = sim_data.coords*scale
+
+    if disp_keys is not None:
+        for cc in disp_keys:
+            sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
+
+    return sim_data
 
 
 

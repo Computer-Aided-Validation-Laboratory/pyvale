@@ -132,38 +132,6 @@ def _gen_pyvista_grid(sim_data: mh.SimData,
     return pv_grid
 
 
-def scale_length_units(scale: float,
-                       sim_data: mh.SimData,
-                       disp_keys: tuple[str,...] | None = None,
-                       ) -> mh.SimData:
-    """Used to scale the length units of a simulation. Commonly used to convert
-    SI units to mm for use with visualisation tools and rendering algorithms.
-
-    Parameters
-    ----------
-    scale : float
-        Scale multiplier used to scale the coordinates and displacement fields
-        if specified.
-    sim_data : mh.SimData
-        Simulation dataclass that will be scaled.
-    disp_keys : tuple[str,...] | None, optional
-        Tuple of string keys for the displacement keys to be scaled, by default
-        None. If None then the displacements are not scaled.
-
-    Returns
-    -------
-    mh.SimData
-        Simulation dataclass with scaled length units.
-    """
-    sim_data.coords = sim_data.coords*scale
-
-    if disp_keys is not None:
-        for cc in disp_keys:
-            sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
-
-    return sim_data
-
-
 # TODO: make this work for sim_data with multiple connectivity
 def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
     """Extracts a surface mesh from a 3D simulation dataclass. Useful for
@@ -285,7 +253,7 @@ def _get_pyvista_cell_type(nodes_per_elem: int,
     """
     cell_type = None
 
-    if spat_dim == EDim.TWOD:
+    if spat_dim == EDim.TWOD or spat_dim == 2:
         if nodes_per_elem == 4:
             cell_type = CellType.QUAD
         elif nodes_per_elem == 3:
@@ -298,7 +266,7 @@ def _get_pyvista_cell_type(nodes_per_elem: int,
             cell_type = CellType.QUADRATIC_QUAD
         elif nodes_per_elem == 9:
             cell_type = CellType.BIQUADRATIC_QUAD
-    elif spat_dim == EDim.THREED:
+    elif spat_dim == EDim.THREED or spat_dim == 3:
         if nodes_per_elem == 8:
             cell_type =  CellType.HEXAHEDRON
         elif nodes_per_elem == 4:

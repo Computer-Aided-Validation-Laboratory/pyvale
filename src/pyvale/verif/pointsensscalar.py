@@ -261,7 +261,7 @@ def err_chain_3d_dict(field: sens.IField,
 
 def sens_array_noerrs(sim_data: mh.SimData,
                       sens_data: sens.SensorData,
-                     spatial_dims: sens.EDim) -> sens.SensorArrayPoint:
+                      spatial_dims: sens.EDim) -> sens.SensorArrayPoint:
 
     descriptor = sens.DescriptorFactory.temperature()
 
@@ -309,15 +309,15 @@ def gen_sens_array_dict_2d(sim_data: mh.SimData,
     return sens_dict
 
 def gen_sens_array_dict_3d(sim_data: mh.SimData,
-                    sens_data_dict: dict[str,sens.SensorData],
-                    tag: str,
-                    ) -> dict[str,sens.SensorArrayPoint]:
+                           sens_data_dict: dict[str,sens.SensorData],
+                           tag: str,
+                           ) -> dict[str,sens.SensorArrayPoint]:
 
     sens_dict = {}
     for ss in sens_data_dict:
         sens_array = sens_array_noerrs(sim_data,
                                        sens_data_dict[ss],
-                                       spatial_dims=3)
+                                       spatial_dims=sens.EDim.THREED)
 
         pos_lock = sens_pos_3d_lock(sens_data_dict[ss].positions)
         for kk in pos_lock:
