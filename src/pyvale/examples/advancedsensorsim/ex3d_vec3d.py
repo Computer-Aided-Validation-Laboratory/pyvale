@@ -5,18 +5,10 @@
 # ==============================================================================
 
 """
-3D vector field sensors
+Vector field sensors in 3D
 ================================================================================
 
-In all our previous examples we have looked at a 2D solid mechanics simulation
-and applied displacement sensors to the vector field. Here we will build a
-custom vector field sensor array on a 3D simulation of a small linear elastic
-cube loaded in tension with the addition of an applied thermal gradient.
 
-Note that this tutorial assumes you are familiar with the use of `pyvale` for
-scalar fields as described in the first set of examples.
-
-Test case: Simple 3D cube thermo-mechanical in tension with temp gradient.
 """
 
 import numpy as np
@@ -26,6 +18,22 @@ import matplotlib.pyplot as plt
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
+
+#%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
 
 
 #%%
@@ -42,7 +50,7 @@ field_name = "disp"
 field_comps = ("disp_x","disp_y","disp_z")
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=field_comps)
+                                    disp_keys=field_comps)
 
 #%%
 # We use a helper function to print the extent of the dimensions in our

@@ -5,13 +5,11 @@
 # ==============================================================================
 
 """
-Sensor calibration systematic errors
+Errors: calibration
 ================================================================================
 
 In this example we show how `pyvale` can simulate sensor calibration errors with
 user defined calibration functions.
-
-Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 """
 
 import numpy as np
@@ -22,6 +20,21 @@ import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
+#%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
 
 #%%
 # First we need to define some calibration functions. These functions must take
@@ -37,7 +50,6 @@ def calib_assumed(signal: np.ndarray) -> np.ndarray:
 
 def calib_truth(signal: np.ndarray) -> np.ndarray:
     return -0.01897 + 25.41881*signal - 0.42456*signal**2 + 0.04365*signal**3
-
 
 #%%
 # We are first going to do a quick analytical calculation for the minimum
@@ -74,7 +86,7 @@ data_path = dataset.thermal_2d_path()
 sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=None)
+                                    disp_keys=None)
 
 n_sens = (4,1,1)
 x_lims = (0.0,100.0)

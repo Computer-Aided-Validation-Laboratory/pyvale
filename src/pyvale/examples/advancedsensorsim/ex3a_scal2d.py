@@ -5,14 +5,9 @@
 # ==============================================================================
 
 """
-Building a point sensor array from scratch with custom errors
+Scalar field sensors in 2D
 ================================================================================
 
-Here we build a custom point sensor array from scratch that is similar to the
-pre-built thermocouple array from example 1.1. For this example we switch to a
-3D thermal simulation of a fusion heatsink component.
-
-Test case: Scalar field point sensors (thermocouples) on a 3D thermal simulation
 """
 
 from pathlib import Path
@@ -25,73 +20,54 @@ import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
-# To build our custom point sensor array we need to at minimum provide a
-# `IField` (i.e. `FieldScaler`, `FieldVector`, `FieldTensor`) and a
-# `SensorData` object. For labelling visualisations (e.g. axis labels and
-# unit labels) we can also provide a `SensorDescriptor` object.
-# Once we have built our `SensorFactoryPoint` object from these we can then
-# attach custom chains of different types of random and systematic errors
-# to be evaluated when we run our measurement simulation. This example is
-# based on the same thermal example we have used in the last two examples so
-# we start by loading our simulation data:
+# 1. Load physics simulation data
+# -------------------------------
 
 data_path = dataset.thermal_3d_path()
 sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
-                                    sim_data=sim_data,
-                                    disp_comps=None)
+                                   sim_data=sim_data,
+                                   disp_keys=None)
 
-#%%
-# We are going to build a custom temperature sensor so we need a scalar
-# field object to perform interpolation to the sensor locations at the
-# desired sampling times.
-field_key: str = "temperature"
-t_field = sens.FieldScalar(sim_data,
-                            field_key=field_key,
-                            elem_dims=3)
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
 
+sens_pos = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
+                                    x_lims=(12.5,12.5),
+                                    y_lims=(0.0,33.0),
+                                    z_lims=(0.0,12.0))
 
-#%%
-# Next we need to create our `SensorData` object which will set the position
-# and sampling times of our sensors. We use the same helper function we used
-# previously to create a uniformly spaced grid of sensors in space
-n_sens = (1,4,1)
-x_lims = (12.5,12.5)
-y_lims = (0.0,33.0)
-z_lims = (0.0,12.0)
-sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
-
-#%%
-# We are also going to specify the times at which we would like to simulate
-# measurements. Setting this to `None` will default the measurements times
-# to match the simulation time steps.
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
 sensor_data = sens.SensorData(positions=sens_pos,
                              sample_times=sample_times)
 
-#%%
-# Finally, we can create a `SensorDescriptor` which will be used to label
-# the visualisation and sensor trace plots we have seen in previous
-# examples.
-use_auto_descriptor: str = "blank"
-if use_auto_descriptor == "manual":
-    descriptor = sens.SensorDescriptor(name="Temperature",
-                                        symbol="T",
-                                        units = r"^{\circ}C",
-                                        tag = "TC")
-elif use_auto_descriptor == "factory":
-    descriptor = sens.SensorDescriptorFactory.temperature_descriptor()
-else:
-    descriptor = sens.SensorDescriptor()
+descriptor = sens.SensorDescriptor(name="Temperature",
+                                   symbol="T",
+                                   units = r"^{\circ}C",
+                                   tag = "TC")
+
+sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+    sim_data,
+    sens_data,
+    comp_key="temperature",
+    spatial_dims=sens.EDim.TWOD,
+    descriptor=descriptor,
+)
 
 #%%
-# We can now build our custom point sensor array. This sensor array has no
-# errors so if we call `get_measurements()` or `sim_measurements()` we will
-# be able to extract the simulation truth values at the sensor locations.
-tc_array = sens.SensorFactoryPoint(sensor_data,
-                                t_field,
-                                descriptor)
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
+
 
 #%%
 # This is a new 3D simulation we are analysing so we should visualise the
@@ -191,9 +167,10 @@ measurements = tc_array.sim_measurements()
 # plotting the sensor times traces. Try experimenting with the errors above
 # to see how the results change.
 print("\n"+80*"-")
-print("For a virtual sensor: measurement = truth + sysematic error + random error")
-print(f"measurements.shape = {measurements.shape} = "+
-        "(n_sensors,n_field_components,n_timesteps)\n")
+print("For a virtual sensor: measurement = truth + sysematic error +"
+      + " random error")
+print(f"measurements.shape = {measurements.shape} ="
+      + " (n_sensors,n_field_components,n_timesteps)\n")
 print("The truth, systematic error and random error arrays have the same "+
         "shape.")
 

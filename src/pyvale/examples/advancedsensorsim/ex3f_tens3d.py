@@ -5,17 +5,9 @@
 # ==============================================================================
 
 """
-Custom tensor field sensors (strain gauges) in 3D
+Tensor field sensors in 3D
 ================================================================================
 
-In this example we build a custom tensor field sensor array (i.e. a strain gauge
-array) in 3D. We will also demonstrate how to specify sensor angles and field
-errors based on sensor angles.
-
-Note that this tutorial assumes you are familiar with the use of `pyvale` for
-scalar fields as described in the first set of examples.
-
-Test case: point strain sensors on a 2D plate with hole loaded in tension
 """
 
 import numpy as np
@@ -28,6 +20,23 @@ import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
+
+
+#%%
 # First we load our simulation asa `SimData` object. In this case we are
 # loading a 10mm cube loaded in tension in the y direction with the addition
 # of a thermal gradient in the y direction.
@@ -38,10 +47,10 @@ sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 # As we are creating a 3D tensor field sensor we now have a third
 # displacement field component here for scaling. Note that you don't need to
 # scale the displacements here if you only want to analyse strains.
-disp_comps = ("disp_x","disp_y","disp_z")
+disp_keys = ("disp_x","disp_y","disp_z")
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=disp_comps)
+                                    disp_keys=disp_keys)
 
 #%%
 # Here is the main difference when creating a tensor field sensor array. We

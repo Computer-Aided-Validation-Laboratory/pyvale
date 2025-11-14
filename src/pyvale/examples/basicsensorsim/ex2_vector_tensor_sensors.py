@@ -72,7 +72,7 @@ disp_sens_data = sens.SensorData(positions=sens_pos,
                                  sample_times=sample_times,
                                  angles=sens_angles)
 
-disp_sens: sens.SensorArrayPoint = sens.SensorFactory.vector(
+disp_sens: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
     sim_data,
     disp_sens_data,
     comp_keys=disp_keys,
@@ -97,7 +97,7 @@ strain_sens_data = sens.SensorData(positions=sens_pos,
                                    sample_times=sample_times,
                                    angles=sens_angles)
 
-strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor(
+strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
     sim_data,
     strain_sens_data,
     norm_comp_keys=("strain_xx","strain_yy",),

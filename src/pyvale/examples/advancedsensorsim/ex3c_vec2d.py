@@ -5,16 +5,10 @@
 # ==============================================================================
 
 """
-Custom vector field sensors
+Vector field sensors in 2D
 ================================================================================
 
-In this example we build a custom vector field sensor array which mimics the
-sensor array we built with the factory in the previous example.
 
-Note that this tutorial assumes you are familiar with the use of pyvale for
-scalar fields as described in the first set of examples.
-
-Test case: point displacement sensors on a 2D plate with hole loaded in tension
 """
 
 import numpy as np
@@ -25,6 +19,21 @@ import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
+#%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
 
 
 #%%
@@ -36,7 +45,7 @@ field_name = "disp"
 field_comps = ("disp_x","disp_y")
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=field_comps)
+                                    disp_keys=field_comps)
 
 #%%
 # This is the key different between building a vector field sensor vs a

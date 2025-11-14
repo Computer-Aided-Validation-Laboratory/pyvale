@@ -32,12 +32,12 @@ from pyvale.sensorsim.enums import EDim
 
 class SensorFactory:
     @staticmethod
-    def scalar(sim_data: mh.SimData,
-               sensor_data: SensorData,
-               comp_key: str,
-               spatial_dims: EDim,
-               descriptor: SensorDescriptor | None = None 
-               ) -> SensorArrayPoint:
+    def scalar_point(sim_data: mh.SimData,
+                     sensor_data: SensorData,
+                     comp_key: str,
+                     spatial_dims: EDim,
+                     descriptor: SensorDescriptor | None = None 
+                     ) -> SensorArrayPoint:
 
         if descriptor is None:
             descriptor = DescriptorFactory.scalar()
@@ -50,12 +50,12 @@ class SensorFactory:
         return sens_array
 
     @staticmethod
-    def vector(sim_data: mh.SimData,
-               sensor_data: SensorData,
-               comp_keys: tuple[str,...],
-               spatial_dims: EDim,
-               descriptor: SensorDescriptor | None = None,
-               ) -> SensorArrayPoint:
+    def vector_point(sim_data: mh.SimData,
+                     sensor_data: SensorData,
+                     comp_keys: tuple[str,...],
+                     spatial_dims: EDim,
+                     descriptor: SensorDescriptor | None = None,
+                     ) -> SensorArrayPoint:
 
         if descriptor is None:
             descriptor = DescriptorFactory.vector()
@@ -69,13 +69,13 @@ class SensorFactory:
         return sens_array
 
     @staticmethod
-    def tensor(sim_data: mh.SimData,
-               sensor_data: SensorData,
-               norm_comp_keys: tuple[str,...],
-               dev_comp_keys: tuple[str,...],
-               spatial_dims: EDim,
-               descriptor: SensorDescriptor | None = None,
-               ) -> SensorArrayPoint:
+    def tensor_point(sim_data: mh.SimData,
+                     sensor_data: SensorData,
+                     norm_comp_keys: tuple[str,...],
+                     dev_comp_keys: tuple[str,...],
+                     spatial_dims: EDim,
+                     descriptor: SensorDescriptor | None = None,
+                     ) -> SensorArrayPoint:
 
         if descriptor is None:
             descriptor = DescriptorFactory.tensor(spatial_dims)
@@ -100,7 +100,7 @@ class SensorFactory:
     #                       rand_err_pc: float = 1.0, 
     #                       ) -> SensorArrayPoint:
     #                       
-    #     sens_array = SensorFactory.scalar(sim_data,
+    #     sens_array = SensorFactory.scalar_point(sim_data,
     #                                               sensor_data,
     #                                               comp_key,
     #                                               spatial_dims,
@@ -122,7 +122,7 @@ class SensorFactory:
 #                           rand_err_pc: float = 1.0,
 #                           ) -> SensorArrayPoint:
 # 
-#         sens_array = SensorFactory.vector(sim_data,
+#         sens_array = SensorFactory.vector_point(sim_data,
 #                                                   sensor_data,
 #                                                   comp_keys,
 #                                                   spatial_dims,
@@ -141,7 +141,7 @@ class SensorFactory:
 #                           descriptor: SensorDescriptor | None = None,
 #                           ) -> SensorArrayPoint:
 # 
-#         sens_array = SensorFactory.tensor(sim_data,
+#         sens_array = SensorFactory.tensor_point(sim_data,
 #                                                   sensor_data,
 #                                                   norm_comp_keys,
 #                                                   dev_comp_keys,

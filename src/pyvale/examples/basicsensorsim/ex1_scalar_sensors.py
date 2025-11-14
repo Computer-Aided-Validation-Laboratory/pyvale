@@ -97,7 +97,7 @@ sens_data = sens.SensorData(positions=sens_pos,
 # want our sensors to sample from in the `SimData` object. Our simulation is 3D 
 # so we specify that here and we add a descriptor (optional) that will be used 
 # to set the axes labels, symbols and units on our visualisations.  
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar(
+sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
     sim_data,
     sens_data,
     comp_key="temperature",
@@ -211,7 +211,7 @@ pv_plot.screenshot(save_render)
 # %%
 #
 # .. image:: ../../../../_static/basics_ex1_locs.png
-#    :alt: Simulated temperature sensor traces.
+#    :alt: Simulated temperature sensor locations.
 #    :width: 800px
 #    :align: center
 

@@ -5,16 +5,9 @@
 # ==============================================================================
 
 """
-Custom tensor field sensors (strain gauges) in 2D
+Tensor field sensors in 2D
 ================================================================================
 
-In this example we build a custom tensor field sensor array (i.e. a strain gauge
-array) in 2D.
-
-Note that this tutorial assumes you are familiar with the use of `pyvale` for
-scalar fields as described in the first set of examples.
-
-Test case: point strain sensors on a 2D plate with hole loaded in tension
 """
 
 import numpy as np
@@ -26,6 +19,23 @@ import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
+
+
+#%%
 # First we load the same 2D solid mechanics simulation of a plate with a
 # hole loaded in tension as a `SimData` object. We scale the units to mm
 # from SI including the coordinates and displacement. Strain is unitless so
@@ -34,7 +44,7 @@ data_path = dataset.mechanical_2d_path()
 sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=("disp_x","disp_y"))
+                                    disp_keys=("disp_x","disp_y"))
 
 #%%
 # Here is the main difference when creating a tensor field sensor array. We

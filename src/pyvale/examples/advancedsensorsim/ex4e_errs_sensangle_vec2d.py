@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Sensor angles for vector fields
+Errors: field-based with orientation
 ================================================================================
 
 In this example we demonstrate how to setup vector field sensors at custom
@@ -13,11 +13,6 @@ orientations with respect to the simulation coordinate system. We first build a
 sensor array aligned with the simulation coords in the same way as the previous
 example. We then build a sensor array with the sensors rotated and compare this
 to the case with no rotation.
-
-Note that this tutorial assumes you are familiar with the use of `pyvale` for
-scalar fields as described in the first set of examples.
-
-Test case: point displacement sensors on a 2D plate with hole loaded in tension
 """
 
 import numpy as np
@@ -28,6 +23,23 @@ from scipy.spatial.transform import Rotation
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
+
+
+#%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
 
 #%%
 # First we are going to setup the same displacement sensor array on the 2D
@@ -40,7 +52,7 @@ field_name = "disp"
 field_comps = ("disp_x","disp_y")
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=field_comps)
+                                    disp_keys=field_comps)
 
 descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
 

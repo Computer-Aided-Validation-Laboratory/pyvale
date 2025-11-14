@@ -5,20 +5,16 @@
 # ==============================================================================
 
 """
-Field-based systematic errors
+Errors: field-based
 ================================================================================
 
 In this example we give an overview of field-based systematic errors. Field
 errors require additional interpolation of the underlying physical field such as
 uncertainty in a sensors position or sampling time. For this example we will
 focus on field error sources that perturb sensor locations and sampling times.
-In later examples we will analyse sensor orientation for vector and tensor
-fields.
 
 Note that field errors are more computationally intensive than basic errors as
 they require additional interpolations of the underlying physical field.
-
-Test case: Scalar field point sensors (thermocouples) on a 3D thermal simulation
 """
 
 from pathlib import Path
@@ -29,6 +25,22 @@ import matplotlib.pyplot as plt
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
+
+#%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
 
 
 #%%
@@ -41,7 +53,7 @@ data_path = dataset.thermal_3d_path()
 sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=None)
+                                    disp_keys=None)
 
 n_sens = (1,4,1)
 x_lims = (12.5,12.5)

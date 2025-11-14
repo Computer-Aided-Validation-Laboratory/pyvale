@@ -5,11 +5,13 @@
 # ==============================================================================
 
 """
-Overview of the basic error library
+Errors: basics
 ================================================================================
 
-Building on what we learned in examples 1.1-1.3 we now have a look at the basic
-error library for pyvale. The sensor error models in pyvale are grouped into the
+In this example we will provide an overview of the basic error library in 
+`pyvale`
+
+The sensor error models in pyvale are grouped into the
 types of random (`ErrRand*`) and systematic (`ErrSys*`). In this example we will
 consider probability distribution based sampled errors, constant offsets and
 basic systematic errors such as digitisation / saturation.
@@ -19,10 +21,8 @@ field errors that perturb the sensor parameters (e.g. location, sampling time
 and orientation) requiring re-interpolation of the underlying field data; and
 calibration errors.
 
-Test case: Scalar field point sensors (thermocouples) on a 3D thermal simulation
-
 Advanced users: It is also possible to write custom errors by writing your own
-class that implements the `IErrCalculator` abstract base class and then add them
+class that implements the `IErrSimulator` abstract base class and then add them
 to your error chain.
 """
 
@@ -36,6 +36,22 @@ import pyvale.dataset as dataset
 
 
 #%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
+
+#%%
 # First we use everything we learned from the first three examples to build
 # a thermocouple sensor array for the same 3D thermal simulation we have
 # analysed in the previous example.
@@ -43,7 +59,7 @@ data_path = dataset.thermal_3d_path()
 sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=None)
+                                    disp_keys=None)
 n_sens = (1,4,1)
 x_lims = (12.5,12.5)
 y_lims = (0.0,33.0)

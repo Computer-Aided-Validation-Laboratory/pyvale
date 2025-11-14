@@ -4,17 +4,10 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Multi-physics experiment simulation in 3D
+"""Experiment simulation in 3D
 ================================================================================
 
-In the previous example we performed a series of simulated experiments on a set
-of 2D multi-physics simulations. Here we use a 3D thermo-mechanical analysis of
-a divertor armour heatsink to show how we can run simulated experiments in 3D.
-
-Note that this tutorial assumes you are familiar with the use of `pyvale` for
-scalar and tensor fields as described in the previous examples.
-
-Test case: thermo-mechanical analysis of a divertor heatsink in 3D
+TODO
 """
 
 from pathlib import Path
@@ -27,6 +20,23 @@ import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
+
+
+#%%
 # First we get the path to simulation output file and then read the
 # simulation into a `SimData`  object. In this case our simulation is a
 # thermomechanical model of a divertor heatsink.
@@ -37,10 +47,10 @@ elem_dims: int = 3
 #%%
 # We scale our length and displacement units to mm to help with
 # visualisation.
-disp_comps = ("disp_x","disp_y","disp_z")
+disp_keys = ("disp_x","disp_y","disp_z")
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=disp_comps)
+                                    disp_keys=disp_keys)
 
 #%%
 # If we are going to save figures showing where our sensors are and their

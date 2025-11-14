@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Multi-physics experiment simulation in 2D
+"""Experiment simulation in 2D
 ================================================================================
 
 In previous examples we have built our virtual sensor array and used this to
@@ -17,8 +17,6 @@ set of input physics simulations.
 
 Note that this tutorial assumes you are familiar with the use of `pyvale` for
 scalar and tensor fields as described in the previous examples.
-
-Test case: thermo-mechanical analysis of a 2D plate with a temperature gradient.
 """
 
 import numpy as np
@@ -42,13 +40,13 @@ elem_dims: int = 2
 # We now loop over the paths and load each into a `SimData` object. We then
 # scale our length units to mm and append the simulation to a list which we
 # will use to perform our simulated experiments.
-disp_comps = ("disp_x","disp_y")
+disp_keys = ("disp_x","disp_y")
 sim_list = []
 for pp in data_paths:
     sim_data = mh.ExodusLoader(pp).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
                                         sim_data=sim_data,
-                                        disp_comps=disp_comps)
+                                        disp_keys=disp_keys)
     sim_list.append(sim_data)
 
 #%%

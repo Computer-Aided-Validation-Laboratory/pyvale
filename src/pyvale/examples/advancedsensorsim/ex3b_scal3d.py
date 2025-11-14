@@ -5,14 +5,9 @@
 # ==============================================================================
 
 """
-Building a point sensor array from scratch with custom errors
+Scalar field sensors in 3D
 ================================================================================
 
-Here we build a custom point sensor array from scratch that is similar to the
-pre-built thermocouple array from example 1.1. For this example we switch to a
-3D thermal simulation of a fusion heatsink component.
-
-Test case: Scalar field point sensors (thermocouples) on a 3D thermal simulation
 """
 
 from pathlib import Path
@@ -23,6 +18,23 @@ import matplotlib.pyplot as plt
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
+
+
+#%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
 
 #%%
 # To build our custom point sensor array we need to at minimum provide a
@@ -39,7 +51,7 @@ data_path = dataset.thermal_3d_path()
 sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=None)
+                                    disp_keys=None)
 
 #%%
 # We are going to build a custom temperature sensor so we need a scalar

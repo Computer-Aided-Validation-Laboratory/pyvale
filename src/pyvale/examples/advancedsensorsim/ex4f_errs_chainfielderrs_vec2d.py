@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-Chaining field errors
+Errors: chaining field errors
 ================================================================================
 
 In this example we show how field errors can be chained together and accumulated
@@ -15,11 +15,6 @@ this will perform all perturbations in a single step allowing for a single new
 interpolation of the underlying physical field. However, in some cases it can
 be useful to separate the sensor parameter perturbations to determine which is
 contributing most to the total error.
-
-Note that this tutorial assumes you are familiar with the use of `pyvale` for
-scalar fields as described in the first set of examples.
-
-Test case: point displacement sensors on a 2D plate with hole loaded in tension
 """
 
 import numpy as np
@@ -31,6 +26,23 @@ import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 #%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
+
+
+#%%
 # We start by building the same displacement sensor array applied to a 2D
 # solid mechanics simulation that we have analysed previously.
 data_path = dataset.mechanical_2d_path()
@@ -39,7 +51,7 @@ field_name = "disp"
 field_comps = ("disp_x","disp_y")
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=field_comps)
+                                    disp_keys=field_comps)
 
 descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
 

@@ -5,13 +5,11 @@
 # ==============================================================================
 
 """
-Sensor spatial averaging and averaging errors
+Errors: spatial averaging
 ================================================================================
 
 In this example we show how `pyvale` can simulate sensor spatial averaging for
 ground truth calculations as well as for calculating systematic errors.
-
-Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 """
 
 import numpy as np
@@ -21,6 +19,23 @@ import matplotlib.pyplot as plt
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
+
+#%%
+# 1. Load physics simulation data
+# -------------------------------
+#%% 
+# 2. Build virtual sensor arrays
+# --------------------------------
+#%%
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
+
 
 #%%
 # First we are going to build a custom sensor array so we can control how
@@ -36,7 +51,7 @@ data_path = dataset.thermal_2d_path()
 sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=None)
+                                    disp_keys=None)
 
 descriptor = sens.SensorDescriptorFactory.temperature_descriptor()
 
