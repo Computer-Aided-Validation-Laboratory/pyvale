@@ -23,25 +23,26 @@ import pyvale.dataset as dataset
 # 1. Load physics simulation data
 # -------------------------------
 
-data_path = dataset.thermal_3d_path()
+data_path = dataset.thermal_2d_path()
 sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
                                    sim_data=sim_data,
                                    disp_keys=None)
 
 #%% 
-# 2. Build virtual sensor arrays
-# --------------------------------
+# 2. Build virtual sensor array
+# -----------------------------
 
-sens_pos = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
-                                    x_lims=(12.5,12.5),
-                                    y_lims=(0.0,33.0),
-                                    z_lims=(0.0,12.0))
-
+sim_dims = sens.simtools.get_sim_dims(sim_data)
+sens_pos = sens.gen_pos_grid_inside(num_sensors=(4,2,1),
+                                    x_lims=sim_dims["x"],
+                                    y_lims=sim_dims["y"],
+                                    z_lims=(0.0,0.0))
+                                    
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-sensor_data = sens.SensorData(positions=sens_pos,
-                             sample_times=sample_times)
+sens_data = sens.SensorData(positions=sens_pos,
+                            sample_times=sample_times)
 
 descriptor = sens.SensorDescriptor(name="Temperature",
                                    symbol="T",
@@ -59,34 +60,15 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 #%%
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-#%% 
-# 3. Create & run simulated experiment
-# ------------------------------------
-
-
-output_path = Path.cwd() / "pyvale-output"
-if not output_path.is_dir():
-    output_path.mkdir(parents=True, exist_ok=True)
-
-pv_plot = sens.plot_point_sensors_on_sim(tc_array,field_key)
-
-
-save_render = output_path / "customsensors_ex1_3_sensorlocs.svg"
-pv_plot.save_graphic(save_render) # only for .svg .eps .ps .pdf .tex
-pv_plot.screenshot(save_render.with_suffix(".png"))
-
-pv_plot.show()
-
 errors_on = {"sys": True,
              "rand": True}
 
 error_chain = []
+
 if errors_on["sys"]:
     error_chain.append(sens.ErrSysOffset(offset=-10.0))
     error_chain.append(sens.ErrSysUnif(low=-10.0,
-                                            high=10.0))
+                                       high=10.0))
 
 if errors_on["rand"]:
     error_chain.append(sens.ErrRandNorm(std=5.0))
@@ -94,66 +76,57 @@ if errors_on["rand"]:
                                                 high_percent=5.0))
 
 if len(error_chain) > 0:
-    err_int_opts = sens.ErrIntOpts()
-    error_integrator = sens.ErrIntegrator(error_chain,
-                                         sensor_data,
-                                         tc_array.get_measurement_shape(),
-                                         err_int_opts=err_int_opts)
-    tc_array.set_error_integrator(error_integrator)
+    sens_array.set_error_chain(error_chain)
 
 
-measurements = tc_array.sim_measurements()
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+measurements: np.ndarray = sens_array.sim_measurements()
+
+truth: np.ndarray = sens_array.get_truth()
+sys_errs: np.ndarray = sens_array.get_errors_systematic()
+rand_errs: np.ndarray = sens_array.get_errors_random()
+
+print(80*"-")
+print("measurement = truth + sysematic error + random error")
+
+print(f"measurements.shape = {measurements.shape} = "
+        + "(n_sensors,n_field_components,n_timesteps)")
+print(f"truth.shape     = {truth.shape}")
+print(f"sys_errs.shape  = {sys_errs.shape}")
+print(f"rand_errs.shape = {rand_errs.shape}")
+
+sens_print: int = 0
+comp_print: int = 0
+time_last: int = 5
+time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
+
+print(f"\nThese are the last {time_last} virtual measurements of sensor "
+        + f"{sens_print}:\n")
+
+sens.print_measurements(sens_array,sens_print,comp_print,time_print)
+print("\n"+80*"-")
 
 #%%
 # 4. Analyse & visualise the results
 # ----------------------------------
 
-
-#%%
-# We display the simulation results by printing to the console and by
-# plotting the sensor times traces. Try experimenting with the errors above
-# to see how the results change.
-print("\n"+80*"-")
-print("For a virtual sensor: measurement = truth + sysematic error +"
-      + " random error")
-print(f"measurements.shape = {measurements.shape} ="
-      + " (n_sensors,n_field_components,n_timesteps)\n")
-print("The truth, systematic error and random error arrays have the same "+
-        "shape.")
-
-print(80*"-")
-
-sens_print = 0
-comp_print = 0
-time_last = 5
-time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
-
-print(f"These are the last {time_last} virtual measurements of sensor "
-        + f"{sens_print}:")
-
-sens.print_measurements(tc_array,sens_print,comp_print,time_print)
-
-print(80*"-")
-
-
 output_path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
-
 pv_plot = sens.plot_point_sensors_on_sim(sens_array,
                                          comp_key="temperature")
-save_render: Path = output_path / "advanced_exX_locs.png"
+
 pv_plot.off_screen = True
-pv_plot.screenshot(save_render)
+pv_plot.screenshot(output_path/"advanced_ex3a_locs.png")
 
 # Uncomment to show interactive figure and set off_screen = False above
 # pv_plot.show()
 
-
 (fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
-save_traces = output_path/"advanced_exX_traces.png"
-fig.savefig(save_traces, dpi=300, bbox_inches="tight")
+fig.savefig(output_path/"advanced_ex3a_traces.png",dpi=300,bbox_inches="tight")
 
 # Uncomment this to display the sensor trace plot 
 # plt.show()
