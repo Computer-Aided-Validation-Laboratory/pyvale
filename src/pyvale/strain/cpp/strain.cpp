@@ -19,7 +19,7 @@
 // common_cpp header files
 #include "../../common_cpp/indicators.hpp"
 #include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/Eigen/Dense"
+#include <Eigen/Dense>
 #include "../../common_cpp/util.hpp"
 
 // Program Header files

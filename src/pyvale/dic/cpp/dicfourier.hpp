@@ -16,7 +16,7 @@
 
 // common header files 
 #include "../../common_cpp/pocketfft_hdronly.h"
-#include "../../common_cpp/Eigen/Dense"
+#include <Eigen/Dense>
 
 // DIC Header files
 #include "./dicinterpolator.hpp"

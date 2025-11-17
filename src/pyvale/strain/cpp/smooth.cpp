@@ -8,7 +8,7 @@
 #include <vector>
 
 // common_cpp Header files
-#include "../../common_cpp/Eigen/Dense"
+#include <Eigen/Dense>
 
 // Strain Header files
 #include "./smooth.hpp"

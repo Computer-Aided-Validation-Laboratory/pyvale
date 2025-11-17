@@ -14,7 +14,7 @@
 
 // common_cpp Header files
 #include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/Eigen/Dense"
+#include <Eigen/Dense>
 #include "../../common_cpp/Eigen/Geometry"
 
 // pyvale header files

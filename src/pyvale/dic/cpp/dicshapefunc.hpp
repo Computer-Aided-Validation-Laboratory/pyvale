@@ -11,7 +11,7 @@
 #include <vector>
 
 // common_cpp header files
-#include "../../common_cpp/Eigen/Dense"
+#include <Eigen/Dense>
 
 // DIC Header files
 #include "./dicresults.hpp"

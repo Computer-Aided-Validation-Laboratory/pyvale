@@ -11,6 +11,73 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(pybind11 REQUIRED)
 find_package(OpenMP REQUIRED)
 
+
+# ----------------------------
+# Download Eigen
+# ----------------------------
+
+find_package(Eigen3 3.4 QUIET)
+
+
+if (Eigen3_FOUND)
+    message(STATUS "Using system-installed Eigen3")
+    if (TARGET Eigen3::Eigen)
+        get_target_property(EIGEN_INC Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
+        message(STATUS "Eigen3 include dir: ${EIGEN_INC}")
+    endif()
+    if (DEFINED Eigen3_DIR)
+        message(STATUS "Eigen3 CMake config located at: ${Eigen3_DIR}")
+    endif()
+else()
+    message(STATUS "System Eigen3 not found — fetching with FetchContent")
+    include(FetchContent)
+
+    FetchContent_Declare(
+    eigen
+    GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+    GIT_TAG 3.4.0  # or whatever version you depend on
+    )
+
+    FetchContent_MakeAvailable(eigen)
+
+    message(STATUS "Using Eigen3 from FetchContent")
+    message(STATUS "Eigen3 source dir: ${eigen_SOURCE_DIR}")
+    message(STATUS "Eigen3 binary dir: ${eigen_BINARY_DIR}")
+endif()
+
+# ----------------------------
+# COMMON_CPP module
+# ----------------------------
+file(GLOB COMMON_SRC_FILES src/pyvale/common_cpp/*.cpp)
+
+pybind11_add_module(common_cpp MODULE ${COMMON_SRC_FILES})
+target_include_directories(common_cpp PRIVATE src/pyvale/common_cpp)
+target_link_libraries(common_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
+target_compile_options(common_cpp PRIVATE -O3)
+install(TARGETS common_cpp LIBRARY DESTINATION pyvale/common_cpp)
+
+# ----------------------------
+# DIC module
+# ----------------------------
+file(GLOB DIC_SRC_FILES src/pyvale/dic/cpp/*.cpp)
+
+pybind11_add_module(dic2dcpp MODULE ${DIC_SRC_FILES} ${COMMON_SRC_FILES})
+target_include_directories(dic2dcpp PRIVATE src/pyvale/common_cpp src/pyvale/dic)
+target_link_libraries(dic2dcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
+target_compile_options(dic2dcpp PRIVATE -O3)
+install(TARGETS dic2dcpp LIBRARY DESTINATION pyvale/dic)
+
+# ----------------------------
+# STRAIN module
+# ----------------------------
+file(GLOB STRAIN_SRC_FILES src/pyvale/strain/cpp/*.cpp)
+
+pybind11_add_module(strain_cpp MODULE ${STRAIN_SRC_FILES} ${COMMON_SRC_FILES})
+target_include_directories(strain_cpp PRIVATE src/pyvale/common_cpp src/pyvale/strain)
+target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
+target_compile_options(strain_cpp PRIVATE -O3)
+install(TARGETS strain_cpp LIBRARY DESTINATION pyvale/strain)
+
 # -----------------------------------------------------------------------------
 # Helper function: apply compile/link flags based on platform & build type
 # -----------------------------------------------------------------------------
@@ -40,35 +107,4 @@ function(apply_compile_flags target_name)
     endif()
 endfunction()
 
-# ----------------------------
-# COMMON_CPP module
-# ----------------------------
-file(GLOB COMMON_SRC_FILES src/pyvale/common_cpp/*.cpp)
 
-pybind11_add_module(common_cpp MODULE ${COMMON_SRC_FILES})
-target_include_directories(common_cpp PRIVATE src/pyvale/common_cpp)
-target_link_libraries(common_cpp PRIVATE OpenMP::OpenMP_CXX)
-target_compile_options(common_cpp PRIVATE -O3)
-install(TARGETS common_cpp LIBRARY DESTINATION pyvale/common_cpp)
-
-# ----------------------------
-# DIC module
-# ----------------------------
-file(GLOB DIC_SRC_FILES src/pyvale/dic/cpp/*.cpp)
-
-pybind11_add_module(dic2dcpp MODULE ${DIC_SRC_FILES} ${COMMON_SRC_FILES})
-target_include_directories(dic2dcpp PRIVATE src/pyvale/common_cpp src/pyvale/dic)
-target_link_libraries(dic2dcpp PRIVATE OpenMP::OpenMP_CXX)
-target_compile_options(dic2dcpp PRIVATE -O3)
-install(TARGETS dic2dcpp LIBRARY DESTINATION pyvale/dic)
-
-# ----------------------------
-# STRAIN module
-# ----------------------------
-file(GLOB STRAIN_SRC_FILES src/pyvale/strain/cpp/*.cpp)
-
-pybind11_add_module(strain_cpp MODULE ${STRAIN_SRC_FILES} ${COMMON_SRC_FILES})
-target_include_directories(strain_cpp PRIVATE src/pyvale/common_cpp src/pyvale/strain)
-target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX)
-target_compile_options(strain_cpp PRIVATE -O3)
-install(TARGETS strain_cpp LIBRARY DESTINATION pyvale/strain)

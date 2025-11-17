@@ -9,7 +9,7 @@
 
 // STD library Header files
 #include <vector>
-#include "../../common_cpp/Eigen/Dense"
+#include <Eigen/Dense>
 
 // Program Header files
 

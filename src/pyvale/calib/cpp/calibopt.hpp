@@ -15,7 +15,7 @@
 #include <vector>
 
 // common_cpp header filesfiles
-#include "../../common_cpp/Eigen/Dense"
+#include <Eigen/Dense>
 
 
 namespace optimization {

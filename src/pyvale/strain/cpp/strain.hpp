@@ -17,7 +17,7 @@
 
 // common_cpp Header files
 #include "../../common_cpp/util.hpp"
-#include "../../common_cpp/Eigen/Dense"
+#include <Eigen/Dense>
 
 // Program Header files
 
