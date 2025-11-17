@@ -85,7 +85,7 @@ temp_sens: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 # `None`. 
 
 temp_err_chain: list[sens.IErrSimulator] = []
-temp_err_chain.append(sens.ErrRandNorm(std=2.0)) #
+temp_err_chain.append(sens.ErrRandNorm(std=2.0)) # units = degrees
 
 temp_pos_uncert = 0.5 # units = mm
 temp_pos_rand = (sens.GenNormal(std=temp_pos_uncert),
@@ -236,11 +236,12 @@ cam_pos = np.array([(59.354, 43.428, 69.946),
 pv_plot = sens.plot_point_sensors_on_sim(temp_sens,"temperature")
 pv_plot.camera_position = cam_pos
 
+# Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-pv_plot.screenshot(output_path / "basics_ex3_temp_locs.png")
-
-# Uncomment to show interactive figure and set off_screen = False above
-# pv_plot.show()
+if pv_plot.off_screen: 
+    pv_plot.screenshot(output_path/"basics_ex3_temp_locs.png")
+else:
+    pv_plot.show()
 
 # %%
 # Visualisation of the virtual temperature sensor locations:
@@ -253,8 +254,13 @@ pv_plot.screenshot(output_path / "basics_ex3_temp_locs.png")
 pv_plot = sens.plot_point_sensors_on_sim(strain_sens,"strain_yy")
 pv_plot.camera_position = cam_pos
 
+# Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-pv_plot.screenshot(output_path / "basics_ex3_strain_locs.png")
+if pv_plot.off_screen: 
+    pv_plot.screenshot(output_path/"basics_ex3_strain_locs.png")
+else:
+    pv_plot.show()
+
 
 # Uncomment to show interactive figure and set off_screen = False above
 # pv_plot.show()

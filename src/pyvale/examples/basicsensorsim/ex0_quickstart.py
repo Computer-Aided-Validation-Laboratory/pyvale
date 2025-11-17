@@ -65,7 +65,7 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 err_chain: list[sens.IErrSimulator] = [sens.ErrSysUnif(low=-1.0,high=1.0),]
 err_chain.append(sens.ErrSysUnifPercent(low_percent=-1.0,high_percent=1.0))
 err_chain.append(sens.ErrRandNorm(std=1.0))
-err_chain.append(sens.ErrRandNormPercent(std_percent=1.0))
+err_chain.append(sens.ErrRandNormPercent(std_percent=2.0))
 err_chain.append(sens.ErrSysDigitisation(bits_per_unit=2**16/100))
 err_chain.append(sens.ErrSysSaturation(meas_min=0.0,meas_max=450.0))
 
@@ -96,11 +96,12 @@ pv_plot.camera_position = [(59.354, 43.428, 69.946),
                             (-2.858, 13.189, 4.523),
                             (-0.215, 0.948, -0.233)]
 
+# Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-pv_plot.screenshot(output_path/"basics_ex0_locs.png")
-
-# Uncomment to show interactive figure and set off_screen = False above
-# pv_plot.show()
+if pv_plot.off_screen: 
+    pv_plot.screenshot(output_path/"basics_ex0_locs.png")
+else:
+    pv_plot.show()
 
 # %%
 # .. image:: ../../../../_static/basics_ex0_locs.png

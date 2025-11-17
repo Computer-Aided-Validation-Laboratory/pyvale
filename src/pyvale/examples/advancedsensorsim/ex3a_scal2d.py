@@ -8,6 +8,14 @@
 Scalar field sensors in 2D
 ================================================================================
 
+This example demonstrates the application of the `pyvale` sensor simulation 
+module to scalar fields in 2 spatial dimensions. An example of a scalar field
+sensor would be a thermocouple or resistance temperature detector measuring a
+temperature field.
+
+Note that this example has minimal explanation and assumes you have reviewed the
+basic sensor simulation examples to understand how the underlying engine works
+as well as the sensor simulation workflow. 
 """
 
 from pathlib import Path
@@ -23,23 +31,23 @@ import pyvale.dataset as dataset
 # 1. Load physics simulation data
 # -------------------------------
 
-data_path = dataset.thermal_2d_path()
-sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
-sim_data = sens.scale_length_units(scale=1000.0,
-                                   sim_data=sim_data,
-                                   disp_keys=None)
+data_path: Path = dataset.thermal_2d_path()
+sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+                                               sim_data=sim_data,
+                                               disp_keys=None)
 
 #%% 
 # 2. Build virtual sensor array
 # -----------------------------
 
-sim_dims = sens.simtools.get_sim_dims(sim_data)
-sens_pos = sens.gen_pos_grid_inside(num_sensors=(4,2,1),
-                                    x_lims=sim_dims["x"],
-                                    y_lims=sim_dims["y"],
-                                    z_lims=(0.0,0.0))
+sim_dims: dict[str,tuple[float,float]] = sens.simtools.get_sim_dims(sim_data)
+sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(3,2,1),
+                                                x_lims=sim_dims["x"],
+                                                y_lims=sim_dims["y"],
+                                                z_lims=(0.0,0.0))
                                     
-sample_times = np.linspace(0.0,np.max(sim_data.time),50)
+sample_times: np.ndarray = np.linspace(0.0,np.max(sim_data.time),50)
 
 sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times)
@@ -60,24 +68,15 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 #%%
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-errors_on = {"sys": True,
-             "rand": True}
 
-error_chain = []
-
-if errors_on["sys"]:
-    error_chain.append(sens.ErrSysOffset(offset=-10.0))
-    error_chain.append(sens.ErrSysUnif(low=-10.0,
-                                       high=10.0))
-
-if errors_on["rand"]:
-    error_chain.append(sens.ErrRandNorm(std=5.0))
-    error_chain.append(sens.ErrRandUnifPercent(low_percent=-5.0,
-                                                high_percent=5.0))
-
-if len(error_chain) > 0:
-    sens_array.set_error_chain(error_chain)
-
+error_chain: list[sens.IErrSimulator] = []
+error_chain.append(sens.ErrSysOffset(offset=-10.0))
+error_chain.append(sens.ErrSysUnif(low=-50.0,
+                                   high=5.0))
+error_chain.append(sens.ErrRandNorm(std=5.0))
+error_chain.append(sens.ErrRandUnifPercent(low_percent=-2.0,
+                                           high_percent=2.0))
+sens_array.set_error_chain(error_chain)
 
 #%% 
 # 3. Create & run simulated experiment
@@ -119,11 +118,12 @@ if not output_path.is_dir():
 pv_plot = sens.plot_point_sensors_on_sim(sens_array,
                                          comp_key="temperature")
 
+# Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-pv_plot.screenshot(output_path/"advanced_ex3a_locs.png")
-
-# Uncomment to show interactive figure and set off_screen = False above
-# pv_plot.show()
+if pv_plot.off_screen: 
+    pv_plot.screenshot(output_path/"advanced_ex3a_locs.png")
+else:
+    pv_plot.show()
 
 (fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
 fig.savefig(output_path/"advanced_ex3a_traces.png",dpi=300,bbox_inches="tight")

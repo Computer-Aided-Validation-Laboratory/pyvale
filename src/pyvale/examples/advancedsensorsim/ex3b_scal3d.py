@@ -8,6 +8,14 @@
 Scalar field sensors in 3D
 ================================================================================
 
+This example demonstrates the application of the `pyvale` sensor simulation 
+module to scalar fields in 3 spatial dimensions. An example of a scalar field
+sensor would be a thermocouple or resistance temperature detector measuring a
+temperature field.
+
+Note that this example has minimal explanation and assumes you have reviewed the
+basic sensor simulation examples to understand how the underlying engine works
+as well as the sensor simulation workflow. 
 """
 
 from pathlib import Path
@@ -38,7 +46,7 @@ sim_dims = sens.simtools.get_sim_dims(sim_data)
 sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
                                                 x_lims=(12.5,12.5),
                                                 y_lims=sim_dims["y"],
-                                                z_lims=sim_dims["z"]
+                                                z_lims=sim_dims["z"])
 
                                     
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
@@ -62,23 +70,15 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 #%%
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-errors_on = {"sys": True,
-             "rand": True}
 
-error_chain = []
-
-if errors_on["sys"]:
-    error_chain.append(sens.ErrSysOffset(offset=-10.0))
-    error_chain.append(sens.ErrSysUnif(low=-10.0,
-                                       high=10.0))
-
-if errors_on["rand"]:
-    error_chain.append(sens.ErrRandNorm(std=5.0))
-    error_chain.append(sens.ErrRandUnifPercent(low_percent=-5.0,
-                                               high_percent=5.0))
-
-if len(error_chain) > 0:
-    sens_array.set_error_chain(error_chain)
+error_chain: list[sens.IErrSimulator] = []
+error_chain.append(sens.ErrSysOffset(offset=-10.0))
+error_chain.append(sens.ErrSysUnif(low=-50.0,
+                                   high=5.0))
+error_chain.append(sens.ErrRandNorm(std=5.0))
+error_chain.append(sens.ErrRandUnifPercent(low_percent=-2.0,
+                                           high_percent=2.0))
+sens_array.set_error_chain(error_chain)
 
 
 #%% 
@@ -124,17 +124,15 @@ pv_plot.camera_position = [(59.354, 43.428, 69.946),
                            (-2.858, 13.189, 4.523),
                            (-0.215, 0.948, -0.233)]
 
+# Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-pv_plot.screenshot(output_path / "advanced_ex3b_locs.png")
-
-# Uncomment to show interactive figure and set off_screen = False above
-# pv_plot.show()
+if pv_plot.off_screen: 
+    pv_plot.screenshot(output_path/"advanced_ex3b_locs.png")
+else:
+    pv_plot.show()
 
 (fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
 fig.savefig(output_path/"advanced_ex3b_traces.png",dpi=300,bbox_inches="tight")
 
 # Uncomment this to display the sensor trace plot 
 # plt.show()
-
-
-

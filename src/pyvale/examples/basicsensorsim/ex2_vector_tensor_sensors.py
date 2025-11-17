@@ -231,12 +231,13 @@ pv_plot.screenshot(save_render)
 pv_plot = sens.plot_point_sensors_on_sim(strain_sens,"strain_yy")
 pv_plot.camera_position = "xy"
 
-save_render = output_path / "basics_ex2_strain_locs.png"
+# Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-pv_plot.screenshot(save_render)
+if pv_plot.off_screen: 
+    pv_plot.screenshot(output_path / "basics_ex2_strain_locs.png")
+else:
+    pv_plot.show()
 
-# Uncomment to show a visualisation of the strain sensors
-# pv_plot.show(cpos="xy")
 
 # %%
 # .. image:: ../../../../_static/basics_ex2_strain_locs.png

@@ -199,14 +199,16 @@ pv_plot.camera_position = [(59.354, 43.428, 69.946),
 
 
 save_render: Path = output_path / "basics_ex1_locs.png"
+
+# Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-pv_plot.screenshot(save_render)
+if pv_plot.off_screen:
+    pv_plot.screenshot(save_render)
 
-# Uncomment to save a vector graphic
-# pv_plot.save_graphic(save_render.with_suffix(".svg")) 
-
-# Uncomment to show interactive figure and set off_screen = False above
-# pv_plot.show()
+    # Uncomment to save a vector graphic
+    # pv_plot.save_graphic(save_render.with_suffix(".svg")) 
+else:
+    pv_plot.show()
 
 # %%
 #

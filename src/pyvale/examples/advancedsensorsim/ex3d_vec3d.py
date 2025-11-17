@@ -8,9 +8,16 @@
 Vector field sensors in 3D
 ================================================================================
 
+This example demonstrates the application of the `pyvale` sensor simulation 
+module to vector fields in 3 spatial dimensions. An example of a vector field
+sensor would be a displacement transducer, point tracking or velocity sensor.
 
+Note that this example has minimal explanation and assumes you have reviewed the
+basic sensor simulation examples to understand how the underlying engine works
+as well as the sensor simulation workflow. 
 """
 
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -22,101 +29,132 @@ import pyvale.dataset as dataset
 #%%
 # 1. Load physics simulation data
 # -------------------------------
+
+data_path: Path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
+sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+
+disp_keys = ("disp_x","disp_y","disp_z")
+sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+                                               sim_data=sim_data,
+                                               disp_keys=disp_keys)
+
 #%% 
 # 2. Build virtual sensor arrays
 # --------------------------------
+
+sens.simtools.print_dimensions(sim_data)
+
+# Simulations is 10mm cube
+sensor_positions = np.array(((5.0,0.0,5.0),     # x-z face
+                             (5.0,10.0,5.0),    # x-z face
+                             (5.0,5.0,0.0),     # x-y face  
+                             (5.0,5.0,10.0),    # x-y face
+                             (0.0,5.0,5.0),     # y-z face
+                             (10.0,5.0,5.0),))  # y-z face
+
+sample_times = np.linspace(0.0,np.max(sim_data.time),50)
+
+sens_data = sens.SensorData(positions=sensor_positions,
+                            sample_times=sample_times)
+
+
+sens_array: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
+    sim_data,
+    sens_data,
+    comp_keys=disp_keys,
+    spatial_dims=sens.EDim.THREED,
+    descriptor=sens.DescriptorFactory.displacement(),
+)
+
 #%%
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error_chain: list[sens.IErrSimulator] = []
+ 
+# sys_gen = sens.GenUniform(low=-1.0,high=1.0) # units = % truth
+# error_chain.append(sens.ErrSysGenPercent(sys_gen))  
+# 
+# rand_gen = sens.GenNormal(std=1.0) # units = % truth
+# error_chain.append(sens.ErrRandGenPercent(rand_gen))
+
+pos_uncert = 1.0 # units = mm
+pos_rand = (sens.GenUniform(low=-pos_uncert,high=pos_uncert),
+            sens.GenUniform(low=-pos_uncert,high=pos_uncert),
+            sens.GenUniform(low=-pos_uncert,high=pos_uncert))
+
+pos_lock = np.full(sensor_positions.shape,False,dtype=bool)
+pos_lock[0,1] = True # x-z face, lock y
+pos_lock[1,1] = True # x-z face, lock y
+pos_lock[2,2] = True # x-y face, lock z
+pos_lock[3,2] = True # x-y face, lock z
+pos_lock[4,0] = True # y-z face, lock x
+pos_lock[5,0] = True # y-z face, lock x
+
+field_err_data = sens.ErrFieldData(pos_rand_xyz=pos_rand,
+                                   pos_lock_xyz=pos_lock)
+error_chain.append(sens.ErrSysField(sens_array.get_field(),
+                                    field_err_data))
+
+sens_array.set_error_chain(error_chain)
+
+
 #%% 
-# 3. Create & run simulated experiment
-# ------------------------------------
+# 3. Run a simulated experiment
+# -----------------------------
+
+measurements: np.ndarray = sens_array.sim_measurements()
+
+truth: np.ndarray = sens_array.get_truth()
+sys_errs: np.ndarray = sens_array.get_errors_systematic()
+rand_errs: np.ndarray = sens_array.get_errors_random()
+
+print(80*"-")
+print("measurement = truth + sysematic error + random error")
+
+print(f"measurements.shape = {measurements.shape} = "
+        + "(n_sensors,n_field_components,n_timesteps)")
+print(f"truth.shape     = {truth.shape}")
+print(f"sys_errs.shape  = {sys_errs.shape}")
+print(f"rand_errs.shape = {rand_errs.shape}")
+
+sens_print: int = 0
+comp_print: int = 0
+time_last: int = 5
+time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
+
+print(f"\nThese are the last {time_last} virtual measurements of sensor "
+        + f"{sens_print}:\n")
+
+sens.print_measurements(sens_array,sens_print,comp_print,time_print)
+print("\n"+80*"-")
+
 #%%
 # 4. Analyse & visualise the results
 # ----------------------------------
 
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
-#%%
-# First we load our simulation as a `SimData` object. In this case we are
-# loading a 10mm cube loaded in tension in the y direction with the addition
-# of a thermal gradient in the y direction.
-data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
-sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
+for kk in disp_keys:
+    pv_plot = sens.plot_point_sensors_on_sim(sens_array,kk)
+    pv_plot.camera_position = "yz"
+    pv_plot.camera.azimuth = 45
+    pv_plot.camera.elevation = 45
 
-#%%
-# As we are creating a 3D vector field sensor we now have a third
-# displacement field component here.
-field_name = "disp"
-field_comps = ("disp_x","disp_y","disp_z")
-sim_data = sens.scale_length_units(scale=1000.0,
-                                    sim_data=sim_data,
-                                    disp_keys=field_comps)
+    # Set to False to show an interactive plot instead of saving the figure
+    pv_plot.off_screen = True
+    if pv_plot.off_screen: 
+        pv_plot.screenshot(output_path/f"advanced_ex3d_locs_{kk}.png")
+    else:
+        pv_plot.show()
 
-#%%
-# We use a helper function to print the extent of the dimensions in our
-# `SimTools` object to help us locate our sensors on the cube.
-sens.SimTools.print_dimensions(sim_data)
-
-descriptor = sens.SensorDescriptorFactory.displacement_descriptor()
-
-#%%
-# We pass in the string keys for the three vector field components as they
-# appear in our `SimData` object as well as specifying that our elements are
-# 3 dimensional.
-disp_field = sens.FieldVector(sim_data,field_name,field_comps,elem_dims=3)
-
-#%%
-# Here we manually define our sensor positions to place a sensor on the
-# centre of each face of our 10mm cube. From here everything is the same as
-# for our 2D vector field sensor arrays.
-sensor_positions = np.array(((5.0,0.0,5.0),
-                             (5.0,10.0,5.0),
-                             (5.0,5.0,0.0),
-                             (5.0,5.0,10.0),
-                             (0.0,5.0,5.0),
-                             (10.0,5.0,5.0),))
-
-sample_times = np.linspace(0.0,np.max(sim_data.time),50)
-
-sensor_data = sens.SensorData(positions=sensor_positions,
-                                sample_times=sample_times)
-
-disp_sens_array = sens.SensorFactoryPoint(sensor_data,
-                                        disp_field,
-                                        descriptor)
-
-measurements = disp_sens_array.sim_measurements()
-
-#%%
-# Let's have a look at the y displacement field in relation to the location
-# of our displacement sensors.
-pv_plot = sens.plot_point_sensors_on_sim(disp_sens_array,"disp_y")
-pv_plot.show()
-
-#%%
-# We print the results for one of the sensors so we can see what the errors
-# are for the last few sampling times.
-print(80*"-")
-
-sens_print = 0
-comp_print = 0
-time_last = 5
-time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
-
-
-print(f"These are the last {time_last} virtual measurements of sensor "
-        + f"{sens_print} for {field_comps[comp_print]}:")
-
-sens.print_measurements(disp_sens_array,sens_print,comp_print,time_print)
-
-print(80*"-")
-
-#%%
-# Finally, we plot the time traces for all field components noting that we
-# expect the bottom of the cube to be fixed, the top of the cube to have the
-# maximum y displacement, and that all sensors on the sides of the cube
-# should give the same results.
-for ff in field_comps:
-    sens.plot_time_traces(disp_sens_array,ff)
-
-plt.show()
+for kk in disp_keys:
+    (fig,ax) = sens.plot_time_traces(sens_array,comp_key=kk)
+    fig.savefig(output_path/f"advanced_ex3d_traces_{kk}.png",
+                dpi=300,
+                bbox_inches="tight")
+    
+# Uncomment this to display the sensor trace plot 
+# plt.show()

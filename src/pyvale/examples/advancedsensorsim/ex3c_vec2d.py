@@ -8,10 +8,18 @@
 Vector field sensors in 2D
 ================================================================================
 
+This example demonstrates the application of the `pyvale` sensor simulation 
+module to vector fields in 2 spatial dimensions. An example of a vector field
+sensor would be a displacement transducer, point tracking or velocity sensor.
 
+Note that this example has minimal explanation and assumes you have reviewed the
+basic sensor simulation examples to understand how the underlying engine works
+as well as the sensor simulation workflow. 
 """
 
+from pathlib import Path
 import numpy as np
+from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 
 # pyvale imports
@@ -22,109 +30,128 @@ import pyvale.dataset as dataset
 #%%
 # 1. Load physics simulation data
 # -------------------------------
+
+data_path: Path = dataset.mechanical_2d_path()
+sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+
+disp_keys = ("disp_x","disp_y")
+sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+                                               sim_data=sim_data,
+                                               disp_keys=disp_keys)
 #%% 
 # 2. Build virtual sensor arrays
 # --------------------------------
+
+sim_dims: dict[str,tuple[float,float]] = sens.simtools.get_sim_dims(sim_data)
+sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(2,2,1),
+                                                x_lims=sim_dims["x"],
+                                                y_lims=sim_dims["y"],
+                                                z_lims=(0.0,0.0))
+
+sample_times: np.ndarray = np.linspace(0.0,np.max(sim_data.time),50)
+
+sens_angles: tuple[Rotation] = (
+    Rotation.from_euler("zyx",[90,0,0], degrees=True),
+)
+
+sens_data = sens.SensorData(positions=sens_pos,
+                            sample_times=sample_times,
+                            angles=sens_angles)
+
+descriptor = sens.SensorDescriptor(name="Disp.",
+                                   symbol=r"u",
+                                   units=r"mm",
+                                   tag="DS",
+                                   components=("x","y","z"))
+
+sens_array: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
+    sim_data,
+    sens_data,
+    comp_keys=disp_keys,
+    spatial_dims=sens.EDim.TWOD,
+    descriptor=descriptor,
+)
+
 #%%
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error_chain: list[sens.IErrSimulator] = []
+
+sys_gen = sens.GenUniform(low=-0.01,high=0.01) # units = mm
+error_chain.append(sens.ErrSysGen(sys_gen))  
+
+rand_gen = sens.GenNormal(std=1.0) # units = % truth
+error_chain.append(sens.ErrRandGenPercent(rand_gen))
+
+pos_rand = sens.GenUniform(low=-1.0,high=1.0)   # units = mm
+angle_rand = sens.GenUniform(low=-2.0,high=2.0) # units = degrees
+
+field_err_data = sens.ErrFieldData(pos_rand_xyz=(pos_rand,pos_rand,None),
+                                   ang_rand_zyx=(angle_rand,None,None))
+
+error_chain.append(sens.ErrSysField(sens_array.get_field(),
+                                    field_err_data))
+
+sens_array.set_error_chain(error_chain)
+
+
 #%% 
-# 3. Create & run simulated experiment
-# ------------------------------------
+# 3. Run a simulated experiment
+# -----------------------------
+
+measurements: np.ndarray = sens_array.sim_measurements()
+
+truth: np.ndarray = sens_array.get_truth()
+sys_errs: np.ndarray = sens_array.get_errors_systematic()
+rand_errs: np.ndarray = sens_array.get_errors_random()
+
+print(80*"-")
+print("measurement = truth + sysematic error + random error")
+
+print(f"measurements.shape = {measurements.shape} = "
+        + "(n_sensors,n_field_components,n_timesteps)")
+print(f"truth.shape     = {truth.shape}")
+print(f"sys_errs.shape  = {sys_errs.shape}")
+print(f"rand_errs.shape = {rand_errs.shape}")
+
+sens_print: int = 0
+comp_print: int = 0
+time_last: int = 5
+time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
+
+print(f"\nThese are the last {time_last} virtual measurements of sensor "
+        + f"{sens_print}:\n")
+
+sens.print_measurements(sens_array,sens_print,comp_print,time_print)
+print("\n"+80*"-")
+
+
 #%%
 # 4. Analyse & visualise the results
 # ----------------------------------
 
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
-#%%
-# First we load the same 2D solid mechanics simulation we had previously as
-# a `SimData` object and then we scale everything to millimeters.
-data_path = dataset.mechanical_2d_path()
-sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
-field_name = "disp"
-field_comps = ("disp_x","disp_y")
-sim_data = sens.scale_length_units(scale=1000.0,
-                                    sim_data=sim_data,
-                                    disp_keys=field_comps)
+for kk in disp_keys:
+    pv_plot = sens.plot_point_sensors_on_sim(sens_array,kk)
+    pv_plot.camera_position = "xy"
 
-#%%
-# This is the key different between building a vector field sensor vs a
-# scalar field sensor. Here we create a vector field object which we will
-# pass to our sensor array. In later examples we will see that the process
-# is the same for tensor fields (e.g. strain) where we create a tensor field
-# object and pass this to our sensor array. One thing to note is that the
-# number of field components will be different here for a 2D vs 3D
-# simulation. Also, it is worth noting that the element dimensions
-# parameter does not need to match the number of field components. For
-# example: it is possible to have a surface mesh (elem_dims=2) where we
-# have all 3 components of the displacement field.
-disp_field = sens.FieldVector(sim_data,field_name,field_comps,elem_dims=2)
+    # Set to False to show an interactive plot instead of saving the figure
+    pv_plot.off_screen = True
+    if pv_plot.off_screen: 
+        pv_plot.screenshot(output_path/f"advanced_ex3c_locs_{kk}.png")
+    else:
+        pv_plot.show()
 
-#%%
-# As we saw previously for scalar fields we define our sensor data object
-# which determines how many point sensors we have and their sampling times.
-# For vector field sensors we can also define the sensor orientation here
-# which we will demonstrate in the next example.
-n_sens = (1,4,1)
-x_lims = (0.0,100.0)
-y_lims = (0.0,150.0)
-z_lims = (0.0,0.0)
-sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
-
-#%%
-# We set custom sampling times here but we could also set this to None so
-# that the sensors sample at the simulation time steps.
-sample_times = np.linspace(0.0,np.max(sim_data.time),50)
-
-sens_data = sens.SensorData(positions=sens_pos,
-                            sample_times=sample_times)
-
-#%%
-# We can optionally define a custom sensor descriptor for our vector field
-# sensor which will be used for labelling sensor placement visualisation or
-# for time traces. It is also possible to use the sensor descriptor factory
-# to get the same sensor descriptor object with these defaults.
-descriptor = sens.SensorDescriptor(name="Disp.",
-                                    symbol=r"u",
-                                    units=r"mm",
-                                    tag="DS",
-                                    components=("x","y","z"))
-
-#%%
-# The point sensor array class is generic and will take any field class
-# that implements the field interface. So here we just pass in the vector
-# field to create our vector field sensor array.
-disp_sens_array = sens.SensorFactoryPoint(sens_data,
-                                        disp_field,
-                                        descriptor)
-
-#%%
-# We can add errors to our error simulation chain in exactly the same way as
-# we did for scalar fields. We will add some simple errors for now but in
-# the next example we will look at some field errors to do with sensor
-# orientation that
-error_chain = []
-error_chain.append(sens.ErrSysUnif(low=-0.01,high=0.01))  # units = mm
-error_chain.append(sens.ErrRandNorm(std=0.01))            # units = mm
-error_int = sens.ErrIntegrator(error_chain,
-                                sens_data,
-                                disp_sens_array.get_measurement_shape())
-disp_sens_array.set_error_integrator(error_int)
-
-disp_sens_array.sim_measurements()
-
-#%%
-# Now that we have multiple field components we can plot each of them on the
-# simulation mesh and visulise the sensor locations with respect to these
-# fields.
-for ff in field_comps:
-    pv_plot = sens.plot_point_sensors_on_sim(disp_sens_array,ff)
-    pv_plot.show(cpos="xy")
-
-#%%
-# We can also plot the traces for each component of the displacement field.
-for ff in field_comps:
-    sens.plot_time_traces(disp_sens_array,ff)
-
-plt.show()
+for kk in disp_keys:
+    (fig,ax) = sens.plot_time_traces(sens_array,comp_key=kk)
+    fig.savefig(output_path/f"advanced_ex3c_traces_{kk}.png",
+                dpi=300,
+                bbox_inches="tight")
+    
+# Uncomment this to display the sensor trace plot 
+# plt.show()
 
