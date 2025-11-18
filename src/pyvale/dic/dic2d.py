@@ -182,7 +182,7 @@ def two_dimensional(reference: np.ndarray | str | Path,
 
     #set the number of OMP threads
     if num_threads is not None:
-        dic2dcpp.set_num_threads(num_threads)
+        common_cpp.set_num_threads(num_threads)
 
     # calling the c++ dic engine
     with dic2dcpp.ostream_redirect(stdout=True, stderr=True):
