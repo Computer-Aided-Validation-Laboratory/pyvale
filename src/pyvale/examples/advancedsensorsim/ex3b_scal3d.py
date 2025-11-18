@@ -127,12 +127,12 @@ pv_plot.camera_position = [(59.354, 43.428, 69.946),
 # Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
 if pv_plot.off_screen: 
-    pv_plot.screenshot(output_path/"advanced_ex3b_locs.png")
+    pv_plot.screenshot(output_path/"adv_ex3b_locs.png")
 else:
     pv_plot.show()
 
 (fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
-fig.savefig(output_path/"advanced_ex3b_traces.png",dpi=300,bbox_inches="tight")
+fig.savefig(output_path/"adv_ex3b_traces.png",dpi=300,bbox_inches="tight")
 
 # Uncomment this to display the sensor trace plot 
 # plt.show()
