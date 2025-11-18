@@ -69,10 +69,10 @@ fig, axes = plt.subplots(2, 2, figsize=(15, 5))
 axes = axes.flatten()
 fig.suptitle('Deformation Gradient for ' + straindata.filenames[0])
 
-im1 = axes[0].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0, :, :, 0, 0])
-im2 = axes[1].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0, :, :, 0, 1])
-im3 = axes[2].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0, :, :, 1, 0])
-im4 = axes[3].pcolor(straindata.window_x, straindata.window_y, straindata.def_grad[0, :, :, 1, 1])
+im1 = axes[0].pcolor(straindata.window_x, straindata.window_y, straindata.def_xx[0])
+im2 = axes[1].pcolor(straindata.window_x, straindata.window_y, straindata.def_xy[0])
+im3 = axes[2].pcolor(straindata.window_x, straindata.window_y, straindata.def_yx[0])
+im4 = axes[3].pcolor(straindata.window_x, straindata.window_y, straindata.def_yy[0])
 
 # titles
 axes[0].set_title('deformation gradient xx')

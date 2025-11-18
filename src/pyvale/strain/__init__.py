@@ -5,7 +5,7 @@
 #===============================================================================
 
 from .strain import calculate_2d
-from .strain import import_2d
+from .strainimport import import_2d
 from .strainresults import StrainResults
 
 __all__ = ["calculate_2d",
