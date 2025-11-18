@@ -8,8 +8,16 @@
 Tensor field sensors in 3D
 ================================================================================
 
+This example demonstrates the application of the `pyvale` sensor simulation 
+module to tensor fields in 3 spatial dimensions. An example of a vector field
+sensor would be a displacement transducer, point tracking or velocity sensor.
+
+Note that this example has minimal explanation and assumes you have reviewed the
+basic sensor simulation examples to understand how the underlying engine works
+as well as the sensor simulation workflow. 
 """
 
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
@@ -22,185 +30,157 @@ import pyvale.dataset as dataset
 #%%
 # 1. Load physics simulation data
 # -------------------------------
+
+data_path: Path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
+sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+
+disp_keys = ("disp_x","disp_y","disp_z")
+norm_comp_keys = ("strain_xx","strain_yy","strain_zz")
+dev_comp_keys = ("strain_xy","strain_yz","strain_xz")
+
+sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+                                               sim_data=sim_data,
+                                               disp_keys=disp_keys)
+
 #%% 
 # 2. Build virtual sensor arrays
 # --------------------------------
-#%%
-# 2.1. Add simulated measurement errors
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#%% 
-# 3. Create & run simulated experiment
-# ------------------------------------
-#%%
-# 4. Analyse & visualise the results
-# ----------------------------------
 
+# Simulations is a 10mm cube
+sensor_positions = np.array(((5.0,0.0,5.0),     # cube x-z face
+                             (5.0,10.0,5.0),    # cube x-z face
+                             (5.0,5.0,0.0),     # cube x-y face  
+                             (5.0,5.0,10.0),    # cube x-y face
+                             (0.0,5.0,5.0),     # cube y-z face
+                             (10.0,5.0,5.0),))  # cube y-z face
 
-#%%
-# First we load our simulation asa `SimData` object. In this case we are
-# loading a 10mm cube loaded in tension in the y direction with the addition
-# of a thermal gradient in the y direction.
-data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
-sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
-
-#%%
-# As we are creating a 3D tensor field sensor we now have a third
-# displacement field component here for scaling. Note that you don't need to
-# scale the displacements here if you only want to analyse strains.
-disp_keys = ("disp_x","disp_y","disp_z")
-sim_data = sens.scale_length_units(scale=1000.0,
-                                    sim_data=sim_data,
-                                    disp_keys=disp_keys)
-
-#%%
-# Here is the main difference when creating a tensor field sensor array. We
-# create a tensor field where we need to specify the normal and deviatoric
-# component string keys as they appear in our `SimData` object. We have a 3D
-# simulation here so we have 3 normal components and 3 deviatoric (shear).
-field_name = "strain"
-norm_comps = ("strain_xx","strain_yy","strain_zz")
-dev_comps = ("strain_xy","strain_yz","strain_xz")
-strain_field = sens.FieldTensor(sim_data,
-                                field_name=field_name,
-                                norm_comps=norm_comps,
-                                dev_comps=dev_comps,
-                                elem_dims=3)
-
-#%%
-# Here we manually define our sensor positions to place a sensor on the
-# centre of each face of our 10mm cube. From here everything is the same as
-# for our 2D vector field sensor arrays.
-sensor_positions = np.array(((5.0,0.0,5.0),     # bottom
-                                (5.0,10.0,5.0),    # top
-                                (5.0,5.0,0.0),     # xy face
-                                (5.0,5.0,10.0),    # xy face
-                                (0.0,5.0,5.0),     # yz face
-                                (10.0,5.0,5.0),))  # yz face
-
-#%%
-# We set custom sensor sampling times here but we could also set this to
-# None to have the sensors sample at the simulation time steps.
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
-#%%
-# We are going to manually specify the sensor angles for all our sensors.
 sens_angles = (Rotation.from_euler("zyx", [0, 0, 0], degrees=True),
-                Rotation.from_euler("zyx", [0, 0, 0], degrees=True),
-                Rotation.from_euler("zyx", [45, 0, 0], degrees=True),
-                Rotation.from_euler("zyx", [45, 0, 0], degrees=True),
-                Rotation.from_euler("zyx", [0, 0, 45], degrees=True),
-                Rotation.from_euler("zyx", [0, 0, 45], degrees=True),)
+               Rotation.from_euler("zyx", [0, 0, 0], degrees=True),
+               Rotation.from_euler("zyx", [45, 0, 0], degrees=True),
+               Rotation.from_euler("zyx", [45, 0, 0], degrees=True),
+               Rotation.from_euler("zyx", [0, 0, 45], degrees=True),
+               Rotation.from_euler("zyx", [0, 0, 45], degrees=True),)
 
 
 sens_data = sens.SensorData(positions=sensor_positions,
                             sample_times=sample_times,
                             angles=sens_angles)
 
-#%%
-# Here we create a descriptor that will be used to label visualisations of
-# the sensor locations and time traces for our sensors. For the strain
-# gauges we are modelling here we could also use the descriptor factory to
-# get these defaults.
 descriptor = sens.SensorDescriptor(name="Strain",
-                                    symbol=r"\varepsilon",
-                                    units=r"-",
-                                    tag="SG",
-                                    components=('xx','yy','zz','xy','yz','xz'))
+                                   symbol=r"\varepsilon",
+                                   units=r"-",
+                                   tag="SG",
+                                   components=('xx','yy','zz','xy','yz','xz'))
 
+sens_array: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
+    sim_data,
+    sens_data,
+    norm_comp_keys=norm_comp_keys,
+    dev_comp_keys=dev_comp_keys,
+    spatial_dims=sens.EDim.THREED,
+    descriptor=descriptor,
+)
 
-straingauge_array = sens.SensorFactoryPoint(sens_data,
-                                            strain_field,
-                                            descriptor)
 
 #%%
-# We can add any errors we like to our error chain. Here we add some basic
-# percentage errors.
-error_chain = []
-error_chain.append(sens.ErrSysUnif(low=-0.1e-3,high=0.1e-3))
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error_chain: list[sens.IErrSimulator] = []
+error_chain.append(sens.ErrSysUnifPercent(low_percent=-1.0,
+                                          high_percent=1.0))
 error_chain.append(sens.ErrRandNormPercent(std_percent=1.0))
-
-#%%
-# Now we add a field error to perturb the positions of each sensor on its
-# relevant face and then add a +/- 2deg angle error.
 
 pos_uncert = 0.1 # units = mm
 pos_rand_xyz = (sens.GenNormal(std=pos_uncert),
                 sens.GenNormal(std=pos_uncert),
                 sens.GenNormal(std=pos_uncert))
 
-angle_uncert = 2.0
-angle_rand_zyx = (sens.GenUniform(low=-angle_uncert,high=angle_uncert), # units = deg
-                    sens.GenUniform(low=-angle_uncert,high=angle_uncert),
-                    sens.GenUniform(low=-angle_uncert,high=angle_uncert))
+angle_uncert = 2.0 # units = degrees
+angle_rand_zyx = (sens.GenUniform(low=-angle_uncert,high=angle_uncert),
+                  sens.GenUniform(low=-angle_uncert,high=angle_uncert),
+                  sens.GenUniform(low=-angle_uncert,high=angle_uncert))
 
-#%%
-# We are going to lock position perturbation so that the sensors stay on the
-# faces of the cube they are positioned on.
 pos_lock = np.full(sensor_positions.shape,False,dtype=bool)
-pos_lock[0:2,1] = True   # Block translation in y
-pos_lock[2:4,2] = True   # Block translation in z
-pos_lock[4:6,0] = True   # Block translation in x
+pos_lock[0:2,1] = True   # block translation in y
+pos_lock[2:4,2] = True   # block translation in z
+pos_lock[4:6,0] = True   # block translation in x
 
-#%%
-# We are also going to lock angular perturbation so that each sensor is only
-# allowed to rotate on the plane it is on.
 angle_lock = np.full(sensor_positions.shape,True,dtype=bool)
-angle_lock[0:2,1] = False   # Allow rotation about y
-angle_lock[2:4,0] = False   # Allow rotation about z
-angle_lock[4:6,2] = False   # Allow rotation about x
+angle_lock[0:2,1] = False   # allow rotation about y
+angle_lock[2:4,0] = False   # allow rotation about z
+angle_lock[4:6,2] = False   # allow rotation about x
 
 field_error_data = sens.ErrFieldData(pos_rand_xyz=pos_rand_xyz,
-                                    pos_lock_xyz=pos_lock,
-                                    ang_rand_zyx=angle_rand_zyx,
-                                    ang_lock_zyx=angle_lock)
-sys_err_field = sens.ErrSysField(strain_field,field_error_data)
-error_chain.append(sys_err_field)
+                                     pos_lock_xyz=pos_lock,
+                                     ang_rand_zyx=angle_rand_zyx,
+                                     ang_lock_zyx=angle_lock)
+                                    
+error_chain.append(sens.ErrSysField(sens_array.get_field(),
+                                    field_error_data))
+
+sens_array.set_error_chain(error_chain)
 
 
-error_int = sens.ErrIntegrator(error_chain,
-                                sens_data,
-                                straingauge_array.get_measurement_shape())
-straingauge_array.set_error_integrator(error_int)
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
 
-#%%
-# We run our virtual sensor simulation as normal. The only thing to note is
-# that the second dimension of our measurement array will contain our tensor
-# components in the order they are specified in the tuples with the normal
-# components first followed by the deviatoric.
-measurements = straingauge_array.sim_measurements()
+measurements: np.ndarray = sens_array.sim_measurements()
 
-#%%
-# We print some of the results for one of the sensors so we can see the
-# effect of the field errors.
+truth: np.ndarray = sens_array.get_truth()
+sys_errs: np.ndarray = sens_array.get_errors_systematic()
+rand_errs: np.ndarray = sens_array.get_errors_random()
+
 print(80*"-")
+print("measurement = truth + sysematic error + random error")
 
-sens_print: int = 0
-time_print: int = 5
-comp_print: int = 1 # strain_yy based on order in tuple
+print(f"measurements.shape = {measurements.shape} = "
+        + "(n_sensors,n_field_components,n_timesteps)")
+print(f"truth.shape     = {truth.shape}")
+print(f"sys_errs.shape  = {sys_errs.shape}")
+print(f"rand_errs.shape = {rand_errs.shape}")
 
-sens_print = 0
-comp_print = 1 # strain_yy based on order in tuple
-time_last = 5
+sens_print: int = 2
+comp_print: int = 1
+time_last: int = 5
 time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 
-print("ROTATED SENSORS WITH ANGLE ERRORS:")
-print(f"These are the last {time_last} virtual measurements of sensor "
-        + f"{sens_print} for {norm_comps[comp_print]}:")
+print(f"\nThese are the last {time_last} virtual measurements of sensor "
+        + f"{sens_print}:\n")
 
-sens.print_measurements(straingauge_array,sens_print,comp_print,time_print)
+sens.print_measurements(sens_array,sens_print,comp_print,time_print)
+print("\n"+80*"-")
 
-print(80*"-")
-
-#%%
-# We can plot a given component of our tensor field and display our sensor
-# locations with respect to the field.
-plot_field = "strain_yy"
-pv_plot = sens.plot_point_sensors_on_sim(straingauge_array,plot_field)
-pv_plot.show(cpos="xy")
 
 #%%
-# We can also plot time traces for all components of the tensor field.
-for cc in (norm_comps+dev_comps):
-    sens.plot_time_traces(straingauge_array,cc)
+# 4. Analyse & visualise the results
+# ----------------------------------
 
-plt.show()
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
+
+for kk in (norm_comp_keys+dev_comp_keys):
+    pv_plot = sens.plot_point_sensors_on_sim(sens_array,kk)
+    pv_plot.camera_position = "yz"
+    pv_plot.camera.azimuth = 45
+    pv_plot.camera.elevation = 45
+
+    # Set to False to show an interactive plot instead of saving the figure
+    pv_plot.off_screen = True
+    if pv_plot.off_screen: 
+        pv_plot.screenshot(output_path/f"advanced_ex3d_locs_{kk}.png")
+    else:
+        pv_plot.show()
+
+for kk in (norm_comp_keys+dev_comp_keys):
+    (fig,ax) = sens.plot_time_traces(sens_array,comp_key=kk)
+    fig.savefig(output_path/f"advanced_ex3d_traces_{kk}.png",
+                dpi=300,
+                bbox_inches="tight")
+    
+# Uncomment this to display the sensor trace plot 
+# plt.show()

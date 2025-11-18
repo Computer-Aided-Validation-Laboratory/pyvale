@@ -44,13 +44,13 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
 
 sens.simtools.print_dimensions(sim_data)
 
-# Simulations is 10mm cube
-sensor_positions = np.array(((5.0,0.0,5.0),     # x-z face
-                             (5.0,10.0,5.0),    # x-z face
-                             (5.0,5.0,0.0),     # x-y face  
-                             (5.0,5.0,10.0),    # x-y face
-                             (0.0,5.0,5.0),     # y-z face
-                             (10.0,5.0,5.0),))  # y-z face
+# Simulations is a 10mm cube
+sensor_positions = np.array(((5.0,0.0,5.0),     # cube x-z face
+                             (5.0,10.0,5.0),    # cube x-z face
+                             (5.0,5.0,0.0),     # cube x-y face  
+                             (5.0,5.0,10.0),    # cube x-y face
+                             (0.0,5.0,5.0),     # cube y-z face
+                             (10.0,5.0,5.0),))  # cube y-z face
 
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
@@ -72,11 +72,11 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
 
 error_chain: list[sens.IErrSimulator] = []
  
-# sys_gen = sens.GenUniform(low=-1.0,high=1.0) # units = % truth
-# error_chain.append(sens.ErrSysGenPercent(sys_gen))  
-# 
-# rand_gen = sens.GenNormal(std=1.0) # units = % truth
-# error_chain.append(sens.ErrRandGenPercent(rand_gen))
+sys_gen = sens.GenUniform(low=-1.0,high=1.0) # units = % truth
+error_chain.append(sens.ErrSysGenPercent(sys_gen))  
+
+rand_gen = sens.GenNormal(std=1.0) # units = % truth
+error_chain.append(sens.ErrRandGenPercent(rand_gen))
 
 pos_uncert = 1.0 # units = mm
 pos_rand = (sens.GenUniform(low=-pos_uncert,high=pos_uncert),
@@ -84,12 +84,12 @@ pos_rand = (sens.GenUniform(low=-pos_uncert,high=pos_uncert),
             sens.GenUniform(low=-pos_uncert,high=pos_uncert))
 
 pos_lock = np.full(sensor_positions.shape,False,dtype=bool)
-pos_lock[0,1] = True # x-z face, lock y
-pos_lock[1,1] = True # x-z face, lock y
-pos_lock[2,2] = True # x-y face, lock z
-pos_lock[3,2] = True # x-y face, lock z
-pos_lock[4,0] = True # y-z face, lock x
-pos_lock[5,0] = True # y-z face, lock x
+pos_lock[0,1] = True # cube x-z face, lock y
+pos_lock[1,1] = True # cube x-z face, lock y
+pos_lock[2,2] = True # cube x-y face, lock z
+pos_lock[3,2] = True # cube x-y face, lock z
+pos_lock[4,0] = True # cube y-z face, lock x
+pos_lock[5,0] = True # cube y-z face, lock x
 
 field_err_data = sens.ErrFieldData(pos_rand_xyz=pos_rand,
                                    pos_lock_xyz=pos_lock)

@@ -51,7 +51,7 @@ sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(2,2,1),
 sample_times: np.ndarray = np.linspace(0.0,np.max(sim_data.time),50)
 
 sens_angles: tuple[Rotation] = (
-    Rotation.from_euler("zyx",[90,0,0], degrees=True),
+    Rotation.from_euler("zyx",[0,0,0], degrees=True),
 )
 
 sens_data = sens.SensorData(positions=sens_pos,
