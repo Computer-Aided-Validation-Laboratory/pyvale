@@ -29,70 +29,58 @@ import pyvale.dataset as dataset
 #%%
 # 1. Load physics simulation data
 # -------------------------------
+data_path: Path = dataset.thermal_3d_path()
+sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+                                               sim_data=sim_data,
+                                               disp_keys=None)
+
 #%% 
-# 2. Build virtual sensor arrays
-# --------------------------------
+# 2. Build virtual sensor array
+# -----------------------------
+sim_dims = sens.simtools.get_sim_dims(sim_data)
+sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
+                                                x_lims=(12.5,12.5),
+                                                y_lims=sim_dims["y"],
+                                                z_lims=sim_dims["z"])
+                                    
+sample_times = np.linspace(0.0,np.max(sim_data.time),50)
+
+sens_data = sens.SensorData(positions=sens_pos,
+                            sample_times=sample_times)
+
+sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+    sim_data,
+    sens_data,
+    comp_key="temperature",
+    spatial_dims=sens.EDim.THREED,
+    descriptor=sens.DescriptorFactory.temperature(),
+)
+                            
 #%%
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#%% 
-# 3. Create & run simulated experiment
-# ------------------------------------
-#%%
-# 4. Analyse & visualise the results
-# ----------------------------------
-
-
-#%%
-# First we use everything we learned from the first three examples to build
-# a thermocouple sensor array for the same 3D thermal simulation we have
-# analysed in the previous examples. Then we will look at a new type of
-# systematic error called a field error which requires additional
-# interpolation of the underlying physical field to be measured.
-data_path = dataset.thermal_3d_path()
-sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
-sim_data = sens.scale_length_units(scale=1000.0,
-                                    sim_data=sim_data,
-                                    disp_keys=None)
-
-n_sens = (1,4,1)
-x_lims = (12.5,12.5)
-y_lims = (0.0,33.0)
-z_lims = (0.0,12.0)
-sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
-
-sample_times = np.linspace(0.0,np.max(sim_data.time),50) # | None
-
-sensor_data = sens.SensorData(positions=sens_pos,
-                                sample_times=sample_times)
-
-field_key: str = "temperature"
-tc_array = sens.SensorFactory \
-    .thermocouples(sim_data,
-                            sensor_data,
-                            elem_dims=3,
-                            field_name=field_key)
-#%%
 # Now we will create a field error data class which we will use to build our
 # field error. This controls which sensor parameters will be perturbed such
 # as: position, time and orientation. Here we will perturb the sensor
 # positions on the face of the block using a normal distribution and we will
-# also perturb the measurement times.
+# also perturb the measurement times using constant offsets and random 
+# generators.
 #
 # We can apply a constant offset to each sensors position in x,y,z by
 # providing a shape=(num_sensors,coord[x,y,z]) array. Here we apply a
-# constant offset in the y and z direction for all sensors.
+# constant offset in the y and z direction for all sensors. We also apply a 
+# constant offset to the sampling times for all sensors.
+
 pos_offset_xyz = np.array((0.0,1.0,1.0),dtype=np.float64)
 pos_offset_xyz = np.tile(pos_offset_xyz,(sens_pos.shape[0],1))
 
-#%%
-# We can also apply a constant offset to the sampling times for all sensors
 time_offset = np.full((sample_times.shape[0],),0.1)
 
 #%%
 # Using the `Gen*` random generators in pyvale we can randomly perturb the
 # position or sampling times of our virtual sensors.
-pos_rand = sens.GenNormal(std=1.0) # units = mm
+pos_rand = sens.GenNormal(std=1.0)  # units = mm
 time_rand = sens.GenNormal(std=0.1) # units = s
 
 #%%
@@ -112,77 +100,69 @@ field_err_data = sens.ErrFieldData(
 # Adding our field error to our error chain is exactly the same as the basic
 # errors we have seen previously. We can also combine field errors with
 # basic errors and place them anywhere in our error chain. We can even chain
-# field errors together which we will look at in the next example. For now
-# we will just have a single field error so we can easily visualise what
-# this type of error does.
-err_chain = []
+# field errors together and set them to be 'dependent' in which case the 
+# perturbations to the sensor data will be accumulated. We will look at chaining
+# field errors in a later example. For now we will just have a single field 
+# error so we can easily visualise what this type of error does.
+
+err_chain: list[sens.IErrSimulator] = []
+err_chain.append(sens.ErrSysField(sens_array.get_field(),
+                                  field_err_data))
+sens_array.set_error_chain(err_chain)
 
 #%%
-# A field error needs to know which field it should interpolate for error
-# calculations so we provide the field from the sensor array as well as the
-# field error error data class.
-err_chain.append(sens.ErrSysField(tc_array.get_field(),
-                                    field_err_data))
-err_int = sens.ErrIntegrator(err_chain,
-                            sensor_data,
-                            tc_array.get_measurement_shape())
-tc_array.set_error_integrator(err_int)
+# It is important that we put errors in our error chain in the order we want 
+# them evaluated. For example, if we want to combine a field error that perturbs
+# the sensor position with a dependent random noise as a percentage of the 
+# measurement at that position then we must place the random error after our 
+# field error in the error chain (and set the random error to be 'dependent'). 
 
-#%%
-# Now we can run the sensor simulation and display the results to see what
-# our field error has done.
-measurements = tc_array.sim_measurements()
+#%% 
+# 3. Run simulated experiment
+# ---------------------------
+
+measurements: np.ndarray = sens_array.sim_measurements()
+
+truth: np.ndarray = sens_array.get_truth()
+sys_errs: np.ndarray = sens_array.get_errors_systematic()
+rand_errs: np.ndarray = sens_array.get_errors_random()
 
 print(80*"-")
+print("measurement = truth + sysematic error + random error")
 
-sens_print = 0
-comp_print = 0
-time_last = 5
+print(f"measurements.shape = {measurements.shape} = "
+        + "(n_sensors,n_field_components,n_timesteps)")
+print(f"truth.shape     = {truth.shape}")
+print(f"sys_errs.shape  = {sys_errs.shape}")
+print(f"rand_errs.shape = {rand_errs.shape}")
+
+sens_print: int = 3
+comp_print: int = 0
+time_last: int = 5
 time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 
+print(f"\nThese are the last {time_last} virtual measurements of sensor "
+        + f"{sens_print}:\n")
 
-print(f"These are the last {time_last} virtual measurements of sensor "
-        + f"{sens_print}:")
-
-sens.print_measurements(tc_array,sens_print,comp_print,time_print)
-
-print(80*"-")
+sens.print_measurements(sens_array,sens_print,comp_print,time_print)
+print("\n"+80*"-")
 
 #%%
-# We are going to save some figures to disk as well as displaying them
-# interactively so we create a directory for this:
+# 4. Analyse & visualise the results
+# ----------------------------------
+
 output_path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
-#%%
-# If we analyse the time traces we can see offsets in the sensor value and
-# the sampling times which we expect from our field error setup.
-(fig,ax) = sens.plot_time_traces(tc_array,field_key)
+(fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
+fig.savefig(output_path/"adv_ex4b_traces.png",dpi=300,bbox_inches="tight")
 
-save_traces = output_path/"field_ex1_5_sensortraces.png"
-fig.savefig(save_traces, dpi=300, bbox_inches="tight")
-fig.savefig(save_traces.with_suffix(".svg"), dpi=300, bbox_inches="tight")
+# Uncomment this to display the sensor trace plot 
+# plt.show()
 
-plt.show()
-
-#%%
-# It is also possible to view the perturbed sensor locations on the
-# simulation mesh if we create a plot after running the sensor simulation.
-pv_plot = sens.plot_point_sensors_on_sim(tc_array,field_key)
-pv_plot.camera_position = [(59.354, 43.428, 69.946),
-                            (-2.858, 13.189, 4.523),
-                            (-0.215, 0.948, -0.233)]
-
-save_render = output_path / "fielderrs_ex1_5_sensorlocs.svg"
-pv_plot.save_graphic(save_render) # only for .svg .eps .ps .pdf .tex
-pv_plot.screenshot(save_render.with_suffix(".png"))
-
-pv_plot.show()
-
-#%%
-# We have saved an image of the sensor traces and the perturbed locations of
-# the sensors to the `pyvale-output` directory in your current working
-# directory. Analyse these figures side by side to show that the location of
-# the perturbed sensor locations matches the expected sensor traces.
-
+# %%
+# .. image:: ../../../../_static/adv_ex4b_traces.png
+#    :alt: Simulated sensor traces.
+#    :width: 600px
+#    :align: center

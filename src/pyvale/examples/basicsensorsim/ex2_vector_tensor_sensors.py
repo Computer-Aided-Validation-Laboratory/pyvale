@@ -39,7 +39,8 @@ data_path: Path = dataset.mechanical_2d_path()
 sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
 disp_keys = ("disp_x","disp_y")
-strain_keys = ("strain_xx","strain_yy","strain_xy")
+strain_norm_keys = ("strain_xx","strain_yy",)
+strain_dev_keys = ("strain_xy",)
 
 sim_data: mh.SimData  = sens.scale_length_units(scale=1000.0,
                                                 sim_data=sim_data,
@@ -100,8 +101,8 @@ strain_sens_data = sens.SensorData(positions=sens_pos,
 strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
     sim_data,
     strain_sens_data,
-    norm_comp_keys=("strain_xx","strain_yy",),
-    dev_comp_keys=("strain_xy",),
+    norm_comp_keys=strain_norm_keys,
+    dev_comp_keys=strain_dev_keys,
     spatial_dims=sens.EDim.TWOD,
     descriptor=sens.DescriptorFactory.strain(sens.EDim.TWOD),
 )
@@ -262,7 +263,7 @@ for kk in disp_keys:
 #    :width: 500px
 #    :align: center
     
-for kk in strain_keys:
+for kk in (strain_norm_keys+strain_dev_keys):
     (fig,ax) = sens.plot_time_traces(strain_sens,kk)
     
     save_traces = output_path/f"basics_ex2_traces_{kk}.png"

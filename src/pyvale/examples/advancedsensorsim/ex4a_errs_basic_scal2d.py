@@ -9,20 +9,41 @@ Errors: basics
 ================================================================================
 
 In this example we will provide an overview of the basic error library in 
-`pyvale`. The error simulation models in pyvale are grouped into  types as 
-either random (`ErrRand*`) or systematic (`ErrSys*`). In this example we will
-consider probability distribution based sampled errors, constant offsets and
-basic systematic errors such as digitisation / saturation.
+`pyvale`. In `pyvale` errors have a type (random/systematic) and a dependence 
+(independent/dependent). We can get an errors type using the `.get_error_type()` 
+method  returning an `EErrType` enumeration. We can also specify an errors 
+dependence  with the `.set_error_dep()` method and an `EErrDep` enumeration. If 
+we recall the `pyvale` measurement simulation model:
 
-In the next examples we will consider more advanced error sources including:
-field errors that perturb the sensor parameters (e.g. location, sampling time
-and orientation) requiring re-interpolation of the underlying field data; and
-calibration errors.
+    measurement = truth + systematic errors + random errors
 
-Advanced users: It is also possible to write custom errors by writing your own
-class that implements the `IErrSimulator` abstract base class and then add them
-to your error chain.
+where all of these variable are numpy arrays with shape=(num_sensors,
+num_field_components,num_sample_times). This means an errors type will determine 
+if it will be summed in the systematic on random error array.
+
+The error dependence determines if an error is calculated based on the truth 
+(independent) or the accumulated measurement based on all previous errors in 
+the error chain (dependent). Some errors are purely independent such as random 
+noise with a normal distribution with a set standard devitation. An example of 
+an error that is dependent would be saturation which must be placed last in 
+the error chain and will clamp the final sensor value to be within the 
+specified bounds. We could also set any of the 'percent' errors to be dependent
+in which case the percentage would be calculated based on the accumulated sensor
+measurement at that point in the error chain instead of based on ground truth.
+
+`pyvale` provides a library of different random `ErrRand*` and systematic
+`ErrSys*` errors which can be found listed in the docs. In the next
+example we will explore the more detailed parts of the error simulation library 
+but for now we will specify some common error types. Try experimenting with the 
+code below to turn the different error types off and on to see how it changes 
+the virtual sensor measurements.
 """
+
+#%%
+# .. note::
+#   It is also possible to write custom errors by writing your own class that 
+#   implements the `IErrSimulator` abstract base class and then add them to your 
+#   error chain. See the python API docs for `IErrSimulator`.      
 
 from pathlib import Path
 import numpy as np
@@ -39,22 +60,20 @@ import pyvale.dataset as dataset
 # 1. Load physics simulation data
 # -------------------------------
 
-data_path = dataset.thermal_3d_path()
-sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
-sim_data = sens.scale_length_units(scale=1000.0,
-                                   sim_data=sim_data,
-                                   disp_keys=None)
+data_path: Path = dataset.thermal_3d_path()
+sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+                                               sim_data=sim_data,
+                                               disp_keys=None)
 
 #%% 
 # 2. Build virtual sensor array
 # -----------------------------
-
 sim_dims = sens.simtools.get_sim_dims(sim_data)
 sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
                                                 x_lims=(12.5,12.5),
                                                 y_lims=sim_dims["y"],
                                                 z_lims=sim_dims["z"])
-
                                     
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
@@ -85,7 +104,7 @@ err_chain = []
 # different error for each sensor and time step.
 #
 # These systematic errors provide a constant offset to all measurements in
-# simulation units or as a percentage.
+# simulation units or as a percentage of the truth.
 err_chain.append(sens.ErrSysOffset(offset=-10.0))
 err_chain.append(sens.ErrSysOffsetPercent(offset_percent=-1.0))
 
@@ -113,7 +132,7 @@ err_chain.append(sens.ErrSysGen(sys_gen))
 # We can also build the equivalent of `ErrSysUnifPercent` above using a
 # `Gen` object inserted into an `ErrSysGenPercent` object:
 unif_gen = sens.GenUniform(low=-1.0,
-                            high=1.0)
+                           high=1.0)
 err_chain.append(sens.ErrSysGenPercent(unif_gen))
 
 #%%
@@ -132,7 +151,7 @@ rand_gen = sens.GenTriangular(left=-5.0,
 err_chain.append(sens.ErrRandGen(rand_gen))
 
 #%%
-# Finally we add some dependent systematic errors including rounding errors,
+# Finally, we add some dependent systematic errors including rounding errors,
 # digitisation and saturation. Note that the saturation error must be placed
 # last in the error chain. Try changing some of these values to see how the
 # sensor traces change - particularly the saturation error.
@@ -144,29 +163,51 @@ sens_array.set_error_chain(err_chain)
 
 
 #%% 
-# 3. Create & run simulated experiment
-# ------------------------------------
+# 3. Run simulated experiment
+# ---------------------------
 
-measurements = sens_array.sim_measurements()
+measurements: np.ndarray = sens_array.sim_measurements()
+
+truth: np.ndarray = sens_array.get_truth()
+sys_errs: np.ndarray = sens_array.get_errors_systematic()
+rand_errs: np.ndarray = sens_array.get_errors_random()
 
 print(80*"-")
+print("measurement = truth + sysematic error + random error")
 
-sens_print = 0
-comp_print = 0
-time_last = 5
+print(f"measurements.shape = {measurements.shape} = "
+        + "(n_sensors,n_field_components,n_timesteps)")
+print(f"truth.shape     = {truth.shape}")
+print(f"sys_errs.shape  = {sys_errs.shape}")
+print(f"rand_errs.shape = {rand_errs.shape}")
+
+sens_print: int = 3
+comp_print: int = 0
+time_last: int = 5
 time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 
-
-print(f"These are the last {time_last} virtual measurements of sensor "
-        + f"{sens_print}:")
+print(f"\nThese are the last {time_last} virtual measurements of sensor "
+        + f"{sens_print}:\n")
 
 sens.print_measurements(sens_array,sens_print,comp_print,time_print)
-
-print(80*"-")
-
-sens.plot_time_traces(sens_array,field_key)
-plt.show()
+print("\n"+80*"-")
 
 #%%
 # 4. Analyse & visualise the results
 # ----------------------------------
+
+output_path = Path.cwd() / "pyvale-output"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
+
+(fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
+fig.savefig(output_path/"adv_ex4a_traces.png",dpi=300,bbox_inches="tight")
+
+# Uncomment this to display the sensor trace plot 
+# plt.show()
+
+# %%
+# .. image:: ../../../../_static/adv_ex4a_traces.png
+#    :alt: Simulated sensor traces.
+#    :width: 600px
+#    :align: center
