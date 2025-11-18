@@ -9,10 +9,8 @@ Errors: basics
 ================================================================================
 
 In this example we will provide an overview of the basic error library in 
-`pyvale`
-
-The sensor error models in pyvale are grouped into the
-types of random (`ErrRand*`) and systematic (`ErrSys*`). In this example we will
+`pyvale`. The error simulation models in pyvale are grouped into  types as 
+either random (`ErrRand*`) or systematic (`ErrSys*`). In this example we will
 consider probability distribution based sampled errors, constant offsets and
 basic systematic errors such as digitisation / saturation.
 
@@ -26,6 +24,7 @@ class that implements the `IErrSimulator` abstract base class and then add them
 to your error chain.
 """
 
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -35,51 +34,46 @@ import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 
 
+
 #%%
 # 1. Load physics simulation data
 # -------------------------------
-#%% 
-# 2. Build virtual sensor arrays
-# --------------------------------
-#%%
-# 2.1. Add simulated measurement errors
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#%% 
-# 3. Create & run simulated experiment
-# ------------------------------------
-#%%
-# 4. Analyse & visualise the results
-# ----------------------------------
 
-#%%
-# First we use everything we learned from the first three examples to build
-# a thermocouple sensor array for the same 3D thermal simulation we have
-# analysed in the previous example.
 data_path = dataset.thermal_3d_path()
 sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data = sens.scale_length_units(scale=1000.0,
-                                    sim_data=sim_data,
-                                    disp_keys=None)
-n_sens = (1,4,1)
-x_lims = (12.5,12.5)
-y_lims = (0.0,33.0)
-z_lims = (0.0,12.0)
-sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
+                                   sim_data=sim_data,
+                                   disp_keys=None)
 
-sample_times = np.linspace(0.0,np.max(sim_data.time),50) # | None
+#%% 
+# 2. Build virtual sensor array
+# -----------------------------
 
-sensor_data = sens.SensorData(positions=sens_pos,
+sim_dims = sens.simtools.get_sim_dims(sim_data)
+sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
+                                                x_lims=(12.5,12.5),
+                                                y_lims=sim_dims["y"],
+                                                z_lims=sim_dims["z"])
+
+                                    
+sample_times = np.linspace(0.0,np.max(sim_data.time),50)
+
+sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times)
 
-field_key: str = "temperature"
-tc_array = sens.SensorFactory \
-    .thermocouples(sim_data,
-                            sensor_data,
-                            elem_dims=3,
-                            field_name=field_key)
+sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+    sim_data,
+    sens_data,
+    comp_key="temperature",
+    spatial_dims=sens.EDim.THREED,
+    descriptor=sens.DescriptorFactory.temperature(),
+)
+
 
 #%%
-# Now we have our thermocouple array applied to our simulation without any
+# 2.1. Add simulated measurement errors
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# Now we have our sensor array applied to our simulation without any
 # errors we can build a custom chain of basic errors. Here we will start by
 # adding a series of systematic errors that are independent:
 err_chain = []
@@ -133,8 +127,8 @@ err_chain.append(sens.ErrRandUnif(low=-2.0,high=2.0))
 err_chain.append(sens.ErrRandUnifPercent(low_percent=-2.0,
                                         high_percent=2.0))
 rand_gen = sens.GenTriangular(left=-5.0,
-                                mode=0.0,
-                                right=5.0)
+                              mode=0.0,
+                              right=5.0)
 err_chain.append(sens.ErrRandGen(rand_gen))
 
 #%%
@@ -146,15 +140,14 @@ err_chain.append(sens.ErrSysRoundOff(sens.ERoundMethod.ROUND,0.1))
 err_chain.append(sens.ErrSysDigitisation(bits_per_unit=2**16/100))
 err_chain.append(sens.ErrSysSaturation(meas_min=0.0,meas_max=400.0))
 
-err_int = sens.ErrIntegrator(err_chain,
-                            sensor_data,
-                            tc_array.get_measurement_shape())
-tc_array.set_error_integrator(err_int)
+sens_array.set_error_chain(err_chain)
 
-#%%
-# Now we can run the sensor simulation and display the results to see the
-# different error sources as we have done in previous examples.
-measurements = tc_array.sim_measurements()
+
+#%% 
+# 3. Create & run simulated experiment
+# ------------------------------------
+
+measurements = sens_array.sim_measurements()
 
 print(80*"-")
 
@@ -167,10 +160,13 @@ time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 print(f"These are the last {time_last} virtual measurements of sensor "
         + f"{sens_print}:")
 
-sens.print_measurements(tc_array,sens_print,comp_print,time_print)
+sens.print_measurements(sens_array,sens_print,comp_print,time_print)
 
 print(80*"-")
 
-sens.plot_time_traces(tc_array,field_key)
+sens.plot_time_traces(sens_array,field_key)
 plt.show()
 
+#%%
+# 4. Analyse & visualise the results
+# ----------------------------------
