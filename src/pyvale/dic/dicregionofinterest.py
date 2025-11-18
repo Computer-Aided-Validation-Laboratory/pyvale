@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
-from pyqtgraph.Qt import QtWidgets, QtCore
+from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 import cv2
 import numpy as np
@@ -94,8 +94,7 @@ class RegionOfInterest:
         self.__roi_selected = True
         
         # Initialize GUI
-        self._setup_gui()
-        fill_array, temp_mask = self._setup_graphics()
+        fill_array, temp_mask = self._setup_gui()
         print(fill_array.shape, temp_mask.shape)
         self._connect_signals(fill_array, temp_mask)
         
@@ -109,7 +108,7 @@ class RegionOfInterest:
         # finalize mask
         self.mask = temp_mask
 
-    def _setup_gui(self):
+    def _setup_gui(self) -> tuple[np.ndarray, np.ndarray]:
         """Setup the main GUI window and sidebar."""
         app = pg.mkQApp("ROI GUI")
         self.main_window = CustomMainWindow(dic_obj=self)
@@ -117,18 +116,43 @@ class RegionOfInterest:
         self.main_window.setLayout(main_layout)
         self.main_window.resize(1000, 1000)
 
+        """Setup the graphics view and image display."""
+        self.graphics_widget = pg.GraphicsLayoutWidget()
+        self.main_view = self.graphics_widget.addViewBox(lockAspect=True)
+
+        # Setup image
+        rotated = np.rot90(self.ref_image, k=1)
+        rotated = np.flip(rotated,axis=0)
+        img = pg.ImageItem(rotated)
+        self.main_view.addItem(img)
+        self.main_view.disableAutoRange('xy')
+        self.main_view.autoRange()
+        self.main_view.invertY(True)
+
+        # Setup fill layer
+        self.fill_layer = pg.ImageItem()
+        self.fill_layer.setZValue(1)
+        self.main_view.addItem(self.fill_layer)
+        self.height, self.width = self.ref_image.shape[:2]
+
+        # these are flipped because of the way pyqtgraph works
+        fill_array = np.zeros((self.height, self.width, 4), dtype=np.uint8)
+        temp_mask = np.zeros((self.height, self.width), dtype=bool)
+
+        # Setup drawing overlays
+        self._setup_drawing_overlays()
+
+
         # Create sidebar
-        sidebar = self._create_sidebar()
+        sidebar = self._create_sidebar(fill_array, temp_mask)
         
         # Create graphics widget
-        self.graphics_widget = pg.GraphicsLayoutWidget()
-
-
-        
         main_layout.addLayout(sidebar)
         main_layout.addWidget(self.graphics_widget)
 
-    def _create_sidebar(self):
+        return fill_array, temp_mask
+
+    def _create_sidebar(self, fill_array, temp_mask):
         """Create the sidebar with all buttons."""
         sidebar = QtWidgets.QVBoxLayout()
         
@@ -151,7 +175,7 @@ class RegionOfInterest:
                                         ("sub_circle", "Remove Circle"),
                                         ("sub_poly", "Remove Polygon")]),
 
-            ("SEED LOCATION", [("add_seed", "Add Reliability Guided Seed Location")]),
+            ("SEED LOCATION", "SEED_SECTION"),
 
             ("UNDO / REDO SHAPES", [("undo_prev", "Undo Shape"),
                                     ("redo_prev", "Redo Shape")]),
@@ -162,20 +186,71 @@ class RegionOfInterest:
         self.buttons = {}
         for section_title, button_list in button_configs:
             sidebar.addWidget(make_title(section_title))
+
+            if button_list == "SEED_SECTION":
+
+                # Seed size input layout
+                seed_layout = QtWidgets.QHBoxLayout()
+
+                seed_label = QtWidgets.QLabel("Seed Size (odd):")
+                seed_input = QtWidgets.QLineEdit()
+                seed_input.setFixedWidth(60)
+                seed_input.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                
+                # Default subset size
+                seed_input.setText("21")
+
+                # Restrict to integer input
+                validator = QtGui.QIntValidator(1, 999)
+                seed_input.setValidator(validator)
+
+                # Enforce odd values
+                def enforce_odd():
+                    text = seed_input.text()
+                    if text.isdigit():
+                        val = int(text)
+                        if val % 2 == 0:  # Convert even → odd
+                            seed_input.setText(str(val + 1))
+                        
+                        self.subset_size = val
+                        if hasattr(self, 'seed_roi') and self.seed_roi is not None:
+                            # Compute current center of existing ROI
+                            old_rect = self.seed_roi.pos()
+                            center = QtCore.QPointF(old_rect.x() + self.subset_size / 2,
+                                                    old_rect.y() + self.subset_size / 2)
+                            self._draw_seed_roi(center, fill_array, temp_mask)
+
+                seed_input.editingFinished.connect(enforce_odd)
+
+                seed_layout.addWidget(seed_label)
+                seed_layout.addWidget(seed_input)
+                sidebar.addLayout(seed_layout)
+
+                self.seed_input = seed_input
+
+                # Add Seed Button
+                btn = QtWidgets.QPushButton("Add Reliability Guided Seed Location")
+                self.buttons["add_seed"] = btn
+                sidebar.addWidget(btn)
+
+                sidebar.addSpacing(20)
+                continue
+
             for btn_id, btn_text in button_list:
                 btn = QtWidgets.QPushButton(btn_text)
                 self.buttons[btn_id] = btn
                 sidebar.addWidget(btn)
+
             sidebar.addSpacing(20)
 
         # Initial button states
         self.buttons['undo_prev'].setEnabled(False)
         self.buttons['redo_prev'].setEnabled(False)
-        
+
+        # Coordinate display label
         self.coord_label = QtWidgets.QLabel("(-, -)")
         self.coord_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 
-        # Set fixed width to handle largest expected value comfortably
         self.coord_label.setMinimumWidth(350)
         self.coord_label.setMaximumWidth(350)
 
@@ -195,35 +270,6 @@ class RegionOfInterest:
 
         return sidebar
 
-    def _setup_graphics(self) -> tuple[np.ndarray, np.ndarray]:
-        """Setup the graphics view and image display."""
-        self.main_view = self.graphics_widget.addViewBox(lockAspect=True)
-
-        # Setup image
-        rotated = np.rot90(self.ref_image, k=1)
-        rotated = np.flip(rotated,axis=0)
-        img = pg.ImageItem(rotated)
-        self.main_view.addItem(img)
-        self.main_view.disableAutoRange('xy')
-        self.main_view.autoRange()
-        self.main_view.invertY(True)
-
-        # Setup fill layer
-        self.fill_layer = pg.ImageItem()
-        self.fill_layer.setZValue(1)
-        self.main_view.addItem(self.fill_layer)
-
-
-        self.height, self.width = self.ref_image.shape[:2]
-
-        # these are flipped because of the way pyqtgraph works
-        fill_array = np.zeros((self.height, self.width, 4), dtype=np.uint8)
-        temp_mask = np.zeros((self.height, self.width), dtype=bool)
-
-        # Setup drawing overlays
-        self._setup_drawing_overlays()
-
-        return fill_array, temp_mask
 
     def _setup_drawing_overlays(self):
         """Setup scatter plots and lines for polygon drawing."""
@@ -324,7 +370,7 @@ class RegionOfInterest:
         if self.drawing_modes['poly'] or self.removing_modes['poly']:
             self._handle_polygon_click(event, fill_array, temp_mask)
         elif self.drawing_modes['seed']:
-            self._handle_seed_click(event)
+            self._handle_seed_click(event, fill_array, temp_mask)
         elif any(self.drawing_modes.values()) or any(self.removing_modes.values()):
             self._handle_shape_click(event, fill_array, temp_mask)
 
@@ -346,31 +392,55 @@ class RegionOfInterest:
         elif event.button() == QtCore.Qt.MouseButton.RightButton:
             self._finish_polygon_drawing(is_adding, fill_array, temp_mask)
 
-    def _handle_seed_click(self, event):
+
+    def _draw_seed_roi(self, center_pos, fill_array, temp_mask):
+        """
+        Draw or redraw the seed ROI with current subset_size.
+        center_pos: QPointF in scene coordinates. If None, uses previous ROI center.
+        """
+        if hasattr(self, 'seed_roi') and self.seed_roi is not None:
+            # Save old center
+            old_rect = self.seed_roi.pos()
+            self.main_view.removeItem(self.seed_roi)
+            if center_pos is None:
+                center_pos = QtCore.QPointF(old_rect.x() + self.subset_size / 2,
+                                            old_rect.y() + self.subset_size / 2)
+
+        if center_pos is None:
+            # No previous position; nothing to draw
+            return
+
+        x = math.floor(center_pos.x() - self.subset_size / 2)
+        y = math.floor(center_pos.y() - self.subset_size / 2)
+
+        seed_roi = pg.RectROI(
+            [x, y], [self.subset_size, self.subset_size],
+            pen=pg.mkPen('y', width=3),
+            hoverPen=pg.mkPen('b', width=3),
+            handlePen='#0000',
+            handleHoverPen='#0000'
+        )
+
+        # Remove all handles to make it non-interactive
+        for handle in seed_roi.getHandles():
+            seed_roi.removeHandle(handle)
+
+        self.main_view.addItem(seed_roi)
+        self.seed_roi = seed_roi#
+        self.seed_roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
+        self._redraw_fill_layer(fill_array, temp_mask)
+
+    def _handle_seed_click(self, event, fill_array, temp_mask):
         """Handle seed location clicks."""
-        if event.button() == QtCore.Qt.MouseButton.LeftButton:
-            pos = event.scenePos()
-            start_point = self.main_view.mapSceneToView(pos)
-            
-            x = math.floor(start_point.x() - self.subset_size / 2)
-            y = math.floor(start_point.y() - self.subset_size / 2)
-            
-            seed_roi = pg.RectROI(
-                [x, y], [self.subset_size, self.subset_size],
-                pen=pg.mkPen('b', width=3),
-                hoverPen=pg.mkPen('y', width=3),
-                handlePen='#0000',
-                handleHoverPen='#0000'
-            )
-            
-            # Remove all handles to make it non-interactive
-            for handle in seed_roi.getHandles():
-                seed_roi.removeHandle(handle)
-                
-            self.main_view.addItem(seed_roi)
-            self.seed_roi = seed_roi
-            print(f"Seed initially added at location: [{x}, {y}]")
-            self._finish_mode()
+
+        if event.button() != QtCore.Qt.MouseButton.LeftButton:
+            return
+
+        pos = event.scenePos()
+        start_point = self.main_view.mapSceneToView(pos)
+
+        self._draw_seed_roi(start_point, fill_array, temp_mask)
+        self._finish_mode()
 
     def _handle_shape_click(self, event, fill_array, temp_mask):
         """Handle rectangle and circle drawing clicks."""
@@ -473,7 +543,10 @@ class RegionOfInterest:
 
     def _redraw_fill_layer(self, fill_array: np.ndarray, temp_mask: np.ndarray) -> None:
         """Redraw the fill layer based on current ROIs."""
-        if not self.roi_list:
+
+        has_seed = hasattr(self, 'seed_roi') and self.seed_roi is not None
+
+        if not self.roi_list and not has_seed:
             fill_array.fill(0)
             temp_mask.fill(False)
             self.fill_layer.setImage(fill_array)
@@ -496,6 +569,30 @@ class RegionOfInterest:
         fill_array[:, :, 2] = 0
         #fill_array[:, :, 3] = np.flip(temp_mask,axis=0) * 80
         fill_array[:, :, 3] = temp_mask * 80
+
+        # Yellow fill for seed ROI
+        if has_seed:
+            pos = self.seed_roi.pos()
+            size = self.seed_roi.size()
+            x, y = int(pos[0]), int(pos[1])
+            w, h = int(size[0]), int(size[1])
+            
+            # Clamp to image bounds
+            x1 = max(0, x)
+            y1 = max(0, y)
+            x2 = min(self.width, x + w)
+            y2 = min(self.height, y + h)
+            
+            w = max(0, x2 - x1)
+            h = max(0, y2 - y1)
+            
+            if w > 0 and h > 0:
+                # Yellow = Red + Green
+                fill_array[y1:y1+h, x1:x1+w, 0] = 255  # Red
+                fill_array[y1:y1+h, x1:x1+w, 1] = 255  # Green
+                fill_array[y1:y1+h, x1:x1+w, 2] = 0    # Blue
+                fill_array[y1:y1+h, x1:x1+w, 3] = 120  # Alpha (more opaque than green)
+    
         self.fill_layer.setImage(fill_array, autoLevels=False, axisOrder='row-major')
 
     def _apply_rect_mask(self, roi, is_adding, temp_mask: np.ndarray):
@@ -957,12 +1054,11 @@ class RegionOfInterest:
         self.__roi_selected = True
         
         # Initialize GUI
-        self._setup_gui()
-        fill_array, temp_mask = self._setup_graphics()
+        fill_array, temp_mask = self._setup_gui()
         self._connect_signals(fill_array, temp_mask)
 
         if filename:
-            with open(filename, 'r') as f:
+            with open(filenamea, 'r') as f:
                 data = yaml.safe_load(f)
 
             self.roi_list = []
@@ -978,8 +1074,8 @@ class RegionOfInterest:
                     size = entry.get('size', [10, 10])  # fallback default
                     self.seed_roi = pg.RectROI(
                         [x, y], size,
-                        pen=pg.mkPen('b', width=3),
-                        hoverPen=pg.mkPen('y', width=3),
+                        pen=pg.mkPen('y', width=3),
+                        hoverPen=pg.mkPen('b', width=3),
                         handlePen='#0000',
                         handleHoverPen='#0000'
                     )
