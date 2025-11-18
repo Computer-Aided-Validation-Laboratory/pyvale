@@ -146,6 +146,12 @@ for kk in disp_keys:
     else:
         pv_plot.show()
 
+# %%
+# .. image:: ../../../../_static/adv_ex3c_locs_disp_y.png
+#    :alt: Virtual sensor location visualisation.
+#    :width: 800px
+#    :align: center
+
 for kk in disp_keys:
     (fig,ax) = sens.plot_time_traces(sens_array,comp_key=kk)
     fig.savefig(output_path/f"adv_ex3c_traces_{kk}.png",
@@ -155,3 +161,9 @@ for kk in disp_keys:
 # Uncomment this to display the sensor trace plot 
 # plt.show()
 
+
+# %%
+# .. image:: ../../../../_static/adv_ex3c_traces_disp_y.png
+#    :alt: Simulated sensor traces.
+#    :width: 600px
+#    :align: center

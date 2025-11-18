@@ -172,15 +172,29 @@ for kk in (norm_comp_keys+dev_comp_keys):
     # Set to False to show an interactive plot instead of saving the figure
     pv_plot.off_screen = True
     if pv_plot.off_screen: 
-        pv_plot.screenshot(output_path/f"adv_ex3d_locs_{kk}.png")
+        pv_plot.screenshot(output_path/f"adv_ex3f_locs_{kk}.png")
     else:
         pv_plot.show()
 
+# %%
+# .. image:: ../../../../_static/adv_ex3f_locs_strain_yy.png
+#    :alt: Virtual sensor location visualisation.
+#    :width: 800px
+#    :align: center
+
+
 for kk in (norm_comp_keys+dev_comp_keys):
     (fig,ax) = sens.plot_time_traces(sens_array,comp_key=kk)
-    fig.savefig(output_path/f"adv_ex3d_traces_{kk}.png",
+    fig.savefig(output_path/f"adv_ex3f_traces_{kk}.png",
                 dpi=300,
                 bbox_inches="tight")
     
 # Uncomment this to display the sensor trace plot 
 # plt.show()
+
+
+# %%
+# .. image:: ../../../../_static/adv_ex3f_traces_strain_yy.png
+#    :alt: Simulated sensor traces.
+#    :width: 600px
+#    :align: center
