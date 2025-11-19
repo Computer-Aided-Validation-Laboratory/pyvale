@@ -4,12 +4,16 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Multi-physics experiment simulation
+"""Experiment simulation in 3D
 ================================================================================
 
 In this example we apply multiple sensor arrays across a number of different 
 physics simulations with different inputs allowing us to run a series of virtual
 experiments and analyse the results.
+
+Note that this example has minimal explanation and assumes you have reviewed the
+basic sensor simulation examples to understand how the underlying engine works
+as well as the sensor simulation workflow.
 """
 
 from pathlib import Path
@@ -24,14 +28,12 @@ import pyvale.dataset as dataset
 #%%
 # 1. Load physics simulation data
 # -------------------------------
-# First we load a set of simulations all of the same thermo-mechanical test case
-# where one simulation uses the reference thermal conductivity and expansion 
-# coefficient and the remaining simulation represents a -10% perturbation to
-# these simulation inputs.
 
 sim_paths: list[Path] = dataset.thermomechanical_3d_experiment_paths()
 
 disp_keys = ("disp_x","disp_y","disp_z")
+strain_norm_keys = ("strain_xx","strain_yy","strain_zz")
+strain_dev_keys = ("strain_xy","strain_yz","strain_xz")
 
 sim_data_list: list[mh.SimData] = []
 for ss in sim_paths:
@@ -50,8 +52,6 @@ for ss in sim_paths:
 #%%
 # 2.1 Build scalar field sensor array
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# Here we build a scalar field sensor array to simulate thermocouples applied to
-# our simulation in a similar way to what we have seen in previous examples.
 
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
@@ -74,40 +74,27 @@ temp_sens: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 #%%
 # 2.2 Add errors to the scalar field sensors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# Now we add some errors to our thermocouple sensor array starting with a random
-# noise with a standard deviation of 2 degrees. We then build a field error 
-# that includes sensor position uncertainty. Here we generate position 
-# uncertainty in all dimensions but then we use the `pos_lock_xyz` numpy array
-# in our `ErrFieldData` object to constrain all sensors to not move off the 
-# surface they are on. This feature is particularly useful when we have sensors 
-# on different faces of a 3D simulation and we want to constrain the sensors in 
-# particular axes for particular sensors. However, here we could have just 
-# omitted the position random  generator in the X direction and replace it with 
-# `None`. 
 
 temp_err_chain: list[sens.IErrSimulator] = []
-temp_err_chain.append(sens.ErrRandNorm(std=2.0)) # units = degrees
 
 temp_pos_uncert = 0.5 # units = mm
-temp_pos_rand = (sens.GenNormal(std=temp_pos_uncert),
+temp_pos_rand = (None,
                  sens.GenNormal(std=temp_pos_uncert),
                  sens.GenNormal(std=temp_pos_uncert))
 
-temp_pos_lock = np.full(temp_sens_pos.shape,False,dtype=bool)
-temp_pos_lock[:,0] = True
-
-temp_field_err_data = sens.ErrFieldData(pos_rand_xyz=temp_pos_rand,
-                                        pos_lock_xyz=temp_pos_lock)
+temp_field_err_data = sens.ErrFieldData(pos_rand_xyz=temp_pos_rand)
 temp_err_chain.append(sens.ErrSysField(temp_sens.get_field(),
                                        temp_field_err_data))
+
+temp_err_chain.append(sens.ErrRandNorm(std=2.0)) # units = degrees
+temp_err_chain.append(sens.ErrSysDigitisation(bits_per_unit=2**24/100))
+temp_err_chain.append(sens.ErrSysSaturation(meas_min=0.0,meas_max=700.0))
 
 temp_sens.set_error_chain(temp_err_chain)
 
 #%%
 # 2.3 Build tensor field sensor array
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# Here we build a tensor field sensor array to simulate strain gauges applied to
-# our simulation in a similar way to what we have seen in previous examples.
 
 strain_sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
                                                        x_lims=(9.4,9.4),
@@ -120,8 +107,8 @@ strain_sens_data = sens.SensorData(positions=strain_sens_pos,
 strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
     sim_data,
     strain_sens_data,
-    norm_comp_keys=("strain_xx","strain_yy","strain_zz"),
-    dev_comp_keys=("strain_xy","strain_yz","strain_xz"),
+    norm_comp_keys=strain_norm_keys,
+    dev_comp_keys=strain_dev_keys,
     spatial_dims=sens.EDim.THREED,
     descriptor=sens.DescriptorFactory.strain(sens.EDim.THREED),
 )
@@ -129,47 +116,40 @@ strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
 #%%
 # 2.4 Add errors to the tensor field sensors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# Now we add some errors to our strain gauge array starting with random noise 
-# with a standard deviation of 2% of the ground truth. We then build a field 
-# error to simulate orientation uncertainty and demonstrate the same 'lock'
-# functionality that allows us to constrain the sensors to only rotate on the 
-# surface they are on. 
 
 strain_err_chain: list[sens.IErrSimulator] = []
-strain_err_chain.append(sens.ErrRandNormPercent(std_percent=2.0))
 
-angle_uncert: float = 2.0 # units = degrees
-angle_rand_zyx = (sens.GenUniform(low=-angle_uncert,high=angle_uncert),
-                  sens.GenUniform(low=-angle_uncert,high=angle_uncert),
-                  sens.GenUniform(low=-angle_uncert,high=angle_uncert))
+strain_pos_uncert: float = 0.5
+strain_pos_rand_xyz = (
+    sens.GenUniform(low=-strain_pos_uncert,high=strain_pos_uncert),
+    sens.GenUniform(low=-strain_pos_uncert,high=strain_pos_uncert),
+    None,
+)
 
-angle_lock = np.full(strain_sens_pos.shape,True,dtype=bool)
-angle_lock[:,0] = False   # Allow rotation about z
+strain_angle_uncert: float = 2.0 # units = degrees
+strain_angle_rand_zyx = (
+    sens.GenUniform(low=-strain_angle_uncert,high=strain_angle_uncert),
+    None,
+    None,
+)
 
-strain_field_err_data = sens.ErrFieldData(ang_rand_zyx=angle_rand_zyx,
-                                          ang_lock_zyx=angle_lock)
+strain_field_err_data = sens.ErrFieldData(pos_rand_xyz=strain_pos_rand_xyz,
+                                          ang_rand_zyx=strain_angle_rand_zyx)
 strain_err_chain.append(sens.ErrSysField(strain_sens.get_field(),
                                          strain_field_err_data))
+
+strain_err_chain.append(sens.ErrRandNormPercent(std_percent=2.0))
+
+strain_max: float = 5000.0e-6 # 5000 micro-strain max
+strain_err_chain.append(sens.ErrSysDigitisation(bits_per_unit=2**24/strain_max))
+strain_err_chain.append(sens.ErrSysSaturation(meas_min=-strain_max,
+                                            meas_max=strain_max))
 
 strain_sens.set_error_chain(strain_err_chain)
 
 #%%
 # 3. Create & run simulated experiments
 # -------------------------------------
-# We can now run our experiments over all simulations for all our virtual  
-# sensor arrays. We are returned a list of numpy arrays. The index in the list 
-# corresponds to the position of the virtual sensor array in the  input list. So 
-# if we want our thermocouple results we want exp_data[0] and for our strain 
-# gauges exp_data[1]. The numpy array has the following shape:
-# (n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)
-#
-# We can also calculate summary statistics for each sensor array which is
-# returned as a list where the position corresponds to the sensor array as
-# in our experimental data. The experiment stats object contains numpy
-# arrays for each statistic that is collapsed over the number of
-# experiments. The statistics we can access include: mean, standard deviation
-# minimum, maximum, median, median absolute deviation and the 25% and 75%
-# quartiles. See the `ExperimentStats` data class for details.
 
 sensor_arrays: list[sens.ISensorArray] = [temp_sens,strain_sens]
 
@@ -179,13 +159,10 @@ exp_sim = sens.ExperimentSimulator(sim_data_list,
 exp_data: list[np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
 exp_stats: list[sens.ExperimentStats] = sens.calc_experiment_stats(exp_data)
 
+
 #%%
 # 4. Analyse & visualise the results 
 # ----------------------------------
-# Here we print the lengths of our exp_data and exp_stats lists along with the
-# shape of the numpy arrays they contain to illustrate the format of the data
-# structures output from our simulated experiment. This should give you all the
-# information you need to slice out the data you want for additional analysis.
 
 print(80*"=")
 print("exp_data and exp_stats are lists where the index is the sensor array")
@@ -214,17 +191,11 @@ print(f"{exp_stats[1].max.shape=}")
 print(80*"=")
 
 # %%
-# Example terminal output:
-#
-# .. image:: ../../../../_static/basics_ex3_term_out.png
+# .. image:: ../../../../_static/ext_ex5b_term_out.png
 #    :alt: Terminal output showing the simulated experiment data structures
 #    :width: 700px
 #    :align: center
 
-#%%
-# Now we are going to save visualisations of our temperature and strain sensor
-# locations on the simulation mesh so we can verify we have setup their 
-# locations as we expected.
 
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
@@ -240,14 +211,14 @@ pv_plot.camera_position = cam_pos
 # Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
 if pv_plot.off_screen: 
-    pv_plot.screenshot(output_path/"basics_ex3_temp_locs.png")
+    pv_plot.screenshot(output_path/"ext_ex5b_temp_locs.png")
 else:
     pv_plot.show()
 
 # %%
 # Visualisation of the virtual temperature sensor locations:
 #
-# .. image:: ../../../../_static/basics_ex3_temp_locs.png
+# .. image:: ../../../../_static/ext_ex5b_temp_locs.png
 #    :alt: Visualisation of the virtual temperature sensor locations
 #    :width: 800px
 #    :align: center
@@ -258,7 +229,7 @@ pv_plot.camera_position = cam_pos
 # Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
 if pv_plot.off_screen: 
-    pv_plot.screenshot(output_path/"basics_ex3_strain_locs.png")
+    pv_plot.screenshot(output_path/"ext_ex5b_strain_locs.png")
 else:
     pv_plot.show()
 
@@ -268,55 +239,61 @@ else:
 # %%
 # Visualisation of the virtual strain sensor locations:
 #
-# .. image:: ../../../../_static/basics_ex3_strain_locs.png
+# .. image:: ../../../../_static/ext_ex5b_strain_locs.png
 #    :alt: Visualisation of the virtual strain sensor locations
 #    :width: 800px
 #    :align: center
 
-#%%
-# Finally, we plot the traces for all simulated experiments for our virtual 
-# temperature and strain sensors.
 
-trace_opts = sens.TraceOptsExperiment(plot_all_exp_points=True)
+for ii,_ in enumerate(sim_data_list):
+    (fig,ax) = sens.plot_exp_traces(exp_sim,
+                                    component="temperature",
+                                    sens_array_num=0,
+                                    sim_num=ii)
 
-(fig,ax) = sens.plot_exp_traces(exp_sim,
-                                component="temperature",
-                                sens_array_num=0,
-                                sim_num=0,
-                                trace_opts=trace_opts)
-
-save_fig: Path = output_path/"basics_ex3_traces_temp.png" 
-fig.savefig(save_fig,dpi=300,bbox_inches="tight")
+    save_fig: Path = output_path/f"ext_ex5b_traces_sim{ii}_temp.png" 
+    fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 
 # Uncomment this to display the sensor trace plot 
 # plt.show()
 
 # %%
-# Virtual temperature sensor traces over all simulated experiments for input
-# simulation 0:
+# Simulated temperatures traces for input physics simulation 0:
 #
-# .. image:: ../../../../_static/basics_ex3_traces_temp.png
-#    :alt: Simulated temperature sensor traces.
-#    :width: 500px
+# .. image:: ../../../../_static/ext_ex5b_traces_sim0_temp.png
+#    :alt: Simulated temperature sensor traces for input simulation 0.
+#    :width: 600px
+#    :align: center
+#
+# Simulated temperature traces for input physics simulation 1:
+#
+# .. image:: ../../../../_static/ext_ex5b_traces_sim1_temp.png
+#    :alt: Simulated temperature sensor traces for input simulation 1.
+#    :width: 600px
 #    :align: center
 
-strain_plot_keys = ("strain_xx","strain_yy","strain_xy")
-for kk in strain_plot_keys:
-    (fig,ax) = sens.plot_exp_traces(exp_sim,
-                                    component=kk,
-                                    sens_array_num=1,
-                                    sim_num=0,
-                                    trace_opts=trace_opts)
-                                    
-    save_fig: Path = output_path/f"basics_ex3_traces_{kk}.png"
-    fig.savefig(save_fig,dpi=300,bbox_inches="tight")
+
+for ii,_ in enumerate(sim_data_list):
+    for kk in (strain_norm_keys+strain_dev_keys):
+        (fig,ax) = sens.plot_exp_traces(exp_sim,
+                                        component=kk,
+                                        sens_array_num=1,
+                                        sim_num=ii)
+                                        
+        save_fig: Path = output_path/f"ext_ex5b_traces_sim{ii}_{kk}.png"
+        fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 
 # %%
-# Virtual strain sensor traces over all simulated experiments for input
-# simulation 0:
-#
-# .. image:: ../../../../_static/basics_ex3_traces_strain_yy.png
-#    :alt: Simulated strain sensor traces.
-#    :width: 500px
+# Simulated strain traces for input physics simulation 0:
+# 
+# .. image:: ../../../../_static/ext_ex5b_traces_disp_y.png
+#    :alt: Simulated strain sensor traces form input simulation 0.
+#    :width: 600px
 #    :align: center
-    
+#
+# Simulated strain traces for input physics simulation 1:
+# 
+# .. image:: ../../../../_static/ext_ex5b_traces_disp_y.png
+#    :alt: Simulated strain sensor traces form input simulation 1.
+#    :width: 600px
+#    :align: center

@@ -180,8 +180,8 @@ class ErrIntegrator:
         self._errs_total = np.zeros_like(truth)
         self._errs_systematic = np.zeros_like(truth)
         self._errs_random = np.zeros_like(truth)
-        self._errs_by_chain = np.zeros((len(self._err_chain),) + \
-                                           self._meas_shape)
+        self._errs_by_chain = (np.zeros((len(self._err_chain),)
+                               + self._meas_shape))
 
         for ii,ee in enumerate(self._err_chain):
 

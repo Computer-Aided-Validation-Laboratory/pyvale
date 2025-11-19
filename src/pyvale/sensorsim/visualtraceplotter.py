@@ -48,7 +48,10 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     measurements = sensor_array.get_measurements()
     num_sens = sensor_array._sensor_data.positions.shape[0]
     descriptor = sensor_array._descriptor
-    sensors_perturbed = sensor_array.get_sensor_data_perturbed()
+    sensors_perturbed = (sensor_array
+        .get_error_integrator()
+        .get_sens_data_accumulated()
+    )
 
     comp_ind = 0
     if comp_key is not None:

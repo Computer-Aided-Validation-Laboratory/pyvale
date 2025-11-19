@@ -112,7 +112,7 @@ sphinx_gallery_conf = {
     # Path to your example scripts
     'examples_dirs': [
         '../../src/pyvale/examples/basicsensorsim',
-        '../../src/pyvale/examples/advancedsensorsim',
+        '../../src/pyvale/examples/extsensorsim',
         '../../src/pyvale/examples/dic',
         '../../src/pyvale/examples/blenderimagedef',
         '../../src/pyvale/examples/mooseherder',
@@ -120,7 +120,7 @@ sphinx_gallery_conf = {
     # Path to where to save gallery generated output
     'gallery_dirs': [
         'examples/basicsensorsim',
-        'examples/advancedsensorsim',
+        'examples/extsensorsim',
         'examples/dic',
         'examples/blenderimagedef',
         'examples/mooseherder',

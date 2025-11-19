@@ -143,7 +143,7 @@ class ISensorArray(ABC):
         interpolated from the input simulation field. The errors are calculated
         based on the user specified error chain.
 
-        NOTE: this is a 'calc' method and will sample all probability
+        NOTE: this is a 'sim' method and will sample all probability
         distributions in the error chain returning a new simulated experiment
         for this sensor array.
 

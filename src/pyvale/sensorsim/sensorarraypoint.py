@@ -161,6 +161,7 @@ class SensorArrayPoint(ISensorArray):
 
         return self._truth
 
+    #TODO: should this be an interface function?
     def get_error_integrator(self) -> ErrIntegrator:
         """Gets the error integrator allowing the user to interpret error 
         sources in the error chain and to separate random and systematic error 
@@ -173,6 +174,7 @@ class SensorArrayPoint(ISensorArray):
         """
         return self._error_integrator
 
+    #TODO: should this be an interface function?
     def set_error_chain(self, 
                         err_chain: list[IErrSimulator] | None,
                         err_int_opts: ErrIntOpts | None = None) -> None:
@@ -203,21 +205,21 @@ class SensorArrayPoint(ISensorArray):
                                                self.get_measurement_shape(),
                                                err_int_opts)
 
-    def get_sensor_data_perturbed(self) -> SensorData | None:
-        """Gets the final sensor array parameters after all errors in the error
-        integrator have been applied. If no error integrator is specified then
-        None is returned.
-
-        Returns
-        -------
-        SensorData | None
-            The accumulated sensor array parameters as a SensorData object.
-            Returns None if no error chain has been specified.
-        """
-        if self._error_integrator is None:
-            return None
-
-        return self._error_integrator.get_sens_data_accumulated()
+#     def get_sensor_data_perturbed(self) -> SensorData | None:
+#         """Gets the final sensor array parameters after all errors in the error
+#         integrator have been applied. If no error integrator is specified then
+#         None is returned.
+# 
+#         Returns
+#         -------
+#         SensorData | None
+#             The accumulated sensor array parameters as a SensorData object.
+#             Returns None if no error chain has been specified.
+#         """
+#         if self._error_integrator is None:
+#             return None
+# 
+#         return self._error_integrator.get_sens_data_accumulated()
 
     def get_errors_systematic(self) -> np.ndarray | None:
         """Gets the systematic error array from the previously calculated sensor
@@ -274,8 +276,7 @@ class SensorArrayPoint(ISensorArray):
         . The truth is calculated once and is interpolated from the input
         simulation field. The errors are calculated based on the user specified
         error chain in the error integrator object. If no error integrator is
-        specified then only the truth is returned.            _description_ew simulated experiment
-        for this sensor array.
+        specified then only the truth is returned.
 
         Returns
         -------

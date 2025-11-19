@@ -10,11 +10,8 @@ from pathlib import Path
 def main() -> None:
 
     project_root = Path(__file__).resolve().parents[1]
-    examples_basic = project_root/"src"/"pyvale"/"examples"/"basicsensorsim"
-    examples_adv = project_root/"src"/"pyvale"/"examples"/"extsensorsim"
-    
-    all_files = (list(examples_basic.glob("*.py")) 
-                + list(examples_adv.glob("*.py"))) 
+    examples_basic = project_root/"src"/"pyvale"/"examples"/"extsensorsim"
+    all_files = list(examples_basic.glob("*.py")) 
 
     example_files = list([])
     for ff in all_files:

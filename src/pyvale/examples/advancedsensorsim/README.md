@@ -1,2 +1,0 @@
-Sensor Simulation: Advanced Examples
-====================================

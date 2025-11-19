@@ -24,12 +24,12 @@ Blender Image Deformation
 
    examples_blender
 
-Sensor Simulation Advanced
+Sensor Simulation Extended
 --------------------------
 .. toctree::
    :maxdepth: 2
 
-   examples_advanced_sensorsim
+   examples_ext_sensorsim
 
 Mooseherder
 -------------------------------------

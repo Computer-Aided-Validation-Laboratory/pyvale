@@ -153,7 +153,10 @@ def add_sensor_points_pert(pv_plot: pv.Plotter,
     pv.Plotter
         Pyvista plotter which has had the virtual sensor locations added.
     """
-    sens_data_perturbed = sensor_array.get_sensor_data_perturbed()
+    sens_data_perturbed = (sensor_array
+        .get_error_integrator()
+        .get_sens_data_accumulated()
+    )
 
     if sens_data_perturbed is not None and vis_opts.show_perturbed_pos:
         vis_sens_perturbed = pv.PolyData(sens_data_perturbed.positions)
