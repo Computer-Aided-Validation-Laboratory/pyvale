@@ -61,10 +61,10 @@ def get_colour_lims(component_data: np.ndarray,
     tuple[float,float]
         Colourbar limits in the form: (min,max).
     """
-    if colour_bar_lims is None:
-        min_comp = np.min(component_data.flatten())
-        max_comp = np.max(component_data.flatten())
-        colour_bar_lims = (min_comp,max_comp)
+    #if colour_bar_lims is None:
+    min_comp = np.min(component_data.flatten())
+    max_comp = np.max(component_data.flatten())
+    colour_bar_lims = (min_comp,max_comp)
 
     assert colour_bar_lims[1] > colour_bar_lims[0], ("Colourbar minimum must be"
     + " smaller than the colourbar maximum.")

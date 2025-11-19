@@ -73,7 +73,7 @@ n_sens2 = (2,3,1)
 x_lims2 = (0.0,100.0)
 y_lims2 = (0.0,150.0)
 z_lims2 = (0.0,0.0)
-sens_pos2 = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos2 = sens.create_sensor_pos_array(n_sens2,x_lims2,y_lims2,z_lims2)
 
 sens_data2 = sens.SensorData(positions=sens_pos2)
 
@@ -85,7 +85,7 @@ disp_sens_array2 = sens.SensorArrayFactory \
                                                 field_comps=field_comps2,
                                                 errs_pc=2.0)
 
-measurements = disp_sens_array2.calc_measurements()
+measurements2 = disp_sens_array2.calc_measurements()
 
 #%%
 # We can now visualise the sensor locations on the simulation mesh and the
@@ -109,10 +109,12 @@ save_render = output_path / "basics_ex1_1_sensorlocs.svg"
 # simulation mesh. The plot will can be shown in interactive mode by calling
 # `pv_plot.show()`.
 
-#pv_plot = sens.plot_point_sensors_on_sim([tc_array, disp_sens_array2], [field_key, "disp_x"])
+pv_plot = sens.plot_point_sensors_on_sim([tc_array, disp_sens_array2], [field_key, "disp_x"])
 #pv_plot = sens.plot_point_sensors_on_sim([disp_sens_array2, tc_array], ["disp_x", field_key])
 # issue: the second set of sensors does not get correct colour limits...
-pv_plot = sens.plot_point_sensors_on_sim(tc_array, field_key)
+#pv_plot = sens.plot_point_sensors_on_sim(tc_array, field_key)
+#pv_plot = sens.plot_point_sensors_on_sim([tc_array, tc_array, tc_array], field_key)
+#pv_plot = sens.plot_point_sensors_on_sim(tc_array, [field_key, field_key, field_key, field_key])
 
 #%%
 # We determined manually by moving camera in interative mode and then

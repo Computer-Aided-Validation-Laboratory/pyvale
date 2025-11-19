@@ -294,13 +294,23 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    if type(component) == str:
-        component = [component]
-
     if type(sensor_array) == SensorArrayPoint:
         sensor_array = [sensor_array]
+        
+    if type(component) == str:
+        component = [component]
+        if len(component) < len(sensor_array):
+            component = component*len(sensor_array)
 
-    #sim_data = sensor_array._field.get_sim_data()
+    if len(sensor_array) < len(component):
+        if len(sensor_array) == 1:
+            sensor_array = sensor_array*len(component)
+            #[[] for i in range(0,n)] consider this instead
+        else: 
+            print("sensor array and component be a single element or of the same length")
+    elif len(sensor_array) > len(component):
+        print("sensor array and component be a single element or of the same length")
+
     sim_data = sensor_array[0]._field.get_sim_data()
     vis_opts.colour_bar_lims = get_colour_lims(
         sim_data.node_vars[component[0]][:,time_step],
@@ -309,11 +319,12 @@ def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
     pv_plot = create_pv_plotter(len(component), vis_opts)
 
     for i in range(len(component)):
-
         sim_data = sensor_array[i]._field.get_sim_data()
         vis_opts.colour_bar_lims = get_colour_lims(
             sim_data.node_vars[component[i]][:,time_step],
             vis_opts.colour_bar_lims)
+        
+        print(f"vis opts {vis_opts.colour_bar_lims}")
 
         pv_plot.subplot(0,i)
         pv_plot = add_sensor_points_pert(pv_plot,sensor_array[i],vis_opts)
