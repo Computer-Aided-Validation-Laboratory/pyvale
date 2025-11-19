@@ -8,8 +8,11 @@
 Errors: field locking
 ================================================================================
 
-This example demonstrates how to create field errors 
- 
+This example demonstrates how to create field errors on 3D geometries where we
+want to perturb sensor locations and orein but we want our sensors to stay 
+attached to the surfaces they are on. To demonstrate this we will use a 
+thermo-mechanical simulation of a 10mm cube where we will place sensors on each
+of the 6 faces of the cube. 
 """
 
 from pathlib import Path
@@ -37,7 +40,7 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
 # 2. Build virtual sensor arrays
 # --------------------------------
 
-# Simulations is a 10mm cube
+# Simulation is a 10mm cube
 sensor_positions = np.array(((5.0,0.0,5.0),     # cube x-z face
                              (5.0,10.0,5.0),    # cube x-z face
                              (5.0,5.0,0.0),     # cube x-y face  
@@ -109,7 +112,6 @@ rand_gen = sens.GenNormal(std=1.0) # units = % current sim. value
 error_chain.append(sens.ErrRandGenPercent(rand_gen,
                                           sens.EErrDep.DEPENDENT ))
 
-
 sens_array.set_error_chain(error_chain)
 
 
@@ -132,8 +134,8 @@ print(f"truth.shape     = {truth.shape}")
 print(f"sys_errs.shape  = {sys_errs.shape}")
 print(f"rand_errs.shape = {rand_errs.shape}")
 
-sens_print: int = 0
-comp_print: int = 0
+sens_print: int = 2 # x-y face sensor
+comp_print: int = 1 # component=disp_y 
 time_last: int = 5
 time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 
@@ -165,7 +167,7 @@ for kk in disp_keys:
         pv_plot.show()
 
 # %%
-# .. image:: ../../../../_static/adv_ex3d_locs_disp_y.png
+# .. image:: ../../../../_static/adv_ex4d_locs_disp_y.png
 #    :alt: Virtual sensor location visualisation.
 #    :width: 800px
 #    :align: center
@@ -181,7 +183,7 @@ for kk in disp_keys:
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/adv_ex3d_traces_disp_y.png
+# .. image:: ../../../../_static/adv_e4d_traces_disp_y.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center
