@@ -9,7 +9,7 @@ from pathlib import Path
 # pyvale
 from pyvale.strain.strainresults import StrainResults
 from pyvale.strain.strainchecks import check_strain_files
-from pyvale.dic.dicdataimport import data_import
+from pyvale.dic.dicdataimport import import_2d
 from pyvale.common_py.util import check_output_directory
 import pyvale.strain.strain_cpp as strain_cpp
 import pyvale.common_cpp.common_cpp as common_cpp
@@ -82,7 +82,7 @@ def calculate_2d(data: str | Path,
     filenames = check_strain_files(strain_files=data)
 
     # Load data if a file path is given
-    results = data_import(layout="matrix", data=str(data),
+    results = import_2d(layout="matrix", data=str(data),
                                   binary=input_binary, delimiter=input_delimiter)
 
     # Extract dimensions from the validated object

@@ -20,10 +20,10 @@ calculations.
 """
 
 
-def data_import(data: str | Path,
-                   binary: bool = False,
-                   layout: str = "matrix",
-                   delimiter: str = ",") -> Results:
+def import_2d(data: str | Path,
+              binary: bool = False,
+              layout: str = "matrix",
+              delimiter: str = ",") -> Results:
     """
     Import DIC result data from human readable text or binary files.
 

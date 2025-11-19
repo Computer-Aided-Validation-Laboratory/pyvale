@@ -92,10 +92,13 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
             dx[j*px_hori + i] = cspline_eval_deriv(px_x, data, local_tridiag_sol, px_x[i], px_hori);
         }
 
+
+
         // update progress bar if enabled
         if (g_debug_level == 1){
             int progress = current_progress.fetch_add(1);
-            if (omp_get_thread_num() == 0) common_util::update_progress_bar(bar, progress, niters, prev_pct);
+            //if (omp_get_thread_num() == 0) common_util::update_progress_bar(bar, progress, niters, prev_pct);
+            std::cout << "Progress " << static_cast<float>(progress) / static_cast<float>(niters) << std::flush;
         }
 
     }

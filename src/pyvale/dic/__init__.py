@@ -4,12 +4,12 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
-from .dic2d import two_dimensional
-from .dicdataimport import data_import
+from .dic2d import calculate_2d
+from .dicdataimport import import_2d
 from .dicregionofinterest import RegionOfInterest
 from .dicresults import Results
 
-__all__ = ["two_dimensional",
+__all__ = ["calculate_2d",
            "RegionOfInterest",
-           "data_import",
+           "import_2d",
            "Results"]

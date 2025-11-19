@@ -54,7 +54,7 @@ strain.calculate_2d(data=input_data, window_size=5, window_element=4,
 
 # %%
 # Once the strain calculation is complete, you can import the results using
-# :func:`pyvale.strain_data_import`.
+# :func:`pyvale.strain.import_2d`.
 #
 # Be sure to specify the delimiter, format (binary or not), and layout.
 strain_output = output_path / "strain_dic_results_*.csv"
