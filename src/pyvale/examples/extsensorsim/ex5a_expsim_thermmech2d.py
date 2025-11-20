@@ -281,14 +281,14 @@ for ii,_ in enumerate(sim_data_list):
 # %%
 # Simulated displacement traces for input physics simulation 0:
 # 
-# .. image:: ../../../../_static/ext_ex5a_traces_disp_y.png
+# .. image:: ../../../../_static/ext_ex5a_traces_sim0_disp_y.png
 #    :alt: Simulated displacement sensor traces form input simulation 0.
 #    :width: 600px
 #    :align: center
 #
 # Simulated displacement traces for input physics simulation 1:
 # 
-# .. image:: ../../../../_static/ext_ex5a_traces_disp_y.png
+# .. image:: ../../../../_static/ext_ex5a_traces_sim1_disp_y.png
 #    :alt: Simulated displacement sensor traces form input simulation 1.
 #    :width: 600px
 #    :align: center

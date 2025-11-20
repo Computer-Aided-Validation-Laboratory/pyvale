@@ -286,14 +286,14 @@ for ii,_ in enumerate(sim_data_list):
 # %%
 # Simulated strain traces for input physics simulation 0:
 # 
-# .. image:: ../../../../_static/ext_ex5b_traces_disp_y.png
+# .. image:: ../../../../_static/ext_ex5b_traces_sim0_strain_yy.png
 #    :alt: Simulated strain sensor traces form input simulation 0.
 #    :width: 600px
 #    :align: center
 #
 # Simulated strain traces for input physics simulation 1:
 # 
-# .. image:: ../../../../_static/ext_ex5b_traces_disp_y.png
+# .. image:: ../../../../_static/ext_ex5b_traces_sim1_strain_yy.png
 #    :alt: Simulated strain sensor traces form input simulation 1.
 #    :width: 600px
 #    :align: center

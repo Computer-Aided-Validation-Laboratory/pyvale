@@ -87,6 +87,19 @@ class SensorArrayPoint(ISensorArray):
         self._truth = None
         self._measurements = None
 
+    # TODO: should this be an interface method?
+    def get_descriptor(self) -> SensorDescriptor:
+        """Gets the sensor descriptor data class which contains a series of 
+        strings used to describe the sensor array.
+        
+        Returns
+        -------
+        SensorDescriptor
+            Data class containing strings used to describe the sensor array for
+            visualisations and plots.
+        """
+        return self._descriptor
+
     def get_sample_times(self) -> np.ndarray:
         """Gets the times at which the sensors sample the given physical field.
         This is specified by the user in the SensorData object or defaults to
@@ -129,7 +142,7 @@ class SensorArrayPoint(ISensorArray):
         return self._field
 
 
-    def calc_truth_values(self) -> np.ndarray:
+    def calc_truth(self) -> np.ndarray:
         """Calculates the ground truth sensor values by interpolating the
         simulated physical field using the sensor array parameters in the
         `SensorData` object.
@@ -148,7 +161,7 @@ class SensorArrayPoint(ISensorArray):
     def get_truth(self) -> np.ndarray:
         """Gets the ground truth sensor values that were calculated previously.
         If the ground truth values have not been calculated then
-        `calc_truth_values()` is called first.
+        `calc_truth()` is called first.
 
         Returns
         -------
@@ -157,7 +170,7 @@ class SensorArrayPoint(ISensorArray):
             num_field_components,num_time_steps).
         """
         if self._truth is None:
-            self._truth = self.calc_truth_values()
+            self._truth = self.calc_truth()
 
         return self._truth
 

@@ -155,6 +155,30 @@ output_path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
+pv_plot = sens.plot_point_sensors_on_sim(sens_array,
+                                         comp_key="temperature")
+
+pv_plot.camera_position = [(59.354, 43.428, 69.946),
+                           (-2.858, 13.189, 4.523),
+                           (-0.215, 0.948, -0.233)]
+
+# Set to False to show an interactive plot instead of saving the figure
+pv_plot.off_screen = True
+if pv_plot.off_screen: 
+    pv_plot.screenshot(output_path/"ext_ex4b_locs.png")
+else:
+    pv_plot.show()
+
+# %%
+# Visualisation of nominal and perturbed sensor locations including the field 
+# errors.
+#
+# .. image:: ../../../../_static/ext_ex4b_locs.png
+#    :alt: Visualisation of virtual sensor locations.
+#    :width: 800px
+#    :align: center
+
+
 (fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
 fig.savefig(output_path/"ext_ex4b_traces.png",dpi=300,bbox_inches="tight")
 
@@ -162,7 +186,11 @@ fig.savefig(output_path/"ext_ex4b_traces.png",dpi=300,bbox_inches="tight")
 # plt.show()
 
 # %%
+# Sensor traces showing the effects of the field error perturbing sensor 
+# location and sensor sample times.
+# 
 # .. image:: ../../../../_static/ext_ex4b_traces.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center
+

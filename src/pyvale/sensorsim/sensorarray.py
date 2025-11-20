@@ -81,7 +81,7 @@ class ISensorArray(ABC):
     def get_truth(self) -> np.ndarray:
         """Abstract method. Gets the ground truth sensor values that were
         calculated previously. If the ground truth values have not been
-        calculated then `calc_truth_values()` is called first.
+        calculated then `calc_truth()` is called first.
 
         Returns
         -------

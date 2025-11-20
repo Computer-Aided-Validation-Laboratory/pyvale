@@ -71,7 +71,7 @@ class CameraBasic2D(ISensorArray):
 
     #---------------------------------------------------------------------------
     # Truth calculation from simulation
-    def calc_truth_values(self) -> np.ndarray:
+    def calc_truth(self) -> np.ndarray:
         self._truth = sample_field_with_sensor_data(self._field,
                                                     self._sensor_data)
         #shape=(n_pixels,n_field_comps,n_time_steps)
@@ -79,7 +79,7 @@ class CameraBasic2D(ISensorArray):
 
     def get_truth(self) -> np.ndarray:
         if self._truth is None:
-            self._truth = self.calc_truth_values()
+            self._truth = self.calc_truth()
         #shape=(n_pixels,n_field_comps,n_time_steps)
         return self._truth
 

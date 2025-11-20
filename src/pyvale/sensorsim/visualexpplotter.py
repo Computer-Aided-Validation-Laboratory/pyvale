@@ -24,8 +24,7 @@ from pyvale.sensorsim.experimentstats import calc_sensor_array_stats
 def plot_exp_traces(exp_sim: ExperimentSimulator,
                     component: str,
                     sens_array_num: int,
-                    sim_num: int,
-                    
+                    sim_num: int,                    
                     trace_opts: TraceOptsExperiment | None = None,
                     plot_opts: PlotOptsGeneral | None = None) -> tuple[Any,Any]:
     """Plots time traces for summary statistics of virtual sensor traces over
@@ -58,7 +57,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     Raises
     ------
     VisError
-        There are no virtual experiments or virtuale experiment stats to plot in
+        There are no virtual experiments or virtual experiment stats to plot in
         the ExperimentSimulator object. Call 'run_experiments' and 'calc_stats'.
     """
     if trace_opts is None:
@@ -67,16 +66,19 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
 
-    descriptor = exp_sim._sensor_arrays[sens_array_num]._descriptor
-    comp_ind = (
-        exp_sim._sensor_arrays[sens_array_num]
-        .get_field()
-        .get_component_index(component)
-    )
-    samp_time = exp_sim._sensor_arrays[sens_array_num].get_sample_times()
-    num_sens = exp_sim._sensor_arrays[sens_array_num].get_measurement_shape()[0]
+    sensor_array = exp_sim.get_sensor_arrays()[sens_array_num]
+    sim_data = exp_sim.get_sim_list()[sim_num]
+    field = sensor_array.get_field()
+    field.set_sim_data(sim_data)
+    
+    descriptor = sensor_array.get_descriptor()
+    
+    comp_ind = field.get_component_index(component)
 
-    exp_data = exp_sim._exp_data
+    samp_time = sensor_array.get_sample_times()
+    num_sens = sensor_array.get_measurement_shape()[0]
+
+    exp_data = exp_sim.get_exp_data()
 
     if exp_data is None:
         raise VisError("Before visualising virtual experiment traces the " \
@@ -153,17 +155,10 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     #---------------------------------------------------------------------------
     # Plot simulation and truth line
     if trace_opts.sim_line is not None:
-        sim_time = (
-            exp_sim._sensor_arrays[sens_array_num]
-            .get_field()
-            .get_time_steps()
-        )
-        sim_vals = (
-            exp_sim._sensor_arrays[sens_array_num]
-            .get_field()
-            .sample_field(exp_sim._sensor_arrays[sens_array_num]._positions)
-        )
-
+        sim_time = field.get_time_steps()
+        sens_pos = sensor_array._sensor_data.positions
+        sim_vals = field.sample_field(sens_pos)
+        
         for ss in sensors_to_plot:
             ax.plot(sim_time,
                     sim_vals[ss,comp_ind,:],
@@ -172,7 +167,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
                     ms=plot_opts.ms)
 
     if trace_opts.truth_line is not None:
-        truth = exp_sim._sensor_arrays[sens_array_num].get_truth()
+        truth = sensor_array.calc_truth()
         for ss in sensors_to_plot:
             ax.plot(samp_time,
                     truth[ss,comp_ind,:],

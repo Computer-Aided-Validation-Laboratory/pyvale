@@ -208,7 +208,7 @@ pv_plot.screenshot(save_render)
 # pv_plot.show(cpos="xy")
 
 # %%
-# .. image:: ../../../../_static/adv_ex4e_locs.png
+# .. image:: ../../../../_static/ext_ex4e_locs.png
 #    :alt: Virtual sensor locations.
 #    :width: 800px
 #    :align: center
@@ -222,7 +222,7 @@ for kk in disp_keys:
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/adv_ex4e_traces_disp_y.png
+# .. image:: ../../../../_static/ext_ex4e_traces_disp_y.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center

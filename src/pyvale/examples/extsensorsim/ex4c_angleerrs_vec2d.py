@@ -154,12 +154,33 @@ print(80*"-")
 #%%
 # 4. Analyse & visualise the results
 # ----------------------------------
-# We can now plot the traces for the non-rotated and rotated sensors to
-# compare them:
 
 output_path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
+
+
+pv_plot = sens.plot_point_sensors_on_sim(sens_array_norot,
+                                         comp_key="disp_y")
+pv_plot.camera_position = "xy"
+
+# Set to False to show an interactive plot instead of saving the figure
+pv_plot.off_screen = True
+if pv_plot.off_screen: 
+    pv_plot.screenshot(output_path/"ext_ex4c_locs.png")
+else:
+    pv_plot.show()
+
+# %%
+# Virtual sensor locations:
+#
+# .. image:: ../../../../_static/ext_ex4c_locs.png
+#    :alt: Visualisation of virtual sensor locations.
+#    :width: 800px
+#    :align: center
+
+# We can now plot the traces for the non-rotated and rotated sensors to
+# compare them:
 
 for ff in disp_keys:
     (fig,ax) = sens.plot_time_traces(sens_array_norot,ff)
@@ -180,7 +201,7 @@ for ff in disp_keys:
 # %%
 # Non-rotated sensors, y displacement:
 #
-# .. image:: ../../../../_static/ext_ex4c_traces_disp_y_norot.png
+# .. image:: ../../../../_static/ext_ex4c_traces_norot_disp_y.png
 #    :alt: Non-rotated sensor traces for the y displacement.
 #    :width: 600px
 #    :align: center
@@ -188,7 +209,7 @@ for ff in disp_keys:
 # %%
 # Rotated sensors, x displacement:
 #
-# .. image:: ../../../../_static/ext_ex4c_traces_disp_x_rot.png
+# .. image:: ../../../../_static/ext_ex4c_traces_rot_disp_x.png
 #    :alt: Rotated sensor traces for the x displacement.
 #    :width: 600px
 #    :align: center

@@ -102,3 +102,20 @@ class ExperimentSimulator:
         # shape=list[n_sens_arrays](n_sims,n_exps,n_sens,n_comps,n_time_steps)
         return self._exp_data
 
+    def get_exp_data(self) -> list[np.ndarray] | None:
+        """Gets the experiment data list of numpy arrays if simulated 
+        experiments have been run. Otherwise returns none.
+
+        Returns
+        -------
+        list[np.ndarray] | None
+            List of virtual experimental data arrays where the list index
+            corresponds to the virtual sensor array and the data is an array
+            with shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps). Returns 
+            None if no virtual experiments have been run.
+        """
+
+        # shape=list[n_sens_arrays](n_sims,n_exps,n_sens,n_comps,n_time_steps)
+        return self._exp_data
+         
+    
