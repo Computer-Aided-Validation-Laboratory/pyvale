@@ -169,14 +169,14 @@ void DICengine(const py::array_t<double>& img_stack_arr,
             scanmethod::single_window_fourier(img_ref, img_def, interp_def, ss_grids[0], conf, img_num, result_arrays);
 
         if (!saveconf.at_end)
-            result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
+            result_arrays.write_to_disk(img_num+1, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
 
         if (stop_request) break;
     }
 
     if (saveconf.at_end)
         for (int img_num = 0; img_num < conf.num_def_img; img_num++)
-            result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
+            result_arrays.write_to_disk(img_num+1, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
 
     // TODO: don't have shifts as a global var. Should probably make fourier
     // stuff a class at some point in the future

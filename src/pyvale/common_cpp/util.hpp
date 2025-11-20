@@ -13,10 +13,13 @@
 #include <chrono>
 #include <fstream>
 #include <omp.h>
+#include <iostream>
+#include <iomanip>
+#include <cstdint>
+#include <cmath>
 
 // common_cpp header files
 #include "./defines.hpp"
-#include "./indicators.hpp"
 
 namespace common_util {
 
@@ -45,9 +48,6 @@ namespace common_util {
             std::string label_;
             std::chrono::high_resolution_clock::time_point start_;
     };
-
-    void create_progress_bar(indicators::ProgressBar &bar, const std::string &bar_title, const int num_ss);
-    void update_progress_bar(indicators::ProgressBar &bar, int i, int num_ss, int &prev_pct);
 
     inline void write_int(std::ofstream& out, int val) {
         out.write(reinterpret_cast<const char*>(&val), sizeof(int));

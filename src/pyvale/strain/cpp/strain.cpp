@@ -16,10 +16,12 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 
-// common_cpp header files
-#include "../../common_cpp/indicators.hpp"
-#include "../../common_cpp/defines.hpp"
+// eigen header files
 #include <Eigen/Dense>
+
+// common_cpp header files
+#include "../../common_cpp/progressbar.hpp"
+#include "../../common_cpp/defines.hpp"
 #include "../../common_cpp/util.hpp"
 
 // Program Header files
@@ -75,9 +77,7 @@ namespace strain {
         // loop over the displacement images
         for (int img_num = 0; img_num < nimg; img_num++) {
 
-            indicators::ProgressBar bar;
-            common_util::create_progress_bar(bar, filenames[img_num], nwindows);
-            int prev_pct = 0;
+            ProgressBar pbar(filenames[img_num], nwindows);
 
             // loop over strain windows within the image
             for (int sw = 0; sw < nwindows; sw++){
@@ -111,14 +111,12 @@ namespace strain {
                                    deform_grad, eps, nwindows, img_num);
                 }
 
-                if (omp_get_thread_num() == 0) common_util::update_progress_bar(bar, sw, nwindows, prev_pct);
+                if (omp_get_thread_num() == 0) pbar.update(sw+1);
 
             }
 
-
             // finish up progress bar
-            bar.mark_as_completed();
-            indicators::show_console_cursor(true);
+            pbar.finish();
 
             if (!save_at_end){
                 strain::save_to_disk(img_num, results, strain_save_conf, 

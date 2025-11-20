@@ -1058,7 +1058,7 @@ class RegionOfInterest:
         self._connect_signals(fill_array, temp_mask)
 
         if filename:
-            with open(filenamea, 'r') as f:
+            with open(filename, 'r') as f:
                 data = yaml.safe_load(f)
 
             self.roi_list = []

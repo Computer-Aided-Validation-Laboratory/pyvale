@@ -15,7 +15,7 @@
 #include <csignal>
 
 // Common Header files
-#include "../../common_cpp/util.hpp"
+#include "../../common_cpp/progressbar.hpp"
 #include "../../common_cpp/defines.hpp"
 #include "../../common_cpp/dicsignalhandler.hpp"
 
@@ -160,14 +160,10 @@ namespace fourier {
             std::fill(shifts[i].x.begin(), shifts[i].x.end(), 0.0);
             std::fill(shifts[i].y.begin(), shifts[i].y.end(), 0.0);
 
-            indicators::ProgressBar bar;
+            std::string bar_title = "FFT windowing for size " + std::to_string(ss_size) + ":";
+            ProgressBar pbar(bar_title, ss_grid[i].num);
             std::atomic<int> current_progress = 0;
-            int prev_pct = 0;
 
-            if (g_debug_level == 1){
-                std::string bar_title = "FFT windowing for size: " + std::to_string(ss_size);
-                common_util::create_progress_bar(bar, bar_title, ss_grid[i].num);
-            }
 
             #pragma omp parallel shared(stop_request, shifts, ss_grid, interp_def, ss_size)
             {
@@ -224,7 +220,7 @@ namespace fourier {
 
                     if (g_debug_level == 1){
                         int progress = current_progress.fetch_add(1);
-                        if (omp_get_thread_num()==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                        if (omp_get_thread_num()==0) pbar.update(progress+1);
                     }
                 }
             }
@@ -247,10 +243,8 @@ namespace fourier {
             //std::cout << std::endl;
 
             if (g_debug_level == 1){
-                int progress = current_progress;
-                common_util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
-                bar.mark_as_completed();
-                indicators::show_console_cursor(true);
+                pbar.update(current_progress);
+                pbar.finish();
             }
         }
 

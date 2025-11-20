@@ -8,7 +8,10 @@
 // STD library Header files
 #include <vector>
 
-// Program Header files
+// common_cpp header files
+#include "../../common_cpp/util.hpp"
+
+// DIC Header files
 #include "./dicresults.hpp"
 #include "./dicutil.hpp"
 

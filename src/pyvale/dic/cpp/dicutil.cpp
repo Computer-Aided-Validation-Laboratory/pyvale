@@ -15,7 +15,7 @@
 #include <omp.h>
 
 // common_cpp Header files
-#include "../../common_cpp/indicators.hpp"
+#include "../../common_cpp/util.hpp"
 
 // DIC Header files
 #include "./dicutil.hpp"

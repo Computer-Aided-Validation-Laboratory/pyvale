@@ -19,7 +19,7 @@
 
 // common_cpp headers
 #include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/indicators.hpp"
+#include "../../common_cpp/progressbar.hpp"
 #include "../../common_cpp/dicsignalhandler.hpp"
 
 
@@ -46,8 +46,8 @@ namespace scanmethod {
         const int ss_size = ss_grid.size;
 
         // progress bar
-        indicators::ProgressBar bar;
-        common_util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
+        std::string bar_title = "Correlation for " + conf.filenames[img_num] + ":";
+        ProgressBar pbar(bar_title, num_ss);
         std::atomic<int> current_progress = 0;
         int prev_pct = 0;
 
@@ -93,16 +93,12 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                if (omp_get_thread_num()==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) pbar.update(progress);
 
             }
         }
-
         int progress = current_progress;
-        common_util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
-        bar.mark_as_completed();
-        indicators::show_console_cursor(true);
-
+        pbar.finish();
     }
 
     void multi_grid_reliability_guided(const double *img_ref,
@@ -123,17 +119,16 @@ namespace scanmethod {
         const int num_ss = ss_grid[last_size].num;
         const int ss_size = ss_grid[last_size].size;
         const int ss_step = ss_grid[last_size].step;
+        const int results_num = img_num-1;
 
         //TODO: sort this function name out
         fourier::multi_grid(ss_grid, img_ref, img_def, interp_def, 
                       conf.fft_mad, conf.fft_mad_scale);
 
         // progress bar
-        indicators::ProgressBar bar;
-        common_util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
+        std::string bar_title = "Correlation for " + conf.filenames[img_num] + ":";
+        ProgressBar pbar(bar_title, num_ss);
         std::atomic<int> current_progress(0);
-        //int prev_pct(0);
-        int prev_pct = 0;
 
         // quick check for the initial seed point
         if (!rg::is_valid_point(seed_x, seed_y, ss_grid[last_size])) {
@@ -206,7 +201,7 @@ namespace scanmethod {
                 OptResult seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                 // append the results for the current subset to result vectors
-                result_arrays.append(seed_res, img_num, idx);
+                result_arrays.append(seed_res, results_num, idx);
 
                 computed_mask[idx].store(1);
 
@@ -232,7 +227,7 @@ namespace scanmethod {
                     OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                     // append the results for the current subset to result vectors
-                    result_arrays.append(nres, img_num, nidx);
+                    result_arrays.append(nres, results_num, nidx);
 
                     // update mask
                     computed_mask[nidx].store(1);
@@ -245,8 +240,8 @@ namespace scanmethod {
                     }
 
                     // update progress bar
-                    // int progress = current_progress.fetch_add(1);
-                    // common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                    int progress = current_progress.fetch_add(1);
+                    pbar.update(progress);
                 }
             }
 
@@ -309,8 +304,8 @@ namespace scanmethod {
 
 
                 // index of current point in results arrays
-                int idx_results = result_arrays.index(current.idx, img_num);
-                int idx_results_p = result_arrays.index_parameters(current.idx, img_num);
+                int idx_results = result_arrays.index(current.idx, results_num);
+                int idx_results_p = result_arrays.index_parameters(current.idx, results_num);
 
                 // loop over neighbouring points
                 for (size_t n = 0; n < ss_grid[last_size].neigh[current.idx].size(); n++) {
@@ -348,14 +343,14 @@ namespace scanmethod {
 
                         // append results
                         #pragma omp critical(append_results)
-                            result_arrays.append(nres, img_num, nidx);
+                            result_arrays.append(nres, results_num, nidx);
 
                         // add results to temp neighbour results
                         temp_neigh.emplace_back(nidx, nres.cost);
 
                         // update progress bar
                         int progress = current_progress.fetch_add(1);
-                        if (omp_get_thread_num()==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                        if (omp_get_thread_num()==0) pbar.update(progress);
 
                     }
                 }
@@ -366,11 +361,8 @@ namespace scanmethod {
                 }
             }
         }
-        int progress = current_progress;
-        common_util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
-        bar.mark_as_completed();
-        indicators::show_console_cursor(true);
-
+        pbar.update(current_progress+1);
+        pbar.finish();
     }
 
     void incremental_reliability_guided(const double *img_ref,
@@ -394,6 +386,7 @@ namespace scanmethod {
         const int num_ss = ss_grid[last_size].num;
         const int ss_size = ss_grid[last_size].size;
         const int ss_step = ss_grid[last_size].step;
+        const int results_num = img_num_def-1;
 
         // get start location of displacements in previous image
         double *prev_img_u = result_arrays.u.data() + result_arrays.index(0,std::max(0,img_num_ref-1));
@@ -403,10 +396,9 @@ namespace scanmethod {
         // fourier::single_grid(ss_grid[last_size], prev_img_u, prev_img_v,
         //                      conf.max_disp, img_ref, img_def, interp_def);
 
-        indicators::ProgressBar bar;
-        common_util::create_progress_bar(bar, conf.filenames[img_num_def], num_ss);
+        std::string bar_title = "Correlation for " + conf.filenames[img_num_def] + ":";
+        ProgressBar pbar(bar_title, num_ss);
         std::atomic<int> current_progress(0);
-        int prev_pct = 0;
 
         // quick check for the initial seed point
         // if (!rg::is_valid_point(seed_x, seed_y, ss_grid[last_size])) {
@@ -493,7 +485,7 @@ namespace scanmethod {
                 seed_res.v += prev_img_v[idx];
 
                 // append the results for the current subset to result vectors
-                result_arrays.append(seed_res, img_num_def-1, idx);
+                result_arrays.append(seed_res, results_num, idx);
 
                 // mark subset as computed
                 computed_mask[idx].store(1);
@@ -516,7 +508,7 @@ namespace scanmethod {
                     subset::get_subpx_from_img(ss_ref, nx, ny, interp_ref);
 
                     // get initial guess at parameter values from seed point
-                    int index_p = result_arrays.index_parameters(idx,img_num_def-1);
+                    int index_p = result_arrays.index_parameters(idx,results_num);
                     for (int i = 0; i < opt.num_params; i++){
                         opt.p[i] = result_arrays.p[index_p+i];
                     }
@@ -537,7 +529,7 @@ namespace scanmethod {
                     }
 
                     // append the results for the current subset to result vectors
-                    result_arrays.append(nres, img_num_def-1, nidx);
+                    result_arrays.append(nres, results_num, nidx);
 
                     // update mask
                     computed_mask[nidx].store(1);
@@ -551,7 +543,7 @@ namespace scanmethod {
 
                     // update progress bar
                     int progress = current_progress.fetch_add(1);
-                    common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                    pbar.update(progress+1);
                 }
             }
 
@@ -614,8 +606,8 @@ namespace scanmethod {
 
 
                 // index of current point in results arrays
-                int idx_results_def = result_arrays.index(current.idx, img_num_def-1);
-                int idx_results_def_p = result_arrays.index_parameters(current.idx, img_num_def-1);
+                int idx_results_def = result_arrays.index(current.idx, results_num);
+                int idx_results_def_p = result_arrays.index_parameters(current.idx, results_num);
 
 
                 // loop over neighbouring points
@@ -681,15 +673,14 @@ namespace scanmethod {
 
                         // append results
                         #pragma omp critical(append_results)
-                            result_arrays.append(nres, img_num_def-1, nidx);
+                            result_arrays.append(nres, results_num, nidx);
 
                         // add results to temp neighbour results
                         temp_neigh.emplace_back(nidx, nres.cost);
 
                         // update progress bar
                         int progress = current_progress.fetch_add(1);
-                        if (tid==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
-
+                        if (tid==0) pbar.update(progress+1);
                     }
                 }
 
@@ -699,10 +690,8 @@ namespace scanmethod {
                 }
             }
         }
-        int progress = current_progress;
-        common_util::update_progress_bar(bar, progress-1, num_ss, prev_pct);
-        bar.mark_as_completed();
-        indicators::show_console_cursor(true);
+        pbar.update(current_progress+1);
+        pbar.finish();
     }
 
     void multi_window_fourier(const double *img_ref,
@@ -726,10 +715,9 @@ namespace scanmethod {
         const int ss_size = ss_grid[last_size].size;
 
         // progress bar
-        indicators::ProgressBar bar;
-        common_util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
+        std::string bar_title = "Correlation for " + conf.filenames[img_num] + ":";
+        ProgressBar pbar(bar_title, num_ss);
         std::atomic<int> current_progress = 0;
-        int prev_pct = 0;
 
         // loop over subsets within the ROI
         #pragma omp parallel shared(stop_request)
@@ -778,12 +766,12 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                if (omp_get_thread_num()==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) pbar.update(progress+1);
 
             }
         }
-        bar.mark_as_completed();
-        indicators::show_console_cursor(true);
+        pbar.update(current_progress+1);
+        pbar.finish();
     }
 
 
@@ -804,10 +792,9 @@ namespace scanmethod {
         const int ss_size = ss_grid.size;
 
         // progress bar
-        indicators::ProgressBar bar;
-        common_util::create_progress_bar(bar, conf.filenames[img_num], num_ss);
+        std::string bar_title = "Correlation for " + conf.filenames[img_num] + ":";
+        ProgressBar pbar(bar_title, num_ss);
         std::atomic<int> current_progress = 0;
-        int prev_pct = 0;
 
         // loop over subsets within the ROI
         #pragma omp parallel shared(stop_request)
@@ -854,12 +841,12 @@ namespace scanmethod {
 
                 // update progress bar
                 int progress = current_progress.fetch_add(1);
-                if (omp_get_thread_num()==0) common_util::update_progress_bar(bar, progress, num_ss, prev_pct);
+                if (omp_get_thread_num()==0) pbar.update(progress);
 
             }
         }
-        bar.mark_as_completed();
-        indicators::show_console_cursor(true);
+        pbar.update(current_progress+1);
+        pbar.finish();
     }
 
 }
