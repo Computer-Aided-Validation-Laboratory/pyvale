@@ -371,7 +371,7 @@ namespace fourier {
               std::vector<int> &ss_steps,
               const bool *img_roi, const util::Config &conf);
 
-    void multi_grid(const std::vector<subset::Grid> &ss_grid,
+    void multiwindow(const std::vector<subset::Grid> &ss_grid,
                     const double *img_ref,
                     const double *img_def,
                     const Interpolator &interp_def,

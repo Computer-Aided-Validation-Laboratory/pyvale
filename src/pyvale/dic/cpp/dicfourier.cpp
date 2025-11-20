@@ -136,12 +136,12 @@ namespace fourier {
         shift = std::move(updated);
     }
 
-    void multi_grid(const std::vector<subset::Grid> &ss_grid, 
-                    const double *img_ref,
-                    const double *img_def,
-                    const Interpolator &interp_def,
-                    const bool fft_mad, 
-                    const double fft_mad_scale){
+    void multiwindow(const std::vector<subset::Grid> &ss_grid, 
+                     const double *img_ref,
+                     const double *img_def,
+                     const Interpolator &interp_def,
+                     const bool fft_mad, 
+                     const double fft_mad_scale){
 
         const int px_hori = interp_def.px_hori;
         const int px_vert = interp_def.px_vert;

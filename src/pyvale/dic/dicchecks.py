@@ -115,9 +115,7 @@ def check_interpolation(interpolation_routine: str) -> None:
 def check_scanning_method(scanning_method: str) -> None:
     """
     Validate that the scan type  one of the allowed methods.
-
-    Allowed values are "RG", "IMAGE_SCAN", "FFT", "IMAGE_SCAN_WITH_BF", "FFT_test". If `scanning_method`
-    is not one of these, a `ValueError` is raised.
+    Allowed values are "MULTIWINDOW_RG", "MULTIWINDOW", "SINGLEWINDOW_RG", "SINGLEWINDOW_RG_INCREMENTAL", "IMAGE_SCAN".
 
     Parameters
     ----------
@@ -131,7 +129,7 @@ def check_scanning_method(scanning_method: str) -> None:
 
     """
 
-    allowed_values = {"RG", "RG_incremental", "IMAGE_SCAN", "FFT", "IMAGE_SCAN_WITH_BF", "FFT_test"}
+    allowed_values = {"MULTIWINDOW_RG", "MULTIWINDOW", "SINGLEWINDOW_RG", "SINGLEWINDOW_RG_INCREMENTAL", "IMAGE_SCAN"}
 
     if scanning_method not in allowed_values:
         raise ValueError(f"Invalid scanning_method: {scanning_method}. "
@@ -237,7 +235,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
         If the seed is improperly formatted, out of image bounds, or not a list of two integers.
     """
 
-    if scanning_method not in ("RG", "RG_incremental"):
+    if "RG" not in scanning_method:
         return [0,0]
 
     if (len(seed) != 2):

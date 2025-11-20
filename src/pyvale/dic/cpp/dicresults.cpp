@@ -75,11 +75,12 @@ int OptResultArrays::index_parameters(const int subset_idx, const int img_num){
 }
 
 
-void OptResultArrays::write_to_disk(int img, const common_util::SaveConfig &saveconf,
+void OptResultArrays::write_to_disk(int results_num, const common_util::SaveConfig &saveconf,
                     const subset::Grid &ss_grid, const int num_def_img,
                     const std::vector<std::string> &filenames){
 
     const std::string delimiter = saveconf.delimiter;
+    const int img_num = results_num+1;
 
     // open the file
     std::stringstream outfile_str;
@@ -90,7 +91,7 @@ void OptResultArrays::write_to_disk(int img, const common_util::SaveConfig &save
     else file_ext=".csv";
 
     // Extract the base filename without extension
-    std::string full_filename = filenames[img];
+    std::string full_filename = filenames[img_num];
     size_t dot_pos = full_filename.find(".");
     if (dot_pos != std::string::npos) {
         full_filename = full_filename.substr(0, dot_pos);
@@ -101,7 +102,7 @@ void OptResultArrays::write_to_disk(int img, const common_util::SaveConfig &save
     saveconf.prefix << full_filename << file_ext;
 
     // set the img var to 0 after opening file if not saving at end
-    if (!saveconf.at_end) img = 0;
+    if (!saveconf.at_end) results_num = 0;
 
     // save in binary format
     if (saveconf.binary){
@@ -109,7 +110,7 @@ void OptResultArrays::write_to_disk(int img, const common_util::SaveConfig &save
 
         for (int i = 0; i < ss_grid.num; ++i) {
 
-            int idx = img * ss_grid.num + i;
+            int idx = results_num * ss_grid.num + i;
             //int idx_p = num_params*idx;
 
             // if the subset has not converged, set values to nan
@@ -182,7 +183,7 @@ void OptResultArrays::write_to_disk(int img, const common_util::SaveConfig &save
 
         for (int i = 0; i < ss_grid.num; i++) {
 
-            int idx = img * ss_grid.num + i;
+            int idx = results_num * ss_grid.num + i;
             //int idx_p = num_params*idx;
 
             // convert from corner to centre subset coords
