@@ -9,12 +9,17 @@ from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator
 import pyvale.mooseherder as mh
 from pyvale.sensorsim.simtools import (coords_to_2D)
-from pyvale.sensorsim.fieldinterp import (FieldInterp,
+from pyvale.sensorsim.fieldinterp import (IFieldInterp,
                                           interp_to_sample_time)
 from pyvale.sensorsim.enums import EDim
 
 
-class FieldInterpPoints(FieldInterp):
+class FieldInterpPoints(IFieldInterp):
+    """Class for interpolating mesh-free simulation fields to the virtual
+    sensor locations and sample times.
+
+    Implements the `IFieldInterp` interface.
+    """
     __slots__ = ("_sim_time_steps", "_comp_keys","_spatial_dims",
                  "_interp_funcs","_coords")
 
@@ -23,7 +28,20 @@ class FieldInterpPoints(FieldInterp):
                  comp_keys: tuple[str,...],
                  spatial_dims: EDim,
                  ) -> None:
-
+        """
+        Parameters
+        ----------
+        sim_data : mh.SimData
+            Simulation data object containing the physical field(s) that the
+            virtual sensors will sample.
+        comp_keys : tuple[str,...]
+            Tuple of string keys for the components of the field(s) to be
+            interpolated.
+        spatial_dims : EDim
+            Enumeration used to determine the number of spatial dimensions of
+            the simulation to determine the underlying element types in the
+            mesh.
+        """
         self._sim_time_steps = sim_data.time
         self._comp_keys = comp_keys
         self._spatial_dims = spatial_dims
@@ -52,7 +70,26 @@ class FieldInterpPoints(FieldInterp):
                     points: np.ndarray,
                     sample_times: np.ndarray | None = None,
                     ) -> np.ndarray:
+        """Invokes the interpolation field interpolation algorithm at the given
+        points and sample times.
 
+        Parameters
+        ----------
+        points : np.ndarray
+            Array of points to spatially interpolate the physical field to.
+        sample_times : np.ndarray | None, optional
+            Vector of times at which to sample the underlying physical field,
+            by default None. If this is None then no temporal interpolation is
+            performed and the points returned correspond to the input simulation
+            time steps.
+
+        Returns
+        -------
+        np.ndarray
+            Simulated measurement array intepolated from the simulation data to
+            the desired sensor locations and sample times with shape=(
+            num_sensors,num_field_components,num_sample_times).
+        """
         if self._spatial_dims == EDim.TWOD:
             points = coords_to_2D(points)
 

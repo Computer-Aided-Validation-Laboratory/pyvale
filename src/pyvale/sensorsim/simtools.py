@@ -3,6 +3,11 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
+
+"""This module contains helper functions that are useful for inspecting and
+manipulating simulation data.
+"""
+
 from typing import Any
 import dataclasses
 import numpy as np
@@ -10,7 +15,6 @@ import pyvale.mooseherder as mh
 from pyvale.sensorsim.rendermesh import RenderMesh
 from pyvale.sensorsim.exceptions import Collapse2Dto3DError
 
-#TODO: doctsrings!
 
 def print_dataclass_fields(in_data: Any) -> None:
     """Diagnostic function to print all fields of a dataclass.
@@ -205,7 +209,29 @@ def scale_length_units(scale: float,
 
 
 def coords_to_2D(coords_3d: np.ndarray) -> np.ndarray:
+    """Collapses and input coordinate array with 3 spatial dimensions to have
+    only 2 spatial dimensions. Useful for removing the axis that is zero for
+    Delaunay triangulation.
 
+    Parameters
+    ----------
+    coords_3d : np.ndarray
+        Array of coordinates with shape=(num_points,coord[X,Y,Z]). Note that
+        this is the same format as in a `SimData` object
+
+    Returns
+    -------
+    np.ndarray
+        A coordinate array for the 2D simulation with the zero axis removed.
+        The array has shape (num_points,2) where the second axis represents the
+        2D coords.
+
+    Raises
+    ------
+    Collapse2Dto3DError
+        Problem is either 3D or 1D, coordinates must have exactly one axis which
+        is all zeros.
+    """
     zero_axs = get_sim_zero_axs(coords_3d)
     num_zero_ax = np.sum(zero_axs)
 
@@ -224,7 +250,21 @@ def coords_to_2D(coords_3d: np.ndarray) -> np.ndarray:
 
 
 def get_sim_zero_axs(coords_3d: np.ndarray) -> np.ndarray:
+    """Helper function to extract which (if any) axis is all zeros in a
+    coordinate array.
 
+    Parameters
+    ----------
+    coords_3d : np.ndarray
+        Array of coordinates with shape=(num_points,coord[X,Y,Z]). Note that
+        this is the same format as in a `SimData` object
+
+    Returns
+    -------
+    np.ndarray
+        A 3 element array with '1' where the axis is zero and '0' everywhere
+        else. The elements of the array nominally represent (X,Y,Z).
+    """
     zero_axs = np.zeros((3,),dtype=np.uintp)
     for ii in range(coords_3d.shape[1]):
         if np.allclose(coords_3d[:,ii],0):
@@ -234,7 +274,21 @@ def get_sim_zero_axs(coords_3d: np.ndarray) -> np.ndarray:
 
 
 def is_sim_2D(coords_3d: np.ndarray) -> bool:
+    """Helper function that inspects a numpy array of coordinates and determines
+    if one of the spatial axes is all zero to infer that the simulation is 2D.
 
+    Parameters
+    ----------
+    coords_3d : np.ndarray
+        Array of coordinates with shape=(num_points,coord[X,Y,Z]). Note that
+        this is the same format as in a `SimData` object
+
+    Returns
+    -------
+    bool
+        True if the simulation has exactly one coordinate axis as all zero and
+        False otherwise.
+    """
     zero_axs = get_sim_zero_axs(coords_3d)
 
     if np.sum(zero_axs) == 1:

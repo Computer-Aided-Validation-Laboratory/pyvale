@@ -8,13 +8,17 @@ import numpy as np
 import pyvista as pv
 import pyvale.mooseherder as mh
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
-from pyvale.sensorsim.fieldinterp import (FieldInterp,
+from pyvale.sensorsim.fieldinterp import (IFieldInterp,
                                           interp_to_sample_time)
 from pyvale.sensorsim.enums import EDim
 
 
-class FieldInterpMesh(FieldInterp):
-    """TODO
+class FieldInterpMesh(IFieldInterp):
+    """Class for interpolating mesh-based simulation fields to the virtual
+    sensor locations and sample times. Note that mesh-based data includes a
+    connectivity table in the underlying `SimData` object.
+
+    Implements the `IFieldInterp` interface.
     """
 
     __slots__ = ("_sim_time_steps","_comp_keys","_pyvista_interp")
@@ -28,11 +32,15 @@ class FieldInterpMesh(FieldInterp):
         Parameters
         ----------
         sim_data : mh.SimData
-            _description_
+            Simulation data object containing the physical field(s) that the
+            virtual sensors will sample.
         comp_keys : tuple[str,...]
-            _description_
-        spatial_dims : int
-            _description_
+            Tuple of string keys for the components of the field(s) to be
+            interpolated.
+        spatial_dims : EDim
+            Enumeration used to determine the number of spatial dimensions of
+            the simulation to determine the underlying element types in the
+            mesh.
         """
         self._sim_time_steps = sim_data.time
         self._comp_keys = comp_keys
@@ -44,19 +52,25 @@ class FieldInterpMesh(FieldInterp):
                      points: np.ndarray,
                      sample_times: np.ndarray | None = None,
                      ) -> np.ndarray:
-        """_summary_
+        """Invokes the interpolation field interpolation algorithm at the given
+        points and sample times.
 
         Parameters
         ----------
         points : np.ndarray
-            _description_
-        times : np.ndarray | None, optional
-            _description_, by default None
+            Array of points to spatially interpolate the physical field to.
+        sample_times : np.ndarray | None, optional
+            Vector of times at which to sample the underlying physical field,
+            by default None. If this is None then no temporal interpolation is
+            performed and the points returned correspond to the input simulation
+            time steps.
 
         Returns
         -------
         np.ndarray
-            _description_
+            Simulated measurement array intepolated from the simulation data to
+            the desired sensor locations and sample times with shape=(
+            num_sensors,num_field_components,num_sample_times).
         """
         return sample_pyvista_grid(self._comp_keys,
                                    self._pyvista_interp,

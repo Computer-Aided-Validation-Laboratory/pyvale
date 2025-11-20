@@ -5,8 +5,9 @@
 # ==============================================================================
 
 """
-This module contains methods that assemble common sensor array configurations
-without the user needing to configure all the sub-components themselves.
+This module contains helper functions that assemble common sensor array
+configurations without the user needing to configure all the sub-components
+themselves.
 """
 
 import numpy as np
@@ -17,7 +18,7 @@ from pyvale.sensorsim.fieldscalar import FieldScalar
 from pyvale.sensorsim.fieldvector import FieldVector
 from pyvale.sensorsim.fieldtensor import FieldTensor
 from pyvale.sensorsim.sensordescriptor import (DescriptorFactory,
-                                               SensorDescriptor) 
+                                               SensorDescriptor)
 from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint, SensorData
 from pyvale.sensorsim.errorintegrator import ErrIntegrator
 from pyvale.sensorsim.errorsimulator import IErrSimulator
@@ -27,8 +28,6 @@ from pyvale.sensorsim.errorsysdep import (ErrSysDigitisation,
                                           ErrSysSaturation)
 from pyvale.sensorsim.enums import EDim
 
-# TODO:
-# - docstrings
 
 class SensorFactory:
     @staticmethod
@@ -36,14 +35,43 @@ class SensorFactory:
                      sensor_data: SensorData,
                      comp_key: str,
                      spatial_dims: EDim,
-                     descriptor: SensorDescriptor | None = None 
+                     descriptor: SensorDescriptor | None = None
                      ) -> SensorArrayPoint:
+        """Helper function to assemble a scalar field point sensor array object
+        based on the input simulation data, sensor data and specified physical
+        field.
 
+        Parameters
+        ----------
+        sim_data : mh.SimData
+            Simulation data object containing the physical field that the v
+            virtual sensor array will sample.
+        sensor_data : SensorData
+            Sensor data object specifying the sensor array parameters such as
+            the sensor positions and sampling times.
+        comp_key : str
+            String key to acces the physical field that the sensors will be
+            applied to in the node_vars dictionary of the SimData object.
+        spatial_dims : EDim
+            Enumeration specifying the number of spatial dimensions the
+            simulation uses as .TWOD or .THREED. Used to determine the element
+            type for mesh-based data or the triangulation type for mesh free.
+        descriptor : SensorDescriptor | None, optional
+            Optional dataclass specifying the strings used to describe the
+            sensor array such as the name of the field to be sensed and the
+            units, by default None. If None then a default descriptor is
+            created.
+
+        Returns
+        -------
+        SensorArrayPoint
+            The assembled point sensor array object.
+        """
         if descriptor is None:
             descriptor = DescriptorFactory.scalar()
-                       
+
         s_field = FieldScalar(sim_data,comp_key,spatial_dims)
-                       
+
         sens_array = SensorArrayPoint(sensor_data,
                                       s_field,
                                       descriptor)
@@ -56,6 +84,37 @@ class SensorFactory:
                      spatial_dims: EDim,
                      descriptor: SensorDescriptor | None = None,
                      ) -> SensorArrayPoint:
+        """"Helper function to assemble a vector field point sensor array object
+        based on the input simulation data, sensor data and specified physical
+        field.
+
+        Parameters
+        ----------
+        sim_data : mh.SimData
+            Simulation data object containing the physical field that the v
+            virtual sensor array will sample.
+        sensor_data : SensorData
+            Sensor data object specifying the sensor array parameters such as
+            the sensor positions and sampling times.
+        comp_keys : tuple[str,...]
+            Tuple of keys for the components of the vector field that will be
+            sampled by the virtual sensors. For example: displacement fields in
+            2D will have ("disp_x","disp_y").
+        spatial_dims : EDim
+            Enumeration specifying the number of spatial dimensions the
+            simulation uses as .TWOD or .THREED. Used to determine the element
+            type for mesh-based data or the triangulation type for mesh free.
+        descriptor : SensorDescriptor | None, optional
+            Optional dataclass specifying the strings used to describe the
+            sensor array such as the name of the field to be sensed and the
+            units, by default None. If None then a default descriptor is
+            created.
+
+        Returns
+        -------
+        SensorArrayPoint
+            The assembled point sensor array object.
+        """
 
         if descriptor is None:
             descriptor = DescriptorFactory.vector()
@@ -76,6 +135,40 @@ class SensorFactory:
                      spatial_dims: EDim,
                      descriptor: SensorDescriptor | None = None,
                      ) -> SensorArrayPoint:
+        """Helper function to assemble a tensor field point sensor array object
+        based on the input simulation data, sensor data and specified physical
+        field.
+
+        Parameters
+        ----------
+        sim_data : mh.SimData
+            Simulation data object containing the physical field that the v
+            virtual sensor array will sample.
+        sensor_data : SensorData
+            Sensor data object specifying the sensor array parameters such as
+            the sensor positions and sampling times.
+        norm_comp_keys : tuple[str,...]
+            Tuple of string keys for the normal components of the tensor field
+            in the node_vars dictionary of the SimData object. For example:
+            strain fields in 2D will typically have ("strain_xx","strain_yy").
+        dev_comp_keys : tuple[str,...]
+            Tuple of string keys for the deviatoric components of the tensor
+            field in the node_vars dictionary of the SimData object. For
+            example: strain fields in 2D will typicall have ("strain_xy",).
+        spatial_dims : EDim
+            Enumeration specifying the number of spatial dimensions the
+            simulation uses as .TWOD or .THREED. Used to determine the element
+            type for mesh-based data or the triangulation type for mesh free.
+        descriptor : SensorDescriptor | None, optional
+            Optional dataclass specifying the strings used to describe the
+            sensor array such as the name of the field to be sensed and the
+            units, by default None. If None then a default descriptor is
+            created.
+        Returns
+        -------
+        SensorArrayPoint
+            The assembled point sensor array object.
+        """
 
         if descriptor is None:
             descriptor = DescriptorFactory.tensor(spatial_dims)
@@ -89,69 +182,6 @@ class SensorFactory:
                                       descriptor)
 
         return sens_array
-          
-    # @staticmethod
-    # def scalar_basic_errs(sim_data: mh.SimData,
-    #                       sensor_data: SensorData,
-    #                       comp_key: str,
-    #                       spatial_dims: EDim,
-    #                       descriptor: SensorDescriptor | None = None,
-    #                       sys_err_pc: float = 1.0,
-    #                       rand_err_pc: float = 1.0, 
-    #                       ) -> SensorArrayPoint:
-    #                       
-    #     sens_array = SensorFactory.scalar_point(sim_data,
-    #                                               sensor_data,
-    #                                               comp_key,
-    #                                               spatial_dims,
-    #                                               descriptor)
-    #                                               
-    #     err_chain = basic_err_chain(sys_err_pc=sys_err_pc,
-    #                                 rand_err_pc=rand_err_pc)
-    #                             
-    #     sens_array.set_error_chain(err_chain)
-    #     return sens_array
-
-#     @staticmethod
-#     def vector_basic_errs(sim_data: mh.SimData,
-#                           sensor_data: SensorData,
-#                           comp_keys: tuple[str,...],
-#                           spatial_dims: EDim,
-#                           descriptor: SensorDescriptor | None = None,
-#                           sys_err_pc: float = 1.0,
-#                           rand_err_pc: float = 1.0,
-#                           ) -> SensorArrayPoint:
-# 
-#         sens_array = SensorFactory.vector_point(sim_data,
-#                                                   sensor_data,
-#                                                   comp_keys,
-#                                                   spatial_dims,
-#                                                   descriptor)
-#         err_chain = basic_err_chain(sys_err_pc=sys_err_pc,
-#                                     rand_err_pc=rand_err_pc)
-#         sens_array.set_error_chain(err_chain)
-#         return sens_array
-
-#     @staticmethod
-#     def tensor_basic_errs(sim_data: mh.SimData,
-#                           sensor_data: SensorData,
-#                           norm_comp_keys: tuple[str,...],
-#                           dev_comp_keys: tuple[str,...],
-#                           spatial_dims: EDim,
-#                           descriptor: SensorDescriptor | None = None,
-#                           ) -> SensorArrayPoint:
-# 
-#         sens_array = SensorFactory.tensor_point(sim_data,
-#                                                   sensor_data,
-#                                                   norm_comp_keys,
-#                                                   dev_comp_keys,
-#                                                   spatial_dims,
-#                                                   descriptor)
-#         err_chain = basic_err_chain(sys_err_pc=sys_err_pc,
-#                                     rand_err_pc=rand_err_pc)
-#         sens_array.set_error_chain(err_chain)
-# 
-#         return sens_array
 
 
 
