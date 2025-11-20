@@ -7,7 +7,7 @@
 from pathlib import Path
 import pyvale.dataset as dataset
 import pyvale.mooseherder as mh
-from pyvale.mooseherder.simtxtsaver import (SimDataSaveOpts,
+from pyvale.mooseherder.simsaver import (SimDataSaveOpts,
                                             ESaveFieldOpt,
                                             ESaveArray,
                                             save_sim_data_to_arrays)
@@ -22,7 +22,7 @@ def main() -> None:
 
     project_root = Path(__file__).resolve().parents[1]
     output_path = project_root / "tests" / "mooseherder" / "txt_gold"
-    
+
     if not output_path.is_dir():
         raise FileNotFoundError(f"Gold output directory '{output_path}'" \
             "does not exist, check base directory")

@@ -4,39 +4,19 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-from dataclasses import dataclass
 from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 import pandas as pd
 from pyvale.mooseherder.outputloader import IOutputLoader
 from pyvale.mooseherder.simdata import SimData, SimLoadConfig
+from pyvale.mooseherder.simloadopts import SimLoadOpts
+from pyvale.mooseherder.exceptions import SimLoadErr
 
 
-class SimLoadErr(Exception):
-    """Custom exception for errors when loading simulation data from file.
-    """
-    pass
-
-
-@dataclass(slots=True)
-class SimTxtLoadOpts:
-    """Dataclass of options for loading simulation data from plain delimited 
-    text files.
-    """
-
-    delimiter: str = ","
-    coord_header: int | None = 0
-    time_header: int | None = 0
-    connect_header: int | None = None
-    glob_header: int | None = 0
-    node_field_header: int | None = 0
-    elem_field_header: int | None = 0
-    threads_num: int | None = None
-
-
-class SimTxtLoader(IOutputLoader):
-    """Class for loading simulation data from 
+class SimLoaderByTime(IOutputLoader):
+    """Class for loading simulation data (i.e. a `SimData` object) from a series
+    of plain text delimited files or binary numpy npy files.
 
     Implements the `IOutputLoader` interface.
     """
@@ -55,8 +35,44 @@ class SimTxtLoader(IOutputLoader):
                  connect_files: str | list[str] | None = None,
                  glob_file: Path | None = None,
                  glob_slices: dict[str,slice] | None = None,
-                 load_opts: SimTxtLoadOpts | None = None) -> None:
-        
+                 load_opts: SimLoadOpts | None = None) -> None:
+        """
+        Parameters
+        ----------
+        fields_dir : Path
+            Directory containing the nodal physics fields to load.
+        coords : Path | np.ndarray | None
+            Nodal coordinates of the simulation data which can be given as a
+            Path to load a plain text on numpy binary file or the coordinates
+            can be provided directly as a numpy array (see the `SimData` object
+            for format). If None then the `coords` will be None in the `SimData`
+            object.
+        time_steps : Path | np.ndarray | None
+            Time step vector for the simulation data which can be given as a
+            Path to load a plain txt or numpy binary file or the time steps can
+            be provided directly as a numpy array (see the `SimData` object for
+            format). If None then the `time_steps` will be None in the `SimData`
+            object.
+        node_files : str | dict[str,str]
+
+        node_slices : dict[str, slice | None] | set[str]
+            _description_
+        connect_dir : Path | None, optional
+            _description_, by default None
+        connect_files : str | list[str] | None, optional
+            _description_, by default None
+        glob_file : Path | None, optional
+            _description_, by default None
+        glob_slices : dict[str,slice] | None, optional
+            _description_, by default None
+        load_opts : SimTxtLoadOpts | None, optional
+            _description_, by default None
+
+        Raises
+        ------
+        SimLoadErr
+            TODO
+        """
         self._glob_file = glob_file
         self._glob_slices = glob_slices
         self._load_opts = load_opts
@@ -104,16 +120,35 @@ class SimTxtLoader(IOutputLoader):
 
         if connect_dir is not None:
             if connect_files is None:
-                raise SimLoadErr("Connectivity file pattern must be specified" + 
+                raise SimLoadErr("Connectivity file pattern must be specified" +
                     " alongside the connectivity path, e.g. str(connect*.csv)")
-                
+
             self._connect = self._load_connectivity(connect_dir,connect_files)
-            
+
 
     def _load_connectivity(self,
                            connect_dir: Path,
                            connect_pattern: str | list[str],
                            ) -> dict[str,np.ndarray]:
+        """_summary_
+
+        Parameters
+        ----------
+        connect_dir : Path
+            _description_
+        connect_pattern : str | list[str]
+            _description_
+
+        Returns
+        -------
+        dict[str,np.ndarray]
+            _description_
+
+        Raises
+        ------
+        SimLoadErr
+            _description_
+        """
         self._connect = {}
 
         connect_files= []
@@ -124,7 +159,7 @@ class SimTxtLoader(IOutputLoader):
                 connect_files.append(connect_dir / ff)
         else:
             raise SimLoadErr("Connectivity file pattern must be a string" +
-                             " or a  list.")    
+                             " or a  list.")
 
         for ff in connect_files:
             file_key = ff.stem
@@ -132,13 +167,37 @@ class SimTxtLoader(IOutputLoader):
                 ff,
                 self._load_opts.connect_header,
                 self._load_opts.delimiter
-            ) 
-        
+            )
+
         return self._connect
 
     # NOTE: interface function
     def load_sim_data(self, load_config: SimLoadConfig) -> SimData:
+        """_summary_
 
+        Parameters
+        ----------
+        load_config : SimLoadConfig
+            _description_
+
+        Returns
+        -------
+        SimData
+            _description_
+
+        Raises
+        ------
+        SimLoadErr
+            _description_
+        SimLoadErr
+            _description_
+        SimLoadErr
+            _description_
+        SimLoadErr
+            _description_
+        SimLoadErr
+            _description_
+        """
         sim_data = SimData(coords = self._coords,
                            connect = self._connect,
                            time=self._time_steps)
@@ -230,7 +289,14 @@ class SimTxtLoader(IOutputLoader):
 
     # NOTE: interface function
     def load_all_sim_data(self) -> SimData:
-        # Default load config reads all available data 
+        """_summary_
+
+        Returns
+        -------
+        SimData
+            _description_
+        """
+        # Default load config reads all available data
         load_config = SimLoadConfig()
         return self.load_sim_data(load_config)
 
@@ -243,7 +309,33 @@ def load_data_files(fields_dir: Path,
                     frames: slice | None = None,
                     load_opts: SimTxtLoadOpts | None = None
                     ) -> dict[str,np.ndarray]:
+    """_summary_
 
+    Parameters
+    ----------
+    fields_dir : Path
+        _description_
+    files_pattern : str
+        _description_
+    field_slices : dict[str,slice | None]
+        _description_
+    header : int | None
+        _description_
+    frames : slice | None, optional
+        _description_, by default None
+    load_opts : SimTxtLoadOpts | None, optional
+        _description_, by default None
+
+    Returns
+    -------
+    dict[str,np.ndarray]
+        _description_
+
+    Raises
+    ------
+    FileNotFoundError
+        _description_
+    """
     if not fields_dir.is_dir():
         raise FileNotFoundError(f"Text data path '{fields_dir}' does not exist.")
 
@@ -256,26 +348,14 @@ def load_data_files(fields_dir: Path,
         raise FileNotFoundError("No text files found that match the specified" +
             f" file pattern: '{files_pattern}'.")
 
-    # print(80*"-")
-    # print("Debug load_exp_data:")
-    # print(f"{csv_files[0]=}")
-    # print(f"{csv_files[1]=}")
-    # print(f"{csv_files[-1]=}")
-    # print()
-    # if frames is not None:
-    #     slice_frames = csv_files[frames]
-    #     print(f"{slice_frames[0]=}")
-    #     print(f"{slice_frames[-1]=}")
-    # print(80*"-")
-
     if frames is not None:
         data_files = data_files[frames]
 
     # Handle the case of the value being `None` as an empty slice to extract all
-    for ff in field_slices:   
+    for ff in field_slices:
         if field_slices[ff] is None:
             field_slices[ff] = slice(None)
-        
+
 
     # We load the first csv to find out what shape of data we are expecting
     data = _load_nparray(data_files[0], header, load_opts.delimiter)
@@ -284,7 +364,7 @@ def load_data_files(fields_dir: Path,
     # shape to hold our data as shape=(num_frames,num_points,slice.len)
     field_data: dict[str,np.ndarray] = {}
     for ff in field_slices:
-        
+
         # shape=(num_points,slice.len)
         field_temp = data[:,field_slices[ff]]
         # shape=(num_points,num_frames,slice.len)
@@ -354,7 +434,24 @@ def _load_one_array(path: Path,
                     header: int | None,
                     delimiter: str,
                     ) -> dict[str,np.ndarray]:
+    """_summary_
 
+    Parameters
+    ----------
+    path : Path
+        _description_
+    field_slices : dict[str,slice]
+        _description_
+    header : int | None
+        _description_
+    delimiter : str
+        _description_
+
+    Returns
+    -------
+    dict[str,np.ndarray]
+        _description_
+    """
 
     data = _load_nparray(path,header,delimiter)
 
@@ -370,7 +467,27 @@ def _load_one_array(path: Path,
 def _load_nparray(file_path: Path,
                   header: int | None,
                   delimiter: str) -> np.ndarray:
+    """_summary_
 
+    Parameters
+    ----------
+    file_path : Path
+        _description_
+    header : int | None
+        _description_
+    delimiter : str
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+
+    Raises
+    ------
+    FileNotFoundError
+        _description_
+    """
     if not file_path.is_file():
         raise FileNotFoundError(f"File: '{file_path.resolve()}' does not exist.")
 
@@ -383,7 +500,22 @@ def _load_nparray(file_path: Path,
 def _load_txt_file(file_path: Path,
                    header: int | None,
                    delimiter: str) -> np.ndarray:
+    """_summary_
 
+    Parameters
+    ----------
+    file_path : Path
+        _description_
+    header : int | None
+        _description_
+    delimiter : str
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """
     data = pd.read_csv(file_path,sep=delimiter,header=header)
     return data.to_numpy()
 
@@ -391,7 +523,27 @@ def _load_txt_file(file_path: Path,
 def _load_or_set_var(var_in: Path | np.ndarray,
                      header: int | None,
                      delimiter: str) -> np.ndarray:
+    """Helper function
 
+    Parameters
+    ----------
+    var_in : Path | np.ndarray
+        Path or nump
+    header : int | None
+        _description_
+    delimiter : str
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+
+    Raises
+    ------
+    TypeError
+        _description_
+    """
     if isinstance(var_in, Path):
         return _load_nparray(var_in,header,delimiter)
     elif isinstance(var_in, np.ndarray):
@@ -401,7 +553,20 @@ def _load_or_set_var(var_in: Path | np.ndarray,
 
 
 def _inv_group_dict(dict_com: dict[str,str]) -> dict[str, str]:
+    """Helper function to switch keys and values in a dictionary, i.e. invert
+    the dictionary such that keys become values and values become keys.
 
+    Parameters
+    ----------
+    dict_com : dict[str,str]
+        Input dictionary to be inverted with keys and values of strings.
+
+    Returns
+    -------
+    dict[str, str]
+        Inverted dictionary where the keys and values are switched compared to
+        the input dictionary.
+    """
     # Invert keys and group values in the common dictionary
     dict_com_inv = {}
     for kk_new, vv_new in dict_com.items():

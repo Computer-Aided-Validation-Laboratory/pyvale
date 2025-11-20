@@ -1,4 +1,3 @@
-
 #===============================================================================
 # pyvale: the python validation engine
 # License: MIT
@@ -12,8 +11,10 @@ import numpy as np
 import pyvale.mooseherder as mh
 
 
-
 class ESaveArray(enum.Enum):
+    """Enumeration setting the file type to save arrays as either numpy, 
+    delimited plain text or both.
+    """
     NPY = enum.auto()
     TXT = enum.auto()
     BOTH = enum.auto()
@@ -26,7 +27,30 @@ def save_nparray(save_file: Path,
                  txt_delimiter: str = ",",
                  txt_ext: str = ".csv"
                  ) -> None:
+    """Wrapper function to save a numpy array to disk in binary npy, delimited
+    plain text or both formats. 
 
+    Parameters
+    ----------
+    save_file : Path
+        Path including file name to save the numpy arrays to.
+    data : np.ndarray
+        Array to save to disk.
+    save_format : ESaveArray
+        Enumeration specifying to save the array in binary numpy, delimited 
+        plain text or both formats. 
+    txt_header : str, optional
+        String specifying the headers for text files, by default "".
+    txt_delimiter : str, optional
+        Delimiter for text file array output, by default ","
+    txt_ext : str, optional
+        Extension for text file output, by default ".csv"
+
+    Raises
+    ------
+    FileExistsError
+        The parent directory where the array files to be saved does not exist.
+    """
     if not save_file.parent.exists():
         raise FileExistsError(f"Parent directory: {save_file.parent.resolve()},"
                                + " to save numpy array does not exist.")
@@ -45,6 +69,13 @@ def save_nparray(save_file: Path,
 
 
 class ESaveFieldOpt(enum.Enum):
+    """Enumeration specifying how to save physics fields as:
+    - 'BY_TIME': One array per time step where the first dimension is the nodal
+        coordinates and the second dimension is the field component.
+    - 'BY_FIELD': A single array per nodal field where the first dimension is
+        the coordinate and the second dimension is the time step.
+    - 'BOTH': Save in both formats.
+    """
     BY_TIME = enum.auto()
     BY_FIELD = enum.auto()
     BOTH = enum.auto()
@@ -52,54 +83,157 @@ class ESaveFieldOpt(enum.Enum):
 
 @dataclass(slots=True)
 class SimDataSaveOpts:
+    """Options for saving sim data objects to disk.
+    """
+
     fields_save_by: ESaveFieldOpt = ESaveFieldOpt.BY_TIME
+    """Enumeration specifying the data structure for the physics fields.
+    """
+
     array_format: ESaveArray = ESaveArray.TXT
+    """Enumeration specifying the file format to save the output files in.
+    """
+
     sim_tag: str = ""
+    """String tag that will appear as a prefix to all saved output file names.
+    """
 
     coords_name: str = "coords"
+    """String that will be used after the 'sim_tag' prefix for the coordinates
+    file.
+    """
+
     connect_name: str = "connect"
+    """String that will be used after the 'sim_tag' prefix for the connectivity
+    table file names. Note that there will be one connectivity table per mesh 
+    and there will be labelled 'connect_nameX' where X is an integer. 
+    """
+    
     time_name: str = "time"
+    """String that will be used after the 'sim_tag' prefix for the time step 
+    data file. 
+    """
+    
     glob_name: str = "glob"
+    """String that will be used after the 'sim_tag' prefix for the global 
+    variable output file.
+    """
+
     node_field_name: str = "node_field"
+    """String that will be used after the 'sim_tag' prefix for the output node
+    field variable files.
+    """
+
     elem_field_name: str = "elem_field"
+    """String that will be used after the 'sim_tag' prefix for the output 
+    element field variable files.
+    """
 
     def get_coord_name(self) -> str:
+        """Assembles the file name for the coordinates. If the 'sim_tag' prefix
+        is empty it just returns the specified string name for the coordinate 
+        file.
+
+        Returns
+        -------
+        str
+            Assemebled filename for the coordinates.
+        """
         if not self.sim_tag:
             return self.coords_name
 
         return f"{self.sim_tag}_{self.coords_name}"
 
     def get_connect_name_by_key(self, key: str) -> str:
+        """Assembles the connectivity file name using the connectivity 
+        dictionary key taken from the `SimData` object.
+
+        Parameters
+        ----------
+        key : str
+            String key from the connectivity dictionary in the `SimData` object.
+
+        Returns
+        -------
+        str
+            Assembled file name for the specified connectivity table.
+        """
         if not self.sim_tag:
             return key
 
         return f"{self.sim_tag}_{key}"
 
     def get_connect_name_by_block(self, block: int) -> str:
+        """Assembles the connectivity file name using the specified block and
+        connectvity name.
+
+        Parameters
+        ----------
+        block : int
+            Integer to identify the connectivity table.
+
+        Returns
+        -------
+        str
+            Assembled file name for the specified connectivity table.
+        """
         if not self.sim_tag:
             return f"{self.connect_name}{block}"
 
         return f"{self.sim_tag}_{self.connect_name}{block}"
 
     def get_time_name(self) -> str:
+        """Assembles the file name for the time steps.
+
+        Returns
+        -------
+        str
+            Assembled file name for the simulation time steps.
+        """
         if not self.sim_tag:
             return self.time_name
 
         return f"{self.sim_tag}_{self.time_name}"
 
     def get_glob_name(self) -> str:
+        """Assembles the file name for the global output variables.
+
+        Returns
+        -------
+        str
+            Assembled file name for the global simulation variables.
+        """
         if not self.sim_tag:
             return self.glob_name
 
         return f"{self.sim_tag}_{self.glob_name}"
 
     def get_node_field_name(self) -> str:
+        """Assembles the file name for nodal field variables.
+
+        Returns
+        -------
+        str
+            Assembled file name for nodal field variables.
+        """
         if not self.sim_tag:
             return self.node_field_name
 
         return f"{self.sim_tag}_{self.node_field_name}"
 
     def get_elem_field_name(self, block: int) -> str:
+        """Assembles the file name for an element field variable
+
+        Parameters
+        ----------
+        block : int
+            Block identifying which connectivity table the elements belong to.
+
+        Returns
+        -------
+        str
+            Assembled file name for the element field variable.
+        """
         if not self.sim_tag:
             return f"{self.elem_field_name}_block{block}"
 
@@ -109,9 +243,27 @@ class SimDataSaveOpts:
 def save_sim_data_to_arrays(output_path: Path,
                            sim_data: mh.SimData,
                            save_opts: SimDataSaveOpts | None = None) -> None:
-    if not output_path.is_dir():
-        raise FileExistsError("")
+    """Saves the simulation data to a series of output files in delimited plain
+    text and/or binary numpy arrays.
 
+    Parameters
+    ----------
+    output_path : Path
+        Path to the directory where the simulation files will be saved.
+    sim_data : mh.SimData
+        Simulation data object containing the data to save to disk.
+    save_opts : SimDataSaveOpts | None, optional
+        Options for how the simulation data should be saved, by default None.
+
+    Raises
+    ------
+    FileExistsError
+        The specified output Path is not a directory.
+    """
+    if not output_path.is_dir():
+        raise FileExistsError(f"Output directory: {output_path.resolve()}"
+            + ", is not a directory.")
+        
     if save_opts is None:
         save_opts = SimDataSaveOpts()
 

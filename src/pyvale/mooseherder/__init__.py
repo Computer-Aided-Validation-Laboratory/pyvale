@@ -16,9 +16,12 @@ from .simdata import SimData
 from .simdata import SimLoadConfig
 from .mooseconfig import MooseConfig
 from .sweeptools import sweep_param_grid
-from .simtxtloader import (SimTxtLoader, SimTxtLoadOpts, load_data_files)
-from .simtxtsaver import (ESaveArray, save_nparray, ESaveFieldOpt,
-                          SimDataSaveOpts, save_sim_data_to_arrays)
+from .simloadopts import SimLoadOpts
+from .simloader import load_data_files
+from .simloaderbytime import SimLoaderByTime
+from .simloaderbyfield import SimLoaderByField
+from .simsaver import (ESaveArray, save_nparray, ESaveFieldOpt,
+                       SimDataSaveOpts, save_sim_data_to_arrays)
 
 
 __all__ = ["InputModifier",
@@ -33,8 +36,9 @@ __all__ = ["InputModifier",
             "SimLoadConfig",
             "MooseConfig",
             "sweep_param_grid",
-            "SimTxtLoader",
-            "SimTxtLoadOpts",
+            "SimLoaderByTime",
+            "SimLoaderByField"
+            "SimLoadOpts",
             "load_data_files",
             "ESaveArray",
             "save_nparray",
