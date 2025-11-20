@@ -112,7 +112,7 @@ def check_interpolation(interpolation_routine: str) -> None:
 
 
 
-def check_scanning_method(scanning_method: str) -> None:
+def check_method(method: str) -> None:
     """
     Validate that the scan type  one of the allowed methods.
     Allowed values are "MULTIWINDOW_RG", "MULTIWINDOW", "SINGLEWINDOW_RG", "SINGLEWINDOW_RG_INCREMENTAL", "IMAGE_SCAN".
@@ -131,8 +131,8 @@ def check_scanning_method(scanning_method: str) -> None:
 
     allowed_values = {"MULTIWINDOW_RG", "MULTIWINDOW", "SINGLEWINDOW_RG", "SINGLEWINDOW_RG_INCREMENTAL", "IMAGE_SCAN"}
 
-    if scanning_method not in allowed_values:
-        raise ValueError(f"Invalid scanning_method: {scanning_method}. "
+    if method not in allowed_values:
+        raise ValueError(f"Invalid method: {method}. "
                          f"Allowed values are: {', '.join(allowed_values)}")
 
 
@@ -198,7 +198,7 @@ def check_subsets(subset_size: int, subset_step: int) -> None:
 
 
 
-def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_size: int, subset_step: int) -> list[int]:
+def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_mask: np.ndarray, method: str, px_hori: int, px_vert: int, subset_size: int, subset_step: int) -> list[int]:
     """
     Validate and update the region-growing seed location to align with image bounds and subset spacing.
 
@@ -215,7 +215,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
         The initial seed coordinates as a list of two integers: [x, y].
     roi_mask : np.ndarray
         A 2D binary mask (same size as the image) indicating the region of interest.
-    scanning_method : str
+    method : str
         The scanning method to be used. Only "RG" triggers validation and adjustment logic.
     px_hori : int
         Width of the image in pixels.
@@ -235,7 +235,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
         If the seed is improperly formatted, out of image bounds, or not a list of two integers.
     """
 
-    if "RG" not in scanning_method:
+    if "RG" not in method:
         return [0,0]
 
     if (len(seed) != 2):

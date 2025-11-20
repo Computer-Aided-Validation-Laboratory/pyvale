@@ -30,7 +30,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  bf_threshold: float=0.6,
                  num_threads: int | None = None,
                  max_displacement: int=128,
-                 scanning_method: str="multigrid_RG",
+                 method: str="multigrid_RG",
                  fft_mad: bool=False,
                  fft_mad_scale: float=3.0,
                  output_at_end: bool=False,
@@ -83,7 +83,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
         good match(default: 0.6).
     max_displacement : int, optional
         Estimate for the Maximum displacement in any direction (in pixels) (default: 128).
-    scanning_method : str, optional
+    method : str, optional
         Subset scanning method: "RG" for Reliability-Guided (best overall approach), 
         "IMAGE_SCAN" for a standard scan across the image with no seeding 
         (best performance with for subpixel displacements with high quality images), 
@@ -136,11 +136,11 @@ def calculate_2d(reference: np.ndarray | str | Path,
     image_stack, roi_c, filenames = dicchecks.check_and_get_images(reference,deformed,roi_mask)
     dicchecks.check_correlation_criteria(correlation_criteria)
     dicchecks.check_interpolation(interpolation_routine)
-    dicchecks.check_scanning_method(scanning_method)
+    dicchecks.check_method(method)
     dicchecks.check_thresholds(opt_threshold, bf_threshold, opt_precision)
     common_py_util.check_output_directory(str(output_basepath), output_prefix)
     dicchecks.check_subsets(subset_size, subset_step)
-    updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, scanning_method, image_stack.shape[2], image_stack.shape[1], subset_size, subset_step)
+    updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, image_stack.shape[2], image_stack.shape[1], subset_size, subset_step)
     num_params = dicchecks.check_shape_function(shape_function)
 
 
@@ -156,7 +156,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.corr_crit = correlation_criteria
     config.shape_func = shape_function
     config.interp_routine = interpolation_routine
-    config.scan_method = scanning_method
+    config.scan_method = method
     config.px_hori = image_stack.shape[2]
     config.px_vert = image_stack.shape[1]
     config.num_def_img = image_stack.shape[0]-1 # subtract ref image
