@@ -89,9 +89,9 @@ mh.save_sim_data_to_arrays(output_path,sim_data,save_opts)
 # Before we load the data we will specify a common file suffix and the paths to
 # the coordinate and time files.
 
-suffix = ".csv" # can be changed to ".npy"
-coord_path = output_path / ("hex20_coords" + suffix)
-time_path = output_path / ("hex20_time" + suffix)
+suffix: str = ".csv" # can be changed to ".npy"
+coords_file: str = "hex20_coords" + suffix
+time_step_file: str = "hex20_time" + suffix
 
 #%%
 # 2. Load SimData 'by time'
@@ -110,12 +110,13 @@ time_path = output_path / ("hex20_time" + suffix)
 # We then create the wildcard pattern used to find the field files in the 
 # `field_pattern` variable below.  
 
+field_pattern = f"hex20_node_field_frame*{suffix}"
+
 field_slices = {"disp_x": slice(0,1),
                 "disp_y": slice(1,2),
                 "disp_z": slice(2,3),
                 "temperature": slice(9,10),}
 
-field_pattern = f"hex20_node_field_frame*{suffix}"
 
 connect_pattern = f"hex20_connect*" 
 
@@ -133,9 +134,9 @@ connect_pattern = f"hex20_connect*"
 
 load_opts = mh.SimTxtLoadOpts(threads_num=None)
 
-sim_loader = mh.SimTxtLoader(fields_dir=output_path,
-                             coords=coord_path,
-                             time_steps=time_path,
+sim_loader = mh.SimTxtLoader(load_dir=output_path,
+                             coords_file=coord_path,
+                             time_step_file=time_path,
                              node_files=field_pattern,
                              node_slices=field_slices,
                              connect_dir=output_path,

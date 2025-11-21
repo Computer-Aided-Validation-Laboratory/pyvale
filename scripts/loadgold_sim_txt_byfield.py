@@ -12,62 +12,69 @@ import pyvale.verif.matchsimdata as verif
 
 
 def main() -> None:
-    data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
-    sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
+    data_path: Path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
+    sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
-    project_root = Path(__file__).resolve().parents[1]
-    gold_path = project_root/"tests"/"mooseherder"/"txt_gold"
+    project_root: Path = Path(__file__).resolve().parents[1]
+    gold_path: Path = project_root/"tests"/"mooseherder"/"txt_gold"
 
-    load_opts = mh.SimTxtLoadOpts(node_field_header=None)
+    load_opts = mh.SimLoadOpts(node_field_header=None)
     save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
 
     suffix = ".npy"
-    coord_path = gold_path / (save_opts.get_coord_name() + suffix)
-    time_path = gold_path / (save_opts.get_time_name() + suffix)
+    coords_file = save_opts.get_coord_name() + suffix
+    time_step_file = save_opts.get_time_name() + suffix
 
-    field_slices = {"disp_x": slice(None),
-                    "disp_y": slice(None),
-                    "disp_z": slice(None),
-                    "strain_xx": slice(None),
-                    "strain_xy": slice(None),
-                    "strain_xz": slice(None),
-                    "strain_yy": slice(None),
-                    "strain_yz": slice(None),
-                    "strain_zz": slice(None),
-                    "temperature": slice(None),}
+    prefix = "hex20"
+    field_keys = {"disp_x",
+                  "disp_y",
+                  "disp_z",
+                  "strain_xx",
+                  "strain_xy",
+                  "strain_xz",
+                  "strain_yy",
+                  "strain_yz",
+                  "strain_zz",
+                  "temperature"}
 
-    prefix = "hex20_node_field"
+    field_prefix = f"{prefix}_node_field"
 
     field_patterns = {}
-    for ff in field_slices:
-        field_patterns[ff] = f"{prefix}_{ff}{suffix}"
+    for ff in field_keys:
+        field_patterns[ff] = f"{field_prefix}_{ff}{suffix}"
 
     for ff in field_patterns:
         print(f"{ff}: {field_patterns[ff]}")
-
+        
     print()
 
-    sim_loader = mh.SimTxtLoader(files_path=gold_path,
-                                 coords=coord_path,
-                                 time_steps=time_path,
-                                 node_file_pattern=field_patterns,
-                                 node_slices=field_slices,
-                                 glob_file=None,
-                                 glob_slices=None,
-                                 load_opts=load_opts)
+    connect_pattern: str = f"{prefix}_connect*{suffix}"
 
-    sim_data_load = sim_loader.load_all_sim_data()
+    glob_file: str = f"{prefix}_glob{suffix}"
+    glob_slices = {"disp_x_max":slice(0,1),
+                   "disp_y_max":slice(1,2),
+                   "disp_z_max":slice(2,3),
+                   "react_y_bot":slice(3,4),
+                   "react_y_top":slice(4,5),}
+
+    sim_loader = mh.SimLoaderByField(load_dir=gold_path,
+                                     coords_file=coords_file,
+                                     time_step_file=time_step_file,
+                                     node_field_files=field_patterns,
+                                     connect_files=connect_pattern,   
+                                     glob_file=glob_file,
+                                     glob_slices=glob_slices,
+                                     load_opts=load_opts)
+
+    sim_data_load: mh.SimData = sim_loader.load_all_sim_data()
 
     sens.print_sim_data(sim_data_load)
 
-    sim_data.connect = None
-    sim_data.glob_vars = None
-    match = verif.match_sim_data(sim_data,sim_data_load)
-
+    match_check = verif.match_sim_data(sim_data,sim_data_load)
 
     print(80*"=")
-    for mm in match:
-        print(f"{mm}={match[mm]}")
+    for mm in match_check:
+        print(f"{mm}={match_check[mm]}")
     print(80*"=")
 
     fails = verif.match_sim_data_get_fails(sim_data,sim_data_load)

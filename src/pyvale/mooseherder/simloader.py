@@ -8,43 +8,26 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 import pandas as pd
-from pyvale.mooseherder import SimLoadOpts
+from pyvale.mooseherder.simdata import SimData
+from pyvale.mooseherder.simloadopts import SimLoadOpts
 
 
-def load_data_files(fields_dir: Path,
-                    files_pattern: str,
-                    field_slices: dict[str,slice|None],
-                    header: int | None,
-                    frames: slice | None = None,
-                    load_opts: SimLoadOpts | None = None
-                    ) -> dict[str,np.ndarray]:
-    """_summary_
+def str_to_path(default_path: Path, file: str | Path) -> Path:
 
-    Parameters
-    ----------
-    fields_dir : Path
-        _description_
-    files_pattern : str
-        _description_
-    field_slices : dict[str,slice | None]
-        _description_
-    header : int | None
-        _description_
-    frames : slice | None, optional
-        _description_, by default None
-    load_opts : SimTxtLoadOpts | None, optional
-        _description_, by default None
+    if isinstance(file, Path):
+        return file
 
-    Returns
-    -------
-    dict[str,np.ndarray]
-        _description_
+    return default_path/file 
 
-    Raises
-    ------
-    FileNotFoundError
-        _description_
-    """
+
+def load_field_files(fields_dir: Path,
+                     files_pattern: str,
+                     field_slices: dict[str,slice|None],
+                     header: int | None,
+                     frames: slice | None = None,
+                     load_opts: SimLoadOpts | None = None
+                     ) -> dict[str,np.ndarray]:
+
     if not fields_dir.is_dir():
         raise FileNotFoundError(f"Text data path '{fields_dir}' does not exist.")
 
@@ -65,9 +48,8 @@ def load_data_files(fields_dir: Path,
         if field_slices[ff] is None:
             field_slices[ff] = slice(None)
 
-
     # We load the first csv to find out what shape of data we are expecting
-    data = _load_nparray(data_files[0], header, load_opts.delimiter)
+    data = load_array(data_files[0], header, load_opts.delimiter)
 
     # Using the first csv we initialise all our numpy arrays to the correct
     # shape to hold our data as shape=(num_frames,num_points,slice.len)
@@ -100,7 +82,7 @@ def load_data_files(fields_dir: Path,
                         header,
                         load_opts.delimiter)
 
-                process = pool.apply_async(_load_one_array, args=args)
+                process = pool.apply_async(load_field_dict, args=args)
                 # NOTE: ii+1 here because we already loaded the first txt file
                 processes_with_id.append({"process": process,
                                           "frame": ii+1})
@@ -117,9 +99,9 @@ def load_data_files(fields_dir: Path,
             # print(f"Loading experiment data file: {ii+1}. From path:")
             # print(f"{ff}\n")
 
-            data = _load_nparray(ff,
-                                 header=header,
-                                 delimiter=load_opts.delimiter)
+            data = load_array(ff,
+                              header=header,
+                              delimiter=load_opts.delimiter)
 
             for kk in field_slices:
                 # shape=(num_frames,num_points,slice.len)
@@ -138,31 +120,13 @@ def load_data_files(fields_dir: Path,
     return field_data # dict[str,np.ndarray]
 
 
-def _load_one_array(path: Path,
-                    field_slices: dict[str,slice],
-                    header: int | None,
-                    delimiter: str,
-                    ) -> dict[str,np.ndarray]:
-    """_summary_
+def load_field_dict(path: Path,
+                   field_slices: dict[str,slice],
+                   header: int | None,
+                   delimiter: str,
+                   ) -> dict[str,np.ndarray]:
 
-    Parameters
-    ----------
-    path : Path
-        _description_
-    field_slices : dict[str,slice]
-        _description_
-    header : int | None
-        _description_
-    delimiter : str
-        _description_
-
-    Returns
-    -------
-    dict[str,np.ndarray]
-        _description_
-    """
-
-    data = _load_nparray(path,header,delimiter)
+    data = load_array(path,header,delimiter)
 
     sim_data: dict[str,np.ndarray] = {}
 
@@ -173,32 +137,11 @@ def _load_one_array(path: Path,
     return sim_data
 
 
-def _load_nparray(file_path: Path,
-                  header: int | None,
-                  delimiter: str) -> np.ndarray:
-    """_summary_
-
-    Parameters
-    ----------
-    file_path : Path
-        _description_
-    header : int | None
-        _description_
-    delimiter : str
-        _description_
-
-    Returns
-    -------
-    np.ndarray
-        _description_
-
-    Raises
-    ------
-    FileNotFoundError
-        _description_
-    """
+def load_array(file_path: Path,
+               header: int | None,
+               delimiter: str) -> np.ndarray:
     if not file_path.is_file():
-        raise FileNotFoundError(f"File: '{file_path.resolve()}' does not exist.")
+        raise FileNotFoundError(f"File: '{file_path.resolve()}' is not a file.")
 
     if file_path.suffix == ".npy":
         return np.load(file_path)
@@ -206,62 +149,109 @@ def _load_nparray(file_path: Path,
     return _load_txt_file(file_path,header,delimiter)
 
 
-def _load_txt_file(file_path: Path,
+def load_txt_file(file_path: Path,
                    header: int | None,
                    delimiter: str) -> np.ndarray:
-    """_summary_
-
-    Parameters
-    ----------
-    file_path : Path
-        _description_
-    header : int | None
-        _description_
-    delimiter : str
-        _description_
-
-    Returns
-    -------
-    np.ndarray
-        _description_
-    """
     data = pd.read_csv(file_path,sep=delimiter,header=header)
     return data.to_numpy()
 
 
-def _load_or_set_var(var_in: Path | np.ndarray,
-                     header: int | None,
-                     delimiter: str) -> np.ndarray:
-    """Helper function
+def load_connectivity(connect_dir: Path,
+                      connect_pattern: str | list[str],
+                      load_opts: SimLoadOpts,
+                      ) -> dict[str,np.ndarray]:
 
-    Parameters
-    ----------
-    var_in : Path | np.ndarray
-        Path or nump
-    header : int | None
-        _description_
-    delimiter : str
-        _description_
+        connect = {}
 
-    Returns
-    -------
-    np.ndarray
-        _description_
+        connect_files= []
+        if isinstance(connect_pattern,str):
+            connect_files = list(connect_dir.glob(connect_pattern))
+        elif isinstance(connect_pattern,list):
+            for ff in connect_pattern:
+                connect_files.append(connect_dir / ff)
+        else:
+            raise SimLoadErr("Connectivity file pattern must be a string" +
+                             " or a  list.")
 
-    Raises
-    ------
-    TypeError
-        _description_
-    """
-    if isinstance(var_in, Path):
-        return _load_nparray(var_in,header,delimiter)
-    elif isinstance(var_in, np.ndarray):
-        return var_in
-    else:
-        raise TypeError("Variable must be a pathlib.Path or a numpy.ndarray.")
+        for ff in connect_files:
+            file_key = ff.stem
+            connect[file_key] = load_array(
+                ff,
+                load_opts.connect_header,
+                load_opts.delimiter
+            )
+
+        return connect
 
 
-def _inv_group_dict(dict_com: dict[str,str]) -> dict[str, str]:
+def load_glob_vars(glob_file: Path,
+                   glob_slices: dict[str,slice],
+                   load_opts: SimLoadOpts) -> dict[str,np.ndarray]:
+
+        if not glob_file.is_file():
+            raise SimLoadErr(f"Global variables file:'{glob_file.resolve()}'"
+                              + "does not exist.")
+
+        glob_data = load_array(glob_file,
+                               load_opts.glob_header,
+                               load_opts.delimiter)
+
+        glob_vars = {}
+        for kk in glob_slices:
+            glob_vars[kk] = np.squeeze(glob_data[:,glob_slices[kk]])
+
+        return glob_vars
+
+
+def check_sim_data_consistency(sim_data: SimData) -> None:
+
+    # Check that the number of nodes and time steps is consistent over all 
+    # node variables in the dictionary
+    nodes_num = 0
+    time_steps_num = 0
+    for ii,nn in enumerate(sim_data.node_vars):
+        if ii == 0:
+            nodes_num = sim_data.node_vars[nn].shape[0]
+            time_steps_num = sim_data.node_vars[nn].shape[1]
+        else:
+            if nodes_num != sim_data.node_vars[nn].shape[0]:
+                raise SimLoadErr("Number of nodes is not consistent" \
+                    " between field variables.")
+
+            if time_steps_num != sim_data.node_vars[nn].shape[1]:
+                raise SimLoadErr("Number of time steps is not " \
+                    "consistent between field variables.")
+
+
+    # Check number of coords match the nodal fields
+    if sim_data.coords is not None:
+        if sim_data.coords.shape[0] != nodes_num:
+            raise SimLoadErr(
+                f"Number of coords: '{sim_data.coords.shape[0]}'"
+                + f" in '.coords' does not match field variables: '{nodes_num}'"
+            )
+
+    # Check number of time steps match the nodal fields
+    if sim_data.time is not None:
+        if sim_data.time.shape[0] != time_steps_num:
+            raise SimLoadErr(
+                f"Number of time steps in '.time': '{sim_data.time.shape[0]}'"
+                + f" does not match field variables: '{time_steps_num}'"
+            )        
+
+    # Check global variables are consistent with time steps
+    if sim_data.glob_vars is not None:
+        for kk in sim_data.glob_vars:
+            glob_time_steps = np.max(sim_data.glob_vars[kk].shape)
+            if glob_time_steps != sim_data.time.shape[0]:
+                raise SimLoadErr(
+                    f"Number of time steps: {sim_data.time.shape[0]} in '.time'"
+                    +f"does not match '.glob_var[{kk}]' = {glob_time_steps}"
+                ) 
+    
+
+
+def inv_group_dict(dict_com: dict[str,str]) -> dict[str, str]:
     """Helper function to switch keys and values in a dictionary, i.e. invert
     the dictionary such that keys become values and values become keys.
 
@@ -284,4 +274,5 @@ def _inv_group_dict(dict_com: dict[str,str]) -> dict[str, str]:
         dict_com_inv[vv_new].append(kk_new)
 
     return dict_com_inv
+
 
