@@ -66,7 +66,7 @@ pyvale.dic.calculate_2d(reference=ref_pattern,
             correlation_criteria="ZNSSD",
             interpolation_routine="BICUBIC",
             shape_function="AFFINE",
-            method="MULTIGRID_RG",
+            method="MULTIWINDOW_RG",
             output_prefix="test_rg_znssd_affine_")
 
 pyvale.dic.calculate_2d(reference=ref_pattern,
@@ -79,5 +79,5 @@ pyvale.dic.calculate_2d(reference=ref_pattern,
             correlation_criteria="ZNSSD",
             interpolation_routine="BICUBIC",
             shape_function="AFFINE",
-            method="MULTIGRID",
+            method="MULTIWINDOW",
             output_prefix="test_fft_znssd_affine_")

@@ -125,7 +125,7 @@ def test_rg_znssd_affine():
                                correlation_criteria="ZNSSD",
                                interpolation_routine="BICUBIC",
                                shape_function="AFFINE",
-                               method="MULTIGRID_RG",
+                               method="MULTIWINDOW_RG",
                                output_basepath=test_dir,
                                output_prefix="test_rg_znssd_affine_")
 
@@ -161,7 +161,7 @@ def test_fft_znssd_affine():
                                correlation_criteria="ZNSSD",
                                interpolation_routine="BICUBIC",
                                shape_function="AFFINE",
-                               method="MULTIGRID",
+                               method="MULTIWINDOW",
                                output_basepath=test_dir,
                                output_prefix="test_fft_znssd_affine_")
     
