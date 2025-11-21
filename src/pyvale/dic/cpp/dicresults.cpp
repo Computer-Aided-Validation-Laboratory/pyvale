@@ -161,8 +161,8 @@ void OptResultArrays::write_to_disk(int results_num, const common_util::SaveConf
         // column headers
         outfile << "subset_x" << delimiter;
         outfile << "subset_y" << delimiter;
-        outfile << "displacement_u" << delimiter;
-        outfile << "displacement_v" << delimiter;
+        outfile << "displacement_x" << delimiter;
+        outfile << "displacement_y" << delimiter;
         outfile << "displacement_mag" << delimiter;
         outfile << "converged" << delimiter;
         outfile << "cost" << delimiter;
