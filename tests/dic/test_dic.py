@@ -22,7 +22,7 @@ roi.rect_region(x=200, y=200, size_x=100, size_y=100)
 
 
 def test_image_scan_znssd_affine():
-    dic.two_dimensional(reference=ref_pattern,
+    dic.calculate_2d(reference=ref_pattern,
                                deformed=def_pattern,
                                roi_mask=roi.mask,
                                seed=[250,250],
@@ -32,7 +32,7 @@ def test_image_scan_znssd_affine():
                                correlation_criteria="ZNSSD",
                                interpolation_routine="BICUBIC",
                                shape_function="AFFINE",
-                               scanning_method="IMAGE_SCAN",
+                               method="IMAGE_SCAN",
                                output_basepath=test_dir,
                                output_prefix="test_image_scan_znssd_affine_")
 
@@ -53,7 +53,7 @@ def test_image_scan_znssd_affine():
     os.remove(test_file)
 
 def test_image_scan_znssd_rigid():
-    dic.two_dimensional(reference=ref_pattern,
+    dic.calculate_2d(reference=ref_pattern,
                                deformed=def_pattern,
                                roi_mask=roi.mask,
                                seed=[250,250],
@@ -63,7 +63,7 @@ def test_image_scan_znssd_rigid():
                                correlation_criteria="ZNSSD",
                                interpolation_routine="BICUBIC",
                                shape_function="RIGID",
-                               scanning_method="IMAGE_SCAN",
+                               method="IMAGE_SCAN",
                                output_basepath=test_dir,
                                output_prefix="test_image_scan_znssd_rigid_")
 
@@ -84,7 +84,7 @@ def test_image_scan_znssd_rigid():
     os.remove(test_file)
 
 def test_image_scan_nssd_affine():
-    dic.two_dimensional(reference=ref_pattern,
+    dic.calculate_2d(reference=ref_pattern,
                                deformed=def_pattern,
                                roi_mask=roi.mask,
                                seed=[250,250],
@@ -94,7 +94,7 @@ def test_image_scan_nssd_affine():
                                correlation_criteria="NSSD",
                                interpolation_routine="BICUBIC",
                                shape_function="AFFINE",
-                               scanning_method="IMAGE_SCAN",
+                               method="IMAGE_SCAN",
                                output_basepath=test_dir,
                                output_prefix="test_image_scan_nssd_affine_")
 
@@ -115,7 +115,7 @@ def test_image_scan_nssd_affine():
     os.remove(test_file)
 
 def test_rg_znssd_affine():
-    dic.two_dimensional(reference=ref_pattern,
+    dic.calculate_2d(reference=ref_pattern,
                                deformed=def_pattern,
                                roi_mask=roi.mask,
                                seed=[250,250],
@@ -125,7 +125,7 @@ def test_rg_znssd_affine():
                                correlation_criteria="ZNSSD",
                                interpolation_routine="BICUBIC",
                                shape_function="AFFINE",
-                               scanning_method="RG",
+                               method="MULTIGRID_RG",
                                output_basepath=test_dir,
                                output_prefix="test_rg_znssd_affine_")
 
@@ -151,7 +151,7 @@ def test_rg_znssd_affine():
     os.remove(test_file)
 
 def test_fft_znssd_affine():
-    dic.two_dimensional(reference=ref_pattern,
+    dic.calculate_2d(reference=ref_pattern,
                                deformed=def_pattern,
                                roi_mask=roi.mask,
                                seed=[250,250],
@@ -161,7 +161,7 @@ def test_fft_znssd_affine():
                                correlation_criteria="ZNSSD",
                                interpolation_routine="BICUBIC",
                                shape_function="AFFINE",
-                               scanning_method="FFT",
+                               method="MULTIGRID",
                                output_basepath=test_dir,
                                output_prefix="test_fft_znssd_affine_")
     
