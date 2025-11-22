@@ -36,8 +36,8 @@ import pyvale.dataset as dataset
 # `SimData` object and save it to the csv/txt format and numpy array formats
 # that can be loaded into `pyvale` so we can see what structure these files need
 # to be.
-data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
-sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
+data_path: Path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
+sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
 #%%
 # Let's create our standard pyvale output directory in our current working
@@ -71,19 +71,22 @@ mh.save_sim_data_to_arrays(output_path,sim_data,save_opts)
 
 #%%
 # Now if we have a look at the files in the pyvale-output directory we can see
-# what the expected format is going to be. There are two key files we need to
-# make sure everything loads correctly: 1) the list of nodal coordinates for the
-# simulation; and 2) the list of time steps. These can be found in the files:
-# "hex20_coords" and "hex20_time.csv". The connectvity table is optional as we
-# saw in our last example on mesh free virtual sensors but we will load it here
-# to demonstrate mesh based. In this case each meshed object in the simulation
-# has a connectivity table labelled "connectX" where X is an integer specifying
-# the unique mesh in the simulation. The "hex20_connect1.csv" has the shape 20
-# by number of elements in the mesh as we are using 20 node hexahedral elements.
+# what the expected format is going to be. There are two key files we need: 1) 
+# the list of nodal coordinates for the simulation; and 2) the list of time 
+# steps. These can be found in the files: "hex20_coords" and "hex20_time.csv".
+# We can also choose not to load these from disk and build the numpy arrays 
+# ourselves programmatically. 
+
+# The connectvity table is optional as we will see in out example on mesh free 
+# virtual sensors but we will load it here to demonstrate mesh-based sensors. In 
+# this case each meshed object in the simulation has a connectivity table 
+# labelled "connectX" where X is an integer specifying the unique mesh in the 
+#  simulation. The "hex20_connect1.csv" has the shape 20 by number of elements 
+# in the mesh as we are using 20 node hexahedral elements.
 #
 # We can also see the field files which are labelled "hex20_node_field_*" with
-# a suffix of "frameX" for fields save by time step or a suffix of the field key
-# for the case where we have saved by field name.
+# a suffix of "frameX" for fields saved 'by time step' or a suffix of the field 
+# key for the case where we have saved 'by field'.
 
 #%%
 # Before we load the data we will specify a common file suffix and the paths to
@@ -132,20 +135,20 @@ connect_pattern = f"hex20_connect*"
 # We can now create our loader and use it to load all the simulation data into
 # our `SimData` object which we can now use with the rest of the `pyvale` tools.
 
-load_opts = mh.SimTxtLoadOpts(threads_num=None)
+threads_num: int | None = 2
+load_opts = mh.SimLoadOpts(threads_num=threads_num)
 
-sim_loader = mh.SimTxtLoader(load_dir=output_path,
-                             coords_file=coord_path,
-                             time_step_file=time_path,
-                             node_files=field_pattern,
-                             node_slices=field_slices,
-                             connect_dir=output_path,
-                             connect_files=connect_pattern,
-                             glob_file=None,
-                             glob_slices=None,
-                             load_opts=load_opts)
+sim_loader = mh.SimLoaderByTime(load_dir=output_path,
+                                coords_file=coords_file,
+                                time_step_file=time_step_file,
+                                node_files=field_pattern,
+                                node_slices=field_slices,
+                                connect_files=connect_pattern,
+                                glob_file=None,
+                                glob_slices=None,
+                                load_opts=load_opts)
 
-sim_data_load = sim_loader.load_all_sim_data()
+sim_data_load: mh.SimData = sim_loader.load_all_sim_data()
 
 #%%
 # Let's print some summary data to the terminal so we can see what our `SimData`
@@ -164,37 +167,37 @@ print()
 # similar to how the `SimData` object stores our nodal fields. Specifically, 
 # each nodal variable is a numpy array where the first dimension corresponds to
 # the position in the coordinate array and the second dimension is the time 
-# step. Here we don't need to slice into field arrays so can just provide a set 
-# of the keys we want our node varibles to have in our `SimData` object.
+# step. Here we don't need to slice into field arrays so can just provide a 
+# dictionary where keys are the same as what we want in our `SimData.node_vars`
+# dictionary and the values are strings specifying the file names for that 
+# field.
 
-field_slices = {"disp_x","disp_y","disp_z","temperature"}
+field_keys = {"disp_x","disp_y","disp_z","temperature"}
 
 prefix = "hex20_node_field"
 
-field_patterns = {}
-for ff in field_slices:
-    field_patterns[ff] = f"{prefix}_{ff}{suffix}"
+field_files = {}
+for ff in field_keys:
+    field_files[ff] = f"{prefix}_{ff}{suffix}"
 
 #%%
-# When we load data 'by field' the files generally do no have header rows so we
+# When we load data 'by field' the files generally do not have header rows so we
 # set this to None in the load options. Other than that loading the simulation 
 # data into our `SimData` object is exactly the same as we did previously. 
 
-load_opts = mh.SimTxtLoadOpts(node_field_header=None,
-                              threads_num=None)
+load_opts = mh.SimLoadOpts(node_field_header=None,
+                           threads_num=threads_num)
 
-sim_loader = mh.SimTxtLoader(fields_dir=output_path,
-                             coords=coord_path,
-                             time_steps=time_path,
-                             node_files=field_patterns,
-                             node_slices=field_slices,
-                             connect_dir=output_path,
-                             connect_files=connect_pattern,
-                             glob_file=None,
-                             glob_slices=None,
-                             load_opts=load_opts)
+sim_loader = mh.SimLoaderByField(load_dir=output_path,
+                                 coords_file=coords_file,
+                                 time_step_file=time_step_file,
+                                 node_field_files=field_files,
+                                 connect_files=connect_pattern,
+                                 glob_file=None,
+                                 glob_slices=None,
+                                 load_opts=load_opts)
 
-sim_data_load = sim_loader.load_all_sim_data()
+sim_data_load: mh.SimData = sim_loader.load_all_sim_data()
 
 print(80*"-")
 print("SIM DATA: by field")
@@ -205,4 +208,4 @@ sens.print_sim_data(sim_data_load)
 # That's it for this example! We will leave it as an exercise to load the strain
 # fields from the files in the output directory and to connect the `SimData` 
 # object you have just loaded to the rest of the `pyvale` sensor simulation 
-# engine
+# engine.
