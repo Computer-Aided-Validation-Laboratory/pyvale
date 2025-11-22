@@ -12,7 +12,7 @@ import pyvale.mooseherder as mh
 
 
 class ESaveArray(enum.Enum):
-    """Enumeration setting the file type to save arrays as either numpy, 
+    """Enumeration setting the file type to save arrays as either numpy,
     delimited plain text or both.
     """
     NPY = enum.auto()
@@ -20,15 +20,15 @@ class ESaveArray(enum.Enum):
     BOTH = enum.auto()
 
 
-def save_nparray(save_file: Path,
-                 data: np.ndarray,
-                 save_format: ESaveArray,
-                 txt_header: str = "",
-                 txt_delimiter: str = ",",
-                 txt_ext: str = ".csv"
-                 ) -> None:
+def save_array(save_file: Path,
+               data: np.ndarray,
+               save_format: ESaveArray,
+               txt_header: str = "",
+               txt_delimiter: str = ",",
+               txt_ext: str = ".csv"
+               ) -> None:
     """Wrapper function to save a numpy array to disk in binary npy, delimited
-    plain text or both formats. 
+    plain text or both formats.
 
     Parameters
     ----------
@@ -37,8 +37,8 @@ def save_nparray(save_file: Path,
     data : np.ndarray
         Array to save to disk.
     save_format : ESaveArray
-        Enumeration specifying to save the array in binary numpy, delimited 
-        plain text or both formats. 
+        Enumeration specifying to save the array in binary numpy, delimited
+        plain text or both formats.
     txt_header : str, optional
         String specifying the headers for text files, by default "".
     txt_delimiter : str, optional
@@ -105,17 +105,17 @@ class SimDataSaveOpts:
 
     connect_name: str = "connect"
     """String that will be used after the 'sim_tag' prefix for the connectivity
-    table file names. Note that there will be one connectivity table per mesh 
-    and there will be labelled 'connect_nameX' where X is an integer. 
+    table file names. Note that there will be one connectivity table per mesh
+    and there will be labelled 'connect_nameX' where X is an integer.
     """
-    
+
     time_name: str = "time"
-    """String that will be used after the 'sim_tag' prefix for the time step 
-    data file. 
+    """String that will be used after the 'sim_tag' prefix for the time step
+    data file.
     """
-    
+
     glob_name: str = "glob"
-    """String that will be used after the 'sim_tag' prefix for the global 
+    """String that will be used after the 'sim_tag' prefix for the global
     variable output file.
     """
 
@@ -125,13 +125,13 @@ class SimDataSaveOpts:
     """
 
     elem_field_name: str = "elem_field"
-    """String that will be used after the 'sim_tag' prefix for the output 
+    """String that will be used after the 'sim_tag' prefix for the output
     element field variable files.
     """
 
     def get_coord_name(self) -> str:
         """Assembles the file name for the coordinates. If the 'sim_tag' prefix
-        is empty it just returns the specified string name for the coordinate 
+        is empty it just returns the specified string name for the coordinate
         file.
 
         Returns
@@ -145,7 +145,7 @@ class SimDataSaveOpts:
         return f"{self.sim_tag}_{self.coords_name}"
 
     def get_connect_name_by_key(self, key: str) -> str:
-        """Assembles the connectivity file name using the connectivity 
+        """Assembles the connectivity file name using the connectivity
         dictionary key taken from the `SimData` object.
 
         Parameters
@@ -263,26 +263,26 @@ def save_sim_data_to_arrays(output_path: Path,
     if not output_path.is_dir():
         raise FileExistsError(f"Output directory: {output_path.resolve()}"
             + ", is not a directory.")
-        
+
     if save_opts is None:
         save_opts = SimDataSaveOpts()
 
     if sim_data.coords is not None:
-        save_nparray(output_path / save_opts.get_coord_name(),
+        save_array(output_path / save_opts.get_coord_name(),
                     sim_data.coords,
                     save_format= save_opts.array_format,
                     txt_header="coord_x,coord_y,coord_z")
 
     if sim_data.connect is not None:
         for ii,cc in enumerate(sim_data.connect):
-            save_nparray(output_path / save_opts.get_connect_name_by_key(cc),
+            save_array(output_path / save_opts.get_connect_name_by_key(cc),
                         sim_data.connect[cc],
                         save_format= save_opts.array_format,
                         txt_header="")
 
 
     if sim_data.time is not None:
-        save_nparray(output_path / save_opts.get_time_name(),
+        save_array(output_path / save_opts.get_time_name(),
                      sim_data.time,
                      save_format=save_opts.array_format,
                      txt_header="time,")
@@ -297,7 +297,7 @@ def save_sim_data_to_arrays(output_path: Path,
             glob_data[:,ii] = sim_data.glob_vars[gg]
 
 
-        save_nparray(output_path / save_opts.get_glob_name(),
+        save_array(output_path / save_opts.get_glob_name(),
                      glob_data,
                      save_format=save_opts.array_format,
                      txt_header=glob_header)
@@ -312,7 +312,7 @@ def save_sim_data_to_arrays(output_path: Path,
 
             for nn in sim_data.node_vars:
                 save_file = save_opts.get_node_field_name() + f"_{nn}"
-                save_nparray(output_path / save_file,
+                save_array(output_path / save_file,
                             sim_data.node_vars[nn],
                             save_format=save_opts.array_format)
 
@@ -333,7 +333,7 @@ def save_sim_data_to_arrays(output_path: Path,
 
                 save_file = (save_opts.get_node_field_name()
                              + f"_frame{frame_str}")
-                save_nparray(output_path / save_file,
+                save_array(output_path / save_file,
                             frame_data,
                             save_format=save_opts.array_format,
                             txt_header=node_header)
@@ -345,7 +345,7 @@ def save_sim_data_to_arrays(output_path: Path,
 
             for ee in sim_data.elem_vars:
                 save_file = (save_opts.get_elem_field_name(ee[1]) + f"_{ee[0]}")
-                save_nparray(output_path / save_file,
+                save_array(output_path / save_file,
                             sim_data.elem_vars[ee],
                             save_format=save_opts.array_format)
 
@@ -395,7 +395,7 @@ def save_sim_data_to_arrays(output_path: Path,
                     save_file = (save_opts.get_elem_field_name(bb)
                         + f"_frame{tt}.csv")
 
-                    save_nparray(output_path / save_file,
+                    save_array(output_path / save_file,
                                  elem_vars_by_time[bb],
                                  save_opts.array_format,
                                  txt_header = elem_header)
