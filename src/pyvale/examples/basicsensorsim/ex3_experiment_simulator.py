@@ -30,17 +30,18 @@ import pyvale.dataset as dataset
 # these simulation inputs.
 
 sim_paths: list[Path] = dataset.thermomechanical_3d_experiment_paths()
+sim_keys: set[str] = {"sim_nominal","sim_perturbed"}
 
 disp_keys = ("disp_x","disp_y","disp_z")
 
-sim_data_list: list[mh.SimData] = []
-for ss in sim_paths:
+sim_data_dict: dict[str,mh.SimData] = {}
+for ss,kk in zip(sim_paths,sim_keys):
     sim_data: mh.SimData = mh.ExodusLoader(ss).load_all_sim_data()
     
     sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                    sim_data=sim_data,
                                                    disp_keys=disp_keys)
-    sim_data_list.append(sim_data)
+    sim_data_dict[kk] = sim_data
 
 
 #%%
@@ -157,27 +158,34 @@ strain_sens.set_error_chain(strain_err_chain)
 # 3. Create & run simulated experiments
 # -------------------------------------
 # We can now run our experiments over all simulations for all our virtual  
-# sensor arrays. We are returned a list of numpy arrays. The index in the list 
-# corresponds to the position of the virtual sensor array in the  input list. So 
-# if we want our thermocouple results we want exp_data[0] and for our strain 
-# gauges exp_data[1]. The numpy array has the following shape:
+# sensor arrays. We are returned a dicitionary of numpy arrays. The key in the 
+# dicitionary corresponds to the key we used in our input sensor arrays 
+# dictionary in the list . So if we want our thermocouple results we want 
+# exp_data["temp"] and for our strain gauges exp_data["strain"]. The numpy array 
+# with our simulated experimental data has the following shape:
 # (n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)
 #
 # We can also calculate summary statistics for each sensor array which is
-# returned as a list where the position corresponds to the sensor array as
-# in our experimental data. The experiment stats object contains numpy
-# arrays for each statistic that is collapsed over the number of
+# returned as a dictionary where the key again corresponds to the key we used
+# in the input sensor arrays dictionary. The experiment stats object contains 
+# numpy arrays for each statistic that is collapsed over the number of
 # experiments. The statistics we can access include: mean, standard deviation
 # minimum, maximum, median, median absolute deviation and the 25% and 75%
 # quartiles. See the `ExperimentStats` data class for details.
+#
+# There is also a reserved key in the... 
+# TODO!
 
-sensor_arrays: list[sens.ISensorArray] = [temp_sens,strain_sens]
+sensor_array_dict: dict[str,sens.ISensorArray] = {
+    "temp": temp_sens,
+    "strain": strain_sens,
+}
 
-exp_sim = sens.ExperimentSimulator(sim_data_list,
-                                   sensor_arrays)
+exp_sim = sens.ExperimentSimulator(sim_data_dict,
+                                   sensor_array_dict)
 
-exp_data: list[np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
-exp_stats: list[sens.ExperimentStats] = sens.calc_experiment_stats(exp_data)
+exp_data: dict[str,np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
+exp_stats: dict[str,sens.ExperimentStats] = sens.calc_experiment_stats(exp_data)
 
 #%%
 # 4. Analyse & visualise the results 
@@ -188,29 +196,27 @@ exp_stats: list[sens.ExperimentStats] = sens.calc_experiment_stats(exp_data)
 # information you need to slice out the data you want for additional analysis.
 
 print(80*"=")
-print("exp_data and exp_stats are lists where the index is the sensor array")
-print("position in the list as field components are not consistent dims:\n")
-print(f"{len(exp_data)=}")
-print(f"{len(exp_stats)=}")
+print("Simulation keys corresponding to the first axis:")
+print(f"{exp_data['sim_keys']=}")
 print()
 print(80*"-")
-print("Thermal sensor array @ exp_data[0]")
+print("Thermal sensor array @ exp_data['temp']")
 print(80*"-")
 print("shape=(n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data[0].shape=}")
+print(f"{exp_data['temp'].shape=}")
 print()
 print("Stats are calculated over all experiments (axis=1)")
 print("shape=(n_sims,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats[0].max.shape=}")
+print(f"{exp_stats['temp'].max.shape=}")
 print()
 print(80*"-")
-print("Mechanical sensor array @ exp_data[1]")
+print("Mechanical sensor array @ exp_data['strain']")
 print(80*"-")
 print("shape=(n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data[1].shape=}")
+print(f"{exp_data['strain'].shape=}")
 print()
 print("shape=(n_sims,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats[1].max.shape=}")
+print(f"{exp_stats['strain'].max.shape=}")
 print(80*"=")
 
 # %%
@@ -280,16 +286,13 @@ else:
 trace_opts = sens.TraceOptsExperiment(plot_all_exp_points=True)
 
 (fig,ax) = sens.plot_exp_traces(exp_sim,
-                                component="temperature",
-                                sens_array_num=0,
-                                sim_num=0,
+                                comp_key="temperature",
+                                sens_array_key="temp",
+                                sim_key="sim_nominal",
                                 trace_opts=trace_opts)
 
 save_fig: Path = output_path/"basics_ex3_traces_temp.png" 
 fig.savefig(save_fig,dpi=300,bbox_inches="tight")
-
-# Uncomment this to display the sensor trace plot 
-# plt.show()
 
 # %%
 # Virtual temperature sensor traces over all simulated experiments for input
@@ -303,9 +306,9 @@ fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 strain_plot_keys = ("strain_xx","strain_yy","strain_xy")
 for kk in strain_plot_keys:
     (fig,ax) = sens.plot_exp_traces(exp_sim,
-                                    component=kk,
-                                    sens_array_num=1,
-                                    sim_num=0,
+                                    comp_key=kk,
+                                    sens_array_key="strain",
+                                    sim_key="sim_nominal",
                                     trace_opts=trace_opts)
                                     
     save_fig: Path = output_path/f"basics_ex3_traces_{kk}.png"
@@ -320,3 +323,5 @@ for kk in strain_plot_keys:
 #    :width: 500px
 #    :align: center
     
+# Uncomment this to display the sensor trace plots 
+# plt.show()

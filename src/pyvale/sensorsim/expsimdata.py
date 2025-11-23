@@ -4,11 +4,13 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-class VisError(Exception):
+"""TODO
+"""
+
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass(slots=True)
+class SimExperimentData:
     pass
 
-class Collapse2Dto3DError(Exception):
-    pass
-
-class ExpSimError(Exception):
-    pass

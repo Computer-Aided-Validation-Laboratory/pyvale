@@ -4,14 +4,8 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""
-This module is used for performing Monte-Carlo virtual experiments over a series
-of input simulation cases and sensor arrays.
-"""
-
 from dataclasses import dataclass
 import numpy as np
-
 
 @dataclass(slots=True)
 class ExperimentStats:
@@ -69,24 +63,30 @@ class ExperimentStats:
     """
 
 
-def calc_experiment_stats(exp_data: list[np.ndarray]) -> list[ExperimentStats]:
+def calc_experiment_stats(exp_data: dict[str,np.ndarray]
+                          ) -> dict[str,ExperimentStats]:
     """Calculates summary statistics over all virtual experiments for all 
     virtual sensor arrays. 
 
     Returns
     -------
-    list[ExperimentStats]
-        List of summary statistics data classes for the virtual experiments.
-        The list index correponds to the virtual sensor array.
+    dict[str,ExperimentStats]
+        Dicitionary of summary statistics data classes for the virtual 
+        experiments. The list index correponds to the virtual sensor array.
     """
     
-    # shape=list[n_sens_arrays](n_sims,n_sens,n_comps,n_time_steps)
-    exp_stats: List[ExperimentStats] = [ExperimentStats() for _ in exp_data]
+    # dict[str,shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
+    exp_stats: dict[str,ExperimentStats] = {
+       kk: ExperimentStats() for kk in exp_data
+    }
 
-    for ii, array_data in enumerate(exp_data):
-        exp_stats[ii] = calc_sensor_array_stats(array_data)
+    for kk,dd in exp_data.items():
+        if isinstance(dd,np.ndarray):
+            exp_stats[kk] = calc_sensor_array_stats(dd)
+        else:
+            exp_stats[kk] = dd
                 
-    # shape=list[n_sens_arrays](n_sims,n_sens,n_comps,n_time_steps)
+    # dict[str,shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
     return exp_stats
 
 

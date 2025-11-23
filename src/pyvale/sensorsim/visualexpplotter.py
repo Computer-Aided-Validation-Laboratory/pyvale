@@ -20,11 +20,11 @@ from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
 from pyvale.sensorsim.experimentsimulator import ExperimentSimulator
 from pyvale.sensorsim.experimentstats import calc_sensor_array_stats
 
-
+#TODO: update docstrings
 def plot_exp_traces(exp_sim: ExperimentSimulator,
-                    component: str,
-                    sens_array_num: int,
-                    sim_num: int,                    
+                    comp_key: str,
+                    sens_array_key: str,
+                    sim_key: str,                    
                     trace_opts: TraceOptsExperiment | None = None,
                     plot_opts: PlotOptsGeneral | None = None) -> tuple[Any,Any]:
     """Plots time traces for summary statistics of virtual sensor traces over
@@ -35,8 +35,8 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     exp_sim : ExperimentSimulator
         Experiment simulation object containing the set of virtual experiment to
         be plotted.
-    component : str
-        String key for the field component to plot.
+    comp_key : str
+        String key for the field comp_key to plot.
     sens_array_num : int
         List index for the sensor array to plot.
     sim_num : int
@@ -66,14 +66,16 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
 
-    sensor_array = exp_sim.get_sensor_arrays()[sens_array_num]
-    sim_data = exp_sim.get_sim_list()[sim_num]
+    sensor_array = exp_sim.get_sensor_arrays()[sens_array_key]
+    sim_dict = exp_sim.get_sim_dict()
+    sim_num = list(sim_dict.keys()).index(sim_key)
+    sim_data = sim_dict[sim_key]
     field = sensor_array.get_field()
     field.set_sim_data(sim_data)
     
     descriptor = sensor_array.get_descriptor()
     
-    comp_ind = field.get_component_index(component)
+    comp_ind = field.get_component_index(comp_key)
 
     samp_time = sensor_array.get_sample_times()
     num_sens = sensor_array.get_measurement_shape()[0]
@@ -101,7 +103,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
         for ss in sensors_to_plot:
             for ee in range(exp_sim._num_exp_per_sim):
                 ax.plot(samp_time,
-                        exp_data[sens_array_num][sim_num,ee,ss,comp_ind,:],
+                        exp_data[sens_array_key][sim_num,ee,ss,comp_ind,:],
                         "+",
                         lw=plot_opts.lw,
                         ms=plot_opts.ms,
@@ -111,7 +113,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     lines = []
 
     # TODO: limit this to only calculate what we need for the fill and centre 
-    exp_stats = calc_sensor_array_stats(exp_data[sens_array_num])
+    exp_stats = calc_sensor_array_stats(exp_data[sens_array_key])
     
     for ss in sensors_to_plot:
         if trace_opts.centre == EExpVisCentre.MEDIAN:

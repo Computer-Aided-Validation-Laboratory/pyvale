@@ -16,6 +16,7 @@ basic sensor simulation examples to understand how the underlying engine works
 as well as the sensor simulation workflow.
 """
 
+import time
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,19 +31,20 @@ import pyvale.dataset as dataset
 # -------------------------------
 
 sim_paths: list[Path] = dataset.thermomechanical_3d_experiment_paths()
+sim_keys: set[str] = {"sim_nominal","sim_perturbed"}
 
 disp_keys = ("disp_x","disp_y","disp_z")
 strain_norm_keys = ("strain_xx","strain_yy","strain_zz")
 strain_dev_keys = ("strain_xy","strain_yz","strain_xz")
 
-sim_data_list: list[mh.SimData] = []
-for ss in sim_paths:
+sim_data_dict: dict[str,mh.SimData] = {}
+for ss,kk in zip(sim_paths,sim_keys):
     sim_data: mh.SimData = mh.ExodusLoader(ss).load_all_sim_data()
     
     sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                    sim_data=sim_data,
                                                    disp_keys=disp_keys)
-    sim_data_list.append(sim_data)
+    sim_data_dict[kk] = sim_data
 
 
 #%%
@@ -151,13 +153,25 @@ strain_sens.set_error_chain(strain_err_chain)
 # 3. Create & run simulated experiments
 # -------------------------------------
 
-sensor_arrays: list[sens.ISensorArray] = [temp_sens,strain_sens]
+sensor_arrays: dict[str,sens.ISensorArray] = {
+    "temp": temp_sens,
+    "strain": strain_sens,
+}
 
-exp_sim = sens.ExperimentSimulator(sim_data_list,
+exp_sim = sens.ExperimentSimulator(sim_data_dict,
                                    sensor_arrays)
 
-exp_data: list[np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
-exp_stats: list[sens.ExperimentStats] = sens.calc_experiment_stats(exp_data)
+start_exp: float = time.perf_counter()
+exp_data: dict[str,np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
+exp_time: float = time.perf_counter() - start_exp
+
+start_stats: float = time.perf_counter()
+exp_stats: dict[str,sens.ExperimentStats] = sens.calc_experiment_stats(exp_data)
+stats_time: float = time.perf_counter() - start_stats
+
+print(80*"=")
+print(f"Exp. sim. time    = {exp_time:.3f} seconds")
+print(f"Stats. calc. time = {stats_time:.3f} seconds\n")
 
 
 #%%
@@ -165,29 +179,27 @@ exp_stats: list[sens.ExperimentStats] = sens.calc_experiment_stats(exp_data)
 # ----------------------------------
 
 print(80*"=")
-print("exp_data and exp_stats are lists where the index is the sensor array")
-print("position in the list as field components are not consistent dims:\n")
-print(f"{len(exp_data)=}")
-print(f"{len(exp_stats)=}")
+print("Simulation keys corresponding to the first axis:")
+print(f"{exp_data['sim_keys']=}")
 print()
 print(80*"-")
-print("Thermal sensor array @ exp_data[0]")
+print("Thermal sensor array @ exp_data['temp']")
 print(80*"-")
 print("shape=(n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data[0].shape=}")
+print(f"{exp_data['temp'].shape=}")
 print()
 print("Stats are calculated over all experiments (axis=1)")
 print("shape=(n_sims,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats[0].max.shape=}")
+print(f"{exp_stats['temp'].max.shape=}")
 print()
 print(80*"-")
-print("Mechanical sensor array @ exp_data[1]")
+print("Mechanical sensor array @ exp_data['strain']")
 print(80*"-")
 print("shape=(n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data[1].shape=}")
+print(f"{exp_data['strain'].shape=}")
 print()
 print("shape=(n_sims,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats[1].max.shape=}")
+print(f"{exp_stats['strain'].max.shape=}")
 print(80*"=")
 
 # %%
@@ -245,17 +257,15 @@ else:
 #    :align: center
 
 
-for ii,_ in enumerate(sim_data_list):
+for kk in sim_data_dict:
     (fig,ax) = sens.plot_exp_traces(exp_sim,
-                                    component="temperature",
-                                    sens_array_num=0,
-                                    sim_num=ii)
+                                    comp_key="temperature",
+                                    sens_array_key="temp",
+                                    sim_key=kk)
 
-    save_fig: Path = output_path/f"ext_ex5b_traces_sim{ii}_temp.png" 
+    save_fig: Path = output_path/f"ext_ex5b_traces_{kk}_temp.png" 
     fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 
-# Uncomment this to display the sensor trace plot 
-# plt.show()
 
 # %%
 # Simulated temperatures traces for input physics simulation 0:
@@ -273,14 +283,14 @@ for ii,_ in enumerate(sim_data_list):
 #    :align: center
 
 
-for ii,_ in enumerate(sim_data_list):
-    for kk in (strain_norm_keys+strain_dev_keys):
+for key_sim in sim_data_dict:
+    for key_strain in (strain_norm_keys+strain_dev_keys):
         (fig,ax) = sens.plot_exp_traces(exp_sim,
-                                        component=kk,
-                                        sens_array_num=1,
-                                        sim_num=ii)
+                                        comp_key=key_strain,
+                                        sens_array_key="strain",
+                                        sim_key=key_sim)
                                         
-        save_fig: Path = output_path/f"ext_ex5b_traces_sim{ii}_{kk}.png"
+        save_fig: Path = output_path/f"ext_ex5b_traces_{key_sim}_{key_strain}.png"
         fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 
 # %%
@@ -297,3 +307,6 @@ for ii,_ in enumerate(sim_data_list):
 #    :alt: Simulated strain sensor traces form input simulation 1.
 #    :width: 600px
 #    :align: center
+
+# Uncomment this to display the sensor trace plot 
+# plt.show()
