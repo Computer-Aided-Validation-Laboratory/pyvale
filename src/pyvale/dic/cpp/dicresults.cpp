@@ -7,6 +7,7 @@
 
 // STD library Header files
 #include <vector>
+#include <sstream>
 
 // common_cpp header files
 #include "../../common_cpp/util.hpp"
