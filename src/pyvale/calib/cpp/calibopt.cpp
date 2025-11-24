@@ -14,8 +14,10 @@
 
 // common_cpp Header files
 #include "../../common_cpp/defines.hpp"
+
+// Eigen Header Files
 #include <Eigen/Dense>
-#include "../../common_cpp/Eigen/Geometry"
+#include <Eigen/Geometry>
 
 // pyvale header files
 #include "./calibopt.hpp"

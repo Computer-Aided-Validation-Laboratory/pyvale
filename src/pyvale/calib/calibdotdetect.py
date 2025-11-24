@@ -8,15 +8,10 @@ import cv2
 import numpy as np
 import re
 import os
-import yaml
 from scipy.spatial import cKDTree
-import matplotlib.pyplot as plt
 from pathlib import Path
 import glob
 from scipy.optimize import least_squares
-import multiprocessing as mp
-
-import pyvale.calib.calibcpp as calibcpp
 
 def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
                   cam1: Path | list[Path] | np.ndarray | str,

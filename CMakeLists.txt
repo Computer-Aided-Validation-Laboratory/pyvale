@@ -108,6 +108,17 @@ apply_compile_flags(dic2dcpp)
 install(TARGETS dic2dcpp LIBRARY DESTINATION pyvale/dic)
 
 # ----------------------------
+# DIC Calibration
+# ----------------------------
+file(GLOB CALIB_SRC_FILES src/pyvale/calib/cpp/*.cpp)
+
+pybind11_add_module(calibcpp MODULE ${CALIB_SRC_FILES} ${COMMON_SRC_FILES})
+target_include_directories(calibcpp PRIVATE src/pyvale/common_cpp src/pyvale/calib)
+target_link_libraries(calibcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
+apply_compile_flags(calibcpp)
+install(TARGETS calibcpp LIBRARY DESTINATION pyvale/calib)
+
+# ----------------------------
 # STRAIN module
 # ----------------------------
 file(GLOB STRAIN_SRC_FILES src/pyvale/strain/cpp/*.cpp)

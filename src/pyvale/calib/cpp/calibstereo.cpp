@@ -10,14 +10,8 @@
 #include <omp.h>
 #include <vector>
 
-// pybind header files
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/iostream.h>
-
-// common_cpp header files
-#include "../../common_cpp/Eigen/Core"
-
+// Eigen header files
+#include <Eigen/Core>
 
 // pyvale header files
 #include "./calibopt.hpp"
@@ -97,8 +91,5 @@ void stereo_calibration(const std::vector<double> &init_params,
 
 
 
-PYBIND11_MODULE(calibcpp, m) {
-    m.def("stereo_calibration", &stereo_calibration, "stereo_calibration");
-}
 
 

@@ -6,3 +6,6 @@
 
 from .calibdotdetect import dot_detection
 from .calibstereo import stereo_calibration
+
+__all__ = ["dot_detection",
+           "stereo_calibration"]
