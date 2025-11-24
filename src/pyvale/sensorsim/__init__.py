@@ -77,6 +77,7 @@ from .simtools import *
 
 from .experimentsimulator import *
 from .experimentstats import *
+from .experimentsimio import *
 
 from .output import *
 from .exceptions import *

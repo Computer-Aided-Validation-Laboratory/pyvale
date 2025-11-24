@@ -8,9 +8,9 @@
 Quickstart sensor sim
 ================================================================================
 
-This is a quick example with minimal explantion to get users familiar with the 
-overall workflow for the `pyvale` sensor simulation engine - to see if `pyvale` 
-is the right virtual laboratory for them. 
+This is a quick example with minimal explantion to get users familiar with the
+overall workflow for the `pyvale` sensor simulation engine - to see if `pyvale`
+is the right virtual laboratory for them.
 
 The general workflow for the sensor simulation engine in pyvale is:
 1. Load physics simulation data;
@@ -18,9 +18,9 @@ The general workflow for the sensor simulation engine in pyvale is:
 3. Create & run a simulated experiment; and
 4. Analyse & visualise the results.
 
-Users with experience in scientific and engineering simulation will recognise 
+Users with experience in scientific and engineering simulation will recognise
 the workflow as: setup/pre-processing; run simulation; post-processing, analysis
-& visualisation. 
+& visualisation.
 """
 
 from pathlib import Path
@@ -41,7 +41,7 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
 
-#%% 
+#%%
 # 2. Build a virtual sensor array
 # --------------------------------
 sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
@@ -71,7 +71,7 @@ err_chain.append(sens.ErrSysSaturation(meas_min=0.0,meas_max=450.0))
 
 sens_array.set_error_chain(err_chain)
 
-#%% 
+#%%
 # 3. Create & run simulated experiment
 # ------------------------------------
 sim_list: list[mh.SimData] = [sim_data,]
@@ -80,7 +80,7 @@ exp_sim = sens.ExperimentSimulator(sim_list,
                                    sensor_arrays)
 
 exp_data: list[np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
-exp_stats: list[sens.ExperimentStats] = sens.calc_experiment_stats(exp_data)
+exp_stats: list[sens.ExperimentStats] = sens.calc_exp_sim_stats(exp_data)
 
 
 #%%
@@ -98,7 +98,7 @@ pv_plot.camera_position = [(59.354, 43.428, 69.946),
 
 # Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-if pv_plot.off_screen: 
+if pv_plot.off_screen:
     pv_plot.screenshot(output_path/"basics_ex0_locs.png")
 else:
     pv_plot.show()

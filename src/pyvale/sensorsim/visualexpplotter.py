@@ -24,11 +24,10 @@ from pyvale.sensorsim.experimentstats import calc_sensor_array_stats
 def plot_exp_traces(exp_sim: ExperimentSimulator,
                     comp_key: str,
                     sens_array_key: str,
-                    sim_key: str,                    
+                    sim_key: str,
                     trace_opts: TraceOptsExperiment | None = None,
                     plot_opts: PlotOptsGeneral | None = None) -> tuple[Any,Any]:
-    """Plots time traces for summary statistics of virtual sensor traces over
-    a series of virtual experiments.
+    """_summary_
 
     Parameters
     ----------
@@ -36,11 +35,11 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
         Experiment simulation object containing the set of virtual experiment to
         be plotted.
     comp_key : str
-        String key for the field comp_key to plot.
-    sens_array_num : int
-        List index for the sensor array to plot.
-    sim_num : int
-        Index for the simulation to plot.
+        _description_
+    sens_array_key : str
+        _description_
+    sim_key : str
+        _description_
     trace_opts : TraceOptsExperiment | None, optional
         Dataclass containing specific options for controlling the plot
         appearance, by default None. If None the default options are used.
@@ -54,33 +53,35 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
         A tuple containing a handle to the matplotlib figure and axis objects:
         (fig,ax).
 
+
     Raises
     ------
     VisError
         There are no virtual experiments or virtual experiment stats to plot in
-        the ExperimentSimulator object. Call 'run_experiments' and 'calc_stats'.
+        the ExperimentSimulator object.
     """
+
     if trace_opts is None:
         trace_opts = TraceOptsExperiment()
 
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
 
-    sensor_array = exp_sim.get_sensor_arrays()[sens_array_key]
+    sensor_array = exp_sim.get_sensor_array_dict()[sens_array_key]
     sim_dict = exp_sim.get_sim_dict()
     sim_num = list(sim_dict.keys()).index(sim_key)
     sim_data = sim_dict[sim_key]
     field = sensor_array.get_field()
     field.set_sim_data(sim_data)
-    
+
     descriptor = sensor_array.get_descriptor()
-    
+
     comp_ind = field.get_component_index(comp_key)
 
     samp_time = sensor_array.get_sample_times()
     num_sens = sensor_array.get_measurement_shape()[0]
 
-    exp_data = exp_sim.get_exp_data()
+    exp_data = exp_sim.get_exp_sim_data()
 
     if exp_data is None:
         raise VisError("Before visualising virtual experiment traces the " \
@@ -112,9 +113,9 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     sensor_tags = descriptor.create_sensor_tags(num_sens)
     lines = []
 
-    # TODO: limit this to only calculate what we need for the fill and centre 
+    # TODO: limit this to only calculate what we need for the fill and centre
     exp_stats = calc_sensor_array_stats(exp_data[sens_array_key])
-    
+
     for ss in sensors_to_plot:
         if trace_opts.centre == EExpVisCentre.MEDIAN:
             trace_centre = exp_stats.med[sim_num,ss,comp_ind,:]
@@ -131,7 +132,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
         lines.append(line)
 
         if trace_opts.fill_between is not None:
-            if trace_opts.fill_between == EExpVisBounds.MINMAX:  
+            if trace_opts.fill_between == EExpVisBounds.MINMAX:
                 upper = trace_opts.fill_scale*exp_stats.min
                 lower = trace_opts.fill_scale*exp_stats.max
             elif trace_opts.fill_between == EExpVisBounds.QUARTILE:
@@ -160,7 +161,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
         sim_time = field.get_time_steps()
         sens_pos = sensor_array._sensor_data.positions
         sim_vals = field.sample_field(sens_pos)
-        
+
         for ss in sensors_to_plot:
             ax.plot(sim_time,
                     sim_vals[ss,comp_ind,:],

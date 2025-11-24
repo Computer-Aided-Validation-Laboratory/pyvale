@@ -12,7 +12,7 @@ run a single simulated experiment. However, we will generally want to run many
 simulated experiments and perform statistical analysis on the results. In this
 example we demonstrate how `pyvale` can be used to run a set of simulated
 experiments with a series of sensor arrays, one measuring temperature and the
-other measuring displacement. We also show how this analysis can be performed 
+other measuring displacement. We also show how this analysis can be performed
 over a set of input physics simulations with different parameters.
 
 Note that this example has minimal explanation and assumes you have reviewed the
@@ -93,7 +93,7 @@ temp_err_chain.append(sens.ErrSysField(temp_sens.get_field(),
                                        temp_field_err_data))
 
 temp_err_chain.append(
-    sens.ErrRandNormPercent(std_percent=2.0, 
+    sens.ErrRandNormPercent(std_percent=2.0,
                             err_dep=sens.EErrDep.DEPENDENT)
 )
 
@@ -166,7 +166,7 @@ exp_data: dict[str,np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
 exp_time: float = time.perf_counter() - start_exp
 
 start_stats: float = time.perf_counter()
-exp_stats: dict[str,sens.ExperimentStats] = sens.calc_experiment_stats(exp_data)
+exp_stats: dict[str,sens.ExperimentStats] = sens.calc_exp_sim_stats(exp_data)
 stats_time: float = time.perf_counter() - start_stats
 
 print(80*"=")
@@ -174,7 +174,7 @@ print(f"Exp. sim. time    = {exp_time:.3f} seconds")
 print(f"Stats. calc. time = {stats_time:.3f} seconds\n")
 
 #%%
-# 4. Analyse & visualise the results 
+# 4. Analyse & visualise the results
 # ----------------------------------
 
 print(80*"=")
@@ -210,14 +210,17 @@ print(80*"=")
 
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
-    output_path.mkdir(parents=True, exist_ok=True) 
+    output_path.mkdir(parents=True, exist_ok=True)
+
+sens.save_exp_sim_data(output_path/"ex5a_exp_sim_data.npz",exp_data)
+
 
 pv_plot = sens.plot_point_sensors_on_sim(temp_sens,"temperature")
 pv_plot.camera_position = "xy"
 
 # Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-if pv_plot.off_screen: 
+if pv_plot.off_screen:
     pv_plot.screenshot(output_path/"ext_ex5a_temp_locs.png")
 else:
     pv_plot.show()
@@ -235,7 +238,7 @@ pv_plot.camera_position = "xy"
 
 # Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-if pv_plot.off_screen: 
+if pv_plot.off_screen:
     pv_plot.screenshot(output_path/"ext_ex5a_disp_locs.png")
 else:
     pv_plot.show()
@@ -257,7 +260,7 @@ for kk in sim_data_dict:
                                     sens_array_key="temp",
                                     sim_key=kk)
 
-    save_fig: Path = output_path/f"ext_ex5a_traces_{kk}_temp.png" 
+    save_fig: Path = output_path/f"ext_ex5a_traces_{kk}_temp.png"
     fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 
 # %%
@@ -282,24 +285,24 @@ for key_sim in sim_data_dict:
                                         comp_key=key_disp,
                                         sens_array_key="disp",
                                         sim_key=key_sim)
-                                        
+
         save_fig: Path = output_path/f"ext_ex5a_traces_{key_sim}_{key_disp}.png"
         fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 
 # %%
 # Simulated displacement traces for input physics simulation 0:
-# 
+#
 # .. image:: ../../../../_static/ext_ex5a_traces_sim0_disp_y.png
 #    :alt: Simulated displacement sensor traces form input simulation 0.
 #    :width: 600px
 #    :align: center
 #
 # Simulated displacement traces for input physics simulation 1:
-# 
+#
 # .. image:: ../../../../_static/ext_ex5a_traces_sim1_disp_y.png
 #    :alt: Simulated displacement sensor traces form input simulation 1.
 #    :width: 600px
 #    :align: center
 
-# Uncomment this to display the sensor trace plot 
+# Uncomment this to display the sensor trace plot
 # plt.show()

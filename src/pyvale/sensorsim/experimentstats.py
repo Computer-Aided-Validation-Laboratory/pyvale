@@ -63,43 +63,47 @@ class ExperimentStats:
     """
 
 
-def calc_experiment_stats(exp_data: dict[str,np.ndarray]
+def calc_exp_sim_stats(exp_data: dict[str,np.ndarray]
                           ) -> dict[str,ExperimentStats]:
-    """Calculates summary statistics over all virtual experiments for all 
-    virtual sensor arrays. 
+    """Calculates summary statistics over all virtual experiments for all
+    virtual sensor arrays.
 
     Returns
     -------
     dict[str,ExperimentStats]
-        Dicitionary of summary statistics data classes for the virtual 
+        Dictionary of summary statistics data classes for the virtual
         experiments. The list index correponds to the virtual sensor array.
     """
-    
+
     # dict[str,shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
     exp_stats: dict[str,ExperimentStats] = {
        kk: ExperimentStats() for kk in exp_data
     }
 
     for kk,dd in exp_data.items():
-        if isinstance(dd,np.ndarray):
+        # f = float
+        if dd.dtype.kind == 'f':
             exp_stats[kk] = calc_sensor_array_stats(dd)
-        else:
+        # U = unicode string, S = byte string
+        elif dd.dtype.kind == 'U' or dd.dtype.kind == 'S':
             exp_stats[kk] = dd
-                
+
+        # Implicitly remove anything that we don't expect: integers, objects etc
+
     # dict[str,shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
     return exp_stats
 
 
 def calc_sensor_array_stats(exp_data: np.ndarray) -> ExperimentStats:
-    """Calculates summary statistics for a specific sensor array over all 
-    virual experiments. 
+    """Calculates summary statistics for a specific sensor array over all
+    virual experiments.
 
     Returns
     -------
     ExperimentStats
-        Summary statistics data classes for the sensor array.
+        Summary statistics data class for the sensor array.
     """
-    
+
     exp_stats = ExperimentStats(
         max = np.max(exp_data,axis=1),
         min = np.min(exp_data,axis=1),
