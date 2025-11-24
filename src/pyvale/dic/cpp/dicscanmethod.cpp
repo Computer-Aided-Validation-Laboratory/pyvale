@@ -146,6 +146,7 @@ namespace scanmethod {
 
         // Mutex vector to protect each queue
         std::vector<std::mutex> queue_mutexes(omp_get_max_threads());
+        std::mutex steal_mutex;
 
         # pragma omp parallel
         {
@@ -234,12 +235,8 @@ namespace scanmethod {
                     // update mask
                     computed_mask[nidx].store(1);
 
-                    // add this point to queue
-                    // Protect push with mutex
-                    {
-                        std::lock_guard<std::mutex> lock(queue_mutexes[0]);
-                        local_q[0].push(rg::Point(nidx,nres.cost));
-                    }
+                    // Add points to queue
+                    local_q[0].push(rg::Point(nidx,nres.cost));
 
                     // update progress bar
                     int progress = current_progress.fetch_add(1);
@@ -279,8 +276,8 @@ namespace scanmethod {
                 // Steal if nothing in own queue
                 if (!got_point) {
                     while (!got_point && idle_iters < max_idle_iters) {
-                        #pragma omp critical(queue_check)
                         {
+                            std::lock_guard<std::mutex> lock(steal_mutex);
                             for (size_t i = 0; i < local_q.size(); ++i) {
                                 std::lock_guard<std::mutex> lock(queue_mutexes[i]);
                                 if (!local_q[i].empty()) {
@@ -344,8 +341,7 @@ namespace scanmethod {
                         OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                         // append results
-                        #pragma omp critical(append_results)
-                            result_arrays.append(nres, results_num, nidx);
+                        result_arrays.append(nres, results_num, nidx);
 
                         // add results to temp neighbour results
                         temp_neigh.emplace_back(nidx, nres.cost);
@@ -416,6 +412,7 @@ namespace scanmethod {
 
         // Mutex vector to protect each queue
         std::vector<std::mutex> queue_mutexes(omp_get_max_threads());
+        std::mutex steal_mutex;
 
         # pragma omp parallel
         {
@@ -548,11 +545,7 @@ namespace scanmethod {
                     computed_mask[nidx].store(1);
 
                     // add this point to queue
-                    // Protect push with mutex
-                    {
-                        std::lock_guard<std::mutex> lock(queue_mutexes[0]);
-                        local_q[0].push(rg::Point(nidx,nres.cost));
-                    }
+                    local_q[0].push(rg::Point(nidx,nres.cost));
 
                     // update progress bar
                     int progress = current_progress.fetch_add(1);
@@ -592,8 +585,8 @@ namespace scanmethod {
                 // Steal if nothing in own queue
                 if (!got_point) {
                     while (!got_point && idle_iters < max_idle_iters) {
-                        #pragma omp critical(queue_check)
                         {
+                            std::lock_guard<std::mutex> lock(steal_mutex);
                             for (size_t i = 0; i < local_q.size(); ++i) {
                                 std::lock_guard<std::mutex> lock(queue_mutexes[i]);
                                 if (!local_q[i].empty()) {
@@ -682,8 +675,7 @@ namespace scanmethod {
                         }
 
                         // append results
-                        #pragma omp critical(append_results)
-                            result_arrays.append(nres, results_num, nidx);
+                        result_arrays.append(nres, results_num, nidx);
 
                         // add results to temp neighbour results
                         temp_neigh.emplace_back(nidx, nres.cost);
