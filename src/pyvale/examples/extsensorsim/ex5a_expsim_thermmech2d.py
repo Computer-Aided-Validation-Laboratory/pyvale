@@ -305,4 +305,4 @@ for key_sim in sim_data_dict:
 #    :align: center
 
 # Uncomment this to display the sensor trace plot
-# plt.show()
+plt.show()

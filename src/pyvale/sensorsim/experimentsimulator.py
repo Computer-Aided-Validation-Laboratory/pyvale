@@ -8,11 +8,25 @@
 This module is used for performing Monte-Carlo virtual experiments over a series
 of input simulation cases and sensor arrays.
 """
-
+import enum
+from dataclasses import dataclass
+from itertools import product
+from multiprocessing.pool import Pool
 import numpy as np
 import pyvale.mooseherder as mh
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.exceptions import ExpSimError
+
+
+
+@dataclass(slots=True)
+class ExpSimOpts:
+    reserved_sim_key: str = "sim_keys"
+    store_truth: bool = False
+    store_rand_errs: bool = False
+    store_sys_errs: bool = False  
+    threads_num: int | None = None
+
 
 class ExperimentSimulator:
     """An experiment simulator for running monte-carlo analysis by applying a
@@ -20,12 +34,12 @@ class ExperimentSimulator:
     number of user defined experiments.
     """
     __slots__ = ("_sim_dict","_sensor_arrays","_num_exp_per_sim","_exp_data",
-                 "_exp_stats","_reserved_sim_key")
+                 "_exp_sim_opts")
 
     def __init__(self,
                  sim_dict: dict[str,mh.SimData],
                  sensor_arrays: dict[str,ISensorArray],
-                 reserved_sim_key: str = "sim_keys",
+                 exp_sim_opts: ExpSimOpts | None = None,
                  ) -> None:
         """
         Parameters
@@ -35,27 +49,26 @@ class ExperimentSimulator:
         sensor_arrays : dict[str,ISensorArray]
             The sensor arrays that will be applied to each simulation to
             generate the virtual experiment data.
-        reserved_sim_key : str, optional
-            String key used for storing the string keys/tags from the simulation
-            dictionary in the returned simulated experiment data dictionary, by 
-            default "sim_keys".
-
+    
         Raises
         ------
         ExpSimError
             The reserved dicitionary key has been used in the simulation 
             dictionary. Change the reserved key of the keys used in the 
             simulation dictionary.
-        """
+        """        
 
         self._sim_dict = sim_dict
         self._sensor_arrays = sensor_arrays
         self._num_exp_per_sim = 1
         self._exp_data = None
-        self._exp_stats = None
-        self._reserved_sim_key = reserved_sim_key
+    
+        if exp_sim_opts is None:
+            self._exp_sim_opts = ExpSimOpts()
+        else:
+            self._exp_sim_opts = exp_sim_opts
 
-        if self._reserved_sim_key in self._sim_dict:
+        if self._exp_sim_opts.reserved_sim_key in self._sim_dict:
             raise ExpSimError(
                 f"Reserved key cannot be {self._reserved_sim_key} in the"
                 + "simulation dictionary."
@@ -114,28 +127,63 @@ class ExperimentSimulator:
             )
 
         self._num_exp_per_sim = num_exp_per_sim
-
         n_sims = len(self._sim_dict)
 
+        # pre-alloc exp data arrays
         # dict[str,shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
-        self._exp_data = {}
+        self._exp_data = {
+            key_sens: np.empty(
+                (n_sims, self._num_exp_per_sim) 
+                + sens_array.get_measurement_shape(),
+                dtype=np.float64,
+            )
+            for key_sens, sens_array in self._sensor_arrays.items()
+        }
 
-        for key_sens,sens_array in self._sensor_arrays.items():
+        sim_items_with_inds = enumerate(self._sim_dict.items())
+ 
+        # 1) Parallelise over sim_data/sens_array, run N per worker
+        if self._exp_sim_opts.threads_num is not None:
+            assert load_opts.threads_num > 0, ("Number of threads must be"  
+                        + "greater than 0.")
 
-            meas_array = np.zeros((n_sims,self._num_exp_per_sim)+
-                                   sens_array.get_measurement_shape())
+            with Pool(load_opts.threads_num) as pool:
+                processes_with_id = []
+                for (sim_ind,(key_sim, sim_data)), (key_sens, sens_array) in (
+                    product(sim_items_with_inds, self._sensor_arrays.items())
+                ):
+                    args = (sim_data,sens_array)
+                    process = pool.apply_async(_run_all_sims,args=args)
 
-            for jj,key_sims in enumerate(self._sim_dict):
-                sens_array.get_field().set_sim_data(self._sim_dict[key_sims])
+                    proccesses_with_id.append({"process":process,
+                                               "sim_key":key_sim,
+                                               "sens_key":key_sens})
+                for pp in processes_with_id:
+                    # shape=(n_exps,n_sens,n_comps,n_time_steps)
+                    sim_exps = pp["process"].get()
+                    
+                    self._exp_data[pp["sens_key"]][sim_ind,:,:,:,:] = sim_exp
 
-                for ee in range(self._num_exp_per_sim):
-                    meas_array[jj,ee,:,:,:] = sens_array.sim_measurements()
+                # shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)
+                                    
+        # 2) Parallelise over all sim_data/sens_array/Nsims
+        else: # 3) Run everything sequentially
+            for key_sens,sens_array in self._sensor_arrays.items():
 
-            self._exp_data[key_sens] = meas_array
+                meas_array = np.zeros((n_sims,self._num_exp_per_sim)+
+                                       sens_array.get_measurement_shape())
+
+                for jj,key_sims in enumerate(self._sim_dict):
+                    sens_array.get_field().set_sim_data(self._sim_dict[key_sims])
+
+                    for ee in range(self._num_exp_per_sim):
+                        self._exp_data[key_sens][jj,ee,:,:,:] = (
+                            sens_array.sim_measurements()
+                        )
 
         # Stores the simulation string keys as an array in the dictionary,
         # allows user to identify labels for the sim axis in the results array
-        self._exp_data[self._reserved_sim_key] = np.array(
+        self._exp_data[self._exp_sim_opts.reserved_sim_key] = np.array(
             list(self._sim_dict.keys()),
             dtype='U',
         )
@@ -160,3 +208,22 @@ class ExperimentSimulator:
         return self._exp_data
 
 
+def _run_one_sim(sim_data: mh.SimData, sens_array: ISensorArray) -> np.ndarray:
+    sens_array.get_field().set_sim_data(sim_data)
+    # RETURN: np.array.shape=(n_sens,n_comps,n_time_steps)
+    return sens_array.sim_measurements()
+
+def _run_all_sims(sim_data: mh.SimData, 
+                  sens_array: ISensorArray,
+                  num_exp: int,
+                  ) -> np.ndarray:
+
+    sens_array.get_field().set_sim_data(sim_data)
+    
+    sim_experiments = np.zeros((num_exp)+sens_array.get_measurement_shape())
+
+    for ee in range(num_exp):
+        sim_experiments[ee,:,:,:] = sens_array.sim_measurements() 
+
+    # RETURN: np.array.shape=(n_exps,n_sens,n_comps,n_time_steps)
+    return sim_experiments
