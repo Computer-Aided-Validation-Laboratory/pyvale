@@ -224,7 +224,7 @@ namespace optimization {
 
         // loop over all imgs in stereo_calibration
         #pragma omp parallel for
-        for (size_t i = 0; i < num_img; i++){
+        for (int i = 0; i < num_img; i++){
 
             // rotation vector
             Eigen::Vector3d rvec0(p[start_cam0 + i*6],

@@ -41,7 +41,7 @@ if (Eigen3_FOUND)
         message(STATUS "Eigen3 CMake config located at: ${Eigen3_DIR}")
     endif()
 else()
-    message(STATUS "System Eigen3 not found — fetching with FetchContent")
+    message(STATUS "System Eigen3 not found. fetching with FetchContent")
     include(FetchContent)
 
     FetchContent_Declare(
