@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macOS-15-intel, macOS-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-14-large, macos-15-intel, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -33,8 +33,8 @@ jobs:
         env:
           CIBW_SKIP: "pp*"
           CIBW_ENVIRONMENT_MACOS: >
-            CC=$(brew --prefix llvm@15)/bin/clang
-            CXX=$(brew --prefix llvm@15)/bin/clang++
+            CC=$(brew --prefix llvm@18)/bin/clang
+            CXX=$(brew --prefix llvm@18)/bin/clang++
             LDFLAGS="-L$(brew --prefix libomp)/lib"
             CPPFLAGS="-I$(brew --prefix libomp)/include"
       - uses: actions/upload-artifact@v4
