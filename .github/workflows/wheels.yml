@@ -14,23 +14,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # macos13 is intel macos14 is arm
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-14]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macOS-15-intel, macOS-latest]
 
     steps:
       - uses: actions/checkout@v4
-    
-      # Set GCC and Deployment Target for macOS 13
-      - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 13
-        if: matrix.os == 'macos-13'
-        run: |
-          echo "MACOSX_DEPLOYMENT_TARGET=13.6" >> $GITHUB_ENV
-
-      # Set GCC and Deployment Target for macOS 14
-      - name: Set GCC and MACOSX_DEPLOYMENT_TARGET for macOS 14
-        if: matrix.os == 'macos-14'
-        run: |
-          echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> $GITHUB_ENV
 
       - name: Install libomp for clang (macOS only)
         if: startsWith(matrix.os, 'macos')

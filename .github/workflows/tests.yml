@@ -23,17 +23,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install libomp and set compiler on macos-13
-        if: matrix.os == 'macos-13'
-        run: |
-          brew install libomp
-          echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
-          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
-
-      - name: Install libomp and set compiler on macos-14
-        if: matrix.os == 'macos-14'
+      - name: Install libomp and set compiler on macOS
+        if: startsWith(matrix.os, 'macos')
         run: |
           brew install libomp
           echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
@@ -58,5 +49,5 @@ jobs:
 
       - name: Run pytests
         run: |
-          pip install pytest
+          pip install pytest pytest-mock
           pytest -v tests/blender/. tests/dic/. tests/sensorsim
