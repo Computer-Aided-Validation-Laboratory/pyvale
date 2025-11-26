@@ -51,7 +51,7 @@ def load_field_files(fields_dir: Path,
                      header: int | None,
                      delimiter: str = ',',
                      frames: slice | None = None,
-                     threads_num: int | None = None,
+                     workers: int | None = None,
                      ) -> dict[str,np.ndarray]:
     """Loads a series of physics field files into a dictionary keyed by the
     field names given in the field slices with values that are numpy arrays.
@@ -126,10 +126,10 @@ def load_field_files(fields_dir: Path,
     # loop over all the others and load them
     data_files.pop(0)
 
-    if threads_num is not None:
-        assert threads_num > 0, "Number of threads must be greater than 0."
+    if workers is not None:
+        assert workers > 0, "Number of threads must be greater than 0."
 
-        with Pool(threads_num) as pool:
+        with Pool(workers) as pool:
             processes_with_id = []
 
             for ii,ff in enumerate(data_files):

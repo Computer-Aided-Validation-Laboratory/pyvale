@@ -181,7 +181,7 @@ class SimLoaderByField(IOutputLoader):
                     self._load_opts.node_field_header,
                     self._load_opts.delimiter,
                     load_config.time_inds,
-                    self._load_opts.threads_num,
+                    self._load_opts.workers,
                 )
 
                 node_vars.update(this_node_vars)

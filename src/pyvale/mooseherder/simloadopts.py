@@ -47,7 +47,7 @@ class SimLoadOpts:
     variables data files. Defaults to 0 which skips the first row as a header.
     """
 
-    threads_num: int | None = None
+    workers: int | None = None
     """Number of threads (i.e. multi-processing processes) to use when reading
     data files. Useful for reading many large data files in parallel. Defaults
     to None which is single threaded.

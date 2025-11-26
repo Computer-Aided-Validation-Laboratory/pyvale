@@ -171,7 +171,7 @@ class SimLoaderByTime(IOutputLoader):
                 self._load_opts.node_field_header,
                 self._load_opts.delimiter,
                 load_config.time_inds,
-                self._load_opts.threads_num
+                self._load_opts.workers
             )
 
             check_sim_data_consistency(sim_data)

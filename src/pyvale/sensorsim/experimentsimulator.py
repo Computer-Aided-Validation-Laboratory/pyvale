@@ -18,14 +18,19 @@ from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.exceptions import ExpSimError
 
 
+class EExpSimPara(enum.Enum):
+    ALL = enum.auto()
+    SPLIT = enum.auto()
+
 
 @dataclass(slots=True)
 class ExpSimOpts:
     reserved_sim_key: str = "sim_keys"
     store_truth: bool = False
     store_rand_errs: bool = False
-    store_sys_errs: bool = False  
-    threads_num: int | None = None
+    store_sys_errs: bool = False
+    workers: int | None = None
+    para: EExpSimPara = EExpSimPara.ALL
 
 
 class ExperimentSimulator:
@@ -142,31 +147,63 @@ class ExperimentSimulator:
 
         sim_items_with_inds = enumerate(self._sim_dict.items())
  
-        # 1) Parallelise over sim_data/sens_array, run N per worker
-        if self._exp_sim_opts.threads_num is not None:
-            assert load_opts.threads_num > 0, ("Number of threads must be"  
-                        + "greater than 0.")
+        # 1) para over sim_data/sens_array, run N per worker
+        if (self._exp_sim_opts.workers is not None and 
+            self._exp_sim_opts.para == EExpSimPara.ALL):
 
-            with Pool(load_opts.threads_num) as pool:
+            assert self._exp_sim_opts.workers > 0, ("Number of threads must"  
+                        + " be greater than 0.")
+
+            with Pool(self._exp_sim_opts.workers) as pool:
                 processes_with_id = []
                 for (sim_ind,(key_sim, sim_data)), (key_sens, sens_array) in (
                     product(sim_items_with_inds, self._sensor_arrays.items())
                 ):
-                    args = (sim_data,sens_array)
+                    args = (sim_data,sens_array,self._num_exp_per_sim)
                     process = pool.apply_async(_run_all_sims,args=args)
 
-                    proccesses_with_id.append({"process":process,
-                                               "sim_key":key_sim,
-                                               "sens_key":key_sens})
+                    processes_with_id.append({"process":process,
+                                              "sim_key":key_sim,
+                                              "sim_ind":sim_ind,  
+                                              "sens_key":key_sens})
                 for pp in processes_with_id:
                     # shape=(n_exps,n_sens,n_comps,n_time_steps)
                     sim_exps = pp["process"].get()
-                    
-                    self._exp_data[pp["sens_key"]][sim_ind,:,:,:,:] = sim_exp
-
-                # shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)
+                    sim_ind = pp["sim_ind"]                    
+                    # shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)
+                    self._exp_data[pp["sens_key"]][sim_ind,:,:,:,:] = sim_exps
                                     
-        # 2) Parallelise over all sim_data/sens_array/Nsims
+        # 2) para over all sim_data/sens_array/Nsims
+        elif (self._exp_sim_opts.workers is not None and 
+              self._exp_sim_opts.para == EExpSimPara.SPLIT):
+
+            assert self._exp_sim_opts.workers > 0, ("Number of threads must"  
+                                           + " be greater than 0.")
+                   
+            with Pool(self._exp_sim_opts.workers) as pool:
+                processes_with_id = []
+                for (sim_ind,(key_sim, sim_data)), (key_sens, sens_array) in (
+                   product(sim_items_with_inds, self._sensor_arrays.items())
+                ):
+                    for ee in range(self._num_exp_per_sim):
+                 
+                        args = (sim_data,sens_array)
+                        process = pool.apply_async(_run_one_sim,args=args)
+
+                        processes_with_id.append({"process":process,
+                                                 "sim_key":key_sim,
+                                                 "sim_ind":sim_ind,
+                                                 "sens_key":key_sens,
+                                                 "exp_ind":ee})
+
+                for pp in processes_with_id:
+                    # shape=(n_exps,n_sens,n_comps,n_time_steps)
+                    sim_exps = pp["process"].get()                    
+                    sim_i = pp["sim_ind"]
+                    exp_i = pp["exp_ind"]
+                    # shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)
+                    self._exp_data[pp["sens_key"]][sim_i,exp_i,:,:,:] = sim_exps
+                                                          
         else: # 3) Run everything sequentially
             for key_sens,sens_array in self._sensor_arrays.items():
 
@@ -220,7 +257,7 @@ def _run_all_sims(sim_data: mh.SimData,
 
     sens_array.get_field().set_sim_data(sim_data)
     
-    sim_experiments = np.zeros((num_exp)+sens_array.get_measurement_shape())
+    sim_experiments = np.zeros((num_exp,)+sens_array.get_measurement_shape())
 
     for ee in range(num_exp):
         sim_experiments[ee,:,:,:] = sens_array.sim_measurements() 

@@ -135,8 +135,8 @@ connect_pattern = f"hex20_connect*"
 # We can now create our loader and use it to load all the simulation data into
 # our `SimData` object which we can now use with the rest of the `pyvale` tools.
 
-threads_num: int | None = 2
-load_opts = mh.SimLoadOpts(threads_num=threads_num)
+workers: int | None = 2
+load_opts = mh.SimLoadOpts(workers=workers)
 
 sim_loader = mh.SimLoaderByTime(load_dir=output_path,
                                 coords_file=coords_file,
@@ -186,7 +186,7 @@ for ff in field_keys:
 # data into our `SimData` object is exactly the same as we did previously. 
 
 load_opts = mh.SimLoadOpts(node_field_header=None,
-                           threads_num=threads_num)
+                           workers=workers)
 
 sim_loader = mh.SimLoaderByField(load_dir=output_path,
                                  coords_file=coords_file,

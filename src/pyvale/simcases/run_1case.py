@@ -15,7 +15,7 @@ from pyvale.mooseherder import (MooseConfig,
 
 #===============================================================================
 # Change this to run a different case
-CASE_STR = 'case18_d'
+CASE_STR = 'case01'
 #===============================================================================
 
 CASE_FILES = (CASE_STR+'.geo',CASE_STR+'.i')

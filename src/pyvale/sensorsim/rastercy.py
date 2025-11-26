@@ -49,7 +49,7 @@ class RasterCY:
     @staticmethod
     def raster_static_mesh(cam_data: CameraData,
                            render_mesh: RenderMesh,
-                           threads_num: int | None = None,
+                           workers: int | None = None,
                            ) -> tuple[np.ndarray,np.ndarray,np.ndarray] | None:
 
         frames_num = render_mesh.fields_render.shape[1]
@@ -64,7 +64,7 @@ class RasterCY:
                             frames_num))
         elems_out = np.empty((frames_num,))
 
-        if threads_num is None:
+        if workers is None:
             for tt in range(frames_num):
                 (image_buffer,
                 depth_buffer,
@@ -79,9 +79,9 @@ class RasterCY:
                 elems_out[tt] = elems_in_image
 
         else:
-            assert threads_num > 0, "Number of threads must be greater than 0."
+            assert workers > 0, "Number of threads must be greater than 0."
 
-            with Pool(threads_num) as pool:
+            with Pool(workers) as pool:
                 processes_with_id = []
 
                 for tt in range(frames_num):
