@@ -1,4 +1,4 @@
-name: Install from source and linting
+name: Check Linting with pylint
 
 on:
   push:
