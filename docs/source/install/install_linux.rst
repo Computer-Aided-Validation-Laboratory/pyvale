@@ -17,14 +17,7 @@ Install python 3.11:
 
 .. code-block:: bash
 
-   sudo apt install python3.11
-   sudo apt install python3.11-dev
-
-Add ``venv`` to your python 3.11 install:
-
-.. code-block:: bash
-
-   sudo apt install python3.11-venv
+   sudo apt install python3.11 python3.11-dev python3.11-venv
 
 Check your python 3.11 install is working using the following command which should open an interactive python interpreter:
 
@@ -33,6 +26,13 @@ Check your python 3.11 install is working using the following command which shou
    python3.11
 
 If everything has worked you should see an interactive python console with Python 3.11.xx in the header. You can now exit the interpreter using ``quit()``.
+
+For the interactive ROI tool to work, there's a couple of system level libraries that are required:
+
+.. code-block:: bash
+
+   sudo apt install -y libegl1 libgl1 libxext6 libx11-6
+
 
 Virtual Environment
 ------------------------
