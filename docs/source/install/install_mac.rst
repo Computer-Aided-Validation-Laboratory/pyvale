@@ -88,13 +88,19 @@ You should see your virtual environment listed which you can select. Now when yo
 Installation from Source
 ------------------------
 This will only be needed if you want an editable installation of ``pyvale`` for most applications users will want to use the PyPI version above. 
-If you are installing from source you'll also need to install ``clang`` and
-``libomp``. To do this via homebrew type the following commands into your terminal:
+In addition to setting up a virtual environment as shown above, it's reccomended you install ``clang`` and ``libomp`` using the homebrew (`https://brew.sh/`_) package manager:
 
-.. code-block::
+.. code-block:: bash
 
    brew install clang
    brew install libomp
+
+You'll then need to ensure that we use the compilers installed from homebrew:
+
+.. code-block:: bash
+
+   export CC=/opt/homebrew/opt/llvm/bin/clang
+   export CXX=/opt/homebrew/opt/llvm/bin/clang++
 
 Clone ``pyvale`` to your local system using git along with submodules using:
 
