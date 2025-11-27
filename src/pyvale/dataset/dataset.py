@@ -373,7 +373,7 @@ def dic_plate_with_hole_def() -> Path:
 
 
 def dic_plate_rigid_ref() -> Path:
-    """Path to the reference image for the plate with hole example.
+    """Path to the reference image for the rigid deformation example.
     1040x1540 image in .tiff format.
 
     Parameters
@@ -391,22 +391,44 @@ def dic_plate_rigid_ref() -> Path:
 
 
 def dic_plate_rigid_def() -> Path:
-    """Path to the deformed images for the plate with hole example.
+    """Path to the rigid deformation example images.
     1040x1540 image in .tiff format.
 
     Returns
     -------
     Path
-        Path to the reference image (*.tiff).
+        Path to the deformation images (*.tiff).
     """
     return Path(files("pyvale.data")
-                .joinpath("plate_rigid_def*.tiff"))
+                .joinpath("plate_rigid_def0*.tiff"))
 
 
+def dic_plate_rigid_def_25px() -> Path:
+    """Path to the 25px rigid deformation image.
+    1040x1540 image in .tiff format.
+
+    Returns
+    -------
+    Path
+        Path to the 25 px deformed image (*.tiff).
+    """
+    return Path(files("pyvale.data").joinpath("plate_rigid_def_25px.tiff"))
+
+
+def dic_plate_rigid_def_50px() -> Path:
+    """Path to the 50px rigid deformation image.
+    1040x1540 image in .tiff format.
+
+    Returns
+    -------
+    Path
+        Path to the 50px deformed image (*.tiff).
+    """
+    return Path(files("pyvale.data").joinpath("plate_rigid_def_50px.tiff"))
 
 
 def dic_challenge_ref() -> Path:
-    """Path to the reference images for the 2D dic challenge.
+    """Path to the reference images for the 2D DIC challenge.
 
     Returns
     -------
@@ -418,12 +440,12 @@ def dic_challenge_ref() -> Path:
 
 
 def dic_challenge_def() -> Path:
-    """Path to the reference images for the 2D dic challenge.
+    """Path to the reference images for the 2D DIC challenge.
 
     Returns
     -------
     Path
-        Path to the reference image (*.tiff).
+        Path to the deformed image (*.tiff).
     """
     return Path(files("pyvale.data")
                 .joinpath("DIC_Challenge_Star_Noise_Def.tiff"))
