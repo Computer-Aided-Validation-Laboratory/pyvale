@@ -2,9 +2,9 @@ name: Run tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest] 
+        os: [ubuntu-latest, windows-latest, macos-15-intel, macos-15-latest]
 
     steps:
       - name: Checkout code
@@ -21,7 +21,16 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'  # or another version you need
+          python-version: '3.11'
+
+      - name: Install libomp and set compiler on macOS
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install libomp
+          echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
 
       - name: Install dependencies for ubuntu-latest
         if: matrix.os == 'ubuntu-latest'
@@ -40,5 +49,5 @@ jobs:
 
       - name: Run pytests
         run: |
-          pip install pytest
+          pip install pytest pytest-mock
           pytest -v tests/blender/. tests/dic/. tests/sensorsim
