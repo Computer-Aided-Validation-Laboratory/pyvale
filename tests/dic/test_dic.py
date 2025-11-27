@@ -12,174 +12,175 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 import numpy as np
 import pyvale.dic as dic
+import pyvale.dataset as pyv_data
+
 
 test_dir = os.path.dirname(__file__)
-ref_pattern = os.path.abspath(os.path.join(test_dir, "../../src/pyvale/data/plate_rigid_ref0000.tiff"))
-def_pattern = os.path.abspath(os.path.join(test_dir, "../../src/pyvale/data/plate_rigid_def0000.tiff"))
+
+ref_pattern = pyv_data.dic_plate_rigid_ref()
+def_pattern = pyv_data.dic_plate_rigid_def()
+def_pattern_25px = pyv_data.dic_plate_rigid_def_25px()
+def_pattern_50px = pyv_data.dic_plate_rigid_def_50px()
+def_large = [def_pattern_25px, def_pattern_50px]
+
 roi = dic.RegionOfInterest(ref_image=ref_pattern)
-roi.rect_region(x=200, y=200, size_x=100, size_y=100)
+roi.rect_region(x=200, y=200, size_x=200, size_y=200)
 
 
+
+true_file_00_5 = os.path.abspath(os.path.join(test_dir, "./reference/ref_00_50.csv"))
+true_file_01_0 = os.path.abspath(os.path.join(test_dir, "./reference/ref_01_00.csv"))
+true_file_25_0 = os.path.abspath(os.path.join(test_dir, "./reference/ref_25_00.csv"))
+true_file_50_0 = os.path.abspath(os.path.join(test_dir, "./reference/ref_50_00.csv"))
+
+true_00_5 = np.loadtxt(true_file_00_5, skiprows=1, delimiter=',')
+true_01_0 = np.loadtxt(true_file_01_0, skiprows=1, delimiter=',')
+true_25_0 = np.loadtxt(true_file_25_0, skiprows=1, delimiter=',')
+true_50_0 = np.loadtxt(true_file_50_0, skiprows=1, delimiter=',')
 
 def test_image_scan_znssd_affine():
     dic.calculate_2d(reference=ref_pattern,
-                               deformed=def_pattern,
-                               roi_mask=roi.mask,
-                               seed=[250,250],
-                               subset_size=31,
-                               subset_step=15,
-                               max_displacement=2,
-                               correlation_criteria="ZNSSD",
-                               interpolation_routine="BICUBIC",
-                               shape_function="AFFINE",
-                               method="IMAGE_SCAN",
-                               output_basepath=test_dir,
-                               output_prefix="test_image_scan_znssd_affine_")
+                     deformed=def_pattern,
+                     roi_mask=roi.mask,
+                     seed=[250,250],
+                     subset_size=31,
+                     subset_step=15,
+                     max_displacement=2,
+                     correlation_criteria="ZNSSD",
+                     interpolation_routine="BICUBIC",
+                     shape_function="AFFINE",
+                     method="IMAGE_SCAN",
+                     output_basepath=test_dir,
+                     output_prefix="test_image_scan_znssd_affine_")
 
-    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_image_scan_znssd_affine_plate_rigid.csv"))
-    test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_affine_plate_rigid_def0000.csv"))
+    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_affine_plate_rigid_def0000.csv"))
+    output_file_01_0 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_affine_plate_rigid_def0001.csv"))
+    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
+    output_data_01_0 = np.loadtxt(output_file_01_0, skiprows=1, delimiter=',')
 
+    np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
+                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
 
-    ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
-    test = np.loadtxt(test_file, skiprows=1, delimiter=',')
+    np.testing.assert_allclose(true_01_0[:, :7], output_data_01_0[:, :7], rtol=0.005, atol=1e-6,
+                               err_msg="Results from test Do not match ground truth displacement of 1.0px")
 
-    np.testing.assert_allclose(
-        ref[:, :7],
-        test[:, :7],
-        rtol=1e-8, atol=1e-6,
-        err_msg="First 7 columns of reference and test CSVs do not match."
-    )
-
-    os.remove(test_file)
+    os.remove(output_file_00_5)
+    os.remove(output_file_01_0)
 
 def test_image_scan_znssd_rigid():
     dic.calculate_2d(reference=ref_pattern,
-                               deformed=def_pattern,
-                               roi_mask=roi.mask,
-                               seed=[250,250],
-                               subset_size=31,
-                               subset_step=15,
-                               max_displacement=2,
-                               correlation_criteria="ZNSSD",
-                               interpolation_routine="BICUBIC",
-                               shape_function="RIGID",
-                               method="IMAGE_SCAN",
-                               output_basepath=test_dir,
-                               output_prefix="test_image_scan_znssd_rigid_")
+                     deformed=def_pattern,
+                     roi_mask=roi.mask,
+                     seed=[250,250],
+                     subset_size=31,
+                     subset_step=15,
+                     max_displacement=2,
+                     correlation_criteria="ZNSSD",
+                     interpolation_routine="BICUBIC",
+                     shape_function="RIGID",
+                     method="IMAGE_SCAN",
+                     output_basepath=test_dir,
+                     output_prefix="test_image_scan_znssd_rigid_")
 
-    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_image_scan_znssd_rigid_plate_rigid.csv"))
-    test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_rigid_plate_rigid_def0000.csv"))
+    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_rigid_plate_rigid_def0000.csv"))
+    output_file_01_0 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_rigid_plate_rigid_def0001.csv"))
+    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
+    output_data_01_0 = np.loadtxt(output_file_01_0, skiprows=1, delimiter=',')
 
+    np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
+                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
 
-    ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
-    test = np.loadtxt(test_file, skiprows=1, delimiter=',')
+    np.testing.assert_allclose(true_01_0[:, :7], output_data_01_0[:, :7], rtol=0.005, atol=1e-6,
+                               err_msg="Results from test Do not match ground truth displacement of 1.0px")
 
-    np.testing.assert_allclose(
-        ref[:, :7],
-        test[:, :7],
-        rtol=1e-8, atol=1e-6,
-        err_msg="First 7 columns of reference and test CSVs do not match."
-    )
-
-    os.remove(test_file)
+    os.remove(output_file_00_5)
+    os.remove(output_file_01_0)
 
 def test_image_scan_nssd_affine():
     dic.calculate_2d(reference=ref_pattern,
-                               deformed=def_pattern,
-                               roi_mask=roi.mask,
-                               seed=[250,250],
-                               subset_size=31,
-                               subset_step=15,
-                               max_displacement=2,
-                               correlation_criteria="NSSD",
-                               interpolation_routine="BICUBIC",
-                               shape_function="AFFINE",
-                               method="IMAGE_SCAN",
-                               output_basepath=test_dir,
-                               output_prefix="test_image_scan_nssd_affine_")
+                     deformed=def_pattern,
+                     roi_mask=roi.mask,
+                     seed=[250,250],
+                     subset_size=31,
+                     subset_step=15,
+                     max_displacement=2,
+                     correlation_criteria="NSSD",
+                     interpolation_routine="BICUBIC",
+                     shape_function="AFFINE",
+                     method="IMAGE_SCAN",
+                     output_basepath=test_dir,
+                     output_prefix="test_image_scan_nssd_affine_")
 
-    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_image_scan_nssd_affine_plate_rigid.csv"))
-    test_file = os.path.abspath(os.path.join(test_dir, "./test_image_scan_nssd_affine_plate_rigid_def0000.csv"))
+    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_nssd_affine_plate_rigid_def0000.csv"))
+    output_file_01_0 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_nssd_affine_plate_rigid_def0001.csv"))
+    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
+    output_data_01_0 = np.loadtxt(output_file_01_0, skiprows=1, delimiter=',')
 
+    np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
+                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
 
-    ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
-    test = np.loadtxt(test_file, skiprows=1, delimiter=',')
+    np.testing.assert_allclose(true_01_0[:, :7], output_data_01_0[:, :7], rtol=0.005, atol=1e-6,
+                               err_msg="Results from test Do not match ground truth displacement of 1.0px")
 
-    np.testing.assert_allclose(
-        ref[:, :7],
-        test[:, :7],
-        rtol=1e-8, atol=1e-6,
-        err_msg="First 7 columns of reference and test CSVs do not match."
-    )
-
-    os.remove(test_file)
+    os.remove(output_file_00_5)
+    os.remove(output_file_01_0)
 
 def test_rg_znssd_affine():
     dic.calculate_2d(reference=ref_pattern,
-                               deformed=def_pattern,
-                               roi_mask=roi.mask,
-                               seed=[250,250],
-                               subset_size=31,
-                               subset_step=15,
-                               max_displacement=2,
-                               correlation_criteria="ZNSSD",
-                               interpolation_routine="BICUBIC",
-                               shape_function="AFFINE",
-                               method="MULTIWINDOW_RG",
-                               output_basepath=test_dir,
-                               output_prefix="test_rg_znssd_affine_")
+                     deformed=def_pattern,
+                     roi_mask=roi.mask,
+                     seed=[250,250],
+                     subset_size=31,
+                     subset_step=15,
+                     max_displacement=2,
+                     correlation_criteria="ZNSSD",
+                     interpolation_routine="BICUBIC",
+                     shape_function="AFFINE",
+                     method="MULTIWINDOW_RG",
+                     output_basepath=test_dir,
+                     output_prefix="test_rg_znssd_affine_")
 
-    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_rg_znssd_affine_plate_rigid.csv"))
-    test_file = os.path.abspath(os.path.join(test_dir, "./test_rg_znssd_affine_plate_rigid_def0000.csv"))
+    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_rg_znssd_affine_plate_rigid_def0000.csv"))
+    output_file_01_0 = os.path.abspath(os.path.join(test_dir, "./test_rg_znssd_affine_plate_rigid_def0001.csv"))
+    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
+    output_data_01_0 = np.loadtxt(output_file_01_0, skiprows=1, delimiter=',')
 
-    ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
-    test = np.loadtxt(test_file, skiprows=1, delimiter=',')
+    np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
+                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
 
-    np.testing.assert_allclose(
-        ref[:, :7],
-        test[:, :7],
-        rtol=1e-8, atol=1e-6,
-        err_msg="First 7 columns of reference and test CSVs do not match."
-    )
+    np.testing.assert_allclose(true_01_0[:, :7], output_data_01_0[:, :7], rtol=0.005, atol=1e-6,
+                               err_msg="Results from test Do not match ground truth displacement of 1.0px")
 
+    os.remove(output_file_00_5)
+    os.remove(output_file_01_0)
 
-
-    # with open(ref_file) as f1, open(test_file) as f2:
-    #     assert list(f1) == list(f2)
-
-
-    os.remove(test_file)
-
-def test_fft_znssd_affine():
+def test_fft_large():
     dic.calculate_2d(reference=ref_pattern,
-                               deformed=def_pattern,
-                               roi_mask=roi.mask,
-                               seed=[250,250],
-                               subset_size=31,
-                               subset_step=15,
-                               max_displacement=2,
-                               correlation_criteria="ZNSSD",
-                               interpolation_routine="BICUBIC",
-                               shape_function="AFFINE",
-                               method="MULTIWINDOW",
-                               output_basepath=test_dir,
-                               output_prefix="test_fft_znssd_affine_")
-    
-    ref_file = os.path.abspath(os.path.join(test_dir, "./reference/ref_fft_znssd_affine_plate_rigid.csv"))
-    test_file = os.path.abspath(os.path.join(test_dir, "./test_fft_znssd_affine_plate_rigid_def0000.csv"))
+                     deformed=def_large,
+                     roi_mask=roi.mask,
+                     seed=[250,250],
+                     subset_size=31,
+                     subset_step=15,
+                     max_displacement=100,
+                     correlation_criteria="ZNSSD",
+                     interpolation_routine="BICUBIC",
+                     shape_function="RIGID",
+                     method="MULTIWINDOW",
+                     output_basepath=test_dir,
+                     output_prefix="test_fft_")
 
+    output_file_25_0 = os.path.abspath(os.path.join(test_dir, "./test_fft_plate_rigid_def_25px.csv"))
+    output_file_50_0 = os.path.abspath(os.path.join(test_dir, "./test_fft_plate_rigid_def_50px.csv"))
+    output_data_25_0 = np.loadtxt(output_file_25_0, skiprows=1, delimiter=',')
+    output_data_50_0 = np.loadtxt(output_file_50_0, skiprows=1, delimiter=',')
 
-    ref   = np.loadtxt(ref_file, skiprows=1, delimiter=',')
-    test = np.loadtxt(test_file, skiprows=1, delimiter=',')
+    np.testing.assert_allclose(true_25_0[:, :6], output_data_25_0[:, :6], rtol=0.01, atol=1e-6,
+                               err_msg="Results from test Do not match ground truth displacement of 25px")
 
-    np.testing.assert_allclose(
-        ref[:, :7],
-        test[:, :7],
-        rtol=1e-8, atol=1e-6,
-        err_msg="First 7 columns of reference and test CSVs do not match."
-    )
+    np.testing.assert_allclose(true_50_0[:, :6], output_data_50_0[:, :6], rtol=0.01, atol=1e-6,
+                               err_msg="Results from test Do not match ground truth displacement of 50px")
 
-
-    os.remove(test_file)
+    os.remove(output_file_25_0)
+    os.remove(output_file_50_0)
 
 
