@@ -31,7 +31,7 @@ jobs:
           echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
           echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
           echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
-	  echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
+	        echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
 
 
 
