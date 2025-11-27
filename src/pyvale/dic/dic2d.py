@@ -16,7 +16,7 @@ import pyvale.common_py.util as common_py_util
 import pyvale.common_cpp.common_cpp as common_cpp
 
 def calculate_2d(reference: np.ndarray | str | Path,
-                 deformed: np.ndarray | str | Path,
+                 deformed: np.ndarray | str | Path | list[Path],
                  roi_mask: np.ndarray,
                  seed: list[int] | list[np.int32] | np.ndarray,
                  subset_size: int = 21,
@@ -53,7 +53,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     ----------
     reference : np.ndarray, str or pathlib.Path
         The reference image (2D array) or path to the image file.
-    deformed : np.ndarray, str or pathlib.Path
+    deformed : np.ndarray, str , pathlib.Path or list[pathlib.Path]
         The deformed image(s) (3D array for multiple images) or path/pattern to image files.
     roi_mask : np.ndarray
         A binary mask indicating the Region of Interest (ROI) for analysis (same size as image).

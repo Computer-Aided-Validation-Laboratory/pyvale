@@ -280,7 +280,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
 
 
 def check_and_get_images(reference: np.ndarray | str | Path,
-                         deformed: np.ndarray | str | Path,
+                         deformed: np.ndarray | str | Path | list[Path],
                          roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """
     Load and validate reference and deformed images, checks consistency in shape/format.
@@ -300,7 +300,7 @@ def check_and_get_images(reference: np.ndarray | str | Path,
     ----------
     reference : np.ndarray, str, pathlib.Path
         Either a NumPy array representing the reference image, or a file path to a reference image.
-    deformed : np.ndarray, str, pathlib.Path
+    deformed : np.ndarray, str, pathlib.Path, list[pathlib.Path]
         Either a NumPy array representing a sequence of deformed images (shape: [N, H, W]),
         or a glob pattern string pointing to multiple image files.
     roi : np.ndarray
@@ -326,7 +326,6 @@ def check_and_get_images(reference: np.ndarray | str | Path,
 
     filenames = []
 
-
     # Normalize Path or str to Path
     if isinstance(reference, (str, Path)):
         reference = Path(reference)
@@ -334,15 +333,22 @@ def check_and_get_images(reference: np.ndarray | str | Path,
         deformed = Path(deformed)
 
     # check matching filetypes 
-    if type(reference) is not type(deformed):
-        raise ValueError(
-            f"Mismatch in file types: reference={type(reference)}, "
-            f"deformed={type(deformed)}")
+    if isinstance(reference, np.ndarray):
+        # both must be arrays
+        if not isinstance(deformed, np.ndarray):
+            raise ValueError(f"Mismatch: reference is array but deformed is {type(deformed)}")
 
+    elif isinstance(reference, Path):
+        # deformed must be Path (glob pattern) OR list[Path]
+        if not (isinstance(deformed, Path) or (isinstance(deformed, list) and all(isinstance(p, Path) for p in deformed))):
+            raise ValueError(f"Invalid deformed type for file-based input: {type(deformed)}")
+
+    else:
+        raise ValueError(f"Unsupported reference type: {type(reference)}")
 
     # File-based input
     if isinstance(reference, Path):
-        assert isinstance(deformed, Path)
+        assert isinstance(reference, Path)
 
         if not reference.is_file():
             raise ValueError(f"Reference image does not exist: {reference}")
@@ -359,8 +365,11 @@ def check_and_get_images(reference: np.ndarray | str | Path,
 
         filenames.append(os.path.basename(reference))
 
-        # Find deformation image files
-        files = sorted(glob.glob(str(deformed)))
+        if isinstance(deformed, Path):
+            files = sorted(glob.glob(str(deformed)))
+        else:
+            files = [str(p) for p in deformed]
+
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
