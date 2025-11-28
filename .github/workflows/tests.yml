@@ -59,8 +59,8 @@ jobs:
           pip install pytest pytest-mock
           pytest -v tests/dic/. tests/sensorsim/.
 
-      - name: Run blender tests (if not on ARM64)
-        if: !contains(matrix.os, 'macos') || contains(matrix.os, 'intel')
+      - name: Run blender tests (skip macOS ARM)
+        if: ${{ !contains(matrix.os, 'macos') || !contains(matrix.os, 'arm') }}
         run: |
           pip install pytest pytest-mock
           pytest -v tests/blender/.
