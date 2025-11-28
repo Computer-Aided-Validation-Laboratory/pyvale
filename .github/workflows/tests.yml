@@ -54,7 +54,13 @@ jobs:
         run: |
           python -c "import pyvale"
 
-      - name: Run pytests
+      - name: Run all pytests (full)
         run: |
           pip install pytest pytest-mock
           pytest -v tests/blender/. tests/dic/. tests/sensorsim
+
+      - name: Run pytests minus blender (ARM)
+        if: contains(matrix.os, 'macos') && !contains(matrix.os, 'intel')
+        run: |
+          pip install pytest pytest-mock
+          pytest -v tests/dic/. tests/sensorsim
