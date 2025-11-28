@@ -13,7 +13,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-15-latest]
-
+        include:
+          - os: macos-14
+            llvm: llvm@15
+          - os: macos-15-intel
+            llvm: llvm@18
+          - os: macos-15-latest
+            llvm: llvm@18
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -27,8 +33,8 @@ jobs:
         if: startsWith(matrix.os, 'macos')
         run: |
           brew install libomp
-          echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+          echo "CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++" >> $GITHUB_ENV
           echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
           echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
           echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
@@ -48,7 +54,13 @@ jobs:
         run: |
           python -c "import pyvale"
 
-      - name: Run pytests
+      - name: Run sensorsim and DIC tests
         run: |
           pip install pytest pytest-mock
-          pytest -v tests/blender/. tests/dic/. tests/sensorsim
+          pytest -v tests/dic/. tests/sensorsim/.
+
+      - name: Run blender tests (skip macOS ARM)
+        if: ${{ !startsWith(matrix.os, 'macos') || contains(matrix.os, 'intel') }}
+        run: |
+          pip install pytest pytest-mock
+          pytest -v tests/blender/.
