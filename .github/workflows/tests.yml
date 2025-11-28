@@ -57,10 +57,10 @@ jobs:
       - name: Run sensorsim and DIC tests
         run: |
           pip install pytest pytest-mock
-          pytest -v tests/dic/. tests/sensorsim
+          pytest -v tests/dic/. tests/sensorsim/.
 
       - name: Run blender tests (if not on ARM64)
-        if: contains(matrix.os, 'macos') && !contains(matrix.os, 'intel')
+        if: !contains(matrix.os, 'macos') || contains(matrix.os, 'intel')
         run: |
           pip install pytest pytest-mock
-          pytest -v tests/dic/. tests/sensorsim
+          pytest -v tests/blender/.
