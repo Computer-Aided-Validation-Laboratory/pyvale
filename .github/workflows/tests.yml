@@ -60,7 +60,7 @@ jobs:
           pytest -v tests/dic/. tests/sensorsim/.
 
       - name: Run blender tests (skip macOS ARM)
-        if: ${{ !contains(matrix.os, 'macos') || !contains(matrix.os, 'arm') }}
+        if: ${{ !startsWith(matrix.os, 'macos') || contains(matrix.os, 'intel') }}
         run: |
           pip install pytest pytest-mock
           pytest -v tests/blender/.
