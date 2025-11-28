@@ -185,7 +185,7 @@ exp_sim = sens.ExperimentSimulator(sim_data_dict,
                                    sensor_array_dict)
 
 exp_data: dict[str,np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
-exp_stats: dict[str,sens.ExperimentStats] = sens.calc_exp_sim_stats(exp_data)
+exp_stats: dict[str,sens.ExpSimStats] = sens.calc_exp_sim_stats(exp_data)
 
 #%%
 # 4. Analyse & visualise the results
@@ -195,11 +195,11 @@ exp_stats: dict[str,sens.ExperimentStats] = sens.calc_exp_sim_stats(exp_data)
 # the data you want. We first print the simulation keys member in our dictionary
 # which corresponds to the names we gave our simulations previously. This is
 # useful to later identify which simulation corresponds to which index of the
-# first axis of the experiment simulation data array for each sensor. 
+# first axis of the experiment simulation data array for each sensor.
 #
-# We then inspect the simulated data output for each of our virtual sensor 
+# We then inspect the simulated data output for each of our virtual sensor
 # arrays showing the shapes of the raw data arrays and the calculated simulation
-# statistics. Noting that our scalar field sensor has a differen number of 
+# statistics. Noting that our scalar field sensor has a differen number of
 # component dimensions to our mechanical field sensor.
 
 print(80*"=")
@@ -237,7 +237,7 @@ print(80*"=")
 #%%
 # We can save the output experiment simulation data dicitionary to disk and load
 # it using the `save_exp_sim_data` and `load_exp_sim_data` functions. First,
-# we create the standard pyvale output directory in your current working 
+# we create the standard pyvale output directory in your current working
 # directory so we can save our data there.
 
 output_path: Path = Path.cwd() / "pyvale-output"
@@ -311,7 +311,7 @@ save_fig: Path = output_path/"basics_ex3_traces_temp.png"
 fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 
 # %%
-# Virtual temperature sensor traces over all simulated experiments for the 
+# Virtual temperature sensor traces over all simulated experiments for the
 # nominal input simulation:
 #
 # .. image:: ../../../../_static/basics_ex3_traces_temp.png

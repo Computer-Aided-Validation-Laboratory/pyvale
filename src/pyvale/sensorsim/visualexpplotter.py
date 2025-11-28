@@ -11,55 +11,29 @@ statistics and uncertainty bounds over simulated experiments.
 
 from typing import Any
 import numpy as np
+import matplotlib.figure as mpf
+import matplotlib.axes._axes as mpa
 import matplotlib.pyplot as plt
 from pyvale.sensorsim.exceptions import VisError
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
-                               TraceOptsExperiment,
-                               EExpVisBounds,
-                               EExpVisCentre)
-from pyvale.sensorsim.experimentsimulator import ExperimentSimulator
+                                         TraceOptsExperiment,
+                                         EExpVisBounds,
+                                         EExpVisCentre)
+from pyvale.sensorsim.sensordescriptor import SensorDescriptor
+from pyvale.sensorsim.experimentsimulator import (ExperimentSimulator,
+                                                  ExpSimKeys)
 from pyvale.sensorsim.experimentstats import calc_sensor_array_stats
 
-#TODO: update docstrings
-def plot_exp_traces(exp_sim: ExperimentSimulator,
-                    comp_key: str,
-                    sens_array_key: str,
+
+def plot_exp_traces(exp_data: dict[tuple[str,...],np.ndarray],
+                    comp_ind: int,
+                    sens_key: str,
                     sim_key: str,
+                    descriptor: SensorDescriptor,
                     trace_opts: TraceOptsExperiment | None = None,
-                    plot_opts: PlotOptsGeneral | None = None) -> tuple[Any,Any]:
-    """_summary_
-
-    Parameters
-    ----------
-    exp_sim : ExperimentSimulator
-        Experiment simulation object containing the set of virtual experiment to
-        be plotted.
-    comp_key : str
-        _description_
-    sens_array_key : str
-        _description_
-    sim_key : str
-        _description_
-    trace_opts : TraceOptsExperiment | None, optional
-        Dataclass containing specific options for controlling the plot
-        appearance, by default None. If None the default options are used.
-    plot_opts : PlotOptsGeneral | None, optional
-        Dataclass containing general options for formatting plots and
-        visualisations, by default None. If None the default options are used.
-
-    Returns
-    -------
-    tuple[Any,Any]
-        A tuple containing a handle to the matplotlib figure and axis objects:
-        (fig,ax).
-
-
-    Raises
-    ------
-    VisError
-        There are no virtual experiments or virtual experiment stats to plot in
-        the ExperimentSimulator object.
-    """
+                    plot_opts: PlotOptsGeneral | None = None,
+                    exp_sim_keys: ExpSimKeys | None = None,  
+                    ) -> tuple[mpf.Figure,mpa.Axes]:
 
     if trace_opts is None:
         trace_opts = TraceOptsExperiment()
@@ -67,25 +41,19 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
 
-    sensor_array = exp_sim.get_sensor_array_dict()[sens_array_key]
-    sim_dict = exp_sim.get_sim_dict()
-    sim_num = list(sim_dict.keys()).index(sim_key)
-    sim_data = sim_dict[sim_key]
-    field = sensor_array.get_field()
-    field.set_sim_data(sim_data)
+    if exp_sim_keys is None:
+        exp_sim_keys = ExpSimKeys()
 
-    descriptor = sensor_array.get_descriptor()
+    meas_key = (sim_key,sens_key,exp_sim_keys.meas)
+    sys_key = (sim_key,sens_key,exp_sim_keys.sys)
+    rand_key = (sim_key,sens_key,exp_sim_keys.rand)
+    time_key = (sim_key,sens_key,exp_sim_keys.time)
+    
+    exp_arr = exp_data[meas_key] 
+    samp_time = exp_data[time_key]
 
-    comp_ind = field.get_component_index(comp_key)
-
-    samp_time = sensor_array.get_sample_times()
-    num_sens = sensor_array.get_measurement_shape()[0]
-
-    exp_data = exp_sim.get_exp_sim_data()
-
-    if exp_data is None:
-        raise VisError("Before visualising virtual experiment traces the " \
-        "virtual experiments must be run. exp_data is None.")
+    num_exp_per_sim = exp_arr.shape[0]
+    num_sens = exp_arr.shape[1] 
 
     if trace_opts.sensors_to_plot is None:
         sensors_to_plot = range(num_sens)
@@ -94,7 +62,7 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
 
     #---------------------------------------------------------------------------
     # Figure canvas setup
-    fig, ax = plt.subplots(figsize=plot_opts.single_fig_size_landscape,
+    (fig, ax) = plt.subplots(figsize=plot_opts.single_fig_size_landscape,
                            layout='constrained')
     fig.set_dpi(plot_opts.resolution)
 
@@ -102,9 +70,9 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     # Plot all simulated experimental points
     if trace_opts.plot_all_exp_points:
         for ss in sensors_to_plot:
-            for ee in range(exp_sim._num_exp_per_sim):
+            for ee in range(num_exp_per_sim):
                 ax.plot(samp_time,
-                        exp_data[sens_array_key][sim_num,ee,ss,comp_ind,:],
+                        exp_data_arr[ee,ss,comp_ind,:],
                         "+",
                         lw=plot_opts.lw,
                         ms=plot_opts.ms,
@@ -114,13 +82,13 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     lines = []
 
     # TODO: limit this to only calculate what we need for the fill and centre
-    exp_stats = calc_sensor_array_stats(exp_data[sens_array_key])
+    exp_stats = calc_sensor_array_stats(exp_arr)
 
     for ss in sensors_to_plot:
         if trace_opts.centre == EExpVisCentre.MEDIAN:
-            trace_centre = exp_stats.med[sim_num,ss,comp_ind,:]
+            trace_centre = exp_stats.med[ss,comp_ind,:]
         else:
-            trace_centre = exp_stats.mean[sim_num,ss,comp_ind,:]
+            trace_centre = exp_stats.mean[ss,comp_ind,:]
 
         line, = ax.plot(samp_time,
                 trace_centre,
@@ -150,27 +118,16 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
                         trace_opts.fill_scale*exp_stats.mad
 
             ax.fill_between(samp_time,
-                upper[sim_num,ss,comp_ind,:],
-                lower[sim_num,ss,comp_ind,:],
+                upper[ss,comp_ind,:],
+                lower[ss,comp_ind,:],
                 color=plot_opts.colors[ss % plot_opts.colors_num],
                 alpha=0.2)
 
     #---------------------------------------------------------------------------
     # Plot simulation and truth line
-    if trace_opts.sim_line is not None:
-        sim_time = field.get_time_steps()
-        sens_pos = sensor_array._sensor_data.positions
-        sim_vals = field.sample_field(sens_pos)
-
-        for ss in sensors_to_plot:
-            ax.plot(sim_time,
-                    sim_vals[ss,comp_ind,:],
-                    trace_opts.sim_line,
-                    lw=plot_opts.lw,
-                    ms=plot_opts.ms)
-
     if trace_opts.truth_line is not None:
-        truth = sensor_array.calc_truth()
+        truth = exp_data[meas_key] - exp_data[sys_key] - exp_data[rand_key]
+        truth = truth[0,:,:,:]
         for ss in sensors_to_plot:
             ax.plot(samp_time,
                     truth[ss,comp_ind,:],
@@ -200,3 +157,56 @@ def plot_exp_traces(exp_sim: ExperimentSimulator,
     plt.draw()
 
     return (fig,ax)
+
+
+def plot_exp_traces_from_sim(exp_sim: ExperimentSimulator,
+                             comp_key: str,
+                             sens_key: str,
+                             sim_key: str,
+                             trace_opts: TraceOptsExperiment | None = None,
+                             plot_opts: PlotOptsGeneral | None = None
+                             ) -> tuple[mpf.Figure,mpa.Axes]:
+    """Plots simulated experiment sensor traces including uncertainty bounds. 
+
+    Parameters
+    ----------
+    exp_sim : ExperimentSimulator
+        Experiment simulation object containing the set of virtual experiment to
+        be plotted.
+    comp_key : str
+        String key for component of the measurement array to plot.
+    sens_key : str
+        String key for the sensor array in the simulated experimental data. 
+    sim_key : str
+        String key for the simulation in the simulation data dictionary.
+    trace_opts : TraceOptsExperiment | None, optional
+        Dataclass containing specific options for controlling the plot
+        appearance, by default None. If None the default options are used.
+    plot_opts : PlotOptsGeneral | None, optional
+        Dataclass containing general options for formatting plots and
+        visualisations, by default None. If None the default options are used.
+
+    Returns
+    -------
+    tuple[Any,Any]
+        A tuple containing a handle to the matplotlib figure and axis objects:
+        (fig,ax).
+    """
+
+    exp_data = exp_sim.get_exp_sim_data() 
+    comp_ind = (
+        exp_sim.get_sensor_array_dict()[sens_key]
+        .get_field()
+        .get_component_index(comp_key)
+    )
+    descriptor = exp_sim.get_sensor_array_dict()[sens_key].get_descriptor()
+    exp_sim_keys = exp_sim.get_exp_sim_keys()
+
+    return plot_exp_traces(exp_data,
+                           comp_ind,
+                           sens_key,
+                           sim_key,
+                           descriptor,
+                           trace_opts,
+                           plot_opts,
+                           exp_sim_keys)

@@ -79,6 +79,12 @@ class IErrSimulator(ABC):
         """
 
     @abstractmethod
+    def reseed(self,seed: int | None = None) -> None:
+        """
+        """
+        
+    
+    @abstractmethod
     def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,

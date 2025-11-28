@@ -177,6 +177,19 @@ class ErrSysField(IErrSimulator):
 
         return self._sensor_data_perturbed
 
+    def reseed(self, seed: int | None = None) -> None:
+
+        for rr in self._field_err_data.pos_rand_xyz:
+            if rr is not None:
+                rr.reseed(seed)
+
+        for rr in self._field_err_data.ang_rang_zyx:
+            if rr is not None:
+                rr.reseed(seed)
+
+        if self._field_err_data.time_rand is not None:
+            self._field_err_data.time_rand.reseed()        
+
     def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,

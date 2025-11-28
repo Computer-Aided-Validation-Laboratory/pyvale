@@ -490,6 +490,9 @@ class ErrRandGen(IErrSimulator):
         """
         return EErrType.RANDOM
 
+    def reseed(self, seed: int | None = None) -> None:
+        self._generator.reseed()
+
     def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
@@ -579,6 +582,9 @@ class ErrRandGenPercent(IErrSimulator):
             Enumeration definining RANDOM or SYSTEMATIC error types.
         """
         return EErrType.RANDOM
+
+    def reseed(self, seed: int | None = None) -> None:
+        self._generator.reseed()
 
     def sim_errs(self,
                   err_basis: np.ndarray,

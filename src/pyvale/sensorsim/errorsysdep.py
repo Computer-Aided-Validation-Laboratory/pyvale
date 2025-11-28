@@ -105,6 +105,9 @@ class ErrSysRoundOff(IErrSimulator):
         """
         return EErrType.SYSTEMATIC
 
+    def reseed(self, seed: int | None = None) -> None:
+        pass
+
     def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
@@ -192,6 +195,9 @@ class ErrSysDigitisation(IErrSimulator):
             Enumeration definining RANDOM or SYSTEMATIC error types.
         """
         return EErrType.SYSTEMATIC
+
+    def reseed(self, seed: int | None = None) -> None:
+        pass
 
     def sim_errs(self,
                   err_basis: np.ndarray,
@@ -295,6 +301,9 @@ class ErrSysSaturation(IErrSimulator):
         """
         return EErrType.SYSTEMATIC
 
+    def reseed(self, seed: int | None = None) -> None:
+        pass
+
     def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
@@ -321,7 +330,3 @@ class ErrSysSaturation(IErrSimulator):
         saturated[saturated < self._min] = self._min
 
         return (saturated - err_basis,sens_data)
-
-
-
-

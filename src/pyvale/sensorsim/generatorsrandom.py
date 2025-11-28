@@ -17,6 +17,10 @@ class IGenRandom(ABC):
     """
 
     @abstractmethod
+    def reseed(self, seed: int | None = None) -> None:
+        pass
+
+    @abstractmethod
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
         """Abstract method. Generates an array of random numbers with the shape
         specified by the input.
@@ -59,6 +63,9 @@ class GenNormal(IGenRandom):
         """
         self._std =std
         self._mean = mean
+        self._rng = np.random.default_rng(seed)
+
+    def reseed(self, seed: int | None = None) -> None:
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
@@ -107,6 +114,9 @@ class GenLogNormal(IGenRandom):
         self._mean = mean
         self._rng = np.random.default_rng(seed)
 
+    def reseed(self, seed: int | None = None) -> None:
+        self._rng = np.random.default_rng(seed)
+
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
         """Generates an array of random numbers with the shape specified by the
         input.
@@ -152,6 +162,9 @@ class GenUniform(IGenRandom):
         self._high = high
         self._rng = np.random.default_rng(seed)
 
+    def reseed(self, seed: int | None = None) -> None:
+        self._rng = np.random.default_rng(seed)
+
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
         """Generates an array of random numbers with the shape specified by the
         input.
@@ -191,6 +204,9 @@ class GenExponential(IGenRandom):
             and testing, by default None
         """
         self._scale = np.abs(scale)
+        self._rng = np.random.default_rng(seed)
+
+    def reseed(self, seed: int | None = None) -> None:
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
@@ -233,6 +249,9 @@ class GenChiSquare(IGenRandom):
         self._dofs = np.abs(dofs)
         self._rng = np.random.default_rng(seed)
 
+    def reseed(self, seed: int | None = None) -> None:
+        self._rng = np.random.default_rng(seed)
+
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
         """Generates an array of random numbers with the shape specified by the
         input.
@@ -272,6 +291,9 @@ class GenDirichlet(IGenRandom):
         self._alpha = alpha
         self._rng = np.random.default_rng(seed)
 
+    def reseed(self, seed: int | None = None) -> None:
+        self._rng = np.random.default_rng(seed)
+
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
         """Generates an array of random numbers with the shape specified by the
         input.
@@ -309,6 +331,9 @@ class GenF(IGenRandom):
             and testing, by default None
         """
         self._dofs = np.abs(dofs)
+        self._rng = np.random.default_rng(seed)
+
+    def reseed(self, seed: int | None = None) -> None:
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
@@ -354,6 +379,9 @@ class GenGamma(IGenRandom):
         self._scale = np.abs(scale)
         self._rng = np.random.default_rng(seed)
 
+    def reseed(self, seed: int | None = None) -> None:
+        self._rng = np.random.default_rng(seed)
+
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
         """Generates an array of random numbers with the shape specified by the
         input.
@@ -392,6 +420,9 @@ class GenStandardT(IGenRandom):
             and testing, by default None
         """
         self._dofs = np.abs(dofs)
+        self._rng = np.random.default_rng(seed)
+
+    def reseed(self, seed: int | None = None) -> None:
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
@@ -435,6 +466,9 @@ class GenBeta(IGenRandom):
         """
         self._a = np.abs(a)
         self._b = np.abs(b)
+        self._rng = np.random.default_rng(seed)
+
+    def reseed(self, seed: int | None = None) -> None:
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
@@ -484,6 +518,9 @@ class GenTriangular(IGenRandom):
         self._mode = mode
         self._right = right
 
+        self._rng = np.random.default_rng(seed)
+
+    def reseed(self, seed: int | None = None) -> None:
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:

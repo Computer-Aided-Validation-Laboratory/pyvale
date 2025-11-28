@@ -159,16 +159,20 @@ sensor_arrays: dict[str,sens.ISensorArray] = {
     "disp": disp_sens,
 }
 
-exp_sim_opts = sens.ExpSimOpts(workers=4,
-                               para=sens.EExpSimPara.ALL)
+exp_sim_opts = sens.ExpSimOpts(workers=8,
+                               para=sens.EExpSimPara.SPLIT)
 exp_sim = sens.ExperimentSimulator(sim_data_dict,sensor_arrays,exp_sim_opts)
 
 start_exp: float = time.perf_counter()
-exp_data: dict[str,np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=1000)
+exp_data: dict[tuple[str,...],np.ndarray] = (
+    exp_sim.run_experiments(num_exp_per_sim=1000)
+)
 exp_time: float = time.perf_counter() - start_exp
 
 start_stats: float = time.perf_counter()
-exp_stats: dict[str,sens.ExperimentStats] = sens.calc_exp_sim_stats(exp_data)
+exp_stats: dict[tuple[str,...],sens.ExpSimStats] = (
+    sens.calc_exp_sim_stats(exp_data)
+)
 stats_time: float = time.perf_counter() - start_stats
 
 print(80*"=")
@@ -180,29 +184,36 @@ print(f"Stats. calc. time = {stats_time:.3f} seconds\n")
 # ----------------------------------
 
 print(80*"=")
-print("Simulation keys corresponding to the first axis:")
-print(f"{exp_data['sim_keys']=}")
+print("Keys in the simulated experimental data dictionary:")
+for kk in exp_data:
+    print(kk)
 print()
 print(80*"-")
-print("Thermal sensor array @ exp_data['temp']")
+print("Thermal sensor array @ exp_data[('sim_nominal','temp','meas')]")
 print(80*"-")
-print("shape=(n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data['temp'].shape=}")
+print("shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
+print(f"{exp_data[('sim_nominal','temp','meas')].shape=}")
 print()
-print("Stats are calculated over all experiments (axis=1)")
-print("shape=(n_sims,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats['temp'].max.shape=}")
+print("Stats are calculated over all experiments (axis=0)")
+print("shape=(n_sensors,n_field_comps,n_time_steps)")
+print(f"{exp_stats[('sim_nominal','temp','meas')].max.shape=}")
 print()
 print(80*"-")
-print("Mechanical sensor array @ exp_data['disp']")
+print("Mechanical sensor array @ exp_data[('sim_nominal','disp','meas')]")
 print(80*"-")
-print("shape=(n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data['disp'].shape=}")
+print("shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
+print(f"{exp_data[('sim_nominal','disp','meas')].shape=}")
 print()
-print("shape=(n_sims,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats['disp'].max.shape=}")
+print("shape=(n_sensors,n_field_comps,n_time_steps)")
+print(f"{exp_stats[('sim_nominal','disp','meas')].max.shape=}")
 print(80*"=")
 
+print()
+print(f"{exp_data[('sim_nominal','disp','meas')][0,0,0,:]=}")
+print(f"{exp_data[('sim_nominal','disp','meas')][1,0,0,:]=}")
+print(f"{exp_data[('sim_nominal','disp','meas')][-1,0,0,:]=}")
+print()
+print(80*"=")
 # %%
 # .. image:: ../../../../_static/ext_ex5a_term_out.png
 #    :alt: Terminal output showing the simulated measurements
@@ -214,7 +225,9 @@ output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
+
 sens.save_exp_sim_data(output_path/"ex5a_exp_sim_data.npz",exp_data)
+exp_data = sens.load_exp_sim_data(output_path/"ex5a_exp_sim_data.npz")
 
 
 pv_plot = sens.plot_point_sensors_on_sim(temp_sens,"temperature")
@@ -257,10 +270,10 @@ else:
 #    :align: center
 
 for kk in sim_data_dict:
-    (fig,ax) = sens.plot_exp_traces(exp_sim,
-                                    comp_key="temperature",
-                                    sens_array_key="temp",
-                                    sim_key=kk)
+    (fig,ax) = sens.plot_exp_traces_from_sim(exp_sim,
+                                             comp_key="temperature",
+                                             sens_key="temp",
+                                             sim_key=kk)
 
     save_fig: Path = output_path/f"ext_ex5a_traces_{kk}_temp.png"
     fig.savefig(save_fig,dpi=300,bbox_inches="tight")
@@ -282,13 +295,17 @@ for kk in sim_data_dict:
 
 
 for key_sim in sim_data_dict:
-    for key_disp in disp_keys:
-        (fig,ax) = sens.plot_exp_traces(exp_sim,
-                                        comp_key=key_disp,
-                                        sens_array_key="disp",
-                                        sim_key=key_sim)
-
-        save_fig: Path = output_path/f"ext_ex5a_traces_{key_sim}_{key_disp}.png"
+    for ii,key_disp in enumerate(disp_keys):
+        (fig,ax) = sens.plot_exp_traces(
+            exp_data,
+            comp_ind=ii,
+            sens_key="disp",
+            sim_key=key_sim,
+            descriptor=sens.DescriptorFactory.displacement(),
+        )
+        
+        save_fig: Path = (output_path
+            /f"ext_ex5a_traces_{key_sim}_{key_disp}.png")
         fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 
 # %%
@@ -307,4 +324,4 @@ for key_sim in sim_data_dict:
 #    :align: center
 
 # Uncomment this to display the sensor trace plot
-# plt.show()
+plt.show()

@@ -218,22 +218,6 @@ class SensorArrayPoint(ISensorArray):
                                                self.get_measurement_shape(),
                                                err_int_opts)
 
-#     def get_sensor_data_perturbed(self) -> SensorData | None:
-#         """Gets the final sensor array parameters after all errors in the error
-#         integrator have been applied. If no error integrator is specified then
-#         None is returned.
-# 
-#         Returns
-#         -------
-#         SensorData | None
-#             The accumulated sensor array parameters as a SensorData object.
-#             Returns None if no error chain has been specified.
-#         """
-#         if self._error_integrator is None:
-#             return None
-# 
-#         return self._error_integrator.get_sens_data_accumulated()
-
     def get_errors_systematic(self) -> np.ndarray | None:
         """Gets the systematic error array from the previously calculated sensor
         measurements. Returns None is no error integrator has been specified.

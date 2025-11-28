@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 
 @dataclass(slots=True)
-class ExperimentStats:
+class ExpSimStats:
     """Dataclass holding summary statistics for a series of simulated
     experiments produced using the experiment simulator. All summary statistics
     are calculated over the 'experiments' dimension of the measurements array so
@@ -64,7 +64,7 @@ class ExperimentStats:
 
 
 def calc_exp_sim_stats(exp_data: dict[str,np.ndarray]
-                          ) -> dict[str,ExperimentStats]:
+                          ) -> dict[str,ExpSimStats]:
     """Calculates summary statistics over all virtual experiments for all
     virtual sensor arrays.
 
@@ -75,10 +75,8 @@ def calc_exp_sim_stats(exp_data: dict[str,np.ndarray]
         experiments. The list index correponds to the virtual sensor array.
     """
 
-    # dict[str,shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
-    exp_stats: dict[str,ExperimentStats] = {
-       kk: ExperimentStats() for kk in exp_data
-    }
+    # dict[tuple[str,..],shape=(n_exps,n_sens,n_comps,n_time_steps)]
+    exp_stats: dict[tuple[str,...],ExpSimStats] = {}
 
     for kk,dd in exp_data.items():
         # f = float
@@ -90,11 +88,11 @@ def calc_exp_sim_stats(exp_data: dict[str,np.ndarray]
 
         # Implicitly remove anything that we don't expect: integers, objects etc
 
-    # dict[str,shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
+    # dict[tuple[str,..],shape=(n_exps,n_sens,n_comps,n_time_steps)]
     return exp_stats
 
 
-def calc_sensor_array_stats(exp_data: np.ndarray) -> ExperimentStats:
+def calc_sensor_array_stats(exp_data: np.ndarray) -> ExpSimStats:
     """Calculates summary statistics for a specific sensor array over all
     virual experiments.
 
@@ -104,15 +102,16 @@ def calc_sensor_array_stats(exp_data: np.ndarray) -> ExperimentStats:
         Summary statistics data class for the sensor array.
     """
 
-    exp_stats = ExperimentStats(
-        max = np.max(exp_data,axis=1),
-        min = np.min(exp_data,axis=1),
-        mean = np.mean(exp_data,axis=1),
-        std = np.std(exp_data,axis=1),
-        med = np.median(exp_data,axis=1),
-        q25 = np.quantile(exp_data,0.25,axis=1),
-        q75 = np.quantile(exp_data,0.75,axis=1),
+    axis: int = 0
+    exp_stats = ExpSimStats(
+        max = np.max(exp_data,axis=axis),
+        min = np.min(exp_data,axis=axis),
+        mean = np.mean(exp_data,axis=axis),
+        std = np.std(exp_data,axis=axis),
+        med = np.median(exp_data,axis=axis),
+        q25 = np.quantile(exp_data,0.25,axis=axis),
+        q75 = np.quantile(exp_data,0.75,axis=axis),
         mad = np.median(np.abs(exp_data -
-            np.median(exp_data,axis=1,keepdims=True)),axis=1),
+            np.median(exp_data,axis=axis,keepdims=True)),axis=axis),
     )
     return exp_stats

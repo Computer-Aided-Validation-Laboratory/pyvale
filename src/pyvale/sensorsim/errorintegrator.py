@@ -109,6 +109,12 @@ class ErrIntegrator:
         self._errs_total = np.zeros(meas_shape)
 
 
+    def reseed_error_chain() -> None:
+    
+        for ee in self._err_chain:
+            ee.reseed()
+        
+
     def set_error_chain(self, err_chain: list[IErrSimulator]) -> None:
         """Sets the error chain that will be looped over to calculate the sensor
         measurement errors. If the error integration options are forcing error

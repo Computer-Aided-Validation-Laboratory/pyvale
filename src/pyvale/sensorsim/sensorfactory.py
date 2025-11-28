@@ -22,10 +22,6 @@ from pyvale.sensorsim.sensordescriptor import (DescriptorFactory,
 from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint, SensorData
 from pyvale.sensorsim.errorintegrator import ErrIntegrator
 from pyvale.sensorsim.errorsimulator import IErrSimulator
-from pyvale.sensorsim.errorsysindep import ErrSysUnifPercent
-from pyvale.sensorsim.errorrand import ErrRandNormPercent
-from pyvale.sensorsim.errorsysdep import (ErrSysDigitisation,
-                                          ErrSysSaturation)
 from pyvale.sensorsim.enums import EDim
 
 
@@ -185,25 +181,3 @@ class SensorFactory:
 
 
 
-def basic_err_chain(sys_err_pc: float = 1.0,
-                    rand_err_pc: float = 1.0) -> list[IErrSimulator]:
-    """Builds a basic error chain with uniform percentage systematic error
-    calculator and a percentage normal random error calculator.
-
-    Parameters
-    ----------
-    sys_err_pc : float, optional
-        Percentage systematic error, by default 1.0.
-    rand_err_pc : float, optional
-        Percentage random error, by default 1.0.
-
-    Returns
-    -------
-    list[IErrSimulator]
-        A basic error chain with a uniform percentage systematic error and
-        a normal percentage random error.
-    """
-    err_chain = []
-    err_chain.append(ErrSysUnifPercent(-sys_err_pc,sys_err_pc))
-    err_chain.append(ErrRandNormPercent(rand_err_pc))
-    return err_chain

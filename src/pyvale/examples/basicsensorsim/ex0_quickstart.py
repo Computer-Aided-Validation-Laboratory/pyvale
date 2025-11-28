@@ -62,13 +62,14 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 #%%
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-err_chain: list[sens.IErrSimulator] = [sens.ErrSysUnif(low=-1.0,high=1.0),]
-err_chain.append(sens.ErrSysUnifPercent(low_percent=-1.0,high_percent=1.0))
-err_chain.append(sens.ErrRandNorm(std=1.0))
-err_chain.append(sens.ErrRandNormPercent(std_percent=2.0))
-err_chain.append(sens.ErrSysDigitisation(bits_per_unit=2**16/100))
-err_chain.append(sens.ErrSysSaturation(meas_min=0.0,meas_max=450.0))
-
+err_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysGen(sens.GenUniform(low=-1.0,high=1.0)),
+    sens.ErrSysGenPercent(sens.GenUniform(low=-1.0,high=1.0)),
+    sens.ErrRandGen(sens.GenNormal(std=1.0)),
+    sens.ErrRandGenPercent(sens.GenNormal(std=2.0)),
+    sens.ErrSysDigitisation(bits_per_unit=2**16/100),
+    sens.ErrSysSaturation(meas_min=0.0,meas_max=450.0),
+]
 sens_array.set_error_chain(err_chain)
 
 #%%
@@ -80,7 +81,7 @@ exp_sim = sens.ExperimentSimulator(sim_list,
                                    sensor_arrays)
 
 exp_data: list[np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
-exp_stats: list[sens.ExperimentStats] = sens.calc_exp_sim_stats(exp_data)
+exp_stats: list[sens.ExpSimStats] = sens.calc_exp_sim_stats(exp_data)
 
 
 #%%
