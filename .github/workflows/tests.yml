@@ -12,8 +12,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-15-intel, macos-15-latest]
-
+        os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-15-latest]
+        include:
+          - os: macos-14
+            llvm: llvm@15
+          - os: macos-15-intel
+            llvm: llvm@18
+          - os: macos-15-latest
+            llvm: llvm@18
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -27,10 +33,11 @@ jobs:
         if: startsWith(matrix.os, 'macos')
         run: |
           brew install libomp
-          echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+          echo "CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++" >> $GITHUB_ENV
           echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
           echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
+          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
 
       - name: Install dependencies for ubuntu-latest
         if: matrix.os == 'ubuntu-latest'
@@ -41,7 +48,7 @@ jobs:
       - name: Upgrade pip and install package
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          pip install -e . -v
 
       - name: Smoke test
         run: |
