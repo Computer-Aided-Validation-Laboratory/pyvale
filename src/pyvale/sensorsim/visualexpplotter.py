@@ -159,54 +159,54 @@ def plot_exp_traces(exp_data: dict[tuple[str,...],np.ndarray],
     return (fig,ax)
 
 
-def plot_exp_traces_from_sim(exp_sim: ExperimentSimulator,
-                             comp_key: str,
-                             sens_key: str,
-                             sim_key: str,
-                             trace_opts: TraceOptsExperiment | None = None,
-                             plot_opts: PlotOptsGeneral | None = None
-                             ) -> tuple[mpf.Figure,mpa.Axes]:
-    """Plots simulated experiment sensor traces including uncertainty bounds. 
-
-    Parameters
-    ----------
-    exp_sim : ExperimentSimulator
-        Experiment simulation object containing the set of virtual experiment to
-        be plotted.
-    comp_key : str
-        String key for component of the measurement array to plot.
-    sens_key : str
-        String key for the sensor array in the simulated experimental data. 
-    sim_key : str
-        String key for the simulation in the simulation data dictionary.
-    trace_opts : TraceOptsExperiment | None, optional
-        Dataclass containing specific options for controlling the plot
-        appearance, by default None. If None the default options are used.
-    plot_opts : PlotOptsGeneral | None, optional
-        Dataclass containing general options for formatting plots and
-        visualisations, by default None. If None the default options are used.
-
-    Returns
-    -------
-    tuple[Any,Any]
-        A tuple containing a handle to the matplotlib figure and axis objects:
-        (fig,ax).
-    """
-
-    exp_data = exp_sim.get_exp_sim_data() 
-    comp_ind = (
-        exp_sim.get_sensor_array_dict()[sens_key]
-        .get_field()
-        .get_component_index(comp_key)
-    )
-    descriptor = exp_sim.get_sensor_array_dict()[sens_key].get_descriptor()
-    exp_sim_keys = exp_sim.get_exp_sim_keys()
-
-    return plot_exp_traces(exp_data,
-                           comp_ind,
-                           sens_key,
-                           sim_key,
-                           descriptor,
-                           trace_opts,
-                           plot_opts,
-                           exp_sim_keys)
+# def plot_exp_traces_from_sim(exp_sim: ExperimentSimulator,
+#                              comp_key: str,
+#                              sens_key: str,
+#                              sim_key: str,
+#                              trace_opts: TraceOptsExperiment | None = None,
+#                              plot_opts: PlotOptsGeneral | None = None
+#                              ) -> tuple[mpf.Figure,mpa.Axes]:
+#     """Plots simulated experiment sensor traces including uncertainty bounds. 
+# 
+#     Parameters
+#     ----------
+#     exp_sim : ExperimentSimulator
+#         Experiment simulation object containing the set of virtual experiment to
+#         be plotted.
+#     comp_key : str
+#         String key for component of the measurement array to plot.
+#     sens_key : str
+#         String key for the sensor array in the simulated experimental data. 
+#     sim_key : str
+#         String key for the simulation in the simulation data dictionary.
+#     trace_opts : TraceOptsExperiment | None, optional
+#         Dataclass containing specific options for controlling the plot
+#         appearance, by default None. If None the default options are used.
+#     plot_opts : PlotOptsGeneral | None, optional
+#         Dataclass containing general options for formatting plots and
+#         visualisations, by default None. If None the default options are used.
+# 
+#     Returns
+#     -------
+#     tuple[Any,Any]
+#         A tuple containing a handle to the matplotlib figure and axis objects:
+#         (fig,ax).
+#     """
+# 
+#     exp_data = exp_sim.get_exp_sim_data() 
+#     comp_ind = (
+#         exp_sim.get_sensor_array_dict()[sens_key]
+#         .get_field()
+#         .get_component_index(comp_key)
+#     )
+#     descriptor = exp_sim.get_sensor_array_dict()[sens_key].get_descriptor()
+#     exp_sim_keys = exp_sim.get_exp_sim_keys()
+# 
+#     return plot_exp_traces(exp_data,
+#                            comp_ind,
+#                            sens_key,
+#                            sim_key,
+#                            descriptor,
+#                            trace_opts,
+#                            plot_opts,
+#                            exp_sim_keys)

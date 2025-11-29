@@ -12,67 +12,65 @@ class ExpSimStats:
     """Dataclass holding summary statistics for a series of simulated
     experiments produced using the experiment simulator. All summary statistics
     are calculated over the 'experiments' dimension of the measurements array so
-    the arrays of statistics have the shape=(n_sims,n_sensors,n_field_comps,
-    n_time_steps). Note that the n_sims dimension refers to the number of input
-    multi-physics simulations (i.e. SimData objects) that the virtual
-    experiments were performed over.
+    the arrays of statistics have the shape=(n_sensors,n_field_comps,
+    n_time_steps).
     """
 
     mean: np.ndarray | None = None
     """Mean of each sensors measurement for the given field component and time
-    step as an array with shape=(n_sims,n_sensors,n_field_comps,n_time_steps).
+    step as an array with shape=(n_sensors,n_field_comps,n_time_steps).
     """
 
     std: np.ndarray | None = None
     """Standard deviation of the sensor measurements for the given field
-    component and time step as an array with shape=(n_sims,n_sensors,
-    n_field_comps, n_time_steps)
+    component and time step as an array with shape=(n_sensors,n_field_comps,
+    n_time_steps)
     """
 
     max: np.ndarray | None = None
     """Maximum of the sensor measurements for the given field component and time
-    step as an array with shape=(n_sims,n_sensors,n_field_comps,n_time_steps)
+    step as an array with shape=(n_sensors,n_field_comps,n_time_steps)
     """
 
     min: np.ndarray | None = None
     """Minmum of the sensor measurements for the given field component and time
-    step as an array with shape=(n_sims,n_sensors,n_field_comps,n_time_steps)
+    step as an array with shape=(n_sensors,n_field_comps,n_time_steps)
     """
 
     med: np.ndarray | None = None
     """Median  of the sensor measurements for the given field component and time
-    step as an array with shape=(n_sims,n_sensors,n_field_comps,n_time_steps)
+    step as an array with shape=(n_sensors,n_field_comps,n_time_steps)
     """
 
     q25: np.ndarray | None = None
     """Lower 25% quantile of the sensor measurements for the given field
-    component and time step as an array with shape=(n_sims,n_sensors,
-    n_field_comps, n_time_steps)
+    component and time step as an array with shape=(n_sensors,n_field_comps,
+    n_time_steps)
     """
 
     q75: np.ndarray | None = None
     """Upper 75% quantile of the sensor measurements for the given field
-    component and time step as an array with shape=(n_sims,n_sensors,
-    _field_comps, n_time_steps)
+    component and time step as an array with shape=(n_sensors,n_field_comps,
+    n_time_steps)
     """
 
     mad: np.ndarray | None = None
     """Median absolute deviation of the sensor measurements for the given field
-    component and time step as an array with shape=(n_sims,n_sensors,
-    n_field_comps, n_time_steps)
+    component and time step as an array with shape=(n_sensors,n_field_comps,
+    n_time_steps)
     """
 
 
-def calc_exp_sim_stats(exp_data: dict[str,np.ndarray]
-                          ) -> dict[str,ExpSimStats]:
+def calc_exp_sim_stats(exp_data: dict[tuple[str,...],np.ndarray]
+                          ) -> dict[tuple[str,...],ExpSimStats]:
     """Calculates summary statistics over all virtual experiments for all
     virtual sensor arrays.
 
     Returns
     -------
-    dict[str,ExperimentStats]
+    dict[tuple[str,...],ExperimentStats]
         Dictionary of summary statistics data classes for the virtual
-        experiments. The list index correponds to the virtual sensor array.
+        experiments. 
     """
 
     # dict[tuple[str,..],shape=(n_exps,n_sens,n_comps,n_time_steps)]

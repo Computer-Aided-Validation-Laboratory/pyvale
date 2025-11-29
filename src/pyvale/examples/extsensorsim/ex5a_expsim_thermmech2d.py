@@ -254,10 +254,13 @@ else:
 #    :align: center
 
 for kk in sim_data_dict:
-    (fig,ax) = sens.plot_exp_traces_from_sim(exp_sim,
-                                             comp_key="temperature",
-                                             sens_key="temp",
-                                             sim_key=kk)
+    (fig,ax) = sens.plot_exp_traces(
+        exp_data,
+        comp_ind=0,
+        sens_key="temp",
+        sim_key=kk,
+        descriptor=sens.DescriptorFactory.temperature(),
+    )
 
     save_fig: Path = output_path/f"ext_ex5a_traces_{kk}_temp.png"
     fig.savefig(save_fig,dpi=300,bbox_inches="tight")

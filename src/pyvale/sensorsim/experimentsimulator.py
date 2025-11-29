@@ -20,36 +20,70 @@ from pyvale.sensorsim.exceptions import ExpSimError
 
 
 class EExpSimPara(enum.Enum):
+    """Parallelisation enumeration for simulated experiments.
     """
-    """
+
     ALL = enum.auto()
+    """Each worker performs 'ALL' N simulated experiments for each combination of
+    simulation data and sensor arrays. This is the best option of point sensors.
+    """
+
     SPLIT = enum.auto()
-
-
-@dataclass(slots=True)
-class ExpSimOpts:
+    """Simulations are 'SPLIT' across workers each performing 1 of N simulations
+    for any given combination of simulation data and sensor arrays. This is the
+    best option for when each simulation is computationally heavy such as
+    imaging workflows.
     """
-    """
-    store_rand_errs: bool = True
-    """
-    """
-    store_sys_errs: bool = True
-    """
-    """
-    workers: int | None = None
-    """
-    """
-    para: EExpSimPara = EExpSimPara.ALL
-    """
-    """
-
 
 @dataclass(slots=True)
 class ExpSimKeys:
+    """Default string keys for use in the simulated experiment data dictionary.
+    these keys appear in the last position of the tuple key and indicate the
+    data that is available. For example: simulated measurements default to the
+    "meas" key.
+    """
     meas: str = "meas"
     sys: str = "sys_errs"
     rand: str = "rand_errs"
     time: str = "samp_times"
+
+
+@dataclass(slots=True)
+class ExpSimOpts:
+    """Experiment simulation options dataclass specifying options for what data
+    arrays to store in the data dictionary and options for parallelisation of
+    the simulated experiments.
+    """
+
+    store_rand_errs: bool = True
+    """Flag for storing total random errors in the simulated experiment data
+    dictionary.
+    """
+
+    store_sys_errs: bool = True
+    """Flag for storing total systematic errors in the simulated experiment data
+    dictionary.
+    """
+
+    workers: int | None = None
+    """Number of workers when running simulations in parallel. Defaults to None.
+    If None then simulations are run sequentially without multi-processing.
+    """
+
+    para: EExpSimPara = EExpSimPara.ALL
+    """Options for running 'ALL' N simulations per worker or 'SPLIT' N
+    simulations across workers. 'ALL' is most efficient for point sensors and
+    'SPLIT' should be used for computationally heavy single simulations.
+    """
+
+    exp_sim_keys: ExpSimKeys | None = None
+    """Strings keys used in the last position of the tuple key for the output
+    simulated experiment data dictionary. If None then the default keys will
+    be created and used.
+    """
+
+    def __post_init__(self) -> None:
+        self.exp_sim_keys = ExpSimKeys()
 
 
 #TODO:
@@ -61,13 +95,12 @@ class ExperimentSimulator:
     number of user defined experiments.
     """
     __slots__ = ("_sim_dict","_sens_dict","_num_exp_per_sim","_exp_data",
-                 "_exp_sim_opts","_exp_sim_keys")
+                 "_exp_sim_opts")
 
     def __init__(self,
                  sim_dict: dict[str,mh.SimData],
                  sensor_arrays: dict[str,ISensorArray],
                  exp_sim_opts: ExpSimOpts | None = None,
-                 exp_sim_keys: ExpSimKeys | None = None,
                  ) -> None:
         """
         Parameters
@@ -90,15 +123,17 @@ class ExperimentSimulator:
         else:
             self._exp_sim_opts = exp_sim_opts
 
-        if exp_sim_keys is None:
-            self._exp_sim_keys = ExpSimKeys()
-        else:
-            self._exp_sim_keys = exp_sim_keys
-
 
     def get_exp_sim_keys(self) -> ExpSimKeys:
+        """Gets the experiment simulation data keys.
 
-        return self._exp_sim_keys
+        Returns
+        -------
+        ExpSimKeys
+            Dataclass containing the keys used to identify output data from the
+            simulated experiments.
+        """
+        return self._exp_sim_opts.exp_sim_keys
 
     def get_sim_dict(self) -> dict[str,mh.SimData]:
         """Gets the dicitionary of simulations to run simulated experiments for.
@@ -129,17 +164,20 @@ class ExperimentSimulator:
         Parameters
         ----------
         num_exp_per_sim : int
-            Number of virtual experiments to perform for each simulation and
-            sensor array. Must be a non-zero positive integer.
+            Number of virtual experiments to perform for each combination of
+            input physics simulations and sensor arrays. Must be a non-zero
+            positive integer.
 
         Returns
         -------
-        dict[str,np.ndarray]
-            Dicitionary of virtual experimental data arrays where the key
-            corresponds to the virtual sensor array and the data is an array
-            with shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps). Also,
-            contains the reserved sim key (default='sim_keys') with values that
-            contains the labels for the first simulation axis.
+        dict[tuple[str,...],np.ndarray]
+            Dictionary of virtual experimental data arrays where the key is a
+            tuple with form (sim_key,sens_key,data_key). The simulation and
+            sensor keys correspond to the input simulation and sensor
+            dictionaries and the data key returns a given output from the
+            simulation. See the `ExpSimKeys` dataclass for valid data keys. The
+            data arrays returned for simulated experiment output have shape =
+            (n_exps,n_sens,n_comps,n_time_steps).
 
         Raises
         ------
@@ -152,6 +190,8 @@ class ExperimentSimulator:
                 "Number of experiments per sim must be a positive integer"
             )
 
+        exp_sim_keys = self._exp_sim_opts.exp_sim_keys
+        time_str_key = self._exp_sim_opts.exp_sim_keys.time
         self._num_exp_per_sim = num_exp_per_sim
         self._exp_data = {}
 
@@ -167,7 +207,7 @@ class ExperimentSimulator:
                 for (key_sim, sim_data), (key_sens, sens_array) in (
                     product(self._sim_dict.items(), self._sens_dict.items())
                 ):
-                    time_key = (key_sim,key_sens,self._exp_sim_keys.time)
+                    time_key = (key_sim,key_sens,time_str_key)
                     self._exp_data[time_key] = sens_array.get_sample_times()
 
                     args = (
@@ -176,7 +216,7 @@ class ExperimentSimulator:
                         sim_data,
                         sens_array,
                         self._num_exp_per_sim,
-                        self._exp_sim_keys,
+                        exp_sim_keys,
                     )
 
                     process = pool.apply_async(_run_all_sims,args=args)
@@ -221,7 +261,7 @@ class ExperimentSimulator:
                 for (key_sim, sim_data), (key_sens, sens_array) in (
                    product(self._sim_dict.items(), self._sens_dict.items())
                 ):
-                    time_key = (key_sim,key_sens,self._exp_sim_keys.time)
+                    time_key = (key_sim,key_sens,time_str_key)
                     self._exp_data[time_key] = sens_array.get_sample_times()
 
                     for ee in range(self._num_exp_per_sim):
@@ -230,8 +270,8 @@ class ExperimentSimulator:
                                 key_sens,
                                 sim_data,
                                 sens_array,
-                                self._exp_sim_keys)
-                                
+                                exp_sim_keys)
+
                         process = pool.apply_async(_run_one_sim,args=args)
 
                         processes_with_id.append({"process":process,
@@ -253,7 +293,7 @@ class ExperimentSimulator:
 
                 sens_array.get_field().set_sim_data(self._sim_dict[key_sim])
 
-                time_key = (key_sim,key_sens,self._exp_sim_keys.time)
+                time_key = (key_sim,key_sens,time_str_key)
                 self._exp_data[time_key] = sens_array.get_sample_times()
 
                 exp_res = _run_all_sims(key_sim,
@@ -261,11 +301,11 @@ class ExperimentSimulator:
                                         sim_data,
                                         sens_array,
                                         self._num_exp_per_sim,
-                                        self._exp_sim_keys)
+                                        exp_sim_keys)
 
                 self._exp_data.update(exp_res)
 
-                
+
         # dict[tuple[str,...],shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
         return self._exp_data
 
@@ -276,10 +316,12 @@ class ExperimentSimulator:
         Returns
         -------
         dict[tuple[str,...],np.ndarray] | None
-            Dicitionary of virtual experimental data arrays where the key
-            corresponds to the virtual sensor array and the data is an array
-            with shape=(n_exps,n_sens,n_comps,n_time_steps). Returns
-            None if no virtual experiments have been run.
+            Dicitionary of virtual experimental data where the key is tuple of
+            the form (sim_key,sens_key,data_key). The simulation and sensor keys
+            are the same as input to the simulator. The data key identifys the
+            type of output from the virtual experiment. The output simulation
+            data are arrays with shape=(n_exps,n_sens,n_comps,n_time_steps).
+            Returns None if no virtual experiments have been run.
         """
 
         # dict[tuple[str,...],shape=(n_exps,n_sens,n_comps,n_time_steps)]
@@ -291,8 +333,28 @@ def _run_one_sim(sim_key: str,
                  sim_data: mh.SimData,
                  sens_array: ISensorArray,
                  exp_keys: ExpSimKeys) -> dict[tuple[str,...],np.ndarray]:
+    """Parallelisation helper function for running a single virtual experiment 
+    on a worker.
 
-    # NOTE: need to reseed the error chain otherwise each worker inherits the 
+    Parameters
+    ----------
+    sim_key : str
+        String key identifying the input physics simulation.
+    sens_key : str
+        String key identifying the sensor array.
+    sim_data : mh.SimData
+        Simulation data object for the simulation.
+    sens_array : ISensorArray
+        Sensor array object to apply to the simulation.
+    exp_keys : ExpSimKeys
+        Keys for identifying simulated experiment outputs
+        
+    Returns
+    -------
+    dict[tuple[str,...],np.ndarray]
+        Virtual experimental data dictionary.
+    """
+    # NOTE: need to reseed the error chain otherwise each worker inherits the
     # same random seed producing the same simulations.
     sens_array.get_error_integrator().reseed_error_chain()
     sens_array.get_field().set_sim_data(sim_data)
@@ -316,8 +378,30 @@ def _run_all_sims(sim_key: str,
                   num_exp: int,
                   exp_keys: ExpSimKeys,
                   ) -> dict[tuple[str,...],np.ndarray]:
+    """Parallelisation helper function for running N simulated experiments on a 
+    single worker.
 
-    # NOTE: need to reseed the error chain otherwise each worker inherits the 
+    Parameters
+    ----------
+    sim_key : str
+        String key identifying the input physics simulation.
+    sens_key : str
+        String key identifying the sensor array.
+    sim_data : mh.SimData
+        Simulation data object for the simulation.
+    sens_array : ISensorArray
+        Sensor array object to apply to the simulation.
+    num_exp : int
+        Number of experiment 'N' to run on this worker.
+    exp_keys : ExpSimKeys
+        Keys for identifying simulated experiment outputs
+
+    Returns
+    -------
+    dict[tuple[str,...],np.ndarray]
+        Virtual experiment output data dictionary for the N simulations.
+    """
+    # NOTE: need to reseed the error chain otherwise each worker inherits the
     # same random seed producing the same simulations.
     sens_array.get_error_integrator().reseed_error_chain()
     sens_array.get_field().set_sim_data(sim_data)

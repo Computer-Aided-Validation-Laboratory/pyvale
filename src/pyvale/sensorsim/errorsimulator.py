@@ -43,8 +43,8 @@ class EErrDep(enum.Enum):
 
 
 class IErrSimulator(ABC):
-    """Interface (abstract base class) for sensor error simulation allowing a 
-    list of simulated errors (i.e. an error chain) to be constructed and 
+    """Interface (abstract base class) for sensor error simulation allowing a
+    list of simulated errors (i.e. an error chain) to be constructed and
     executed in order.
     """
 
@@ -80,10 +80,15 @@ class IErrSimulator(ABC):
 
     @abstractmethod
     def reseed(self,seed: int | None = None) -> None:
+        """_summary_
+
+        Parameters
+        ----------
+        seed : int | None, optional
+            _description_, by default None
         """
-        """
-        
-    
+
+
     @abstractmethod
     def sim_errs(self,
                   err_basis: np.ndarray,

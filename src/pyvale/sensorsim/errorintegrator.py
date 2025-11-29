@@ -110,10 +110,16 @@ class ErrIntegrator:
 
 
     def reseed_error_chain(self, seed: int | None = None) -> None:
-    
+        """_summary_
+
+        Parameters
+        ----------
+        seed : int | None, optional
+            _description_, by default None
+        """    
         for ee in self._err_chain:
             ee.reseed(seed)
-        
+
 
     def set_error_chain(self, err_chain: list[IErrSimulator]) -> None:
         """Sets the error chain that will be looped over to calculate the sensor

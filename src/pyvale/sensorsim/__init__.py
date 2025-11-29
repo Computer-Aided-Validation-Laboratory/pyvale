@@ -79,7 +79,7 @@ from .experimentsimulator import *
 from .experimentstats import *
 from .experimentsimio import *
 
-from .output import *
+from .enums import *
 from .exceptions import *
 
 

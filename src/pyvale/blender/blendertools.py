@@ -3,16 +3,14 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
-import numpy as np
 from pathlib import Path
+import numpy as np
 from scipy.spatial.transform import Rotation
 from PIL import Image
 import bpy
 
 # Pyvale
 from pyvale.sensorsim.cameratools import CameraTools
-from pyvale.sensorsim.output import Outputs
-
 
 from pyvale.blender.blenderexceptions import BlenderError
 from pyvale.blender.blenderrenderdata import RenderEngine, RenderData
@@ -24,13 +22,13 @@ class Tools:
     """
 
     @staticmethod
-    def save_blender_file(base_dir: Path | None = Outputs.base_dir,
+    def save_blender_file(base_dir: Path | None = None,
                           override: bool = False) -> None:
         """A method to save the current Blender scene to a Blender .blend filepath
 
         Parameters
         ----------
-        base_dir : Path
+        base_dir : Path | None
             The base directory to which the Blender file will be saved to. The
             file will be saved in a subfolder of this directory named blenderfiles.
         override : bool, optional
@@ -50,6 +48,9 @@ class Tools:
             exists.
 
         """
+        if base_dir is None:
+            base_dir = Path.cwd()
+        
         if not base_dir.is_dir():
             raise BlenderError("The specified save directory does not exist")
 
