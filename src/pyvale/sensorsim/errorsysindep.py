@@ -250,7 +250,7 @@ class ErrSysGen(IErrSimulator):
         return EErrType.SYSTEMATIC
 
     def reseed(self, seed: int | None = None) -> None:
-        self._generator.reseed()
+        self._generator.reseed(seed)
 
     def sim_errs(self,
                   err_basis: np.ndarray,
@@ -352,7 +352,7 @@ class ErrSysGenPercent(IErrSimulator):
         return EErrType.SYSTEMATIC
 
     def reseed(self, seed: int | None = None) -> None:
-        self._generator.reseed()
+        self._generator.reseed(seed)
 
     def sim_errs(self,
                   err_basis: np.ndarray,

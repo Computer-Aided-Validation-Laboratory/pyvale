@@ -69,13 +69,13 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error_chain: list[sens.IErrSimulator] = []
-error_chain.append(sens.ErrSysOffset(offset=-10.0))
-error_chain.append(sens.ErrSysUnif(low=-5.0,
-                                   high=5.0))
-error_chain.append(sens.ErrRandNorm(std=5.0))
-error_chain.append(sens.ErrRandUnifPercent(low_percent=-2.0,
-                                           high_percent=2.0))
+error_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysOffset(offset=-10.0),
+    sens.ErrSysGen(sens.GenUniform(low=-5.0,high=5.0)),
+    sens.ErrRandGen(sens.GenNormal(std=5.0)),
+    sens.ErrRandGenPercent(sens.GenUniform(low=-2.0,high=2.0)),
+]
+
 sens_array.set_error_chain(error_chain)
 
 #%% 

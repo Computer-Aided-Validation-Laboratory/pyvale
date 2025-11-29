@@ -76,22 +76,17 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error_chain: list[sens.IErrSimulator] = []
-
-sys_gen = sens.GenUniform(low=-0.01,high=0.01) # units = mm
-error_chain.append(sens.ErrSysGen(sys_gen))  
-
-rand_gen = sens.GenNormal(std=1.0) # units = % truth
-error_chain.append(sens.ErrRandGenPercent(rand_gen))
-
 pos_rand = sens.GenUniform(low=-1.0,high=1.0)   # units = mm
 angle_rand = sens.GenUniform(low=-2.0,high=2.0) # units = degrees
 
 field_err_data = sens.ErrFieldData(pos_rand_xyz=(pos_rand,pos_rand,None),
                                    ang_rand_zyx=(angle_rand,None,None))
 
-error_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                    field_err_data))
+error_chain: list[sens.IErrSimulator] = [
+    sens.ErrRandGenPercent(sens.GenNormal(std=1.0)),
+    sens.ErrSysGen(sens.GenUniform(low=-0.01,high=0.01)), # units = mm  
+    sens.ErrSysField(sens_array.get_field(),field_err_data),
+]
 
 sens_array.set_error_chain(error_chain)
 

@@ -95,7 +95,7 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 # Now we have our sensor array applied to our simulation without any
 # errors we can build a custom chain of basic errors. Here we will start by
 # adding a series of systematic errors that are independent:
-err_chain = []
+err_chain: list[sens.IErrSimulator] = []
 
 #%%
 # For probability sampling systematic errors the distribution is sampled to
@@ -108,47 +108,35 @@ err_chain = []
 err_chain.append(sens.ErrSysOffset(offset=-10.0))
 err_chain.append(sens.ErrSysOffsetPercent(offset_percent=-1.0))
 
-#%%
-# These systematic errors are sampled from a uniform or normal probability
-# distribution either in simulation units or as a percentage.
-err_chain.append(sens.ErrSysUnif(low=-1.0,
-                                high=1.0))
-err_chain.append(sens.ErrSysUnifPercent(low_percent=-1.0,
-                                        high_percent=1.0))
-err_chain.append(sens.ErrSysNorm(std=1.0))
-err_chain.append(sens.ErrSysNormPercent(std_percent=1.0))
 
 #%%
 # pyvale includes a series of random number generator objects that wrap the
 # random number generators from numpy. These are named `Gen*` and can be
-# used with an `ErrSysGen` or an `ErrSysGenPercent` object to create custom
-# probability distribution sampling errors:
-sys_gen = sens.GenTriangular(left=-1.0,
-                            mode=0.0,
-                            right=1.0)
-err_chain.append(sens.ErrSysGen(sys_gen))
+# used with any of the `ErrSysGen`, `ErrSysGenPercent`, `ErrRandGen` or 
+# `ErrRandGenPercent` objects to create custom probability distribution sampling
+# errors:
 
-#%%
-# We can also build the equivalent of `ErrSysUnifPercent` above using a
-# `Gen` object inserted into an `ErrSysGenPercent` object:
-unif_gen = sens.GenUniform(low=-1.0,
-                           high=1.0)
-err_chain.append(sens.ErrSysGenPercent(unif_gen))
+err_chain.append(sens.ErrSysGen(sens.GenUniform(low=-1.0,high=1.0)))
+err_chain.append(sens.ErrSysGenPercent(sens.GenUniform(low=-1.0,high=1.0)))
+err_chain.append(sens.ErrSysGen(sens.GenNormal(std=1.0)))
+err_chain.append(sens.ErrSysGenPercent(sens.GenNormal(std=1.0)))
+err_chain.append(
+    sens.ErrSysGen(sens.GenTriangular(left=-1.0,mode=0.0,right=1.0))
+)
+
 
 #%%
 # We can also add a series of random errors in a similar manner to the
 # systematic errors above noting that these will generate a new error for
 # each sensor and each time step whereas the systematic error sampling
 # provides a constant shift over all sampling times for each sensor.
-err_chain.append(sens.ErrRandNorm(std = 2.0))
-err_chain.append(sens.ErrRandNormPercent(std_percent=2.0))
-err_chain.append(sens.ErrRandUnif(low=-2.0,high=2.0))
-err_chain.append(sens.ErrRandUnifPercent(low_percent=-2.0,
-                                        high_percent=2.0))
-rand_gen = sens.GenTriangular(left=-5.0,
-                              mode=0.0,
-                              right=5.0)
-err_chain.append(sens.ErrRandGen(rand_gen))
+err_chain.append(sens.ErrRandGen(sens.GenNormal(std=2.0)))
+err_chain.append(sens.ErrRandGenPercent(sens.GenNormal(std=2.0)))
+err_chain.append(sens.ErrRandGen(sens.GenUniform(low=-2.0,high=2.0)))
+err_chain.append(sens.ErrRandGenPercent(sens.GenUniform(low=-2.0,high=2.0)))
+err_chain.append(
+    sens.ErrRandGen(sens.GenTriangular(left=-5.0,mode=0.0,right=5.0))
+)
 
 #%%
 # Finally, we add some dependent systematic errors including rounding errors,

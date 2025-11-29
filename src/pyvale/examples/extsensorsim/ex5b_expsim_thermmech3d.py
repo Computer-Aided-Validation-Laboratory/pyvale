@@ -77,7 +77,6 @@ temp_sens: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 # 2.2 Add errors to the scalar field sensors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-temp_err_chain: list[sens.IErrSimulator] = []
 
 temp_pos_uncert = 0.5 # units = mm
 temp_pos_rand = (None,
@@ -85,12 +84,13 @@ temp_pos_rand = (None,
                  sens.GenNormal(std=temp_pos_uncert))
 
 temp_field_err_data = sens.ErrFieldData(pos_rand_xyz=temp_pos_rand)
-temp_err_chain.append(sens.ErrSysField(temp_sens.get_field(),
-                                       temp_field_err_data))
 
-temp_err_chain.append(sens.ErrRandNorm(std=2.0)) # units = degrees
-temp_err_chain.append(sens.ErrSysDigitisation(bits_per_unit=2**24/100))
-temp_err_chain.append(sens.ErrSysSaturation(meas_min=0.0,meas_max=700.0))
+temp_err_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysField(temp_sens.get_field(),temp_field_err_data),
+    sens.ErrRandGen(sens.GenNormal(std=2.0)), # units = degrees
+    sens.ErrSysDigitisation(bits_per_unit=2**24/100),
+    sens.ErrSysSaturation(meas_min=0.0,meas_max=700.0),
+]
 
 temp_sens.set_error_chain(temp_err_chain)
 
@@ -119,7 +119,7 @@ strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
 # 2.4 Add errors to the tensor field sensors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-strain_err_chain: list[sens.IErrSimulator] = []
+strain_max: float = 5000.0e-6 # 5000 micro-strain max before sensor fails
 
 strain_pos_uncert: float = 0.5
 strain_pos_rand_xyz = (
@@ -137,16 +137,13 @@ strain_angle_rand_zyx = (
 
 strain_field_err_data = sens.ErrFieldData(pos_rand_xyz=strain_pos_rand_xyz,
                                           ang_rand_zyx=strain_angle_rand_zyx)
-strain_err_chain.append(sens.ErrSysField(strain_sens.get_field(),
-                                         strain_field_err_data))
 
-strain_err_chain.append(sens.ErrRandNormPercent(std_percent=2.0))
-
-strain_max: float = 5000.0e-6 # 5000 micro-strain max
-strain_err_chain.append(sens.ErrSysDigitisation(bits_per_unit=2**24/strain_max))
-strain_err_chain.append(sens.ErrSysSaturation(meas_min=-strain_max,
-                                            meas_max=strain_max))
-
+strain_err_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysField(strain_sens.get_field(),strain_field_err_data),
+    sens.ErrRandGenPercent(sens.GenNormal(std=2.0)),
+    sens.ErrSysDigitisation(bits_per_unit=2**24/strain_max),
+    sens.ErrSysSaturation(meas_min=-strain_max,meas_max=strain_max),
+]
 strain_sens.set_error_chain(strain_err_chain)
 
 #%%
@@ -158,8 +155,7 @@ sensor_arrays: dict[str,sens.ISensorArray] = {
     "strain": strain_sens,
 }
 
-exp_sim_opts = sens.ExpSimOpts(workers=4,
-                               para=sens.EExpSimPara.ALL)
+exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)
 exp_sim = sens.ExperimentSimulator(sim_data_dict,sensor_arrays,exp_sim_opts)
 
 start_exp: float = time.perf_counter()

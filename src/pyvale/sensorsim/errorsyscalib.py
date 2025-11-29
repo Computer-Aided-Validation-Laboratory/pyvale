@@ -100,6 +100,9 @@ class ErrSysCalibration(IErrSimulator):
         """
         return EErrType.SYSTEMATIC
 
+    def reseed(self, seed: int | None = None) -> None:
+        pass
+
     def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,

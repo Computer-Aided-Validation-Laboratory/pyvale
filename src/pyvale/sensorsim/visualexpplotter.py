@@ -72,7 +72,7 @@ def plot_exp_traces(exp_data: dict[tuple[str,...],np.ndarray],
         for ss in sensors_to_plot:
             for ee in range(num_exp_per_sim):
                 ax.plot(samp_time,
-                        exp_data_arr[ee,ss,comp_ind,:],
+                        exp_arr[ee,ss,comp_ind,:],
                         "+",
                         lw=plot_opts.lw,
                         ms=plot_opts.ms,

@@ -126,7 +126,7 @@ connect_pattern = f"hex20_connect*"
 #%%
 # We create our load options specifying that we will load the data single 
 # threaded and not using the multi-processing library (the default). For loading
-# large datasets the number of threads can be changed to a positive integer 
+# large datasets the number of workers can be changed to a positive integer 
 # based on the number of threads available on your machine. Parallelisation will
 # only be helpful if your files are large and you have many of them. Here we 
 # have a fairly small simulation with few files so single threaded will be 
@@ -135,7 +135,7 @@ connect_pattern = f"hex20_connect*"
 # We can now create our loader and use it to load all the simulation data into
 # our `SimData` object which we can now use with the rest of the `pyvale` tools.
 
-workers: int | None = 2
+workers: int | None = None
 load_opts = mh.SimLoadOpts(workers=workers)
 
 sim_loader = mh.SimLoaderByTime(load_dir=output_path,

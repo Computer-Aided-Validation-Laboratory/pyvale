@@ -83,7 +83,7 @@ sens_data = sens.SensorData(positions=sens_pos,
 # sensor locations.
 #
 # The triangulation is computationally expensive, especially in 3D. For the 2D
-# case shown here with 1200 elements creating the sensor array  is about 6 
+# case shown here with 1200 elements creating the sensor array is about 6 
 # times slower than the mesh based case.
 
 start_time = time.perf_counter()

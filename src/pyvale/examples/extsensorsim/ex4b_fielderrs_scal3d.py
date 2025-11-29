@@ -105,9 +105,10 @@ field_err_data = sens.ErrFieldData(
 # field errors in a later example. For now we will just have a single field 
 # error so we can easily visualise what this type of error does.
 
-err_chain: list[sens.IErrSimulator] = []
-err_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                  field_err_data))
+err_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysField(sens_array.get_field(),field_err_data),
+]
+
 sens_array.set_error_chain(err_chain)
 
 #%%

@@ -109,10 +109,10 @@ class ErrIntegrator:
         self._errs_total = np.zeros(meas_shape)
 
 
-    def reseed_error_chain() -> None:
+    def reseed_error_chain(self, seed: int | None = None) -> None:
     
         for ee in self._err_chain:
-            ee.reseed()
+            ee.reseed(seed)
         
 
     def set_error_chain(self, err_chain: list[IErrSimulator]) -> None:

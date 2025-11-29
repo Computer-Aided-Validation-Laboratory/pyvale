@@ -111,13 +111,13 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 # Now we add some simulated errors to our sensor array with an `error_chain` 
 # which is a list of objects that implement the `IErrSimulator` interface. 
 # `pyvale` will evaluate these errors in the order they are specified in the
-# list when we simulate our measurements.
-#
-# The error chain is the core of the `pyvale` sensor simulation engine and 
-# `pyvale`
+# list when we simulate our measurements. The error chain is the core of the 
+# `pyvale` sensor simulation engine.
 
-err_chain: list[sens.IErrSimulator] = [sens.ErrSysUnif(low=-10.0,high=10.0),]
-err_chain.append(sens.ErrRandNorm(std=5.0))
+err_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysGen(sens.GenUniform(low=-10.0,high=10.0)),
+    sens.ErrRandGen(sens.GenNormal(std=5.0)),
+]
 
 sens_array.set_error_chain(err_chain)
 
@@ -131,7 +131,7 @@ sens_array.set_error_chain(err_chain)
 # errors. 
 #
 # If we call `.sim_measurements()` again the process is repeated and the errors
-# are resamples. However, if we call `.get_measurements()` then we are returned
+# are resampled. However, if we call `.get_measurements()` then we are returned
 # the previously simulated values. Throughout `pyvale` methods prefixed with 
 # `get` can be expected to return previous values if they exist whereas `sim`
 # or `calc `methods will actually perform a simulation or calculation. 
@@ -175,7 +175,7 @@ print("\n"+80*"-")
 # We can now visualise the sensor locations on the simulation mesh and the
 # simulated sensor traces using `pyvale` visualisation tools which are built on
 # `pyvista` for meshes and `matplotlib` for sensor traces. `pyvale` will return
-# plot and axes objects to the user allowing additional customisation using
+# figure and axes objects to the user allowing additional customisation using
 # `pyvista` and `matplotlib`. This also means that we need to call `.show()`
 # ourselves to display the figure as pyvale does not do this for us.
 #

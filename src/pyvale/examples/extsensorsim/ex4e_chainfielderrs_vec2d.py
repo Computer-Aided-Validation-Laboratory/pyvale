@@ -79,11 +79,11 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 #%%
+#
 # Now we will build a series of field errors that cause succesive offsets in
 # sensor sampling time, sensor position and sensor orientation. That way
 # we should be able to analyse the sensor data object at each point in the
 # error chain to see how the sensor parameters have accumulated.
-#
 # We will apply a position offset of -1.0mm in the x and y axes.
 pos_offset = -1.0*np.ones_like(sens_pos)
 pos_offset[:,2] = 0.0 # in 2d we only have offset in x and y so zero z
@@ -103,25 +103,26 @@ time_error_data = sens.ErrFieldData(time_offset=time_offset)
 # twice to see how they accumulate with each other. We also need to set the
 # error dependence to `DEPENDENT` so that the sensor state is accumulated
 # over the error chain as field errors are `INDEPENDENT` by default.
-err_chain = []
-err_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                  time_error_data,
-                                  sens.EErrDep.DEPENDENT))
-err_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                  time_error_data,
-                                  sens.EErrDep.DEPENDENT))
-err_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                  pos_error_data,
-                                  sens.EErrDep.DEPENDENT))
-err_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                  pos_error_data,
-                                  sens.EErrDep.DEPENDENT))
-err_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                  angle_error_data,
-                                  sens.EErrDep.DEPENDENT))
-err_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                  angle_error_data,
-                                  sens.EErrDep.DEPENDENT))
+err_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysField(sens_array.get_field(),
+                     time_error_data,
+                     sens.EErrDep.DEPENDENT),
+    sens.ErrSysField(sens_array.get_field(),
+                     time_error_data,
+                     sens.EErrDep.DEPENDENT),
+    sens.ErrSysField(sens_array.get_field(),
+                     pos_error_data,
+                     sens.EErrDep.DEPENDENT),
+    sens.ErrSysField(sens_array.get_field(),
+                     pos_error_data,
+                     sens.EErrDep.DEPENDENT),
+    sens.ErrSysField(sens_array.get_field(),
+                     angle_error_data,
+                     sens.EErrDep.DEPENDENT),
+    sens.ErrSysField(sens_array.get_field(),
+                     angle_error_data,
+                     sens.EErrDep.DEPENDENT),
+]
 
 #%%
 # Instead of setting the dependence for each individual error above we could

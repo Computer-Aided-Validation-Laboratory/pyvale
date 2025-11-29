@@ -292,6 +292,9 @@ def _run_one_sim(sim_key: str,
                  sens_array: ISensorArray,
                  exp_keys: ExpSimKeys) -> dict[tuple[str,...],np.ndarray]:
 
+    # NOTE: need to reseed the error chain otherwise each worker inherits the 
+    # same random seed producing the same simulations.
+    sens_array.get_error_integrator().reseed_error_chain()
     sens_array.get_field().set_sim_data(sim_data)
 
     meas = sens_array.sim_measurements()
@@ -314,6 +317,9 @@ def _run_all_sims(sim_key: str,
                   exp_keys: ExpSimKeys,
                   ) -> dict[tuple[str,...],np.ndarray]:
 
+    # NOTE: need to reseed the error chain otherwise each worker inherits the 
+    # same random seed producing the same simulations.
+    sens_array.get_error_integrator().reseed_error_chain()
     sens_array.get_field().set_sim_data(sim_data)
 
     exp_shape = (num_exp,)+sens_array.get_measurement_shape()

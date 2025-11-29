@@ -75,13 +75,20 @@ sens_array.set_error_chain(err_chain)
 #%%
 # 3. Create & run simulated experiment
 # ------------------------------------
-sim_list: list[mh.SimData] = [sim_data,]
-sensor_arrays: list[sens.ISensorArray] = [sens_array,]
-exp_sim = sens.ExperimentSimulator(sim_list,
-                                   sensor_arrays)
 
-exp_data: list[np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
-exp_stats: list[sens.ExpSimStats] = sens.calc_exp_sim_stats(exp_data)
+sims: dict[str,mh.SimData] = {"sim_nominal":sim_data,}
+sensors: dict[str,sens.ISensorArray] = {"temp_sens":sens_array,}
+
+exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)
+exp_sim = sens.ExperimentSimulator(sims,sensors,exp_sim_opts)
+
+exp_data: dict[tuple[str,...],np.ndarray] = (
+    exp_sim.run_experiments(num_exp_per_sim=100)
+)
+
+exp_stats: dict[tuple[str,...],sens.ExpSimStats] = (
+    sens.calc_exp_sim_stats(exp_data)
+)
 
 
 #%%
@@ -111,16 +118,19 @@ else:
 #    :align: center
 
 trace_opts = sens.TraceOptsExperiment(plot_all_exp_points=True)
-(fig,ax) = sens.plot_exp_traces(exp_sim,
-                                component="temperature",
-                                sens_array_num=0,
-                                sim_num=0,
-                                trace_opts=trace_opts)
+(fig,ax) = sens.plot_exp_traces(
+    exp_data,
+    comp_ind=0,
+    sens_key="temp_sens",
+    sim_key="sim_nominal",
+    descriptor=sens.DescriptorFactory.temperature(),
+    trace_opts=trace_opts,
+)
 
 fig.savefig(output_path/"basics_ex0_traces.png",dpi=300,bbox_inches="tight")
 
 # Uncomment to show interactive figure
-# plt.show()
+plt.show()
 
 # %%
 # .. image:: ../../../../_static/basics_ex0_traces.png

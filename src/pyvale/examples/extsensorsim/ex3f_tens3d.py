@@ -88,11 +88,6 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error_chain: list[sens.IErrSimulator] = []
-error_chain.append(sens.ErrSysUnifPercent(low_percent=-1.0,
-                                          high_percent=1.0))
-error_chain.append(sens.ErrRandNormPercent(std_percent=1.0))
-
 pos_uncert = 0.1 # units = mm
 pos_rand_xyz = (sens.GenNormal(std=pos_uncert),
                 sens.GenNormal(std=pos_uncert),
@@ -117,9 +112,12 @@ field_error_data = sens.ErrFieldData(pos_rand_xyz=pos_rand_xyz,
                                      pos_lock_xyz=pos_lock,
                                      ang_rand_zyx=angle_rand_zyx,
                                      ang_lock_zyx=angle_lock)
-                                    
-error_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                    field_error_data))
+
+error_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysGenPercent(sens.GenUniform(low=-1.0,high=1.0)),
+    sens.ErrRandGenPercent(sens.GenNormal(std=1.0)),
+    sens.ErrSysField(sens_array.get_field(),field_error_data),
+]
 
 sens_array.set_error_chain(error_chain)
 

@@ -80,8 +80,6 @@ temp_sens: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 #%%
 # 2.2 Add errors to the scalar field sensors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-temp_err_chain: list[sens.IErrSimulator] = []
-
 
 temp_pos_uncert = 1.0 # units = mm
 temp_pos_rand = (sens.GenNormal(std=temp_pos_uncert),
@@ -89,17 +87,15 @@ temp_pos_rand = (sens.GenNormal(std=temp_pos_uncert),
                  None)
 
 temp_field_err_data = sens.ErrFieldData(pos_rand_xyz=temp_pos_rand)
-temp_err_chain.append(sens.ErrSysField(temp_sens.get_field(),
-                                       temp_field_err_data))
 
-temp_err_chain.append(
-    sens.ErrRandNormPercent(std_percent=2.0,
-                            err_dep=sens.EErrDep.DEPENDENT)
-)
-
-temp_err_chain.append(sens.ErrSysOffsetPercent(offset_percent=-1.0))
-temp_err_chain.append(sens.ErrSysDigitisation(bits_per_unit=2**24/100))
-temp_err_chain.append(sens.ErrSysSaturation(meas_min=0.0,meas_max=700.0))
+temp_err_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysField(temp_sens.get_field(),temp_field_err_data),
+    sens.ErrRandGenPercent(sens.GenNormal(std=2.0),
+        err_dep=sens.EErrDep.DEPENDENT),
+    sens.ErrSysOffsetPercent(offset_percent=-1.0),
+    sens.ErrSysDigitisation(bits_per_unit=2**24/100),
+    sens.ErrSysSaturation(meas_min=0.0,meas_max=700.0),
+]
 
 temp_sens.set_error_chain(temp_err_chain)
 
@@ -130,23 +126,19 @@ disp_sens: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
 # 2.4 Add errors to the vector field sensors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-disp_err_chain: list[sens.IErrSimulator] = []
-
-rand_gen = sens.GenNormal(std=1.0) # units = % truth
-disp_err_chain.append(sens.ErrRandGenPercent(rand_gen))
-
 pos_rand = sens.GenUniform(low=-1.0,high=1.0)   # units = mm
 angle_rand = sens.GenUniform(low=-2.0,high=2.0) # units = degrees
 
 field_err_data = sens.ErrFieldData(pos_rand_xyz=(pos_rand,pos_rand,None),
                                    ang_rand_zyx=(angle_rand,None,None))
 
-disp_err_chain.append(sens.ErrSysField(disp_sens.get_field(),
-                                       field_err_data))
-
-disp_err_chain.append(sens.ErrSysOffsetPercent(offset_percent=1.0))
-disp_err_chain.append(sens.ErrSysDigitisation(bits_per_unit=2**24/1.0))
-disp_err_chain.append(sens.ErrSysSaturation(meas_min=-1.0,meas_max=1.0))
+disp_err_chain: list[sens.IErrSimulator] = [
+    sens.ErrRandGenPercent(sens.GenNormal(std=1.0)),
+    sens.ErrSysField(disp_sens.get_field(),field_err_data),
+    sens.ErrSysOffsetPercent(offset_percent=1.0),
+    sens.ErrSysDigitisation(bits_per_unit=2**24/1.0),
+    sens.ErrSysSaturation(meas_min=-1.0,meas_max=1.0),
+]
 
 disp_sens.set_error_chain(disp_err_chain)
 
@@ -159,8 +151,7 @@ sensor_arrays: dict[str,sens.ISensorArray] = {
     "disp": disp_sens,
 }
 
-exp_sim_opts = sens.ExpSimOpts(workers=8,
-                               para=sens.EExpSimPara.SPLIT)
+exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)
 exp_sim = sens.ExperimentSimulator(sim_data_dict,sensor_arrays,exp_sim_opts)
 
 start_exp: float = time.perf_counter()
@@ -208,18 +199,11 @@ print("shape=(n_sensors,n_field_comps,n_time_steps)")
 print(f"{exp_stats[('sim_nominal','disp','meas')].max.shape=}")
 print(80*"=")
 
-print()
-print(f"{exp_data[('sim_nominal','disp','meas')][0,0,0,:]=}")
-print(f"{exp_data[('sim_nominal','disp','meas')][1,0,0,:]=}")
-print(f"{exp_data[('sim_nominal','disp','meas')][-1,0,0,:]=}")
-print()
-print(80*"=")
 # %%
 # .. image:: ../../../../_static/ext_ex5a_term_out.png
 #    :alt: Terminal output showing the simulated measurements
 #    :width: 700px
 #    :align: center
-
 
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
@@ -324,4 +308,4 @@ for key_sim in sim_data_dict:
 #    :align: center
 
 # Uncomment this to display the sensor trace plot
-plt.show()
+# plt.show()

@@ -183,12 +183,12 @@ class ErrSysField(IErrSimulator):
             if rr is not None:
                 rr.reseed(seed)
 
-        for rr in self._field_err_data.ang_rang_zyx:
+        for rr in self._field_err_data.ang_rand_zyx:
             if rr is not None:
                 rr.reseed(seed)
 
         if self._field_err_data.time_rand is not None:
-            self._field_err_data.time_rand.reseed()        
+            self._field_err_data.time_rand.reseed(seed)        
 
     def sim_errs(self,
                   err_basis: np.ndarray,

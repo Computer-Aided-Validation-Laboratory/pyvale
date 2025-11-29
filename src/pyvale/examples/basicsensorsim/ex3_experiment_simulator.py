@@ -86,9 +86,6 @@ temp_sens: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 # omitted the position random  generator in the X direction and replace it with
 # `None`.
 
-temp_err_chain: list[sens.IErrSimulator] = []
-temp_err_chain.append(sens.ErrRandNorm(std=2.0)) # units = degrees
-
 temp_pos_uncert = 0.5 # units = mm
 temp_pos_rand = (sens.GenNormal(std=temp_pos_uncert),
                  sens.GenNormal(std=temp_pos_uncert),
@@ -99,8 +96,11 @@ temp_pos_lock[:,0] = True
 
 temp_field_err_data = sens.ErrFieldData(pos_rand_xyz=temp_pos_rand,
                                         pos_lock_xyz=temp_pos_lock)
-temp_err_chain.append(sens.ErrSysField(temp_sens.get_field(),
-                                       temp_field_err_data))
+
+temp_err_chain: list[sens.IErrSimulator] = [
+    sens.ErrRandGen(sens.GenNormal(std=2.0)), # units = degrees
+    sens.ErrSysField(temp_sens.get_field(),temp_field_err_data),
+]
 
 temp_sens.set_error_chain(temp_err_chain)
 
@@ -136,8 +136,6 @@ strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
 # functionality that allows us to constrain the sensors to only rotate on the
 # surface they are on.
 
-strain_err_chain: list[sens.IErrSimulator] = []
-strain_err_chain.append(sens.ErrRandNormPercent(std_percent=2.0))
 
 angle_uncert: float = 2.0 # units = degrees
 angle_rand_zyx = (sens.GenUniform(low=-angle_uncert,high=angle_uncert),
@@ -149,8 +147,11 @@ angle_lock[:,0] = False   # Allow rotation about z
 
 strain_field_err_data = sens.ErrFieldData(ang_rand_zyx=angle_rand_zyx,
                                           ang_lock_zyx=angle_lock)
-strain_err_chain.append(sens.ErrSysField(strain_sens.get_field(),
-                                         strain_field_err_data))
+
+strain_err_chain: list[sens.IErrSimulator] = [
+    sens.ErrRandGenPercent(sens.GenNormal(std=2.0)),
+    sens.ErrSysField(strain_sens.get_field(),strain_field_err_data),
+]
 
 strain_sens.set_error_chain(strain_err_chain)
 
@@ -158,72 +159,90 @@ strain_sens.set_error_chain(strain_err_chain)
 # 3. Create & run simulated experiments
 # -------------------------------------
 # We can now run our experiments over all simulations for all our virtual
-# sensor arrays. We are returned a dicitionary of numpy arrays. The key in the
-# dicitionary corresponds to the key we used in our input sensor arrays
-# dictionary in the list . So if we want our thermocouple results we want
-# exp_data["temp"] and for our strain gauges exp_data["strain"]. The numpy array
-# with our simulated experimental data has the following shape:
-# (n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)
-#
-# We can also calculate summary statistics for each sensor array which is
-# returned as a dictionary where the key again corresponds to the key we used
-# in the input sensor arrays dictionary. The experiment stats object contains
-# numpy arrays for each statistic that is collapsed over the number of
-# experiments. The statistics we can access include: mean, standard deviation
-# minimum, maximum, median, median absolute deviation and the 25% and 75%
-# quartiles. See the `ExperimentStats` data class for details.
-#
-# There is also a reserved key in the...
-# TODO!
+# sensor arrays. We can run our simulations sequentially or in parallel by 
+# controlling the nunmber of workers and parallelisation enumeration in the 
+# `ExpSimOpts` dataclass. Note that the default is to run the simulations in
+# a single process sequentially. The parallelisation enumeration has two options
+# 'ALL' which means we run all of our N experiments on per worker and 
+# 'SPLIT' this mode splits our N experiments across the workers running a single
+# simulation per worker. For our case here 'ALL' will be fastest and as we have
+# 4 unique combinations of our simulation data and sensors arrays 4 workers will
+# be most efficient. The 'SPLIT' option is most effective for computationally
+# heavy simulated experiments that involve imaging simulations.
+
 
 sensor_array_dict: dict[str,sens.ISensorArray] = {
     "temp": temp_sens,
     "strain": strain_sens,
 }
 
+exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)
+
 exp_sim = sens.ExperimentSimulator(sim_data_dict,
                                    sensor_array_dict)
 
-exp_data: dict[str,np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=100)
-exp_stats: dict[str,sens.ExpSimStats] = sens.calc_exp_sim_stats(exp_data)
+#%%
+# The results of our simulated experiment are returned as a dictionary of numpy
+# arrays where the key is a tuple of strings. The tuple key takes the form:
+# (sim_key,sens_key,data_key) where data_key can be: "meas" for the simulated 
+# measurements; "sys_errs" for the systematic errors; "rand_errs" for the random
+# errors; and "samp_times" for the sample time vector. The numpy array for 
+# "meas", "sys_errs" and "rand_errs" has the following shape
+# (num_exps,num_sensors,num_field_comps,num_time_steps). The numpy array for the
+# sample times has a shape (num_time_steps,).
+#
+# We can also calculate summary statistics  which is returned as a dictionary 
+# keyed with the same tuple as the experimental data dictionary. The value of
+# dictionary is an experiment stats object that contains numpy arrays for each 
+# statistic that is collapsed over the number of simulated experiments. 
+# The statistics we can access include: mean, standard deviation
+# minimum, maximum, median, median absolute deviation and the 25% and 75%
+# quartiles. See the `ExpSimStats` data class for details.
+
+
+exp_data: dict[tuple[str,...],np.ndarray] = (
+    exp_sim.run_experiments(num_exp_per_sim=100)
+)
+exp_stats: dict[tuple[str,...],sens.ExpSimStats] = (
+    sens.calc_exp_sim_stats(exp_data)
+)
 
 #%%
 # 4. Analyse & visualise the results
 # ----------------------------------
 # Here we inspect our experiment simulation data dictionary to demonstrate the
 # the data structures it contains so you can perform any follow up analysis on
-# the data you want. We first print the simulation keys member in our dictionary
-# which corresponds to the names we gave our simulations previously. This is
-# useful to later identify which simulation corresponds to which index of the
-# first axis of the experiment simulation data array for each sensor.
+# the data you want. We first print the tuple keys in our dictionary so we can
+# see what data is available. 
 #
-# We then inspect the simulated data output for each of our virtual sensor
-# arrays showing the shapes of the raw data arrays and the calculated simulation
+# We then inspect the simulated data output for few combinations of simulations
+# and sensor arrays showing the shapes of the raw data arrays and the calculated 
 # statistics. Noting that our scalar field sensor has a differen number of
 # component dimensions to our mechanical field sensor.
 
 print(80*"=")
-print("Simulation keys corresponding to the first axis:")
-print(f"{exp_data['sim_keys']=}")
+print("Keys in the simulated experimental data dictionary:")
+for kk in exp_data:
+    print(kk)
 print()
 print(80*"-")
-print("Thermal sensor array @ exp_data['temp']")
+print("Thermal sensor array @ exp_data[('sim_nominal','temp','meas')]")
 print(80*"-")
-print("shape=(n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data['temp'].shape=}")
+print("shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
+print(f"{exp_data[('sim_nominal','temp','meas')].shape=}")
 print()
-print("Stats are calculated over all experiments (axis=1)")
-print("shape=(n_sims,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats['temp'].max.shape=}")
+print("Stats are calculated over all experiments (axis=0)")
+print("shape=(n_sensors,n_field_comps,n_time_steps)")
+print(f"{exp_stats[('sim_nominal','temp','meas')].max.shape=}")
 print()
 print(80*"-")
-print("Mechanical sensor array @ exp_data['strain']")
+print("Mechanical sensor array @ exp_data[('sim_nominal','strain','meas')]")
 print(80*"-")
-print("shape=(n_sims,n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data['strain'].shape=}")
+print("shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
+print(f"{exp_data[('sim_nominal','strain','meas')].shape=}")
 print()
-print("shape=(n_sims,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats['strain'].max.shape=}")
+print("shape=(n_sensors,n_field_comps,n_time_steps)")
+print(f"{exp_stats[('sim_nominal','strain','meas')].max.shape=}")
 print(80*"=")
 
 #%%
@@ -246,7 +265,7 @@ if not output_path.is_dir():
 
 sens.save_exp_sim_data(output_path/"ex3_exp_sim_data.npz",exp_data)
 
-exp_data: dict[str,np.ndarray] = sens.load_exp_sim_data(
+exp_data: dict[tuple[str,...],np.ndarray] = sens.load_exp_sim_data(
     output_path/"ex3_exp_sim_data.npz"
 )
 
@@ -301,11 +320,14 @@ else:
 
 trace_opts = sens.TraceOptsExperiment(plot_all_exp_points=True)
 
-(fig,ax) = sens.plot_exp_traces(exp_sim,
-                                comp_key="temperature",
-                                sens_array_key="temp",
-                                sim_key="sim_nominal",
-                                trace_opts=trace_opts)
+(fig,ax) = sens.plot_exp_traces(
+    exp_data,
+    comp_ind=0,
+    sens_key="temp",
+    sim_key="sim_nominal",
+    trace_opts=trace_opts,
+    descriptor=sens.DescriptorFactory.temperature(),
+)
 
 save_fig: Path = output_path/"basics_ex3_traces_temp.png"
 fig.savefig(save_fig,dpi=300,bbox_inches="tight")
@@ -320,12 +342,15 @@ fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 #    :align: center
 
 strain_plot_keys = ("strain_xx","strain_yy","strain_xy")
-for kk in strain_plot_keys:
-    (fig,ax) = sens.plot_exp_traces(exp_sim,
-                                    comp_key=kk,
-                                    sens_array_key="strain",
-                                    sim_key="sim_nominal",
-                                    trace_opts=trace_opts)
+for ii,kk in enumerate(strain_plot_keys):
+    (fig,ax) = sens.plot_exp_traces(
+        exp_data,
+        comp_ind=ii,
+        sens_key="strain",
+        sim_key="sim_nominal",
+        trace_opts=trace_opts,
+        descriptor=sens.DescriptorFactory.strain(sens.EDim.THREED),
+    )
 
     save_fig: Path = output_path/f"basics_ex3_traces_{kk}.png"
     fig.savefig(save_fig,dpi=300,bbox_inches="tight")

@@ -70,7 +70,6 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
 # perturbed as part of our uncertainty simulation but we want the sensors to 
 # stay attached to the faces of the cube they are located on
 
-error_chain: list[sens.IErrSimulator] = []
  
 pos_uncert = 1.0 # units = mm
 pos_rand = (sens.GenUniform(low=-pos_uncert,high=pos_uncert),
@@ -101,16 +100,12 @@ ang_lock[5,0] = False # cube y-z face, unlock/rotate about x
 field_err_data = sens.ErrFieldData(pos_rand_xyz=pos_rand,
                                    pos_lock_xyz=pos_lock)
 
-error_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                    field_err_data))
-
-sys_gen = sens.GenUniform(low=-1.0,high=1.0) # units = % current sim. value
-error_chain.append(sens.ErrSysGenPercent(sys_gen,
-                                         sens.EErrDep.DEPENDENT))  
-
-rand_gen = sens.GenNormal(std=1.0) # units = % current sim. value
-error_chain.append(sens.ErrRandGenPercent(rand_gen,
-                                          sens.EErrDep.DEPENDENT ))
+error_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysField(sens_array.get_field(),field_err_data),
+    sens.ErrSysGenPercent(sens.GenUniform(low=-1.0,high=1.0),
+                          sens.EErrDep.DEPENDENT),
+    sens.ErrRandGenPercent(sens.GenNormal(std=1.0),sens.EErrDep.DEPENDENT),
+]
 
 sens_array.set_error_chain(error_chain)
 

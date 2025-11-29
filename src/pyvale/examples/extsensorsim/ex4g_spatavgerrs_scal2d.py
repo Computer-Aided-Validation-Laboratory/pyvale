@@ -95,9 +95,11 @@ area_avg_err_data = sens.ErrFieldData(
 # We add the field error to our error chain as normal. We could combine it
 # with any of our other error models but we will isolate it for now so we
 # can see what it does.
-err_chain: list[sens.IErrSimulator] = []
-err_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                  area_avg_err_data))
+
+err_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysField(sens_array.get_field(),area_avg_err_data),
+]
+
 sens_array.set_error_chain(err_chain)
 
 #%% 

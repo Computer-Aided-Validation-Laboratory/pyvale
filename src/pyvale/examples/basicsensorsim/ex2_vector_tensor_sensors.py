@@ -142,19 +142,17 @@ field_err_data = sens.ErrFieldData(pos_offset_xyz=pos_offset_xyz,
 # noting that our field errors need a reference to the field that they will have
 # to interpolate.
 
-disp_err_chain: list[sens.IErrSimulator] = []
-disp_err_chain.append(sens.ErrRandNormPercent(std_percent=2.0))
-disp_err_chain.append(sens.ErrSysField(disp_sens.get_field(),
-                                       field_err_data))
+disp_err_chain: list[sens.IErrSimulator] = [
+    sens.ErrRandGen(sens.GenNormal(std=2.0)),
+    sens.ErrSysField(disp_sens.get_field(),field_err_data),
+]
 
 disp_sens.set_error_chain(disp_err_chain)
 
-strain_err_chain: list[sens.IErrSimulator] = []
-strain_err_chain.append(sens.ErrRandUnifPercent(low_percent=-2.0,
-                                                high_percent=2.0))
-strain_err_chain.append(sens.ErrSysField(strain_sens.get_field(),
-                                         field_err_data))
-
+strain_err_chain: list[sens.IErrSimulator] = [
+    sens.ErrRandGenPercent(sens.GenUniform(low=-2.0,high=2.0)),
+    sens.ErrSysField(strain_sens.get_field(),field_err_data),
+]
 strain_sens.set_error_chain(strain_err_chain)
 
 #%%

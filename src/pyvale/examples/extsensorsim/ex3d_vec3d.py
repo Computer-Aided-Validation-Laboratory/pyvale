@@ -70,14 +70,6 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error_chain: list[sens.IErrSimulator] = []
- 
-sys_gen = sens.GenUniform(low=-1.0,high=1.0) # units = % truth
-error_chain.append(sens.ErrSysGenPercent(sys_gen))  
-
-rand_gen = sens.GenNormal(std=1.0) # units = % truth
-error_chain.append(sens.ErrRandGenPercent(rand_gen))
-
 pos_uncert = 1.0 # units = mm
 pos_rand = (sens.GenUniform(low=-pos_uncert,high=pos_uncert),
             sens.GenUniform(low=-pos_uncert,high=pos_uncert),
@@ -93,8 +85,12 @@ pos_lock[5,0] = True # cube y-z face, lock x
 
 field_err_data = sens.ErrFieldData(pos_rand_xyz=pos_rand,
                                    pos_lock_xyz=pos_lock)
-error_chain.append(sens.ErrSysField(sens_array.get_field(),
-                                    field_err_data))
+
+error_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysGenPercent(sens.GenUniform(low=-1.0,high=1.0)),
+    sens.ErrRandGenPercent(sens.GenNormal(std=1.0)),
+    sens.ErrSysField(sens_array.get_field(),field_err_data),
+]
 
 sens_array.set_error_chain(error_chain)
 
