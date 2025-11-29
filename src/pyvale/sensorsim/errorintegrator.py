@@ -110,12 +110,15 @@ class ErrIntegrator:
 
 
     def reseed_error_chain(self, seed: int | None = None) -> None:
-        """_summary_
+        """Iterates through the error chain and calls the reseed method for all
+        errors in the chain. Used for reseeding multi-processed simulations 
+        where all workers inherit the same seed from the main process.
 
         Parameters
         ----------
         seed : int | None, optional
-            _description_, by default None
+            Integer seed for the random number generator, by default None. If 
+            None then the seed is generated using OS entropy (see numpy docs).
         """    
         for ee in self._err_chain:
             ee.reseed(seed)

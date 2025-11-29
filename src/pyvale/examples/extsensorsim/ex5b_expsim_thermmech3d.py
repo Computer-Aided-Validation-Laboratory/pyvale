@@ -316,5 +316,5 @@ for key_sim in sim_data_dict:
 #    :width: 600px
 #    :align: center
 
-# Uncomment this to strainlay the sensor trace plot
+# Uncomment this to display the sensor trace plot
 # plt.show()

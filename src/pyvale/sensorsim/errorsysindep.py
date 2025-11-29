@@ -76,6 +76,9 @@ class ErrSysOffset(IErrSimulator):
         return EErrType.SYSTEMATIC
 
     def reseed(self, seed: int | None = None) -> None:
+        """This error simulator does not implement a random generator so this 
+        function is intentionally empty.
+        """     
         pass
 
     def sim_errs(self,
@@ -161,6 +164,9 @@ class ErrSysOffsetPercent(IErrSimulator):
         return EErrType.SYSTEMATIC
 
     def reseed(self, seed: int | None = None) -> None:
+        """This error simulator does not implement a random generator so this 
+        function is intentionally empty.
+        """
         pass
 
     def sim_errs(self,
@@ -250,6 +256,16 @@ class ErrSysGen(IErrSimulator):
         return EErrType.SYSTEMATIC
 
     def reseed(self, seed: int | None = None) -> None:
+        """Reseeds the random generators of the error simulator. Mainly used for
+        multi-processed simulations which inherit the same seed as the main 
+        process so need to be reseeded.
+
+        Parameters
+        ----------
+        seed : int | None, optional
+            Integer seed for the random number generator, by default None. If 
+            None then the seed is generated using OS entropy (see numpy docs).
+        """
         self._generator.reseed(seed)
 
     def sim_errs(self,
@@ -352,6 +368,16 @@ class ErrSysGenPercent(IErrSimulator):
         return EErrType.SYSTEMATIC
 
     def reseed(self, seed: int | None = None) -> None:
+        """Reseeds the random generators of the error simulator. Mainly used for
+        multi-processed simulations which inherit the same seed as the main 
+        process so need to be reseeded.
+
+        Parameters
+        ----------
+        seed : int | None, optional
+            Integer seed for the random number generator, by default None. If 
+            None then the seed is generated using OS entropy (see numpy docs).
+        """
         self._generator.reseed(seed)
 
     def sim_errs(self,
@@ -388,7 +414,4 @@ class ErrSysGenPercent(IErrSimulator):
         sys_errs = err_basis * sys_errs
 
         return (sys_errs,sens_data)
-
-
-
 

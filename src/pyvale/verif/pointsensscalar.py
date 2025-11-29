@@ -225,7 +225,10 @@ def err_chain_2d_dict(field: sens.IField,
     err_cases["basic"] = pointsens.err_chain_basic()
     err_cases["basic-gen"] = pointsens.err_chain_gen()
     err_cases["field"] = err_chain_sfield(field,sens_pos,samp_times,pos_lock)
-    err_cases["field-dep"] = err_chain_sfield_dep(field,sens_pos,samp_times,pos_lock)
+    err_cases["field-dep"] = err_chain_sfield_dep(field,
+                                                  sens_pos,
+                                                  samp_times,
+                                                  pos_lock)
     err_cases["calib"] = err_chain_calib()
 
      # This has to be last so when we chain all errors together the saturation
@@ -247,7 +250,10 @@ def err_chain_3d_dict(field: sens.IField,
     err_cases["basic"] = pointsens.err_chain_basic()
     err_cases["basic-gen"] = pointsens.err_chain_gen()
     err_cases["field"] = err_chain_sfield(field,sens_pos,samp_times,pos_lock)
-    err_cases["field-dep"] = err_chain_sfield_dep(field,sens_pos,samp_times,pos_lock)
+    err_cases["field-dep"] = err_chain_sfield_dep(field,
+                                                  sens_pos,
+                                                  samp_times,
+                                                  pos_lock)
     err_cases["calib"] = err_chain_calib()
 
     # This has to be last so when we chain all errors together the saturation
@@ -374,7 +380,4 @@ def sens_arrays_3d_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
     sens_data_dict = sens_data_3d_dict(sim_data)
     tag = "scal3d_nomesh"
     return gen_sens_array_dict_3d(sim_data,sens_data_dict,tag)
-
-
-
 

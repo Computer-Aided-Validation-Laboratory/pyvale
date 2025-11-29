@@ -80,12 +80,15 @@ class IErrSimulator(ABC):
 
     @abstractmethod
     def reseed(self,seed: int | None = None) -> None:
-        """_summary_
+        """Reseeds the random generators of the error simulator. Mainly used for
+        multi-processed simulations which inherit the same seed as the main 
+        process so need to be reseeded.
 
         Parameters
         ----------
         seed : int | None, optional
-            _description_, by default None
+            Integer seed for the random number generator, by default None. If 
+            None then the seed is generated using OS entropy (see numpy docs).
         """
 
 

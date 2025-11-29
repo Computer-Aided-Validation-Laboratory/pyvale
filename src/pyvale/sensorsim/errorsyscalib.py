@@ -101,6 +101,9 @@ class ErrSysCalibration(IErrSimulator):
         return EErrType.SYSTEMATIC
 
     def reseed(self, seed: int | None = None) -> None:
+        """This error simulator does not implement a random generator so this 
+        function is intentionally empty.
+        """        
         pass
 
     def sim_errs(self,

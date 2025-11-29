@@ -18,7 +18,7 @@ import numpy as np
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.verif.pointsensconst as pointsensconst
-
+from pyvale.verif.pointsensconst import GOLD_SEED
 
 def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
     sim_dims = sens.simtools.get_sim_dims(sim_data)
@@ -47,40 +47,35 @@ def sens_data_dict(sim_data: mh.SimData,
 
 
 def err_chain_basic() -> list[sens.IErrSimulator]:
-    chain_basic = []
-    chain_basic.append(sens.ErrSysOffset(offset=-1.0))
-    chain_basic.append(sens.ErrSysUnif(low=-1.0,
-                                      high=1.0,
-                                      seed=pointsensconst.GOLD_SEED))
-    chain_basic.append(sens.ErrSysUnifPercent(low_percent=-1.0,
-                                             high_percent=1.0,
-                                             seed=pointsensconst.GOLD_SEED))
-    chain_basic.append(sens.ErrRandNorm(std=1.0,
-                                       seed=pointsensconst.GOLD_SEED))
-    chain_basic.append(sens.ErrRandNormPercent(std_percent=1.0,
-                                              seed=pointsensconst.GOLD_SEED))
+    chain_basic = [
+        sens.ErrSysOffset(offset=-1.0),
+        sens.ErrSysGen(sens.GenUniform(low=-1.0,high=1.0,seed=GOLD_SEED)),
+        sens.ErrSysGenPercent(
+            sens.GenUniform(low=-1.0,high=1.0,seed=GOLD_SEED)),
+        sens.ErrRandGen(sens.GenNormal(std=1.0,seed=GOLD_SEED)),
+        sens.ErrRandGenPercent(sens.GenNormal(std=1.0,seed=GOLD_SEED)),
+    ]
     return chain_basic
 
 
 def err_chain_gen() -> list[sens.IErrSimulator]:
-    chain_gen = []
-    chain_gen.append(sens.ErrSysOffset(offset=-1.0))
-    chain_gen.append(sens.ErrSysGen(
-        sens.GenUniform(low=-1.0,high=1.0,seed=pointsensconst.GOLD_SEED)))
-    chain_gen.append(sens.ErrSysGenPercent(
-        sens.GenUniform(low=-1.0,high=1.0,seed=pointsensconst.GOLD_SEED)))
-    chain_gen.append(sens.ErrRandGen(
-        sens.GenNormal(std=1.0,seed=pointsensconst.GOLD_SEED)))
-    chain_gen.append(sens.ErrRandGenPercent(
-        sens.GenNormal(std=1.0,seed=pointsensconst.GOLD_SEED)))
+    chain_gen = [
+        sens.ErrSysOffset(offset=-1.0),    
+        sens.ErrSysGen(sens.GenUniform(low=-1.0,high=1.0,seed=GOLD_SEED)), 
+        sens.ErrSysGenPercent(
+            sens.GenUniform(low=-1.0,high=1.0,seed=GOLD_SEED)),
+        sens.ErrRandGen(sens.GenNormal(std=1.0,seed=GOLD_SEED)),
+        sens.ErrRandGenPercent(sens.GenNormal(std=1.0,seed=GOLD_SEED)),
+    ]
     return chain_gen
 
 
 def err_chain_dep() -> list[sens.IErrSimulator]:
-    chain_dep = []
-    chain_dep.append(sens.ErrSysRoundOff(sens.ERoundMethod.ROUND,0.1))
-    chain_dep.append(sens.ErrSysDigitisation(bits_per_unit=2**16/100))
-    chain_dep.append(sens.ErrSysSaturation(meas_min=0.0,meas_max=100.0))
+    chain_dep = [
+        sens.ErrSysRoundOff(sens.ERoundMethod.ROUND,0.1),
+        sens.ErrSysDigitisation(bits_per_unit=2**16/100),
+        sens.ErrSysSaturation(meas_min=0.0,meas_max=100.0),
+    ]
     return chain_dep
 
 

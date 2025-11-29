@@ -171,9 +171,7 @@ def err_chain_field(field: sens.IField,
         pos_lock_xyz=pos_lock,
     )
 
-    err_chain = []
-    err_chain.append(sens.ErrSysField(field,
-                                     field_err_data))
+    err_chain = [sens.ErrSysField(field,field_err_data),]
     return err_chain
 
 
@@ -198,23 +196,23 @@ def err_chain_field_dep(field: sens.IField,
 
     err_chain = []
     err_chain.append(sens.ErrSysField(field,
-                                    time_error_data,
-                                    sens.EErrDep.DEPENDENT))
+                                      time_error_data,
+                                      sens.EErrDep.DEPENDENT))
     err_chain.append(sens.ErrSysField(field,
-                                    time_error_data,
-                                    sens.EErrDep.DEPENDENT))
+                                      time_error_data,
+                                      sens.EErrDep.DEPENDENT))
     err_chain.append(sens.ErrSysField(field,
-                                    pos_error_data,
-                                    sens.EErrDep.DEPENDENT))
+                                      pos_error_data,
+                                      sens.EErrDep.DEPENDENT))
     err_chain.append(sens.ErrSysField(field,
-                                    pos_error_data,
-                                    sens.EErrDep.DEPENDENT))
+                                      pos_error_data,
+                                      sens.EErrDep.DEPENDENT))
     err_chain.append(sens.ErrSysField(field,
-                                    angle_error_data,
-                                    sens.EErrDep.DEPENDENT))
+                                      angle_error_data,
+                                      sens.EErrDep.DEPENDENT))
     err_chain.append(sens.ErrSysField(field,
-                                    angle_error_data,
-                                    sens.EErrDep.DEPENDENT))
+                                      angle_error_data,
+                                      sens.EErrDep.DEPENDENT))
     return err_chain
 
 
@@ -227,8 +225,14 @@ def err_chain_2d_dict(field: sens.IField,
     err_cases["none"] = None
     err_cases["basic"] = pointsens.err_chain_basic()
     err_cases["basic-gen"] = pointsens.err_chain_gen()
-    err_cases["field"] = err_chain_field(field,sens_pos,samp_times,pos_lock)
-    err_cases["field-dep"] = err_chain_field_dep(field,sens_pos,samp_times,pos_lock)
+    err_cases["field"] = err_chain_field(field,
+                                         sens_pos,
+                                         samp_times,
+                                         pos_lock)
+    err_cases["field-dep"] = err_chain_field_dep(field,
+                                                 sens_pos,
+                                                 samp_times,
+                                                 pos_lock)
 
     # This has to be last so when we chain all errors together the saturation
     # error is the last thing that happens
@@ -248,8 +252,14 @@ def err_chain_3d_dict(field: sens.IField,
     err_cases["none"] = None
     err_cases["basic"] = pointsens.err_chain_basic()
     err_cases["basic-gen"] = pointsens.err_chain_gen()
-    err_cases["field"] = err_chain_field(field,sens_pos,samp_times,pos_lock)
-    err_cases["field-dep"] = err_chain_field_dep(field,sens_pos,samp_times,pos_lock)
+    err_cases["field"] = err_chain_field(field,
+                                         sens_pos,
+                                         samp_times,
+                                         pos_lock)
+    err_cases["field-dep"] = err_chain_field_dep(field,
+                                                 sens_pos,
+                                                 samp_times,
+                                                 pos_lock)
 
     # This has to be last so when we chain all errors together the saturation
     # error is the last thing that happens
