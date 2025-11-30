@@ -19,8 +19,11 @@ class IFieldInterp(ABC):
                     points: np.ndarray,
                     sample_times: np.ndarray | None = None,
                     ) -> np.ndarray:
-        """Abstract method. Invokes the interpolation field interpolation
-        algorithm at the given points and sample times.
+        """Invokes the field interpolation algorithm at the given points and 
+        sample times. Spatial interpolation is performed first at existing data 
+        time steps. If the sample times are the same as the underlying data no 
+        temporal interpolation is performed otherwise linear interpolation is 
+        performed between time steps for each point in space.
 
         Parameters
         ----------

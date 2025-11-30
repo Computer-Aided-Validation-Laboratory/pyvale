@@ -50,7 +50,9 @@ class IErrSimulator(ABC):
 
     @abstractmethod
     def get_error_type(self) -> EErrType:
-        """Abstract method for getting the error type.
+        """Gets the error type enumeration as either random or systematic. 
+        Random errors sample at every time step and systematic errors typically
+        apply a bias that is constant over time. 
 
         Returns
         -------
@@ -60,29 +62,37 @@ class IErrSimulator(ABC):
 
     @abstractmethod
     def get_error_dep(self) -> EErrDep:
-        """Abstract method for getting the error dependence.
+        """Gets the error dependence enumeration value. Independent errors are
+        calculated based on the ground truth and ignore other errors in the 
+        error chain. Dependent errors are calculated based on the accumulated
+        measurement value at their place in the error chain.
 
         Returns
         -------
-        EErrDependence
-            Enumeration definining RANDOM or SYSTEMATIC error types.
+        EErrDep
+            Enumeration definining INDEPENDENT or DEPENDENT error dependence.
         """
 
     @abstractmethod
     def set_error_dep(self, dependence: EErrDep) -> None:
-        """Abstract method for setting the error dependence.
+        """Sets the error dependence for errors that support changing the 
+        dependence. Independent errors are calculated based on the ground truth 
+        and ignore other errors in the error chain. Dependent errors are 
+        calculated based on the accumulated measurement value at their place in 
+        the error chain.
 
         Parameters
         ----------
-        dependence : EErrDependence
-            Enumeration definining RANDOM or SYSTEMATIC error types.
+        dependence : EErrDep
+            Enumeration definining INDEPENDENT or DEPENDENT error dependence.
         """
 
     @abstractmethod
     def reseed(self,seed: int | None = None) -> None:
         """Reseeds the random generators of the error simulator. Mainly used for
         multi-processed simulations which inherit the same seed as the main 
-        process so need to be reseeded.
+        process so need to be reseeded. If the error simulator does not have any
+        random generators then this function implementation will be empty.
 
         Parameters
         ----------
@@ -97,14 +107,17 @@ class IErrSimulator(ABC):
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
-        """Abstract method that simulates the error array based on the input
-        err_basis array. The output error array will be the same shape as the
-        input err_basis array.
+        """Creates the simulated error array based on the input error basis 
+        array. The output error array will be the same shape as the input 
+        error basis array.
 
         Parameters
         ----------
         err_basis : np.ndarray
-            Used as the base array for calculating the returned error
+            Used as the base array for calculating the returned error. If the 
+            error is independent this will be the 'truth' array and if the error
+            is dependent this will be the accumulated sensor measurement array 
+            at this point in the error chain.
         sens_data : SensorData
             Sensor data object holding the current sensor state before applying
             this error calculation.

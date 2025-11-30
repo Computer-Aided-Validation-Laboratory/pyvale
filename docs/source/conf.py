@@ -77,6 +77,7 @@ autodoc_default_options = {
     'inherited-members': False,
     'show-inheritance': True
 }
+autodoc_inherit_docstrings = True
 
 # Prevent duplication issues
 autoclass_content = 'class'  # Only class docstring, not __init__

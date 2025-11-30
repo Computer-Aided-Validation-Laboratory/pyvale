@@ -18,12 +18,23 @@ class IGenRandom(ABC):
 
     @abstractmethod
     def reseed(self, seed: int | None = None) -> None:
+        """Reseeds the random generator. Mainly used for multi-processed 
+        simulations which inherit the same seed as the main  process so need to 
+        be reseeded.
+        
+        Parameters
+        ----------
+        seed : int | None, optional
+            Integer seed for the random number generator, by default None. If 
+            None then the seed is generated using OS entropy (see numpy docs).
+        """
+        
         pass
 
     @abstractmethod
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Abstract method. Generates an array of random numbers with the shape
-        specified by the input.
+        """Generates an array of random numbers with the shape specified by the 
+        input using the probability distribution specified by the class.
 
         Parameters
         ----------
@@ -69,19 +80,6 @@ class GenNormal(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.normal(loc = self._mean,
                                 scale = self._std,
                                 size = shape)
@@ -118,18 +116,6 @@ class GenLogNormal(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.lognormal(mean = self._mean,
                                    sigma = self._std,
                                    size = shape)
@@ -166,18 +152,6 @@ class GenUniform(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.uniform(low = self._low,
                                  high = self._high,
                                  size = shape)
@@ -210,18 +184,6 @@ class GenExponential(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.exponential(scale = self._scale,
                                      size = shape)
 
@@ -253,18 +215,6 @@ class GenChiSquare(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.chisquare(df = self._dofs,
                                    size = shape)
 
@@ -295,18 +245,6 @@ class GenDirichlet(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.dirichlet(alpha = self._alpha, size = shape)
 
 
@@ -337,18 +275,6 @@ class GenF(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.f(dfnum = self._dofs, size = shape)
 
 
@@ -383,18 +309,6 @@ class GenGamma(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.gamma(scale = self._scale,
                                      size = shape)
 
@@ -426,18 +340,6 @@ class GenStandardT(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.standard_t(df = self._dofs,
                                    size = shape)
 
@@ -472,18 +374,6 @@ class GenBeta(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.beta(a = self._a,
                               b = self._b,
                               size = shape)
@@ -524,18 +414,6 @@ class GenTriangular(IGenRandom):
         self._rng = np.random.default_rng(seed)
 
     def generate(self, shape: tuple[int,...]) -> np.ndarray:
-        """Generates an array of random numbers with the shape specified by the
-        input.
-
-        Parameters
-        ----------
-        shape : tuple[int,...]
-            Shape of the array to return.
-        Returns
-        -------
-        np.ndarray
-            Array of random numbers with the specified shape.
-        """
         return self._rng.triangular(left = self._left,
                                     mode = self._mode,
                                     right = self._right,

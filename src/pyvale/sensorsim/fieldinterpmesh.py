@@ -52,26 +52,6 @@ class FieldInterpMesh(IFieldInterp):
                      points: np.ndarray,
                      sample_times: np.ndarray | None = None,
                      ) -> np.ndarray:
-        """Invokes the interpolation field interpolation algorithm at the given
-        points and sample times.
-
-        Parameters
-        ----------
-        points : np.ndarray
-            Array of points to spatially interpolate the physical field to.
-        sample_times : np.ndarray | None, optional
-            Vector of times at which to sample the underlying physical field,
-            by default None. If this is None then no temporal interpolation is
-            performed and the points returned correspond to the input simulation
-            time steps.
-
-        Returns
-        -------
-        np.ndarray
-            Simulated measurement array intepolated from the simulation data to
-            the desired sensor locations and sample times with shape=(
-            num_sensors,num_field_components,num_sample_times).
-        """
         return sample_pyvista_grid(self._comp_keys,
                                    self._pyvista_interp,
                                    self._sim_time_steps,
