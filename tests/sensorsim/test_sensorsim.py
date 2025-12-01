@@ -104,7 +104,7 @@ def test_gold_sens_tensor(get_sensors: Callable[[], Dict[str, Any]]) -> None:
 #-------------------------------------------------------------------------------
 # Check that 'get_measurements' does not resample probability distributions
 
-def check_get_meas(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[str]:
+def check_get_meas(sens_dict: dict[str,sens.SensorsPoint]) -> list[str]:
     fails = []
     for ss in sens_dict:
         calc_meas = sens_dict[ss].sim_measurements()

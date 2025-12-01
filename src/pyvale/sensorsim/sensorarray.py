@@ -9,6 +9,8 @@ import numpy as np
 from pyvale.sensorsim.field import IField
 
 
+#TODO: when cameras, line, area and volume sensors are implemented this will 
+# need to be refactored. 
 class ISensorArray(ABC):
     """Interface (abstract base class) for an array of sensors of the same
     type sampling a given physical field.

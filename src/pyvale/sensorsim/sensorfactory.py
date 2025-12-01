@@ -10,18 +10,14 @@ configurations without the user needing to configure all the sub-components
 themselves.
 """
 
-import numpy as np
 
 import pyvale.mooseherder as mh
-
 from pyvale.sensorsim.fieldscalar import FieldScalar
 from pyvale.sensorsim.fieldvector import FieldVector
 from pyvale.sensorsim.fieldtensor import FieldTensor
 from pyvale.sensorsim.sensordescriptor import (DescriptorFactory,
                                                SensorDescriptor)
-from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint, SensorData
-from pyvale.sensorsim.errorintegrator import ErrIntegrator
-from pyvale.sensorsim.errorsimulator import IErrSimulator
+from pyvale.sensorsim.sensorspoint import SensorsPoint, SensorData
 from pyvale.sensorsim.enums import EDim
 
 
@@ -32,7 +28,7 @@ class SensorFactory:
                      comp_key: str,
                      spatial_dims: EDim,
                      descriptor: SensorDescriptor | None = None
-                     ) -> SensorArrayPoint:
+                     ) -> SensorsPoint:
         """Helper function to assemble a scalar field point sensor array object
         based on the input simulation data, sensor data and specified physical
         field.
@@ -68,7 +64,7 @@ class SensorFactory:
 
         s_field = FieldScalar(sim_data,comp_key,spatial_dims)
 
-        sens_array = SensorArrayPoint(sensor_data,
+        sens_array = SensorsPoint(sensor_data,
                                       s_field,
                                       descriptor)
         return sens_array
@@ -79,7 +75,7 @@ class SensorFactory:
                      comp_keys: tuple[str,...],
                      spatial_dims: EDim,
                      descriptor: SensorDescriptor | None = None,
-                     ) -> SensorArrayPoint:
+                     ) -> SensorsPoint:
         """"Helper function to assemble a vector field point sensor array object
         based on the input simulation data, sensor data and specified physical
         field.
@@ -118,7 +114,7 @@ class SensorFactory:
         disp_field = FieldVector(sim_data,
                                  comp_keys,
                                  spatial_dims)
-        sens_array = SensorArrayPoint(sensor_data,
+        sens_array = SensorsPoint(sensor_data,
                                       disp_field,
                                       descriptor)
         return sens_array
@@ -130,7 +126,7 @@ class SensorFactory:
                      dev_comp_keys: tuple[str,...],
                      spatial_dims: EDim,
                      descriptor: SensorDescriptor | None = None,
-                     ) -> SensorArrayPoint:
+                     ) -> SensorsPoint:
         """Helper function to assemble a tensor field point sensor array object
         based on the input simulation data, sensor data and specified physical
         field.
@@ -173,7 +169,7 @@ class SensorFactory:
                                    norm_comp_keys,
                                    dev_comp_keys,
                                    spatial_dims)
-        sens_array = SensorArrayPoint(sensor_data,
+        sens_array = SensorsPoint(sensor_data,
                                       strain_field,
                                       descriptor)
 

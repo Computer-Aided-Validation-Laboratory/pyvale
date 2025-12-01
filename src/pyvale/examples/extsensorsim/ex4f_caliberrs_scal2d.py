@@ -82,7 +82,7 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
 
-#%% 
+#%%
 # 2. Build virtual sensor array
 # -----------------------------
 
@@ -91,13 +91,13 @@ sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(3,2,1),
                                                 x_lims=sim_dims["x"],
                                                 y_lims=sim_dims["y"],
                                                 z_lims=(0.0,0.0))
-                                    
+
 sample_times: np.ndarray = np.linspace(0.0,np.max(sim_data.time),50)
 
 sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times)
 
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,
     sens_data,
     comp_key="temperature",
@@ -120,7 +120,7 @@ cal_err = sens.ErrSysCalibration(calib_assumed,
                                  n_cal_divs=10000)
 sens_array.set_error_chain([cal_err,])
 
-#%% 
+#%%
 # 3. Run a simulated experiment
 # ------------------------------------
 measurements = sens_array.sim_measurements()
@@ -157,7 +157,7 @@ if not output_path.is_dir():
 save_traces = output_path/"ext_ex4f_traces.png"
 fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 
-# Uncomment this to display the sensor trace plot 
+# Uncomment this to display the sensor trace plot
 # plt.show()
 
 # %%

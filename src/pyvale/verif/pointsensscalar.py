@@ -267,7 +267,7 @@ def err_chain_3d_dict(field: sens.IField,
 
 def sens_array_noerrs(sim_data: mh.SimData,
                       sens_data: sens.SensorData,
-                      spatial_dims: sens.EDim) -> sens.SensorArrayPoint:
+                      spatial_dims: sens.EDim) -> sens.SensorsPoint:
 
     descriptor = sens.DescriptorFactory.temperature()
 
@@ -275,7 +275,7 @@ def sens_array_noerrs(sim_data: mh.SimData,
                              comp_key="temperature",
                              spatial_dims=spatial_dims)
 
-    sens_array =  sens.SensorArrayPoint(sens_data,
+    sens_array =  sens.SensorsPoint(sens_data,
                                         field,
                                         descriptor)
     return sens_array
@@ -284,7 +284,7 @@ def sens_array_noerrs(sim_data: mh.SimData,
 def gen_sens_array_dict_2d(sim_data: mh.SimData,
                     sens_data_dict: dict[str, sens.SensorData],
                     tag: str
-                    ) -> dict[str, sens.SensorArrayPoint]:
+                    ) -> dict[str, sens.SensorsPoint]:
 
     sens_dict = {}
     for ss in sens_data_dict:
@@ -317,7 +317,7 @@ def gen_sens_array_dict_2d(sim_data: mh.SimData,
 def gen_sens_array_dict_3d(sim_data: mh.SimData,
                            sens_data_dict: dict[str,sens.SensorData],
                            tag: str,
-                           ) -> dict[str,sens.SensorArrayPoint]:
+                           ) -> dict[str,sens.SensorsPoint]:
 
     sens_dict = {}
     for ss in sens_data_dict:
@@ -348,20 +348,20 @@ def gen_sens_array_dict_3d(sim_data: mh.SimData,
 
 
 #-------------------------------------------------------------------------------
-def sens_arrays_2d_dict() -> dict[str,sens.SensorArrayPoint]:
+def sens_arrays_2d_dict() -> dict[str,sens.SensorsPoint]:
     sim_data = simdata_2d()
     sens_data_dict = sens_data_2d_dict(sim_data)
     tag = "scal2d"
     return gen_sens_array_dict_2d(sim_data,sens_data_dict,tag)
 
 
-def sens_arrays_2d_analytic_dict() -> dict[str,sens.SensorArrayPoint]:
+def sens_arrays_2d_analytic_dict() -> dict[str,sens.SensorsPoint]:
     sim_data = simdata_2d_analytic()
     sens_data_dict = sens_data_2d_dict(sim_data)
     tag = "scal2d_analytic"
     return gen_sens_array_dict_2d(sim_data,sens_data_dict,tag)#
 
-def sens_arrays_2d_analytic_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
+def sens_arrays_2d_analytic_nomesh_dict() -> dict[str,sens.SensorsPoint]:
     sim_data = simdata_2d_analytic_nomesh()
     sens_data_dict = sens_data_2d_dict(sim_data)
     tag = "scal2d_analytic_nomesh"
@@ -369,13 +369,13 @@ def sens_arrays_2d_analytic_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
 
 
 #-------------------------------------------------------------------------------
-def sens_arrays_3d_dict() -> dict[str,sens.SensorArrayPoint]:
+def sens_arrays_3d_dict() -> dict[str,sens.SensorsPoint]:
     sim_data = simdata_3d()
     sens_data_dict = sens_data_3d_dict(sim_data)
     tag = "scal3d"
     return gen_sens_array_dict_3d(sim_data,sens_data_dict,tag)
 
-def sens_arrays_3d_nomesh_dict() -> dict[str,sens.SensorArrayPoint]:
+def sens_arrays_3d_nomesh_dict() -> dict[str,sens.SensorsPoint]:
     sim_data = simdata_3d_nomesh()
     sens_data_dict = sens_data_3d_dict(sim_data)
     tag = "scal3d_nomesh"

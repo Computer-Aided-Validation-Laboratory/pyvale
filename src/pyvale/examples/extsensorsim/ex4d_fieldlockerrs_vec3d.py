@@ -9,10 +9,10 @@ Errors: field-based position/angle locking
 ================================================================================
 
 This example demonstrates how to create field errors on 3D geometries where we
-want to perturb sensor locations and orein but we want our sensors to stay 
-attached to the surfaces they are on. To demonstrate this we will use a 
+want to perturb sensor locations and orein but we want our sensors to stay
+attached to the surfaces they are on. To demonstrate this we will use a
 thermo-mechanical simulation of a 10mm cube where we will place sensors on each
-of the 6 faces of the cube. 
+of the 6 faces of the cube.
 """
 
 from pathlib import Path
@@ -36,14 +36,14 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=disp_keys)
 
-#%% 
+#%%
 # 2. Build virtual sensor arrays
 # --------------------------------
 
 # Simulation is a 10mm cube
 sensor_positions = np.array(((5.0,0.0,5.0),     # cube x-z face
                              (5.0,10.0,5.0),    # cube x-z face
-                             (5.0,5.0,0.0),     # cube x-y face  
+                             (5.0,5.0,0.0),     # cube x-y face
                              (5.0,5.0,10.0),    # cube x-y face
                              (0.0,5.0,5.0),     # cube y-z face
                              (10.0,5.0,5.0),))  # cube y-z face
@@ -54,7 +54,7 @@ sens_data = sens.SensorData(positions=sensor_positions,
                             sample_times=sample_times)
 
 
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
+sens_array: sens.SensorsPoint = sens.SensorFactory.vector_point(
     sim_data,
     sens_data,
     comp_keys=disp_keys,
@@ -65,12 +65,12 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
 #%%
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# Our simulation is a cube and we have sensors on the midpoint of each face of 
-# the cube. We want to allow our sensors positions and orientation to be 
-# perturbed as part of our uncertainty simulation but we want the sensors to 
+# Our simulation is a cube and we have sensors on the midpoint of each face of
+# the cube. We want to allow our sensors positions and orientation to be
+# perturbed as part of our uncertainty simulation but we want the sensors to
 # stay attached to the faces of the cube they are located on
 
- 
+
 pos_uncert = 1.0 # units = mm
 pos_rand = (sens.GenUniform(low=-pos_uncert,high=pos_uncert),
             sens.GenUniform(low=-pos_uncert,high=pos_uncert),
@@ -110,7 +110,7 @@ error_chain: list[sens.IErrSimulator] = [
 sens_array.set_error_chain(error_chain)
 
 
-#%% 
+#%%
 # 3. Run a simulated experiment
 # -----------------------------
 
@@ -130,7 +130,7 @@ print(f"sys_errs.shape  = {sys_errs.shape}")
 print(f"rand_errs.shape = {rand_errs.shape}")
 
 sens_print: int = 2 # x-y face sensor
-comp_print: int = 1 # component=disp_y 
+comp_print: int = 1 # component=disp_y
 time_last: int = 5
 time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
 
@@ -156,7 +156,7 @@ for kk in disp_keys:
 
     # Set to False to show an interactive plot instead of saving the figure
     pv_plot.off_screen = True
-    if pv_plot.off_screen: 
+    if pv_plot.off_screen:
         pv_plot.screenshot(output_path/f"ext_ex4d_locs_{kk}.png")
     else:
         pv_plot.show()
@@ -173,8 +173,8 @@ for kk in disp_keys:
     fig.savefig(output_path/f"ext_ex4d_traces_{kk}.png",
                 dpi=300,
                 bbox_inches="tight")
-    
-# Uncomment this to display the sensor trace plot 
+
+# Uncomment this to display the sensor trace plot
 # plt.show()
 
 # %%

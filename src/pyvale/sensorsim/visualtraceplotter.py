@@ -7,14 +7,14 @@
 from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
-from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
+from pyvale.sensorsim.sensorspoint import SensorsPoint
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
                                          TraceOptsSensor)
 
 
 
 # TODO: this should probably take an ISensorarray
-def plot_time_traces(sensor_array: SensorArrayPoint,
+def plot_time_traces(sensor_array: SensorsPoint,
                      comp_key: str | None  = None,
                      trace_opts: TraceOptsSensor | None = None,
                      plot_opts: PlotOptsGeneral | None = None

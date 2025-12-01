@@ -40,31 +40,31 @@ def plot_exp_traces(exp_data: dict[tuple[str,...],np.ndarray],
     Parameters
     ----------
     exp_data : dict[tuple[str,...],np.ndarray]
-        Simulated experiment data dictionary produced by the experiment 
+        Simulated experiment data dictionary produced by the experiment
         simulator.
     comp_ind : int
-        Index for the component of the measurement array to plot. For scalar 
-        field sensors there is only one component so this should be 0. For 
+        Index for the component of the measurement array to plot. For scalar
+        field sensors there is only one component so this should be 0. For
         vector field sensors the components are in the order the keys where
         specified which is normally x,y,z. For tensor field sensors the keys are
-        in the order they are specified with normal followed by deviatoric 
+        in the order they are specified with normal followed by deviatoric
         components.
     sens_key : str
         String key identifying the sensor array in the simulated experiment data
         dictionary.
     sim_key : str
-        String key identifying the input physics simulation in the simulation 
+        String key identifying the input physics simulation in the simulation
         data dictionary.
     descriptor : SensorDescriptor
         Descriptor containing strings for labelling the plot axes with sensor
         units and names.
     trace_opts : TraceOptsExperiment | None, optional
         Options for plotting the experiment traces including how to display the
-        scatter in the traces, by default None. If None a default options 
+        scatter in the traces, by default None. If None a default options
         dataclass is created.
     plot_opts : PlotOptsGeneral | None, optional
         Options for controlling characteristics of the plot including the size
-        of the figure, line widths etc., by default None. If None a default 
+        of the figure, line widths etc., by default None. If None a default
         plot options dataclass is created.
     exp_sim_keys : ExpSimKeys | None, optional
         Keys for extracting the simulation data from the simulated experiment
@@ -197,56 +197,3 @@ def plot_exp_traces(exp_data: dict[tuple[str,...],np.ndarray],
     plt.draw()
 
     return (fig,ax)
-
-
-# def plot_exp_traces_from_sim(exp_sim: ExperimentSimulator,
-#                              comp_key: str,
-#                              sens_key: str,
-#                              sim_key: str,
-#                              trace_opts: TraceOptsExperiment | None = None,
-#                              plot_opts: PlotOptsGeneral | None = None
-#                              ) -> tuple[mpf.Figure,mpa.Axes]:
-#     """Plots simulated experiment sensor traces including uncertainty bounds.
-#
-#     Parameters
-#     ----------
-#     exp_sim : ExperimentSimulator
-#         Experiment simulation object containing the set of virtual experiment to
-#         be plotted.
-#     comp_key : str
-#         String key for component of the measurement array to plot.
-#     sens_key : str
-#         String key for the sensor array in the simulated experimental data.
-#     sim_key : str
-#         String key for the simulation in the simulation data dictionary.
-#     trace_opts : TraceOptsExperiment | None, optional
-#         Dataclass containing specific options for controlling the plot
-#         appearance, by default None. If None the default options are used.
-#     plot_opts : PlotOptsGeneral | None, optional
-#         Dataclass containing general options for formatting plots and
-#         visualisations, by default None. If None the default options are used.
-#
-#     Returns
-#     -------
-#     tuple[Any,Any]
-#         A tuple containing a handle to the matplotlib figure and axis objects:
-#         (fig,ax).
-#     """
-#
-#     exp_data = exp_sim.get_exp_sim_data()
-#     comp_ind = (
-#         exp_sim.get_sensor_array_dict()[sens_key]
-#         .get_field()
-#         .get_component_index(comp_key)
-#     )
-#     descriptor = exp_sim.get_sensor_array_dict()[sens_key].get_descriptor()
-#     exp_sim_keys = exp_sim.get_exp_sim_keys()
-#
-#     return plot_exp_traces(exp_data,
-#                            comp_ind,
-#                            sens_key,
-#                            sim_key,
-#                            descriptor,
-#                            trace_opts,
-#                            plot_opts,
-#                            exp_sim_keys)

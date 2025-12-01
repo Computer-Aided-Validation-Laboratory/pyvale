@@ -18,7 +18,7 @@ import pyvista as pv
 
 import pyvale.mooseherder as mh
 
-from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
+from pyvale.sensorsim.sensorspoint import SensorsPoint
 from pyvale.sensorsim.fieldconverter import (simdata_to_pyvista_vis,
                                    simdata_to_pyvista_interp)
 from pyvale.sensorsim.visualopts import (VisOptsSimSensors,VisOptsImageSave)
@@ -31,7 +31,7 @@ from pyvale.sensorsim.visualtools import (create_pv_plotter,
 # just simulation times. This will require interpolation of the underlying
 # simulation fields.
 def add_sim_field(pv_plot: pv.Plotter,
-                  sensor_array: SensorArrayPoint,
+                  sensor_array: SensorsPoint,
                   component: str,
                   time_step: int,
                   vis_opts: VisOptsSimSensors,
@@ -93,7 +93,7 @@ def add_sim_field(pv_plot: pv.Plotter,
 # TODO: this should be able to take a list of ISensorArray and plot all of them
 # on the same mesh.
 def add_sensor_points_nom(pv_plot: pv.Plotter,
-                          sensor_array: SensorArrayPoint,
+                          sensor_array: SensorsPoint,
                           vis_opts: VisOptsSimSensors,
                           ) -> pv.Plotter:
     """Adds points and tagged labels showing the virtual sensor locations on
@@ -131,7 +131,7 @@ def add_sensor_points_nom(pv_plot: pv.Plotter,
 
 
 def add_sensor_points_pert(pv_plot: pv.Plotter,
-                           sensor_array: SensorArrayPoint,
+                           sensor_array: SensorsPoint,
                            vis_opts: VisOptsSimSensors,
                            ) -> pv.Plotter:
     """Adds points showing the perturbed virtual sensor locations on
@@ -261,7 +261,7 @@ def plot_sim_data(sim_data: mh.SimData,
     return pv_plot
 
 
-def plot_point_sensors_on_sim(sensor_array: SensorArrayPoint,
+def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
                               comp_key: str,
                               time_step: int = -1,
                               vis_opts: VisOptsSimSensors | None = None,

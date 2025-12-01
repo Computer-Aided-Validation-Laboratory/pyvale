@@ -17,7 +17,7 @@ interpolation of the underlying physical field. However, in some cases it can
 be useful to separate the sensor parameter perturbations to determine which is
 contributing most to the total error.
 
-Under the hood the `pyvale` sensor simulation module uses and 
+Under the hood the `pyvale` sensor simulation module uses and
 """
 
 from pathlib import Path
@@ -46,7 +46,7 @@ sim_data: mh.SimData  = sens.scale_length_units(scale=1000.0,
                                                 sim_data=sim_data,
                                                 disp_keys=disp_keys)
 
-#%% 
+#%%
 # 2. Build virtual sensor arrays
 # --------------------------------
 
@@ -66,7 +66,7 @@ sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times,
                             angles=sens_angles)
 
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
+sens_array: sens.SensorsPoint = sens.SensorFactory.vector_point(
     sim_data,
     sens_data,
     comp_keys=disp_keys,
@@ -139,7 +139,7 @@ err_int_opts = sens.ErrIntOpts(force_dependence=sens.EErrDep.DEPENDENT,
 sens_array.set_error_chain(err_chain,err_int_opts)
 
 
-#%% 
+#%%
 # 3. Create & run simulated experiment
 # ------------------------------------
 # Here we will print to the console the time, position and angle of from the
@@ -219,7 +219,7 @@ for kk in disp_keys:
     save_traces = output_path/f"ext_ex4e_traces_{kk}.png"
     fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 
-# Uncomment this to display the sensor trace plot 
+# Uncomment this to display the sensor trace plot
 # plt.show()
 
 # %%

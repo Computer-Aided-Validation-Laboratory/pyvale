@@ -35,7 +35,7 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
 
-#%% 
+#%%
 # 2. Build virtual sensor array
 # -----------------------------
 sim_dims = sens.simtools.get_sim_dims(sim_data)
@@ -43,20 +43,20 @@ sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
                                                 x_lims=(12.5,12.5),
                                                 y_lims=sim_dims["y"],
                                                 z_lims=sim_dims["z"])
-                                    
+
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
 sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times)
 
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,
     sens_data,
     comp_key="temperature",
     spatial_dims=sens.EDim.THREED,
     descriptor=sens.DescriptorFactory.temperature(),
 )
-                            
+
 #%%
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -64,12 +64,12 @@ sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
 # field error. This controls which sensor parameters will be perturbed such
 # as: position, time and orientation. Here we will perturb the sensor
 # positions on the face of the block using a normal distribution and we will
-# also perturb the measurement times using constant offsets and random 
+# also perturb the measurement times using constant offsets and random
 # generators.
 #
 # We can apply a constant offset to each sensors position in x,y,z by
 # providing a shape=(num_sensors,coord[x,y,z]) array. Here we apply a
-# constant offset in the y and z direction for all sensors. We also apply a 
+# constant offset in the y and z direction for all sensors. We also apply a
 # constant offset to the sampling times for all sensors.
 
 pos_offset_xyz = np.array((0.0,1.0,1.0),dtype=np.float64)
@@ -100,9 +100,9 @@ field_err_data = sens.ErrFieldData(
 # Adding our field error to our error chain is exactly the same as the basic
 # errors we have seen previously. We can also combine field errors with
 # basic errors and place them anywhere in our error chain. We can even chain
-# field errors together and set them to be 'dependent' in which case the 
+# field errors together and set them to be 'dependent' in which case the
 # perturbations to the sensor data will be accumulated. We will look at chaining
-# field errors in a later example. For now we will just have a single field 
+# field errors in a later example. For now we will just have a single field
 # error so we can easily visualise what this type of error does.
 
 err_chain: list[sens.IErrSimulator] = [
@@ -112,13 +112,13 @@ err_chain: list[sens.IErrSimulator] = [
 sens_array.set_error_chain(err_chain)
 
 #%%
-# It is important that we put errors in our error chain in the order we want 
+# It is important that we put errors in our error chain in the order we want
 # them evaluated. For example, if we want to combine a field error that perturbs
-# the sensor position with a dependent random noise as a percentage of the 
-# measurement at that position then we must place the random error after our 
-# field error in the error chain (and set the random error to be 'dependent'). 
+# the sensor position with a dependent random noise as a percentage of the
+# measurement at that position then we must place the random error after our
+# field error in the error chain (and set the random error to be 'dependent').
 
-#%% 
+#%%
 # 3. Run simulated experiment
 # ---------------------------
 
@@ -165,13 +165,13 @@ pv_plot.camera_position = [(59.354, 43.428, 69.946),
 
 # Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-if pv_plot.off_screen: 
+if pv_plot.off_screen:
     pv_plot.screenshot(output_path/"ext_ex4b_locs.png")
 else:
     pv_plot.show()
 
 # %%
-# Visualisation of nominal and perturbed sensor locations including the field 
+# Visualisation of nominal and perturbed sensor locations including the field
 # errors.
 #
 # .. image:: ../../../../_static/ext_ex4b_locs.png
@@ -183,13 +183,13 @@ else:
 (fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
 fig.savefig(output_path/"ext_ex4b_traces.png",dpi=300,bbox_inches="tight")
 
-# Uncomment this to display the sensor trace plot 
+# Uncomment this to display the sensor trace plot
 # plt.show()
 
 # %%
-# Sensor traces showing the effects of the field error perturbing sensor 
+# Sensor traces showing the effects of the field error perturbing sensor
 # location and sensor sample times.
-# 
+#
 # .. image:: ../../../../_static/ext_ex4b_traces.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px

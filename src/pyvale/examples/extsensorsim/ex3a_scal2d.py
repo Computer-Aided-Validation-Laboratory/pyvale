@@ -8,14 +8,14 @@
 Scalar field sensors in 2D
 ================================================================================
 
-This example demonstrates the application of the `pyvale` sensor simulation 
+This example demonstrates the application of the `pyvale` sensor simulation
 module to scalar fields in 2 spatial dimensions. An example of a scalar field
 sensor would be a thermocouple or resistance temperature detector measuring a
 temperature field.
 
 Note that this example has minimal explanation and assumes you have reviewed the
 basic sensor simulation examples to understand how the underlying engine works
-as well as the sensor simulation workflow. 
+as well as the sensor simulation workflow.
 """
 
 from pathlib import Path
@@ -37,7 +37,7 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
 
-#%% 
+#%%
 # 2. Build virtual sensor array
 # -----------------------------
 
@@ -46,7 +46,7 @@ sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(3,2,1),
                                                 x_lims=sim_dims["x"],
                                                 y_lims=sim_dims["y"],
                                                 z_lims=(0.0,0.0))
-                                    
+
 sample_times: np.ndarray = np.linspace(0.0,np.max(sim_data.time),50)
 
 sens_data = sens.SensorData(positions=sens_pos,
@@ -57,7 +57,7 @@ descriptor = sens.SensorDescriptor(name="Temperature",
                                    units = r"^{\circ}C",
                                    tag = "TC")
 
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,
     sens_data,
     comp_key="temperature",
@@ -78,7 +78,7 @@ error_chain: list[sens.IErrSimulator] = [
 
 sens_array.set_error_chain(error_chain)
 
-#%% 
+#%%
 # 3. Create & run simulated experiment
 # ------------------------------------
 measurements: np.ndarray = sens_array.sim_measurements()
@@ -126,7 +126,7 @@ pv_plot = sens.plot_point_sensors_on_sim(sens_array,
 
 # Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-if pv_plot.off_screen: 
+if pv_plot.off_screen:
     pv_plot.screenshot(output_path/"ext_ex3a_locs.png")
 else:
     pv_plot.show()
@@ -134,7 +134,7 @@ else:
 (fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
 fig.savefig(output_path/"ext_ex3a_traces.png",dpi=300,bbox_inches="tight")
 
-# Uncomment this to display the sensor trace plot 
+# Uncomment this to display the sensor trace plot
 # plt.show()
 
 # %%

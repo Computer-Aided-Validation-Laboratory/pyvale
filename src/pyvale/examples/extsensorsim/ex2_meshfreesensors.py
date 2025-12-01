@@ -56,10 +56,10 @@ sim_data_nomesh = copy.deepcopy(sim_data)
 sim_data_nomesh.connect = None
 
 #%%
-# We will use the same `SensorData` for the mesh free and mesh based sensor 
-# arrays. First, we use a helper function to get the limiting dimensions of the 
-# plate and use this to create our sensor position array. Then we specify our 
-# sample times and use our sensor positions and sample times to create our 
+# We will use the same `SensorData` for the mesh free and mesh based sensor
+# arrays. First, we use a helper function to get the limiting dimensions of the
+# plate and use this to create our sensor position array. Then we specify our
+# sample times and use our sensor positions and sample times to create our
 # `SensorData` object.
 
 sim_dims = sens.simtools.get_sim_dims(sim_data)
@@ -73,21 +73,21 @@ sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times)
 
-#%% 
+#%%
 # 2. Build virtual sensor arrays
 # --------------------------------
-# Now we create our virtual sensor arrays. There is no difference between the 
-# mesh-based and mesh-free case in how these are created as `pyvale` 
-# automatically detects that the connectivity table in the `SimData` object is 
-# None and creates the Delaunay triangulation for later interpolation to virtual 
+# Now we create our virtual sensor arrays. There is no difference between the
+# mesh-based and mesh-free case in how these are created as `pyvale`
+# automatically detects that the connectivity table in the `SimData` object is
+# None and creates the Delaunay triangulation for later interpolation to virtual
 # sensor locations.
 #
 # The triangulation is computationally expensive, especially in 3D. For the 2D
-# case shown here with 1200 elements creating the sensor array is about 6 
+# case shown here with 1200 elements creating the sensor array is about 6
 # times slower than the mesh based case.
 
 start_time = time.perf_counter()
-tc_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+tc_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,
     sens_data,
     comp_key="temperature",
@@ -98,7 +98,7 @@ mesh_time = (time.perf_counter() - start_time)*1000.0
 
 
 start_time = time.perf_counter()
-tc_array_nomesh: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+tc_array_nomesh: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data_nomesh,
     sens_data,
     comp_key="temperature",
@@ -113,7 +113,7 @@ print("Sensor Array Creation Times:")
 print(f"Mesh based = {mesh_time:.3f} milliseconds")
 print(f"Mesh free  = {nomesh_time:.3f} milliseconds\n")
 
-#%% 
+#%%
 # 3. Run simulated experiment
 # ------------------------------------
 # Now we can simulate some measurements for the mesh based and mesh free cases
@@ -159,8 +159,8 @@ print(f"\n{np.allclose(meas,meas_nomesh)=}")
 print(80*"-")
 
 # %%
-# Example terminal output with timings and numerical comparison between 
-# mesh-based and mesh-free virtual sensors: 
+# Example terminal output with timings and numerical comparison between
+# mesh-based and mesh-free virtual sensors:
 #
 # .. image:: ../../../../_static/ext_ex2_term_out.png
 #    :alt: Terminal output comparing mesh-based and mesh-free sensors.
@@ -170,5 +170,5 @@ print(80*"-")
 #%%
 # That's it for this example! Mesh free virtual sensors work in exactly the same
 # way as the mesh based sensors, they are just a bit more computationally heavy
-# and slower. 
+# and slower.
 

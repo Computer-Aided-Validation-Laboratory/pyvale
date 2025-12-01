@@ -8,13 +8,13 @@
 Tensor field sensors in 3D
 ================================================================================
 
-This example demonstrates the application of the `pyvale` sensor simulation 
+This example demonstrates the application of the `pyvale` sensor simulation
 module to tensor fields in 3 spatial dimensions. An example of a vector field
 sensor would be a displacement transducer, point tracking or velocity sensor.
 
 Note that this example has minimal explanation and assumes you have reviewed the
 basic sensor simulation examples to understand how the underlying engine works
-as well as the sensor simulation workflow. 
+as well as the sensor simulation workflow.
 """
 
 from pathlib import Path
@@ -42,14 +42,14 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=disp_keys)
 
-#%% 
+#%%
 # 2. Build virtual sensor arrays
 # --------------------------------
 
 # Simulations is a 10mm cube
 sensor_positions = np.array(((5.0,0.0,5.0),     # cube x-z face
                              (5.0,10.0,5.0),    # cube x-z face
-                             (5.0,5.0,0.0),     # cube x-y face  
+                             (5.0,5.0,0.0),     # cube x-y face
                              (5.0,5.0,10.0),    # cube x-y face
                              (0.0,5.0,5.0),     # cube y-z face
                              (10.0,5.0,5.0),))  # cube y-z face
@@ -74,7 +74,7 @@ descriptor = sens.SensorDescriptor(name="Strain",
                                    tag="SG",
                                    components=('xx','yy','zz','xy','yz','xz'))
 
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
+sens_array: sens.SensorsPoint = sens.SensorFactory.tensor_point(
     sim_data,
     sens_data,
     norm_comp_keys=norm_comp_keys,
@@ -122,7 +122,7 @@ error_chain: list[sens.IErrSimulator] = [
 sens_array.set_error_chain(error_chain)
 
 
-#%% 
+#%%
 # 3. Create & run simulated experiment
 # ------------------------------------
 
@@ -169,7 +169,7 @@ for kk in (norm_comp_keys+dev_comp_keys):
 
     # Set to False to show an interactive plot instead of saving the figure
     pv_plot.off_screen = True
-    if pv_plot.off_screen: 
+    if pv_plot.off_screen:
         pv_plot.screenshot(output_path/f"ext_ex3f_locs_{kk}.png")
     else:
         pv_plot.show()
@@ -186,8 +186,8 @@ for kk in (norm_comp_keys+dev_comp_keys):
     fig.savefig(output_path/f"ext_ex3f_traces_{kk}.png",
                 dpi=300,
                 bbox_inches="tight")
-    
-# Uncomment this to display the sensor trace plot 
+
+# Uncomment this to display the sensor trace plot
 # plt.show()
 
 

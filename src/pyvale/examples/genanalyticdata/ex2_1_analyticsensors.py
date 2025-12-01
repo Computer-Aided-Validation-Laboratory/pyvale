@@ -39,7 +39,7 @@ def main() -> None:
     sensor_data = sens.SensorData(positions=sens_pos,
                                          sample_times=sample_times)
 
-    tc_array = sens.SensorArrayPoint(sensor_data,
+    tc_array = sens.SensorsPoint(sensor_data,
                                        t_field,
                                        descriptor)
 

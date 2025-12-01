@@ -37,7 +37,7 @@ from .sensordescriptor import *
 from .sensortools import *
 from .sensorarray import *
 from .sensorfactory import *
-from .sensorarraypoint import *
+from .sensorspoint import *
 from .sensordata import *
 
 from .camera import *

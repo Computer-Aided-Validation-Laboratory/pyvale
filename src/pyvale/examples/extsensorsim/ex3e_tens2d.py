@@ -8,13 +8,13 @@
 Tensor field sensors in 2D
 ================================================================================
 
-This example demonstrates the application of the `pyvale` sensor simulation 
+This example demonstrates the application of the `pyvale` sensor simulation
 module to tensor fields in 2 spatial dimensions. An example of a vector field
 sensor would be a displacement transducer, point tracking or velocity sensor.
 
 Note that this example has minimal explanation and assumes you have reviewed the
 basic sensor simulation examples to understand how the underlying engine works
-as well as the sensor simulation workflow. 
+as well as the sensor simulation workflow.
 """
 
 from pathlib import Path
@@ -43,7 +43,7 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=("disp_x","disp_y"))
 
-#%% 
+#%%
 # 2. Build virtual sensor arrays
 # --------------------------------
 
@@ -69,7 +69,7 @@ descriptor = sens.SensorDescriptor(name="Strain",
                                    tag="SG",
                                    components=("xx","yy","xy"))
 
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
+sens_array: sens.SensorsPoint = sens.SensorFactory.tensor_point(
     sim_data,
     sens_data,
     norm_comp_keys=norm_comp_keys,
@@ -89,7 +89,7 @@ field_err_data = sens.ErrFieldData(pos_rand_xyz=(pos_rand,pos_rand,None),
                                    ang_rand_zyx=(angle_rand,None,None))
 
 error_chain: list[sens.IErrSimulator] = [
-    sens.ErrSysGenPercent(sens.GenUniform(low=-1.0,high=1.0)),  
+    sens.ErrSysGenPercent(sens.GenUniform(low=-1.0,high=1.0)),
     sens.ErrRandGenPercent(sens.GenNormal(std=1.0)),
     sens.ErrSysField(sens_array.get_field(),field_err_data),
 ]
@@ -97,7 +97,7 @@ error_chain: list[sens.IErrSimulator] = [
 sens_array.set_error_chain(error_chain)
 
 
-#%% 
+#%%
 # 3. Create & run simulated experiment
 # ------------------------------------
 
@@ -142,7 +142,7 @@ for kk in (norm_comp_keys+dev_comp_keys):
 
     # Set to False to show an interactive plot instead of saving the figure
     pv_plot.off_screen = True
-    if pv_plot.off_screen: 
+    if pv_plot.off_screen:
         pv_plot.screenshot(output_path/f"ext_ex3e_locs_{kk}.png")
     else:
         pv_plot.show()
@@ -159,8 +159,8 @@ for kk in (norm_comp_keys+dev_comp_keys):
     fig.savefig(output_path/f"ext_ex3e_traces_{kk}.png",
                 dpi=300,
                 bbox_inches="tight")
-    
-# Uncomment this to display the sensor trace plot 
+
+# Uncomment this to display the sensor trace plot
 # plt.show()
 
 # %%

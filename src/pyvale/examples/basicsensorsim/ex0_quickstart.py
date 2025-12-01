@@ -50,7 +50,7 @@ sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
                                                     z_lims=(0.0,12.0))
 sens_data = sens.SensorData(positions=sens_pos)
 
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,
     sens_data,
     comp_key="temperature",

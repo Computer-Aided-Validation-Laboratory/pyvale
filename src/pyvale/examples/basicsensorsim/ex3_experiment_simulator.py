@@ -64,7 +64,7 @@ temp_sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
 temp_sens_data = sens.SensorData(positions=temp_sens_pos,
                                  sample_times=sample_times)
 
-temp_sens: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+temp_sens: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,
     temp_sens_data,
     comp_key="temperature",
@@ -118,7 +118,7 @@ strain_sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
 strain_sens_data = sens.SensorData(positions=strain_sens_pos,
                                    sample_times=sample_times)
 
-strain_sens: sens.SensorArrayPoint = sens.SensorFactory.tensor_point(
+strain_sens: sens.SensorsPoint = sens.SensorFactory.tensor_point(
     sim_data,
     strain_sens_data,
     norm_comp_keys=("strain_xx","strain_yy","strain_zz"),
@@ -159,11 +159,11 @@ strain_sens.set_error_chain(strain_err_chain)
 # 3. Create & run simulated experiments
 # -------------------------------------
 # We can now run our experiments over all simulations for all our virtual
-# sensor arrays. We can run our simulations sequentially or in parallel by 
-# controlling the nunmber of workers and parallelisation enumeration in the 
+# sensor arrays. We can run our simulations sequentially or in parallel by
+# controlling the nunmber of workers and parallelisation enumeration in the
 # `ExpSimOpts` dataclass. Note that the default is to run the simulations in
 # a single process sequentially. The parallelisation enumeration has two options
-# 'ALL' which means we run all of our N experiments on per worker and 
+# 'ALL' which means we run all of our N experiments on per worker and
 # 'SPLIT' this mode splits our N experiments across the workers running a single
 # simulation per worker. For our case here 'ALL' will be fastest and as we have
 # 4 unique combinations of our simulation data and sensors arrays 4 workers will
@@ -184,17 +184,17 @@ exp_sim = sens.ExperimentSimulator(sim_data_dict,
 #%%
 # The results of our simulated experiment are returned as a dictionary of numpy
 # arrays where the key is a tuple of strings. The tuple key takes the form:
-# (sim_key,sens_key,data_key) where data_key can be: "meas" for the simulated 
+# (sim_key,sens_key,data_key) where data_key can be: "meas" for the simulated
 # measurements; "sys_errs" for the systematic errors; "rand_errs" for the random
-# errors; and "samp_times" for the sample time vector. The numpy array for 
+# errors; and "samp_times" for the sample time vector. The numpy array for
 # "meas", "sys_errs" and "rand_errs" has the following shape
 # (num_exps,num_sensors,num_field_comps,num_time_steps). The numpy array for the
 # sample times has a shape (num_time_steps,).
 #
-# We can also calculate summary statistics  which is returned as a dictionary 
+# We can also calculate summary statistics  which is returned as a dictionary
 # keyed with the same tuple as the experimental data dictionary. The value of
-# dictionary is an experiment stats object that contains numpy arrays for each 
-# statistic that is collapsed over the number of simulated experiments. 
+# dictionary is an experiment stats object that contains numpy arrays for each
+# statistic that is collapsed over the number of simulated experiments.
 # The statistics we can access include: mean, standard deviation
 # minimum, maximum, median, median absolute deviation and the 25% and 75%
 # quartiles. See the `ExpSimStats` data class for details.
@@ -213,10 +213,10 @@ exp_stats: dict[tuple[str,...],sens.ExpSimStats] = (
 # Here we inspect our experiment simulation data dictionary to demonstrate the
 # the data structures it contains so you can perform any follow up analysis on
 # the data you want. We first print the tuple keys in our dictionary so we can
-# see what data is available. 
+# see what data is available.
 #
 # We then inspect the simulated data output for few combinations of simulations
-# and sensor arrays showing the shapes of the raw data arrays and the calculated 
+# and sensor arrays showing the shapes of the raw data arrays and the calculated
 # statistics. Noting that our scalar field sensor has a differen number of
 # component dimensions to our mechanical field sensor.
 

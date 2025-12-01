@@ -8,42 +8,42 @@
 Errors: basics
 ================================================================================
 
-In this example we will provide an overview of the basic error library in 
-`pyvale`. In `pyvale` errors have a type (random/systematic) and a dependence 
-(independent/dependent). We can get an errors type using the `.get_error_type()` 
-method  returning an `EErrType` enumeration. We can also specify an errors 
-dependence  with the `.set_error_dep()` method and an `EErrDep` enumeration. If 
+In this example we will provide an overview of the basic error library in
+`pyvale`. In `pyvale` errors have a type (random/systematic) and a dependence
+(independent/dependent). We can get an errors type using the `.get_error_type()`
+method  returning an `EErrType` enumeration. We can also specify an errors
+dependence  with the `.set_error_dep()` method and an `EErrDep` enumeration. If
 we recall the `pyvale` measurement simulation model:
 
     measurement = truth + systematic errors + random errors
 
 where all of these variable are numpy arrays with shape=(num_sensors,
-num_field_components,num_sample_times). This means an errors type will determine 
+num_field_components,num_sample_times). This means an errors type will determine
 if it will be summed in the systematic on random error array.
 
-The error dependence determines if an error is calculated based on the truth 
-(independent) or the accumulated measurement based on all previous errors in 
-the error chain (dependent). Some errors are purely independent such as random 
-noise with a normal distribution with a set standard devitation. An example of 
-an error that is dependent would be saturation which must be placed last in 
-the error chain and will clamp the final sensor value to be within the 
+The error dependence determines if an error is calculated based on the truth
+(independent) or the accumulated measurement based on all previous errors in
+the error chain (dependent). Some errors are purely independent such as random
+noise with a normal distribution with a set standard devitation. An example of
+an error that is dependent would be saturation which must be placed last in
+the error chain and will clamp the final sensor value to be within the
 specified bounds. We could also set any of the 'percent' errors to be dependent
 in which case the percentage would be calculated based on the accumulated sensor
 measurement at that point in the error chain instead of based on ground truth.
 
 `pyvale` provides a library of different random `ErrRand*` and systematic
 `ErrSys*` errors which can be found listed in the docs. In the next
-example we will explore the more detailed parts of the error simulation library 
-but for now we will specify some common error types. Try experimenting with the 
-code below to turn the different error types off and on to see how it changes 
+example we will explore the more detailed parts of the error simulation library
+but for now we will specify some common error types. Try experimenting with the
+code below to turn the different error types off and on to see how it changes
 the virtual sensor measurements.
 """
 
 #%%
 # .. note::
-#   It is also possible to write custom errors by writing your own class that 
-#   implements the `IErrSimulator` abstract base class and then add them to your 
-#   error chain. See the python API docs for `IErrSimulator`.      
+#   It is also possible to write custom errors by writing your own class that
+#   implements the `IErrSimulator` abstract base class and then add them to your
+#   error chain. See the python API docs for `IErrSimulator`.
 
 from pathlib import Path
 import numpy as np
@@ -66,7 +66,7 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
 
-#%% 
+#%%
 # 2. Build virtual sensor array
 # -----------------------------
 sim_dims = sens.simtools.get_sim_dims(sim_data)
@@ -74,13 +74,13 @@ sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
                                                 x_lims=(12.5,12.5),
                                                 y_lims=sim_dims["y"],
                                                 z_lims=sim_dims["z"])
-                                    
+
 sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 
 sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times)
 
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,
     sens_data,
     comp_key="temperature",
@@ -112,7 +112,7 @@ err_chain.append(sens.ErrSysOffsetPercent(offset_percent=-1.0))
 #%%
 # pyvale includes a series of random number generator objects that wrap the
 # random number generators from numpy. These are named `Gen*` and can be
-# used with any of the `ErrSysGen`, `ErrSysGenPercent`, `ErrRandGen` or 
+# used with any of the `ErrSysGen`, `ErrSysGenPercent`, `ErrRandGen` or
 # `ErrRandGenPercent` objects to create custom probability distribution sampling
 # errors:
 
@@ -150,7 +150,7 @@ err_chain.append(sens.ErrSysSaturation(meas_min=0.0,meas_max=400.0))
 sens_array.set_error_chain(err_chain)
 
 
-#%% 
+#%%
 # 3. Run simulated experiment
 # ---------------------------
 
@@ -191,7 +191,7 @@ if not output_path.is_dir():
 (fig,ax) = sens.plot_time_traces(sens_array,comp_key="temperature")
 fig.savefig(output_path/"ext_ex4a_traces.png",dpi=300,bbox_inches="tight")
 
-# Uncomment this to display the sensor trace plot 
+# Uncomment this to display the sensor trace plot
 # plt.show()
 
 # %%

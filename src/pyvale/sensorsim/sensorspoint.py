@@ -15,7 +15,7 @@ from pyvale.sensorsim.sensordata import SensorData
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
 
 
-class SensorArrayPoint(ISensorArray):
+class SensorsPoint(ISensorArray):
     """A class for creating arrays of point sensors applied to a simulated
     physical field. Examples include: thermocouples used to measure temperature
     (a scalar field) or strain gauges used to measure strain (a tensor field).
@@ -87,11 +87,10 @@ class SensorArrayPoint(ISensorArray):
         self._truth = None
         self._measurements = None
 
-    # TODO: should this be an interface method?
     def get_descriptor(self) -> SensorDescriptor:
-        """Gets the sensor descriptor data class which contains a series of 
+        """Gets the sensor descriptor data class which contains a series of
         strings used to describe the sensor array.
-        
+
         Returns
         -------
         SensorDescriptor
@@ -174,10 +173,9 @@ class SensorArrayPoint(ISensorArray):
 
         return self._truth
 
-    #TODO: should this be an interface function?
     def get_error_integrator(self) -> ErrIntegrator:
-        """Gets the error integrator allowing the user to interpret error 
-        sources in the error chain and to separate random and systematic error 
+        """Gets the error integrator allowing the user to interpret error
+        sources in the error chain and to separate random and systematic error
         contributions.
 
         Returns
@@ -187,23 +185,23 @@ class SensorArrayPoint(ISensorArray):
         """
         return self._error_integrator
 
-    #TODO: should this be an interface function?
-    def set_error_chain(self, 
+    def set_error_chain(self,
                         err_chain: list[IErrSimulator] | None,
                         err_int_opts: ErrIntOpts | None = None) -> None:
-        """Sets the error intergrator that will be used to calculate the sensor
+        """Sets the error chain that will be used to calculate the sensor
         array measurement errors when `sim_measurements()` is called. See the
-        `ErrIntegrator` class for further detail.
+        `ErrIntegrator` class for further details as to how errors are 
+        calculated.
 
         Parameters
         ----------
         err_chain : list[IErrSimulator] | None
-            Chain of user defined errors that will be evaluated in order as part 
-            of the sensor simulation. Set to None to remove error calculation 
+            Chain of user defined errors that will be evaluated in order as part
+            of the sensor simulation. Set to None to remove error calculation
             and perform direct interpolation of the simulation to the virtual
             sensor locations.
         err_int_opts : ErrIntOpts | None, optional
-            Sets the options of virtual sensor error integration, by default 
+            Sets the options of virtual sensor error integration, by default
             None. If None default options are used.
         """
         if err_chain is None:

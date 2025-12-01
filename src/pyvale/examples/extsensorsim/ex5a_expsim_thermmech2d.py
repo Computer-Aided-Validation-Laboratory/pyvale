@@ -68,7 +68,7 @@ temp_sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(4,1,1),
 temp_sens_data = sens.SensorData(positions=temp_sens_pos,
                                  sample_times=sample_times)
 
-temp_sens: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+temp_sens: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,
     temp_sens_data,
     comp_key="temperature",
@@ -114,7 +114,7 @@ sens_angles: tuple[Rotation] = (
 disp_sens_data = sens.SensorData(positions=disp_sens_pos,
                                  sample_times=sample_times)
 
-disp_sens: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
+disp_sens: sens.SensorsPoint = sens.SensorFactory.vector_point(
     sim_data,
     disp_sens_data,
     comp_keys=disp_keys,
@@ -290,7 +290,7 @@ for key_sim in sim_data_dict:
             sim_key=key_sim,
             descriptor=sens.DescriptorFactory.displacement(),
         )
-        
+
         save_fig: Path = (output_path
             /f"ext_ex5a_traces_{key_sim}_{key_disp}.png")
         fig.savefig(save_fig,dpi=300,bbox_inches="tight")

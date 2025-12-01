@@ -31,7 +31,7 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
 
-#%% 
+#%%
 # 2. Build virtual sensor arrays
 # --------------------------------
 # Now we are going to build a scalar field sensor array so we can control how
@@ -40,15 +40,15 @@ sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
 # will add area averaging as a systematic error. Note that it is possible to
 # have an ideal point sensor with no area averaging for the truth and then
 # add an area averaging error. It is also possible to have a truth that is
-# area averaged without and area averaging error. Finally, you can specify 
-# different averaging areas for the truth and systematic errors. 
+# area averaged without and area averaging error. Finally, you can specify
+# different averaging areas for the truth and systematic errors.
 
 sim_dims: dict[str,tuple[float,float]] = sens.simtools.get_sim_dims(sim_data)
 sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(3,2,1),
                                                 x_lims=sim_dims["x"],
                                                 y_lims=sim_dims["y"],
                                                 z_lims=(0.0,0.0))
-                                    
+
 sample_times: np.ndarray = np.linspace(0.0,np.max(sim_data.time),50)
 
 #%%
@@ -70,7 +70,7 @@ sens_data = sens.SensorData(positions=sens_pos,
 #%%
 # We have added spatial averaging to our sensor data so we can now create
 # our sensor array as we have done in previous examples.
-sens_array: sens.SensorArrayPoint = sens.SensorFactory.scalar_point(
+sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,
     sens_data,
     comp_key="temperature",
@@ -102,10 +102,10 @@ err_chain: list[sens.IErrSimulator] = [
 
 sens_array.set_error_chain(err_chain)
 
-#%% 
+#%%
 # 3. Run a simulated experiment
 # -----------------------------
-# Now we run our sensor simulation to see how spatial averaging changes our 
+# Now we run our sensor simulation to see how spatial averaging changes our
 # simulated measurement results.
 
 measurements = sens_array.sim_measurements()
@@ -134,7 +134,7 @@ if not output_path.is_dir():
 save_traces = output_path/"ext_ex4g_traces.png"
 fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 
-# Uncomment this to display the sensor trace plot 
+# Uncomment this to display the sensor trace plot
 # plt.show()
 
 # %%

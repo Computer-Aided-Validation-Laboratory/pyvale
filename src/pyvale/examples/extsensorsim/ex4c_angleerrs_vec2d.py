@@ -39,8 +39,8 @@ strain_keys = ("strain_xx","strain_yy","strain_xy")
 sim_data: mh.SimData  = sens.scale_length_units(scale=1000.0,
                                                 sim_data=sim_data,
                                                 disp_keys=disp_keys)
-                                                
-#%% 
+
+#%%
 # 2. Build virtual sensor arrays
 # --------------------------------
 
@@ -61,7 +61,7 @@ sens_data_norot = sens.SensorData(positions=sens_pos,
                                   angles=sens_angles_norot)
 
 
-sens_array_norot: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
+sens_array_norot: sens.SensorsPoint = sens.SensorFactory.vector_point(
     sim_data,
     sens_data_norot,
     comp_keys=disp_keys,
@@ -91,7 +91,7 @@ sens_data_rot = sens.SensorData(positions=sens_pos,
                                 sample_times=sample_times,
                                 angles=sens_angles_rot)
 
-sens_array_rot: sens.SensorArrayPoint = sens.SensorFactory.vector_point(
+sens_array_rot: sens.SensorsPoint = sens.SensorFactory.vector_point(
     sim_data,
     sens_data_rot,
     comp_keys=disp_keys,
@@ -124,12 +124,12 @@ err_chain_rot: list[sens.IErrSimulator] = [
 ]
 sens_array_rot.set_error_chain(err_chain_rot)
 
-#%% 
+#%%
 # 3. Create & run simulated experiment
 # ------------------------------------
-# When we print the measurements here we should see that the truth for the 
-# rotated and non-rotated cases is the same. This is because we have rotated the 
-# sensors 90 degrees, which means the x (component=0) of the non-rotated case 
+# When we print the measurements here we should see that the truth for the
+# rotated and non-rotated cases is the same. This is because we have rotated the
+# sensors 90 degrees, which means the x (component=0) of the non-rotated case
 # should be the same as the y (component=1) for the rotated case.
 
 meas_rot = sens_array_rot.sim_measurements()
@@ -166,7 +166,7 @@ pv_plot.camera_position = "xy"
 
 # Set to False to show an interactive plot instead of saving the figure
 pv_plot.off_screen = True
-if pv_plot.off_screen: 
+if pv_plot.off_screen:
     pv_plot.screenshot(output_path/"ext_ex4c_locs.png")
 else:
     pv_plot.show()
@@ -191,10 +191,10 @@ for ff in disp_keys:
 
     (fig,ax) = sens.plot_time_traces(sens_array_rot,ff)
     ax.set_title(f"Rotated {sens_rot_deg} deg.")
-    
+
     save_traces = output_path/f"ext_ex4c_traces_rot_{ff}.png"
     fig.savefig(save_traces, dpi=300, bbox_inches="tight")
-    
+
 # Uncomment to show trace plots interactively
 # plt.show()
 

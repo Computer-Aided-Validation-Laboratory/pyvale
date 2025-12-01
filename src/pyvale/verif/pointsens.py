@@ -60,8 +60,8 @@ def err_chain_basic() -> list[sens.IErrSimulator]:
 
 def err_chain_gen() -> list[sens.IErrSimulator]:
     chain_gen = [
-        sens.ErrSysOffset(offset=-1.0),    
-        sens.ErrSysGen(sens.GenUniform(low=-1.0,high=1.0,seed=GOLD_SEED)), 
+        sens.ErrSysOffset(offset=-1.0),
+        sens.ErrSysGen(sens.GenUniform(low=-1.0,high=1.0,seed=GOLD_SEED)),
         sens.ErrSysGenPercent(
             sens.GenUniform(low=-1.0,high=1.0,seed=GOLD_SEED)),
         sens.ErrRandGen(sens.GenNormal(std=1.0,seed=GOLD_SEED)),
@@ -89,7 +89,7 @@ def err_chain_all(err_dict: dict[str,list[sens.IErrSimulator]]
     return err_chain
 
 
-def gen_gold_measurements(sens_dict: dict[str,sens.SensorArrayPoint]) -> None:
+def gen_gold_measurements(sens_dict: dict[str,sens.SensorsPoint]) -> None:
     for ss in sens_dict:
         print(f"Generating gold output for case: {ss}")
         measurements = sens_dict[ss].sim_measurements()
@@ -97,7 +97,7 @@ def gen_gold_measurements(sens_dict: dict[str,sens.SensorArrayPoint]) -> None:
         np.save(save_path,measurements)
 
 
-def check_gold_measurements(sens_dict: dict[str,sens.SensorArrayPoint]) -> list[str]:
+def check_gold_measurements(sens_dict: dict[str,sens.SensorsPoint]) -> list[str]:
     fails = []
 
     for ss in sens_dict:
