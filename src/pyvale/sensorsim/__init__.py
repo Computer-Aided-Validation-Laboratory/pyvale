@@ -72,6 +72,7 @@ from .visualexpplotter import *
 from .visualtraceplotter import *
 from .visualimages import *
 from .visualimagedef import *
+from .visualtraceanimator import *
 
 from .simtools import *
 
