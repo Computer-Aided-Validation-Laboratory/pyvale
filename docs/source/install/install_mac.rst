@@ -96,11 +96,11 @@ If you are installing from source you'll also need to install ``clang`` and
    brew install clang
    brew install libomp
 
-Clone ``pyvale`` to your local system using git along with submodules using:
+Clone ``pyvale`` to your local system using git with:
 
 .. code-block:: bash
 
-   git clone --recurse-submodules git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
+   git clone git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
 
 For this case it is normally easier to keep your virtual environment stored in the ``pyvale`` folder so create a virtual environment there first. Then, ensure you virtual environment is activated and run the following commmand from the ``pyvale`` folder:
 

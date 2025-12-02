@@ -19,7 +19,7 @@ plot the simulated sensor traces.
 Before we begin the example we will briefly describe the `pyvale` sensor
 measurement simulation model. In `pyvale` a simulated measurement is given by:
 
-    measurement = truth + systematic errors + random errors
+measurement = truth + systematic errors + random errors
 
 The truth is interpolated from the input physics simulation to the virtual
 sensor positions and times. The systematic and random errors are evaluated for
