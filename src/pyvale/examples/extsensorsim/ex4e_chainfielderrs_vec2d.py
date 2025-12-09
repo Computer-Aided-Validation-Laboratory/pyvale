@@ -202,11 +202,12 @@ pv_plot = sens.plot_point_sensors_on_sim(sens_array,"disp_y")
 pv_plot.camera_position = "xy"
 
 save_render = output_path/"ext_ex4e_locs.png"
-pv_plot.off_screen = True
-pv_plot.screenshot(save_render)
 
-# Uncomment to show interactive figure and set off_screen = False above
-# pv_plot.show(cpos="xy")
+pv_plot.off_screen = True
+if pv_plot.offscreen:
+    pv_plot.screenshot(save_render)
+else:
+    pv_plot.show()
 
 # %%
 # .. image:: ../../../../_static/ext_ex4e_locs.png

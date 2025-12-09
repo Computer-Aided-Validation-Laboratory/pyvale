@@ -160,16 +160,15 @@ strain_sens.set_error_chain(strain_err_chain)
 # -------------------------------------
 # We can now run our experiments over all simulations for all our virtual
 # sensor arrays. We can run our simulations sequentially or in parallel by
-# controlling the nunmber of workers and parallelisation enumeration in the
+# controlling the number of workers and parallelisation enumeration in the
 # `ExpSimOpts` dataclass. Note that the default is to run the simulations in
 # a single process sequentially. The parallelisation enumeration has two options
 # 'ALL' which means we run all of our N experiments on per worker and
-# 'SPLIT' this mode splits our N experiments across the workers running a single
+# 'SPLIT' which splits our N experiments across the workers running a single
 # simulation per worker. For our case here 'ALL' will be fastest and as we have
 # 4 unique combinations of our simulation data and sensors arrays 4 workers will
 # be most efficient. The 'SPLIT' option is most effective for computationally
 # heavy simulated experiments that involve imaging simulations.
-
 
 sensor_array_dict: dict[str,sens.ISensorArray] = {
     "temp": temp_sens,
