@@ -9,7 +9,7 @@ Deforming a sample for 2D DIC
 ===============================================
 
 This example follows a similar workflow to the previous Blender example.
-In this example, a defomation is applied to sample, and images are rendered at
+In this example, a deformation is applied to sample, and images are rendered at
 each timestep.
 
 Test case: mechanical analysis of a plate with a hole loaded in tension.
@@ -42,13 +42,13 @@ sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
 disp_comps = ("disp_x","disp_y", "disp_z")
 sim_data = sens.scale_length_units(scale=1000.0,
-                                     sim_data=sim_data,
-                                     disp_comps=disp_comps)
+                                   sim_data=sim_data,
+                                   disp_keys=disp_comps)
 
 render_mesh = sens.create_render_mesh(sim_data,
-                                        ("disp_y","disp_x"),
-                                        sim_spat_dim=3,
-                                        field_disp_keys=disp_comps)
+                                      ("disp_y","disp_x"),
+                                      sim_spat_dim=sens.EDim.THREED,
+                                      field_disp_keys=disp_comps)
 
 # %%
 # Firstly, a save path must be set.
@@ -131,9 +131,9 @@ material_data = blender.MaterialData()
 speckle_path = dataset.dic_pattern_5mpx_path()
 mm_px_resolution = sens.CameraTools.calculate_mm_px_resolution(cam_data)
 scene.add_speckle(part=part,
-                    speckle_path=speckle_path,
-                    mat_data=material_data,
-                    mm_px_resolution=mm_px_resolution)
+                  speckle_path=speckle_path,
+                  mat_data=material_data,
+                  mm_px_resolution=mm_px_resolution)
 
 # %%
 # Deforming the sample and rendering images

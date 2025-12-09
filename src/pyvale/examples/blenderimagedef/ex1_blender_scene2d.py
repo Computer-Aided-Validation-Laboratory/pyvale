@@ -39,18 +39,18 @@ sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 # %%
 # This is then scaled to mm, as all lengths in Blender are to be set in mm.
 # The `SimData` object is then converted into a `RenderMeshData` object, as
-# this skins the mesh ready to be imported into Blender. The `disp_comps` are 
+# this skins the mesh ready to be imported into Blender. The `disp_keys` are 
 # the expected direction of displacement. Since this is a 3D deformation test 
 # case, displacement is expected in the x, y and z directions.
-disp_comps = ("disp_x","disp_y", "disp_z")
+disp_keys = ("disp_x","disp_y", "disp_z")
 sim_data = sens.scale_length_units(scale=1000.0,
                                      sim_data=sim_data,
-                                     disp_comps=disp_comps)
+                                     disp_keys=disp_keys)
 
 render_mesh = sens.create_render_mesh(sim_data,
-                                        ("disp_y","disp_x"),
-                                        sim_spat_dim=3,
-                                        field_disp_keys=disp_comps)
+                                      ("disp_y","disp_x"),
+                                      sim_spat_dim=sens.EDim.THREED,
+                                      field_disp_keys=disp_keys)
 
 # %%
 # We create our standard pyvale-output directory here so we can save the our 
