@@ -97,7 +97,7 @@ def gen_gold_measurements(sens_dict: dict[str,sens.SensorsPoint]) -> None:
         np.save(save_path,measurements)
 
 
-def check_gold_measurements(sens_dict: dict[str,sens.SensorsPoint]
+def check_gold_measurements(sens_dict: dict[str,sens.SensorsPoint],
                             rtol: float = 1e-6,
                             atol: float = 1e-6) -> list[str]:
     fails = []
