@@ -203,12 +203,12 @@ class ErrIntegrator:
             if ee.get_error_dep() == EErrDep.DEPENDENT:
                 (error_array,sens_data) = ee.sim_errs(truth+self._errs_total,
                                                        self._sens_data_accumulated)
-
+                # Only accumulate sensor data perturbations for dependent errs
+                self._sens_data_accumulated = sens_data
             else:
                 (error_array,sens_data) = ee.sim_errs(truth,
                                                        self._sens_data_initial)
 
-            self._sens_data_accumulated = sens_data
             self._sens_data_by_chain.append(sens_data)
 
             if ee.get_error_type() == EErrType.SYSTEMATIC:
@@ -253,11 +253,13 @@ class ErrIntegrator:
                     truth+self._errs_total,
                     self._sens_data_accumulated
                 )
+
+                # Only accumulate sensor data perturbations for dependent errors
+                self._sens_data_accumulated = sens_data
             else:
                 (error_array,sens_data) = ee.sim_errs(truth,
                                                        self._sens_data_initial)
-
-            self._sens_data_accumulated = sens_data
+            
 
             if ee.get_error_type() == EErrType.SYSTEMATIC:
                 self._errs_systematic = self._errs_systematic + error_array

@@ -117,7 +117,7 @@ class ErrSysField(IErrSimulator):
     def __init__(self,
                 field: IField,
                 field_err_data: ErrFieldData,
-                err_dep: EErrDep = EErrDep.INDEPENDENT) -> None:
+                err_dep: EErrDep = EErrDep.DEPENDENT) -> None:
         """
         Parameters
         ----------

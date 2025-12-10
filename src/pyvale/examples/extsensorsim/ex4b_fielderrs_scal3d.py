@@ -80,7 +80,7 @@ time_offset = np.full((sample_times.shape[0],),0.1)
 #%%
 # Using the `Gen*` random generators in pyvale we can randomly perturb the
 # position or sampling times of our virtual sensors.
-pos_rand = sens.GenNormal(std=1.0)  # units = mm
+pos_rand = sens.GenUniform(low=-0.5,high=0.5)  # units = mm
 time_rand = sens.GenNormal(std=0.1) # units = s
 
 #%%

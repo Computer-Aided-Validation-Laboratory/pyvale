@@ -16,7 +16,7 @@ simulated sensor measurements as well as the data structures they are stored in.
 Finally, we run a sensor simulation, visualise the virtual sensor locations and
 plot the simulated sensor traces.
 
-Before we begin the example we will briefly describe the `pyvale` sensor
+Before we begin the example, we will briefly describe the `pyvale` sensor
 measurement simulation model. In `pyvale` a simulated measurement is given by:
 
 measurement = truth + systematic errors + random errors
