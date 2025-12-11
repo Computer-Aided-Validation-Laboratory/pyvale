@@ -9,7 +9,7 @@ Errors: field-based position/angle locking
 ================================================================================
 
 This example demonstrates how to create field errors on 3D geometries where we
-want to perturb sensor locations and orein but we want our sensors to stay
+want to perturb sensor locations and orientation but we want our sensors to stay
 attached to the surfaces they are on. To demonstrate this we will use a
 thermo-mechanical simulation of a 10mm cube where we will place sensors on each
 of the 6 faces of the cube.

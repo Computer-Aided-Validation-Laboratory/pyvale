@@ -81,7 +81,7 @@ temp_sens: sens.SensorsPoint = sens.SensorFactory.scalar_point(
 # 2.2 Add errors to the scalar field sensors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-temp_pos_uncert = 1.0 # units = mm
+temp_pos_uncert = 2.0 # units = mm
 temp_pos_rand = (sens.GenNormal(std=temp_pos_uncert),
                  sens.GenNormal(std=temp_pos_uncert),
                  None)
@@ -126,7 +126,7 @@ disp_sens: sens.SensorsPoint = sens.SensorFactory.vector_point(
 # 2.4 Add errors to the vector field sensors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-pos_rand = sens.GenUniform(low=-1.0,high=1.0)   # units = mm
+pos_rand = sens.GenUniform(low=-2.0,high=2.0)   # units = mm
 angle_rand = sens.GenUniform(low=-2.0,high=2.0) # units = degrees
 
 field_err_data = sens.ErrFieldData(pos_rand_xyz=(pos_rand,pos_rand,None),

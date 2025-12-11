@@ -10,7 +10,7 @@ Errors: field-based
 
 In this example we give an overview of field-based systematic errors. Field
 errors require additional interpolation of the underlying physical field such as
-uncertainty in a sensors position or sampling time. For this example we will
+uncertainty in a sensor position or sampling time. For this example we will
 focus on field error sources that perturb sensor locations and sampling times.
 
 Note that field errors are more computationally intensive than basic errors as
@@ -67,7 +67,7 @@ sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
 # also perturb the measurement times using constant offsets and random
 # generators.
 #
-# We can apply a constant offset to each sensors position in x,y,z by
+# We can apply a constant offset to each sensor position in x,y,z by
 # providing a shape=(num_sensors,coord[x,y,z]) array. Here we apply a
 # constant offset in the y and z direction for all sensors. We also apply a
 # constant offset to the sampling times for all sensors.

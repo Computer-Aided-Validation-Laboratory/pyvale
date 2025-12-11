@@ -9,7 +9,7 @@ Errors: field-based chaining
 ================================================================================
 
 In this example we show how field errors can be chained together and accumulated
-allowing for successive perturbations in postion, sampling time and orientation.
+allowing for successive perturbations in position, sampling time and orientation.
 In order to do this we need to set our field error to be 'dependent'. Note that
 it is more computationally efficient to provide a single field error object as
 this will perform all perturbations in a single step allowing for a single new
@@ -80,7 +80,7 @@ sens_array: sens.SensorsPoint = sens.SensorFactory.vector_point(
 
 #%%
 #
-# Now we will build a series of field errors that cause succesive offsets in
+# Now we will build a series of field errors that cause successive offsets in
 # sensor sampling time, sensor position and sensor orientation. That way
 # we should be able to analyse the sensor data object at each point in the
 # error chain to see how the sensor parameters have accumulated.
