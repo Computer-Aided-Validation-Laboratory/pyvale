@@ -122,7 +122,9 @@ class ErrIntegrator:
         """    
         for ee in self._err_chain:
             ee.reseed(seed)
-
+# 
+#     def reset_accumulated_sensor_data(self,) -> None:
+#         self._sens_data_accumulated = copy.deepcopy(self._sensor_data_initial) 
 
     def set_error_chain(self, err_chain: list[IErrSimulator]) -> None:
         """Sets the error chain that will be looped over to calculate the sensor
@@ -167,6 +169,11 @@ class ErrIntegrator:
             Array of total errors summed over all errors in the chain. shape=(
             num_sensors,num_field_components,num_time_steps).
         """
+        # NOTE: needed to make sure dependent field errors always start from
+        # nominal before the error chain is evaluated. Otherwise dependent field
+        # errors create a random walk in sensor position.
+        self._sens_data_accumulated = copy.deepcopy(self._sens_data_initial)
+
         if self._err_int_opts.store_all_errs:
             return self._calc_errors_store_by_chain(truth)
 
@@ -204,7 +211,7 @@ class ErrIntegrator:
                 (error_array,sens_data) = ee.sim_errs(truth+self._errs_total,
                                                        self._sens_data_accumulated)
                 # Only accumulate sensor data perturbations for dependent errs
-                self._sens_data_accumulated = sens_data
+                self._sens_data_accumulated = copy.deepcopy(sens_data)
             else:
                 (error_array,sens_data) = ee.sim_errs(truth,
                                                        self._sens_data_initial)
@@ -255,7 +262,7 @@ class ErrIntegrator:
                 )
 
                 # Only accumulate sensor data perturbations for dependent errors
-                self._sens_data_accumulated = sens_data
+                self._sens_data_accumulated = copy.deepcopy(sens_data)
             else:
                 (error_array,sens_data) = ee.sim_errs(truth,
                                                        self._sens_data_initial)

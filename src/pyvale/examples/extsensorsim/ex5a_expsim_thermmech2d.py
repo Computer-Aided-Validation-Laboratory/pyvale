@@ -81,17 +81,17 @@ temp_sens: sens.SensorsPoint = sens.SensorFactory.scalar_point(
 # 2.2 Add errors to the scalar field sensors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-temp_pos_uncert = 2.0 # units = mm
-temp_pos_rand = (sens.GenNormal(std=temp_pos_uncert),
-                 sens.GenNormal(std=temp_pos_uncert),
+temp_pos_uncert = 1.0 # units = mm
+temp_pos_rand = (sens.GenUniform(low=-temp_pos_uncert,high=temp_pos_uncert),
+                 sens.GenUniform(low=-temp_pos_uncert,high=temp_pos_uncert),
                  None)
 
 temp_field_err_data = sens.ErrFieldData(pos_rand_xyz=temp_pos_rand)
 
 temp_err_chain: list[sens.IErrSimulator] = [
     sens.ErrSysField(temp_sens.get_field(),temp_field_err_data),
-    sens.ErrRandGenPercent(sens.GenNormal(std=2.0),
-        err_dep=sens.EErrDep.DEPENDENT),
+    sens.ErrRandGenPercent(sens.GenNormal(std=1.0),
+                           err_dep=sens.EErrDep.DEPENDENT),
     sens.ErrSysOffsetPercent(offset_percent=-1.0),
     sens.ErrSysDigitisation(bits_per_unit=2**24/100),
     sens.ErrSysSaturation(meas_min=0.0,meas_max=700.0),
@@ -126,7 +126,7 @@ disp_sens: sens.SensorsPoint = sens.SensorFactory.vector_point(
 # 2.4 Add errors to the vector field sensors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-pos_rand = sens.GenUniform(low=-2.0,high=2.0)   # units = mm
+pos_rand = sens.GenUniform(low=-1.0,high=1.0)   # units = mm
 angle_rand = sens.GenUniform(low=-2.0,high=2.0) # units = degrees
 
 field_err_data = sens.ErrFieldData(pos_rand_xyz=(pos_rand,pos_rand,None),
@@ -137,7 +137,7 @@ disp_err_chain: list[sens.IErrSimulator] = [
     sens.ErrSysField(disp_sens.get_field(),field_err_data),
     sens.ErrSysOffsetPercent(offset_percent=1.0),
     sens.ErrSysDigitisation(bits_per_unit=2**24/1.0),
-    sens.ErrSysSaturation(meas_min=-1.0,meas_max=1.0),
+    sens.ErrSysSaturation(meas_min=-5.0,meas_max=5.0),
 ]
 
 disp_sens.set_error_chain(disp_err_chain)
@@ -151,7 +151,9 @@ sensor_arrays: dict[str,sens.ISensorArray] = {
     "disp": disp_sens,
 }
 
-exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)
+exp_sim_opts = sens.ExpSimOpts(workers=4,
+                               para=sens.EExpSimPara.ALL,
+                               save_errs=True)
 exp_sim = sens.ExperimentSimulator(sim_data_dict,sensor_arrays,exp_sim_opts)
 
 start_exp: float = time.perf_counter()

@@ -283,8 +283,8 @@ class SensorsPoint(ISensorArray):
         if self._error_integrator is None:
             self._measurements = self.get_truth()
         else:
-            self._measurements = self.get_truth() + \
-                self._error_integrator.calc_errors_from_chain(self.get_truth())
+            self._measurements = (self.get_truth() + 
+                self._error_integrator.calc_errors_from_chain(self.get_truth()))
 
         return self._measurements
 

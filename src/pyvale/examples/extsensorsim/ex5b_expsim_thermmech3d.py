@@ -78,7 +78,7 @@ temp_sens: sens.SensorsPoint = sens.SensorFactory.scalar_point(
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
-temp_pos_uncert = 0.5 # units = mm
+temp_pos_uncert = 0.25 # units = mm
 temp_pos_rand = (None,
                  sens.GenNormal(std=temp_pos_uncert),
                  sens.GenNormal(std=temp_pos_uncert))
@@ -121,14 +121,14 @@ strain_sens: sens.SensorsPoint = sens.SensorFactory.tensor_point(
 
 strain_max: float = 5000.0e-6 # 5000 micro-strain max before sensor fails
 
-strain_pos_uncert: float = 0.5
+strain_pos_uncert: float = 0.25
 strain_pos_rand_xyz = (
     sens.GenUniform(low=-strain_pos_uncert,high=strain_pos_uncert),
     sens.GenUniform(low=-strain_pos_uncert,high=strain_pos_uncert),
     None,
 )
 
-strain_angle_uncert: float = 2.0 # units = degrees
+strain_angle_uncert: float = 1.0 # units = degrees
 strain_angle_rand_zyx = (
     sens.GenUniform(low=-strain_angle_uncert,high=strain_angle_uncert),
     None,
@@ -155,7 +155,9 @@ sensor_arrays: dict[str,sens.ISensorArray] = {
     "strain": strain_sens,
 }
 
-exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)
+exp_sim_opts = sens.ExpSimOpts(workers=4,
+                               para=sens.EExpSimPara.ALL,
+                               save_errs=True)
 exp_sim = sens.ExperimentSimulator(sim_data_dict,sensor_arrays,exp_sim_opts)
 
 start_exp: float = time.perf_counter()

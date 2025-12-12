@@ -165,7 +165,9 @@ def plot_exp_traces(exp_data: dict[tuple[str,...],np.ndarray],
 
     #---------------------------------------------------------------------------
     # Plot simulation and truth line
-    if trace_opts.truth_line is not None:
+    if (trace_opts.truth_line is not None 
+        and sys_key in exp_data 
+        and rand_key in exp_data):
         truth = exp_data[meas_key] - exp_data[sys_key] - exp_data[rand_key]
         truth = truth[0,:,:,:]
         for ss in sensors_to_plot:
