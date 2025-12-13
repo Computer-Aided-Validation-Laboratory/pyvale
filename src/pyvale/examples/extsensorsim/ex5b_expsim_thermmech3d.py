@@ -155,9 +155,10 @@ sensor_arrays: dict[str,sens.ISensorArray] = {
     "strain": strain_sens,
 }
 
+exp_keys = sens.ExpSimKeys()
 exp_sim_opts = sens.ExpSimOpts(workers=4,
                                para=sens.EExpSimPara.ALL,
-                               save_errs=True)
+                               exp_sim_keys=exp_keys)
 exp_sim = sens.ExperimentSimulator(sim_data_dict,sensor_arrays,exp_sim_opts)
 
 start_exp: float = time.perf_counter()
