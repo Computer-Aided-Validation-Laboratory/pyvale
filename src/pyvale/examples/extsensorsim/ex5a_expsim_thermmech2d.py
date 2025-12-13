@@ -133,7 +133,7 @@ field_err_data = sens.ErrFieldData(pos_rand_xyz=(pos_rand,pos_rand,None),
                                    ang_rand_zyx=(angle_rand,None,None))
 
 disp_err_chain: list[sens.IErrSimulator] = [
-    sens.ErrRandGenPercent(sens.GenNormal(std=1.0)),
+    #sens.ErrRandGenPercent(sens.GenNormal(std=1.0)),
     sens.ErrSysField(disp_sens.get_field(),field_err_data),
     sens.ErrSysOffsetPercent(offset_percent=1.0),
     sens.ErrSysDigitisation(bits_per_unit=2**24/1.0),
@@ -153,7 +153,7 @@ sensor_arrays: dict[str,sens.ISensorArray] = {
 
 exp_sim_opts = sens.ExpSimOpts(workers=4,
                                para=sens.EExpSimPara.ALL,
-                               save_errs=True)
+                               save_errs=sens.ESaveErrs.ALL)
 exp_sim = sens.ExperimentSimulator(sim_data_dict,sensor_arrays,exp_sim_opts)
 
 start_exp: float = time.perf_counter()

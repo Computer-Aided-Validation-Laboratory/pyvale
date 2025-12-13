@@ -89,12 +89,17 @@ class ErrFieldData:
     specified above. shape=(3,)
     """
 
-    # DEV FEATURE: locks the coordinate even if offsets and random generators
-    # are specified. These allow individual sensors to be locked when we only
-    # specify a random generator for each axis not each sensor.
     pos_lock_xyz: np.ndarray | None = None
+    """Boolean array with shape=(num_sensors,coord[X,Y,Z]), Setting equal to 
+    True will lock the axis for the particular sensor so that it will not have
+    it's position perturbed.
+    """
+    
     ang_lock_zyx: np.ndarray | None = None
-
+    """Boolean array with shape=(num_sensors,ang[Z,Y,X]), Setting equal to 
+    True will lock the rotation about that axis for the particular sensor.
+    """
+    
     # TODO: implement drift for other dimensions, pos/angle
     time_drift: IDriftCalculator | None = None
     """Temporal drift calculation

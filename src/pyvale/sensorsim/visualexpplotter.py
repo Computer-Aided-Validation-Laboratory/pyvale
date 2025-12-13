@@ -87,7 +87,7 @@ def plot_exp_traces(exp_data: dict[tuple[str,...],np.ndarray],
     meas_key = (sim_key,sens_key,exp_sim_keys.meas)
     sys_key = (sim_key,sens_key,exp_sim_keys.sys)
     rand_key = (sim_key,sens_key,exp_sim_keys.rand)
-    time_key = (sim_key,sens_key,exp_sim_keys.time)
+    time_key = (sim_key,sens_key,exp_sim_keys.sens_times)
 
     exp_arr = exp_data[meas_key]
     samp_time = exp_data[time_key]

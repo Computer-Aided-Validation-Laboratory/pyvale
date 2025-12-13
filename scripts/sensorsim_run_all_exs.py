@@ -30,8 +30,26 @@ def main() -> None:
     
     for ee in example_files:
         run_str = 'python '+ str(ee)
-        print(run_str)
-        subprocess.run(run_str, shell=True)
+        print(f"RUNNING: {run_str}")
+
+        try:
+            result = subprocess.run(run_str, 
+                                    shell=True,
+                                    check=True, 
+                                    capture_output=True, 
+                                    text=True)
+            print("    [SUCCESS]")
+            
+        except subprocess.CalledProcessError as e:
+            print(f"    [ERROR] Example failed with exit code: {e.returncode}")
+            print("    --- STDOUT ---")
+            print(e.stdout)
+            print("    --- STDERR ---")
+            print(e.stderr)
+
+            # Use raise here to stop processing or continue to keep going
+            raise
+
 
 if __name__ == "__main__":
     main()
