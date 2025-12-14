@@ -21,7 +21,7 @@ from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
                                          EExpVisCentre)
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.experimentsimulator import (ExperimentSimulator,
-                                                  ExpSimKeys)
+                                                  ExpSimSaveKeys)
 from pyvale.sensorsim.experimentstats import calc_sensor_array_stats
 
 
@@ -32,7 +32,7 @@ def plot_exp_traces(exp_data: dict[tuple[str,...],np.ndarray],
                     descriptor: SensorDescriptor,
                     trace_opts: TraceOptsExperiment | None = None,
                     plot_opts: PlotOptsGeneral | None = None,
-                    exp_sim_keys: ExpSimKeys | None = None,
+                    exp_save_keys: ExpSimSaveKeys | None = None,
                     ) -> tuple[mpf.Figure,mpa.Axes]:
     """Plots the traces from a set of simulated experiments for a given input
     physics simulation and sensor array.
@@ -66,7 +66,7 @@ def plot_exp_traces(exp_data: dict[tuple[str,...],np.ndarray],
         Options for controlling characteristics of the plot including the size
         of the figure, line widths etc., by default None. If None a default
         plot options dataclass is created.
-    exp_sim_keys : ExpSimKeys | None, optional
+    exp_save_keys : ExpSimSaveKeys | None, optional
         Keys for extracting the simulation data from the simulated experiment
         data dictionary, by default None. If None the default keys are used.
 
@@ -81,13 +81,13 @@ def plot_exp_traces(exp_data: dict[tuple[str,...],np.ndarray],
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
 
-    if exp_sim_keys is None:
-        exp_sim_keys = ExpSimKeys()
+    if exp_save_keys is None:
+        exp_save_keys = ExpSimSaveKeys()
 
-    meas_key = (sim_key,sens_key,exp_sim_keys.meas)
-    sys_key = (sim_key,sens_key,exp_sim_keys.sys)
-    rand_key = (sim_key,sens_key,exp_sim_keys.rand)
-    time_key = (sim_key,sens_key,exp_sim_keys.sens_times)
+    meas_key = (sim_key,sens_key,exp_save_keys.meas)
+    sys_key = (sim_key,sens_key,exp_save_keys.sys)
+    rand_key = (sim_key,sens_key,exp_save_keys.rand)
+    time_key = (sim_key,sens_key,exp_save_keys.sens_times)
 
     exp_arr = exp_data[meas_key]
     samp_time = exp_data[time_key]

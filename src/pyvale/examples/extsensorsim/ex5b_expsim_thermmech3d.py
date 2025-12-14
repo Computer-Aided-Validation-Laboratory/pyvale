@@ -155,18 +155,23 @@ sensor_arrays: dict[str,sens.ISensorArray] = {
     "strain": strain_sens,
 }
 
-exp_keys = sens.ExpSimKeys()
+exp_keys = sens.ExpSimSaveKeys(pert_sens_times=None)
 exp_sim_opts = sens.ExpSimOpts(workers=4,
                                para=sens.EExpSimPara.ALL,
-                               exp_sim_keys=exp_keys)
+                               exp_save_keys=exp_keys)
+
 exp_sim = sens.ExperimentSimulator(sim_data_dict,sensor_arrays,exp_sim_opts)
 
 start_exp: float = time.perf_counter()
-exp_data: dict[str,np.ndarray] = exp_sim.run_experiments(num_exp_per_sim=1000)
+exp_data: dict[tuple[str,...],np.ndarray] = (
+    exp_sim.run_experiments(num_exp_per_sim=1000)
+)
 exp_time: float = time.perf_counter() - start_exp
 
 start_stats: float = time.perf_counter()
-exp_stats: dict[str,sens.ExpSimStats] = sens.calc_exp_sim_stats(exp_data)
+exp_stats: dict[tuple[str,...],sens.ExpSimStats] = (
+    sens.calc_exp_sim_stats(exp_data)
+)
 stats_time: float = time.perf_counter() - start_stats
 
 print(80*"=")
@@ -178,30 +183,38 @@ print(f"Stats. calc. time = {stats_time:.3f} seconds\n")
 # 4. Analyse & visualise the results
 # ----------------------------------
 
-print(80*"=")
+print(80*"-")
 print("Keys in the simulated experimental data dictionary:")
 for kk in exp_data:
     print(kk)
 print()
 print(80*"-")
-print("Thermal sensor array @ exp_data[('sim_nominal','temp','meas')]")
-print(80*"-")
-print("shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data[('sim_nominal','temp','meas')].shape=}")
-print()
-print("Stats are calculated over all experiments (axis=0)")
-print("shape=(n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats[('sim_nominal','temp','meas')].max.shape=}")
 print()
 print(80*"-")
-print("Mechanical sensor array @ exp_data[('sim_nominal','strain','meas')]")
-print(80*"-")
-print("shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data[('sim_nominal','strain','meas')].shape=}")
+print("Thermal sensor array:")
 print()
-print("shape=(n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats[('sim_nominal','strain','meas')].max.shape=}")
-print(80*"=")
+print(f"    {exp_data[('sim_nominal','temp','meas')].shape=}")
+print("    shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_stats[('sim_nominal','temp','meas')].max.shape=}")
+print("    shape=(n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_data[('sim_nominal','temp','pert_sens_pos')].shape=}")
+print("    shape=(n_exps,n_sensors,coord[X,Y,Z])")
+print()
+print(80*"-")
+print("Mechanical sensor array:")
+print()
+print(f"    {exp_data[('sim_nominal','strain','meas')].shape=}")
+print("    shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_stats[('sim_nominal','strain','meas')].max.shape=}")
+print("    shape=(n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_data[('sim_nominal','strain','pert_sens_pos')].shape=}")
+print("    shape=(n_exps,n_sensors,coord[X,Y,Z])")
+print()
+print(80*"-")
 
 
 # %%

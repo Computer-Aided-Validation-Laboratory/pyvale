@@ -37,19 +37,45 @@ class EExpSimPara(enum.Enum):
 
 
 @dataclass(slots=True)
-class ExpSimKeys:
-    """Default string keys for use in the simulated experiment data dictionary.
-    these keys appear in the last position of the tuple key and indicate the
-    data that is available. For example: simulated measurements default to the
-    "meas" key.
+class ExpSimSaveKeys:
+    """Default string keys used for saving experiment simulation data in the 
+    returned data dictionary. These keys appear in the last position of the 
+    tuple key and indicate the data that is available. The first two positions
+    in the tuple key indicate the simulation key and sensor array key. Setting
+    any of these to None will mean that data is not saved from the simulation.
+    This is useful if you only want the simulated measurements but not the error
+    breakdown or if you are noy using field errors and don't need the perturbed
+    sensor data. Note that the measurement key must be specified.
     """
+    
     meas: str = "meas"
+    """
+    """
+    
     sys: str | None = "sys_errs"
-    rand: str | None = "rand_errs"
-    sens_times: str | None = "sens_times"
-    pert_sens_times: str | None = "pert_sens_times"
-    pert_sens_pos: str | None = "pert_sens_pos"
+    """
+    """
 
+    rand: str | None = "rand_errs"
+    """
+    """
+
+    truth: str | None = None
+    """
+    """
+    
+    sens_times: str | None = "sens_times"
+    """
+    """
+
+    pert_sens_times: str | None = "pert_sens_times"
+    """
+    """
+    
+    pert_sens_pos: str | None = "pert_sens_pos"
+    """
+    """
+    
 
 @dataclass(slots=True)
 class ExpSimOpts:
@@ -69,14 +95,17 @@ class ExpSimOpts:
     'SPLIT' should be used for computationally heavy single simulations.
     """
 
-    exp_sim_keys: ExpSimKeys | None = None
+    exp_save_keys: ExpSimSaveKeys | None = None
     """Strings keys used in the last position of the tuple key for the output
     simulated experiment data dictionary. If None then the default keys will
-    be created and used.
+    be created and used. These keys determine what data will be saved to the 
+    output experiment data dictionary, set any key to None to not save that 
+    array. See the ExpSimSaveKeys data class for details. 
     """
 
     def __post_init__(self) -> None:
-        self.exp_sim_keys = ExpSimKeys()
+        if self.exp_save_keys is None:
+            self.exp_save_keys = ExpSimSaveKeys()
 
 
 class ExperimentSimulator:
@@ -84,7 +113,7 @@ class ExperimentSimulator:
     dictionary of sensor arrays to a dictionary of simulations over a given
     number of user defined experiments.
     """
-    __slots__ = ("_sim_dict","_sens_dict","_num_exp_per_sim","_exp_sim_opts")
+    __slots__ = ("_sim_dict","_sens_dict","_exp_sim_opts")
 
     def __init__(self,
                  sim_dict: dict[str,mh.SimData],
@@ -104,7 +133,6 @@ class ExperimentSimulator:
 
         self._sim_dict = sim_dict
         self._sens_dict = sensor_arrays
-        self._num_exp_per_sim = 1
 
         if exp_sim_opts is None:
             self._exp_sim_opts = ExpSimOpts()
@@ -112,16 +140,16 @@ class ExperimentSimulator:
             self._exp_sim_opts = exp_sim_opts
 
 
-    def get_exp_sim_keys(self) -> ExpSimKeys:
+    def get_exp_save_keys(self) -> ExpSimSaveKeys:
         """Gets the experiment simulation data keys.
 
         Returns
         -------
-        ExpSimKeys
+        ExpSimSaveKeys
             Dataclass containing the keys used to identify output data from the
             simulated experiments.
         """
-        return self._exp_sim_opts.exp_sim_keys
+        return self._exp_sim_opts.exp_save_keys
 
     def get_sim_dict(self) -> dict[str,mh.SimData]:
         """Gets the dicitionary of simulations to run simulated experiments for.
@@ -163,9 +191,9 @@ class ExperimentSimulator:
             tuple with form (sim_key,sens_key,data_key). The simulation and
             sensor keys correspond to the input simulation and sensor
             dictionaries and the data key returns a given output from the
-            simulation. See the `ExpSimKeys` dataclass for valid data keys. The
-            data arrays returned for simulated experiment output have shape =
-            (n_exps,n_sens,n_comps,n_time_steps).
+            simulation. See the `ExpSimSaveKeys` dataclass for valid data keys. 
+            The 'measurement 'data arrays returned for simulated experiment 
+            output have shape=(n_exps,n_sens,n_comps,n_time_steps). 
 
         Raises
         ------
@@ -179,15 +207,13 @@ class ExperimentSimulator:
             raise ExpSimError(
                 "Number of experiments per sim must be a positive integer"
             )
-
-        self._num_exp_per_sim = num_exp_per_sim
-        exp_keys = self._exp_sim_opts.exp_sim_keys       
-
+        
         #-----------------------------------------------------------------------
         # Build function call list and associated keys for the simulation
         # NOTE: avoids if/else in the hot loop and only calls the required 
-        # functions using getattr() on the sens_array
-        exp_keys = self._exp_sim_opts.exp_sim_keys
+        # functions using a loop over the list and getattr() on the sens_array
+        # or perturbed sens_data objects.
+        exp_keys = self._exp_sim_opts.exp_save_keys
         sens_funcs: list[tuple[str,str]] = [(exp_keys.meas,"sim_measurements"),]
 
         if exp_keys.rand is not None:
@@ -196,6 +222,9 @@ class ExperimentSimulator:
         if exp_keys.sys is not None:
             sens_funcs.append((exp_keys.sys,"get_errors_systematic"))  
 
+        if exp_keys.truth is not None:
+            sens_funcs.append((exp_keys.truth,"get_truth"))
+        
         sens_vars = []
         if exp_keys.pert_sens_times is not None:
             sens_vars.append((exp_keys.pert_sens_times,"sample_times"))
@@ -203,23 +232,26 @@ class ExperimentSimulator:
         if exp_keys.pert_sens_pos is not None:
             sens_vars.append((exp_keys.pert_sens_pos,"positions"))
         
-
         #-----------------------------------------------------------------------
         # 1) para over sim_data/sens_array, run N per worker
         if (self._exp_sim_opts.workers is not None and
             self._exp_sim_opts.para == EExpSimPara.ALL):
-
-            exp_data = self._run_para_all(sens_funcs,sens_vars)            
+            
+            exp_data = self._run_para_all(num_exp_per_sim,sens_funcs,sens_vars)            
 
         # 2) para over all sim_data/sens_array/Nsims
         elif (self._exp_sim_opts.workers is not None and
               self._exp_sim_opts.para == EExpSimPara.SPLIT):
 
-            exp_data = self._run_para_split(sens_funcs,sens_vars) 
+            exp_data = self._run_para_split(num_exp_per_sim,
+                                            sens_funcs,
+                                            sens_vars) 
 
         # 3) Run everything sequentially    
         else: 
-            exp_data = self._run_sequential(sens_funcs,sens_vars)
+            exp_data = self._run_sequential(num_exp_per_sim,
+                                            sens_funcs,
+                                            sens_vars)
 
         #-----------------------------------------------------------------------  
         # dict[tuple[str,...],shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
@@ -227,6 +259,7 @@ class ExperimentSimulator:
 
     #---------------------------------------------------------------------------
     def _run_para_all(self,
+                      num_exp: int,
                       sens_funcs: list[tuple[str,str]],
                       sens_vars: list[tuple[str,str]],
                       ) -> dict[tuple[str,...],np.ndarray]:
@@ -234,7 +267,7 @@ class ExperimentSimulator:
         assert self._exp_sim_opts.workers > 0, ("Number of workers must"
                                 + " be greater than 0.")
 
-        time_str_key = self._exp_sim_opts.exp_sim_keys.sens_times
+        time_str_key = self._exp_sim_opts.exp_save_keys.sens_times
 
         exp_data = {}
                 
@@ -247,7 +280,7 @@ class ExperimentSimulator:
                 exp_data[time_key] = sens_array.get_sample_times()
 
                 args = (
-                    self._num_exp_per_sim,
+                    num_exp,
                     key_sim,
                     key_sens,
                     sim_data,
@@ -270,6 +303,7 @@ class ExperimentSimulator:
         
     #---------------------------------------------------------------------------
     def _run_para_split(self,
+                        num_exp: int,
                         sens_funcs: list[tuple[str,str]],
                         sens_vars: list[tuple[str,str]],
                         ) -> dict[tuple[str,...],np.ndarray]:
@@ -277,8 +311,7 @@ class ExperimentSimulator:
         assert self._exp_sim_opts.workers > 0, ("Number of workers must"
                                    + " be greater than 0.")
 
-        num_exp = self._num_exp_per_sim
-        exp_keys = self._exp_sim_opts.exp_sim_keys
+        exp_keys = self._exp_sim_opts.exp_save_keys
         time_str_key = exp_keys.sens_times
         
         exp_data = {}
@@ -290,7 +323,7 @@ class ExperimentSimulator:
             # Pre-alloc numpy arrays for simulated measurements. 
             exp_shape = (num_exp,) + sens_array.get_measurement_shape()
             for kk, mm in sens_funcs:
-                exp_data[(sim_key,sens_key,kk)] = (
+                exp_data[(key_sim,key_sens,kk)] = (
                     np.empty(exp_shape,dtype=np.float64)
                 ) 
 
@@ -301,7 +334,7 @@ class ExperimentSimulator:
                 attr = getattr(init_sens_data,vv)
                 shape = (num_exp,) + attr.shape
 
-                sim_exp[(sim_key,sens_key,kk)] = (
+                exp_data[(key_sim,key_sens,kk)] = (
                     np.empty(shape,dtype=np.float64)
                 )
 
@@ -313,7 +346,7 @@ class ExperimentSimulator:
                 time_key = (key_sim,key_sens,time_str_key)
                 exp_data[time_key] = sens_array.get_sample_times()
 
-                for ee in range(self._num_exp_per_sim):
+                for ee in range(num_exp):
 
                     args = (key_sim,
                             key_sens,
@@ -333,18 +366,22 @@ class ExperimentSimulator:
                 exp_i = pp["exp_ind"]
 
                 for kk,aa in one_exp_dict.items():
+                    # NOTE: broadcast here because general measurement type
+                    # arrays are 4D, other arrays like sensor perturbations are
+                    # different.
                     # shape=(n_exps,n_sens,n_comps,n_time_steps)
-                    exp_data[kk][exp_i,:,:,:] = aa
+                    exp_data[kk][exp_i] = aa
 
         return exp_data
         
     #---------------------------------------------------------------------------
     def _run_sequential(self,
+                        num_exp: int,
                         sens_funcs: list[tuple[str,str]],
                         sens_vars: list[tuple[str,str]],
                         ) -> dict[tuple[str,...],np.ndarray]:
         
-        time_str_key = self._exp_sim_opts.exp_sim_keys.sens_times
+        time_str_key = self._exp_sim_opts.exp_save_keys.sens_times
         
         exp_data = {}
         
@@ -355,7 +392,7 @@ class ExperimentSimulator:
             time_key = (key_sim,key_sens,time_str_key)
             exp_data[time_key] = sens_array.get_sample_times()
 
-            exp_res = _run_all_sims(self._num_exp_per_sim,
+            exp_res = _run_all_sims(num_exp,
                                     key_sim,
                                     key_sens,
                                     sim_data,
