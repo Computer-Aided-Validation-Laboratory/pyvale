@@ -151,12 +151,13 @@ sensor_arrays: dict[str,sens.ISensorArray] = {
     "disp": disp_sens,
 }
 
-exp_keys = sens.ExpSimSaveKeys(pert_sens_times=None)
-exp_sim_opts = sens.ExpSimOpts(workers=4,
-                               para=sens.EExpSimPara.ALL,
-                               exp_save_keys=exp_keys)
+exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)
+exp_save_keys = sens.ExpSimSaveKeys(pert_sens_times=None)
 
-exp_sim = sens.ExperimentSimulator(sim_data_dict,sensor_arrays,exp_sim_opts)
+exp_sim = sens.ExperimentSimulator(sim_data_dict,
+                                   sensor_arrays,
+                                   exp_sim_opts,
+                                   exp_save_keys)
 
 start_exp: float = time.perf_counter()
 exp_data: dict[tuple[str,...],np.ndarray] = (
@@ -170,10 +171,11 @@ exp_stats: dict[tuple[str,...],sens.ExpSimStats] = (
 )
 stats_time: float = time.perf_counter() - start_stats
 
-print(80*"=")
+print(80*"-")
 print(f"Exp. sim. time    = {exp_time:.3f} seconds")
 print(f"Stats. calc. time = {stats_time:.3f} seconds\n")
-
+print(80*"-")
+print()
 #%%
 # 4. Analyse & visualise the results
 # ----------------------------------
@@ -322,4 +324,4 @@ for key_sim in sim_data_dict:
 #    :align: center
 
 # Uncomment this to display the sensor trace plot
-# plt.show()
+plt.show()

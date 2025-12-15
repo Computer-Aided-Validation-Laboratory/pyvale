@@ -186,12 +186,13 @@ sensor_array_dict: dict[str,sens.ISensorArray] = {
     "strain": strain_sens,
 }
 
-
-exp_save_keys = sens.ExpSimSaveKeys(pert_sens_times=None)
 exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)
+exp_save_keys = sens.ExpSimSaveKeys(pert_sens_times=None)
 
 exp_sim = sens.ExperimentSimulator(sim_data_dict,
-                                   sensor_array_dict)
+                                   sensor_array_dict,
+                                   exp_sim_opts,
+                                   exp_save_keys)
 
 #%%
 # The results of our simulated experiment are returned as a dictionary of numpy
