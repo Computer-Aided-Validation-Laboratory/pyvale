@@ -186,8 +186,6 @@ class SensorsPoint(ISensorArray):
         """
         return self._error_integrator
 
-    def get_perturbed_sensor_data(self) -> SensorData:
-        pass
 
     def set_error_chain(self,
                         err_chain: list[IErrSimulator] | None,

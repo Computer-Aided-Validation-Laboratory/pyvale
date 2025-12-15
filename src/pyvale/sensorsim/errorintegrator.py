@@ -122,9 +122,6 @@ class ErrIntegrator:
         """    
         for ee in self._err_chain:
             ee.reseed(seed)
-# 
-#     def reset_accumulated_sensor_data(self,) -> None:
-#         self._sens_data_accumulated = copy.deepcopy(self._sensor_data_initial) 
 
     def set_error_chain(self, err_chain: list[IErrSimulator]) -> None:
         """Sets the error chain that will be looped over to calculate the sensor

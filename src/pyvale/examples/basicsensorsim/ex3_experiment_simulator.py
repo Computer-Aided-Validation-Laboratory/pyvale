@@ -235,9 +235,14 @@ print(80*"-")
 print("Keys in the simulated experimental data dictionary:")
 for kk in exp_data:
     print(kk)
-print()
 print(80*"-")
 print()
+
+#%%
+# .. image:: ../../../../_static/basics_ex3_term_out_0.png
+#    :alt: Terminal output showing the simulated experiment data keys
+#    :width: 700px
+#    :align: center
 
 #%%
 # We then inspect the simulated data output for few combinations of simulations
@@ -272,9 +277,7 @@ print()
 print(80*"-")
 
 #%%
-# Example terminal output:
-#
-# .. image:: ../../../../_static/basics_ex3_term_out.png
+# .. image:: ../../../../_static/basics_ex3_term_out_1.png
 #    :alt: Terminal output showing the simulated experiment data structures
 #    :width: 700px
 #    :align: center

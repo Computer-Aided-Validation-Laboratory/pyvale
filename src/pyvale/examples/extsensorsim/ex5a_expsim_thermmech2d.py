@@ -173,9 +173,17 @@ stats_time: float = time.perf_counter() - start_stats
 
 print(80*"-")
 print(f"Exp. sim. time    = {exp_time:.3f} seconds")
-print(f"Stats. calc. time = {stats_time:.3f} seconds\n")
+print(f"Stats. calc. time = {stats_time:.3f} seconds")
 print(80*"-")
 print()
+
+# %%
+# .. image:: ../../../../_static/ext_ex5a_term_out_0.png
+#    :alt: Terminal output showing the simulated experiment times
+#    :width: 700px
+#    :align: center
+
+
 #%%
 # 4. Analyse & visualise the results
 # ----------------------------------
@@ -184,9 +192,15 @@ print(80*"-")
 print("Keys in the simulated experimental data dictionary:")
 for kk in exp_data:
     print(kk)
-print()
 print(80*"-")
 print()
+
+# %%
+# .. image:: ../../../../_static/ext_ex5a_term_out_1.png
+#    :alt: Terminal output showing the keys of the experiment data dictionary
+#    :width: 700px
+#    :align: center
+
 print(80*"-")
 print("Thermal sensor array:")
 print()
@@ -212,9 +226,10 @@ print(f"    {exp_data[('sim_nominal','disp','pert_sens_pos')].shape=}")
 print("    shape=(n_exps,n_sensors,coord[X,Y,Z])")
 print()
 print(80*"-")
+
 # %%
-# .. image:: ../../../../_static/ext_ex5a_term_out.png
-#    :alt: Terminal output showing the simulated measurements
+# .. image:: ../../../../_static/ext_ex5a_term_out_2.png
+#    :alt: Terminal output showing the simulated measurement arrays
 #    :width: 700px
 #    :align: center
 
@@ -324,4 +339,4 @@ for key_sim in sim_data_dict:
 #    :align: center
 
 # Uncomment this to display the sensor trace plot
-plt.show()
+# plt.show()

@@ -384,11 +384,11 @@ class ExperimentSimulator:
             init_sens_data = err_int.get_sens_data_accumulated()
             for kk, vv in sens_vars:
                 attr = getattr(init_sens_data,vv)
-                shape = (num_exp,) + attr.shape
-
-                exp_data[(key_sim,key_sens,kk)] = (
-                    np.empty(shape,dtype=np.float64)
-                )
+                if attr is not None:
+                    shape = (num_exp,) + attr.shape
+                    exp_data[(key_sim,key_sens,kk)] = (
+                        np.empty(shape,dtype=np.float64)
+                    )
 
         with Pool(self._exp_sim_opts.workers) as pool:
             processes_with_id = []
@@ -526,7 +526,9 @@ def _run_one_sim(sim_key: str,
 
     pert_sens_data = err_int.get_sens_data_accumulated()
     for kk, vv in sens_vars:
-        sim_exp[(sim_key,sens_key,kk)] = getattr(pert_sens_data,vv)
+        attr = getattr(pert_sens_data,vv)
+        if attr is not None:
+            sim_exp[(sim_key,sens_key,kk)] = attr
 
     # RETURN: dict[str,np.array.shape=(n_sens,n_comps,n_time_steps)]
     return sim_exp
@@ -590,9 +592,10 @@ def _run_all_sims(num_exp: int,
     init_sens_data = err_int.get_sens_data_accumulated()
     for kk, vv in sens_vars:
         attr = getattr(init_sens_data,vv)
-        shape = (num_exp,) + attr.shape
 
-        sim_exp[(sim_key,sens_key,kk)] = np.empty(shape,dtype=np.float64)
+        if attr is not None:
+            shape = (num_exp,) + attr.shape
+            sim_exp[(sim_key,sens_key,kk)] = np.empty(shape,dtype=np.float64)
 
     # Simulation loop, first bound func is always `sim_measurements`
     for ee in range(num_exp):
@@ -603,7 +606,9 @@ def _run_all_sims(num_exp: int,
 
         pert_sens_data = err_int.get_sens_data_accumulated()
         for kk, vv in sens_vars:
-            sim_exp[(sim_key,sens_key,kk)][ee] = getattr(pert_sens_data,vv)
+            attr = getattr(pert_sens_data,vv)
+            if attr is not None:
+                sim_exp[(sim_key,sens_key,kk)][ee] = attr
 
     # RETURN: dict[tuple[str,str,str],
     # np.array.shape=(n_exps,n_sens,n_comps,n_time_steps)]

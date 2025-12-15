@@ -175,9 +175,17 @@ exp_stats: dict[tuple[str,...],sens.ExpSimStats] = (
 )
 stats_time: float = time.perf_counter() - start_stats
 
-print(80*"=")
+print(80*"-")
 print(f"Exp. sim. time    = {exp_time:.3f} seconds")
-print(f"Stats. calc. time = {stats_time:.3f} seconds\n")
+print(f"Stats. calc. time = {stats_time:.3f} seconds")
+print(80*"-")
+print()
+
+# %%
+# .. image:: ../../../../_static/ext_ex5b_term_out_0.png
+#    :alt: Terminal output showing the simulated experiment times
+#    :width: 700px
+#    :align: center
 
 
 #%%
@@ -188,9 +196,15 @@ print(80*"-")
 print("Keys in the simulated experimental data dictionary:")
 for kk in exp_data:
     print(kk)
-print()
 print(80*"-")
 print()
+
+# %%
+# .. image:: ../../../../_static/ext_ex5b_term_out_1.png
+#    :alt: Terminal output showing the simulated experiment data keys
+#    :width: 700px
+#    :align: center
+
 print(80*"-")
 print("Thermal sensor array:")
 print()
@@ -217,9 +231,8 @@ print("    shape=(n_exps,n_sensors,coord[X,Y,Z])")
 print()
 print(80*"-")
 
-
 # %%
-# .. image:: ../../../../_static/ext_ex5b_term_out.png
+# .. image:: ../../../../_static/ext_ex5b_term_out_2.png
 #    :alt: Terminal output showing the simulated experiment data structures
 #    :width: 700px
 #    :align: center
