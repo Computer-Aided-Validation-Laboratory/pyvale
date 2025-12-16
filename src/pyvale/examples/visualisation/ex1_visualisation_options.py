@@ -109,12 +109,16 @@ save_render = output_path / "basics_ex1_1_sensorlocs.svg"
 # simulation mesh. The plot will can be shown in interactive mode by calling
 # `pv_plot.show()`.
 
+# plot a single sensor array
+pv_plot = sens.plot_point_sensors_on_sim(tc_array, field_key)
+pv_plot.show()
+
+# using two sensor arrays, each with a different component key
 pv_plot = sens.plot_point_sensors_on_sim([tc_array, disp_sens_array2], [field_key, "disp_x"])
-#pv_plot = sens.plot_point_sensors_on_sim([disp_sens_array2, tc_array], ["disp_x", field_key])
-# issue: the second set of sensors does not get correct colour limits...
-#pv_plot = sens.plot_point_sensors_on_sim(tc_array, field_key)
-#pv_plot = sens.plot_point_sensors_on_sim([tc_array, tc_array, tc_array], field_key)
-#pv_plot = sens.plot_point_sensors_on_sim(tc_array, [field_key, field_key, field_key, field_key])
+pv_plot.show()
+
+# create three subplots where each sensor array plotted uses the same component key
+pv_plot = sens.plot_point_sensors_on_sim([tc_array, tc_array, tc_array], field_key)
 
 #%%
 # We determined manually by moving camera in interative mode and then

@@ -55,23 +55,27 @@ def animate_trace_with_sensors(sensor_array: SensorArrayPoint,
     #scat = ax.scatter(1, 0)
     #x = np.linspace(0, 10)
 
-
     def animate(i):
-        # what should be plot...
-        #scat.set_offsets((x[i], 0))
-        #return (scat,)
-        for tt in time_steps:
-            for ii,ss in enumerate(sensors_to_plot):
-                truth = sensor_array.get_truth()
-                ax.plot(samp_time,
-                truth[ss,comp_ind,:],
-                trace_opts.truth_line,
-                lw=plot_opts.lw,
-                ms=plot_opts.ms,
-                color=plot_opts.colors[ii % plot_opts.colors_num])
+        for ii,ss in enumerate(sensors_to_plot):
+            truth = sensor_array.get_truth()
+            ax.plot(samp_time,
+            truth[ss,comp_ind,:],
+            trace_opts.truth_line,
+            lw=plot_opts.lw,
+            ms=plot_opts.ms,
+            color=plot_opts.colors[ii % plot_opts.colors_num])
 
-    #ani = animation.FuncAnimation(fig, animate, repeat=True, frames=len(x) - 1, interval=50)
-    ani = animation.FuncAnimation(fig, animate, repeat=True, interval=50)
+    def init():
+        for ii,ss in enumerate(sensors_to_plot):
+            truth = sensor_array.get_truth()
+            ax.plot(samp_time,
+            truth[ss,comp_ind,:],
+            trace_opts.truth_line,
+            lw=plot_opts.lw,
+            ms=plot_opts.ms,
+            color=plot_opts.colors[ii % plot_opts.colors_num])
+
+    ani = animation.FuncAnimation(fig, animate, repeat=True, frames = samp_time, init_func=init, interval=400)
 
     plt.draw()
     plt.show()
