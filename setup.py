@@ -18,33 +18,48 @@ if debug_mode:
 
 # check if we are on windows
 is_windows = sys.platform.startswith("win")
+is_mac = sys.platform == "darwin"
+
 if is_windows:
-    openmp_flag = '/openmp'
+    openmp_flags = ['/openmp']
     cpp_std_flag = '/std:c++17'
-    compile_flags = [cpp_std_flag, openmp_flag]
+    compile_flags = [cpp_std_flag] + openmp_flags
     if debug_mode:
         compile_flags += ['/Od', '/Zi']
     else:
         compile_flags += ['/O2']
     link_flags = []
-else:
-    openmp_flag = '-fopenmp'
+elif is_mac:
+    openmp_flags = ['-Xclang', '-fopenmp']
+    openmp_link_flag = '-lomp'
     cpp_std_flag = '-std=c++17'
-    compile_flags = [cpp_std_flag, openmp_flag]
+    compile_flags = [cpp_std_flag] + openmp_flags
+
     if debug_mode:
         compile_flags += ['-O0', '-g']
-        link_flags = [openmp_flag, '-g']
+        link_flags = [openmp_link_flag, '-g']
     else:
         compile_flags += ['-O3']
-        link_flags = [openmp_flag]
+        link_flags = [openmp_link_flag]
+
+else:
+    openmp_flags = ['-fopenmp']
+    cpp_std_flag = '-std=c++17'
+    compile_flags = [cpp_std_flag] + openmp_flags
+    if debug_mode:
+        compile_flags += ['-O0', '-g']
+        link_flags = openmp_flags + ['-g']
+    else:
+        compile_flags += ['-O3']
+        link_flags = openmp_flags
 
 
 ext_cython = Extension(
     "pyvale.sensorsim.cython.rastercyth",
     ["src/pyvale/sensorsim/cython/rastercyth.py"],
     include_dirs=[numpy.get_include()],
-    extra_compile_args=[openmp_flag],
-    extra_link_args=[openmp_flag],
+    extra_compile_args=openmp_flags,
+    extra_link_args=openmp_flags,
 )
 
 ext_dic = Extension(
