@@ -248,7 +248,11 @@ cam_pos = np.array([(59.354, 43.428, 69.946),
                     (-2.858, 13.189, 4.523),
                     (-0.215, 0.948, -0.233)])
 
-pv_plot = sens.plot_point_sensors_on_sim(temp_sens,"temperature")
+pert_sens_pos = exp_data[("sim_nominal","temp","pert_sens_pos")][-1,:,:]
+pv_plot = sens.plot_point_sensors_on_sim(sensor_array=temp_sens,
+                                         comp_key="temperature",
+                                         time_step=-1,
+                                         perturbed_sens_pos=pert_sens_pos)
 pv_plot.camera_position = cam_pos
 
 # Set to False to show an interactive plot instead of saving the figure
@@ -266,7 +270,11 @@ else:
 #    :width: 800px
 #    :align: center
 
-pv_plot = sens.plot_point_sensors_on_sim(strain_sens,"strain_yy")
+pert_sens_pos = exp_data[("sim_nominal","strain","pert_sens_pos")][-1,:,:]
+pv_plot = sens.plot_point_sensors_on_sim(sensor_array=strain_sens,
+                                         comp_key="strain_yy",
+                                         time_step=-1,
+                                         perturbed_sens_pos=pert_sens_pos)
 pv_plot.camera_position = cam_pos
 
 # Set to False to show an interactive plot instead of saving the figure

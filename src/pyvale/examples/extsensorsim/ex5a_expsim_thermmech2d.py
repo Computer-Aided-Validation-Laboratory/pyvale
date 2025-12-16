@@ -242,7 +242,11 @@ sens.save_exp_sim_data(output_path/"ex5a_exp_sim_data.npz",exp_data)
 exp_data = sens.load_exp_sim_data(output_path/"ex5a_exp_sim_data.npz")
 
 
-pv_plot = sens.plot_point_sensors_on_sim(temp_sens,"temperature")
+pert_sens_pos = exp_data[("sim_nominal","temp","pert_sens_pos")][-1,:,:]
+pv_plot = sens.plot_point_sensors_on_sim(sensor_array=temp_sens,
+                                         comp_key="temperature",
+                                         time_step=-1,
+                                         perturbed_sens_pos=pert_sens_pos)
 pv_plot.camera_position = "xy"
 
 # Set to False to show an interactive plot instead of saving the figure
@@ -260,7 +264,11 @@ else:
 #    :width: 800px
 #    :align: center
 
-pv_plot = sens.plot_point_sensors_on_sim(disp_sens,"disp_x")
+pert_sens_pos = exp_data[("sim_nominal","disp","pert_sens_pos")][-1,:,:]
+pv_plot = sens.plot_point_sensors_on_sim(sensor_array=disp_sens,
+                                         comp_key="disp_x",
+                                         time_step=-1,
+                                         perturbed_sens_pos=pert_sens_pos)
 pv_plot.camera_position = "xy"
 
 # Set to False to show an interactive plot instead of saving the figure
