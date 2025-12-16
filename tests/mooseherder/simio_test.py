@@ -56,10 +56,10 @@ def test_save_sim_data(sim_data: mh.SimData) -> None:
         (".npy",),
     )
 )
-def test_load_sim_data_by_frame(sim_data: mh.SimData,
+def test_load_sim_data_by_time(sim_data: mh.SimData,
                                 suffix: str) -> None:
 
-    load_opts = mh.SimTxtLoadOpts()
+    load_opts = mh.SimLoadOpts()
 
     save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
     coord_path = hct.TXT_GOLD_PATH / (save_opts.get_coord_name() + suffix)
@@ -77,15 +77,19 @@ def test_load_sim_data_by_frame(sim_data: mh.SimData,
                     "temperature": slice(9,10),}
 
     field_pattern = f"hex20_node_field_frame*{suffix}"
-
-    sim_loader = mh.SimTxtLoader(files_path=hct.TXT_GOLD_PATH,
-                                 coords=coord_path,
-                                 time_steps=time_path,
-                                 node_file_pattern=field_pattern,
-                                 node_slices=field_slices,
-                                 glob_file=None,
-                                 glob_slices=None,
-                                 load_opts=load_opts)
+    # NOTE: known issue with connect dictionary having prefix on keys where gold
+    # does not
+    connect_pattern = f"hex20_connect*"
+    
+    sim_loader = mh.SimLoaderByTime(load_dir=hct.TXT_GOLD_PATH,
+                                    coords_file=coord_path,
+                                    time_step_file=time_path,
+                                    node_files=field_pattern,
+                                    node_slices=field_slices,
+                                    connect_files=None,
+                                    glob_file=None,
+                                    glob_slices=None,
+                                    load_opts=load_opts)
 
     sim_data_load = sim_loader.load_all_sim_data()
 
@@ -123,7 +127,7 @@ def test_save_load_sim_data_by_frame(sim_data: mh.SimData, suffix: str) -> None:
                                       + f"dir:\n    {files_save=}.")
 
 
-    load_opts = mh.SimTxtLoadOpts()
+    load_opts = mh.SimLoadOpts()
 
     save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
     coord_path = hct.TEMP_OUTPUT_PATH / (save_opts.get_coord_name() + suffix)
@@ -142,15 +146,20 @@ def test_save_load_sim_data_by_frame(sim_data: mh.SimData, suffix: str) -> None:
 
     field_pattern = f"hex20_node_field_frame*{suffix}"
 
-    sim_loader = mh.SimTxtLoader(files_path=hct.TEMP_OUTPUT_PATH,
-                                 coords=coord_path,
-                                 time_steps=time_path,
-                                 node_file_pattern=field_pattern,
-                                 node_slices=field_slices,
-                                 glob_file=None,
-                                 glob_slices=None,
-                                 load_opts=load_opts)
-
+    # NOTE: known issue with connect dictionary having prefix on keys where gold
+    # does not
+    connect_pattern = f"hex20_connect*"
+    
+    sim_loader = mh.SimLoaderByTime(load_dir=hct.TXT_GOLD_PATH,
+                                    coords_file=coord_path,
+                                    time_step_file=time_path,
+                                    node_files=field_pattern,
+                                    node_slices=field_slices,
+                                    connect_files=None,
+                                    glob_file=None,
+                                    glob_slices=None,
+                                    load_opts=load_opts)
+                                    
     sim_data_load = sim_loader.load_all_sim_data()
 
     sim_data.connect = None
@@ -169,38 +178,33 @@ def test_save_load_sim_data_by_frame(sim_data: mh.SimData, suffix: str) -> None:
 )
 def test_load_sim_data_by_field(sim_data: mh.SimData, suffix: str) -> None:
 
-    load_opts = mh.SimTxtLoadOpts(node_field_header=None)
+    load_opts = mh.SimLoadOpts(node_field_header=None)
 
     save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
     coord_path = hct.TXT_GOLD_PATH / (save_opts.get_coord_name() + suffix)
     time_path = hct.TXT_GOLD_PATH / (save_opts.get_time_name() + suffix)
 
-    field_slices = {"disp_x": slice(None),
-                    "disp_y": slice(None),
-                    "disp_z": slice(None),
-                    "strain_xx": slice(None),
-                    "strain_xy": slice(None),
-                    "strain_xz": slice(None),
-                    "strain_yy": slice(None),
-                    "strain_yz": slice(None),
-                    "strain_zz": slice(None),
-                    "temperature": slice(None),}
-
     prefix = "hex20_node_field"
 
+    field_keys = {"disp_x","disp_y","disp_z","strain_xx","strain_xy","strain_xz"
+                 ,"strain_yy","strain_yz","strain_zz","temperature"}
+
     field_patterns = {}
-    for ff in field_slices:
+    for ff in field_keys:
         field_patterns[ff] = f"{prefix}_{ff}{suffix}"
 
+    # NOTE: known issue with connect dictionary having prefix on keys where gold
+    # does not
+    connect_pattern = f"hex20_connect*"
 
-    sim_loader = mh.SimTxtLoader(files_path=hct.TXT_GOLD_PATH,
-                                 coords=coord_path,
-                                 time_steps=time_path,
-                                 node_file_pattern=field_patterns,
-                                 node_slices=field_slices,
-                                 glob_file=None,
-                                 glob_slices=None,
-                                 load_opts=load_opts)
+    sim_loader = mh.SimLoaderByField(load_dir=hct.TXT_GOLD_PATH,
+                                     coords_file=coord_path,
+                                     time_step_file=time_path,
+                                     node_field_files=field_patterns,
+                                     connect_files=None,
+                                     glob_file=None,
+                                     glob_slices=None,
+                                     load_opts=load_opts)
 
     sim_data_load = sim_loader.load_all_sim_data()
 
@@ -238,38 +242,34 @@ def test_save_load_sim_data_by_field(sim_data: mh.SimData, suffix: str) -> None:
                                       + f"dir:\n    {files_save=}.")
 
 
-    load_opts = mh.SimTxtLoadOpts(node_field_header=None)
+    load_opts = mh.SimLoadOpts(node_field_header=None)
 
     save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
     coord_path = hct.TEMP_OUTPUT_PATH / (save_opts.get_coord_name() + suffix)
     time_path = hct.TEMP_OUTPUT_PATH / (save_opts.get_time_name() + suffix)
 
-    field_slices = {"disp_x": slice(None),
-                    "disp_y": slice(None),
-                    "disp_z": slice(None),
-                    "strain_xx": slice(None),
-                    "strain_xy": slice(None),
-                    "strain_xz": slice(None),
-                    "strain_yy": slice(None),
-                    "strain_yz": slice(None),
-                    "strain_zz": slice(None),
-                    "temperature": slice(None),}
 
     prefix = "hex20_node_field"
 
+    field_keys = {"disp_x","disp_y","disp_z","strain_xx","strain_xy","strain_xz"
+                 ,"strain_yy","strain_yz","strain_zz","temperature"}
+
     field_patterns = {}
-    for ff in field_slices:
+    for ff in field_keys:
         field_patterns[ff] = f"{prefix}_{ff}{suffix}"
 
+    # NOTE: known issue with connect dictionary having prefix on keys where gold
+    # does not
+    connect_pattern = f"hex20_connect*"
 
-    sim_loader = mh.SimTxtLoader(files_path=hct.TEMP_OUTPUT_PATH,
-                                 coords=coord_path,
-                                 time_steps=time_path,
-                                 node_file_pattern=field_patterns,
-                                 node_slices=field_slices,
-                                 glob_file=None,
-                                 glob_slices=None,
-                                 load_opts=load_opts)
+    sim_loader = mh.SimLoaderByField(load_dir=hct.TXT_GOLD_PATH,
+                                     coords_file=coord_path,
+                                     time_step_file=time_path,
+                                     node_field_files=field_patterns,
+                                     connect_files=None,
+                                     glob_file=None,
+                                     glob_slices=None,
+                                     load_opts=load_opts)
 
     sim_data_load = sim_loader.load_all_sim_data()
 
@@ -278,8 +278,4 @@ def test_save_load_sim_data_by_field(sim_data: mh.SimData, suffix: str) -> None:
     fails = verif.match_sim_data_get_fails(sim_data,sim_data_load)
 
     assert not fails, "\n".join(fails)
-
-
-
-
 

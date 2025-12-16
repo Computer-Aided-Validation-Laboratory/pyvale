@@ -8,7 +8,7 @@
 Quickstart sensor sim
 ================================================================================
 
-This is a quick example with minimal explantion to get users familiar with the
+This is a quick example with minimal explanation to get users familiar with the
 overall workflow for the `pyvale` sensor simulation engine - to see if `pyvale`
 is the right virtual laboratory for them.
 
@@ -130,7 +130,7 @@ trace_opts = sens.TraceOptsExperiment(plot_all_exp_points=True)
 fig.savefig(output_path/"basics_ex0_traces.png",dpi=300,bbox_inches="tight")
 
 # Uncomment to show interactive figure
-plt.show()
+# plt.show()
 
 # %%
 # .. image:: ../../../../_static/basics_ex0_traces.png

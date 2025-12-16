@@ -184,13 +184,13 @@ else:
 
 for ff in disp_keys:
     (fig,ax) = sens.plot_time_traces(sens_array_norot,ff)
-    ax.set_title("No Rotation")
+    ax[0].set_title("No Rotation")
 
     save_traces = output_path/f"ext_ex4c_traces_norot_{ff}.png"
     fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 
     (fig,ax) = sens.plot_time_traces(sens_array_rot,ff)
-    ax.set_title(f"Rotated {sens_rot_deg} deg.")
+    ax[0].set_title(f"Rotated {sens_rot_deg} deg.")
 
     save_traces = output_path/f"ext_ex4c_traces_rot_{ff}.png"
     fig.savefig(save_traces, dpi=300, bbox_inches="tight")

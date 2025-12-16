@@ -77,7 +77,7 @@ mh.save_sim_data_to_arrays(output_path,sim_data,save_opts)
 # We can also choose not to load these from disk and build the numpy arrays 
 # ourselves programmatically. 
 #
-# The connectvity table is optional as we will see in out example on mesh free 
+# The connectivity table is optional as we will see in out example on mesh free 
 # virtual sensors but we will load it here to demonstrate mesh-based sensors. In 
 # this case each meshed object in the simulation has a connectivity table 
 # labelled "connectX" where X is an integer specifying the unique mesh in the 

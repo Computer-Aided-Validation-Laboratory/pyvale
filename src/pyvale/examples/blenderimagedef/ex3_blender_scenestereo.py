@@ -43,11 +43,11 @@ sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 disp_comps = ("disp_x","disp_y", "disp_z")
 sim_data = sens.scale_length_units(scale=1000.0,
                                   sim_data=sim_data,
-                                  disp_comps=disp_comps)
+                                  disp_keys=disp_comps)
 
 render_mesh = sens.create_render_mesh(sim_data,
                                     ("disp_y","disp_x"),
-                                    sim_spat_dim=3,
+                                    sim_spat_dim=sens.EDim.THREED,
                                     field_disp_keys=disp_comps)
 
 # %%

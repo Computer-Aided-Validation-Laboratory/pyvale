@@ -123,7 +123,6 @@ class ErrIntegrator:
         for ee in self._err_chain:
             ee.reseed(seed)
 
-
     def set_error_chain(self, err_chain: list[IErrSimulator]) -> None:
         """Sets the error chain that will be looped over to calculate the sensor
         measurement errors. If the error integration options are forcing error
@@ -167,6 +166,11 @@ class ErrIntegrator:
             Array of total errors summed over all errors in the chain. shape=(
             num_sensors,num_field_components,num_time_steps).
         """
+        # NOTE: needed to make sure dependent field errors always start from
+        # nominal before the error chain is evaluated. Otherwise dependent field
+        # errors create a random walk in sensor position.
+        self._sens_data_accumulated = copy.deepcopy(self._sens_data_initial)
+
         if self._err_int_opts.store_all_errs:
             return self._calc_errors_store_by_chain(truth)
 
@@ -203,12 +207,12 @@ class ErrIntegrator:
             if ee.get_error_dep() == EErrDep.DEPENDENT:
                 (error_array,sens_data) = ee.sim_errs(truth+self._errs_total,
                                                        self._sens_data_accumulated)
-
+                # Only accumulate sensor data perturbations for dependent errs
+                self._sens_data_accumulated = copy.deepcopy(sens_data)
             else:
                 (error_array,sens_data) = ee.sim_errs(truth,
                                                        self._sens_data_initial)
 
-            self._sens_data_accumulated = sens_data
             self._sens_data_by_chain.append(sens_data)
 
             if ee.get_error_type() == EErrType.SYSTEMATIC:
@@ -253,11 +257,13 @@ class ErrIntegrator:
                     truth+self._errs_total,
                     self._sens_data_accumulated
                 )
+
+                # Only accumulate sensor data perturbations for dependent errors
+                self._sens_data_accumulated = copy.deepcopy(sens_data)
             else:
                 (error_array,sens_data) = ee.sim_errs(truth,
                                                        self._sens_data_initial)
-
-            self._sens_data_accumulated = sens_data
+            
 
             if ee.get_error_type() == EErrType.SYSTEMATIC:
                 self._errs_systematic = self._errs_systematic + error_array

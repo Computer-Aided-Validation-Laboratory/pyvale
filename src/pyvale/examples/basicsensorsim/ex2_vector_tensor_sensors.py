@@ -91,7 +91,7 @@ disp_sens: sens.SensorsPoint = sens.SensorFactory.vector_point(
 
 #%%
 # For the tensor field sensors we have to separately specify the string keys for
-# the normal and deviatoric tensor components, otheriwse it is the same as for
+# the normal and deviatoric tensor components, otherwise it is the same as for
 # the vector field sensor.
 
 strain_sens_data = sens.SensorData(positions=sens_pos,
@@ -118,7 +118,7 @@ strain_sens: sens.SensorsPoint = sens.SensorFactory.tensor_point(
 # field error for both sensor arrays for simplicity and add a probabilistic
 # random error.
 #
-# First we setup the data structures that will tell our error chain how to
+# First, we setup the data structures that will tell our error chain how to
 # configure and evaluate our field errors. Everything that can be evaluated in
 # a field error is captured in the `ErrFieldData` dataclass.
 
@@ -215,11 +215,13 @@ pv_plot = sens.plot_point_sensors_on_sim(disp_sens,"disp_y")
 pv_plot.camera_position = "xy"
 
 save_render = output_path / "basics_ex2_disp_locs.png"
-pv_plot.off_screen = True
-pv_plot.screenshot(save_render)
 
-# Uncomment to show interactive figure and set off_screen = False above
-# pv_plot.show(cpos="xy")
+# Set to False to show an interactive plot instead of saving the figure
+pv_plot.off_screen = True
+if pv_plot.off_screen:
+    pv_plot.screenshot(save_render)
+else:
+    pv_plot.show()
 
 # %%
 # .. image:: ../../../../_static/basics_ex2_disp_locs.png

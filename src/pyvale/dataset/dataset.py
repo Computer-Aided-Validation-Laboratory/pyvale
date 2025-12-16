@@ -294,6 +294,21 @@ def thermomechanical_3d_experiment_paths() -> list[Path]:
             Path(files("pyvale.data").joinpath("case16_d_out.e"))]
 
 
+def render_mechanical_3d_path() -> Path:
+    """Path to a MOOSE simulation output in exodus format. This case is a
+    purely mechanical test case in 3D meant for testing image rendering
+    algorithms for digital image correlation simulation. The simulation
+    consists of a linear elastic thin plate with a hole loaded in tension.
+    The simulation uses linear tetrahedral elements for rendering tests.
+
+    Returns
+    -------
+    Path
+        Path to the exodus (*.e) output file for this simulation case.
+    """
+    return Path(files("pyvale.data").joinpath("case26_out.e"))
+    
+
 def element_case_input_path(elem_type: EElemTest) -> Path:
     """Path to a MOOSE simulation input file (.i) for a simple test
     case. This case is a 10mm cube undergoing thermo-mechanical loading

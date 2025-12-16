@@ -15,11 +15,11 @@ the simulation point cloud at the virtual sensor locations. The mesh free
 method is computationally more expensive than the mesh based method, especially
 in 3D, but it does give much more flexibility in input simulation data.
 
-The only difference between the mesh based and mesh free cases from a user
+The only difference between the mesh-based and mesh-free cases from a user
 interface perspective is that there is no connectivity table in the `SimData`
 object created by the user. Otherwise creating a sensor array is exactly the
 same as all previous examples - apart from the computational overhead of the
-mesh free interpolation.
+mesh-free interpolation.
 """
 
 import copy
@@ -39,7 +39,7 @@ import pyvale.verif as verif
 # For this example we are going to use a generated analytic dataset instead of
 # a finite element simulation as we want an analytic function for the measured
 # field that is linear so we can see that mesh-free interpolation matches the
-# mesh based interpolation. For finite element simulations using non-tetrahedral
+# mesh-based interpolation. For finite element simulations using non-tetrahedral
 # and/or high order elements the mesh-free method will not match the mesh-based.
 #
 # The analytic case is a rectangular plate that is 10x7.5 units in length with
@@ -49,14 +49,14 @@ import pyvale.verif as verif
 #
 # Initially the generated `SimData` object is mesh-based so we create a copy and
 # then set the connectivity table dictionary to None to indicate that our data
-# is mesh free.
+# is mesh-free.
 (sim_data,_) = verif.analyticsimdatafactory.scalar_linear_2d()
 
 sim_data_nomesh = copy.deepcopy(sim_data)
 sim_data_nomesh.connect = None
 
 #%%
-# We will use the same `SensorData` for the mesh free and mesh based sensor
+# We will use the same `SensorData` for the mesh-free and mesh-based sensor
 # arrays. First, we use a helper function to get the limiting dimensions of the
 # plate and use this to create our sensor position array. Then we specify our
 # sample times and use our sensor positions and sample times to create our
@@ -84,7 +84,7 @@ sens_data = sens.SensorData(positions=sens_pos,
 #
 # The triangulation is computationally expensive, especially in 3D. For the 2D
 # case shown here with 1200 elements creating the sensor array is about 6
-# times slower than the mesh based case.
+# times slower than the mesh-based case.
 
 start_time = time.perf_counter()
 tc_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
@@ -116,9 +116,9 @@ print(f"Mesh free  = {nomesh_time:.3f} milliseconds\n")
 #%%
 # 3. Run simulated experiment
 # ------------------------------------
-# Now we can simulate some measurements for the mesh based and mesh free cases
+# Now we can simulate some measurements for the mesh-based and mesh-free cases
 # and compare the time taken for the calculation. Rough testing shows that the
-# mesh free case takes about 5 times longer than the mesh based case.
+# mesh-free case takes about 5 times longer than the mesh-based case.
 
 start_time = time.perf_counter()
 meas = tc_array.get_measurements()
@@ -139,7 +139,7 @@ print(f"Mesh free  = {nomesh_time:.3f} milliseconds\n")
 # ----------------------------------
 # Finally, we can compare the measurements for both sensor arrays. As our
 # virtual sensors are measuring a linear field in 2D with linear elements the
-# mesh based and mesh free cases should agree exactly (especially because we
+# mesh-based and mesh-free cases should agree exactly (especially because we
 # are not simulating any measurement errors).
 
 print(80*"-")
@@ -168,7 +168,7 @@ print(80*"-")
 #    :align: center
 
 #%%
-# That's it for this example! Mesh free virtual sensors work in exactly the same
-# way as the mesh based sensors, they are just a bit more computationally heavy
+# That's it for this example! Mesh-free virtual sensors work in exactly the same
+# way as the mesh-based sensors, they are just a bit more computationally heavy
 # and slower.
 

@@ -110,7 +110,7 @@ def check_get_meas(sens_dict: dict[str,sens.SensorsPoint]) -> list[str]:
         calc_meas = sens_dict[ss].sim_measurements()
         get_meas = sens_dict[ss].get_measurements()
 
-        if not np.allclose(calc_meas, get_meas):
+        if not np.allclose(calc_meas, get_meas,rtol=1e-5, atol=1e-8):
             fails.append(f"Get does not equal calc for: {ss}")
 
     return fails

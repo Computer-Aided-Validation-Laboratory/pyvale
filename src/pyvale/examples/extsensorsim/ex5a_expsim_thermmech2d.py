@@ -82,16 +82,16 @@ temp_sens: sens.SensorsPoint = sens.SensorFactory.scalar_point(
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 temp_pos_uncert = 1.0 # units = mm
-temp_pos_rand = (sens.GenNormal(std=temp_pos_uncert),
-                 sens.GenNormal(std=temp_pos_uncert),
+temp_pos_rand = (sens.GenUniform(low=-temp_pos_uncert,high=temp_pos_uncert),
+                 sens.GenUniform(low=-temp_pos_uncert,high=temp_pos_uncert),
                  None)
 
 temp_field_err_data = sens.ErrFieldData(pos_rand_xyz=temp_pos_rand)
 
 temp_err_chain: list[sens.IErrSimulator] = [
     sens.ErrSysField(temp_sens.get_field(),temp_field_err_data),
-    sens.ErrRandGenPercent(sens.GenNormal(std=2.0),
-        err_dep=sens.EErrDep.DEPENDENT),
+    sens.ErrRandGenPercent(sens.GenNormal(std=1.0),
+                           err_dep=sens.EErrDep.DEPENDENT),
     sens.ErrSysOffsetPercent(offset_percent=-1.0),
     sens.ErrSysDigitisation(bits_per_unit=2**24/100),
     sens.ErrSysSaturation(meas_min=0.0,meas_max=700.0),
@@ -137,7 +137,7 @@ disp_err_chain: list[sens.IErrSimulator] = [
     sens.ErrSysField(disp_sens.get_field(),field_err_data),
     sens.ErrSysOffsetPercent(offset_percent=1.0),
     sens.ErrSysDigitisation(bits_per_unit=2**24/1.0),
-    sens.ErrSysSaturation(meas_min=-1.0,meas_max=1.0),
+    sens.ErrSysSaturation(meas_min=-5.0,meas_max=5.0),
 ]
 
 disp_sens.set_error_chain(disp_err_chain)
@@ -152,7 +152,12 @@ sensor_arrays: dict[str,sens.ISensorArray] = {
 }
 
 exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)
-exp_sim = sens.ExperimentSimulator(sim_data_dict,sensor_arrays,exp_sim_opts)
+exp_save_keys = sens.ExpSimSaveKeys(pert_sens_times=None)
+
+exp_sim = sens.ExperimentSimulator(sim_data_dict,
+                                   sensor_arrays,
+                                   exp_sim_opts,
+                                   exp_save_keys)
 
 start_exp: float = time.perf_counter()
 exp_data: dict[tuple[str,...],np.ndarray] = (
@@ -166,42 +171,65 @@ exp_stats: dict[tuple[str,...],sens.ExpSimStats] = (
 )
 stats_time: float = time.perf_counter() - start_stats
 
-print(80*"=")
+print(80*"-")
 print(f"Exp. sim. time    = {exp_time:.3f} seconds")
-print(f"Stats. calc. time = {stats_time:.3f} seconds\n")
+print(f"Stats. calc. time = {stats_time:.3f} seconds")
+print(80*"-")
+print()
+
+# %%
+# .. image:: ../../../../_static/ext_ex5a_term_out_0.png
+#    :alt: Terminal output showing the simulated experiment times
+#    :width: 700px
+#    :align: center
+
 
 #%%
 # 4. Analyse & visualise the results
 # ----------------------------------
 
-print(80*"=")
+print(80*"-")
 print("Keys in the simulated experimental data dictionary:")
 for kk in exp_data:
     print(kk)
-print()
 print(80*"-")
-print("Thermal sensor array @ exp_data[('sim_nominal','temp','meas')]")
-print(80*"-")
-print("shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data[('sim_nominal','temp','meas')].shape=}")
 print()
-print("Stats are calculated over all experiments (axis=0)")
-print("shape=(n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats[('sim_nominal','temp','meas')].max.shape=}")
-print()
-print(80*"-")
-print("Mechanical sensor array @ exp_data[('sim_nominal','disp','meas')]")
-print(80*"-")
-print("shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data[('sim_nominal','disp','meas')].shape=}")
-print()
-print("shape=(n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats[('sim_nominal','disp','meas')].max.shape=}")
-print(80*"=")
 
 # %%
-# .. image:: ../../../../_static/ext_ex5a_term_out.png
-#    :alt: Terminal output showing the simulated measurements
+# .. image:: ../../../../_static/ext_ex5a_term_out_1.png
+#    :alt: Terminal output showing the keys of the experiment data dictionary
+#    :width: 700px
+#    :align: center
+
+print(80*"-")
+print("Thermal sensor array:")
+print()
+print(f"    {exp_data[('sim_nominal','temp','meas')].shape=}")
+print("    shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_stats[('sim_nominal','temp','meas')].max.shape=}")
+print("    shape=(n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_data[('sim_nominal','temp','pert_sens_pos')].shape=}")
+print("    shape=(n_exps,n_sensors,coord[X,Y,Z])")
+print()
+print(80*"-")
+print("Mechanical sensor array:")
+print()
+print(f"    {exp_data[('sim_nominal','disp','meas')].shape=}")
+print("    shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_stats[('sim_nominal','disp','meas')].max.shape=}")
+print("    shape=(n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_data[('sim_nominal','disp','pert_sens_pos')].shape=}")
+print("    shape=(n_exps,n_sensors,coord[X,Y,Z])")
+print()
+print(80*"-")
+
+# %%
+# .. image:: ../../../../_static/ext_ex5a_term_out_2.png
+#    :alt: Terminal output showing the simulated measurement arrays
 #    :width: 700px
 #    :align: center
 
@@ -214,7 +242,11 @@ sens.save_exp_sim_data(output_path/"ex5a_exp_sim_data.npz",exp_data)
 exp_data = sens.load_exp_sim_data(output_path/"ex5a_exp_sim_data.npz")
 
 
-pv_plot = sens.plot_point_sensors_on_sim(temp_sens,"temperature")
+pert_sens_pos = exp_data[("sim_nominal","temp","pert_sens_pos")][-1,:,:]
+pv_plot = sens.plot_point_sensors_on_sim(sensor_array=temp_sens,
+                                         comp_key="temperature",
+                                         time_step=-1,
+                                         perturbed_sens_pos=pert_sens_pos)
 pv_plot.camera_position = "xy"
 
 # Set to False to show an interactive plot instead of saving the figure
@@ -232,7 +264,11 @@ else:
 #    :width: 800px
 #    :align: center
 
-pv_plot = sens.plot_point_sensors_on_sim(disp_sens,"disp_x")
+pert_sens_pos = exp_data[("sim_nominal","disp","pert_sens_pos")][-1,:,:]
+pv_plot = sens.plot_point_sensors_on_sim(sensor_array=disp_sens,
+                                         comp_key="disp_x",
+                                         time_step=-1,
+                                         perturbed_sens_pos=pert_sens_pos)
 pv_plot.camera_position = "xy"
 
 # Set to False to show an interactive plot instead of saving the figure

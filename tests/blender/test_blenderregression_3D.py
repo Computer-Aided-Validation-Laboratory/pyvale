@@ -36,7 +36,7 @@ def sample_scene_no_cam():
     sim_data = sens.scale_length_units(1000.0,sim_data,disp_comps)
     render_mesh = sens.create_render_mesh(sim_data,
                                         ("disp_y","disp_x"),
-                                        sim_spat_dim=2,
+                                        sim_spat_dim=sens.EDim.TWOD,
                                         field_disp_keys=disp_comps)
 
     scene = blender.Scene()
@@ -92,7 +92,7 @@ def test_stereo_convenience_cameras(placement, output, request, sample_scene_no_
                                               stereo_system.cam_data_1),
                                     base_dir=tmp_path)
     image_array = scene.render_single_image(stage_image=True,
-                                                          render_data=render_data)
+                                            render_data=render_data)
     output = request.getfixturevalue(output)
 
     npt.assert_allclose(image_array, output, atol=2, rtol=0)
@@ -103,10 +103,10 @@ def test_stereo_deformation(sample_stereo_scene, deformed_images, tmp_path):
                                               stereo_system.cam_data_1),
                                     base_dir=tmp_path)
     image_arrays = scene.render_deformed_images(render_mesh=render_mesh,
-                                                              sim_spat_dim=3,
-                                                              render_data=render_data,
-                                                              part=part,
-                                                              stage_image=True)
+                                              sim_spat_dim=3,
+                                              render_data=render_data,
+                                              part=part,
+                                              stage_image=True)
     image_array = image_arrays[:, :, 120:]
     npt.assert_allclose(image_array, deformed_images, atol=2, rtol=0)
 

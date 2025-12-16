@@ -13,10 +13,10 @@ sensor simulation. We demonstrate quick sensor array construction with defaults
 using the `pyvale` sensor factory. We also introduce some key concepts for
 `pyvale` sensor simulation including error chains and the functions for running
 simulated sensor measurements as well as the data structures they are stored in.
-Finally we run a sensor simulation, visualise the virtual sensor locations and
+Finally, we run a sensor simulation, visualise the virtual sensor locations and
 plot the simulated sensor traces.
 
-Before we begin the example we will briefly describe the `pyvale` sensor
+Before we begin the example, we will briefly describe the `pyvale` sensor
 measurement simulation model. In `pyvale` a simulated measurement is given by:
 
 measurement = truth + systematic errors + random errors
@@ -62,6 +62,7 @@ sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
+                                               
 #%%
 # .. note::
 #   You can load your own exodus (*.e) file here by changing the path or you can

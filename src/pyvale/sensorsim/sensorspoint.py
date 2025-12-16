@@ -33,11 +33,11 @@ class SensorsPoint(ISensorArray):
     interface). Further information can be found in the `ErrIntegrator` class
     and in implementations of the `IErrSimulator` interface.
 
-    In `pyvale`, function and methods with `calc` in their name will cause
-    probability distributions to be resampled and any additional calculations,
-    such as interpolation, to be performed. Functions and methods with `get` in
-    the name will directly return the previously calculated values without
-    resampling probability distributions.
+    In `pyvale`, function and methods with `sim` or `calc` in their name will 
+    cause probability distributions to be resampled and any additional 
+    calculations, such as interpolation, to be performed. Functions and methods 
+    with `get` in the name will directly return the previously calculated values 
+    without any computationally intensive calculations.
 
     Calling the class method `sim_measurements()` will create and return an
     array of simulated sensor measurements with the following shape=(num_sensors
@@ -51,7 +51,8 @@ class SensorsPoint(ISensorArray):
     Distributions.
 
     Without an error integrator this class can be used for interpolating
-    simulated physical fields quickly using finite element shape functions.
+    simulated physical fields quickly using finite element shape functions or 
+    mesh-free linear interpolation based on Delaunay triangulation.
     """
 
     __slots__ = ("_field","_descriptor","_sensor_data","_truth","_measurements",
@@ -185,6 +186,7 @@ class SensorsPoint(ISensorArray):
         """
         return self._error_integrator
 
+
     def set_error_chain(self,
                         err_chain: list[IErrSimulator] | None,
                         err_int_opts: ErrIntOpts | None = None) -> None:
@@ -283,8 +285,8 @@ class SensorsPoint(ISensorArray):
         if self._error_integrator is None:
             self._measurements = self.get_truth()
         else:
-            self._measurements = self.get_truth() + \
-                self._error_integrator.calc_errors_from_chain(self.get_truth())
+            self._measurements = (self.get_truth() + 
+                self._error_integrator.calc_errors_from_chain(self.get_truth()))
 
         return self._measurements
 

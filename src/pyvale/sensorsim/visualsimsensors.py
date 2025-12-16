@@ -8,7 +8,7 @@
 This module contains functions for visualising virtual sensors on a simulation
 mesh with simulated fields using pyvista.
 """
-
+import numpy as np
 import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 # See: https://github.com/pyvista/pyvista/discussions/2928
 #NOTE: causes output to console to be suppressed unfortunately
@@ -21,6 +21,7 @@ import pyvale.mooseherder as mh
 from pyvale.sensorsim.sensorspoint import SensorsPoint
 from pyvale.sensorsim.fieldconverter import (simdata_to_pyvista_vis,
                                    simdata_to_pyvista_interp)
+from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.visualopts import (VisOptsSimSensors,VisOptsImageSave)
 from pyvale.sensorsim.visualtools import (create_pv_plotter,
                                      get_colour_lims,
@@ -93,7 +94,8 @@ def add_sim_field(pv_plot: pv.Plotter,
 # TODO: this should be able to take a list of ISensorArray and plot all of them
 # on the same mesh.
 def add_sensor_points_nom(pv_plot: pv.Plotter,
-                          sensor_array: SensorsPoint,
+                          sensor_positions: np.ndarray,
+                          descriptor: SensorDescriptor,
                           vis_opts: VisOptsSimSensors,
                           ) -> pv.Plotter:
     """Adds points and tagged labels showing the virtual sensor locations on
@@ -103,8 +105,8 @@ def add_sensor_points_nom(pv_plot: pv.Plotter,
     ----------
     pv_plot : pv.Plotter
         Pyvista plotter used to display the virtual sensor locations.
-    sensor_array : SensorArrayPoint
-        Sensor array for which the virtual sensor location will be shown.
+    sensor_positions : np.ndarray
+        Array of sensor positions with shape=(num_sensors,coord[X,Y,Z]).
     vis_opts : VisOptsSimSensors
         Dataclass containing options for controlling the appearance of the
         virtual sensors.
@@ -114,9 +116,9 @@ def add_sensor_points_nom(pv_plot: pv.Plotter,
     pv.Plotter
         Pyvista plotter which has had the virtual sensor locations added.
     """
-    vis_sens_nominal = pv.PolyData(sensor_array._sensor_data.positions)
-    vis_sens_nominal["labels"] = sensor_array._descriptor.create_sensor_tags(
-    sensor_array.get_measurement_shape()[0])
+    num_sensors = sensor_positions.shape[0]
+    vis_sens_nominal = pv.PolyData(sensor_positions)
+    vis_sens_nominal["labels"] = descriptor.create_sensor_tags(num_sensors)
 
     # Add points to show sensor locations
     pv_plot.add_point_labels(vis_sens_nominal,"labels",
@@ -131,7 +133,7 @@ def add_sensor_points_nom(pv_plot: pv.Plotter,
 
 
 def add_sensor_points_pert(pv_plot: pv.Plotter,
-                           sensor_array: SensorsPoint,
+                           sensor_positions: np.ndarray,
                            vis_opts: VisOptsSimSensors,
                            ) -> pv.Plotter:
     """Adds points showing the perturbed virtual sensor locations on
@@ -142,8 +144,8 @@ def add_sensor_points_pert(pv_plot: pv.Plotter,
     ----------
     pv_plot : pv.Plotter
         Pyvista plotter used to display the virtual sensor locations.
-    sensor_array : SensorArrayPoint
-        Sensor array for which the virtual sensor location will be shown.
+    sensor_positions : np.ndarray | None
+        Array of sensor positions with shape=(num_sensors,coord[X,Y,Z]).
     vis_opts : VisOptsSimSensors
         Dataclass containing options for controlling the appearance of the
         virtual sensors.
@@ -153,14 +155,10 @@ def add_sensor_points_pert(pv_plot: pv.Plotter,
     pv.Plotter
         Pyvista plotter which has had the virtual sensor locations added.
     """
-    sens_data_perturbed = (sensor_array
-        .get_error_integrator()
-        .get_sens_data_accumulated()
-    )
-
-    if sens_data_perturbed is not None and vis_opts.show_perturbed_pos:
-        vis_sens_perturbed = pv.PolyData(sens_data_perturbed.positions)
-        vis_sens_perturbed["labels"] = ["",]*sensor_array.get_measurement_shape()[0]
+        
+    if vis_opts.show_perturbed_pos:
+        vis_sens_perturbed = pv.PolyData(sensor_positions)
+        vis_sens_perturbed["labels"] = ["",]*sensor_positions.shape[0]
 
         pv_plot.add_point_labels(vis_sens_perturbed,"labels",
                                 font_size=vis_opts.sens_label_font_size,
@@ -264,6 +262,7 @@ def plot_sim_data(sim_data: mh.SimData,
 def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
                               comp_key: str,
                               time_step: int = -1,
+                              perturbed_sens_pos: np.ndarray | None = None,
                               vis_opts: VisOptsSimSensors | None = None,
                               image_save_opts: VisOptsImageSave | None = None,
                               ) -> pv.Plotter:
@@ -280,6 +279,10 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
         object.
     time_step : int, optional
         Simulation time step number to plot, by default -1 (the last time step).
+    perturbed_sens_pos: np.ndarray, optional
+        Array of perturbed sensor position to plot with shape=(num_sensors,coord
+        [X,Y,Z]), by default None. If None then perturbed sensor positions are
+        taken from the sensor array itself, if available. 
     vis_opts : VisOptsSimSensors | None, optional
         Dataclass containing options for controlling the appearance of the
         virtual sensors, by default None. If None then a default options
@@ -296,15 +299,35 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    sim_data = sensor_array._field.get_sim_data()
+    sim_data = sensor_array.get_field().get_sim_data()
     vis_opts.colour_bar_lims = get_colour_lims(
         sim_data.node_vars[comp_key][:,time_step],
         vis_opts.colour_bar_lims)
 
     pv_plot = create_pv_plotter(vis_opts)
 
-    pv_plot = add_sensor_points_pert(pv_plot,sensor_array,vis_opts)
-    pv_plot = add_sensor_points_nom(pv_plot,sensor_array,vis_opts)
+    if perturbed_sens_pos is not None:
+        sensor_pos_pert = perturbed_sens_pos
+    else:
+        # Can be None if there no field errors perturbing the sensor position
+        sensor_pos_pert = (
+            sensor_array
+            .get_error_integrator()
+            .get_sens_data_accumulated()
+            .positions
+        )
+
+    if sensor_pos_pert is not None:
+        pv_plot = add_sensor_points_pert(pv_plot,sensor_pos_pert,vis_opts)
+
+    
+    sensor_pos_nom = sensor_array._sensor_data.positions   
+    descriptor = sensor_array.get_descriptor()
+    pv_plot = add_sensor_points_nom(pv_plot,
+                                    sensor_pos_nom,
+                                    descriptor,
+                                    vis_opts)
+
     (pv_plot,_) = add_sim_field(pv_plot,
                                 sensor_array,
                                 comp_key,

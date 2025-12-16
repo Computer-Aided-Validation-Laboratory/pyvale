@@ -160,16 +160,26 @@ strain_sens.set_error_chain(strain_err_chain)
 # -------------------------------------
 # We can now run our experiments over all simulations for all our virtual
 # sensor arrays. We can run our simulations sequentially or in parallel by
-# controlling the nunmber of workers and parallelisation enumeration in the
+# controlling the number of workers and parallelisation enumeration in the
 # `ExpSimOpts` dataclass. Note that the default is to run the simulations in
-# a single process sequentially. The parallelisation enumeration has two options
-# 'ALL' which means we run all of our N experiments on per worker and
-# 'SPLIT' this mode splits our N experiments across the workers running a single
-# simulation per worker. For our case here 'ALL' will be fastest and as we have
-# 4 unique combinations of our simulation data and sensors arrays 4 workers will
-# be most efficient. The 'SPLIT' option is most effective for computationally
-# heavy simulated experiments that involve imaging simulations.
-
+# a single process sequentially (called the `ALL` option). The parallelisation 
+# enumeration has two options 'ALL' which means we run all of our N experiments 
+# on per worker and 'SPLIT' which splits our N experiments across the workers 
+# running a single simulation per worker. For our case here 'ALL' will be 
+# fastest and as we have 4 unique combinations of our simulation data and 
+# sensors arrays 4 workers will be most efficient. The 'SPLIT' option is most 
+# effective for computationally heavy simulated experiments that involve imaging 
+# simulations.
+#
+# We can also control what data is saved from our experiment simulation using 
+# `ExpSimSaveKeys` dataclass. Here you can assign custom keys to the different
+# data arrays (measurement, systematic error and random error arrays etc.) or
+# setting any of the member variables of the save keys to None will stop that
+# variable being save. This is useful if you only have systematic errors and
+# no random errors so don't need to save them (set `.rand=None`). If you have 
+# no field errors perturbing the sensor positon or time you will also want to
+# stop these arrays being saves (`.pert_sens_times=None`, `.pert_sens_pos=None`)
+# .
 
 sensor_array_dict: dict[str,sens.ISensorArray] = {
     "temp": temp_sens,
@@ -177,9 +187,12 @@ sensor_array_dict: dict[str,sens.ISensorArray] = {
 }
 
 exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)
+exp_save_keys = sens.ExpSimSaveKeys(pert_sens_times=None)
 
 exp_sim = sens.ExperimentSimulator(sim_data_dict,
-                                   sensor_array_dict)
+                                   sensor_array_dict,
+                                   exp_sim_opts,
+                                   exp_save_keys)
 
 #%%
 # The results of our simulated experiment are returned as a dictionary of numpy
@@ -189,7 +202,10 @@ exp_sim = sens.ExperimentSimulator(sim_data_dict,
 # errors; and "samp_times" for the sample time vector. The numpy array for
 # "meas", "sys_errs" and "rand_errs" has the following shape
 # (num_exps,num_sensors,num_field_comps,num_time_steps). The numpy array for the
-# sample times has a shape (num_time_steps,).
+# sample times has a shape (num_time_steps,). This will also contain the 
+# perturbed sensor positions with data key "pert_sens_pos". In our case we are 
+# not perturbing the sensor times and we have set the save key to None so this
+# will not appear in our data dictionary. 
 #
 # We can also calculate summary statistics  which is returned as a dictionary
 # keyed with the same tuple as the experimental data dictionary. The value of
@@ -214,41 +230,54 @@ exp_stats: dict[tuple[str,...],sens.ExpSimStats] = (
 # the data structures it contains so you can perform any follow up analysis on
 # the data you want. We first print the tuple keys in our dictionary so we can
 # see what data is available.
-#
+
+print(80*"-")
+print("Keys in the simulated experimental data dictionary:")
+for kk in exp_data:
+    print(kk)
+print(80*"-")
+print()
+
+#%%
+# .. image:: ../../../../_static/basics_ex3_term_out_0.png
+#    :alt: Terminal output showing the simulated experiment data keys
+#    :width: 700px
+#    :align: center
+
+#%%
 # We then inspect the simulated data output for few combinations of simulations
 # and sensor arrays showing the shapes of the raw data arrays and the calculated
 # statistics. Noting that our scalar field sensor has a differen number of
 # component dimensions to our mechanical field sensor.
 
-print(80*"=")
-print("Keys in the simulated experimental data dictionary:")
-for kk in exp_data:
-    print(kk)
+print(80*"-")
+print("Thermal sensor array:")
+print()
+print(f"    {exp_data[('sim_nominal','temp','meas')].shape=}")
+print("    shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_stats[('sim_nominal','temp','meas')].max.shape=}")
+print("    shape=(n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_data[('sim_nominal','temp','pert_sens_pos')].shape=}")
+print("    shape=(n_exps,n_sensors,coord[X,Y,Z])")
 print()
 print(80*"-")
-print("Thermal sensor array @ exp_data[('sim_nominal','temp','meas')]")
-print(80*"-")
-print("shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data[('sim_nominal','temp','meas')].shape=}")
+print("Mechanical sensor array:")
 print()
-print("Stats are calculated over all experiments (axis=0)")
-print("shape=(n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats[('sim_nominal','temp','meas')].max.shape=}")
+print(f"    {exp_data[('sim_nominal','strain','meas')].shape=}")
+print("    shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_stats[('sim_nominal','strain','meas')].max.shape=}")
+print("    shape=(n_sensors,n_field_comps,n_time_steps)")
+print()
+print(f"    {exp_data[('sim_nominal','strain','pert_sens_pos')].shape=}")
+print("    shape=(n_exps,n_sensors,coord[X,Y,Z])")
 print()
 print(80*"-")
-print("Mechanical sensor array @ exp_data[('sim_nominal','strain','meas')]")
-print(80*"-")
-print("shape=(n_exps,n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_data[('sim_nominal','strain','meas')].shape=}")
-print()
-print("shape=(n_sensors,n_field_comps,n_time_steps)")
-print(f"{exp_stats[('sim_nominal','strain','meas')].max.shape=}")
-print(80*"=")
 
 #%%
-# Example terminal output:
-#
-# .. image:: ../../../../_static/basics_ex3_term_out.png
+# .. image:: ../../../../_static/basics_ex3_term_out_1.png
 #    :alt: Terminal output showing the simulated experiment data structures
 #    :width: 700px
 #    :align: center

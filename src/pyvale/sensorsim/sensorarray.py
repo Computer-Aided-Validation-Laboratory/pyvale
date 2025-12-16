@@ -176,5 +176,3 @@ class ISensorArray(ABC):
         """
         pass
 
-
-

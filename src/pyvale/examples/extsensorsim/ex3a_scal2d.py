@@ -69,11 +69,17 @@ sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
 # 2.1. Add simulated measurement errors
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+pos_rand = sens.GenUniform(low=-1.0,high=1.0)  # units = mm
+field_err_data = sens.ErrFieldData(pos_rand_xyz=(pos_rand,pos_rand,None))
+
 error_chain: list[sens.IErrSimulator] = [
     sens.ErrSysOffset(offset=-10.0),
     sens.ErrSysGen(sens.GenUniform(low=-5.0,high=5.0)),
+    sens.ErrSysField(sens_array.get_field(),field_err_data),
     sens.ErrRandGen(sens.GenNormal(std=5.0)),
     sens.ErrRandGenPercent(sens.GenUniform(low=-2.0,high=2.0)),
+    sens.ErrSysDigitisation(bits_per_unit=2**16/100),
+    sens.ErrSysSaturation(meas_min=0.0,meas_max=1000.0),
 ]
 
 sens_array.set_error_chain(error_chain)

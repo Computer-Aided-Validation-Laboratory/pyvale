@@ -17,14 +17,14 @@ we recall the `pyvale` measurement simulation model:
 
     measurement = truth + systematic errors + random errors
 
-where all of these variable are numpy arrays with shape=(num_sensors,
+where all of these variables are numpy arrays with shape=(num_sensors,
 num_field_components,num_sample_times). This means an errors type will determine
 if it will be summed in the systematic on random error array.
 
 The error dependence determines if an error is calculated based on the truth
 (independent) or the accumulated measurement based on all previous errors in
 the error chain (dependent). Some errors are purely independent such as random
-noise with a normal distribution with a set standard devitation. An example of
+noise with a normal distribution with a set standard deviation. An example of
 an error that is dependent would be saturation which must be placed last in
 the error chain and will clamp the final sensor value to be within the
 specified bounds. We could also set any of the 'percent' errors to be dependent

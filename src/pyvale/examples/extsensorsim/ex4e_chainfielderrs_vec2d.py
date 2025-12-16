@@ -9,7 +9,7 @@ Errors: field-based chaining
 ================================================================================
 
 In this example we show how field errors can be chained together and accumulated
-allowing for successive perturbations in postion, sampling time and orientation.
+allowing for successive perturbations in position, sampling time and orientation.
 In order to do this we need to set our field error to be 'dependent'. Note that
 it is more computationally efficient to provide a single field error object as
 this will perform all perturbations in a single step allowing for a single new
@@ -80,7 +80,7 @@ sens_array: sens.SensorsPoint = sens.SensorFactory.vector_point(
 
 #%%
 #
-# Now we will build a series of field errors that cause succesive offsets in
+# Now we will build a series of field errors that cause successive offsets in
 # sensor sampling time, sensor position and sensor orientation. That way
 # we should be able to analyse the sensor data object at each point in the
 # error chain to see how the sensor parameters have accumulated.
@@ -100,9 +100,11 @@ time_error_data = sens.ErrFieldData(time_offset=time_offset)
 
 #%%
 # Now we add all our field errors to our error chain. We add each error
-# twice to see how they accumulate with each other. We also need to set the
+# twice to see how they accumulate with each other. We explicitly set the
 # error dependence to `DEPENDENT` so that the sensor state is accumulated
-# over the error chain as field errors are `INDEPENDENT` by default.
+# over the error chain. Note that `DEPENDENT` is the default for field errors 
+# so that the perturbations to the sensor data are accumulated.
+  
 err_chain: list[sens.IErrSimulator] = [
     sens.ErrSysField(sens_array.get_field(),
                      time_error_data,
@@ -133,6 +135,7 @@ err_chain: list[sens.IErrSimulator] = [
 # each error in the chain to the total error rather than just being able to
 # analyse the total systematic and total random error which is the default.
 # Note that this option will use more memory.
+
 err_int_opts = sens.ErrIntOpts(force_dependence=sens.EErrDep.DEPENDENT,
                                store_all_errs=True)
 
@@ -202,11 +205,12 @@ pv_plot = sens.plot_point_sensors_on_sim(sens_array,"disp_y")
 pv_plot.camera_position = "xy"
 
 save_render = output_path/"ext_ex4e_locs.png"
-pv_plot.off_screen = True
-pv_plot.screenshot(save_render)
 
-# Uncomment to show interactive figure and set off_screen = False above
-# pv_plot.show(cpos="xy")
+pv_plot.off_screen = True
+if pv_plot.off_screen:
+    pv_plot.screenshot(save_render)
+else:
+    pv_plot.show()
 
 # %%
 # .. image:: ../../../../_static/ext_ex4e_locs.png

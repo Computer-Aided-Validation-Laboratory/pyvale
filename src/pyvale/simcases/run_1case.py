@@ -1,11 +1,10 @@
-'''
-================================================================================
-pyvale: the python computer aided validation engine
 
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-'''
+# ==============================================================================
+# pyvale: the python computer aided validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
 import time
 from pathlib import Path
 from importlib.resources import files
@@ -15,7 +14,7 @@ from pyvale.mooseherder import (MooseConfig,
 
 #===============================================================================
 # Change this to run a different case
-CASE_STR = 'case01'
+CASE_STR = 'case26'
 #===============================================================================
 
 CASE_FILES = (CASE_STR+'.geo',CASE_STR+'.i')

@@ -35,7 +35,7 @@ def sample_scene():
     sim_data = sens.scale_length_units(1000.0,sim_data,disp_comps)
     render_mesh = sens.create_render_mesh(sim_data,
                                         ("disp_y","disp_x"),
-                                        sim_spat_dim=2,
+                                        sim_spat_dim=sens.EDim.TWOD,
                                         field_disp_keys=disp_comps)
 
     scene = blender.Scene()
@@ -57,9 +57,9 @@ def sample_scene():
     speckle_path = dataset.dic_pattern_5mpx_path()
     mm_px_resolution = sens.CameraTools.calculate_mm_px_resolution(cam_data)
     scene.add_speckle(part=part,
-                                    speckle_path=speckle_path,
-                                    mat_data=material_data,
-                                    mm_px_resolution=mm_px_resolution)
+                    speckle_path=speckle_path,
+                    mat_data=material_data,
+                    mm_px_resolution=mm_px_resolution)
     return render_mesh, part, cam_data, scene
 
 @pytest.fixture
@@ -70,7 +70,7 @@ def sample_scene_no_light():
     sim_data = sens.scale_length_units(1000.0,sim_data,disp_comps)
     render_mesh = sens.create_render_mesh(sim_data,
                                         ("disp_y","disp_x"),
-                                        sim_spat_dim=2,
+                                        sim_spat_dim=sens.EDim.TWOD,
                                         field_disp_keys=disp_comps)
 
     scene = blender.Scene()

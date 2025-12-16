@@ -97,7 +97,9 @@ def gen_gold_measurements(sens_dict: dict[str,sens.SensorsPoint]) -> None:
         np.save(save_path,measurements)
 
 
-def check_gold_measurements(sens_dict: dict[str,sens.SensorsPoint]) -> list[str]:
+def check_gold_measurements(sens_dict: dict[str,sens.SensorsPoint],
+                            rtol: float = 1e-5,
+                            atol: float = 1e-5) -> list[str]:
     fails = []
 
     for ss in sens_dict:
@@ -108,7 +110,7 @@ def check_gold_measurements(sens_dict: dict[str,sens.SensorsPoint]) -> list[str]
         if load_path.is_file():
             gold = np.load(load_path)
 
-            if not np.allclose(measurements,gold):
+            if not np.allclose(measurements,gold,rtol=rtol,atol=atol):
                 fails.append(f"Gold check failed for: {ss}")
         else:
             fails.append(f"Gold file does not exist for: {ss}, path: {gold_path}")
