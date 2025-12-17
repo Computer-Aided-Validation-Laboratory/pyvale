@@ -7,19 +7,20 @@
 from pathlib import Path
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
+import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.verif.matchsimdata as verif
 
 
 def main() -> None:
     data_path: Path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
-    sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+    sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
     project_root: Path = Path(__file__).resolve().parents[1]
-    gold_path: Path = project_root/"tests"/"mooseherder"/"txt_gold"
+    gold_path: Path = project_root/"tests"/"dataio"/"txt_gold"
 
-    load_opts = mh.SimLoadOpts(node_field_header=None)
-    save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
+    load_opts = io.SimLoadOpts(node_field_header=None)
+    save_opts = io.SimDataSaveOpts(sim_tag="hex20")
 
     suffix = ".npy"
     coords_file = save_opts.get_coord_name() + suffix
@@ -57,7 +58,7 @@ def main() -> None:
                    "react_y_bot":slice(3,4),
                    "react_y_top":slice(4,5),}
 
-    sim_loader = mh.SimLoaderByField(load_dir=gold_path,
+    sim_loader = io.SimLoaderByField(load_dir=gold_path,
                                      coords_file=coords_file,
                                      time_step_file=time_step_file,
                                      node_field_files=field_patterns,
@@ -66,7 +67,7 @@ def main() -> None:
                                      glob_slices=glob_slices,
                                      load_opts=load_opts)
 
-    sim_data_load: mh.SimData = sim_loader.load_all_sim_data()
+    sim_data_load: io.SimData = sim_loader.load_all_sim_data()
 
     sens.print_sim_data(sim_data_load)
 

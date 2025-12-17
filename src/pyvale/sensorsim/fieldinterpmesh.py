@@ -6,7 +6,8 @@
 
 import numpy as np
 import pyvista as pv
-import pyvale.mooseherder as mh
+
+from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
 from pyvale.sensorsim.fieldinterp import (IFieldInterp,
                                           interp_to_sample_time)
@@ -24,14 +25,14 @@ class FieldInterpMesh(IFieldInterp):
     __slots__ = ("_sim_time_steps","_comp_keys","_pyvista_interp")
 
     def __init__(self,
-                 sim_data: mh.SimData,
+                 sim_data: SimData,
                  comp_keys: tuple[str,...],
                  spatial_dims: EDim,
                  ) -> None:
         """
         Parameters
         ----------
-        sim_data : mh.SimData
+        sim_data : SimData
             Simulation data object containing the physical field(s) that the
             virtual sensors will sample.
         comp_keys : tuple[str,...]

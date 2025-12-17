@@ -8,9 +8,8 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 import pandas as pd
-
-from pyvale.dataio.simloadopts import SimLoadOpts
 from pyvale.dataio.simdata import SimData
+from pyvale.dataio.simloadopts import SimLoadOpts
 from pyvale.dataio.exceptions import SimLoadErr
 
 def str_to_path(default_path: Path, file: str | Path) -> Path:

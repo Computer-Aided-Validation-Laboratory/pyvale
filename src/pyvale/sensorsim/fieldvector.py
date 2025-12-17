@@ -7,8 +7,8 @@
 import numpy as np
 import pyvista as pv
 from scipy.spatial.transform import Rotation
-import pyvale.mooseherder as mh
 
+from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldconverter import (simdata_to_pyvista_interp,
                                    simdata_to_pyvista_vis)
@@ -32,13 +32,13 @@ class FieldVector(IField):
                  "_visualiser")
 
     def __init__(self,
-                 sim_data: mh.SimData,
+                 sim_data: SimData,
                  comp_keys: tuple[str,...],
                  spatial_dims: EDim) -> None:
         """
         Parameters
         ----------
-        sim_data : mh.SimData
+        sim_data : SimData
             Simulation data object containing the mesh and field to interpolate.
         comp_keys : tuple[str,...]
             String keys to the vector field component in the `SimData` nodal 
@@ -60,7 +60,7 @@ class FieldVector(IField):
         self._visualiser = None
         self.set_sim_data(sim_data)
 
-    def set_sim_data(self, sim_data: mh.SimData) -> None:
+    def set_sim_data(self, sim_data: SimData) -> None:
         self._sim_data = sim_data
 
         self._visualiser = simdata_to_pyvista_vis(sim_data,
@@ -74,7 +74,7 @@ class FieldVector(IField):
                                                  self._comp_keys,
                                                  self._spatial_dims)
 
-    def get_sim_data(self) -> mh.SimData:
+    def get_sim_data(self) -> SimData:
         return self._sim_data
 
     def get_time_steps(self) -> np.ndarray:

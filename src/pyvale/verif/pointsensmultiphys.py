@@ -17,7 +17,7 @@ import pyvale.dataset as dataset
 
 
 def load_simdata_list(data_paths: list[Path],
-                      disp_keys: tuple[str,...]) -> list[mh.SimData]:
+                      disp_keys: tuple[str,...]) -> list[io.SimData]:
     sim_list = []
     for pp in data_paths:
         sim_data = mh.ExodusLoader(pp).load_all_sim_data()
@@ -29,13 +29,13 @@ def load_simdata_list(data_paths: list[Path],
     return sim_list
 
 
-def simdata_list_2d() -> list[mh.SimData]:
+def simdata_list_2d() -> list[io.SimData]:
     data_paths = dataset.thermomechanical_2d_experiment_paths()
     disp_keys = ("disp_x","disp_y")
     return load_simdata_list(data_paths,disp_keys)
 
 
-def simdata_list_3d() -> list[mh.SimData]:
+def simdata_list_3d() -> list[io.SimData]:
     data_paths = [dataset.element_case_output_path(dataset.EElemTest.TET4),
                   dataset.element_case_output_path(dataset.EElemTest.TET10),
                   dataset.element_case_output_path(dataset.EElemTest.HEX8),

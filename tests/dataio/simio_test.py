@@ -4,18 +4,21 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
+from pathlib import Path
 import shutil
 import pytest
 import pyvale.mooseherder as mh
+import pyvale.dataio as io
 import pyvale.dataset as dataset
 import pyvale.verif.matchsimdata as verif
-import tests.mooseherder.herdchecker as hct
 
+TXT_GOLD_PATH: Path = Path(__file__).resolve().parent / "txt_gold"
+TEMP_OUTPUT_PATH: Path = Path(__file__).resolve().parent / "temp" 
 
 @pytest.fixture(autouse=True)
 def setup_teardown():
 
-    output_path = hct.TEMP_OUTPUT_PATH
+    output_path = TEMP_OUTPUT_PATH
     if not output_path.is_dir():
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -25,24 +28,24 @@ def setup_teardown():
 
 
 @pytest.fixture()
-def sim_data() -> mh.SimData:
+def sim_data() -> io.SimData:
     data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
     return mh.ExodusLoader(data_path).load_all_sim_data()
 
 
-def test_save_sim_data(sim_data: mh.SimData) -> None:
-    save_opts = mh.SimDataSaveOpts(mh.ESaveFieldOpt.BOTH,
-                                   mh.ESaveArray.BOTH,
+def test_save_sim_data(sim_data: io.SimData) -> None:
+    save_opts = io.SimDataSaveOpts(io.ESaveFieldOpt.BOTH,
+                                   io.ESaveArray.BOTH,
                                    sim_tag="hex20")
 
-    mh.save_sim_data_to_arrays(hct.TEMP_OUTPUT_PATH,
+    io.save_sim_data_to_arrays(TEMP_OUTPUT_PATH,
                                sim_data,
                                save_opts)
 
     # Check against gold directory contents to make sure everything is there
-    save_dir = hct.TEMP_OUTPUT_PATH
+    save_dir = TEMP_OUTPUT_PATH
     files_save = {(ff.name,ff.suffix) for ff in save_dir.iterdir() if ff.is_file()}
-    gold_dir = hct.TXT_GOLD_PATH
+    gold_dir = TXT_GOLD_PATH
     files_gold = {(ff.name,ff.suffix) for ff in gold_dir.iterdir() if ff.is_file()}
 
     assert files_save == files_gold, ("Saved file do not match those in gold "
@@ -56,14 +59,14 @@ def test_save_sim_data(sim_data: mh.SimData) -> None:
         (".npy",),
     )
 )
-def test_load_sim_data_by_time(sim_data: mh.SimData,
+def test_load_sim_data_by_time(sim_data: io.SimData,
                                 suffix: str) -> None:
 
-    load_opts = mh.SimLoadOpts()
+    load_opts = io.SimLoadOpts()
 
-    save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
-    coord_path = hct.TXT_GOLD_PATH / (save_opts.get_coord_name() + suffix)
-    time_path = hct.TXT_GOLD_PATH / (save_opts.get_time_name() + suffix)
+    save_opts = io.SimDataSaveOpts(sim_tag="hex20")
+    coord_path = TXT_GOLD_PATH / (save_opts.get_coord_name() + suffix)
+    time_path = TXT_GOLD_PATH / (save_opts.get_time_name() + suffix)
 
     field_slices = {"disp_x": slice(0,1),
                     "disp_y": slice(1,2),
@@ -81,7 +84,7 @@ def test_load_sim_data_by_time(sim_data: mh.SimData,
     # does not
     connect_pattern = f"hex20_connect*"
     
-    sim_loader = mh.SimLoaderByTime(load_dir=hct.TXT_GOLD_PATH,
+    sim_loader = io.SimLoaderByTime(load_dir=TXT_GOLD_PATH,
                                     coords_file=coord_path,
                                     time_step_file=time_path,
                                     node_files=field_pattern,
@@ -107,31 +110,31 @@ def test_load_sim_data_by_time(sim_data: mh.SimData,
         (".npy",),
     )
 )
-def test_save_load_sim_data_by_frame(sim_data: mh.SimData, suffix: str) -> None:
+def test_save_load_sim_data_by_frame(sim_data: io.SimData, suffix: str) -> None:
 
-    save_opts = mh.SimDataSaveOpts(mh.ESaveFieldOpt.BOTH,
-                                   mh.ESaveArray.BOTH,
+    save_opts = io.SimDataSaveOpts(io.ESaveFieldOpt.BOTH,
+                                   io.ESaveArray.BOTH,
                                    sim_tag="hex20")
 
-    mh.save_sim_data_to_arrays(hct.TEMP_OUTPUT_PATH,
+    io.save_sim_data_to_arrays(TEMP_OUTPUT_PATH,
                                sim_data,
                                save_opts)
 
     # Check against gold directory contents to make sure everything is there
-    save_dir = hct.TEMP_OUTPUT_PATH
+    save_dir = TEMP_OUTPUT_PATH
     files_save = {(ff.name,ff.suffix) for ff in save_dir.iterdir() if ff.is_file()}
-    gold_dir = hct.TXT_GOLD_PATH
+    gold_dir = TXT_GOLD_PATH
     files_gold = {(ff.name,ff.suffix) for ff in gold_dir.iterdir() if ff.is_file()}
 
     assert files_save == files_gold, ("Saved file do not match those in gold "
                                       + f"dir:\n    {files_save=}.")
 
 
-    load_opts = mh.SimLoadOpts()
+    load_opts = io.SimLoadOpts()
 
-    save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
-    coord_path = hct.TEMP_OUTPUT_PATH / (save_opts.get_coord_name() + suffix)
-    time_path = hct.TEMP_OUTPUT_PATH / (save_opts.get_time_name() + suffix)
+    save_opts = io.SimDataSaveOpts(sim_tag="hex20")
+    coord_path = TEMP_OUTPUT_PATH / (save_opts.get_coord_name() + suffix)
+    time_path = TEMP_OUTPUT_PATH / (save_opts.get_time_name() + suffix)
 
     field_slices = {"disp_x": slice(0,1),
                     "disp_y": slice(1,2),
@@ -150,7 +153,7 @@ def test_save_load_sim_data_by_frame(sim_data: mh.SimData, suffix: str) -> None:
     # does not
     connect_pattern = f"hex20_connect*"
     
-    sim_loader = mh.SimLoaderByTime(load_dir=hct.TXT_GOLD_PATH,
+    sim_loader = io.SimLoaderByTime(load_dir=TXT_GOLD_PATH,
                                     coords_file=coord_path,
                                     time_step_file=time_path,
                                     node_files=field_pattern,
@@ -176,13 +179,13 @@ def test_save_load_sim_data_by_frame(sim_data: mh.SimData, suffix: str) -> None:
         (".npy",),
     )
 )
-def test_load_sim_data_by_field(sim_data: mh.SimData, suffix: str) -> None:
+def test_load_sim_data_by_field(sim_data: io.SimData, suffix: str) -> None:
 
-    load_opts = mh.SimLoadOpts(node_field_header=None)
+    load_opts = io.SimLoadOpts(node_field_header=None)
 
-    save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
-    coord_path = hct.TXT_GOLD_PATH / (save_opts.get_coord_name() + suffix)
-    time_path = hct.TXT_GOLD_PATH / (save_opts.get_time_name() + suffix)
+    save_opts = io.SimDataSaveOpts(sim_tag="hex20")
+    coord_path = TXT_GOLD_PATH / (save_opts.get_coord_name() + suffix)
+    time_path = TXT_GOLD_PATH / (save_opts.get_time_name() + suffix)
 
     prefix = "hex20_node_field"
 
@@ -197,7 +200,7 @@ def test_load_sim_data_by_field(sim_data: mh.SimData, suffix: str) -> None:
     # does not
     connect_pattern = f"hex20_connect*"
 
-    sim_loader = mh.SimLoaderByField(load_dir=hct.TXT_GOLD_PATH,
+    sim_loader = io.SimLoaderByField(load_dir=TXT_GOLD_PATH,
                                      coords_file=coord_path,
                                      time_step_file=time_path,
                                      node_field_files=field_patterns,
@@ -222,31 +225,31 @@ def test_load_sim_data_by_field(sim_data: mh.SimData, suffix: str) -> None:
         (".npy",),
     )
 )
-def test_save_load_sim_data_by_field(sim_data: mh.SimData, suffix: str) -> None:
+def test_save_load_sim_data_by_field(sim_data: io.SimData, suffix: str) -> None:
 
-    save_opts = mh.SimDataSaveOpts(mh.ESaveFieldOpt.BOTH,
-                                   mh.ESaveArray.BOTH,
+    save_opts = io.SimDataSaveOpts(io.ESaveFieldOpt.BOTH,
+                                   io.ESaveArray.BOTH,
                                    sim_tag="hex20")
 
-    mh.save_sim_data_to_arrays(hct.TEMP_OUTPUT_PATH,
+    io.save_sim_data_to_arrays(TEMP_OUTPUT_PATH,
                                sim_data,
                                save_opts)
 
     # Check against gold directory contents to make sure everything is there
-    save_dir = hct.TEMP_OUTPUT_PATH
+    save_dir = TEMP_OUTPUT_PATH
     files_save = {(ff.name,ff.suffix) for ff in save_dir.iterdir() if ff.is_file()}
-    gold_dir = hct.TXT_GOLD_PATH
+    gold_dir = TXT_GOLD_PATH
     files_gold = {(ff.name,ff.suffix) for ff in gold_dir.iterdir() if ff.is_file()}
 
     assert files_save == files_gold, ("Saved file do not match those in gold "
                                       + f"dir:\n    {files_save=}.")
 
 
-    load_opts = mh.SimLoadOpts(node_field_header=None)
+    load_opts = io.SimLoadOpts(node_field_header=None)
 
-    save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
-    coord_path = hct.TEMP_OUTPUT_PATH / (save_opts.get_coord_name() + suffix)
-    time_path = hct.TEMP_OUTPUT_PATH / (save_opts.get_time_name() + suffix)
+    save_opts = io.SimDataSaveOpts(sim_tag="hex20")
+    coord_path = TEMP_OUTPUT_PATH / (save_opts.get_coord_name() + suffix)
+    time_path = TEMP_OUTPUT_PATH / (save_opts.get_time_name() + suffix)
 
 
     prefix = "hex20_node_field"
@@ -262,7 +265,7 @@ def test_save_load_sim_data_by_field(sim_data: mh.SimData, suffix: str) -> None:
     # does not
     connect_pattern = f"hex20_connect*"
 
-    sim_loader = mh.SimLoaderByField(load_dir=hct.TXT_GOLD_PATH,
+    sim_loader = io.SimLoaderByField(load_dir=TXT_GOLD_PATH,
                                      coords_file=coord_path,
                                      time_step_file=time_path,
                                      node_field_files=field_patterns,

@@ -12,11 +12,11 @@ compatible with the underlying machinery of pyvale.
 import numpy as np
 import pyvista as pv
 from pyvista import CellType
-import pyvale.mooseherder as mh
+from pyvale.dataio.simdata import SimData 
 from pyvale.sensorsim.enums import EDim
 
 
-def simdata_to_pyvista_interp(sim_data: mh.SimData,
+def simdata_to_pyvista_interp(sim_data: SimData,
                               components: tuple[str,...] | None,
                               spatial_dims: EDim,
                               ) -> pv.UnstructuredGrid:
@@ -25,7 +25,7 @@ def simdata_to_pyvista_interp(sim_data: mh.SimData,
 
     Parameters
     ----------
-    sim_data : mh.SimData
+    sim_data : SimData
         Object containing a mesh and associated field data from a simulation.
     components : tuple[str,...] | None
         String keys for the components of the field to extract from the
@@ -52,7 +52,7 @@ def simdata_to_pyvista_interp(sim_data: mh.SimData,
     return pv_grid
 
 
-def simdata_to_pyvista_vis(sim_data: mh.SimData,
+def simdata_to_pyvista_vis(sim_data: SimData,
                            spatial_dims: EDim,
                            ) -> pv.UnstructuredGrid | pv.PolyData:
     """Converts the mesh and field data in a `SimData` object into a pyvista
@@ -60,7 +60,7 @@ def simdata_to_pyvista_vis(sim_data: mh.SimData,
 
     Parameters
     ----------
-    sim_data : mh.SimData
+    sim_data : SimData
         Object containing a mesh and associated field data from a simulation.
     elem_dim : EDim
         Number of spatial dimensions in the simulation (TWOD or THREED).  For 
@@ -81,14 +81,14 @@ def simdata_to_pyvista_vis(sim_data: mh.SimData,
 
 
 
-def _gen_pyvista_grid(sim_data: mh.SimData,
+def _gen_pyvista_grid(sim_data: SimData,
                       spatial_dims: int) -> pv.UnstructuredGrid:
     """Helper function for generating a blank pyvista unstructure grid mesh from
     a SimData object.
 
     Parameters
     ----------
-    sim_data : mh.SimData
+    sim_data : SimData
         Object containing a mesh and associated field data from a simulation.
     elem_dim : EDim
         Number of spatial dimensions in the simulation (TWOD or THREED).  For 
@@ -133,7 +133,7 @@ def _gen_pyvista_grid(sim_data: mh.SimData,
 
 
 # TODO: make this work for sim_data with multiple connectivity
-def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
+def extract_surf_mesh(sim_data: SimData) -> SimData:
     """Extracts a surface mesh from a 3D simulation dataclass. Useful for
     limiting the memory required for analysing sensors that only measure surface
     fields. This function currently supports:
@@ -146,13 +146,13 @@ def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
 
     Parameters
     ----------
-    sim_data : mh.SimData
+    sim_data : SimData
         Simulation dataclass containing the 3D mesh from which the surface mesh
         is to be extracted.
 
     Returns
     -------
-    mh.SimData
+    SimData
         Simulation data class containing the data for the surface mesh.
     """
 
@@ -218,7 +218,7 @@ def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
 
     # Now we build the SimData object and slice out the node and element
     # variables using the coordinate indexing.
-    face_data = mh.SimData(coords=faces_coords,
+    face_data = io.SimData(coords=faces_coords,
                            connect={"connect1":faces_ext_remap.T},
                            time=sim_data.time)
 

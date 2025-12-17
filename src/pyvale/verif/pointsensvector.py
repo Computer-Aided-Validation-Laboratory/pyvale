@@ -23,17 +23,17 @@ applied to vector fields.
 # TODO
 # - Calibration errors for vector fields
 
-def simdata_vec_2d_analytic() -> mh.SimData:
+def simdata_vec_2d_analytic() -> io.SimData:
     (sim_data,_) = asd.vector_linear_2d()
     return sim_data
 
-def simdata_vec_2d_analytic_nomesh() -> mh.SimData:
+def simdata_vec_2d_analytic_nomesh() -> io.SimData:
     sim_data = simdata_vec_2d_analytic()
     sim_data.connect = None
     return sim_data
 
 
-def sens_array_2d_noerrs(sim_data: mh.SimData,
+def sens_array_2d_noerrs(sim_data: io.SimData,
                    sens_data: sens.SensorData,
                    spatial_dims: sens.EDim = sens.EDim.TWOD,
                    ) -> sens.SensorsPoint:
@@ -47,7 +47,7 @@ def sens_array_2d_noerrs(sim_data: mh.SimData,
     return sens_array
 
 
-def sens_array_3d_noerrs(sim_data: mh.SimData,
+def sens_array_3d_noerrs(sim_data: io.SimData,
                    sens_data: sens.SensorData,
                    spatial_dims: sens.EDim = sens.EDim.THREED
                    ) -> sens.SensorsPoint:
@@ -61,7 +61,7 @@ def sens_array_3d_noerrs(sim_data: mh.SimData,
     return sens_array
 
 #-------------------------------------------------------------------------------
-def gen_sens_arrays_2d_dict(sim_data: mh.SimData,
+def gen_sens_arrays_2d_dict(sim_data: io.SimData,
                             sens_data_dict: dict[str,sens.SensorData],
                             sens_tag: str,
                             ) -> dict[str,sens.SensorsPoint]:
@@ -92,7 +92,7 @@ def gen_sens_arrays_2d_dict(sim_data: mh.SimData,
     return sens_dict
 
 
-def gen_sens_arrays_3d_dict(sim_data: mh.SimData,
+def gen_sens_arrays_3d_dict(sim_data: io.SimData,
                             sens_data_dict: dict[str,sens.SensorData],
                             sens_tag: str,
                             ) -> dict[str,sens.SensorsPoint]:

@@ -8,28 +8,24 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 import pandas as pd
-from pyvale.mooseherder.outputloader import IOutputLoader
-from pyvale.mooseherder.simdata import SimData, SimLoadConfig
-from pyvale.mooseherder.simloadtools import (str_to_path,
-                                          load_array,
-                                          load_connectivity,
-                                          load_field_files,
-                                          check_sim_data_consistency,
-                                          load_glob_vars)
-from pyvale.mooseherder.simloadopts import SimLoadOpts
-from pyvale.mooseherder.exceptions import SimLoadErr
+from pyvale.dataio.simdata import SimData, SimLoadConfig
+from pyvale.dataio.simloadtools import (str_to_path,
+                                        load_array,
+                                        load_connectivity,
+                                        load_field_files,
+                                        check_sim_data_consistency,
+                                        load_glob_vars)
+from pyvale.dataio.simloadopts import SimLoadOpts
+from pyvale.dataio.exceptions import SimLoadErr
 
 
-class SimLoaderByTime(IOutputLoader):
+class SimLoaderByTime:
     """Class for loading simulation data (i.e. a `SimData` object) from a series
     of plain text delimited files or binary numpy npy files.
-
-    Implements the `IOutputLoader` interface.
     """
 
-    __slots__ = ("_coords","_time_steps","_load_dir","_file_patterns",
-                 "_field_slices","_load_opts","_connect","_glob_file",
-                 "_glob_slices")
+    __slots__ = ("_load_dir","_node_file_pattern","_node_slices","_glob_file",
+                 "_glob_slices","_load_opts","_coords","_time_steps","_connect")
 
     def __init__(self,
                  load_dir: Path,

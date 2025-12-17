@@ -24,7 +24,7 @@
 from pathlib import Path
 import netCDF4 as nc
 import numpy as np
-from pyvale.mooseherder.simdata import SimData, SimLoadConfig
+from pyvale.dataio.simdata import SimData, SimLoadConfig
 from pyvale.mooseherder.outputloader import IOutputLoader
 
 

@@ -8,7 +8,7 @@ from pathlib import Path
 from dataclasses import dataclass
 import enum
 import numpy as np
-import pyvale.mooseherder as mh
+from pyvale.dataio.simdata import SimData
 
 
 class ESaveArray(enum.Enum):
@@ -241,8 +241,8 @@ class SimDataSaveOpts:
 
 
 def save_sim_data_to_arrays(output_path: Path,
-                           sim_data: mh.SimData,
-                           save_opts: SimDataSaveOpts | None = None) -> None:
+                            sim_data: SimData,
+                            save_opts: SimDataSaveOpts | None = None) -> None:
     """Saves the simulation data to a series of output files in delimited plain
     text and/or binary numpy arrays.
 
@@ -250,7 +250,7 @@ def save_sim_data_to_arrays(output_path: Path,
     ----------
     output_path : Path
         Path to the directory where the simulation files will be saved.
-    sim_data : mh.SimData
+    sim_data : io.SimData
         Simulation data object containing the data to save to disk.
     save_opts : SimDataSaveOpts | None, optional
         Options for how the simulation data should be saved, by default None.

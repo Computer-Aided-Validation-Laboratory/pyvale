@@ -21,7 +21,7 @@ applied to mechanical fields (displacement/strain) for testing vector and tensor
 field point sensors.
 """
 
-def simdata_mech_2d() -> mh.SimData:
+def simdata_mech_2d() -> io.SimData:
     data_path = dataset.mechanical_2d_path()
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
@@ -29,12 +29,12 @@ def simdata_mech_2d() -> mh.SimData:
                                       disp_keys=("disp_x","disp_y"))
     return sim_data
 
-def simdata_mesh_2d_nomesh() -> mh.SimData:
+def simdata_mesh_2d_nomesh() -> io.SimData:
     sim_data = simdata_mech_2d()
     sim_data.connect = None
     return sim_data
 
-def simdata_mech_3d() -> mh.SimData:
+def simdata_mech_3d() -> io.SimData:
     data_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
     field_comps = ("disp_x","disp_y","disp_z")
@@ -43,13 +43,13 @@ def simdata_mech_3d() -> mh.SimData:
                                         disp_keys=field_comps)
     return sim_data
 
-def simdata_mech_3d_nomesh() -> mh.SimData:
+def simdata_mech_3d_nomesh() -> io.SimData:
     sim_data = simdata_mech_3d()
     sim_data.connect = None
     return sim_data
 
 
-def sens_pos_2d(sim_data: mh.SimData) -> dict[str,np.ndarray]:
+def sens_pos_2d(sim_data: io.SimData) -> dict[str,np.ndarray]:
     sim_dims = sens.simtools.get_sim_dims(sim_data)
     sens_pos = {}
 
@@ -66,7 +66,7 @@ def sens_pos_2d(sim_data: mh.SimData) -> dict[str,np.ndarray]:
     return sens_pos
 
 
-def sens_pos_3d(sim_data: mh.SimData) -> dict[str,np.ndarray]:
+def sens_pos_3d(sim_data: io.SimData) -> dict[str,np.ndarray]:
     sim_dims = sens.simtools.get_sim_dims(sim_data)
     (x_min,x_max) = sim_dims["x"]
     (y_min,y_max) = sim_dims["y"]
@@ -130,11 +130,11 @@ def sens_pos_3d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
     return pos_lock
 
 
-def sens_data_2d_dict(sim_data: mh.SimData) -> dict[str,sens.SensorData]:
+def sens_data_2d_dict(sim_data: io.SimData) -> dict[str,sens.SensorData]:
     return pointsens.sens_data_dict(sim_data,sens_pos_2d(sim_data))
 
 
-def sens_data_3d_dict(sim_data: mh.SimData) -> dict[str,sens.SensorData]:
+def sens_data_3d_dict(sim_data: io.SimData) -> dict[str,sens.SensorData]:
     return pointsens.sens_data_dict(sim_data,sens_pos_3d(sim_data))
 
 
