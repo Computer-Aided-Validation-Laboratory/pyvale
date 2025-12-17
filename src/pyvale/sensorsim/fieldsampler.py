@@ -40,7 +40,6 @@ def sample_field_with_sensor_data(field: IField, sensor_data: SensorData
     return spatial_integrator.calc_averages()
 
 
-# TODO: move this into the fieldinterpmesh object
 def sample_pyvista_grid(components: tuple[str,...],
                         pyvista_grid: pv.UnstructuredGrid,
                         sim_time_steps: np.ndarray,

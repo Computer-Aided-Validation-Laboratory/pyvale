@@ -9,7 +9,8 @@ import subprocess
 from pathlib import Path
 from pprint import pprint
 
-EXAMPLE_DIR = Path('src/pyvale/examples/mooseherder')
+project_root = Path(__file__).resolve().parents[1]
+EXAMPLE_DIR = project_root/"src"/"pyvale"/"examples"/"mooseherder"
 all_files = os.listdir(EXAMPLE_DIR)
 
 example_files = list([])

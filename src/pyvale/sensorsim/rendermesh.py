@@ -12,7 +12,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 import pyvale.mooseherder as mh
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
-
+from pyvale.sensorsim.enums import EDim
 
 # TODO:
 # - Store the render field keys and match them between meshes?
@@ -69,7 +69,7 @@ class RenderMesh:
 
 def create_render_mesh(sim_data: mh.SimData,
                        field_render_keys: tuple[str,...],
-                       sim_spat_dim: int,
+                       sim_spat_dim: EDim,
                        field_disp_keys: tuple[str,...] | None = None,
                        pos_world: np.ndarray | None  = None,
                        rot_world: Rotation | None = None
@@ -80,8 +80,8 @@ def create_render_mesh(sim_data: mh.SimData,
         extract_keys = field_render_keys+field_disp_keys
 
     pv_grid = simdata_to_pyvista_interp(sim_data,
-                                            extract_keys,
-                                            elem_dims=sim_spat_dim)
+                                        extract_keys,
+                                        spatial_dims=sim_spat_dim)
 
     pv_surf = pv_grid.extract_surface()
     faces = np.array(pv_surf.faces)

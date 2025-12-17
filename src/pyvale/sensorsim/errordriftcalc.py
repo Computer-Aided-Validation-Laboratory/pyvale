@@ -51,20 +51,6 @@ class DriftConstant(IDriftCalculator):
         self._offset = offset
 
     def calc_drift(self, drift_var: np.ndarray) -> np.ndarray:
-        """Calculates the drift errors based on the input drift variable array.
-
-        Parameters
-        ----------
-        drift_var : np.ndarray
-            Array of values (normally time steps) that are used to calculate the
-            drift errors.
-
-        Returns
-        -------
-        np.ndarray
-            Array of drift errors having the same shape as the input drift_var
-            array.
-        """
         return self._offset*np.ones_like(drift_var)
 
 
@@ -88,20 +74,6 @@ class DriftLinear(IDriftCalculator):
         self._offset = offset
 
     def calc_drift(self, drift_var: np.ndarray) -> np.ndarray:
-        """Calculates the drift errors based on the input drift variable array.
-
-        Parameters
-        ----------
-        drift_var : np.ndarray
-            Array of values (normally time steps) that are used to calculate the
-            drift errors.
-
-        Returns
-        -------
-        np.ndarray
-            Array of drift errors having the same shape as the input drift_var
-            array.
-        """
         return self._slope*drift_var + self._offset
 
 
@@ -125,20 +97,6 @@ class DriftPolynomial(IDriftCalculator):
         self._coeffs = coeffs
 
     def calc_drift(self, drift_var: np.ndarray) -> np.ndarray:
-        """Calculates the drift errors based on the input drift variable array.
-
-        Parameters
-        ----------
-        drift_var : np.ndarray
-            Array of values (normally time steps) that are used to calculate the
-            drift errors.
-
-        Returns
-        -------
-        np.ndarray
-            Array of drift errors having the same shape as the input drift_var
-            array.
-        """
         poly = np.zeros_like(drift_var)
         for ii,cc in enumerate(self._coeffs):
             poly += cc*drift_var**ii

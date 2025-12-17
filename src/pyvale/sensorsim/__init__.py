@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """
-The python validation engine (`.) is your virtual engineering laboratory:
+The python validation engine is your virtual engineering laboratory:
 An all-in-one package for sensor simulation, sensor uncertainty quantification,
 sensor placement optimisation and simulation calibration/validation. Used to
 simulate experimental data from an input multi-physics simulation by explicitly
@@ -36,8 +36,8 @@ from .integratorfactory import *
 from .sensordescriptor import *
 from .sensortools import *
 from .sensorarray import *
-from .sensorarrayfactory import *
-from .sensorarraypoint import *
+from .sensorfactory import *
+from .sensorspoint import *
 from .sensordata import *
 
 from .camera import *
@@ -72,11 +72,15 @@ from .visualexpplotter import *
 from .visualtraceplotter import *
 from .visualimages import *
 from .visualimagedef import *
+from .visualtraceanimator import *
 
 from .simtools import *
 
 from .experimentsimulator import *
-from .output import *
+from .experimentstats import *
+from .experimentsimio import *
+
+from .enums import *
 from .exceptions import *
 
 
