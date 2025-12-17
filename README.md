@@ -25,7 +25,7 @@ The code to run the simulated experiments and produce the output shown here come
 pip install pyvale
 ```
 
-We recommend installing `pyvale` into a virtual environment of your choice as `pyvale` requires python 3.11. If you need help setting up your virtual environment and installing `pyvale` head over to the [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install.html) in our docs.
+We recommend installing `pyvale` into a virtual environment of your choice as `pyvale` requires python 3.11. If you need help setting up your virtual environment and installing `pyvale` head over to the [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html) in our docs.
 
 ## Contributors
 The Computer Aided Validation Team at UKAEA:
