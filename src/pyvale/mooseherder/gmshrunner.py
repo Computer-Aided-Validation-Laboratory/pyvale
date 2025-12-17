@@ -15,9 +15,10 @@ class GmshRunner(SimRunner):
     can be used by the herd workflow manager.
     """
 
-    def __init__(self, gmsh_path: Path | None = None):
-        """Initialiser for the GmshRunner.
+    __slots__ = ("_gmsh_app","_input_path","_arg_list")
 
+    def __init__(self, gmsh_path: Path | None = None):
+        """
         Parameters
         ----------
         gmsh_path : Path | None, optional
@@ -40,9 +41,6 @@ class GmshRunner(SimRunner):
         gmsh_app : Path
             full path to the gmsh app.
 
-        Returns
-        -------
-
         Raises
         ------
         FileNotFoundError
@@ -57,9 +55,6 @@ class GmshRunner(SimRunner):
 
     def get_input_file(self) -> Path | None:
         """get_input_path: the path to the input file to run gmsh with.
-
-        Parameters
-        ----------
 
         Returns
         -------

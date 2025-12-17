@@ -34,7 +34,7 @@ from pyvale.mooseherder import (MooseHerd,
                                 MooseConfig,
                                 InputModifier,
                                 DirectoryManager,
-                                SweepReader,
+                                SweepLoader,
                                 sweep_param_grid)
 
 
@@ -99,7 +99,7 @@ print()
 # our outer list which we print below. Note that our inner list still has a
 # single ``SimData`` object as we only have a single moose simulation in our
 # simulation chain.
-sweep_reader = SweepReader(dir_manager)
+sweep_reader = SweepLoader(dir_manager)
 start_time = time.perf_counter()
 sweep_results_seq = sweep_reader.read_sequential()
 read_time_seq = time.perf_counter() - start_time

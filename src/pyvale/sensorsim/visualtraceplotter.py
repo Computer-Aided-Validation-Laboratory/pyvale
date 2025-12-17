@@ -4,11 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+import math
 from typing import Any
 import numpy as np
 import matplotlib.pyplot as plt
-import math
-from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
+from pyvale.sensorsim.sensorspoint import SensorsPoint
 from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
                                          TraceOptsSensor)
 from pyvale.sensorsim.plotting_logs import logger
@@ -16,7 +16,8 @@ from pyvale.sensorsim.logger import Logger
 
 
 
-def subplot_calc(total_sensors, sensors_per_plot):
+def subplot_calc(total_sensors: range | None,
+                 sensors_per_plot: int | None) -> tuple[int,int]:
     """
     Automatically calculate the number of subplots based on
     the total number of sensors to be plot and the maximum per subplot
@@ -24,7 +25,7 @@ def subplot_calc(total_sensors, sensors_per_plot):
     Parameters
     ----------
     total_sensors : range | None
-        The sensors that are to be plot 
+        The sensors that are to be plot
     sensors_per_plot: int | None
         The maximum amount of sensors to be plot per subplot
 
@@ -45,11 +46,11 @@ def subplot_calc(total_sensors, sensors_per_plot):
 
     return coord
 
-def make_labels(legend_loc_trace_opts, 
-                axs, 
-                leg_font_size_plot_opts, 
+def make_labels(legend_loc_trace_opts,
+                axs,
+                leg_font_size_plot_opts,
                 linestemp):
-    
+
     """
     Make a legend for a filled subplot
 
@@ -66,15 +67,15 @@ def make_labels(legend_loc_trace_opts,
         List of the lines plot on subplot for the legend
     """
 
-    if legend_loc_trace_opts is not None:   
+    if legend_loc_trace_opts is not None:
         axs.legend(handles=linestemp,
         prop={"size":leg_font_size_plot_opts},
         loc=legend_loc_trace_opts, bbox_to_anchor=(1, 1))
 
 
 # TODO: this should probably take an ISensorarray
-def plot_time_traces(sensor_array: SensorArrayPoint,
-                     component: str | None  = None,
+def plot_time_traces(sensor_array: SensorsPoint,
+                     comp_key: str | None  = None,
                      trace_opts: TraceOptsSensor | None = None,
                      plot_opts: PlotOptsGeneral | None = None
                      ) -> tuple[Any,Any]:
@@ -83,9 +84,9 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
 
     Parameters
     ----------
-    sensor_array : SensorArrayPoint
-        _description
-    component : str | None
+    sensor_array : SensorPoint
+        The sensor array to plot times traces from.
+    comp_key : str | None
         String key for the field component to plot, by default None. If None
         then the first component in the measurement array is plotted
     trace_opts : TraceOptsSensor | None, optional
@@ -111,11 +112,14 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     measurements = sensor_array.get_measurements()
     num_sens = sensor_array._sensor_data.positions.shape[0]
     descriptor = sensor_array._descriptor
-    sensors_perturbed = sensor_array.get_sensor_data_perturbed()
+    sensors_perturbed = (sensor_array
+        .get_error_integrator()
+        .get_sens_data_accumulated()
+    )
 
     comp_ind = 0
-    if component is not None:
-        comp_ind = sensor_array._field.get_component_index(component)
+    if comp_key is not None:
+        comp_ind = sensor_array._field.get_component_index(comp_key)
 
 
 
@@ -177,7 +181,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
                            layout="constrained")
     fig.set_dpi(plot_opts.resolution)
 
-        
+
     if isinstance(ax, np.ndarray) == False:
         # For a single subplot ax is a 0-dimensional np array
         # Make ax a list here so that it can be indexed as ax[0]
@@ -223,7 +227,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     sensor_tags = descriptor.create_sensor_tags(num_sens)
     lines = []
     linestemp = []
-    
+
     for ii,ss in enumerate(sensors_to_plot):
         sensor_time = samp_time
 
@@ -241,23 +245,23 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
         logger.info(f"{line} has been plot")
 
         if (ii+1) % sensors_per_plot == 0:
-            make_labels(trace_opts.legend_loc, 
-                        ax[current_plot], 
+            make_labels(trace_opts.legend_loc,
+                        ax[current_plot],
                         plot_opts.font_leg_size,
                         linestemp)
             logger.info(f"Legend labels made for sensors: {linestemp}")
             linestemp = []
-            
+
             current_plot = current_plot+1
 
         lines.append(line)
-        
+
         if ss == sensors_to_plot[-1]:
             if (ii+1) % sensors_per_plot == 0:
                 pass
             else:
-                make_labels(trace_opts.legend_loc, 
-                            ax[current_plot], 
+                make_labels(trace_opts.legend_loc,
+                            ax[current_plot],
                             plot_opts.font_leg_size,
                             linestemp)
                 logger.info(f"Legend labels made for sensors: {linestemp}")
@@ -278,7 +282,7 @@ def plot_time_traces(sensor_array: SensorArrayPoint,
     else:
         ax[current_plot].set_xlim(trace_opts.time_min_max)
 
-    if trace_opts.legend_loc is not None:    
+    if trace_opts.legend_loc is not None:
         if len(ax) == 1:
             ax[0].legend(handles=lines,
                     prop={"size":plot_opts.font_leg_size},

@@ -23,7 +23,7 @@ import time
 from pprint import pprint
 from pathlib import Path
 from pyvale.mooseherder import DirectoryManager
-from pyvale.mooseherder import SweepReader
+from pyvale.mooseherder import SweepLoader
 
 #%%
 # First we create a directory manager and pass it our standard pyvale output
@@ -43,7 +43,7 @@ dir_manager.set_base_dir(output_base_path)
 #
 # We then use the reader extract the list of list of output file paths and the
 # combinations of variables that were used for this parameter sweep.
-sweep_reader = SweepReader(dir_manager,num_para_read=4)
+sweep_reader = SweepLoader(dir_manager,num_para_read=4)
 
 output_files = sweep_reader.read_all_output_file_keys()
 sweep_variables = sweep_reader.read_all_sweep_var_files()

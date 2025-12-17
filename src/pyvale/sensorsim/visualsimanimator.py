@@ -14,7 +14,7 @@ import numpy as np
 # See: https://github.com/pyvista/pyvista/discussions/2928
 #NOTE: causes output to console to be suppressed unfortunately
 import pyvista as pv
-from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
+from pyvale.sensorsim.sensorspoint import SensorsPoint
 from pyvale.sensorsim.visualopts import VisOptsSimSensors, VisOptsAnimation
 from pyvale.sensorsim.visualtools import (create_pv_plotter,
                                 get_colour_lims,
@@ -24,7 +24,7 @@ from pyvale.sensorsim.visualsimsensors import (add_sensor_points_nom,
                                      add_sim_field)
 
 
-def animate_sim_with_sensors(sensor_array: SensorArrayPoint,
+def animate_sim_with_sensors(sensor_array: SensorsPoint,
                             component: str,
                             time_steps: np.ndarray | None = None,
                             vis_opts: VisOptsSimSensors | None = None,

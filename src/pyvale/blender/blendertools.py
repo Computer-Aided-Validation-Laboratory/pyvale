@@ -3,16 +3,14 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
-import numpy as np
 from pathlib import Path
+import numpy as np
 from scipy.spatial.transform import Rotation
 from PIL import Image
 import bpy
 
 # Pyvale
 from pyvale.sensorsim.cameratools import CameraTools
-from pyvale.sensorsim.output import Outputs
-
 
 from pyvale.blender.blenderexceptions import BlenderError
 from pyvale.blender.blenderrenderdata import RenderEngine, RenderData
@@ -24,16 +22,16 @@ class Tools:
     """
 
     @staticmethod
-    def save_blender_file(base_dir: Path | None = Outputs.base_dir,
-                          override: bool = False) -> None:
+    def save_blender_file(base_dir: Path | None = None,
+                          over_write: bool = False) -> None:
         """A method to save the current Blender scene to a Blender .blend filepath
 
         Parameters
         ----------
-        base_dir : Path
+        base_dir : Path | None
             The base directory to which the Blender file will be saved to. The
             file will be saved in a subfolder of this directory named blenderfiles.
-        override : bool, optional
+        over_write : bool, optional
             A flag which can be set to True or False. If set to True, if the
             specified filepath already exists, this file will be automatically
             overwritten. If set to False and the specified filepath already exists
@@ -46,10 +44,13 @@ class Tools:
             "The specified save directory does not exist".
         BlenderError
             "A file already exists with this filepath". This error is thrown
-            when override is set to False, and the specified filepath already
+            when over_write is set to False, and the specified filepath already
             exists.
 
         """
+        if base_dir is None:
+            base_dir = Path.cwd()
+        
         if not base_dir.is_dir():
             raise BlenderError("The specified save directory does not exist")
 
@@ -61,7 +62,7 @@ class Tools:
         filename = save_dir / "projectfile.blend"
 
         if filename.exists():
-            if override:
+            if over_write:
                 filename.unlink()
             else:
                 raise BlenderError("A file already exists with this filepath")
@@ -320,13 +321,15 @@ class Tools:
                                calibration_data.angle_lims[0]) /
                                calibration_data.angle_step) + 1)
 
-        number_cal_images = int(number_angle_steps * number_angle_steps * number_plunge_steps * 9)
+        number_cal_images = int(number_angle_steps 
+                                * number_angle_steps 
+                                * number_plunge_steps * 9)
         return number_cal_images
 
 
     def render_calibration_images(render_data: RenderData,
-                           calibration_data: CalibrationData,
-                           part: bpy.data.objects) -> int:
+                                  calibration_data: CalibrationData,
+                                  part: bpy.data.objects) -> int:
         """A method to render a set of calibration images, which can be used to
         calculate the intrinsic and extrinsic parameters.
 

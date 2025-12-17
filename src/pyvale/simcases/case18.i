@@ -4,7 +4,7 @@
 
 #-------------------------------------------------------------------------
 #_* MOOSEHERDER VARIABLES - START
-endTime = 300
+endTime = 200
 timeStep = 5
 
 # Geometric Properties
@@ -16,16 +16,19 @@ nElemX = 20
 nElemY = 10
 eType = QUAD4 # QUAD4 for 1st order, QUAD8 for 2nd order
 
+# Multiplier for biasing material properties
+bias = 1.0
+
 # Thermal Loads/BCs
 coolantTemp = 20.0      # degC
 heatTransCoeff = 125.0e3 # W.m^-2.K^-1
-surfHeatFlux = 500.0e3    # W.m^-2
+surfHeatFlux = 1000.0e3    # W.m^-2
 timeConst = 1
 
 # Material Properties:
 # Thermal Props:OFHC) Copper at 250degC
 cuDensity = 8829.0  # kg.m^-3
-cuThermCond = 384.0 # W.m^-1.K^-1
+cuThermCond = ${fparse bias*384.0} # W.m^-1.K^-1
 cuSpecHeat = 406.0  # J.kg^-1.K^-1
 
 # Mechanical Props: OFHC Copper 250degC
@@ -34,7 +37,8 @@ cuPRatio = 0.33      # -
 
 # Thermo-mechanical coupling
 stressFreeTemp = 20 # degC
-cuThermExp = 17.8e-6 # 1/degC
+cuThermExp = ${fparse bias*17.8e-6} # 1/degC
+
 
 #** MOOSEHERDER VARIABLES - END
 #-------------------------------------------------------------------------
@@ -152,17 +156,30 @@ sTol = ${fparse lengX/(nElemX*4)}
 []
 
 [BCs]
-    [heat_flux_out]
+    [heat_flux_out_left]
         type = ConvectiveHeatFluxBC
         variable = temperature
         boundary = 'left'
         T_infinity = ${coolantTemp}
         heat_transfer_coefficient = ${heatTransCoeff}
     []
-    [heat_flux_in]
+    [heat_flux_in_right]
         type = FunctionNeumannBC
         variable = temperature
         boundary = 'right'
+        function = '${fparse surfHeatFlux}*(1-exp(-(1/${timeConst})*t))'
+    []
+    [heat_flux_out_bot]
+        type = ConvectiveHeatFluxBC
+        variable = temperature
+        boundary = 'bottom'
+        T_infinity = ${coolantTemp}
+        heat_transfer_coefficient = ${heatTransCoeff}
+    []
+    [heat_flux_in_top]
+        type = FunctionNeumannBC
+        variable = temperature
+        boundary = 'top'
         function = '${fparse surfHeatFlux}*(1-exp(-(1/${timeConst})*t))'
     []
 
