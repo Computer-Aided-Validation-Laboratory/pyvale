@@ -172,5 +172,5 @@ print("Save directory of the image:", (render_data.base_dir / render_data.dir_na
 # There is also the option to save the scene as a Blender project file.
 # This file can be opened with the Blender GUI to view the scene.
 
-blender.Tools.save_blender_file(base_dir)
+blender.Tools.save_blender_file(base_dir=base_dir,over_write=True)
 

@@ -23,7 +23,7 @@ class Tools:
 
     @staticmethod
     def save_blender_file(base_dir: Path | None = None,
-                          override: bool = False) -> None:
+                          over_write: bool = False) -> None:
         """A method to save the current Blender scene to a Blender .blend filepath
 
         Parameters
@@ -31,7 +31,7 @@ class Tools:
         base_dir : Path | None
             The base directory to which the Blender file will be saved to. The
             file will be saved in a subfolder of this directory named blenderfiles.
-        override : bool, optional
+        over_write : bool, optional
             A flag which can be set to True or False. If set to True, if the
             specified filepath already exists, this file will be automatically
             overwritten. If set to False and the specified filepath already exists
@@ -44,7 +44,7 @@ class Tools:
             "The specified save directory does not exist".
         BlenderError
             "A file already exists with this filepath". This error is thrown
-            when override is set to False, and the specified filepath already
+            when over_write is set to False, and the specified filepath already
             exists.
 
         """
@@ -62,7 +62,7 @@ class Tools:
         filename = save_dir / "projectfile.blend"
 
         if filename.exists():
-            if override:
+            if over_write:
                 filename.unlink()
             else:
                 raise BlenderError("A file already exists with this filepath")

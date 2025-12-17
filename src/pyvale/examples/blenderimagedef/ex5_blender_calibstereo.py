@@ -11,6 +11,8 @@ Rendering calibration images
 This example takes you through how to render calibration images for a given DIC
 setup using in-built tools for calibration target generation.
 
+Note that this example produces a significant number of images and will take a 
+long time to run.
 """
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -185,4 +187,4 @@ print("Save directory of the images:", (render_data.base_dir / render_data.dir_n
 # There is also the option to save the scene as a Blender project file.
 # This file can be opened with the Blender GUI to view the scene.
 
-blender.Tools.save_blender_file(base_dir)
+blender.Tools.save_blender_file(base_dir=base_dir,over_write=True)
