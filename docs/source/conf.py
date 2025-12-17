@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath('../../src/pyvale/dic/'))
 project = 'Pyvale'
 copyright = '2025, The CAV Team'
 author = 'The CAV Team at United Kingdom Atomic Energy Authority (UKAEA)'
-release = '2025.8.1'
-version = '2025.8.1'
+release = '2025.12.0'
+version = '2025.12.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
