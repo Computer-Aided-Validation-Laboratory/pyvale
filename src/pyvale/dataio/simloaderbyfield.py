@@ -9,14 +9,14 @@ from multiprocessing.pool import Pool
 import numpy as np
 import pandas as pd
 from pyvale.dataio.simdata import SimData, SimLoadConfig
-from pyvale.dataio.simloadtools import (str_to_path,
+from pyvale.dataio.loadtools import (str_to_path,
                                         load_array,
                                         load_connectivity,
                                         load_field_files,
                                         check_sim_data_consistency,
                                         load_glob_vars,
                                         inv_group_dict)
-from pyvale.dataio.simloadopts import SimLoadOpts
+from pyvale.dataio.loadopts import SimLoadOpts
 from pyvale.dataio.exceptions import SimLoadErr
 
 
@@ -47,27 +47,27 @@ class SimLoaderByField:
             no coordinates are loaded and they can be manually specified in the
             SimData object.
         time_step_file : str | Path | None
-            String or full path to the file containing the simulation time 
+            String or full path to the file containing the simulation time
             steps. If None then no time step file is loaded and the time steps
             can be manually specified in the SimData object.
         node_field_files : dict[str,str] | None
             Dicitionary keyed by the node field variable name where the value is
-            the file name for that field variable to be found in the load 
+            the file name for that field variable to be found in the load
             directory. If None then no nodal field variables are loaded.
         connect_files : str | list[str] | None, optional
-            Wildcard pattern specifying how to identify connectivity files in 
-            the load directory or list of strings for the connectivity files, 
+            Wildcard pattern specifying how to identify connectivity files in
+            the load directory or list of strings for the connectivity files,
             by default None. If None then no connectivity tables are loaded.
         glob_file : str | None, optional
-            File name for the global variables file in the load directory, by 
+            File name for the global variables file in the load directory, by
             default None. If None then global variables are not loaded.
         glob_slices : dict[str,slice] | None, optional
-            Dictionary keyed with the global variable names with slices 
-            specifying which columns to extract for the given global variable, 
+            Dictionary keyed with the global variable names with slices
+            specifying which columns to extract for the given global variable,
             by default None. If None then no global variables are loaded.
         load_opts : SimLoadOpts | None, optional
-            Options for loading the simulation data including the number of 
-            threads for using multi-processing to load field files, by default 
+            Options for loading the simulation data including the number of
+            threads for using multi-processing to load field files, by default
             None. If None then a default load options dataclass is created.
 
         Raises
@@ -114,7 +114,7 @@ class SimLoaderByField:
                                               load_opts)
 
 
-        
+
         if node_field_files is not None:
             # We are loading by field so only need empty slicesx
             self._node_slices = {kk: slice(None) for kk in node_field_files}

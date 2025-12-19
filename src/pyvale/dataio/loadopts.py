@@ -6,15 +6,38 @@
 
 from dataclasses import dataclass
 
+@dataclass(slots=True)
+class LoadOpts:
+    """TODO
+    """
+
+    header_rows: int | None = None
+    """
+    """
+    
+    file_ext: str = ".csv"
+    """
+    """
+    
+    delimiter: str = ","
+    """Delimiter used to separate values in the plain text files to read.
+    """
+    
+    workers: int | None = None
+    """Number of workers (i.e. multi-processing processes) to use when reading
+    data files. Useful for reading many large data files in parallel. Defaults
+    to None which does not use multi-processing.
+    """
+
+@dataclass(slots=True)
+class ExpLoadOpts:
+    header_rows: int = 0      
+
 
 @dataclass(slots=True)
 class SimLoadOpts:
     """Dataclass of options for loading simulation data from plain delimited
     text files.
-    """
-
-    delimiter: str = ","
-    """Delimiter used to separate values in the plain text files to read.
     """
 
     coord_header: int | None = 0
@@ -47,9 +70,4 @@ class SimLoadOpts:
     variables data files. Defaults to 0 which skips the first row as a header.
     """
 
-    workers: int | None = None
-    """Number of threads (i.e. multi-processing processes) to use when reading
-    data files. Useful for reading many large data files in parallel. Defaults
-    to None which is single threaded.
-    """
 

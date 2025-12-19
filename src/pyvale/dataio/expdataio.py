@@ -9,26 +9,39 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 
-
-@dataclass(slots=True)
-class ExpDataLoadOpts:
-    file_ext: str = ".csv"
-    delimiter: str = ","
-    skip_header: int = 1
-    threads_num: int | None = None
+from pyvale.dataio.loadopts import (LoadOpts,ExpLoadOpts)
 
 
+
+# NOTE: could use field(default_factory=dict) to set to an empty dictionary
 @dataclass(slots=True)
 class ExpData:
+    fields: dict[str,np.ndarray]
     coords: dict[str,np.ndarray] | None = None
     time: dict[str,np.ndarray] | None = None
-    fields: dict[str,np.ndarray] | None = None
+    
+
+
+class ExpLoader:
+    __slots__ = ()
+
+    def __init__(self,
+                 load_dir: Path,
+                 field_files: dict[str,tuple[str,slice]] | None,
+                 coords_files: dict[str,tuple[str,slice]] | None,
+                 time_files: dict[str,tuple[str,slice]] | None,
+                 ) -> None:
+        pass 
+
+
+    def load_exp_data(self) -> ExpData:
+        pass
 
 
 def load_exp_data(data_path: Path,
                   field_slices: dict[str,slice],
                   frames: slice | None = None,
-                  load_opts: ExpDataLoadOpts | None = None
+                  load_opts: ExpLoadOpts | None = None
                   ) -> dict[str,np.ndarray]:
 
     if not data_path.is_dir():
@@ -39,6 +52,9 @@ def load_exp_data(data_path: Path,
 
     csv_files = list(data_path.glob("*" + load_opts.file_ext))
     csv_files = sorted(csv_files)
+
+    if frames is not None:
+        csv_files = csv_files[frames]
 
     # print(80*"-")
     # print("Debug load_exp_data:")
@@ -52,8 +68,6 @@ def load_exp_data(data_path: Path,
     #     print(f"{slice_frames[-1]=}")
     # print(80*"-")
 
-    if frames is not None:
-        csv_files = csv_files[frames]
 
     # We load the first csv to find out what shape of data we are expecting
     data = pd.read_csv(csv_files[0])
@@ -89,11 +103,11 @@ def load_exp_data(data_path: Path,
     # loop over all the others and load them
     csv_files.pop(0)
 
-    if load_opts.threads_num is not None:
-        assert load_opts.threads_num > 0, ("Number of threads must be greater 
+    if load_opts.workers is not None:
+        assert load_opts.workers > 0, ("Number of threads must be greater 
             + "than 0.")
 
-        with Pool(load_opts.threads_num) as pool:
+        with Pool(load_opts.workers) as pool:
             processes_with_id = []
 
             for ii,ff in enumerate(csv_files):

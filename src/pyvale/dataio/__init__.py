@@ -6,8 +6,8 @@
 
 from .simdata import SimData
 from .simdata import SimLoadConfig
-from .simloadopts import SimLoadOpts
-from .simloadtools import (str_to_path,
+from .loadopts import SimLoadOpts
+from .loadtools import (str_to_path,
                            load_field_files,
                            load_field_dict,
                            load_array,
@@ -18,5 +18,11 @@ from .simloadtools import (str_to_path,
                            inv_group_dict)
 from .simloaderbytime import SimLoaderByTime
 from .simloaderbyfield import SimLoaderByField
-from .simsaver import (ESaveArray, save_array, ESaveFieldOpt,
-                       SimDataSaveOpts, save_sim_data_to_arrays)
+from .simsaver import (ESaveArray, 
+                       save_array, 
+                       ESaveFieldOpt,
+                       SimDataSaveOpts, 
+                       save_sim_data_to_arrays)
+from .exploader import (IExpLoader,
+                        load_exp_data)                    
+from .pointsensloader import PointSensLoader 
