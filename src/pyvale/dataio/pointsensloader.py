@@ -21,7 +21,7 @@ class PointSensLoader(IExpLoader):
     def __init__(self,
                  load_file: Path,
                  sens_key: str,
-                 sens_cols: list[int],
+                 sens_cols: np.ndarray | list[int],
                  load_opts: LoadOpts | None = None,
                  time_col: int | None = None,
                  time_slice: slice | None = None,
@@ -51,11 +51,10 @@ class PointSensLoader(IExpLoader):
         return self._sens_key
         
     def load_data(self) -> ExpData:
-
-        if not load_file.is_file():
+        if not self._load_file.is_file():
             raise ExpLoadErr(f"{load_file.resolve()}, is not a file.")
 
-        data_array = load_array(file_path,
+        data_array = load_array(self._load_file,
                                 self._load_opts.header_rows,
                                 self._load_opts.delimiter)
 

@@ -461,7 +461,7 @@ def cal_target() -> Path:
 
 #TODO
 def valid_data_dir() -> Path:
-    return str(files("pyvale.data.valid"))
+    return Path(str(files("pyvale.data.valid")))
 
 def valid_data_csvs() -> list[Path]:
     data_dir = files("pyvale.data.valid")
