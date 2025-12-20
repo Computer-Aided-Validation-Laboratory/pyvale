@@ -1,4 +1,4 @@
-# ==============================================================================
+## ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2024 The Computer Aided Validation Team
@@ -12,4 +12,4 @@ class ExpData:
     fields: dict[str,np.ndarray] = field(default_factory=dict)
     coords: dict[str,np.ndarray] = field(default_factory=dict)
     times: dict[str,np.ndarray] = field(default_factory=dict)
-    
+    sens_labels: dict[str,list[str]] = field(default_factory=dict)    

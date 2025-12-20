@@ -11,7 +11,7 @@ class LoadOpts:
     """TODO
     """
 
-    header_rows: int | None = None
+    header_rows: int | None = 0
     """
     """
     
@@ -28,10 +28,6 @@ class LoadOpts:
     data files. Useful for reading many large data files in parallel. Defaults
     to None which does not use multi-processing.
     """
-
-@dataclass(slots=True)
-class ExpLoadOpts:
-    header_rows: int = 0      
 
 
 @dataclass(slots=True)

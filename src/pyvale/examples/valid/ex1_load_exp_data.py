@@ -11,42 +11,34 @@ import pyvale.dataset as dataset
 import pyvale.dataio as io
 import pyvale.valid as val
 
-
 data_path = dataset.valid_data_dir()
-# print(f"{data_path}")
-# 
-# val_csvs = dataset.valid_data_csvs()
-# print("Validation data csvs:")
-# for ff in val_csvs:
-#     print(f"{ff}")
-# print()
 
 load_opts = io.LoadOpts(delimiter=",",header_rows=0,)
 
 exp_loaders = [
     io.PointSensLoader(
-        load_file=data_path/"Pulse253_SteadyDICData.csv",
-        sens_key="TCs-DIC",
+        load_files=[data_path/"Pulse253_SteadyDICData.csv",
+                    data_path/"Pulse254_SteadyDICData.csv"],
+        sens_array_key="TCs-DIC",
         sens_cols=np.arange(2,11),
+        sens_labels="TC",
         load_opts=load_opts,
         time_col=1,
         time_slice=slice(None),                    
     ),
     io.PointSensLoader(
-        load_file=data_path/"Pulse253_SteadyHIVEData.csv",
-        sens_key="TCs-HIVE",
+        load_files=data_path/"Pulse253_SteadyHIVEData.csv",
+        sens_array_key="TCs-HIVE",
         sens_cols=np.array([2,]),
+        sens_labels="TC",
         load_opts=load_opts,
         time_col=1,
         time_slice=slice(None),                    
     ),
     io.PointSensLoader(
-        load_file=data_path/"Pulse253_SteadyPICOData.csv",
-        sens_key="CV",
-        sens_cols=np.array([1,]),
-        load_opts=load_opts,
-        time_col=1,
-        time_slice=slice(None),                    
+        load_files=data_path/"Pulse253_SteadyPICOData.csv",
+        sens_array_key="CV",
+        sens_cols=np.array([1,]),                    
     ),
 ]
 
@@ -74,4 +66,9 @@ for kk,aa in exp_data.coords.items():
         print(f"exp_data.coords[{kk}]={exp_data.coords[kk]}")    
 print()
 
-print(exp_data.fields["TCs-DIC"][1,:])
+print("In exp_data.sens_labels:")
+for kk,aa in exp_data.sens_labels.items():   
+    print(f"exp_data.sens_labels[{kk}]={exp_data.sens_labels[kk]}")
+print()
+
+# print(exp_data.fields["TCs-DIC"][1,:])
