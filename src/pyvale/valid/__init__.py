@@ -7,3 +7,5 @@
 """
 """
 
+# TODO: fix this when we abandon the mono repo
+from pyvale.valid import *

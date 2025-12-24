@@ -34,7 +34,7 @@ class SimLoaderByTime:
                  node_files: str | None,
                  node_slices: dict[str, slice] | None,
                  connect_files: str | list[str] | None = None,
-                 glob_file: str | None = None,
+                 glob_file: str | Path | None = None,
                  glob_slices: dict[str,slice] | None = None,
                  load_opts: SimLoadOpts | None = None) -> None:
         """
@@ -62,8 +62,8 @@ class SimLoaderByTime:
             Wildcard pattern specifying how to identify connectivity files in
             the load directory or list of strings for the connectivity files,
             by default None. If None then no connectivity tables are loaded.
-        glob_file : str | None, optional
-            File name for the global variables file in the load directory, by
+        glob_file : str | Path | None, optional
+            File for the global variables file in the load directory, by
             default None. If None then global variables are not loaded.
         glob_slices : dict[str,slice] | None, optional
             Dictionary keyed with the global variable names with slices

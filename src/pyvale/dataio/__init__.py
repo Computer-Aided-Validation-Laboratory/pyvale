@@ -23,6 +23,7 @@ from .simsaver import (ESaveArray,
                        ESaveFieldOpt,
                        SimDataSaveOpts, 
                        save_sim_data_to_arrays)
+from .expdata import ExpData
 from .exploader import (IExpLoader,
                         load_exp_data)                    
 from .pointsensloader import PointSensLoader 

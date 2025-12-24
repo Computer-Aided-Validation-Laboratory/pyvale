@@ -7,9 +7,19 @@
 from dataclasses import dataclass, field
 import numpy as np
 
+
 @dataclass(slots=True)
 class ExpData:
-    fields: dict[str,np.ndarray] = field(default_factory=dict)
-    coords: dict[str,np.ndarray] = field(default_factory=dict)
-    times: dict[str,np.ndarray] = field(default_factory=dict)
-    sens_labels: dict[str,list[str]] = field(default_factory=dict)    
+    # shape=(n_sensors,n_time_steps)
+    fields: np.ndarray
+
+    # Use these to index into n_sensors axis
+    sens_label_to_ind: dict[str,int]
+    ind_to_sens_label: dict[int,str]
+
+    # shape=(n_sensors,3) where 3=coord[x,y,z]
+    coords: np.ndarray | None = None
+    # shape=(n_time_steps,)
+    times: np.ndarray | None = None
+    
+    

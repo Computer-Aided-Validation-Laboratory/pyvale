@@ -15,46 +15,48 @@ data_path = dataset.valid_data_dir()
 
 load_opts = io.LoadOpts(delimiter=",",header_rows=0,)
 
-exp_loaders = [
-    io.PointSensLoader(
+exp_loaders = {
+    "DIC-DAQ" : io.PointSensLoader(
         load_files=[data_path/"Pulse253_SteadyDICData.csv",
                     data_path/"Pulse254_SteadyDICData.csv",
                     data_path/"Pulse255_SteadyDICData.csv",],
-        sens_array_key="TCs-DIC",
         sens_cols=np.arange(2,11),
-        sens_labels="TC",                    
+        sens_labels=["TC1","TC3","TC4","TC5","TC6","TC7","TC8","TC9","TC10"],
     ),
-    io.PointSensLoader(
+    "HIVE-DAQ" : io.PointSensLoader(
         load_files=[data_path/"Pulse253_SteadyHIVEData.csv",
                     data_path/"Pulse254_SteadyHIVEData.csv",
                     data_path/"Pulse255_SteadyHIVEData.csv",],
-        sens_array_key="TCs-HIVE",
         sens_cols=np.array([2,]),
-        sens_labels="TC",                    
+        sens_labels=["TC2",],                    
     ),
-    io.PointSensLoader(
+    "PICO-DAQ" : io.PointSensLoader(
         load_files=[data_path/"Pulse253_SteadyPICOData.csv",
                     data_path/"Pulse254_SteadyPICOData.csv",
                     data_path/"Pulse255_SteadyPICOData.csv",],
-        sens_array_key="CV",
         sens_cols=np.array([1,]),
-        sens_labels="CV",                    
+        sens_labels=["CV",],
     ),
-]
+}
 
 exp_data = io.load_exp_data(exp_loaders)
 
-print(80*"-")
-print("Loaded experimental point sensor data.\n")
+for kk,ee in exp_data.items():
+    print(f"exp_data[{kk}]:")
+    print(f"    .field.shape={ee.fields.shape}")
+    
+    if ee.coords is not None:
+        print(f"    .coords.shape={ee.coords.shape}")
+    else:
+        print(f"    .coords={ee.coords}")
 
-print("In exp_data.sens_labels:")
-for kk,aa in exp_data.sens_labels.items():   
-    print(f"exp_data.sens_labels[{kk}]=\n    {exp_data.sens_labels[kk]}")
-print()
+    if ee.times is not None:
+        print(f"    .times.shape={ee.times.shape}")
+    else:
+        print(f"    .times={ee.times}")
 
-print("In exp_data.fields:")
-for kk,aa in exp_data.fields.items():
-    print(f"exp_data.fields[{kk}].shape={exp_data.fields[kk].shape}")    
-print(80*"-")
-print()
+    print(f"    .sens_label_to_ind={ee.sens_label_to_ind}")
+    print(f"    .ind_to_sens_label={ee.ind_to_sens_label}")
 
+# TODO:
+# - Get the experimental data and the simulation data into ValData structures
