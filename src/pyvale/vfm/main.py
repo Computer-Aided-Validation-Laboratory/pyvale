@@ -19,18 +19,16 @@ import numpy as np
 
 strain_data = loadmat("/Users/chris/work/vfmap-numerical-paper/scripts/strain.mat")
 spatial_param_data = loadmat("/Users/chris/work/vfmap-numerical-paper/scripts/spatialParamData.mat")
-# Contains c11, c12, c22 arrays with 35708 values per column and 23 columns (timesteps)
-# c stands for component
+
+# Contains componenets c11, c12, c22 arrays with 35708 values per column and 23 columns (timesteps)
 strain = strain_data["strain"]
 # 23 timesteps x 35708 values
 c11 = strain["c11"][0][0]
 c12 = strain["c12"][0][0]
 c22 = strain["c22"][0][0]
-# print(c12)
 
 # 23 timesteps x 3 components x 35708 values
 strain = np.stack((c11, c22, c12), axis=2).transpose((1, 2, 0))
-# print(strain)
 
 young_modulus = 190000.0
 # Poisson's ratio
@@ -39,60 +37,31 @@ nu = 0.28
 elasticity_matrix = (young_modulus / (1 - nu**2)) * np.array(
     [[1.0, nu, 0.0], [nu, 1.0, 0.0], [0.0, 0.0, (0.5 * (1.0 - nu))]]
 )
-# print(strain.shape)
 
 incremental_strain = np.empty_like(strain)
 
 incremental_strain[0, :, :] = strain[0, :, :]
 incremental_strain[1:, :, :] = np.diff(strain, axis=0)
 
-# Convert shear strain component from tensorial shear strain to engineering shear strain
-# Since by convention tensorial shear strain is half of engineering shear strain
-incremental_strain[:, 2, :] *= 2
-
-# print(incremental_strain)
-
-# Calculate elastic predictor
-# no idea if this is the right name for this
-incremental_elasticity = incremental_strain.transpose(0, 2, 1).dot(elasticity_matrix).transpose(0, 2, 1)
-# print(incremental_elasticity)
-
 stress = np.empty_like(strain)
-stress[0, :, :] = incremental_elasticity[0, :, :]
-
-
-# print(stress)
-
-# The Y from hardeningfun
-yield_stress = 0
-
+# PEEQ
+equivalent_plastic_strain = np.empty((35708, 23))
 yield_strength = spatial_param_data["spatialParamData"]["param3"][0][0]["parameterMap"][0][0]
 hardening_modulus = spatial_param_data["spatialParamData"]["param4"][0][0]["parameterMap"][0][0]
 
-equivalent_plastic_strain = np.empty((23, 35708))
+num_timesteps = 23
+for i in range(num_timesteps):
+    # Convert shear strain component from tensorial shear strain to engineering shear strain
+    # Since by convention tensorial shear strain is half of engineering shear strain
+    incremental_strain[i, 2, :] *= 2
 
-for i in range(1, 23):
-    stress[i, :, :] = stress[i-1, :, :] + incremental_elasticity[i, :, :]
-    yield_stress_vec = yield_strength + (hardening_modulus * equivalent_plastic_strain)
-    print(yield_stress_vec)
-# For each timestep
-# - there are 35k c11 components
-# - there are 35k c12 components
-# - there are 35k c22 components
-#
-# delta_strain = 0
+    if i == 0:
+        stress[0, :, :] = incremental_strain[0, :, :].T.dot(elasticity_matrix).T
+        # Flatten with order F to use column major ordering same as matlab
+        yield_stress_vec = yield_strength.flatten(order="F") + (hardening_modulus.flatten(order="F") * equivalent_plastic_strain[:, 0])
+    else:
+        prev_stress = stress[i-1, :, :]
+        stress[i, :, :] = prev_stress + (incremental_strain[i, :, :].T.dot(elasticity_matrix).T)
+        yield_stress_vec = yield_strength.flatten(order="F") + (hardening_modulus.flatten(order="F") * equivalent_plastic_strain[:, i-1])
+        equivalent_plastic_strain[:, i] = equivalent_plastic_strain[:, i-1]
 
-# print(np.zeros((23, 35708, 3)))
-
-# eps = np.stack((c11, c12, c22), axis=2)
-# print(eps.shape)
-
-# dEps = np.empty_like(eps)
-
-# # First increment
-# dEps[:, 0, :] = eps[:, 0, :]
-
-# # Remaining increments
-# dEps[:, 1:, :] = eps[:, 1:, :] - eps[:, :-1, :]
-
-# print(dEps)
