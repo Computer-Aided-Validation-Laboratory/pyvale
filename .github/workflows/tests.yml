@@ -12,13 +12,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-15-latest]
+        os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-latest]
         include:
           - os: macos-14
             llvm: llvm@15
           - os: macos-15-intel
             llvm: llvm@18
-          - os: macos-15-latest
+          - os: macos-latest
             llvm: llvm@18
     steps:
       - name: Checkout code
