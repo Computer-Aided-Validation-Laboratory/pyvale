@@ -12,6 +12,10 @@ from pyvale.mooseherder.mooseconfig import MooseConfig
 
 class MooseRunner(SimRunner):
     """Used to run MOOSE models (*.i) from python."""
+
+    __slots__ = ("_config","_n_threads","_n_tasks","_redirect_stdout",
+                 "_arg_list","_input_path")
+
     def __init__(self, config: MooseConfig):
         """Constructor for MOOSE runner taking a MooseConfig object
         that contains the paths to the main MOOSE install, the MOOSE app and
@@ -42,7 +46,7 @@ class MooseRunner(SimRunner):
         os.environ['F77'] = 'mpif77'
         os.environ['FC'] = 'mpif90'
         os.environ['MOOSE_DIR'] = str(self._config['main_path'])
-        if not str(self._config['app_path']) in os.environ["PATH"]:
+        if str(self._config['app_path']) not in os.environ["PATH"]:
             os.environ["PATH"] = os.environ["PATH"] + ':' + str(self._config['app_path'])
 
     def set_threads(self, n_threads: int) -> None:

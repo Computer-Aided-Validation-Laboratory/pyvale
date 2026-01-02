@@ -53,20 +53,20 @@ class AnalyticData2D:
     key for a scalar field: ("scalar",).
     """
 
-    funcs_x: tuple[sympy.Expr,...] | None = None
+    funcs_x: dict[str,sympy.Expr] | None = None
     """Analytic functions describing the field variation as a function of the x
     coordinate. This tuple should have the same number of functions as the
     number of field keys. Analytic functions in x, y and t are multiplied
     together so setting a function to a constant of 1 will have no effect.
     """
-    funcs_y: tuple[sympy.Expr,...] | None = None
+    funcs_y: dict[str,sympy.Expr] | None = None
     """Analytic functions describing the field variation as a function of the y
     coordinate. This tuple should have the same number of functions as the
     number of field keys. Analytic functions in x, y and t are multiplied
     together so setting a function to a constant of 1 will have no effect.
     """
 
-    funcs_t: tuple[sympy.Expr,...] | None = None
+    funcs_t: dict[str,sympy.Expr] | None = None
     """Analytic functions describing the field variation as a function of time
     This tuple should have the same number of functions as the number of field
     keys. Analytic functions in x, y and t are multiplied together so setting a
@@ -81,12 +81,17 @@ class AnalyticData2D:
     are the symbols used to describe the analytic field functions.
     """
 
-    offsets_space: tuple[float,...] = (0.0,)
+    offset_space_x: dict[str,float] | None = None
     """Constants which are added to the physical field functions in each spatial
     dimensions.
     """
 
-    offsets_time: tuple[float,...] = (0.0,)
+    offset_space_y: dict[str,float] | None = None
+    """Constants which are added to the physical field functions in each spatial
+    dimensions.
+    """
+
+    offset_time: dict[str,float] | None = None
     """Constant which is added to the physical field function in time.
     """
 
@@ -94,6 +99,46 @@ class AnalyticData2D:
     """Number of nodes per element. Currently only rectangular meshes and with
     4 nodes per element are supported. Defaults to 4.
     """
+
+    def __post_init__(self) -> None:
+        if self.funcs_x is None:
+            self.funcs_x = {}
+
+        if self.funcs_y is None:
+            self.funcs_y = {}
+
+        if self.funcs_t is None:
+            self.funcs_t = {}
+
+        if self.offset_space_x is None:
+            self.offset_space_x = {}
+
+        if self.offset_space_y is None:
+            self.offset_space_y = {}
+
+        if self.offset_time is None:
+            self.offset_time = {}
+
+        # Set everything to have no effect if the key is not found. That way
+        # we can iterate over keys
+        for kk in self.field_keys:
+            if kk not in self.funcs_x:
+                self.funcs_x[kk] = 1.0
+
+            if kk not in self.funcs_y:
+                self.funcs_y[kk] = 1.0
+
+            if kk not in self.funcs_t:
+                self.funcs_t[kk] = 1.0
+
+            if kk not in self.offset_space_x:
+                self.offset_space_x[kk] = 0.0
+
+            if kk not in self.offset_space_y:
+                self.offset_space_y[kk] = 0.0
+
+            if kk not in self.offset_time:
+                self.offset_time[kk] = 0.0
 
 
 class AnalyticSimDataGen:
@@ -121,14 +166,14 @@ class AnalyticSimDataGen:
                                                          case_data.num_elem_x,
                                                          case_data.num_elem_y)
 
-        self.field_sym_funcs = dict()
-        self.field_lam_funcs = dict()
-        for ii,kk in enumerate(case_data.field_keys):
-            self.field_sym_funcs[kk] = ((case_data.funcs_x[ii] *
-                                          case_data.funcs_y[ii] +
-                                          case_data.offsets_space[ii]) *
-                                        (case_data.funcs_t[ii] +
-                                         case_data.offsets_time[ii]))
+        self.field_sym_funcs = {}
+        self.field_lam_funcs = {}
+        for kk in case_data.field_keys:
+            self.field_sym_funcs[kk] = (
+                (case_data.funcs_x[kk] + case_data.offset_space_x[kk])
+                *(case_data.funcs_y[kk] + case_data.offset_space_y[kk])
+                *(case_data.funcs_t[kk] + case_data.offset_time[kk])
+            )
 
             self.field_lam_funcs[kk] = sympy.lambdify(case_data.symbols,
                                                 self.field_sym_funcs[kk],

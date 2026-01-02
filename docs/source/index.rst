@@ -9,11 +9,11 @@
    :align: center
    :width: 600px
 
-The Python Validation Engine
-=============================
-Pyvale is your virtual engineering laboratory: An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration/validation.
+Pyvale: The Python Validation Engine
+====================================
+Pyvale is your virtual engineering laboratory: An all-in-one package for sensor uncertainty quantification simulation, experimental design, sensor placement optimisation  and simulation calibration/validation.
 Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties.
-Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
+Useful for experimental data analysis (especially for imaging sensors such as digital image correlation and infra-red thermography), experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
 
 **Current Release:**  |release|
 
@@ -23,7 +23,7 @@ Useful for experimental design, sensor placement optimisation, testing simulatio
    :maxdepth: 1
    :caption: Contents:
 
-   guide
+   guide/guide
    install/install
    examples/examples
    api_py

@@ -16,7 +16,7 @@ import pyvale.dataset as dataset
 
 def main() -> None:
     sim_path = dataset.mechanical_2d_path()
-    sim_data = mh.ExodusReader(sim_path).read_all_sim_data()
+    sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 
     image_path = dataset.dic_pattern_5mpx_path()
     image_speckle = sens.ImageTools.load_image_greyscale(image_path)

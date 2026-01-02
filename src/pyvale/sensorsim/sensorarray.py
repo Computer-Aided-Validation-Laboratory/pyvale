@@ -9,6 +9,8 @@ import numpy as np
 from pyvale.sensorsim.field import IField
 
 
+#TODO: when cameras, line, area and volume sensors are implemented this will 
+# need to be refactored. 
 class ISensorArray(ABC):
     """Interface (abstract base class) for an array of sensors of the same
     type sampling a given physical field.
@@ -21,9 +23,9 @@ class ISensorArray(ABC):
 
     The random and systematic errors are calculated by a user specified error
     integrator (`ErrIntegrator` class). This class contains a chain of different
-    types of user selected errors (implementations of the `IErrCalculator`
+    types of user selected errors (implementations of the `IErrSimulator`
     interface). Further information can be found in the `ErrIntegrator` class
-    and in implementations of the `IErrCalculator` interface.
+    and in implementations of the `IErrSimulator` interface.
 
     In `pyvale`, function and methods with `calc` in their name will cause
     probability distributions to be resampled and any additional calculations,
@@ -31,9 +33,9 @@ class ISensorArray(ABC):
     the name will directly return the previously calculated values without
     resampling probability distributions.
 
-    Calling the class method `calc_measurements()` will create and return an
+    Calling the class method `sim_measurements()` will create and return an
     array of simulated sensor measurements with the following shape=(num_sensors
-    ,num_field_component,num_time_steps). When calling `calc_measurements()` all
+    ,num_field_component,num_time_steps). When calling `sim_measurements()` all
     sensor errors that are based on probability distributions are resampled and
     any required interpolations are performed (e.g. a random perturbation of the
     sensor positions requiring interpolation at the perturbed sensor location).
@@ -81,7 +83,7 @@ class ISensorArray(ABC):
     def get_truth(self) -> np.ndarray:
         """Abstract method. Gets the ground truth sensor values that were
         calculated previously. If the ground truth values have not been
-        calculated then `calc_truth_values()` is called first.
+        calculated then `calc_truth()` is called first.
 
         Returns
         -------
@@ -137,13 +139,13 @@ class ISensorArray(ABC):
         pass
 
     @abstractmethod
-    def calc_measurements(self) -> np.ndarray:
+    def sim_measurements(self) -> np.ndarray:
         """Abstract method. Calculates measurements as: measurement = truth +
         systematic errors + random errors. The truth is calculated once and is
         interpolated from the input simulation field. The errors are calculated
         based on the user specified error chain.
 
-        NOTE: this is a 'calc' method and will sample all probability
+        NOTE: this is a 'sim' method and will sample all probability
         distributions in the error chain returning a new simulated experiment
         for this sensor array.
 
@@ -159,7 +161,7 @@ class ISensorArray(ABC):
     def get_measurements(self) -> np.ndarray:
         """Abstract method. Returns the current set of simulated measurements if
         theses have been calculated. If these have not been calculated then
-        'calc_measurements()' is called and a set of measurements in then
+        'sim_measurements()' is called and a set of measurements in then
         returned.
 
         NOTE: this is a 'get' method and does not sample from probability
@@ -173,6 +175,4 @@ class ISensorArray(ABC):
             (num_sensors,num_field_components,num_time_steps)
         """
         pass
-
-
 

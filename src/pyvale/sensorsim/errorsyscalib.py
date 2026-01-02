@@ -6,7 +6,7 @@
 
 from typing import Callable
 import numpy as np
-from pyvale.sensorsim.errorcalculator import (IErrCalculator,
+from pyvale.sensorsim.errorsimulator import (IErrSimulator,
                                          EErrType,
                                          EErrDep)
 from pyvale.sensorsim.sensordata import SensorData
@@ -14,13 +14,13 @@ from pyvale.sensorsim.sensordata import SensorData
 # TODO: add option to use Newton's method for function inversion instead of a
 # cal table.
 
-class ErrSysCalibration(IErrCalculator):
+class ErrSysCalibration(IErrSimulator):
     """Systematic error calculator for calibration errors. The user specifies an
     assumed calibration and a ground truth calibration function. The ground
     truth calibration function is inverted and linearly interpolated numerically
     based on the number of divisions specified by the user.
 
-    Implements the `IErrCalculator` interface.
+    Implements the `IErrSimulator` interface.
     """
     __slots__ = ("_assumed_cali","_truth_calib","_cal_range","_n_cal_divs",
                  "_err_dep","_truth_calc_table")
@@ -65,62 +65,21 @@ class ErrSysCalibration(IErrCalculator):
                                         self._truth_cal_table[:,0])
 
     def get_error_dep(self) -> EErrDep:
-        """Gets the error dependence state for this error calculator. An
-        independent error is calculated based on the input truth values as the
-        error basis. A dependent error is calculated based on the accumulated
-        sensor reading from all preceeding errors in the chain.
-
-        Returns
-        -------
-        EErrDependence
-            Enumeration defining INDEPENDENT or DEPENDENT behaviour.
-        """
         return self._err_dep
 
     def set_error_dep(self, dependence: EErrDep) -> None:
-        """Sets the error dependence state for this error calculator. An
-        independent error is calculated based on the input truth values as the
-        error basis. A dependent error is calculated based on the accumulated
-        sensor reading from all preceeding errors in the chain.
-
-        Parameters
-        ----------
-        dependence : EErrDependence
-            Enumeration defining INDEPENDENT or DEPENDENT behaviour.
-        """
         self._err_dep = dependence
 
     def get_error_type(self) -> EErrType:
-        """Gets the error type.
-
-        Returns
-        -------
-        EErrType
-            Enumeration definining RANDOM or SYSTEMATIC error types.
-        """
         return EErrType.SYSTEMATIC
 
-    def calc_errs(self,
+    def reseed(self, seed: int | None = None) -> None:
+        pass
+
+    def sim_errs(self,
                   err_basis: np.ndarray,
                   sens_data: SensorData,
                   ) -> tuple[np.ndarray, SensorData]:
-        """Calculates the error array based on the size of the input.
-
-        Parameters
-        ----------
-        err_basis : np.ndarray
-            Array of values with the same dimensions as the sensor measurement
-            matrix.
-        sens_data : SensorData
-            The accumulated sensor state data for all errors prior to this one.
-
-        Returns
-        -------
-        tuple[np.ndarray, SensorData]
-            Tuple containing the calculated error array and pass through of the
-            sensor data object as it is not modified by this class. The returned
-            error array has the same shape as the input error basis.
-        """
         # shape=(n_sens,n_comps,n_time_steps)
         signal_from_field = np.interp(err_basis,
                                     self._truth_cal_table[:,1],

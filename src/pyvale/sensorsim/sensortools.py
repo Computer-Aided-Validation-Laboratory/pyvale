@@ -8,11 +8,11 @@ import pyvale.mooseherder as mh
 from pyvale.sensorsim.sensorarray import ISensorArray
 
 
-def create_sensor_pos_array(num_sensors: tuple[int,int,int],
-                           x_lims: tuple[float, float],
-                           y_lims: tuple[float, float],
-                           z_lims: tuple[float, float]) -> np.ndarray:
-    """Function or creating a uniform grid of sensors inside the specified
+def gen_pos_grid_inside(num_sensors: tuple[int,int,int],
+                        x_lims: tuple[float, float],
+                        y_lims: tuple[float, float],
+                        z_lims: tuple[float, float]) -> np.ndarray:
+    """Function for creating a uniform grid of sensors inside the specified
     bounds and returning the positions in format that can be used to build a
     `SensorData` object.
 
@@ -48,7 +48,8 @@ def create_sensor_pos_array(num_sensors: tuple[int,int,int],
     sens_pos_z = np.linspace(z_lims[0],z_lims[1],num_sensors[2]+2)[1:-1]
 
     (sens_grid_x,sens_grid_y,sens_grid_z) = np.meshgrid(
-        sens_pos_x,sens_pos_y,sens_pos_z)
+        sens_pos_x,sens_pos_y,sens_pos_z
+    )
 
     sens_pos_x = sens_grid_x.flatten()
     sens_pos_y = sens_grid_y.flatten()
@@ -56,6 +57,11 @@ def create_sensor_pos_array(num_sensors: tuple[int,int,int],
 
     sens_pos = np.vstack((sens_pos_x,sens_pos_y,sens_pos_z)).T
     return sens_pos
+
+#TODO: create these functions
+# - Function for rectangular grid where sensors are placed up to the edges 
+# - Function for cylinder of sensor placements
+# - Function for sphere of seb5nsor placements
 
 
 def print_measurements(sens_array: ISensorArray,
@@ -88,7 +94,7 @@ def print_measurements(sens_array: ISensorArray,
     sys_errs = sens_array.get_errors_systematic()
     tot_errs = sens_array.get_errors_total()
 
-    print(f"\nmeasurement.shape = \n    {measurement.shape}")
+    print(f"measurement.shape = \n    {measurement.shape}")
     print(f"measurement = \n    {measurement[sensors,components,time_steps]}")
     print(f"truth = \n    {truth[sensors,components,time_steps]}")
 
@@ -101,7 +107,6 @@ def print_measurements(sens_array: ISensorArray,
     if tot_errs is not None:
         print(f"total errors = \n    {tot_errs[sensors,components,time_steps]}")
 
-    print()
 
 
 

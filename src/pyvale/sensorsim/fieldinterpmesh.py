@@ -4,67 +4,62 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-
 import numpy as np
 import pyvista as pv
 import pyvale.mooseherder as mh
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
-from pyvale.sensorsim.fieldinterp import (FieldInterp,
+from pyvale.sensorsim.fieldinterp import (IFieldInterp,
                                           interp_to_sample_time)
+from pyvale.sensorsim.enums import EDim
 
-class FieldInterpMesh(FieldInterp):
-    """TODO
+
+class FieldInterpMesh(IFieldInterp):
+    """Class for interpolating mesh-based simulation fields to the virtual
+    sensor locations and sample times. Note that mesh-based data includes a
+    connectivity table in the underlying `SimData` object.
+
+    Implements the `IFieldInterp` interface.
     """
 
-    __slots__ = ("_sim_time_steps","_components","_pyvista_interp")
+    __slots__ = ("_sim_time_steps","_comp_keys","_pyvista_interp")
 
     def __init__(self,
                  sim_data: mh.SimData,
-                 components: tuple[str,...],
-                 elem_dims: int,
+                 comp_keys: tuple[str,...],
+                 spatial_dims: EDim,
                  ) -> None:
         """
         Parameters
         ----------
         sim_data : mh.SimData
-            _description_
-        components : tuple[str,...]
-            _description_
-        elem_dims : int
-            _description_
+            Simulation data object containing the physical field(s) that the
+            virtual sensors will sample.
+        comp_keys : tuple[str,...]
+            Tuple of string keys for the components of the field(s) to be
+            interpolated.
+        spatial_dims : EDim
+            Enumeration used to determine the number of spatial dimensions of
+            the simulation to determine the underlying element types in the
+            mesh.
         """
         self._sim_time_steps = sim_data.time
-        self._components = components
+        self._comp_keys = comp_keys
         self._pyvista_interp = simdata_to_pyvista_interp(sim_data,
-                                                         self._components,
-                                                         elem_dims=elem_dims)
+                                                         self._comp_keys,
+                                                         spatial_dims)
 
     def interp_field(self,
                      points: np.ndarray,
                      sample_times: np.ndarray | None = None,
                      ) -> np.ndarray:
-        """_summary_
-
-        Parameters
-        ----------
-        points : np.ndarray
-            _description_
-        times : np.ndarray | None, optional
-            _description_, by default None
-
-        Returns
-        -------
-        np.ndarray
-            _description_
-        """
-        return sample_pyvista_grid(self._components,
+        return sample_pyvista_grid(self._comp_keys,
                                    self._pyvista_interp,
                                    self._sim_time_steps,
                                    points,
                                    sample_times)
 
 
-def sample_pyvista_grid(components: tuple[str,...],
+def sample_pyvista_grid(comp_keys: tuple[str,...],
                         pyvista_interp: pv.UnstructuredGrid,
                         sim_time_steps: np.ndarray,
                         points: np.ndarray,
@@ -80,12 +75,12 @@ def sample_pyvista_grid(components: tuple[str,...],
 
     Parameters
     ----------
-    components : tuple[str,...]
-        String keys for the components to be sampled in the pyvista grid object.
-        Useful for only interpolating the field components of interest for speed
+    comp_keys : tuple[str,...]
+        String keys for the comp_keys to be sampled in the pyvista grid object.
+        Useful for only interpolating the field comp_keys of interest for speed
         and memory reduction.
     pyvista_interp : pv.UnstructuredGrid
-        Pyvista grid object containing the simulation mesh and the components of
+        Pyvista grid object containing the simulation mesh and the comp_keys of
         the physical field that will be sampled.
     sim_time_steps : np.ndarray
         Simulation time steps corresponding to the fields in the pyvista grid
@@ -103,16 +98,16 @@ def sample_pyvista_grid(components: tuple[str,...],
     -------
     np.ndarray
         Array of sampled sensor measurements with shape=(num_sensors,
-        num_field_components,num_time_steps).
+        num_field_comp_keys,num_time_steps).
     """
     pv_points = pv.PolyData(points)
     sample_data = pv_points.sample(pyvista_interp)
 
-    n_comps = len(components)
-    (n_sensors,n_time_steps) = np.array(sample_data[components[0]]).shape
+    n_comps = len(comp_keys)
+    (n_sensors,n_time_steps) = np.array(sample_data[comp_keys[0]]).shape
     sample_at_sim_time = np.empty((n_sensors,n_comps,n_time_steps))
 
-    for ii,cc in enumerate(components):
+    for ii,cc in enumerate(comp_keys):
         sample_at_sim_time[:,ii,:] = np.array(sample_data[cc])
 
     if sample_times is None:
