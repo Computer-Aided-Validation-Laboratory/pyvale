@@ -3,9 +3,9 @@ name: Build Wheels and upload (if new release) to PyPI
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-      - dev
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
   release:
     types:
       - published
