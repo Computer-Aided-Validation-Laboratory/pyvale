@@ -30,11 +30,6 @@ jobs:
         if: startsWith(matrix.os, 'macos')
         run: |
           brew install libomp
-          echo "CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++" >> $GITHUB_ENV
-          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
-          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
       
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
@@ -42,14 +37,14 @@ jobs:
           package-dir: .
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
-        # env:
-        #   CIBW_SKIP: "pp*"
-        #   CIBW_ENVIRONMENT_MACOS: >
-        #     CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang
-        #     CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++
-        #     LDFLAGS="-L$(brew --prefix libomp)/lib"
-        #     CPPFLAGS="-I$(brew --prefix libomp)/include"
-        #     OpenMP_ROOT=$(brew --prefix libomp)
+        env:
+          CIBW_SKIP: "pp*"
+          CIBW_ENVIRONMENT_MACOS: >
+            CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang
+            CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++
+            LDFLAGS="-L$(brew --prefix libomp)/lib"
+            CPPFLAGS="-I$(brew --prefix libomp)/include"
+            OpenMP_ROOT=$(brew --prefix libomp)
       - uses: actions/upload-artifact@v4
         with:
           name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}
