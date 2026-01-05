@@ -78,22 +78,17 @@ Installation from Source
 ------------------------
 This will only be needed if you want an editable installation of ``pyvale`` for most applications users will want to use the PyPI version above.
 
-Clone ``pyvale`` to your local system along with submodules using
+Clone ``pyvale`` to your local system using:
 
 .. code-block:: bash
 
-   git clone --recurse-submodules git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
+   git clone git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
 
 ``cd`` to the root directory of ``pyvale``. Ensure you virtual environment is activated and run the following commmand from the ``pyvale`` directory:
 
 .. code-block:: bash
 
    pip install -e .
-   pip install -e ./dependencies/mooseherder
+   
+This will create an editable/developer installation of ``pyvale``.
 
-This will create an editable/developer installation of ``pyvale`` and ``mooseherder``.
-
-.. MOOSE
-.. ------------------------
-
-.. ``pyvale`` come pre-packaged with example ``moose`` physics simulation outputs (as *.e exodus files) to demonstrate its functionality. If you need to run additional simulation cases we recommend ``proteus`` (https://github.com/aurora-multiphysics/proteus) which has build scripts for common linux distributions.

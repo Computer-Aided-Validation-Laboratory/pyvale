@@ -34,7 +34,7 @@ from pyvale.mooseherder import (MooseHerd,
                                 MooseConfig,
                                 InputModifier,
                                 DirectoryManager,
-                                SweepReader,
+                                SweepLoader,
                                 sweep_param_grid)
 
 #%%
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 # We first use our sweep reader to inspect the output path keys to find the
 # simulation output files that exist in the simulation working directories.
 
-sweep_reader = SweepReader(dir_manager,num_para_read=4)
+sweep_reader = SweepLoader(dir_manager,num_para_read=4)
 output_files = sweep_reader.read_all_output_file_keys()
 
 print('Sweep output files (from output_keys.json):')
@@ -112,7 +112,7 @@ print()
 # includes a detailed description of each of the relevant fields you might want
 # to use for post-processing.
 sim_data_list = sweep_reader.read_results_once(output_files[0])
-sens.SimTools.print_sim_data(sim_data_list[0])
+sens.simtools.print_sim_data(sim_data_list[0])
 
 #%%
 # We can use the sweep reader to read results for each simulation chain in the

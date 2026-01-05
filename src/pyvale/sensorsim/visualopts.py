@@ -69,7 +69,7 @@ class PlotOptsGeneral:
     """Line width for traces on plots.
     """
 
-    cmap_seq: str = "cividis"
+    cmap_seq: str = "viridis"
     """The colormap to use for monotonic fields
     """
 
@@ -319,7 +319,7 @@ class TraceOptsExperiment:
     locations. If None then the line is not plotted for all virtual sensors.
     """
 
-    exp_centre_line: str = "-"
+    exp_centre_line: str = "--"
     """Matplotlib line style string for the experiment centre line.
     """
 

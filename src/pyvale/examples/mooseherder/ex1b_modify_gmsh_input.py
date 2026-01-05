@@ -16,7 +16,7 @@ We start by importing the packages we need for this example.
 
 from pathlib import Path
 
-# Pyvale imports
+# pyvale imports
 import pyvale.dataset as dataset
 from pyvale.mooseherder import InputModifier
 

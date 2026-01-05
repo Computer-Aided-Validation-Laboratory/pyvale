@@ -27,7 +27,7 @@ We start by importing what we need for this example.
 # We start with imports for paths and for our moose configuration object.
 from pathlib import Path
 
-# Pyvale imports
+# pyvale imports
 from pyvale.mooseherder import MooseConfig
 
 #%%

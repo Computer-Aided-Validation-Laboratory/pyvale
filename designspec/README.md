@@ -7,19 +7,20 @@ All user interfaces in `pyvale` should be written in Python to allow ease of use
 - C/C++
 - Zig
 
-The following can be used for linking compiled code to a python interface:
+We use [scikit-build-core](https://github.com/scikit-build/scikit-build-core) as our build system for python C extensions. Foreign function interface code between python and compiled languages must be written in pure C and conform to the C ABI due to computational overhead (no usage of C++ types like `vector` or `string`). The following can be used for linking compiled code to python:
 - Cython
 - Pybind
+- Nanobind
 
-For Zig we support a custom build process through our `setup.py` that pulls in the Zig compiler on pypi to build and dynamically link Zig libraries through C and Cython.
-
-GPU programming must be vendor agnostic. The following can be used for GPU programming:
+GPU compute programming must be vendor agnostic. The following can be used for GPU programming:
 - [HIP](https://github.com/ROCm/hip)
-
+- [OpenCL](https://www.khronos.org/opencl/)
+- [VulkanCompute](https://vkguide.dev/docs/gpudriven/compute_shaders/)
 
 ## Python coding guide
 We have non-software engineers and scientists working on the project so these guidelines are based on non-specialist python knowledge:
 
+- Prioritise an easy to remember and intuitive user API and performant code under the hood.
 - Work in your own 'feature' branch, merge into 'dev' - don't push to main (it should be protected and yell at you)!
 - Follow the PEP8 style guide: https://peps.python.org/pep-0008/
 - Use descriptive variable names, no single letter variables (double letters for iterators in numpy style are ok) single letter variables for indices / iterators are ok.
@@ -33,11 +34,11 @@ We have non-software engineers and scientists working on the project so these gu
 - Minimise dependencies as much as possible.
 - Avoid decorators unless absolutely necessary (`@dataclass`,  `@abstractmethod` and `@staticmethod` are examples that are ok)
 - Don't use `@property` to hide complicated variable initialisation behind the `.` notation - in fact just avoid `@property` altogether and just use a `@dataclass` for data only classes.
-- No inheritance unless it is an interface (python abstract base class `ABC`) - use composition / dependency injection. See this [video](https://www.youtube.com/watch?v=hxGOiiR9ZKg&t=3s) and thie [video](https://www.youtube.com/watch?v=J1f5b4vcxCQ&t=2s).
+- No inheritance unless it is a purely abstract interface (python abstract base class `ABC`) - use composition / dependency injection. See this [video](https://www.youtube.com/watch?v=hxGOiiR9ZKg&t=3s) and thie [video](https://www.youtube.com/watch?v=J1f5b4vcxCQ&t=2s).
 - Only use one layer of abstraction - don't inherit from multiple interfaces and don't use mix-ins.
 - For interfaces (abstract base classes) prefix the name of the class with a capital `I` e.g. `ISensor`
 - For enumerations prefix the name with a capital `E` so `EGeneratorType`.
-- Only use abstraction/interfaces when if/else or switch has at least 3 layers and/or becomes annoying.
+- Only use abstraction/interfaces when if/else or switch has at least 3 implementations and/or becomes annoying.
 - Use a mixture of plain functions and classes with methods where and when they make sense.
 - Imports requiring many `.`'s are annoying and the user finds the layers hard to remember. Bring everything to the top level so it can be accessed with `pyvale.`
 - Setup good defaults for variables where possible so that the user can get started with minimal input.

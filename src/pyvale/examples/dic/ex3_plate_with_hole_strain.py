@@ -1,6 +1,6 @@
 # ================================================================================
 # Example: DIC Challenge 2.0 Comparison
-# 
+#
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2024 The Computer Aided Validation Team
@@ -65,7 +65,7 @@ straindata = strain.import_2d(data=strain_output,
 # %%
 # Here's a simple example of how to visualize the deformation gradient components
 # for the first deformation step using matplotlib.
-fig, axes = plt.subplots(2, 2, figsize=(15, 5))
+fig, axes = plt.subplots(2, 2, figsize=(10, 10))
 axes = axes.flatten()
 fig.suptitle('Deformation Gradient for ' + straindata.filenames[0])
 
@@ -79,6 +79,9 @@ axes[0].set_title('deformation gradient xx')
 axes[1].set_title('deformation gradient xy')
 axes[2].set_title('deformation gradient yx')
 axes[3].set_title('deformation gradient yy')
+
+for aa in axes:
+    aa.set_aspect('equal')
 
 # Colorbars
 fig.colorbar(im1, ax=axes[0])

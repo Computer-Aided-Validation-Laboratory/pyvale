@@ -26,7 +26,7 @@ As always, we'll start with importing the required libraries:
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-# Pyvale imports
+# pyvale imports
 import pyvale.dataset as dataset
 import pyvale.dic as dic
 
