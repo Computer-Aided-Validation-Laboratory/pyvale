@@ -16,6 +16,8 @@ Geometry.VolumeLabels = 0;
 
 //------------------------------------------------------------------------------
 // Variables
+
+//_* MOOSEHERDER VARIABLES - START
 file_name = "case17.msh";
 
 // Geometric variables
@@ -35,6 +37,7 @@ plate_diff_nodes = 5; // numbers of nodes along the rectangular extension
 plate_edge_nodes = Floor((hole_sect_nodes-1)/2)+1;
 elem_size = hole_circ/(4*(hole_sect_nodes-1));
 tol = elem_size; // Used for bounding box selection tolerance
+//** MOOSEHERDER VARIABLES - START
 
 //------------------------------------------------------------------------------
 // Geometry Definition

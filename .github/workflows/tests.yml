@@ -1,0 +1,67 @@
+name: Run tests
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-latest]
+        include:
+          - os: macos-14
+            llvm: llvm@15
+          - os: macos-15-intel
+            llvm: llvm@18
+          - os: macos-latest
+            llvm: llvm@18
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install libomp and set compiler on macOS
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install libomp
+          echo "CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++" >> $GITHUB_ENV
+          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
+          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
+
+      - name: Install dependencies for ubuntu-latest
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt update
+          sudo apt install -y libegl1 libgl1 libxext6 libx11-6
+
+      - name: Upgrade pip and install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . -v
+
+      - name: Smoke test
+        run: |
+          python -c "import pyvale"
+
+      - name: Run sensorsim and DIC tests
+        run: |
+          pip install pytest pytest-mock
+          pytest -v tests/dic/. tests/sensorsim/.
+
+      - name: Run blender tests (skip macOS ARM)
+        if: ${{ !startsWith(matrix.os, 'macos') || contains(matrix.os, 'intel') }}
+        run: |
+          pip install pytest pytest-mock
+          pytest -v tests/blender/.

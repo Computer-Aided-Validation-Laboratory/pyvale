@@ -1,29 +1,20 @@
-'''
-================================================================================
-pyvale: the python computer aided validation engine
 
-License: MIT
-Copyright (C) 2025 The Computer Aided Validation Team
-================================================================================
-'''
+# ==============================================================================
+# pyvale: the python computer aided validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
 import time
 from pathlib import Path
 from importlib.resources import files
-from mooseherder import (MooseConfig,
+from pyvale.mooseherder import (MooseConfig,
                          MooseRunner,
                          GmshRunner)
 
 #===============================================================================
 # Change this to run a different case
-<<<<<<< HEAD
-<<<<<<< HEAD
-CASE_STR = 'case21'
-=======
-CASE_STR = 'case16'
->>>>>>> deploy
-=======
-CASE_STR = 'case00_HEX27'
->>>>>>> main
+CASE_STR = 'case26'
 #===============================================================================
 
 CASE_FILES = (CASE_STR+'.geo',CASE_STR+'.i')
@@ -39,7 +30,7 @@ def main() -> None:
         gmsh_start = time.perf_counter()
         gmsh_runner.run(CASE_DIR / CASE_FILES[0],parse_only=False)
         gmsh_run_time = time.perf_counter()-gmsh_start
-
+    
     config = {'main_path': USER_DIR / 'moose',
               'app_path': USER_DIR / 'proteus',
               'app_name': 'proteus-opt'}

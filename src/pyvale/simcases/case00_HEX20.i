@@ -22,7 +22,7 @@ eType = HEX20 # TET10, TET11, HEX20, HEX27
 # Thermal BCs
 coolantTemp=100.0      # degC
 heatTransCoeff=125.0e3 # W.m^-2.K^-1
-surfHeatFlux=4.67e6    # W.m^-2, taken from Adel's first paper
+surfHeatFlux=4.67e6    # W.m^-2, taken from Adels first paper
 timeConst = 1   # s
 
 # Mechanical Loads/BCs

@@ -1,11 +1,12 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "Cython", "numpy"]
+requires = ["setuptools>=61.0", "wheel", "Cython>=3.0.0", "numpy<2.0.0",
+    "pybind11>=2.13.6"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvale"
-version = "2025.5.3"
-description = "An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
+version = "2026.1.0"
+description = "Your virtual engineering lab: An all-in-one package for sensor simulation, uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
 ]
@@ -13,7 +14,6 @@ license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = "==3.11.*"
 dependencies = [
-  "mooseherder>=0.1.0",
   "numpy<2.0.0",
   "scipy>=1.14.0",
   "netCDF4>=1.6.5",
@@ -27,15 +27,24 @@ dependencies = [
   "numba>=0.59.1",
   "pymoo>=0.6.1.3",
   "Cython>=3.0.0",
-  "bpy>=4.2.0",
+  "bpy==4.5.4",
   "pyyaml>=6.0.2",
   "pytest>=8.3.5",
   "pybind11>=2.13.6",
+  "pyqtgraph>=0.13.7",
+  "opencv-python<=4.9.0.80",
+  "pandas>=2.3.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src",
+    "tests"
 ]
 
 [project.urls]
-"Repository" = "https://github.com/Digital-Validation-Laboratory/pyvale"
-"Issue Tracker" = "https://github.com/Digital-Validation-Laboratory/pyvale/issues"
+"Repository" = "https://github.com/Computer-Aided-Validation-Laboratory/pyvale"
+"Issue Tracker" = "https://github.com/Computer-Aided-Validation-Laboratory/pyvale/issues"
 
 [tool.setuptools.package-data]
 "pyvale.data" = ["*.e","*.tiff"]
