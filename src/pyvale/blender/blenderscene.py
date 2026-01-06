@@ -219,7 +219,7 @@ class Scene():
         bpy.context.scene.collection.objects.link(target)
         target.modifiers.new(name="solidify", type="SOLIDIFY")
         target.modifiers["solidify"].thickness = thickness
-        target.location = (0, 0, -target_size[2])
+        target.location = (0, 0, (-target_size[2] /2))
         return target
 
     def add_speckle(self,
@@ -227,7 +227,8 @@ class Scene():
                     speckle_path: Path | None,
                     mat_data: MaterialData | None,
                     mm_px_resolution: float,
-                    cal: bool = False) -> None:
+                    cal: bool = False,
+                    speckle_pattern: np.ndarray | None = None) -> None:
         """A method to add a speckle pattern to an existing mesh object within
         Blender. The speckle pattern can either be passed in as an image file
         that is saved to the disc, or can be generated dynamically (this is
@@ -255,10 +256,11 @@ class Scene():
         Tools.clear_material_nodes(part)
         if mat_data is None:
             mat_data = MaterialData()
-        if speckle_path.exists():
+        if speckle_path is None:
+            Tools.add_image_texture(mat_data=mat_data, image_array=speckle_pattern)
+        elif speckle_path.exists():
             Tools.add_image_texture(mat_data=mat_data, image_path=speckle_path)
         else:
-            speckle_pattern = np.array() # Generate speckle pattern array
             Tools.add_image_texture(mat_data=mat_data, image_array=speckle_pattern)
         Tools.uv_unwrap_part(part, mm_px_resolution, cal)
 
@@ -329,6 +331,7 @@ class Scene():
         if render_data.engine == RenderEngine.CYCLES:
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
+            bpy.context.scene.cycles.use_denoising = False
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
@@ -427,6 +430,7 @@ class Scene():
         if render_data.engine == RenderEngine.CYCLES:
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
+            bpy.context.scene.cycles.use_denoising = False
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
