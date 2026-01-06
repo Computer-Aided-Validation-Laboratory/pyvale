@@ -256,15 +256,15 @@ class Tools:
             image = Image.fromarray(image_array).convert("RGBA")
             new_image_array = np.array(image)
             blender_image = bpy.data.images.new("Speckle",
-                                                width=size[0],
-                                                height=size[1])
+                                                width=size[1],
+                                                height=size[0])
             pixels = new_image_array.flatten()
             blender_image.pixels = pixels
             blender_image.update()
             tex_image.image = blender_image
-
-
-        tex_image.interpolation = mat_data.interpolant
+      
+        # tex_image.interpolation = mat_data.interpolant
+        tex_image.interpolation = 'Closest'
 
         output = node_tree.nodes.new(type="ShaderNodeOutputMaterial")
         output.location = (0, 0)
@@ -362,6 +362,7 @@ class Tools:
         if render_data.engine == RenderEngine.CYCLES:
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
+            bpy.context.scene.cycles.use_denoising = False
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
