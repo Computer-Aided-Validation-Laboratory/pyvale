@@ -411,7 +411,9 @@ def check_and_get_images(reference: np.ndarray | str | Path,
                              f"roi={roi.shape}")
  
         # need to set some dummy filenames in the case that the user passes numpy arrays
-        filenames = [f"deformed image {i}" for i in range(def_arr.shape[0])]
+        filenames = ["ref_img"]
+        for f in range(0,def_arr.shape[0]):
+            filenames.append(f"def_img_{f}")
     
     # it might be the case that the roi has been manipulated prior to DIC run
     # and therefore we need to to prevent the roi mask from being a 'view'
