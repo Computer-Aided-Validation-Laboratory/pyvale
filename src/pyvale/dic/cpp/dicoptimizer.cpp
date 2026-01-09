@@ -162,32 +162,9 @@ namespace optimizer {
             }
 
             double dshape_df = - (ss_ref.vals[i] - def);
-            
-            if (num_params == 2) {
-                opt.g[0] += dshape_df*dfdx;
-                opt.g[1] += dshape_df*dfdy;
-            }
-            else if (num_params == 6) {
-                opt.g[0] += dshape_df*dfdx;
-                opt.g[1] += dshape_df*dfdy;
-                opt.g[2] += dshape_df*dfdx*def_x;
-                opt.g[3] += dshape_df*dfdx*def_y;
-                opt.g[4] += dshape_df*dfdy*def_x;
-                opt.g[5] += dshape_df*dfdy*def_y;
-            }
-            else if (num_params == 12) {
-                opt.g[0]  += dshape_df * dfdx;
-                opt.g[1]  += dshape_df * dfdy;
-                opt.g[2]  += dshape_df * dfdx * def_x;
-                opt.g[3]  += dshape_df * dfdx * def_y;
-                opt.g[4]  += dshape_df * dfdy * def_x;
-                opt.g[5]  += dshape_df * dfdy * def_y;
-                opt.g[6]  += dshape_df * dfdx * def_x*def_x;
-                opt.g[7]  += dshape_df * dfdx * def_x*def_y;
-                opt.g[8]  += dshape_df * dfdx * def_y*def_y;
-                opt.g[9]  += dshape_df * dfdy * def_x*def_x;
-                opt.g[10] += dshape_df * dfdy * def_x*def_y;
-                opt.g[11] += dshape_df * dfdy * def_y*def_y;
+
+            for (int j = 0; j < num_params; j++) {
+                opt.g[j] += dshape_df * opt.dfdp[j];
             }
 
         }
@@ -274,31 +251,8 @@ namespace optimizer {
             double dshape_df = - inv_sum_squared_def * (ss_ref.vals[i] * inv_sum_squared_ref - ss_def.vals[i] * inv_sum_squared_def);
 
 
-            if (num_params == 2) {
-                opt.g[0] += dshape_df * dfdx_i;
-                opt.g[1] += dshape_df * dfdy_i;
-            }
-            else if (num_params == 6) {
-                opt.g[0] += dshape_df * dfdx_i;
-                opt.g[1] += dshape_df * dfdy_i;
-                opt.g[2] += dshape_df * dfdx_i * def_x_i;
-                opt.g[3] += dshape_df * dfdx_i * def_y_i;
-                opt.g[4] += dshape_df * dfdy_i * def_x_i;
-                opt.g[5] += dshape_df * dfdy_i * def_y_i;
-            }
-            else if (num_params == 12) {
-                opt.g[0]  += dshape_df * dfdx_i;
-                opt.g[1]  += dshape_df * dfdy_i;
-                opt.g[2]  += dshape_df * dfdx_i * def_x_i;
-                opt.g[3]  += dshape_df * dfdx_i * def_y_i;
-                opt.g[4]  += dshape_df * dfdy_i * def_x_i;
-                opt.g[5]  += dshape_df * dfdy_i * def_y_i;
-                opt.g[6]  += dshape_df * dfdx_i * def_x_i*def_x_i;
-                opt.g[7]  += dshape_df * dfdx_i * def_x_i*def_y_i;
-                opt.g[8]  += dshape_df * dfdx_i * def_y_i*def_y_i;
-                opt.g[9]  += dshape_df * dfdy_i * def_x_i*def_x_i;
-                opt.g[10] += dshape_df * dfdy_i * def_x_i*def_y_i;
-                opt.g[11] += dshape_df * dfdy_i * def_y_i*def_y_i;
+            for (int j = 0; j < num_params; j++) {
+                opt.g[j] += dshape_df * opt.dfdp[j];
             }
 
             // Upper triangle of Hessian Matrix
@@ -384,10 +338,6 @@ namespace optimizer {
             mean_ref += ss_ref.vals[i];
             mean_def += ss_def.vals[i];
 
-            // std::cout << opt.p[0] << " " << opt.p[1] << " ";
-            // std::cout << global_x << " " << global_y << " ";
-            // std::cout << ss_ref.x[i] << " " << ss_ref.y[i] << " " << ss_ref.vals[i] << " ";
-            // std::cout << ss_def.x[i] << " " << ss_def.y[i] << " " << ss_def.vals[i] << std::endl;
         }
 
         mean_def /= num_px;
@@ -416,31 +366,8 @@ namespace optimizer {
 
             double dshape_df = - inv_sum_squared_def * ((ss_ref.vals[i] - mean_ref) * inv_sum_squared_ref - (ss_def.vals[i] - mean_def) * inv_sum_squared_def);
 
-            if (num_params == 2) {
-                opt.g[0] += dshape_df * dfdx[i];
-                opt.g[1] += dshape_df * dfdy[i];
-            }
-            else if (num_params == 6) {
-                opt.g[0] += dshape_df * dfdx_i;
-                opt.g[1] += dshape_df * dfdy_i;
-                opt.g[2] += dshape_df * dfdx_i * def_x_i;
-                opt.g[3] += dshape_df * dfdx_i * def_y_i;
-                opt.g[4] += dshape_df * dfdy_i * def_x_i;
-                opt.g[5] += dshape_df * dfdy_i * def_y_i;
-            }
-            else if (num_params == 12) {
-                opt.g[0]  += dshape_df * dfdx_i;
-                opt.g[1]  += dshape_df * dfdy_i;
-                opt.g[2]  += dshape_df * dfdx_i * def_x_i;
-                opt.g[3]  += dshape_df * dfdx_i * def_y_i;
-                opt.g[4]  += dshape_df * dfdy_i * def_x_i;
-                opt.g[5]  += dshape_df * dfdy_i * def_y_i;
-                opt.g[6]  += dshape_df * dfdx_i * def_x_i*def_x_i;
-                opt.g[7]  += dshape_df * dfdx_i * def_x_i*def_y_i;
-                opt.g[8]  += dshape_df * dfdx_i * def_y_i*def_y_i;
-                opt.g[9]  += dshape_df * dfdy_i * def_x_i*def_x_i;
-                opt.g[10] += dshape_df * dfdy_i * def_x_i*def_y_i;
-                opt.g[11] += dshape_df * dfdy_i * def_y_i*def_y_i;
+            for (int j = 0; j < num_params; j++) {
+                opt.g[j] += dshape_df * opt.dfdp[j];
             }
 
             // Upper triangle of Hessian Matrix
@@ -456,34 +383,6 @@ namespace optimizer {
         populate_hessian_lower_tri(opt.H, opt.lambda, opt.num_params);
         invertMatrix(opt.H, opt.invH, opt.augmented, opt.num_params);
         update_shapefunc_parameters(opt.pdp, opt.p, opt.dp, opt.invH, opt.g, opt.num_params);
-
-        // debugging
-        //#pragma omp critical
-        //{
-        //    std::cout << "ss_def_x " << ss_def.x[0] << " " << ss_def.x[1] << " " << ss_def.x[2] << std::endl;
-        //    std::cout << "ss_ref_x " << ss_ref.x[0] << " " << ss_ref.x[1] << " " << ss_ref.x[2] << std::endl;
-        //    std::cout << "ss_def   " << ss_def.vals[0] << " " << ss_def.vals[1] << " " << ss_def.vals[2] << std::endl;
-        //    std::cout << "ss_ref   " << ss_ref.vals[0] << " " << ss_ref.vals[1] << " " << ss_ref.vals[2] << std::endl;
-        //    std::cout << "means    " << mean_def << " " << mean_ref << std::endl;
-        //    std::cout << "invs     " << inv_sum_squared_def << " " << inv_sum_squared_ref << std::endl;
-        //    std::cout << "dfdx     " << dfdx[0] << " " << dfdy[0] << std::endl;
-        //    std::cout << "dfdp     " << opt.dfdp[0] << " " << opt.dfdp[1] << " " << opt.dfdp[2] << " " << opt.dfdp[3] << " " <<opt.dfdp[4] << " " << opt.dfdp[5] << std::endl;
-        //    std::cout << "g        " << opt.g[0] << " " << opt.g[1] << " " << opt.g[2] << " " << opt.g[3] << " " << opt.g[4] << " " << opt.g[5] << std::endl;
-        //    std::cout << "H        " << opt.H[0] << " " << opt.H[1] << " " << opt.H[2] << " " << opt.H[3] << " " << opt.H[4] << " " << opt.H[5] << std::endl;
-        //    std::cout << "Hi       " << opt.invH[0] << " " << opt.invH[1] << " " << opt.invH[2] << " " << opt.invH[3] << " " << opt.invH[4] << " " << opt.invH[5] << std::endl;
-        //    std::cout << "p        " << opt.p[0] << " " << opt.p[1] << " " << opt.p[2] << " " << opt.p[3] << " " << opt.p[4] << " " << opt.p[5] << std::endl;
-        //    std::cout << "pdp      " << opt.pdp[0] << " " << opt.pdp[1] << " " << opt.pdp[2] << " " << opt.pdp[3] << " " << opt.pdp[4] << " " << opt.pdp[5] << std::endl;
-        //    std::cout << opt.g.size() << std::endl;
-        //    std::cout << "invs " << inv_sum_squared_def << " " << inv_sum_squared_ref << std::endl;
-        //    std::cout << "dfdx " << dfdx[0] << " " << dfdy[0] << std::endl;
-        //    std::cout << "dfdp " << opt.dfdp[0] << " " << opt.dfdp[1] << std::endl;
-        //    std::cout << "g   " << opt.g[0] << " " << opt.g[1] << std::endl;
-        //    std::cout << "H   " << opt.H[0] << " " << opt.H[1] << " " << opt.H[2] << " " << opt.H[3] << std::endl;
-        //    std::cout << "Hi  " << opt.invH[0] << " " << opt.invH[1] << " " << opt.invH[2] << " " << opt.invH[3] << std::endl;
-        //    std::cout << "p   " << opt.p[0] << " " << opt.p[1] << std::endl;
-        //    std::cout << "pdp " << opt.pdp[0] << " " << opt.pdp[1] <<  std::endl;
-        //    exit(0);
-        //}
 
         // calculate cost function for current parameter values
         for (int i = 0; i < num_px; i++){
