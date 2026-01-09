@@ -52,6 +52,7 @@ void DICengine(const py::array_t<double>& img_stack_arr,
     // ------------------------------------------------------------------------
     // Initialisation
     // ------------------------------------------------------------------------
+    if (g_debug_level>0){
     TITLE("Config");
     INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
     INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
@@ -72,7 +73,7 @@ void DICengine(const py::array_t<double>& img_stack_arr,
     INFO_OUT("Debug level: ", conf.debug_level);
     if (conf.scan_method.find("RG") != std::string::npos)INFO_OUT("Reliability Guided Seed central px location: ", "(" 
                                          << conf.rg_seed.first+conf.ss_size/2 << ", " << conf.rg_seed.second+conf.ss_size/2 << ") [px] " )
-
+    }
 
     // get raw pointers
     bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
@@ -103,10 +104,11 @@ void DICengine(const py::array_t<double>& img_stack_arr,
     // -----------------------------------------------------------------------
     // loop over deformed images and perform DIC
     // -----------------------------------------------------------------------
-    std::cout << std::endl;
-    TITLE("Starting Correlation")
+    if (g_debug_level>0){
+        std::cout << std::endl;
+        TITLE("Starting Correlation")
+    }
     common_util::Timer timer("DIC Engine:");
-
 
     // pointer to reference image at start of stack
     double *img_ref = img_stack;

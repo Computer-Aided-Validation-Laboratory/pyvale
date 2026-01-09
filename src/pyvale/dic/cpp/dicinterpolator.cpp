@@ -58,7 +58,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
 
 
     std::atomic<int> current_progress = 0;
-    int niters = px_vert+px_hori+px_hori;
+    int niters = px_vert+px_hori+px_vert;
     ProgressBar pbar("Interpolator Initialisation:", niters);
 
     #ifdef _MSC_VER
@@ -88,7 +88,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
         }
 
         // update progress bar if enabled
-        if (g_debug_level == 1){
+        if (g_debug_level>1){
             int progress = current_progress.fetch_add(1);
             if (omp_get_thread_num() == 0) pbar.update(progress);
         }
@@ -122,7 +122,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
         }
 
         // update progress bar if enabled
-        if (g_debug_level == 1){
+        if (g_debug_level>1){
             int progress = current_progress.fetch_add(1);
             if (omp_get_thread_num() == 0) pbar.update(progress);
         }
@@ -158,14 +158,14 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
         }
 
         // update progress bar if enabled
-        if (g_debug_level == 1){
+        if (g_debug_level>1){
             int progress = current_progress.fetch_add(1);
             if (omp_get_thread_num() == 0) pbar.update(progress);
         }
     }
 
 
-    if (g_debug_level == 1){
+    if (g_debug_level>1){
         pbar.update(current_progress);
         pbar.finish();
     }

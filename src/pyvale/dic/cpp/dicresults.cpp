@@ -19,7 +19,7 @@
 
 OptResultArrays::OptResultArrays(int num_def_img, int num_ss, int num_params, bool at_end){
 
-    common_util::Timer timer("resizing of result arrays:");
+    if (g_debug_level>0) common_util::Timer timer("resizing of result arrays:");
     this->at_end = at_end;
     this->num_ss = num_ss;
     this->num_params = num_params;
@@ -90,7 +90,6 @@ void OptResultArrays::write_to_disk(int img_num, const common_util::SaveConfig &
 
     // Extract the base filename without extension
     std::string full_filename = filenames[img_num];
-    std::cout << " FULL_FILENAME " << filenames[img_num] << std::endl;
     size_t dot_pos = full_filename.find(".");
     if (dot_pos != std::string::npos) {
         full_filename = full_filename.substr(0, dot_pos);

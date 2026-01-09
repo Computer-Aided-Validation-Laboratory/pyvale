@@ -219,7 +219,7 @@ namespace fourier {
                     shifts[i].max_val[ss] = max_val;
 
 
-                    if (g_debug_level == 1){
+                    if (g_debug_level>0){
                         int progress = current_progress.fetch_add(1);
                         if (omp_get_thread_num()==0) pbar.update(progress+1);
                     }
@@ -243,7 +243,7 @@ namespace fourier {
             //}
             //std::cout << std::endl;
 
-            if (g_debug_level == 1){
+            if (g_debug_level>0){
                 pbar.update(current_progress);
                 pbar.finish();
             }

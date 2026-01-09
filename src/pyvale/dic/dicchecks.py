@@ -281,7 +281,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
 
 def check_and_get_images(reference: np.ndarray | str | Path,
                          deformed: np.ndarray | str | Path | list[Path],
-                         roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, list[str]]:
+                         roi: np.ndarray, debug_level: int) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """
     Load and validate reference and deformed images, checks consistency in shape/format.
 
@@ -306,6 +306,8 @@ def check_and_get_images(reference: np.ndarray | str | Path,
     roi : np.ndarray
         A 2D NumPy array defining the region of interest. Must match the reference image shape
         if `reference` is an array.
+    debug_level: int
+        Determines how much information to provide in console output.
 
     Returns
     -------
@@ -352,16 +354,23 @@ def check_and_get_images(reference: np.ndarray | str | Path,
 
         if not reference.is_file():
             raise ValueError(f"Reference image does not exist: {reference}")
-        print("Using reference image: ")
-        print(f"  - {reference}\n")
+
+
+        if (debug_level>0):
+            print("Using reference image: ")
+            print(f"  - {reference}\n")
 
         # Load reference image
         ref_arr = np.array(Image.open(reference))
-        print(f"Reference image shape: {ref_arr.shape}")
+
         if ref_arr.ndim == 3:
-            print(f"Reference image appears to have {ref_arr.shape[2]} channels. Using channel 0.")
+            if (debug_level>0):
+                print(f"Reference image appears to have {ref_arr.shape[2]} channels. Using channel 0.")
             ref_arr = ref_arr[:, :, 0]
-        print("")
+
+        if (debug_level>0):
+            print(f"Reference image shape: {ref_arr.shape}")
+            print("")
 
         filenames.append(os.path.basename(reference))
 
@@ -373,11 +382,16 @@ def check_and_get_images(reference: np.ndarray | str | Path,
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
-        print(f"Found {len(files)} deformation images:")
-        for file in files:
-            print(f"  - {file}")
-            filenames.append(os.path.basename(file))
-        print("")
+
+
+        if debug_level > 0:
+            print(f"Found {len(files)} deformation images:")
+            for file in files:
+                print(f"  - {file}")
+            print("")
+
+        # populate filenames list. Stars with ref image.
+        filenames.extend(os.path.basename(f) for f in files)
 
         def_arr = np.zeros((len(files), *ref_arr.shape), dtype=ref_arr.dtype)
 

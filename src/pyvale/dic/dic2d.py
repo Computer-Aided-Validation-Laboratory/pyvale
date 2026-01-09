@@ -6,6 +6,7 @@
 
 
 
+from logging import debug
 import numpy as np
 from pathlib import Path
 
@@ -131,14 +132,16 @@ def calculate_2d(reference: np.ndarray | str | Path,
         If provided file paths do not exist.
     """
 
+    if (debug_level>0):
+        dicchecks.print_title("Initial Checks")
+
     # do checks on vars in python land
-    dicchecks.print_title("Initial Checks")
-    image_stack, roi_c, filenames = dicchecks.check_and_get_images(reference,deformed,roi_mask)
+    image_stack, roi_c, filenames = dicchecks.check_and_get_images(reference,deformed,roi_mask, debug_level)
     dicchecks.check_correlation_criteria(correlation_criteria)
     dicchecks.check_interpolation(interpolation_routine)
     dicchecks.check_method(method)
     dicchecks.check_thresholds(opt_threshold, bf_threshold, opt_precision)
-    common_py_util.check_output_directory(str(output_basepath), output_prefix)
+    common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks.check_subsets(subset_size, subset_step)
     updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, image_stack.shape[2], image_stack.shape[1], subset_size, subset_step)
     num_params = dicchecks.check_shape_function(shape_function)
@@ -166,8 +169,6 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.fft_mad = fft_mad
     config.fft_mad_scale = fft_mad_scale
     config.debug_level = debug_level
-
-    print(filenames)
 
     # assigning c++ struct vals for save config
     saveconf = common_cpp.SaveConfig()

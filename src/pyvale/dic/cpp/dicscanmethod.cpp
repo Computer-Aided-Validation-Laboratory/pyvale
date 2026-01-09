@@ -239,8 +239,10 @@ namespace scanmethod {
                     local_q[0].push(rg::Point(nidx,nres.cost));
 
                     // update progress bar
-                    int progress = current_progress.fetch_add(1);
-                    pbar.update(progress);
+                    if (g_debug_level>0){
+                        int progress = current_progress.fetch_add(1);
+                        pbar.update(progress);
+                    }
                 }
             }
 
@@ -347,9 +349,10 @@ namespace scanmethod {
                         temp_neigh.emplace_back(nidx, nres.cost);
 
                         // update progress bar
-                        int progress = current_progress.fetch_add(1);
-                        if (omp_get_thread_num()==0) pbar.update(progress);
-
+                        if (g_debug_level>0){
+                            int progress = current_progress.fetch_add(1);
+                            if (omp_get_thread_num()==0) pbar.update(progress);
+                        }
                     }
                 }
 
@@ -359,8 +362,10 @@ namespace scanmethod {
                 }
             }
         }
-        pbar.update(current_progress+1);
-        pbar.finish();
+        if (g_debug_level>0){
+            pbar.update(current_progress+1);
+            pbar.finish();
+        }
     }
 
     void singlewindow_incremental_reliability_guided(const double *img_ref,
@@ -750,6 +755,7 @@ namespace scanmethod {
         // get number of subsets and the size for the smalllest window size
         const int num_ss  = ss_grid.num;
         const int ss_size = ss_grid.size;
+        const int results_num = img_num-1;
 
         // progress bar
         std::string bar_title = "Correlation for " + conf.filenames[img_num] + ":";
