@@ -7,7 +7,6 @@
 
 // STD library Header files
 #include <vector>
-#include <sstream>
 
 // common_cpp header files
 #include "../../common_cpp/util.hpp"
@@ -47,12 +46,10 @@ OptResultArrays::OptResultArrays(int num_def_img, int num_ss, int num_params, bo
     }
 }
 
-void OptResultArrays::append(OptResult &res, int img_num, int ss) {
-    int idx;
-    if (at_end) idx = img_num * num_ss + ss;
-    else idx = ss;
+void OptResultArrays::append(OptResult &res, int results_num, int ss) {
+    int idx = index(ss, results_num);
 
-    int idx_p = res.p.size()*idx;
+    int idx_p = num_params*idx;
     niter[idx] = res.iter;
     u[idx] = res.u;
     v[idx] = res.v;
@@ -60,32 +57,32 @@ void OptResultArrays::append(OptResult &res, int img_num, int ss) {
     xtol[idx] = res.xtol;
     cost[idx] = res.cost;
     conv[idx] = res.converged;
-    for (size_t i = 0; i < res.p.size(); i++){
+    for (size_t i = 0; i < num_params; i++){
         p[idx_p+i] = res.p[i];
     }
 }
 
-int OptResultArrays::index(const int subset_idx, const int img_num){
-    int idx = at_end ? (img_num) * num_ss + subset_idx : subset_idx;
+int OptResultArrays::index(const int subset_idx, const int results_num){
+    int idx = at_end ? (results_num) * num_ss + subset_idx : subset_idx;
     return idx;
 }
 
-int OptResultArrays::index_parameters(const int subset_idx, const int img_num){
-    int idx = index(subset_idx, img_num) * num_params;
+int OptResultArrays::index_parameters(const int subset_idx, const int results_num){
+    int idx = index(subset_idx, results_num) * num_params;
     return idx;
 }
 
 
-void OptResultArrays::write_to_disk(int results_num, const common_util::SaveConfig &saveconf,
+void OptResultArrays::write_to_disk(int img_num, const common_util::SaveConfig &saveconf,
                     const subset::Grid &ss_grid, const int num_def_img,
                     const std::vector<std::string> &filenames){
 
     const std::string delimiter = saveconf.delimiter;
-    const int img_num = results_num+1;
 
     // open the file
     std::stringstream outfile_str;
     std::ofstream outfile;
+    int results_num = img_num-1;
 
     std::string file_ext;
     if (saveconf.binary) file_ext=".dic2d";
@@ -93,6 +90,7 @@ void OptResultArrays::write_to_disk(int results_num, const common_util::SaveConf
 
     // Extract the base filename without extension
     std::string full_filename = filenames[img_num];
+    std::cout << " FULL_FILENAME " << filenames[img_num] << std::endl;
     size_t dot_pos = full_filename.find(".");
     if (dot_pos != std::string::npos) {
         full_filename = full_filename.substr(0, dot_pos);
@@ -111,7 +109,7 @@ void OptResultArrays::write_to_disk(int results_num, const common_util::SaveConf
 
         for (int i = 0; i < ss_grid.num; ++i) {
 
-            int idx = results_num * ss_grid.num + i;
+            int idx = index(i, results_num);
             //int idx_p = num_params*idx;
 
             // if the subset has not converged, set values to nan
@@ -162,8 +160,8 @@ void OptResultArrays::write_to_disk(int results_num, const common_util::SaveConf
         // column headers
         outfile << "subset_x" << delimiter;
         outfile << "subset_y" << delimiter;
-        outfile << "displacement_x" << delimiter;
-        outfile << "displacement_y" << delimiter;
+        outfile << "displacement_u" << delimiter;
+        outfile << "displacement_v" << delimiter;
         outfile << "displacement_mag" << delimiter;
         outfile << "converged" << delimiter;
         outfile << "cost" << delimiter;
@@ -184,7 +182,7 @@ void OptResultArrays::write_to_disk(int results_num, const common_util::SaveConf
 
         for (int i = 0; i < ss_grid.num; i++) {
 
-            int idx = results_num * ss_grid.num + i;
+            int idx = index(i, results_num);
             //int idx_p = num_params*idx;
 
             // convert from corner to centre subset coords
