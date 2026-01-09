@@ -179,14 +179,14 @@ void DICengine(const py::array_t<double>& img_stack_arr,
 
 
         if (!saveconf.at_end)
-            result_arrays.write_to_disk(img_num-1, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
+            result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
 
         if (stop_request) break;
     }
 
     if (saveconf.at_end)
         for (int img_num = 1; img_num < conf.num_def_img+1; img_num++)
-            result_arrays.write_to_disk(img_num-1, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
+            result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
 
 
     if (interp_ref) delete interp_ref;
