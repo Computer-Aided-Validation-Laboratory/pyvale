@@ -41,7 +41,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  output_delimiter: str=",",
                  output_unconverged: bool=False,
                  output_shape_params: bool=False,
-                 debug_level: int=0) -> None:
+                 debug_level: int=1) -> None:
 
     """
     Perform 2D Digital Image Correlation (DIC) between a reference image and one or more deformed images.
