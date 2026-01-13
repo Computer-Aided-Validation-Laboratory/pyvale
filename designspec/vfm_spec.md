@@ -80,11 +80,12 @@ Some of the key functionality is listed below.
 
 A non-exhaustive list of sub-modules is provided below including the required inputs, processing and outputs for each. Note that the specific organisation of sub-modules will change as the project develops, it most important that the key functionality and workflows are supported for the objectives above.
 
-## Sub-Module: Stress reconstruction (unsure if best as a submodule or not?)
 
+## Sub-Module: Stress reconstruction (unsure if best as a submodule or not?)
 This sub-module computes full-field stresses from full-field strains using a defined constitutive laws and set of constitutive parameters. 
 
 Two main approaches are implemented in this package:
+
 .1. Radial return
 - ref: "Computational Methods in Plasticity - de Souza Neto, EA, et al.
 - give credit to Aleksander Marek (ref SBVF paper)
@@ -176,7 +177,7 @@ Key steps (rough outline of the process):
 - Leave as placeholder for now. Can implement at later date.
 
 
-## Deliverables
+### Deliverables
 - A module with the following sub-modules (note these are just suggested names and are not binding, use whatever structure makes most sense during development to achieve the desired functionality):
     - StressRecon.RadialReturn
     - StressRecon.Neml  (better name?)
@@ -185,3 +186,44 @@ Key steps (rough outline of the process):
 - Example/tutorial scripts demonstrating the functionality 
 - A short markdown report comparing radial return and neml
 - A short markdown theory document explaining core ideas 
+
+
+## Sub-Module: Stress equilibrium evaluation
+
+This sub-module computes various stress equilibrium metrics. These metrics can be used to assess how well a given stress field satisfies stress equilibrium. The existing metrics use various formulations of virtual fields to assess different aspects of the stress field. The key metrics as of now are: sensitivity based virtual fields (SBVFs), Equilibrium Gap Indicator (EGI) and Force Reconstruction Error (FRE).These metrics can be combined into a cost function for the purpose of mechanical property identification using the virtual fields method.
+
+### Inputs
+- stress
+	- convention of stress variable to be defined consistently.
+		- should correspond with strain (see inputs)
+		- 4d? order of dimensions? what components to include (von mises?)?
+- applied force / boundary conditions on specimen surface
+	- need convention of boundary conditions
+	- which surfaces are fixed, free, have a traction etc
+- options
+	- TBD
+
+### Outputs
+- equilibrium metrics
+	- could be 3d maps with spatial-temporal data
+	- could be single scalar value for optimisation
+	- could be 2d map showing spatial variation throughout specimen
+
+### Workflow
+- will vary slightly for each metric
+
+#### SBVF
+- compute mesh for sbvf (see generateVirtualMesh.m)
+- compute stress sensitivities (see computeStressSensitivity_dof.m)
+	- should work with homogeneous parameters and het parameters (DOF level)
+- compute SBVFs (see sensitivityVFs.m)
+- evaluate SBVF cost function (see globalVirtualFieldCostFunction.m)
+
+
+#### FRE
+...
+
+#### EGI
+...
+
+
