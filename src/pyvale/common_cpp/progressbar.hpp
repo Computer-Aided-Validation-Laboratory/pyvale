@@ -15,7 +15,7 @@ private:
     int current_iter;
     std::chrono::steady_clock::time_point start_time;
     bool started;
-    static constexpr int CONSOLE_WIDTH = 100; // Adjust based on your needs
+    static constexpr int CONSOLE_WIDTH = 100;
 
 public:
     // Constructor
@@ -44,14 +44,12 @@ public:
 
         // Build the progress string
         std::ostringstream oss;
-        oss << "\r" << std::left << std::setw(40) << message 
-            << std::right 
+        oss << "\r" << std::left << std::setw(40) << message << std::right
             << "[" << std::setw(6) << current_iter << "/" << std::setw(6) << total_iterations << "]  "
             << std::fixed << std::setprecision(1) << std::setw(5) << percent << "%  "
-            << "Time: [" << std::setw(12) << time_str
-            << "]\t" << std::flush;
+            << "Time: [" << std::setw(12) << time_str << "]\t";
+            std::cout << "\r" << oss.str() << std::flush;
 
-        std::cout << oss.str();
     }
 
     // Increment and update (convenient for loops)
