@@ -47,8 +47,8 @@ c22 = strain["c22"][0][0]
 # 23 timesteps x 35708 values x 3 components          # R - need to decide on convention and ensure consistent (it may be currently, unsure.). Prob best to go npts x nsteps x ncomp for 3d, where npts is consistently wrapped / unwrapped to and from x by y grid
 strain = np.stack((c11, c22, c12), axis=2).transpose((1, 0, 2))
 
-# R - unsure what convention we want to use for blockers / headers etc to help keep code readable. 
-# 
+# R - unsure what convention we want to use for blockers / headers etc to help keep code readable.
+#
 # Perhaps none (just standard comment like below line):
 # Initialisation
 #
@@ -57,7 +57,7 @@ strain = np.stack((c11, c22, c12), axis=2).transpose((1, 0, 2))
 # Initialisation
 # ---------------
 #
-#  === Initialisation ===  
+#  === Initialisation ===
 
 # Output stresses
 sigma_xx = np.zeros((NUM_POINTS, NUM_TIMESTEPS))
@@ -79,15 +79,14 @@ p = np.array([[2 / 3, -1 / 3, 0], [-1 / 3, 2 / 3, 0], [0, 0, 2]])
 
 delta_lambda = np.zeros(NUM_POINTS)
 delta_ksi_delta_lambda = np.zeros(NUM_POINTS)
-# equivalent plastic strain
-peeq = np.empty((NUM_POINTS, NUM_TIMESTEPS))
-hbar = np.zeros(NUM_POINTS)
 ksi = np.zeros(NUM_POINTS)
 # Plastic criterion
 flyt = np.zeros(NUM_POINTS)
 flyt_prime = np.zeros(NUM_POINTS)
+# equivalent plastic strain
+peeq = np.zeros((NUM_POINTS, NUM_TIMESTEPS))
+hbar = np.zeros(NUM_POINTS)
 prev_plasticity_mask = np.zeros(NUM_POINTS)
-
 incremental_strain = np.empty_like(strain)
 
 incremental_strain[0, :, :] = strain[0, :, :]
@@ -105,7 +104,7 @@ elasticity_matrix = (YOUNGS_MODULUS / (1 - POISSONS_RATIO**2)) * np.array(
     ]
 )
 
-# R - currently merged hardening function with main loop. Once happy, be sure to disentangle again 
+# R - currently merged hardening function with main loop. Once happy, be sure to disentangle again
 yield_strength = spatial_param_data["spatialParamData"]["param3"][0][0]["parameterMap"][
     0
 ][0]
@@ -149,11 +148,11 @@ for t in range(NUM_TIMESTEPS):
     elasticity_mask = np.logical_not(yield_criterion_check)
 
     # Update elastic stresses
-    sigma_xx[plasticity_mask, t] = stress[t, plasticity_mask, 0]
-    sigma_yy[plasticity_mask, t] = stress[t, plasticity_mask, 1]
-    sigma_xy[plasticity_mask, t] = stress[t, plasticity_mask, 2]
-    von_mises_stress[plasticity_mask, t] = np.sqrt(
-        3 * equivalent_stress[plasticity_mask]
+    sigma_xx[elasticity_mask, t] = stress[t, elasticity_mask, 0]
+    sigma_yy[elasticity_mask, t] = stress[t, elasticity_mask, 1]
+    sigma_xy[elasticity_mask, t] = stress[t, elasticity_mask, 2]
+    von_mises_stress[elasticity_mask, t] = np.sqrt(
+        3 * equivalent_stress[elasticity_mask]
     )
 
     ksi[plasticity_mask] = (
@@ -167,9 +166,9 @@ for t in range(NUM_TIMESTEPS):
     )
 
     # Calculate error and normalise it by effective stress
-    err = np.zeros(NUM_POINTS)
-    err[plasticity_mask] = flyt[plasticity_mask]
-    err[plasticity_mask] = err[plasticity_mask] / ksi[plasticity_mask]
+    error = np.zeros(NUM_POINTS)
+    error[plasticity_mask] = flyt[plasticity_mask]
+    error[plasticity_mask] = error[plasticity_mask] / ksi[plasticity_mask]
 
     # Square of sum of normal components (for efficiency)
     stress_sum = np.sum(stress[t, :, 0:2], axis=1) ** 2
@@ -180,7 +179,7 @@ for t in range(NUM_TIMESTEPS):
     num_iter = 0
     iter_limit = 100
 
-    while np.any(err > err_tolerance) and (num_iter < iter_limit):
+    while np.any(error > err_tolerance) and (num_iter < iter_limit):
         # Derivative of ksi wrt plastic multiplier
         delta_ksi_delta_lambda_all = -YOUNGS_MODULUS / (
             1 - POISSONS_RATIO
@@ -203,7 +202,7 @@ for t in range(NUM_TIMESTEPS):
             )
 
         yield_stress = yield_strength.flatten(order="F") + (
-            hardening_modulus.flatten(order="F") * peeq[:, 0]
+            hardening_modulus.flatten(order="F") * peeq[:, t]
         )
         delta_yield_stress_delta_peeq = hardening_modulus.flatten(order="F")
 
@@ -249,19 +248,19 @@ for t in range(NUM_TIMESTEPS):
             )
 
         yield_stress = yield_strength.flatten(order="F") + (
-            hardening_modulus.flatten(order="F") * peeq[:, 0]
+            hardening_modulus.flatten(order="F") * peeq[:, t]
         )
         delta_yield_stress_delta_peeq = hardening_modulus.flatten(order="F")
 
         flyt[plasticity_mask] = 0.5 * ksi[plasticity_mask] - (
-            1 / 3 * (yield_stress[plasticity_mask] ** 2)
+            (1.0 / 3.0) * (yield_stress[plasticity_mask] ** 2)
         )
 
-        err = np.zeros(NUM_POINTS)
-        err[plasticity_mask] = np.abs(flyt[plasticity_mask])
+        error = np.zeros(NUM_POINTS)
+        error[plasticity_mask] = np.abs(flyt[plasticity_mask])
 
         # Normalise by effective stress
-        err[plasticity_mask] = err[plasticity_mask] / ksi[plasticity_mask]
+        error[plasticity_mask] = error[plasticity_mask] / ksi[plasticity_mask]
 
         num_iter += 1
 
@@ -301,53 +300,76 @@ for t in range(NUM_TIMESTEPS):
         sigma_yy[mask, t] = sigma_yy[mask, t - 1]
         sigma_xy[mask, t] = sigma_xy[mask, t - 1]
 
-    dep_c11 = delta_lambda * (
-        p[0, 0] * stress[t, :, 0]
-        + p[0, 1] * stress[t, :, 1]
-        + p[0, 2] * stress[t, :, 2]
-    )
+    # dep_c11 = delta_lambda * (
+    #     p[0, 0] * stress[t, :, 0]
+    #     + p[0, 1] * stress[t, :, 1]
+    #     + p[0, 2] * stress[t, :, 2]
+    # )
 
-    dep_c22 = delta_lambda * (
-        p[1, 0] * stress[t, :, 0]
-        + p[1, 1] * stress[t, :, 1]
-        + p[1, 2] * stress[t, :, 2]
-    )
+    # dep_c22 = delta_lambda * (
+    #     p[1, 0] * stress[t, :, 0]
+    #     + p[1, 1] * stress[t, :, 1]
+    #     + p[1, 2] * stress[t, :, 2]
+    # )
 
-    dep_c12 = delta_lambda * (
-        p[2, 0] * stress[t, :, 0]
-        + p[2, 1] * stress[t, :, 1]
-        + p[2, 2] * stress[t, :, 2]
-    )
+    # dep_c12 = delta_lambda * (
+    #     p[2, 0] * stress[t, :, 0]
+    #     + p[2, 1] * stress[t, :, 1]
+    #     + p[2, 2] * stress[t, :, 2]
+    # )
 
-    dee_c11 = incremental_strain[t, :, 0] - dep_c11
-    dee_c22 = incremental_strain[t, :, 1] - dep_c22
-    dee_c12 = incremental_strain[t, :, 2] - dep_c12
+    # dee_c11 = incremental_strain[t, :, 0] - dep_c11
+    # dee_c22 = incremental_strain[t, :, 1] - dep_c22
+    # dee_c12 = incremental_strain[t, :, 2] - dep_c12
 
-    deps_33 = (-POISSONS_RATIO / (1 - POISSONS_RATIO)) * (dee_c11 + dee_c22) - (
-        dep_c11 + dep_c22
-    )
+    # deps_33 = (-POISSONS_RATIO / (1 - POISSONS_RATIO)) * (dee_c11 + dee_c22) - (
+    #     dep_c11 + dep_c22
+    # )
 
-    if t == 0:
-        ep_c11[:, t] = dep_c11
-        ep_c22[:, t] = dep_c22
-        ep_c12[:, t] = dep_c12
-        ee_c11[:, t] = dee_c11
-        ee_c22[:, t] = dee_c22
-        ee_c12[:, t] = dee_c12
-        eps_33[:, t] = deps_33
-    else:
-        ep_c11[:, t] = ep_c11[:, t - 1] + dep_c11
-        ep_c22[:, t] = ep_c22[:, t - 1] + dep_c22
-        ep_c12[:, t] = ep_c12[:, t - 1] + dep_c12
-        ee_c11[:, t] = ee_c11[:, t - 1] + dee_c11
-        ee_c22[:, t] = ee_c22[:, t - 1] + dee_c22
-        ee_c12[:, t] = ee_c12[:, t - 1] + dee_c12
-        eps_33[:, t] = eps_33[:, t - 1] + deps_33
+    # if t == 0:
+    #     ep_c11[:, t] = dep_c11
+    #     ep_c22[:, t] = dep_c22
+    #     ep_c12[:, t] = dep_c12
+    #     ee_c11[:, t] = dee_c11
+    #     ee_c22[:, t] = dee_c22
+    #     ee_c12[:, t] = dee_c12
+    #     eps_33[:, t] = deps_33
+    # else:
+    #     ep_c11[:, t] = ep_c11[:, t - 1] + dep_c11
+    #     ep_c22[:, t] = ep_c22[:, t - 1] + dep_c22
+    #     ep_c12[:, t] = ep_c12[:, t - 1] + dep_c12
+    #     ee_c11[:, t] = ee_c11[:, t - 1] + dee_c11
+    #     ee_c22[:, t] = ee_c22[:, t - 1] + dee_c22
+    #     ee_c12[:, t] = ee_c12[:, t - 1] + dee_c12
+    #     eps_33[:, t] = eps_33[:, t - 1] + deps_33
 
+    delta_lambda = np.zeros(NUM_POINTS)
+    delta_ksi_delta_lambda = np.zeros(NUM_POINTS)
+    ksi = np.zeros(NUM_POINTS)
+    # Plastic criterion
+    flyt = np.zeros(NUM_POINTS)
+    flyt_prime = np.zeros(NUM_POINTS)
     prev_plasticity_mask = plasticity_mask
+    plasticity_mask = np.zeros(NUM_POINTS)
+    elasticity_mask = np.zeros(NUM_POINTS)
 
-# Write outputs
-print(sigma_xx)
-print(sigma_yy)
-print(sigma_xy)
-print(von_mises_stress)
+# Outputs
+# print(sigma_xx)
+# print(sigma_yy)
+# print(sigma_xy)
+# print(von_mises_stress)
+
+output_data = loadmat(
+    "/Users/chris/work/vfmap-numerical-paper/scripts/vmplasticity_output.mat"
+)
+c11 = output_data["stressOutput"][0][0]["c11"]
+c22 = output_data["stressOutput"][0][0]["c22"]
+c12 = output_data["stressOutput"][0][0]["c12"]
+vm = output_data["stressOutput"][0][0]["vm"]
+
+x = sigma_xx - c11
+print(x)
+# assert np.allclose(c11, sigma_xx, atol=10)
+# assert np.allclose(c22, sigma_yy, rtol=1e-8, atol=1e-12)
+# assert np.allclose(c12, sigma_xy, rtol=1e-8, atol=1e-12)
+# assert np.allclose(vm, von_mises_stress, rtol=1e-8, atol=1e-12)
