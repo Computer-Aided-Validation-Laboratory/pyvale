@@ -19,7 +19,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 from pathlib import Path
 
-# Pyvale imports
+# pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.dataset as dataset
 import pyvale.blender as blender
@@ -31,7 +31,7 @@ import pyvale.mooseherder as mh
 # simulation output in exodus format (*.e).
 
 data_path = dataset.render_mechanical_3d_path()
-sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
 # %%
 # This is then scaled to mm, as all lengths in Blender are to be set in mm.
@@ -165,7 +165,7 @@ scene.render_deformed_images(render_mesh,
 # %%
 # The rendered image will be saved to this filepath:
 
-print("Save directory of the image:", (render_data.base_dir / "blenderimages"))
+print("Save directory of the image:", (render_data.base_dir / render_data.dir_name))
 
 # %%
 # There is also the option to save the scene as a Blender project file.

@@ -13,36 +13,40 @@ from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_vis
 from pyvale.sensorsim.fieldinterpmesh import FieldInterpMesh
 from pyvale.sensorsim.fieldinterppoints import FieldInterpPoints
-
+from pyvale.sensorsim.enums import EDim
 
 class FieldScalar(IField):
     """Class for sampling (interpolating) scalar fields from simulations to
-    provide sensor values at specified locations and times.
+    provide sensor values at specified locations and times. Supports 
+    interpolation of mesh-based data (with a connectivity table) and point 
+    clouds.
 
     Implements the `IField` interface.
     """
-    __slots__ = ("_field_key","_elem_dims","_sim_data","_interpolator",
+    __slots__ = ("_comp_key","_spatial_dims","_sim_data","_interpolator",
                  "_visualiser")
 
     def __init__(self,
                  sim_data: mh.SimData,
-                 field_key: str,
-                 elem_dims: int) -> None:
+                 comp_key: str,
+                 spatial_dims: EDim) -> None:
         """
         Parameters
         ----------
         sim_data : mh.SimData
             Simulation data object containing the mesh and field to interpolate.
-        field_key : str
-            String key for the scalar field component in the `SimData` object.
-        elem_dims : int
-            Number of spatial dimensions (2 or 3) used for identifying element
-            types. If point cloud data then set to the number of dimensions of
-            the problem as 2D triangulation is much faster than 3D.
+        comp_key : str
+            String key for the scalar field component in the `SimData` nodal
+            variables dictionary.
+        spatial_dims : EDim
+            Number of spatial dimensions (TWOD or THREED) used for identifying 
+            element types. If point cloud data then set to the number of 
+            dimensions of the problem as 2D triangulation is much faster than 
+            3D.
         """
 
-        self._field_key = field_key
-        self._elem_dims = elem_dims
+        self._comp_key = comp_key
+        self._spatial_dims = spatial_dims
 
         # NOTE: these get set in the function call to `set_sim_data` - this is
         # separated out to allow inserting a new simdata object
@@ -53,87 +57,32 @@ class FieldScalar(IField):
 
 
     def set_sim_data(self, sim_data: mh.SimData) -> None:
-        """Sets the `SimData` object that will be interpolated to obtain sensor
-        values. The purpose of this is to be able to apply the same sensor array
-        to an array of different simulations by setting a different `SimData`.
-
-        Parameters
-        ----------
-        sim_data : mh.SimData
-            Mooseherder SimData object. Contains a mesh and a simulated
-            physical field.
-        """
-
         self._sim_data = sim_data
 
         self._visualiser = simdata_to_pyvista_vis(sim_data,
-                                                  self._elem_dims)
+                                                  self._spatial_dims)
         if self._sim_data.connect is None:
-            self._interpolator = None #FieldInterpPoints()
+            self._interpolator = FieldInterpPoints(self._sim_data,
+                                                   (self._comp_key,),
+                                                   self._spatial_dims)
         else:
             self._interpolator = FieldInterpMesh(self._sim_data,
-                                                 (self._field_key,),
-                                                 self._elem_dims)
+                                                 (self._comp_key,),
+                                                 self._spatial_dims)
 
     def get_sim_data(self) -> mh.SimData:
-        """Gets the simulation data object associated with this field. Used by
-        pyvale visualisation tools to display simulation data with simulated
-        sensor values.
-
-        Returns
-        -------
-        mh.SimData
-            Mooseherder SimData object. Contains a mesh and a simulated
-            physical field.
-        """
         return self._sim_data
 
     def get_time_steps(self) -> np.ndarray:
-        """Gets a 1D array of time steps from the simulation data.
-
-        Returns
-        -------
-        np.ndarray
-            1D array of simulation time steps. shape=(num_time_steps,)
-        """
         return self._sim_data.time
 
     def get_visualiser(self) -> pv.UnstructuredGrid:
-        """Gets a pyvista unstructured grid object for visualisation purposes.
-
-        Returns
-        -------
-        pv.UnstructuredGrid
-            Pyvista unstructured grid object containing only a mesh without any
-            physical field data attached.
-        """
         return self._visualiser
 
     def get_all_components(self) -> tuple[str, ...]:
-        """Gets the string key for the component of the physical field. A scalar
-        field only has a single component so a tuple of length 1 is returned.
+        return (self._comp_key,)
 
-        Returns
-        -------
-        tuple[str,...]
-            Tuple containing the string key for the physical field.
-        """
-        return (self._field_key,)
-
-    def get_component_index(self, comp: str) -> int:
-        """Gets the index for a component of the physical field. Used for
-        getting the index of a component in the sensor measurement array.
-
-        Parameters
-        ----------
-        component : str
-            String key for the field component (e.g. 'temperature' or 'disp_x').
-
-        Returns
-        -------
-        int
-            Index for the selected field component
-        """
+    def get_component_index(self, comp_key: str) -> int:
         return 0 # scalar fields only have one component!
 
     def sample_field(self,
@@ -141,30 +90,5 @@ class FieldScalar(IField):
                     times: np.ndarray | None = None,
                     angles: tuple[Rotation,...] | None = None,
                     ) -> np.ndarray:
-        """Samples (interpolates) the simulation field at the specified
-        positions, times, and angles.
-
-        Parameters
-        ----------
-        points : np.ndarray
-            Spatial points to be sampled with the rows indicating the point
-            number of the columns indicating the X,Y and Z coordinates.
-        times : np.ndarray | None, optional
-            Times to sample the underlying simulation. If None then the
-            simulation time steps are used and no temporal interpolation is
-            performed, by default None.
-        angles : tuple[Rotation,...] | None, optional
-            Angles to rotate the sampled values into with rotations specified
-            with respect to the simulation world coordinates. If a single
-            rotation is specified then all points are assumed to have the same
-            angle and are batch processed for speed. If None then no rotation is
-            performed, by default None.
-
-        Returns
-        -------
-        np.ndarray
-            An array of sampled (interpolated) values with the following
-            dimensions: shape=(num_points,num_components,num_time_steps).
-        """
         return self._interpolator.interp_field(points,times)
 

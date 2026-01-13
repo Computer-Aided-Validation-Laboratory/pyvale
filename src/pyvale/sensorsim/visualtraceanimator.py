@@ -7,23 +7,23 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from pyvale.sensorsim.sensorarraypoint import SensorArrayPoint
+from pyvale.sensorsim.sensorspoint import SensorsPoint
 from pyvale.sensorsim.visualopts import VisOptsSimSensors, VisOptsAnimation
 from pyvale.sensorsim.visualopts import PlotOptsGeneral, TraceOptsSensor
 
 
-def animate_trace_with_sensors(sensor_array: SensorArrayPoint,
+def animate_trace_with_sensors(sensor_array: SensorsPoint,
                             component: str,
                             time_steps: np.ndarray | None = None,
                             trace_opts: TraceOptsSensor | None = None,
                             anim_opts: VisOptsAnimation | None = None,
                             plot_opts: PlotOptsGeneral | None = None
                             ):
-    
+
 
     samp_time = sensor_array.get_sample_times()
     num_sens = sensor_array._sensor_data.positions.shape[0]
-    
+
     if trace_opts is None:
         trace_opts = TraceOptsSensor()
 
@@ -49,7 +49,7 @@ def animate_trace_with_sensors(sensor_array: SensorArrayPoint,
 
     fig,ax = plt.subplots(1,1, figsize=plot_opts.single_fig_size_landscape,
                            layout="constrained")
-    
+
 
     #ax.set_xlim([0, 10])
     #scat = ax.scatter(1, 0)

@@ -71,7 +71,7 @@ class CameraBasic2D(ISensorArray):
 
     #---------------------------------------------------------------------------
     # Truth calculation from simulation
-    def calc_truth_values(self) -> np.ndarray:
+    def calc_truth(self) -> np.ndarray:
         self._truth = sample_field_with_sensor_data(self._field,
                                                     self._sensor_data)
         #shape=(n_pixels,n_field_comps,n_time_steps)
@@ -79,7 +79,7 @@ class CameraBasic2D(ISensorArray):
 
     def get_truth(self) -> np.ndarray:
         if self._truth is None:
-            self._truth = self.calc_truth_values()
+            self._truth = self.calc_truth()
         #shape=(n_pixels,n_field_comps,n_time_steps)
         return self._truth
 
@@ -111,7 +111,7 @@ class CameraBasic2D(ISensorArray):
 
     #---------------------------------------------------------------------------
     # Measurements
-    def calc_measurements(self) -> np.ndarray:
+    def sim_measurements(self) -> np.ndarray:
         if self._error_integrator is None:
             self._measurements = self.get_truth()
         else:
@@ -123,7 +123,7 @@ class CameraBasic2D(ISensorArray):
 
     def get_measurements(self) -> np.ndarray:
         if self._measurements is None:
-            self._measurements = self.calc_measurements()
+            self._measurements = self.sim_measurements()
 
         #shape=(n_pixels,n_field_comps,n_time_steps)
         return self._measurements
@@ -132,7 +132,7 @@ class CameraBasic2D(ISensorArray):
     # Images
     def calc_measurement_images(self) -> np.ndarray:
         #shape=(n_pixels,n_field_comps,n_time_steps)
-        self._measurements = self.calc_measurements()
+        self._measurements = self.sim_measurements()
         image_shape = self.get_image_measurements_shape()
         #shape=(n_pixels_y,n_pixels_x,n_field_comps,n_time_steps)
         return np.reshape(self._measurements,image_shape)

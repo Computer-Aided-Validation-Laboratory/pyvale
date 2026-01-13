@@ -37,8 +37,8 @@ from pyvale.mooseherder import (MooseHerd,
                                 MooseConfig,
                                 InputModifier,
                                 DirectoryManager,
-                                ExodusReader,
-                                SweepReader,
+                                ExodusLoader,
+                                SweepLoader,
                                 sweep_param_grid)
 
 #%%
@@ -104,7 +104,7 @@ print()
 # chain.
 #
 
-sweep_reader = SweepReader(dir_manager,num_para_read=4)
+sweep_reader = SweepLoader(dir_manager,num_para_read=4)
 output_file_paths = sweep_reader.read_all_output_file_keys()
 
 
@@ -120,8 +120,8 @@ output_file_paths = sweep_reader.read_all_output_file_keys()
 # time step from our simulation output files. We do this by getting the
 # original time steps with our exodus reader and then using this to change the
 # ``time_inds`` field of our read configuration to extract every second step.
-exodus_reader = ExodusReader(output_file_paths[0][0])
-sim_data_orig = exodus_reader.read_all_sim_data()
+exodus_reader = ExodusLoader(output_file_paths[0][0])
+sim_data_orig = exodus_reader.load_all_sim_data()
 
 read_config = exodus_reader.get_read_config()
 sim_time = exodus_reader.get_time()

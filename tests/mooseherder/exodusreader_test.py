@@ -9,7 +9,7 @@ from dataclasses import fields
 import pytest
 import numpy as np
 import numpy.typing as npt
-from pyvale.mooseherder.exodusreader import ExodusReader
+from pyvale.mooseherder.exodusloader import ExodusLoader
 from pyvale.mooseherder.simdata import SimData
 import tests.mooseherder.herdchecker as hc
 
@@ -59,14 +59,14 @@ GLO_VAR_NAMES = ('avg_yy_stress',
 
 @pytest.fixture
 def exodus_path() -> Path:
-    return hc.OUTPUT_PATH / 'moose-mech-outtest_out.e'
+    return hc.OUTPUT_GOLD_PATH / 'moose-mech-outtest_out.e'
 
 @pytest.fixture
-def reader(exodus_path: Path) -> ExodusReader:
-    return ExodusReader(exodus_path)
+def reader(exodus_path: Path) -> ExodusLoader:
+    return ExodusLoader(exodus_path)
 
 
-def test_init_reader(reader: ExodusReader,
+def test_init_reader(reader: ExodusLoader,
                      exodus_path: Path) -> None:
     assert reader._exodus_path == exodus_path
     assert reader._data is not None
@@ -75,7 +75,7 @@ def test_init_reader(reader: ExodusReader,
 def tests_init_reader_path_err() -> None:
     err_path = Path().home() / 'no-exist/no_exodus_here.wrong'
     with pytest.raises(FileNotFoundError) as err_info:
-        check_reader = ExodusReader(err_path)
+        check_reader = ExodusLoader(err_path)
 
     (msg,) = err_info.value.args
     assert msg == 'Exodus file not found at specified path'
@@ -92,22 +92,22 @@ def tests_init_reader_path_err() -> None:
 )
 def test_get_names(name_key: str,
                    expected: tuple[str],
-                   reader: ExodusReader) -> None:
+                   reader: ExodusLoader) -> None:
     check_names = reader.get_names(name_key)
     assert (check_names == expected).all()
 
 
-def test_get_names_none(reader: ExodusReader) -> None:
+def test_get_names_none(reader: ExodusLoader) -> None:
     check_names = reader.get_names(None)
     assert check_names is None
 
 
-def test_get_names_no_key(reader: ExodusReader) -> None:
+def test_get_names_no_key(reader: ExodusLoader) -> None:
     check_names = reader.get_names('no-exist')
     assert check_names is None
 
 
-def test_get_var(reader: ExodusReader) -> None:
+def test_get_var(reader: ExodusLoader) -> None:
     key = 'coordx'
     check_var = reader.get_var(key)
     assert check_var.shape[0] > 0
@@ -128,7 +128,7 @@ def test_get_var(reader: ExodusReader) -> None:
 )
 def test_get_key(keys: tuple[str,str,str],
                  expected: str,
-                 reader: ExodusReader) -> None:
+                 reader: ExodusLoader) -> None:
 
     name = keys[0]
     all_names = reader.get_names(keys[1])
@@ -138,19 +138,19 @@ def test_get_key(keys: tuple[str,str,str],
     assert key == expected
 
 
-def test_get_var_no_key(reader: ExodusReader) -> None:
+def test_get_var_no_key(reader: ExodusLoader) -> None:
     no_key = 'no_exist'
     check_var = reader.get_var(no_key)
     assert check_var.shape[0] == 0
 
 
-def test_get_connectivity_names(reader: ExodusReader) -> None:
+def test_get_connectivity_names(reader: ExodusLoader) -> None:
     check_names = reader.get_connectivity_names()
     assert check_names.shape == (NUM_BLOCKS,)
     assert (check_names == np.array(['connect1','connect2'])).all()
 
 
-def test_get_connectivity(reader: ExodusReader) -> None:
+def test_get_connectivity(reader: ExodusLoader) -> None:
     check_connect = reader.get_connectivity()
     assert check_connect is not None
     assert tuple(check_connect.keys()) == CONNECT_NAMES
@@ -160,19 +160,19 @@ def test_get_connectivity(reader: ExodusReader) -> None:
         NODES_PER_ELEM,NUM_ELEMS_PER_BLOCK)
 
 
-def test_get_sideset_names(reader: ExodusReader) -> None:
+def test_get_sideset_names(reader: ExodusLoader) -> None:
     check_names = reader.get_sideset_names()
     assert check_names is not None
     assert check_names.shape == (NUM_SIDESETS,)
     assert (check_names == SIDESET_NAMES).all()
 
 
-def test_get_sidesets_none(reader: ExodusReader) -> None:
+def test_get_sidesets_none(reader: ExodusLoader) -> None:
     check_sidesets  = reader.get_sidesets(None)
     assert check_sidesets is None
 
 
-def test_get_all_sidesets(reader: ExodusReader) -> None:
+def test_get_all_sidesets(reader: ExodusLoader) -> None:
     check_sidesets = reader.get_all_sidesets()
     assert check_sidesets is not None
     assert len(check_sidesets.keys()) == 2*NUM_SIDESETS # NOTE: node+elem = *2
@@ -180,19 +180,19 @@ def test_get_all_sidesets(reader: ExodusReader) -> None:
     assert check_sidesets[('bottom','elem')].shape[0] > 0
 
 
-def test_get_node_var_names(reader: ExodusReader) -> None:
+def test_get_node_var_names(reader: ExodusLoader) -> None:
     node_var_names = reader.get_node_var_names()
     assert node_var_names is not None
     assert node_var_names.shape == (NUM_NODE_VARS,)
     assert (node_var_names == NODE_VAR_NAMES).all()
 
 
-def test_get_node_vars_none(reader: ExodusReader) -> None:
+def test_get_node_vars_none(reader: ExodusLoader) -> None:
     node_vars = reader.get_node_vars(None)
     assert node_vars is None
 
 
-def test_get_all_node_vars(reader: ExodusReader) -> None:
+def test_get_all_node_vars(reader: ExodusLoader) -> None:
     node_vars = reader.get_all_node_vars()
     assert node_vars is not None
     assert len(node_vars.keys()) == NUM_NODE_VARS
@@ -200,25 +200,25 @@ def test_get_all_node_vars(reader: ExodusReader) -> None:
         assert node_vars[nn].shape == (NUM_NODES,NUM_TIME_STEPS)
 
 
-def test_get_elem_var_names(reader: ExodusReader) -> None:
+def test_get_elem_var_names(reader: ExodusLoader) -> None:
     elem_var_names = reader.get_elem_var_names()
     assert elem_var_names is not None
     assert elem_var_names.shape == (NUM_ELEM_VARS,)
     assert (elem_var_names == ELEM_VAR_NAMES).all()
 
 
-def test_get_num_elem_blocks(reader: ExodusReader) -> None:
+def test_get_num_elem_blocks(reader: ExodusLoader) -> None:
     num_blocks = reader.get_num_elem_blocks()
     assert num_blocks == NUM_BLOCKS
 
 
-def test_get_elem_var_names_and_blocks(reader: ExodusReader) -> None:
+def test_get_elem_var_names_and_blocks(reader: ExodusLoader) -> None:
     var_names_and_blocks = reader.get_elem_var_names_and_blocks()
     assert var_names_and_blocks is not None
     assert len(var_names_and_blocks) == NUM_ELEM_VARS*NUM_BLOCKS
 
 
-def test_get_all_elem_vars(reader: ExodusReader) -> None:
+def test_get_all_elem_vars(reader: ExodusLoader) -> None:
     elem_vars = reader.get_all_elem_vars()
     assert elem_vars is not None
     assert len(elem_vars.keys()) == NUM_ELEM_VARS*NUM_BLOCKS
@@ -226,19 +226,19 @@ def test_get_all_elem_vars(reader: ExodusReader) -> None:
         assert elem_vars[ee].shape == (NUM_ELEMS_PER_BLOCK,NUM_TIME_STEPS)
 
 
-def test_get_glob_var_names(reader: ExodusReader) -> None:
+def test_get_glob_var_names(reader: ExodusLoader) -> None:
     glob_var_names = reader.get_glob_var_names()
     assert glob_var_names is not None
     assert glob_var_names.shape == (NUM_GLO_VARS,)
     assert (glob_var_names == GLO_VAR_NAMES).all()
 
 
-def test_get_glob_vars_none(reader: ExodusReader) -> None:
+def test_get_glob_vars_none(reader: ExodusLoader) -> None:
     glob_vars = reader.get_glob_vars(None)
     assert glob_vars is None
 
 
-def test_get_all_glob_vars(reader: ExodusReader) -> None:
+def test_get_all_glob_vars(reader: ExodusLoader) -> None:
     glob_vars = reader.get_all_glob_vars()
     assert glob_vars is not None
     assert len(glob_vars.keys()) == (NUM_TIME_STEPS)
@@ -246,7 +246,7 @@ def test_get_all_glob_vars(reader: ExodusReader) -> None:
     for gg in glob_vars:
         assert glob_vars[gg].shape == (NUM_TIME_STEPS,)
 
-def test_get_coords(reader: ExodusReader) -> None:
+def test_get_coords(reader: ExodusLoader) -> None:
     (coords,_) = reader.get_coords()
     assert coords.shape == (NUM_NODES,3)
 
@@ -261,17 +261,17 @@ def test_get_coords(reader: ExodusReader) -> None:
 def test_expand_coords(coord: npt.NDArray,
                        dim: int,
                        expected: npt.NDArray,
-                       reader: ExodusReader) -> None:
+                       reader: ExodusLoader) -> None:
     check = reader._expand_coord(coord,dim)
     assert (check == expected).all()
 
 
-def test_get_time(reader: ExodusReader) -> None:
+def test_get_time(reader: ExodusLoader) -> None:
     check_time = reader.get_time()
     assert check_time.shape == (NUM_TIME_STEPS,)
 
 
-def test_get_read_config(reader: ExodusReader) -> None:
+def test_get_read_config(reader: ExodusLoader) -> None:
     config = reader.get_read_config()
 
     for ff in fields(config):
@@ -284,14 +284,14 @@ def test_get_read_config(reader: ExodusReader) -> None:
     assert (config.glob_vars == GLO_VAR_NAMES).all()
 
 
-def test_read_sim_data(reader: ExodusReader) -> None:
+def test_read_sim_data(reader: ExodusLoader) -> None:
     config = reader.get_read_config()
-    data = reader.read_sim_data(config)
+    data = reader.load_sim_data(config)
     check_sim_data(data)
 
 
-def test_read_all_sim_data(reader: ExodusReader) -> None:
-    data = reader.read_all_sim_data()
+def test_read_all_sim_data(reader: ExodusLoader) -> None:
+    data = reader.load_all_sim_data()
     check_sim_data(data)
 
 

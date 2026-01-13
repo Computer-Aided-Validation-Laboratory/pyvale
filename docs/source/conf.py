@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath('../../src/pyvale/dic/'))
 project = 'Pyvale'
 copyright = '2025, The CAV Team'
 author = 'The CAV Team at United Kingdom Atomic Energy Authority (UKAEA)'
-release = '2025.8.1'
-version = '2025.8.1'
+release = '2026.1.0'
+version = '2026.1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -77,6 +77,7 @@ autodoc_default_options = {
     'inherited-members': False,
     'show-inheritance': True
 }
+autodoc_inherit_docstrings = True
 
 # Prevent duplication issues
 autoclass_content = 'class'  # Only class docstring, not __init__
@@ -111,16 +112,18 @@ codeautolink_concat_default = True
 sphinx_gallery_conf = {
     # Path to your example scripts
     'examples_dirs': [
-        '../../src/pyvale/examples/basics',
+        '../../src/pyvale/examples/basicsensorsim',
+        '../../src/pyvale/examples/extsensorsim',
         '../../src/pyvale/examples/dic',
-        '../../src/pyvale/examples/renderblender',
+        '../../src/pyvale/examples/blenderimagedef',
         '../../src/pyvale/examples/mooseherder',
     ],
     # Path to where to save gallery generated output
     'gallery_dirs': [
-        'examples/basics',
-        'examples/dic/',
-        'examples/renderblender',
+        'examples/basicsensorsim',
+        'examples/extsensorsim',
+        'examples/dic',
+        'examples/blenderimagedef',
         'examples/mooseherder',
     ],
     # Pattern to identify example files
