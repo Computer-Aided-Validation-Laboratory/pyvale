@@ -20,14 +20,18 @@ import numpy as np
 # Data should be 23 slices x 35708 rows x 3 cols
 # Col index is last index, and row index is second to last
 
+# R - Can pull this info from the size of strain data passed into function (e.g. NUM_TIMESTEPS=)
 NUM_TIMESTEPS = 23
 NUM_POINTS = 35708
 NUM_COMPONENTS = 3
 
+# R- this will eventually be an input (material properties)
 YOUNGS_MODULUS = 190000.0
 POISSONS_RATIO = 0.28
 SHEAR_MODULUS = YOUNGS_MODULUS / (2 * (1 + POISSONS_RATIO))
 
+# R- I wonder if we can sort this so we share a very lightweight python datafile in git (after initial translation from matlab) so we can both use the same input data and not require maintaining data on both individual PCs.
+# e.g. for this function I don't image just the raw strain data is very large? But would need to look into how best to manage this.
 strain_data = loadmat("/Users/chris/work/vfmap-numerical-paper/scripts/strain.mat")
 spatial_param_data = loadmat(
     "/Users/chris/work/vfmap-numerical-paper/scripts/spatialParamData.mat"
@@ -40,8 +44,20 @@ c11 = strain["c11"][0][0]
 c12 = strain["c12"][0][0]
 c22 = strain["c22"][0][0]
 
-# 23 timesteps x 35708 values x 3 components
+# 23 timesteps x 35708 values x 3 components          # R - need to decide on convention and ensure consistent (it may be currently, unsure.). Prob best to go npts x nsteps x ncomp for 3d, where npts is consistently wrapped / unwrapped to and from x by y grid
 strain = np.stack((c11, c22, c12), axis=2).transpose((1, 0, 2))
+
+# R - unsure what convention we want to use for blockers / headers etc to help keep code readable. 
+# 
+# Perhaps none (just standard comment like below line):
+# Initialisation
+#
+# Banner:
+# ---------------
+# Initialisation
+# ---------------
+#
+#  === Initialisation ===  
 
 # Output stresses
 sigma_xx = np.zeros((NUM_POINTS, NUM_TIMESTEPS))
@@ -57,14 +73,6 @@ ee_c22 = np.zeros((NUM_POINTS, NUM_TIMESTEPS))
 ee_c12 = np.zeros((NUM_POINTS, NUM_TIMESTEPS))
 eps_33 = np.zeros((NUM_POINTS, NUM_TIMESTEPS))
 
-# Valid for Engineering Shear Strain only!
-elasticity_matrix = (YOUNGS_MODULUS / (1 - POISSONS_RATIO**2)) * np.array(
-    [
-        [1.0, POISSONS_RATIO, 0.0],
-        [POISSONS_RATIO, 1.0, 0.0],
-        [0.0, 0.0, (0.5 * (1.0 - POISSONS_RATIO))],
-    ]
-)
 
 # von Mises effective stress matrix
 p = np.array([[2 / 3, -1 / 3, 0], [-1 / 3, 2 / 3, 0], [0, 0, 2]])
@@ -87,6 +95,17 @@ incremental_strain[1:, :, :] = np.diff(strain, axis=0)
 
 stress = np.empty_like(strain)
 
+
+# Valid for Engineering Shear Strain only!
+elasticity_matrix = (YOUNGS_MODULUS / (1 - POISSONS_RATIO**2)) * np.array(
+    [
+        [1.0, POISSONS_RATIO, 0.0],
+        [POISSONS_RATIO, 1.0, 0.0],
+        [0.0, 0.0, (0.5 * (1.0 - POISSONS_RATIO))],
+    ]
+)
+
+# R - currently merged hardening function with main loop. Once happy, be sure to disentangle again 
 yield_strength = spatial_param_data["spatialParamData"]["param3"][0][0]["parameterMap"][
     0
 ][0]
