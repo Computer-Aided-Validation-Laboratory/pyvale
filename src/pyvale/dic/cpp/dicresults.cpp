@@ -6,6 +6,9 @@
 
 
 // STD library Header files
+#include <sstream>
+#include <fstream>
+#include <string>
 #include <vector>
 
 // common_cpp header files
@@ -79,7 +82,6 @@ void OptResultArrays::write_to_disk(int img_num, const common_util::SaveConfig &
 
     const std::string delimiter = saveconf.delimiter;
 
-    // open the file
     std::stringstream outfile_str;
     std::ofstream outfile;
     int results_num = img_num-1;
@@ -88,16 +90,16 @@ void OptResultArrays::write_to_disk(int img_num, const common_util::SaveConfig &
     if (saveconf.binary) file_ext=".dic2d";
     else file_ext=".csv";
 
-    // Extract the base filename without extension
     std::string full_filename = filenames[img_num];
     size_t dot_pos = full_filename.find(".");
     if (dot_pos != std::string::npos) {
         full_filename = full_filename.substr(0, dot_pos);
     }
 
-    // output filename
-    outfile_str << saveconf.basepath << "/" <<
-    saveconf.prefix << full_filename << file_ext;
+    outfile_str << saveconf.basepath << "/"
+                << saveconf.prefix
+                << full_filename
+                << file_ext;
 
     // set the img var to 0 after opening file if not saving at end
     if (!saveconf.at_end) results_num = 0;

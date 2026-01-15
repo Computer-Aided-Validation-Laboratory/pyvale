@@ -17,7 +17,7 @@ namespace shapefunc {
 
     // Function pointer 
     void (*get_pixel)(double &, double &, const double, const double, const std::vector<double> &);
-    void (*get_dshape_dp)(std::vector<double>&, double, double, double, double);
+    void (*get_dfdp)(std::vector<double>&, double, double, double, double);
     void (*get_displacement)(OptResult &results, double ss_x, double ss_y, std::vector<double> &p);
 
 
@@ -94,17 +94,17 @@ namespace shapefunc {
     void set(const std::string& shape_func) {
         if (shape_func == "RIGID") {
             get_pixel = get_pixel_rigid;
-            get_dshape_dp = get_drigid_dp;
+            get_dfdp = get_drigid_dp;
             get_displacement = get_displacement_from_rigid;
         }
         else if (shape_func == "AFFINE") {
             get_pixel = get_pixel_affine;
-            get_dshape_dp = get_daffine_dp;
+            get_dfdp = get_daffine_dp;
             get_displacement = get_displacement_from_affine;
         }
         else if (shape_func == "QUAD") {
             get_pixel = get_pixel_quad;
-            get_dshape_dp = get_dquad_dp;
+            get_dfdp = get_dquad_dp;
             get_displacement = get_displacement_from_quad;
         }
         else {

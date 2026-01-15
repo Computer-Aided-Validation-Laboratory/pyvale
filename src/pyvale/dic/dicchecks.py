@@ -427,8 +427,8 @@ def check_and_get_images(reference: np.ndarray | str | Path,
         # need to set some dummy filenames in the case that the user passes numpy arrays
         filenames = ["ref_img"]
         for f in range(0,def_arr.shape[0]):
-            filenames.append(f"def_img_{f}")
-    
+            filenames.append(f"def_img_{f:04d}")
+
     # it might be the case that the roi has been manipulated prior to DIC run
     # and therefore we need to to prevent the roi mask from being a 'view'
     roi_c = np.ascontiguousarray(roi)
