@@ -137,20 +137,20 @@ def check_method(method: str) -> None:
 
 
 
-def check_thresholds(opt_threshold: float, 
+def check_thresholds(threshold: float, 
                      bf_threshold: float, 
-                     opt_precision: float) -> None:
+                     precision: float) -> None:
     """
-    Ensures that `opt_threshold`, `bf_threshold`, and `opt_precision`
+    Ensures that `threshold`, `bf_threshold`, and `precision`
     are all floats strictly between 0 and 1. Raises a `ValueError` if any condition fails.
 
     Parameters
     ----------
-    opt_threshold : float
-        Threshold for the Levenberg optimization method.
+    threshold : float
+        correlation/cost coeff minumum value to be considered matching subset.
     bf_threshold : float
         Threshold for the brute-force optimization method.
-    opt_precision : float
+    precision : float
         Desired precision for the optimizer.
 
     Raises
@@ -159,15 +159,15 @@ def check_thresholds(opt_threshold: float,
         If any input value is not a float strictly between 0 and 1.
     """
 
-    if not (0 < opt_threshold < 1):
-        raise ValueError("opt_threshold must be a float "
+    if not (0 < threshold < 1):
+        raise ValueError("threshold must be a float "
                          "strictly between 0 and 1.")
 
     if not (0 < bf_threshold < 1):
         raise ValueError("bf_threshold must be a float "
                          "strictly between 0 and 1.")
     
-    if not (0 < opt_precision < 1):
+    if not (0 < precision < 1):
         raise ValueError("Optimizer precision must be a float strictly "
                          "between 0 and 1.")
 

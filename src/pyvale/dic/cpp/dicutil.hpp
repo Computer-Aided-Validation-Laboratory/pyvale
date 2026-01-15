@@ -38,7 +38,7 @@ namespace util {
         int num_def_img;
         int num_params;
         double precision;
-        double opt_threshold;
+        double threshold;
         double bf_threshold;
         int max_disp;
         std::pair<int, int> rg_seed;

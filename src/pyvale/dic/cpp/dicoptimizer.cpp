@@ -61,10 +61,10 @@ namespace optimizer {
             // relative change of all parameters
             const double dp_norm = std::sqrt(std::inner_product(opt.dp.begin(), opt.dp.end(), opt.dp.begin(), 0.0));
             const double p_norm  = std::sqrt(std::inner_product( opt.p.begin(),  opt.p.end(),  opt.p.begin(), 0.0));
-            xtol = dp_norm / std::max(p_norm, eps);
+            xtol = dp_norm / (p_norm+eps);
 
             // variation on correlation coefficient
-            ftol = std::abs(opt.costpdp - opt.costp) / std::max(std::abs(opt.costp), eps);
+            ftol = std::abs(opt.costpdp - opt.costp) / (std::abs(opt.costp) + eps);
 
 
             // Check converged
@@ -115,6 +115,7 @@ namespace optimizer {
         res.p = opt.p;
         res.cost = zncc;
         res.converged = converged;
+        if (zncc >= opt.threshold) res.above_threshold = true;
 
         // debugging
         //if (iter == opt.max_iter) {

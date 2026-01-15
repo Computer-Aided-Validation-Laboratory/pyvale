@@ -38,14 +38,14 @@ namespace optimizer {
         std::vector<double> augmented;
         int max_iter;
         double precision;
-        double opt_threshold;
+        double threshold;
         int px_vert;
         int px_hori;
 
 
         // Constructor to initialize vectors and other parameters
         Parameters(int num_params_, int max_iter_, double precision_, 
-                   double opt_threshold_, int px_vert_, int px_hori_,
+                   double threshold_, int px_vert_, int px_hori_,
                    const std::string& corr_crit)
             :
             num_params(num_params_),
@@ -62,11 +62,9 @@ namespace optimizer {
             augmented(num_params*num_params*2, 0.0),
             max_iter(max_iter_),
             precision(precision_),
-            opt_threshold(opt_threshold_),
+            threshold(threshold_),
             px_vert(px_vert_),
             px_hori(px_hori_) {
-                if (corr_crit == "SSD")
-                    opt_threshold = std::numeric_limits<double>::max();
             }
     };
 

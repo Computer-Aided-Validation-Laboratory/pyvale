@@ -29,7 +29,7 @@ PYBIND11_MODULE(dic2dcpp, m) {
         .def_readwrite("ss_size", &util::Config::ss_size)
         .def_readwrite("max_iter", &util::Config::max_iter)
         .def_readwrite("precision", &util::Config::precision)
-        .def_readwrite("opt_threshold", &util::Config::opt_threshold)
+        .def_readwrite("threshold", &util::Config::threshold)
         .def_readwrite("bf_threshold", &util::Config::bf_threshold)
         .def_readwrite("max_disp", &util::Config::max_disp)
         .def_readwrite("corr_crit", &util::Config::corr_crit)

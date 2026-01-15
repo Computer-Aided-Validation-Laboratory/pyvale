@@ -65,7 +65,7 @@ namespace scanmethod {
 
             // optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter,
-                                    conf.precision, conf.opt_threshold,
+                                    conf.precision, conf.threshold,
                                     conf.px_vert, conf.px_hori,
                                     conf.corr_crit);
 
@@ -160,7 +160,7 @@ namespace scanmethod {
 
             // Optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                      conf.precision, conf.opt_threshold, 
+                                      conf.precision, conf.threshold, 
                                       px_vert, px_hori,
                                       conf.corr_crit);
 
@@ -326,7 +326,7 @@ namespace scanmethod {
                         subset::get_px_from_img(ss_ref, nx, ny, px_hori, px_vert, img_ref);
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
-                        if (result_arrays.cost[idx_results] < opt.opt_threshold){
+                        if (result_arrays.cost[idx_results] < conf.threshold){
                             std::fill(opt.p.begin(), opt.p.end(), 0.0);
                             opt.p[0] = fourier::shifts[last_size].x[nidx];
                             opt.p[1] = fourier::shifts[last_size].y[nidx];
@@ -431,7 +431,7 @@ namespace scanmethod {
 
             // Optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                      conf.precision, conf.opt_threshold, 
+                                      conf.precision, conf.threshold, 
                                       px_vert, px_hori,
                                       conf.corr_crit);
 
@@ -484,7 +484,7 @@ namespace scanmethod {
                 
                 OptResult seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
-                if (!seed_res.converged){
+                if (!seed_res.converged || !seed_res.above_threshold){
                     std::cout << "ERROR: unsuccesful convergence at seed location." << std::endl;
                     std::cout << "Please select a different seed location." << std::endl;
                     exit(EXIT_FAILURE);
@@ -537,7 +537,7 @@ namespace scanmethod {
                         nres.v += prev_img_v[nidx];
                     }
 
-                    if (!nres.converged){
+                    if (!nres.converged || !nres.above_threshold){
                         std::cout << "ERROR: unsuccesful convergence at neighbouring point to seed." << std::endl;
                         std::cout << "Please select a different seed location." << std::endl;
                         exit(EXIT_FAILURE);
@@ -649,7 +649,7 @@ namespace scanmethod {
 
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
-                        if (result_arrays.cost[idx_results_def] < opt.opt_threshold){
+                        if (result_arrays.cost[idx_results_def] < conf.threshold){
                             std::fill(opt.p.begin(), opt.p.end(), 0.0);
                             fourier::get_single_window_fftcc_peak(opt.p[0], opt.p[1],
                                                                   nx, ny,
@@ -670,7 +670,7 @@ namespace scanmethod {
                         OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                         // add deformation from reference image to new results
-                        if ((nres.converged) && (img_num_ref > 0)){
+                        if ((nres.converged) && (nres.above_threshold) && (img_num_ref > 0)){
                             nres.u += prev_img_u[nidx];
                             nres.v += prev_img_v[nidx];
                         }
@@ -735,6 +735,7 @@ namespace scanmethod {
             res.v    = fourier::shifts[last_size].y[ss];
             res.p[1] = fourier::shifts[last_size].y[ss];
             res.converged=true;
+            res.above_threshold=true;
             result_arrays.append(res, results_num, ss);
         }
     }
@@ -772,7 +773,7 @@ namespace scanmethod {
 
             // optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                    conf.precision, conf.opt_threshold,
+                                    conf.precision, conf.threshold,
                                     conf.px_vert, conf.px_hori,
                                     conf.corr_crit);
 

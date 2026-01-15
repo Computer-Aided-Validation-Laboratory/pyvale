@@ -27,6 +27,7 @@ struct OptResult {
     int iter = 0;
     double cost = 0.0;
     uint8_t converged = false;
+    uint8_t above_threshold = false;
     OptResult(size_t num_params) : p(num_params, 0.0) {}
 };
 
@@ -48,6 +49,7 @@ class OptResultArrays {
         std::vector<double> xtol;
         std::vector<double> cost;
         std::vector<uint8_t> conv;
+        std::vector<uint8_t> above_thresh;
 
         OptResultArrays(int num_def_img, int num_ss, int num_params, bool conf_at_end);
         void append(OptResult &res, int img_num, int ss);

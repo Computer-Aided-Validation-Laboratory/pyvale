@@ -36,6 +36,7 @@ OptResultArrays::OptResultArrays(int num_def_img, int num_ss, int num_params, bo
         xtol.resize(num_def_img * num_ss);
         cost.resize(num_def_img * num_ss);
         conv.resize(num_def_img * num_ss);
+        above_thresh.resize(num_def_img * num_ss);
     }
     else {
         niter.resize(num_ss);
@@ -46,6 +47,7 @@ OptResultArrays::OptResultArrays(int num_def_img, int num_ss, int num_params, bo
         xtol.resize(num_ss);
         cost.resize(num_ss);
         conv.resize(num_ss);
+        above_thresh.resize(num_def_img * num_ss);
     }
 }
 
@@ -60,6 +62,7 @@ void OptResultArrays::append(OptResult &res, int results_num, int ss) {
     xtol[idx] = res.xtol;
     cost[idx] = res.cost;
     conv[idx] = res.converged;
+    above_thresh[idx] = res.above_threshold;
     for (size_t i = 0; i < num_params; i++){
         p[idx_p+i] = res.p[i];
     }
@@ -113,8 +116,8 @@ void OptResultArrays::write_to_disk(int img_num, const common_util::SaveConfig &
             int idx = index(i, results_num);
             //int idx_p = num_params*idx;
 
-            // if the subset has not converged, set values to nan
-            if (!saveconf.output_unconverged && !conv[idx]) {
+            // if the subset has not met threshold, set values to nan
+            if (!saveconf.output_below_threshold && !above_thresh[idx]) {
                 u[idx] = NAN;
                 v[idx] = NAN;
                 for (int pidx = 0; pidx < num_params; pidx++){
@@ -190,8 +193,8 @@ void OptResultArrays::write_to_disk(int img_num, const common_util::SaveConfig &
             double ss_x = ss_grid.coords[2*i  ] + static_cast<double>(ss_grid.size)/2.0 - 0.5;
             double ss_y = ss_grid.coords[2*i+1] + static_cast<double>(ss_grid.size)/2.0 - 0.5;
 
-            // if the subset has not converged, set values to nan
-            if (!saveconf.output_unconverged && !conv[idx]) {
+            // if the subset has not met threshold, set values to nan
+            if (!saveconf.output_below_threshold && !above_thresh[idx]) {
                 u[idx] = NAN;
                 v[idx] = NAN;
                 for (int pidx = 0; pidx < num_params; pidx++){

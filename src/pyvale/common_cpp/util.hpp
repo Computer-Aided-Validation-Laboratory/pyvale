@@ -29,7 +29,7 @@ namespace common_util {
         std::string delimiter;
         bool binary;
         bool at_end;
-        bool output_unconverged;
+        bool output_below_threshold;
         bool shape_params;
     };
 

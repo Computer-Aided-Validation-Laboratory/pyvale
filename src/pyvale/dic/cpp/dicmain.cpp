@@ -65,7 +65,7 @@ void DICengine(const py::array_t<double>& img_stack_arr,
     INFO_OUT("FFT MAD scale: ", conf.fft_mad_scale);
     INFO_OUT("Image Scan Method: ", conf.scan_method);
     INFO_OUT("Optimization Precision:", conf.precision);
-    INFO_OUT("Optimization Threshold:", conf.opt_threshold);
+    INFO_OUT("Correlation Cutoff Threshold:", conf.threshold);
     INFO_OUT("Estimate for Max Displacement:", conf.max_disp << " [px]");
     INFO_OUT("Subset Size:", conf.ss_size << " [px]");
     INFO_OUT("Subset Step:", conf.ss_step << " [px]" );

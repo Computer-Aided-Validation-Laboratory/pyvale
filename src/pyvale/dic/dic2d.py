@@ -26,8 +26,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  shape_function: str="AFFINE",
                  interpolation_routine: str="BICUBIC",
                  max_iterations: int=40,
-                 opt_precision: float=0.001,
-                 opt_threshold: float=0.9,
+                 precision: float=0.001,
+                 threshold: float=0.9,
                  bf_threshold: float=0.6,
                  num_threads: int | None = None,
                  max_displacement: int=128,
@@ -39,7 +39,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  output_binary: bool=False,
                  output_prefix: str="dic_results_",
                  output_delimiter: str=",",
-                 output_unconverged: bool=False,
+                 output_below_threshold: bool=False,
                  output_shape_params: bool=False,
                  debug_level: int=1) -> None:
 
@@ -73,10 +73,10 @@ def calculate_2d(reference: np.ndarray | str | Path,
         only supported option.
     max_iterations : int, optional
         Maximum number of iterations allowed for subset optimization (default: 40).
-    opt_precision : float, optional
+    precision : float, optional
         Precision threshold for iterative optimization convergence (default: 0.001).
-    opt_threshold : float, optional
-        Minimum correlation improvement threshold to continue iterations (default: 0.9).
+    threshold : float, optional
+        Minimum correlation/cost coefficient value to be considered a matching subset (default: 0.9).
     num_threads : int, optional
         Number of threads to use for parallel computation (default: None, uses all available).
     bf_threshold : float, optional
@@ -112,9 +112,9 @@ def calculate_2d(reference: np.ndarray | str | Path,
         changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
     output_delimiter : str, optional
         Delimiter used in text output files (default: ",").
-    output_unconverged : bool, optional
-        If True, subset results as they were for the final iteration of the optimization 
-        that did not converge will be saved (default: False).
+    output_below_threshold : bool, optional
+        If True, subset results with cost values that did not exceed the cost threshold
+        will still be present in output (default: False).
     output_shape_params : bool, optional
         If True, all shape parameters will be saved in the output files (default: False).
     debug_level:
@@ -140,7 +140,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     dicchecks.check_correlation_criteria(correlation_criteria)
     dicchecks.check_interpolation(interpolation_routine)
     dicchecks.check_method(method)
-    dicchecks.check_thresholds(opt_threshold, bf_threshold, opt_precision)
+    dicchecks.check_thresholds(threshold, bf_threshold, precision)
     common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks.check_subsets(subset_size, subset_step)
     updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, image_stack.shape[2], image_stack.shape[1], subset_size, subset_step)
@@ -152,8 +152,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.ss_step = subset_step
     config.ss_size = subset_size
     config.max_iter = max_iterations
-    config.precision = opt_precision
-    config.opt_threshold = opt_threshold
+    config.precision = precision
+    config.threshold = threshold
     config.bf_threshold = bf_threshold
     config.max_disp = max_displacement
     config.corr_crit = correlation_criteria
@@ -177,7 +177,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     saveconf.prefix = output_prefix
     saveconf.delimiter = output_delimiter
     saveconf.at_end = output_at_end
-    saveconf.output_unconverged = output_unconverged
+    saveconf.output_below_threshold = output_below_threshold
     saveconf.shape_params = output_shape_params
 
 
