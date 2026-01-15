@@ -67,14 +67,13 @@ def test_ssd_rigid():
                      subset_size=31,
                      subset_step=15,
                      max_displacement=2,
-                     opt_precision=1e-10,
                      correlation_criteria="SSD",
                      shape_function="AFFINE",
                      method="MULTIWINDOW_RG",
                      output_basepath=test_dir,
                      output_prefix="test_ssd_rigid_")
 
-    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_ssd_rigid_def_img_0.csv"))
+    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_ssd_rigid_def_img_0000.csv"))
     output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
     np.testing.assert_allclose(true_00_5[:, :6], output_data_00_5[:, :6], rtol=0.005, atol=1e-6,
                                err_msg="Results from test Do not match ground truth displacement of 0.5px")
@@ -95,7 +94,7 @@ def test_nssd_scaled_image_rigid():
                      output_basepath=test_dir,
                      output_prefix="test_nssd_scaled_image_rigid_")
 
-    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_nssd_scaled_image_rigid_def_img_0.csv"))
+    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_nssd_scaled_image_rigid_def_img_0000.csv"))
     output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
     np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
                                err_msg="Results from test Do not match ground truth displacement of 0.5px")
@@ -115,7 +114,7 @@ def test_znssd_scaled_offset_image_rigid():
                      output_basepath=test_dir,
                      output_prefix="test_znssd_scaled_offset_image_rigid_")
 
-    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_znssd_scaled_offset_image_rigid_def_img_0.csv"))
+    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_znssd_scaled_offset_image_rigid_def_img_0000.csv"))
     output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
     np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
                                err_msg="Results from test Do not match ground truth displacement of 0.5px")
