@@ -17,6 +17,11 @@ By comparing the intensity patterns of these subsets across images, we can estim
 their displacement. This approach is computationally efficient and works well
 for small deformations, but it can struggle when subsets distort significantly.
 
+
+.. image:: cost.gif
+    :alt: Example Cost Minimization
+
+
 Shape Functions
 ---------------
 To model how a subset deforms, we introduce *shape functions*. These are
@@ -25,18 +30,13 @@ each other.  Pyvale supports three commonly used shape functions in DIC. The sim
 parameters: horizontal and vertical shift):
 
 .. math::
-    \mathbf{x'}=\left[\begin{array}{l}p_0 \\ p_1\end{array}\right]+\left[\begin{array}{cc}1+p_2 & p_3 \\ p_4 & 1+p_5\end{array}\right] \mathbf{x}
+  \xi(x_i,y_i, \mathbf{p}) =
+  \underbrace{\begin{bmatrix} p_0 \\ p_1 \end{bmatrix}}_{\text{rigid}}
+  + \underbrace{\begin{bmatrix} 1+p_2 & p_3 \\ p_4 & 1+p_5 \end{bmatrix} 
+  \begin{bmatrix} x_i \\ y_i \end{bmatrix}}_{\text{affine}} + \underbrace{\begin{bmatrix} p_6 & p_7 & p_8 \\ p_9 & p_{10} & p_{11} \end{bmatrix} 
+  \begin{bmatrix} x_i^2 \\ x_iy_i \\ y_i^2 \end{bmatrix}}_{\text{quadratic}}
 
-Beyond this there's affine shape functions (6 parameters) that can account for translation, scaling, and shearing:
-
-.. math::
-    \mathbf{x'}=\left[\begin{array}{l}p_0 \\ p_1\end{array}\right]+\left[\begin{array}{cc}1+p_2 & p_3 \\ p_4 & 1+p_5\end{array}\right] \mathbf{x}
-
-Finally, Pyvale supports quadratic shape functions (12 parameters)
-
-.. math::
-
-    \mathbf{x'} = \begin{bmatrix} p_0 + (1+p_2)x + p_3 y + p_6 x^2 + p_7 xy + p_8 y^2 \\ p_1 + p_4 x + (1+p_5)y + p_9 x^2 + p_{10} xy + p_{11} y^2 \end{bmatrix}
+Each higher-order shape function includes all terms from the lower-order functions: affine includes rigid terms, and quadratic includes both affine and rigid terms. 
 
 .. image:: shape_functions_light.png
    :class: only-light
@@ -53,9 +53,18 @@ How do we decide if two subsets *match*? To do this we use what's known as a cos
 This is a numerical measure of similarity between the reference subset and the deformed
 subset. Pyvale supports three choices
 
-- **Zero-Normalized Sum of Squared Differences (ZNSSD):** Handles both brightness and contrast shifts.
-- **Normalized Sum of Squared Differences (NSSD):** More robust to intensity scaling.
-- **Sum of Squared Differences (SSD):** Simple, but sensitive to lighting changes.
+.. math::
+  \text{SSD} = \sum_i \big(f(x_{i},y_{i}) - g(x_{i},y_{i})\big)^{2}
+
+where :math:`f(x_{i},y_{i})` and  :math:`g(x_{i},y_{i})` represent the gray-level intensity values at location :math:`(x_{i},y_{i})` in the reference and deformed images, respectively. To reduce sensitivity to intensity scaling, the Normalized SSD (NSSD) is defined as:
+
+.. math::
+  \text{NSSD} = \sum_i \left( \frac{f(x_{i},y_{i})}{\sqrt{\sum_{j} f(x_{j},y_{j})^{2}}} - \frac{g(x_{i},y_{i})}{\sqrt{\sum_{j} g(x_{j},y_{j})^{2}}} \right)^{2}
+
+.. math::
+  \text{ZNSSD} = \sum_i \left( \frac{\bar{f}(x_{i},y_{i})}{\sqrt{\sum_{j} \bar{f}(x_{j},y_{j})^{2}}} - \frac{\bar{g}(x_{i},y_{i})}{\sqrt{\sum_{j} \bar{g}(x_{j},y_{j})^{2}}} \right)^{2}
+
+where :math:`\bar{f}(x_{i},y_{i}) = f(x_{i},y_{i}) - f_m`, and :math:`f_m` is the mean gray-level value of the subset. ZNSSD is invariant to both additive and multiplicative intensity changes.
 
 The goal is to minimize this cost function by adjusting the displacement and
 shape parameters until the subsets align as closely as possible.
@@ -67,11 +76,6 @@ These algorithms start with an initial guess and refine it step by step. Converg
 initial guess and a generally well-behaved cost surface. Pyvale uses a
 Levenberg-Marquardt non-linear optimization routine to minimize the cost
 function.
-
-
-Sub-pixel Accuracy
-------------------
-
 
 Sub-pixel Accuracy
 ------------------

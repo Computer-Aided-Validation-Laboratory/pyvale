@@ -32,6 +32,7 @@ extensions = [
     'sphinx_codeautolink',
     'sphinx_copybutton',
     'sphinx_gallery.gen_gallery',
+    'sphinx.ext.mathjax',
     'breathe',
     'myst_parser'
 ]
