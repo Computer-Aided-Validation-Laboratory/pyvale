@@ -31,10 +31,7 @@ jobs:
           echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
           echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
           echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
-          if [[ "${{ matrix.os }}" != *"intel"* ]]; then
-            echo "ARCHFLAGS=-arch arm64" >> $GITHUB_ENV
-          fi
-          echo $PATH
+          export DYLD_PRINT_LIBRARIES=1
 
       - name: Checkout code
         uses: actions/checkout@v3
@@ -54,6 +51,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e . -v
+
+      - name: Check architectures
+        run: |
+          file src/pyvale/sensorsim/cython/*.so
+          lipo -info src/pyvale/sensorsim/cython/*.so
+
+      - name: Diagnose crash
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          lldb --batch -o "run -c 'import pyvale'" -o "bt" -- python
 
       - name: Smoke test
         run: |
