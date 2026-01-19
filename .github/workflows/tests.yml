@@ -22,14 +22,6 @@ jobs:
           - os: macos-latest
             llvm: llvm@18
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
       - name: Install libomp and set compiler on macOS
         if: startsWith(matrix.os, 'macos')
         run: |
@@ -39,6 +31,14 @@ jobs:
           echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
           echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
           echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
+  
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
       - name: Install dependencies for ubuntu-latest
         if: matrix.os == 'ubuntu-latest'
