@@ -31,6 +31,9 @@ jobs:
           echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
           echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
           echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
+          if [[ "${{ matrix.os }}" != *"intel"* ]]; then
+            echo "ARCHFLAGS=-arch arm64" >> $GITHUB_ENV
+          fi
           echo $PATH
 
       - name: Checkout code
@@ -61,7 +64,7 @@ jobs:
           pip install pytest pytest-mock
           pytest -v tests/dic/. tests/sensorsim/.
 
-      - name: Run blender tests (skip macOS ARM)
+      - name: Run blender tests (skip macOS ARM, bpy not available)
         if: ${{ !startsWith(matrix.os, 'macos') || contains(matrix.os, 'intel') }}
         run: |
           pip install pytest pytest-mock
