@@ -52,11 +52,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e . -v
 
-      - name: Check architectures
-        run: |
-          file src/pyvale/sensorsim/cython/*.so
-          lipo -info src/pyvale/sensorsim/cython/*.so
-
       - name: Diagnose crash
         if: startsWith(matrix.os, 'macos')
         run: |
