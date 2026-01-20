@@ -22,7 +22,7 @@ jobs:
             macos_deployment_target: "14.0"
           - os: macos-15-intel
             llvm: llvm@18
-            macos_deployment_target: "14.0"
+            macos_deployment_target: "15.0"
           - os: macos-latest
             llvm: llvm@18
             macos_deployment_target: "15.0"
