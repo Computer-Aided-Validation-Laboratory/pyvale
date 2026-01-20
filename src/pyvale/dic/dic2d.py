@@ -6,40 +6,42 @@
 
 
 
+from logging import debug
 import numpy as np
 from pathlib import Path
 
 # pyvale
 import pyvale.dic.dic2dcpp as dic2dcpp
 import pyvale.dic.dicchecks as dicchecks
+import pyvale.common_py.util as common_py_util
+import pyvale.common_cpp.common_cpp as common_cpp
 
-
-def two_dimensional(reference: np.ndarray | str | Path,
-                    deformed: np.ndarray | str | Path,
-                    roi_mask: np.ndarray,
-                    seed: list[int] | list[np.int32] | np.ndarray,
-                    subset_size: int = 21,
-                    subset_step: int = 10,
-                    correlation_criteria: str="ZNSSD",
-                    shape_function: str="AFFINE",
-                    interpolation_routine: str="BICUBIC",
-                    max_iterations: int=40,
-                    opt_precision: float=0.001,
-                    opt_threshold: float=0.9,
-                    bf_threshold: float=0.6,
-                    num_threads: int | None = None,
-                    max_displacement: int=128,
-                    scanning_method: str="RG",
-                    fft_mad: bool=False,
-                    fft_mad_scale: float=3.0,
-                    output_at_end: bool=False,
-                    output_basepath: Path | str = "./",
-                    output_binary: bool=False,
-                    output_prefix: str="dic_results_",
-                    output_delimiter: str=",",
-                    output_unconverged: bool=False,
-                    output_shape_params: bool=False,
-                    debug_level: int=0) -> None:
+def calculate_2d(reference: np.ndarray | str | Path,
+                 deformed: np.ndarray | str | Path | list[Path],
+                 roi_mask: np.ndarray,
+                 seed: list[int] | list[np.int32] | np.ndarray,
+                 subset_size: int = 21,
+                 subset_step: int = 10,
+                 correlation_criteria: str="ZNSSD",
+                 shape_function: str="AFFINE",
+                 interpolation_routine: str="BICUBIC",
+                 max_iterations: int=40,
+                 precision: float=0.001,
+                 threshold: float=0.9,
+                 bf_threshold: float=0.6,
+                 num_threads: int | None = None,
+                 max_displacement: int=128,
+                 method: str="MULTIWINDOW_RG",
+                 fft_mad: bool=False,
+                 fft_mad_scale: float=3.0,
+                 output_at_end: bool=False,
+                 output_basepath: Path | str = "./",
+                 output_binary: bool=False,
+                 output_prefix: str="dic_results_",
+                 output_delimiter: str=",",
+                 output_below_threshold: bool=False,
+                 output_shape_params: bool=False,
+                 debug_level: int=1) -> None:
 
     """
     Perform 2D Digital Image Correlation (DIC) between a reference image and one or more deformed images.
@@ -52,7 +54,7 @@ def two_dimensional(reference: np.ndarray | str | Path,
     ----------
     reference : np.ndarray, str or pathlib.Path
         The reference image (2D array) or path to the image file.
-    deformed : np.ndarray, str or pathlib.Path
+    deformed : np.ndarray, str , pathlib.Path or list[pathlib.Path]
         The deformed image(s) (3D array for multiple images) or path/pattern to image files.
     roi_mask : np.ndarray
         A binary mask indicating the Region of Interest (ROI) for analysis (same size as image).
@@ -71,10 +73,10 @@ def two_dimensional(reference: np.ndarray | str | Path,
         only supported option.
     max_iterations : int, optional
         Maximum number of iterations allowed for subset optimization (default: 40).
-    opt_precision : float, optional
+    precision : float, optional
         Precision threshold for iterative optimization convergence (default: 0.001).
-    opt_threshold : float, optional
-        Minimum correlation improvement threshold to continue iterations (default: 0.9).
+    threshold : float, optional
+        Minimum correlation/cost coefficient value to be considered a matching subset (default: 0.9).
     num_threads : int, optional
         Number of threads to use for parallel computation (default: None, uses all available).
     bf_threshold : float, optional
@@ -82,7 +84,7 @@ def two_dimensional(reference: np.ndarray | str | Path,
         good match(default: 0.6).
     max_displacement : int, optional
         Estimate for the Maximum displacement in any direction (in pixels) (default: 128).
-    scanning_method : str, optional
+    method : str, optional
         Subset scanning method: "RG" for Reliability-Guided (best overall approach), 
         "IMAGE_SCAN" for a standard scan across the image with no seeding 
         (best performance with for subpixel displacements with high quality images), 
@@ -110,9 +112,9 @@ def two_dimensional(reference: np.ndarray | str | Path,
         changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
     output_delimiter : str, optional
         Delimiter used in text output files (default: ",").
-    output_unconverged : bool, optional
-        If True, subset results as they were for the final iteration of the optimization 
-        that did not converge will be saved (default: False).
+    output_below_threshold : bool, optional
+        If True, subset results with cost values that did not exceed the cost threshold
+        will still be present in output (default: False).
     output_shape_params : bool, optional
         If True, all shape parameters will be saved in the output files (default: False).
     debug_level:
@@ -130,16 +132,18 @@ def two_dimensional(reference: np.ndarray | str | Path,
         If provided file paths do not exist.
     """
 
+    if (debug_level>0):
+        dicchecks.print_title("Initial Checks")
+
     # do checks on vars in python land
-    dicchecks.print_title("Initial Checks")
-    ref_arr, def_arr, roi_c, filenames = dicchecks.check_and_get_images(reference,deformed,roi_mask)
+    image_stack, roi_c, filenames = dicchecks.check_and_get_images(reference,deformed,roi_mask, debug_level)
     dicchecks.check_correlation_criteria(correlation_criteria)
     dicchecks.check_interpolation(interpolation_routine)
-    dicchecks.check_scanning_method(scanning_method)
-    dicchecks.check_thresholds(opt_threshold, bf_threshold, opt_precision)
-    dicchecks.check_output_directory(str(output_basepath), output_prefix)
+    dicchecks.check_method(method)
+    dicchecks.check_thresholds(threshold, bf_threshold, precision)
+    common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks.check_subsets(subset_size, subset_step)
-    updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, scanning_method, ref_arr.shape[1], ref_arr.shape[0], subset_size, subset_step)
+    updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, image_stack.shape[2], image_stack.shape[1], subset_size, subset_step)
     num_params = dicchecks.check_shape_function(shape_function)
 
 
@@ -148,17 +152,17 @@ def two_dimensional(reference: np.ndarray | str | Path,
     config.ss_step = subset_step
     config.ss_size = subset_size
     config.max_iter = max_iterations
-    config.precision = opt_precision
-    config.opt_threshold = opt_threshold
+    config.precision = precision
+    config.threshold = threshold
     config.bf_threshold = bf_threshold
     config.max_disp = max_displacement
     config.corr_crit = correlation_criteria
     config.shape_func = shape_function
     config.interp_routine = interpolation_routine
-    config.scan_method = scanning_method
-    config.px_hori = ref_arr.shape[1]
-    config.px_vert = ref_arr.shape[0]
-    config.num_def_img = def_arr.shape[0]
+    config.scan_method = method
+    config.px_hori = image_stack.shape[2]
+    config.px_vert = image_stack.shape[1]
+    config.num_def_img = image_stack.shape[0]-1 # subtract ref image
     config.num_params = num_params
     config.rg_seed = updated_seed
     config.filenames = filenames
@@ -167,20 +171,20 @@ def two_dimensional(reference: np.ndarray | str | Path,
     config.debug_level = debug_level
 
     # assigning c++ struct vals for save config
-    saveconf = dic2dcpp.SaveConfig()
+    saveconf = common_cpp.SaveConfig()
     saveconf.basepath = str(output_basepath)
     saveconf.binary = output_binary
     saveconf.prefix = output_prefix
     saveconf.delimiter = output_delimiter
     saveconf.at_end = output_at_end
-    saveconf.output_unconverged = output_unconverged
+    saveconf.output_below_threshold = output_below_threshold
     saveconf.shape_params = output_shape_params
 
 
     #set the number of OMP threads
     if num_threads is not None:
-        dic2dcpp.set_num_threads(num_threads)
+        common_cpp.set_num_threads(num_threads)
 
     # calling the c++ dic engine
     with dic2dcpp.ostream_redirect(stdout=True, stderr=True):
-        dic2dcpp.dic_engine(ref_arr, def_arr, roi_c, config, saveconf)
+        dic2dcpp.dic_engine(image_stack, roi_c, config, saveconf)

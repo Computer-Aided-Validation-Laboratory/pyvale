@@ -9,13 +9,9 @@
 #define DICRG_H
 
 // STD library Header files
-#include <memory>
-
 
 // Program Header files
-#include "./dicutil.hpp"
-#include "./defines.hpp"
-#include "./dicfourier.hpp"
+#include "./dicsubset.hpp"
 
 namespace rg {
 
@@ -37,26 +33,6 @@ namespace rg {
         }
     };
 
-
-
-
-    /**
-     * @brief
-     * 
-     * @param[out] shift_x 
-     * @param[out] shift_y 
-     * @param ss_x 
-     * @param ss_y 
-     * @param fft_windows 
-     * @param interp_ref 
-     * @param img_def 
-     */
-    void get_rigid_shift(double &shift_x, double &shift_y,
-                         const int ss_x, const int ss_y,
-                         std::vector<std::unique_ptr<fourier::FFT>>& fft_windows,
-                         const Interpolator &interp_ref,
-                         const double *img_def);
-
     /**
      * @brief 
      * 
@@ -68,10 +44,7 @@ namespace rg {
      * @return true 
      * @return false 
      */
-     bool is_valid_point(const int ss_x, const int ss_y, const util::SubsetData &ssdata);
-
-
-
+     bool is_valid_point(const int ss_x, const int ss_y, const subset::Grid &ss_grid);
 
 }
 

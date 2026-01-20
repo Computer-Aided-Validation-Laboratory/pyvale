@@ -71,7 +71,8 @@ private:
      * @param px Vector of x coordinates
      * @param data Vector of function values at the x coordinates
      */
-    void cspline_init(std::vector<double> &px, std::vector<double> &data);
+    void cspline_init(const std::vector<double> &px, const std::vector<double> &data,
+                      std::vector<double> &local_tridiag_sol);
 
     /**
      * @brief Evaluates the derivative of a cubic spline at a specified point.
@@ -84,14 +85,14 @@ private:
      * @param length The length of the px and data arrays
      * @return The derivative value at the specified point
      */
-    double cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data, double value, int length);
+    double cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data, 
+                              std::vector<double> &local_tridiag_sol, double value, int length);
 
 
 public:
     std::vector<double> dx;
     std::vector<double> dy;
     std::vector<double> dxy;
-    std::vector<double> tridiag_solution;
     std::vector<double> px_y;
     std::vector<double> px_x;
     double *image;
