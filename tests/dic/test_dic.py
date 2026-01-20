@@ -45,6 +45,7 @@ true_50_0 = np.loadtxt(true_file_50_0, skiprows=1, delimiter=',')
 # Create a deformed image where intensities are scaled/offset
 ref_image = Image.open(ref_pattern)
 files = list(def_pattern.parent.glob(def_pattern.name))
+files = sorted(files)
 def_image = Image.open(files[0])
 ref_arr = np.array(ref_image)
 def_arr = np.array(def_image)

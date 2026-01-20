@@ -1,10 +1,11 @@
-name: Build and Upload Wheels to PyPI
+name: Build Wheels and upload (if new release) to PyPI
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
   release:
     types:
       - published
@@ -18,18 +19,24 @@ jobs:
         include:
           - os: macos-14
             llvm: llvm@15
+            macos_deployment_target: "14.0"
           - os: macos-15-intel
             llvm: llvm@18
-          - os: macos-15-latest
+            macos_deployment_target: "15.0"
+          - os: macos-latest
             llvm: llvm@18
+            macos_deployment_target: "15.0"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install libomp for clang (macOS only)
+      - name: Set compiler on macOS to GCC
         if: startsWith(matrix.os, 'macos')
         run: |
           brew install libomp
-      
+          echo "MACOSX_DEPLOYMENT_TARGET=${{ matrix.macos_deployment_target }}" >> $GITHUB_ENV
+          echo "CC=gcc-15" >> $GITHUB_ENV
+          echo "CXX=g++-15" >> $GITHUB_ENV
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         with:
@@ -38,12 +45,6 @@ jobs:
           config-file: "{package}/pyproject.toml"
         env:
           CIBW_SKIP: "pp*"
-          CIBW_ENVIRONMENT_MACOS: >
-            CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang
-            CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++
-            LDFLAGS="-L$(brew --prefix libomp)/lib"
-            CPPFLAGS="-I$(brew --prefix libomp)/include"
-            OpenMP_ROOT=$(brew --prefix libomp)
       - uses: actions/upload-artifact@v4
         with:
           name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}
