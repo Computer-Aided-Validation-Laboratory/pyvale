@@ -6,16 +6,24 @@ Digital Image Correlation (DIC) Guide
 
 Digital Image Correlation (DIC) is a technique for measuring
 deformation, displacement, and strain by analyzing a sequence of images captured
-during a loading process. At its core, DIC tracks the movement of patterns on a
-surface—tiny speckles or textures—between images, and from this motion, deduces
-how the material has deformed.
+during a loading process. At its core, DIC tracks the movement of patterns/speckles/textures between images, 
+and from this motion, deduces how the material has deformed.
 
 Local Subset DIC
 ----------------
-The simplest form of DIC divides the image into small regions called *subsets*.
+In Local subset DIC images are divided into small :math:`N \times N` pixel regions which are called *subsets*.
 By comparing the intensity patterns of these subsets across images, we can estimate
-their displacement. This approach is computationally efficient and works well
-for small deformations, but it can struggle when subsets distort significantly.
+their displacement. The image below shows the cost (where 0 is a perfect match)
+for a brute force scan along the x-axis. 
+
+Typically we don't use a brute force
+approach, but instead use an optimization algorith that is much more computationally
+efficient. The optimization tries to minimize the difference between the
+reference and deformed subset by using the gradient. You can see from the
+brute-force approach that there's local minima where the optimizer might get
+stuck. It's therefore important to ensure that any initial guess is reasonably
+close to the actual parameters that define the mapping from the subset in the
+reference image to the subset in the deformed image.
 
 
 .. image:: cost.gif
@@ -24,10 +32,12 @@ for small deformations, but it can struggle when subsets distort significantly.
 
 Shape Functions
 ---------------
-To model how a subset deforms, we introduce *shape functions*. These are
+It's often the case that a subset undergoes a more complex translation than just a pure rigid translation between reference and deformed image.
+To model how a subset deforms more genreally, we introduce *shape functions*. These are
 mathematical mappings that describe how points inside a subset move relative to
-each other.  Pyvale supports three commonly used shape functions in DIC. The simplest shape function assumes *rigid* translation (two
-parameters: horizontal and vertical shift):
+each other.  Pyvale supports three commonly used shape functions in DIC. The simplest of course is a pure *rigid* translation (two
+parameters: horizontal and vertical shift). After this comes *affine* and
+*quadratic* shape functions:
 
 .. math::
   \xi(x_i,y_i, \mathbf{p}) =
@@ -65,7 +75,6 @@ where :math:`f(x_{i},y_{i})` and  :math:`g(x_{i},y_{i})` represent the gray-leve
   \text{ZNSSD} = \sum_i \left( \frac{\bar{f}(x_{i},y_{i})}{\sqrt{\sum_{j} \bar{f}(x_{j},y_{j})^{2}}} - \frac{\bar{g}(x_{i},y_{i})}{\sqrt{\sum_{j} \bar{g}(x_{j},y_{j})^{2}}} \right)^{2}
 
 where :math:`\bar{f}(x_{i},y_{i}) = f(x_{i},y_{i}) - f_m`, and :math:`f_m` is the mean gray-level value of the subset. ZNSSD is invariant to both additive and multiplicative intensity changes.
-
 The goal is to minimize this cost function by adjusting the displacement and
 shape parameters until the subsets align as closely as possible.
 
@@ -79,27 +88,23 @@ function.
 
 Sub-pixel Accuracy
 ------------------
-Digital Image Correlation aims for precision beyond the pixel grid. Integer-pixel
-matching is a good start, but real displacements rarely align perfectly with pixel
-boundaries. To capture these subtle shifts, we refine the measurement to *sub-pixel*
-accuracy.
+DIC aims for precision beyond the integer values defined by the images pixel grid. Integer-pixel
+matching is a good start, but physical displacements do not perfectly map to pixel
+boundaries. To capture this, we refine the measurement to *sub-pixel*
+accuracy using interpolation.
 
-This refinement relies on interpolation. Instead of treating the image as a discrete
-array, we approximate it as a smooth surface. Bicubic B-spline interpolation is a
+Instead of treating the image as a discrete
+array, we approximate it as a smooth surface. **Bicubic B-spline interpolation** is a
 common choice because it provides continuity in both first and second derivatives,
 which improves numerical stability during optimization.
 
-### Bicubic B-spline Interpolation
-Let the reference image intensity be \( f(x, y) \), known at integer coordinates.
-To evaluate it at a non-integer point \((x', y')\), we compute:
+Let the reference image intensity be :math:`f(x, y)`. Which is known at integer coordinates.
+To evaluate it at a non-integer point :math:`(x', y')`, we compute:
 
 .. math::
     f(x', y') \approx \sum_{i=-1}^{2} \sum_{j=-1}^{2} B(x' - (x+i)) \, B(y' - (y+j)) \, f(x+i, y+j)
 
-where:
-- \( w_i(x') \) and \( w_j(y') \) are cubic B-spline basis functions,
-- the summation spans a \(4 \times 4\) neighborhood around \((x', y')\).
-
+where :math:`B(...)` are cubic B-spline basis functions. The summation spans a \(4 \times 4\) neighborhood around \((x', y')\).
 The cubic B-spline basis ensures smooth interpolation:
 
 .. math::
