@@ -22,17 +22,6 @@ jobs:
           - os: macos-latest
             llvm: llvm@18
     steps:
-      - name: Install libomp and set compiler on macOS
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          brew install libomp
-          echo "CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++" >> $GITHUB_ENV
-          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
-          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
-          export DYLD_PRINT_LIBRARIES=1
-
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -40,6 +29,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+
+      - name: set default compiler on macOS to GCC
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          echo "CC=gcc-15" >> $GITHUB_ENV
+          echo "CXX=g++-15" >> $GITHUB_ENV
 
       - name: Install dependencies for ubuntu-latest
         if: matrix.os == 'ubuntu-latest'
@@ -52,11 +47,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e . -v
 
-      - name: Diagnose crash
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          lldb --batch -o "run -c 'import pyvale'" -o "bt" -- python
-
       - name: Smoke test
         run: |
           python -c "import pyvale"
@@ -66,7 +56,7 @@ jobs:
           pip install pytest pytest-mock
           pytest -v tests/dic/. tests/sensorsim/.
 
-      - name: Run blender tests (skip macOS ARM, bpy not available)
+      - name: Run blender tests (skip macOS ARM)
         if: ${{ !startsWith(matrix.os, 'macos') || contains(matrix.os, 'intel') }}
         run: |
           pip install pytest pytest-mock
