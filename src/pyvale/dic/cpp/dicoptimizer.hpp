@@ -12,7 +12,7 @@
 #include <vector>
 
 // Program Header files
-#include "./dicutil.hpp"
+#include "./dicresults.hpp"
 #include "./dicinterpolator.hpp"
 
 
@@ -38,14 +38,15 @@ namespace optimizer {
         std::vector<double> augmented;
         int max_iter;
         double precision;
-        double opt_threshold;
+        double threshold;
         int px_vert;
         int px_hori;
 
 
         // Constructor to initialize vectors and other parameters
         Parameters(int num_params_, int max_iter_, double precision_, 
-                   double opt_threshold_, int px_vert_, int px_hori_)
+                   double threshold_, int px_vert_, int px_hori_,
+                   const std::string& corr_crit)
             :
             num_params(num_params_),
             lambda(0.01),
@@ -61,32 +62,18 @@ namespace optimizer {
             augmented(num_params*num_params*2, 0.0),
             max_iter(max_iter_),
             precision(precision_),
-            opt_threshold(opt_threshold_),
+            threshold(threshold_),
             px_vert(px_vert_),
-            px_hori(px_hori_) {}
+            px_hori(px_hori_) {
+            }
     };
 
     /**
-     * @brief Initializes the optimizer with the correlation criteria and shape function. Calls setCostFunction and setShapeFunction.
-     * 
-     * @param[in] corr_crit string for the correlation criteria, e.g. "SSD", "NSSD", "ZNSSD".
-     * @param[in] shape_func string for the shape function, e.g. "AFFINE", "RIGID".
-     */
-    void init(std::string &corr_crit, std::string &shape_func);
-
-    /**
      * @brief This function gets called before the corrolation optimization starts. Sets the function pointer for the user specified shape function.
      * 
      * @param[in] corr_crit string for the correlation criteria, e.g. "SSD", "NSSD", "ZNSSD".
      */
-    void setCostFunction(const std::string& corr_crit);
-
-    /**
-     * @brief This function gets called before the corrolation optimization starts. Sets the function pointer for the user specified shape function.
-     * 
-     * @param[in] shape_func string for the shape function, e.g. "AFFINE", "RIGID".
-     */
-    void setShapeFunction(const std::string& shape_func);
+    void set_cost_function(const std::string& corr_crit);
 
     /**
      * @brief 
@@ -99,7 +86,7 @@ namespace optimizer {
      * @param xtol 
      * @param p 
      */
-    void debugPrint(int ss_x, int ss_y, int iter, double costp, double ftol, double xtol, const std::vector<double>& p);
+    void debug_print(int ss_x, int ss_y, int iter, double costp, double ftol, double xtol, const std::vector<double>& p);
 
 
     /**
@@ -111,9 +98,9 @@ namespace optimizer {
      * @param ss_def 
      * @param interp_ref 
      * @param opt 
-     * @return util::Results 
+     * @return OptResult 
      */
-    util::Results solve(const double ss_x, const double ss_y, util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt, const std::string &corr_crit);
+    OptResult solve(const double ss_x, const double ss_y, subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt, const std::string &corr_crit);
 
     /**
      * @brief calcutes the Sum of Squared Differences (SSD) between reference and deformed subsets.
@@ -123,7 +110,7 @@ namespace optimizer {
      * @param[in] interp_def interpolator for deformed image 
      * @param[in,out] opt Optimization parameters including gradient, Hessian, etc. 
      */
-    void   ssd(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
+    void   ssd(const subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
 
     /**
      * @brief calcutes the Normalized Sum of Squared Differences (NSSD) between reference and deformed subsets.
@@ -133,7 +120,7 @@ namespace optimizer {
      * @param[in] interp_def interpolator for deformed image 
      * @param[in,out] opt Optimization parameters including gradient, Hessian, etc. 
      */
-    void  nssd(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
+    void  nssd(const subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
 
     /**
      * @brief calcutes the Zero Normalized Sum of Squared Differences (ZNSSD) between reference and deformed subsets.
@@ -143,7 +130,7 @@ namespace optimizer {
      * @param[in] interp_def interpolator for deformed image 
      * @param[in,out] opt Optimization parameters including gradient, Hessian, etc. 
      */
-    void znssd(const util::Subset &ss_ref, util::Subset &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
+    void znssd(const subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt);
 
 
     /**
@@ -255,7 +242,7 @@ namespace optimizer {
      * @param[in] y 
      * @param[in] p 
      */
-    inline void dquad_dp(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
+    inline void dquad_dp(std::vector<double> &dfdp, double x, double y, double dfdy);
 
     /**
      * @brief Funcion to convert affine shape function parameters to displacement values
@@ -265,7 +252,7 @@ namespace optimizer {
      * @param[in] ss_y subset y coordinate
      * @param[in] p shape function parameters
      */
-    void affine_parameters_to_displacement(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
+    void quad_parameters_to_displacement(OptResult &results, double ss_x, double ss_y, std::vector<double> &p);
 
     /**
      * @brief Funcion to convert affine shape function parameters to displacement values
@@ -275,7 +262,17 @@ namespace optimizer {
      * @param[in] ss_y subset y coordinate
      * @param[in] p shape function parameters
      */
-    void rigid_parameters_to_displacement(util::Results &results, double ss_x, double ss_y, std::vector<double> &p);
+    void affine_parameters_to_displacement(OptResult &results, double ss_x, double ss_y, std::vector<double> &p);
+
+    /**
+     * @brief Funcion to convert affine shape function parameters to displacement values
+     * 
+     * @param[out] displacements values (u,v, magnitude) are added to results
+     * @param[in] ss_x subset x coordinate
+     * @param[in] ss_y subset y coordinate
+     * @param[in] p shape function parameters
+     */
+    void rigid_parameters_to_displacement(OptResult &results, double ss_x, double ss_y, std::vector<double> &p);
 
 }
 
