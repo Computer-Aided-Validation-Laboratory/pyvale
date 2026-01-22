@@ -1,4 +1,5 @@
 
+
 .. _guide_dic:
 
 Digital Image Correlation (DIC) Guide
@@ -91,43 +92,19 @@ Sub-pixel Accuracy
 DIC aims for precision beyond the integer values defined by the images pixel grid. Integer-pixel
 matching is a good start, but physical displacements do not perfectly map to pixel
 boundaries. To capture this, we refine the measurement to *sub-pixel*
-accuracy using interpolation.
-
-Instead of treating the image as a discrete
-array, we approximate it as a smooth surface. **Bicubic B-spline interpolation** is a
-common choice because it provides continuity in both first and second derivatives,
-which improves numerical stability during optimization.
-
-Let the reference image intensity be :math:`f(x, y)`. Which is known at integer coordinates.
-To evaluate it at a non-integer point :math:`(x', y')`, we compute:
-
-.. math::
-    f(x', y') \approx \sum_{i=-1}^{2} \sum_{j=-1}^{2} B(x' - (x+i)) \, B(y' - (y+j)) \, f(x+i, y+j)
-
-where :math:`B(...)` are cubic B-spline basis functions. The summation spans a \(4 \times 4\) neighborhood around \((x', y')\).
-The cubic B-spline basis ensures smooth interpolation:
-
-.. math::
-    B(t) = \frac{1}{6}
-    \begin{cases}
-    (3 - t)^3, & 0 \le t < 1 \\
-    (3 - t)^3 - 4(2 - t)^3, & 1 \le t < 2 \\
-    (3 - t)^3 - 4(2 - t)^3 + 6(1 - t)^3, & 2 \le t < 3 \\
-    0, & t \ge 3
-    \end{cases}
-
-This smoothness is essential for gradient-based optimization methods used in DIC.
-Linear interpolation, by contrast, introduces discontinuities that can hinder
-convergence.
+accuracy using interpolation. Instead of treating the image as a discrete
+array, we approximate it as a smooth surface. This is done using **cubic B-spline
+interpolation**. Generally, B-spline curves do not pass through the control
+points (pixel values) and *interpolating* B-splines are needed to pass through
+exact locations. More details can be found `here <https://ieeexplore.ieee.org/document/1163154>`_.
 
 Reliability Guided DIC (RG-DIC)
 --------------------------------
-Not all subsets are created equal. Some have rich texture and produce reliable
-matches; others are bland and ambiguous. RG-DIC tackles this by prioritizing
-high-confidence regions first, then propagating their solutions to neighbors.
-Think of it as solving the easy puzzles first, then using those clues to crack
-the harder ones. This strategy improves robustness, especially in noisy or
-low-texture areas.
+It's highly likely that some subsets will poorly correlate due to texture changes, occlusion, noise, or large local deformations. 
+Reliability‑Guided DIC (RG‑DIC) addresses this by correlating subsets in an order determined by the correlation coefficient.
+After selecting and correlating at aseed location, RG‑DIC uses the results to provide initial guesses for the correlation of neighbouring subsets. 
+The algorithm then expands outward in a front‑propagation style. 
+Mathematical details can be found `here <https://opg.optica.org/ao/abstract.cfm?uri=ao-48-8-1535>`_.
 
 Strain Calculations
 --------------------
