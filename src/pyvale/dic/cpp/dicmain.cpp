@@ -7,6 +7,7 @@
 
 // STD library Header files
 #include <atomic>
+#include <iomanip>
 #include <iostream>
 #include <cstring>
 #include <omp.h>
@@ -25,7 +26,9 @@
 #include "../../common_cpp/util.hpp"
 
 // DIC Header files
-#include "./dicinterpolator.hpp"
+#include "./dicinterp.hpp"
+#include "./dicinterpBspline.hpp"
+#include "./dicinterpHermite.hpp"
 #include "./dicoptimizer.hpp"
 #include "./dicscanmethod.hpp"
 #include "./dicutil.hpp"
@@ -115,6 +118,7 @@ void DICengine(const py::array_t<double>& img_stack_arr,
     
     // pointer to hold the reference interpolator (will be created once)
     Interpolator* interp_ref = nullptr;
+    Interpolator* interp_ref_inc = nullptr;
 
     // loop over deformed images. They start at index 1 in the stack
     for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){
@@ -124,13 +128,15 @@ void DICengine(const py::array_t<double>& img_stack_arr,
         double *img_def = img_stack + img_num*num_px_in_image;
 
         // define our interpolator for the reference image
-        Interpolator interp_def(img_def, conf.px_hori, conf.px_vert);
+        Interpolator* interp_def = nullptr;
+        if (conf.interp_routine == "BSPLINE") interp_def = new Bspline(img_def, conf.px_hori, conf.px_vert);
+        else if (conf.interp_routine == "HERMITE") interp_def = new Hermite(img_def, conf.px_hori, conf.px_vert);
 
         // -------------------------------------------------------------------------------------------------------------------------------------------
         // raster scan
         // -------------------------------------------------------------------------------------------------------------------------------------------
         if (conf.scan_method=="IMAGE_SCAN") 
-            scanmethod::image(img_ref, interp_def, ss_grids[0], conf, img_num, result_arrays);
+            scanmethod::image(img_ref, *interp_def, ss_grids[0], conf, img_num, result_arrays);
 
 
 
@@ -139,7 +145,7 @@ void DICengine(const py::array_t<double>& img_stack_arr,
         // multiwindow FFTCC + reliability Guided
         // -------------------------------------------------------------------------------------------------------------------------------------------
         else if (conf.scan_method=="MULTIWINDOW_RG")
-            scanmethod::multiwindow_reliability_guided(img_ref, img_def, interp_def, ss_grids, conf, img_num, result_arrays);
+            scanmethod::multiwindow_reliability_guided(img_ref, img_def, *interp_def, ss_grids, conf, img_num, result_arrays);
 
 
 
@@ -148,8 +154,9 @@ void DICengine(const py::array_t<double>& img_stack_arr,
         // singlewindow FFTCC + reliability Guided
         // -------------------------------------------------------------------------------------------------------------------------------------------
         else if (conf.scan_method=="SINGLEWINDOW_RG"){
-            if (!interp_ref) interp_ref = new Interpolator(img_ref, conf.px_hori, conf.px_vert);
-            scanmethod::singlewindow_incremental_reliability_guided(img_ref, img_def, *interp_ref, interp_def, ss_grids, conf, 0, img_num, result_arrays);
+            if (!interp_ref && conf.interp_routine=="BSPLINE") interp_ref = new Bspline(img_ref, conf.px_hori, conf.px_vert);
+            if (!interp_ref && conf.interp_routine=="HERMITE") interp_ref = new Hermite(img_ref, conf.px_hori, conf.px_vert);
+            scanmethod::singlewindow_incremental_reliability_guided(img_ref, img_def, *interp_ref, *interp_def, ss_grids, conf, 0, img_num, result_arrays);
         }
 
 
@@ -158,7 +165,7 @@ void DICengine(const py::array_t<double>& img_stack_arr,
         // multi window FFTCC ONLY
         // -------------------------------------------------------------------------------------------------------------------------------------------
         else if (conf.scan_method=="MULTIWINDOW")
-            scanmethod::multiwindow(img_ref, img_def, interp_def, ss_grids, conf, img_num, result_arrays);
+            scanmethod::multiwindow(img_ref, img_def, *interp_def, ss_grids, conf, img_num, result_arrays);
 
 
 
@@ -170,8 +177,9 @@ void DICengine(const py::array_t<double>& img_stack_arr,
             double *img_prev = nullptr;
             int img_num_prev = img_num-1;
             img_prev = img_stack + img_num_prev*num_px_in_image;
-            Interpolator interp_ref_inc(img_prev, conf.px_hori, conf.px_vert);
-            scanmethod::singlewindow_incremental_reliability_guided(img_prev, img_def, interp_ref_inc, interp_def, ss_grids, conf, img_num_prev, img_num, result_arrays);
+            if (conf.interp_routine=="BSPLINE") interp_ref_inc = new Bspline(img_prev, conf.px_hori, conf.px_vert);
+            if (conf.interp_routine=="HERMITE") interp_ref_inc = new Hermite(img_prev, conf.px_hori, conf.px_vert);
+            scanmethod::singlewindow_incremental_reliability_guided(img_prev, img_def, *interp_ref_inc, *interp_def, ss_grids, conf, img_num_prev, img_num, result_arrays);
         }
 
 
@@ -180,6 +188,8 @@ void DICengine(const py::array_t<double>& img_stack_arr,
 
         if (!saveconf.at_end)
             result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
+
+        if (interp_def) delete interp_def;
 
         if (stop_request) break;
     }
