@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
-from pyqtgraph.Qt import QtWidgets, QtCore
+from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 import cv2
 import numpy as np
@@ -14,6 +14,7 @@ import math
 import yaml
 import os
 from pathlib import Path
+from functools import partial
 
 class RegionOfInterest:
     """
@@ -79,8 +80,7 @@ class RegionOfInterest:
         self.fill_layer = None
         self.buttons = {}
         self.poly_points = []
-        self.temp_mask = None
-        self.fill_array = None
+
         self.height = None
         self.width = None
         self.subset_size = None
@@ -94,18 +94,21 @@ class RegionOfInterest:
         self.__roi_selected = True
         
         # Initialize GUI
-        self._setup_gui()
-        self._setup_graphics()
-        self._connect_signals()
+        fill_array, temp_mask = self._setup_gui()
+        print(fill_array.shape, temp_mask.shape)
+        self._connect_signals(fill_array, temp_mask)
         
         # Show and run
         self.main_window.show()
         pg.exec()
         
-        # Process final mask and seed
-        self._finalize_selection()
+        # Process seed
+        self._finalize_seed_selection()
 
-    def _setup_gui(self):
+        # finalize mask
+        self.mask = temp_mask
+
+    def _setup_gui(self) -> tuple[np.ndarray, np.ndarray]:
         """Setup the main GUI window and sidebar."""
         app = pg.mkQApp("ROI GUI")
         self.main_window = CustomMainWindow(dic_obj=self)
@@ -113,18 +116,43 @@ class RegionOfInterest:
         self.main_window.setLayout(main_layout)
         self.main_window.resize(1000, 1000)
 
+        """Setup the graphics view and image display."""
+        self.graphics_widget = pg.GraphicsLayoutWidget()
+        self.main_view = self.graphics_widget.addViewBox(lockAspect=True)
+
+        # Setup image
+        rotated = np.rot90(self.ref_image, k=1)
+        rotated = np.flip(rotated,axis=0)
+        img = pg.ImageItem(rotated)
+        self.main_view.addItem(img)
+        self.main_view.disableAutoRange('xy')
+        self.main_view.autoRange()
+        self.main_view.invertY(True)
+
+        # Setup fill layer
+        self.fill_layer = pg.ImageItem()
+        self.fill_layer.setZValue(1)
+        self.main_view.addItem(self.fill_layer)
+        self.height, self.width = self.ref_image.shape[:2]
+
+        # these are flipped because of the way pyqtgraph works
+        fill_array = np.zeros((self.height, self.width, 4), dtype=np.uint8)
+        temp_mask = np.zeros((self.height, self.width), dtype=bool)
+
+        # Setup drawing overlays
+        self._setup_drawing_overlays()
+
+
         # Create sidebar
-        sidebar = self._create_sidebar()
+        sidebar = self._create_sidebar(fill_array, temp_mask)
         
         # Create graphics widget
-        self.graphics_widget = pg.GraphicsLayoutWidget()
-
-
-        
         main_layout.addLayout(sidebar)
         main_layout.addWidget(self.graphics_widget)
 
-    def _create_sidebar(self):
+        return fill_array, temp_mask
+
+    def _create_sidebar(self, fill_array, temp_mask):
         """Create the sidebar with all buttons."""
         sidebar = QtWidgets.QVBoxLayout()
         
@@ -147,7 +175,7 @@ class RegionOfInterest:
                                         ("sub_circle", "Remove Circle"),
                                         ("sub_poly", "Remove Polygon")]),
 
-            ("SEED LOCATION", [("add_seed", "Add Reliability Guided Seed Location")]),
+            ("SEED LOCATION", "SEED_SECTION"),
 
             ("UNDO / REDO SHAPES", [("undo_prev", "Undo Shape"),
                                     ("redo_prev", "Redo Shape")]),
@@ -158,20 +186,71 @@ class RegionOfInterest:
         self.buttons = {}
         for section_title, button_list in button_configs:
             sidebar.addWidget(make_title(section_title))
+
+            if button_list == "SEED_SECTION":
+
+                # Seed size input layout
+                seed_layout = QtWidgets.QHBoxLayout()
+
+                seed_label = QtWidgets.QLabel("Seed Size (odd):")
+                seed_input = QtWidgets.QLineEdit()
+                seed_input.setFixedWidth(60)
+                seed_input.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                
+                # Default subset size
+                seed_input.setText("21")
+
+                # Restrict to integer input
+                validator = QtGui.QIntValidator(1, 999)
+                seed_input.setValidator(validator)
+
+                # Enforce odd values
+                def enforce_odd():
+                    text = seed_input.text()
+                    if text.isdigit():
+                        val = int(text)
+                        if val % 2 == 0:  # Convert even → odd
+                            seed_input.setText(str(val + 1))
+                        
+                        self.subset_size = val
+                        if hasattr(self, 'seed_roi') and self.seed_roi is not None:
+                            # Compute current center of existing ROI
+                            old_rect = self.seed_roi.pos()
+                            center = QtCore.QPointF(old_rect.x() + self.subset_size / 2,
+                                                    old_rect.y() + self.subset_size / 2)
+                            self._draw_seed_roi(center, fill_array, temp_mask)
+
+                seed_input.editingFinished.connect(enforce_odd)
+
+                seed_layout.addWidget(seed_label)
+                seed_layout.addWidget(seed_input)
+                sidebar.addLayout(seed_layout)
+
+                self.seed_input = seed_input
+
+                # Add Seed Button
+                btn = QtWidgets.QPushButton("Add Reliability Guided Seed Location")
+                self.buttons["add_seed"] = btn
+                sidebar.addWidget(btn)
+
+                sidebar.addSpacing(20)
+                continue
+
             for btn_id, btn_text in button_list:
                 btn = QtWidgets.QPushButton(btn_text)
                 self.buttons[btn_id] = btn
                 sidebar.addWidget(btn)
+
             sidebar.addSpacing(20)
 
         # Initial button states
         self.buttons['undo_prev'].setEnabled(False)
         self.buttons['redo_prev'].setEnabled(False)
-        
+
+        # Coordinate display label
         self.coord_label = QtWidgets.QLabel("(-, -)")
         self.coord_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 
-        # Set fixed width to handle largest expected value comfortably
         self.coord_label.setMinimumWidth(350)
         self.coord_label.setMaximumWidth(350)
 
@@ -185,34 +264,12 @@ class RegionOfInterest:
                 font-size: 12px;
             }
         """)
-        
+
         sidebar.addStretch()
         sidebar.addWidget(self.coord_label)
-        
+
         return sidebar
 
-    def _setup_graphics(self):
-        """Setup the graphics view and image display."""
-        self.main_view = self.graphics_widget.addViewBox(lockAspect=True)
-        
-        # Setup image
-        rotated = np.rot90(self.ref_image, k=-1)
-        img = pg.ImageItem(rotated)
-        self.main_view.addItem(img)
-        self.main_view.disableAutoRange('xy')
-        self.main_view.autoRange()
-
-        # Setup fill layer
-        self.fill_layer = pg.ImageItem()
-        self.fill_layer.setZValue(1)
-        self.main_view.addItem(self.fill_layer)
-
-        self.height, self.width = rotated.shape[:2]
-        self.fill_array = np.zeros((self.height, self.width, 4), dtype=np.uint8)
-        self.temp_mask = np.zeros((self.height, self.width), dtype=bool)
-
-        # Setup drawing overlays
-        self._setup_drawing_overlays()
 
     def _setup_drawing_overlays(self):
         """Setup scatter plots and lines for polygon drawing."""
@@ -224,7 +281,7 @@ class RegionOfInterest:
         for item in [self.add_scatter, self.sub_scatter, self.add_line, self.sub_line]:
             self.main_view.addItem(item)
 
-    def _connect_signals(self):
+    def _connect_signals(self, fill_array: np.ndarray, temp_mask: np.ndarray):
         """Connect all button signals to their handlers."""
         signal_map = {
             'add_seed': lambda: self._start_drawing_mode('seed'),
@@ -234,17 +291,17 @@ class RegionOfInterest:
             'sub_rect': lambda: self._start_removing_mode('rect'),
             'sub_circle': lambda: self._start_removing_mode('circle'),
             'sub_poly': lambda: self._start_removing_mode('poly'),
-            'undo_prev': self._undo_last,
-            'redo_prev': self._redo_last,
-            'save_roi': self._save_interactive_roi,
-            'open_roi': self._open_interactive_roi,
+            'undo_prev': lambda: self._undo_last(fill_array, temp_mask),
+            'redo_prev': lambda: self._redo_last(fill_array, temp_mask),
+            'save_roi': lambda: self._save_interactive_roi(),
+            'open_roi': lambda: self._open_interactive_roi(fill_array, temp_mask),
             'finished': self._finish
         }
 
         for btn_id, handler in signal_map.items():
             self.buttons[btn_id].clicked.connect(handler)
 
-        self.main_view.scene().sigMouseClicked.connect(self._mouse_clicked)
+        self.main_view.scene().sigMouseClicked.connect(partial(self._mouse_clicked, fill_array=fill_array, temp_mask=temp_mask))
         self.main_view.scene().sigMouseMoved.connect(self._mouse_moved)
 
 
@@ -253,14 +310,14 @@ class RegionOfInterest:
         if self.main_view.sceneBoundingRect().contains(pos):
             mouse_point = self.main_view.mapSceneToView(pos)
             # Convert from graphics coordinates to image coordinates
-            img_x = int(round(mouse_point.x()))
-            img_y = int(round(self.width - mouse_point.y()))
+            img_x = int(math.floor(mouse_point.x()))
+            img_y = int(math.floor(self.height - mouse_point.y()))
             
             # Clamp coordinates to image bounds
-            img_x = max(0, min(img_x, self.height - 1))
-            img_y = max(0, min(img_y, self.width - 1))
+            img_x = max(0, min(img_x, self.width - 1))
+            img_y = max(0, min(img_y, self.height - 1))
             
-            self.coord_label.setText(f"({img_x}, {img_y})")
+            self.coord_label.setText(f"({img_x}, {self.height-img_y-1})")
         else:
             self.coord_label.setText("(-, -)")
 
@@ -308,16 +365,16 @@ class RegionOfInterest:
         self.main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self._clear_redo_stack()
 
-    def _mouse_clicked(self, event):
+    def _mouse_clicked(self, event, fill_array: np.ndarray, temp_mask: np.ndarray) -> None:
         """Handle mouse clicks for drawing shapes."""
         if self.drawing_modes['poly'] or self.removing_modes['poly']:
-            self._handle_polygon_click(event)
+            self._handle_polygon_click(event, fill_array, temp_mask)
         elif self.drawing_modes['seed']:
-            self._handle_seed_click(event)
+            self._handle_seed_click(event, fill_array, temp_mask)
         elif any(self.drawing_modes.values()) or any(self.removing_modes.values()):
-            self._handle_shape_click(event)
+            self._handle_shape_click(event, fill_array, temp_mask)
 
-    def _handle_polygon_click(self, event):
+    def _handle_polygon_click(self, event, fill_array: np.ndarray, temp_mask: np.ndarray):
         """Handle polygon drawing clicks."""
         is_adding = self.drawing_modes['poly']
         scatter = self.add_scatter if is_adding else self.sub_scatter
@@ -333,35 +390,59 @@ class RegionOfInterest:
                     line.setData([p[0] for p in self.poly_points], [p[1] for p in self.poly_points])
                     
         elif event.button() == QtCore.Qt.MouseButton.RightButton:
-            self._finish_polygon_drawing(is_adding)
+            self._finish_polygon_drawing(is_adding, fill_array, temp_mask)
 
-    def _handle_seed_click(self, event):
+
+    def _draw_seed_roi(self, center_pos, fill_array, temp_mask):
+        """
+        Draw or redraw the seed ROI with current subset_size.
+        center_pos: QPointF in scene coordinates. If None, uses previous ROI center.
+        """
+        if hasattr(self, 'seed_roi') and self.seed_roi is not None:
+            # Save old center
+            old_rect = self.seed_roi.pos()
+            self.main_view.removeItem(self.seed_roi)
+            if center_pos is None:
+                center_pos = QtCore.QPointF(old_rect.x() + self.subset_size / 2,
+                                            old_rect.y() + self.subset_size / 2)
+
+        if center_pos is None:
+            # No previous position; nothing to draw
+            return
+
+        x = math.floor(center_pos.x() - self.subset_size / 2)
+        y = math.floor(center_pos.y() - self.subset_size / 2)
+
+        seed_roi = pg.RectROI(
+            [x, y], [self.subset_size, self.subset_size],
+            pen=pg.mkPen('y', width=3),
+            hoverPen=pg.mkPen('b', width=3),
+            handlePen='#0000',
+            handleHoverPen='#0000'
+        )
+
+        # Remove all handles to make it non-interactive
+        for handle in seed_roi.getHandles():
+            seed_roi.removeHandle(handle)
+
+        self.main_view.addItem(seed_roi)
+        self.seed_roi = seed_roi#
+        self.seed_roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
+        self._redraw_fill_layer(fill_array, temp_mask)
+
+    def _handle_seed_click(self, event, fill_array, temp_mask):
         """Handle seed location clicks."""
-        if event.button() == QtCore.Qt.MouseButton.LeftButton:
-            pos = event.scenePos()
-            start_point = self.main_view.mapSceneToView(pos)
-            
-            x = math.floor(start_point.x() - self.subset_size / 2)
-            y = math.floor(start_point.y() - self.subset_size / 2)
-            
-            seed_roi = pg.RectROI(
-                [x, y], [self.subset_size, self.subset_size],
-                pen=pg.mkPen('b', width=3),
-                hoverPen=pg.mkPen('y', width=3),
-                handlePen='#0000',
-                handleHoverPen='#0000'
-            )
-            
-            # Remove all handles to make it non-interactive
-            for handle in seed_roi.getHandles():
-                seed_roi.removeHandle(handle)
-                
-            self.main_view.addItem(seed_roi)
-            self.seed_roi = seed_roi
-            print(f"Seed initially added at location: [{x}, {self.width-y}]")
-            self._finish_mode()
 
-    def _handle_shape_click(self, event):
+        if event.button() != QtCore.Qt.MouseButton.LeftButton:
+            return
+
+        pos = event.scenePos()
+        start_point = self.main_view.mapSceneToView(pos)
+
+        self._draw_seed_roi(start_point, fill_array, temp_mask)
+        self._finish_mode()
+
+    def _handle_shape_click(self, event, fill_array, temp_mask):
         """Handle rectangle and circle drawing clicks."""
         if event.button() != QtCore.Qt.MouseButton.LeftButton:
             return
@@ -385,7 +466,7 @@ class RegionOfInterest:
 
         if shape_type:
             roi = self._create_shape_roi(shape_type, start_point, is_adding)
-            self._add_roi_to_scene(roi, is_adding)
+            self._add_roi_to_scene(roi, is_adding, fill_array, temp_mask)
             self._finish_mode()
 
     def _create_shape_roi(self, shape_type, start_point, is_adding):
@@ -421,16 +502,16 @@ class RegionOfInterest:
             
         return roi
 
-    def _add_roi_to_scene(self, roi, is_adding):
+    def _add_roi_to_scene(self, roi, is_adding, fill_array: np.ndarray, temp_mask: np.ndarray):
         """Add ROI to scene and lists."""
         self.roi_list.append(roi)
         self.add_list.append(is_adding)
         self.main_view.addItem(roi)
-        roi.sigRegionChanged.connect(self._redraw_fill_layer)
-        self._redraw_fill_layer()
+        roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
+        self._redraw_fill_layer(fill_array, temp_mask)
         self._update_button_states()
 
-    def _finish_polygon_drawing(self, is_adding):
+    def _finish_polygon_drawing(self, is_adding, fill_array: np.ndarray, temp_mask: np.ndarray):
         """Finish polygon drawing."""
         if len(self.poly_points) >= 3:
             pen = pg.mkPen('g', width=4) if is_adding else pg.mkPen('r', width=4)
@@ -447,7 +528,7 @@ class RegionOfInterest:
                 handle.buildPath()
                 handle.update()
                 
-            self._add_roi_to_scene(roi, is_adding)
+            self._add_roi_to_scene(roi, is_adding, fill_array, temp_mask)
             print("Polygon added.")
         else:
             print("Need at least 3 points.")
@@ -460,90 +541,113 @@ class RegionOfInterest:
         line.setData([], [])
         self._finish_mode()
 
-    def _redraw_fill_layer(self):
+    def _redraw_fill_layer(self, fill_array: np.ndarray, temp_mask: np.ndarray) -> None:
         """Redraw the fill layer based on current ROIs."""
-        if not self.roi_list:
-            self.fill_array.fill(0)
-            self.temp_mask.fill(False)
-            self.fill_layer.setImage(self.fill_array)
+
+        has_seed = hasattr(self, 'seed_roi') and self.seed_roi is not None
+
+        if not self.roi_list and not has_seed:
+            fill_array.fill(0)
+            temp_mask.fill(False)
+            self.fill_layer.setImage(fill_array)
             return
 
-        self.temp_mask.fill(False)
+        temp_mask.fill(False)
 
         for roi, is_adding in zip(self.roi_list, self.add_list):
             if isinstance(roi, pg.RectROI):
-                self._apply_rect_mask(roi, is_adding)
+                self._apply_rect_mask(roi, is_adding, temp_mask)
             elif isinstance(roi, pg.CircleROI):
-                self._apply_circle_mask(roi, is_adding)
+                self._apply_circle_mask(roi, is_adding, temp_mask)
             elif isinstance(roi, pg.PolyLineROI):
-                self._apply_poly_mask(roi, is_adding)
+                self._apply_poly_mask(roi, is_adding, temp_mask)
 
-        # Update fill array
-        self.fill_array[:, :, 0] = 0
-        self.fill_array[:, :, 1] = 255
-        self.fill_array[:, :, 2] = 0
-        self.fill_array[:, :, 3] = self.temp_mask * 80
-        self.fill_layer.setImage(self.fill_array)
 
-    def _apply_rect_mask(self, roi, is_adding):
+
+        fill_array[:, :, 0] = 0
+        fill_array[:, :, 1] = 255
+        fill_array[:, :, 2] = 0
+        #fill_array[:, :, 3] = np.flip(temp_mask,axis=0) * 80
+        fill_array[:, :, 3] = temp_mask * 80
+
+        # Yellow fill for seed ROI
+        if has_seed:
+            pos = self.seed_roi.pos()
+            size = self.seed_roi.size()
+            x, y = int(pos[0]), int(pos[1])
+            w, h = int(size[0]), int(size[1])
+            
+            # Clamp to image bounds
+            x1 = max(0, x)
+            y1 = max(0, y)
+            x2 = min(self.width, x + w)
+            y2 = min(self.height, y + h)
+            
+            w = max(0, x2 - x1)
+            h = max(0, y2 - y1)
+            
+            if w > 0 and h > 0:
+                # Yellow = Red + Green
+                fill_array[y1:y1+h, x1:x1+w, 0] = 255  # Red
+                fill_array[y1:y1+h, x1:x1+w, 1] = 255  # Green
+                fill_array[y1:y1+h, x1:x1+w, 2] = 0    # Blue
+                fill_array[y1:y1+h, x1:x1+w, 3] = 120  # Alpha (more opaque than green)
+    
+        self.fill_layer.setImage(fill_array, autoLevels=False, axisOrder='row-major')
+
+    def _apply_rect_mask(self, roi, is_adding, temp_mask: np.ndarray):
         """Apply rectangle mask to temp_mask."""
         pos = roi.pos()
         size = roi.size()
-        x, y = int(pos[1]), int(pos[0])
-        w, h = int(size[1]), int(size[0])
+        x, y = int(pos[0]), int(pos[1])
+        w, h = int(size[0]), int(size[1])
         
         # Clamp to image bounds
-        x = max(0, min(x, self.width))
-        y = max(0, min(y, self.height))
-        w = max(0, min(w, self.width - x))
-        h = max(0, min(h, self.height - y))
-        
-        if w > 0 and h > 0:
-            self.temp_mask[y:y+h, x:x+w] = is_adding
+        x1 = max(0, x)
+        y1 = max(0, y)
+        x2 = min(self.width, x + w)
+        y2 = min(self.height, y + h)
 
-    def _apply_circle_mask(self, roi, is_adding):
+
+        # Compute clipped width/height
+        w = max(0, x2 - x1)
+        h = max(0, y2 - y1)
+        # print(f"orig: ({x},{y}), w,h: ({w},{h})")
+        # print(f"top_left: ({x1},{y1}), bottom_right: ({x2},{y2}) w,h: ({w},{h})")
+        if w > 0 and h > 0:
+            temp_mask[y1:y1+h, x1:x1+w] = is_adding
+
+    def _apply_circle_mask(self, roi, is_adding, temp_mask: np.ndarray):
         """Apply circle mask to temp_mask."""
         pos = roi.pos()
         size = roi.size()
-        cx, cy = pos[1] + size[1]/2, pos[0] + size[0]/2
-        rx, ry = size[1]/2, size[0]/2
+        cx, cy = pos[0] + size[0]/2, pos[1] + size[1]/2
+        rx, ry = size[0]/2, size[1]/2
         
-        y_coords, x_coords = np.ogrid[:self.height, :self.width]
+        y_coords, x_coords = np.ogrid[:temp_mask.shape[0], :temp_mask.shape[1]]
         circle_mask = ((x_coords - cx)/rx)**2 + ((y_coords - cy)/ry)**2 <= 1
         
         if is_adding:
-            self.temp_mask |= circle_mask
+            temp_mask |= circle_mask
         else:
-            self.temp_mask &= ~circle_mask
+            temp_mask &= ~circle_mask
 
-    def _apply_poly_mask(self, roi, is_adding):
+    def _apply_poly_mask(self, roi, is_adding, temp_mask: np.ndarray):
         """Apply polygon mask to temp_mask."""
         points = roi.getState()['points']
         pos = roi.pos()
         
-        if len(points) >= 3:
-            vertices = np.array([(p[1]+pos[1], p[0]+pos[0]) for p in points])
-            path = mplPath(vertices)
-            
-            x_min, x_max = int(np.floor(vertices[:, 0].min())), int(np.ceil(vertices[:, 0].max()))
-            y_min, y_max = int(np.floor(vertices[:, 1].min())), int(np.ceil(vertices[:, 1].max()))
-            
-            # Clamp to image bounds
-            x_min = max(0, x_min)
-            x_max = min(self.width, x_max)
-            y_min = max(0, y_min)
-            y_max = min(self.height, y_max)
-            
-            if x_max > x_min and y_max > y_min:
-                xx, yy = np.meshgrid(np.arange(x_min, x_max), np.arange(y_min, y_max))
-                points_grid = np.column_stack((xx.ravel(), yy.ravel()))
-                inside = path.contains_points(points_grid)
-                inside_2d = inside.reshape(y_max - y_min, x_max - x_min)
-                
-                if is_adding:
-                    self.temp_mask[y_min:y_max, x_min:x_max] |= inside_2d
-                else:
-                    self.temp_mask[y_min:y_max, x_min:x_max] &= ~inside_2d
+        if len(points) < 3:
+            return
+        
+        vertices = np.array([[p[0]+pos[0], p[1]+pos[1]] for p in points], dtype=np.int32)
+        mask = np.zeros_like(temp_mask, dtype=np.uint8)
+        cv2.fillPoly(mask, [vertices], 1)
+        
+        if is_adding:
+            temp_mask |= mask.astype(bool)
+        else:
+            temp_mask &= ~mask.astype(bool)
 
     def _update_button_states(self):
         """Update the enabled state of undo and redo buttons."""
@@ -555,28 +659,28 @@ class RegionOfInterest:
         self.undo_list = []
         self._update_button_states()
 
-    def _undo_last(self):
+    def _undo_last(self, fill_array: np.ndarray, temp_mask: np.ndarray):
         """Undo the last ROI operation."""
         if self.roi_list:
             roi = self.roi_list.pop()
             add_flag = self.add_list.pop()
             self.main_view.removeItem(roi)
             self.undo_list.append((roi, add_flag))
-            self._redraw_fill_layer()
+            self._redraw_fill_layer(fill_array, temp_mask)
             self._update_button_states()
 
-    def _redo_last(self):
+    def _redo_last(self, fill_array: np.ndarray, temp_mask: np.ndarray):
         """Redo the last undone ROI operation."""
         if self.undo_list:
             roi, add_flag = self.undo_list.pop()
             self.roi_list.append(roi)
             self.add_list.append(add_flag)
             self.main_view.addItem(roi)
-            roi.sigRegionChanged.connect(self._redraw_fill_layer)
-            self._redraw_fill_layer()
+            roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
+            self._redraw_fill_layer(fill_array, temp_mask)
             self._update_button_states()
 
-    def _save_interactive_roi(self):
+    def _save_interactive_roi(self) -> None:
         """Save the current ROI to a YAML file. This only works with the interactive GUI."""
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.main_window, 'Save ROI', 'roi_interactive.yaml', filter='YAML Files (*.yaml)')
 
@@ -594,7 +698,7 @@ class RegionOfInterest:
 
             # add ROI to serialized data
             if hasattr(self, 'seed_roi'):
-                self._finalize_selection()
+                self._finalize_seed_selection()
                 seed_data = {
                     'type': 'SeedROI',
                     'pos': [self.seed[0], self.seed[1]],
@@ -606,7 +710,7 @@ class RegionOfInterest:
             with open(filename, 'w') as f:
                 yaml.dump(serialized, f, sort_keys=False)
 
-    def _open_interactive_roi(self):
+    def _open_interactive_roi(self, fill_layer: np.ndarray, temp_mask: np.ndarray):
         """Open ROI from a YAML file. This only works with the interactive GUI."""
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.main_window, 'Open ROI', filter='YAML Files (*.yaml)'
@@ -627,10 +731,12 @@ class RegionOfInterest:
                 if entry.get('type') == 'SeedROI':
                     # Restore the seed ROI
                     x, y = entry['pos']
-                    y = self.width-y
-                    size = entry.get('size', [10, 10])  # fallback default
+                    #y = self.height - y  # convert to graphics coordinates
+                    w,h = entry.get('size', [21, 21])  # fallback default
+                    #y = self.width-y
+                    print(x,y,w,h)
                     self.seed_roi = pg.RectROI(
-                        [x, y], size,
+                        [x, y], [w, h],
                         pen=pg.mkPen('b', width=3),
                         hoverPen=pg.mkPen('y', width=3),
                         handlePen='#0000',
@@ -644,9 +750,9 @@ class RegionOfInterest:
                     self.roi_list.append(roi)
                     self.add_list.append(entry['add'])
                     self.main_view.addItem(roi)
-                    roi.sigRegionChanged.connect(self._redraw_fill_layer)
+                    roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_layer, temp_mask))
 
-            self._redraw_fill_layer()
+            self._redraw_fill_layer(fill_layer, temp_mask)
             self._update_button_states()
             
     def _create_roi_from_data(self, entry):
@@ -659,7 +765,10 @@ class RegionOfInterest:
         handle_pen = pg.mkPen('b', width=4)
         
         if roi_type == 'RectROI':
-            roi = pg.RectROI(entry['pos'], entry['size'], pen=pen, 
+
+            x,y = entry['pos']
+            w,h = entry.get('size')
+            roi = pg.RectROI([x,y], [w,h], pen=pen, 
                              hoverPen=hover_pen, handlePen=handle_pen,
                              handleHoverPen=hover_pen)
 
@@ -669,7 +778,11 @@ class RegionOfInterest:
             roi.addTranslateHandle([0.5, 0.5])
 
         elif roi_type == 'CircleROI':
-            roi = pg.CircleROI(entry['pos'], entry['size'], pen=pen, 
+            x,y = entry['pos']
+            w,h = entry.get('size')
+            x = x-w/2.0
+            y = y-h/2.0
+            roi = pg.CircleROI([x,y], [w,h], pen=pen, 
                                hoverPen=hover_pen, handlePen=handle_pen, 
                                handleHoverPen=hover_pen)
             roi.addTranslateHandle([0.5, 0.5])
@@ -694,7 +807,7 @@ class RegionOfInterest:
     def _finish(self):
         """Finish ROI selection and close the GUI, with a check for empty seed."""
 
-        self._finalize_selection()
+        self._finalize_seed_selection()
 
         if not self.seed:
             reply = QtWidgets.QMessageBox.question(
@@ -710,33 +823,36 @@ class RegionOfInterest:
         self.main_window.close()
         pg.QtWidgets.QApplication.quit()
 
-    def _finalize_selection(self):
+
+
+    def _finalize_seed_selection(self) -> None:
         """Process the final mask and seed location."""
-        self.mask = np.flipud(self.temp_mask.T)
+        #mask = np.flipud(temp_mask.T)
 
         if hasattr(self, 'seed_roi'):
             pos = self.seed_roi.pos()
             x = int(np.floor(pos.x()))
-            y = int(np.floor(self.width - pos.y()))
+            y = int(np.floor(pos.y()))
             self.seed = [x, y]
 
-            if not self.mask[y, x]:
-                raise ValueError(f"Seed location [{x}, {y}] is not within the mask")
-            print(f"Final seed location: [{x}, {y}]")
+            #if not mask[y, x]:
+            #    raise ValueError(f"Seed location [{x}, {y}] is not within the mask")
+            #print(f"Final seed location: [{x}, {y}]")
 
     def _get_roi_data(self, roi_element, add: bool):
         """Extract data from ROI element for serialization."""
         if isinstance(roi_element, pg.RectROI):
+            print('getting rect:', roi_element.pos(), roi_element.size())
             return {
                 'type': 'RectROI',
-                'pos': [float(roi_element.pos().x()), float(roi_element.pos().y())],
+                'pos': [float(roi_element.pos().x()), roi_element.pos().y()],
                 'size': [float(roi_element.size().x()), float(roi_element.size().y())],
                 'add': bool(add)
             }
         elif isinstance(roi_element, pg.CircleROI):
             return {
                 'type': 'CircleROI',
-                'pos': [float(roi_element.pos().x()), float(roi_element.pos().y())],
+                'pos': [float(roi_element.pos().x())+float(roi_element.size().x())/2.0,float(roi_element.pos().y())+float(roi_element.size().y())/2.0],
                 'size': [float(roi_element.size().x()), float(roi_element.size().y())],
                 'add': bool(add)
             }
@@ -904,7 +1020,7 @@ class RegionOfInterest:
 
             # add ROI to serialized data
             if hasattr(self, 'seed_roi'):
-                self._finalize_selection()
+                self._finalize_seed_selection()
                 seed_data = {
                     'type': 'SeedROI',
                     'pos': [self.seed[0], self.seed[1]],
@@ -938,9 +1054,8 @@ class RegionOfInterest:
         self.__roi_selected = True
         
         # Initialize GUI
-        self._setup_gui()
-        self._setup_graphics()
-        self._connect_signals()
+        fill_array, temp_mask = self._setup_gui()
+        self._connect_signals(fill_array, temp_mask)
 
         if filename:
             with open(filename, 'r') as f:
@@ -955,12 +1070,12 @@ class RegionOfInterest:
                 if entry.get('type') == 'SeedROI':
                     # Restore the seed ROI
                     x, y = entry['pos']
-                    y = self.width-y
+                    #y = self.width-y
                     size = entry.get('size', [10, 10])  # fallback default
                     self.seed_roi = pg.RectROI(
                         [x, y], size,
-                        pen=pg.mkPen('b', width=3),
-                        hoverPen=pg.mkPen('y', width=3),
+                        pen=pg.mkPen('y', width=3),
+                        hoverPen=pg.mkPen('b', width=3),
                         handlePen='#0000',
                         handleHoverPen='#0000'
                     )
@@ -972,11 +1087,15 @@ class RegionOfInterest:
                     self.roi_list.append(roi)
                     self.add_list.append(entry['add'])
                     self.main_view.addItem(roi)
-                    roi.sigRegionChanged.connect(self._redraw_fill_layer)
+                    roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
 
-            self._redraw_fill_layer()
+            self._redraw_fill_layer(fill_array, temp_mask)
             self._update_button_states()
-            self._finalize_selection()
+            self._finalize_seed_selection()
+
+            #finalize mask
+            self.mask = temp_mask
+            
 
 
 
@@ -1012,7 +1131,6 @@ class RegionOfInterest:
         blended = blended.astype(np.uint8)
 
         # Display using Matplotlib
-        import matplotlib.pyplot as plt
         plt.figure()
         plt.imshow(blended)
         plt.axis('off')
@@ -1021,6 +1139,7 @@ class RegionOfInterest:
 
 
 class CustomMainWindow(QtWidgets.QWidget):
+    
     def __init__(self, dic_obj=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dic_obj = dic_obj
@@ -1028,7 +1147,7 @@ class CustomMainWindow(QtWidgets.QWidget):
     def closeEvent(self, event):
         if self.dic_obj:
             # Force finalization before checking seed
-            self.dic_obj._finalize_selection()
+            self.dic_obj._finalize_seed_selection()
             
             if not self.dic_obj.seed:
                 reply = QtWidgets.QMessageBox.question(

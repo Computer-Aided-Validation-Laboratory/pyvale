@@ -3,26 +3,33 @@
 Examples
 ================
 
-Basics for Point Sensors
+Sensor Simulation Basics
 ------------------------
 .. toctree::
    :maxdepth: 2
 
-   examples_basics
+   examples_basics_sensorsim
 
-Blender for Digital Image Correlation
--------------------------------------
+Digital Image Correlation
+-------------------------
+.. toctree::
+   :maxdepth: 2
+
+   examples_dic
+
+Blender Image Deformation
+-------------------------
 .. toctree::
    :maxdepth: 2
 
    examples_blender
 
-Digital Image Correlation
--------------------------------------
+Sensor Simulation Extended
+--------------------------
 .. toctree::
    :maxdepth: 2
 
-   examples_dic
+   examples_ext_sensorsim
 
 Mooseherder
 -------------------------------------

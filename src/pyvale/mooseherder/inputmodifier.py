@@ -12,6 +12,10 @@ class InputModifier:
     new variables the input can be written to file.
     """
 
+    __slots__ = ("_vars","_input_file","_input_lines","_comment_chars",
+                 "_end_chars","_var_start_str","_var_end_str","_var_start_ind",
+                 "_var_end_ind")
+
     def __init__(
         self,
         input_file: Path,
@@ -48,8 +52,8 @@ class InputModifier:
         with open(self._input_file, "r", encoding="utf-8") as in_file:
             self._input_lines = in_file.readlines()
 
-        self._comment_char = comment_chars
-        self._end_char = end_chars
+        self._comment_chars = comment_chars
+        self._end_chars = end_chars
 
         self._var_start_str = var_start
         self._var_end_str = var_end
@@ -79,8 +83,8 @@ class InputModifier:
         """
 
         extract_var = var_line.strip()
-        extract_var = extract_var.replace(self._end_char, "")
-        extract_var = extract_var.split(self._comment_char)[0]  # Remove trailing comments should they exist
+        extract_var = extract_var.replace(self._end_chars, "")
+        extract_var = extract_var.split(self._comment_chars)[0]  # Remove trailing comments should they exist
 
         var_key = ""
         var_val = ""
@@ -96,9 +100,9 @@ class InputModifier:
 
             var_key = extract_var.split("=", 1)[0].strip()
 
-        if len(var_line.split(self._comment_char)) > 1:
-            com_loc = var_line.find(self._comment_char)
-            comment_str = var_line[com_loc + len(self._comment_char) :]
+        if len(var_line.split(self._comment_chars)) > 1:
+            com_loc = var_line.find(self._comment_chars)
+            comment_str = var_line[com_loc + len(self._comment_chars) :]
         else:
             comment_str = ""
 
@@ -119,8 +123,8 @@ class InputModifier:
         # TODO: this needs to be made more robust to multiple occurences of variable block characters.
         # Also need to handle cases when the start and end block characters are the same
 
-        start_string = self._comment_char + self._var_start_str
-        end_string = self._comment_char + self._var_end_str
+        start_string = self._comment_chars + self._var_start_str
+        end_string = self._comment_chars + self._var_end_str
 
         start_found = False
         for ii, ll in enumerate(self._input_lines):
@@ -180,10 +184,10 @@ class InputModifier:
             [var_key, _, com_str] = self._extract_var_str(ll)
             if (len(var_key) != 0) and (var_key in self._vars):
                 if len(com_str) == 0:
-                    var_line = f"{var_key} = {self._vars[var_key]}{self._end_char}\n"
+                    var_line = f"{var_key} = {self._vars[var_key]}{self._end_chars}\n"
                 else:
                     # NOTE: comment string includes the new line character already
-                    var_line = f"{var_key} = {self._vars[var_key]}{self._end_char} {self._comment_char}{com_str}"
+                    var_line = f"{var_key} = {self._vars[var_key]}{self._end_chars} {self._comment_chars}{com_str}"
                 line_ind = ii + self._var_start_ind + 1
                 self._input_lines[line_ind] = var_line
 

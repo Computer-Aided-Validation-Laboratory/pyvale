@@ -1,0 +1,33 @@
+name: Check Linting with pylint
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  check-lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install libegl1
+          sudo apt install libgl1 libxext6 libx11-6
+          python -m pip install --upgrade pip
+          pip install pylint
+          pip install -e .
+
+      - name: Lint with pylint
+        run: |
+          pylint src/pyvale --fail-under=7.0

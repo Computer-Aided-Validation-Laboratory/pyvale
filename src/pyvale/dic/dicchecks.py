@@ -16,58 +16,6 @@ This module contains functions for checking arguments passed to the 2D DIC
 Engine.
 """
 
-def check_output_directory(output_basepath: str,
-                           output_prefix: str) -> None:
-    """
-    Check for existing output files in a directory and prompt user confirmation before overwriting.
-
-    This function verifies whether the specified output directory exists and checks for any existing
-    files that match a given prefix and have `.csv` or `.dic2d` extensions. If such files are found,
-    a list is displayed and the user is prompted to confirm whether to continue. If the user declines,
-    the program exits to prevent data loss.
-
-    Parameters
-    ----------
-    output_basepath : str
-        Path to the output directory where files are or will be saved.
-    output_prefix : str
-        Filename prefix used to identify potential conflicting output files.
-
-    Raises
-    ------
-    SystemExit
-        If the output directory does not exist or the user chooses not to proceed after
-        being warned about existing files.
-    """
-
-    # check if there's output files
-    try:
-        files = os.listdir(output_basepath)
-    except FileNotFoundError:
-        print("")
-        print(f"Output directory '{output_basepath}' does not exist.")
-        sys.exit(1)
-
-    # Check for any matching files
-    conflicting_files = [
-        f for f in files 
-        if f.startswith(output_prefix) and (f.endswith(".csv") or f.endswith(".dic2d"))]
-
-    if conflicting_files:
-        conflicting_files.sort()
-        print("WARNING: The following output files already exist and may be overwritten:")
-        for f in conflicting_files:
-            print(f"  - {os.path.join(output_basepath, f)}")
-        print("")
-
-
-        ###### TURNING USER INPUT OFF FOR NOW ######
-        # user_input = input("Do you want to continue? (y/n): ").strip().lower()
-
-        # if user_input not in ("y", "yes", "Y", "YES"):
-        #     print("Aborting to avoid overwriting data in output directory.")
-        #     exit(0)
-
 
 def check_correlation_criteria(correlation_criteria: str) -> None:
     """
@@ -99,13 +47,13 @@ def check_correlation_criteria(correlation_criteria: str) -> None:
 def check_shape_function(shape_function: str) -> int:
     """
     Checks whether input `shape_function` is one of the allowed
-    values ("RIGID" or "AFFINE"). If valid, it returns the number of transformation
+    values ("RIGID", "AFFINE" or "QUAD"). If valid, it returns the number of transformation
     parameters associated with that shape function.
 
     Parameters
     ----------
     shape_function : str
-        The shape function type. Must be either "RIGID" or "AFFINE".
+        The shape function type. Must be either "RIGID", "AFFINE" or "QUAD".
 
     Returns
     -------
@@ -113,6 +61,7 @@ def check_shape_function(shape_function: str) -> int:
         The number of parameters for the specified shape function:
         - 2 for "RIGID"
         - 6 for "AFFINE"
+        - 12 for "QUAD"
 
     Raises
     ------
@@ -124,9 +73,11 @@ def check_shape_function(shape_function: str) -> int:
         num_params = 2
     elif (shape_function=="AFFINE"): 
         num_params = 6
+    elif (shape_function=="QUAD"): 
+        num_params = 12
     else:
         raise ValueError(f"Invalid shape_function: {shape_function}. "
-                         f"Allowed values are: 'AFFINE', 'RIGID'.")
+                         f"Allowed values are: 'AFFINE', 'RIGID', 'QUAD'.")
 
     return num_params
 
@@ -161,12 +112,10 @@ def check_interpolation(interpolation_routine: str) -> None:
 
 
 
-def check_scanning_method(scanning_method: str) -> None:
+def check_method(method: str) -> None:
     """
     Validate that the scan type  one of the allowed methods.
-
-    Allowed values are "RG", "IMAGE_SCAN", "FFT", "IMAGE_SCAN_WITH_BF", "FFT_test". If `scanning_method`
-    is not one of these, a `ValueError` is raised.
+    Allowed values are "MULTIWINDOW_RG", "MULTIWINDOW", "SINGLEWINDOW_RG", "SINGLEWINDOW_RG_INCREMENTAL", "IMAGE_SCAN".
 
     Parameters
     ----------
@@ -180,28 +129,28 @@ def check_scanning_method(scanning_method: str) -> None:
 
     """
 
-    allowed_values = {"RG", "IMAGE_SCAN", "FFT", "IMAGE_SCAN_WITH_BF", "FFT_test"}
+    allowed_values = {"MULTIWINDOW_RG", "MULTIWINDOW", "SINGLEWINDOW_RG", "SINGLEWINDOW_RG_INCREMENTAL", "IMAGE_SCAN"}
 
-    if scanning_method not in allowed_values:
-        raise ValueError(f"Invalid scanning_method: {scanning_method}. "
+    if method not in allowed_values:
+        raise ValueError(f"Invalid method: {method}. "
                          f"Allowed values are: {', '.join(allowed_values)}")
 
 
 
-def check_thresholds(opt_threshold: float, 
+def check_thresholds(threshold: float, 
                      bf_threshold: float, 
-                     opt_precision: float) -> None:
+                     precision: float) -> None:
     """
-    Ensures that `opt_threshold`, `bf_threshold`, and `opt_precision`
+    Ensures that `threshold`, `bf_threshold`, and `precision`
     are all floats strictly between 0 and 1. Raises a `ValueError` if any condition fails.
 
     Parameters
     ----------
-    opt_threshold : float
-        Threshold for the Levenberg optimization method.
+    threshold : float
+        correlation/cost coeff minumum value to be considered matching subset.
     bf_threshold : float
         Threshold for the brute-force optimization method.
-    opt_precision : float
+    precision : float
         Desired precision for the optimizer.
 
     Raises
@@ -210,15 +159,15 @@ def check_thresholds(opt_threshold: float,
         If any input value is not a float strictly between 0 and 1.
     """
 
-    if not (0 < opt_threshold < 1):
-        raise ValueError("opt_threshold must be a float "
+    if not (0 < threshold < 1):
+        raise ValueError("threshold must be a float "
                          "strictly between 0 and 1.")
 
     if not (0 < bf_threshold < 1):
         raise ValueError("bf_threshold must be a float "
                          "strictly between 0 and 1.")
     
-    if not (0 < opt_precision < 1):
+    if not (0 < precision < 1):
         raise ValueError("Optimizer precision must be a float strictly "
                          "between 0 and 1.")
 
@@ -249,7 +198,7 @@ def check_subsets(subset_size: int, subset_step: int) -> None:
 
 
 
-def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_mask: np.ndarray, scanning_method: str, px_hori: int, px_vert: int, subset_size: int, subset_step: int) -> list[int]:
+def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_mask: np.ndarray, method: str, px_hori: int, px_vert: int, subset_size: int, subset_step: int) -> list[int]:
     """
     Validate and update the region-growing seed location to align with image bounds and subset spacing.
 
@@ -266,7 +215,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
         The initial seed coordinates as a list of two integers: [x, y].
     roi_mask : np.ndarray
         A 2D binary mask (same size as the image) indicating the region of interest.
-    scanning_method : str
+    method : str
         The scanning method to be used. Only "RG" triggers validation and adjustment logic.
     px_hori : int
         Width of the image in pixels.
@@ -286,7 +235,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
         If the seed is improperly formatted, out of image bounds, or not a list of two integers.
     """
 
-    if scanning_method != "RG":
+    if "RG" not in method:
         return [0,0]
 
     if (len(seed) != 2):
@@ -318,8 +267,8 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
     max_y = new_y + subset_size//2+1
 
     # Check if all pixel values in the ROI are valid
-    for i in range(corner_x, max_x):
-        for j in range(corner_y, max_y):
+    for i in range(new_x, max_x):
+        for j in range(new_y, max_y):
 
             if i < 0 or i >= px_hori or j < 0 or j >= px_vert:
                 raise ValueError(f"Seed ({x}, {y}) goes outside the image bounds at pixel ({i}, {j})")
@@ -331,8 +280,8 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
 
 
 def check_and_get_images(reference: np.ndarray | str | Path,
-                         deformed: np.ndarray | str | Path,
-                         roi: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[str]]:
+                         deformed: np.ndarray | str | Path | list[Path],
+                         roi: np.ndarray, debug_level: int) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """
     Load and validate reference and deformed images, checks consistency in shape/format.
 
@@ -351,21 +300,21 @@ def check_and_get_images(reference: np.ndarray | str | Path,
     ----------
     reference : np.ndarray, str, pathlib.Path
         Either a NumPy array representing the reference image, or a file path to a reference image.
-    deformed : np.ndarray, str, pathlib.Path
+    deformed : np.ndarray, str, pathlib.Path, list[pathlib.Path]
         Either a NumPy array representing a sequence of deformed images (shape: [N, H, W]),
         or a glob pattern string pointing to multiple image files.
     roi : np.ndarray
         A 2D NumPy array defining the region of interest. Must match the reference image shape
         if `reference` is an array.
+    debug_level: int
+        Determines how much information to provide in console output.
 
     Returns
     -------
-    ref_arr : np.ndarray
-        The reference image as a 2D NumPy array.
-    def_arr : np.ndarray
+    image_stack: np.ndarray
         A 3D NumPy array containing all deformed images with shape (N, H, W).
     filenames : list of str
-        List of base filenames of deformed images (empty if deformed images were passed as arrays).
+        List of base filenames of all images (empty if images are passed as arrays).
 
     Raises
     ------
@@ -379,7 +328,6 @@ def check_and_get_images(reference: np.ndarray | str | Path,
 
     filenames = []
 
-
     # Normalize Path or str to Path
     if isinstance(reference, (str, Path)):
         reference = Path(reference)
@@ -387,39 +335,63 @@ def check_and_get_images(reference: np.ndarray | str | Path,
         deformed = Path(deformed)
 
     # check matching filetypes 
-    if type(reference) is not type(deformed):
-        raise ValueError(
-            f"Mismatch in file types: reference={type(reference)}, "
-            f"deformed={type(deformed)}")
+    if isinstance(reference, np.ndarray):
+        # both must be arrays
+        if not isinstance(deformed, np.ndarray):
+            raise ValueError(f"Mismatch: reference is array but deformed is {type(deformed)}")
 
+    elif isinstance(reference, Path):
+        # deformed must be Path (glob pattern) OR list[Path]
+        if not (isinstance(deformed, Path) or (isinstance(deformed, list) and all(isinstance(p, Path) for p in deformed))):
+            raise ValueError(f"Invalid deformed type for file-based input: {type(deformed)}")
+
+    else:
+        raise ValueError(f"Unsupported reference type: {type(reference)}")
 
     # File-based input
     if isinstance(reference, Path):
-        assert isinstance(deformed, Path)
+        assert isinstance(reference, Path)
 
         if not reference.is_file():
             raise ValueError(f"Reference image does not exist: {reference}")
-        print("Using reference image: ")
-        print(f"  - {reference}\n")
+
+
+        if (debug_level>0):
+            print("Using reference image: ")
+            print(f"  - {reference}\n")
 
         # Load reference image
         ref_arr = np.array(Image.open(reference))
-        print(f"Reference image shape: {ref_arr.shape}")
-        if ref_arr.ndim == 3:
-            print(f"Reference image appears to have {ref_arr.shape[2]} channels. Using channel 0.")
-            ref_arr = ref_arr[:, :, 0]
-        print("")
 
-        # Find deformation image files
-        files = sorted(glob.glob(str(deformed)))
+        if ref_arr.ndim == 3:
+            if (debug_level>0):
+                print(f"Reference image appears to have {ref_arr.shape[2]} channels. Using channel 0.")
+            ref_arr = ref_arr[:, :, 0]
+
+        if (debug_level>0):
+            print(f"Reference image shape: {ref_arr.shape}")
+            print("")
+
+        filenames.append(os.path.basename(reference))
+
+        if isinstance(deformed, Path):
+            files = sorted(glob.glob(str(deformed)))
+        else:
+            files = [str(p) for p in deformed]
+
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
-        print(f"Found {len(files)} deformation images:")
-        for file in files:
-            print(f"  - {file}")
-            filenames.append(os.path.basename(file))
-        print("")
+
+
+        if debug_level > 0:
+            print(f"Found {len(files)} deformation images:")
+            for file in files:
+                print(f"  - {file}")
+            print("")
+
+        # populate filenames list. Stars with ref image.
+        filenames.extend(os.path.basename(f) for f in files)
 
         def_arr = np.zeros((len(files), *ref_arr.shape), dtype=ref_arr.dtype)
 
@@ -444,34 +416,29 @@ def check_and_get_images(reference: np.ndarray | str | Path,
             def_arr = def_arr.reshape((1,def_arr.shape[0],def_arr.shape[1]))
 
         elif (reference.shape != deformed[0].shape or reference.shape != roi.shape):
-            raise ValueError(f"Shape mismatch: reference {reference.shape}, "
-                             f"deformed[0] {deformed[0].shape}, roi {roi.shape}")
-        
+            raise ValueError(f"Shape mismatch: reference={reference.shape}, "
+                             f"deformed[0]={deformed[0].shape}, roi={roi.shape}")
 
+        # check ROI dimensions agrees with reference image
+        if (reference.shape != roi.shape):
+            raise ValueError(f"Shape mismatch: reference={reference.shape}, "
+                             f"roi={roi.shape}")
+ 
         # need to set some dummy filenames in the case that the user passes numpy arrays
-        filenames = [f"deformed image {i}" for i in range(def_arr.shape[0])]
-    
+        filenames = ["ref_img"]
+        for f in range(0,def_arr.shape[0]):
+            filenames.append(f"def_img_{f:04d}")
+
     # it might be the case that the roi has been manipulated prior to DIC run
     # and therefore we need to to prevent the roi mask from being a 'view'
     roi_c = np.ascontiguousarray(roi)
 
-    return ref_arr, def_arr, roi_c, filenames
+    # Build image stack: reference first, then deformed images
+    image_stack = np.concatenate(([ref_arr], def_arr), axis=0)
+
+    return image_stack, roi_c, filenames
 
 
-
-def check_strain_files(strain_files: str | Path) -> list[str]:
-   
-    filenames = []
-
-    # Find deformation image files
-    files = sorted(glob.glob(str(strain_files)))
-    if not files:
-        raise FileNotFoundError(f"No DIC data found: {strain_files}")
-
-    for file in files:
-        filenames.append(os.path.basename(file))
-
-    return filenames
 
 
 def print_title(a: str):

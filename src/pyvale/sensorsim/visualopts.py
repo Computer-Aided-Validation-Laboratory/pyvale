@@ -69,7 +69,7 @@ class PlotOptsGeneral:
     """Line width for traces on plots.
     """
 
-    cmap_seq: str = "cividis"
+    cmap_seq: str = "viridis"
     """The colormap to use for monotonic fields
     """
 
@@ -211,6 +211,10 @@ class TraceOptsSensor:
     """Matplotlib line style for the virtual sensor measurement traces.
     """
 
+    total_sensors: int = 1000
+    """The maximum number of sensors to be plot. Defaults to 1000
+    """
+
     sensors_to_plot: np.ndarray | None = None
     """Array (1D) of indices for the sensors to plot. If None then all sensors
     are plotted. Defaults to None.
@@ -220,6 +224,16 @@ class TraceOptsSensor:
     """Time range over which to plot the sensor traces. If None then the full
     time range is plotted. Defaults to None.
     """
+
+    sensors_per_plot: int | None = None
+    """The maximum amount of sensors that should be plot on a subplot. If none then
+    maximum will be the total number of sensors. Defaults to None.
+    """
+
+    one_line: bool | None = None
+    """If True, create subplot on horizontal axis only
+    """
+
 
 
 class EExpVisCentre(enum.Enum):
@@ -305,7 +319,7 @@ class TraceOptsExperiment:
     locations. If None then the line is not plotted for all virtual sensors.
     """
 
-    exp_centre_line: str = "-"
+    exp_centre_line: str = "--"
     """Matplotlib line style string for the experiment centre line.
     """
 

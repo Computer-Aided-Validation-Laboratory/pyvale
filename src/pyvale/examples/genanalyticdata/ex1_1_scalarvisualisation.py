@@ -5,11 +5,11 @@
 # ==============================================================================
 import numpy as np
 import matplotlib.pyplot as plt
-import pyvale.verif as va
+import pyvale.verif as verif
 
 def main() -> None:
 
-    (sim_data,data_gen) = va.AnalyticCaseFactory.scalar_linear_2d()
+    (sim_data,data_gen) = verif.AnalyticCaseFactory.scalar_linear_2d()
 
     (grid_x,grid_y,grid_field) = data_gen.get_visualisation_grid()
 

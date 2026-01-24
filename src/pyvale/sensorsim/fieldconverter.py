@@ -13,11 +13,12 @@ import numpy as np
 import pyvista as pv
 from pyvista import CellType
 import pyvale.mooseherder as mh
+from pyvale.sensorsim.enums import EDim
 
 
 def simdata_to_pyvista_interp(sim_data: mh.SimData,
                               components: tuple[str,...] | None,
-                              elem_dims: int
+                              spatial_dims: EDim,
                               ) -> pv.UnstructuredGrid:
     """Converts the mesh and field data in a `SimData` object into a pyvista
     UnstructuredGrid for interpolating the data.
@@ -29,9 +30,11 @@ def simdata_to_pyvista_interp(sim_data: mh.SimData,
     components : tuple[str,...] | None
         String keys for the components of the field to extract from the
         simulation data.
-    elem_dim : int
-        Number of spatial dimensions (2 or 3) used to determine the element
-        types in the mesh from the number of nodes per element.
+    elem_dim : EDim
+        Number of spatial dimensions in the simulation (TWOD or THREED).  For 
+        mesh-based data this is used to determine the element type and 
+        distinguish between 4 node quads in 2D and 4 node tets in 3D. For point
+        cloud data this determines if 2D or 3D Delaunay triangulation is used.
 
     Returns
     -------
@@ -40,7 +43,7 @@ def simdata_to_pyvista_interp(sim_data: mh.SimData,
         the mesh using the element shape functions.
     """
 
-    pv_grid = _gen_pyvista_grid(sim_data,elem_dims)
+    pv_grid = _gen_pyvista_grid(sim_data,spatial_dims)
 
     if components is not None and sim_data.node_vars is not None:
         for cc in components:
@@ -50,7 +53,7 @@ def simdata_to_pyvista_interp(sim_data: mh.SimData,
 
 
 def simdata_to_pyvista_vis(sim_data: mh.SimData,
-                           elem_dims: int
+                           spatial_dims: EDim,
                            ) -> pv.UnstructuredGrid | pv.PolyData:
     """Converts the mesh and field data in a `SimData` object into a pyvista
     UnstructuredGrid or PolyData object for visualisation.
@@ -59,11 +62,11 @@ def simdata_to_pyvista_vis(sim_data: mh.SimData,
     ----------
     sim_data : mh.SimData
         Object containing a mesh and associated field data from a simulation.
-    elem_dim : int
-        Number of spatial dimensions (2 or 3) used to determine the element
-        types in the mesh from the number of nodes per element. Set to the
-        dimensionality of the problem for point cloud data as 2D triangulation
-        will be much faster if possible.
+    elem_dim : EDim
+        Number of spatial dimensions in the simulation (TWOD or THREED).  For 
+        mesh-based data this is used to determine the element type and 
+        distinguish between 4 node quads in 2D and 4 node tets in 3D. For point
+        cloud data this determines if 2D or 3D Delaunay triangulation is used.
 
     Returns
     -------
@@ -74,12 +77,12 @@ def simdata_to_pyvista_vis(sim_data: mh.SimData,
     if sim_data.connect is None:
         return pv.PolyData(sim_data.coords)
 
-    return _gen_pyvista_grid(sim_data,elem_dims)
+    return _gen_pyvista_grid(sim_data,spatial_dims)
 
 
 
 def _gen_pyvista_grid(sim_data: mh.SimData,
-                      elem_dims: int) -> pv.UnstructuredGrid:
+                      spatial_dims: int) -> pv.UnstructuredGrid:
     """Helper function for generating a blank pyvista unstructure grid mesh from
     a SimData object.
 
@@ -87,10 +90,11 @@ def _gen_pyvista_grid(sim_data: mh.SimData,
     ----------
     sim_data : mh.SimData
         Object containing a mesh and associated field data from a simulation.
-    elem_dims : int
-        Number of spatial dimensions (2 or 3) used to determine the element
-        types in the mesh from the number of nodes per element.
-
+    elem_dim : EDim
+        Number of spatial dimensions in the simulation (TWOD or THREED).  For 
+        mesh-based data this is used to determine the element type and 
+        distinguish between 4 node quads in 2D and 4 node tets in 3D. For point
+        cloud data this determines if 2D or 3D Delaunay triangulation is used.
 
     Returns
     -------
@@ -105,9 +109,10 @@ def _gen_pyvista_grid(sim_data: mh.SimData,
         this_connect = np.copy(sim_data.connect[cc])-1
         (nodes_per_elem,n_elems) = this_connect.shape
 
-        this_cell_type = _get_pyvista_cell_type(nodes_per_elem,elem_dims)
+        this_cell_type = _get_pyvista_cell_type(nodes_per_elem,spatial_dims)
         assert this_cell_type is not None, ("Cell type with dimension " +
-            f"{elem_dims} and {nodes_per_elem} nodes per element not recognised.")
+            f"{spatial_dims} and {nodes_per_elem} nodes per element not " +
+            "recognised.")
 
         # VTK and exodus have different winding for 3D higher order quads
         this_connect = _exodus_to_pyvista_connect(this_cell_type,this_connect)
@@ -125,38 +130,6 @@ def _gen_pyvista_grid(sim_data: mh.SimData,
     points = sim_data.coords
     pv_grid = pv.UnstructuredGrid(cells, cell_types, points)
     return pv_grid
-
-
-def scale_length_units(scale: float,
-                       sim_data: mh.SimData,
-                       disp_comps: tuple[str,...] | None = None,
-                       ) -> mh.SimData:
-    """Used to scale the length units of a simulation. Commonly used to convert
-    SI units to mm for use with visualisation tools and rendering algorithms.
-
-    Parameters
-    ----------
-    scale : float
-        Scale multiplier used to scale the coordinates and displacement fields
-        if specified.
-    sim_data : mh.SimData
-        Simulation dataclass that will be scaled.
-    disp_comps : tuple[str,...] | None, optional
-        Tuple of string keys for the displacement keys to be scaled, by default
-        None. If None then the displacements are not scaled.
-
-    Returns
-    -------
-    mh.SimData
-        Simulation dataclass with scaled length units.
-    """
-    sim_data.coords = sim_data.coords*scale
-
-    if disp_comps is not None:
-        for cc in disp_comps:
-            sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
-
-    return sim_data
 
 
 # TODO: make this work for sim_data with multiple connectivity
@@ -262,15 +235,16 @@ def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
     return face_data
 
 #TODO: make this support triangular prisms in 3D.
-def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType | None:
+def _get_pyvista_cell_type(nodes_per_elem: int, 
+                           spat_dim: EDim) -> CellType | None:
     """Helper function to identify the pyvista element type in the mesh.
 
     Parameters
     ----------
     nodes_per_elem : int
         Number of nodes per element.
-    spat_dim : int
-        Number of spatial dimensions in the mesh (2 or 3).
+    spat_dim : EDim
+        Number of spatial dimensions in the simulation (TWOD or THREED).
 
     Returns
     -------
@@ -279,7 +253,7 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType | Non
     """
     cell_type = None
 
-    if spat_dim == 2:
+    if spat_dim == EDim.TWOD or spat_dim == 2:
         if nodes_per_elem == 4:
             cell_type = CellType.QUAD
         elif nodes_per_elem == 3:
@@ -292,7 +266,7 @@ def _get_pyvista_cell_type(nodes_per_elem: int, spat_dim: int) -> CellType | Non
             cell_type = CellType.QUADRATIC_QUAD
         elif nodes_per_elem == 9:
             cell_type = CellType.BIQUADRATIC_QUAD
-    else:
+    elif spat_dim == EDim.THREED or spat_dim == 3:
         if nodes_per_elem == 8:
             cell_type =  CellType.HEXAHEDRON
         elif nodes_per_elem == 4:

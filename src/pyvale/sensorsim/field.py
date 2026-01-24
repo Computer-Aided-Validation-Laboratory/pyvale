@@ -19,9 +19,9 @@ class IField(ABC):
 
     @abstractmethod
     def set_sim_data(self,sim_data: mh.SimData) -> None:
-        """Abstract method. Sets the SimData object that will be interpolated to
-        obtain sensor values. The purpose of this is to be able to apply the
-        same sensor array to an array of different simulations.
+        """Sets the SimData object that will be interpolated to obtain sensor 
+        values. The purpose of this is to be able to apply the same sensor array 
+        to an array of different simulations.
 
         Parameters
         ----------
@@ -32,9 +32,9 @@ class IField(ABC):
 
     @abstractmethod
     def get_sim_data(self) -> mh.SimData:
-        """Abstract method. Gets the simulation data object associated with this
-        field. Used by pyvale visualisation tools to display simulation data
-        with simulated sensor values.
+        """Gets the simulation data object associated with this field. Used by 
+        pyvale visualisation tools to display simulation data with simulated 
+        sensor values.
 
         Returns
         -------
@@ -45,8 +45,7 @@ class IField(ABC):
 
     @abstractmethod
     def get_time_steps(self) -> np.ndarray:
-        """Abstract method. Gets a 1D array of time steps from the simulation
-        data.
+        """Gets a 1D array of time steps from the simulation data.
 
         Returns
         -------
@@ -56,8 +55,7 @@ class IField(ABC):
 
     @abstractmethod
     def get_visualiser(self) -> pv.UnstructuredGrid:
-        """Abstract method. Gets a pyvista unstructured grid object for
-        visualisation purposes.
+        """Gets a pyvista unstructured grid object for visualisation purposes.
 
         Returns
         -------
@@ -80,19 +78,20 @@ class IField(ABC):
         """
 
     @abstractmethod
-    def get_component_index(self,component: str) -> int:
+    def get_component_index(self,comp_key: str) -> int:
         """Gets the index for a component of the physical field. Used for
-        getting the index of a component in the sensor measurement array.
+        getting the index of a component in the sensor measurement array based 
+        on its string key.
 
         Parameters
         ----------
-        component : str
+        comp_key : str
             String key for the field component (e.g. 'temperature' or 'disp_x').
 
         Returns
         -------
         int
-            Index for the selected field component
+            Index for the selected field component.
         """
 
     @abstractmethod

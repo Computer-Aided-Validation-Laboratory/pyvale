@@ -14,19 +14,21 @@
 #include <cmath>
 #include <complex>
 
-// Program Header files
+// common header files 
+#include "../../common_cpp/pocketfft_hdronly.h"
+#include <Eigen/Dense>
+
+// DIC Header files
 #include "./dicinterpolator.hpp"
-#include "./defines.hpp"
+#include "./dicsubset.hpp"
 #include "./dicutil.hpp"
-#include "./pocketfft_hdronly.h"
-#include "./Eigen/Dense"
 
 namespace fourier {
 
     struct Shift {
 
         // number of neighbours to use for removing outliers
-        size_t num_neigh;
+        size_t max_num_neigh;
 
         //integer shifts
         std::vector<double> x;
@@ -35,22 +37,32 @@ namespace fourier {
         std::vector<double> max_val;
 
         // list of neighbours from prev window
-        std::vector<int> neighlist;
+        std::vector<int> neigh_list;
+        std::vector<int> num_neigh_list;
 
-        void gen_neighlist(const util::SubsetData ssdata,
-                           const util::SubsetData ssdata_prev) {
+        void gen_neighlist(const subset::Grid ss_grid,
+                           const subset::Grid ss_grid_prev) {
 
-            //util::Timer timer("nearest neighbour collection for :");
+            //Timer timer("nearest neighbour collection for :");
 
-            const int prev_step = ssdata_prev.step;
+            const int prev_step = ss_grid_prev.step;
 
-            // For each subset, find 4 nearest neighbours in ssdata_prev
+
+            // a list containing the number of neighbours from the previous
+            // window size for each subset in the current window size
+            num_neigh_list.resize(ss_grid.num);
+
+            // we know the neigh_list is going to be a max size of
+            // max_neigh*num_ss. we can resize this later once populated
+            neigh_list.resize(max_num_neigh*ss_grid.num);
+
+            // For each subset, find 4 nearest neighbours in ss_grid_prev
             #pragma omp parallel for
-            for (int ss = 0; ss < ssdata.num; ++ss) {
+            for (int ss = 0; ss < ss_grid.num; ++ss) {
 
                 // corner of subset
-                const int ss_x = ssdata.coords[2*ss];
-                const int ss_y = ssdata.coords[2*ss+1];
+                const int ss_x = ss_grid.coords[2*ss];
+                const int ss_y = ss_grid.coords[2*ss+1];
 
                 // Vector to store pairs of (distance, index)
                 std::vector<std::pair<double, int>> dist_index_list;
@@ -62,18 +74,18 @@ namespace fourier {
                 // range of neighbour search
                 int min_x = std::max(0,idx_x-5);
                 int min_y = std::max(0,idx_y-5);
-                int max_x = std::min(ssdata_prev.num_ss_x,idx_x+6);
-                int max_y = std::min(ssdata_prev.num_ss_y,idx_y+6);
+                int max_x = std::min(ss_grid_prev.num_ss_x,idx_x+6);
+                int max_y = std::min(ss_grid_prev.num_ss_y,idx_y+6);
 
                 for (int y = min_y; y < max_y; y++){
                     for (int x = min_x; x < max_x; x++){
 
                     // check if point is a valid subset
-                    int nss_idx = ssdata_prev.mask[y*ssdata_prev.num_ss_x+x];
+                    int nss_idx = ss_grid_prev.mask[y*ss_grid_prev.num_ss_x+x];
                     if (nss_idx == -1) continue;
 
-                    int nss_x = ssdata_prev.coords[2*nss_idx];
-                    int nss_y = ssdata_prev.coords[2*nss_idx+1];
+                    int nss_x = ss_grid_prev.coords[2*nss_idx];
+                    int nss_y = ss_grid_prev.coords[2*nss_idx+1];
 
                     double dx = (nss_x) - ss_x;
                     double dy = (nss_y) - ss_y;
@@ -83,36 +95,34 @@ namespace fourier {
                     }
                 }
 
-                // Partial sort to get 4 nearest neighbours
-                if (dist_index_list.size() > num_neigh) {
-                    std::nth_element(dist_index_list.begin(), dist_index_list.begin() + num_neigh, dist_index_list.end());
-                    dist_index_list.resize(num_neigh);
-                }
-                else {
-                    std::cerr << "Could not find " << num_neigh << " neighbours for point (" << ss_x << ", " << ss_y << ")." << std::endl;
+                // either use max_num_neigh or size of list if less than max_num_neigh
+                int num_neigh = std::min(max_num_neigh, dist_index_list.size());
+
+                // can't find any neighbours.
+                if (num_neigh == 0){
+                    std::cerr << "Could not find any neighbours from the previous FFT window size for point (" << ss_x << ", " << ss_y << ")." << std::endl;
                     std::cerr << "Number of neighbours: " << dist_index_list.size() << std::endl;
                     std::cerr << "Neighbours from previous window: " << std::endl;
                     for (size_t n = 0; n < dist_index_list.size(); n++){
                         int nss_idx = dist_index_list[n].second;
-                        int nss_x = ssdata_prev.coords[2*nss_idx];
-                        int nss_y = ssdata_prev.coords[2*nss_idx+1];
+                        int nss_x = ss_grid_prev.coords[2*nss_idx];
+                        int nss_y = ss_grid_prev.coords[2*nss_idx+1];
                         std::cerr << "(" << nss_x << ", " << nss_y << "), ";
                     }
                     std::cerr << std::endl;
                     exit(EXIT_FAILURE);
                 }
 
+                num_neigh_list[ss] = num_neigh;
+                std::nth_element(dist_index_list.begin(), dist_index_list.begin() + num_neigh, dist_index_list.end());
+                dist_index_list.resize(num_neigh);
 
                 // Store neighbours indices into neighlist
                 for (size_t i = 0; i < num_neigh; ++i) {
-                    //std::cout << ss_x << " " << ss_y << std::endl;
-                    neighlist[ss*num_neigh+i] = dist_index_list[i].second;
-                    //int nidx = neighlist[ss*num_neigh+i];
-                    //std::cout << ssdata_prev.coords[nidx*2] << " " << ssdata_prev.coords[nidx*2+1] << std::endl; 
+                    neigh_list[ss*max_num_neigh+i] = dist_index_list[i].second;
                 }
-                //std::cout << std::endl;
+
             }
-            //exit(0);
         }
     };
 
@@ -123,8 +133,8 @@ namespace fourier {
         int n_complex;
         
         // input data
-        util::Subset ss_def;
-        util::Subset ss_ref;
+        subset::Pixels ss_def;
+        subset::Pixels ss_ref;
 
         // output data
         std::vector<std::complex<double>> fft_def;
@@ -164,6 +174,23 @@ namespace fourier {
             // multiplication of complex fft data
             for (int px = 0; px < ss_size * n_complex; px++) {
                 fft_def[px] = std::conj(fft_ref[px]) * fft_def[px];
+            }
+
+            // inverse FFT to get cross correlation
+            pocketfft::c2r(shape_in, stride_out, stride_in, axes, pocketfft::BACKWARD, fft_def.data(), cross_corr.data(), 1.0, 1);
+        }
+
+        void correlate_phase() {
+
+            // forward fft of reference and deformed subsets
+            pocketfft::r2c(shape_in, stride_in, stride_out, axes, pocketfft::FORWARD, ss_ref.vals.data(), fft_ref.data(), 1.0, 1);
+            pocketfft::r2c(shape_in, stride_in, stride_out, axes, pocketfft::FORWARD, ss_def.vals.data(), fft_def.data(), 1.0, 1);
+            
+            // multiplication of complex fft data
+            for (int px = 0; px < ss_size * n_complex; ++px) {
+                std::complex<double> val = std::conj(fft_ref[px]) * fft_def[px];
+                double mag = std::abs(val);
+                fft_def[px] = (mag > 1e-12) ? val / mag : 0.0;
             }
 
             // inverse FFT to get cross correlation
@@ -212,8 +239,8 @@ namespace fourier {
 
             // Step 2: No subpixel refinement requested
             if (!subpx) {
-                peak_x = (x0 < ss_size / 2.0) ? x0 : x0 - ss_size;
-                peak_y = (y0 < ss_size / 2.0) ? y0 : y0 - ss_size;
+                peak_x = (x0 <= ss_size / 2.0) ? x0 : x0 - ss_size;
+                peak_y = (y0 <= ss_size / 2.0) ? y0 : y0 - ss_size;
                 return;
             }
 
@@ -254,41 +281,129 @@ namespace fourier {
 
             peak_x = x0 + offset(0);
             peak_y = y0 + offset(1);
-            peak_x = (peak_x < ss_size / 2.0) ? peak_x : peak_x - ss_size;
-            peak_y = (peak_y < ss_size / 2.0) ? peak_y : peak_y - ss_size;
+            peak_x = (peak_x <= ss_size / 2.0) ? peak_x : peak_x - ss_size;
+            peak_y = (peak_y <= ss_size / 2.0) ? peak_y : peak_y - ss_size;
             //std::cout << peak_x << " " << peak_y << std::endl;
+        }
+
+        void find_peak_offset(double &peak_x, double &peak_y, double &max_val,
+                const bool subpx, const std::string &method) {
+
+            max_val = -std::numeric_limits<double>::infinity();
+            int x0 = 0, y0 = 0;
+
+            // Step 1: integer peak
+            for (int y = 0; y < ss_size; ++y) {
+                for (int x = 0; x < ss_size; ++x) {
+                    double val = cross_corr[y * ss_size + x];
+                    if (val > max_val) {
+                        max_val = val;
+                        x0 = x;
+                        y0 = y;
+                    }
+                }
+            }
+
+            const double center = static_cast<double>(ss_size) / 2.0;
+
+            // No subpixel refinement requested: map index -> displacement by subtracting center
+            if (!subpx) {
+                peak_x = static_cast<double>(x0) - center;
+                peak_y = static_cast<double>(y0) - center;
+                // Optional wrap correction (shouldn't be necessary if using center subtraction):
+                if (peak_x <= -center) peak_x += ss_size;   // maps -128 -> 128 if needed
+                if (peak_x >  center - 1e-12) peak_x -= ss_size;
+                if (peak_y <= -center) peak_y += ss_size;
+                if (peak_y >  center - 1e-12) peak_y -= ss_size;
+                return;
+            }
+
+            // Subpixel refinement: build 3x3 neighborhood and solve quadratic (your existing code)
+            int i = 0;
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dx = -1; dx <= 1; ++dx) {
+                    int xw = wrap(x0 + dx, ss_size);
+                    int yw = wrap(y0 + dy, ss_size);
+                    double val = cross_corr[yw * ss_size + xw];
+
+                    if (method == "GAUSSIAN_2D" && val <= 0) val = 1e-6;
+                    double z = (method == "GAUSSIAN_2D") ? std::log(val) : val;
+
+                    A(i, 0) = dx * dx;
+                    A(i, 1) = dy * dy;
+                    A(i, 2) = dx * dy;
+                    A(i, 3) = dx;
+                    A(i, 4) = dy;
+                    A(i, 5) = 1.0;
+                    b(i) = z;
+                    i++;
+                }
+            }
+
+            Eigen::VectorXd coeffs = A.colPivHouseholderQr().solve(b);
+            double a = coeffs(0), b_ = coeffs(1), c = coeffs(2);
+            double d = coeffs(3), e = coeffs(4);
+
+            Eigen::Matrix2d H;
+            H << 2 * a, c,
+                c,     2 * b_;
+            Eigen::Vector2d g(-d, -e);
+
+            Eigen::Vector2d offset = H.ldlt().solve(g);
+
+            // Map integer + fractional index -> displacement relative to center
+            double raw_x = static_cast<double>(x0) + offset(0);
+            double raw_y = static_cast<double>(y0) + offset(1);
+
+            peak_x = raw_x - center;
+            peak_y = raw_y - center;
+
+            // Optional: ensure in [-center, center)
+            if (peak_x <= -center) peak_x += ss_size;
+            if (peak_x >  center - 1e-12) peak_x -= ss_size;
+            if (peak_y <= -center) peak_y += ss_size;
+            if (peak_y >  center - 1e-12) peak_y -= ss_size;
         }
     };
 
-    void init(std::vector<util::SubsetData> &ssdata,
+    void init(std::vector<subset::Grid> &ss_grid,
               std::vector<int> &ss_sizes,
               std::vector<int> &ss_steps,
               const bool *img_roi, const util::Config &conf);
 
-    void mgwd(const std::vector<util::SubsetData> &ssdata,
-              const double *img_ref,
-              const double *img_def,
-              const Interpolator &interp_def,
-              const bool fft_mad,
-              const double fft_mad_scale);
+    void multiwindow(const std::vector<subset::Grid> &ss_grid,
+                    const double *img_ref,
+                    const double *img_def,
+                    const Interpolator &interp_def,
+                    const bool fft_mad,
+                    const double fft_mad_scale);
 
 
-    void sgwd(const util::SubsetData &ssdata, 
-              const int window_size,
-              const double *img_ref,
-              const double *img_def,
-              const Interpolator &interp_def);
+    void single_grid(const subset::Grid &ss_grid,
+                     const double *prev_img_u,
+                     const double *prev_img_v,
+                     const int window_size,
+                     const double *img_ref,
+                     const double *img_def,
+                     const Interpolator &interp_def);
+
+
+   void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
+                                     const int ss_x, const int ss_y,
+                                     const int ss_size, const int window_size,
+                                     const double *img_ref, const double *img_def,
+                                     const Interpolator &interp_def);
 
     std::pair<double, double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,
                                        const std::vector<Shift>& shifts,
-                                       const std::vector<util::SubsetData>& ssdata);
+                                       const std::vector<subset::Grid>& ss_grid);
 
-    double debugcost(util::Subset &ss_ref, util::Subset &ss_def);
+    double debugcost(subset::Pixels &ss_ref, subset::Pixels &ss_def);
 
     void zero_norm_subsets(std::vector<double>& def_vals, std::vector<double>& ref_vals, int ss_size);
 
-   void smooth_field(std::vector<double>& shift, const util::SubsetData& ssdata, double sigma, int radius);
+   void smooth_field(std::vector<double>& shift, const subset::Grid& ss_grid, double sigma, int radius);
    void test(double &peak_x, double &peak_y, int ss_x, int ss_y, const int window_size, const double *img_ref, const double *img_def, const Interpolator &interp_def);
 }
 

@@ -12,6 +12,7 @@ plots and visualisations for virtual sensor simulations.
 
 from dataclasses import dataclass
 import numpy as np
+from pyvale.sensorsim.enums import EDim
 
 
 @dataclass(slots=True)
@@ -82,7 +83,7 @@ class SensorDescriptor:
             label = label + symbol
 
         if self.units != "":
-            label = label + "\n" + rf"[${self.units}$]"
+            label = label + rf" [${self.units}$]"
 
         return label
 
@@ -144,14 +145,14 @@ class SensorDescriptor:
         return sensor_names
 
 
-class SensorDescriptorFactory:
+class DescriptorFactory:
     """A factory for building common sensor descriptors for scalar, vector and
     tensor fields. Builds descriptors for thermcouples, displacement sensors
     and strain sensors.
     """
 
     @staticmethod
-    def temperature_descriptor() -> SensorDescriptor:
+    def temperature() -> SensorDescriptor:
         """Creates a generic temperature sensor descriptor. Assumes the sensor
         is measuring a temperature in degrees C.
 
@@ -167,7 +168,23 @@ class SensorDescriptorFactory:
         return descriptor
 
     @staticmethod
-    def displacement_descriptor() -> SensorDescriptor:
+    def scalar() -> SensorDescriptor:
+        """Creates a generic scalar field sensor descriptor. 
+
+        Returns
+        -------
+        SensorDescriptor
+            The default scalar field sensor descriptor.
+        """
+        descriptor = SensorDescriptor(name="scalar",
+                                      symbol="scal.",
+                                      units=r"units",
+                                      tag="S")
+        return descriptor
+
+
+    @staticmethod
+    def displacement() -> SensorDescriptor:
         """Creates a generic displacement sensor descriptor. Assumes units of mm
         and vector components of x,y,z.
 
@@ -184,16 +201,33 @@ class SensorDescriptorFactory:
         return descriptor
 
     @staticmethod
-    def strain_descriptor(spat_dims: int = 3) -> SensorDescriptor:
+    def vector() -> SensorDescriptor:
+        """Creates a generic vector field sensor descriptor. Assumes vector 
+        components of x,y,z.
+
+        Returns
+        -------
+        SensorDescriptor
+            The default vector sensor descriptor.
+        """
+        descriptor = SensorDescriptor(name="vector",
+                                      symbol="vect.",
+                                      units=r"unit",
+                                      tag="V",
+                                      components=("x","y","z"))
+        return descriptor
+
+    @staticmethod
+    def strain(spatial_dims: EDim = EDim.THREED) -> SensorDescriptor:
         """Creates a generic strain sensor descriptor. Assumes strain is
         unitless and that the components are xx,yy,xy for 2D and xx,yy,zz,xy,yz,
         xz for 3D.
 
         Parameters
         ----------
-        spat_dims : int, optional
+        spatial_dims : EDim, optional
             Number of spatial dimensions used for setting the components of the
-            tensor strain field, by default 3.
+            tensor strain field, by default EDim.THREED.
 
         Returns
         -------
@@ -205,7 +239,35 @@ class SensorDescriptorFactory:
                                       units=r"-",
                                       tag="SG")
 
-        if spat_dims == 2:
+        if spatial_dims == EDim.TWOD:
+            descriptor.components = ("xx","yy","xy")
+        else:
+            descriptor.components = ("xx","yy","zz","xy","yz","xz")
+
+        return descriptor
+
+    @staticmethod
+    def tensor(spatial_dims: EDim = EDim.THREED) -> SensorDescriptor:
+        """Creates a generic tensor field sensor descriptor. Assumes that the 
+        components are xx,yy,xy for 2D and xx,yy,zz,xy,yz,xz for 3D.
+
+        Parameters
+        ----------
+        spatial_dims : EDim, optional
+            Number of spatial dimensions used for setting the components of the
+            tensor strain field, by default EDim.THREED.
+
+        Returns
+        -------
+        SensorDescriptor
+            The default tesnors sensor descriptor.
+        """
+        descriptor = SensorDescriptor(name="tensor",
+                                      symbol=r"tens.",
+                                      units=r"unit",
+                                      tag="T")
+
+        if spatial_dims == EDim.TWOD:
             descriptor.components = ("xx","yy","xy")
         else:
             descriptor.components = ("xx","yy","zz","xy","yz","xz")
