@@ -36,10 +36,10 @@ dependencies = [
   "seaborn>=0.13.2",
   "scikit-image>=0.0",
   "perlin_numpy>=0.0.0",
-  "opensimplex>=0.4.5.1"
+  "opensimplex>=0.4.5.1",
   "pandas>=2.3.1",
   "scikit-build-core>=0.11.6",
-  "ninja>=1.13.0"
+  "ninja>=1.13.0",
 ]
 
 [tool.pytest.ini_options]
