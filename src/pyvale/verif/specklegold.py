@@ -15,7 +15,7 @@ Specifically, this module contains gold measurement generation function.
 
 import numpy as np
 import os
-import pyvale.verif.specklegneconst as specklegneconst
+import pyvale.verif.specklegenconst as specklegenconst
 import pyvale.specklegen as specklegen
 
 
@@ -84,7 +84,7 @@ def gen_gold_measurements(param_dict: dict) -> None:
                                          foreground_colour, background_colour,
                                          bit_depth, type_gen, seed)
  
-        save_path = specklegneconst.GOLD_PATH
+        save_path = specklegenconst.GOLD_PATH
         if not os.path.exists(save_path):
            os.makedirs(save_path)
         np.save(f"{save_path}/{type_gen}_image_{i+1}.npy", image)

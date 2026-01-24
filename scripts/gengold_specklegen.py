@@ -5,7 +5,7 @@
 #===============================================================================
 
 import pyvale.verif.specklegold as specklegold
-import pyvale.verif.specklegneconst as specklegneconst
+import pyvale.verif.specklegenconst as specklegenconst
 
 def main() -> None:
 
@@ -33,7 +33,7 @@ def main() -> None:
         print(80*"=")
         print(f"Gold Output Generator for pyvale {tag} speckle pattern generation")
         print(80*"=")
-        print(f"Saving gold output to: {specklegneconst.GOLD_PATH}\n")
+        print(f"Saving gold output to: {specklegenconst.GOLD_PATH}\n")
     
         print(f"Generating gold output for {tag} field point sensors...")
         specklegold.gen_gold_measurements(param_dict)
