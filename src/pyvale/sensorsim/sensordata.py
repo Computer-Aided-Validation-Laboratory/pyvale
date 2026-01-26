@@ -24,6 +24,9 @@ class SensorData:
     create a sensor array the positions must be specified and the number of rows
     of the position array determines the number of sensors in the array.
 
+    Should only be None if this is representing perturbed sensor positions and
+    the sensors are not being perturbed.
+
     shape=(num_sensors,3)
     """
 
@@ -49,7 +52,7 @@ class SensorData:
     this tuple must have a length equal to the number of sensors (i.e. the
     number of rows in the position array above).
 
-    shape=(num_sensor,) | (1,)
+    shape=(num_sensor,) or (1,)
     """
 
     spatial_averager: EIntSpatialType | None = None

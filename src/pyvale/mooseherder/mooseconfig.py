@@ -15,14 +15,9 @@ class MooseConfig:
     to construct the command string. These are stored as a dictionary keyed
     with 'main_path', 'app_path' and 'app_name'. This class can also write and
     read json files containing the moose config.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
     """
+    __slots__ = ("_required_keys","_config")
+
     def __init__(self, config: dict[str,Path | str] | None = None) -> None:
 
         self._required_keys = ['main_path','app_path','app_name']
@@ -36,9 +31,6 @@ class MooseConfig:
     def get_config(self) -> dict[str,Path | str]:
         """get_config: returns the config dictionary after checking it is
         valid.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -60,9 +52,6 @@ class MooseConfig:
         ----------
         config : dict[str, Path | str] | None = None
             Dictionary containing the moose config. Defaults to None.
-
-        Returns
-        -------
 
         Raises
         ------
@@ -159,9 +148,6 @@ class MooseConfig:
         config_path : Path
             path and file name with extension .json to save the moose config
             dictionary.
-
-        Returns
-        -------
 
         Raises
         ------

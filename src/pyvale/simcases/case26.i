@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------
 #_* MOOSEHERDER VARIABLES - START
 
-endTime = 80
+endTime = 10
 timeStep = 1
 
 # Mechanical Loads/BCs

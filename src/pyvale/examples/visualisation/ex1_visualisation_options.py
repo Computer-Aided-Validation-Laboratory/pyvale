@@ -5,15 +5,10 @@
 # ==============================================================================
 
 """
-Basics: Pyvale point sensor simulation
+Visualisation:
 ================================================================================
+TODO
 
-In this example we introduce the basic features of `pyvale` for point sensor
-simulation. We demonstrate quick sensor array construction with defaults using
-the `pyvale` sensor array factory. Finally we run a sensor simulation and display
-the output.
-
-Test case: Scalar field point sensors (thermocouples) on a 2D thermal simulation
 """
 
 from pathlib import Path
@@ -30,29 +25,40 @@ import pyvale.dataset as dataset
 # See examples/basics/ex1a_basicscalars_therm2d.py for detail regarding this
 
 data_path = dataset.thermal_2d_path()
-sim_data = mh.ExodusReader(data_path).read_all_sim_data()
+sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
 sim_data = sens.scale_length_units(scale=1000.0,
                                     sim_data=sim_data,
-                                    disp_comps=None)
+                                    disp_keys=None)
 
 n_sens = (3,2,1)
 x_lims = (0.0,100.0)
 y_lims = (0.0,50.0)
 z_lims = (0.0,0.0)
-sens_pos = sens.create_sensor_pos_array(n_sens,x_lims,y_lims,z_lims)
+sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 
 
 sens_data = sens.SensorData(positions=sens_pos)
 field_key: str = "temperature"
-tc_array = sens.SensorArrayFactory \
-    .thermocouples_basic_errs(sim_data,
-                                sens_data,
-                                elem_dims=2,
-                                field_name=field_key)
+
+sens_array = sens.SensorFactory.scalar_point(
+    sim_data,
+    sens_data,
+    comp_key=field_key,
+    spatial_dims=sens.EDim.TWOD,
+    descriptor=sens.DescriptorFactory.temperature(),
+)
 
 
-measurements = tc_array.calc_measurements()
+err_chain= [
+    sens.ErrSysGen(sens.GenUniform(low=-5.0,high=5.0)),
+    sens.ErrRandGen(sens.GenNormal(std=2.0)),
+]
+
+sens_array.set_error_chain(err_chain)
+
+
+measurements = sens_array.sim_measurements()
 print(f"\nMeasurements for last sensor:\n{measurements[-1,0,:]}\n")
 
 #%%
@@ -78,7 +84,7 @@ save_render = output_path / "basics_ex1_1_sensorlocs.svg"
 # markers shows the simulated sensor traces. In later examples we will see
 # how to configure this plot but for now we note we that we are returned a
 # matplotlib figure and axes object which allows for further customisation.
-(fig,ax) = sens.plot_time_traces(tc_array,field_key)
+(fig,ax) = sens.plot_time_traces(sens_array,field_key)
 
 traceopts = sens.TraceOptsSensor()
 traceopts.sensors_per_plot = 2
@@ -98,7 +104,7 @@ traceopts = sens.TraceOptsSensor()
 traceopts.sensors_per_plot = 2
 traceopts.sensors_to_plot = [1,3,5, "fake"]
 
-(fig, ax) = sens.plot_time_traces(tc_array, field_key, trace_opts=traceopts)
+(fig, ax) = sens.plot_time_traces(sens_array, field_key, trace_opts=traceopts)
 plt.show()
 
 

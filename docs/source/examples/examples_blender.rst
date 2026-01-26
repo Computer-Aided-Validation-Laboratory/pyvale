@@ -1,13 +1,13 @@
 .. _examples_blender:
 
-Blender
-=======
+Blender Image Deformation
+=========================
 
 .. toctree::
    :maxdepth: 1
 
-   renderblender/ex1_1_blenderscene.rst
-   renderblender/ex1_2_blenderdeformed.rst
-   renderblender/ex2_1_stereoscene.rst
-   renderblender/ex2_2_stereodeformed.rst
-   renderblender/ex3_1_blendercalibration.rst
+   blenderimagedef/ex1_blender_scene2d.rst
+   blenderimagedef/ex2_blender_imagedef2d.rst
+   blenderimagedef/ex3_blender_scenestereo.rst
+   blenderimagedef/ex4_blender_imagedefstereo.rst
+   blenderimagedef/ex5_blender_calibstereo.rst

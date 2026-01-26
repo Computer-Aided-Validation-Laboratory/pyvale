@@ -8,7 +8,7 @@ import os
 import sys
 
 def check_output_directory(output_basepath: str,
-                           output_prefix: str) -> None:
+                           output_prefix: str, debug_level: int) -> None:
     """
     Check for existing output files in a directory and prompt user confirmation before overwriting.
 
@@ -23,6 +23,8 @@ def check_output_directory(output_basepath: str,
         Path to the output directory where files are or will be saved.
     output_prefix : str
         Filename prefix used to identify potential conflicting output files.
+    debug_level: int
+        Determines how much information to provide in console output.
 
     Raises
     ------
@@ -46,10 +48,11 @@ def check_output_directory(output_basepath: str,
 
     if conflicting_files:
         conflicting_files.sort()
-        print("WARNING: The following output files already exist and may be overwritten:")
-        for f in conflicting_files:
-            print(f"  - {os.path.join(output_basepath, f)}")
-        print("")
+        if (debug_level>0):
+            print("WARNING: The following output files already exist and may be overwritten:")
+            for f in conflicting_files:
+                print(f"  - {os.path.join(output_basepath, f)}")
+            print("")
 
 
         ###### TURNING USER INPUT OFF FOR NOW ######
