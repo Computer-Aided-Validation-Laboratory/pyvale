@@ -151,10 +151,76 @@ matching is a good start, but physical displacements do not perfectly map to pix
 boundaries. To capture this, we refine the measurement to *sub-pixel*
 accuracy using interpolation. Instead of treating the image as a discrete
 array, we approximate it as a smooth surface. This is done using **cubic B-spline
-interpolation**. Generally, B-spline curves do not pass through the control
-points (pixel values) and *interpolating* B-splines are needed to pass through
-exact locations. More details can be found `here <https://ieeexplore.ieee.org/document/1163154>`_.
+interpolation**.
 
+Cubic B-spline interpolation represents the interpolated function as a weighted sum of shifted B-spline basis functions:
+
+.. math::
+    f(x,y) = \sum_{i,j} c_{i,j} \, \beta^3(x - i) \, \beta^3(y - j)
+
+where :math:`c_{i,j}` are B-spline coefficients and :math:`\beta^3(t)` is the cubic B-spline basis function:
+
+.. math::
+
+   \beta^3(t) = \frac{1}{6} \begin{cases}
+   (2 - |t|)^3 & \text{if } 1 \leq |t| < 2 \\
+   4 - 6t^2 + 3|t|^3 & \text{if } |t| < 1 \\
+   0 & \text{if } |t| \geq 2
+   \end{cases}
+
+Prefiltering
+^^^^^^^^^^^^^^^^^^
+To ensure that the B-spline passes through the original intensity values, we
+can apply a filter to get the B-spline coefficients. 
+For a 1D row of intensity data :math:`\{f_0, f_1, \ldots, f_{N-1}\}`, the filtering has three steps.
+First is to apply a normalization:
+
+.. math::
+    c_i^{(0)} = (1-z)(1-1/z) f_i
+
+with pole :math:`z = \sqrt{3} - 2`. Then apply a Causal filter:
+
+.. math::
+   c_i^{(+)} = c_i^{(0)} + z \, c_{i-1}^{(+)}, \quad i = 1, 2, \ldots, N-1
+
+with an initial condition of :math:`c_0^{(+)} = c_0^{(0)}`. The final step is
+to apply an anticausal filter. Starting at end of the row:
+
+.. math::
+    c_{N-1} = \frac{z}{z^2-1} c_{N-1}^{(+)}
+
+and then applying:
+
+.. math::
+    c_i = z(c_{i+1} - c_i^{(+)}), \quad i = N-2, N-3, \ldots, 0
+
+This 1D filtering can be done for each row of the image to get a list of coefficients :math:`c_{i,j}^{(x)}`. It can then be applied to the colum of the result to
+get a full list of coefficients :math:`c_{i,j}`.
+
+Evaluation
+^^^^^^^^^^
+to get the intensity value at an arbitraty subpixel location :math:`f(x,y)` we
+compute the local coordinates:
+
+.. math::
+
+    t_x = x - \mathrm{floor}(x), \quad t_y = y - \mathrm{floor(y)}
+
+then evaluate the basis functions for the local coordinates:
+
+.. math::
+    B_0(t) &= (1-t)^3/6 \\
+    B_1(t) &= (3t^3 - 6t^2 + 4)/6 \\
+    B_2(t) &= (-3t^3 + 3t^2 + 3t + 1)/6 \\
+    B_3(t) &= t^3/6
+
+and compute the interpolated value:
+
+.. math::
+
+    f(x,y) = \sum_{k=0}^{3} \sum_{\ell=0}^{3} c_{i_x+k-1, i_y+\ell-1} \, B_k(t_x) \, B_\ell(t_y)
+
+ 
 .. list-table::
    :width: 70%
    :class: borderless
