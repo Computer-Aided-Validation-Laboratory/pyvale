@@ -29,8 +29,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clean previous builds
-        run: rm -rf wheelhouse/*
+      - name: Clean previous builds (unix)
+        if: runner.os != 'Windows'
+        run: rm -rf dist/* wheelhouse/*
+
+      - name: Clean previous builds (Windows)
+        if: runner.os == 'Windows'
+        run: Remove-Item -Recurse -Force dist/*, wheelhouse/*
+        shell: powershell
 
       - name: Set compiler on macOS to GCC
         if: startsWith(matrix.os, 'macos')
@@ -60,8 +66,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clean previous builds
-        run: rm -rf dist/*
+      - name: Clean previous builds (unix)
+        if: runner.os != 'Windows'
+        run: rm -rf dist/* wheelhouse/*
+
+      - name: Clean previous builds (Windows)
+        if: runner.os == 'Windows'
+        run: Remove-Item -Recurse -Force dist/*, wheelhouse/*
+        shell: powershell
 
       - name: Build sdist
         run: pipx run build --sdist
