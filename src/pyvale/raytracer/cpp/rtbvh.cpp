@@ -21,7 +21,6 @@
 #include "rtbvh.h"
 #include "rtrayintersection.h"
 #include "rthitrecord.h"
-#include "ndarray.h"
 
 constexpr int NODE_COORDINATES = 3; // number of coordinates per each mesh node. Used for some of flat indexing
 

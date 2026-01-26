@@ -23,13 +23,15 @@ message(STATUS "CMake install config name: ${CMAKE_INSTALL_CONFIG_NAME}")
 # ----------------------------
 # Dependencies
 # ----------------------------
+
 find_package(pybind11 REQUIRED)
 find_package(OpenMP REQUIRED)
 # All below is for nanobind when installed through Pip or Conda
-find_package(Python 3.11 COMPONENTS Interpreter Development EXACT REQUIRED)
+find_package(Python 3.11 COMPONENTS Interpreter Development REQUIRED)
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+list(APPEND CMAKE_PREFIX_PATH "${NB_DIR}")
 find_package(nanobind CONFIG REQUIRED)
 
 # ----------------------------

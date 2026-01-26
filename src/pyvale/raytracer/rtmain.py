@@ -7,8 +7,7 @@
 from pathlib import Path
 from pyvale.raytracer.rtscene import Scene, RenderType, find_max_displacements
 
-
-from rtmaincpp import cpp_render_scene # Import C++ backend
+from pyvale.raytracer.rtmaincpp import cpp_render_scene # Import C++ backend
 
 def render_scene(image_height: int, image_width: int, scene: Scene, antialiasing_samples: int, out_directory_path: Path, render_type = RenderType.DYNAMIC, frames_to_render: int = None):
     '''Sets appropriate settings and passes the data to the C++ renderer.

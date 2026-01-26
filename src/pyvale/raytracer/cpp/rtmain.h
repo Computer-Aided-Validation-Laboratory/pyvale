@@ -29,6 +29,8 @@
 #include "rtrender.h"
 #include "rtbvh.h"
 
+namespace nb = nanobind;
+
 void render_scene(const int image_height,
     const int image_width,
     const int number_of_samples,
