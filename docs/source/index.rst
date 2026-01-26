@@ -39,11 +39,14 @@ The Computer Aided Validation Team at United Kingdom Atomic Energy Authority (UK
 * Joel Hirst (`JoelPhys <https://github.com/JoelPhys>`_), UK Atomic Energy Authority
 * Lorna Sibson (`lornasibson <https://github.com/lornasibsin>`_), UK Atomic Energy Authority
 * Megan Sampson (`megan sampson <https://github.com/meganasampson>`_), UK Atomic Energy Authority
+* Wiera Bielajewa (`WieraB <https://github.com/WieraB>`_), UK Atomic Energy Authority
+* Chris Dawson (`ctdaws <https://github.com/ctdaws>`_), UK Atomic Energy Authority
+* Michael Darcy (`AnalogArnold <https://github.com/AnalogArnold>`_), Swansea University
+* Rob Hamill (`rob-hamill <https://github.com/rob-hamill>`_), UK Atomic Energy Authority
 * Adel Tayeb (`3adelTayeb <https://github.com/3adelTayeb>`_), UK Atomic Energy Authority
 * Alex Marsh (`alexmarsh2 <https://github.com/alexmarsh2>`_), UK Atomic Energy Authority
 * Rory Spencer (`fusmatr <https://github.com/fusmatrs>`_), UK Atomic Energy Authority
 * John Charlton  (`coolmule0 <https://github.com/coolmule0>`_), UK Atomic Energy Authority
-
 
 
 

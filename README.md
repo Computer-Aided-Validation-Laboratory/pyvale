@@ -33,6 +33,10 @@ The Computer Aided Validation Team at UKAEA:
 - Joel Hirst ([JoelPhys](https://github.com/JoelPhys)), UK Atomic Energy Authority
 - Lorna Sibson ([lornasibson](https://github.com/lornasibson)), UK Atomic Energy Authority
 - Megan Sampson ([meganasampson](https://github.com/meganasampson)), UK Atomic Energy Authority
+- Wiera Bielajewa ([WieraB](https://github.com/WieraB)), UK Atomic Energy Authority
+- Chris Dawson ([ctdaws](https://github.com/ctdaws)), UK Atomic Energy Authority
+- Michael Darcy ([AnalogArnold](https://github.com/AnalogArnold)), Swansea University
+- Rob Hamill ([rob-hamill](https://github.com/rob-hamill)), UK Atomic Energy Authority
 - Michael Atkinson ([mikesmic](https://github.com/mikesmic)), UK Atomic Energy Authority
 - Adel Tayeb ([3adelTayeb](https://github.com/3adelTayeb)), UK Atomic Energy Authority
 - Alex Marsh ([alexmarsh2](https://github.com/alexmarsh2)), UK Atomic Energy Authority
