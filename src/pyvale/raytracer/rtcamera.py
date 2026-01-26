@@ -21,8 +21,8 @@ class Camera:
     __slots__ = ['image_width', 'image_height', 'camera_center', 'point_camera_target', 'angle_vertical_view', 'matrix_camera_to_world',
                  'matrix_world_to_camera', 'matrix_pixel_spacing', 'viewport_upper_left', 'pixel_00_center']
 
-    def __init__(self, image_width, image_height, camera_center=np.array([0.0, 0.0, 0.0]), point_camera_target=np.array([0, 0, -1]),
-                 angle_vertical_view=90.0):
+    def __init__(self, image_width: int, image_height: int, camera_center: np.ndarray = np.array([0.0, 0.0, 0.0]), point_camera_target: np.ndarray = np.array([0, 0, -1]),
+                 angle_vertical_view: float = 90.0):
         self.image_width = image_width
         self.image_height = image_height
         self.camera_center = camera_center
@@ -60,7 +60,7 @@ class Camera:
         return normalise_vector(basis_vector_forward), normalise_vector(basis_vector_right), normalise_vector(
             basis_vector_up), focal_length
 
-    def _create_viewport(self, basis_vector_forward, basis_vector_right, basis_vector_up, focal_length) -> None:
+    def _create_viewport(self, basis_vector_forward: np.ndarray, basis_vector_right: np.ndarray, basis_vector_up: np.ndarray, focal_length: float) -> None:
         '''Creates the viewport from the camera basis vectors and the focal length.
         Returns pixel spacing vectors and the 0,0-positions for the pixel and the upper left corner of the viewport.'''
         h_temp = tan(self.angle_vertical_view / 2)

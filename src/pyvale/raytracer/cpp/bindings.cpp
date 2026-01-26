@@ -4,21 +4,18 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-// pybind header files
-#include <pybind11/pybind11.h>
-#include <pybind11/eigen.h>
-#include <pybind11/numpy.h>
-#include <pybind11/stl.h>
-#include <pybind11/iostream.h>
+// nanobind header files
+#include <nanobind/nanobind.h>
+#include <nanobind/eigen/dense.h>
+#include <nanobind/ndarray.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/filesystem.h>
 
 // raytracer header files
 #include "rtmain.h"
 
+namespace nb = nanobind;
 
-namespace py = pybind11;
-
-// Bind the engine function
-PYBIND11_MODULE(rtmaincpp, a) {
-	py::add_ostream_redirect(a, "ostream_redirect");
+NB_MODULE(rtmaincpp, a) {
     a.def("cpp_render_scene", &render_scene, "Render scene using ray tracing.");
 }

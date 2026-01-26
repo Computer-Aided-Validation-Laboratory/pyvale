@@ -1,48 +1,36 @@
-# TESTING BATTLEFIELD
+# ================================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ================================================================================
 
-from ast import List
-import numpy as np
-from dataclasses import dataclass, field
-import timeit
-
-import pyvale.dataset as dataset
-from pyvale.raytracer.rtcamera import Camera
-from pyvale.raytracer.rtsimdataloader import add_mesh_to_scene
-from pyvale.raytracer.rtscene import Scene
-
-#################################################### INPUT #####################################################
-# Output image dimensions
-image_width = 400  # px
-aspect_ratio = 16.0 / 9.0
-image_height = int(image_width / aspect_ratio)  # px
-number_of_samples = 1; # for anti-aliasing
-# Assume single camera for now - but can be extended to multiple cameras later
-camera_center = np.array([-0.5, 1.1, 1.1])
-camera_target = np.array([0, 0, -1])
-angle_vertical_view = 90  # degrees
-
-################################################ SCENE BUILDER ###############################################
-# Targets:
-# Input: meshes for the objects + object coordinates in world coordinate system + cameraS(!) position (lights to be added)
-# Functions: load meshes, specify materials (later), specify cameras and their params, create the scene
-# Output: a scene dataclass containing all information to render the scene + an option to save the scene dataclass to file for later use
-
-# Tests: For now just load simple sample data, assuming 1 of each element
-scene = Scene()
-
-# Create a camera
-camera1 = Camera(image_width, image_height, camera_center, camera_target, angle_vertical_view) # Camera for tests
-#camera0 = Camera(image_width, image_height) # Default camera (parameters i.e., at world origin, no funny angles) for tests
-camera1.add_camera_to_scene(scene);
-
-# Load sample data file with a simple rectangular block in 3D to test image rendering algorithm. Returns a file path to an exodus file
-
-data_path = dataset.render_simple_block_path() 
-add_mesh_to_scene(scene, data_path)
-# add_mesh_to_scene(scene, data_path, world_position=[-2.0, -10.0, -2.0], scale=500)
-
-# Lights - to be added later
+from pathlib import Path
+from pyvale.raytracer.rtscene import Scene, RenderType, find_max_displacements
 
 
-from rtmaincpp import cpp_render_scene
-print(timeit.timeit("cpp_render_scene(image_height, image_width, number_of_samples, scene.scene_connectivity, scene.scene_coords, scene.scene_face_colors, scene.scene_camera_center, scene.scene_pixel_00_center, scene.scene_matrix_pixel_spacing)", globals=globals(), number=1))
+from rtmaincpp import cpp_render_scene # Import C++ backend
+
+def render_scene(image_height: int, image_width: int, scene: Scene, antialiasing_samples: int, out_directory_path: Path, render_type = RenderType.DYNAMIC, frames_to_render: int = None):
+    '''Sets appropriate settings and passes the data to the C++ renderer.
+        frames_to_render - For dynamic renders, this is the number of frames to render. Defaults to all timesteps we have data for. For static renders,
+        this is the number of frame to render; defaults to the first one otherwise. Nb4 this could maybe be a tuple to specify the range instead?'''
+
+    # Assign default values depending on the render type if target frame count was not specified
+    if frames_to_render is None:
+        if render_type == RenderType.STATIC:
+            frames_to_render = 1
+        elif render_type == RenderType.DYNAMIC:
+            frames_to_render = scene.timestep_count
+
+    # Sanity check for the values
+    if frames_to_render <= scene.timestep_count:
+        scene.clip_scene(frames_to_render, render_type)
+        #max_displacement_per_step_array = find_max_displacements(scene, render_type) # Data for deciding if to update/rebuild TLAS/BLAS. Currently WIP and doesn't get passed
+    else:
+        print("Number of requested frames exceeds the number of timesteps with availabile data.")
+        return
+
+    if render_type == RenderType.DYNAMIC:
+        scene.fill_empty_timesteps() # VERY important to avoid segfaults if there is missing timestep data for some meshes in the scene
+
+    cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.coords_expanded, scene.face_colors, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing)

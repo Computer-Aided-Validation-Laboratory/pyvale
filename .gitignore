@@ -7,6 +7,7 @@
 pyvale-env/
 .venv/
 .pytest_cache/
+*:Zone.Identifier
 
 # Output files
 *.npy
@@ -19,6 +20,7 @@ pyvale-env/
 *.blend
 *.csv
 *.json
+*.ppm
 pyvale-output/
 pyvale-input/
 test-output/
