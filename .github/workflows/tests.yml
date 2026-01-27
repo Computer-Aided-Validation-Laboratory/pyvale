@@ -54,7 +54,7 @@ jobs:
       - name: Run sensorsim and DIC tests
         run: |
           pip install pytest pytest-mock
-          pytest -v tests/dic/. tests/sensorsim/.
+          pytest -v tests/dic/. tests/sensorsim/. tests/strain/.
 
       - name: Run blender tests (skip macOS ARM)
         if: ${{ !startsWith(matrix.os, 'macos') || contains(matrix.os, 'intel') }}
