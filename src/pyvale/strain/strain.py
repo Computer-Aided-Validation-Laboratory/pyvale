@@ -91,7 +91,7 @@ def calculate_2d(data: str | Path,
     nimg = results.u.shape[0]
 
 
-    check_output_directory(str(output_basepath), output_prefix)
+    check_output_directory(str(output_basepath), output_prefix, 0)
 
     # assigning c++ struct vals for save config
     strain_save_conf = common_cpp.SaveConfig()
