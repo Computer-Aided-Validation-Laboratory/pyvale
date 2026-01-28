@@ -2,7 +2,7 @@
 
 .. _guide_dic:
 
-DIC Theory Summary
+DIC Theory Overview
 ======================================
 
 Digital Image Correlation (DIC) is a technique for measuring
@@ -18,8 +18,9 @@ their displacement. The image below shows the difference/cost (where 0 is a perf
 for a brute force scan along the x-axis. 
 
 
-.. image:: cost.gif
+.. figure:: guide_theory_dic_cost.gif
     :alt: Example Cost Minimization
+
 
 Typically we don't use a brute forcea approach, but instead use an **optimization algorith** that is much more computationally
 efficient. The optimization tries to minimize the difference between the
@@ -47,12 +48,11 @@ parameters: horizontal and vertical shift). After this comes *affine* and
 
 Each higher-order shape function includes all terms from the lower-order functions: affine includes rigid terms, and quadratic includes both affine and rigid terms. 
 
-.. image:: shape_functions_light.png
+.. image:: guide_theory_dic_shape_functions_light.png
    :class: only-light
    :alt: Diagram (light)
 
-
-.. image:: shape_functions_dark.png
+.. image:: guide_theory_dic_shape_functions_dark.png
    :class: only-dark
    :alt: Diagram (dark)
 
@@ -64,12 +64,13 @@ subset. **Pyvale supports three choices:**
 
 SSD
 ^^^^
+
 .. math::
   C_{\text{SSD}} = \sum_i \big(f(x_{i},y_{i}) - g(x_{i},y_{i})\big)^{2}
 
-
 NSSD
 ^^^^^
+
 .. math::
   C_{\text{NSSD}} = \sum_i \left( \frac{f(x_{i},y_{i})}{\sqrt{\sum_{j} f(x_{j},y_{j})^{2}}} - \frac{g(x_{i},y_{i})}{\sqrt{\sum_{j} g(x_{j},y_{j})^{2}}} \right)^{2}
 
@@ -233,10 +234,10 @@ and compute the interpolated value:
    :width: 85%
    :class: borderless
 
-   * - .. image:: ./guide_preinterp.png
+   * - .. figure:: guide_theory_dic_preinterp.png
           :width: 100%
-         
-     - .. image:: ./guide_interp.png
+
+     - .. figure:: guide_theory_dic_interp.png
           :width: 100%
 
 Reliability Guided DIC (RG-DIC)
@@ -257,7 +258,7 @@ The algorithm proceeds as follows:
 #. The algorithm then expands outward in a front‑propagation style until all 
    subsets have been computed.
 
-.. image:: guide_rgdic.gif
+.. figure:: guide_theory_dic_rgdic.gif
    :width: 80%
    :align: center
 

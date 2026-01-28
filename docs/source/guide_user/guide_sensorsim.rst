@@ -1,6 +1,6 @@
 .. _guide_sensorsim:
 
-Sensor Simulation Guide
+Sensor Simulation User Guide
 =======================
 
 The sensor simulation module is pyvale is used for modelling sensors including sources of uncertainty with a particular focus on systematic an Type B measurement errors. Systematic and Type B measurement errors are the most difficult to characterise in practice and often contribute the most to the overall uncertainty of a given measurement. 

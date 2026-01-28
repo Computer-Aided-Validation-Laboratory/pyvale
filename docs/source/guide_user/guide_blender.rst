@@ -1,4 +1,4 @@
 .. _guide_blender:
 
-Blender Guide
+Blender User Guide
 =============
