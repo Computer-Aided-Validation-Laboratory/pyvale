@@ -1,6 +1,4 @@
-
-
-.. _guide_dic:
+.. _guide_theory_dic:
 
 DIC Theory Overview
 ======================================

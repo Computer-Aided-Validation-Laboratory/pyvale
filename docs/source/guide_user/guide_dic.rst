@@ -1,15 +1,13 @@
-
-
 .. _guide_dic:
 
 DIC User Guide
 ==============
 
-This page should be conisered more of a guide to the key interactions and useful
+**This page should be conisered a guide to the core DIC user interactions and useful
 tips and tricks for getting good results in a reasonable amount of time.
-Specific examples can be found here. A runthrough of the mathematics for the key
-components of Pyvale's DIC engine can be found here:
-
+Specific examples can be found in the** :ref:`examples_all` **section**.
+**If you are after a runthrough of the mathematics of the DIC engine, you can find
+that in the** :ref:`guide_theory_dic`.
 
 
 
@@ -112,8 +110,9 @@ Understanding Output files
 
 The next step is to understand the output. By default the results will be saved
 in the users current working directory in human readable .CSV format with a filename prefix of
-:code:`dic_results_` followed by the name of the deformed image. The output will have
-the following columns:
+:code:`dic_results_` followed by the name of the deformed image. 
+
+**The output will have the following columns:**
 
 - **subset_x**:  
   X-coordinate of the center of the subset (or window) used in displacement tracking or correlation analysis.

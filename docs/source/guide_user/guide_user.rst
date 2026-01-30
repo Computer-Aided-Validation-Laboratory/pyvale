@@ -3,8 +3,8 @@
 User Guide
 =================================
 
-Module user guides
-------------------
+Module Specific Guides
+-----------------------
 
 .. toctree::
    :maxdepth: 1

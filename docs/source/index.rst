@@ -89,10 +89,10 @@ Getting Started
 .. toctree::
     :hidden:
 
-    guide_user/guide_user
-    guide_theory/guide_theory
     install/install
     examples/examples
+    guide_user/guide_user
+    guide_theory/guide_theory
     api_py
     api_cpp
     cite

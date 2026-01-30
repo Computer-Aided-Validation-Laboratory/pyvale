@@ -1,4 +1,4 @@
-.. _guide_overview_theory:
+.. _guide_theory:
 
 Theory Guide
 =================================

@@ -6,18 +6,18 @@ project in your academic puplications using the following citation:
 
 .. tab-set::
 
-   .. tab-item:: MLA
-
-         Hirst, Joel, et al. "PYVALE: A Fast, Scalable, Open-Source 2D Digital Image Correlation 
-         (DIC) Engine Capable of Handling Gigapixel Images." 
-         *arXiv preprint arXiv:2601.12941* (2026).
-
    .. tab-item:: APA
 
          Hirst, J., Sibson, L., Tayeb, A., Poole, B., Sampson, M., Bielajewa, W., ... & Fletcher, L. (2026). 
          PYVALE: A Fast, Scalable, Open-Source 2D Digital Image Correlation (DIC) Engine 
          Capable of Handling Gigapixel Images. 
          *arXiv preprint arXiv:2601.12941*.
+
+   .. tab-item:: MLA
+
+         Hirst, Joel, et al. "PYVALE: A Fast, Scalable, Open-Source 2D Digital Image Correlation 
+         (DIC) Engine Capable of Handling Gigapixel Images." 
+         *arXiv preprint arXiv:2601.12941* (2026).
 
    .. tab-item:: Bibtex
 

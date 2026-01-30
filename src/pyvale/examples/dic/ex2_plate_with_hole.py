@@ -63,7 +63,7 @@ roi.save_array(filename=roi_file, binary=False)
 roi.read_array(filename=roi_file, binary=False)
 
 # %%
-# Now we can run the 2D DIC engine using :func:`pyvale.dic_2d`.
+# Now we can run the 2D DIC engine using :func:`pyvale.dic.calculate_2d`.
 #
 # This function accepts many optional arguments — consult the documentation for full details.
 # At a minimum, you’ll need to specify:
@@ -80,7 +80,7 @@ roi.read_array(filename=roi_file, binary=False)
 # At present, the DIC engine doesn't return any results to the user, instead the results are saved to disk.
 # You can customize the filename, location, format, and delimiter using
 # the options options `output_basepath`, `output_prefix`, `output_delimiter`, and `output_binary`.
-# More info on these options can be found in the documentation for :func:`dic.two_dimensional`.
+# More info on these options can be found in the API documentation for :func:`pyvale.dic.calculate_2d`.
 # By default, the results will be saved with the prefix `dic_results_` followed
 # by the original filename. The file extension will be replaced will either ".csv" or "dic2d"
 # depending on whether the results are being saved in human-readable or binary format.
