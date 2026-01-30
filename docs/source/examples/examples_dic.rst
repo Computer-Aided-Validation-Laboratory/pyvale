@@ -11,4 +11,5 @@ DIC & Strain Calculations
    dic/ex3_plate_with_hole_strain.rst
    dic/ex4_dic_blender.rst
    dic/ex5_dic_challenge.rst
+   dic/ex6_hrdic.rst
 
