@@ -9,12 +9,6 @@
    :align: center
    :width: 600px
 
-.. grid:: Pyvale
-   :text-align: center
-   :margin: 0 
-   :shadow: none
-
-
 Pyvale: The Python Validation Engine
 ====================================
 

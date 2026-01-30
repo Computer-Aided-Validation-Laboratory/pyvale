@@ -1,6 +1,6 @@
 .. _examples_dic:
 
-Digital Image Correlation (DIC)
+DIC & Strain Calculations
 ================================
 
 .. toctree::
