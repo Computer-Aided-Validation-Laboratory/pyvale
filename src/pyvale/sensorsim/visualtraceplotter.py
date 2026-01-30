@@ -146,7 +146,6 @@ def plot_time_traces(sensor_array: SensorsPoint,
         sensors_to_plot = trace_opts.sensors_to_plot
         sensor_list = [x+1 for x in range(num_sens)]
         fake_sensors = list(filter(lambda x: x not in sensor_list, sensors_to_plot))
-        print(f"The sensors {fake_sensors} do not exist")
         for i in sensors_to_plot:
             if i not in sensor_list:
                 logger.warning(f"[{i}] not a valid sensor number. Removing from sensors to plot")

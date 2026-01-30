@@ -97,7 +97,7 @@ fig.savefig(save_traces.with_suffix(".svg"), dpi=300, bbox_inches="tight")
 
 #%%
 # The trace plot can also be shown in interactive mode using `plt.show()`
-plt.show()
+#plt.show()
 
 # Plot with limit of two traces per subplot
 traceopts = sens.TraceOptsSensor()
@@ -105,12 +105,12 @@ traceopts.sensors_per_plot = 2
 traceopts.sensors_to_plot = [1,3,5, "fake"]
 
 (fig, ax) = sens.plot_time_traces(sens_array, field_key, trace_opts=traceopts)
-plt.show()
+#plt.show()
 
 
 #sens.animate_trace_with_sensors(tc_array,field_key)
 
 pv_plot = sens.plot_point_sensors_on_sim(sens_array,
-                                         #comp_key="temperature",
                                          comp_key="temperature")
+                                         #comp_key=["temperature", "temperature"])
 pv_plot.show()

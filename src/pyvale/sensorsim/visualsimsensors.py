@@ -63,6 +63,7 @@ def add_sim_field(pv_plot: pv.Plotter,
         visualisation added and the pyvistas unstructured grid that was used to
         plot the field.
     """
+
     sim_vis = sensor_array._field.get_visualiser()
     sim_data = sensor_array._field.get_sim_data()
     sim_vis[component] = sim_data.node_vars[component][:,time_step]
@@ -300,6 +301,7 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
+    
     sim_data = sensor_array.get_field().get_sim_data()
     vis_opts.colour_bar_lims = get_colour_lims(
         sim_data.node_vars[comp_key][:,time_step],
@@ -330,8 +332,6 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
 
     pv_plot = create_pv_plotter(2,vis_opts)
 
-    print(type(sensor_array))
-
     if type(sensor_array) == List:
         sensor_array = sensor_array[0]
 
@@ -357,11 +357,12 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
                                     descriptor,
                                     vis_opts)
 
-    # (pv_plot,_) = add_sim_field(pv_plot,
-    #                             sensor_array,
-    #                             comp_key,
-    #                             time_step,
-    #                             vis_opts)
+    for i in comp_key:
+        (pv_plot,_) = add_sim_field(pv_plot,
+                                    sensor_array,
+                                    i,
+                                    time_step,
+                                    vis_opts)
 
     pv_plot.camera_position = vis_opts.camera_position
 
