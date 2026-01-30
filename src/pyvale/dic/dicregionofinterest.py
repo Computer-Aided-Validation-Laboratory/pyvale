@@ -893,15 +893,37 @@ class RegionOfInterest:
         self.__roi_selected = True
 
     def rect_region(self, x: int, y: int, size_x: int, size_y: int ) -> None:
+        """
+        Select a rectangular region of interest (ROI) in the reference image.
 
-            top    = max(0, y)
-            bottom = min(self.ref_image.shape[0],y+size_y)
-            left   = max(0, x)
-            right  = min(self.ref_image.shape[1],x+size_x)
+        The rectangle is defined by its top-left corner and size. The region is
+        automatically clipped to the image bounds. The selected area is marked
+        in the internal mask and flags the ROI as selected.
 
-            # Apply the mask in the subset region
-            self.mask[top:bottom, left:right] = 255
-            self.__roi_selected = True
+        Parameters
+        ----------
+        x : int
+            X-coordinate (column index) of the top-left corner of the rectangle.
+        y : int
+            Y-coordinate (row index) of the top-left corner of the rectangle.
+        size_x : int
+            Width of the rectangular region in pixels.
+        size_y : int
+            Height of the rectangular region in pixels.
+
+        Returns
+        -------
+        None
+        """
+        
+        top    = max(0, y)
+        bottom = min(self.ref_image.shape[0],y+size_y)
+        left   = max(0, x)
+        right  = min(self.ref_image.shape[1],x+size_x)
+
+        # Apply the mask in the subset region
+        self.mask[top:bottom, left:right] = 255
+        self.__roi_selected = True
 
 
 

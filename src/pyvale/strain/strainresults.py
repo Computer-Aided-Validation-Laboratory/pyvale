@@ -11,13 +11,12 @@ import numpy as np
 @dataclass(slots=True)
 class StrainResults:
     """
-    Data container for Strain analysis results.
-
-    This dataclass stores the strain window coordinates, 2D deformation gradient
-    and strain values.
+    Data container for Strain analysis results. This dataclass stores the strain 
+    window coordinates, 2D deformation gradient and strain values.
 
     Attributes
     ----------
+
     window_x : np.ndarray
         The x-coordinates of the strain window centre. shape=(img_num,y,x)
     window_y : np.ndarray
@@ -32,11 +31,11 @@ class StrainResults:
         The yy component of the 2D deformation gradient. shape=(img_num,y,x)
     eps_xx : np.ndarray
         The xx component of the 2D strain tensor. shape=(img_num,y,x)
-     eps_xy : np.ndarray
+    eps_xy : np.ndarray
         The xy component of the 2D strain tensor. shape=(img_num,y,x)
-     eps_yx : np.ndarray
+    eps_yx : np.ndarray
         The yx component of the 2D strain tensor. shape=(img_num,y,x)
-     eps_yy : np.ndarray
+    eps_yy : np.ndarray
         The yy component of the 2D strain tensor. shape=(img_num,y,x)
     filenames : list[str]
         name of Strain result files that have been found

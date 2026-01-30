@@ -368,7 +368,6 @@ def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
     Maps values using reference subset coordinates (ss_x_ref, ss_y_ref).
 
     Parameters
-    ol
     ----------
     data : np.ndarray
         Array of shape (n_frames, n_points) to be reshaped into (n_frames, height, width).
