@@ -28,7 +28,9 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
-    'sphinx.ext.viewcode',  # Adds source code links
+    'sphinx.ext.intersphinx',
+    'sphinx_design',
+    'sphinx.ext.viewcode',
     'sphinx_codeautolink',
     'sphinx_copybutton',
     'sphinx_gallery.gen_gallery',

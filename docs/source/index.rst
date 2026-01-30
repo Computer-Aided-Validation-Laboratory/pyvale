@@ -53,22 +53,6 @@ Getting Started
 .. grid:: 2
    :gutter: 3
 
-   .. grid-item-card:: User Guide 
-      :link: guide_user/guide_user
-      :link-type: doc
-      :text-align: center
-      :shadow: lg
-      
-      :octicon:`workflow;5em`
-
-   .. grid-item-card:: Theory Overview
-      :link: guide_theory/guide_theory
-      :link-type: doc
-      :text-align: center
-      :shadow: lg
-      
-      :octicon:`book;5em`
-
    .. grid-item-card:: Installation
       :link: install/install
       :link-type: doc
@@ -84,6 +68,22 @@ Getting Started
       :shadow: lg
 
       :octicon:`file-code;5em`
+
+   .. grid-item-card:: User Guide
+      :link: guide_user/guide_user
+      :link-type: doc
+      :text-align: center
+      :shadow: lg
+
+      :octicon:`workflow;5em`
+
+   .. grid-item-card:: Theory Overview
+      :link: guide_theory/guide_theory
+      :link-type: doc
+      :text-align: center
+      :shadow: lg
+
+      :octicon:`book;5em`
 
 
 .. toctree::

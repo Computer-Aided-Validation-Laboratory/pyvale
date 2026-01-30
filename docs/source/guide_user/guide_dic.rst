@@ -7,15 +7,15 @@ DIC User Guide
 
 This page should be conisered more of a guide to the key interactions and useful
 tips and tricks for getting good results in a reasonable amount of time.
-A high level overview of the Pyvale '*workflow*' Can be found in the flowchart below.
+Specific examples can be found here. A runthrough of the mathematics for the key
+components of Pyvale's DIC engine can be found here:
 
 
-The Pyvale workflow
-------------------
+
 
 
 Importing the DIC modules
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------
 
 After installing Pyvale, you'll need to importing the relevent modules before
 going any further. We like to import the modules in the following way:
@@ -26,6 +26,8 @@ going any further. We like to import the modules in the following way:
     import pyvale.strain as strain
 
 
+The Pyvale DIC workflow
+-----------------------
 
 .. figure:: guide_dic_flowchart.png
     :alt: DIC flowchart
@@ -39,6 +41,7 @@ or, you can create it using Numpy. Simple examples can be found below:
 .. tab-set::
 
    .. tab-item:: Interactive ROI Pyvale
+      
 
       .. code-block:: python
 
@@ -53,6 +56,7 @@ or, you can create it using Numpy. Simple examples can be found below:
          )
 
    .. tab-item:: Programmatic ROI Pyvale
+      
 
       .. code-block:: Python
 
@@ -67,6 +71,7 @@ or, you can create it using Numpy. Simple examples can be found below:
          )
 
    .. tab-item:: Programmatic ROI Numpy
+      
 
       .. code-block:: Python
 
@@ -154,7 +159,7 @@ Once you have finished your correlation, you can proceed with whatever
 visualization and post-processing tools/software you'd like. Alternatively,
 Pyvale provides the option to read the data in using a single command into a
 single dataclass that can be used for easy plotting. Importing data is done with
-the :code:`dic.import_2d`` command. The below highlights how to import data and
+the :code:`dic.import_2d` command. The below highlights how to import data and
 create a simple plot of the displacement
 
 .. :code-block:: Python
@@ -208,27 +213,8 @@ can import DIC data and calculate strains using
 Importing DIC Data
 ^^^^^^^^^^^^^^^^^^^^
 
-
-
-DIC Methods
-------------
-
-
-
-Multiwindow RG-DIC
-^^^^^^^^^^^^^^^^^^^
-
-Incremental RG-DIC
-^^^^^^^^^^^^^^^^^^^
-
-Image Scan
-^^^^^^^^^^^^
-
-While not generally recommended for obtaining accurate results. This is useful 
-
-
 DIC with Large Images/Displacements
--------------------------------
+------------------------------------
 
 Setting a Maximum Displacement
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -285,12 +271,8 @@ The MAD outlier removal works in the following way:
 #. Looks at nearby subsets in a 2D neighborhood
 #. Computes the median of their shifts
 #. Computes the MAD (median absolute deviation)
-#. If the current value deviates **too much** from the neighborhood,
-   it replaces it with the local median.
-
-**too much** is defined by the `mad_scale` argument. A value is deemed as
-replaceable only if :math:`| x − \mathrm{median}| > \mathrm{fft\_mad\_scale} \times \mathrm{MAD}`, 
-A larger `fft_mad_scale` is therefore more *tolerant*, while a smaller value kills larger deviations.
+#. A value is replaced if the the condition :math:`| x − \mathrm{median}| > \mathrm{fft\_mad\_scale} \times \mathrm{MAD}` is met.
+   A larger :code:`fft_mad_scale` is therefore more *tolerant*, while a smaller value kills larger deviations.
 
 
 Sequential Image Loading
@@ -310,9 +292,13 @@ below:
     def_imgs = ["def_00.tiff", "def_01.tiff", "def_02.tiff", ...]
 
     for def_img in def_imgs:
-        dic.calculate_2d(reference=ref_img,
-                         deformed=def_img,
-                         ...)
+    
+        dic.calculate_2d(
+            ...,
+            reference=ref_img,
+            deformed=def_img,
+            ...,
+         )
 
 There are plans to change this in later pyvale versions so that images
 are read sequentially and thus avoiding the need for any loops. Please keep an
@@ -322,10 +308,15 @@ eye on the documentation for any future changes.
 Selecting a Thread Count
 -------------------------------
 
-Understanding DIC Output
--------------------------------
+Users can select the number of threads used in the DIC calculation with the
+:code:`num_threads`` argument in :code:`dic.calculate_2d`:
 
-Incremental DIC
------------------
 
-This feature is a Work in Progress..
+.. code-block:: Python
+   :emphasize-lines: 3
+
+   dic.calculate_2d(
+       ...,
+       num_threads=<int>,
+       ...,
+    )

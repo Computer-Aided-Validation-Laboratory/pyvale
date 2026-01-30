@@ -1,4 +1,4 @@
-.. _guide_overview:
+.. _guide_overview_user:
 
 User Guide
 =================================
