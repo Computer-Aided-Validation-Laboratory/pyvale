@@ -71,11 +71,11 @@ for mod in "${modules[@]}"; do
     mkdir -p "$out_dir"
 
     for file in "$src_dir"/*.hpp; do
-        [ -e "$file" ] || continue  # skip if no files
+        [ -e "$file" ] || continue
 
-        filename=$(basename "$file")       # e.g., dicmain.hpp
-        base="${filename%.hpp}"            # dicmain
-        rst_file="${out_dir}/${base}.rst"  # e.g., source/cpp/dic/dicmain.rst
+        filename=$(basename "$file")
+        base="${filename%.hpp}"
+        rst_file="${out_dir}/${base}.rst"
 
         echo "Generating $rst_file"
 
@@ -89,6 +89,43 @@ ${filename}
 EOF
     done
 done
+
+# ------------------------------------------------------------------
+# Generate module-level index RST files for C++ headers
+# ------------------------------------------------------------------
+for mod in "${modules[@]}"; do
+    out_dir="source/cpp/${mod}"
+    index_file="source/cpp/cpp_${mod}.rst"
+
+    headers=""
+    for f in "$out_dir"/*.rst; do
+        [ -e "$f" ] || continue  # skip if no files
+        headers="$headers $(basename "$f")"
+    done
+
+    # Skip if no headers found
+    [ -z "$headers" ] && continue
+
+    # Sort headers alphabetically
+    headers=$(echo $headers | tr ' ' '\n' | sort)
+
+    echo "Generating module index $index_file"
+
+    {
+        echo "${mod}"
+        echo "=================="
+        echo ""
+        echo ".. toctree::"
+        echo "   :caption: C++ Source Files"
+        echo "   :maxdepth: 1"
+        echo ""
+        for h in $headers; do
+            echo "   ${mod}/${h}"
+        done
+    } > "$index_file"
+done
+
+
 
 echo "C++ RST FILES GENERATED SUCCESSFULLY!"
 
