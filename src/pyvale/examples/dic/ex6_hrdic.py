@@ -9,19 +9,17 @@
 HRDIC
 ---------------------
 
-.. note:
-   This example walks through how a user might setup a DIC calculation for large
-   displacment images as is often found in micromechanics.
+This example walks through how a user might setup a DIC calculation for large
+displacment images, which are often found in micromechanics.
+The images used in this example are 10000x10000 pixels so
+you'll need to download them from a seperate location. 
+This example assumes the files are in the same 
+directory/folder as the code.
 
+**Images can be downloaded** `here <https://github.com/Computer-Aided-Validation-Laboratory/HRDIC-example-data>`_.
 """
 
-# %%
-#  .. note:
-#    Because of the size of the images (10000x10000 pixels), 
-#    you'll need to download them seperately. This example assumes the
-#    files are in the same directory/folder as the example script.
-#
-#    Images can be downloaded `here <https://github.com/Computer-Aided-Validation-Laboratory/HRDIC-example-data>`_.
+
 
 # pyvale modules
 import pyvale.dic as dic
@@ -31,7 +29,7 @@ import numpy as np
 # %%
 # Because of the size of the images, we'll avoid using the interactive GUI for this example.
 # We'll create an ROI mask that is the same size as the images using the
-# rect_boundary command. If you know that pixels along a certain edge will go
+# :code:`roi.rect_boundary` command. If you know that pixels along a certain edge will go
 # outside the image bounds post deformation, then excluding them from the ROI
 # will prevent the DIC engine from trying to correlate subsets in the reference
 # image are not present in the deformed image.
@@ -118,11 +116,10 @@ fig.colorbar(im2, ax=axes[1], fraction=0.046, pad=0.04)
 fig.colorbar(im3, ax=axes[2], fraction=0.046, pad=0.04)
 
 plt.tight_layout()
-plt.savefig("hrdic.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # %%
 # .. image:: ../../../../_static/hrdic.png
 #    :alt: Displacement and cost values
-#    :width: 800px
+#    :width: 100%
 #    :align: center
