@@ -307,8 +307,9 @@ eye on the documentation for any future changes.
 Selecting a Thread Count
 -------------------------------
 
+Pyvale uses `OpenMP <https://www.openmp.org/>`_ for parallel calculations.
 Users can select the number of threads used in the DIC calculation with the
-:code:`num_threads`` argument in :code:`dic.calculate_2d`:
+:code:`num_threads` argument in :code:`dic.calculate_2d`:
 
 
 .. code-block:: Python
@@ -319,3 +320,9 @@ Users can select the number of threads used in the DIC calculation with the
        num_threads=<int>,
        ...,
     )
+
+Alternatively, those on UNIX operating systems (MacoS, Linux) can set the number
+of threads using the :code:`OMP_NUM_THREADS` environment variable.
+If you are using Windowos PowerShell you can use the command :code:`$env:OMP_NUM_THREADS=`.
+It is worth noting that Pyvale will only use this value if it has not been
+specified with the :code:`num_threads=` function argument.
