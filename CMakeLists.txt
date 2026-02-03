@@ -30,8 +30,6 @@ find_package(OpenMP REQUIRED)
 # Eigen3
 # ----------------------------
 find_package(Eigen3 3.4 QUIET)
-set(EIGEN_TEST_NOQT ON)
-set(BUILD_TESTING OFF)
 
 if (Eigen3_FOUND)
     message(STATUS "Using system-installed Eigen3")

@@ -71,6 +71,7 @@ jobs:
         if: matrix.env-type == 'conda'
         run: |
           conda install -y pip
+          conda install conda-forge::fortran-compiler # fix to stop windows-latest timing out when searching for a fortran compiler...
           pip install -e . -v
           pip install pytest pytest-mock
 
