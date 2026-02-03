@@ -28,26 +28,26 @@ class Results:
     v: np.ndarray
     """Vertical displacements at each subset location. shape=(img_num,y,x)"""
 
-    mag: np.ndarray
+    mag: np.ndarray | None = None
     """Displacement magnitude at each subset location, typically computed as sqrt(u^2 + v^2). shape=(img_num,y,x)"""
 
-    converged: np.ndarray
+    converged: np.ndarray | None = None
     """boolean value for whether the subset has converged or not. shape=(img_num,y,x)"""
 
-    cost: np.ndarray
+    cost: np.ndarray | None = None
     """Final cost or residual value from the correlation optimization (e.g., ZNSSD). shape=(img_num,y,x)"""
 
-    ftol: np.ndarray
+    ftol: np.ndarray | None = None
     """Final `ftol` value from the optimization routine, indicating function tolerance. shape=(img_num,y,x)"""
 
-    xtol: np.ndarray
+    xtol: np.ndarray | None = None
     """Final `xtol` value from the optimization routine, indicating solution tolerance. shape=(img_num,y,x)"""
 
-    niter: np.ndarray
+    niter: np.ndarray | None = None
     """Number of iterations taken to converge for each subset point. shape=(img_num,y,x)"""
 
-    shape_params: np.ndarray
+    shape_params: np.ndarray | None = None
     """Optional shape parameters if output during DIC calculation (e.g., affine, rigid). shape=(img_num,y,x)"""
 
-    filenames: list[str]
+    filenames: list[str] | None = None
     """name of DIC result files that have been found"""

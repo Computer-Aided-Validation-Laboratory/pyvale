@@ -19,7 +19,7 @@
 #include <Eigen/Dense>
 
 // DIC Header files
-#include "./dicinterpolator.hpp"
+#include "./dicinterp.hpp"
 #include "./dicsubset.hpp"
 #include "./dicutil.hpp"
 
