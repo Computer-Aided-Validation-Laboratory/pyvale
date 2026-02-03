@@ -3,13 +3,14 @@
 MacOS
 ######
 
-Configuring Python3.11
+Configuring Python 3.11
 ***********************
+
 To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` requires python 3.11. 
 Homebrew is a free and open-source commonly used package manager for macOS that often simplifies the process of installing, updating, and managing software. 
 
 Install via Homebrew
-=========
+=====================
 Simple installation instructions for Homebrew itself be found at `<https://brew.sh/>`_.
 
 After you have homebrew setup, you can install python3.11 with:
@@ -55,7 +56,7 @@ This will create a virtual environment called 'pyvale-env' in a folder of the sa
 If this has worked you should see '(pyvale-env)' at the start of your command prompt line showing the environmen is activated. If you ever need to activate the environment in a new command prompt you just need to run the 'activate' script again from the folder you are currently in.
 
 Virtual Environments in VSCode
-------------------------------
+===============================
 
 To use you virtual environment in VSCode to run some of the examples you will need to make sure you have selected your virtual environment as your python interpreter. 
 To do this first open the folder that you want to work from which should be the same folde that contains your virtual environment folder (that is the pyvale-env folder). 
@@ -93,7 +94,7 @@ Installation from Source
 This will only be needed if you want an editable installation of ``pyvale`` for most applications users will want to use the PyPI version above.
 
 Dependencies
-^^^^^^^^^^^^
+============
 
 Apple has disabled OpenMP for the default C/C++ compilers shipped with Xcode. 
 Therefore, it's reccomended you install either ``gcc`` OR``llvm`` AND ``libomp`` using the homebrew (`https://brew.sh/`_) package manager. 
@@ -131,7 +132,7 @@ used during the build process:
    export CXX=/opt/homebrew/opt/llvm/bin/clang++
 
 Clone and Install the Github Repository
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+=======================================
 
 Clone ``pyvale`` to your local system using git along with submodules using:
 

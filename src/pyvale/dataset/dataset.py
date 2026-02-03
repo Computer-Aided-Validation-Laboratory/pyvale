@@ -156,7 +156,7 @@ def thermal_2d_path() -> Path:
     Returns
     -------
     Path
-        Path to the exodus (*.e) output file for this simulation case.
+        Path to the exodus (``*.e``) output file for this simulation case.
     """
     return Path(files("pyvale.data").joinpath("case18_out.e"))
 
@@ -179,7 +179,7 @@ def thermal_3d_path() -> Path:
     Returns
     -------
     Path
-        Path to the exodus (*.e) output file for this simulation case.
+        Path to the exodus (``*.e``) output file for this simulation case.
     """
     return Path(files("pyvale.data").joinpath("case16_out.e"))
 
@@ -198,7 +198,7 @@ def mechanical_2d_path() -> Path:
     Returns
     -------
     Path
-        Path to the exodus (*.e) output file for this simulation case.
+        Path to the exodus (``*.e``) output file for this simulation case.
     """
     return Path(files("pyvale.data").joinpath("case17_out.e"))
 
@@ -218,7 +218,7 @@ def thermomechanical_2d_path() -> Path:
     Returns
     -------
     Path
-        Path to the exodus (*.e) output file for this simulation case.
+        Path to the exodus (``*.e``) output file for this simulation case.
     """
     return Path(files("pyvale.data").joinpath("case18_out.e"))
 
@@ -239,7 +239,7 @@ def thermomechanical_3d_path() -> Path:
     Returns
     -------
     Path
-        Path to the exodus (*.e) output file for this simulation case.
+        Path to the exodus (``*.e``) output file for this simulation case.
     """
     return Path(files("pyvale.data").joinpath("case16_out.e"))
 
@@ -262,7 +262,7 @@ def thermomechanical_2d_experiment_paths() -> list[Path]:
     Returns
     -------
     list[Path]
-        Paths to the exodus (*.e) output files for this simulated experiment.
+        Paths to the exodus (``*.e``) output files for this simulated experiment.
     """
     return [Path(files("pyvale.data").joinpath("case18_out.e")),
             Path(files("pyvale.data").joinpath("case18_d_out.e"))]
@@ -287,7 +287,7 @@ def thermomechanical_3d_experiment_paths() -> list[Path]:
     Returns
     -------
     list[Path]
-        Paths to the exodus (*.e) output files for this simulated experiment.
+        Paths to the exodus (``*.e``) output files for this simulated experiment.
     """
 
     return [Path(files("pyvale.data").joinpath("case16_out.e")),
@@ -304,7 +304,7 @@ def render_mechanical_3d_path() -> Path:
     Returns
     -------
     Path
-        Path to the exodus (*.e) output file for this simulation case.
+        Path to the exodus (``*.e``) output file for this simulation case.
     """
     return Path(files("pyvale.data").joinpath("case26_out.e"))
     
@@ -348,14 +348,15 @@ def element_case_output_path(elem_type: EElemTest) -> Path:
     Returns
     -------
     Path
-        Path to the exodus (*.e) output file for this simulation case.
+        Path to the exodus (``*.e``) output file for this simulation case.
     """
     return Path(files("pyvale.data")
                 .joinpath(f"case00_{elem_type.value}_out.e"))
 
 
 def dic_plate_with_hole_ref() -> Path:
-    """Path to the reference image for the plate with hole example.
+    """
+    Path to the reference image for the plate with hole example.
     1040x1540 image in .tiff format.
 
     Parameters
@@ -366,14 +367,15 @@ def dic_plate_with_hole_ref() -> Path:
     Returns
     -------
     Path
-        Path to the reference image (*.tiff).
+        Path to the reference image (``.tiff``).
     """
     return Path(files("pyvale.data")
                 .joinpath("plate_hole_ref0000.tiff"))
 
 
 def dic_plate_with_hole_def() -> Path:
-    """Path to the deformed images for the plate with hole example.
+    """
+    Path to the deformed images for the plate with hole example.
     1040x1540 image in .tiff format.
 
     Parameters
@@ -384,14 +386,15 @@ def dic_plate_with_hole_def() -> Path:
     Returns
     -------
     Path
-        Path to the reference image (*.tiff).
+        Path to the reference image (``.tiff``).
     """
     return Path(files("pyvale.data")
                 .joinpath("plate_hole_def*.tiff"))
 
 
 def dic_plate_rigid_ref() -> Path:
-    """Path to the reference image for the rigid deformation example.
+    """
+    Path to the reference image for the rigid deformation example.
     1040x1540 image in .tiff format.
 
     Parameters
@@ -402,79 +405,85 @@ def dic_plate_rigid_ref() -> Path:
     Returns
     -------
     Path
-        Path to the reference image (*.tiff).
+        Path to the reference image (``.tiff``).
     """
     return Path(files("pyvale.data")
                 .joinpath("plate_rigid_ref0000.tiff"))
 
 
 def dic_plate_rigid_def() -> Path:
-    """Path to the rigid deformation example images.
+    """
+    Path to the rigid deformation example images.
     1040x1540 image in .tiff format.
 
     Returns
     -------
     Path
-        Path to the deformation images (*.tiff).
+        Path to the deformation images (``.tiff``).
     """
     return Path(files("pyvale.data")
                 .joinpath("plate_rigid_def0*.tiff"))
 
 
 def dic_plate_rigid_def_25px() -> Path:
-    """Path to the 25px rigid deformation image.
+    """
+    Path to the 25px rigid deformation image.
     1040x1540 image in .tiff format.
 
     Returns
     -------
     Path
-        Path to the 25 px deformed image (*.tiff).
+        Path to the 25 px deformed image (``.tiff``).
     """
     return Path(files("pyvale.data").joinpath("plate_rigid_def_25px.tiff"))
 
 
 def dic_plate_rigid_def_50px() -> Path:
-    """Path to the 50px rigid deformation image.
+    """
+    Path to the 50px rigid deformation image.
     1040x1540 image in .tiff format.
 
     Returns
     -------
     Path
-        Path to the 50px deformed image (*.tiff).
+        Path to the 50px deformed image (``.tiff``).
     """
     return Path(files("pyvale.data").joinpath("plate_rigid_def_50px.tiff"))
 
 
 def dic_challenge_ref() -> Path:
-    """Path to the reference images for the 2D DIC challenge.
+    """
+    Path to the reference images for the 2D DIC challenge.
 
     Returns
     -------
     Path
-        Path to the reference image (*.tiff).
+        Path to the reference image (``.tiff``).
     """
     return Path(files("pyvale.data")
                 .joinpath("DIC_Challenge_Star_Noise_Ref.tiff"))
 
 
 def dic_challenge_def() -> Path:
-    """Path to the reference images for the 2D DIC challenge.
+    """
+    Path to the reference images for the 2D DIC challenge.
 
     Returns
     -------
     Path
-        Path to the deformed image (*.tiff).
+        Path to the deformed image (``.tiff``).
     """
     return Path(files("pyvale.data")
                 .joinpath("DIC_Challenge_Star_Noise_Def.tiff"))
 
 def cal_target() -> Path:
-    """Path to example calibration target.
+    """
+    Path to example calibration target.
 
     Returns
     -------
     Path
-        Path to the image (*.tiff).
+        Path to the image (``.tiff``).
     """
     return Path(files("pyvale.data")
                 .joinpath("cal_target.tiff"))

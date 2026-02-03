@@ -9,13 +9,13 @@ NOTE: This module is a feature under developement.
 """
 
 import numpy as np
-from pyavle.sensorsim.field import IField
-from pyavle.sensorsim.sensorarray import ISensorArray
-from pyavle.sensorsim.errorintegrator import ErrIntegrator
-from pyavle.sensorsim.sensordescriptor import SensorDescriptor
-from pyavle.sensorsim.fieldsampler import sample_field_with_sensor_data
-from pyavle.sensorsim.cameradata2d import CameraData2D
-from pyavle.sensorsim.cameratools import CameraTools
+from pyvale.sensorsim.field import IField
+from pyvale.sensorsim.sensorarray import ISensorArray
+from pyvale.sensorsim.errorintegrator import ErrIntegrator
+from pyvale.sensorsim.sensordescriptor import SensorDescriptor
+from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
+from pyvale.sensorsim.cameradata2d import CameraData2D
+from pyvale.sensorsim.cameratools import CameraTools
 
 
 

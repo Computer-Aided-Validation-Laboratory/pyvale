@@ -57,7 +57,7 @@ def calculate_2d(data: dicResults | str | Path,
     output_binary : bool, optional
         Whether to write output in binary format (default: False).
     output_prefix : str, optional
-        Prefix for all output files (default: "strain_"). results will be
+        Prefix for all output files (default: :code:`strain_`). results will be
         named with output_prefix + original filename. THe extension will be
         changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
     output_delimiter : str, optional
