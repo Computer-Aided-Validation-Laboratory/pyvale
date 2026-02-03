@@ -31,10 +31,17 @@ The Pyvale DIC workflow
     :alt: DIC flowchart
     :width: 60%
 
+
+Region Of interest (ROI) Selection
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Basic Selection
+""""""""""""""""""
+
 For any DIC calculation the user must first specify the **region of interest
-(ROI)** for their calculation. You can either use Pyvale for this (see an
-in-depth example :doc:`here <../examples/dic/ex1_region_of_interest.rst>`), 
-or, you can create it using Numpy. Simple examples can be found below:
+(ROI)** for their calculation. You can either use Pyvale (see the first DIC
+example for a detailed walkthrough), or, you can create it using Numpy.
+Basic approaches are summarized below:
 
 .. tab-set::
 
@@ -43,7 +50,7 @@ or, you can create it using Numpy. Simple examples can be found below:
 
       .. code-block:: python
 
-         roi = dic.RegionOfInterest(ref_image="./ref_img.tiff")
+         roi = dic.RegionOfInterest(ref_image="./ref_img.tiff") # initialization
          roi.interactive_selection(subset_size=31)  # ROI GUI will launch
 
          dic.calculate_2d(
@@ -58,7 +65,7 @@ or, you can create it using Numpy. Simple examples can be found below:
 
       .. code-block:: Python
 
-         roi = dic.RegionOfInterest(ref_image="./ref_img.tiff") # set reference image
+         roi = dic.RegionOfInterest(ref_image="./ref_img.tiff") # initialization
          roi.rect_boundary(left=100,right=100,bottom=100,top=100) # exclude a 100 pixel boundary
 
          dic.calculate_2d(
@@ -83,10 +90,112 @@ or, you can create it using Numpy. Simple examples can be found below:
              ...,
          )
 
+Behind the scenes ``dic.RegionOfInterest`` initializes ``roi.mask`` as a ``np.ndarray`` with
+the same dimensions as the reference image. You can then manipulate it as you
+would with any 2D Numpy array before passing to the DIC engine. 
+
+Defining a ROI with a YAML file
+""""""""""""""""""""""""""""""""""
+
+Another option is to use a YAML file for the ROI. When using
+``roi.interactive_selection`` you can save and open ROI configurations easily
+within the GUI. In most cases, it will be easier to create and save the ROI YAML using
+the GUI and use that for all future calculations. It will also give you a sense
+of how the YAML is structured.
+
+Each entry in the YAML file describes a specific ROI object with a specific
+type. The ROI shape can be specified with:
+
+* ``RectROI``
+* ``CircleROI``
+* ``PolyLineROI``
+
+For each ROI shape, you must also specify the Boolean flag ``add`` which
+indicates whether the ROI shape is being added (``true``) or subtracted (``false``)
+from the mask.
+
+There are shape specific fields:
+
+* ``pos``: For rectangular, circular, and seed ROIs: the top-left or center position as [x, y].
+* ``size``: For RectROI and SeedROI: [width, height]. For CircleROI: diameter values (same number repeated).
+* ``points``: For ``PolyLineROI`` an ordered list of [x, y] vertices defining the polyline.
+
+
+The order in which they are defined in the YAML file determines the layering.
+The ROI object at the top of the file will be the bottom most layer. Any
+later additions or subtractions will be applied to previously defined ROI
+objects.
+
+You can also specify the seed location using ``SeedROI``. This requires the same
+arguments as ``RectRoi``. Ensure that this has been configured with ``add: true`` and  the width and height 
+fields for ``size`` are identical.
+
+An example of an ROI configured in YAML side-by-side with it loaded into the ROI
+GUI can be found below:
+
+
+.. list-table::
+   :widths: 50 50
+   :align: left
+
+   * - .. container:: code-scroll
+
+         .. code-block:: yaml
+
+          - type: RectROI
+            pos:
+            - 34
+            - 37
+            size:
+            - 433
+            - 588
+            add: true
+            - type: RectROI
+            pos:
+            - 322
+            - 53
+            size:
+            - 123
+            - 225
+            add: false
+            - type: CircleROI
+            pos:
+            - 371
+            - 536
+            size:
+            - 133
+            - 133
+            add: false
+            - type: PolyLineROI
+            points:
+            - - 158
+              - 422
+            - - 85
+              - 482
+            - - 88
+              - 584
+            - - 222
+              - 586
+            - - 227
+              - 480
+            add: false
+            - type: SeedROI
+            pos:
+            - 108
+            - 145
+            size:
+            - 41
+            - 41
+            add: true
+
+     - .. image:: ./guide_dic_interactive.png
+          :height: 400px
+
+
 Performing a correlation
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-The next step is to perform a correlation with the dic.calculate_2d function.
+The next step is to perform a correlation with the ``dic.calculate_2d`` function.
 There are a few arguments that **must** be passed. These are the
 rference and deformed images, the roi mask and seed, as well as the subset size
 and subset step:
@@ -102,7 +211,7 @@ and subset step:
         subset_step=15
    )
 
-In the simplest above case, all other arguments will have default values. See
+All other possible arguments will have default values. See
 the API documentation for this function for more details.
 
 Understanding Output files
@@ -110,40 +219,40 @@ Understanding Output files
 
 The next step is to understand the output. By default the results will be saved
 in the users current working directory in human readable .CSV format with a filename prefix of
-:code:`dic_results_` followed by the name of the deformed image. 
+``dic_results_`` followed by the name of the deformed image. 
 
 **The output will have the following columns:**
 
-- **subset_x**:  
+- ``subset_x``:
   X-coordinate of the center of the subset (or window) used in displacement tracking or correlation analysis.
 
-- **subset_y**:  
+- ``subset_y``:
   Y-coordinate of the center of the subset used in displacement tracking or correlation analysis.
 
-- **displacement_u**:  
+- ``displacement_u``:
   Displacement in the X-direction (horizontal) calculated for the subset.
 
-- **displacement_v**:  
+- ``displacement_v``:
   Displacement in the Y-direction (vertical) calculated for the subset.
 
-- **displacement_mag**:  
+- ``displacement_mag``:
   Magnitude of the displacement vector.
 
-- **converged**:  
+- ``converged``:
   Boolean flag indicating whether the displacement calculation algorithm converged for this subset.
 
-- **cost**:  
+- ``cost``:
   The final value of the cost function used during the displacement calculation.
-  The reported value is always given as the **ZNCC** no matter if the SSD, NSSD or ZNSSD has been chosen as the correlation function.
+  The reported value is always given as the ZNCC value no matter if the SSD, NSSD or ZNSSD has been chosen as the correlation function.
   The ZNCC is calculated with the final parameter values from the last optimizer iteration. 
 
-- **ftol**:  
+- ``ftol``:
   The final value of the function tolerance, a measure of how much the cost function changed between iterations at convergence.
 
-- **xtol**:  
+- ``xtol``:
   The final value of the solution tolerance, a measure of how much the solution (displacement) changed between iterations at convergence.
 
-- **num_iterations**:  
+- ``num_iterations``:
   The number of iterations the algorithm took to converge for this subset.
 
 You can alter the path, delimiter and filename prefix of the output file using the arguments
@@ -154,14 +263,14 @@ can also opt to save results in binary format. This can be done by setting
 Importing DIC Results
 ^^^^^^^^^^^^^^^^^^^^^
 
-Once you have finished your correlation, you can proceed with whatever
-visualization and post-processing tools/software you'd like. Alternatively,
-Pyvale provides the option to read the data in using a single command into a
-single dataclass that can be used for easy plotting. Importing data is done with
-the :code:`dic.import_2d` command. The below highlights how to import data and
-create a simple plot of the displacement
+Once you have finished your correlation, you can proceed with any
+visualization and post-processing tools/software. Pyvale does provide 
+the capability to read the DIC data using a single command into a
+dataclass that can be utilized for simple plotting. Importing data is done with
+the ``dic.import_2d`` command. The below highlights how to import data and
+create a simple plot of the displacement:
 
-.. :code-block:: Python
+.. code-block:: Python
 
    import matplotlib.pyplot as plt
 
@@ -209,8 +318,52 @@ can import DIC data and calculate strains using
          )
 
 
-Importing DIC Data
-^^^^^^^^^^^^^^^^^^^^
+Understanding Strain Output Files
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Just like the DIC output, the strain output files are saved
+in the users current working directory in human readable .CSV format with a filename prefix of
+``strain_`` followed by the name of the deformed image. 
+
+**The output will have the following columns:**
+
+* ``window_x``: X-coordinate of the strain window center.
+* ``window_y``: Y-coordinate of the strain window center.
+* ``def_grad_00``: Deformation gradient component, :math:`F_{00}`.
+* ``def_grad_01``: Deformation gradient component, :math:`F_{01}`.
+* ``def_grad_10``: Deformation gradient component, :math:`F_{10}`.
+* ``def_grad_11``: Deformation gradient component, :math:`F_{11}`.
+* ``eps_00``: Strain tensor component :math:`\eps_{00} (normal strain in x-direction).
+* ``eps_01``: Strain tensor component :math:`\eps_{01} (shear strain xy).
+* ``eps_10``: Strain tensor component :math:`\eps_{10} (shear strain yx).
+* ``eps_11``: Strain tensor component :math:`\eps_{11} (normal strain in y-direction).
+
+You can alter the path, delimiter and filename prefix of the output file using the arguments
+:code:`output_basepath`, :code:`output_delimiter` and :code:`output_prefix`. You
+can also opt to save results in binary format. This can be done by setting
+:code:`output_binary=True`.
+
+
+Importing Strain Data
+^^^^^^^^^^^^^^^^^^^^^^^^
+Importing Strain data is done with the ``strain.import_2d`` command. 
+The below highlights how to import data and
+create a simple plot of the normal strain in the x-direction:
+
+.. code-block:: Python
+
+   import matplotlib.pyplot as plt
+
+   strain_data = strain.import_2d(data="./dic_results_*")
+
+   # plot of vertical displacement for first deformation image.
+   plt.pcolor(strain_data.window_x, 
+              strain_data.window_y, 
+              strain_data.eps_xx[0]) # [image, y, x]
+
+The import will find all files in the current working directory with that
+filname prefix. If you have changed :code:`output_delimiter` prior to the
+correlation you will also need to specify the delimiter when importing the data.
 
 DIC with Large Images/Displacements
 ------------------------------------

@@ -4,15 +4,15 @@ DIC Theory Overview
 ======================================
 
 Digital Image Correlation (DIC) is a technique for measuring
-deformation, displacement, and strain by analyzing a sequence of images captured
-during a loading process. At its core, DIC tracks the movement of patterns/speckles/textures between images, 
+deformation, displacement, and strain fields by analyzing a sequence of images captured
+during a loading process. At its core, DIC tracks the movement of patterns and textures between images, 
 and from this motion, deduces how the material has deformed.
 
 Local Subset DIC
 ----------------
-In Local subset DIC images are divided into small :math:`N \times N` pixel regions which are called *subsets*.
+In Local subset DIC, images are divided into small :math:`N \times N` pixel regions which are called *subsets*.
 By comparing the intensity patterns of these subsets across images, we can estimate
-their displacement. The image below shows the difference/cost (where 0 is a perfect match)
+their displacement. The image below shows the difference (or cost), where 0 is a perfect match,
 for a brute force scan along the x-axis. 
 
 
@@ -20,20 +20,20 @@ for a brute force scan along the x-axis.
     :alt: Example Cost Minimization
 
 
-Typically we don't use a brute forcea approach, but instead use an **optimization algorith** that is much more computationally
-efficient. The optimization tries to minimize the difference between the
+Typically we don't use a brute-force approach, but instead use an **optimization algorithm** that is much more computationally
+efficient. The optimization attempts to minimize the difference between the
 reference and deformed subset by using the gradient. You can see from the
-brute-force approach that there's local minima where the optimizer might get
-stuck. It's therefore important to ensure that any initial guess is reasonably
+brute-force approach that there are local minima where the optimizer might get
+stuck, so it's important to ensure that any initial guess is reasonably
 close to the actual parameters that define the mapping from the subset in the
 reference image to the subset in the deformed image.
 
 Shape Functions
 ---------------
-It's often the case that a subset undergoes a more complex translation than just a pure rigid translation between reference and deformed image.
-To model how a subset deforms more genreally, we introduce *shape functions*. These are
+It's often the case that a subset undergoes more complex deformation than just rigid translation between reference and deformed image.
+To model how a subset deforms more generally, we introduce *shape functions*. These are
 mathematical mappings that describe how points inside a subset move relative to
-each other.  Pyvale supports three commonly used shape functions in DIC. The simplest of course is a pure *rigid* translation (two
+each other. Pyvale supports three commonly used shape functions in DIC. The simplest of course is a pure *rigid* translation (two
 parameters: horizontal and vertical shift). After this comes *affine* and
 *quadratic* shape functions:
 
@@ -44,7 +44,7 @@ parameters: horizontal and vertical shift). After this comes *affine* and
   \begin{bmatrix} x_i \\ y_i \end{bmatrix}}_{\text{affine}} + \underbrace{\begin{bmatrix} p_6 & p_7 & p_8 \\ p_9 & p_{10} & p_{11} \end{bmatrix} 
   \begin{bmatrix} x_i^2 \\ x_iy_i \\ y_i^2 \end{bmatrix}}_{\text{quadratic}}
 
-Each higher-order shape function includes all terms from the lower-order functions: affine includes rigid terms, and quadratic includes both affine and rigid terms. 
+Each higher-order shape function includes all terms from the lower-order functions: affine includes rigid terms, and quadratic includes both affine and rigid terms.
 
 .. image:: guide_theory_dic_shape_functions_light.png
    :class: only-light
@@ -56,7 +56,7 @@ Each higher-order shape function includes all terms from the lower-order functio
 
 Cost Functions / Correlation Criterion
 ---------------------------------------
-How do we decide if two subsets *match*? To do this we use what's known as a cost function, or often reffered to as a Correlation Criterion.
+How do we decide if two subsets *match*? To do this we use what's known as a cost function, or often referred to as a Correlation Criterion.
 This is a numerical measure of similarity between the reference subset and the deformed
 subset. **Pyvale supports three choices:**
 
@@ -83,7 +83,7 @@ where :math:`f(x_{i},y_{i})` and  :math:`g(x_{i},y_{i})` represent the gray-leve
 
 Cost Function Optimization
 ----------------------------
-Minimizing the value fo the cost function is requires using a optimization routine. 
+Minimizing the value of the cost function requires using an optimization routine. 
 These algorithms start with an initial guess and refine it step by step. Convergence depends on a good
 initial guess and a generally well-behaved cost surface. 
 Pyvale uses a **Levenberg-Marquardt** non-linear optimization routine to minimize the cost function.
@@ -104,7 +104,7 @@ approximation to the Hessian, taken here as
 :math:`\mathbf{J}` the Jacobian of the residuals with respect to
 :math:`\mathbf{p}`. The scalar :math:`\lambda > 0` is the
 Levenberg–Marquardt damping factor, which controls the balance between
-gradient-descent and Gauss–Newton behaviour.
+gradient-descent and Gauss–Newton behavior.
 
 After computing the updated parameter vector :math:`\mathbf{p}_{i+1}`, the cost
 function is re-evaluated to assess the quality of the update. Based on the
@@ -147,17 +147,17 @@ further updates would produce only negligible changes in the parameters and the
 cost function.
 
 
-Sub-pixel Accuracy using Interpolation
+Sub-pixel Accuracy With Interpolation
 --------------------------------------
 
-DIC aims for precision beyond the integer values defined by the images pixel grid. Integer-pixel
+DIC aims for precision beyond the integer values defined by the image's pixel grid. Integer-pixel
 matching is a good start, but physical displacements do not perfectly map to pixel
 boundaries. To capture this, we refine the measurement to *sub-pixel*
 accuracy using interpolation. Instead of treating the image as a discrete
 array, we approximate it as a smooth surface. This is done using **cubic B-spline
 interpolation**.
 
-Cubic B-spline interpolation
+Cubic B-spline Interpolation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Cubic B-spline interpolation represents the interpolated function as a weighted sum of shifted B-spline basis functions:
@@ -177,7 +177,7 @@ where :math:`c_{i,j}` are B-spline coefficients and :math:`\beta^3(t)` is the cu
 
 Prefiltering
 ^^^^^^^^^^^^^^^^^^
-To ensure that the B-spline passes through the original intensity values, we
+To ensure that the B-spline interpolation passes through the original intensity values, we
 can apply a filter to get the B-spline coefficients. 
 For a 1D row of intensity data :math:`\{f_0, f_1, \ldots, f_{N-1}\}`, the filtering has three steps.
 First is to apply a normalization:
@@ -191,7 +191,7 @@ with pole :math:`z = \sqrt{3} - 2`. Then apply a **causal filter**:
    c_i^{(+)} = c_i^{(0)} + z \, c_{i-1}^{(+)}, \quad i = 1, 2, \ldots, N-1
 
 with an initial condition of :math:`c_0^{(+)} = c_0^{(0)}`. The final step is
-to apply an **anticausal filter**. Starting at end of the row:
+to apply an **anticausal filter**. Starting at the end of the row:
 
 .. math::
     c_{N-1} = \frac{z}{z^2-1} c_{N-1}^{(+)}
@@ -201,17 +201,17 @@ and then applying:
 .. math::
     c_i = z(c_{i+1} - c_i^{(+)}), \quad i = N-2, N-3, \ldots, 0
 
-This 1D filtering can be done for each row of the image to get a list of coefficients :math:`c_{i,j}^{(x)}`. It can then be applied to the colum of the result to
+This 1D filtering can be done for each row of the image to get a list of coefficients :math:`c_{i,j}^{(x)}`. It can then be applied to the columns of the result to
 get a full list of coefficients :math:`c_{i,j}`.
 
 Evaluation
 ^^^^^^^^^^
-to get the intensity value at an arbitraty subpixel location :math:`f(x,y)` we
+To get the intensity value at an arbitrary subpixel location :math:`f(x,y)` we
 compute the local coordinates:
 
 .. math::
 
-    t_x = x - \mathrm{floor}(x), \quad t_y = y - \mathrm{floor(y)}
+    t_x = x - \mathrm{floor}(x), \quad t_y = y - \mathrm{floor}(y)
 
 then evaluate the basis functions for the local coordinates:
 
@@ -238,22 +238,23 @@ and compute the interpolated value:
      - .. figure:: guide_theory_dic_interp.png
           :width: 100%
 
-Reliability Guided DIC (RG-DIC)
+Reliability-Guided DIC (RG-DIC)
 --------------------------------
 It's highly likely that some subsets will poorly correlate due to texture changes, cracks, noise, changes in lighting, or large local deformations.
-Reliability‑Guided DIC (RG‑DIC) was a method developed by `B. Pan (2009) <https://opg.optica.org/ao/abstract.cfm?uri=ao-48-8-1535>`_ that helps to limit the amount of poor results by correlating subsets in an order determined by the magnitude of the correlation coefficient.
+Reliability-Guided DIC (RG-DIC) was a method developed by `B. Pan (2009) <https://opg.optica.org/ao/abstract.cfm?uri=ao-48-8-1535>`_ that helps to limit 
+the amount of poor results by correlating subsets in an order determined by the magnitude of the correlation coefficient.
 The algorithm proceeds as follows:
 
 #. The user selects an initial seed location. Correlation is performed at the
-   seed location and its 4 neighbouring points. These points are marked as computed
+   seed location and its 4 neighboring points. These points are marked as computed
    in a global mask.
-#. The four points are added to a queue according from highest correlation
+#. The four points are added to a queue ordered from highest correlation
    coefficient to lowest.
 #. The point at the top of the queue is removed. Correlation is then performed
-   for it's uncomputed neighbours. Succesful correlations from previously computed neighbouring subsets
+   for its uncomputed neighbors. Successful correlations from previously computed neighboring subsets
    are used as initial conditions for the optimization routine.
-#. Newly Computed points are updated in the global mask and added to the queue.
-#. The algorithm then expands outward in a front‑propagation style until all 
+#. Newly computed points are updated in the global mask and added to the queue.
+#. The algorithm then expands outward in a front-propagation style until all 
    subsets have been computed.
 
 .. figure:: guide_theory_dic_rgdic.gif
@@ -288,7 +289,7 @@ These quantities, along with the size of the strain window, form what is typical
    VSG = (\mathrm{N} - 1)s + w
 
 Due to the noise in DIC measurements, smoothing is typically applied over the strain window. 
-We supports bilinear and biquadratic smoothing over the strain window elements. 
+We support bilinear and biquadratic smoothing over the strain window elements. 
 The polynomial approximation is given by:
 
 .. math::
