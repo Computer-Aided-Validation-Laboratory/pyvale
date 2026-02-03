@@ -43,10 +43,6 @@ if (Eigen3_FOUND)
 else()
     message(STATUS "System Eigen3 not found. fetching with FetchContent")
     include(FetchContent)
-    set(EIGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    set(EIGEN_TEST_NO_FORTRAN ON CACHE BOOL "" FORCE)
-    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    set(EIGEN_TEST_NOQT ON CACHE BOOL "" FORCE)
 
     FetchContent_Declare(
         eigen
