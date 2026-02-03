@@ -845,7 +845,7 @@ class RegionOfInterest:
             print('getting rect:', roi_element.pos(), roi_element.size())
             return {
                 'type': 'RectROI',
-                'pos': [float(roi_element.pos().x()), roi_element.pos().y()],
+                'pos': [float(roi_element.pos().x()), float(roi_element.pos().y())],
                 'size': [float(roi_element.size().x()), float(roi_element.size().y())],
                 'add': bool(add)
             }
@@ -858,7 +858,8 @@ class RegionOfInterest:
             }
         elif isinstance(roi_element, pg.PolyLineROI):
             handle_pos = roi_element.getLocalHandlePositions()
-            points = [[float(p[1].x()), float(p[1].y())] for p in handle_pos]
+            roi_pos = roi_element.pos()
+            points = [[float(p[1].x() + roi_pos.x()), float(p[1].y() + roi_pos.y())] for p in handle_pos]
             return {
                 'type': 'PolyLineROI',
                 'points': points,
