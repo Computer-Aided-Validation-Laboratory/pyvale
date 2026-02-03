@@ -94,7 +94,7 @@ def check_interpolation(interpolation_routine: str) -> None:
     Parameters
     ----------
     interpolation_routine : str
-        The interpolation method to validate. Must be either "BILINEAR" or "BICUBIC".
+        The interpolation method to validate. Must be either "BSPLINE" or "HERMITE".
 
     Raises
     ------
