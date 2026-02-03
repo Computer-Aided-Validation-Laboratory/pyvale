@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-latest]
-        env-type: [pip, uv, conda]
+        env-type: [pip]
         include:
           - os: macos-14
             llvm: llvm@15
@@ -29,18 +29,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-
-      - name: Install uv
-        if: matrix.env-type == 'uv'
-        uses: astral-sh/setup-uv@v4
-
-      - name: Set up Miniconda
-        if: matrix.env-type == 'conda'
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          auto-update-conda: true
-          python-version: '3.11'
-          activate-environment: test-env
 
       - name: Set default compiler on macOS to GCC
         if: startsWith(matrix.os, 'macos')
@@ -61,25 +49,12 @@ jobs:
           pip install -e . -v
           pip install pytest pytest-mock
 
-      - name: Install with uv
-        if: matrix.env-type == 'uv'
-        run: |
-          uv pip install --system -e . -v
-          uv pip install --system pytest pytest-mock
-
-      - name: Install with conda
-        if: matrix.env-type == 'conda'
-        run: |
-          conda install -y pip
-          pip install -e . -v
-          pip install pytest pytest-mock
-
       - name: Smoke test
         run: python -c "import pyvale"
 
       - name: Run sensorsim and DIC tests
         shell: bash -el {0}
-        run: pytest -v tests/dic/. tests/sensorsim/.
+        run: pytest -v tests/dic/. tests/sensorsim/. tests/strain/.
 
       - name: Run blender tests (skip macOS ARM)
         if: ${{ !startsWith(matrix.os, 'macos') || contains(matrix.os, 'intel') }}

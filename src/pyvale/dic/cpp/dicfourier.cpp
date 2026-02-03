@@ -23,7 +23,7 @@
 // DIC Header files
 #include "dicfourier.hpp"
 #include "dicsubset.hpp"
-#include "dicinterpolator.hpp"
+#include "dicinterp.hpp"
 
 namespace fourier {
 

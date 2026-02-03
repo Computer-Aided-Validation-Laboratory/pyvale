@@ -13,7 +13,7 @@
 
 // Program Header files
 #include "./dicresults.hpp"
-#include "./dicinterpolator.hpp"
+#include "./dicinterp.hpp"
 
 
 namespace optimizer {
