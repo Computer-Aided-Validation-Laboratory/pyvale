@@ -66,7 +66,7 @@ namespace subset {
                 ss_def.y[count] = subpx_y+y; 
 
                 // get pixel values
-                ss_def.vals[count] = interp_def.eval_bicubic(0, 0, ss_def.x[count], ss_def.y[count]);
+                ss_def.vals[count] = interp_def.eval(0, 0, ss_def.x[count], ss_def.y[count]);
 
                 // debugging
                 //std::cout << ss_def.x[count] << " " << ss_def.y[count] << " " << ss_def.vals[count] << std::endl;
@@ -105,7 +105,7 @@ namespace subset {
                 shapefunc::get_pixel(ss_def.x[count], ss_def.y[count], subpx_x+x, subpx_y+y, p);
                 
                 // get pixel values from interpolator
-                ss_def.vals[count] = interp_def.eval_bicubic(0, 0, ss_def.x[count], ss_def.y[count]);
+                ss_def.vals[count] = interp_def.eval(0, 0, ss_def.x[count], ss_def.y[count]);
 
                 count++;
             }

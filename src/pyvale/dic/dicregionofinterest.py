@@ -845,7 +845,7 @@ class RegionOfInterest:
             print('getting rect:', roi_element.pos(), roi_element.size())
             return {
                 'type': 'RectROI',
-                'pos': [float(roi_element.pos().x()), roi_element.pos().y()],
+                'pos': [float(roi_element.pos().x()), float(roi_element.pos().y())],
                 'size': [float(roi_element.size().x()), float(roi_element.size().y())],
                 'add': bool(add)
             }
@@ -858,7 +858,8 @@ class RegionOfInterest:
             }
         elif isinstance(roi_element, pg.PolyLineROI):
             handle_pos = roi_element.getLocalHandlePositions()
-            points = [[float(p[1].x()), float(p[1].y())] for p in handle_pos]
+            roi_pos = roi_element.pos()
+            points = [[float(p[1].x() + roi_pos.x()), float(p[1].y() + roi_pos.y())] for p in handle_pos]
             return {
                 'type': 'PolyLineROI',
                 'points': points,
@@ -893,15 +894,37 @@ class RegionOfInterest:
         self.__roi_selected = True
 
     def rect_region(self, x: int, y: int, size_x: int, size_y: int ) -> None:
+        """
+        Select a rectangular region of interest (ROI) in the reference image.
 
-            top    = max(0, y)
-            bottom = min(self.ref_image.shape[0],y+size_y)
-            left   = max(0, x)
-            right  = min(self.ref_image.shape[1],x+size_x)
+        The rectangle is defined by its top-left corner and size. The region is
+        automatically clipped to the image bounds. The selected area is marked
+        in the internal mask and flags the ROI as selected.
 
-            # Apply the mask in the subset region
-            self.mask[top:bottom, left:right] = 255
-            self.__roi_selected = True
+        Parameters
+        ----------
+        x : int
+            X-coordinate (column index) of the top-left corner of the rectangle.
+        y : int
+            Y-coordinate (row index) of the top-left corner of the rectangle.
+        size_x : int
+            Width of the rectangular region in pixels.
+        size_y : int
+            Height of the rectangular region in pixels.
+
+        Returns
+        -------
+        None
+        """
+        
+        top    = max(0, y)
+        bottom = min(self.ref_image.shape[0],y+size_y)
+        left   = max(0, x)
+        right  = min(self.ref_image.shape[1],x+size_x)
+
+        # Apply the mask in the subset region
+        self.mask[top:bottom, left:right] = 255
+        self.__roi_selected = True
 
 
 

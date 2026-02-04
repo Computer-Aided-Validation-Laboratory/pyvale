@@ -24,7 +24,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  subset_step: int = 10,
                  correlation_criteria: str="ZNSSD",
                  shape_function: str="AFFINE",
-                 interpolation_routine: str="BICUBIC",
+                 interpolation_routine: str="BSPLINE",
                  max_iterations: int=40,
                  precision: float=0.001,
                  threshold: float=0.9,
@@ -107,7 +107,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     output_binary : bool, optional
         Whether to write output in binary format (default: False).
     output_prefix : str, optional
-        Prefix for all output files (default: "dic_results_"). results will be
+        Prefix for all output files (default: :code:`dic_results_`). results will be
         named with output_prefix + original filename. THe extension will be
         changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
     output_delimiter : str, optional

@@ -88,13 +88,13 @@ def check_interpolation(interpolation_routine: str) -> None:
     Validate that the interpolation routine is one of the allowed methods.
 
     Checks whether interpolation_routine is a supported
-    interpolation method. Allowed values are "BILINEAR" and "BICUBIC". If the input
+    interpolation method. Allowed values are "BSPLINE" and "HERMITE". If the input
     is not one of these, a `ValueError` is raised.
 
     Parameters
     ----------
     interpolation_routine : str
-        The interpolation method to validate. Must be either "BILINEAR" or "BICUBIC".
+        The interpolation method to validate. Must be either "BSPLINE" or "HERMITE".
 
     Raises
     ------
@@ -103,7 +103,7 @@ def check_interpolation(interpolation_routine: str) -> None:
 
     """
 
-    allowed_values = {"BILINEAR", "BICUBIC"}
+    allowed_values = {"BSPLINE", "HERMITE"}
 
     if interpolation_routine not in allowed_values:
         raise ValueError(f"Invalid interpolation_routine: "
