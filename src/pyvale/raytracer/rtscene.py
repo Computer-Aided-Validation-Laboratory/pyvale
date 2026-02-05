@@ -91,11 +91,11 @@ class Scene:
                 if (self.coords_expanded[mesh].shape[0] < frames_to_render):
                     # If there is missing data for any mesh, fill it only up to the required frame to enable rendering
                     self.timestep_count = frames_to_render
-                    self.fill_empty_timesteps
+                    self.fill_empty_timesteps()
                     break
             for mesh in range(self.mesh_count):
-                    self.coords_expanded[mesh] = self.coords_expanded[mesh][frames_to_render]
-                    self.face_colors[mesh] = self.face_colors[mesh][frames_to_render]
+                    self.coords_expanded[mesh] = self.coords_expanded[mesh][:frames_to_render]
+                    self.face_colors[mesh] = self.face_colors[mesh][:frames_to_render]
             self.timestep_count = 1
         #print(self.coords_expanded[0].shape)
 
