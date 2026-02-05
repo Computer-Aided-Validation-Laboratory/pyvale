@@ -31,7 +31,7 @@ find_package(Python 3.11 COMPONENTS Interpreter Development REQUIRED)
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
-list(APPEND CMAKE_PREFIX_PATH "${NB_DIR}")
+list(APPEND CMAKE_PREFIX_PATH "${nanobind_ROOT}")
 find_package(nanobind CONFIG REQUIRED)
 
 # ----------------------------
@@ -143,10 +143,7 @@ install(TARGETS strain_cpp LIBRARY DESTINATION pyvale/strain)
 file(GLOB RAYTRACER_SRC_FILES src/pyvale/raytracer/cpp/*.cpp)
 
 nanobind_add_module(rtmaincpp MODULE ${RAYTRACER_SRC_FILES})
-#target_include_directories(rtmaincpp PRIVATE src/pyvale/common_cpp src/pyvale/raytracer ${PYTHON_INCLUDE_DIR}) # Needed last bit in my repo
 target_include_directories(rtmaincpp PRIVATE src/pyvale/common_cpp src/pyvale/raytracer)
-# target_link_directories(rtmaincpp PRIVATE ${PYTHON_LIBRARY_DIR}) # Also needed this in my repo
 target_link_libraries(rtmaincpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
 apply_compile_flags(rtmaincpp)
-#target_compile_options(rtmaincpp PRIVATE -O3)
 install(TARGETS rtmaincpp LIBRARY DESTINATION pyvale/raytracer)
