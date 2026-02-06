@@ -133,8 +133,8 @@ void OptResultArrays::write_to_disk(int img_num, const common_util::SaveConfig &
                                     v[idx]*v[idx]);
 
             // convert from corner to centre subset coords
-            double ss_x = ss_grid.coords[2*i  ] + static_cast<double>(ss_grid.size)/2.0 - 0.5;
-            double ss_y = ss_grid.coords[2*i+1] + static_cast<double>(ss_grid.size)/2.0 - 0.5;
+            double ss_x = ss_grid.coords[2*i  ] + static_cast<double>(ss_grid.size_x)/2.0 - 0.5;
+            double ss_y = ss_grid.coords[2*i+1] + static_cast<double>(ss_grid.size_y)/2.0 - 0.5;
 
             common_util::write_int(outfile, ss_x);
             common_util::write_int(outfile, ss_y);
@@ -190,8 +190,8 @@ void OptResultArrays::write_to_disk(int img_num, const common_util::SaveConfig &
             //int idx_p = num_params*idx;
 
             // convert from corner to centre subset coords
-            double ss_x = ss_grid.coords[2*i  ] + static_cast<double>(ss_grid.size)/2.0 - 0.5;
-            double ss_y = ss_grid.coords[2*i+1] + static_cast<double>(ss_grid.size)/2.0 - 0.5;
+            double ss_x = ss_grid.coords[2*i  ] + static_cast<double>(ss_grid.size_x)/2.0 - 0.5;
+            double ss_y = ss_grid.coords[2*i+1] + static_cast<double>(ss_grid.size_y)/2.0 - 0.5;
 
             // if the subset has not met threshold, set values to nan
             if (!saveconf.output_below_threshold && !above_thresh[idx]) {

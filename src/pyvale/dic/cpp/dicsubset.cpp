@@ -25,8 +25,8 @@ namespace subset {
         int count = 0;
         int idx;
 
-        for (int px_y = ss_y; px_y < ss_y+ss_ref.size; px_y++){
-            for (int px_x = ss_x; px_x < ss_x+ss_ref.size; px_x++){
+        for (int px_y = ss_y; px_y < ss_y+ss_ref.size_y; px_y++){
+            for (int px_x = ss_x; px_x < ss_x+ss_ref.size_x; px_x++){
 
                 // get coordinate values
                 ss_ref.x[count] = px_x; 
@@ -50,13 +50,14 @@ namespace subset {
 
         int count = 0;
 
-        for (int y = 0; y < ss_def.size; y++){
-            for (int x = 0; x < ss_def.size; x++){
-                if (count >= ss_def.size*ss_def.size){
+        for (int y = 0; y < ss_def.size_y; y++){
+            for (int x = 0; x < ss_def.size_x; x++){
+                if (count >= ss_def.size_y*ss_def.size_x){
                     std::cerr << "issue with count for subpixel subset population" << std::endl;
                     std::cerr << "count: " << count << std::endl;
-                    std::cerr << "subset size: " << ss_def.size << std::endl;
-                    std::cerr << "num px (size*size): " << ss_def.size*ss_def.size << std::endl;
+                    std::cerr << "subset size x: " << ss_def.size_x << std::endl;
+                    std::cerr << "subset size y: " << ss_def.size_y << std::endl;
+                    std::cerr << "num px (size_x*size_y): " << ss_def.size_x*ss_def.size_y << std::endl;
                     std::cerr << "subpixel value: " << subpx_x+x << " " << subpx_y+y << std::endl;
                     std::cerr << "subset coordinates: " << " " <<  subpx_x << " " << subpx_y << " " << std::endl;
                     exit(EXIT_FAILURE);
@@ -74,10 +75,10 @@ namespace subset {
                 count++;
             }
         }
-        if (count!=ss_def.size*ss_def.size){
+        if (count!=ss_def.size_x*ss_def.size_y){
             std::cerr << "count for subpixel population is not the same as the number of subset pixels.";
             std::cout << "count: " << count << std::endl;
-            std::cerr << "number of pixels: " << ss_def.size*ss_def.size << std::endl; 
+            std::cerr << "number of pixels: " << ss_def.size_x*ss_def.size_y << std::endl; 
             exit(EXIT_FAILURE);
         }
     }
@@ -89,13 +90,14 @@ namespace subset {
 
         int count = 0;
 
-        for (int y = 0; y < ss_def.size; y++){
-            for (int x = 0; x < ss_def.size; x++){
-                if (count >= ss_def.size*ss_def.size){
+        for (int y = 0; y < ss_def.size_y; y++){
+            for (int x = 0; x < ss_def.size_x; x++){
+                if (count >= ss_def.size_x*ss_def.size_y){
                     std::cerr << "issue with count for subpixel subset population" << std::endl;
                     std::cerr << "count: " << count << std::endl;
-                    std::cerr << "subset size: " << ss_def.size << std::endl;
-                    std::cerr << "num px (size*size): " << ss_def.size*ss_def.size << std::endl;
+                    std::cerr << "subset size x: " << ss_def.size_x << std::endl;
+                    std::cerr << "subset size y: " << ss_def.size_y << std::endl;
+                    std::cerr << "num px (size_x*size_y): " << ss_def.size_x*ss_def.size_y << std::endl;
                     std::cerr << "subpixel value: " << subpx_x+x << " " << subpx_y+y << std::endl;
                     std::cerr << "subset coordinates: " << " " <<  subpx_x << " " << subpx_y << " " << std::endl;
                     exit(EXIT_FAILURE);
@@ -110,17 +112,18 @@ namespace subset {
                 count++;
             }
         }
-        if (count!=ss_def.size*ss_def.size){
+        if (count!=ss_def.size_x*ss_def.size_y){
             std::cerr << "count for subpixel population is not the same as the number of subset pixels.";
             std::cout << "count: " << count << std::endl;
-            std::cerr << "number of pixels: " << ss_def.size*ss_def.size << std::endl; 
+            std::cerr << "number of pixels: " << ss_def.size_x*ss_def.size_y << std::endl; 
             exit(EXIT_FAILURE);
         }
     }
 
-    subset::Grid create_grid(const bool *img_roi, const int ss_step, 
-                           const int ss_size, const int px_hori, 
-                           const int px_vert, const bool partial) {
+    subset::Grid create_grid(const bool *img_roi, const int ss_step,
+                             const int ss_size_x, const int ss_size_y,
+                             const int px_hori, const int px_vert,
+                             const bool partial) {
         
         //Timer timer("subset grid generation for subset size " + std::to_string(ss_size) + " [px] with step " + std::to_string(ss_step) + " [px]:" );
 
@@ -139,7 +142,8 @@ namespace subset {
         ss_grid.num_in_mask = num_ss_x * num_ss_y;
         ss_grid.num = 0;
         ss_grid.step = ss_step;
-        ss_grid.size = ss_size;
+        ss_grid.size_x = ss_size_x;
+        ss_grid.size_y = ss_size_y;
 
         ss_grid.mask.resize(ss_grid.num_in_mask, -1);
         ss_grid.coords.resize(2*ss_grid.num_in_mask, -1);
@@ -159,8 +163,8 @@ namespace subset {
                 // pixel range of subset
                 const int xmin = ss_x;
                 const int ymin = ss_y;
-                const int xmax = ss_x + ss_size-1;
-                const int ymax = ss_y + ss_size-1;
+                const int xmax = ss_x + ss_size_x-1;
+                const int ymax = ss_y + ss_size_y-1;
 
                 bool valid = true;
                 int valid_count = 0;
@@ -186,7 +190,7 @@ namespace subset {
                 }
 
                 if (partial && valid) {
-                    valid = (valid_count >= (ss_size * ss_size) * 0.70);
+                    valid = (valid_count >= (ss_size_x * ss_size_y) * 0.70);
                 }
 
                 if (valid) {
@@ -219,8 +223,8 @@ namespace subset {
                 // pixel range of subset
                 const int xmin = ss_x;
                 const int ymin = ss_y;
-                const int xmax = ss_x + ss_size-1;
-                const int ymax = ss_y + ss_size-1;
+                const int xmax = ss_x + ss_size_x-1;
+                const int ymax = ss_y + ss_size_y-1;
 
                 // check if subset is within image and ROI.
                 bool valid = true;
@@ -253,7 +257,7 @@ namespace subset {
                 }
 
                 if (partial && valid) {
-                    valid = (valid_count >= (ss_size * ss_size) * 0.70);
+                    valid = (valid_count >= (ss_size_x * ss_size_y) * 0.70);
                 }
 
                 // if its a valid subset. add it to a list of coordinates

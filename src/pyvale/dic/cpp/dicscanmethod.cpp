@@ -46,7 +46,8 @@ namespace scanmethod {
                OptResultArrays &result_arrays){
 
         const int num_ss = ss_grid.num;
-        const int ss_size = ss_grid.size;
+        const int ss_size_x = ss_grid.size_x;
+        const int ss_size_y = ss_grid.size_y;
         const int results_num = img_num-1;
 
         // progress bar
@@ -60,8 +61,8 @@ namespace scanmethod {
         {
 
             // initialise subsets
-            subset::Pixels ss_def(ss_size);
-            subset::Pixels ss_ref(ss_size);
+            subset::Pixels ss_def(ss_size_x, ss_size_x);
+            subset::Pixels ss_ref(ss_size_y, ss_size_y);
 
             // optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter,
@@ -88,8 +89,8 @@ namespace scanmethod {
                 }
 
                 // perform optimization on subset from deformed image
-                double centre_x = ss_x + static_cast<double>(ss_grid.size)/2.0 - 0.5;
-                double centre_y = ss_y + static_cast<double>(ss_grid.size)/2.0 - 0.5;
+                double centre_x = ss_x + static_cast<double>(ss_size_x)/2.0 - 0.5;
+                double centre_y = ss_y + static_cast<double>(ss_size_y)/2.0 - 0.5;
                 OptResult res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                 // append the results for the current subset to result vectors
@@ -121,7 +122,8 @@ namespace scanmethod {
         const int nsizes = ss_grid.size();
         const int last_size = nsizes-1;
         const int num_ss = ss_grid[last_size].num;
-        const int ss_size = ss_grid[last_size].size;
+        const int ss_size_x = ss_grid[last_size].size_x;
+        const int ss_size_y = ss_grid[last_size].size_y;
         const int ss_step = ss_grid[last_size].step;
         const int results_num = img_num-1;
 
@@ -155,8 +157,8 @@ namespace scanmethod {
             std::priority_queue<rg::Point>& thread_q = local_q[tid];
 
             // Initialize ref and def subsets
-            subset::Pixels ss_def(ss_size);
-            subset::Pixels ss_ref(ss_size);
+            subset::Pixels ss_def(ss_size_x, ss_size_x);
+            subset::Pixels ss_ref(ss_size_y, ss_size_y);
 
             // Optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
@@ -167,7 +169,7 @@ namespace scanmethod {
             std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
             for (size_t t = 0; t < ss_grid.size(); ++t) {
-                fft_windows.push_back(std::make_unique<fourier::FFT>(ss_grid[t].size));
+                fft_windows.push_back(std::make_unique<fourier::FFT>(ss_grid[t].size_x, ss_grid[t].size_y));
             }
 
             // TODO: for the seed location I'm going to overwride the max 
@@ -198,8 +200,8 @@ namespace scanmethod {
                 subset::get_px_from_img(ss_ref, seed_x, seed_y, px_hori, px_vert, img_ref);
 
 
-                double centre_x = seed_x + static_cast<double>(ss_size)/2.0 - 0.5;
-                double centre_y = seed_y + static_cast<double>(ss_size)/2.0 - 0.5;
+                double centre_x = seed_x + static_cast<double>(ss_size_x)/2.0 - 0.5;
+                double centre_y = seed_y + static_cast<double>(ss_size_y)/2.0 - 0.5;
 
                 OptResult seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
@@ -225,8 +227,8 @@ namespace scanmethod {
                     opt.p[1] = fourier::shifts[last_size].y[nidx];
 
                     // perform optimization for seed point neighbours
-                    double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
-                    double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
+                    double centre_x = nx + static_cast<double>(ss_size_x)/2.0 - 0.5;
+                    double centre_y = ny + static_cast<double>(ss_size_y)/2.0 - 0.5;
                     OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                     // append the results for the current subset to result vectors
@@ -338,8 +340,8 @@ namespace scanmethod {
                         }
 
                         // optimize
-                        double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
-                        double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
+                        double centre_x = nx + static_cast<double>(ss_size_x)/2.0 - 0.5;
+                        double centre_y = ny + static_cast<double>(ss_size_y)/2.0 - 0.5;
                         OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                         // append results
@@ -387,17 +389,14 @@ namespace scanmethod {
         const int nsizes = ss_grid.size();
         const int last_size = nsizes-1;
         const int num_ss = ss_grid[last_size].num;
-        const int ss_size = ss_grid[last_size].size;
+        const int ss_size_x = ss_grid[last_size].size_x;
+        const int ss_size_y = ss_grid[last_size].size_y;
         const int ss_step = ss_grid[last_size].step;
         const int results_num = img_num_def-1;
 
         // get start location of displacements in previous image
         double *prev_img_u = result_arrays.u.data() + result_arrays.index(0,std::max(0,img_num_ref-1));
         double *prev_img_v = result_arrays.v.data() + result_arrays.index(0,std::max(0,img_num_ref-1));
-
-        // get rigid shifts from fourier
-        // fourier::single_grid(ss_grid[last_size], prev_img_u, prev_img_v,
-        //                      conf.max_disp, img_ref, img_def, interp_def);
 
         std::string bar_title = "Correlation for " + conf.filenames[img_num_def] + ":";
         ProgressBar pbar(bar_title, num_ss);
@@ -426,8 +425,8 @@ namespace scanmethod {
             std::priority_queue<rg::Point>& thread_q = local_q[tid];
 
             // Initialize ref and def subsets
-            subset::Pixels ss_def(ss_size);
-            subset::Pixels ss_ref(ss_size);
+            subset::Pixels ss_def(ss_size_x, ss_size_y);
+            subset::Pixels ss_ref(ss_size_x, ss_size_y);
 
             // Optimization parameters
             optimizer::Parameters opt(conf.num_params, conf.max_iter, 
@@ -438,7 +437,7 @@ namespace scanmethod {
             std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
             for (size_t t = 0; t < ss_grid.size(); ++t) {
-                fft_windows.push_back(std::make_unique<fourier::FFT>(ss_grid[t].size));
+                fft_windows.push_back(std::make_unique<fourier::FFT>(ss_grid[t].size_x, ss_grid[t].size_y));
             }
 
             // TODO: opt.seed_iter exposed to user.
@@ -473,14 +472,15 @@ namespace scanmethod {
                 std::fill(opt.p.begin(), opt.p.end(), 0.0);
                 fourier::get_single_window_fftcc_peak(opt.p[0], opt.p[1],
                                                       seed_x_new, seed_y_new,
-                                                      ss_size, std::max(conf.max_disp, conf.ss_size),
+                                                      ss_size_x, ss_size_y,
+                                                      std::max(conf.max_disp, conf.ss_size),
                                                       img_ref, img_def,
                                                       interp_def);
 
 
                 //std::cout << "PEAK " << opt.p[0] << " " << opt.p[1] << std::endl;
-                double centre_x = seed_x_new + static_cast<double>(ss_size)/2.0 - 0.5;
-                double centre_y = seed_y_new + static_cast<double>(ss_size)/2.0 - 0.5;
+                double centre_x = seed_x_new + static_cast<double>(ss_size_x)/2.0 - 0.5;
+                double centre_y = seed_y_new + static_cast<double>(ss_size_y)/2.0 - 0.5;
                 
                 OptResult seed_res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
@@ -527,8 +527,8 @@ namespace scanmethod {
                     }
 
                     // perform optimization for seed point neighbours
-                    double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
-                    double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
+                    double centre_x = nx + static_cast<double>(ss_size_x)/2.0 - 0.5;
+                    double centre_y = ny + static_cast<double>(ss_size_y)/2.0 - 0.5;
                     OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
                     // add deformation from reference image to new results
@@ -653,7 +653,8 @@ namespace scanmethod {
                             std::fill(opt.p.begin(), opt.p.end(), 0.0);
                             fourier::get_single_window_fftcc_peak(opt.p[0], opt.p[1],
                                                                   nx, ny,
-                                                                  ss_size, std::max(conf.max_disp, conf.ss_size),
+                                                                  ss_size_x, ss_size_y,
+                                                                  std::max(conf.max_disp, conf.ss_size),
                                                                   img_ref, img_def,
                                                                   interp_def);
                         }
@@ -664,8 +665,8 @@ namespace scanmethod {
                         }
 
                         // optimize
-                        double centre_x = nx + static_cast<double>(ss_size)/2.0 - 0.5;
-                        double centre_y = ny + static_cast<double>(ss_size)/2.0 - 0.5;
+                        double centre_x = nx + static_cast<double>(ss_size_x)/2.0 - 0.5;
+                        double centre_y = ny + static_cast<double>(ss_size_y)/2.0 - 0.5;
 
                         OptResult nres = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
 
@@ -719,7 +720,6 @@ namespace scanmethod {
 
         // get number of subsets and the size for the smalllest window size
         const int num_ss  = ss_grid[last_size].num;
-        const int ss_size = ss_grid[last_size].size;
 
         for (int ss = 0; ss < num_ss; ss++){
 
@@ -738,82 +738,6 @@ namespace scanmethod {
             res.above_threshold=true;
             result_arrays.append(res, results_num, ss);
         }
-    }
-
-
-    void single_window_fourier(const double *img_ref,
-                               const double *img_def,
-                               const Interpolator &interp_def,
-                               const subset::Grid &ss_grid,
-                               const util::Config &conf,
-                               const int img_num,
-                               OptResultArrays &result_arrays){
-
-        // for the first image perform the FFT windowing. later images will be
-        // seeded with previous images
-        //fourier::single_grid(ss_grid, 256, img_ref, img_def, interp_def);
-
-        // get number of subsets and the size for the smalllest window size
-        const int num_ss  = ss_grid.num;
-        const int ss_size = ss_grid.size;
-        const int results_num = img_num-1;
-
-        // progress bar
-        std::string bar_title = "Correlation for " + conf.filenames[img_num] + ":";
-        ProgressBar pbar(bar_title, num_ss);
-        std::atomic<int> current_progress = 0;
-
-        // loop over subsets within the ROI
-        #pragma omp parallel shared(stop_request)
-        {
-
-            // initialise subsets
-            subset::Pixels ss_def(ss_size);
-            subset::Pixels ss_ref(ss_size);
-
-            // optimization parameters
-            optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                    conf.precision, conf.threshold,
-                                    conf.px_vert, conf.px_hori,
-                                    conf.corr_crit);
-
-
-            #pragma omp for
-            for (int ss = 0; ss < num_ss; ss++){
-
-                // exit the main DIC loop when ctrl+C is hit
-                if (stop_request){
-                    continue;
-                }
-
-                // subset coordinate list takes central locations. 
-                // Converting to top left corner for optimization routine
-                int ss_x = ss_grid.coords[ss*2];
-                int ss_y = ss_grid.coords[ss*2+1];
-
-                // get the reference subset
-                subset::get_px_from_img(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref);
-
-                std::fill(opt.p.begin(), opt.p.end(), 0.0);
-                opt.p[0] = fourier::shifts[0].x[ss];
-                opt.p[1] = fourier::shifts[0].y[ss];
-
-                // perform optimization on subset from deformed image
-                double centre_x = ss_x + static_cast<double>(ss_size)/2.0 - 0.5;
-                double centre_y = ss_y + static_cast<double>(ss_size)/2.0 - 0.5;
-                OptResult res = optimizer::solve(centre_x, centre_y, ss_ref, ss_def, interp_def, opt, conf.corr_crit);
-
-                // append optimization results to results vectors
-                result_arrays.append(res, img_num, ss);
-
-                // update progress bar
-                int progress = current_progress.fetch_add(1);
-                if (omp_get_thread_num()==0) pbar.update(progress);
-
-            }
-        }
-        pbar.update(current_progress+1);
-        pbar.finish();
     }
 
 }

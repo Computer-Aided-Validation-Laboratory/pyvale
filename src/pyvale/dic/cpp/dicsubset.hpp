@@ -18,7 +18,8 @@ namespace subset {
     struct Grid {
         int num;
         int step;
-        int size;
+        int size_x;
+        int size_y;
         int num_ss_x;
         int num_ss_y;
         int num_in_mask;
@@ -36,16 +37,18 @@ namespace subset {
         std::vector<double> vals;
         std::vector<double> x;
         std::vector<double> y;
-        int size;
+        int size_x;
+        int size_y;
         int num_px;
 
         // Constructor to initialize the vectors with ss_size
-        Pixels(int ss_size) 
-            : vals(ss_size * ss_size, 0.0),
-            x(ss_size * ss_size, 0.0),
-            y(ss_size * ss_size, 0.0),
-            size(ss_size),
-            num_px(ss_size * ss_size)
+        Pixels(int ss_size_x, int ss_size_y) 
+            : vals(ss_size_x * ss_size_y, 0.0),
+            x(ss_size_x * ss_size_y, 0.0),
+            y(ss_size_x * ss_size_y, 0.0),
+            size_x(ss_size_x),
+            size_y(ss_size_y),
+            num_px(ss_size_x * ss_size_y)
         {}
     };
 
@@ -109,8 +112,10 @@ namespace subset {
      * @param ss_step      Step size for generating subsets.
      * @return            A subset::Grid object containing the generated subsets and their neighbours.
      */
-    subset::Grid create_grid(const bool *img_roi, const int ss_step, const int ss_size, 
-                           const int px_hori, const int px_vert, const bool partial=false);
+    subset::Grid create_grid(const bool *img_roi, const int ss_step,
+                             const int ss_size_x, const int ss_size_y,
+                             const int px_hori, const int px_vert,
+                             const bool partial);
 
     
     inline bool px_in_img_dims(const int px_x, const int px_y, const int px_hori, 

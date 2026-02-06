@@ -129,9 +129,10 @@ namespace fourier {
     extern std::vector<Shift> shifts;
 
     struct FFT {
-        int ss_size;
+        int ss_size_x;
+        int ss_size_y;
         int n_complex;
-        
+
         // input data
         subset::Pixels ss_def;
         subset::Pixels ss_ref;
@@ -151,14 +152,21 @@ namespace fourier {
         Eigen::MatrixXd A;
         Eigen::VectorXd b;
 
-        FFT(int ss_size_)
-            : ss_size(ss_size_), n_complex(ss_size_/2+1), ss_def(ss_size_), ss_ref(ss_size_),
-                fft_def(ss_size_*n_complex), fft_ref(ss_size_*n_complex), 
-                cross_corr(ss_size_ * ss_size_),  A(9,6), b(9)
+        FFT(int ss_size_x_, int ss_size_y_)
+            : ss_size_x(ss_size_x_),
+            ss_size_y(ss_size_y_),
+            n_complex(ss_size_x_/2+1),
+            ss_def(ss_size_x_, ss_size_y_),
+            ss_ref(ss_size_x_, ss_size_y_),
+            fft_def(ss_size_y_*n_complex),
+            fft_ref(ss_size_y_*n_complex),
+            cross_corr(ss_size_x_ * ss_size_y_),
+            A(9,6),
+            b(9)
         {
        
-            shape_in   = {static_cast<unsigned long>(ss_size), static_cast<unsigned long>(ss_size)};
-            stride_in  = {static_cast<long>(ss_size * sizeof(double)), sizeof(double)};
+            shape_in   = {static_cast<unsigned long>(ss_size_y), static_cast<unsigned long>(ss_size_x)};
+            stride_in  = {static_cast<long>(ss_size_x * sizeof(double)), sizeof(double)};
             stride_out = {static_cast<long>(n_complex * sizeof(std::complex<double>)), sizeof(std::complex<double>)};
 
         }
@@ -172,7 +180,7 @@ namespace fourier {
             pocketfft::r2c(shape_in, stride_in, stride_out, axes, pocketfft::FORWARD, ss_def.vals.data(), fft_def.data(), 1.0, 1);
             
             // multiplication of complex fft data
-            for (int px = 0; px < ss_size * n_complex; px++) {
+            for (int px = 0; px < ss_size_y * n_complex; px++) {
                 fft_def[px] = std::conj(fft_ref[px]) * fft_def[px];
             }
 
@@ -187,7 +195,7 @@ namespace fourier {
             pocketfft::r2c(shape_in, stride_in, stride_out, axes, pocketfft::FORWARD, ss_def.vals.data(), fft_def.data(), 1.0, 1);
             
             // multiplication of complex fft data
-            for (int px = 0; px < ss_size * n_complex; ++px) {
+            for (int px = 0; px < ss_size_y * n_complex; ++px) {
                 std::complex<double> val = std::conj(fft_ref[px]) * fft_def[px];
                 double mag = std::abs(val);
                 fft_def[px] = (mag > 1e-12) ? val / mag : 0.0;
@@ -197,38 +205,39 @@ namespace fourier {
             pocketfft::c2r(shape_in, stride_out, stride_in, axes, pocketfft::BACKWARD, fft_def.data(), cross_corr.data(), 1.0, 1);
         }
 
-    void fftshift(std::vector<double>& data, int size) {
-        std::vector<double> temp(size * size);
+        void fftshift(std::vector<double>& data, int size_x, int size_y) {
+            std::vector<double> temp(size_x * size_y);
+            
+            int half_x = size_x / 2;
+            int half_y = size_y / 2;
 
-        int half = size / 2;
-
-        for (int y = 0; y < size; ++y) {
-            for (int x = 0; x < size; ++x) {
-                int new_x = (x + half) % size;
-                int new_y = (y + half) % size;
-                temp[new_y * size + new_x] = data[y * size + x];
+            for (int y = 0; y < size_y; ++y) {
+                for (int x = 0; x < size_x; ++x) {
+                    int new_x = (x + half_x) % size_x;
+                    int new_y = (y + half_y) % size_y;
+                    temp[new_y * size_x + new_x] = data[y * size_x + x];
+                }
             }
+            data = temp;
         }
 
-        data = temp;
-    }
         inline double safe_log(double val, double eps = 1e-7) {
             return std::log(std::max(val, eps));
         }
-        
+
         inline int wrap(int coord, int size) {
             return (coord + size) % size;
         }
 
-       
+
         void find_peak(double &peak_x, double &peak_y, double &max_val, const bool subpx, const std::string &method) {
             max_val = -std::numeric_limits<double>::infinity();
             int x0 = 0, y0 = 0;
 
             // Step 1: Find the integer peak
-            for (int y = 0; y < ss_size; ++y) {
-                for (int x = 0; x < ss_size; ++x) {
-                    double val = cross_corr[y * ss_size + x];
+            for (int y = 0; y < ss_size_y; ++y) {
+                for (int x = 0; x < ss_size_x; ++x) {
+                    double val = cross_corr[y * ss_size_x + x];
                     if (val > max_val) {
                         max_val = val;
                         x0 = x;
@@ -239,17 +248,17 @@ namespace fourier {
 
             // Step 2: No subpixel refinement requested
             if (!subpx) {
-                peak_x = (x0 <= ss_size / 2.0) ? x0 : x0 - ss_size;
-                peak_y = (y0 <= ss_size / 2.0) ? y0 : y0 - ss_size;
+                peak_x = (x0 <= ss_size_x / 2.0) ? x0 : x0 - ss_size_x;
+                peak_y = (y0 <= ss_size_y / 2.0) ? y0 : y0 - ss_size_y;
                 return;
             }
 
             int i = 0;
             for (int dy = -1; dy <= 1; ++dy) {
                 for (int dx = -1; dx <= 1; ++dx) {
-                    int xw = wrap(x0 + dx, ss_size);
-                    int yw = wrap(y0 + dy, ss_size);
-                    double val = cross_corr[yw * ss_size + xw];
+                    int xw = wrap(x0 + dx, ss_size_x);
+                    int yw = wrap(y0 + dy, ss_size_y);
+                    double val = cross_corr[yw * ss_size_x + xw];
 
                     // Safe log for Gaussian
                     if (method == "GAUSSIAN_2D" && val <= 0) val = 1e-6;
@@ -281,8 +290,8 @@ namespace fourier {
 
             peak_x = x0 + offset(0);
             peak_y = y0 + offset(1);
-            peak_x = (peak_x <= ss_size / 2.0) ? peak_x : peak_x - ss_size;
-            peak_y = (peak_y <= ss_size / 2.0) ? peak_y : peak_y - ss_size;
+            peak_x = (peak_x <= ss_size_x / 2.0) ? peak_x : peak_x - ss_size_x;
+            peak_y = (peak_y <= ss_size_y / 2.0) ? peak_y : peak_y - ss_size_y;
             //std::cout << peak_x << " " << peak_y << std::endl;
         }
 
@@ -293,9 +302,9 @@ namespace fourier {
             int x0 = 0, y0 = 0;
 
             // Step 1: integer peak
-            for (int y = 0; y < ss_size; ++y) {
-                for (int x = 0; x < ss_size; ++x) {
-                    double val = cross_corr[y * ss_size + x];
+            for (int y = 0; y < ss_size_y; ++y) {
+                for (int x = 0; x < ss_size_x; ++x) {
+                    double val = cross_corr[y * ss_size_x + x];
                     if (val > max_val) {
                         max_val = val;
                         x0 = x;
@@ -304,17 +313,18 @@ namespace fourier {
                 }
             }
 
-            const double center = static_cast<double>(ss_size) / 2.0;
+            const double center_x = static_cast<double>(ss_size_x) / 2.0;
+            const double center_y = static_cast<double>(ss_size_y) / 2.0;
 
             // No subpixel refinement requested: map index -> displacement by subtracting center
             if (!subpx) {
-                peak_x = static_cast<double>(x0) - center;
-                peak_y = static_cast<double>(y0) - center;
-                // Optional wrap correction (shouldn't be necessary if using center subtraction):
-                if (peak_x <= -center) peak_x += ss_size;   // maps -128 -> 128 if needed
-                if (peak_x >  center - 1e-12) peak_x -= ss_size;
-                if (peak_y <= -center) peak_y += ss_size;
-                if (peak_y >  center - 1e-12) peak_y -= ss_size;
+                peak_x = static_cast<double>(x0) - center_x;
+                peak_y = static_cast<double>(y0) - center_y;
+
+                if (peak_x <= -center_x) peak_x += ss_size_x;
+                if (peak_x >  center_x - 1e-12) peak_x -= ss_size_x;
+                if (peak_y <= -center_y) peak_y += ss_size_y;
+                if (peak_y >  center_y - 1e-12) peak_y -= ss_size_y;
                 return;
             }
 
@@ -322,9 +332,9 @@ namespace fourier {
             int i = 0;
             for (int dy = -1; dy <= 1; ++dy) {
                 for (int dx = -1; dx <= 1; ++dx) {
-                    int xw = wrap(x0 + dx, ss_size);
-                    int yw = wrap(y0 + dy, ss_size);
-                    double val = cross_corr[yw * ss_size + xw];
+                    int xw = wrap(x0 + dx, ss_size_x);
+                    int yw = wrap(y0 + dy, ss_size_y);
+                    double val = cross_corr[yw * ss_size_x + xw];
 
                     if (method == "GAUSSIAN_2D" && val <= 0) val = 1e-6;
                     double z = (method == "GAUSSIAN_2D") ? std::log(val) : val;
@@ -355,14 +365,13 @@ namespace fourier {
             double raw_x = static_cast<double>(x0) + offset(0);
             double raw_y = static_cast<double>(y0) + offset(1);
 
-            peak_x = raw_x - center;
-            peak_y = raw_y - center;
+            peak_x = raw_x - center_x;
+            peak_y = raw_y - center_y;
 
-            // Optional: ensure in [-center, center)
-            if (peak_x <= -center) peak_x += ss_size;
-            if (peak_x >  center - 1e-12) peak_x -= ss_size;
-            if (peak_y <= -center) peak_y += ss_size;
-            if (peak_y >  center - 1e-12) peak_y -= ss_size;
+            if (peak_x <= -center_x) peak_x += ss_size_x;
+            if (peak_x >  center_x - 1e-12) peak_x -= ss_size_x;
+            if (peak_y <= -center_y) peak_y += ss_size_y;
+            if (peak_y >  center_y - 1e-12) peak_y -= ss_size_y;
         }
     };
 
@@ -388,11 +397,12 @@ namespace fourier {
                      const Interpolator &interp_def);
 
 
-   void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
-                                     const int ss_x, const int ss_y,
-                                     const int ss_size, const int window_size,
-                                     const double *img_ref, const double *img_def,
-                                     const Interpolator &interp_def);
+    void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
+                                      const int ss_x, const int ss_y,
+                                      const int ss_size_x, const int ss_size_y,
+                                      const int window_size,
+                                      const double *img_ref, const double *img_def,
+                                      const Interpolator &interp_def);
 
     std::pair<double, double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,
@@ -401,10 +411,10 @@ namespace fourier {
 
     double debugcost(subset::Pixels &ss_ref, subset::Pixels &ss_def);
 
-    void zero_norm_subsets(std::vector<double>& def_vals, std::vector<double>& ref_vals, int ss_size);
+    void zero_norm_subsets(std::vector<double>& def_vals, std::vector<double>& ref_vals, int ss_size_x, int ss_size_y);
 
-   void smooth_field(std::vector<double>& shift, const subset::Grid& ss_grid, double sigma, int radius);
-   void test(double &peak_x, double &peak_y, int ss_x, int ss_y, const int window_size, const double *img_ref, const double *img_def, const Interpolator &interp_def);
+    void smooth_field(std::vector<double>& shift, const subset::Grid& ss_grid, double sigma, int radius);
+    void test(double &peak_x, double &peak_y, int ss_x, int ss_y, const int window_size, const double *img_ref, const double *img_def, const Interpolator &interp_def);
 }
 
 #endif // DICFOURIER_H

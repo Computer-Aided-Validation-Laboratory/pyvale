@@ -47,12 +47,14 @@ namespace fourier {
             // for the last size all subsets need to sit within the ROI
             if (i==ss_sizes.size()-1)
                 window_data.push_back(subset::create_grid(img_roi, window_step,
-                                                        window_size, conf.px_hori, 
-                                                        conf.px_vert, false));
+                                                          window_size, window_size,
+                                                          conf.px_hori, conf.px_vert,
+                                                          false));
             else 
                 window_data.push_back(subset::create_grid(img_roi, window_step, 
-                                                        window_size, conf.px_hori, 
-                                                        conf.px_vert, true));
+                                                          window_size, window_size,
+                                                          conf.px_hori, conf.px_vert, 
+                                                          true));
 
             // shifts for each subset size
             Shift shift;
@@ -155,23 +157,24 @@ namespace fourier {
 
             //Timer timer("FFT windowing for subset size: " + std::to_string(ss_grid[i].size));
 
-            const int ss_size = ss_grid[i].size;
+            const int ss_size_x = ss_grid[i].size_x;
+            const int ss_size_y = ss_grid[i].size_y;
             const int num_ss  = ss_grid[i].num;
 
             std::fill(shifts[i].x.begin(), shifts[i].x.end(), 0.0);
             std::fill(shifts[i].y.begin(), shifts[i].y.end(), 0.0);
 
-            std::string bar_title = "FFT windowing for size " + std::to_string(ss_size) + ":";
+            std::string bar_title = "FFT windowing " + std::to_string(ss_size_x) + "x" + std::to_string(ss_size_y) + ":";
             ProgressBar pbar(bar_title, ss_grid[i].num);
             std::atomic<int> current_progress = 0;
 
 
-            #pragma omp parallel shared(stop_request, shifts, ss_grid, interp_def, ss_size)
+            #pragma omp parallel shared(stop_request, shifts, ss_grid, interp_def, ss_size_x, ss_size_y)
             {
 
 
                 // class for FFT
-                fourier::FFT fft(ss_size);
+                fourier::FFT fft(ss_size_x, ss_size_y);
 
                 // loop over subsets for each size/step
                 #pragma omp for schedule(dynamic,10)
@@ -195,7 +198,7 @@ namespace fourier {
                     subset::get_subpx_from_img(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
 
                     // zero normalise the subsets
-                    zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, ss_size);
+                    zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, ss_size_x, ss_size_y);
 
                     // get peaks from the cross correlation
                     double peak_x = 0, peak_y = 0, max_val = 0.0;
@@ -397,8 +400,11 @@ namespace fourier {
 
 
 
-    void zero_norm_subsets(std::vector<double>& ref_vals, std::vector<double>& def_vals, const int ss_size) {
-        const int total_px = ss_size * ss_size;
+    void zero_norm_subsets(std::vector<double>& ref_vals, 
+                           std::vector<double>& def_vals, 
+                           const int ss_size_x,
+                           const int ss_size_y) {
+        const int total_px = ss_size_x * ss_size_y;
 
         // Compute means
         double mean_def = 0.0;
@@ -429,8 +435,8 @@ namespace fourier {
     
 
 
-    void zero_norm_subsets_single(std::vector<double>& ref_vals, int ss_size) {
-        const int total_px = ss_size * ss_size;
+    void zero_norm_subsets_single(std::vector<double>& ref_vals, int ss_size_x, int ss_size_y) {
+        const int total_px = ss_size_x * ss_size_y;
 
         // Compute means
         double mean_def = 0.0;
@@ -456,153 +462,22 @@ namespace fourier {
         }
     }
 
-
-
-    void single_grid(const subset::Grid &ss_grid,
-                     const double *prev_img_u,
-                     const double *prev_img_v,
-                     const int window_size,
-                     const double *img_ref,
-                     const double *img_def,
-                     const Interpolator &interp_def){
-
-
-        const int px_hori = interp_def.px_hori;
-        const int px_vert = interp_def.px_vert;
-        
-        const int ss_size = ss_grid.size;
-
-        const int window_half = window_size/2;
-
-        // TODO: Add a proper flag for this 
-        bool subpx = true;
-
-        // Loop over window size
-        #pragma omp parallel shared(stop_request, shifts, ss_grid, interp_def, ss_size)
-        {
-
-            // class for FFT
-            int tid = omp_get_thread_num();
-            fourier::FFT fft(window_size);
-
-            // loop over subsets for each size/step
-            #pragma omp for schedule(dynamic,10)
-            for (int ss = 0; ss < ss_grid.num; ss++){
-
-                int ss_x = ss_grid.coords[2*ss] + prev_img_u[ss];
-                int ss_y = ss_grid.coords[2*ss+1] + prev_img_v[ss];
-
-                // Clamp the deformed window to image range
-                int ss_x_shft, ss_y_shft;
-                ss_x_shft = std::clamp(ss_x - window_size/2 + ss_size/2, 0, px_hori - window_size);
-                ss_y_shft = std::clamp(ss_y - window_size/2 + ss_size/2, 0, px_vert - window_size);
-
-
-                // Offsets to center the subset within the larger window
-                int offset = window_half - ss_size/2;
-                int offset_x, offset_y;
-                offset_x = std::min(offset, ss_x);
-                offset_y = std::min(offset, ss_y);
-
-
-                for (int row = 0; row < ss_size; ++row) {
-                    for (int col = 0; col < ss_size; ++col) {
-
-                        // Source coordinates in img_def
-                        int px_y = ss_y + row;
-                        int px_x = ss_x + col;
-
-                        if (px_x >= px_hori || px_y >= px_vert) {
-                            std::cout << "original subset coords: " << ss_grid.coords[2*ss] << ss_grid.coords[2*ss+1] << std::endl;
-                            std::cout << "previous displacements: " << prev_img_u[ss] << prev_img_v[ss] << std::endl;
-                            std::cout << "Image access out of bounds!" << std::endl;
-                            exit(0);
-                            continue;
-                        }
-
-                        // Target coordinates in ss_ref
-                        int target_y = offset_y + row;
-                        int target_x = offset_x + col;
-
-                        int idx_img = px_y * px_hori + px_x;
-                        int idx_window = target_y * window_size + target_x;
-
-                        if (idx_window >= window_size*window_size){
-                            std::cout << "idx_window out of bounds: " << idx_window << " ss_x: " << ss_x << " ss_y: " << ss_y << " target_x: " << target_x << " target_y: " << target_y << std::endl;
-                            exit(0);
-                        }
-
-                        // On-the-fly 2D Hann window
-                        const double hann_row = 0.5 * (1.0 - cos(2.0 * M_PI * row / (ss_size - 1)));
-                        const double hann_col = 0.5 * (1.0 - cos(2.0 * M_PI * col / (ss_size - 1)));
-                        const double window_val = hann_row * hann_col;
-
-                        fft.ss_ref.vals[idx_window] = img_ref[idx_img] * window_val;
-                    }
-                }
-
-                // populate fft.ss_def with interpolator values
-                subset::get_subpx_from_img(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
-
-                // TODO: Make hanning window calc part of the initialization process.
-                for (int row = 0; row < window_size; ++row) {
-                    for (int col = 0; col < window_size; ++col) {
-                        // On-the-fly 2D Hann window
-                        const double hann_row = 0.5 * (1.0 - cos(2.0 * M_PI * row / (window_size - 1)));
-                        const double hann_col = 0.5 * (1.0 - cos(2.0 * M_PI * col / (window_size - 1)));
-                        const double window_val = hann_row * hann_col;
-                        fft.ss_def.vals[row*window_size+col]*=window_val;
-                    }
-                }
-
-                // get peaks from the cross correlation
-                double peak_x = 0, peak_y = 0, max_val = 0.0;
-                fft.correlate_phase();
-                fft.find_peak_offset(peak_x, peak_y, max_val, subpx, "gaussian_2d");
-
-                // resetting values in fft_ref to 0.0.
-                for (int row = 0; row < ss_size; ++row) {
-                    for (int col = 0; col < ss_size; ++col) {
-
-                        // Target coordinates in ss_ref
-                        int target_y = offset_y + row;
-                        int target_x = offset_x + col;
-                        int idx_window = target_y * window_size + target_x;
-
-                        if (idx_window >= window_size*window_size){
-                            std::cout << "idx_window out of bounds: " << idx_window << " ss_x: " << ss_x << " ss_y: " << ss_y << " target_x: " << target_x << " target_y: " << target_y << std::endl;
-                            exit(0);
-                        }
-                        fft.ss_ref.vals[idx_window] = 0.0;
-                    }
-                }
-                // update the shift arrays
-                shifts.back().x[ss] = peak_x;
-                shifts.back().y[ss] = peak_y;
-            }
-        }
-        // remove outliers in fft
-        //if (fft_mad){
-        //    remove_outliers(shifts[i].x, ss_grid[i], fft_mad);
-        //    remove_outliers(shifts[i].y, ss_grid[i], fft_mad);
-        //}
-    }
-
-
-
    void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
                                      const int ss_x, const int ss_y,
-                                     const int ss_size, const int window_size,
+                                     const int ss_size, 
+                                     const int window_size_x,
+                                     const int window_size_y,
                                      const double *img_ref, const double *img_def,
                                      const Interpolator &interp_def){
 
         const int px_hori = interp_def.px_hori;
         const int px_vert = interp_def.px_vert;
-        const int window_half = window_size/2;
+        const int window_half_x = window_size_x/2;
+        const int window_half_y = window_size_y/2;
         const int ss_half = ss_size/2;
 
         // class for FFT
-        fourier::FFT fft(window_size);
+        fourier::FFT fft(window_size_x, window_size_y);
 
         // TODO: Add a proper flag for this 
         bool subpx = true;
@@ -610,14 +485,14 @@ namespace fourier {
 
         // Clamp the deformed window to image range
         int ss_x_shft, ss_y_shft;
-        ss_x_shft = std::clamp(ss_x - window_half + ss_half, 0, px_hori - window_size);
-        ss_y_shft = std::clamp(ss_y - window_half + ss_half, 0, px_vert - window_size);
+        ss_x_shft = std::clamp(ss_x - window_half_x + ss_half, 0, px_hori - window_size_x);
+        ss_y_shft = std::clamp(ss_y - window_half_y + ss_half, 0, px_vert - window_size_y);
 
         // Offsets to center the subset within the larger window
-        int offset = window_half - ss_half;
-        int offset_x, offset_y;
-        offset_x = std::min(offset, ss_x);
-        offset_y = std::min(offset, ss_y);
+        int offset_x = window_half_x - ss_half;
+        int offset_y = window_half_y - ss_half;
+        offset_x = std::min(offset_x, ss_x);
+        offset_y = std::min(offset_y, ss_y);
 
 
         for (int row = 0; row < ss_size; ++row) {
@@ -632,9 +507,9 @@ namespace fourier {
                 int target_x = offset_x + col;
 
                 int idx_img = px_y * px_hori + px_x;
-                int idx_window = target_y * window_size + target_x;
+                int idx_window = target_y * window_size_x + target_x;
 
-                if (idx_window >= window_size*window_size){
+                if (idx_window >= window_size_x*window_size_y){
                     std::cout << "idx_window out of bounds: " << idx_window << " ss_x: " << ss_x << " ss_y: " << ss_y << " target_x: " << target_x << " target_y: " << target_y << std::endl;
                     continue;
                 }
@@ -659,13 +534,13 @@ namespace fourier {
 
 
         // TODO: Make hanning window calc part of the initialization process.
-        for (int row = 0; row < window_size; ++row) {
-            for (int col = 0; col < window_size; ++col) {
+        for (int row = 0; row < window_size_y; ++row) {
+            for (int col = 0; col < window_size_x; ++col) {
                 // On-the-fly 2D Hann window
-                const double hann_row = 0.5 * (1.0 - cos(2.0 * M_PI * row / (window_size - 1)));
-                const double hann_col = 0.5 * (1.0 - cos(2.0 * M_PI * col / (window_size - 1)));
+                const double hann_row = 0.5 * (1.0 - cos(2.0 * M_PI * row / (window_size_y - 1)));
+                const double hann_col = 0.5 * (1.0 - cos(2.0 * M_PI * col / (window_size_x - 1)));
                 const double window_val = hann_row * hann_col;
-                fft.ss_def.vals[row*window_size+col]*=window_val;
+                fft.ss_def.vals[row*window_size_x+col]*=window_val;
             }
         }
 
@@ -686,9 +561,9 @@ namespace fourier {
                 int target_x = offset_x + col;
 
                 //int idx_img = px_y * px_hori + px_x;
-                int idx_window = target_y * window_size + target_x;
+                int idx_window = target_y * window_size_x + target_x;
 
-                if (idx_window >= window_size*window_size){
+                if (idx_window >= window_size_x*window_size_y){
                     std::cout << "idx_window out of bounds: " << idx_window << " ss_x: " << ss_x << " ss_y: " << ss_y << " target_x: " << target_x << " target_y: " << target_y << std::endl;
                     exit(0);
                 }
