@@ -302,13 +302,15 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
         vis_opts = VisOptsSimSensors()
 
     
-    sim_data = sensor_array.get_field().get_sim_data()
-    vis_opts.colour_bar_lims = get_colour_lims(
-        sim_data.node_vars[comp_key][:,time_step],
-        vis_opts.colour_bar_lims)
+    # sim_data = sensor_array.get_field().get_sim_data()
+    # vis_opts.colour_bar_lims = get_colour_lims(
+    #     sim_data.node_vars[comp_key][:,time_step],
+    #     vis_opts.colour_bar_lims)
     
     if type(sensor_array) == SensorsPoint:
         sensor_arraylist = [sensor_array]
+    else:
+        sensor_arraylist = sensor_array
         
     if type(comp_key) == str:
         comp_key = [comp_key]
@@ -320,53 +322,66 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
             sensor_arraylist = sensor_arraylist*len(comp_key)
             #[[] for i in range(0,n)] consider this instead
         else: 
-            print("sensor array and component be a single element or of the same length")
+            print("sensor array and component must be a single element or of the same length")
     elif len(sensor_arraylist) > len(comp_key):
-        print("sensor array and component be a single element or of the same length")
-
-    sim_data = sensor_arraylist[0]._field.get_sim_data()
-    vis_opts.colour_bar_lims = get_colour_lims(
-        sim_data.node_vars[comp_key[0]][:,time_step],
-        vis_opts.colour_bar_lims)
+        print("sensor array and component must be a single element or of the same length")
 
 
     pv_plot = create_pv_plotter(2,vis_opts)
 
-    if type(sensor_array) == List:
-        sensor_array = sensor_array[0]
+    # sim_data = sensor_array.get_field().get_sim_data()
+    # vis_opts.colour_bar_lims = get_colour_lims(
+    #     sim_data.node_vars[comp_key][:,time_step],
+    #     vis_opts.colour_bar_lims)
 
-    if perturbed_sens_pos is not None:
-        sensor_pos_pert = perturbed_sens_pos
-    else:
-        # Can be None if there no field errors perturbing the sensor position
-        sensor_pos_pert = (
-            sensor_array
-            .get_error_integrator()
-            .get_sens_data_accumulated()
-            .positions
-        )
+    # sim_data = sensor_arraylist[0]._field.get_sim_data()
+    # vis_opts.colour_bar_lims = get_colour_lims(
+    #     sim_data.node_vars[comp_key[0]][:,time_step],
+    #     vis_opts.colour_bar_lims)
 
-    if sensor_pos_pert is not None:
-        pv_plot = add_sensor_points_pert(pv_plot,sensor_pos_pert,vis_opts)
+    for i in range(len(sensor_arraylist)):
+        sim_data = sensor_arraylist[i]._field.get_sim_data()
+        vis_opts.colour_bar_lims = get_colour_lims(
+            sim_data.node_vars[comp_key[i]][:,time_step],
+            vis_opts.colour_bar_lims)
 
-    
-    sensor_pos_nom = sensor_array._sensor_data.positions   
-    descriptor = sensor_array.get_descriptor()
-    pv_plot = add_sensor_points_nom(pv_plot,
-                                    sensor_pos_nom,
-                                    descriptor,
-                                    vis_opts)
+        
 
-    for i in comp_key:
-        (pv_plot,_) = add_sim_field(pv_plot,
-                                    sensor_array,
-                                    i,
-                                    time_step,
-                                    vis_opts)
+        # if type(sensor_array) == List:
+        #     sensor_array = sensor_array[0]
 
-    pv_plot.camera_position = vis_opts.camera_position
+        if perturbed_sens_pos is not None:
+            sensor_pos_pert = perturbed_sens_pos
+        else:
+            # Can be None if there no field errors perturbing the sensor position
+            sensor_pos_pert = (
+                sensor_arraylist[0]
+                .get_error_integrator()
+                .get_sens_data_accumulated()
+                .positions
+            )
+        pv_plot.subplot(0,i)
+        if sensor_pos_pert is not None:
+            pv_plot = add_sensor_points_pert(pv_plot,sensor_pos_pert,vis_opts)
 
-    if image_save_opts is not None:
-        save_pv_image(pv_plot,image_save_opts)
+        
+        sensor_pos_nom = sensor_arraylist[i]._sensor_data.positions   
+        descriptor = sensor_arraylist[i].get_descriptor()
+        pv_plot = add_sensor_points_nom(pv_plot,
+                                        sensor_pos_nom,
+                                        descriptor,
+                                        vis_opts)
+
+        for k in comp_key:
+            (pv_plot,_) = add_sim_field(pv_plot,
+                                        sensor_arraylist[i],
+                                        k,
+                                        time_step,
+                                        vis_opts)
+
+        pv_plot.camera_position = vis_opts.camera_position
+
+        if image_save_opts is not None:
+            save_pv_image(pv_plot,image_save_opts)
 
     return pv_plot

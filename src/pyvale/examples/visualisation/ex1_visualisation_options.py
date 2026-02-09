@@ -129,8 +129,8 @@ save_render = output_path / "basics_ex1_1_sensorlocs.svg"
 
 # plot a single sensor array
 
-pv_plot = sens.plot_point_sensors_on_sim(disp_sens,"disp_y")
-pv_plot.show()
+#pv_plot = sens.plot_point_sensors_on_sim(disp_sens,"disp_y")
+#pv_plot.show()
 pv_plot = sens.plot_point_sensors_on_sim(sens_array, field_key)
 pv_plot.show()
 
@@ -139,7 +139,8 @@ pv_plot = sens.plot_point_sensors_on_sim([sens_array, disp_sens_array2], [field_
 pv_plot.show()
 
 # create three subplots where each sensor array plotted uses the same component key
-pv_plot = sens.plot_point_sensors_on_sim([sens_array, sens_array, sens_array], field_key)
+#pv_plot = sens.plot_point_sensors_on_sim([sens_array, sens_array, sens_array], field_key)
+pv_plot = sens.plot_point_sensors_on_sim([sens_array, disp_sens_array2], [field_key, "disp_x"])
 
 #%%
 # We determined manually by moving camera in interative mode and then
@@ -197,7 +198,7 @@ traceopts.sensors_per_plot = 2
 traceopts.sensors_to_plot = [1,3,5, "fake"]
 
 (fig, ax) = sens.plot_time_traces(sens_array, field_key, trace_opts=traceopts)
-plt.show()
+#plt.show()
 
 
 #sens.animate_trace_with_sensors(tc_array,field_key)
