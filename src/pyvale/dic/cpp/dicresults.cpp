@@ -47,7 +47,7 @@ OptResultArrays::OptResultArrays(int num_def_img, int num_ss, int num_params, bo
         xtol.resize(num_ss);
         cost.resize(num_ss);
         conv.resize(num_ss);
-        above_thresh.resize(num_def_img * num_ss);
+        above_thresh.resize(num_ss);
     }
 }
 
