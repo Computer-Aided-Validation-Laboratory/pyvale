@@ -21,6 +21,7 @@
 #include "./dicoptimizer.hpp"
 #include "./dicshapefunc.hpp"
 #include "./dicresults.hpp"
+#include "./dicsubset.hpp"
 
 
 namespace optimizer {
@@ -32,7 +33,11 @@ namespace optimizer {
     void (*optimize_cost)(const subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &Interp, optimizer::Parameters &opt, const int global_x, const int global_y);
 
 
-    OptResult solve(const double ss_x, const double ss_y, subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt, const std::string &corr_crit){
+    OptResult solve(const double ss_x, const double ss_y, subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_def, optimizer::Parameters &opt){
+
+                
+        double cx, cy;
+        subset::get_centre(cx, cy, ss_x, ss_y, ss_ref.size_x, ss_ref.size_y);
 
         int iter = 0;
         double ftol = 0;
@@ -108,7 +113,7 @@ namespace optimizer {
 
 
         OptResult res(opt.num_params);
-        shapefunc::get_displacement(res, ss_x-global_x, ss_y-global_y, opt.p);
+        shapefunc::get_displacement(res, cx-global_x, cy-global_y, opt.p);
         res.iter = iter;
         res.ftol = ftol;
         res.xtol = xtol;
@@ -560,5 +565,22 @@ namespace optimizer {
         }
     }
 
+
+    void get_params_from_fft(std::vector<double> &p, const int idx,
+                             const std::vector<double> &shift_x,
+                             const std::vector<double> &shift_y) {
+        std::fill(p.begin(), p.end(), 0.0);
+        p[0] = shift_x[idx];
+        p[1] = shift_y[idx];
+    }
+
+    void get_params_from_neigh(std::vector<double> &p,
+                               const std::vector<double> &results_p,
+                               const int idx_results_p) {
+
+        for (int i = 0; i < p.size(); i++)
+            p[i] = results_p[idx_results_p+i];
+
+    }
 
 }

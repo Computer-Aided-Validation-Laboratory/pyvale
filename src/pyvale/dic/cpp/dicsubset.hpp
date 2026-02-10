@@ -118,10 +118,47 @@ namespace subset {
                              const bool partial);
 
     
-    inline bool px_in_img_dims(const int px_x, const int px_y, const int px_hori, 
-                        const int px_vert);
+    static inline bool px_in_img_dims(const int px_x, const int px_y, const int px_hori, 
+                        const int px_vert) {
 
-    inline bool px_in_roi(const int px_x, const int px_y, const int px_hori, 
-                        const int px_vert, const bool *img_roi);
+        if (px_x < 0 || px_y < 0 ||
+            px_x >= px_hori || px_y >= px_vert) {
+            return false;
+        }
+        return true;
+    }
+
+    static inline bool px_in_roi(const int px_x, const int px_y, const int px_hori, 
+                        const int px_vert, const bool *img_roi) {
+
+        int idx = px_y * px_hori + px_x;
+        if (!img_roi[idx]) {
+            return false;
+        }
+        return true;
+    }
+
+
+
+    /**
+     * @brief Returns central subset coordinates for given subset corner values
+     * and dimensions
+     *
+     * @param cx[out]    x pixel coordinate of subset centre
+     * @param cy[out]    y pixel coordinate of subset centre
+     * @param ss_x[in]  x pixel coordinate of subset corner
+     * @param ss_y[in]  y pixel coordinate of subset corner
+     * @param size_x[in]  subset size in x 
+     * @param size_y[in]  subset size in y
+     */
+
+    static inline void get_centre(double& cx, double& cy,
+                                  const double ss_x, const double ss_y,
+                                  const int size_x, const int size_y) {
+
+        cx = ss_x + static_cast<double>(size_x) * 0.5 - 0.5;
+        cy = ss_y + static_cast<double>(size_y) * 0.5 - 0.5;
+
+    }
 }
 #endif // DICSMOOTH_H

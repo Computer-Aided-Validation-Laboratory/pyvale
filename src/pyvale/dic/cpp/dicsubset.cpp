@@ -305,25 +305,4 @@ namespace subset {
         return ss_grid;
     }
 
-
-    inline bool px_in_img_dims(const int px_x, const int px_y, const int px_hori, 
-                        const int px_vert) {
-
-        if (px_x < 0 || px_y < 0 ||
-            px_x >= px_hori || px_y >= px_vert) {
-            return false;
-        }
-        return true;
-    }
-
-    inline bool px_in_roi(const int px_x, const int px_y, const int px_hori, 
-                        const int px_vert, const bool *img_roi) {
-
-        int idx = px_y * px_hori + px_x;
-        if (!img_roi[idx]) {
-            return false;
-        }
-        return true;
-    }
-
 }

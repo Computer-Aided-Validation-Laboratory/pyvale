@@ -100,7 +100,9 @@ namespace optimizer {
      * @param opt 
      * @return OptResult 
      */
-    OptResult solve(const double ss_x, const double ss_y, subset::Pixels &ss_ref, subset::Pixels &ss_def, const Interpolator &interp_ref, optimizer::Parameters &opt, const std::string &corr_crit);
+    OptResult solve(const double ss_x, const double ss_y, 
+                    subset::Pixels &ss_ref, subset::Pixels &ss_def, 
+                    const Interpolator &interp_ref, optimizer::Parameters &opt);
 
     /**
      * @brief calcutes the Sum of Squared Differences (SSD) between reference and deformed subsets.
@@ -179,72 +181,6 @@ namespace optimizer {
     void populate_hessian_lower_tri(std::vector<double> &H, double lambda, int num_params);
 
     /**
-     * @brief 
-     * 
-     * @param[out] x_new 
-     * @param[out] y_new 
-     * @param[in] x 
-     * @param[in] y 
-     * @param[in] p 
-     */
-    inline void affine(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
-
-    /**
-     * @brief 
-     * 
-     * @param[out] x_new 
-     * @param[out] y_new 
-     * @param[in] x 
-     * @param[in] y 
-     * @param[in] p 
-     */
-    inline void rigid(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
-
-    /**
-     * @brief 
-     * 
-     * @param[out] x_new 
-     * @param[out] y_new 
-     * @param[in] x 
-     * @param[in] y 
-     * @param[in] p 
-     */
-    inline void quad(double &x_new, double &y_new, double x, double y, std::vector<double> &p);
-
-    /**
-     * @brief calculates the derivative of the affine function with respect to each parameter
-     * 
-     * @param[out dfdp 
-     * @param[in] x 
-     * @param[in] y 
-     * @param[in] dfdx 
-     * @param[in] dfdy 
-     */
-    inline void daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy);
-
-    /**
-     * @brief calculates the derivative of the rigid shape function with respect to each parameter
-     * 
-     * @param[out dfdp 
-     * @param[in] x 
-     * @param[in] y 
-     * @param[in] dfdx 
-     * @param[in] dfdy 
-     */
-    inline void drigid_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy);
-
-    /**
-     * @brief calculates the derivative of the quadratic function with respect to each parameter
-     * 
-     * @param[out] x_new 
-     * @param[out] y_new 
-     * @param[in] x 
-     * @param[in] y 
-     * @param[in] p 
-     */
-    inline void dquad_dp(std::vector<double> &dfdp, double x, double y, double dfdy);
-
-    /**
      * @brief Funcion to convert affine shape function parameters to displacement values
      * 
      * @param[out] displacements values (u,v, magnitude) are added to results
@@ -274,6 +210,15 @@ namespace optimizer {
      */
     void rigid_parameters_to_displacement(OptResult &results, double ss_x, double ss_y, std::vector<double> &p);
 
+
+
+    void get_params_from_fft(std::vector<double> &p, const int idx,
+                             const std::vector<double> &shift_x,
+                             const std::vector<double> &shift_y);
+
+    void get_params_from_neigh(std::vector<double> &p,
+                               const std::vector<double> &results_p,
+                               const int idx_results_p);
 }
 
 #endif //DICOPTIMIZER_H
