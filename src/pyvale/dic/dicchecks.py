@@ -21,18 +21,19 @@ def check_correlation_criteria(correlation_criteria: str) -> None:
     """
     Validate that the correlation criteria is one of the allowed values.
 
-    Checks whether input `correlation_criteria` is among the
-    accepted options: "SSD", "NSSD", or "ZNSSD". If not, raises a `ValueError`.
+    Checks whether input ``correlation_criteria`` is among the
+    accepted options: ``"SSD"``, ``"NSSD"``, or ``"ZNSSD"``. If not, raises a
+    ``ValueError``.
 
     Parameters
     ----------
     correlation_criteria : str
-        The correlation type. Must be one of: "SSD", "NSSD", or "ZNSSD".
+        The correlation type. Must be one of: ``"SSD"``, ``"NSSD"``, or ``"ZNSSD"``.
 
     Raises
     ------
     ValueError
-        If `correlation_criteria` is not one of the allowed values.
+        If ``correlation_criteria`` is not one of the allowed values.
     """
 
     allowed_values = {"SSD", "NSSD", "ZNSSD"}
@@ -47,26 +48,26 @@ def check_correlation_criteria(correlation_criteria: str) -> None:
 def check_shape_function(shape_function: str) -> int:
     """
     Checks whether input `shape_function` is one of the allowed
-    values ("RIGID", "AFFINE" or "QUAD"). If valid, it returns the number of transformation
+    values (``"RIGID"``, ``"AFFINE"`` or ``"QUAD"``). If valid, it returns the number of transformation
     parameters associated with that shape function.
 
     Parameters
     ----------
     shape_function : str
-        The shape function type. Must be either "RIGID", "AFFINE" or "QUAD".
+        The shape function type. Must be either ``"RIGID"``, ``"AFFINE"`` or ``"QUAD"``.
 
     Returns
     -------
     int
         The number of parameters for the specified shape function:
-        - 2 for "RIGID"
-        - 6 for "AFFINE"
-        - 12 for "QUAD"
+        - 2 for ``"RIGID"``
+        - 6 for ``"AFFINE"``
+        - 12 for ``"QUAD"``
 
     Raises
     ------
     ValueError
-        If `shape_function` is not one of the allowed values.
+        If ``shape_function`` is not one of the allowed values.
     """
 
     if (shape_function=="RIGID"):
@@ -88,18 +89,18 @@ def check_interpolation(interpolation_routine: str) -> None:
     Validate that the interpolation routine is one of the allowed methods.
 
     Checks whether interpolation_routine is a supported
-    interpolation method. Allowed values are "BSPLINE" and "HERMITE". If the input
-    is not one of these, a `ValueError` is raised.
+    interpolation method. Allowed values are ``"BSPLINE"`` and ``"HERMITE"``. If the input
+    is not one of these, a ``ValueError`` is raised.
 
     Parameters
     ----------
     interpolation_routine : str
-        The interpolation method to validate. Must be either "BSPLINE" or "HERMITE".
+        The interpolation method to validate. Must be either ``"BSPLINE"`` or ``"HERMITE"``.
 
     Raises
     ------
     ValueError
-        If `interpolation_routine` is not a supported value.
+        If ``interpolation_routine`` is not a supported value.
 
     """
 
@@ -115,17 +116,16 @@ def check_interpolation(interpolation_routine: str) -> None:
 def check_method(method: str) -> None:
     """
     Validate that the scan type  one of the allowed methods.
-    Allowed values are "MULTIWINDOW_RG", "MULTIWINDOW", "SINGLEWINDOW_RG", "SINGLEWINDOW_RG_INCREMENTAL", "IMAGE_SCAN".
 
     Parameters
     ----------
-    interpolation_routine : str
-        The interpolation method to validate. Must be either "BILINEAR" or "BICUBIC".
+    method : str
+        Allowed values are ``"MULTIWINDOW_RG"``, ``"MULTIWINDOW"``, ``"SINGLEWINDOW_RG"``, ``"SINGLEWINDOW_RG_INCREMENTAL"``, ``"IMAGE_SCAN"``.
 
     Raises
     ------
     ValueError
-        If `interpolation_routine` is not a supported value.
+        If ``method`` is not a supported value.
 
     """
 
@@ -138,18 +138,15 @@ def check_method(method: str) -> None:
 
 
 def check_thresholds(threshold: float, 
-                     bf_threshold: float, 
                      precision: float) -> None:
     """
-    Ensures that `threshold`, `bf_threshold`, and `precision`
-    are all floats strictly between 0 and 1. Raises a `ValueError` if any condition fails.
+    Ensures that ``threshold``, and ``precision``
+    are all floats strictly between 0 and 1. Raises a ``ValueError`` if any condition fails.
 
     Parameters
     ----------
     threshold : float
         correlation/cost coeff minumum value to be considered matching subset.
-    bf_threshold : float
-        Threshold for the brute-force optimization method.
     precision : float
         Desired precision for the optimizer.
 
@@ -161,10 +158,6 @@ def check_thresholds(threshold: float,
 
     if not (0 < threshold < 1):
         raise ValueError("threshold must be a float "
-                         "strictly between 0 and 1.")
-
-    if not (0 < bf_threshold < 1):
-        raise ValueError("bf_threshold must be a float "
                          "strictly between 0 and 1.")
     
     if not (0 < precision < 1):
@@ -206,7 +199,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
     scanning method. It adjusts the seed to the nearest valid grid point based on the subset step size,
     clamps it to the image dimensions, and ensures it lies within the region of interest (ROI) mask.
 
-    If the scanning method is not "RG", the function returns a default seed of [0, 0]. 
+    If the scanning method is not reliability guided, the function returns a default seed of [0, 0]. 
     This seed is not used any other scan method methods.
 
     Parameters
@@ -305,7 +298,7 @@ def check_and_get_images(reference: np.ndarray | str | Path,
         or a glob pattern string pointing to multiple image files.
     roi : np.ndarray
         A 2D NumPy array defining the region of interest. Must match the reference image shape
-        if `reference` is an array.
+        if ``reference`` is an array.
     debug_level: int
         Determines how much information to provide in console output.
 
@@ -319,7 +312,7 @@ def check_and_get_images(reference: np.ndarray | str | Path,
     Raises
     ------
     ValueError
-        If there is a type mismatch between `reference` and `deformed`,
+        If there is a type mismatch between ``reference`` and ``deformed``,
         if image files are not found or unreadable,
         or if image shapes do not match.
     FileNotFoundError

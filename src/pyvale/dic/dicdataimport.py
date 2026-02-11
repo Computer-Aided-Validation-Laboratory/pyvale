@@ -25,39 +25,37 @@ def import_2d(data: str | Path,
               layout: str = "matrix",
               delimiter: str = ",") -> Results:
     """
-    Import DIC result data from human readable text or binary files.
+    test. Import DIC result data from human readable text or binary files.
 
     Parameters
     ----------
-
     data : str or pathlib.Path
-        Path pattern to the data files (can include wildcards). Default is "./".
+        Path pattern to the data files (can include wildcards). Default is ``"./"``.
 
     layout : str, optional
-        Format of the output data layout: "column" (flat array per frame) or "matrix" 
-        (reshaped grid per frame). Default is "column".
+        Format of the output data layout: ``"column"`` (flat array per frame) or ``"matrix"``
+        (reshaped grid per frame). (Default: ``"matrix"``).
 
     binary : bool, optional
         If True, expects files in a specific binary format. If False, expects text data. 
-        Default is False.
+        (Default: ``False``).
 
     delimiter : str, optional
-        Delimiter used in text data files. Ignored if binary=True. Default is a single space.
+        Delimiter used in text data files. Ignored if ``binary=True``. (Default: ``","``).
 
     Returns
     -------
-    Results
+    Results : pyvale.dic.Results
         A named container with the following fields:
-            - ss_x, ss_y (grid arrays if layout=="matrix"; otherwise, 1D integer arrays)
-            - u, v, m, converged, cost, ftol, xtol, niter (arrays with shape depending on layout)
-            - filenames (python list)
+            * ss_x, ss_y (grid arrays if ``layout=="matrix"``; otherwise, 1D integer arrays)
+            * u, v, m, converged, cost, ftol, xtol, niter (arrays with shape depending on layout)
+            * filenames (python list)
 
     Raises
     ------
     ValueError:
-        If `layout` is not "column" or "matrix", or text data has insufficient columns,
+        If `layout` is not ``"column"`` or ``"matrix"``, or text data has insufficient columns,
         or binary rows are malformed.
-        import cython module
     FileNotFoundError:
         If no matching data files are found.
     """
@@ -164,11 +162,11 @@ def read_binary(file: str, delimiter: str):
     Read a binary DIC result file and extract DIC fields.
 
     Assumes a fixed binary structure with each row containing:
-    - 2 × int32 (subset coordinates)
-    - 6 × float64 (u, v, match quality, cost, ftol, xtol)
-    - 1 × int32 (number of iterations)
-    - 1 × uint8 (convergence flag) 
-    - 2 or 6 × float64 (shape parameters)
+    * 2 × ``int32`` (subset coordinates)
+    * 6 × ``float64`` (u, v, match quality, cost, ftol, xtol)
+    * 1 × ``int32`` (number of iterations)
+    * 1 × ``uint8`` (convergence flag) 
+    * 2 or 6 × ``float64`` (shape parameters)
 
     Parameters
     ----------
@@ -364,8 +362,8 @@ def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
     """
     Reshape a 2D DIC field from flat (column) format into grid (matrix) format.
 
-    This is used when output layout is specified as "matrix".
-    Maps values using reference subset coordinates (ss_x_ref, ss_y_ref).
+    This is used when ``layout="matrix"``.
+    Maps values using reference subset coordinates (``ss_x_ref``, ``ss_y_ref``).
 
     Parameters
     ----------

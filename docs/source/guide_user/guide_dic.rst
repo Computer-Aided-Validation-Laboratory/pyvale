@@ -405,7 +405,7 @@ incorrect initial rigid estimate for the displacements.
 
 Pyvale has a Median Absolute Deviation (MAD) outlier removal
 flag that, when enabled, will kill likely incorrect spikes in the rigid
-estimates or each FFTCC window size. This can be enabled with the following
+estimates for each FFTCC window size. This can be enabled with the following
 arguments when calling the DIC engine:
 
 .. code-block:: Python

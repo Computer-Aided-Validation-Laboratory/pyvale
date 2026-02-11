@@ -43,7 +43,8 @@ class RegionOfInterest:
         
         Raises
         ------
-            ValueError: If the image cannot be loaded or is invalid.
+        ValueError
+            If the image cannot be loaded or is invalid.
         """
         if isinstance(ref_image, str):
             self.ref_image = cv2.imread(ref_image)
@@ -871,7 +872,7 @@ class RegionOfInterest:
 
     def reset_mask(self):
         """
-        Completely resets the roi mask to 0s.
+        Completely resets the roi mask to 0's.
         """
         self.mask[:] = False;
 
@@ -884,10 +885,14 @@ class RegionOfInterest:
         
         Parameters
         ----------
-            left (int): Number of px to exclude from left edge.
-            right (int): Number of px to exclude from the right edge.
-            top (int): Number of px to exclude from the top edge.
-            bottom (int): Number of px to exclude from the bottom edge.
+            left : int
+                Number of px to exclude from left edge.
+            right : int
+                Number of px to exclude from the right edge.
+            top : int
+                Number of px to exclude from the top edge.
+            bottom : int 
+                Number of px to exclude from the bottom edge.
         """
         self.reset_mask()
         self.mask[bottom:(self.ref_image.shape[0]-top), left:(self.ref_image.shape[1])-right] = 255
@@ -931,7 +936,7 @@ class RegionOfInterest:
 
     def save_image(self, filename: str | Path) -> None:
         """
-        Save the ROI overlayed over the reference image in .tiff image format.
+        Save the ROI overlayed over the reference image in ``.tiff`` image format.
 
         Parameters
         ----------
@@ -963,7 +968,7 @@ class RegionOfInterest:
         filename : str or pathlib.Path
             filename given to saved ROI mask
         binary : bool
-            If True, saves from as a .npy binary file. 
+            If True, saves from as a ``.npy`` binary file. 
             If False, saves to a space delimited text file.
 
         Raises
@@ -982,14 +987,14 @@ class RegionOfInterest:
 
     def read_array(self, filename: str | Path, binary: bool = False) -> None:
         """
-        Load the ROI mask from a binary or text file and store it in `self.mask`.
+        Load the ROI mask from a binary or text file and store it in ``self.mask``.
 
         Parameters
         ----------
         filename : str or pathlib.Path
             Path to the file to load.
         binary : bool
-            If True, loads from a .npy binary file. If False, loads from a text file.
+            If True, loads from a ``.npy`` binary file. If ``False``, loads from a text file.
 
         Raises
         ------

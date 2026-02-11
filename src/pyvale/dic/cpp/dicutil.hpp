@@ -39,7 +39,6 @@ namespace util {
         int num_params;
         double precision;
         double threshold;
-        double bf_threshold;
         int max_disp;
         std::pair<int, int> rg_seed;
         std::string corr_crit;

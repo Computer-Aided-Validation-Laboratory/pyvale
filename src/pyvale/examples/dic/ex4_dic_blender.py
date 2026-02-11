@@ -13,7 +13,7 @@ DIC with images generated from a virtual blender experiment
 This example looks at taking the virtual experiments conducted using the blender
 module and taking it one step further and performing a DIC calculation on the
 simulated data. For this to work, you'll need to complete the `2D image
-deformation example <https://computer-aided-validation-laboratory.github.io/pyvale/examples/renderblender/ex1_2_blenderdeformed.html>`_ using the blender module first. 
+deformation example <https://computer-aided-validation-laboratory.github.io/pyvale/examples/blenderimagedef/ex2_blender_imagedef2d.html>`_ using the blender module first. 
 
 **We'd recommend downloading both examples (links can be
 found at the bottom of each example) and placing them within the same folder on 
