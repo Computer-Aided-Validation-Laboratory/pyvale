@@ -327,7 +327,7 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
         print("sensor array and component must be a single element or of the same length")
 
 
-    pv_plot = create_pv_plotter(2,vis_opts)
+    pv_plot = create_pv_plotter(len(sensor_arraylist), vis_opts)
 
     # sim_data = sensor_array.get_field().get_sim_data()
     # vis_opts.colour_bar_lims = get_colour_lims(
@@ -372,12 +372,12 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
                                         descriptor,
                                         vis_opts)
 
-        for k in comp_key:
-            (pv_plot,_) = add_sim_field(pv_plot,
-                                        sensor_arraylist[i],
-                                        k,
-                                        time_step,
-                                        vis_opts)
+
+        (pv_plot,_) = add_sim_field(pv_plot,
+                                    sensor_arraylist[i],
+                                    comp_key[i],
+                                    time_step,
+                                    vis_opts)
 
         pv_plot.camera_position = vis_opts.camera_position
 
