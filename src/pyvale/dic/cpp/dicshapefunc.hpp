@@ -14,27 +14,22 @@
 #include <Eigen/Dense>
 
 // DIC Header files
-#include "./dicresults.hpp"
 
 
 
 namespace shapefunc {
 
-    // Function pointer 
-    extern void (*get_pixel)(double &, double &, const double, const double, const std::vector<double> &);
-    extern void (*get_dfdp)(std::vector<double>&, double, double, double, double);
-    extern void (*get_displacement)(OptResult &result, double ss_x, double ss_y, std::vector<double> &p);
+    void get_pixel_affine(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+    void get_pixel_rigid(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+    void get_pixel_quad(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
 
-    // Shape function declarations
-    inline void get_pixel_affine(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
-    inline void get_pixel_rigid(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
-    inline void get_pixel_quad(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+    void get_daffine_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
+    void get_drigid_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
+    void get_dquad_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
 
-    int num_params(std::string &shape_func);
-
-
-    // Setter for the current function
-    void set(const std::string &func_name);
-
+    void get_displacement_affine(double &u, double &v, const double x, const double y, const std::vector<double> &p);
+    void get_displacement_rigid(double &u, double &v, const double  x, const double  y, const std::vector<double > &p);
+    void get_displacement_quad(double &u, double &v, const double  x, const double  y, const std::vector<double> &p);
 }
-#endif // DICSMOOTH_H
+
+#endif // DICSHAPEFUNC_HPP

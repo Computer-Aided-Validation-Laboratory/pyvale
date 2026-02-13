@@ -48,7 +48,7 @@ namespace py = pybind11;
  * @note This function is intended to be called via the Python interface using pybind11.
  *       Image arrays are expected to be contiguous and C-style (row-major) in memory.
  */
-void DICengine(const py::array_t<double>& img_stack_arr,
+void engine_2d(const py::array_t<double>& img_stack_arr,
                const py::array_t<bool>& img_roi_arr,
                util::Config& conf,
                common_util::SaveConfig& saveconf);

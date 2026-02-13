@@ -15,6 +15,7 @@
 
 // Program Header files
 #include "./dicsubset.hpp"
+#include "./dicoptimizer.hpp"
 
 
 namespace rg {
@@ -39,16 +40,23 @@ namespace rg {
             exit(EXIT_FAILURE);
         }
         else return true;
+    }
 
-        //auto it = ss_grid.coords_to_idx.find({ss_x, ss_y});
 
-        //// check if coordinates are in the coordinate list
-        //if (it == ss_grid.coords_to_idx.end()) {
-        //   std::cerr << "Error: coordinates not found in the coordinate list." << std::endl;
-        //   std::cerr << "Coordinates: " << ss_x << ", " << ss_y << std::endl;
-        //   exit(EXIT_FAILURE);
-        //}
-        //else return true;
+    void check_convergence_or_exit(const OptResult &res) {
+        if (!res.converged || !res.above_threshold) {
+            std::cout << "ERROR: unsuccessful convergence at seed or direct neighbour." << std::endl;
+            std::cout << "Please select a different seed location." << std::endl;
+            std::cout << std::endl;
+            std::cout << "displacement: " << res.u << " " << res.v << std::endl;
+            std::cout << "cost: " << res.cost << std::endl;
+            std::cout << "xtol: " << res.xtol << std::endl;
+            std::cout << "ftol: " << res.ftol << std::endl;
+            std::cout << "above_threshold: " << static_cast<unsigned>(res.above_threshold) << std::endl;
+            std::cout << "converged: " << static_cast<unsigned>(res.converged) << std::endl;
+            std::cout << "iterations: " << res.iter << std::endl;
+            exit(EXIT_FAILURE);
+        }
     }
 }
 

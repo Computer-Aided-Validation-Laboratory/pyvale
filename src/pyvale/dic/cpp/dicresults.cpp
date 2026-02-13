@@ -20,7 +20,7 @@
 
 
 
-OptResultArrays::OptResultArrays(int num_def_img, int num_ss, int num_params, bool at_end){
+ResultArrays::ResultArrays(int num_def_img, int num_ss, int num_params, bool at_end){
 
     if (g_debug_level>0) common_util::Timer timer("resizing of result arrays:");
     this->at_end = at_end;
@@ -51,7 +51,7 @@ OptResultArrays::OptResultArrays(int num_def_img, int num_ss, int num_params, bo
     }
 }
 
-void OptResultArrays::append(OptResult &res, int results_num, int ss) {
+void ResultArrays::append(OptResult &res, int results_num, int ss) {
     int idx = index(ss, results_num);
 
     int idx_p = num_params*idx;
@@ -68,18 +68,18 @@ void OptResultArrays::append(OptResult &res, int results_num, int ss) {
     }
 }
 
-int OptResultArrays::index(const int subset_idx, const int results_num){
+int ResultArrays::index(const int subset_idx, const int results_num){
     int idx = at_end ? (results_num) * num_ss + subset_idx : subset_idx;
     return idx;
 }
 
-int OptResultArrays::index_parameters(const int subset_idx, const int results_num){
+int ResultArrays::index_parameters(const int subset_idx, const int results_num){
     int idx = index(subset_idx, results_num) * num_params;
     return idx;
 }
 
 
-void OptResultArrays::write_to_disk(int img_num, const common_util::SaveConfig &saveconf,
+void ResultArrays::write_to_disk(int img_num, const common_util::SaveConfig &saveconf,
                     const subset::Grid &ss_grid, const int num_def_img,
                     const std::vector<std::string> &filenames){
 

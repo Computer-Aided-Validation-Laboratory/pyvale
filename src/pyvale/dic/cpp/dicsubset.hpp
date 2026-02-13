@@ -9,6 +9,7 @@
 
 // STD library Header files
 #include <vector>
+#include <string>
 
 // Program Header files
 #include "./dicinterp.hpp"
@@ -96,8 +97,8 @@ namespace subset {
     void get_subpx_from_shape_params(subset::Pixels &ss_def, 
                                      const double subpx_x, const double subpx_y,
                                      const std::vector<double>& p,
-                                     const Interpolator &interp_def);
-
+                                     const Interpolator &interp_def,
+                                     const std::string &shape_func);
     /**
      * @brief Generates a list of subsets based on the provided image ROI and parameters.
      * 
@@ -118,11 +119,11 @@ namespace subset {
                              const bool partial);
 
     
-    static inline bool px_in_img_dims(const int px_x, const int px_y, const int px_hori, 
-                        const int px_vert) {
+    static inline bool px_in_img_dims(const int px_x, const int px_y, const int px_hori, const int px_vert) {
 
         if (px_x < 0 || px_y < 0 ||
-            px_x >= px_hori || px_y >= px_vert) {
+            px_x >= px_hori ||
+            px_y >= px_vert) {
             return false;
         }
         return true;
@@ -161,4 +162,4 @@ namespace subset {
 
     }
 }
-#endif // DICSMOOTH_H
+#endif // DICSUBSET_H

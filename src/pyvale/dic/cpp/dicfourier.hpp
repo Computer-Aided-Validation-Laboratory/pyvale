@@ -230,7 +230,7 @@ namespace fourier {
         }
 
 
-        void find_peak(double &peak_x, double &peak_y, double &max_val, const bool subpx, const std::string &method) {
+        void get_peak(double &peak_x, double &peak_y, double &max_val, const bool subpx, const std::string &method) {
             max_val = -std::numeric_limits<double>::infinity();
             int x0 = 0, y0 = 0;
 
@@ -277,13 +277,13 @@ namespace fourier {
 
             // Step 4: Solve least squares
             Eigen::VectorXd coeffs = A.colPivHouseholderQr().solve(b);
-            double a = coeffs(0), b_ = coeffs(1), c = coeffs(2);
+            double a = coeffs(0), b = coeffs(1), c = coeffs(2);
             double d = coeffs(3), e = coeffs(4);
 
             // Step 5: Find stationary point (gradient = 0)
             Eigen::Matrix2d H;
             H << 2 * a, c,
-                c,     2 * b_;
+                c,     2 * b;
             Eigen::Vector2d g(-d, -e);
 
             Eigen::Vector2d offset = H.ldlt().solve(g);
@@ -295,7 +295,7 @@ namespace fourier {
             //std::cout << peak_x << " " << peak_y << std::endl;
         }
 
-        void find_peak_offset(double &peak_x, double &peak_y, double &max_val,
+        void get_peak_offset(double &peak_x, double &peak_y, double &max_val,
                 const bool subpx, const std::string &method) {
 
             max_val = -std::numeric_limits<double>::infinity();
@@ -351,12 +351,12 @@ namespace fourier {
             }
 
             Eigen::VectorXd coeffs = A.colPivHouseholderQr().solve(b);
-            double a = coeffs(0), b_ = coeffs(1), c = coeffs(2);
+            double a = coeffs(0), b = coeffs(1), c = coeffs(2);
             double d = coeffs(3), e = coeffs(4);
 
             Eigen::Matrix2d H;
             H << 2 * a, c,
-                c,     2 * b_;
+                c,     2 * b;
             Eigen::Vector2d g(-d, -e);
 
             Eigen::Vector2d offset = H.ldlt().solve(g);
@@ -400,9 +400,17 @@ namespace fourier {
     void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
                                       const int ss_x, const int ss_y,
                                       const int ss_size_x, const int ss_size_y,
-                                      const int window_size,
+                                      const int window_size_x, const int window_size_y,
                                       const double *img_ref, const double *img_def,
                                       const Interpolator &interp_def);
+
+    void get_offcentered_fftcc_peak(double &peak_x, double &peak_y,
+                                   const int ss_x, const int ss_y,
+                                   const int ss_size_x, const int ss_size_y,
+                                   const int window_x, const int window_y,
+                                   const int window_size_x, const int window_size_y,
+                                   const double *img_ref, const double *img_def,
+                                   const Interpolator &interp_def);
 
     std::pair<double, double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,
@@ -410,11 +418,9 @@ namespace fourier {
                                        const std::vector<subset::Grid>& ss_grid);
 
     double debugcost(subset::Pixels &ss_ref, subset::Pixels &ss_def);
-
     void zero_norm_subsets(std::vector<double>& def_vals, std::vector<double>& ref_vals, int ss_size_x, int ss_size_y);
-
     void smooth_field(std::vector<double>& shift, const subset::Grid& ss_grid, double sigma, int radius);
-    void test(double &peak_x, double &peak_y, int ss_x, int ss_y, const int window_size, const double *img_ref, const double *img_def, const Interpolator &interp_def);
+    double hanning(const int row, const int col, const int size_x, const int size_y);
 }
 
 #endif // DICFOURIER_H

@@ -16,10 +16,11 @@
 // DIC Header files
 #include "./dicutil.hpp"
 #include "./dicmain.hpp"
+#include "./stereomain.hpp"
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(dic2dcpp, m) {
+PYBIND11_MODULE(diccpp, m) {
 
     py::add_ostream_redirect(m, "ostream_redirect");
 
@@ -47,6 +48,7 @@ PYBIND11_MODULE(dic2dcpp, m) {
         .def_readwrite("debug_level", &util::Config::debug_level);
     
     // Bind the engine function
-    m.def("dic_engine", &DICengine, "Run DIC analysis on input images with config");
+    m.def("engine_2d", &engine_2d, "Run 2D DIC analysis on input images with config");
+    m.def("engine_3d", &engine_3d, "Run Stereo DIC analysis on input images with config");
 }
 

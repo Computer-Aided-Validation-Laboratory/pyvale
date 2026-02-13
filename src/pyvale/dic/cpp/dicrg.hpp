@@ -12,6 +12,7 @@
 
 // Program Header files
 #include "./dicsubset.hpp"
+#include "./dicoptimizer.hpp"
 
 namespace rg {
 
@@ -45,6 +46,10 @@ namespace rg {
      * @return false 
      */
      bool is_valid_point(const int ss_x, const int ss_y, const subset::Grid &ss_grid);
+
+
+
+    void check_convergence_or_exit(const OptResult &res);
 
 }
 

@@ -17,9 +17,6 @@
 #include <omp.h>
 #include <csignal>
 
-// pybind headers
-#include <pybind11/pybind11.h>
-
 // common_cpp headers
 #include "../../common_cpp/defines.hpp"
 #include "../../common_cpp/progressbar.hpp"
@@ -43,7 +40,7 @@ namespace scanmethod {
                const subset::Grid &ss_grid,
                const util::Config &conf,
                const int img_num,
-               OptResultArrays &result_arrays){
+               ResultArrays &result_arrays){
 
         const int num_ss = ss_grid.num;
         const int ss_size_x = ss_grid.size_x;
@@ -65,10 +62,8 @@ namespace scanmethod {
             subset::Pixels ss_ref(ss_size_y, ss_size_y);
 
             // optimization parameters
-            optimizer::Parameters opt(conf.num_params, conf.max_iter,
-                                    conf.precision, conf.threshold,
-                                    conf.px_vert, conf.px_hori,
-                                    conf.corr_crit);
+            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold);
+
 
             #pragma omp for
             for (int ss = 0; ss < num_ss; ss++){
@@ -89,19 +84,23 @@ namespace scanmethod {
                 }
 
                 // perform optimization on subset from deformed image
-                OptResult res = optimizer::solve(ss_x, ss_y, ss_ref, ss_def, interp_def, opt);
+                OptResult res = opt.solve(ss_x, ss_y, ss_ref, ss_def, interp_def);
 
                 // append the results for the current subset to result vectors
                 result_arrays.append(res, results_num, ss);
 
                 // update progress bar
-                int progress = current_progress.fetch_add(1);
-                if (omp_get_thread_num()==0) pbar.update(progress);
+                if (g_debug_level>0){
+                    int progress = current_progress.fetch_add(1);
+                    if (omp_get_thread_num()==0) pbar.update(progress);
+                }
 
             }
         }
-        int progress = current_progress;
-        pbar.finish();
+        if (g_debug_level>0){
+            int progress = current_progress;
+            pbar.finish();
+        }
     }
 
     void multiwindow_reliability_guided(const double *img_ref,
@@ -110,7 +109,7 @@ namespace scanmethod {
                                        const std::vector<subset::Grid> &ss_grid,
                                        const util::Config &conf,
                                        const int img_num,
-                                       OptResultArrays &result_arrays){
+                                       ResultArrays &result_arrays){
 
         // assign some consts for readability
         const int px_hori = conf.px_hori;
@@ -159,10 +158,7 @@ namespace scanmethod {
             subset::Pixels ss_ref(ss_size_y, ss_size_y);
 
             // Optimization parameters
-            optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                      conf.precision, conf.threshold, 
-                                      px_vert, px_hori,
-                                      conf.corr_crit);
+            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold);
 
             std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
@@ -190,12 +186,15 @@ namespace scanmethod {
 
 
                 // if the first image. Take the optimization parameters from rigid fourier
-                optimizer::get_params_from_fft(opt.p, idx, fourier::shifts[last_size].x,  fourier::shifts[last_size].y);
+                opt.copy_params_from_fft(idx, fourier::shifts[last_size].x,  fourier::shifts[last_size].y);
 
                 // Extract reference subset and solve for starting seed point
                 subset::get_px_from_img(ss_ref, seed_x, seed_y, px_hori, px_vert, img_ref);
 
-                OptResult seed_res = optimizer::solve(seed_x, seed_y, ss_ref, ss_def, interp_def, opt);
+                OptResult seed_res = opt.solve(seed_x, seed_y, ss_ref, ss_def, interp_def);
+
+                rg::check_convergence_or_exit(seed_res);
+
 
                 // append the results for the current subset to result vectors
                 result_arrays.append(seed_res, results_num, idx);
@@ -214,10 +213,12 @@ namespace scanmethod {
                     subset::get_px_from_img(ss_ref, nx, ny, px_hori, px_vert, img_ref);
 
                     // get parameter values from fft output or from previous image
-                    optimizer::get_params_from_fft(opt.p, nidx, fourier::shifts[last_size].x,  fourier::shifts[last_size].y);
+                    opt.copy_params_from_fft(nidx, fourier::shifts[last_size].x,  fourier::shifts[last_size].y);
 
                     // perform optimization for seed point neighbours
-                    OptResult nres = optimizer::solve(nx, ny, ss_ref, ss_def, interp_def, opt);
+                    OptResult nres = opt.solve(nx, ny, ss_ref, ss_def, interp_def);
+
+                    rg::check_convergence_or_exit(nres);
 
                     // append the results for the current subset to result vectors
                     result_arrays.append(nres, results_num, nidx);
@@ -316,15 +317,14 @@ namespace scanmethod {
                         subset::get_px_from_img(ss_ref, nx, ny, px_hori, px_vert, img_ref);
 
                         if (result_arrays.cost[idx_results] < conf.threshold)
-                            optimizer::get_params_from_fft(opt.p, nidx, 
-                                                           fourier::shifts[last_size].x,
-                                                           fourier::shifts[last_size].y);
+                            opt.copy_params_from_fft(nidx,
+                                                     fourier::shifts[last_size].x,
+                                                     fourier::shifts[last_size].y);
                         else 
-                            optimizer::get_params_from_neigh(opt.p, result_arrays.p,
-                                                             idx_results_p);
+                            opt.copy_params_from_neigh(result_arrays.p, idx_results_p);
 
                         // optimize
-                        OptResult nres = optimizer::solve(nx, ny, ss_ref, ss_def, interp_def, opt);
+                        OptResult nres = opt.solve(nx, ny, ss_ref, ss_def, interp_def);
 
                         // append results
                         result_arrays.append(nres, results_num, nidx);
@@ -360,7 +360,7 @@ namespace scanmethod {
                                                    const util::Config &conf,
                                                    const int img_num_ref,
                                                    const int img_num_def,
-                                                   OptResultArrays &result_arrays){
+                                                   ResultArrays &result_arrays){
 
 
         // assign some consts for readability
@@ -411,16 +411,7 @@ namespace scanmethod {
             subset::Pixels ss_ref(ss_size_x, ss_size_y);
 
             // Optimization parameters
-            optimizer::Parameters opt(conf.num_params, conf.max_iter, 
-                                      conf.precision, conf.threshold, 
-                                      px_vert, px_hori,
-                                      conf.corr_crit);
-
-            std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
-
-            for (size_t t = 0; t < ss_grid.size(); ++t) {
-                fft_windows.push_back(std::make_unique<fourier::FFT>(ss_grid[t].size_x, ss_grid[t].size_y));
-            }
+            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold);
 
             // TODO: opt.seed_iter exposed to user.
             opt.max_iter = 200;
@@ -461,13 +452,9 @@ namespace scanmethod {
                                                       interp_def);
 
 
-                OptResult seed_res = optimizer::solve(seed_x_new, seed_y_new, ss_ref, ss_def, interp_def, opt);
+                OptResult seed_res = opt.solve(seed_x_new, seed_y_new, ss_ref, ss_def, interp_def);
 
-                if (!seed_res.converged || !seed_res.above_threshold){
-                    std::cout << "ERROR: unsuccesful convergence at seed location." << std::endl;
-                    std::cout << "Please select a different seed location." << std::endl;
-                    exit(EXIT_FAILURE);
-                }
+                rg::check_convergence_or_exit(seed_res);
 
                 // add deformation from reference image to new results
                 if (img_num_ref > 0){
@@ -506,7 +493,7 @@ namespace scanmethod {
                     }
 
                     // perform optimization for seed point neighbours
-                    OptResult nres = optimizer::solve(nx, ny, ss_ref, ss_def, interp_def, opt);
+                    OptResult nres = opt.solve(nx, ny, ss_ref, ss_def, interp_def);
 
                     // add deformation from reference image to new results
                     if (img_num_ref > 0){
@@ -514,11 +501,8 @@ namespace scanmethod {
                         nres.v += prev_img_v[nidx];
                     }
 
-                    if (!nres.converged || !nres.above_threshold){
-                        std::cout << "ERROR: unsuccesful convergence at neighbouring point to seed." << std::endl;
-                        std::cout << "Please select a different seed location." << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
+                    rg::check_convergence_or_exit(nres);
+
 
                     // append the results for the current subset to result vectors
                     result_arrays.append(nres, results_num, nidx);
@@ -530,8 +514,10 @@ namespace scanmethod {
                     local_q[0].push(rg::Point(nidx,nres.cost));
 
                     // update progress bar
-                    int progress = current_progress.fetch_add(1);
-                    pbar.update(progress+1);
+                    if (g_debug_level>0){
+                        int progress = current_progress.fetch_add(1);
+                        pbar.update(progress+1);
+                    }
                 }
             }
 
@@ -620,9 +606,10 @@ namespace scanmethod {
 
                         // temporarily fill p with results from prev img to get
                         int idx_results_p_ref = result_arrays.index_parameters(nidx, img_num_ref);
-                        optimizer::get_params_from_neigh(opt.p, result_arrays.p, idx_results_p_ref);
 
-                        subset::get_subpx_from_shape_params(ss_ref, nx, ny, opt.p, interp_ref);
+                        opt.copy_params_from_neigh(result_arrays.p, idx_results_p_ref);
+
+                        subset::get_subpx_from_shape_params(ss_ref, nx, ny, opt.p, interp_ref, conf.shape_func);
 
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
@@ -637,11 +624,11 @@ namespace scanmethod {
                                                                   interp_def);
                         }
                         else {
-                            optimizer::get_params_from_neigh(opt.p, result_arrays.p, idx_results_def_p);
+                            opt.copy_params_from_neigh(result_arrays.p, idx_results_def_p);
                         }
 
                         // optimize
-                        OptResult nres = optimizer::solve(nx, ny, ss_ref, ss_def, interp_def, opt);
+                        OptResult nres = opt.solve(nx, ny, ss_ref, ss_def, interp_def);
 
                         // add deformation from reference image to new results
                         if ((nres.converged) && (nres.above_threshold) && (img_num_ref > 0)){
@@ -660,8 +647,10 @@ namespace scanmethod {
                         temp_neigh.emplace_back(nidx, nres.cost);
 
                         // update progress bar
-                        int progress = current_progress.fetch_add(1);
-                        if (tid==0) pbar.update(progress+1);
+                        if (g_debug_level>0){
+                            int progress = current_progress.fetch_add(1);
+                            if (tid==0) pbar.update(progress+1);
+                        }
                     }
                 }
 
@@ -671,8 +660,11 @@ namespace scanmethod {
                 }
             }
         }
-        pbar.update(current_progress+1);
-        pbar.finish();
+        
+        if (g_debug_level>0){
+            pbar.update(current_progress+1);
+            pbar.finish();
+        }
     }
 
     void multiwindow(const double *img_ref,
@@ -681,7 +673,7 @@ namespace scanmethod {
                               const std::vector<subset::Grid> &ss_grid,
                               const util::Config &conf,
                               const int img_num,
-                              OptResultArrays &result_arrays){
+                              ResultArrays &result_arrays){
 
         // for the first image perform the FFT windowing. later images will be
         // seeded with previous images

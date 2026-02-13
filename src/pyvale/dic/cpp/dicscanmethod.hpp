@@ -37,7 +37,7 @@ void image(const double *img_ref,
            const subset::Grid &ss_grid,
            const util::Config &conf,
            const int img_num,
-           OptResultArrays &result_arrays);
+           ResultArrays &result_arrays);
 
 
 /**
@@ -59,7 +59,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                                    const std::vector<subset::Grid> &ss_grid,
                                    const util::Config &conf,
                                    const int img_num,
-                                   OptResultArrays &result_arrays);
+                                   ResultArrays &result_arrays);
 
 /**
  * @brief reliability guided scan method using a single grid FFTCC to estimate rigid displacements.
@@ -70,7 +70,7 @@ void singlewindow_reliability_guided(const double *img_ref,
                                    const std::vector<subset::Grid> &ss_grid,
                                    const util::Config &conf,
                                    const int img_num,
-                                   OptResultArrays &result_arrays);
+                                   ResultArrays &result_arrays);
 
 
 /**
@@ -84,7 +84,7 @@ void singlewindow_incremental_reliability_guided(const double *img_ref,
                                                const util::Config &conf,
                                                const int img_num_ref,
                                                const int img_num_def,
-                                               OptResultArrays &result_arrays);
+                                               ResultArrays &result_arrays);
 
 
 
@@ -108,7 +108,7 @@ void multiwindow(const double *img_ref,
                  const std::vector<subset::Grid> &ss_grid,
                  const util::Config &conf,
                  const int img_num,
-                 OptResultArrays &result_arrays);
+                 ResultArrays &result_arrays);
 
 
 

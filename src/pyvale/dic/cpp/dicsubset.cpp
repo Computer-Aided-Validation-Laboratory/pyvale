@@ -86,7 +86,18 @@ namespace subset {
     void get_subpx_from_shape_params(subset::Pixels &ss_def, 
                                      const double subpx_x, const double subpx_y,
                                      const std::vector<double>& p,
-                                     const Interpolator &interp_def){
+                                     const Interpolator &interp_def,
+                                     const std::string &shape_func){
+
+        // Get the right shape function
+        void (*get_pixel)(double&, double&, const double, const double, const std::vector<double>&);
+        if (shape_func == "AFFINE") get_pixel = &shapefunc::get_pixel_affine;
+        else if (shape_func == "RIGID") get_pixel = &shapefunc::get_pixel_rigid;
+        else if (shape_func == "QUAD") get_pixel = &shapefunc::get_pixel_quad;
+        else {
+            std::cerr << "Unknown shape function: " << shape_func << std::endl;
+            exit(EXIT_FAILURE);
+        }
 
         int count = 0;
 
@@ -104,8 +115,8 @@ namespace subset {
                 }
 
                 // get coordinate values based on shape function parameters
-                shapefunc::get_pixel(ss_def.x[count], ss_def.y[count], subpx_x+x, subpx_y+y, p);
-                
+                get_pixel(ss_def.x[count], ss_def.y[count], subpx_x+x, subpx_y+y, p);
+
                 // get pixel values from interpolator
                 ss_def.vals[count] = interp_def.eval(0, 0, ss_def.x[count], ss_def.y[count]);
 

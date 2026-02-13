@@ -16,23 +16,10 @@
 
 // DIC Header files
 #include "./dicsubset.hpp"
-
-struct OptResult {
-    std::vector<double> p;
-    double u = 0.0;
-    double v = 0.0;
-    double mag = 0.0;
-    double ftol = 0.0;
-    double xtol = 0.0;
-    int iter = 0;
-    double cost = 0.0;
-    uint8_t converged = false;
-    uint8_t above_threshold = false;
-    OptResult(size_t num_params) : p(num_params, 0.0) {}
-};
+#include "./dicoptimizer.hpp"
 
 
-class OptResultArrays {
+class ResultArrays {
 
     private:
         int num_ss;
@@ -51,7 +38,7 @@ class OptResultArrays {
         std::vector<uint8_t> conv;
         std::vector<uint8_t> above_thresh;
 
-        OptResultArrays(int num_def_img, int num_ss, int num_params, bool conf_at_end);
+        ResultArrays(int num_def_img, int num_ss, int num_params, bool conf_at_end);
         void append(OptResult &res, int img_num, int ss);
         int index(const int subset_idx, const int img_num);
         int index_parameters(const int subset_idx, const int img_num);

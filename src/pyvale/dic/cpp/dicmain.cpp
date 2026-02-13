@@ -43,7 +43,7 @@
 namespace py = pybind11;
 
 
-void DICengine(const py::array_t<double>& img_stack_arr,
+void engine_2d(const py::array_t<double>& img_stack_arr,
                const py::array_t<bool>&   img_roi_arr, 
                util::Config &conf,
                common_util::SaveConfig &saveconf){
@@ -92,17 +92,8 @@ void DICengine(const py::array_t<double>& img_stack_arr,
 
 
     // resize the results based on subset information
-    OptResultArrays result_arrays(conf.num_def_img, ss_grids.back().num,
+    ResultArrays result_arrays(conf.num_def_img, ss_grids.back().num,
                                conf.num_params, saveconf.at_end);
-
-
-    // set relevent shape function
-    shapefunc::set(conf.shape_func);
-
-    // set cost function to use in optimization
-    optimizer::set_cost_function(conf.corr_crit);
-
-
 
     // -----------------------------------------------------------------------
     // loop over deformed images and perform DIC

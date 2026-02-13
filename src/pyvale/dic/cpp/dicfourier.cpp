@@ -203,7 +203,7 @@ namespace fourier {
                     // get peaks from the cross correlation
                     double peak_x = 0, peak_y = 0, max_val = 0.0;
                     fft.correlate();
-                    fft.find_peak(peak_x, peak_y, max_val, subpx, "GAUSSIAN_2D");
+                    fft.get_peak(peak_x, peak_y, max_val, subpx, "GAUSSIAN_2D");
 
 
                     // update the shift arrays
@@ -462,9 +462,10 @@ namespace fourier {
         }
     }
 
-   void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
+    void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
                                      const int ss_x, const int ss_y,
-                                     const int ss_size, 
+                                     const int ss_size_x, 
+                                     const int ss_size_y, 
                                      const int window_size_x,
                                      const int window_size_y,
                                      const double *img_ref, const double *img_def,
@@ -474,7 +475,8 @@ namespace fourier {
         const int px_vert = interp_def.px_vert;
         const int window_half_x = window_size_x/2;
         const int window_half_y = window_size_y/2;
-        const int ss_half = ss_size/2;
+        const int ss_half_x = ss_size_x/2;
+        const int ss_half_y = ss_size_y/2;
 
         // class for FFT
         fourier::FFT fft(window_size_x, window_size_y);
@@ -485,18 +487,18 @@ namespace fourier {
 
         // Clamp the deformed window to image range
         int ss_x_shft, ss_y_shft;
-        ss_x_shft = std::clamp(ss_x - window_half_x + ss_half, 0, px_hori - window_size_x);
-        ss_y_shft = std::clamp(ss_y - window_half_y + ss_half, 0, px_vert - window_size_y);
+        ss_x_shft = std::clamp(ss_x - window_half_x + ss_half_x, 0, px_hori - window_size_x);
+        ss_y_shft = std::clamp(ss_y - window_half_y + ss_half_y, 0, px_vert - window_size_y);
 
         // Offsets to center the subset within the larger window
-        int offset_x = window_half_x - ss_half;
-        int offset_y = window_half_y - ss_half;
+        int offset_x = window_half_x - ss_half_x;
+        int offset_y = window_half_y - ss_half_y;
         offset_x = std::min(offset_x, ss_x);
         offset_y = std::min(offset_y, ss_y);
 
 
-        for (int row = 0; row < ss_size; ++row) {
-            for (int col = 0; col < ss_size; ++col) {
+        for (int row = 0; row < ss_size_y; ++row) {
+            for (int col = 0; col < ss_size_x; ++col) {
 
                 // Source coordinates in img_def
                 int px_y = ss_y + row;
@@ -510,7 +512,9 @@ namespace fourier {
                 int idx_window = target_y * window_size_x + target_x;
 
                 if (idx_window >= window_size_x*window_size_y){
-                    std::cout << "idx_window out of bounds: " << idx_window << " ss_x: " << ss_x << " ss_y: " << ss_y << " target_x: " << target_x << " target_y: " << target_y << std::endl;
+                    std::cout << "idx_window out of bounds: " << idx_window << " ";
+                    std::cout << "ss_x: " << ss_x << " ss_y: " << ss_y << " ";
+                    std::cout << "target_x: " << target_x << " target_y: " << target_y << std::endl;
                     continue;
                 }
 
@@ -519,13 +523,7 @@ namespace fourier {
                     std::cout << "Image access out of bounds!" << std::endl;
                     continue;
                 }
-
-                // On-the-fly 2D Hann window
-                const double hann_row = 0.5 * (1.0 - cos(2.0 * M_PI * row / (ss_size - 1)));
-                const double hann_col = 0.5 * (1.0 - cos(2.0 * M_PI * col / (ss_size - 1)));
-                const double window_val = hann_row * hann_col;
-
-                fft.ss_ref.vals[idx_window] = img_ref[idx_img] * window_val;
+                fft.ss_ref.vals[idx_window] = img_ref[idx_img];
             }
         }
 
@@ -533,14 +531,11 @@ namespace fourier {
         subset::get_subpx_from_img(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
 
 
-        // TODO: Make hanning window calc part of the initialization process.
         for (int row = 0; row < window_size_y; ++row) {
             for (int col = 0; col < window_size_x; ++col) {
-                // On-the-fly 2D Hann window
-                const double hann_row = 0.5 * (1.0 - cos(2.0 * M_PI * row / (window_size_y - 1)));
-                const double hann_col = 0.5 * (1.0 - cos(2.0 * M_PI * col / (window_size_x - 1)));
-                const double window_val = hann_row * hann_col;
-                fft.ss_def.vals[row*window_size_x+col]*=window_val;
+                double coeff = hanning(row,col,window_size_x, window_size_y);
+                fft.ss_ref.vals[row*window_size_x+col] *= coeff;
+                fft.ss_def.vals[row*window_size_x+col] *= coeff;
             }
         }
 
@@ -548,13 +543,11 @@ namespace fourier {
         // get peaks from the cross correlation
         double max_val = 0.0;
         fft.correlate_phase();
-        fft.find_peak(peak_x, peak_y, max_val, subpx, "gaussian_2d");
-
-
+        fft.get_peak(peak_x, peak_y, max_val, subpx, "gaussian_2d");
 
         // resetting values in fft_ref to 0.0.
-        for (int row = 0; row < ss_size; ++row) {
-            for (int col = 0; col < ss_size; ++col) {
+        for (int row = 0; row < ss_size_y; ++row) {
+            for (int col = 0; col < ss_size_x; ++col) {
 
                 // Target coordinates in ss_ref
                 int target_y = offset_y + row;
@@ -564,7 +557,9 @@ namespace fourier {
                 int idx_window = target_y * window_size_x + target_x;
 
                 if (idx_window >= window_size_x*window_size_y){
-                    std::cout << "idx_window out of bounds: " << idx_window << " ss_x: " << ss_x << " ss_y: " << ss_y << " target_x: " << target_x << " target_y: " << target_y << std::endl;
+                    std::cout << "idx_window out of bounds: " << idx_window << " ";
+                    std::cout << "ss_x: " << ss_x << " ss_y: " << ss_y << " ";
+                    std::cout << "target_x: " << target_x << " target_y: " << target_y << std::endl;
                     exit(0);
                 }
 
@@ -574,6 +569,130 @@ namespace fourier {
         }
 
     }
+
+   void get_offcentered_fftcc_peak(double &peak_x, double &peak_y,
+                                   const int ss_x, const int ss_y,
+                                   const int ss_size_x, const int ss_size_y,
+                                   const int window_x, const int window_y,
+                                   const int window_size_x, const int window_size_y,
+                                   const double *img_ref, const double *img_def,
+                                   const Interpolator &interp_def){
+
+        const int px_hori = interp_def.px_hori;
+        const int px_vert = interp_def.px_vert;
+        const int window_half_x = window_size_x/2;
+        const int window_half_y = window_size_y/2;
+        const int ss_half_x = ss_size_x/2;
+        const int ss_half_y = ss_size_y/2;
+
+        // class for FFT
+        fourier::FFT fft(window_size_x, window_size_y);
+
+        // TODO: Add a proper flag for this 
+        bool subpx = true;
+
+
+        // Clamp the deformed window to image range
+        int ss_x_shft, ss_y_shft;
+        ss_x_shft = std::clamp(ss_x - window_half_x + ss_half_x, 0, px_hori - window_size_x);
+        ss_y_shft = std::clamp(ss_y - window_half_y + ss_half_y, 0, px_vert - window_size_y);
+
+        // Offsets to center the subset within the larger window
+        int offset_x = window_half_x - ss_half_x;
+        int offset_y = window_half_y - ss_half_y;
+        offset_x = std::min(offset_x, ss_x);
+        offset_y = std::min(offset_y, ss_y);
+
+
+        for (int row = 0; row < ss_size_y; ++row) {
+            for (int col = 0; col < ss_size_x; ++col) {
+
+                // Source coordinates in img_def
+                int px_y = ss_y + row;
+                int px_x = ss_x + col;
+
+                // Target coordinates in ss_ref
+                int target_y = offset_y + row;
+                int target_x = offset_x + col;
+
+                int idx_img = px_y * px_hori + px_x;
+                int idx_window = target_y * window_size_x + target_x;
+
+                if (idx_window >= window_size_x*window_size_y){
+                    std::cout << "idx_window out of bounds: " << idx_window << " ";
+                    std::cout << "ss_x: " << ss_x << " ss_y: " << ss_y << " ";
+                    std::cout << "target_x: " << target_x << " target_y: " << target_y << std::endl;
+                    continue;
+                }
+
+                if (px_x >= px_hori || px_y >= px_vert) {
+                    std::cout << "Subset coords: (" << ss_x << ", " << ss_y << "). " <<  std::endl;
+                    std::cout << "Image access out of bounds!" << std::endl;
+                    continue;
+                }
+                double coeff = hanning(row,col,ss_size_x, ss_size_y);
+                fft.ss_ref.vals[idx_window] = coeff * img_ref[idx_img];
+
+            }
+        }
+
+        // populate fft.ss_def with interpolator values
+        subset::get_subpx_from_img(fft.ss_def, window_x, window_y, interp_def);
+
+
+
+        for (int row = 0; row < window_size_y; ++row) {
+            for (int col = 0; col < window_size_x; ++col) {
+                double coeff = hanning(row,col,window_size_x, window_size_y);
+                //fft.ss_def.vals[row*window_size_x+col] *= coeff;
+            }
+        }
+
+
+        // get peaks from the cross correlation
+        double max_val = 0.0;
+        fft.correlate();
+        fft.get_peak(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+        for (int row = 0; row < window_size_y; ++row) {
+            for (int col = 0; col < window_size_x; ++col) {
+                std::cout << row << " " << col << " ";
+                std::cout << fft.ss_ref.vals[row*window_size_x+col] << " ";
+                std::cout << fft.ss_def.vals[row*window_size_x+col] << " ";
+                std::cout << fft.cross_corr[row*window_size_x+col] << std::endl;
+            }
+        }
+
+        // resetting values in fft_ref to 0.0.
+        for (int row = 0; row < ss_size_y; ++row) {
+            for (int col = 0; col < ss_size_x; ++col) {
+
+                // Target coordinates in ss_ref
+                int target_y = offset_y + row;
+                int target_x = offset_x + col;
+
+                //int idx_img = px_y * px_hori + px_x;
+                int idx_window = target_y * window_size_x + target_x;
+
+                if (idx_window >= window_size_x*window_size_y){
+                    std::cout << "idx_window out of bounds: " << idx_window << " ";
+                    std::cout << "ss_x: " << ss_x << " ss_y: " << ss_y << " ";
+                    std::cout << "target_x: " << target_x << " target_y: " << target_y << std::endl;
+                    exit(0);
+                }
+
+                // IF DUBUGGING WITH THE BELOW COMMENT THIS
+                fft.ss_ref.vals[idx_window] = 0.0;
+            }
+        }
+
+    }
+
+    double hanning(const int row, const int col, const int size_x, const int size_y){
+        const double hann_row = 0.5 * (1.0 - cos(2.0 * M_PI * row / (size_y - 1)));
+        const double hann_col = 0.5 * (1.0 - cos(2.0 * M_PI * col / (size_x - 1)));
+        return hann_row * hann_col;
+    }
+    
 }
 
 
