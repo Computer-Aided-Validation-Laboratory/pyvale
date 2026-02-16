@@ -57,6 +57,21 @@ struct AABB {
         }
     }   
 
+    // Used for building AABBs for quadratic tetrahedra (10 nodes)
+    inline void build_for_tet10(const std::array<double, 30> &node_coords) {
+        // Iterate through each of the 10 nodes
+        for (int node = 0; node < 10; ++node) {
+            const int offset = node * 3;
+            
+            // Iterate through dimensions (x, y, z)
+            for (int i = 0; i < 3; ++i) {
+                const double nodal_coordinate = node_coords[offset + i];
+                corner_min[i] = std::min(corner_min[i], nodal_coordinate);
+                corner_max[i] = std::max(corner_max[i], nodal_coordinate);
+            }
+        }
+    }
+
      // Used for SAH splitting
     inline void expand_to_include_point(const std::array<double,3>& point){
         for (int i = 0; i < 3; ++i){

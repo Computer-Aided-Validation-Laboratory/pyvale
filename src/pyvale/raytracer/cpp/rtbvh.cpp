@@ -33,6 +33,27 @@ inline void compute_element_centroid_tri3(const std::array<double,9> &triangle_n
     }
 }
 
+inline void compute_element_centroid_tet10(const std::array<double, 30> &node_coords,
+    std::array<double, 3> &centroid) {
+    
+    centroid.fill(0.0);
+
+    // Sum coordinates for all 10 nodes
+    // node_coords is structured as [x0, y0, z0, x1, y1, z1, ..., x9, y9, z9]
+    for (int i = 0; i < 10; ++i) {
+        centroid[0] += node_coords[i * 3 + 0]; // X-component
+        centroid[1] += node_coords[i * 3 + 1]; // Y-component
+        centroid[2] += node_coords[i * 3 + 2]; // Z-component
+    }
+
+    // Divide by the number of nodes to get the average
+    centroid[0] /= 10.0;
+    centroid[1] /= 10.0;
+    centroid[2] /= 10.0;
+}
+
+
+
 inline void compute_mesh_centroid(AABB& mesh_aabb, std::array<double,3>& mesh_centroid) {
     // Compute centroid of the mesh AABB
     for (int i = 0; i < 3; ++i){
@@ -84,6 +105,56 @@ void process_element_data_tri3(int mesh_number_of_triangles,
         mesh_aabb.expand_to_include_AABB(triangle_aabb);
         } // ELEMENTS/TRIANGLES
 }
+
+
+
+
+void process_element_data_tet10(int mesh_number_of_tets,
+    const double* mesh_node_coords_ptr,
+    std::vector<std::array<double,3>>& mesh_element_centroids,
+    std::vector<AABB>& mesh_tet_aabbs,
+    AABB& mesh_aabb,
+    const int timestep){
+    // Go over all tetrahedrons in a mesh and find their AABB and centroids, build mesh AABB, and store the data in vectors
+    enum ElementNodeCount nodes_per_element = TET10;
+    const int coords_per_element = nodes_per_element * NODE_COORDINATES; // number of elements times 3 coordinates each
+    const int timestep_stride = timestep * mesh_number_of_tets * nodes_per_element * NODE_COORDINATES;
+
+    // Iterate over tetrahedrons comprising a mesh
+    for (int quad_tet_idx = 0; quad_tet_idx < mesh_number_of_tets; quad_tet_idx++) {
+        // Use pointers - means we treat the 2D array as a flat 1D array and do the indexing manually by calculating the offset.
+        // HAS to be contiguous in memory for this to work properly! c_contig flag in nanobind ensures that
+        int triangle_min_index = timestep_stride + quad_tet_idx * coords_per_element; // Find the minimum index corresponding to the given triangle at given timestep
+        //int triangle_idx_at_t = triangle_idx + timestep_stride;
+        //std::cout << "Triangle idx at t: " << triangle_idx_at_t << std::endl;
+        std::array<double,30> tets_node_coords;
+        //int triangle_min_index = triangle_idx_at_t * coords_per_element;
+        //std::cout << "Triangle " << triangle_idx << " nodes: ";
+        for (int i = 0; i < coords_per_element; ++i){
+            tets_node_coords[i] = mesh_node_coords_ptr[triangle_min_index + i];
+            //std::cout << triangle_node_coords[i] << " , ";
+        }
+        //std::cout<<std::endl;
+            
+        // Find centroid for this tetrahedron
+        std::array<double,3> tet_centroid;
+        compute_element_centroid_tet10(tets_node_coords, tet_centroid);
+            
+        mesh_element_centroids.push_back(tet_centroid);
+        //std::cout << "Centroid " << triangle_centroid[0] << " " << triangle_centroid[1] << " " << triangle_centroid[2] << std::endl;
+
+        // Create bounding volume for this tetrahedron
+        AABB tet_aabb;
+        tet_aabb.build_for_tet10(tets_node_coords);
+        mesh_tet_aabbs.push_back(tet_aabb);
+        //std::cout << "AABB max " << triangle_aabb.corner_max[0] << " " << triangle_aabb.corner_max[1] << " " << triangle_aabb.corner_max[2] << std::endl;
+        //std::cout << "AABB min " << triangle_aabb.corner_min[0] << " " << triangle_aabb.corner_min[1] << " " << triangle_aabb.corner_min[2] << std::endl;
+        // Include triangle AABB in mesh AABB to get the bounding box for the whole thing
+        mesh_aabb.expand_to_include_AABB(tet_aabb);
+        } // ELEMENTS/QUAD_TERAHEDRONS
+}
+
+
 
 AABB create_node_AABB(const std::vector<AABB>& mesh_element_abbs,
     const std::vector<int>& mesh_element_indices,
@@ -310,7 +381,10 @@ void build_BLAS(BLAS &mesh_bvh,
     const std::vector<AABB>& mesh_element_aabbs,
     std::vector<int>& mesh_element_indices,
     std::vector<int>& node_minimum_element_index,
-    size_t mesh_element_count){
+    size_t mesh_element_count,
+    enum ElementNodeCount nodes_per_element){
+
+    // std::cout << nodes_per_element << '\n';
 
     static constexpr int MAX_ELEMENTS_PER_LEAF = 4; // Max number of mesh faces per leaf node. According to research 4-16 range works best
 
@@ -322,6 +396,7 @@ void build_BLAS(BLAS &mesh_bvh,
   
     // Create root
     BLAS_Node root;
+    root.nodes_per_element = nodes_per_element;
     root.element_count = mesh_element_count;
     root.bounding_box = create_node_AABB(mesh_element_aabbs, mesh_element_indices, 0, mesh_element_count);
     //root.min_elem_idx = 0;
@@ -342,6 +417,7 @@ void build_BLAS(BLAS &mesh_bvh,
         int min_element_idx = task.min_element_idx;
         int element_count = task.element_count;
         BLAS_Node& Node = mesh_bvh.tree_nodes[node_idx];
+        Node.nodes_per_element = nodes_per_element;
 
          // Check if we should terminate and make a leaf node
         if (element_count <= MAX_ELEMENTS_PER_LEAF) {
@@ -498,6 +574,8 @@ void copy_data_to_BLAS_node(BLAS &mesh_bvh,
     // Iterate over all BVH nodes
     for (int i = 0; i < bvh_node_count; ++i){
         BLAS_Node& Node = mesh_bvh.tree_nodes[i];
+
+        // std::cout << Node.nodes_per_element << '\n';
         
         // Get indices of the mesh elements assigned to the node for the for loop 
         const int node_min_element_idx = node_minimum_element_index[i];
@@ -614,12 +692,24 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     for (size_t mesh_idx = 0; mesh_idx < scene_mesh_count; ++mesh_idx) {
         
         // Access data from Python buffer for this particular mesh (i.e., scene->object)
-        enum ElementNodeCount nodes_per_element = TRI3; // Hard-code for now since we only have triangless.
+        enum ElementNodeCount nodes_per_element; // Hard-code for now since we only have triangless.
 		nanobind::ndarray<const double, nanobind::c_contig> mesh_node_coords = scene_coords_expanded[mesh_idx];
         nanobind::ndarray<const double, nanobind::c_contig> mesh_face_colors = scene_face_colors[mesh_idx];
 
+        if (mesh_node_coords.shape(2) == 3) {
+          nodes_per_element = TRI3;
+        }
+        else if (mesh_node_coords.shape(2) == 10) {
+          nodes_per_element = TET10;
+        }
+
         // size_t mesh_element_count = mesh_face_colors.shape(0); // number of elements comprising the mesh
         size_t mesh_element_count = mesh_face_colors.shape(1); // number of elements comprising the mesh WITH TIMESTEPS
+
+        std::cout << "Mesh: " << mesh_idx << "; Timesteps: " << mesh_node_coords.shape(0) << 
+                                              "; Elements: " << mesh_node_coords.shape(1) << 
+                                     "; Nodes per element: " << mesh_node_coords.shape(2) <<
+                                  "; Coordinates per node: " << mesh_node_coords.shape(3) << '\n';
 
         double* mesh_node_coords_ptr = const_cast<double*>(mesh_node_coords.data());
         double* mesh_face_colors_ptr = const_cast<double*>(mesh_face_colors.data());
@@ -633,7 +723,12 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         AABB& mesh_aabb = scene_blas_aabbs[mesh_idx]; // AABB for the entire mesh
 
         // Iterate over ELEMENTS in this mesh (only triangles for now)
-        process_element_data_tri3(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+        if (nodes_per_element == TRI3) {
+          process_element_data_tri3(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+        }
+        else if (nodes_per_element == TET10) {
+          process_element_data_tet10(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+        }
      
         // Find centroid of the entire mesh
         scene_blas_centroids.emplace_back();
@@ -652,7 +747,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         BLAS& mesh_bvh = scene_blases[mesh_idx]; // Get a reference to the BVH of the current mesh to pass it to the builder functions
 
         // BLAS BVH builder functions
-        build_BLAS(mesh_bvh, mesh_element_centroids, mesh_element_aabbs, mesh_element_indices, node_minimum_element_index, mesh_element_count);
+        build_BLAS(mesh_bvh, mesh_element_centroids, mesh_element_aabbs, mesh_element_indices, node_minimum_element_index, mesh_element_count, nodes_per_element);
         copy_data_to_BLAS_node(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_face_colors_ptr, timestep);
         //std::cout << "BLAS successfully built." << std::endl;
         //std::cout << "BVH has " << mesh_bvh.tree_nodes.size() << " nodes." << std::endl;
