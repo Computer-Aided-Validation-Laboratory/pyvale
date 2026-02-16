@@ -11,6 +11,8 @@
 // ray tracer header files
 #include "rtrayintersection.h"
 
+constexpr int NODE_COORDINATES = 3; // number of coordinates per each mesh node. Used for some of flat indexing
+
 inline EiVector3d get_face_color(Eigen::Index minRowIndex,
     const std::vector<double>& face_color) {
     // Get values to colour the intersected face
@@ -132,7 +134,7 @@ IntersectionOutput intersect_bvh_triangles(const Ray& ray,
 
 struct Ray_old { Eigen::Vector3d o, d; Ray_old(Eigen::Vector3d o_, Eigen::Vector3d d_) : o(o_), d(d_) {} };
 
-void ray_convert (Ray_old &ray_old, const Ray &ray) {
+void ray_convert(Ray_old &ray_old, const Ray &ray) {
 
     for (int i = 0; i < 3; ++i) {
         ray_old.o(i) = ray.origin(i);
@@ -143,13 +145,22 @@ void ray_convert (Ray_old &ray_old, const Ray &ray) {
 struct Quadratic_tet {
     std::vector<Eigen::Vector3d> nodes;
 
-    // Correct numbering for NGSolve/Netgen
+    // Nodes for the 4 faces - each face has 6 nodes: 3 corners, 3 mid-edges
+    // Numbering for 1 tetrahedron example
     const int face_indices[4][6] = {
-      {0, 1, 2, 4, 7, 5}, // Face 0 (bottom) (v0, v1, v2)
-      {0, 1, 3, 4, 8, 6}, // Face 1 (v0, v1, v3)
-      {1, 2, 3, 7, 9, 8}, // Face 2 (v1, v2, v3)
-      {0, 2, 3, 5, 9, 6}  // Face 3 (v0, v2, v3)
+        {0, 2, 1, 6, 5, 4}, // Face 0 (bottom)
+        {0, 1, 3, 4, 8, 7}, // Face 1
+        {1, 2, 3, 5, 9, 8}, // Face 2
+        {2, 0, 3, 6, 7, 9}  // Face 3
     };
+
+      // Correct numbering for NGSolve/Netgen
+    //   const int face_indices[4][6] = {
+    //   {0, 1, 2, 4, 7, 5}, // Face 0 (bottom) (v0, v1, v2)
+    //   {0, 1, 3, 4, 8, 6}, // Face 1 (v0, v1, v3)
+    //   {1, 2, 3, 7, 9, 8}, // Face 2 (v1, v2, v3)
+    //   {0, 2, 3, 5, 9, 6}  // Face 3 (v0, v2, v3)
+    //   };
 
     Quadratic_tet(std::vector<Eigen::Vector3d> nodes_) :
         nodes(nodes_) {}
@@ -205,6 +216,8 @@ struct Quadratic_tet {
             std::vector<Eigen::Vector3d> f_nodes(6);
             for(int i=0; i<6; ++i) f_nodes[i] = nodes[face_indices[f][i]];
 
+            // std::cout << "HELLO4!!!" << '\n';
+
             // 1. Intersect ray with the plane defined by 3 corner nodes to get the initial guess for t
             // Use the code already used for Traingle structure.
             // Impose the defined imprecision levels
@@ -222,6 +235,14 @@ struct Quadratic_tet {
             if (v < 0 - eps_init_guess2 || u + v > 1 + eps_init_guess2) continue;
             double t_guess = edge2.dot(qvec) * invDet;
             if (t_guess < eps_t) continue;
+
+            // Eigen::Vector2d gh(u, v);
+            // min_t = t_guess;
+            // Eigen::Matrix<double, 3, 2> J = get_face_Jacobian(gh.x(), gh.y(), f_nodes);
+            // n_out = J.col(0).cross(J.col(1)).normalized();
+            // uv = gh;
+            // intersect = true;
+
 
             // 2. Start Newton-Raphson at t_guess, and gh from the right triangle's centroid 
             // or approximated (u, v) from the linear triangle. 
@@ -241,7 +262,6 @@ struct Quadratic_tet {
                             min_t = t;
                             Eigen::Matrix<double, 3, 2> J = get_face_Jacobian(gh.x(), gh.y(), f_nodes);
                             n_out = J.col(0).cross(J.col(1)).normalized();
-                            uv = gh;
                             intersect = true;
                         }
                     }
@@ -261,6 +281,8 @@ struct Quadratic_tet {
                 gh.x() += delta.y();
                 gh.y() += delta.z();
             }
+
+            
         }
 
         return intersect ? min_t : 0.0;
@@ -268,16 +290,45 @@ struct Quadratic_tet {
 };
 
 
+
+void load_quad_tets(const std::vector<double>& node_coords, 
+                    std::vector<Quadratic_tet> &quadratic_tets,
+                    const unsigned int bvh_node_quad_tet_count,
+                    enum ElementNodeCount nodes_per_element) {
+  
+   std::vector<Eigen::Vector3d> nodes;
+
+   const int coords_per_element = nodes_per_element * NODE_COORDINATES; // number of elements times 3 coordinates each
+
+   for (int quad_tet_idx = 0; quad_tet_idx < bvh_node_quad_tet_count; quad_tet_idx++) {
+
+        int index_min = quad_tet_idx * coords_per_element;
+
+        for (int i = 0; i < 10; i++) {
+
+            Eigen::Vector3d node(0, 0, 0);
+
+            node(0) = node_coords[index_min + i * 3 + 0]; // X-component
+            node(1) = node_coords[index_min + i * 3 + 1]; // Y-component
+            node(2) = node_coords[index_min + i * 3 + 2]; // Z-component
+
+            nodes.emplace_back(node);
+            // std::cerr << "Loaded " << i << "\n" << node << "\n";
+        }
+
+        quadratic_tets.emplace_back(nodes);
+
+        // std::cerr << "Loaded " << quadratic_tets.size() << " quadratic tetrahedrons" << "\n";
+    }
+}
+
+
+
 IntersectionOutput intersect_bvh_quad_tet(const Ray& ray,
     std::vector<Quadratic_tet> quadratic_tets,
     const unsigned int bvh_node_quad_tet_count) {
 
-    // Go through all the triangles and find an intersection of each triangle with a ray
-
-    // Ray data broadcasted to use in vectorised operations on matrices
-    // This is faster than doing it in a loop
-    EiVectorD3d ray_directions = ray.direction.replicate(bvh_node_quad_tet_count, 1);
-    EiArrayD3d ray_origins = ray.origin.replicate(bvh_node_quad_tet_count, 1).array();
+    // Go through all the tetrahedron and find an intersection of each triangle with a ray
 
     // Define default negative output if there is no intersection
     IntersectionOutput negative_output{
@@ -292,11 +343,11 @@ IntersectionOutput intersect_bvh_quad_tet(const Ray& ray,
     Eigen::Vector3d a;
     Eigen::Vector3d b;
     Ray_old ray_old(a, b);
-    ray_convert (ray_old, ray);
+    ray_convert(ray_old, ray);
 
 
     EiVectorD3d plane_normals(bvh_node_quad_tet_count, 3);
-    Eigen::Array<double, Eigen::Dynamic, 1> t_values;
+    Eigen::ArrayXXd t_values(bvh_node_quad_tet_count, 1);
     Eigen::ArrayXXd barycentric_u(bvh_node_quad_tet_count, 1);
     Eigen::ArrayXXd barycentric_v(bvh_node_quad_tet_count, 1);
 
@@ -309,12 +360,12 @@ IntersectionOutput intersect_bvh_quad_tet(const Ray& ray,
         for (int i = 0; i < 3; ++i) {
             plane_normals(quad_tet_idx, i) = n_tmp(i);
         }
+        
         t_values(quad_tet_idx) = t;
         barycentric_u(quad_tet_idx) = uv_tmp.x();
         barycentric_v(quad_tet_idx) = uv_tmp.y();
+        
     }
-
-    // std::cout << "HELLO!!!" << '\n';
 
     // Mask inappropriate values based on t_values
     Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> valid_mask;
@@ -390,8 +441,21 @@ void intersect_BLAS(const Ray& ray,
 
         if (Node.left_child_idx == -1) {
             // No children => Leaf node => Intersect triangles
-           
-            out_intersection = intersect_bvh_triangles(ray, Node.node_coords, Node.element_count);
+
+            
+            // std::cout << '\n' << Node.nodes_per_element << '\n';
+            // std::cout << "The size of node_coords is: " << Node.node_coords.size() << '\n' << '\n';
+
+            if (Node.nodes_per_element == TRI3) {
+                out_intersection = intersect_bvh_triangles(ray, Node.node_coords, Node.element_count);
+            }
+            else if (Node.nodes_per_element == TET10) {
+                std::vector<Quadratic_tet> quadratic_tets;
+                load_quad_tets(Node.node_coords, quadratic_tets, Node.element_count, Node.nodes_per_element);
+                // IntersectionOutput out_intersection_dum = intersect_bvh_quad_tet(ray, quadratic_tets, Node.element_count);
+                // out_intersection = intersect_bvh_triangles(ray, Node.node_coords, Node.element_count);
+                out_intersection = intersect_bvh_quad_tet(ray, quadratic_tets, Node.element_count);
+            }
 
 
             // TEST
@@ -399,7 +463,7 @@ void intersect_BLAS(const Ray& ray,
             std::vector<double> node_coords_dum; 
             unsigned int bvh_node_triangle_quad_count;
             std::vector<Quadratic_tet> quadratic_tets; 
-            IntersectionOutput out_intersection_dum = intersect_bvh_quad_tet(ray_dum, quadratic_tets, bvh_node_triangle_quad_count);
+            // IntersectionOutput out_intersection_dum = intersect_bvh_quad_tet(ray_dum, quadratic_tets, bvh_node_triangle_quad_count);
 
 
             Eigen::Index minRowIndex, minColIndex;
