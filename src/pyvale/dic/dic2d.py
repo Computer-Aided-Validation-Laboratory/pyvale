@@ -11,7 +11,7 @@ import numpy as np
 from pathlib import Path
 
 # pyvale
-import pyvale.dic.dic2dcpp as dic2dcpp
+import pyvale.dic.diccpp as diccpp
 import pyvale.dic.dicchecks as dicchecks
 import pyvale.common_py.util as common_py_util
 import pyvale.common_cpp.common_cpp as common_cpp
@@ -65,12 +65,13 @@ def calculate_2d(reference: np.ndarray | str | Path,
     subset_step : int, optional
         Step size between subset centers in pixels (default: 10).
     correlation_criteria : str, optional
-        Metric for matching subsets: "ZNSSD", "NSSD" or "SSD" (default: "ZNSSD").
+        Metric for matching subsets: ``"ZNSSD"``, ``"NSSD"`` or ``"SSD"`` (default: ``"ZNSSD"``).
     shape_function : str, optional
-        Deformation model: e.g., "AFFINE", "RIGID" (default: "AFFINE").
+        Deformation model: e.g., ``"AFFINE"``, ``"QUAD"``, ``"RIGID"`` (default: ``"AFFINE"``).
     interpolation_routine : str, optional
-        Interpolation method used on image intensity. "BICUBIC" is currently the
-        only supported option.
+        Interpolation method used on image intensity. Options are ``"BSPLINE"`` and
+        ``"HERMITE"``. Implementation details can be found in our DIC theory
+        documentation.  (default: `"BSPLINE"``).
     max_iterations : int, optional
         Maximum number of iterations allowed for subset optimization (default: 40).
     precision : float, optional
@@ -78,45 +79,41 @@ def calculate_2d(reference: np.ndarray | str | Path,
     threshold : float, optional
         Minimum correlation/cost coefficient value to be considered a matching subset (default: 0.9).
     num_threads : int, optional
-        Number of threads to use for parallel computation (default: None, uses all available).
+        Number of threads to use for parallel computation (default: ``None``, uses all available).
     bf_threshold : float, optional
         Correlation threshold used in rigid bruteforce check for a subset to be considered a
         good match(default: 0.6).
     max_displacement : int, optional
         Estimate for the Maximum displacement in any direction (in pixels) (default: 128).
     method : str, optional
-        Subset scanning method: "RG" for Reliability-Guided (best overall approach), 
-        "IMAGE_SCAN" for a standard scan across the image with no seeding 
-        (best performance with for subpixel displacements with high quality images), 
-        "FFT" for a multi-window FFT based approach (Good for large displacements)
+        Subset scanning method: ``"MULTIWINDOW_RG"`` for multi-window Reliability-Guided DIC (best overall approach),
+        ``"MULTIWINDOW"`` for a multi-window FFT based approach (Good for large rigid displacements)
     fft_mad : bool, optional
-        The option to smooth FFT windowing data by identifying and replacing outliers using 
-        a robust statistical method. For each subset, the function collects values from its 
-        neighboring subsets (within a 5x5 window, i.e., radius = 2), computes the median and 
-        Median Absolute Deviation (MAD), and determines whether the value at the current 
-        subset is an outlier. If it is, the value is replaced with the median of 
-        its neighbors. (default: False)
+        Median Absolute Deviation (MAD) outlier removal flag that 
+        will kill likely incorrect spikes in the rigid estimates 
+        for each FFTCC window size. (default: ``False``)
     fft_mad_scale : bool, optional
         An outlier is defined as a value whose deviation from the local median exceeds 
-        `fft_mad_scale` times the MAD. This value choses the scaling factor that determines 
-        the threshold for detecting outliers relative to the MAD.
+        ``fft_mad_scale`` times the MAD. This value choses the scaling factor that determines 
+        the threshold for detecting outliers relative to the MAD. A larger ``fft_mad_scale`` 
+        is more tolerant, while a smaller value kills larger deviations.
     output_at_end : bool, optional
-        If True, results will only be written at the end of processing (default: False).
+        If True, results will only be written at the end of processing (default: ``False``).
     output_basepath : str or pathlib.Path, optional
-        Directory path where output files will be written (default: "./").
+        Directory path where output files will be written (default: ``"./"``).
     output_binary : bool, optional
-        Whether to write output in binary format (default: False).
+        Whether to write output in binary format (default: ``False``).
     output_prefix : str, optional
-        Prefix for all output files (default: :code:`dic_results_`). results will be
+        Prefix for all output files (default: ``dic_results_``). results will be
         named with output_prefix + original filename. THe extension will be
-        changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
+        changed to ``".csv"`` or ``".dic2d"`` depending on whether outputting as a binary.
     output_delimiter : str, optional
-        Delimiter used in text output files (default: ",").
+        Delimiter used in text output files (default: ``","``).
     output_below_threshold : bool, optional
         If True, subset results with cost values that did not exceed the cost threshold
-        will still be present in output (default: False).
+        will still be present in output (default: ``False``).
     output_shape_params : bool, optional
-        If True, all shape parameters will be saved in the output files (default: False).
+        If True, all shape parameters will be saved in the output files (default: ``False``).
     debug_level:
 
     Returns
@@ -148,7 +145,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
 
     # Assign values to config struct for c++ land
-    config = dic2dcpp.Config()
+    config = diccpp.Config()
     config.ss_step = subset_step
     config.ss_size = subset_size
     config.max_iter = max_iterations
@@ -186,5 +183,5 @@ def calculate_2d(reference: np.ndarray | str | Path,
         common_cpp.set_num_threads(num_threads)
 
     # calling the c++ dic engine
-    with dic2dcpp.ostream_redirect(stdout=True, stderr=True):
-        dic2dcpp.dic_engine(image_stack, roi_c, config, saveconf)
+    with diccpp.ostream_redirect(stdout=True, stderr=True):
+        diccpp.engine_2d(image_stack, roi_c, config, saveconf)

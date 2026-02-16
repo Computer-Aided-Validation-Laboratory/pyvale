@@ -101,11 +101,11 @@ install(TARGETS common_cpp LIBRARY DESTINATION pyvale/common_cpp)
 # ----------------------------
 file(GLOB DIC_SRC_FILES src/pyvale/dic/cpp/*.cpp)
 
-pybind11_add_module(dic2dcpp MODULE ${DIC_SRC_FILES} ${COMMON_SRC_FILES})
-target_include_directories(dic2dcpp PRIVATE src/pyvale/common_cpp src/pyvale/dic)
-target_link_libraries(dic2dcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
-apply_compile_flags(dic2dcpp)
-install(TARGETS dic2dcpp LIBRARY DESTINATION pyvale/dic)
+pybind11_add_module(diccpp MODULE ${DIC_SRC_FILES} ${COMMON_SRC_FILES})
+target_include_directories(diccpp PRIVATE src/pyvale/common_cpp src/pyvale/dic)
+target_link_libraries(diccpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
+apply_compile_flags(diccpp)
+install(TARGETS diccpp LIBRARY DESTINATION pyvale/dic)
 
 # ----------------------------
 # DIC Calibration

@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <iostream>
 
 // common header files 
 #include "../../common_cpp/pocketfft_hdronly.h"
@@ -412,10 +413,81 @@ namespace fourier {
                                    const double *img_ref, const double *img_def,
                                    const Interpolator &interp_def);
 
+    void fill_fft_window_with_subset(std::vector<double> &vals,
+                                     const double *img_ref,
+                                     const int ss_x,
+                                     const int ss_y,
+                                     const int px_hori,
+                                     const int px_vert,
+                                     const int ss_size_x,
+                                     const int ss_size_y,
+                                     const int window_size_x,
+                                     const int window_size_y);
+
     std::pair<double, double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,
                                        const std::vector<Shift>& shifts,
                                        const std::vector<subset::Grid>& ss_grid);
+
+    /**
+    * Clamp a subset top-left coordinate so that the window fits inside the image.
+    *
+    * @param ss_coord      Subset top-left coordinate (x or y)
+    * @param window_half   Half-size of the FFT window in this direction
+    * @param ss_half       Half-size of the subset in this direction
+    * @param img_size      Image size (width or height)
+    * @param window_size   FFT window size in this direction
+    * @return              Clamped coordinate
+    */
+    inline int clamp_subset(int ss_coord, int window_half, int ss_half, int img_size, int window_size) {
+        return std::clamp(ss_coord - window_half + ss_half, 0, img_size - window_size);
+    }
+
+    /**
+    * Compute offsets to center the subset within the FFT window.
+    *
+    * @param window_half   Half-size of the FFT window in this direction
+    * @param ss_half       Half-size of the subset in this direction
+    * @param ss_coord      Subset top-left coordinate (x or y)
+    * @return              Offset for placing subset in window
+    */
+    inline int compute_subset_offset(int window_half, int ss_half, int ss_coord) {
+        return std::min(window_half - ss_half, ss_coord);
+    }
+
+    /**
+    * Reset a rectangular region inside the FFT reference window to zero.
+    *
+    * @param vals            window intensity values
+    * @param offset_x        x offset of subset in FFT window
+    * @param offset_y        y offset of subset in FFT window
+    * @param ss_size_x       width of subset
+    * @param ss_size_y       height of subset
+    * @param window_size_x   total FFT window width
+    * @param window_size_y   total FFT window height
+    */
+    inline void reset_fft_ref_subset(std::vector<double> &vals,
+                                     int offset_x, int offset_y,
+                                     int ss_size_x, int ss_size_y,
+                                     int window_size_x, int window_size_y){
+
+        for (int row = 0; row < ss_size_y; ++row) {
+            for (int col = 0; col < ss_size_x; ++col) {
+                int target_y = offset_y + row;
+                int target_x = offset_x + col;
+                int idx_window = target_y * window_size_x + target_x;
+
+                if (idx_window >= window_size_x * window_size_y) {
+                    std::cerr << "reset_fft_ref_subset: idx_window out of bounds: "
+                            << idx_window << " target_x: " << target_x
+                            << " target_y: " << target_y << std::endl;
+                    exit(1);
+                }
+
+                vals[idx_window] = 0.0;
+            }
+        }
+    }
 
     double debugcost(subset::Pixels &ss_ref, subset::Pixels &ss_def);
     void zero_norm_subsets(std::vector<double>& def_vals, std::vector<double>& ref_vals, int ss_size_x, int ss_size_y);

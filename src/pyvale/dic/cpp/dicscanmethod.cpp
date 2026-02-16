@@ -193,7 +193,7 @@ namespace scanmethod {
 
                 OptResult seed_res = opt.solve(seed_x, seed_y, ss_ref, ss_def, interp_def);
 
-                rg::check_convergence_or_exit(seed_res);
+                rg::check_convergence_or_exit(seed_x, seed_y, seed_res);
 
 
                 // append the results for the current subset to result vectors
@@ -218,7 +218,7 @@ namespace scanmethod {
                     // perform optimization for seed point neighbours
                     OptResult nres = opt.solve(nx, ny, ss_ref, ss_def, interp_def);
 
-                    rg::check_convergence_or_exit(nres);
+                    rg::check_convergence_or_exit(nx, ny, nres);
 
                     // append the results for the current subset to result vectors
                     result_arrays.append(nres, results_num, nidx);
@@ -454,7 +454,7 @@ namespace scanmethod {
 
                 OptResult seed_res = opt.solve(seed_x_new, seed_y_new, ss_ref, ss_def, interp_def);
 
-                rg::check_convergence_or_exit(seed_res);
+                rg::check_convergence_or_exit(seed_x_new, seed_y_new, seed_res);
 
                 // add deformation from reference image to new results
                 if (img_num_ref > 0){
@@ -501,7 +501,7 @@ namespace scanmethod {
                         nres.v += prev_img_v[nidx];
                     }
 
-                    rg::check_convergence_or_exit(nres);
+                    rg::check_convergence_or_exit(nx, ny, nres);
 
 
                     // append the results for the current subset to result vectors

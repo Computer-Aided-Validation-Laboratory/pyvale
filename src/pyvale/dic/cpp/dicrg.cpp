@@ -43,12 +43,13 @@ namespace rg {
     }
 
 
-    void check_convergence_or_exit(const OptResult &res) {
+    void check_convergence_or_exit(const int x, const int y, const OptResult &res) {
         if (!res.converged || !res.above_threshold) {
             std::cout << "ERROR: unsuccessful convergence at seed or direct neighbour." << std::endl;
             std::cout << "Please select a different seed location." << std::endl;
             std::cout << std::endl;
-            std::cout << "displacement: " << res.u << " " << res.v << std::endl;
+            std::cout << "subset location: " << x << ", " << y << std::endl;
+            std::cout << "displacement: " << res.u << ", " << res.v << std::endl;
             std::cout << "cost: " << res.cost << std::endl;
             std::cout << "xtol: " << res.xtol << std::endl;
             std::cout << "ftol: " << res.ftol << std::endl;

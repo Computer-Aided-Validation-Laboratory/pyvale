@@ -44,6 +44,39 @@ namespace subset {
         }
     }
 
+
+    double zncc(const subset::Pixels &ss_ref, const subset::Pixels &ss_def) {
+        double mean_ref = 0.0;
+        double mean_def = 0.0;
+
+        for (int i = 0; i < ss_ref.num_px; ++i) {
+            mean_ref += ss_ref.vals[i];
+            mean_def += ss_def.vals[i];
+        }
+
+        mean_ref /= ss_ref.num_px;
+        mean_def /= ss_def.num_px;
+
+        double sum_squared_ref = 0.0;
+        double sum_squared_def = 0.0;
+
+        for (int i = 0; i < ss_ref.num_px; ++i) {
+            sum_squared_ref += (ss_ref.vals[i] - mean_ref) * (ss_ref.vals[i] - mean_ref);
+            sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
+        }
+
+        const double inv_sum_squared = 1.0 / std::sqrt(sum_squared_ref * sum_squared_def);
+
+        double zncc = 0.0;
+        for (int i = 0; i < ss_ref.num_px; ++i) {
+            const double def_norm = (ss_def.vals[i] - mean_def);
+            const double ref_norm = (ss_ref.vals[i] - mean_ref);
+            zncc += ref_norm * def_norm;
+        }
+
+        return zncc * inv_sum_squared;
+    }
+
     void get_subpx_from_img(subset::Pixels &ss_def, 
                           const double subpx_x, const double subpx_y, 
                           const Interpolator &interp_def){

@@ -10,6 +10,7 @@
 // STD library Header files
 #include <vector>
 #include <string>
+#include <cmath>
 
 // Program Header files
 #include "./dicinterp.hpp"
@@ -152,7 +153,6 @@ namespace subset {
      * @param size_x[in]  subset size in x 
      * @param size_y[in]  subset size in y
      */
-
     static inline void get_centre(double& cx, double& cy,
                                   const double ss_x, const double ss_y,
                                   const int size_x, const int size_y) {
@@ -161,5 +161,27 @@ namespace subset {
         cy = ss_y + static_cast<double>(size_y) * 0.5 - 0.5;
 
     }
+    
+    /**
+     * @brief Returns corner subset coordinates for given subset centre values
+     * and dimensions
+     *
+     * @param cx[out]    x pixel coordinate of subset centre
+     * @param cy[out]    y pixel coordinate of subset centre
+     * @param ss_x[in]  x pixel coordinate of subset corner
+     * @param ss_y[in]  y pixel coordinate of subset corner
+     * @param size_x[in]  subset size in x 
+     * @param size_y[in]  subset size in y
+     */
+    static inline void get_corner(double& corner_x, double& corner_y,
+                                const double cx, const double cy,
+                                const int size_x, const int size_y) {
+        corner_x = cx - static_cast<double>(size_x) * 0.5 + 0.5;
+        corner_y = cy - static_cast<double>(size_y) * 0.5 + 0.5;
+    }
+
+
+    // Compute ZNCC between two subsets
+    double zncc(const subset::Pixels& ss_ref, const subset::Pixels& ss_def);
 }
 #endif // DICSUBSET_H

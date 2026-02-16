@@ -49,7 +49,7 @@ namespace rg {
 
 
 
-    void check_convergence_or_exit(const OptResult &res);
+    void check_convergence_or_exit(const int x, const int y, const OptResult &res);
 
 }
 
