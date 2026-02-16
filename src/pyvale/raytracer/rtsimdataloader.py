@@ -89,6 +89,93 @@ def add_mesh_to_scene(scene: Scene, pypath: Path, field_components=("disp_x","di
     scene.add_mesh(node_coords_expanded_over_time, face_colors_over_time, timestep_count)
 
 
+# Functions to load quadratic elements from .vol mesh file with uniform colour.
+
+class Mesh:
+    def __init__(self):
+        # self.elements contains indices; self.points contains coordinates
+        self.points = np.empty((0, 3))
+        self.elements = np.empty((0, 10), dtype=int)
+        self.elem_coords = np.empty((0, 10, 3))
+
+    def loadVolFile(self, filename):
+        try:
+            with open(filename, 'r') as f:
+                lines = f.readlines()
+        except FileNotFoundError:
+            print(f"Cannot open .vol file: {filename}")
+            return
+
+        # Use an iterator to move through lines linearly
+        line_iter = iter(lines)
+        
+        for line in line_iter:
+            # Load points
+            if "points" in line:
+                num_points = int(next(line_iter).strip())
+                # Read next num_points lines and convert to float array
+                point_data = []
+                for _ in range(num_points):
+                    point_data.append(list(map(float, next(line_iter).split())))
+                self.points = np.array(point_data)
+            
+            # Load volume elements
+            elif "volumeelements" in line:
+                num_elements = int(next(line_iter).strip())
+                element_list = []
+                for _ in range(num_elements):
+                    parts = list(map(int, next(line_iter).split()))
+                    # parts[0]: mat, parts[1]: np (num nodes)
+                    # elements start from index 2 to the end
+                    # Convert 1-based indexing to 0-based
+                    nodes = [node - 1 for node in parts[2:]]
+                    element_list.append(nodes)
+                
+                self.elements = np.array(element_list)
+
+    def getElementCoords(self):
+        """
+        Map point coordinates to elements.
+        """
+        if self.points.size == 0 or self.elements.size == 0:
+            print("Mesh data not loaded.")
+            return
+
+        self.elem_coords = self.points[self.elements]
+
+
+def add_vol_mesh_to_scene(scene: Scene, pypath: Path, world_position: np.ndarray = None, scale: float = 100.0) -> None:
+    '''Adds a .vol mesh to the scene with uniform element colour.'''
+
+    mesh = Mesh()
+    mesh.loadVolFile(pypath)
+    mesh.getElementCoords()
+    print(mesh.elem_coords.shape)
+
+    print(f"Number of points: {mesh.points.shape[0]}.")
+    print(f"Number of elements: {mesh.elements.shape[0]}.")
+
+    element_count = mesh.elements.shape[0]
+    timestep_count = 1
+
+    node_coords_expanded_over_time = np.ndarray(shape=(timestep_count, element_count, 10, 3), dtype=np.float64) # Store nodal coordinates over all timesteps
+    face_colors_over_time = np.ndarray(shape=(timestep_count, element_count, 3), dtype=np.float64) # Store face colors over all timesteps
+
+    node_coords_expanded_over_time[0, :, :, :] = mesh.elem_coords
+    face_colors_over_time[:, :] = [1.0, 0.078, 0.57]
+
+
+    node_coords_expanded_over_time = node_coords_expanded_over_time * scale
+
+
+
+    scene.add_mesh(node_coords_expanded_over_time, face_colors_over_time, timestep_count)
+
+
+    # print(face_colors_over_time)
+
+
+
 
 
 
