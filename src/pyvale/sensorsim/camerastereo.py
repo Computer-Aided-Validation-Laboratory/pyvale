@@ -84,18 +84,40 @@ class CameraStereo:
         dist = rot_world_0.inv().apply(dist_rot)
         pos_world_1 = pos_world_0 - dist
 
+        k1_0 = calib_params["Cam0_Kappa 1"]
+        k2_0 = calib_params["Cam0_Kappa 2"]
+        k3_0 = calib_params["Cam0_Kappa 3"] 
+        p1_0 = calib_params["Cam0_P1"] 
+        p2_0 = calib_params["Cam0_P2"] 
+
+        k1_1 = calib_params["Cam1_Kappa 1"]
+        k2_1 = calib_params["Cam1_Kappa 2"]
+        k3_1 = calib_params["Cam1_Kappa 3"] 
+        p1_1 = calib_params["Cam1_P1"] 
+        p2_1 = calib_params["Cam1_P2"] 
+
         cam_data_0 = CameraData(pixels_num=pixels_num_cam0,
                                 pixels_size=np.array([pixels_size, pixels_size]),
                                 pos_world=pos_world_0,
                                 rot_world=rot_world_0,
                                 roi_cent_world=np.array([0, 0, 0]),
-                                focal_length=focal_length)
+                                focal_length=focal_length, 
+                                k1 = k1_0, 
+                                k2 = k2_0,
+                                k3 = k3_0,
+                                p1 = p1_0,
+                                p2 = p2_0)
         cam_data_1 = CameraData(pixels_num=pixels_num_cam1,
                                 pixels_size=np.array([pixels_size, pixels_size]),
                                 pos_world=pos_world_1,
                                 rot_world=rot_world_1,
                                 roi_cent_world=np.array([0, 0, 0]),
-                                focal_length=focal_length)
+                                focal_length=focal_length,
+                                k1 = k1_1, 
+                                k2 = k2_1,
+                                k3 = k3_1,
+                                p1 = p1_1,
+                                p2 = p2_1)
         camera_stereo = cls(cam_data_0, cam_data_1)
 
         return camera_stereo

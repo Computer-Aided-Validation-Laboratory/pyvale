@@ -47,8 +47,10 @@ class Scene():
 
         nodes.clear()
         bg_node = nodes.new(type='ShaderNodeBackground')
-        bg_node.inputs[0].default_value = [0.5, 0.5, 0.5, 1]
-        bg_node.inputs[1].default_value = 0
+        bg_node.inputs[0].default_value = [0, 0, 0, 1]
+        bg_node.inputs[1].default_value = 1
+        output_node = nodes.new(type='ShaderNodeOutputWorld')
+        node_tree.links.new(bg_node.outputs['Background'], output_node.inputs['Surface'])
 
     def add_camera(self, cam_data:CameraData) -> bpy.data.objects:
         """Method to add a camera object within Blender.
@@ -182,6 +184,7 @@ class Scene():
                                               sim_spat_dim)
         vertices = np.delete(nodes_centred, 3, axis=1)
         faces = render_mesh.connectivity
+        print(f"{vertices.shape=}")
 
         mesh = bpy.data.meshes.new("Part")
         mesh.from_pydata(vertices, [], faces)
