@@ -12,13 +12,19 @@ from scipy.spatial import cKDTree
 from pathlib import Path
 import glob
 from scipy.optimize import least_squares
+import matplotlib.pyplot as plt
 
-def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
-                  cam1: Path | list[Path] | np.ndarray | str,
-                  grid_height: int, grid_width: int,
-                  grid_spacing: float,
-                  visualisation: bool=False) -> tuple[list, list, list, np.ndarray]:
 
+def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
+                cam1: Path | list[Path] | np.ndarray | str,
+                grid_height: int, grid_width: int,
+                grid_spacing: float,
+                min_num_dots: int | None = None,
+                visualisationCV2: bool=False,
+                visualisationPLT: bool=False) -> tuple[list, list, list, np.ndarray, list]:
+
+    if min_num_dots is None:
+        min_num_dots = int(0.5 * grid_width * grid_height)
 
     files_cam0 = []
     files_cam1 = []
@@ -67,8 +73,8 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
 
     missing_idx = np.array([
         [2, grid_height-2-1],
-        [2, grid_height-7],
-        [9, grid_height-2-1],
+        [2, 2],
+        [grid_width-2-1, grid_height-2-1],
     ])
 
     missing_grid = (missing_idx * grid_spacing - 2*grid_spacing)
@@ -89,6 +95,7 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
     gridpoints = []
     dots_cam0 = []
     dots_cam1 = []
+    filenames = []
 
     num_file_pairs = len(files_cam1)
     img_dims = np.zeros((2))
@@ -148,10 +155,6 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         light_pts_cam0 = np.array([kp.pt for kp in keypoints_lght_cam0], dtype=np.float32)
         light_pts_cam1 = np.array([kp.pt for kp in keypoints_lght_cam1], dtype=np.float32)
 
-
-        # print(light_pts_cam0)
-        # print(light_pts_cam1)
-
         # Order points consistently based on right angle
         light_pts_cam0_ordered = order_triangle_points_by_angle(light_pts_cam0)
         light_pts_cam1_ordered = order_triangle_points_by_angle(light_pts_cam1)
@@ -159,7 +162,7 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         # get the translation matrix between the triangle that forms from the light blobs between the left and right images
         cam0togrid = cv2.getAffineTransform(light_pts_cam0_ordered, missing_grid[:,:])
         cam1togrid = cv2.getAffineTransform(light_pts_cam1_ordered, missing_grid[:,:])
-        
+
         pts_cam0_raw = np.array([kp.pt for kp in keypoints_dark_cam0], dtype=np.float32)
         pts_cam1_raw = np.array([kp.pt for kp in keypoints_dark_cam1], dtype=np.float32)
 
@@ -170,7 +173,7 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
 
         # get the nearest neighbours
         tree = cKDTree(finalgrid_2d)
-        dist, indices = tree.query(transformed_cam0, distance_upper_bound=1.5)
+        dist, indices = tree.query(transformed_cam0,distance_upper_bound=0.33*grid_spacing)
 
         valid_mask = dist != np.inf
         valid_indices = indices[valid_mask]
@@ -195,7 +198,7 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         #########################################################
         transformed_cam1 = (pts_cam1_raw @ cam1togrid[:, :2].T) + cam1togrid[:, 2]
         tree = cKDTree(matched_grid)
-        dist, indices = tree.query(transformed_cam1, distance_upper_bound=1.5)
+        dist, indices = tree.query(transformed_cam1,distance_upper_bound=0.33*grid_spacing)
 
         valid_mask = dist != np.inf
         valid_indices = indices[valid_mask]
@@ -222,11 +225,92 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
         matched_cam0 = np.append(matched_cam0, light_pts_cam0_ordered, axis=0)
         matched_cam1 = np.append(matched_cam1, light_pts_cam1_ordered, axis=0)
 
+        
+        ############ TESTING USING HOMOGRAPHY TO INCREASE MATCHES
+        H0, mask0 = cv2.findHomography(matched_cam0, matched_grid,method=cv2.RANSAC)
+        H1, mask1 = cv2.findHomography(matched_cam1, matched_grid,method=cv2.RANSAC)
+        
+        def warp_with_H(pts, H):
+            pts_h = cv2.convertPointsToHomogeneous(pts)[:, 0, :]  # Nx3
+            warped = (H @ pts_h.T).T
+            return warped[:, :2] / warped[:, [2]]
+        
+        test0 = warp_with_H(pts_cam0_raw, H0)  # Nx2
+        test1 = warp_with_H(pts_cam1_raw, H1)  # Nx2
+        
+        
+        
+        ######################################
+        # map cam0 to grid. keep mutual points
+        ######################################
+        
+        # get the nearest neighbours
+        tree = cKDTree(finalgrid_2d)
+        dist, indices = tree.query(test0,distance_upper_bound=0.1*grid_spacing)
+        
+        valid_mask = dist != np.inf
+        valid_indices = indices[valid_mask]
+        valid_dist = dist[valid_mask]
+        valid_pts = pts_cam0_raw[valid_mask]
+        valid_kps = np.array(keypoints_dark_cam0)[valid_mask]
+        
+        best_for_grid = {}
+        best_kps = {}
+        for pt, idx, d, kp in zip(valid_pts, valid_indices, valid_dist, valid_kps):
+            if idx not in best_for_grid or d < best_for_grid[idx][1]:
+                best_for_grid[idx] = (pt, d)
+                best_kps[idx] = kp
+        
+        
+        matched_cam0 = np.array([v[0] for v in best_for_grid.values()])
+        matched_kps0 = [best_kps[i] for i in best_for_grid.keys()]
+        matched_grid = finalgrid_2d[list(best_for_grid.keys())]
+        
+        #########################################################
+        # map cam1 to grid. keep mutual points from prev matching
+        #########################################################
+        tree = cKDTree(matched_grid)
+        dist, indices = tree.query(test1,distance_upper_bound=0.1*grid_spacing)
+        
+        valid_mask = dist != np.inf
+        valid_indices = indices[valid_mask]
+        valid_dist = dist[valid_mask]
+        valid_pts = pts_cam1_raw[valid_mask]
+        valid_kps = np.array(keypoints_dark_cam1)[valid_mask]
+        
+        best_for_grid = {}
+        best_kps = {}
+        for pt, idx, d, kp in zip(valid_pts, valid_indices, valid_dist, valid_kps):
+            if idx not in best_for_grid or d < best_for_grid[idx][1]:
+                best_for_grid[idx] = (pt, d)
+                best_kps[idx] = kp
+        
+        unique_indices = sorted(best_for_grid.keys())
+        matched_cam1 = np.array([best_for_grid[i][0] for i in unique_indices])
+        matched_kps1 = np.array([best_kps[i] for i in unique_indices])
+        matched_cam0 = matched_cam0[unique_indices]
+        matched_grid = matched_grid[unique_indices]
+        matched_kps0 = [matched_kps0[i] for i in unique_indices]
+        
+        # Add back in the light points
+        matched_grid = np.append(matched_grid, missing_grid, axis=0)
+        matched_cam0 = np.append(matched_cam0, light_pts_cam0_ordered, axis=0)
+        matched_cam1 = np.append(matched_cam1, light_pts_cam1_ordered, axis=0)
+
+
+
+        # if the number of matches is less than minimum requirement then skip
+        if (matched_grid.shape[0] < min_num_dots):
+            print(f"WARNING: Skipping pair due to insufficient number of matches."
+                  f"Number of mutual points: {matched_grid.shape[0]}. Minimum is {min_num_dots}")
+            continue
+
         # Append for calibration
         matched_grid = np.hstack((matched_grid, np.zeros((matched_grid.shape[0], 1), dtype=matched_grid.dtype)))
         gridpoints.append(matched_grid)
         dots_cam0.append(matched_cam0)
         dots_cam1.append(matched_cam1)
+        filenames.append([files_cam0[i], files_cam1[i]])
 
 
         print(f"Points found in cam0: {len(pts_cam0_raw)+len(light_pts_cam0)}, "
@@ -234,7 +318,105 @@ def dot_detection(cam0: Path | list[Path] | np.ndarray | str,
               f"mutual: {matched_grid.shape[0]}")
         print()
 
-    return dots_cam0, dots_cam1, gridpoints, img_dims
+        if visualisationCV2:
+    
+            img0_color = cv2.cvtColor(img0, cv2.COLOR_GRAY2BGR)
+            img1_color = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
+            overlay_l = img0_color.copy()
+            overlay_r = img1_color.copy()
+    
+            alpha = 0.5
+            r = 20 
+    
+            # Draw dark keypoints in red
+            for kp in keypoints_dark_cam0:
+                x, y = map(int, kp.pt)
+                cv2.circle(overlay_l, (x, y), r, (0, 0, 255), thickness=-1)
+    
+            # Draw dark cam1 keypoints in red
+            for kp in keypoints_dark_cam1:
+                x, y = map(int, kp.pt)
+                cv2.circle(overlay_r, (x, y), r, (0, 0, 255), thickness=-1)
+    
+            # Draw matched_cam0 keypoints in blue
+            for x, y in matched_cam0:
+                cv2.circle(overlay_l, (int(x), int(y)), r, (255, 0, 0), thickness=-1)
+    
+            # Draw matched_cam1 keypoints in blue
+            for x, y in matched_cam1:
+                cv2.circle(overlay_r, (int(x), int(y)), r, (255, 0, 0), thickness=-1)
+    
+            # Draw light cam0 keypoints in green
+            for kp in keypoints_lght_cam0:
+                x, y = map(int, kp.pt)
+                cv2.circle(overlay_l, (x, y), r, (0, 255, 0), thickness=-1)
+    
+            # Draw light cam1 keypoints in green
+            for kp in keypoints_lght_cam1:
+                x, y = map(int, kp.pt)
+                cv2.circle(overlay_r, (x, y), r, (0, 255, 0), thickness=-1)
+    
+            # Blend overlays with original color images
+            im_with_keypoints_l = cv2.addWeighted(overlay_l, alpha, img0_color, 1 - alpha, 0)
+            im_with_keypoints_r = cv2.addWeighted(overlay_r, alpha, img1_color, 1 - alpha, 0)
+    
+            # Combine side-by-side
+            side_by_side = np.hstack((im_with_keypoints_l, im_with_keypoints_r))
+    
+            # Show result
+            cv2.namedWindow("Stereo Keypoints", cv2.WINDOW_NORMAL)
+            cv2.imshow("Stereo Keypoints", side_by_side)
+            cv2.resizeWindow("Stereo Keypoints", 1200, 600)
+            cv2.waitKey(0)
+    
+        if visualisationPLT:
+    
+            pts_cam0 = matched_cam0.reshape(-1, 2)
+            pts_cam1 = matched_cam1.reshape(-1, 2)
+            fig, axes = plt.subplots(1, 4, figsize=(20, 6))
+    
+            # # Left image with detected circles
+            axes[0].imshow(img0, cmap='gray')
+            axes[0].plot(light_pts_cam0_ordered[0, 0], light_pts_cam0_ordered[0, 1], 'co', markersize=5)
+            axes[0].plot(light_pts_cam0_ordered[1, 0], light_pts_cam0_ordered[1, 1], 'yo', markersize=5)
+            axes[0].plot(light_pts_cam0_ordered[2, 0], light_pts_cam0_ordered[2, 1], 'mo', markersize=5)
+            axes[0].plot(pts_cam0[:, 0], pts_cam0[:, 1], 'ro', markersize=5)
+            # corners0 = corners0.reshape(-1,2)
+            # axes[0].plot(corners0[:, 0], corners0[:, 1], 'bo', markersize=2)
+            axes[0].set_title('Left Image with \n Detected Circles')
+    
+            # Right image with detected circles
+            axes[1].imshow(img1, cmap='gray')
+            axes[1].plot(light_pts_cam1_ordered[0, 0], light_pts_cam1_ordered[0, 1], 'co', markersize=5)
+            axes[1].plot(light_pts_cam1_ordered[1, 0], light_pts_cam1_ordered[1, 1], 'yo', markersize=5)
+            axes[1].plot(light_pts_cam1_ordered[2, 0], light_pts_cam1_ordered[2, 1], 'mo', markersize=5)
+            axes[1].plot(pts_cam1[:, 0], pts_cam1[:, 1], 'ro', markersize=5)
+            # corners1 = corners1.reshape(-1,2)
+            # axes[1].plot(corners1[:, 0], corners1[:, 1], 'bo', markersize=2)
+            axes[1].set_title('Right Image with \n Detected Circles')
+
+            axes[2].plot(transformed_cam0[:, 0], transformed_cam0[:, 1], 'go', markersize=5)
+            axes[2].plot(test0[:, 0], test0[:, 1], 'ro', markersize=5)
+            axes[2].plot(missing_grid[0, 0], missing_grid[0, 1], 'gv', markersize=20)
+            axes[2].plot(missing_grid[1, 0], missing_grid[1, 1], 'g^', markersize=20)
+            axes[2].plot(missing_grid[2, 0], missing_grid[2, 1], 'g<', markersize=20)
+            axes[2].plot(finalgrid_2d[:, 0], finalgrid_2d[:, 1], 'x', markersize=5)
+            axes[2].invert_yaxis()
+            axes[2].set_title('left circles mapped to \n to grid reference frame ')
+    
+            axes[3].plot(transformed_cam1[:, 0], transformed_cam1[:, 1], 'go', markersize=5)
+            axes[3].plot(test1[:, 0], test1[:, 1], 'ro', markersize=5)
+            axes[3].plot(finalgrid_2d[:, 0], finalgrid_2d[:, 1], 'x', markersize=5)
+            axes[3].invert_yaxis()
+            axes[3].set_title('right cricles mapped to \n to grid reference frame ')
+    
+            # Save the figure to a temporary PNG file
+            # filename = f"output/frame_{i:03d}.png"
+            # plt.savefig(filename)
+            # plt.close(fig)
+            plt.show()
+    
+    return dots_cam0, dots_cam1, gridpoints, img_dims, filenames
 
 
 def initial_reconstruction(dots_cam0, dots_cam1, grid, 

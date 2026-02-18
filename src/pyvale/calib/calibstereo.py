@@ -13,7 +13,7 @@ import cv2
 import pyvale.calib.calibcpp as calibcpp
 
 
-def stereo_calibration(dots_cam0, dots_cam1, grid, img_dims, method: str="bundle_adjustment") -> None:
+def calibrate_stereo(dots_cam0, dots_cam1, grid, img_dims, method: str="bundle_adjustment") -> None:
 
     # check dots are the same length
     if len(dots_cam0) != len(dots_cam1):
@@ -49,11 +49,13 @@ def cpp(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
     flat_grid = np.concatenate(grid, axis=0).astype(np.float32).ravel().tolist()
     lengths = np.array([arr.shape[0] for arr in dots_cam1],dtype=np.int32).tolist()
 
-    # initial parameter guess
+    # initial parameter guess with fixed distortion parameters
     flags = cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_ZERO_TANGENT_DIST
     _, K0, D0, rvecs0, tvecs0 = cv2.calibrateCamera(grid, dots_cam0, img_dims, None, None, flags=flags)
     _, K1, D1, rvecs1, tvecs1 = cv2.calibrateCamera(grid, dots_cam1, img_dims, None, None, flags=flags)
 
+    # stereo calibration with variable distortion parameters. Zhang method. 
+    # Fast but generally less accurate than bundle adjustment
     ret, K0_stereo, D0_stereo, K1_stereo, D1_stereo, R_stereo, T_stereo, E, F = cv2.stereoCalibrate(
         grid, dots_cam0, dots_cam1,
         K0, D0, K1, D1,
@@ -86,7 +88,7 @@ def cpp(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
 
     flat_initial_params = initial_params.ravel().tolist()
 
-    calibcpp.stereo_calibration(flat_initial_params,flat_dots_cam0, flat_dots_cam1, flat_grid, 
+    calibcpp.calibrate_stereo(flat_initial_params,flat_dots_cam0, flat_dots_cam1, flat_grid, 
                                 lengths, img_dims[0], img_dims[1], num_file_pairs)
 
 

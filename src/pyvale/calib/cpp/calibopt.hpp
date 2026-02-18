@@ -39,7 +39,7 @@ namespace optimization {
 
         // Constructor to initialize vectors and other parameters
         Parameters(int num_params_, int max_iter_, 
-                double precision_, int px_vert_, int px_hori_)
+                double precision_)
             :
             num_params(num_params_),
             lambda(0.01),
@@ -49,9 +49,7 @@ namespace optimization {
             dp(num_params, 0.0),
             pdp(num_params, 0.0),
             max_iter(max_iter_),
-            precision(precision_),
-            px_vert(px_vert_),
-            px_hori(px_hori_) {}
+            precision(precision_) {}
     };
 
 
