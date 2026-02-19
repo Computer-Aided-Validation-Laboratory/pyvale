@@ -5,11 +5,13 @@
 #===============================================================================
 
 from .dic2d import calculate_2d
+from .dic3d import calculate_3d
 from .dicdataimport import import_2d
 from .dicregionofinterest import RegionOfInterest
 from .dicresults import Results
 
 __all__ = ["calculate_2d",
+           "calculate_3d",
            "RegionOfInterest",
            "import_2d",
            "Results"]
