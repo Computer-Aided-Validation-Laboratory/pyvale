@@ -167,7 +167,7 @@ namespace optimization {
             const double y_distorted = y * radial + dy;
 
             // Project to image coordinates
-            projected[2*count+0] = K(0,0) * x_distorted + K(0,2);
+            projected[2*count+0] = K(0,0) * x_distorted + K(0,1) * y_distorted + K(0,2);
             projected[2*count+1] = K(1,1) * y_distorted + K(1,2);
             count++;
         }
@@ -189,25 +189,30 @@ namespace optimization {
 
         // Camera matrices
         Eigen::Matrix3d K0, K1;
-        K0 << p[0], 0,  p[2], 0,  p[1],  p[3], 0, 0, 1;
-        K1 << p[9], 0, p[11], 0, p[10], p[12], 0, 0, 1;
+        K0 << p[0],  p[2],  p[3],
+                 0,   p[1],  p[4],
+                 0,      0,     1;
+
+        K1 << p[10], p[12], p[13],
+                 0, p[11], p[14],
+                 0,     0,     1;
 
         // cam 0 distortion parameters
         Eigen::VectorXd D0(5);
-        for (int i = 0; i < 5; i++) D0(i) = p[4 + i];
+        for (int i = 0; i < 5; i++) D0(i) = p[5 + i];
 
         // cam1 distortion parameters
         Eigen::VectorXd D1(5);
-        for (int i = 0; i < 5; i++) D1(i) = p[13 + i];
+        for (int i = 0; i < 5; i++) D1(i) = p[15 + i];
 
 
         // Stereo translation and rotation
-        Eigen::Vector3d rvec_stereo(p[18], p[19], p[20]);
-        Eigen::Vector3d tvec_stereo(p[21], p[22], p[23]);
+        Eigen::Vector3d rvec_stereo(p[20], p[21], p[22]);
+        Eigen::Vector3d tvec_stereo(p[23], p[24], p[25]);
         Eigen::Matrix3d R_stereo = rodrigues_to_matrix(rvec_stereo);
 
-        //cam0 projections start at element 24
-        int start_cam0 = 24;
+        //cam0 projections start at element 26
+        int start_cam0 = 26;
 
         // init residuals
         Eigen::VectorXd residuals(2*dots_cam0.size());
@@ -321,7 +326,7 @@ namespace optimization {
 
         const int m = r.size();
         const int n = p.size();
-        const double h = 1e-8;
+        const double h = 1e-6;
 
         Eigen::MatrixXd jac(m,n);
 

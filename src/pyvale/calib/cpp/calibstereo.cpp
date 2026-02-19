@@ -92,30 +92,30 @@ void calibrate_stereo(const std::vector<double> &init_params,
 
     std::cout << "Cam0_Fx [pixels]; " << opt.p[0] << std::endl;
     std::cout << "Cam0_Fy [pixels]; " << opt.p[1] << std::endl;
-    std::cout << "Cam0_Fs [pixels]; " << 0.0 << std::endl;
-    std::cout << "Cam0_Kappa 1; " << opt.p[4] << std::endl;
-    std::cout << "Cam0_Kappa 2; " << opt.p[5] << std::endl;
-    std::cout << "Cam0_Kappa 3; " << opt.p[8] << std::endl;
-    std::cout << "Cam0_P1; " << opt.p[6] << std::endl;
-    std::cout << "Cam0_P2; " << opt.p[7] << std::endl;
-    std::cout << "Cam0_Cx [pixels]; " << opt.p[2] << std::endl;
-    std::cout << "Cam0_Cy [pixels]; " << opt.p[3] << std::endl;
-    std::cout << "Cam1_Fx [pixels]; " << opt.p[9] << std::endl;
-    std::cout << "Cam1_Fy [pixels]; " << opt.p[10] << std::endl;
-    std::cout << "Cam1_Fs [pixels]; " << 0.0 << std::endl;
-    std::cout << "Cam1_Kappa 1; " << opt.p[13] << std::endl;
-    std::cout << "Cam1_Kappa 2; " << opt.p[14] << std::endl;
-    std::cout << "Cam1_Kappa 3; " << opt.p[17] << std::endl;
-    std::cout << "Cam1_P1; " << opt.p[15] << std::endl;
-    std::cout << "Cam1_P2; " << opt.p[16] << std::endl;
-    std::cout << "Cam1_Cx [pixels]; " << opt.p[11] << std::endl;
-    std::cout << "Cam1_Cy [pixels]; " << opt.p[12] << std::endl;
-    std::cout << "Tx [mm]; " << 2.0*opt.p[21] << std::endl;
-    std::cout << "Ty [mm]; " << 2.0*opt.p[22] << std::endl;
-    std::cout << "Tz [mm]; " << 2.0*opt.p[23] << std::endl;
-    std::cout << "Theta [deg]; " << opt.p[18] * (180.0 / M_PI) << std::endl;
-    std::cout << "Phi [deg]; " << opt.p[19] * (180.0 / M_PI) << std::endl;
-    std::cout << "Psi [deg]; " << opt.p[20] * (180.0 / M_PI) << std::endl;
+    std::cout << "Cam0_Fs [pixels]; " << opt.p[2] << std::endl;
+    std::cout << "Cam0_Kappa 1; " << opt.p[5] << std::endl;
+    std::cout << "Cam0_Kappa 2; " << opt.p[6] << std::endl;
+    std::cout << "Cam0_Kappa 3; " << opt.p[9] << std::endl;
+    std::cout << "Cam0_P1; " << opt.p[7] << std::endl;
+    std::cout << "Cam0_P2; " << opt.p[8] << std::endl;
+    std::cout << "Cam0_Cx [pixels]; " << opt.p[3] << std::endl;
+    std::cout << "Cam0_Cy [pixels]; " << opt.p[4] << std::endl;
+    std::cout << "Cam1_Fx [pixels]; " << opt.p[10] << std::endl;
+    std::cout << "Cam1_Fy [pixels]; " << opt.p[11] << std::endl;
+    std::cout << "Cam1_Fs [pixels]; " << opt.p[12] << std::endl;
+    std::cout << "Cam1_Kappa 1; " << opt.p[15] << std::endl;
+    std::cout << "Cam1_Kappa 2; " << opt.p[16] << std::endl;
+    std::cout << "Cam1_Kappa 3; " << opt.p[19] << std::endl;
+    std::cout << "Cam1_P1; " << opt.p[17] << std::endl;
+    std::cout << "Cam1_P2; " << opt.p[18] << std::endl;
+    std::cout << "Cam1_Cx [pixels]; " << opt.p[13] << std::endl;
+    std::cout << "Cam1_Cy [pixels]; " << opt.p[14] << std::endl;
+    std::cout << "Tx [mm]; " << 2.0*opt.p[23] << std::endl;
+    std::cout << "Ty [mm]; " << 2.0*opt.p[24] << std::endl;
+    std::cout << "Tz [mm]; " << 2.0*opt.p[25] << std::endl;
+    std::cout << "Theta [deg]; " << opt.p[20] * (180.0 / M_PI) << std::endl;
+    std::cout << "Phi [deg]; " << opt.p[21] * (180.0 / M_PI) << std::endl;
+    std::cout << "Psi [deg]; " << opt.p[22] * (180.0 / M_PI) << std::endl;
 }
 
 

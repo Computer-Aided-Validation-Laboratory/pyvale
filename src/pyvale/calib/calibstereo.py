@@ -68,9 +68,8 @@ def cpp(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
     D0 = D0.flatten()
     D1 = D1.flatten()
 
-    fx0, fy0, cx0, cy0 = K0[0, 0], K0[1, 1], K0[0, 2], K0[1, 2]
-    fx1, fy1, cx1, cy1 = K1[0, 0], K1[1, 1], K1[0, 2], K1[1, 2]
-
+    fx0, fy0, fs0, cx0, cy0 = K0[0, 0], K0[1, 1], K0[0,1], K0[0, 2], K0[1, 2]
+    fx1, fy1, fs1, cx1, cy1 = K1[0, 0], K1[1, 1], K1[0,1], K1[0, 2], K1[1, 2]
 
     # Initial poses from intrinsics_cam0
     initial_poses_cam0 = []
@@ -80,8 +79,8 @@ def cpp(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
 
 
     # full list of initial parameters
-    initial_params = np.hstack([fx0, fy0, cx0, cy0, D0,
-                                fx1, fy1, cx1, cy1, D1,
+    initial_params = np.hstack([fx0, fy0, fs0, cx0, cy0, D0,
+                                fx1, fy1, fs1, cx1, cy1, D1,
                                 rvec_stereo.flatten(), T_stereo.flatten(),
                                 initial_poses_cam0])
 
