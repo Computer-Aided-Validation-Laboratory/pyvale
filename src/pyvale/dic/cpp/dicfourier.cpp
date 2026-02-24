@@ -433,6 +433,43 @@ namespace fourier {
             ref_vals[i] = (ref_vals[i] - mean_ref) / std_ref;
         }
     }
+
+    void zero_norm_subset(subset::Pixels &ss, 
+                           const int ss_size_x,
+                           const int ss_size_y) {
+
+        const int total_px = ss_size_x * ss_size_y;
+
+        // Compute means
+        double mean_ref = 0.0;
+        int idx;
+        for (int y = 0; y < ss_size_y; ++y) {
+            for (int x = 0; x < ss_size_x; ++x) {
+
+                idx = y * ss.size_x + x;
+                mean_ref += ss.vals[idx];
+            }
+        }
+        mean_ref /= total_px;
+
+        // Compute standard deviations
+        double std_ref = 0.0;
+        for (int y = 0; y < ss_size_y; ++y) {
+            for (int x = 0; x < ss_size_x; ++x) {
+                idx = y * ss.size_x + x;
+                std_ref += std::pow(ss.vals[idx] - mean_ref, 2);
+            }
+        }
+        std_ref = std::sqrt(std_ref / total_px);
+
+        // Normalize
+        for (int y = 0; y < ss_size_y; ++y) {
+            for (int x = 0; x < ss_size_x; ++x) {
+                idx = y * ss.size_x + x;
+                ss.vals[idx] = (ss.vals[idx] - mean_ref) / std_ref;
+            }
+        }
+    }
     
 
 
@@ -487,7 +524,7 @@ namespace fourier {
         bool subpx = true;
 
         // put the subset at the centre of the window
-        fill_fft_window_with_subset(fft.ss_ref.vals, img_ref,
+        fill_fft_window_with_subset_at_centre(fft.ss_ref, img_ref,
                                     ss_x, ss_y, px_hori, px_vert,
                                     ss_size_x, ss_size_y,
                                     window_size_x, window_size_y);
@@ -535,7 +572,7 @@ namespace fourier {
         bool subpx = true;
 
         // put the subset at the centre of the window
-        fill_fft_window_with_subset(fft.ss_ref.vals, img_ref,
+        fill_fft_window_with_subset_at_centre(fft.ss_ref, img_ref,
                                     ss_x, ss_y, px_hori, px_vert,
                                     ss_size_x, ss_size_y,
                                     window_size_x, window_size_y);
@@ -558,59 +595,91 @@ namespace fourier {
         fft.get_peak(peak_x, peak_y, max_val, subpx, "gaussian_2d");
     }
 
-    void fill_fft_window_with_subset(std::vector<double> &vals,
-                                     const double *img_ref,
-                                     const int ss_x,
-                                     const int ss_y,
-                                     const int px_hori,
-                                     const int px_vert,
-                                     const int ss_size_x,
-                                     const int ss_size_y,
-                                     const int window_size_x,
-                                     const int window_size_y){
+    void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
+                                               const double *img_ref,
+                                               const int ss_x,
+                                               const int ss_y,
+                                               const int px_hori,
+                                               const int px_vert,
+                                               const int ss_size_x,
+                                               const int ss_size_y,
+                                               const int window_size_x,
+                                               const int window_size_y){
+
+    const int window_half_x = window_size_x / 2;
+    const int window_half_y = window_size_y / 2;
+    const int ss_half_x = ss_size_x / 2;
+    const int ss_half_y = ss_size_y / 2;
+
+    // Iterate over subset pixels using offsets relative to the subset center
+    for (int row = -ss_half_y; row < ss_size_y - ss_half_y; ++row) {
+        for (int col = -ss_half_x; col < ss_size_x - ss_half_x; ++col) {
+
+            int px_x = ss_x + col;
+            int px_y = ss_y + row;
+
+            int target_x = window_half_x + col;
+            int target_y = window_half_y + row;
+
+            if (px_x < 0 || px_x >= px_hori || px_y < 0 || px_y >= px_vert) {
+                std::cout << "Image access out of bounds! px: ("
+                          << px_x << ", " << px_y << ")\n";
+                continue;
+            }
+            if (target_x < 0 || target_x >= window_size_x ||
+                target_y < 0 || target_y >= window_size_y) {
+                std::cout << "Window access out of bounds! target: ("
+                          << target_x << ", " << target_y << ")\n";
+                continue;
+            }
+
+            int idx_img    = px_y * px_hori + px_x;
+            int idx_window = target_y * window_size_x + target_x;
+
+            double coeff = fourier::hamming(row + ss_half_y, col + ss_half_x, ss_size_x, ss_size_y);
+
+            ss_ref.x[idx_window]    = px_x;
+            ss_ref.y[idx_window]    = px_y;
+            ss_ref.vals[idx_window] = coeff * img_ref[idx_img];
+        }
+    }
+}
+
+    void fill_fft_window_with_subset_at_corner(subset::Pixels &ss_ref,
+                                               const double *img_ref,
+                                               const int ss_x,
+                                               const int ss_y,
+                                               const int px_hori,
+                                               const int px_vert,
+                                               const int ss_size_x,
+                                               const int ss_size_y,
+                                               const int window_size_x,
+                                               const int window_size_y){
 
         const int window_half_x = window_size_x / 2;
         const int window_half_y = window_size_y / 2;
         const int ss_half_x = ss_size_x / 2;
         const int ss_half_y = ss_size_y / 2;
 
-        // Clamp the deformed window to image range
-        int ss_x_shft = clamp_subset(ss_x, window_half_x, ss_half_x, px_hori, window_size_x);
-        int ss_y_shft = clamp_subset(ss_y, window_half_y, ss_half_y, px_vert, window_size_y);
-
-        // Compute offsets to center the subset in the window
-        int offset_x = compute_subset_offset(window_half_x, ss_half_x, ss_x);
-        int offset_y = compute_subset_offset(window_half_y, ss_half_y, ss_y);
-
-
+        // Iterate over subset pixels using offsets relative to the subset center
         for (int row = 0; row < ss_size_y; ++row) {
             for (int col = 0; col < ss_size_x; ++col) {
 
-                // Source coordinates in img_def
-                int px_y = ss_y + row;
                 int px_x = ss_x + col;
+                int px_y = ss_y + row;
 
-                // Target coordinates in ss_ref
-                int target_y = offset_y + row;
-                int target_x = offset_x + col;
-
-                int idx_img = px_y * px_hori + px_x;
-                int idx_window = target_y * window_size_x + target_x;
-
-                if (idx_window >= window_size_x*window_size_y){
-                    std::cout << "idx_window out of bounds: " << idx_window << " ";
-                    std::cout << "ss_x: " << ss_x << " ss_y: " << ss_y << " ";
-                    std::cout << "target_x: " << target_x << " target_y: " << target_y << std::endl;
+                if (px_x < 0 || px_x >= px_hori || px_y < 0 || px_y >= px_vert) {
+                    std::cout << "Image access out of bounds! px: ("
+                            << px_x << ", " << px_y << ")\n";
                     continue;
                 }
 
-                if (px_x >= px_hori || px_y >= px_vert) {
-                    std::cout << "Subset coords: (" << ss_x << ", " << ss_y << "). " <<  std::endl;
-                    std::cout << "Image access out of bounds!" << std::endl;
-                    continue;
-                }
-                double coeff = fourier::hanning(row,col,ss_size_x, ss_size_y);
-                vals[idx_window] = coeff * img_ref[idx_img];
+                int idx_img    = px_y * px_hori + px_x;
+                int idx_window = row * window_size_x + col;
+                double coeff = 1.0; //fourier::hamming(row, col, ss_size_x, ss_size_y);
+                ss_ref.x[idx_window]    = px_x;
+                ss_ref.y[idx_window]    = px_y;
+                ss_ref.vals[idx_window] = coeff * img_ref[idx_img];
 
             }
         }
@@ -620,6 +689,13 @@ namespace fourier {
         const double hann_row = 0.5 * (1.0 - cos(2.0 * M_PI * row / (size_y - 1)));
         const double hann_col = 0.5 * (1.0 - cos(2.0 * M_PI * col / (size_x - 1)));
         return hann_row * hann_col;
+    }
+
+
+    double hamming(const int row, const int col, const int size_x, const int size_y){
+        const double ham_row = 0.54 - 0.46 * cos(2.0 * M_PI * row / (size_y - 1));
+        const double ham_col = 0.54 - 0.46 * cos(2.0 * M_PI * col / (size_x - 1));
+        return ham_row * ham_col;
     }
     
 }
