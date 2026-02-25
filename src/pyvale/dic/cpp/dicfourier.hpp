@@ -413,7 +413,7 @@ namespace fourier {
                                    const double *img_ref, const double *img_def,
                                    const Interpolator &interp_def);
 
-    void fill_fft_window_with_subset(std::vector<double> &vals,
+    void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
                                      const double *img_ref,
                                      const int ss_x,
                                      const int ss_y,
@@ -423,6 +423,18 @@ namespace fourier {
                                      const int ss_size_y,
                                      const int window_size_x,
                                      const int window_size_y);
+
+
+    void fill_fft_window_with_subset_at_corner(subset::Pixels &ss_ref,
+                                               const double *img_ref,
+                                               const int ss_x,
+                                               const int ss_y,
+                                               const int px_hori,
+                                               const int px_vert,
+                                               const int ss_size_x,
+                                               const int ss_size_y,
+                                               const int window_size_x,
+                                               const int window_size_y);
 
     std::pair<double, double> get_prev_shift(const int i, const int ss,
                                        const double ss_x, const double ss_y,
@@ -491,8 +503,40 @@ namespace fourier {
 
     double debugcost(subset::Pixels &ss_ref, subset::Pixels &ss_def);
     void zero_norm_subsets(std::vector<double>& def_vals, std::vector<double>& ref_vals, int ss_size_x, int ss_size_y);
+    void zero_norm_subset(subset::Pixels &ss, int ss_size_x, int ss_size_y);
     void smooth_field(std::vector<double>& shift, const subset::Grid& ss_grid, double sigma, int radius);
+
+    
+    /**
+    * @brief Computes the Hanning window value at a given location.
+    *
+    *   w(n) = 0.5 * (1 - cos(2πn / (N - 1)))
+    *
+    * @param row     Row index (0 <= row < size_y)
+    * @param col     Column index (0 <= col < size_x)
+    * @param size_x  Total number of columns (must be > 1)
+    * @param size_y  Total number of rows (must be > 1)
+    *
+    * @return The 2D Hann window coefficient at (row, col).
+    */
     double hanning(const int row, const int col, const int size_x, const int size_y);
+
+
+    /**
+    * @brief Computes the 2D Hamming window value at a given position.
+    *
+    *   w(n) = 0.54 - 0.46 * cos(2πn / (N - 1))
+    *
+    * @param row     Row index (0 <= row < size_y)
+    * @param col     Column index (0 <= col < size_x)
+    * @param size_x  Total number of columns (must be > 1)
+    * @param size_y  Total number of rows (must be > 1)
+    *
+    * @return The 2D Hamming window coefficient at (row, col).
+    */
+    double hamming(const int row, const int col, const int size_x, const int size_y);
+
+
 }
 
 #endif // DICFOURIER_H
