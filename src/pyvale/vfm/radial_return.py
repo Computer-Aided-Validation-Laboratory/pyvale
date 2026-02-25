@@ -11,10 +11,18 @@ class MaterialProperties:
     yield_strength: npt.NDArray[np.float64]
     hardening_modulus: npt.NDArray[np.float64]
 
+# TODO: more specific class name?
+@dataclass(slots=True)
+class Stress:
+    xx: npt.NDArray[np.float64]
+    xy: npt.NDArray[np.float64]
+    yy: npt.NDArray[np.float64]
+    von_mises: npt.NDArray[np.float64]
 
 def radial_return(
-    strain: npt.NDArray[np.float64], material_properties: MaterialProperties
-):
+    strain: npt.NDArray[np.float64],
+    material_properties: MaterialProperties
+) -> Stress:
     """Brief description
 
     Parameters
@@ -291,5 +299,6 @@ def radial_return(
 
         prev_plasticity_mask = plasticity_mask
 
-    return (sigma_xx, sigma_xy, sigma_yy, von_mises_stress)
+    return Stress(sigma_xx, sigma_xy, sigma_yy, von_mises_stress)
+
 
