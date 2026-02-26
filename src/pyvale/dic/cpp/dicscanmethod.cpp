@@ -62,7 +62,7 @@ namespace scanmethod {
             subset::Pixels ss_ref(ss_size_y, ss_size_y);
 
             // optimization parameters
-            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold);
+            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
 
 
             #pragma omp for
@@ -158,7 +158,7 @@ namespace scanmethod {
             subset::Pixels ss_ref(ss_size_y, ss_size_y);
 
             // Optimization parameters
-            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold);
+            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
 
             std::vector<std::unique_ptr<fourier::FFT>> fft_windows;
 
@@ -232,7 +232,7 @@ namespace scanmethod {
                     // update progress bar
                     if (g_debug_level>0){
                         int progress = current_progress.fetch_add(1);
-                        pbar.update(progress);
+                        if (omp_get_thread_num()==0) pbar.update(progress);
                     }
                 }
             }
@@ -411,7 +411,7 @@ namespace scanmethod {
             subset::Pixels ss_ref(ss_size_x, ss_size_y);
 
             // Optimization parameters
-            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold);
+            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
 
             // TODO: opt.seed_iter exposed to user.
             opt.max_iter = 200;
@@ -516,7 +516,7 @@ namespace scanmethod {
                     // update progress bar
                     if (g_debug_level>0){
                         int progress = current_progress.fetch_add(1);
-                        pbar.update(progress+1);
+                        if (omp_get_thread_num()==0) pbar.update(progress+1);
                     }
                 }
             }

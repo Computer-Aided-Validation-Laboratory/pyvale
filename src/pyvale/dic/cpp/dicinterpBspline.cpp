@@ -101,26 +101,33 @@ void Bspline::prefilter_y() {
 }
 
 
-double Bspline::eval(const int ss_x, const int ss_y, const double subpx_x, double subpx_y) const {
-    int ix = (int)floor(subpx_x);
-    int iy = (int)floor(subpx_y);
+double Bspline::eval(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const {
 
-    double tx = subpx_x - ix;
-    double ty = subpx_y - iy;
+    const int ix = (int)subpx_x;
+    const int iy = (int)subpx_y;
+    const double tx = subpx_x - ix;
+    const double ty = subpx_y - iy;
 
+    // Precompute basis vals
     double Bx[4], By[4];
     basis(tx, Bx);
     basis(ty, By);
 
+    int xx[4], yy[4];
+    for (int i = 0; i < 4; i++) {
+        xx[i] = std::clamp(ix + i - 1, 0, px_hori - 1);
+        yy[i] = std::clamp(iy + i - 1, 0, px_vert - 1) * px_hori;
+    }
+
     double f = 0.0;
     for (int j = 0; j < 4; j++) {
-        int yy = std::clamp(iy + j - 1, 0, px_vert-1);
-
-        for (int i = 0; i < 4; i++) {
-            int xx = std::clamp(ix + i - 1, 0, px_hori-1);
-            double c = coeff[yy*px_hori + xx];
-            f += c * Bx[i] * By[j];
-        }
+        const double* row = coeff.data() + yy[j];
+        const double byj = By[j];
+        double row_sum = row[xx[0]] * Bx[0]
+                       + row[xx[1]] * Bx[1]
+                       + row[xx[2]] * Bx[2]
+                       + row[xx[3]] * Bx[3];
+        f += row_sum * byj;
     }
     return f;
 }
@@ -172,12 +179,12 @@ double Bspline::eval_dy(const int ss_x, const int ss_y, const double subpx_x, do
     return dfdy;
 }
 
-InterpVals Bspline::eval_and_derivs(const int ss_x, const int ss_y, const double subpx_x, double subpx_y) const {
-    int ix = (int)floor(subpx_x);
-    int iy = (int)floor(subpx_y);
+InterpVals Bspline::eval_and_derivs(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const {
 
-    double tx = subpx_x - ix;
-    double ty = subpx_y - iy;
+    const int ix = (int)subpx_x;
+    const int iy = (int)subpx_y;
+    const double tx = subpx_x - ix;
+    const double ty = subpx_y - iy;
 
     double Bx[4], By[4], dBx[4], dBy[4];
     basis(tx, Bx);
@@ -185,17 +192,34 @@ InterpVals Bspline::eval_and_derivs(const int ss_x, const int ss_y, const double
     basis_d(tx, dBx);
     basis_d(ty, dBy);
 
-    InterpVals out {0,0,0};
-
-    for (int j = 0; j < 4; j++) {
-        int yy = std::clamp(iy + j - 1, 0, px_vert-1);
-        for (int i = 0; i < 4; i++) {
-            int xx = std::clamp(ix + i - 1, 0, px_hori-1);
-            double c = coeff[yy*px_hori + xx];
-            out.f += c * Bx[i] * By[j];
-            out.dfdx += c * dBx[i] * By[j];
-            out.dfdy += c * Bx[i] * dBy[j];
-        }
+    // Precompute clamped indices
+    int xx[4], yy[4];
+    for (int i = 0; i < 4; i++) {
+        xx[i] = std::clamp(ix + i - 1, 0, px_hori - 1);
+        yy[i] = std::clamp(iy + i - 1, 0, px_vert - 1) * px_hori;
     }
-    return out;
+
+    double f = 0.0, dfdx = 0.0, dfdy = 0.0;
+    for (int j = 0; j < 4; j++) {
+        const double* row = coeff.data() + yy[j];
+        const double byj  = By[j];
+        const double dbyj = dBy[j];
+
+        // sum weighted coeefs
+        double sum_f    = row[xx[0]] * Bx[0]
+                        + row[xx[1]] * Bx[1]
+                        + row[xx[2]] * Bx[2]
+                        + row[xx[3]] * Bx[3];
+
+        double sum_dfdx = row[xx[0]] * dBx[0]
+                        + row[xx[1]] * dBx[1]
+                        + row[xx[2]] * dBx[2]
+                        + row[xx[3]] * dBx[3];
+
+        f     += sum_f    * byj;
+        dfdx  += sum_dfdx * byj;
+        dfdy  += sum_f    * dbyj;
+    }
+
+    return {f, dfdx, dfdy};
 }

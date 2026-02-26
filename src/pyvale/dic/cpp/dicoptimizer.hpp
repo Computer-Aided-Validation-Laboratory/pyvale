@@ -40,7 +40,8 @@ class Optimizer {
                  const std::string& cost_func,
                  int max_iter,
                  double precision,
-                 double threshold);
+                 double threshold,
+                 int ss_size);
         
         // Main solve method
         OptResult solve(const double ss_x, 
@@ -73,6 +74,8 @@ class Optimizer {
         double costpdp;
         std::vector<double> g;          // Gradient
         std::vector<double> dfdp;       // Derivative of shape function wrt parameters
+        std::vector<double> dfdx;       // Derivative of shape function wrt parameters
+        std::vector<double> dfdy;       // Derivative of shape function wrt parameters
         std::vector<double> H;          // Hessian
         std::vector<double> invH;       // Inverse Hessian
         std::vector<double> augmented;  // For matrix inversion

@@ -29,7 +29,8 @@ Optimizer::Optimizer(const std::string& shape_func,
                         const std::string& cost_func,
                         int max_iter_,
                         double precision_,
-                        double threshold_)
+                        double threshold_,
+                        int num_px)
 
     : num_params(get_num_params(shape_func)),
         lambda(0.001),
@@ -37,6 +38,8 @@ Optimizer::Optimizer(const std::string& shape_func,
         costpdp(0.0),
         g(num_params, 0.0),
         dfdp(num_params, 0.0),
+        dfdx(num_px),
+        dfdy(num_px),
         H(num_params * num_params, 0.0),
         invH(num_params * num_params, 0.0),
         p(num_params, 0.0),
@@ -197,8 +200,10 @@ void Optimizer::ssd(const subset::Pixels &ss_ref,
             const int global_y){
 
     const int num_px = ss_def.num_px;
-    double dfdx;
-    double dfdy;
+    
+    // dont need std::vector for ssd
+    double dfdx_ssd;
+    double dfdy_ssd;
 
     // interpolation data struct
     InterpVals interp_vals;
@@ -222,11 +227,11 @@ void Optimizer::ssd(const subset::Pixels &ss_ref,
         ss_def.vals[i] = interp_vals.f;
         double def = ss_def.vals[i];
 
-        dfdx = interp_vals.dfdx;
-        dfdy = interp_vals.dfdy;
+        dfdx_ssd = interp_vals.dfdx;
+        dfdy_ssd = interp_vals.dfdy;
 
         // derivative of shape function with repsect to parameters
-        get_dfdp(dfdp, def_x, def_y, dfdx, dfdy);
+        get_dfdp(dfdp, def_x, def_y, dfdx_ssd, dfdy_ssd);
 
         // Upper triangle of Hessian Matrix
         for (int row = 0; row < num_params; row++) {
@@ -276,9 +281,6 @@ void Optimizer::nssd(const subset::Pixels &ss_ref,
     std::fill(H.begin(), H.end(), 0.0);
 
     const int num_px = ss_def.num_px;
-
-    std::vector<double> dfdx(num_px);
-    std::vector<double> dfdy(num_px);
 
     double sum_squared_def = 0.0;
     double sum_squared_ref = 0.0; 
@@ -376,9 +378,6 @@ void Optimizer::znssd(const subset::Pixels &ss_ref,
     std::fill(H.begin(), H.end(), 0.0);
 
     const int num_px = ss_def.num_px;
-
-    std::vector<double> dfdx(num_px);
-    std::vector<double> dfdy(num_px);
 
     double mean_ref = 0.0;
     double mean_def = 0.0;
