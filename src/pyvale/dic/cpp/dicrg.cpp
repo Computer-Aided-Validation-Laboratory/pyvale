@@ -11,14 +11,59 @@
 #include <iostream>
 #include <omp.h>
 
-
-
 // Program Header files
 #include "./dicsubset.hpp"
+#include "./dicfourier.hpp"
 #include "./dicoptimizer.hpp"
+#include "./dicresults.hpp"
+#include "./dicrg.hpp"
 
 
 namespace rg {
+
+    bool try_pop_own_q(std::priority_queue<rg::Point>& q,
+                            std::mutex& mtx,
+                            rg::Point& out){
+        std::lock_guard<std::mutex> lock(mtx);
+        if (q.empty()) return false;
+        out = q.top();
+        q.pop();
+        return true;
+    }
+
+    bool try_steal_from_other_q(std::vector<std::priority_queue<rg::Point>>& queues,
+                        std::vector<std::mutex>& mutexes,
+                        std::mutex& steal_mtx,
+                        rg::Point& out) {
+        std::lock_guard<std::mutex> steal_lock(steal_mtx);
+        for (size_t i = 0; i < queues.size(); ++i) {
+            std::lock_guard<std::mutex> lock(mutexes[i]);
+            if (!queues[i].empty()) {
+                out = queues[i].top();
+                queues[i].pop();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool pop_next_point(int tid,
+                            std::vector<std::priority_queue<rg::Point>>& local_q,
+                            std::vector<std::mutex>& queue_mutexes,
+                            std::mutex& steal_mutex,
+                            rg::Point& current) {
+
+        if (try_pop_own_q(local_q[tid], queue_mutexes[tid], current))
+            return true;
+
+        const int max_idle_iters = 100;
+        for (int idle = 0; idle < max_idle_iters; ++idle) {
+            if (try_steal_from_other_q(local_q, queue_mutexes, steal_mutex, current))
+                return true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return false;
+    }
 
     bool is_valid_point(const int ss_x, const int ss_y, const subset::Grid &ss_grid) {
 

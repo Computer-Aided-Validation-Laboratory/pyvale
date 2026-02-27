@@ -253,47 +253,11 @@ namespace scanmethod {
             rg::Point current(0, 0);
 
             while (!stop_request) {
-                bool got_point = false;
-                int idle_iters = 0;
 
-                // Try own queue safely
-                {
-                    std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
-                    if (!thread_q.empty()) {
-                        current = thread_q.top();
-                        thread_q.pop();
-                        got_point = true;
-                    }
-                }
-
-                // Steal if nothing in own queue
-                if (!got_point) {
-                    while (!got_point && idle_iters < max_idle_iters) {
-                        {
-                            std::lock_guard<std::mutex> lock(steal_mutex);
-                            for (size_t i = 0; i < local_q.size(); ++i) {
-                                std::lock_guard<std::mutex> lock(queue_mutexes[i]);
-                                if (!local_q[i].empty()) {
-                                    current = local_q[i].top();
-                                    local_q[i].pop();
-                                    got_point = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (!got_point) {
-                            ++idle_iters;
-                            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                        }
-                    }
-                }
-
-                if (!got_point) {
+                if (!pop_next_point(tid, local_q, queue_mutexes, steal_mutex, current))
                     break;
-                }
 
                 temp_neigh.clear();
-
 
                 // index of current point in results arrays
                 int idx_results = result_arrays.index(current.idx, results_num);
@@ -537,44 +501,9 @@ namespace scanmethod {
             rg::Point current(0, 0);
 
             while (!stop_request) {
-                bool got_point = false;
-                int idle_iters = 0;
 
-                // Try own queue safely
-                {
-                    std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
-                    if (!thread_q.empty()) {
-                        current = thread_q.top();
-                        thread_q.pop();
-                        got_point = true;
-                    }
-                }
-
-                // Steal if nothing in own queue
-                if (!got_point) {
-                    while (!got_point && idle_iters < max_idle_iters) {
-                        {
-                            std::lock_guard<std::mutex> lock(steal_mutex);
-                            for (size_t i = 0; i < local_q.size(); ++i) {
-                                std::lock_guard<std::mutex> lock(queue_mutexes[i]);
-                                if (!local_q[i].empty()) {
-                                    current = local_q[i].top();
-                                    local_q[i].pop();
-                                    got_point = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (!got_point) {
-                            ++idle_iters;
-                            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                        }
-                    }
-                }
-
-                if (!got_point) {
+                if (!pop_next_point(tid, local_q, queue_mutexes, steal_mutex, current))
                     break;
-                }
 
                 temp_neigh.clear();
 
