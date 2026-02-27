@@ -5,15 +5,16 @@
 # ================================================================================
 
 
-
 from logging import debug
 import numpy as np
 from pathlib import Path
 
 # pyvale
 import pyvale.dic.diccpp as diccpp
+import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic.dicchecks as dicchecks
 import pyvale.common_py.util as common_py_util
+from pyvale.calib.calib_dataclass import Calib
 import pyvale.common_cpp.common_cpp as common_cpp
 
 def calculate_2d(reference: np.ndarray | str | Path,
@@ -178,10 +179,41 @@ def calculate_2d(reference: np.ndarray | str | Path,
     saveconf.shape_params = output_shape_params
 
 
+    #TODO: sort this out so you can actually read in intrinsic parameters for
+    # single camera DIC
+
+    # Convert cam0
+    cpp_cam0 = calibcpp.CamIntrinsics()
+    cpp_cam0.fx = 0.0
+    cpp_cam0.fy = 0.0
+    cpp_cam0.fs = 0.0
+    cpp_cam0.cx = 0.0
+    cpp_cam0.cy = 0.0
+    cpp_cam0.distortion = [0.0,0.0,0.0,0.0,0.0]
+
+    # Convert cam1
+    cpp_cam1 = calibcpp.CamIntrinsics()
+    cpp_cam1.fx = 0.0
+    cpp_cam1.fy = 0.0
+    cpp_cam1.fs = 0.0
+    cpp_cam1.cx = 0.0
+    cpp_cam1.cy = 0.0
+    cpp_cam1.distortion = [0.0,0.0,0.0,0.0,0.0]
+
+    # Create C++ Calib object
+    calib = calibcpp.Calib()
+    calib.cam0 = cpp_cam0
+    calib.cam1 = cpp_cam1
+    calib.rotation = [0.0,0.0,0.0]
+    calib.translation = [0.0,0.0,0.0]
+
+
+    stereo = False
+
     #set the number of OMP threads
     if num_threads is not None:
         common_cpp.set_num_threads(num_threads)
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        diccpp.engine_2d(image_stack, roi_c, config, saveconf)
+        diccpp.engine(image_stack, roi_c, calib, config, saveconf, stereo)

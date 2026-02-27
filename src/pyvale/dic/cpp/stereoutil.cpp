@@ -1,0 +1,531 @@
+// ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
+
+#define _USE_MATH_DEFINES
+#include <cmath>
+
+
+
+// dic header files
+#include "./stereoutil.hpp"
+#include "./dicfourier.hpp"
+#include "./dicresults.hpp"
+
+// calib header files
+#include "../../calib/cpp/calibstereo.hpp"
+
+// Eigen Header files
+#include <Eigen/Core>
+
+namespace stereo {
+
+
+
+    Geometry compute_stereo_geometry(const Calib &calib) {
+        Geometry geom;
+        geom.K0  = camera_matrix(calib.cam0);
+        geom.K1  = camera_matrix(calib.cam1);
+        geom.t_x = skew_translation(calib.translation);
+        geom.R   = rotation_from_euler(calib.rotation);
+        geom.F   = fundamental(geom.K0, geom.K1, geom.t_x, geom.R);
+        return geom;
+    }
+
+    void pixel_to_world(const subset::Grid &ss_grid,
+                        const Calib &calib,
+                        ResultArrays &stereo_matches,
+                        const Eigen::Matrix3d K0,
+                        const Eigen::Matrix3d K1,
+                        const Eigen::Matrix3d R, 
+                        const int ss_size
+                        ){
+
+        Eigen::Vector3d t(calib.translation[0],calib.translation[1],calib.translation[2]);
+        Eigen::Matrix<double,3,4> P0, P1;
+
+        P0 << Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero();
+        P1 << R, t;   // just gonna assume t is in mm for now
+
+        for (int ss = 0; ss < ss_grid.num; ss++){
+
+            // corner coords left
+            int x = ss_grid.coords[ss*2];
+            int y = ss_grid.coords[ss*2+1];
+
+            if (!stereo_matches.above_thresh[ss]) continue;
+
+            // centre coords left
+            double cx_l,cy_l;
+            subset::get_centre(cx_l,cy_l,x,y,ss_size,ss_size);
+            
+            // centre coords right
+            double cx_r = cx_l+stereo_matches.u[ss];
+            double cy_r = cy_l+stereo_matches.v[ss];
+
+            // undistorted pixel value
+            double u_cx_l, u_cx_r, u_cy_l, u_cy_r;
+            stereo::undistortPoint(u_cx_l, u_cy_l, cx_l, cy_l, K0, calib.cam0.distortion);
+            stereo::undistortPoint(u_cx_r, u_cy_r, cx_r, cy_r, K1, calib.cam1.distortion);
+
+            // Convert to homogeneous pixel coords
+            Eigen::Vector3d xl(u_cx_l, u_cy_l, 1.0);
+            Eigen::Vector3d xr(u_cx_r, u_cy_r, 1.0);
+
+
+            // Build DLT system
+            Eigen::Matrix4d A;
+
+            A.row(0) = xl(0) * P0.row(2) - P0.row(0);
+            A.row(1) = xl(1) * P0.row(2) - P0.row(1);
+            A.row(2) = xr(0) * P1.row(2) - P1.row(0);
+            A.row(3) = xr(1) * P1.row(2) - P1.row(1);
+
+            // Solve with SVD
+            Eigen::JacobiSVD<Eigen::Matrix4d> svd(A, Eigen::ComputeFullV);
+            Eigen::Vector4d X = svd.matrixV().col(3);
+
+            // Convert from homogeneous
+            X /= X(3);
+
+            double X_mm = X(0);
+            double Y_mm = X(1);
+            double Z_mm = X(2);
+
+            std::cout << u_cx_l << " " << u_cy_l << " " << u_cx_r << " " << u_cy_r << " " << X_mm << " " << Y_mm << " " << Z_mm << " " << stereo_matches.cost[ss] << std::endl;
+
+        }
+    }
+
+    void search_epi_line(double &best_zncc, 
+                         double &best_disp_x, 
+                         double &best_disp_y,
+                         const double x,
+                         const double y,
+                         const subset::Pixels &ss_l,
+                         subset::Pixels &ss_r,
+                         const Eigen::Vector2d P,
+                         const Eigen::Vector2d dir,
+                         const Interpolator &interp_r,
+                         const int range){
+
+
+        
+
+        best_zncc = -1.0;
+        best_disp_x = 0.0;
+        best_disp_y = 0.0;
+
+        double corner_x, corner_y, zncc;
+        Eigen::Vector2d P_i;
+
+        for (int i = -range; i < range; i++){
+
+            P_i = P + static_cast<double>(i)*dir;
+
+            // Convert to CORNER position for get_subpx_from_img
+            subset::get_corner(corner_x,corner_y, P_i(0),P_i(1),ss_l.size_x,ss_l.size_y);
+
+            subset::get_subpx_from_img(ss_r, corner_x, corner_y, interp_r);
+
+            zncc = subset::zncc(ss_l, ss_r);
+
+            if (zncc > best_zncc) {
+                best_zncc = zncc;
+                best_disp_x = corner_x - x;
+                best_disp_y = corner_y - y;
+            }
+        }
+    }
+
+    void undistortPoint(double &x_undistorted, double  &y_undistorted,
+                        const double x_distorted, const double y_distorted,
+                        const Eigen::Matrix3d &K,
+                        const std::vector<double> &d) {
+
+        // helps readability
+        const double fx = K(0,0);
+        const double fy = K(1,1);
+        const double fs = K(0,1);
+        const double cx = K(0,2);
+        const double cy = K(1,2);
+        const double k1 = d[0];
+        const double k2 = d[1];
+        const double p1 = d[2];
+        const double p2 = d[3];
+        const double k3 = d[4];
+
+
+        // normed coords
+        double y_n = (y_distorted - cy) / fy;
+        double x_n = (x_distorted - cx - fs * y_n) / fx;
+
+        // initial guess
+        double x_u = x_n;
+        double y_u = y_n;
+
+        // simple NR
+        for (int i = 0; i < 20; i++) {
+            double r2 = x_u*x_u + y_u*y_u;
+            double r4 = r2*r2;
+            double r6 = r2*r4;
+
+            double radial = 1.0 + k1*r2 + k2*r4 + k3*r6;
+
+            double dx = 2.0*p1*x_u*y_u + p2*(r2 + 2.0*x_u*x_u);
+            double dy = p1*(r2 + 2.0*y_u*y_u) + 2.0*p2*x_u*y_u;
+
+            // distortion model
+            double x_distorted_predicted = x_u*radial + dx;
+            double y_distorted_predicted = y_u*radial + dy;
+
+            // Update
+            double error_x = x_n - x_distorted_predicted;
+            double error_y = y_n - y_distorted_predicted;
+
+            x_u += error_x;
+            y_u += error_y;
+
+            // Check convergence
+            if (std::abs(error_x) < 1e-10 && std::abs(error_y) < 1e-10) {
+                break;
+            }
+        }
+        
+        x_undistorted = x_u;
+        y_undistorted = y_u;
+    }
+
+
+    void compute_epi(Eigen::Vector2d &nearest_point, 
+                     Eigen::Vector2d &direction, 
+                     const double x,
+                     const double y,
+                     const Eigen::Matrix3d F){
+
+
+
+            // std::cout << "subset" << std::endl;
+            // std::cout << x << " " << y << std::endl;
+            Eigen::Vector3d epi_line = F * Eigen::Vector3d(x, y, 1.0);
+
+            // std::cout << "epi_line" << std::endl;
+            // std::cout << epi_line << std::endl;
+
+            double a = epi_line(0), b = epi_line(1), c = epi_line(2);
+            double denom = a*a + b*b;
+            double nrm = std::sqrt(denom);
+            double t = (a*x + b*y + c)/denom;
+
+            // std::cout << "t" << std::endl;
+            // std::cout << t << std::endl;
+
+            nearest_point << x - a*t, y - b*t;
+            direction << -b/nrm, a/nrm;
+
+            // std::cout << "nearest_point" << std::endl;
+            // std::cout << nearest_point << std::endl;
+            //
+            if (direction(0) < 0)
+                direction = -direction;
+    }
+
+    void get_rigid_translation_from_rectified_fft(std::vector<double> &p,
+                                                  const int ss_x, const int ss_y,
+                                                  const int ss_size_x, const int ss_size_y,
+                                                  const Eigen::Vector2d closest_point,
+                                                  const Eigen::Vector2d dir,
+                                                  const int window_size_x, const int window_size_y,
+                                                  const double *img_ref,
+                                                  const Interpolator &interp_def){
+
+        const int px_hori = interp_def.px_hori;
+        const int px_vert = interp_def.px_vert;
+        const int window_half_x = window_size_x/2;
+        const int window_half_y = window_size_y/2;
+        const int ss_half_x = ss_size_x/2;
+        const int ss_half_y = ss_size_y/2;
+
+        // class for FFT
+        fourier::FFT fft(window_size_x, window_size_y);
+
+        // put the subset at the centre of the window
+        fourier::fill_fft_window_with_subset_at_corner(fft.ss_ref, img_ref,
+                                                       ss_x, ss_y, px_hori, px_vert,
+                                                       ss_size_x, ss_size_y,
+                                                       window_size_x, window_size_y);
+
+        // TODO: Add a proper flag for this 
+        bool subpx = false;
+
+        Eigen::Vector2d perp(dir(1), -dir(0));
+
+        for(int y = 0; y < window_size_y; y++){
+            for(int x = 0; x < window_size_x; x++) {
+                Eigen::Vector2d centre = closest_point + (x-window_half_x)*dir;
+                Eigen::Vector2d sample_pt = centre - (y-window_half_y)*perp;
+                double val = interp_def.eval(0,0,sample_pt(0),sample_pt(1));
+                fft.ss_def.x[y*window_size_x+x] = sample_pt(0);
+                fft.ss_def.y[y*window_size_x+x] = sample_pt(1);
+                fft.ss_def.vals[y*window_size_x+x] = val;
+            }
+        }
+
+        // apply window to deformed subset
+        for (int row = 0; row < window_size_y; ++row) {
+            for (int col = 0; col < window_size_x; ++col) {
+                double coeff = 1.0; //fourier::hamming(row,col,window_size_x, window_size_y);
+                fft.ss_def.vals[row*window_size_x+col] *= coeff;
+            }
+        }
+
+        // zero norm the subsets
+        fourier::zero_norm_subset(fft.ss_ref, ss_size_x,ss_size_y);
+        fourier::zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
+
+        // get peaks from the cross correlation
+        double max_val = 0.0, peak_x = 0.0, peak_y = 0.0;
+        fft.correlate();
+        fft.get_peak(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+        //std::cout << "peak: " << peak_x << " " << peak_y << std::endl;
+
+        // coordinate transform
+        peak_x = peak_x - window_half_x;
+        peak_y = peak_y + window_half_y;
+
+        // std::cout << std::endl;
+        // for (int row = 0; row < window_size_y; ++row) {
+        //     for (int col = 0; col < window_size_x; ++col) {
+        //         int idx  = row*window_size_x+col;
+        //         std::cout << col << " " << row << " ";
+        //         std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
+        //         std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
+        //         std::cout << fft.cross_corr[idx] << std::endl;
+        //     }
+        // }
+
+        // Compute the unrectified position in the right image
+        Eigen::Vector2d unrectified_pos = closest_point + peak_x * dir - peak_y * perp;
+
+        //std::cout << "unrectified_pos: " << unrectified_pos(0) << " " << unrectified_pos(1) << std::endl;
+        p[0] = unrectified_pos(0) - ss_x;
+        p[1] = unrectified_pos(1) - ss_y;
+        p[2] = dir(0) - 1.0;
+        p[3] = -perp(0);
+        p[4] = dir(1);
+        p[5] = -perp(1) - 1.0;
+
+    }
+
+   void get_rigid_translation_from_rectified_search(std::vector<double> &p,
+                                                    const int ss_x, const int ss_y,
+                                                    const int ss_size_x, const int ss_size_y,
+                                                    const Eigen::Vector2d closest_point,
+                                                    const Eigen::Vector2d dir,
+                                                    subset::Pixels &ss_l,
+                                                    const Interpolator &interp_ref,
+                                                    const Interpolator &interp_def){
+
+        const int px_hori = interp_def.px_hori;
+        const int px_vert = interp_def.px_vert;
+
+        int range = 100;
+        Eigen::Vector2d perp(dir(1), -dir(0));
+        subset::Pixels ss_r(ss_size_x, ss_size_y);
+        subset::Pixels ss_final(ss_size_x, ss_size_y);
+        double best_zncc = -1.0;
+
+        //Optimizer opt_affine("AFFINE", "ZNSSD", 40, 0.0001, 0.90);
+
+        for(int pt = -range; pt < range; pt++){
+
+
+            Eigen::Vector2d def_coord = closest_point + (double(pt))*dir;
+
+            // fill the deformed subset
+            for(int y = 0; y < ss_size_y; y++){
+                for(int x = 0; x < ss_size_x; x++) {
+                    Eigen::Vector2d corner = def_coord + x*dir;
+                    Eigen::Vector2d sample_pt = corner - y*perp;
+                    double val = interp_def.eval(0,0,sample_pt(0),sample_pt(1));
+                    
+                    int idx = y*ss_size_x+x;
+                    ss_r.x[idx] = sample_pt(0);
+                    ss_r.y[idx] = sample_pt(1);
+                    ss_r.vals[idx] = val;
+                    // std::cout << ss_l.x[idx] << " " << ss_l.y[idx] << " " << ss_l.vals[idx] << " ";
+                    // std::cout << ss_r.x[idx] << " " << ss_r.y[idx] << " " << ss_r.vals[idx] << std::endl;
+                }
+            }
+            double zncc = subset::zncc(ss_l,ss_r);
+
+            
+            // testing with optimizer here
+            // subset::get_subpx_from_img(ss_l, ss_x, ss_y, interp_ref);
+            // opt_affine.p[0] = def_coord(0) - ss_x;
+            // opt_affine.p[1] = def_coord(1) - ss_y;
+            // opt_affine.p[2] = dir(0) - 1.0;
+            // opt_affine.p[3] = -perp(0);
+            // opt_affine.p[4] = dir(1);
+            // opt_affine.p[5] = -perp(1) - 1.0;
+            // OptResult seed_res = opt_affine.solve(ss_x, ss_y, ss_l, ss_r, interp_def);
+            // std::cout << seed_res.cost << " " << int(seed_res.converged) << " " << seed_res.iter << std::endl;
+
+            if (zncc > best_zncc) {
+                best_zncc = zncc;
+                p[0] = def_coord(0) - ss_x;
+                p[1] = def_coord(1) - ss_y;
+                p[2] = dir(0) - 1.0;
+                p[3] = -perp(0);
+                p[4] = dir(1);
+                p[5] = -perp(1) - 1.0;
+                // for (int px = 0; px < ss_r.num_px; px++){
+                //     ss_final.x[px] = ss_r.x[px];
+                //     ss_final.y[px] = ss_r.y[px];
+                //     ss_final.vals[px] = ss_r.vals[px];
+                // }
+            }
+
+        }
+
+        // for (int px = 0; px < ss_r.num_px; px++){
+        //     std::cout << ss_final.x[px] << " " << ss_final.y[px] << " " << ss_final.vals[px] << std::endl;
+        // }
+    }
+
+
+
+
+    Eigen::Matrix3d rotation_from_euler(const std::vector<double> &rot_deg) {
+        double theta = rot_deg[0] * (M_PI / 180.0);
+        double phi   = rot_deg[1] * (M_PI / 180.0);
+        double psi   = rot_deg[2] * (M_PI / 180.0);
+
+        Eigen::Matrix3d Rx, Ry, Rz;
+        Rx << 1, 0, 0,
+            0, cos(theta), -sin(theta),
+            0, sin(theta), cos(theta);
+
+        Ry << cos(phi), 0, sin(phi),
+            0, 1, 0,
+            -sin(phi), 0, cos(phi);
+
+        Rz << cos(psi), -sin(psi), 0,
+            sin(psi), cos(psi), 0,
+            0, 0, 1;
+
+        return Rz * Ry * Rx;
+    }
+
+    Eigen::Matrix3d camera_matrix(const CamIntrinsics &cam) {
+        Eigen::Matrix3d K;
+        K << cam.fx, cam.fs, cam.cx,
+            0.0, cam.fy, cam.cy,
+            0.0, 0.0, 1.0;
+        return K;
+    }
+
+    Eigen::Matrix3d skew_translation(const std::vector<double> &t) {
+        Eigen::Matrix3d t_x;
+        t_x << 0, -t[2], t[1],
+            t[2], 0, -t[0],
+            -t[1], t[0], 0;
+        return t_x;
+    }
+
+    Eigen::MatrixXd patch_corners(const double x, 
+                                  const double y, 
+                                  const double size_x, 
+                                  const double size_y) {
+        Eigen::MatrixXd pts(3,4);
+        pts << x,     x,       x+size_x, x+size_x,
+            y,     y+size_y, y+size_y, y,
+            1.0,   1.0,     1.0,          1.0;
+        return pts;
+    }
+
+    Eigen::Matrix3d fundamental(const Eigen::Matrix3d &K0,
+                                const Eigen::Matrix3d &K1,
+                                const Eigen::Matrix3d &t_x,
+                                const Eigen::Matrix3d &R){
+
+        Eigen::Matrix3d K0_inv = K0.inverse();
+        Eigen::Matrix3d K1_inv_T = K1.inverse().transpose();
+        Eigen::Matrix3d F = K1_inv_T * t_x * R * K0_inv;
+        F /= F.norm();
+        return F;
+
+    }
+
+    EpipolarStrip calc_epi_strip_points(const double cx,
+                                        const double cy,
+                                        const Eigen::Matrix<double,3,4> &lines,
+                                        const Eigen::Matrix3d F,
+                                        const double range) {
+
+
+        // equation of epipolar line 
+        Eigen::Vector3d F_centre = F * Eigen::Vector3d(cx, cy, 1.0);
+        double a = F_centre(0), b = F_centre(1), c = F_centre(2);
+
+        double denom = a*a + b*b;
+        double nrm = std::sqrt(denom);
+
+        // bounds
+        double cmin = std::numeric_limits<double>::infinity();
+        double cmax = -std::numeric_limits<double>::infinity();
+        
+        // get the range of the bounding box
+        for (int i = 0; i < 4; i++){
+            double ai = lines(0,i);
+            double bi = lines(1,i);
+            double ci = lines(2,i);
+            double offset = (ai*cx + bi*cy + ci)/nrm;
+            cmin = std::min(cmin, offset);
+            cmax = std::max(cmax, offset);
+        }
+
+        double half_width = 0.5*(cmax-cmin);
+
+        double t = (a*cx + b*cy + c)/denom;
+        Eigen::Vector2d P(cx - a*t, cy - b*t);
+        Eigen::Vector2d dir(-b/nrm, a/nrm);
+        Eigen::Vector2d n(a/nrm, b/nrm);
+
+
+        // point on the epipolar line <range> pixels either side
+        // of the midpoint P.
+        Eigen::Vector2d P0 = P - range*dir;
+        Eigen::Vector2d P1 = P + range*dir;
+
+        return EpipolarStrip {
+            P,                  // patch centre
+            P0 + half_width*n,  // bounding box Q0
+            P0 - half_width*n,  // bounding box Q1
+            P1 - half_width*n,  // bounding box Q2
+            P1 + half_width*n   // bounding box Q3
+        };
+    }
+
+
+    std::tuple<int,int,int,int> bounding_box(const EpipolarStrip &strip, 
+                                             const int px_hori, 
+                                             const int px_vert){
+
+        double xmin = std::max(0.0, std::min({strip.Q0.x(), strip.Q1.x(), strip.Q2.x(), strip.Q3.x()}));
+        double xmax = std::min((double)px_hori-1.0, std::max({strip.Q0.x(), strip.Q1.x(), strip.Q2.x(), strip.Q3.x()}));
+        double ymin = std::max(0.0, std::min({strip.Q0.y(), strip.Q1.y(), strip.Q2.y(), strip.Q3.y()}));
+        double ymax = std::min((double)px_vert-1.0, std::max({strip.Q0.y(), strip.Q1.y(), strip.Q2.y(), strip.Q3.y()}));
+
+        return {std::ceil(xmin), std::ceil(xmax), std::ceil(ymin), std::ceil(ymax)};
+    }
+
+
+
+
+
+}
+
+

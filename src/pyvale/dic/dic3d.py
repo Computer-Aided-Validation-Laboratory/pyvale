@@ -13,7 +13,7 @@ from pathlib import Path
 import pyvale.dic.diccpp as diccpp
 import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic.dicchecks as dicchecks
-import pyvale.common_py.util as util
+import pyvale.common_py.util as common_py_util
 from pyvale.calib.calib_dataclass import Calib
 import pyvale.common_cpp.common_cpp as common_cpp
 
@@ -157,7 +157,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     dicchecks.check_interpolation(interpolation_routine)
     dicchecks.check_method(method)
     dicchecks.check_thresholds(threshold, bf_threshold, precision)
-    util.check_output_directory(str(output_basepath), output_prefix, debug_level)
+    common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks.check_subsets(subset_size, subset_step)
     updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, image_stack0.shape[2], image_stack0.shape[1], subset_size, subset_step)
     num_params = dicchecks.check_shape_function(shape_function)
@@ -226,10 +226,11 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     calib.translation = calibration.translation
 
 
+    stereo = True
     #set the number of OMP threads
     if num_threads is not None:
         common_cpp.set_num_threads(num_threads)
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        diccpp.engine_3d(image_stack, roi_c, calib, config, saveconf)
+        diccpp.engine(image_stack, roi_c, calib, config, saveconf, stereo)

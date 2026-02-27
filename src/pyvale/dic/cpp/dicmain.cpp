@@ -37,16 +37,22 @@
 #include "./dicresults.hpp"
 #include "dicsubset.hpp"
 
+// stereo header files
+#include "./stereomatching.hpp"
+#include "./stereoutil.hpp"
+
 // cuda Header files
 //#include "../cuda/malloc.hpp"
 
 namespace py = pybind11;
 
 
-void engine_2d(const py::array_t<double>& img_stack_arr,
+void engine(const py::array_t<double>& img_stack_arr,
                const py::array_t<bool>&   img_roi_arr, 
-               util::Config &conf,
-               common_util::SaveConfig &saveconf){
+               const Calib &calib,
+               const util::Config &conf,
+               const common_util::SaveConfig &saveconf,
+               const bool stereo){
 
     // Register signal handler for Ctrl+C and set debug_level
     signal(SIGINT, signalHandler);
@@ -78,6 +84,9 @@ void engine_2d(const py::array_t<double>& img_stack_arr,
                                          << conf.rg_seed.first+conf.ss_size/2 << ", " << conf.rg_seed.second+conf.ss_size/2 << ") [px] " )
     }
 
+
+    int num_px_in_image = conf.px_hori * conf.px_vert;
+
     // get raw pointers
     bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
     double* img_stack = static_cast<double*>(img_stack_arr.request().ptr);
@@ -85,14 +94,14 @@ void engine_2d(const py::array_t<double>& img_stack_arr,
     // ------------------------------------------------------------------------
     // get a list of ss coordinates within RIO;
     // ------------------------------------------------------------------------
-    std::vector<subset::Grid> ss_grids;
+    std::vector<subset::Grid> ss_grids_l;
     std::vector<int> ss_sizes, ss_steps;
     util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.max_disp);
-    fourier::init(ss_grids, ss_sizes, ss_steps, img_roi, conf);
+    fourier::init(ss_grids_l, ss_sizes, ss_steps, img_roi, conf);
 
 
     // resize the results based on subset information
-    ResultArrays result_arrays(conf.num_def_img, ss_grids.back().num,
+    ResultArrays result_arrays(conf.num_def_img, ss_grids_l.back().num,
                                conf.num_params, saveconf.at_end);
 
     // -----------------------------------------------------------------------
@@ -104,39 +113,95 @@ void engine_2d(const py::array_t<double>& img_stack_arr,
     }
     common_util::Timer timer("DIC Engine:");
 
-    // pointer to reference image at start of stack
-    double *img_ref = img_stack;
-    
-    // pointer to hold the reference interpolator (will be created once)
-    Interpolator* interp_ref = nullptr;
-    Interpolator* interp_ref_inc = nullptr;
+    // pointer to reference images at start of stack
+    double *img_ref_l = img_stack;
+    double *img_ref_r = nullptr;
+
+    // pointer to hold the reference interpolators (will be created once)
+    Interpolator* interp_ref_l = nullptr;
+    Interpolator* interp_ref_r = nullptr;
+    Interpolator* interp_ref_l_inc = nullptr;
+    Interpolator* interp_ref_r_inc = nullptr;
+
+    if (stereo){
+        std::cout << " NUM DEF IMAGES: " << conf.num_def_img << std::endl;
+        img_ref_r = img_stack + (conf.num_def_img+1)*num_px_in_image;
+
+        // interpolators
+        if (conf.interp_routine == "BSPLINE"){
+            interp_ref_l = new Bspline(img_ref_l, conf.px_hori, conf.px_vert);
+            interp_ref_r = new Bspline(img_ref_r, conf.px_hori, conf.px_vert);
+        }
+        else if (conf.interp_routine == "HERMITE") {
+            interp_ref_l = new Hermite(img_ref_l, conf.px_hori, conf.px_vert);
+            interp_ref_r = new Hermite(img_ref_r, conf.px_hori, conf.px_vert);
+        }
+
+        // resize the results based on subset information
+        ResultArrays stereo_matches(1, ss_grids_l.back().num, 6, false);
+
+        stereo::Geometry stereo_geom = stereo::compute_stereo_geometry(calib);
+
+
+        // perform matching
+        stereo::matching(img_ref_l, img_ref_r,
+                         *interp_ref_l, *interp_ref_r,
+                         ss_grids_l.back(), conf,
+                         0, conf.num_def_img+1,
+                         stereo_geom.F, result_arrays, stereo_matches);
+
+
+        // need to make a new grid for the right image based on the matching
+        // copy the ss_grid for the left image and add the displacements
+        std::vector<subset::Grid> ss_grids_r = ss_grids_l;
+
+        // loop over coords and add the displacement from the matches
+        for (int ss = 0; ss < ss_grids_r.back().num; ss++){
+           ss_grids_r.back().coords[2*ss]   += stereo_matches.u[ss];
+           ss_grids_r.back().coords[2*ss+1] += stereo_matches.v[ss];
+        }
+
+        stereo::pixel_to_world(ss_grids_l.back(), calib, 
+                               stereo_matches, stereo_geom.K0, 
+                               stereo_geom.K1, stereo_geom.R, conf.ss_size);
+
+        stereo_matches.write_to_disk(0, saveconf, ss_grids_r.back(), conf.num_def_img, conf.filenames);
+        exit(0);
+
+    }
 
     // loop over deformed images. They start at index 1 in the stack
     for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){
 
         // pointer to starting location of deformed image in memory
-        int num_px_in_image = conf.px_hori * conf.px_vert;
-        double *img_def = img_stack + img_num*num_px_in_image;
+        double *img_def_l = img_stack + img_num*num_px_in_image;
+        double *img_def_r = img_stack + (conf.num_def_img+img_num)*num_px_in_image;
 
         // define our interpolator for the reference image
-        Interpolator* interp_def = nullptr;
-        if (conf.interp_routine == "BSPLINE") interp_def = new Bspline(img_def, conf.px_hori, conf.px_vert);
-        else if (conf.interp_routine == "HERMITE") interp_def = new Hermite(img_def, conf.px_hori, conf.px_vert);
+        Interpolator* interp_def_l = nullptr;
+        Interpolator* interp_def_r = nullptr;
+        if (conf.interp_routine == "BSPLINE") interp_def_l = new Bspline(img_def_l, conf.px_hori, conf.px_vert);
+        else if (conf.interp_routine == "HERMITE") interp_def_l = new Hermite(img_def_l, conf.px_hori, conf.px_vert);
+
+        if (stereo){
+            if (conf.interp_routine == "BSPLINE") interp_def_r = new Bspline(img_def_r, conf.px_hori, conf.px_vert);
+            else if (conf.interp_routine == "HERMITE") interp_def_r = new Hermite(img_def_r, conf.px_hori, conf.px_vert);
+        }
 
         // -------------------------------------------------------------------------------------------------------------------------------------------
         // raster scan
         // -------------------------------------------------------------------------------------------------------------------------------------------
-        if (conf.scan_method=="IMAGE_SCAN") 
-            scanmethod::image(img_ref, *interp_def, ss_grids[0], conf, img_num, result_arrays);
-
-
+        if (conf.scan_method=="IMAGE_SCAN") {
+            scanmethod::image(img_ref_l, *interp_def_l, ss_grids_l.back(), conf, img_num, result_arrays);
+            if (stereo) scanmethod::image(img_ref_r, *interp_def_r, ss_grids_l.back(), conf, img_num, result_arrays);
+        }
 
 
         // -------------------------------------------------------------------------------------------------------------------------------------------
         // multiwindow FFTCC + reliability Guided
         // -------------------------------------------------------------------------------------------------------------------------------------------
         else if (conf.scan_method=="MULTIWINDOW_RG")
-            scanmethod::multiwindow_reliability_guided(img_ref, img_def, *interp_def, ss_grids, conf, img_num, result_arrays);
+            scanmethod::multiwindow_reliability_guided(img_ref_l, img_def_l, *interp_def_l, ss_grids_l, conf, img_num, result_arrays);
 
 
 
@@ -145,9 +210,9 @@ void engine_2d(const py::array_t<double>& img_stack_arr,
         // singlewindow FFTCC + reliability Guided
         // -------------------------------------------------------------------------------------------------------------------------------------------
         else if (conf.scan_method=="SINGLEWINDOW_RG"){
-            if (!interp_ref && conf.interp_routine=="BSPLINE") interp_ref = new Bspline(img_ref, conf.px_hori, conf.px_vert);
-            if (!interp_ref && conf.interp_routine=="HERMITE") interp_ref = new Hermite(img_ref, conf.px_hori, conf.px_vert);
-            scanmethod::singlewindow_incremental_reliability_guided(img_ref, img_def, *interp_ref, *interp_def, ss_grids, conf, 0, img_num, result_arrays);
+            if (!interp_ref_l && conf.interp_routine=="BSPLINE") interp_ref_l = new Bspline(img_ref_l, conf.px_hori, conf.px_vert);
+            if (!interp_ref_l && conf.interp_routine=="HERMITE") interp_ref_l = new Hermite(img_ref_l, conf.px_hori, conf.px_vert);
+            scanmethod::singlewindow_incremental_reliability_guided(img_ref_l, img_def_l, *interp_ref_l, *interp_def_l, ss_grids_l, conf, 0, img_num, result_arrays);
         }
 
 
@@ -156,7 +221,7 @@ void engine_2d(const py::array_t<double>& img_stack_arr,
         // multi window FFTCC ONLY
         // -------------------------------------------------------------------------------------------------------------------------------------------
         else if (conf.scan_method=="MULTIWINDOW")
-            scanmethod::multiwindow(img_ref, img_def, *interp_def, ss_grids, conf, img_num, result_arrays);
+            scanmethod::multiwindow(img_ref_l, img_def_l, *interp_def_l, ss_grids_l, conf, img_num, result_arrays);
 
 
 
@@ -168,9 +233,9 @@ void engine_2d(const py::array_t<double>& img_stack_arr,
             double *img_prev = nullptr;
             int img_num_prev = img_num-1;
             img_prev = img_stack + img_num_prev*num_px_in_image;
-            if (conf.interp_routine=="BSPLINE") interp_ref_inc = new Bspline(img_prev, conf.px_hori, conf.px_vert);
-            if (conf.interp_routine=="HERMITE") interp_ref_inc = new Hermite(img_prev, conf.px_hori, conf.px_vert);
-            scanmethod::singlewindow_incremental_reliability_guided(img_prev, img_def, *interp_ref_inc, *interp_def, ss_grids, conf, img_num_prev, img_num, result_arrays);
+            if (conf.interp_routine=="BSPLINE") interp_ref_l_inc = new Bspline(img_prev, conf.px_hori, conf.px_vert);
+            if (conf.interp_routine=="HERMITE") interp_ref_l_inc = new Hermite(img_prev, conf.px_hori, conf.px_vert);
+            scanmethod::singlewindow_incremental_reliability_guided(img_prev, img_def_l, *interp_ref_l_inc, *interp_def_l, ss_grids_l, conf, img_num_prev, img_num, result_arrays);
         }
 
 
@@ -178,19 +243,21 @@ void engine_2d(const py::array_t<double>& img_stack_arr,
 
 
         if (!saveconf.at_end)
-            result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
+            result_arrays.write_to_disk(img_num, saveconf, ss_grids_l.back(), conf.num_def_img, conf.filenames);
 
-        if (interp_def) delete interp_def;
+        if (interp_def_l) delete interp_def_l;
+        if (interp_def_r) delete interp_def_r;
 
         if (stop_request) break;
     }
 
     if (saveconf.at_end)
         for (int img_num = 1; img_num < conf.num_def_img+1; img_num++)
-            result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
+            result_arrays.write_to_disk(img_num, saveconf, ss_grids_l.back(), conf.num_def_img, conf.filenames);
 
 
-    if (interp_ref) delete interp_ref;
+    if (interp_ref_l) delete interp_ref_l;
+    if (interp_ref_r) delete interp_ref_r;
 
     // TODO: don't have shifts as a global var. Should probably make fourier
     // stuff a class at some point in the future

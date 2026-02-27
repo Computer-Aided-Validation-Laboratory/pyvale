@@ -10,8 +10,8 @@
 
 // STD library Header files
 #include <queue>
-#include <atomic>
 #include <mutex>
+
 // Program Header files
 #include "./dicsubset.hpp"
 #include "./dicoptimizer.hpp"

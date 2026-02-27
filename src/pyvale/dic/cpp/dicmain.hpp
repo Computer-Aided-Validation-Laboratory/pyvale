@@ -13,13 +13,16 @@
 // common_cpp header files
 #include "../../common_cpp/util.hpp"
 
+// calib header files
+#include "../../calib/cpp/calibstereo.hpp"
+
 // DIC Header Files
 #include "./dicutil.hpp"
 
 namespace py = pybind11;
 
 /**
- * @brief Runs the 2D Digital Image Correlation (DIC) engine on input image data.
+ * @brief Runs Digital Image Correlation (DIC) engine on input image data.
  *
  * This function performs 2D DIC using a specified correlation criterion,
  * shape function, interpolation scheme, and scan method.
@@ -48,10 +51,12 @@ namespace py = pybind11;
  * @note This function is intended to be called via the Python interface using pybind11.
  *       Image arrays are expected to be contiguous and C-style (row-major) in memory.
  */
-void engine_2d(const py::array_t<double>& img_stack_arr,
-               const py::array_t<bool>& img_roi_arr,
-               util::Config& conf,
-               common_util::SaveConfig& saveconf);
+void engine(const py::array_t<double>& img_stack_arr,
+            const py::array_t<bool>& img_roi_arr,
+            const Calib &calib,
+            const util::Config& conf,
+            const common_util::SaveConfig& saveconf,
+            const bool stereo);
 
 void build_info();
 
