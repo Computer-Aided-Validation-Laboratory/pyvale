@@ -77,6 +77,9 @@ namespace optimization {
                                 const size_t num_img,  const std::vector<int> &lengths, const bool print_flag);
 
 
+    // Function to convert Rodrigues rotation vector to rotation matrix using Eigen
+    Eigen::Matrix3d rodrigues_to_matrix(const Eigen::Vector3d &rvec);
+    Eigen::Vector3d matrix_to_rodrigues(const Eigen::Matrix3d &R);
 }
 
 #endif // CALIBOPT_H
