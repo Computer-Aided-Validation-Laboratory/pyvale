@@ -147,20 +147,20 @@ struct Quadratic_tet {
 
     // Nodes for the 4 faces - each face has 6 nodes: 3 corners, 3 mid-edges
     // Numbering for 1 tetrahedron example
-    const int face_indices[4][6] = {
-        {0, 2, 1, 6, 5, 4}, // Face 0 (bottom)
-        {0, 1, 3, 4, 8, 7}, // Face 1
-        {1, 2, 3, 5, 9, 8}, // Face 2
-        {2, 0, 3, 6, 7, 9}  // Face 3
-    };
+    // const int face_indices[4][6] = {
+    //     {0, 2, 1, 6, 5, 4}, // Face 0 (bottom)
+    //     {0, 1, 3, 4, 8, 7}, // Face 1
+    //     {1, 2, 3, 5, 9, 8}, // Face 2
+    //     {2, 0, 3, 6, 7, 9}  // Face 3
+    // };
 
       // Correct numbering for NGSolve/Netgen
-    //   const int face_indices[4][6] = {
-    //   {0, 1, 2, 4, 7, 5}, // Face 0 (bottom) (v0, v1, v2)
-    //   {0, 1, 3, 4, 8, 6}, // Face 1 (v0, v1, v3)
-    //   {1, 2, 3, 7, 9, 8}, // Face 2 (v1, v2, v3)
-    //   {0, 2, 3, 5, 9, 6}  // Face 3 (v0, v2, v3)
-    //   };
+      const int face_indices[4][6] = {
+      {0, 1, 2, 4, 7, 5}, // Face 0 (bottom) (v0, v1, v2)
+      {0, 1, 3, 4, 8, 6}, // Face 1 (v0, v1, v3)
+      {1, 2, 3, 7, 9, 8}, // Face 2 (v1, v2, v3)
+      {0, 2, 3, 5, 9, 6}  // Face 3 (v0, v2, v3)
+      };
 
     Quadratic_tet(std::vector<Eigen::Vector3d> nodes_) :
         nodes(nodes_) {}
@@ -190,16 +190,15 @@ struct Quadratic_tet {
 
     double intersect(const Ray_old &r, Eigen::Vector3d &n_out, Eigen::Vector2d &uv) const {
       
-      // Define imprecision parameters for the initial guess, they are especially needed for the cases
-      // where the ray is close to being tangential to the linear triangle.
-      // If the determinant is close to zero, the ray misses the triangle.
-      // Imprecision levels should be relatively large for the initial guess.
-      const double eps_init_guess1 = 4e-1; // Imprecision for linear tringle's determinant
-      const double eps_init_guess2 = 4e-1; // Imprecision for linear tringle's isoparametric coordinates (u, v)
+    // Define imprecision parameters for the initial guess, they are especially needed for the cases
+    // where the ray is close to being tangential to the linear triangle.
+    // If the determinant is close to zero, the ray misses the triangle.
+    // Imprecision levels should be relatively large for the initial guess.
+    const double eps_init_guess1 = 1e-10; // Imprecision for linear tringle's determinant
+    const double eps_init_guess2 = 0.1; // Imprecision for linear tringle's isoparametric coordinates (u, v)
+    const double eps_t = 1e-5; // Imprecision for t
 
-      const double eps_t = 1e-8; // Imprecision for t
-
-      const int iter_max = 100; // Maximum number of iterations for Newton-Raphson method.
+    const int iter_max = 50; // Maximum number of iterations for Newton-Raphson method.
 
       // Define imprecision parameters for the solution.
       // Imprecision levels should be relatively small for solution.
@@ -207,86 +206,122 @@ struct Quadratic_tet {
       const double eps_sol2 = 1e-8; // Imprecision for the quadratic triangle's isoparametric coordinates (g, h)
       const double eps_sol3 = 1e-10; // Imprecision for the determinant
 
+    double min_t = std::numeric_limits<double>::infinity();
+    bool intersect = false;
 
-      double min_t = 1e20;
-      bool intersect = false;
+    // 1. Intersect ray with the 4 triangles
+    // Use the code already used for Traingle structure.
+    // Impose the defined imprecision levels
 
-        // Iterate through each of the 4 faces
-        for (int f = 0; f < 4; ++f) {
-            std::vector<Eigen::Vector3d> f_nodes(6);
-            for(int i=0; i<6; ++i) f_nodes[i] = nodes[face_indices[f][i]];
+    // Mapping for sub-triangulation (indices within the 6-node f_nodes vector)
+    // Quadratic layout: 0,1,2 are corners; 3,4,5 are midpoints of (0-1), (1-2), (2-0)
+    int sub_tris[4][3] = {
+        {0, 3, 5}, // Bottom-left
+        {3, 1, 4}, // Bottom-right
+        {5, 4, 2}, // Top
+        {3, 4, 5}  // Center
+    };
 
-            // std::cout << "HELLO4!!!" << '\n';
+    // Barycentric coordinate offsets for the sub-triangles to map back to (g, h)
+    // These represent the (g, h) coordinates of the nodes in f_nodes
+    Eigen::Vector2d nodes_gh[6] = {
+        {0,0}, {1,0}, {0,1}, {0.5,0}, {0.5,0.5}, {0,0.5}
+    };
 
-            // 1. Intersect ray with the plane defined by 3 corner nodes to get the initial guess for t
-            // Use the code already used for Traingle structure.
-            // Impose the defined imprecision levels
-            Eigen::Vector3d v0 = f_nodes[0], v1 = f_nodes[1], v2 = f_nodes[2];
+    for (int f = 0; f < 4; ++f) {
+        std::vector<Eigen::Vector3d> f_nodes(6);
+        for(int i=0; i<6; ++i) f_nodes[i] = nodes[face_indices[f][i]];
+
+        // Sub-triangulation
+        double best_sub_t = std::numeric_limits<double>::infinity();
+        Eigen::Vector2d best_gh_guess(0.33, 0.33);
+        bool found_guess = false;
+
+        for (int s = 0; s < 4; ++s) {
+            Eigen::Vector3d v0 = f_nodes[sub_tris[s][0]];
+            Eigen::Vector3d v1 = f_nodes[sub_tris[s][1]];
+            Eigen::Vector3d v2 = f_nodes[sub_tris[s][2]];
+
             Eigen::Vector3d edge1 = v1 - v0, edge2 = v2 - v0;
             Eigen::Vector3d pvec = r.d.cross(edge2);
             double det = edge1.dot(pvec);
             if (fabs(det) < eps_init_guess1) continue;
+
             double invDet = 1.0 / det;
             Eigen::Vector3d tvec = r.o - v0;
-            double u = tvec.dot(pvec) * invDet;
-            if (u < 0 - eps_init_guess2 || u > 1 + eps_init_guess2) continue;
+            double u_sub = tvec.dot(pvec) * invDet;
+            if (u_sub < 0 - eps_init_guess2 || u_sub > 1 + eps_init_guess2) continue;
+
             Eigen::Vector3d qvec = tvec.cross(edge1);
-            double v = r.d.dot(qvec) * invDet;
-            if (v < 0 - eps_init_guess2 || u + v > 1 + eps_init_guess2) continue;
-            double t_guess = edge2.dot(qvec) * invDet;
-            if (t_guess < eps_t) continue;
+            double v_sub = r.d.dot(qvec) * invDet;
+            if (v_sub < 0 - eps_init_guess2 || (u_sub + v_sub) > 1 + eps_init_guess2) continue;
 
-            // Eigen::Vector2d gh(u, v);
-            // min_t = t_guess;
-            // Eigen::Matrix<double, 3, 2> J = get_face_Jacobian(gh.x(), gh.y(), f_nodes);
-            // n_out = J.col(0).cross(J.col(1)).normalized();
-            // uv = gh;
-            // intersect = true;
-
-
-            // 2. Start Newton-Raphson at t_guess, and gh from the right triangle's centroid 
-            // or approximated (u, v) from the linear triangle. 
-            // Eigen::Vector2d gh(0.33, 0.33); 
-            Eigen::Vector2d gh(u, v); 
-            double t = t_guess;
-
-            for (int iter = 0; iter < iter_max; ++iter) {
-                Eigen::VectorXd N = get_face_N(gh.x(), gh.y());
-                Eigen::Vector3d P = Eigen::Vector3d::Zero();
-                for(int i=0; i<6; ++i) P += N[i] * f_nodes[i];
-
-                Eigen::Vector3d res = r.o + t * r.d - P;
-                if (res.norm() < eps_sol1) {
-                    if (gh.x() >= 0 - eps_sol2 && gh.y() >= 0 - eps_sol2 && (gh.x() + gh.y()) <= 1 + eps_sol2) {
-                        if (t < min_t && t > eps_t) {
-                            min_t = t;
-                            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian(gh.x(), gh.y(), f_nodes);
-                            n_out = J.col(0).cross(J.col(1)).normalized();
-                            intersect = true;
-                        }
-                    }
-                    break;
-                }
-
-                // Solve [rd, -dP/du, -dP/dv] * [dt, du, dv]^T = -res
-                Eigen::Matrix<double, 3, 2> J = get_face_Jacobian(gh.x(), gh.y(), f_nodes);
-                Eigen::Matrix3d M;
-                M.col(0) = r.d;
-                M.col(1) = -J.col(0);
-                M.col(2) = -J.col(1);
-
-                if (std::abs(M.determinant()) < eps_sol3) break;
-                Eigen::Vector3d delta = M.inverse() * (-res);
-                t += delta.x();
-                gh.x() += delta.y();
-                gh.y() += delta.z();
+            double t_sub = edge2.dot(qvec) * invDet;
+            if (t_sub > eps_t && t_sub < best_sub_t) {
+                best_sub_t = t_sub;
+                // Interpolate the global (g, h) from the sub-triangle's local barycentrics
+                double w_sub = 1.0 - u_sub - v_sub;
+                best_gh_guess = w_sub * nodes_gh[sub_tris[s][0]] + 
+                                u_sub * nodes_gh[sub_tris[s][1]] + 
+                                v_sub * nodes_gh[sub_tris[s][2]];
+                found_guess = true;
             }
-
-            
         }
 
-        return intersect ? min_t : 0.0;
+        if (!found_guess) continue;
+
+        // 2. Start Newton-Raphson at t_guess, and gh from the right triangle's centroid 
+        // or approximated (u, v) from the linear triangle. 
+        Eigen::Vector2d gh = best_gh_guess;
+        double t = best_sub_t;
+
+        for (int iter = 0; iter < iter_max; ++iter) {
+            Eigen::VectorXd N = get_face_N(gh.x(), gh.y());
+            Eigen::Vector3d P = Eigen::Vector3d::Zero();
+            for(int i=0; i<6; ++i) P += N[i] * f_nodes[i];
+
+            Eigen::Vector3d res = r.o + t * r.d - P;
+            if (res.norm() < eps_sol1) {
+                // Check if hit is within quadratic triangle bounds
+                    if (gh.x() >= 0 - eps_sol2 && gh.y() >= 0 - eps_sol2 && (gh.x() + gh.y()) <= 1 + eps_sol2) {
+                    if (t < min_t && t > eps_t) {
+                        min_t = t;
+                        Eigen::Matrix<double, 3, 2> J = get_face_Jacobian(gh.x(), gh.y(), f_nodes);
+                        Eigen::Vector3d normal = J.col(0).cross(J.col(1)).normalized();
+
+                            // Ensure normal points against the ray (outward for convex)
+                            if (normal.dot(r.d) > 0) {
+                                normal = -normal;
+                            }
+                            n_out = normal;
+                            uv = gh;
+                            intersect = true;
+                    }
+                }
+                break;
+            }
+
+            // Solve [rd, -dP/du, -dP/dv] * [dt, du, dv]^T = -res
+            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian(gh.x(), gh.y(), f_nodes);
+            Eigen::Matrix3d M;
+            M.col(0) = r.d;
+            M.col(1) = -J.col(0);
+            M.col(2) = -J.col(1);
+
+            if (std::abs(M.determinant()) < eps_sol3) break;
+            
+            // Eigen::Vector3d delta = M.colPivHouseholderQr().solve(-res);
+            Eigen::Vector3d delta = M.inverse() * (-res);
+            t += delta.x();
+            gh.x() += delta.y();
+            gh.y() += delta.z();
+
+            if (gh.x() < -0.5 || gh.y() < -0.5 || (gh.x() + gh.y()) > 1.5) break;
+        }
     }
+
+    return intersect ? min_t : std::numeric_limits<double>::infinity();
+}
 };
 
 
@@ -295,14 +330,15 @@ void load_quad_tets(const std::vector<double>& node_coords,
                     std::vector<Quadratic_tet> &quadratic_tets,
                     const unsigned int bvh_node_quad_tet_count,
                     enum ElementNodeCount nodes_per_element) {
-  
-   std::vector<Eigen::Vector3d> nodes;
+                    
 
    const int coords_per_element = nodes_per_element * NODE_COORDINATES; // number of elements times 3 coordinates each
 
    for (int quad_tet_idx = 0; quad_tet_idx < bvh_node_quad_tet_count; quad_tet_idx++) {
 
-        int index_min = quad_tet_idx * coords_per_element;
+    std::vector<Eigen::Vector3d> nodes;
+    
+    int index_min = quad_tet_idx * coords_per_element;
 
         for (int i = 0; i < 10; i++) {
 
@@ -459,10 +495,10 @@ void intersect_BLAS(const Ray& ray,
 
 
             // TEST
-            Ray ray_dum;
-            std::vector<double> node_coords_dum; 
-            unsigned int bvh_node_triangle_quad_count;
-            std::vector<Quadratic_tet> quadratic_tets; 
+            // Ray ray_dum;
+            // std::vector<double> node_coords_dum; 
+            // unsigned int bvh_node_triangle_quad_count;
+            // std::vector<Quadratic_tet> quadratic_tets; 
             // IntersectionOutput out_intersection_dum = intersect_bvh_quad_tet(ray_dum, quadratic_tets, bvh_node_triangle_quad_count);
 
 

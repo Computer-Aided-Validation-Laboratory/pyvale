@@ -116,7 +116,7 @@ class Mesh:
                 # Read next num_points lines and convert to float array
                 point_data = []
                 for _ in range(num_points):
-                    point_data.append(list(map(float, next(line_iter).split())))
+                    point_data.append(list(map(np.float64, next(line_iter).split())))
                 self.points = np.array(point_data)
             
             # Load volume elements
