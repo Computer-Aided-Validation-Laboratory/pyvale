@@ -5,7 +5,17 @@ from pyvale.vfm.dic_config import DICConfig
 from pyvale.vfm.material_properties import MaterialProperties
 from pyvale.vfm.stress_sensitivity import calculate_stress_sensitivity
 
-input = loadmat("/Users/chris/work/vfmap-numerical-paper/test_data/compute_stress_sensetivity_input.mat")
+# input = loadmat("/Users/chris/work/vfmap-numerical-paper/test_data/compute_stress_sensetivity_input.mat")
+# input = loadmat("/home/robh/1_Projects/vfmap-numerical-paper/data/notchedButtWeld_bilin_lin360420S_hom3700H_imDef_1.5/5-testData/testData.mat")
+
+data = loadmat(
+    "/home/robh/1_Projects/vfmap-numerical-paper/data/notchedButtWeld_bilin_lin360420S_hom3700H_imDef_1.5/5-testData/testData.mat",
+    struct_as_record=False,
+    squeeze_me=True,
+    simplify_cells=True
+)
+
+testData = data["testData"]
 
 parameter_map = input["spatialParamData"][0][0]
 stress = input["stressRef"][0][0]
