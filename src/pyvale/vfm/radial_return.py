@@ -3,14 +3,14 @@ from dataclasses import astuple
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.material_properties import MaterialProperties
+from pyvale.vfm.mechanical_properties import MechanicalProperties
 from pyvale.vfm.stress import Stress
 
 
 # TODO: finish docstring
 def radial_return(
     strain: npt.NDArray[np.float64],
-    material_properties: MaterialProperties
+    mechanical_properties: MechanicalProperties
 ) -> Stress:
     """Brief description
 
@@ -33,7 +33,7 @@ def radial_return(
         poissons_ratio,
         yield_strength,
         hardening_modulus
-    )= astuple(material_properties)
+    )= astuple(mechanical_properties)
 
     # TODO: should these be passed in?
     # TODO: maybe these should be default args
