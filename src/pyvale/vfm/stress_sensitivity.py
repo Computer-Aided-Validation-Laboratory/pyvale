@@ -3,10 +3,9 @@ from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
-from scipy.io import loadmat
 
 from pyvale.vfm.dic_config import DICConfig
-from pyvale.vfm.material_properties import MaterialProperties
+from pyvale.vfm.mechanical_properties import MechanicalProperties
 from pyvale.vfm.radial_return import radial_return
 from pyvale.vfm.stress import convert_stress_to_4d
 
@@ -46,7 +45,7 @@ class StressSensitivity:
 def calculate_stress_sensitivity(
     stress_reference: npt.NDArray[np.float64],
     strain: npt.NDArray[np.float64],
-    material_properties: MaterialProperties,
+    mechanical_properties: MechanicalProperties,
     dic_config: DICConfig
 ) -> StressSensitivity:
     stress_sensitivity = StressSensitivity({}, {})
@@ -58,16 +57,16 @@ def calculate_stress_sensitivity(
     num_degrees_of_freedom = 2
 
     for i in range(num_degrees_of_freedom):
-        perturbed_material_properties = deepcopy(material_properties)
+        perturbed_material_properties = deepcopy(mechanical_properties)
 
         # TODO: should this be an enum/fetched from dict label?
         if i == 0:
             perturbed_material_properties.yield_strength = (
-                material_properties.yield_strength * (1 - perturbation_factor)
+                mechanical_properties.yield_strength * (1 - perturbation_factor)
             )
         elif i == 1:
             perturbed_material_properties.hardening_modulus = (
-                material_properties.hardening_modulus * (1 - perturbation_factor)
+                mechanical_properties.hardening_modulus * (1 - perturbation_factor)
             )
 
         perturbed_stress = radial_return(strain, perturbed_material_properties)
