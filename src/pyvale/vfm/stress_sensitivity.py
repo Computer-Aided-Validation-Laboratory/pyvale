@@ -101,9 +101,10 @@ input = loadmat("/Users/chris/work/vfmap-numerical-paper/test_data/compute_stres
 parameter_map = input["spatialParamData"][0][0]
 stress = input["stressRef"][0][0]
 test_data = input["testData"][0][0]
-dic_config = DICConfig(316, 116, test_data["time"]["time"])
+dic_config = DICConfig(316, 116, test_data["time"]["time"][0][0])
 material_properties = MaterialProperties(190000, 0.28, np.full((116, 316), 300), np.full((116, 316), 3000))
-strain = test_data["strain"]
+strain = test_data["strain"][0][0][0]
+print(strain)
 
 # strain: npt.NDArray[np.float64],
 # material_properties: MaterialProperties,
