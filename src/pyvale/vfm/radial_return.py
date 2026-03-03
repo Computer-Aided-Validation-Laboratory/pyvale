@@ -1,24 +1,13 @@
-from dataclasses import astuple, dataclass
+from dataclasses import astuple
 
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.vfm.material_properties import MaterialProperties
+from pyvale.vfm.stress import Stress
 
-@dataclass(slots=True)
-class MaterialProperties:
-    youngs_modulus: float
-    poissons_ratio: float
-    yield_strength: npt.NDArray[np.float64]
-    hardening_modulus: npt.NDArray[np.float64]
 
-# TODO: more specific class name?
-@dataclass(slots=True)
-class Stress:
-    xx: npt.NDArray[np.float64]
-    xy: npt.NDArray[np.float64]
-    yy: npt.NDArray[np.float64]
-    von_mises: npt.NDArray[np.float64]
-
+# TODO: finish docstring
 def radial_return(
     strain: npt.NDArray[np.float64],
     material_properties: MaterialProperties
@@ -47,6 +36,7 @@ def radial_return(
     )= astuple(material_properties)
 
     # TODO: should these be passed in?
+    # TODO: maybe these should be default args
     error_tolerance = 1e-8
     iteration_limit = 100
 
