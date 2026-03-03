@@ -36,7 +36,7 @@ def convert_stress_to_4d(
     component_dimensions = (
         dic_config.x_dimension,
         dic_config.y_dimension,
-        1,
+        # 1,
         dic_config.timesteps.size
     )
 

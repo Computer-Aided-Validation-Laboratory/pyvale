@@ -5,7 +5,7 @@
 #===============================================================================
 
 from .dic_config import DICConfig
-from .material_properties import MaterialProperties
+from .mechanical_properties import MechanicalProperties
 from .radial_return import radial_return
 from .stress import Stress, convert_stress_to_4d
 from .stress_sensitivity import calculate_stress_sensitivity
