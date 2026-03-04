@@ -7,6 +7,27 @@
 import os
 import sys
 
+def print_pyvale_banner():
+    print("                                 #              ##            ####                       ")
+    print("                                 #+#          #-+#            #--+                       ")
+    print("                                 ##-##      ##--#             #--+                       ")
+    print("                                  #.-+#    #++.+#   ### ####  #--+     ####              ")
+    print("                                  #+---#  #.---# ##-----+--#  #--+  ##------#            ")
+    print("                                   #.---##.-.-+# +--+###+--#  #--+ #+--####--#           ")
+    print("                                   #++--+-...+#  +--## #+--#  #--+ #+--#######           ")
+    print("                                    #+-+#--.-#   #+--------#  #--+  #----+---#           ")
+    print("                                    #...+..+#      ##+######  ####    ##++##             ")
+    print("                                  #+++---+-#                                             ")
+    print("     #####+++##  #####  #####   ##-.----.--++--.------------+-----.-##                   ")
+    print("     #---------#  +--+##+--#   #+-.--.-.--..-.-..+.--.+.-..--#..-.--.-+.-##              ")
+    print("     #---#  #---# #+--++--##   #--..-.---.-..-------.-----.#+..----.-.#-+-#              ")
+    print("     #---###+--+    +----#      #+---#-+-.-..-.---.-++-+..-+....--.-.-..#-+##            ")
+    print("     #--------+#    #+--#       ##+...-.----..-----------..-++---.--.----+-.--+#         ")
+    print("     #---####      #+--#        ###+---.-..-+.--.-.-+-..-----------++#..+.++##..-##      ")
+    print("     #---#        #+--#              ##########+++#+#++###########   #----#   #+++#      ")
+    print("     #####       #####                                                #+.-#     ##       ")
+    print("                                                                        ##               ")
+
 def check_output_directory(output_basepath: str,
                            output_prefix: str, debug_level: int) -> None:
     """
@@ -32,7 +53,7 @@ def check_output_directory(output_basepath: str,
         If the output directory does not exist or the user chooses not to proceed after
         being warned about existing files.
     """
-
+    
     # check if there's output files
     try:
         files = os.listdir(output_basepath)
