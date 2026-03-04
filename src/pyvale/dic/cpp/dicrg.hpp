@@ -11,6 +11,7 @@
 // STD library Header files
 #include <queue>
 #include <mutex>
+#include <atomic>
 
 // Program Header files
 #include "./dicsubset.hpp"
@@ -51,11 +52,53 @@ namespace rg {
     * @return              True if a point was retrieved, false if all queues remained
     *                      empty after exhausting idle iterations.
     */
-    bool pop_next_point(int tid,
+    bool pop_next_point_local(int tid,
                         std::vector<std::priority_queue<rg::Point>>& local_q,
                         std::vector<std::mutex>& queue_mutexes,
                         std::mutex& steal_mutex,
                         rg::Point& current);
+
+
+    /**
+    * @brief Retrieves the next point from a global priority queue.
+    *
+    * Coordinates multiple threads to pop the highest-priority point. If the queue is 
+    * empty, threads will wait as long as other threads are still active (processing 
+    * points that might add new neighbours to the queue).
+    *
+    * @param global_q       The shared priority queue.
+    * @param global_q_mtx   Mutex protecting the shared queue.
+    * @param active_threads Atomic counter of threads currently processing points.
+    * @param current       Populated with the next point if found.
+    * @return              True if a point was retrieved, false if the queue is 
+    *                      empty and all threads are idle.
+    */
+    bool pop_next_point_global(std::priority_queue<rg::Point>& global_q,
+                               std::mutex& global_q_mtx,
+                               std::atomic<int>& active_threads,
+                               rg::Point& current);
+    /**
+    * @brief Pushes multiple points to a local threads priority queue in a thread-safe manner.
+    *
+    * @param tid           Thread ID.
+    * @param global_q_mtx  vector of queues (one per thread).
+    * @param temp_neigh    neighbours to add.
+    * @param queue_mutexes mutex protection for each queue.
+    */
+    void push_points_local(int tid,
+                           std::vector<std::priority_queue<rg::Point>>& local_q,
+                           std::vector<rg::Point> &temp_neigh,
+                           std::vector<std::mutex> &queue_mutexes);
+    /**
+    * @brief Pushes multiple points to the global priority queue in a thread-safe manner.
+    *
+    * @param global_q     The shared priority queue.
+    * @param global_q_mtx Mutex protecting the shared queue.
+    * @param points       Vector of points to add.
+    */
+    void push_points_global(std::priority_queue<rg::Point>& global_q,
+                            std::mutex& global_q_mtx,
+                            const std::vector<rg::Point>& points);
 
 
     /**

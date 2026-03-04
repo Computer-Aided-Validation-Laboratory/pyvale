@@ -10,6 +10,8 @@
 #include <vector>
 #include <iostream>
 #include <omp.h>
+#include <thread>
+#include <chrono>
 
 // Program Header files
 #include "./dicsubset.hpp"
@@ -17,6 +19,7 @@
 #include "./dicoptimizer.hpp"
 #include "./dicresults.hpp"
 #include "./dicrg.hpp"
+#include "../../common_cpp/dicsignalhandler.hpp"
 
 
 namespace rg {
@@ -47,7 +50,7 @@ namespace rg {
         return false;
     }
 
-    bool pop_next_point(int tid,
+    bool pop_next_point_local(int tid,
                             std::vector<std::priority_queue<rg::Point>>& local_q,
                             std::vector<std::mutex>& queue_mutexes,
                             std::mutex& steal_mutex,
@@ -64,6 +67,69 @@ namespace rg {
         }
         return false;
     }
+
+    void push_points_local(int tid,
+                           std::vector<std::priority_queue<rg::Point>>& local_q,
+                           std::vector<rg::Point>  &temp_neigh,
+                           std::vector<std::mutex> &queue_mutexes) { 
+
+        for (const auto& neigh : temp_neigh) {
+            std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
+            local_q[tid].push(neigh);
+        }
+
+    }
+
+    bool pop_next_point_global(std::priority_queue<rg::Point>& global_q,
+                               std::mutex& global_q_mtx,
+                               std::atomic<int>& active_threads,
+                               rg::Point& current) {
+        
+        bool found = false;
+        {
+            std::lock_guard<std::mutex> lock(global_q_mtx);
+            if (!global_q.empty()) {
+                current = global_q.top();
+                global_q.pop();
+                found = true;
+            }
+        }
+
+        if (found) return true;
+
+        // If not found, thread becomes idle
+        active_threads.fetch_sub(1);
+        while (active_threads.load() > 0 && !stop_request) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            {
+                std::lock_guard<std::mutex> lock(global_q_mtx);
+                if (!global_q.empty()) {
+                    current = global_q.top();
+                    global_q.pop();
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (found) {
+            active_threads.fetch_add(1);
+            return true;
+        }
+
+        return false;
+    }
+
+    void push_points_global(std::priority_queue<rg::Point>& global_q,
+                            std::mutex& global_q_mtx,
+                            const std::vector<rg::Point>& points) {
+        if (points.empty()) return;
+        std::lock_guard<std::mutex> lock(global_q_mtx);
+        for (const auto& pt : points) {
+            global_q.push(pt);
+        }
+    }
+
 
     bool is_valid_point(const int ss_x, const int ss_y, const subset::Grid &ss_grid) {
 
