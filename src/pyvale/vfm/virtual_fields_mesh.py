@@ -28,6 +28,7 @@ class VirtualFieldsMesh:
     # BC_settings 
     boundary_condition_settings: npt.NDArray[np.uint32]
     # indexlist 
+    # TODO: should we use the specimen mask here instead?
     indices: npt.NDArray[np.uint32]
     # NGlob 
     n_glob: npt.NDArray[np.float64]
@@ -42,6 +43,7 @@ class VirtualFieldsMesh:
 # Expect x and y to be 1d coordinate arrays without nans
 # Assuming that 0,0 in index space is top left in coord space
 # TODO: add return type
+# TODO: indices coming from matlab test data will be 1 index rather than zero indexed
 def generate_virtual_fields_mesh(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
