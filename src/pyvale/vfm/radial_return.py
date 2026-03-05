@@ -1,17 +1,17 @@
-from dataclasses import astuple
-
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.mechanical_properties import MechanicalProperties
+from pyvale.vfm.mechanical_properties import MechanicalProperties, ParameterName
 from pyvale.vfm.stress import Stress
 
 
 # TODO: finish docstring
+# Receiving strain as a 4d array with the convention (timestep, component, y, x)
+# Returning stress as a 4d array with the convention (timestep, component, y, x)
 def radial_return(
     strain: npt.NDArray[np.float64],
     mechanical_properties: MechanicalProperties
-) -> Stress:
+) -> npt.NDArray[np.float64]:
     """Brief description
 
     Parameters
@@ -26,14 +26,15 @@ def radial_return(
     """
 
     num_timesteps = strain.shape[0]
-    num_datapoints = strain.shape[1]
+    num_datapoints = strain.shape[2] * strain.shape[3]
 
-    (
-        youngs_modulus,
-        poissons_ratio,
-        yield_strength,
-        hardening_modulus
-    )= astuple(mechanical_properties)
+    # TODO: perhaps this is where we should check that we have everything
+    # we need or throw and error
+    parameters = mechanical_properties.parameters
+    elastic_modulus = parameters[ParameterName.ElasticModulus]
+    poissons_ratio = parameters[ParameterName.PoissonsRatio]
+    yield_strength = parameters[ParameterName.YieldStrength]
+    hardening_modulus = parameters[ParameterName.HardeningModulus]
 
     # TODO: should these be passed in?
     # TODO: maybe these should be default args
@@ -43,13 +44,13 @@ def radial_return(
     delta_lambda              = np.zeros(num_datapoints)
     delta_ksi_delta_lambda    = np.zeros(num_datapoints)
     ksi                       = np.zeros(num_datapoints)
-    plastic_criterion         = np.zeros(num_datapoints) # flyt
-    plastic_criterion_prime   = np.zeros(num_datapoints) # flyt_prime
+    plastic_criterion         = np.zeros(num_datapoints)
+    plastic_criterion_prime   = np.zeros(num_datapoints)
     h_bar                     = np.zeros(num_datapoints)
     prev_plasticity_mask      = np.zeros(num_datapoints)
     equivalent_stress         = np.zeros(num_datapoints)
     error                     = np.zeros(num_datapoints)
-    equivalent_plastic_strain = np.zeros((num_datapoints, num_timesteps)) # peeq
+    equivalent_plastic_strain = np.zeros((num_datapoints, num_timesteps))
     sigma_xx                  = np.zeros((num_datapoints, num_timesteps))
     sigma_xy                  = np.zeros((num_datapoints, num_timesteps))
     sigma_yy                  = np.zeros((num_datapoints, num_timesteps))
@@ -57,13 +58,13 @@ def radial_return(
     incremental_strain        = np.zeros_like(strain)
     stress                    = np.zeros_like(strain)
 
-    shear_modulus = youngs_modulus / (
+    shear_modulus = elastic_modulus / (
         2 * (1 + poissons_ratio)
     )
 
     # Valid for Engineering Shear Strain only!
     # elasticity_matrix
-    elasticity = youngs_modulus / ( 1 - poissons_ratio ** 2 ) * np.array([
+    elasticity = elastic_modulus / ( 1 - poissons_ratio ** 2 ) * np.array([
         [1.0, poissons_ratio, 0.0],
         [poissons_ratio, 1.0, 0.0],
         [0.0, 0.0, (0.5 * (1.0 - poissons_ratio))],
@@ -143,9 +144,9 @@ def radial_return(
         i = 0
         while np.any(error > error_tolerance) and (i < iteration_limit):
             delta_ksi_delta_lambda_all = (
-                -youngs_modulus / (1 - poissons_ratio) * stress_sum
+                -elastic_modulus / (1 - poissons_ratio) * stress_sum
                 / (
-                    9 * (1 + youngs_modulus * delta_lambda
+                    9 * (1 + elastic_modulus * delta_lambda
                     / (3 * (1 - poissons_ratio))) ** 3
                 )
                 - 2 * shear_modulus * (stress_diff + 4 * stress[t, :, 2] ** 2)
@@ -201,7 +202,7 @@ def radial_return(
 
             ksi_all = (
                 stress_sum / (6 * (
-                    1 + youngs_modulus * delta_lambda
+                    1 + elastic_modulus * delta_lambda
                     / (3 * (1 - poissons_ratio))
                 ) ** 2)
                 + (0.5 * stress_diff + 2 * stress[t, :, 2] ** 2)
@@ -255,7 +256,7 @@ def radial_return(
 
         a11_star = (
             3 * (1 - poissons_ratio)
-            / (3 * (1 - poissons_ratio) + youngs_modulus * delta_lambda)
+            / (3 * (1 - poissons_ratio) + elastic_modulus * delta_lambda)
         )
         a22_star = 1 / (1 + 2 * shear_modulus * delta_lambda)
         a_sum = 0.5 * (a11_star + a22_star)
