@@ -3,8 +3,7 @@ import numpy as np
 from scipy.io import loadmat
 
 from pyvale.vfm import mechanical_properties
-from pyvale.vfm.dic_config import DICConfig
-from pyvale.vfm.mechanical_properties import ConstituitiveLaw, HomogeneousParameter, IdentificationType, MechanicalProperties, ParameterBounds, ParameterName, ParameterValue, check_validity
+from pyvale.vfm.mechanical_properties import *
 from pyvale.vfm.radial_return import radial_return
 # from pyvale.vfm.stress_sensitivity import calculate_stress_sensitivity
 
@@ -104,35 +103,36 @@ time = test_data["time"]["time"]
 
 yield_strength = HomogeneousParameter(
     IdentificationType.Unknown,
-    ParameterName.YieldStrength,
     ParameterBounds(200, 800),
-    value=400
+    ScalarValue(400)
 )
 
 hardening_modulus = HomogeneousParameter(
     IdentificationType.Unknown,
-    ParameterName.HardeningModulus,
     ParameterBounds(1000, 10_000),
-    value=3000
+    ScalarValue(3000)
 )
 
-youngs_modulus = HomogeneousParameter(
+elastic_modulus = HomogeneousParameter(
     IdentificationType.Unknown,
-    ParameterName.ElasticModulus,
     ParameterBounds(1000, 10_000),
-    value=3000
+    ScalarValue(3000)
 )
 
 poissons_ratio = HomogeneousParameter(
     IdentificationType.Unknown,
-    ParameterName.PoissonsRatio,
     ParameterBounds(1000, 10_000),
-    value=3000
+    ScalarValue(3000)
 )
 
 mechanical_properties = MechanicalProperties(
     ConstituitiveLaw.LinearHardening,
-    [youngs_modulus, poissons_ratio, yield_strength, hardening_modulus]
+    {
+        ParameterName.ElasticModulus: elastic_modulus,
+        ParameterName.PoissonsRatio: poissons_ratio,
+        ParameterName.YieldStrength: yield_strength,
+        ParameterName.HardeningModulus: hardening_modulus,
+    }
 )
 
 if not check_validity(mechanical_properties):

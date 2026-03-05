@@ -24,18 +24,22 @@ class ParameterBounds:
     upper_bound: int | float
 
 
-ParameterValue = (
-    int |
-    float |
-    npt.NDArray[np.int64] |
-    npt.NDArray[np.float64]
-)
+@dataclass(slots=True)
+class ScalarValue:
+    value: int | float
 
+
+# TODO: could consider this being an int32 (maybe for perf but idk)?
+@dataclass(slots=True)
+class MapValue:
+    value: npt.NDArray[np.int64] | npt.NDArray[np.float64]
+
+
+ParameterValue = ScalarValue | MapValue
 
 @dataclass(slots=True)
 class HomogeneousParameter:
     identification_type: IdentificationType
-    parameter_type: ParameterName
     bounds: ParameterBounds
     value: ParameterValue
 
@@ -43,14 +47,12 @@ class HomogeneousParameter:
 @dataclass(slots=True)
 class MeshParameter:
     identification_type: IdentificationType
-    parameter_type: ParameterName
     value: ParameterValue
 
 
 @dataclass(slots=True)
 class BasisFunctionParameter:
     identification_type: IdentificationType
-    parameter_type: ParameterName
     value: ParameterValue
 
 
@@ -68,7 +70,7 @@ class ConstituitiveLaw(enum.Enum):
 @dataclass(slots=True)
 class MechanicalProperties:
     constituitive_law: ConstituitiveLaw
-    parameters: list[Parameter]
+    parameters: dict[ParameterName, Parameter]
 
 
 def check_validity(mechanical_properties: MechanicalProperties) -> bool:
@@ -81,7 +83,5 @@ def check_validity(mechanical_properties: MechanicalProperties) -> bool:
                 ParameterName.YieldStrength,
             }
 
-            parameters = {param.parameter_type for param in mechanical_properties.parameters}
-
-            return required_parameters.issubset(parameters)
+            return required_parameters.issubset(mechanical_properties.parameters.keys())
 
