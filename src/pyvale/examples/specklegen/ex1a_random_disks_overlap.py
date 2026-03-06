@@ -12,11 +12,20 @@ speckles (disks), run diagnostics on the generated image, and save both the imag
 and diagnostics to the selected folder.
 """
 
+from pathlib import Path
 import numpy as np
 import time
 import json
 import os
 import pyvale.specklegen as specklegen
+
+#%%
+# Let's create our standard pyvale output directory in our current working
+# directory so we know where to find the files we are going to
+# create.
+output_path = Path.cwd() / "pyvale-output" / "ex1a"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
 #%%
 # Here we parse command line arguments to set the speckle pattern parameters.
@@ -33,7 +42,6 @@ seed = 10
 sigma = 4.0
 reduce_overlap = False
 type_gen = "random_disks"
-output_path = "src/pyvale/examples/specklegen/output/ex1a"
 
 print('Start')
 
@@ -44,9 +52,9 @@ if reduce_overlap:
 else:
     print("Not reducing overlap between speckles")
 
-subfolder = f"/{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{seed}_{sigma}_{reduce_overlap}"
+subfolder = Path(f"{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{seed}_{sigma}_{reduce_overlap}")
 print(subfolder)
-save_path = output_path + subfolder
+save_path = output_path / subfolder
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 

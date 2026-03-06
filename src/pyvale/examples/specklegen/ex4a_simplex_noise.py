@@ -13,11 +13,20 @@ and diagnostics to the selected folder. Isotroic Simplex noise in this case mean
 Simplex noise is an enhanced version of Perlin noise that aims to produce more consistent and isotropic noise patterns.
 """
 
+from pathlib import Path
 import numpy as np
 import time
 import json
 import os
 import pyvale.specklegen as specklegen
+
+#%%
+# Let's create our standard pyvale output directory in our current working
+# directory so we know where to find the files we are going to
+# create.
+output_path = Path.cwd() / "pyvale-output" / "ex4a"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
 #%%
 # Here we parse command line arguments to set the speckle pattern parameters.
@@ -33,15 +42,14 @@ bit_depth = 8
 theme = 'white_on_black'
 seed = 10
 type_gen = "simplex"
-output_path = "src/pyvale/examples/specklegen/output/ex4a"
 
 print('Start')
 
 assert theme in ['black_on_white', 'white_on_black'], "Theme should be either 'black_on_white' or 'white_on_black'."
 
-subfolder = f"/{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{seed}"
+subfolder = Path(f"{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{seed}")
 print(subfolder)
-save_path = output_path + subfolder
+save_path = output_path / subfolder
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
