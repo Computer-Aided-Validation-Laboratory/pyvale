@@ -35,7 +35,7 @@ class Theme(str, enum.Enum):
     WHITE_ON_BLACK = "white_on_black"
 
 #%%
-# Here we parse command line arguments to set the speckle pattern parameters.
+# Here we set the speckle pattern parameters.
 # For ease of use in this example script we set parameter values directly in the
 # code rather than via bash script.
 # The parameter responsible for reducing overlap is set to 'False' in this example.
@@ -146,7 +146,7 @@ print(f"Average speckle size (1/e^2): {np.round(avg_speckle_size_e2, 3)} pixels"
 print(f"R_squared: Horisontal fit: {np.round(H_fit_stats['R_squared'], 3)}, Vertical fit: {np.round(V_fit_stats['R_squared'], 3)}")
 
 #%%
-# Finally, the relative errors beetween the specified speckle size and the speckle size approximated using cautocovariance are calculated. 
+# Finally, the relative errors beetween the specified speckle size and the speckle size approximated using autocovariance are calculated. 
 error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size
 print(f"Percentage error between requested speckle size and measured speckle size from FWHM: {np.round(error, 3)} %")
 error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size
