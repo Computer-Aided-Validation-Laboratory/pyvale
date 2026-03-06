@@ -430,7 +430,7 @@ def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: 
     return image
 
 def generate_speckles(screen_size_width: int, screen_size_height: int, 
-                      feature_size_width: float, feature_size_height: float, 
+                      feature_size_width: float, feature_size_height: float,
                       foreground_colour: int, background_colour: int,
                       bit_depth: int, type_gen: str, 
                       seed: int, **kwargs) -> np.ndarray:
@@ -468,6 +468,20 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
     ValueError
         Unknown speckle generation type
     """    
+
+    if "black_white_ratio" in kwargs:
+        black_white_ratio = kwargs['black_white_ratio']
+        black_total_ratio = black_white_ratio / (black_white_ratio + 1.0) # Calculate black-to-total ratio
+        white_total_ratio = 1.0 - black_total_ratio # Calculate white-to-total ratio
+        speckle_area = (np.pi * feature_size_width * feature_size_height) / 4
+        total_area = screen_size_width * screen_size_height
+    
+        if background_colour == 0: # Black background, white speckles
+            total_speckles = int((white_total_ratio * total_area) / speckle_area)
+        elif foreground_colour == 0: # White background, black speckles
+            total_speckles = int((black_total_ratio * total_area) / speckle_area)
+    
+        kwargs['total_speckles'] = total_speckles
      
     assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
     dispatch = {
@@ -480,10 +494,14 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
 
     generate = dispatch.get(type_gen)
     if generate:
-        return generate(screen_size_width, screen_size_height, 
+        output = generate(screen_size_width, screen_size_height, 
                     feature_size_width, feature_size_height,
                     foreground_colour, background_colour,
                     bit_depth, type_gen, seed, **kwargs)
+        if "black_white_ratio" in kwargs:
+            return (*output, total_speckles)
+        else:
+            return output
     else:
         raise ValueError(f"Unknown speckle generation type: {type_gen}")
     

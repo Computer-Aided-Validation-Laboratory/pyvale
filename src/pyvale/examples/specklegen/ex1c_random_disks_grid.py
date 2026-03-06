@@ -47,6 +47,7 @@ screen_size_width = 1000
 screen_size_height = 800
 bit_depth = 8
 theme = Theme.WHITE_ON_BLACK
+black_white_ratio = 1.0
 seed = 10
 sigma = 4.0
 reduce_overlap = False
@@ -72,10 +73,6 @@ if not os.path.exists(save_path):
 # The background and foreground colours are set based on the chosen theme and bit depth.
 # We simply pass on one additional parameter to the function. 
 
-speckle_area = np.pi * (speckle_size / 2) ** 2
-total_area = screen_size_width * screen_size_height
-total_speckles = int((0.5 * total_area) / speckle_area)
-print(f"Total number of speckles = {total_speckles}")
 dynamic_range: int = 2**bit_depth - 1
 background_colour = 0 if theme == Theme.WHITE_ON_BLACK else dynamic_range
 foreground_colour = dynamic_range if theme == Theme.WHITE_ON_BLACK else 0
@@ -84,16 +81,17 @@ feature_size_width = speckle_size
 feature_size_height = speckle_size
     
 time_start = time.time()
-image, results = specklegen.generate_speckles(screen_size_width, screen_size_height,
+image, results, total_speckles = specklegen.generate_speckles(screen_size_width, screen_size_height,
                                    feature_size_width, feature_size_height,
                                    foreground_colour, background_colour,
                                    bit_depth, type_gen, seed,
-                                   total_speckles=total_speckles,
                                    reduce_overlap=reduce_overlap,
-                                   sigma=sigma, perturbation_max=perturbation_max)
+                                   sigma=sigma, black_white_ratio=black_white_ratio,
+                                   perturbation_max=perturbation_max)
 time_end = time.time()
 time_taken = time_end - time_start
 print(f"Time taken for speckle generation: {np.round(time_taken, 3)} seconds")
+print(f"Total number of speckles generated = {total_speckles}")
 
 # save the speckle placement results
 np.savetxt(f"{save_path}/speckle_placement_results.csv", results, delimiter=",", 
