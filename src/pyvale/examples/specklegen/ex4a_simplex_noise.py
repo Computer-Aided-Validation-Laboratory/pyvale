@@ -18,6 +18,7 @@ import numpy as np
 import time
 import json
 import os
+import enum
 import pyvale.specklegen as specklegen
 
 #%%
@@ -27,6 +28,12 @@ import pyvale.specklegen as specklegen
 output_path = Path.cwd() / "pyvale-output" / "ex4a"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
+
+#%% Here we create a theme class to define whether it is black speckles on 
+# a white background or reverse.
+class Theme(str, enum.Enum):
+    BLACK_ON_WHITE = "black_on_white"
+    WHITE_ON_BLACK = "white_on_black"
 
 #%%
 # Here we parse command line arguments to set the speckle pattern parameters.
@@ -39,15 +46,13 @@ speckle_size = 20
 screen_size_width = 1000
 screen_size_height = 800
 bit_depth = 8
-theme = 'white_on_black'
+theme = Theme.WHITE_ON_BLACK
 seed = 10
 type_gen = "simplex"
 
 print('Start')
 
-assert theme in ['black_on_white', 'white_on_black'], "Theme should be either 'black_on_white' or 'white_on_black'."
-
-subfolder = Path(f"{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme}_{seed}")
+subfolder = Path(f"{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme.value}_{seed}")
 print(subfolder)
 save_path = output_path / subfolder
 if not os.path.exists(save_path):
@@ -58,8 +63,8 @@ if not os.path.exists(save_path):
 # The background and foreground colours are set based on the chosen theme and bit depth.
 
 dynamic_range: int = 2**bit_depth - 1
-background_colour = 0 if theme == 'white_on_black' else dynamic_range
-foreground_colour = dynamic_range if theme == 'white_on_black' else 0
+background_colour = 0 if theme == Theme.WHITE_ON_BLACK else dynamic_range
+foreground_colour = dynamic_range if theme == Theme.WHITE_ON_BLACK else 0
 
 feature_size_width = speckle_size
 feature_size_height = speckle_size
