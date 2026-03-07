@@ -18,7 +18,6 @@ import numpy as np
 import time
 import json
 import os
-import enum
 import pyvale.specklegen as specklegen
 
 #%%
@@ -28,12 +27,6 @@ import pyvale.specklegen as specklegen
 output_path = Path.cwd() / "pyvale-output" / "ex4a"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
-
-#%% Here we create a theme class to define whether it is black speckles on 
-# a white background or reverse.
-class Theme(str, enum.Enum):
-    BLACK_ON_WHITE = "black_on_white"
-    WHITE_ON_BLACK = "white_on_black"
 
 #%%
 # Here we set the speckle pattern parameters.
@@ -46,9 +39,12 @@ speckle_size = 20
 screen_size_width = 1000
 screen_size_height = 800
 bit_depth = 8
-theme = Theme.WHITE_ON_BLACK
+theme = specklegen.Theme.WHITE_ON_BLACK
 seed = 10
 type_gen = "simplex"
+
+feature_size_width = speckle_size
+feature_size_height = speckle_size
 
 print('Start')
 
@@ -61,18 +57,11 @@ if not os.path.exists(save_path):
 #%%
 # We now generate the speckle pattern using the specified parameters.
 # The background and foreground colours are set based on the chosen theme and bit depth.
-
-dynamic_range: int = 2**bit_depth - 1
-background_colour = 0 if theme == Theme.WHITE_ON_BLACK else dynamic_range
-foreground_colour = dynamic_range if theme == Theme.WHITE_ON_BLACK else 0
-
-feature_size_width = speckle_size
-feature_size_height = speckle_size
     
 time_start = time.time()
 image = specklegen.generate_speckles(screen_size_width, screen_size_height,
                                      feature_size_width, feature_size_height,
-                                     foreground_colour, background_colour,
+                                     theme,
                                      bit_depth, type_gen, seed)
 time_end = time.time()
 time_taken = time_end - time_start
@@ -88,8 +77,8 @@ print(f"Time taken for speckle generation: {np.round(time_taken, 3)} seconds")
 
 print("")
 print('Starting speckle pattern diagnostics...')
-results = specklegen.speckle_pattern_statistics(image, dynamic_range)
-plots = specklegen.speckle_pattern_plots(image, dynamic_range, save_path)
+results = specklegen.speckle_pattern_statistics(image, bit_depth)
+plots = specklegen.speckle_pattern_plots(image, bit_depth, save_path)
 
 with open(f"{save_path}/speckle_pattern_diagnostics.json", 'w') as f:
     json.dump(results, f, indent=4)

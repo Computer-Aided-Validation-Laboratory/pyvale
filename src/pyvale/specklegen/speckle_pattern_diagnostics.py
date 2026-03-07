@@ -8,15 +8,15 @@ from scipy.stats import skew, kurtosis
 from skimage.measure import shannon_entropy
 
 
-def speckle_pattern_statistics(image: np.ndarray, dynamic_range: int) -> dict:
+def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict:
     """A function to perform diagnostics on the speckle pattern image.
 
     Parameters
     ----------
     image : np.ndarray
         2D numpy array representing the speckle pattern
-    dynamic_range : int
-        Maximum pixel value (irradiance) based on bit depth
+    bit_depth : int
+        Bit depth of the image (8 or 16)
 
     Returns
     -------
@@ -24,6 +24,9 @@ def speckle_pattern_statistics(image: np.ndarray, dynamic_range: int) -> dict:
         Dictionary with diagnostic results
     """
     
+    assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
+    dynamic_range: int = 2**bit_depth - 1
+
     HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V, h_profile, v_profile = speckle_size(image)
     avg_speckle_size_fwhm = np.mean([HFWHM, VFWHM])
     avg_speckle_size_e2 = np.mean([HeSquared, VeSquared])
@@ -62,7 +65,7 @@ def speckle_pattern_statistics(image: np.ndarray, dynamic_range: int) -> dict:
 
     return results
 
-def speckle_pattern_plots(image: np.ndarray, dynamic_range: int,  
+def speckle_pattern_plots(image: np.ndarray, bit_depth: int,  
                                 save_path: str = None) -> dict:
     """A function to generate and save diagnostic plots for the speckle pattern.
 
@@ -70,8 +73,8 @@ def speckle_pattern_plots(image: np.ndarray, dynamic_range: int,
     ----------
     image : np.ndarray
         2D numpy array representing the speckle pattern
-    dynamic_range : int
-        Maximum pixel value (irradiance) based on bit depth
+    bit_depth : int
+        Bit depth of the image (8 or 16)
     save_path : str (optional)
         Path to save the generated plots using example formatting to the folder if provided
 
@@ -81,6 +84,9 @@ def speckle_pattern_plots(image: np.ndarray, dynamic_range: int,
         Dictionary containing figures and axes of the generated plots
     """
     
+    assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
+    dynamic_range: int = 2**bit_depth - 1
+
     HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V, h_profile, v_profile = speckle_size(image)
     plots = {}
 

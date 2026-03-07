@@ -1,8 +1,13 @@
 import numpy as np
 from scipy import ndimage
+import enum
 from perlin_numpy import (
     generate_perlin_noise_2d, generate_fractal_noise_2d)
 import opensimplex as simplex
+
+class Theme(str, enum.Enum):
+    BLACK_ON_WHITE = "black_on_white"
+    WHITE_ON_BLACK = "white_on_black"
 
 def pixelsInDisk(cent_x: int, cent_y: int, 
                  screen_size_width: int, screen_size_height: int, 
@@ -431,7 +436,7 @@ def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: 
 
 def generate_speckles(screen_size_width: int, screen_size_height: int, 
                       feature_size_width: float, feature_size_height: float,
-                      foreground_colour: int, background_colour: int,
+                      theme: Theme,
                       bit_depth: int, type_gen: str, 
                       seed: int, **kwargs) -> np.ndarray:
     """A function to generate a speckle pattern image using specified generation method.
@@ -447,6 +452,8 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
         Speckle size width-wise
     feature_size_height : float
         Speckle size height-wise
+    theme : Theme
+        Black background with white speckles or reverse
     foreground_colour : int
         Colour value for the speckles
     background_colour : int
@@ -469,6 +476,12 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
         Unknown speckle generation type
     """    
 
+    assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
+
+    dynamic_range: int = 2**bit_depth - 1
+    background_colour = 0 if theme == Theme.WHITE_ON_BLACK else dynamic_range
+    foreground_colour = dynamic_range if theme == Theme.WHITE_ON_BLACK else 0
+    
     if "black_white_ratio" in kwargs:
         black_white_ratio = kwargs['black_white_ratio']
         black_total_ratio = black_white_ratio / (black_white_ratio + 1.0) # Calculate black-to-total ratio
@@ -482,8 +495,7 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
             total_speckles = int((black_total_ratio * total_area) / speckle_area)
     
         kwargs['total_speckles'] = total_speckles
-     
-    assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
+
     dispatch = {
         "random_disks": generate_speckles_random_disks,
         "random_disks_grid": generate_speckles_random_disks_grid,
