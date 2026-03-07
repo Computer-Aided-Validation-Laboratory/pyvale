@@ -100,35 +100,19 @@ plots = specklegen.speckle_pattern_plots(image, bit_depth, save_path)
 with open(f"{save_path}/speckle_pattern_diagnostics.json", 'w') as f:
     json.dump(results, f, indent=4)
 
-ratio = results.get("black_white_ratio", None)
-mean_gradient = results.get("mean_intensity_gradient", None)
-std_dev = results.get("std_dev_irradiance", None)
-avg = results.get("avg_irradiance", None)
-contrast = results.get("contrast", None)
-entropy = results.get("shannon_entropy", None)
-peak_to_mean = results.get("peak_to_mean_ratio", None)
-skew = results.get("skewness", None)
-kurt = results.get("kurtosis", None)
 avg_speckle_size_fwhm = results.get("avg_speckle_size_fwhm", None)
 avg_speckle_size_e2 = results.get("avg_speckle_size_e2", None)
-H_fit_stats = results.get("H_fit_stats", None)
-V_fit_stats = results.get("V_fit_stats", None)
 
 print("")
 print("Speckle statistics:")
 
-print(f"Black/White ratio: {np.round(ratio, 3)}")
-print(f"Mean intensity gradient: {np.round(mean_gradient, 3)}")
-print(f"Standard deviation of irradiance values: {np.round(std_dev, 3)}")
-print(f"Average irradiance value: {np.round(avg, 3)}")
-print(f"Contrast (std/mean): {np.round(contrast, 3)}")
-print(f"Skewness: {np.round(skew, 3)}")
-print(f"Kurtosis: {np.round(kurt, 3)}")
-print(f"Shannon entropy: {np.round(entropy, 3)}")
-print(f"Peak to mean ratio: {np.round(peak_to_mean, 3)}")
-print(f"Average speckle size (full width at half maximum): {np.round(avg_speckle_size_fwhm, 3)} pixels")
-print(f"Average speckle size (1/e^2): {np.round(avg_speckle_size_e2, 3)} pixels")
-print(f"R_squared: Horisontal fit: {np.round(H_fit_stats['R_squared'], 3)}, Vertical fit: {np.round(V_fit_stats['R_squared'], 3)}")
+for key,value in results.items():
+    if isinstance(value, (float, np.floating)):
+        display_value = np.round(value, 2)
+    else:
+        display_value = value
+        
+    print(f"{key}: {display_value}")
 
 #%%
 # Finally, the relative errors beetween the specified speckle size and the speckle size approximated using autocovariance are calculated. 
