@@ -83,9 +83,15 @@ time_taken = time_end - time_start
 print(f"Time taken for speckle generation: {np.round(time_taken, 3)} seconds")
 print(f"Total number of speckles generated = {total_speckles}")
 
-np.savetxt(f"{save_path}/speckle_placement_results.csv", results, delimiter=",", 
-           header="speckle_number, attempts, overlap(1/0/2), cent_x, cent_y", comments='', fmt=['%d', '%d', '%d', '%.3f', '%.3f'])
-    
+# save the speckle placement results
+np.savetxt(
+    f"{save_path}/speckle_placement_results.csv", 
+    results, 
+    delimiter=",", 
+    header="speckle_number, attempts, overlap(1/0/2), cent_x, cent_y", 
+    comments='', 
+    fmt=['%d', '%d', '%d', '%.3f', '%.3f']
+)
 #%%
 # Now we run diagnostics on the generated speckle pattern and save the results. 
 # Finally, we print out the key statistics to the console. 
