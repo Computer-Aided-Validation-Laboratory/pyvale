@@ -49,15 +49,7 @@ type_gen = "random_disks"
 feature_size_width = speckle_size
 feature_size_height = speckle_size
 
-print('Start')
-
-if reduce_overlap:
-    print("Reducing overlap between speckles")
-else:
-    print("Not reducing overlap between speckles")
-
 subfolder = Path(f"{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme.value}_{seed}_{sigma}_{reduce_overlap}")
-print(subfolder)
 save_path = output_path / subfolder
 if not os.path.exists(save_path):
     os.makedirs(save_path)
@@ -78,10 +70,7 @@ image, results, total_speckles = specklegen.generate_speckles(screen_size_width,
                                    sigma=sigma, black_white_ratio=black_white_ratio)
 time_end = time.time()
 time_taken = time_end - time_start
-print(f"Time taken for speckle generation: {np.round(time_taken, 3)} seconds")
-print(f"Total number of speckles generated = {total_speckles}")
 
-# save the speckle placement results
 np.savetxt(
     f"{save_path}/speckle_placement_results.csv", 
     results, 
@@ -90,6 +79,18 @@ np.savetxt(
     comments='', 
     fmt=['%d', '%d', '%d', '%.3f', '%.3f']
 )
+
+print(80*"-")
+print(f"Time taken for speckle generation: {np.round(time_taken, 3)} seconds")
+print(f"Total number of speckles generated: {total_speckles}")
+
+if reduce_overlap:
+    print("Reducing overlap between speckles.")
+else:
+    print("Not reducing overlap between speckles.")
+
+print(f"Subfolder: {subfolder}")
+print()
     
 #%%
 # Now we run diagnostics on the generated speckle pattern and save the results. 
@@ -102,8 +103,6 @@ np.savetxt(
 # The proportion of 0 irradiance values, corresponding to black colour, overweighs the 255 values, corresponding to white colour. 
 # This is a result of speckle overlap.
 
-print("")
-print('Starting speckle pattern diagnostics...')
 results = specklegen.speckle_pattern_statistics(image, bit_depth)
 plots = specklegen.speckle_pattern_plots(image, bit_depth, save_path, 
                                          image_format='jpg',
@@ -119,7 +118,17 @@ with open(f"{save_path}/speckle_pattern_diagnostics.json", 'w') as f:
 avg_speckle_size_fwhm = results.get("avg_speckle_size_fwhm", None)
 avg_speckle_size_e2 = results.get("avg_speckle_size_e2", None)
 
-print("")
+#%%
+# The relative errors beetween the specified speckle size and the speckle size approximated using autocovariance are calculated. 
+error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size
+error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size
+np.save(f"{save_path}/image.npy", image)
+plt.imsave(f'{save_path}/image.tiff', image, cmap='gray')
+plt.imsave(f'{save_path}/image.bmp', image, cmap='gray')
+
+#%%
+# Finally, we print the speckle statistics.
+print(80*"-")
 print("Speckle statistics:")
 
 for key,value in results.items():
@@ -130,15 +139,6 @@ for key,value in results.items():
         
     print(f"{key}: {display_value}")
 
-#%%
-# Finally, the relative errors beetween the specified speckle size and the speckle size approximated using autocovariance are calculated. 
-error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size
 print(f"Percentage error between requested speckle size and measured speckle size from FWHM: {np.round(error, 3)} %")
-error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size
 print(f"Percentage error between requested speckle size and measured speckle size from 1/e^2: {np.round(error, 3)} %")
-np.save(f"{save_path}/image.npy", image)
-plt.imsave(f'{save_path}/image.tiff', image, cmap='gray')
-plt.imsave(f'{save_path}/image.bmp', image, cmap='gray')
-print("")
-print('End :)')
-print("")
+print("\n"+80*"-")
