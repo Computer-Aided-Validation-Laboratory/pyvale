@@ -17,6 +17,7 @@ Perlin noise achieves this by assigning random gradient vectors to grid points a
 
 from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
 import time
 import json
 import os
@@ -58,6 +59,9 @@ print(subfolder)
 save_path = output_path / subfolder
 if not os.path.exists(save_path):
     os.makedirs(save_path)
+
+for item in save_path.iterdir():
+    item.unlink()
 
 #%%
 # We now generate the speckle pattern using the specified parameters.
@@ -110,6 +114,8 @@ print(f"Percentage error between requested speckle size and measured speckle siz
 error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size
 print(f"Percentage error between requested speckle size and measured speckle size from 1/e^2: {np.round(error, 3)} %")
 np.save(f"{save_path}/image.npy", image)
+plt.imsave(f'{save_path}/image.tiff', image, cmap='gray')
+plt.imsave(f'{save_path}/image.bmp', image, cmap='gray')
 print("")
 print('End :)')
 print("")

@@ -66,7 +66,7 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict:
     return results
 
 def speckle_pattern_plots(image: np.ndarray, bit_depth: int,  
-                                save_path: str = None) -> dict:
+                                save_path: str = None, image_format: str = 'jpg') -> dict:
     """A function to generate and save diagnostic plots for the speckle pattern.
 
     Parameters
@@ -108,7 +108,8 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
     ax.set_title("Speckle pattern", fontsize=fontsize1)
 
     if save_path is not None:
-        plt.savefig(f"{save_path}/speckle_pattern.jpg", dpi=300, format='jpg', bbox_inches='tight')
+        # plt.savefig(f"{save_path}/speckle_pattern.jpg", dpi=300, format='jpg', bbox_inches='tight')
+        plt.savefig(f"{save_path}/speckle_pattern." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
 
     plots['speckle_pattern_fig'] = fig
     plots['speckle_pattern_ax'] = ax
@@ -128,7 +129,7 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
     ax.set_ylabel("Frequency [1/pixel]", fontsize=fontsize1-2)
 
     if save_path is not None:
-        plt.savefig(f"{save_path}/frequency_spectrum.jpg", dpi=300, format='jpg', bbox_inches='tight')
+        plt.savefig(f"{save_path}/frequency_spectrum." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
 
     plots['frequency_spectrum_fig'] = fig
     plots['frequency_spectrum_ax'] = ax
@@ -142,7 +143,7 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
     ax.tick_params(axis='both', which='major', labelsize=fontsize1-2)
 
     if save_path is not None:
-        plt.savefig(f"{save_path}/pixel_value_histogram.jpg", dpi=300, format='jpg', bbox_inches='tight')
+        plt.savefig(f"{save_path}/pixel_value_histogram." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
 
     plots['pixel_value_histogram_fig'] = fig
     plots['pixel_value_histogram_ax'] = ax
@@ -171,7 +172,7 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
     plt.tight_layout()
     
     if save_path is not None:
-        plt.savefig(f"{save_path}/autocovariance.jpg", dpi=300, format='jpg', bbox_inches='tight')
+        plt.savefig(f"{save_path}/autocovariance." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
 
     # Extract figure and axis
     fig = plt.gcf()

@@ -14,6 +14,7 @@ and diagnostics to the selected folder.
 
 from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
 import time
 import json
 import os
@@ -61,6 +62,9 @@ save_path = output_path / subfolder
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
+for item in save_path.iterdir():
+    item.unlink()
+
 #%%
 # We now generate the speckle pattern using the specified parameters.
 # The background and foreground colours are set based on the chosen theme and bit depth.
@@ -94,7 +98,7 @@ np.savetxt(f"{save_path}/speckle_placement_results.csv", results, delimiter=",",
 print("")
 print('Starting speckle pattern diagnostics...')
 results = specklegen.speckle_pattern_statistics(image, bit_depth)
-plots = specklegen.speckle_pattern_plots(image, bit_depth, save_path)
+plots = specklegen.speckle_pattern_plots(image, bit_depth, save_path, image_format='jpg')
 
 with open(f"{save_path}/speckle_pattern_diagnostics.json", 'w') as f:
     json.dump(results, f, indent=4)
@@ -120,6 +124,8 @@ print(f"Percentage error between requested speckle size and measured speckle siz
 error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size
 print(f"Percentage error between requested speckle size and measured speckle size from 1/e^2: {np.round(error, 3)} %")
 np.save(f"{save_path}/image.npy", image)
+plt.imsave(f'{save_path}/image.tiff', image, cmap='gray')
+plt.imsave(f'{save_path}/image.bmp', image, cmap='gray')
 print("")
 print('End :)')
 print("")
