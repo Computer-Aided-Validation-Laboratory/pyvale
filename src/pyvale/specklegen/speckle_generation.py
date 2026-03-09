@@ -505,7 +505,7 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
     }
 
     generate = dispatch.get(type_gen)
-    if generate:
+    if generate is not None:
         output = generate(screen_size_width, screen_size_height, 
                     feature_size_width, feature_size_height,
                     foreground_colour, background_colour,
