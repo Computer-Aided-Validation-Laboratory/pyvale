@@ -24,7 +24,7 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict[str, f
 
     Returns
     -------
-    dict
+    dict[str, float]
         Dictionary with diagnostic results
     """
     
@@ -93,7 +93,7 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
 
     Returns
     -------
-    dict
+    dict[str, Figure | Axes]
         Dictionary containing figures and axes of the generated plots
     """
     
@@ -236,17 +236,17 @@ def speckle_size(image: np.ndarray) -> tuple:
             Full width at half maximum for horisontal profile.
         HeSquared : float
             1/e^2 width for horisontal profile.
-        H_fit_stats : dict
+        H_fit_stats : dict[str, float]
             R-squared goodness of fit for horisontal profile.
         VFWHM : float
             Full width at half maximum for vertical profile.
         VeSquared : float
             1/e^2 width for vertical profile.
-        V_fit_stats : dict
+        V_fit_stats : dict[str, float]
             R-squared goodness of fit for vertical profile.
-        popt_H : array
+        popt_H : np.ndarray
             Optimal parameters for horisontal Gaussian fit.
-        popt_V : array
+        popt_V : np.ndarray
             Optimal parameters for vertical Gaussian fit.
         h_profile : np.ndarray
             Horisontal autocovariance profile.
@@ -308,17 +308,17 @@ def fit_gaussian(H: np.ndarray, V: np.ndarray) -> tuple:
             Full width at half maximum for horisontal profile.
         HeSquared : float
             1/e^2 width for horisontal profile.
-        H_fit_stats : dict
+        H_fit_stats : dict[str, float]
             R-squared goodness of fit for horisontal profile.
         VFWHM : float
             Full width at half maximum for vertical profile.
         VeSquared : float
             1/e^2 width for vertical profile.
-        V_fit_stats : dict
+        V_fit_stats : dict[str, float]
             R-squared goodness of fit for vertical profile.
-        popt_H : array
+        popt_H : np.ndarray
             Optimal parameters for horisontal Gaussian fit.
-        popt_V : array
+        popt_V : np.ndarray
             Optimal parameters for vertical Gaussian fit.
     """    
      
