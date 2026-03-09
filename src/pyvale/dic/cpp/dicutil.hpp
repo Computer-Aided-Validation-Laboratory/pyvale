@@ -50,6 +50,7 @@ namespace util {
         bool fft_mad;
         double fft_mad_scale;
         unsigned int debug_level;
+        bool stereo;
     };
 
 

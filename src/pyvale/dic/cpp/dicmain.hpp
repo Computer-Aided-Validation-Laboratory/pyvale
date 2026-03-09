@@ -55,8 +55,7 @@ void engine(const py::array_t<double>& img_stack_arr,
             const py::array_t<bool>& img_roi_arr,
             const Calib &calib,
             const util::Config& conf,
-            const common_util::SaveConfig& saveconf,
-            const bool stereo);
+            const common_util::SaveConfig& saveconf);
 
 void build_info();
 

@@ -131,6 +131,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     """
 
     if (debug_level>0):
+        common_py_util.print_pyvale_banner()
         dicchecks.print_title("Initial Checks")
 
     # do checks on vars in python land
@@ -208,7 +209,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     calib.translation = [0.0,0.0,0.0]
 
 
-    stereo = False
+    config.stereo = False
 
     #set the number of OMP threads
     if num_threads is not None:
@@ -216,4 +217,4 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        diccpp.engine(image_stack, roi_c, calib, config, saveconf, stereo)
+        diccpp.engine(image_stack, roi_c, calib, config, saveconf)

@@ -44,7 +44,8 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("fft_mad", &util::Config::fft_mad)
         .def_readwrite("fft_mad_scale", &util::Config::fft_mad_scale)
         .def_readwrite("filenames", &util::Config::filenames)
-        .def_readwrite("debug_level", &util::Config::debug_level);
+        .def_readwrite("debug_level", &util::Config::debug_level)
+        .def_readwrite("stereo", &util::Config::stereo);
     
     // Bind the engine function
     m.def("engine", &engine, "Run DIC analysis on input images with config");

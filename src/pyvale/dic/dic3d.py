@@ -137,6 +137,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
 
     if (debug_level>0):
+        common_py_util.print_pyvale_banner()
         dicchecks.print_title("Initial Checks")
 
     # do checks on vars in python land
@@ -146,12 +147,19 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     assert(len(filenames0) == len(filenames1))
     image_stack = np.concatenate((image_stack0, image_stack1), axis=0)
     filenames = filenames0 + filenames1
-    # print(filenames)
-    # print(image_stack0.shape)
-    # print(image_stack1.shape)
-    # print(image_stack.shape)
 
 
+    # sort it so that images go l0,r0,l1,r1,l2,r2 ....
+    # Interleave so images go l0,r0,l1,r1,l2,r2,...
+    n = image_stack0.shape[0]
+
+    # Interleave image stacks: shape goes from (n, ...) to (2n, ...)
+    image_stack = np.empty((2 * n, *image_stack0.shape[1:]), dtype=image_stack0.dtype)
+    image_stack[0::2] = image_stack0  # even indices: left
+    image_stack[1::2] = image_stack1  # odd indices:  right
+
+    # Interleave filenames
+    filenames = [name for pair in zip(filenames0, filenames1) for name in pair]
 
     dicchecks.check_correlation_criteria(correlation_criteria)
     dicchecks.check_interpolation(interpolation_routine)
@@ -226,11 +234,12 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     calib.translation = calibration.translation
 
 
-    stereo = True
+    config.stereo = True
+
     #set the number of OMP threads
     if num_threads is not None:
         common_cpp.set_num_threads(num_threads)
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        diccpp.engine(image_stack, roi_c, calib, config, saveconf, stereo)
+        diccpp.engine(image_stack, roi_c, calib, config, saveconf)
