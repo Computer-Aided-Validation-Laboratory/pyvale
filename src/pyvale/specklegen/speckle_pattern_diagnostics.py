@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
@@ -66,7 +67,7 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict:
     return results
 
 def speckle_pattern_plots(image: np.ndarray, bit_depth: int,  
-                                save_path: str = None, image_format: str = 'jpg') -> dict:
+                                save_path: Path | None = None, image_format: str = 'jpg') -> dict:
     """A function to generate and save diagnostic plots for the speckle pattern.
 
     Parameters
