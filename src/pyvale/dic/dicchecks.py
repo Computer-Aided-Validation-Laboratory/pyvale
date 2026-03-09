@@ -266,6 +266,13 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
     max_x = new_x + subset_size//2+1
     max_y = new_y + subset_size//2+1
 
+
+    # check whether all values in the roi_mask are 0
+    all_zeros = not np.any(roi_mask)
+    if (all_zeros):
+        raise ValueError("All values in the ROI mask are 0. Please check the "
+                         "ROI mask and try again.")
+
     # Check if all pixel values in the ROI are valid
     for i in range(new_x, max_x):
         for j in range(new_y, max_y):
