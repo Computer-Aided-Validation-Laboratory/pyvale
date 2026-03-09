@@ -2,6 +2,8 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 import seaborn as sns
 import scipy.fftpack
 from scipy.optimize import curve_fit
@@ -9,7 +11,7 @@ from scipy.stats import skew, kurtosis
 from skimage.measure import shannon_entropy
 
 
-def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict:
+def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict[str, float]:
     """A function to perform diagnostics on the speckle pattern image.
 
     Parameters
@@ -67,7 +69,7 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict:
     return results
 
 def speckle_pattern_plots(image: np.ndarray, bit_depth: int,  
-                                save_path: Path | None = None, image_format: str = 'jpg') -> dict:
+                                save_path: Path | None = None, image_format: str = 'jpg') -> dict[str, Figure | Axes]:
     """A function to generate and save diagnostic plots for the speckle pattern.
 
     Parameters
