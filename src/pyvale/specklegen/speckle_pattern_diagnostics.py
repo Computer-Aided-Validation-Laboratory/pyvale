@@ -6,6 +6,7 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 import seaborn as sns
 import scipy.fftpack
+import warnings
 from scipy.optimize import curve_fit
 from scipy.stats import skew, kurtosis
 from skimage.measure import shannon_entropy
@@ -69,7 +70,12 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict[str, f
     return results
 
 def speckle_pattern_plots(image: np.ndarray, bit_depth: int,  
-                                save_path: Path | None = None, image_format: str = 'jpg') -> dict[str, Figure | Axes]:
+                                save_path: Path | None = None, image_format: str = 'jpg',
+                                select_plots: list = 
+                                ['speckle_pattern', 
+                                 'frequency_spectrum', 
+                                 'pixel_value_histogram',
+                                 'autocovariance']) -> dict[str, Figure | Axes]:
     """A function to generate and save diagnostic plots for the speckle pattern.
 
     Parameters
@@ -80,6 +86,10 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
         Bit depth of the image (8 or 16)
     save_path : str (optional)
         Path to save the generated plots using example formatting to the folder if provided
+    image_format : str (optional)
+        Image format used for saving generated plots
+    select_plots : list (optional)
+        Plots to be generated
 
     Returns
     -------
@@ -90,6 +100,26 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
     assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
     dynamic_range: int = 2**bit_depth - 1
 
+    allowed_plots = ['speckle_pattern', 'frequency_spectrum', 
+                            'pixel_value_histogram', 'autocovariance']
+    invalid_plots = set(select_plots) - set(allowed_plots)
+
+    if invalid_plots:
+        warnings.warn(
+        f"The following plots are not allowed: {list(invalid_plots)}. "
+        f"The allowed plots are {allowed_plots}. " 
+        f"Plotting only allowed plots.",
+        UserWarning
+        )
+
+    if not select_plots:
+        warnings.warn(
+        f"No plots selected, nothing to plot. "
+        f"The allowed plots are {allowed_plots}.",
+        UserWarning
+        )
+
+    
     HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V, h_profile, v_profile = speckle_size(image)
     plots = {}
 
@@ -99,90 +129,95 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
     plt.rc('text', usetex=True)
     fontsize1= 17
 
-    fig, axes = plt.subplots(1, 1, figsize=(7.0, 5.0))
-    ax = axes
-    ax.imshow(image, cmap='gray', vmin=0, vmax=dynamic_range)
-    cbar = plt.colorbar(ax.images[0], ax=ax, fraction=0.046, pad=0.04)
-    cbar.ax.tick_params(labelsize=fontsize1-2)
-    cbar.set_label('Irradiance', fontsize=fontsize1-2)
-    ax.tick_params(axis='both', which='major', labelsize=fontsize1-2)
-    ax.set_xlabel("Position [pixel]", fontsize=fontsize1-2)
-    ax.set_ylabel("Position [pixel]", fontsize=fontsize1-2)
-    ax.set_title("Speckle pattern", fontsize=fontsize1)
-
-    if save_path is not None:
-        # plt.savefig(f"{save_path}/speckle_pattern.jpg", dpi=300, format='jpg', bbox_inches='tight')
-        plt.savefig(f"{save_path}/speckle_pattern." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
-
-    plots['speckle_pattern_fig'] = fig
-    plots['speckle_pattern_ax'] = ax
-
-    f_image = scipy.fftpack.fft2(image)
-    f_image_shifted = scipy.fftpack.fftshift(f_image)
-    magnitude_spectrum = np.abs(f_image_shifted)
-    magnitude_spectrum_log = np.log1p(magnitude_spectrum)
-    fig, axes = plt.subplots(1, 1, figsize=(7.0, 5.0))
-    ax = axes
-    ax.imshow(magnitude_spectrum_log, cmap='gray')
-    cbar = plt.colorbar(ax.images[0], ax=ax, fraction=0.046, pad=0.04)
-    cbar.ax.tick_params(labelsize=fontsize1-2)
-    ax.tick_params(axis='both', which='major', labelsize=fontsize1-2)
-    ax.set_title("Spatial frequency (log scale)", fontsize=fontsize1)
-    ax.set_xlabel("Frequency [1/pixel]", fontsize=fontsize1-2)
-    ax.set_ylabel("Frequency [1/pixel]", fontsize=fontsize1-2)
-
-    if save_path is not None:
-        plt.savefig(f"{save_path}/frequency_spectrum." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
-
-    plots['frequency_spectrum_fig'] = fig
-    plots['frequency_spectrum_ax'] = ax
-
-    fig, axes = plt.subplots(1, 1, figsize=(7.0, 5.0))
-    ax = axes
-    ax.hist(image.ravel(), density=True, bins=int(dynamic_range/10), color='blue', alpha=0.7, log=True)
-    ax.set_title("Histogram of irradiance values", fontsize=fontsize1)
-    ax.set_xlabel("Pixel value", fontsize=fontsize1-2)
-    ax.set_ylabel("Density (log scale)", fontsize=fontsize1-2)
-    ax.tick_params(axis='both', which='major', labelsize=fontsize1-2)
-
-    if save_path is not None:
-        plt.savefig(f"{save_path}/pixel_value_histogram." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
-
-    plots['pixel_value_histogram_fig'] = fig
-    plots['pixel_value_histogram_ax'] = ax
-
-    plt.figure(figsize=(7.0, 5.0))
-    x_H = np.arange(1, h_profile.size + 1)
-    x_V = np.arange(1, v_profile.size + 1)
-    plt.subplot(2, 1, 1)
-    plt.plot(x_H, h_profile, 'b-', label='Horisontal autocov.',
-                linewidth=2)
-    plt.plot(x_H, gaussian(x_H, *popt_H), 'r--', label='Gaussian interpol.', linewidth=2)
-    plt.title('Horisontal autocovariance', fontsize=fontsize1)
-    plt.xlabel('Lag [pixels]', fontsize=fontsize1-2)
-    plt.ylabel('Autocov. ' + r"[pixel$^2$]", fontsize=fontsize1-2)
-    plt.legend(fontsize=fontsize1-2)
-    plt.tick_params(axis='both', which='major', labelsize=fontsize1-2)
-    plt.subplot(2, 1, 2)
-    plt.plot(x_V, v_profile, 'b-', label='Vertical autocov.',
-                linewidth=2)
-    plt.plot(x_V, gaussian(x_V, *popt_V), 'r--', label='Gaussian interpol.', linewidth=2)
-    plt.title('Vertical autocovariance', fontsize=fontsize1)
-    plt.xlabel('Lag [pixels]', fontsize=fontsize1-  2)
-    plt.ylabel('Autocov. ' + r"[pixel$^2$]", fontsize=fontsize1-2)
-    plt.legend(fontsize=fontsize1-2)
-    plt.tick_params(axis='both', which='major', labelsize=fontsize1-2)
-    plt.tight_layout()
     
-    if save_path is not None:
-        plt.savefig(f"{save_path}/autocovariance." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
+    if 'speckle_pattern' in select_plots:
+        fig, axes = plt.subplots(1, 1, figsize=(7.0, 5.0))
+        ax = axes
+        ax.imshow(image, cmap='gray', vmin=0, vmax=dynamic_range)
+        cbar = plt.colorbar(ax.images[0], ax=ax, fraction=0.046, pad=0.04)
+        cbar.ax.tick_params(labelsize=fontsize1-2)
+        cbar.set_label('Irradiance', fontsize=fontsize1-2)
+        ax.tick_params(axis='both', which='major', labelsize=fontsize1-2)
+        ax.set_xlabel("Position [pixel]", fontsize=fontsize1-2)
+        ax.set_ylabel("Position [pixel]", fontsize=fontsize1-2)
+        ax.set_title("Speckle pattern", fontsize=fontsize1)
+    
+        if save_path is not None:
+            # plt.savefig(f"{save_path}/speckle_pattern.jpg", dpi=300, format='jpg', bbox_inches='tight')
+            plt.savefig(f"{save_path}/speckle_pattern." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
+    
+        plots['speckle_pattern_fig'] = fig
+        plots['speckle_pattern_ax'] = ax
+ 
+    if 'frequency_spectrum' in select_plots:
+        f_image = scipy.fftpack.fft2(image)
+        f_image_shifted = scipy.fftpack.fftshift(f_image)
+        magnitude_spectrum = np.abs(f_image_shifted)
+        magnitude_spectrum_log = np.log1p(magnitude_spectrum)
+        fig, axes = plt.subplots(1, 1, figsize=(7.0, 5.0))
+        ax = axes
+        ax.imshow(magnitude_spectrum_log, cmap='gray')
+        cbar = plt.colorbar(ax.images[0], ax=ax, fraction=0.046, pad=0.04)
+        cbar.ax.tick_params(labelsize=fontsize1-2)
+        ax.tick_params(axis='both', which='major', labelsize=fontsize1-2)
+        ax.set_title("Spatial frequency (log scale)", fontsize=fontsize1)
+        ax.set_xlabel("Frequency [1/pixel]", fontsize=fontsize1-2)
+        ax.set_ylabel("Frequency [1/pixel]", fontsize=fontsize1-2)
+    
+        if save_path is not None:
+            plt.savefig(f"{save_path}/frequency_spectrum." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
+    
+        plots['frequency_spectrum_fig'] = fig
+        plots['frequency_spectrum_ax'] = ax
 
-    # Extract figure and axis
-    fig = plt.gcf()
-    ax = plt.gca()
+    if 'pixel_value_histogram' in select_plots:
+        fig, axes = plt.subplots(1, 1, figsize=(7.0, 5.0))
+        ax = axes
+        ax.hist(image.ravel(), density=True, bins=int(dynamic_range/10), color='blue', alpha=0.7, log=True)
+        ax.set_title("Histogram of irradiance values", fontsize=fontsize1)
+        ax.set_xlabel("Pixel value", fontsize=fontsize1-2)
+        ax.set_ylabel("Density (log scale)", fontsize=fontsize1-2)
+        ax.tick_params(axis='both', which='major', labelsize=fontsize1-2)
+    
+        if save_path is not None:
+            plt.savefig(f"{save_path}/pixel_value_histogram." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
+    
+        plots['pixel_value_histogram_fig'] = fig
+        plots['pixel_value_histogram_ax'] = ax
 
-    plots['autocovariance_fig'] = fig
-    plots['autocovariance_ax'] = ax
+    if 'autocovariance' in select_plots:
+        plt.figure(figsize=(7.0, 5.0))
+        x_H = np.arange(1, h_profile.size + 1)
+        x_V = np.arange(1, v_profile.size + 1)
+        plt.subplot(2, 1, 1)
+        plt.plot(x_H, h_profile, 'b-', label='Horisontal autocov.',
+                    linewidth=2)
+        plt.plot(x_H, gaussian(x_H, *popt_H), 'r--', label='Gaussian interpol.', linewidth=2)
+        plt.title('Horisontal autocovariance', fontsize=fontsize1)
+        plt.xlabel('Lag [pixels]', fontsize=fontsize1-2)
+        plt.ylabel('Autocov. ' + r"[pixel$^2$]", fontsize=fontsize1-2)
+        plt.legend(fontsize=fontsize1-2)
+        plt.tick_params(axis='both', which='major', labelsize=fontsize1-2)
+        plt.subplot(2, 1, 2)
+        plt.plot(x_V, v_profile, 'b-', label='Vertical autocov.',
+                    linewidth=2)
+        plt.plot(x_V, gaussian(x_V, *popt_V), 'r--', label='Gaussian interpol.', linewidth=2)
+        plt.title('Vertical autocovariance', fontsize=fontsize1)
+        plt.xlabel('Lag [pixels]', fontsize=fontsize1-  2)
+        plt.ylabel('Autocov. ' + r"[pixel$^2$]", fontsize=fontsize1-2)
+        plt.legend(fontsize=fontsize1-2)
+        plt.tick_params(axis='both', which='major', labelsize=fontsize1-2)
+        plt.tight_layout()
+        
+        if save_path is not None:
+            plt.savefig(f"{save_path}/autocovariance." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
+    
+        # Extract figure and axis
+        fig = plt.gcf()
+        ax = plt.gca()
+    
+        plots['autocovariance_fig'] = fig
+        plots['autocovariance_ax'] = ax
 
     return plots
 

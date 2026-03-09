@@ -105,7 +105,13 @@ np.savetxt(
 print("")
 print('Starting speckle pattern diagnostics...')
 results = specklegen.speckle_pattern_statistics(image, bit_depth)
-plots = specklegen.speckle_pattern_plots(image, bit_depth, save_path, image_format='jpg')
+plots = specklegen.speckle_pattern_plots(image, bit_depth, save_path, 
+                                         image_format='jpg',
+                                         select_plots = 
+                                         ['speckle_pattern', 
+                                          'frequency_spectrum', 
+                                          'pixel_value_histogram',
+                                          'autocovariance'])
 
 with open(f"{save_path}/speckle_pattern_diagnostics.json", 'w') as f:
     json.dump(results, f, indent=4)
