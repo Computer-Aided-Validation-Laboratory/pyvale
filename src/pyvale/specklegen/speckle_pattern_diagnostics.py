@@ -40,7 +40,7 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> SpeckleDiag
 
     Parameters
     ----------
-    image : np.ndarray
+    image : np.ndarray, shape=(num_px_y, num_px)
         2D numpy array representing the speckle pattern
     bit_depth : int
         Bit depth of the image (8 or 16)
@@ -50,7 +50,7 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> SpeckleDiag
     SpeckleDiagnostics dataclass
         Diagnostic results
     """
-    
+
     assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
     dynamic_range: int = 2**bit_depth - 1
 
@@ -102,7 +102,7 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
 
     Parameters
     ----------
-    image : np.ndarray
+    image : np.ndarray, shape=(num_px_y, num_px)
         2D numpy array representing the speckle pattern
     bit_depth : int
         Bit depth of the image (8 or 16)
@@ -248,7 +248,7 @@ def speckle_size(image: np.ndarray) -> tuple:
 
     Parameters
     ----------
-    image : np.ndarray
+    image : np.ndarray, shape=(num_px_y, num_px)
         2D numpy array representing the speckle pattern
 
     Returns
@@ -258,9 +258,9 @@ def speckle_size(image: np.ndarray) -> tuple:
             Parameters related to fitting Gaussian function to the horisontal profile.
         stats_vert : GaussPeakFit dataclass
             Parameters related to fitting Gaussian function to the vertical profile.
-        h_profile : np.ndarray
+        h_profile : np.ndarray, shape=(num_px_x,)
             Horisontal autocovariance profile.
-        v_profile : np.ndarray
+        v_profile : np.ndarray, shape=(num_px_y,)
             Vertical autocovariance profile.    
     """    
     # image = (image - np.mean(image)) / np.std(image)
@@ -285,7 +285,7 @@ def gaussian(x: np.ndarray, a1: float, b1: float, c1: float) -> np.ndarray:
 
     Parameters
     ----------
-    x : np.ndarray
+    x : np.ndarray, any shape
         Input array of any size (element-wise operations).
     a1 : float
         Peak amplitude (height)
@@ -297,7 +297,7 @@ def gaussian(x: np.ndarray, a1: float, b1: float, c1: float) -> np.ndarray:
     Returns
     -------
     np.ndarray
-        Gaussian curve values at the locations of x array
+        Gaussian curve values at the locations of x array (same shape as input x array)
     """      
     return a1 * np.exp(-((x - b1)/c1) ** 2)
 
@@ -306,9 +306,9 @@ def fit_gaussian(H: np.ndarray, V: np.ndarray) -> tuple:
 
     Parameters
     ----------
-    H : np.ndarray
+    H : np.ndarray, shape=(num_px_x,)
         Horisontal autocovariance profile.
-    V : np.ndarray
+    V : np.ndarray, shape=(num_px_y,)
         Vertical autocovariance profile.
 
     Returns
@@ -318,8 +318,8 @@ def fit_gaussian(H: np.ndarray, V: np.ndarray) -> tuple:
             Parameters related to fitting Gaussian function to the horisontal profile.
         stats_vert : GaussPeakFit dataclass
             Parameters related to fitting Gaussian function to the vertical profile.
-    """    
-     
+    """ 
+
     range_horis = np.arange(1, H.size + 1)
     range_vert = np.arange(1, V.size + 1)
 

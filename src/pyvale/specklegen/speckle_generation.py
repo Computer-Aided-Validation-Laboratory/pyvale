@@ -29,7 +29,7 @@ def pixelsInDisk(cent_x: int, cent_y: int,
             Diameter of the speckle disk (pixels)
         foreground_colour : int
            Colour value to set for the speckle pixels
-        image : np.ndarray
+        image : np.ndarray, shape=(num_px_y, num_px)
             2D numpy array representing the image
         check_overlap : bool
             If True, check for overlap with existing foreground pixels and does not modify the image
@@ -112,8 +112,10 @@ def generate_speckles_random_disks(screen_size_width: int, screen_size_height: i
     
         Returns
         -------
-        np.ndarray
-            Speckle pattern image as a 2D numpy array and speckle generation stats
+        np.ndarray, shape=(num_px_y, num_px)
+            Speckle pattern image as a 2D numpy array
+        np.ndarray, shape=(total_speckles, 5)
+            Speckle generation statistics
         """      
 
         speckle_size = (feature_size_width + feature_size_height) / 2
@@ -197,7 +199,7 @@ def generate_speckles_random_disks_grid(screen_size_width: int, screen_size_heig
                                    foreground_colour: int, background_colour: int,
                                    bit_depth: int, type_gen: str, seed: int, **kwargs) -> np.ndarray:
         """A function to generate a speckle pattern image by randomly perturbating a grid of regularly-placed
-        disk-shaped speckles based on disrete uniform probability distribution.
+        disk-shaped speckles based on discrete uniform probability distribution.
     
         Parameters
         ----------
@@ -228,8 +230,10 @@ def generate_speckles_random_disks_grid(screen_size_width: int, screen_size_heig
     
         Returns
         -------
-        np.ndarray
-            Speckle pattern image as a 2D numpy array and speckle generation stats
+        np.ndarray, shape=(num_px_y, num_px)
+            Speckle pattern image as a 2D numpy array
+        np.ndarray, shape=(total_speckles, 5)
+            Speckle generation statistics
         """        
     
         speckle_size = (feature_size_width + feature_size_height) / 2
@@ -332,7 +336,7 @@ def generate_speckles_perlin_noise(screen_size_width: int, screen_size_height: i
 
     Returns
     -------
-    np.ndarray
+    np.ndarray, shape=(num_px_y, num_px)
         Speckle pattern image as a 2D numpy array
     """    
 
@@ -408,7 +412,7 @@ def generate_speckles_simplex_noise(screen_size_width: int, screen_size_height: 
 
     Returns
     -------
-    np.ndarray
+    np.ndarray, shape=(num_px_y, num_px)
         Speckle pattern image as a 2D numpy array
     """    
 
@@ -467,8 +471,10 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
 
     Returns
     -------
-    np.ndarray
-        Speckle pattern image as a 2D numpy array and speckle generation stats (if applicable)
+    np.ndarray, shape=(num_px_y, num_px)
+        Speckle pattern image as a 2D numpy array
+    np.ndarray, shape=(total_speckles, 5) (optional, if applicable)
+        Speckle generation statistics
 
     Raises
     ------
