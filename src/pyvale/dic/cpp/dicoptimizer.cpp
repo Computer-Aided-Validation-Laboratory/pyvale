@@ -60,28 +60,28 @@ Optimizer::Optimizer(const std::string& shape_func,
 
 // Get number of parameters from shape function name
 int Optimizer::get_num_params(const std::string& shape_name) {
-    if (shape_name == "RIGID") return 2;
-    else if (shape_name == "AFFINE") return 6;
-    else if (shape_name == "QUAD") return 12;
+    if (shape_name == "RIGID") return Rigid::num_params;
+    else if (shape_name == "AFFINE") return Affine::num_params;
+    else if (shape_name == "QUAD") return Quad::num_params;
     else throw std::invalid_argument("Unknown shape function: " + shape_name);
 }
 
 // Set shape function
 void Optimizer::set_shape(const std::string& shape_name) {
     if (shape_name == "AFFINE") {
-        get_pixel = &shapefunc::get_pixel_affine;
-        get_dfdp = &shapefunc::get_daffine_dp;
-        get_displacement = &shapefunc::get_displacement_affine;
+        get_pixel = &Affine::get_pixel;
+        get_dfdp = &Affine::get_dshape_dp;
+        get_displacement = &Affine::get_displacement;
     } 
     else if (shape_name == "RIGID") {
-        get_pixel = &shapefunc::get_pixel_rigid;
-        get_dfdp = &shapefunc::get_drigid_dp;
-        get_displacement = &shapefunc::get_displacement_rigid;
+        get_pixel = &Rigid::get_pixel;
+        get_dfdp = &Rigid::get_dshape_dp;
+        get_displacement = &Rigid::get_displacement;
     } 
     else if (shape_name == "QUAD") {
-        get_pixel = &shapefunc::get_pixel_quad;
-        get_dfdp = &shapefunc::get_dquad_dp;
-        get_displacement = &shapefunc::get_displacement_quad;
+        get_pixel = &Quad::get_pixel;
+        get_dfdp = &Quad::get_dshape_dp;
+        get_displacement = &Quad::get_displacement;
     } 
     else {
         throw std::invalid_argument("Unknown shape function: " + shape_name);

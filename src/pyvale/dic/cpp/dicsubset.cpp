@@ -85,16 +85,6 @@ namespace subset {
 
         for (int y = 0; y < ss_def.size_y; y++){
             for (int x = 0; x < ss_def.size_x; x++){
-                if (count >= ss_def.size_y*ss_def.size_x){
-                    std::cerr << "issue with count for subpixel subset population" << std::endl;
-                    std::cerr << "count: " << count << std::endl;
-                    std::cerr << "subset size x: " << ss_def.size_x << std::endl;
-                    std::cerr << "subset size y: " << ss_def.size_y << std::endl;
-                    std::cerr << "num px (size_x*size_y): " << ss_def.size_x*ss_def.size_y << std::endl;
-                    std::cerr << "subpixel value: " << subpx_x+x << " " << subpx_y+y << std::endl;
-                    std::cerr << "subset coordinates: " << " " <<  subpx_x << " " << subpx_y << " " << std::endl;
-                    exit(EXIT_FAILURE);
-                }
                 // get coordinate values
                 ss_def.x[count] = subpx_x+x; 
                 ss_def.y[count] = subpx_y+y; 
@@ -108,59 +98,31 @@ namespace subset {
                 count++;
             }
         }
-        if (count!=ss_def.size_x*ss_def.size_y){
-            std::cerr << "count for subpixel population is not the same as the number of subset pixels.";
-            std::cout << "count: " << count << std::endl;
-            std::cerr << "number of pixels: " << ss_def.size_x*ss_def.size_y << std::endl; 
-            exit(EXIT_FAILURE);
-        }
     }
 
     void get_subpx_from_shape_params(subset::Pixels &ss_def, 
-                                     const double subpx_x, const double subpx_y,
+                                     const double ss_x, const double ss_y,
                                      const std::vector<double>& p,
                                      const Interpolator &interp_def,
                                      const std::string &shape_func){
 
         // Get the right shape function
         void (*get_pixel)(double&, double&, const double, const double, const std::vector<double>&);
-        if (shape_func == "AFFINE") get_pixel = &shapefunc::get_pixel_affine;
-        else if (shape_func == "RIGID") get_pixel = &shapefunc::get_pixel_rigid;
-        else if (shape_func == "QUAD") get_pixel = &shapefunc::get_pixel_quad;
+        if (shape_func == "AFFINE") get_pixel = &Affine::get_pixel;
+        else if (shape_func == "RIGID") get_pixel = &Rigid::get_pixel;
+        else if (shape_func == "QUAD") get_pixel = &Quad::get_pixel;
         else {
             std::cerr << "Unknown shape function: " << shape_func << std::endl;
             exit(EXIT_FAILURE);
         }
 
         int count = 0;
-
         for (int y = 0; y < ss_def.size_y; y++){
             for (int x = 0; x < ss_def.size_x; x++){
-                if (count >= ss_def.size_x*ss_def.size_y){
-                    std::cerr << "issue with count for subpixel subset population" << std::endl;
-                    std::cerr << "count: " << count << std::endl;
-                    std::cerr << "subset size x: " << ss_def.size_x << std::endl;
-                    std::cerr << "subset size y: " << ss_def.size_y << std::endl;
-                    std::cerr << "num px (size_x*size_y): " << ss_def.size_x*ss_def.size_y << std::endl;
-                    std::cerr << "subpixel value: " << subpx_x+x << " " << subpx_y+y << std::endl;
-                    std::cerr << "subset coordinates: " << " " <<  subpx_x << " " << subpx_y << " " << std::endl;
-                    exit(EXIT_FAILURE);
-                }
-
-                // get coordinate values based on shape function parameters
-                get_pixel(ss_def.x[count], ss_def.y[count], subpx_x+x, subpx_y+y, p);
-
-                // get pixel values from interpolator
+                get_pixel(ss_def.x[count], ss_def.y[count], ss_x+x, ss_y+y, p);
                 ss_def.vals[count] = interp_def.eval(0, 0, ss_def.x[count], ss_def.y[count]);
-
                 count++;
             }
-        }
-        if (count!=ss_def.size_x*ss_def.size_y){
-            std::cerr << "count for subpixel population is not the same as the number of subset pixels.";
-            std::cout << "count: " << count << std::endl;
-            std::cerr << "number of pixels: " << ss_def.size_x*ss_def.size_y << std::endl; 
-            exit(EXIT_FAILURE);
         }
     }
 

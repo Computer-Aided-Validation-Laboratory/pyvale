@@ -17,19 +17,25 @@
 
 
 
-namespace shapefunc {
 
-    void get_pixel_affine(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
-    void get_pixel_rigid(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
-    void get_pixel_quad(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+struct Affine {
+    static void get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+    static void get_dshape_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
+    static void get_displacement(double &u, double &v, const double  x, const double  y, const std::vector<double> &p);
+    static constexpr int num_params = 6;
+};
 
-    void get_daffine_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
-    void get_drigid_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
-    void get_dquad_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
-
-    void get_displacement_affine(double &u, double &v, const double x, const double y, const std::vector<double> &p);
-    void get_displacement_rigid(double &u, double &v, const double  x, const double  y, const std::vector<double > &p);
-    void get_displacement_quad(double &u, double &v, const double  x, const double  y, const std::vector<double> &p);
-}
+struct Quad {
+    static void get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+    static void get_dshape_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
+    static void get_displacement(double &u, double &v, const double  x, const double  y, const std::vector<double> &p);
+    static constexpr int num_params = 12;
+};
+struct Rigid {
+    static void get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+    static void get_dshape_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
+    static void get_displacement(double &u, double &v, const double  x, const double  y, const std::vector<double> &p);
+    static constexpr int num_params = 2;
+};
 
 #endif // DICSHAPEFUNC_HPP

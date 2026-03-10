@@ -96,7 +96,7 @@ namespace subset {
      *
      */
     void get_subpx_from_shape_params(subset::Pixels &ss_def, 
-                                     const double subpx_x, const double subpx_y,
+                                     const double ss_x, const double ss_y,
                                      const std::vector<double>& p,
                                      const Interpolator &interp_def,
                                      const std::string &shape_func);

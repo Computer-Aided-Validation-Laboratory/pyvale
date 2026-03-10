@@ -11,47 +11,45 @@
 #include <cmath>
 
 // Program Header files
-#include "./dicresults.hpp"
-
-namespace shapefunc {
+#include "./dicshapefunc.hpp"
 
     // Shape function declarations
-    void get_pixel_affine(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
+    void Affine::get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
         x_new = p[0] + (1.0+p[2]) * x + p[3] * y;
         y_new = p[1] + (1.0+p[5]) * y + p[4] * x;
     }
 
-    void get_pixel_rigid(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
+    void Rigid::get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
         x_new = p[0] + x;
         y_new = p[1] + y;
     }
 
-    void get_pixel_quad(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
+    void Quad::get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
         x_new = p[0] + (1.0+p[2])*x + p[3]*y + p[6]*x*x + p[7]*x*y + p[8]*y*y;
         y_new = p[1] + (1.0+p[5])*y + p[4]*x + p[9]*x*x + p[10]*x*y + p[11]*y*y;
     }
 
-    void get_displacement_quad(double &u, double &v, const double x, const double y, const std::vector<double> &p){
+    void Quad::get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p){
         double x_new = p[0] + (1.0+p[2])*x + p[3]*y + p[6]*x*x + p[7]*x*y + p[8]*y*y;
         double y_new = p[1] + (1.0+p[5])*y + p[4]*x + p[9]*x*x + p[10]*x*y + p[11]*y*y;
         u = x_new - x;
         v = y_new - y;
     }
 
-    void get_displacement_affine(double &u, double &v, const double x, const double y, const std::vector<double> &p){
+    void Affine::get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p){
         double x_new = p[0] + (1.0+p[2]) * x + p[3] * y;
         double y_new = p[1] + (1.0+p[5]) * y + p[4] * x;
         u = x_new - x;
         v = y_new - y;
     }
 
-    void get_displacement_rigid(double &u, double &v, const double x, const double y, const std::vector<double> &p){
+    void Rigid::get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p){
         u = p[0];
         v = p[1];
     }
 
 
-    void get_daffine_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy){
+    void Affine::get_dshape_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy){
         dfdp[0] = dfdx;
         dfdp[1] = dfdy;
         dfdp[2] = dfdx * x;
@@ -60,12 +58,12 @@ namespace shapefunc {
         dfdp[5] = dfdy * y;
     }
 
-    void get_drigid_dp(std::vector<double> &dfdp, const double x, const double y,  const double dfdx, const double dfdy){
+    void Rigid::get_dshape_dp(std::vector<double> &dfdp, const double x, const double y,  const double dfdx, const double dfdy){
             dfdp[0] = dfdx;
             dfdp[1] = dfdy;
     }
 
-    void get_dquad_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy){
+    void Quad::get_dshape_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy){
         dfdp[0]  = dfdx;
         dfdp[1]  = dfdy;
         dfdp[2]  = dfdx * x;
@@ -79,4 +77,3 @@ namespace shapefunc {
         dfdp[10] = dfdy * x*y;
         dfdp[11] = dfdy * y*y;
     }
-}
