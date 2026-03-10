@@ -62,8 +62,8 @@ namespace subset {
      * subset is determined by `ss_def->size`. Both the pixel values and their corresponding 
      * coordinates are stored in `ss_def`.
      * 
-     * @param ss_x        X-coordinate (column) of the top-left corner of the subset in the image.
-     * @param ss_y        Y-coordinate (row) of the top-left corner of the subset in the image.
+     * @param ss_x        X-coordinate (column) of the TOP-LEFT CORNER of the subset in the image.
+     * @param ss_y        Y-coordinate (row) of the TOP-LEFT CORNER of the subset in the image.
      * @param img_def   Pointer to the source image (`util::Image`) from which to extract pixel data.
      * @param ss_def      Pointer to the destination subset (`subset::Pixels`) where extracted pixel 
      *                    values and coordinates are stored.
@@ -84,8 +84,8 @@ namespace subset {
      * coordinates are stored in `ss_def`.
      * 
      * @param ss_ref      Pointer to the destination subset (`subset::Pixels`) where extracted pixel info will be stored
-     * @param ss_x        X-coordinate (column) of the top-left corner of the subset in the image.
-     * @param ss_y        Y-coordinate (row) of the top-left corner of the subset in the image.
+     * @param ss_x        X-coordinate (column) of the TOP-LEFT CORNER of the subset in the image.
+     * @param ss_y        Y-coordinate (row) of the TOP-LEFT CORNER of the subset in the image.
      * @param interp_ref  interpolator for the reference image from which to extract pixel data.
      */
     void fill_from_img_subpx(subset::Pixels &ss_def, 
@@ -93,10 +93,20 @@ namespace subset {
                           const Interpolator &interp_def);
 
     /**
-     *
-     */
+    * @brief Populates a deformed subset with interpolated image values using shape function parameters.
+    *
+    * Applies the shape function to map reference subset coordinates (centred at cx, cy)
+    * to deformed image coordinates, then interpolates the image intensity at each mapped location.
+    *
+    * @param ss_def      Output subset to populate with deformed coordinates and interpolated values.
+    * @param cx          Global x-coordinate of the SUBSET CENTRE in the reference image.
+    * @param cy          Global y-coordinate of the SUBSET CENTRE in the reference image.
+    * @param p           Shape function parameters (e.g. displacement, strain components).
+    * @param interp_def  Interpolator for the deformed image.
+    * @param shape_func  Shape function type: "AFFINE", "RIGID", or "QUAD".
+    */
     void fill_from_shape_params(subset::Pixels &ss_def, 
-                                     const double ss_x, const double ss_y,
+                                     const double cx, const double cy,
                                      const std::vector<double>& p,
                                      const Interpolator &interp_def,
                                      const std::string &shape_func);

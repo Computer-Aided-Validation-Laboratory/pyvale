@@ -94,14 +94,11 @@ void Optimizer::set_rigid_displacement(double dx, double dy) {
     p[1] = dy;
 }
 
-OptResult Optimizer::solve(const double ss_x,
-                        const double ss_y,
+OptResult Optimizer::solve(const double cx, 
+                           const double cy,
                         subset::Pixels &ss_ref,
                         subset::Pixels &ss_def,
                         const Interpolator &interp_def){
-
-    double cx, cy;
-    subset::get_centre(cx, cy, ss_x, ss_y, ss_ref.size_x, ss_ref.size_y);
 
     int iter = 0;
     double ftol = 0;
@@ -112,17 +109,15 @@ OptResult Optimizer::solve(const double ss_x,
 
 
     // trying relative instead of global coordinates for the optimization
-    int global_x = ss_ref.x[0];
-    int global_y = ss_ref.y[0];
     for (int px = 0; px < ss_ref.num_px; px++){
-        ss_ref.x[px] -= global_x;
-        ss_ref.y[px] -= global_y;
+        ss_ref.x[px] -= cx;
+        ss_ref.y[px] -= cy;
     }
 
     while (iter < max_iter) {
 
         // perform the optimization
-        (this->*optimize_cost)(ss_ref, ss_def, interp_def, global_x, global_y);
+        (this->*optimize_cost)(ss_ref, ss_def, interp_def, cx, cy);
 
         // set new damping value
         update_lambda(costp, costpdp, p, pdp, lambda, num_params);
@@ -176,7 +171,7 @@ OptResult Optimizer::solve(const double ss_x,
     zncc *= inv_sum_squared;
 
     OptResult res(num_params);
-    get_displacement(res.u, res.v, cx-global_x, cy-global_y, p);
+    get_displacement(res.u, res.v, 0.0, 0.0, p);
     res.iter = iter;
     res.ftol = ftol;
     res.xtol = xtol;
@@ -196,8 +191,8 @@ OptResult Optimizer::solve(const double ss_x,
 void Optimizer::ssd(const subset::Pixels &ss_ref,
             subset::Pixels &ss_def,
             const Interpolator &interp_def,
-            const int global_x,
-            const int global_y){
+            const double cx,
+            const double cy){
 
     const int num_px = ss_def.num_px;
     
@@ -223,7 +218,7 @@ void Optimizer::ssd(const subset::Pixels &ss_ref,
         double def_y = ss_def.y[i];
 
         // get the subset value and derivitives
-        interp_vals = interp_def.eval_and_derivs(global_x, global_y, def_x+global_x, def_y+global_y);
+        interp_vals = interp_def.eval_and_derivs(cx, cy, def_x+cx, def_y+cy);
         ss_def.vals[i] = interp_vals.f;
         double def = ss_def.vals[i];
 
@@ -264,7 +259,7 @@ void Optimizer::ssd(const subset::Pixels &ss_ref,
     costpdp = 0.0;
     for (int i = 0; i < num_px; ++i) {
         get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], pdp);
-        ss_def.vals[i] = interp_def.eval(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+        ss_def.vals[i] = interp_def.eval(cx, cy, ss_def.x[i]+cx, ss_def.y[i]+cy);
         costpdp += (ss_ref.vals[i] - ss_def.vals[i]) * (ss_ref.vals[i] - ss_def.vals[i]);
     }
 }
@@ -273,8 +268,8 @@ void Optimizer::ssd(const subset::Pixels &ss_ref,
 void Optimizer::nssd(const subset::Pixels &ss_ref,
                         subset::Pixels &ss_def,
                         const Interpolator &interp_def,
-                        const int global_x,
-                        const int global_y){
+                        const double cx,
+                        const double cy){
 
     // reset derivative and hessian values
     std::fill(g.begin(), g.end(), 0.0);
@@ -300,7 +295,7 @@ void Optimizer::nssd(const subset::Pixels &ss_ref,
         // apply shape function parameters to deformed subset
         get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], p);
 
-        interp_vals = interp_def.eval_and_derivs(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+        interp_vals = interp_def.eval_and_derivs(cx, cy, ss_def.x[i]+cx, ss_def.y[i]+cy);
         ss_def.vals[i] = interp_vals.f;
         dfdx[i] = interp_vals.dfdx;
         dfdy[i] = interp_vals.dfdy;
@@ -351,7 +346,7 @@ void Optimizer::nssd(const subset::Pixels &ss_ref,
     sum_squared_def = 0.0;
     for (int i = 0; i < num_px; ++i) {
         get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], pdp);
-        ss_def.vals[i] = interp_def.eval(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+        ss_def.vals[i] = interp_def.eval(cx, cy, ss_def.x[i]+cx, ss_def.y[i]+cy);
         sum_squared_def += ss_def.vals[i] * ss_def.vals[i];
     }
 
@@ -369,8 +364,8 @@ void Optimizer::nssd(const subset::Pixels &ss_ref,
 void Optimizer::znssd(const subset::Pixels &ss_ref,
                         subset::Pixels &ss_def,
                         const Interpolator &interp_def,
-                        const int global_x,
-                        const int global_y){
+                        const double cx,
+                        const double cy){
 
 
     // reset derivative and hessian values
@@ -395,7 +390,7 @@ void Optimizer::znssd(const subset::Pixels &ss_ref,
         // apply shape function parameters to deformed subset
         get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], p);
 
-        interp_vals = interp_def.eval_and_derivs(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+        interp_vals = interp_def.eval_and_derivs(cx, cy, ss_def.x[i]+cx, ss_def.y[i]+cy);
         ss_def.vals[i] = interp_vals.f;
         dfdx[i] = interp_vals.dfdx;
         dfdy[i] = interp_vals.dfdy;
@@ -458,7 +453,7 @@ void Optimizer::znssd(const subset::Pixels &ss_ref,
     mean_def = 0.0;
     for (int i = 0; i < num_px; ++i) {
         get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], pdp);
-        ss_def.vals[i] = interp_def.eval(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+        ss_def.vals[i] = interp_def.eval(cx, cy, ss_def.x[i]+cx, ss_def.y[i]+cy);
         mean_def += ss_def.vals[i];
     }
 

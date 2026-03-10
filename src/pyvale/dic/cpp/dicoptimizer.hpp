@@ -44,8 +44,8 @@ class Optimizer {
                  int ss_size);
         
         // Main solve method
-        OptResult solve(const double ss_x, 
-                  const double ss_y, 
+        OptResult solve(const double cx, 
+                  const double cy, 
                   subset::Pixels &ss_ref, 
                   subset::Pixels &ss_def, 
                   const Interpolator &interp_def);
@@ -88,7 +88,7 @@ class Optimizer {
         int px_hori;
         
         // Points to cost function
-        void (Optimizer::*optimize_cost)(const subset::Pixels&, subset::Pixels&, const Interpolator&, const int, const int);
+        void (Optimizer::*optimize_cost)(const subset::Pixels&, subset::Pixels&, const Interpolator&, const double, const double);
         
         // Shape function pointers
         void (*get_pixel)(double&, double&, const double, const double, const std::vector<double>&);
@@ -125,12 +125,14 @@ class Optimizer {
         * @param[in] ss_ref reference subset
         * @param[in,out] ss_def deformed subset
         * @param[in] interp_def interpolator for deformed image 
+        * @param[in] cx x coordinate at subset centre
+        * @param[in] cy y coordinate at subset centre
         */ 
         void ssd(const subset::Pixels &ss_ref,
              subset::Pixels &ss_def,
              const Interpolator &interp_def,
-             const int global_x,
-             const int global_y);
+             const double cx,
+             const double cy);
 
         /**
         * @brief calcutes the Normalized Sum of Squared Differences (NSSD) between reference and deformed subsets.
@@ -138,12 +140,14 @@ class Optimizer {
         * @param[in] ss_ref reference subset
         * @param[in,out] ss_def deformed subset
         * @param[in] interp_def interpolator for deformed image 
+        * @param[in] cx x coordinate at subset centre
+        * @param[in] cy y coordinate at subset centre
         */
         void nssd(const subset::Pixels &ss_ref,
                   subset::Pixels &ss_def,
                   const Interpolator &interp_def,
-                  const int global_x,
-                  const int global_y);
+                  const double cx,
+                  const double cy);
 
         /**
         * @brief calcutes the Zero Normalized Sum of Squared Differences (ZNSSD) between reference and deformed subsets.
@@ -151,12 +155,14 @@ class Optimizer {
         * @param[in] ss_ref reference subset
         * @param[in,out] ss_def deformed subset
         * @param[in] interp_def interpolator for deformed image 
+        * @param[in] cx x coordinate at subset centre
+        * @param[in] cy y coordinate at subset centre
         */
          void znssd(const subset::Pixels &ss_ref,
                     subset::Pixels &ss_def,
                     const Interpolator &interp_def,
-                    const int global_x,
-                    const int global_y);
+                    const double cx,
+                    const double cy);
 
 
         /**
