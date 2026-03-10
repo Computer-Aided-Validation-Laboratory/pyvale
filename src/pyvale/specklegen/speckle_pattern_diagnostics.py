@@ -25,10 +25,17 @@ class SpeckleDiagnostics:
     peak_to_mean_ratio: float
     avg_speckle_size_fwhm: float
     avg_speckle_size_e2: float
-    H_fit_stats: dict[str, float]
-    V_fit_stats: dict[str, float]
+    fit_stats_r_sq_horis: float
+    fit_stats_r_sq_vert: float
 
-def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict[str, float]:
+@dataclass(slots=True)
+class GaussPeakFit:
+    full_width_at_half_max: float # Full width at half maximum
+    fit_stats_r_sq: float # R-squared goodness of fit
+    one_over_e_sq_width: float # 1/e^2 width
+    gauss_fit_optim_params: np.ndarray # Optimal parameters for Gaussian fit
+
+def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> SpeckleDiagnostics:
     """A function to perform diagnostics on the speckle pattern image.
 
     Parameters
@@ -40,16 +47,16 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict[str, f
 
     Returns
     -------
-    dict[str, float]
-        Dictionary with diagnostic results
+    SpeckleDiagnostics dataclass
+        Diagnostic results
     """
     
     assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
     dynamic_range: int = 2**bit_depth - 1
 
-    HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V, h_profile, v_profile = speckle_size(image)
-    avg_speckle_size_fwhm = np.mean([HFWHM, VFWHM])
-    avg_speckle_size_e2 = np.mean([HeSquared, VeSquared])
+    stats_horis, stats_vert, _, _ = speckle_size(image)
+    avg_speckle_size_fwhm = np.mean([stats_horis.full_width_at_half_max, stats_vert.full_width_at_half_max])
+    avg_speckle_size_e2 = np.mean([stats_horis.one_over_e_sq_width, stats_vert.one_over_e_sq_width])
 
     # Calculate black/white ratio
     black_pixels = np.sum(image < (dynamic_range // 2))
@@ -67,22 +74,6 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict[str, f
     entropy = shannon_entropy(image)
     peak_to_mean = np.max(image) / np.mean(image)
 
-    # results = {
-    #     "black_white_ratio": ratio,
-    #     "mean_intensity_gradient": mean_gradient,
-    #     "std_dev_irradiance": std_dev,
-    #     "avg_irradiance": avg,
-    #     "contrast": contrast,
-    #     "skewness": skewness,
-    #     "kurtosis": kurt,
-    #     "shannon_entropy": entropy,
-    #     "peak_to_mean_ratio": peak_to_mean,
-    #     "avg_speckle_size_fwhm": avg_speckle_size_fwhm,
-    #     "avg_speckle_size_e2": avg_speckle_size_e2,
-    #     "H_fit_stats": H_fit_stats,
-    #     "V_fit_stats": V_fit_stats
-    # }
-
     results = SpeckleDiagnostics(
                    black_white_ratio=ratio,
                    mean_intensity_gradient=mean_gradient,
@@ -95,8 +86,8 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict[str, f
                    peak_to_mean_ratio=peak_to_mean,
                    avg_speckle_size_fwhm=avg_speckle_size_fwhm,
                    avg_speckle_size_e2=avg_speckle_size_e2,
-                   H_fit_stats=H_fit_stats,
-                   V_fit_stats=V_fit_stats)
+                   fit_stats_r_sq_horis=stats_horis.fit_stats_r_sq,
+                   fit_stats_r_sq_vert=stats_vert.fit_stats_r_sq)
 
     return results
 
@@ -151,7 +142,7 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
         )
 
     
-    HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V, h_profile, v_profile = speckle_size(image)
+    stats_horis, stats_vert, h_profile, v_profile = speckle_size(image)
     plots = {}
 
     # Set Seaborn theme
@@ -223,7 +214,7 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
         plt.subplot(2, 1, 1)
         plt.plot(x_H, h_profile, 'b-', label='Horisontal autocov.',
                     linewidth=2)
-        plt.plot(x_H, gaussian(x_H, *popt_H), 'r--', label='Gaussian interpol.', linewidth=2)
+        plt.plot(x_H, gaussian(x_H, *stats_horis.gauss_fit_optim_params), 'r--', label='Gaussian interpol.', linewidth=2)
         plt.title('Horisontal autocovariance', fontsize=fontsize1)
         plt.xlabel('Lag [pixels]', fontsize=fontsize1-2)
         plt.ylabel('Autocov. ' + r"[pixel$^2$]", fontsize=fontsize1-2)
@@ -232,7 +223,7 @@ def speckle_pattern_plots(image: np.ndarray, bit_depth: int,
         plt.subplot(2, 1, 2)
         plt.plot(x_V, v_profile, 'b-', label='Vertical autocov.',
                     linewidth=2)
-        plt.plot(x_V, gaussian(x_V, *popt_V), 'r--', label='Gaussian interpol.', linewidth=2)
+        plt.plot(x_V, gaussian(x_V, *stats_vert.gauss_fit_optim_params), 'r--', label='Gaussian interpol.', linewidth=2)
         plt.title('Vertical autocovariance', fontsize=fontsize1)
         plt.xlabel('Lag [pixels]', fontsize=fontsize1-  2)
         plt.ylabel('Autocov. ' + r"[pixel$^2$]", fontsize=fontsize1-2)
@@ -263,22 +254,10 @@ def speckle_size(image: np.ndarray) -> tuple:
     Returns
     -------
     tuple
-        HFWHM : float
-            Full width at half maximum for horisontal profile.
-        HeSquared : float
-            1/e^2 width for horisontal profile.
-        H_fit_stats : dict[str, float]
-            R-squared goodness of fit for horisontal profile.
-        VFWHM : float
-            Full width at half maximum for vertical profile.
-        VeSquared : float
-            1/e^2 width for vertical profile.
-        V_fit_stats : dict[str, float]
-            R-squared goodness of fit for vertical profile.
-        popt_H : np.ndarray
-            Optimal parameters for horisontal Gaussian fit.
-        popt_V : np.ndarray
-            Optimal parameters for vertical Gaussian fit.
+        stats_horis : GaussPeakFit dataclass
+            Parameters related to fitting Gaussian function to the horisontal profile.
+        stats_vert : GaussPeakFit dataclass
+            Parameters related to fitting Gaussian function to the vertical profile.
         h_profile : np.ndarray
             Horisontal autocovariance profile.
         v_profile : np.ndarray
@@ -297,9 +276,9 @@ def speckle_size(image: np.ndarray) -> tuple:
     h_profile = autocorr[centre_y, :]
     v_profile = autocorr[:, centre_x]
 
-    HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V = fit_gaussian(h_profile, v_profile)
+    stats_horis, stats_vert = fit_gaussian(h_profile, v_profile)
 
-    return HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V, h_profile, v_profile
+    return stats_horis, stats_vert, h_profile, v_profile
 
 def gaussian(x: np.ndarray, a1: float, b1: float, c1: float) -> np.ndarray:
     """A function to model Gaussian distribution.
@@ -335,43 +314,57 @@ def fit_gaussian(H: np.ndarray, V: np.ndarray) -> tuple:
     Returns
     -------
     tuple
-        HFWHM : float
-            Full width at half maximum for horisontal profile.
-        HeSquared : float
-            1/e^2 width for horisontal profile.
-        H_fit_stats : dict[str, float]
-            R-squared goodness of fit for horisontal profile.
-        VFWHM : float
-            Full width at half maximum for vertical profile.
-        VeSquared : float
-            1/e^2 width for vertical profile.
-        V_fit_stats : dict[str, float]
-            R-squared goodness of fit for vertical profile.
-        popt_H : np.ndarray
-            Optimal parameters for horisontal Gaussian fit.
-        popt_V : np.ndarray
-            Optimal parameters for vertical Gaussian fit.
+        stats_horis : GaussPeakFit dataclass
+            Parameters related to fitting Gaussian function to the horisontal profile.
+        stats_vert : GaussPeakFit dataclass
+            Parameters related to fitting Gaussian function to the vertical profile.
     """    
      
-    range_H = np.arange(1, H.size + 1)
-    range_V = np.arange(1, V.size + 1)
+    range_horis = np.arange(1, H.size + 1)
+    range_vert = np.arange(1, V.size + 1)
 
-    low_H = np.where(H > 0.2)[0]
-    low_V = np.where(V > 0.2)[0]
+    low_horis = np.where(H > 0.2)[0]
+    low_vert = np.where(V > 0.2)[0]
 
-    popt_H, _ = curve_fit(gaussian, range_H[low_H], H[low_H], p0=[1, np.argmax(H), 1])
-    popt_V, _ = curve_fit(gaussian, range_V[low_V], V[low_V], p0=[1, np.argmax(V), 1])
+    gauss_fit_optim_params_horis, _ = curve_fit(gaussian, range_horis[low_horis], H[low_horis], p0=[1, np.argmax(H), 1])
+    gauss_fit_optim_params_vert, _ = curve_fit(gaussian, range_vert[low_vert], V[low_vert], p0=[1, np.argmax(V), 1])
 
-    # Extract FWHM and 1/e^2 widths
-    HFWHM = 2 * popt_H[2] * np.sqrt(-np.log(0.5 / popt_H[0]))  # FWHM for horisontal
-    VFWHM = 2 * popt_V[2] * np.sqrt(-np.log(0.5 / popt_V[0]))  # FWHM for vertical
-    HeSquared = popt_H[2] * np.sqrt(-np.log(0.1353353 / popt_H[0]))  # 1/e^2 for horisontal
-    VeSquared = popt_V[2] * np.sqrt(-np.log(0.1353353 / popt_V[0]))  # 1/e^2 for vertical
+    # Extract full width at half maximum (FWHM) and 1/e^2 widths
+
+     # FWHM for horisontal
+    full_width_at_half_max_horis_1 = 2 * gauss_fit_optim_params_horis[2]
+    full_width_at_half_max_horis_2 = np.sqrt(-np.log(0.5 / gauss_fit_optim_params_horis[0]))
+    full_width_at_half_max_horis = full_width_at_half_max_horis_1 * full_width_at_half_max_horis_2
+    # FWHM for vertical
+    full_width_at_half_max_vert_1 = 2 * gauss_fit_optim_params_vert[2]
+    full_width_at_half_max_vert_2 = np.sqrt(-np.log(0.5 / gauss_fit_optim_params_vert[0]))
+    full_width_at_half_max_vert = full_width_at_half_max_vert_1 * full_width_at_half_max_vert_2
+    # 1/e^2 for horisontal
+    one_over_e_sq_width_horis = gauss_fit_optim_params_horis[2] * np.sqrt(-np.log(0.1353353 / gauss_fit_optim_params_horis[0]))
+    # 1/e^2 for vertical
+    one_over_e_sq_width_vert = gauss_fit_optim_params_vert[2] * np.sqrt(-np.log(0.1353353 / gauss_fit_optim_params_vert[0]))
 
     # R-squared goodness of fit
-    H_fit_stats = {'R_squared': 1 - np.sum((H[low_H] - gaussian(range_H[low_H], *popt_H)) ** 2) / np.sum((H[low_H] - np.mean(H[low_H])) ** 2)}
-    V_fit_stats = {'R_squared': 1 - np.sum((V[low_V] - gaussian(range_V[low_V], *popt_V)) ** 2) / np.sum((V[low_V] - np.mean(V[low_V])) ** 2)}
+    fit_stats_r_sq_horis_1 = np.sum((H[low_horis] - gaussian(range_horis[low_horis], *gauss_fit_optim_params_horis)) ** 2)
+    fit_stats_r_sq_horis_2 = np.sum((H[low_horis] - np.mean(H[low_horis])) ** 2)
+    fit_stats_r_sq_horis = 1 - fit_stats_r_sq_horis_1 / fit_stats_r_sq_horis_2
 
-    return HFWHM, HeSquared, H_fit_stats, VFWHM, VeSquared, V_fit_stats, popt_H, popt_V
+    fit_stats_r_sq_vert_1 = np.sum((V[low_vert] - gaussian(range_vert[low_vert], *gauss_fit_optim_params_vert)) ** 2)
+    fit_stats_r_sq_vert_2 = np.sum((V[low_vert] - np.mean(V[low_vert])) ** 2)
+    fit_stats_r_sq_vert = 1 - fit_stats_r_sq_vert_1 / fit_stats_r_sq_vert_2
+
+    stats_horis = GaussPeakFit(
+                  full_width_at_half_max=full_width_at_half_max_horis,
+                  fit_stats_r_sq=fit_stats_r_sq_horis,
+                  one_over_e_sq_width=one_over_e_sq_width_horis,
+                  gauss_fit_optim_params=gauss_fit_optim_params_horis)
+    
+    stats_vert = GaussPeakFit(
+                  full_width_at_half_max=full_width_at_half_max_vert,
+                  fit_stats_r_sq=fit_stats_r_sq_vert,
+                  one_over_e_sq_width=one_over_e_sq_width_vert,
+                  gauss_fit_optim_params=gauss_fit_optim_params_vert)
+
+    return (stats_horis, stats_vert)
 
 
