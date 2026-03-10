@@ -68,7 +68,7 @@ namespace subset {
      * @param ss_def      Pointer to the destination subset (`subset::Pixels`) where extracted pixel 
      *                    values and coordinates are stored.
      */            
-    void get_px_from_img(subset::Pixels &ss_ref,
+    void fill_from_img(subset::Pixels &ss_ref,
                     const int ss_x, const int ss_y,
                     const int px_hori,
                     const int px_vert,
@@ -88,14 +88,14 @@ namespace subset {
      * @param ss_y        Y-coordinate (row) of the top-left corner of the subset in the image.
      * @param interp_ref  interpolator for the reference image from which to extract pixel data.
      */
-    void get_subpx_from_img(subset::Pixels &ss_def, 
+    void fill_from_img_subpx(subset::Pixels &ss_def, 
                           const double subpx_x, const double subpx_y, 
                           const Interpolator &interp_def);
 
     /**
      *
      */
-    void get_subpx_from_shape_params(subset::Pixels &ss_def, 
+    void fill_from_shape_params(subset::Pixels &ss_def, 
                                      const double ss_x, const double ss_y,
                                      const std::vector<double>& p,
                                      const Interpolator &interp_def,

@@ -16,7 +16,7 @@
 
 namespace subset {
 
-     void get_px_from_img(subset::Pixels &ss_ref, 
+     void fill_from_img(subset::Pixels &ss_ref, 
                     const int ss_x, const int ss_y, 
                     const int px_hori,
                     const int px_vert,
@@ -77,7 +77,7 @@ namespace subset {
         return zncc * inv_sum_squared;
     }
 
-    void get_subpx_from_img(subset::Pixels &ss_def, 
+    void fill_from_img_subpx(subset::Pixels &ss_def, 
                           const double subpx_x, const double subpx_y, 
                           const Interpolator &interp_def){
 
@@ -100,7 +100,7 @@ namespace subset {
         }
     }
 
-    void get_subpx_from_shape_params(subset::Pixels &ss_def, 
+    void fill_from_shape_params(subset::Pixels &ss_def, 
                                      const double ss_x, const double ss_y,
                                      const std::vector<double>& p,
                                      const Interpolator &interp_def,
