@@ -18,24 +18,150 @@
 
 
 
+/**
+ * @brief Affine shape function for DIC subset deformation.
+ *        Models translation, rotation, shear and normal strain (6 parameters).
+ *
+ *        Coordinate convention: (x, y) are in the local subset frame, relative
+ *        to the subset's top-left corner. Shape function parameters describe
+ *        deformation anchored at the subset centre, so get_displacement() should
+ *        be evaluated at (cx - global_x, cy - global_y) to recover u and v at
+ *        the centre.
+ *
+ *        p = [u, v, du/dx, du/dy, dv/dx, dv/dy]
+ */
 struct Affine {
+
+    /**
+     * @brief Maps a reference pixel to its deformed position.
+     * @param[out] x_new  Deformed x-coordinate in local subset frame [pixels]
+     * @param[out] y_new  Deformed y-coordinate in local subset frame [pixels]
+     * @param[in]  x      Reference x-coordinate in local subset frame [pixels]
+     * @param[in]  y      Reference y-coordinate in local subset frame [pixels]
+     * @param[in]  p      Shape function parameters [u, v, du/dx, du/dy, dv/dx, dv/dy]
+     */
     static void get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+
+    /**
+     * @brief Computes the Jacobian row df/dp for this pixel, used to build the
+     *        Hessian and gradient in the Levenberg-Marquardt optimisation.
+     * @param[out] dfdp  Jacobian entries (6 elements): [dfdx, dfdy, dfdx*x, dfdx*y, dfdy*x, dfdy*y]
+     * @param[in]  x     Reference x-coordinate in local subset frame [pixels]
+     * @param[in]  y     Reference y-coordinate in local subset frame [pixels]
+     * @param[in]  dfdx  Image gradient in x at this pixel
+     * @param[in]  dfdy  Image gradient in y at this pixel
+     */
     static void get_dshape_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
-    static void get_displacement(double &u, double &v, const double  x, const double  y, const std::vector<double> &p);
-    static constexpr int num_params = 6;
+
+    /**
+     * @brief Computes displacement (u, v) at a point in the local subset frame.
+     *        To recover the displacement at the subset centre, pass
+     *        x = cx - global_x, y = cy - global_y.
+     * @param[out] u  Displacement in x-direction [pixels]
+     * @param[out] v  Displacement in y-direction [pixels]
+     * @param[in]  x  x-coordinate in local subset frame [pixels]
+     * @param[in]  y  y-coordinate in local subset frame [pixels]
+     * @param[in]  p  Shape function parameters [u, v, du/dx, du/dy, dv/dx, dv/dy]
+     */
+    static void get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p);
+
+    static constexpr int num_params = 6; /**< Number of shape function parameters */
 };
 
+/**
+ * @brief Quadratic shape function for DIC subset deformation.
+ *        Extends affine with second-order terms, capturing bending and
+ *        non-uniform strain fields (12 parameters).
+ *
+ *        Coordinate convention: same as Affine — (x, y) are in the local subset
+ *        frame, relative to the subset's top-left corner.
+ *
+ *        p = [u, v, du/dx, du/dy, dv/dx, dv/dy,
+ *             d2u/dx2, d2u/dxdy, d2u/dy2, d2v/dx2, d2v/dxdy, d2v/dy2]
+ */
 struct Quad {
+
+    /**
+     * @brief Maps a reference pixel to its deformed position.
+     * @param[out] x_new  Deformed x-coordinate in local subset frame [pixels]
+     * @param[out] y_new  Deformed y-coordinate in local subset frame [pixels]
+     * @param[in]  x      Reference x-coordinate in local subset frame [pixels]
+     * @param[in]  y      Reference y-coordinate in local subset frame [pixels]
+     * @param[in]  p      Shape function parameters (12 total, see struct description)
+     */
     static void get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+
+    /**
+     * @brief Computes the Jacobian row df/dp for this pixel.
+     * @param[out] dfdp  Jacobian entries (12 elements):
+     *                   [dfdx, dfdy, dfdx*x, dfdx*y, dfdy*x, dfdy*y,
+     *                    dfdx*x^2, dfdx*x*y, dfdx*y^2, dfdy*x^2, dfdy*x*y, dfdy*y^2]
+     * @param[in]  x     Reference x-coordinate in local subset frame [pixels]
+     * @param[in]  y     Reference y-coordinate in local subset frame [pixels]
+     * @param[in]  dfdx  Image gradient in x at this pixel
+     * @param[in]  dfdy  Image gradient in y at this pixel
+     */
     static void get_dshape_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
-    static void get_displacement(double &u, double &v, const double  x, const double  y, const std::vector<double> &p);
-    static constexpr int num_params = 12;
+
+    /**
+     * @brief Computes displacement (u, v) at a point in the local subset frame.
+     *        To recover displacement at the subset centre, pass
+     *        x = cx - global_x, y = cy - global_y.
+     * @param[out] u  Displacement in x-direction [pixels]
+     * @param[out] v  Displacement in y-direction [pixels]
+     * @param[in]  x  x-coordinate in local subset frame [pixels]
+     * @param[in]  y  y-coordinate in local subset frame [pixels]
+     * @param[in]  p  Shape function parameters (12 total)
+     */
+    static void get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p);
+
+    static constexpr int num_params = 12; /**< Number of shape function parameters */
 };
+
+/**
+ * @brief Rigid (translation-only) shape function for DIC subset deformation.
+ *        Models pure translation with no rotation or strain (2 parameters).
+ *        Displacement is constant across the subset — (x, y) do not affect the result.
+ *
+ *        Coordinate convention: same as Affine — (x, y) are in the local subset
+ *        frame, relative to the subset's top-left corner.
+ *
+ *        p = [u, v]
+ */
 struct Rigid {
+    /**
+     * @brief Maps a reference pixel to its deformed position (pure translation).
+     * @param[out] x_new  Deformed x-coordinate in local subset frame [pixels]
+     * @param[out] y_new  Deformed y-coordinate in local subset frame [pixels]
+     * @param[in]  x      Reference x-coordinate in local subset frame [pixels]
+     * @param[in]  y      Reference y-coordinate in local subset frame [pixels]
+     * @param[in]  p      Shape function parameters [u, v]
+     */
     static void get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p);
+
+    /**
+     * @brief Computes the Jacobian row df/dp for this pixel.
+     *        For rigid motion x and y do not contribute, so dfdp has only 2 elements.
+     * @param[out] dfdp  Jacobian entries (2 elements): [dfdx, dfdy]
+     * @param[in]  x     Reference x-coordinate in local subset frame [pixels] (unused)
+     * @param[in]  y     Reference y-coordinate in local subset frame [pixels] (unused)
+     * @param[in]  dfdx  Image gradient in x at this pixel
+     * @param[in]  dfdy  Image gradient in y at this pixel
+     */
     static void get_dshape_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy);
-    static void get_displacement(double &u, double &v, const double  x, const double  y, const std::vector<double> &p);
-    static constexpr int num_params = 2;
+
+    /**
+     * @brief Computes displacement (u, v). For rigid motion displacement is constant
+     *        across the subset, so (x, y) are unused.
+     * @param[out] u  Displacement in x-direction [pixels], equal to p[0]
+     * @param[out] v  Displacement in y-direction [pixels], equal to p[1]
+     * @param[in]  x  x-coordinate in local subset frame [pixels] (unused)
+     * @param[in]  y  y-coordinate in local subset frame [pixels] (unused)
+     * @param[in]  p  Shape function parameters [u, v]
+     */
+    static void get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p);
+
+    static constexpr int num_params = 2; /**< Number of shape function parameters */
 };
 
 #endif // DICSHAPEFUNC_HPP
