@@ -7,10 +7,26 @@ from matplotlib.axes import Axes
 import seaborn as sns
 import scipy.fftpack
 import warnings
+from dataclasses import dataclass
 from scipy.optimize import curve_fit
 from scipy.stats import skew, kurtosis
 from skimage.measure import shannon_entropy
 
+@dataclass(slots=True)
+class SpeckleDiagnostics:
+    black_white_ratio: float
+    mean_intensity_gradient: float
+    std_dev_irradiance: float
+    avg_irradiance: float
+    contrast: float
+    skewness_value: float
+    kurtosis_value: float
+    shannon_entropy_value: float
+    peak_to_mean_ratio: float
+    avg_speckle_size_fwhm: float
+    avg_speckle_size_e2: float
+    H_fit_stats: dict[str, float]
+    V_fit_stats: dict[str, float]
 
 def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict[str, float]:
     """A function to perform diagnostics on the speckle pattern image.
@@ -51,21 +67,36 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> dict[str, f
     entropy = shannon_entropy(image)
     peak_to_mean = np.max(image) / np.mean(image)
 
-    results = {
-        "black_white_ratio": ratio,
-        "mean_intensity_gradient": mean_gradient,
-        "std_dev_irradiance": std_dev,
-        "avg_irradiance": avg,
-        "contrast": contrast,
-        "skewness": skewness,
-        "kurtosis": kurt,
-        "shannon_entropy": entropy,
-        "peak_to_mean_ratio": peak_to_mean,
-        "avg_speckle_size_fwhm": avg_speckle_size_fwhm,
-        "avg_speckle_size_e2": avg_speckle_size_e2,
-        "H_fit_stats": H_fit_stats,
-        "V_fit_stats": V_fit_stats
-    }
+    # results = {
+    #     "black_white_ratio": ratio,
+    #     "mean_intensity_gradient": mean_gradient,
+    #     "std_dev_irradiance": std_dev,
+    #     "avg_irradiance": avg,
+    #     "contrast": contrast,
+    #     "skewness": skewness,
+    #     "kurtosis": kurt,
+    #     "shannon_entropy": entropy,
+    #     "peak_to_mean_ratio": peak_to_mean,
+    #     "avg_speckle_size_fwhm": avg_speckle_size_fwhm,
+    #     "avg_speckle_size_e2": avg_speckle_size_e2,
+    #     "H_fit_stats": H_fit_stats,
+    #     "V_fit_stats": V_fit_stats
+    # }
+
+    results = SpeckleDiagnostics(
+                   black_white_ratio=ratio,
+                   mean_intensity_gradient=mean_gradient,
+                   std_dev_irradiance=std_dev,
+                   avg_irradiance=avg,
+                   contrast=contrast,
+                   skewness_value=skewness,
+                   kurtosis_value=kurt,
+                   shannon_entropy_value=entropy,
+                   peak_to_mean_ratio=peak_to_mean,
+                   avg_speckle_size_fwhm=avg_speckle_size_fwhm,
+                   avg_speckle_size_e2=avg_speckle_size_e2,
+                   H_fit_stats=H_fit_stats,
+                   V_fit_stats=V_fit_stats)
 
     return results
 
@@ -276,7 +307,7 @@ def gaussian(x: np.ndarray, a1: float, b1: float, c1: float) -> np.ndarray:
     Parameters
     ----------
     x : np.ndarray
-        Input array.
+        Input array of any size (element-wise operations).
     a1 : float
         Peak amplitude (height)
     b1 : float
@@ -287,7 +318,7 @@ def gaussian(x: np.ndarray, a1: float, b1: float, c1: float) -> np.ndarray:
     Returns
     -------
     np.ndarray
-        _description_
+        Gaussian curve values at the locations of x array
     """      
     return a1 * np.exp(-((x - b1)/c1) ** 2)
 

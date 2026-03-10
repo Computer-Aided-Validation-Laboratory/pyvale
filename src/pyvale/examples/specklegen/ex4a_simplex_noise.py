@@ -18,6 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import json
+from dataclasses import asdict
 import os
 import pyvale.specklegen as specklegen
 
@@ -83,11 +84,11 @@ print()
 results = specklegen.speckle_pattern_statistics(image, bit_depth)
 plots = specklegen.speckle_pattern_plots(image, bit_depth, save_path)
 
-with open(f"{save_path}/speckle_pattern_diagnostics.json", 'w') as f:
-    json.dump(results, f, indent=4)
+with open(f"{save_path}/speckle_pattern_diagnostics.json", "w") as f:
+    json.dump(asdict(results), f, indent=4)
 
-avg_speckle_size_fwhm = results.get("avg_speckle_size_fwhm", None)
-avg_speckle_size_e2 = results.get("avg_speckle_size_e2", None)
+avg_speckle_size_fwhm = results.avg_speckle_size_fwhm
+avg_speckle_size_e2 = results.avg_speckle_size_e2
 
 #%%
 # Finally, the relative errors beetween the specified speckle size and the speckle size approximated using autocovariance are calculated. 
@@ -97,19 +98,13 @@ np.save(f"{save_path}/image.npy", image)
 plt.imsave(f'{save_path}/image.tiff', image, cmap='gray')
 plt.imsave(f'{save_path}/image.bmp', image, cmap='gray')
 
+results_json = json.dumps(asdict(results), indent=4)
+
 #%%
 # Finally, we print the speckle statistics.
 print(80*"-")
 print("Speckle statistics:")
-
-for key,value in results.items():
-    if isinstance(value, (float, np.floating)):
-        display_value = np.round(value, 2)
-    else:
-        display_value = value
-        
-    print(f"{key}: {display_value}")
-
+print(results_json)
 print(f"Percentage error between requested speckle size and measured speckle size from FWHM: {np.round(error, 3)} %")
 print(f"Percentage error between requested speckle size and measured speckle size from 1/e^2: {np.round(error, 3)} %")
 print("\n"+80*"-")
