@@ -1,9 +1,34 @@
+import enum
 from dataclasses import dataclass
 
 import numpy as np
-import numpy.testing as np_test
 import numpy.typing as npt
 from scipy.io import loadmat
+
+
+# TODO: are these appropriate names?
+class BoundaryConditionSetting(enum.Enum):
+    Free = enum.auto()
+    Fixed = enum.auto()
+    Constant = enum.auto()
+
+
+# TODO: maybe rename to stuff like min y edge, max x edge etc
+# Using edge numbering convention from globaloptions.m
+class Edge(enum.Enum):
+    Top = 0
+    Bottom = 2
+    Left = 1
+    Right = 3
+
+
+# TODO: assuming x and y are the only dofs for now, may need to be expanded
+# for non linear geometries
+@dataclass(slots=True)
+class BoundaryConditionSettings():
+    x: dict[Edge, BoundaryConditionSetting]
+    y: dict[Edge, BoundaryConditionSetting]
+
 
 # TODO: discuss type decisions e.g. using uint32s
 # TODO: do we need y decrease flag
@@ -20,22 +45,25 @@ class VirtualFieldsMesh:
     # Binv 
     b_inv: npt.NDArray[np.float64]
     # actDofs 
+    # TODO: rename to active_degrees_of_freedom
     act_dofs: npt.NDArray[np.int64]
     # virtConnectivity 
     virtual_element_connectivity: npt.NDArray[np.uint32]
     # vCoordsGrid 
     virtual_elements: npt.NDArray[np.int64]
     # BC_settings 
-    boundary_condition_settings: npt.NDArray[np.uint32]
+    boundary_condition_settings: BoundaryConditionSettings
     # indexlist 
     # TODO: should we use the specimen mask here instead?
     indices: npt.NDArray[np.uint32]
     # NGlob 
+    # TODO: I think this is some kind of global shape function, probably worth a rename
     n_glob: npt.NDArray[np.float64]
     # YDownDecreaseFlag 
     # ptElemAss
     virtual_element_point_mapping: npt.NDArray[np.uint32]
     # freeDof
+    # TODO: rename to free_degrees_of_freedom
     free_dof: npt.NDArray[np.int64]
 
 

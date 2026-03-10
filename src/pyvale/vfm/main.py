@@ -5,6 +5,7 @@ from scipy.io import loadmat
 from pyvale.vfm import mechanical_properties
 from pyvale.vfm.mechanical_properties import *
 from pyvale.vfm.radial_return import radial_return
+from pyvale.vfm.virtual_fields_mesh import generate_virtual_fields_mesh
 # from pyvale.vfm.stress_sensitivity import calculate_stress_sensitivity
 
 # data = loadmat(
@@ -138,5 +139,6 @@ mechanical_properties = MechanicalProperties(
 if not check_validity(mechanical_properties):
     print("mechanical properties invalid")
 
-stress = radial_return(strain, mechanical_properties)
+# stress = radial_return(strain, mechanical_properties)
+virtual_fields_mesh = generate_virtual_fields_mesh()
 print("break")
