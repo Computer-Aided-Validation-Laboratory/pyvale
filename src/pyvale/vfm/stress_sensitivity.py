@@ -7,7 +7,7 @@ import numpy.typing as npt
 from pyvale.vfm.dic_config import DICConfig
 from pyvale.vfm.mechanical_properties import MechanicalProperties
 from pyvale.vfm.radial_return import radial_return
-from pyvale.vfm.stress import convert_stress_to_4d
+# from pyvale.vfm.stress import convert_stress_to_4d
 
 
 @dataclass(slots=True)
@@ -70,7 +70,8 @@ def calculate_stress_sensitivity(
             )
 
         perturbed_stress = radial_return(strain, perturbed_material_properties)
-        perturbed_stress = convert_stress_to_4d(perturbed_stress, dic_config)
+        # radial_return will be returning stress as a 4d already
+        # perturbed_stress = convert_stress_to_4d(perturbed_stress, dic_config)
 
         total_stress_sensitivity = stress_reference - perturbed_stress
 

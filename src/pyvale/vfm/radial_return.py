@@ -1,16 +1,35 @@
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.mechanical_properties import MechanicalProperties, ParameterName
-from pyvale.vfm.stress import Stress
+from pyvale.vfm.mechanical_properties import (
+    MechanicalProperties,
+    ParameterName,
+    parameter_to_map,
+    parameter_to_scalar,
+)
 
 
-# TODO: finish docstring
 # Receiving strain as a 4d array with the convention (timestep, component, y, x)
 # Returning stress as a 4d array with the convention (timestep, component, y, x)
+# TODO: finish docstring
+# TODO: support non linear geometries
+# TODO: update incremental strain to 4d
+# TODO: remove order F and assume everything to be row major
+# TODO: create the framework to support different kinds of hardening
+#       (hardeningfun in the matlab)
+# TODO: understand the different phases of this algorithm and pull them
+#       out into helper functions
+# Phases of the algorithm:
+#   - Compute trial elastic stress
+#   - Check yield criterion
+#   - Compute plastic multiplier
+#   - Update internal variables
+#   - Tangent modulus update (is this part of our algo?)
 def radial_return(
     strain: npt.NDArray[np.float64],
-    mechanical_properties: MechanicalProperties
+    mechanical_properties: MechanicalProperties,
+    error_tolerance=1e-8,
+    iteration_limit=100
 ) -> npt.NDArray[np.float64]:
     """Brief description
 
@@ -26,21 +45,44 @@ def radial_return(
     """
 
     num_timesteps = strain.shape[0]
-    num_datapoints = strain.shape[2] * strain.shape[3]
+    num_components = strain.shape[1]
+    size_y = strain.shape[2]
+    size_x = strain.shape[3]
+    num_datapoints = size_y * size_x
 
-    # TODO: perhaps this is where we should check that we have everything
-    # we need or throw and error
     parameters = mechanical_properties.parameters
-    elastic_modulus = parameters[ParameterName.ElasticModulus]
-    poissons_ratio = parameters[ParameterName.PoissonsRatio]
-    yield_strength = parameters[ParameterName.YieldStrength]
-    hardening_modulus = parameters[ParameterName.HardeningModulus]
+    elastic_modulus_param = parameters[ParameterName.ElasticModulus]
+    poissons_ratio_param = parameters[ParameterName.PoissonsRatio]
+    yield_strength_param = parameters[ParameterName.YieldStrength]
+    hardening_modulus_param = parameters[ParameterName.HardeningModulus]
 
-    # TODO: should these be passed in?
-    # TODO: maybe these should be default args
-    error_tolerance = 1e-8
-    iteration_limit = 100
+    # TODO: in non homogeneous params, elastic mod and poissons ratio
+    #       wont be scalars
+    elastic_modulus = parameter_to_scalar(elastic_modulus_param)
+    poissons_ratio = parameter_to_scalar(poissons_ratio_param)
+    yield_strength = parameter_to_map(yield_strength_param, size_x, size_y)
+    hardening_modulus = parameter_to_map(hardening_modulus_param, size_x, size_y)
 
+    shear_modulus = elastic_modulus / (
+        2 * (1 + poissons_ratio)
+    )
+
+    elastic_stiffness = elastic_modulus / (1 - poissons_ratio ** 2) * (
+        np.array([
+            [1.0, poissons_ratio, 0.0],
+            [poissons_ratio, 1.0, 0.0],
+            [0.0, 0.0, 0.5 * (1.0 - poissons_ratio)],
+        ])
+    )
+
+    stress = np.zeros_like(strain)
+    prev_stress = np.zeros((num_components, size_y, size_x))
+    trial_stress = np.zeros((num_components, size_y, size_x))
+
+    # TODO: some of these could have more descriptive names?
+    # TODO: could some of these be grouped up like stress and prev
+    #       stress above? might give some clarity on which things
+    #       are related?
     delta_lambda              = np.zeros(num_datapoints)
     delta_ksi_delta_lambda    = np.zeros(num_datapoints)
     ksi                       = np.zeros(num_datapoints)
@@ -50,37 +92,52 @@ def radial_return(
     prev_plasticity_mask      = np.zeros(num_datapoints)
     equivalent_stress         = np.zeros(num_datapoints)
     error                     = np.zeros(num_datapoints)
+    # TODO: should we switch these to be (timesteps, datapoints) to fit
+    #       with our conventions?
     equivalent_plastic_strain = np.zeros((num_datapoints, num_timesteps))
+    prev_equivalent_plastic_strain = np.zeros((num_datapoints))
     sigma_xx                  = np.zeros((num_datapoints, num_timesteps))
     sigma_xy                  = np.zeros((num_datapoints, num_timesteps))
     sigma_yy                  = np.zeros((num_datapoints, num_timesteps))
     von_mises_stress          = np.zeros((num_datapoints, num_timesteps))
-    incremental_strain        = np.zeros_like(strain)
-    stress                    = np.zeros_like(strain)
 
-    shear_modulus = elastic_modulus / (
-        2 * (1 + poissons_ratio)
-    )
+    incremental_strain = np.zeros_like(strain)
+    incremental_strain[0, :, :, :] = strain[0, :, :, :]
+    incremental_strain[1:, :, :, :] = np.diff(strain, axis=0)
 
-    # Valid for Engineering Shear Strain only!
-    # elasticity_matrix
-    elasticity = elastic_modulus / ( 1 - poissons_ratio ** 2 ) * np.array([
-        [1.0, poissons_ratio, 0.0],
-        [poissons_ratio, 1.0, 0.0],
-        [0.0, 0.0, (0.5 * (1.0 - poissons_ratio))],
-    ])
-
-    incremental_strain[0, :, :] = strain[0, :, :]
-    incremental_strain[1:, :, :] = np.diff(strain, axis=0)
-
-    # Convert shear strain component from tensorial shear strain to engineering
-    # shear strain. By convention, tensorial shear strain is half engineering
-    # shear strain
-    incremental_strain[:, :, 2] *= 2
+    # Convert tensorial shear strain component to engineering shear strain
+    incremental_strain[:, 2, :, :] *= 2
 
     for t in range(num_timesteps):
+        equivalent_plastic_strain[:, t] = prev_equivalent_plastic_strain
+
+        # Compute trial stress
+        # TODO: need to reshape incremental strain, previous form was
+        #       (35708, 3), so the x and y were flattened together
+        trial_stress = prev_stress + (
+            incremental_strain[t, :, :, :].dot(elastic_stiffness)
+        )
+
+        yield_stress = yield_strength.ravel() + (
+            hardening_modulus.ravel() * prev_equivalent_plastic_strain
+        )
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
         if t == 0:
-            stress[0, :, :] = incremental_strain[0, :, :].dot(elasticity)
+            stress[0, :, :] = incremental_strain[0, :, :].dot(elastic_stiffness)
 
             # Flatten with column major ordering
             yield_stress = yield_strength.flatten(order="F") + (
@@ -91,7 +148,7 @@ def radial_return(
             prev_stress = stress[t - 1, :, :]
 
             stress[t, :, :] = prev_stress + (
-                incremental_strain[t, :, :].dot(elasticity)
+                incremental_strain[t, :, :].dot(elastic_stiffness)
             )
 
             yield_stress = yield_strength.flatten(order="F") + (
@@ -178,7 +235,6 @@ def radial_return(
                 hardening_modulus.flatten(order="F")
             )
 
-            print(2 * np.sqrt(ksi))
             h_bar_all = 2 * (
                 yield_stress
                 * delta_yield_stress_delta_equivalent_plastic_strain
@@ -281,6 +337,11 @@ def radial_return(
             sigma_yy[mask, t] = sigma_yy[mask, t - 1]
             sigma_xy[mask, t] = sigma_xy[mask, t - 1]
 
+        prev_stress = stress[t, :, :, :]
+        # TODO: swap t around when we change peeq shape
+        prev_equivalent_plastic_strain = equivalent_plastic_strain[:, t]
+        prev_plasticity_mask = plasticity_mask
+
         delta_lambda.fill(0)
         delta_ksi_delta_lambda.fill(0)
         ksi.fill(0)
@@ -288,8 +349,59 @@ def radial_return(
         plastic_criterion_prime.fill(0)
         equivalent_stress.fill(0)
 
-        prev_plasticity_mask = plasticity_mask
-
-    return Stress(sigma_xx, sigma_xy, sigma_yy, von_mises_stress)
+    return (sigma_xx, sigma_xy, sigma_yy, von_mises_stress)
 
 
+
+
+
+# TODO: delete below if we dont need it
+# @dataclass(slots=True)
+# class Stress:
+#     xx: npt.NDArray[np.float64]
+#     xy: npt.NDArray[np.float64]
+#     yy: npt.NDArray[np.float64]
+#     von_mises: npt.NDArray[np.float64]
+
+# # TODO: do we need eqvStress like original impl?
+# # Convert stress to 4D tensor of the shape (x_points, y_points, components, timestep]
+# def convert_stress_to_4d(
+#     stress: Stress,
+#     dic_config: DICConfig
+# ) -> npt.NDArray[np.float64]:
+#     # TODO: might be different for non linear geometry
+#     num_stress_components = 3
+
+#     stress_4d = np.zeros((
+#         dic_config.x_dimension,
+#         dic_config.y_dimension,
+#         num_stress_components,
+#         dic_config.timesteps.size
+#     ))
+
+#     component_dimensions = (
+#         dic_config.x_dimension,
+#         dic_config.y_dimension,
+#         # 1,
+#         dic_config.timesteps.size
+#     )
+
+#     stress_4d[:, :, 0, :] = np.reshape(
+#         stress.xx,
+#         component_dimensions,
+#         order="F"
+#     )
+
+#     stress_4d[:, :, 1, :] = np.reshape(
+#         stress.yy,
+#         component_dimensions,
+#         order="F"
+#     )
+
+#     stress_4d[:, :, 2, :] = np.reshape(
+#         stress.xy,
+#         component_dimensions,
+#         order="F"
+#     )
+
+#     return stress_4d
