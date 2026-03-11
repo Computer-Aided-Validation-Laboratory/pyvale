@@ -136,9 +136,11 @@ mechanical_properties = MechanicalProperties(
     }
 )
 
+# TODO: need to figure out where this check should happen and
+# deliver useful error messages
 if not check_validity(mechanical_properties):
     print("mechanical properties invalid")
 
-# stress = radial_return(strain, mechanical_properties)
-virtual_fields_mesh = generate_virtual_fields_mesh()
+stress = radial_return(strain, mechanical_properties)
+# virtual_fields_mesh = generate_virtual_fields_mesh()
 print("break")
