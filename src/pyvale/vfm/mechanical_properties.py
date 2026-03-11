@@ -85,3 +85,28 @@ def check_validity(mechanical_properties: MechanicalProperties) -> bool:
 
             return required_parameters.issubset(mechanical_properties.parameters.keys())
 
+
+# TODO: support the other kinds of Parameter
+def parameter_to_scalar(param: Parameter) -> int | float:
+    match param:
+        case HomogeneousParameter(_, _, ScalarValue(value)):
+            return value
+        case HomogeneousParameter(_, _, MapValue(value)):
+            return value[0, 0]
+
+    raise TypeError("Unsupported parameter")
+
+
+# TODO: support the other kinds of Parameter
+def parameter_to_map(
+    param: Parameter,
+    size_x: int,
+    size_y: int
+) -> npt.NDArray[np.int64] | npt.NDArray[np.float64]:
+    match param:
+        case HomogeneousParameter(_, _, ScalarValue(value)):
+            return np.full((size_y, size_x), value)
+        case HomogeneousParameter(_, _, MapValue(value)):
+            return value
+
+    raise TypeError("Unsupported parameter")
