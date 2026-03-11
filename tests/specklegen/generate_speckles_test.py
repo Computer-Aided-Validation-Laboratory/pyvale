@@ -7,15 +7,15 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) 
 import pyvale.specklegen as specklegen
 
-width_range = np.arange(10, 1000, 250)
-height_range = np.arange(10, 1000, 250)
-speckle_size_range = np.arange(4, 25, 5)
-black_white_ratio_range = np.arange(0.0, 1.1, 0.2)
-
-print(width_range.shape)
-print(height_range.shape)
-print(speckle_size_range.shape)
-print(black_white_ratio_range.shape)
+@pytest.fixture(params=list(zip(
+    np.arange(10, 1000, 250), # width
+    np.arange(10, 1000, 250), # height
+    np.arange(4, 25, 5),      # speckle_size
+    np.arange(0.0, 1.1, 0.2)  # black_white_ratio
+    )))
+def image_dims(request):
+    # width, height, speckle_size, black_white_ratio
+    return request.param
 
 def calculate_total_speckles(bit_depth: int, width: int, height: int, 
                              theme: specklegen.Theme, black_white_ratio: float, 
@@ -41,10 +41,8 @@ def calculate_total_speckles(bit_depth: int, width: int, height: int,
 
 class TestPixelsInDisk:
 
-    sizes = list(zip(width_range, height_range, speckle_size_range))
-    pytestmark = pytest.mark.parametrize("width,height,speckle_size", sizes)
-
-    def test_pixelsInDisk_out_of_bounds(self, width: int, height: int, speckle_size: int) -> None:
+    def test_pixelsInDisk_out_of_bounds(self, image_dims: tuple) -> None:
+        width, height, speckle_size, _ = image_dims
         img = np.zeros((height, width), dtype=np.uint8)
         cantre_x, centre_y = -speckle_size * 2, -speckle_size * 2  # Out of bounds
         fg_colour = 1
@@ -54,7 +52,8 @@ class TestPixelsInDisk:
     
         assert np.all(img == 0)
         
-    def test_pixelsInDisk_basic_circle(self, width: int, height: int, speckle_size: int) -> None:
+    def test_pixelsInDisk_basic_circle(self, image_dims: tuple) -> None:
+        width, height, speckle_size, _ = image_dims
         img = np.zeros((height, width), dtype=np.uint8)
         cantre_x, centre_y = 5, 5
         fg_colour = 1
@@ -73,7 +72,8 @@ class TestPixelsInDisk:
                 if dist_sq > radius_sq:
                     assert img[y, x] == 0
     
-    def test_pixelsInDisk_near_edges(self, width: int, height: int, speckle_size: int) -> None:
+    def test_pixelsInDisk_near_edges(self, image_dims: tuple) -> None:
+        width, height, speckle_size, _ = image_dims
         img = np.zeros((height, width), dtype=np.uint8)
         cantre_x, centre_y = 0, 0
         fg_colour = 1
@@ -92,14 +92,10 @@ class TestPixelsInDisk:
                     assert img[y, x] == fg_colour
 
 
-
-
 class TestGenerateSpeckles:
-    sizes = list(zip(width_range, height_range, speckle_size_range, black_white_ratio_range))
-    pytestmark = pytest.mark.parametrize("width,height,speckle_size,black_white_ratio", sizes)
     
-    def test_generate_speckles_basic_no_overlap(self, width: int, height: int, speckle_size: int, 
-                                                black_white_ratio: float) -> None:
+    def test_generate_speckles_basic_no_overlap(self, image_dims: tuple) -> None:
+        width, height, speckle_size, black_white_ratio = image_dims
         sigma = 1.0
         bit_depth = 8
         theme = specklegen.Theme.WHITE_ON_BLACK
@@ -130,8 +126,8 @@ class TestGenerateSpeckles:
             assert np.all(results[:, 1] == 1)
             assert np.all(results[:, 2] == 2)
     
-    def test_generate_speckles_with_overlap_reduction(self, width: int, height: int, speckle_size: int, 
-                                               black_white_ratio: float) -> None:
+    def test_generate_speckles_with_overlap_reduction(self, image_dims: tuple) -> None:
+        width, height, speckle_size, black_white_ratio = image_dims
         sigma = 1.0
         bit_depth = 8
         theme = specklegen.Theme.WHITE_ON_BLACK
@@ -160,8 +156,8 @@ class TestGenerateSpeckles:
         # Overlap flag should be either 0 or 1 (placed with or without overlap)
         assert np.all(np.isin(results[:, 2], [0, 1]))
     
-    def test_generate_speckles_bit_depth(self, width: int, height: int, speckle_size: int, 
-                                                black_white_ratio: float) -> None:
+    def test_generate_speckles_bit_depth(self, image_dims: tuple) -> None:
+        width, height, speckle_size, black_white_ratio = image_dims
         fg_colour = 65535
         sigma = 0
         bit_depth = 16
@@ -190,8 +186,8 @@ class TestGenerateSpeckles:
             assert image.max() <= fg_colour
             assert results.shape == (total_speckles, 5)
     
-    def test_generate_speckles_blur(self, width: int, height: int, speckle_size: int, 
-                                                black_white_ratio: float) -> None:
+    def test_generate_speckles_blur(self, image_dims: tuple) -> None:
+        width, height, speckle_size, black_white_ratio = image_dims
         fg_colour = 255
         sigma = 1.5
         bit_depth = 8
