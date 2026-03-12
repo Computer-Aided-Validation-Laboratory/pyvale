@@ -119,6 +119,12 @@ plot_opts = PlotOptsGeneral(cmap_seq='gray')
 (fig,ax) = specklegen.speckle_pattern_plot(image, bit_depth, plot_opts=plot_opts)
 fig.savefig(f"{save_path}/speckle_pattern." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
 
+# %%
+# .. image:: ../../../../_static/specklegen_ex1c_speckle_pattern.jpg
+#    :alt: Speckle pattern.
+#    :width: 800px
+#    :align: center
+
 speckle_opts = SpecklePatternOpts(x_label="Frequency [1/pixel]",
                                   y_label="Frequency [1/pixel]",
                                   title="Spatial frequency (log scale)",
@@ -128,6 +134,12 @@ speckle_opts = SpecklePatternOpts(x_label="Frequency [1/pixel]",
                                               speckle_opts=speckle_opts)
 fig.savefig(f"{save_path}/frequency_spectrum." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
 
+# %%
+# .. image:: ../../../../_static/specklegen_ex1c_frequency_spectrum.jpg
+#    :alt: Frequency spectrum for the speckle pattern.
+#    :width: 800px
+#    :align: center
+
 speckle_opts = SpecklePatternOpts(x_label="Pixel value",
                                   y_label="Density (log scale)",
                                   title="Histogram of irradiance values",
@@ -135,6 +147,12 @@ speckle_opts = SpecklePatternOpts(x_label="Pixel value",
 (fig,ax) = specklegen.pixel_value_histogram_plot(image, bit_depth,
                                                  speckle_opts=speckle_opts)
 fig.savefig(f"{save_path}/pixel_value_histogram." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
+
+# %%
+# .. image:: ../../../../_static/specklegen_ex1c_pixel_value_histogram.jpg
+#    :alt: Pixel value histogram for the speckle pattern.
+#    :width: 800px
+#    :align: center
 
 plot_opts = PlotOptsGeneral(aspect_ratio=0.7)
 speckle_opts = SpecklePatternOpts(x_label='Lag [pixels]',
@@ -146,11 +164,17 @@ speckle_opts = SpecklePatternOpts(x_label='Lag [pixels]',
                                             speckle_opts=speckle_opts)
 fig.savefig(f"{save_path}/autocovariance." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
 
+# %%
+# .. image:: ../../../../_static/specklegen_ex1c_autocovariance.jpg
+#    :alt: Autocovariance for the speckle pattern.
+#    :width: 800px
+#    :align: center
+
 # Uncomment this to display the plots
-plt.show()
+# plt.show()
 
 #%%
-# Finally, the relative errors beetween the specified speckle size and the speckle size approximated using autocovariance are calculated. 
+# The relative errors beetween the specified speckle size and the speckle size approximated using autocovariance are calculated. 
 avg_speckle_size_fwhm = results.avg_speckle_size_fwhm
 avg_speckle_size_e2 = results.avg_speckle_size_e2
 error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size
