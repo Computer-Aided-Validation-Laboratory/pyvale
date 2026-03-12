@@ -20,6 +20,7 @@ import json
 from dataclasses import asdict
 import os
 import pyvale.specklegen as specklegen
+from pyvale.sensorsim.visualopts import (PlotOptsGeneral, SpecklePatternOpts)
 
 #%%
 # Let's create our standard pyvale output directory in our current working
@@ -105,22 +106,48 @@ print()
 # This is a result of speckle overlap.
 
 results = specklegen.speckle_pattern_statistics(image, bit_depth)
-plots = specklegen.speckle_pattern_plots(image, bit_depth, save_path, 
-                                         image_format='jpg',
-                                         select_plots = 
-                                         ['speckle_pattern', 
-                                          'frequency_spectrum', 
-                                          'pixel_value_histogram',
-                                          'autocovariance'])
-
 with open(f"{save_path}/speckle_pattern_diagnostics.json", "w") as f:
     json.dump(asdict(results), f, indent=4)
 
-avg_speckle_size_fwhm = results.avg_speckle_size_fwhm
-avg_speckle_size_e2 = results.avg_speckle_size_e2
+image_format='jpg'
+plot_opts = PlotOptsGeneral(cmap_seq='gray')
+(fig,ax) = specklegen.speckle_pattern_plot(image, bit_depth, plot_opts=plot_opts)
+fig.savefig(f"{save_path}/speckle_pattern." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
+
+speckle_opts = SpecklePatternOpts(x_label="Frequency [1/pixel]",
+                                  y_label="Frequency [1/pixel]",
+                                  title="Spatial frequency (log scale)",
+                                  cmap_title=None)
+(fig,ax) = specklegen.frequency_spectrum_plot(image, 
+                                              plot_opts=plot_opts,
+                                              speckle_opts=speckle_opts)
+fig.savefig(f"{save_path}/frequency_spectrum." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
+
+speckle_opts = SpecklePatternOpts(x_label="Pixel value",
+                                  y_label="Density (log scale)",
+                                  title="Histogram of irradiance values",
+                                  cmap_title=None)
+(fig,ax) = specklegen.pixel_value_histogram_plot(image, bit_depth,
+                                                 speckle_opts=speckle_opts)
+fig.savefig(f"{save_path}/pixel_value_histogram." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
+
+plot_opts = PlotOptsGeneral(aspect_ratio=0.7)
+speckle_opts = SpecklePatternOpts(x_label='Lag [pixels]',
+                                  y_label=r"Autocov. [pixel$^2$]",
+                                  title="Autocovariance",
+                                  cmap_title=None)
+(fig,axes) = specklegen.autocovariance_plot(image,
+                                            plot_opts=plot_opts,
+                                            speckle_opts=speckle_opts)
+fig.savefig(f"{save_path}/autocovariance." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
+
+# Uncomment this to display the plots
+# plt.show()
 
 #%%
 # The relative errors beetween the specified speckle size and the speckle size approximated using autocovariance are calculated. 
+avg_speckle_size_fwhm = results.avg_speckle_size_fwhm
+avg_speckle_size_e2 = results.avg_speckle_size_e2
 error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size
 error = np.abs(avg_speckle_size_e2 - speckle_size) * 100 / speckle_size
 np.save(f"{save_path}/image.npy", image)

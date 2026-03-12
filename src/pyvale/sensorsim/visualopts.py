@@ -496,6 +496,30 @@ class VisOptsAnimation:
     save_path: Path | None = None
 
 
+@dataclass(slots=True)
+class SpecklePatternOpts:
+    """Dataclass for controlling the appearance of speckle pattern plots including
+    axis labels. Note that latex symbols can be used in label strings by using a python raw string. 
+    For example: r"strain, $\epsilon$ [-]".
+    """
+
+    x_label: str = "Position [pixel]"
+    """Label for the x axis defaults to: "Position [pixel]".
+    """
+
+    y_label: str = "Position [pixel]"
+    """Label for the y axis defaults to: "Position [pixel]".
+    """
+
+    title: str = "Speckle pattern"
+    """Title for the plot defaults to: "Speckle pattern".
+    """
+
+    cmap_title: str = 'Irradiance'
+    """Title for the colour map defaults to: 'Irradiance'.
+    """
+
+
 
 
 
