@@ -391,7 +391,7 @@ def check_and_get_images(reference: np.ndarray | str | Path,
 
 
 
-        if debug_level > 0:
+        if debug_level > 1:
             print(f"Found {len(files)} deformation images:")
             for file in files:
                 print(f"  - {file}")
