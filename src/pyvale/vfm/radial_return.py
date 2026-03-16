@@ -42,27 +42,46 @@ def radial_return(
     -------
     np.ndarray
         Description
+
+
+    Overview
+    -------
+    # ROB- High-level radial return logic:
+    # ROB- 1) form an elastic trial stress from the strain increment,
+    # ROB- 2) check whether that trial stress violates the yield condition,
+    # ROB- 3) if not, accept the elastic trial state,
+    # ROB- 4) if yes, solve for the plastic multiplier delta_lambda so the
+    # ROB-    updated stress lies back on the yield surface,
+    # ROB- 5) update equivalent plastic strain and yield stress from the
+    # ROB-    hardening law,
+    # ROB- 6) move to the next timestep using the updated internal state.
+
+
     """
 
+    # UNPACK KEY INPUT DATA
     num_timesteps = strain.shape[0]
     num_components = strain.shape[1]
     size_y = strain.shape[2]
     size_x = strain.shape[3]
     num_datapoints = size_y * size_x
-
     parameters = mechanical_properties.parameters
-    elastic_modulus_param = parameters[ParameterName.ElasticModulus]
-    poissons_ratio_param = parameters[ParameterName.PoissonsRatio]
+    
+    # ROB - Move the below into seperate function for hardening (some hardening laws may not use yield strength or hardening modulus, although linear hardening does)
     yield_strength_param = parameters[ParameterName.YieldStrength]
     hardening_modulus_param = parameters[ParameterName.HardeningModulus]
-
-    # TODO: in non homogeneous params, elastic mod and poissons ratio
-    #       wont be scalars
-    elastic_modulus = parameter_to_scalar(elastic_modulus_param)
-    poissons_ratio = parameter_to_scalar(poissons_ratio_param)
     yield_strength = parameter_to_map(yield_strength_param, size_x, size_y)
     hardening_modulus = parameter_to_map(hardening_modulus_param, size_x, size_y)
 
+
+    # CONSTRUCT ELASTIC STIFFNESS MATRIX
+    # TODO: in non homogeneous params, elastic mod and poissons ratio
+    #       wont be scalars
+    elastic_modulus_param = parameters[ParameterName.ElasticModulus]
+    poissons_ratio_param = parameters[ParameterName.PoissonsRatio]
+    elastic_modulus = parameter_to_scalar(elastic_modulus_param)
+    poissons_ratio = parameter_to_scalar(poissons_ratio_param)
+    # Compute shear modulus
     shear_modulus = elastic_modulus / (
         2 * (1 + poissons_ratio)
     )
@@ -75,14 +94,15 @@ def radial_return(
         ])
     )
 
-    stress = np.zeros_like(strain)
-    prev_stress = np.zeros((num_components, size_y, size_x))
-    trial_stress = np.zeros((num_components, size_y, size_x))
 
+    # INITIALISE VARIABLES FOR RADIAL RETURN
     # TODO: some of these could have more descriptive names?
     # TODO: could some of these be grouped up like stress and prev
     #       stress above? might give some clarity on which things
     #       are related?
+    stress = np.zeros_like(strain)
+    prev_stress = np.zeros((num_components, size_y, size_x))
+    trial_stress = np.zeros((num_components, size_y, size_x))
     delta_lambda              = np.zeros(num_datapoints)
     delta_ksi_delta_lambda    = np.zeros(num_datapoints)
     ksi                       = np.zeros(num_datapoints)
@@ -92,6 +112,32 @@ def radial_return(
     prev_plasticity_mask      = np.zeros(num_datapoints)
     equivalent_stress         = np.zeros(num_datapoints)
     error                     = np.zeros(num_datapoints)
+
+    # ROB- stress at all timesteps for all comps/pts; stores final corrected stress after each increment
+    stress = np.zeros_like(strain)
+    # ROB- stress at end of previous timestep; starting state for current increment
+    prev_stress = np.zeros((num_components, size_y, size_x))
+    # ROB- elastic predictor stress for current increment before yield check / plastic correction
+    trial_stress = np.zeros((num_components, size_y, size_x))
+    # ROB- plastic multiplier increment; main unknown solved in the return-mapping step
+    delta_lambda = np.zeros(num_datapoints)
+    # ROB- derivative of ksi wrt delta_lambda; used in Newton-Raphson update
+    delta_ksi_delta_lambda = np.zeros(num_datapoints)
+    # ROB- internal scalar in plane-stress J2 update linked to effective stress / PEEQ update
+    ksi = np.zeros(num_datapoints)
+    # ROB- yield/consistency residual; driven to zero for plastically active points
+    plastic_criterion = np.zeros(num_datapoints)
+    # ROB- derivative of plastic_criterion wrt delta_lambda; used in Newton update
+    plastic_criterion_prime = np.zeros(num_datapoints)
+    # ROB- hardening term in consistency derivative; accounts for evolving yield stress
+    h_bar = np.zeros(num_datapoints)
+    # ROB- mask of points that were plastic at previous timestep; used for load history/unloading
+    prev_plasticity_mask = np.zeros(num_datapoints)
+    # ROB- trial von Mises equivalent stress measure used in the yield check
+    equivalent_stress = np.zeros(num_datapoints)
+    # ROB- normalised residual used as the Newton-Raphson convergence measure
+    error = np.zeros(num_datapoints)
+
     # TODO: should we switch these to be (timesteps, datapoints) to fit
     #       with our conventions?
     equivalent_plastic_strain = np.zeros((num_datapoints, num_timesteps))
@@ -101,41 +147,47 @@ def radial_return(
     sigma_yy                  = np.zeros((num_datapoints, num_timesteps))
     von_mises_stress          = np.zeros((num_datapoints, num_timesteps))
 
+
+    # COMPUTE INCREMENTAL STRAINS
+    # ROB- The constitutive update is increment-based, so even though the input
+    # ROB- strain is total strain over time, the return-mapping algorithm works
+    # ROB- with strain increments. First timestep uses the total strain as the
+    # ROB- first increment; later timesteps use np.diff(..., axis=0).
     incremental_strain = np.zeros_like(strain)
     incremental_strain[0, :, :, :] = strain[0, :, :, :]
     incremental_strain[1:, :, :, :] = np.diff(strain, axis=0)
 
+    # ROB- The shear strain increment is doubled because the constitutive
+    # ROB- matrix D is written using engineering shear strain gamma_xy,
+    # ROB- while the incoming field is assumed to contain tensorial shear
+    # ROB- epsilon_xy. Need to confirm that the Python strain input is provided
+    # ROB- as tensorial strain.
     # Convert tensorial shear strain component to engineering shear strain
-    incremental_strain[:, 2, :, :] *= 2
+    incremental_strain[:, 2, :, :] *= 2     
 
+
+
+    # LOOP THROUGH TIMESTEPS
     for t in range(num_timesteps):
         equivalent_plastic_strain[:, t] = prev_equivalent_plastic_strain
 
-        # Compute trial stress
+        # COMPUTE TRIAL STRESS
+        # ROB- assume the entire current strain increment is elastic and compute the
+        # ROB- corresponding trial stress from Hooke's law.
         # TODO: need to reshape incremental strain, previous form was
         #       (35708, 3), so the x and y were flattened together
+        # ROB - Agreed, unsure below is correct. Also have a look at tensordot multiplication operation?
         trial_stress = prev_stress + (
             incremental_strain[t, :, :, :].dot(elastic_stiffness)
         )
 
+        # COMPUTE UPDATED YIELD STRENGTH
+        # ROB- update to use subfunction to allow various hardening laws
         yield_stress = yield_strength.ravel() + (
             hardening_modulus.ravel() * prev_equivalent_plastic_strain
         )
 
-        
-
-
-
-
-
-
-
-
-
-
-
-
-        
+        # ROB- unsure the if block is required?
         if t == 0:
             stress[0, :, :] = incremental_strain[0, :, :].dot(elastic_stiffness)
 
@@ -160,6 +212,8 @@ def radial_return(
                 equivalent_plastic_strain[:, t - 1]
             )
 
+
+        # COMPUTE EQUIVALENT STRESS
         equivalent_stress[:] = 1/3 * (
             stress[t, :, 0] ** 2
             + stress[t, :, 1] ** 2
@@ -167,17 +221,23 @@ def radial_return(
             + (3 * stress[t, :, 2] ** 2)
         )
 
+        # CHECK YIELD CRITERION
         yield_criterion_check = equivalent_stress > (1/3 * (yield_stress ** 2))
-
+        # Define mask of which data points have yielded (plastic: point as yielded, elastic: point has not yielded)
         plasticity_mask = yield_criterion_check
         elasticity_mask = np.logical_not(plasticity_mask)
 
-        sigma_xx[elasticity_mask, t] = stress[t, elasticity_mask, 0]
-        sigma_yy[elasticity_mask, t] = stress[t, elasticity_mask, 1]
-        sigma_xy[elasticity_mask, t] = stress[t, elasticity_mask, 2]
-        von_mises_stress[elasticity_mask, t] = np.sqrt(
-            3 * equivalent_stress[elasticity_mask]
-        )
+
+        # ROB- ksi is an internal scalar used in the plane-stress projected J2
+        # ROB- formulation from the MATLAB code / de Souza Neto reference.
+        # ROB- It is related to the effective stress measure used inside the
+        # ROB- nonlinear consistency equation for delta_lambda.
+
+        # ROB- plastic_criterion is the consistency / yield residual.
+        # ROB- If it is nonzero, the current stress state is not exactly on the
+        # ROB- yield surface, so we iterate on delta_lambda until the residual is
+        # ROB- sufficiently small.
+
 
         ksi[plasticity_mask] = (
             1/6 * np.sum(stress[t, plasticity_mask, 0:2], axis=1) ** 2
@@ -198,6 +258,11 @@ def radial_return(
         stress_sum = np.sum(stress[t, :, 0:2], axis=1) ** 2
         stress_diff = (stress[t, :, 1] - stress[t, :, 0]) ** 2
 
+
+        # ROB- Newton-Raphson loop for the plastic corrector:
+        # ROB- solve for delta_lambda such that the updated stress satisfies the
+        # ROB- yield condition together with the hardening law.
+        # ROB- This is the core nonlinear part of the return-mapping algorithm.
         i = 0
         while np.any(error > error_tolerance) and (i < iteration_limit):
             delta_ksi_delta_lambda_all = (
@@ -309,7 +374,16 @@ def radial_return(
                     f"The convergence has not been achieved within"
                     f"{iteration_limit} iterations in step {t}"
                  ))
+                
+            # end while loop
 
+
+        # COMPUTE THE CORRECTED STRESS STATE USING THE DETERMINED PLASTIC MULTIPLIER (delta_lambda)
+        # ROB- These A* factors apply the actual plastic stress correction after
+        # ROB- the scalar plastic multiplier has converged.
+        # ROB- Conceptually: start from the elastic trial stress and reduce it to
+        # ROB- the admissible stress on the yield surface for the current hardening
+        # ROB- state.
         a11_star = (
             3 * (1 - poissons_ratio)
             / (3 * (1 - poissons_ratio) + elastic_modulus * delta_lambda)
@@ -326,6 +400,15 @@ def radial_return(
             )
         )
 
+        # Update stress variables with elastic values
+        sigma_xx[elasticity_mask, t] = stress[t, elasticity_mask, 0]
+        sigma_yy[elasticity_mask, t] = stress[t, elasticity_mask, 1]
+        sigma_xy[elasticity_mask, t] = stress[t, elasticity_mask, 2]
+        von_mises_stress[elasticity_mask, t] = np.sqrt(
+            3 * equivalent_stress[elasticity_mask]
+        )
+
+        # Update stress variables with plastic values
         sigma_xx[plasticity_mask, t] = stress[t, plasticity_mask, 0]
         sigma_yy[plasticity_mask, t] = stress[t, plasticity_mask, 1]
         sigma_xy[plasticity_mask, t] = stress[t, plasticity_mask, 2]
