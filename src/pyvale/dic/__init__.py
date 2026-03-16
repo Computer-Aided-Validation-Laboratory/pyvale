@@ -8,8 +8,12 @@ from .dic2d import calculate_2d
 from .dicdataimport import import_2d
 from .dicregionofinterest import RegionOfInterest
 from .dicresults import Results
+from .dic2dcpp import Bspline, Interpolator
+
 
 __all__ = ["calculate_2d",
            "RegionOfInterest",
            "import_2d",
+           "Bspline",
+           "Intepolator",
            "Results"]
