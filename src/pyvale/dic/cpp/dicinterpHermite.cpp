@@ -17,16 +17,11 @@
 #include "../../common_cpp/dicsignalhandler.hpp"
 
 // DIC Header files
-#include "./dicinterpolator.hpp"
-
-
-inline int idx_from_2d(const int x, const int y, const int length){
-    return y*length+x;
-}
+#include "./dicinterpHermite.hpp"
 
 
 
-Interpolator::Interpolator(double*img, int px_hori, int px_vert){
+Hermite::Hermite(double *img, int px_hori, int px_vert){
 
     //Timer timer("interpolator initialisation");
 
@@ -171,7 +166,7 @@ Interpolator::Interpolator(double*img, int px_hori, int px_vert){
     }
 }
 
-double Interpolator::eval_bicubic(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const {
+double Hermite::eval(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const {
 
     // get indices
     size_t xi,yi;
@@ -241,7 +236,7 @@ double Interpolator::eval_bicubic(const int ss_x, const int ss_y, const double s
 
 
 
-double Interpolator::eval_bicubic_dx(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const{
+double Hermite::eval_dx(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const{
 
     /* first compute the indices into the data arrays where we are interpolating */ 
     size_t xi,yi;
@@ -297,7 +292,7 @@ double Interpolator::eval_bicubic_dx(const int ss_x, const int ss_y, const doubl
 }
 
 
-double Interpolator::eval_bicubic_dy(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const{
+double Hermite::eval_dy(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const{
 
     size_t xi,yi;
     index_lookup_xy(ss_x, ss_y, xi, yi, subpx_x, subpx_y);
@@ -353,7 +348,7 @@ double Interpolator::eval_bicubic_dy(const int ss_x, const int ss_y, const doubl
 }
 
 
-InterpVals Interpolator::eval_bicubic_and_derivs(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const{
+InterpVals Hermite::eval_and_derivs(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const{
 
     // pixel floor of x and y 
     size_t xi,yi;
@@ -446,7 +441,7 @@ InterpVals Interpolator::eval_bicubic_and_derivs(const int ss_x, const int ss_y,
 
 
 
-inline void Interpolator::coeff_calc(std::vector<double> &tridiag_solution, double dy, double dx, size_t i, double *b, double *c, double *d) {
+inline void Hermite::coeff_calc(std::vector<double> &tridiag_solution, double dy, double dx, size_t i, double *b, double *c, double *d) {
     
     const double s_i = tridiag_solution[i];
     const double s_ip1 = tridiag_solution[i + 1];
@@ -458,7 +453,7 @@ inline void Interpolator::coeff_calc(std::vector<double> &tridiag_solution, doub
 }
 
 
-inline void Interpolator::index_lookup_xy(const int ss_x, const int ss_y, size_t &xi, size_t &yi, const double subpx_x, const double subpx_y) const {
+inline void Hermite::index_lookup_xy(const int ss_x, const int ss_y, size_t &xi, size_t &yi, const double subpx_x, const double subpx_y) const {
     
     if (subpx_x < px_x[0]) 
         xi = 0;
@@ -498,7 +493,7 @@ inline void Interpolator::index_lookup_xy(const int ss_x, const int ss_y, size_t
 }
 
 
-inline int Interpolator::index_lookup(const std::vector<double> &px, double x) const {
+inline int Hermite::index_lookup(const std::vector<double> &px, double x) const {
     
     // Clamp coordinates to valid range
     // double clamped_x = std::max(static_cast<double>(index_lo), std::min(static_cast<double>(index_hi), x));
@@ -526,7 +521,7 @@ inline int Interpolator::index_lookup(const std::vector<double> &px, double x) c
 
 
 
-void Interpolator::cspline_init(const std::vector<double> &px, const std::vector<double> &data, 
+void Hermite::cspline_init(const std::vector<double> &px, const std::vector<double> &data, 
                                 std::vector<double> &tridiag_solution){
 
 
@@ -598,7 +593,7 @@ void Interpolator::cspline_init(const std::vector<double> &px, const std::vector
     }  
 }
 
-double Interpolator::cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data,
+double Hermite::cspline_eval_deriv(std::vector<double> &px, std::vector<double> &data,
                                         std::vector<double> &local_tridiag_sol, double value, int length) {
 
     // Find the interval containing the evaluation point

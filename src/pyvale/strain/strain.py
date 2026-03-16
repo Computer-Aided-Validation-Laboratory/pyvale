@@ -10,11 +10,12 @@ from pathlib import Path
 from pyvale.strain.strainresults import StrainResults
 from pyvale.strain.strainchecks import check_strain_files
 from pyvale.dic.dicdataimport import import_2d
+from pyvale.dic.dicresults import Results as dicResults
 from pyvale.common_py.util import check_output_directory
 import pyvale.strain.strain_cpp as strain_cpp
 import pyvale.common_cpp.common_cpp as common_cpp
 
-def calculate_2d(data: str | Path,
+def calculate_2d(data: dicResults | str | Path,
               window_size: int=5, 
               window_element: int=9,
               input_binary: bool=False,
@@ -33,15 +34,18 @@ def calculate_2d(data: str | Path,
 
     Parameters
     ----------
-    data : pathlib.Path or str
-        A pathlib.Path or str to files from which the data should be imported.
+    data : dic.Results, pathlib.Path or str
+        input data can either be a dic.Results object or pathlib.Path / str if importing data 
+        straight from a file
     input_delimiter: str
-        delimiter used for the input dic results files (default: ",").
+        delimiter used for the input dic results files if using
+        pathlib.Path or str for data import (default: ",").
     input_binary bool:
-        whether input data is in human-readable or binary format (default:
-        False).
+        whether input data is in human-readable or binary format if using
+        pathlib.Path or str for data import (default: False).
     window_size : int, optional
-        The size of the local window over which to compute strain (must be odd), by default 5.
+        The size of the local window over which to compute strain (must be odd,
+        default: 5).
     window_element : int, optional
         The type of finite element shape function used in the strain window: 4 (bilinear) or 9 (biquadratic),
         by default 4.
@@ -53,7 +57,7 @@ def calculate_2d(data: str | Path,
     output_binary : bool, optional
         Whether to write output in binary format (default: False).
     output_prefix : str, optional
-        Prefix for all output files (default: "strain_"). results will be
+        Prefix for all output files (default: :code:`strain_`). results will be
         named with output_prefix + original filename. THe extension will be
         changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
     output_delimiter : str, optional
@@ -79,19 +83,38 @@ def calculate_2d(data: str | Path,
     if window_size % 2 == 0:
         raise ValueError(f"Invalid strain window size: '{window_size}'. Must be an odd number.")
 
-    filenames = check_strain_files(strain_files=data)
 
-    # Load data if a file path is given
-    results = import_2d(layout="matrix", data=str(data),
-                                  binary=input_binary, delimiter=input_delimiter)
+    if isinstance(data, (str, Path)):
+        filenames = check_strain_files(strain_files=data)
+
+        # Load data if a file path is given
+        dicresults = import_2d(layout="matrix", data=str(data), 
+                            binary=input_binary, delimiter=input_delimiter)
+
+    elif isinstance(data, dicResults):
+        dicresults = data
+        print(dicresults.ss_x.shape, dicresults.ss_y.shape, dicresults.u.shape,dicresults.v.shape)
+        assert dicresults.ss_x.ndim == 2 and dicresults.ss_y.ndim == 2, "ss_x and ss_y must be 2D"
+        assert dicresults.ss_x.shape == dicresults.ss_y.shape, "ss_x and ss_y must have the same shape"
+        assert dicresults.u.ndim == 3 and dicresults.v.ndim == 3, "u and v must be 3D"
+        assert dicresults.u.shape == dicresults.v.shape, "u and v must have the same shape"
+        assert dicresults.u.shape[1:] == dicresults.ss_x.shape, "Spatial dimensions of u must match ss_x"
+
+        # need to make dummy filenames
+        filenames = []
+        for f in range(0,dicresults.u.shape[0]):
+            filenames.append(f"strain_data_{f:04d}")
+
+    else: 
+        raise TypeError(f"Unexpected displacement data type: {type(data)}")
 
     # Extract dimensions from the validated object
-    nss_x = results.ss_x.shape[1]
-    nss_y = results.ss_y.shape[0]
-    nimg = results.u.shape[0]
+    nss_x = dicresults.ss_x.shape[1]
+    nss_y = dicresults.ss_x.shape[0]
+    nimg = dicresults.u.shape[0]
 
 
-    check_output_directory(str(output_basepath), output_prefix)
+    check_output_directory(str(output_basepath), output_prefix, 0)
 
     # assigning c++ struct vals for save config
     strain_save_conf = common_cpp.SaveConfig()
@@ -101,11 +124,11 @@ def calculate_2d(data: str | Path,
     strain_save_conf.delimiter = output_delimiter
     strain_save_conf.at_end = output_at_end
 
-    print(filenames)
+    print(type(filenames))
 
     # Call to C++ backend
-    strain_cpp.strain_engine(results.ss_x, results.ss_y,
-                           results.u, results.v,
+    strain_cpp.strain_engine(dicresults.ss_x, dicresults.ss_y,
+                           dicresults.u, dicresults.v,
                            nss_x, nss_y, nimg,
                            window_size, window_element, 
                            strain_formulation, filenames,

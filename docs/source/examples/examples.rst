@@ -10,7 +10,7 @@ Sensor Simulation Basics
 
    examples_basics_sensorsim
 
-Digital Image Correlation
+DIC & Strain Calculations
 -------------------------
 .. toctree::
    :maxdepth: 2

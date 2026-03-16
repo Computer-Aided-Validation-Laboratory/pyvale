@@ -10,6 +10,7 @@ Detailed Python API
    pyvale.sensorsim
    pyvale.blender
    pyvale.dic
+   pyvale.strain
    pyvale.mooseherder
    pyvale.verif
    pyvale.dataset

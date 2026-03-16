@@ -11,7 +11,7 @@
 #include <vector>
 
 // Program Header files
-#include "./dicinterpolator.hpp"
+#include "./dicinterp.hpp"
 
 namespace subset {
 

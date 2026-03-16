@@ -11,11 +11,11 @@ import pyvista as pv
 import pyvale.mooseherder as mh
 
 from pyvale.sensorsim.sensorspoint import SensorsPoint
-from pyvale.sensorsim.fieldconverter import simdata_to_pyvista
+from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_vis
 from pyvale.sensorsim.visualopts import (VisOptsSimSensors,VisOptsImageSave)
 from pyvale.sensorsim.visualtools import (create_pv_plotter,
-                                     get_colour_lims,
-                                     save_image)
+                                     get_colour_lims)
+from pyvale.sensorsim.imagetools import ImageTools
 
 
 #TODO: Docstrings
@@ -106,7 +106,7 @@ def plot_sim_mesh(sim_data: mh.SimData,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    pv_simdata = simdata_to_pyvista(sim_data,
+    pv_simdata = simdata_to_pyvista_vis(sim_data,
                                          None,
                                          sim_data.num_spat_dims)
 
@@ -129,7 +129,7 @@ def plot_sim_data(sim_data: mh.SimData,
     if vis_opts is None:
         vis_opts = VisOptsSimSensors()
 
-    pv_simdata = simdata_to_pyvista(sim_data,
+    pv_simdata = simdata_to_pyvista_vis(sim_data,
                                         (component,),
                                          sim_data.num_spat_dims)
 
@@ -174,7 +174,7 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
     pv_plot.camera_position = vis_opts.camera_position
 
     if image_save_opts is not None:
-        save_image(pv_plot,image_save_opts)
+        ImageTools.save_image(pv_plot,image_save_opts)
 
     return pv_plot
 

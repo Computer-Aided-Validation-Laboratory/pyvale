@@ -17,7 +17,7 @@
 
 
 // Program Header files
-#include "./dicinterpolator.hpp"
+#include "./dicinterp.hpp"
 #include "./dicoptimizer.hpp"
 #include "./dicshapefunc.hpp"
 #include "./dicresults.hpp"
@@ -158,7 +158,7 @@ namespace optimizer {
             double def_y = ss_def.y[i];
 
             // get the subset value and derivitives
-            interp_vals = interp_def.eval_bicubic_and_derivs(global_x, global_y, def_x+global_x, def_y+global_y);
+            interp_vals = interp_def.eval_and_derivs(global_x, global_y, def_x+global_x, def_y+global_y);
             ss_def.vals[i] = interp_vals.f;
             double def = ss_def.vals[i];
 
@@ -199,7 +199,7 @@ namespace optimizer {
         opt.costpdp = 0.0;
         for (int i = 0; i < num_px; ++i) {
             shapefunc::get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.pdp);
-            ss_def.vals[i] = interp_def.eval_bicubic(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+            ss_def.vals[i] = interp_def.eval(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
             opt.costpdp += (ss_ref.vals[i] - ss_def.vals[i]) * (ss_ref.vals[i] - ss_def.vals[i]);
         }
     }
@@ -240,7 +240,7 @@ namespace optimizer {
             // apply shape function parameters to deformed subset
             shapefunc::get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.p);
 
-            interp_vals = interp_def.eval_bicubic_and_derivs(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+            interp_vals = interp_def.eval_and_derivs(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
             ss_def.vals[i] = interp_vals.f;
             dfdx[i] = interp_vals.dfdx;
             dfdy[i] = interp_vals.dfdy;
@@ -291,7 +291,7 @@ namespace optimizer {
         sum_squared_def = 0.0;
         for (int i = 0; i < num_px; ++i) {
             shapefunc::get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.pdp);
-            ss_def.vals[i] = interp_def.eval_bicubic(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+            ss_def.vals[i] = interp_def.eval(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
             sum_squared_def += ss_def.vals[i] * ss_def.vals[i];
         }
 
@@ -340,7 +340,7 @@ namespace optimizer {
             // apply shape function parameters to deformed subset
             shapefunc::get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.p);
 
-            interp_vals = interp_def.eval_bicubic_and_derivs(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+            interp_vals = interp_def.eval_and_derivs(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
             ss_def.vals[i] = interp_vals.f;
             dfdx[i] = interp_vals.dfdx;
             dfdy[i] = interp_vals.dfdy;
@@ -403,7 +403,7 @@ namespace optimizer {
         mean_def = 0.0;
         for (int i = 0; i < num_px; ++i) {
             shapefunc::get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], opt.pdp);
-            ss_def.vals[i] = interp_def.eval_bicubic(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
+            ss_def.vals[i] = interp_def.eval(global_x, global_y, ss_def.x[i]+global_x, ss_def.y[i]+global_y);
             mean_def += ss_def.vals[i];
         }
 
