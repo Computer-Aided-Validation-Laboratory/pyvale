@@ -28,61 +28,57 @@ def gen_gold_measurements(param_dict: dict) -> None:
     speckle_size = param_dict.get("speckle_size")
     bit_depth = param_dict.get("bit_depth")
     theme = param_dict.get("theme")
+    black_white_ratio = param_dict.get("black_white_ratio")
     seed = param_dict.get("seed")
     reduce_overlap = param_dict.get("reduce_overlap")
-    sigma = param_dict.get("sigma")
+    sigma_blur = param_dict.get("sigma_blur")
     attempts_tot = param_dict.get("attempts_tot")
     perturbation_max = param_dict.get("perturbation_max")
     octaves = param_dict.get("octaves")
     lacunarity = param_dict.get("lacunarity")
+    
     feature_size_width = speckle_size
     feature_size_height = speckle_size
-
-    speckle_area = np.pi * (speckle_size / 2) ** 2
-    total_area = screen_size_width * screen_size_height
-    total_speckles = int((0.5 * total_area) / speckle_area)
-    dynamic_range: int = 2**bit_depth - 1
-    background_colour = 0 if theme == 'white_on_black' else dynamic_range
-    foreground_colour = dynamic_range if theme == 'white_on_black' else 0
-
 
     for i in range(case_tot):
         print(f"Generating gold output for case: {type_gen}_{i+1}")
  
         if type_gen == "random_disks":
-            image, _ = specklegen.generate_speckles(screen_size_width, screen_size_height,
-                                            feature_size_width, feature_size_height,
-                                            foreground_colour, background_colour,
-                                            bit_depth, type_gen, seed,
-                                            total_speckles=total_speckles,
-                                            reduce_overlap=reduce_overlap,
-                                            sigma=sigma, attempts_tot=attempts_tot,
-                                            perturbation_max=perturbation_max)
+            image, _, _ = specklegen.generate_speckles(screen_size_width, screen_size_height,
+                                   feature_size_width, feature_size_height,
+                                   theme,
+                                   bit_depth, type_gen, seed,
+                                   reduce_overlap=reduce_overlap,
+                                   sigma_blur=sigma_blur, black_white_ratio=black_white_ratio,
+                                   attempts_tot=attempts_tot,
+                                   perturbation_max=perturbation_max)
+        
         elif type_gen == "random_disks_grid":
-            image, _ = specklegen.generate_speckles(screen_size_width, screen_size_height,
-                                        feature_size_width, feature_size_height,
-                                        foreground_colour, background_colour,
-                                        bit_depth, type_gen, seed,
-                                        total_speckles=total_speckles,
-                                        reduce_overlap=reduce_overlap,
-                                        sigma=sigma, perturbation_max=perturbation_max)
+            image, _, _ = specklegen.generate_speckles(screen_size_width, screen_size_height,
+                                   feature_size_width, feature_size_height,
+                                   theme,
+                                   bit_depth, type_gen, seed,
+                                   reduce_overlap=reduce_overlap,
+                                   sigma_blur=sigma_blur, black_white_ratio=black_white_ratio,
+                                   attempts_tot=attempts_tot,
+                                   perturbation_max=perturbation_max)
         elif type_gen == "perlin":
             image = specklegen.generate_speckles(screen_size_width, screen_size_height,
-                                        feature_size_width, feature_size_height,
-                                        foreground_colour, background_colour,
-                                        bit_depth, type_gen, seed)
+                                     feature_size_width, feature_size_height,
+                                     theme,
+                                     bit_depth, type_gen, seed)
         elif type_gen == "fractal":
             image = specklegen.generate_speckles(screen_size_width, screen_size_height,
-                                        feature_size_width, feature_size_height,
-                                        foreground_colour, background_colour,
-                                        bit_depth, type_gen, seed,
-                                        octaves=octaves, lacunarity=lacunarity)
+                                     feature_size_width, feature_size_height,
+                                     theme,
+                                     bit_depth, type_gen, seed,
+                                     octaves=octaves, lacunarity=lacunarity)
             
-        elif type_gen == "simplex":
+        elif type_gen == "simplex": 
             image = specklegen.generate_speckles(screen_size_width, screen_size_height,
-                                         feature_size_width, feature_size_height,
-                                         foreground_colour, background_colour,
-                                         bit_depth, type_gen, seed)
+                                     feature_size_width, feature_size_height,
+                                     theme,
+                                     bit_depth, type_gen, seed)
  
         save_path = specklegenconst.GOLD_PATH
         if not os.path.exists(save_path):

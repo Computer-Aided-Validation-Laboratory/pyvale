@@ -73,7 +73,8 @@ def pixelsInDisk(cent_x: int, cent_y: int,
                     if distance <= (speckle_size / 2)**2:
                         image[yy, xx] = foreground_colour
 
-def postprocess_speckles(image: np.ndarray, sigma_blur: float | None = None,
+def postprocess_speckles(image: np.ndarray, seed: int, 
+                         sigma_blur: float | None = None,
                          sigma_noise: float | None = None,
                          centre: int | None = None, contrast: int | None = None) -> np.ndarray:
     """A function to postprocess speckle pattern: re-position the irradiance distribution 
@@ -83,6 +84,8 @@ def postprocess_speckles(image: np.ndarray, sigma_blur: float | None = None,
     ----------
     image : np.ndarray, shape=(num_px_y, num_px)
         2D numpy array representing the speckle pattern
+    seed : int
+        Random seed for the noise generation
     sigma_blur : float, optional
         Standard deviation for Gaussian blur applied after speckle placement
     sigma_noise : float, optional
@@ -97,6 +100,8 @@ def postprocess_speckles(image: np.ndarray, sigma_blur: float | None = None,
     image : np.ndarray, shape=(num_px_y, num_px)
         2D numpy array representing the postprocessed speckle pattern
     """
+
+    np.random.seed(seed)
 
     # Apply Gaussian blur
     if sigma_blur is not None:
@@ -559,7 +564,7 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
                     bit_depth, type_gen, seed, **kwargs)
         if "black_white_ratio" in kwargs:
             image, results = output
-            image = postprocess_speckles(image, sigma_blur, 
+            image = postprocess_speckles(image, seed, sigma_blur, 
                                          sigma_noise, 
                                          centre, contrast)
             return (image, results, total_speckles)

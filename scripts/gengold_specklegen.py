@@ -6,6 +6,7 @@
 
 import pyvale.verif.specklegold as specklegold
 import pyvale.verif.specklegenconst as specklegenconst
+import pyvale.specklegen as specklegen
 
 def main() -> None:
 
@@ -18,12 +19,13 @@ def main() -> None:
             "screen_size_width": 1000,
             "screen_size_height": 800,
             "bit_depth": 8,
-            "theme": 'white_on_black',
+            "theme": specklegen.Theme.WHITE_ON_BLACK,
+            "black_white_ratio" : 1.0,
             "seed": 123,
             "type_gen": tag,
             "octaves": 3,
             "lacunarity": 2,
-            "sigma": 4.0,
+            "sigma_blur": 4.0,
             "reduce_overlap": True,
             "attempts_tot": 300,
             "perturbation_max": 12,
