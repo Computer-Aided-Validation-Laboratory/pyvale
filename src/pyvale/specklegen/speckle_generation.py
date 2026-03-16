@@ -73,6 +73,50 @@ def pixelsInDisk(cent_x: int, cent_y: int,
                     if distance <= (speckle_size / 2)**2:
                         image[yy, xx] = foreground_colour
 
+def postprocess_speckles(image: np.ndarray, sigma_blur: float | None = None,
+                         sigma_noise: float | None = None,
+                         centre: int | None = None, contrast: int | None = None) -> np.ndarray:
+    """A function to postprocess speckle pattern: re-position the irradiance distribution 
+    and/or add a Gaussian blur and/or Gaussian noise.
+
+    Parameters
+    ----------
+    image : np.ndarray, shape=(num_px_y, num_px)
+        2D numpy array representing the speckle pattern
+    sigma_blur : float, optional
+        Standard deviation for Gaussian blur applied after speckle placement
+    sigma_noise : float, optional
+        Standard deviation for Gaussian noise applied after speckle placement
+    centre : int, optional
+        The centre of irradiance distribution
+    contrast : int, optional
+        The image contrast
+    
+    Returns
+    -------
+    image : np.ndarray, shape=(num_px_y, num_px)
+        2D numpy array representing the postprocessed speckle pattern
+    """
+
+    # Apply Gaussian blur
+    if sigma_blur is not None:
+        image = ndimage.gaussian_filter(image, sigma=sigma_blur)
+
+    # Apply Gaussian noise
+    if sigma_noise is not None:
+        noise = np.random.normal(0.0, sigma_noise, image.shape)
+        image = image + noise
+
+        # Re-position the irradiance distribution
+    if centre and contrast is not None:
+        v_max = centre + (contrast / 2)
+        v_min = centre - (contrast / 2)
+        image_min = np.min(image)
+        image_max = np.max(image)
+        image = (image - image_min) / (image_max - image_min)
+        image = image * (v_max - v_min) + v_min
+
+    return image
 
 def generate_speckles_random_disks(screen_size_width: int, screen_size_height: int, 
                                    feature_size_width: float, feature_size_height: float,
@@ -105,8 +149,6 @@ def generate_speckles_random_disks(screen_size_width: int, screen_size_height: i
             Total number of speckles to place
         reduce_overlap : bool
             If True, attempts to reduce overlap between speckles
-        sigma : float
-            Standard deviation for Gaussian blur applied after speckle placement
         attempts_tot : int (optional)
             Maximum number of attempts to place each speckle without overlap (if reduce_overlap is True)
     
@@ -121,14 +163,12 @@ def generate_speckles_random_disks(screen_size_width: int, screen_size_height: i
         speckle_size = (feature_size_width + feature_size_height) / 2
         total_speckles = kwargs.get("total_speckles")
         reduce_overlap = kwargs.get("reduce_overlap")
-        sigma = kwargs.get("sigma")
         attempts_tot = kwargs.get("attempts_tot", 100)
 
         # check that non of the required parameters are None
         assert speckle_size is not None, "speckle_size parameter is required."
         assert total_speckles is not None, "total_speckles parameter is required."
         assert reduce_overlap is not None, "reduce_overlap parameter is required."
-        assert sigma is not None, "sigma parameter is required."
         assert type_gen == "random_disks", "Type_gen must be 'random_disks' for this function."
 
         np.random.seed(seed)
@@ -186,12 +226,8 @@ def generate_speckles_random_disks(screen_size_width: int, screen_size_height: i
                 results[i, 2] = 2
                 results[i, 3] = cent_x
                 results[i, 4] = cent_y
-             
-        # Apply Gaussian blur
-        image_blur = np.copy(image)
-        image_blur = ndimage.gaussian_filter(image_blur, sigma=sigma)
         
-        return image_blur, results
+        return image, results
 
 
 def generate_speckles_random_disks_grid(screen_size_width: int, screen_size_height: int, 
@@ -223,8 +259,6 @@ def generate_speckles_random_disks_grid(screen_size_width: int, screen_size_heig
             Random seed for the noise generation
         total_speckles : int
             Total number of speckles to place
-        sigma : float
-            Standard deviation for Gaussian blur applied after speckle placement
         perturbation_max : float
             Maximum amount to move speckles by during grid perturbation
     
@@ -238,13 +272,11 @@ def generate_speckles_random_disks_grid(screen_size_width: int, screen_size_heig
     
         speckle_size = (feature_size_width + feature_size_height) / 2
         total_speckles = kwargs.get("total_speckles")
-        sigma = kwargs.get("sigma")
         perturbation_max = kwargs.get("perturbation_max")
 
         # check that none of the required parameters are None
         assert speckle_size is not None, "speckle_size parameter is required."
         assert total_speckles is not None, "total_speckles parameter is required."
-        assert sigma is not None, "sigma parameter is required."
         assert type_gen == "random_disks_grid", "Type_gen must be 'random_disks_grid' for this function."
 
         np.random.seed(seed)
@@ -294,12 +326,8 @@ def generate_speckles_random_disks_grid(screen_size_width: int, screen_size_heig
             results[idx, 2] = 2
             results[idx, 3] = new_x
             results[idx, 4] = new_y
-
-        # Apply Gaussian blur
-        image_blur = np.copy(image)
-        image_blur = ndimage.gaussian_filter(image_blur, sigma=sigma)
                     
-        return image_blur, results
+        return image, results
 
 def generate_speckles_perlin_noise(screen_size_width: int, screen_size_height: int, 
                                    feature_size_width: float, feature_size_height: float,
@@ -468,6 +496,14 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
         Type of noise to generate (must be one of 'random_disks', "random_disks_grid", 'perlin', 'fractal', 'simplex')
     seed : int
         Random seed for the noise generation
+    sigma_blur : float, optional
+        Standard deviation for Gaussian blur applied after speckle placement
+    sigma_noise : float, optional
+        Standard deviation for Gaussian noise applied after speckle placement
+    centre : int, optional
+        The centre of irradiance distribution
+    contrast : int, optional
+        The image contrast
 
     Returns
     -------
@@ -481,6 +517,11 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
     ValueError
         Unknown speckle generation type
     """    
+
+    sigma_blur = kwargs.get("sigma_blur", None)
+    sigma_noise = kwargs.get("sigma_noise", None)
+    centre = kwargs.get("centre", None)
+    contrast = kwargs.get("contrast", None)
 
     assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
 
@@ -517,8 +558,13 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
                     foreground_colour, background_colour,
                     bit_depth, type_gen, seed, **kwargs)
         if "black_white_ratio" in kwargs:
-            return (*output, total_speckles)
+            image, results = output
+            image = postprocess_speckles(image, sigma_blur, 
+                                         sigma_noise, 
+                                         centre, contrast)
+            return (image, results, total_speckles)
         else:
+            image = output
             return output
     else:
         raise ValueError(f"Unknown speckle generation type: {type_gen}")

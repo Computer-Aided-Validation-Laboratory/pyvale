@@ -61,7 +61,10 @@ lacunarity = 2
 feature_size_width = speckle_size
 feature_size_height = speckle_size
 
-subfolder = Path(f"{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme.value}_{seed}")
+subfolder = Path(
+    f"{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_"
+    f"{bit_depth}_{theme.value}_{seed}"
+)
 save_path = output_path / subfolder
 if not os.path.exists(save_path):
     os.makedirs(save_path)

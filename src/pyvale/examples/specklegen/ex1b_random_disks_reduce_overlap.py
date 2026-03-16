@@ -44,7 +44,7 @@ bit_depth = 8
 theme = specklegen.Theme.WHITE_ON_BLACK
 black_white_ratio = 1.0
 seed = 10
-sigma = 4.0
+sigma_blur = 4.0
 reduce_overlap = True
 type_gen = "random_disks"
 attempts_tot = 300
@@ -52,7 +52,10 @@ attempts_tot = 300
 feature_size_width = speckle_size
 feature_size_height = speckle_size
 
-subfolder = Path(f"{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_{bit_depth}_{theme.value}_{seed}_{sigma}_{reduce_overlap}")
+subfolder = Path(
+    f"{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_"
+    f"{bit_depth}_{theme.value}_{seed}_{sigma_blur}_{reduce_overlap}"
+)
 save_path = output_path / subfolder
 if not os.path.exists(save_path):
     os.makedirs(save_path)
@@ -71,7 +74,7 @@ image, results, total_speckles = specklegen.generate_speckles(screen_size_width,
                                    theme,
                                    bit_depth, type_gen, seed,
                                    reduce_overlap=reduce_overlap,
-                                   sigma=sigma, black_white_ratio=black_white_ratio)
+                                   sigma_blur=sigma_blur, black_white_ratio=black_white_ratio)
 time_end = time.time()
 time_taken = time_end - time_start
 
