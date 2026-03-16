@@ -96,7 +96,7 @@ class TestGenerateSpeckles:
     
     def test_generate_speckles_basic_no_overlap(self, image_dims: tuple) -> None:
         width, height, speckle_size, black_white_ratio = image_dims
-        sigma = 1.0
+        sigma_blur = 1.0
         bit_depth = 8
         theme = specklegen.Theme.WHITE_ON_BLACK
         feature_size_width = speckle_size
@@ -116,7 +116,7 @@ class TestGenerateSpeckles:
                                                    theme,
                                                    bit_depth, type_gen, seed,
                                                    reduce_overlap=reduce_overlap, black_white_ratio=black_white_ratio,
-                                                   sigma=sigma, perturbation_max=perturbation_max)
+                                                   sigma_blur=sigma_blur, perturbation_max=perturbation_max)
         
             assert total_speckles_calc == total_speckles
             assert image.shape == (height, width)
@@ -128,7 +128,7 @@ class TestGenerateSpeckles:
     
     def test_generate_speckles_with_overlap_reduction(self, image_dims: tuple) -> None:
         width, height, speckle_size, black_white_ratio = image_dims
-        sigma = 1.0
+        sigma_blur = 1.0
         bit_depth = 8
         theme = specklegen.Theme.WHITE_ON_BLACK
         feature_size_width = speckle_size
@@ -147,7 +147,7 @@ class TestGenerateSpeckles:
                                                theme,
                                                bit_depth, type_gen, seed,
                                                reduce_overlap=reduce_overlap,
-                                               sigma=sigma, attempts_tot=attempts_tot, black_white_ratio=black_white_ratio)
+                                               sigma_blur=sigma_blur, attempts_tot=attempts_tot, black_white_ratio=black_white_ratio)
     
         assert total_speckles_calc == total_speckles
         assert image.shape == (height, width)
@@ -159,7 +159,7 @@ class TestGenerateSpeckles:
     def test_generate_speckles_bit_depth(self, image_dims: tuple) -> None:
         width, height, speckle_size, black_white_ratio = image_dims
         fg_colour = 65535
-        sigma = 0
+        sigma_blur = 0
         bit_depth = 16
         theme = specklegen.Theme.WHITE_ON_BLACK
         feature_size_width = speckle_size
@@ -179,7 +179,7 @@ class TestGenerateSpeckles:
                                                    theme,
                                                    bit_depth, type_gen, seed,
                                                    reduce_overlap=reduce_overlap, black_white_ratio=black_white_ratio,
-                                                   sigma=sigma, perturbation_max=perturbation_max)
+                                                   sigma_blur=sigma_blur, perturbation_max=perturbation_max)
         
             assert total_speckles_calc == total_speckles
             assert image.dtype == np.uint16
@@ -189,14 +189,14 @@ class TestGenerateSpeckles:
     def test_generate_speckles_blur(self, image_dims: tuple) -> None:
         width, height, speckle_size, black_white_ratio = image_dims
         fg_colour = 255
-        sigma = 1.5
+        sigma_blur = 1.5
         bit_depth = 8
         theme = specklegen.Theme.WHITE_ON_BLACK
         feature_size_width = speckle_size
         feature_size_height = speckle_size
         seed = 123
         type_gens = ["random_disks", "random_disks_grid"]
-        reduce_overlap=False
+        reduce_overlap = False
         perturbation_max = 6
     
         total_speckles_calc = calculate_total_speckles(bit_depth, width, height, 
@@ -209,11 +209,52 @@ class TestGenerateSpeckles:
                                                    theme,
                                                    bit_depth, type_gen, seed,
                                                    reduce_overlap=reduce_overlap, black_white_ratio=black_white_ratio,
-                                                   sigma=sigma, perturbation_max=perturbation_max)
+                                                   sigma_blur=sigma_blur, perturbation_max=perturbation_max)
         
             assert total_speckles_calc == total_speckles
             assert np.any(image != 0)
             assert np.any(image != fg_colour)
             assert image.shape == (height, width)
             assert results.shape == (total_speckles, 5)
+    
+    def test_generate_speckles_centre_contrast(self, image_dims: tuple) -> None:
+        width, height, speckle_size, black_white_ratio = image_dims
+        fg_colour = 255
+        sigma_blur = 0.0
+        centre = 120
+        contrast = 100
+        bit_depth = 8
+        theme = specklegen.Theme.WHITE_ON_BLACK
+        feature_size_width = speckle_size
+        feature_size_height = speckle_size
+        seed = 123
+        type_gens = ["random_disks", "random_disks_grid"]
+        reduce_overlap = False
+        perturbation_max = 6
+
+        v_max = centre + (contrast / 2)
+        v_min = centre - (contrast / 2)
+    
+        total_speckles_calc = calculate_total_speckles(bit_depth, width, height, 
+                                                       theme, black_white_ratio, 
+                                                       feature_size_width, feature_size_height)
+    
+        for type_gen in type_gens:
+            image, results, total_speckles = specklegen.generate_speckles(width, height,
+                                                   feature_size_width, feature_size_height,
+                                                   theme,
+                                                   bit_depth, type_gen, seed,
+                                                   reduce_overlap=reduce_overlap, black_white_ratio=black_white_ratio,
+                                                   sigma_blur=sigma_blur,
+                                                   centre=centre, contrast=contrast, 
+                                                   perturbation_max=perturbation_max)
+        
+            assert total_speckles_calc == total_speckles
+            assert np.any(image != 0)
+            assert np.any(image != fg_colour)
+            assert image.shape == (height, width)
+            assert results.shape == (total_speckles, 5)
+
+            assert np.max(image) == v_max
+            assert np.min(image) == v_min
 

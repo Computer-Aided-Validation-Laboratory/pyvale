@@ -342,7 +342,7 @@ def autocovariance_plot(image: np.ndarray,
     return (fig, axes)
 
 
-def speckle_size(image: np.ndarray) -> tuple:
+def speckle_size(image: np.ndarray) -> tuple[GaussPeakFit, GaussPeakFit, np.ndarray, np.ndarray]:
     """ A function to calculate speckle size from the autocovariance of the speckle pattern.
 
     Parameters
@@ -352,7 +352,7 @@ def speckle_size(image: np.ndarray) -> tuple:
 
     Returns
     -------
-    tuple
+    tuple[GaussPeakFit, GaussPeakFit, np.ndarray, np.ndarray]
         stats_horis : GaussPeakFit dataclass
             Parameters related to fitting Gaussian function to the horisontal profile.
         stats_vert : GaussPeakFit dataclass
@@ -400,7 +400,7 @@ def gaussian(x: np.ndarray, a1: float, b1: float, c1: float) -> np.ndarray:
     """      
     return a1 * np.exp(-((x - b1)/c1) ** 2)
 
-def fit_gaussian(H: np.ndarray, V: np.ndarray) -> tuple:
+def fit_gaussian(H: np.ndarray, V: np.ndarray) -> tuple[GaussPeakFit, GaussPeakFit]:
     """ Fit Gaussian functions to the horisontal and vertical autocovariance profiles.
 
     Parameters
@@ -412,7 +412,7 @@ def fit_gaussian(H: np.ndarray, V: np.ndarray) -> tuple:
 
     Returns
     -------
-    tuple
+    tuple[GaussPeakFit, GaussPeakFit]
         stats_horis : GaussPeakFit dataclass
             Parameters related to fitting Gaussian function to the horisontal profile.
         stats_vert : GaussPeakFit dataclass
