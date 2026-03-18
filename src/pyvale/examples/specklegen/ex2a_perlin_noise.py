@@ -46,7 +46,11 @@ if not output_path.is_dir():
 speckle_size = 20
 screen_size_width = 1000
 screen_size_height = 800
-bit_depth = 8
+
+image_depth = 8
+container_depth = 8
+mode = "scaled"
+
 theme = specklegen.Theme.WHITE_ON_BLACK
 seed = 10
 type_gen = "perlin"
@@ -56,7 +60,7 @@ feature_size_height = speckle_size
 
 subfolder = Path(
     f"{type_gen}_{speckle_size}_{screen_size_width}_{screen_size_height}_"
-    f"{bit_depth}_{theme.value}_{seed}"
+    f"{image_depth}_{theme.value}_{seed}"
 )
 save_path = output_path / subfolder
 if not os.path.exists(save_path):
@@ -74,7 +78,8 @@ time_start = time.time()
 image = specklegen.generate_speckles(screen_size_width, screen_size_height,
                                      feature_size_width, feature_size_height,
                                      theme,
-                                     bit_depth, type_gen, seed)
+                                     image_depth, container_depth, mode, 
+                                     type_gen, seed)
 time_end = time.time()
 time_taken = time_end - time_start
 
@@ -91,13 +96,16 @@ print()
 # The black-to-white ratio is already close to unity, 
 # so there is no need to perform any additional operations related to speckle overlap reduction, like we did in ex1a, ex1b, and ex1c. 
 
-results = specklegen.speckle_pattern_statistics(image, bit_depth)
+results = specklegen.speckle_pattern_statistics(image, 
+                                                image_depth, container_depth, 
+                                                mode, theme)
 with open(f"{save_path}/speckle_pattern_diagnostics.json", "w") as f:
     json.dump(asdict(results), f, indent=4)
 
 image_format='jpg'
 plot_opts = PlotOptsGeneral(cmap_seq='gray')
-(fig,ax) = specklegen.speckle_pattern_plot(image, bit_depth, plot_opts=plot_opts)
+(fig,ax) = specklegen.speckle_pattern_plot(image, image_depth, container_depth, 
+                                           mode, theme, plot_opts=plot_opts)
 fig.savefig(f"{save_path}/speckle_pattern." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
 
 # %%
@@ -125,7 +133,7 @@ speckle_opts = SpecklePatternOpts(x_label="Pixel value",
                                   y_label="Density (log scale)",
                                   title="Histogram of irradiance values",
                                   cmap_title=None)
-(fig,ax) = specklegen.pixel_value_histogram_plot(image, bit_depth,
+(fig,ax) = specklegen.pixel_value_histogram_plot(image,
                                                  speckle_opts=speckle_opts)
 fig.savefig(f"{save_path}/pixel_value_histogram." + f'{image_format}', dpi=300, format=image_format, bbox_inches='tight')
 

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from scipy.optimize import curve_fit
 from scipy.stats import skew, kurtosis
 from skimage.measure import shannon_entropy
+import pyvale.specklegen as specklegen
 from pyvale.sensorsim.visualopts import PlotOptsGeneral, SpecklePatternOpts
 
 @dataclass(slots=True)
@@ -32,15 +33,22 @@ class GaussPeakFit:
     one_over_e_sq_width: float # 1/e^2 width
     gauss_fit_optim_params: np.ndarray # Optimal parameters for Gaussian fit
 
-def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> SpeckleDiagnostics:
+def speckle_pattern_statistics(image: np.ndarray, image_depth: int,  container_depth: int,
+                               mode: str, theme: specklegen.Theme) -> SpeckleDiagnostics:
     """A function to perform diagnostics on the speckle pattern image.
 
     Parameters
     ----------
     image : np.ndarray, shape=(num_px_y, num_px)
         2D numpy array representing the speckle pattern
-    bit_depth : int
-        Bit depth of the image (8 or 16)
+    image_depth : int
+        Bit depth of the image/sensor (8, 10, 12, 16, or 32)
+    container_depth : int
+        Bit depth of the image container (8, 16, or 32)
+    mode : str, optional
+        Mode to save image ("lower", "upper", "scaled")
+    theme : Theme
+        Black background with white speckles or reverse
 
     Returns
     -------
@@ -48,16 +56,23 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> SpeckleDiag
         Diagnostic results
     """
 
-    assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
-    dynamic_range: int = 2**bit_depth - 1
+    assert mode in ["lower", "upper", "scaled"], "Mode should be either lower, upper, or scaled."
+    assert image_depth in [8, 10, 12, 16, 32], "Image bit depth should be either 8, 10, 12, 16, or 32."
+    assert container_depth in [8, 16, 32], "Container bit depth should be either 8, 16, or 32."
+    assert image_depth <= container_depth, \
+    f"Image depth ({image_depth}) cannot exceed container depth ({container_depth})."
+
+    background_colour, foreground_colour = specklegen.get_colours(image_depth, container_depth, 
+                                                                  mode, theme)
 
     stats_horis, stats_vert, _, _ = speckle_size(image)
     avg_speckle_size_fwhm = np.mean([stats_horis.full_width_at_half_max, stats_vert.full_width_at_half_max])
     avg_speckle_size_e2 = np.mean([stats_horis.one_over_e_sq_width, stats_vert.one_over_e_sq_width])
 
     # Calculate black/white ratio
-    black_pixels = np.sum(image < (dynamic_range // 2))
-    white_pixels = np.sum(image >= (dynamic_range // 2))
+    mid = (background_colour + foreground_colour) // 2
+    black_pixels = np.sum(image < mid)
+    white_pixels = np.sum(image >= mid)
     ratio = black_pixels / white_pixels
 
     # Calculate mean intensity gradient (simple finite difference)
@@ -88,17 +103,24 @@ def speckle_pattern_statistics(image: np.ndarray, bit_depth: int) -> SpeckleDiag
 
     return results
 
-def speckle_pattern_plot(image: np.ndarray, bit_depth: int,
-                                plot_opts: PlotOptsGeneral | None = None,
-                                speckle_opts: SpecklePatternOpts | None = None) -> tuple[mpf.Figure,mpa.Axes]:
+def speckle_pattern_plot(image: np.ndarray, image_depth: int,  container_depth: int,
+                         mode: str, theme: specklegen.Theme,
+                         plot_opts: PlotOptsGeneral | None = None,
+                         speckle_opts: SpecklePatternOpts | None = None) -> tuple[mpf.Figure,mpa.Axes]:
     """A function to generate the speckle pattern plot.
 
     Parameters
     ----------
     image : np.ndarray, shape=(num_px_y, num_px)
         2D numpy array representing the speckle pattern
-    bit_depth : int
-        Bit depth of the image (8 or 16)
+    image_depth : int
+        Bit depth of the image/sensor (8, 10, 12, 16, or 32)
+    container_depth : int
+        Bit depth of the image container (8, 16, or 32)
+    mode : str, optional
+        Mode to save image ("lower", "upper", "scaled")
+    theme : Theme
+        Black background with white speckles or reverse
     plot_opts : PlotOptsGeneral | None, optional
         Options for controlling characteristics of the plot including the size
         of the figure, line widths etc., by default None. If None a default
@@ -113,10 +135,16 @@ def speckle_pattern_plot(image: np.ndarray, bit_depth: int,
     tuple[mpf.Figure,mpa.Axes]
         Figure and axes object for the matplotlib plot that is created.
     """
-    
-    assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
-    dynamic_range: int = 2**bit_depth - 1
 
+    assert mode in ["lower", "upper", "scaled"], "Mode should be either lower, upper, or scaled."
+    assert image_depth in [8, 10, 12, 16, 32], "Image bit depth should be either 8, 10, 12, 16, or 32."
+    assert container_depth in [8, 16, 32], "Container bit depth should be either 8, 16, or 32."
+    assert image_depth <= container_depth, \
+    f"Image depth ({image_depth}) cannot exceed container depth ({container_depth})."
+
+    background_colour, foreground_colour = specklegen.get_colours(image_depth, container_depth, 
+                                                                  mode, theme)
+    
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
     if speckle_opts is None:
@@ -130,7 +158,9 @@ def speckle_pattern_plot(image: np.ndarray, bit_depth: int,
 
     #---------------------------------------------------------------------------
     # Plot speckle pattern
-    ax.imshow(image, cmap=plot_opts.cmap_seq, vmin=0, vmax=dynamic_range)
+    ax.imshow(image, cmap=plot_opts.cmap_seq, 
+              vmin=min(background_colour, foreground_colour), 
+              vmax=max(background_colour, foreground_colour))
 
     #---------------------------------------------------------------------------
     # Axis / legend labels and options
@@ -204,17 +234,15 @@ def frequency_spectrum_plot(image: np.ndarray,
     return (fig, ax)
 
 
-def pixel_value_histogram_plot(image: np.ndarray, bit_depth: int,
-                                plot_opts: PlotOptsGeneral | None = None,
-                                speckle_opts: SpecklePatternOpts | None = None) -> tuple[mpf.Figure,mpa.Axes]:
+def pixel_value_histogram_plot(image: np.ndarray,
+                               plot_opts: PlotOptsGeneral | None = None,
+                               speckle_opts: SpecklePatternOpts | None = None) -> tuple[mpf.Figure,mpa.Axes]:
     """A function to generate pixel value histogram plot for the speckle pattern.
 
     Parameters
     ----------
     image : np.ndarray, shape=(num_px_y, num_px)
         2D numpy array representing the speckle pattern
-    bit_depth : int
-        Bit depth of the image (8 or 16)
     plot_opts : PlotOptsGeneral | None, optional
         Options for controlling characteristics of the plot including the size
         of the figure, line widths etc., by default None. If None a default
@@ -229,9 +257,6 @@ def pixel_value_histogram_plot(image: np.ndarray, bit_depth: int,
     tuple[mpf.Figure,mpa.Axes]
         Figure and axes object for the matplotlib plot that is created.
     """
-    
-    assert bit_depth in [8, 16], "Bit depth should be either 8 or 16."
-    dynamic_range: int = 2**bit_depth - 1
 
     if plot_opts is None:
         plot_opts = PlotOptsGeneral()
@@ -246,7 +271,7 @@ def pixel_value_histogram_plot(image: np.ndarray, bit_depth: int,
 
     #---------------------------------------------------------------------------
     # Plot pixel value histogram
-    ax.hist(image.ravel(), density=True, bins=int(dynamic_range/10), log=True)
+    ax.hist(image.ravel(), density=True, bins=25, log=True)
 
     #---------------------------------------------------------------------------
     # Axis / legend labels and options
@@ -261,16 +286,14 @@ def pixel_value_histogram_plot(image: np.ndarray, bit_depth: int,
 
 
 def autocovariance_plot(image: np.ndarray,
-                                plot_opts: PlotOptsGeneral | None = None,
-                                speckle_opts: SpecklePatternOpts | None = None) -> tuple[mpf.Figure,mpa.Axes]:
+                        plot_opts: PlotOptsGeneral | None = None,
+                        speckle_opts: SpecklePatternOpts | None = None) -> tuple[mpf.Figure,mpa.Axes]:
     """A function to generate autocovariance plot for the speckle pattern.
 
     Parameters
     ----------
     image : np.ndarray, shape=(num_px_y, num_px)
         2D numpy array representing the speckle pattern
-    bit_depth : int
-        Bit depth of the image (8 or 16)
     plot_opts : PlotOptsGeneral | None, optional
         Options for controlling characteristics of the plot including the size
         of the figure, line widths etc., by default None. If None a default
