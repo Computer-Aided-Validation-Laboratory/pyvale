@@ -124,7 +124,9 @@ namespace subset {
             const double rel_y = y - half_y;
             for (int x = 0; x < ss_def.size_x; x++){
                 get_pixel(ss_def.x[count], ss_def.y[count], x - half_x, rel_y, p);
-                ss_def.vals[count] = interp_def.eval(cx, cy, ss_def.x[count]+cx, ss_def.y[count]+cy);
+                ss_def.x[count]+=cx;
+                ss_def.y[count]+=cy;
+                ss_def.vals[count] = interp_def.eval(cx, cy, ss_def.x[count], ss_def.y[count]);
                 count++;
             }
         }

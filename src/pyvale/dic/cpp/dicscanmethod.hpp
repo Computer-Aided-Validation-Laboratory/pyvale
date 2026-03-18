@@ -12,7 +12,8 @@
 
 // Program Header files
 #include "./dicutil.hpp"
-#include "dicresults.hpp"
+#include "./dicresults.hpp"
+#include "./dicmultiwindow.hpp"
 
 
 
@@ -36,7 +37,8 @@ void image(const double *img_ref,
            const Interpolator &interp_def,
            const subset::Grid &ss_grid,
            const util::Config &conf,
-           const int img_num,
+           const int img_num_ref,
+           const int img_num_def,
            ResultArrays &result_arrays);
 
 
@@ -56,9 +58,10 @@ void image(const double *img_ref,
 void multiwindow_reliability_guided(const double *img_ref,
                                    const double *img_def,
                                    const Interpolator &interp_def,
-                                   const std::vector<subset::Grid> &ss_grid,
+                                   std::vector<WindowLevel> &multiwindow,
                                    const util::Config &conf,
-                                   const int img_num,
+                                   const int img_num_ref,
+                                   const int img_num_def,
                                    ResultArrays &result_arrays);
 
 /**
@@ -67,9 +70,10 @@ void multiwindow_reliability_guided(const double *img_ref,
 void singlewindow_reliability_guided(const double *img_ref,
                                    const double *img_def,
                                    const Interpolator &interp_def,
-                                   const std::vector<subset::Grid> &ss_grid,
+                                   std::vector<WindowLevel> &multiwindow,
                                    const util::Config &conf,
-                                   const int img_num,
+                                   const int img_num_ref,
+                                   const int img_num_def,
                                    ResultArrays &result_arrays);
 
 
@@ -80,7 +84,7 @@ void singlewindow_incremental_reliability_guided(const double *img_ref,
                                                const double *img_def,
                                                const Interpolator &interp_ref,
                                                const Interpolator &interp_def,
-                                               const std::vector<subset::Grid> &ss_grid,
+                                               const subset::Grid &ss_grid,
                                                const util::Config &conf,
                                                const int img_num_ref,
                                                const int img_num_def,
@@ -102,15 +106,25 @@ void singlewindow_incremental_reliability_guided(const double *img_ref,
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void multiwindow(const double *img_ref,
-                 const double *img_def,
-                 const Interpolator &interp_def,
-                 const std::vector<subset::Grid> &ss_grid,
-                 const util::Config &conf,
-                 const int img_num,
-                 ResultArrays &result_arrays);
+void multiwindow_only(const double *img_ref,
+                      const double *img_def,
+                      const Interpolator &interp_def,
+                      std::vector<WindowLevel> &multiwindow,
+                      const util::Config &conf,
+                      const int img_num_ref,
+                      const int img_num_def,
+                      ResultArrays &result_arrays);
 
-
+ void multiwindow_reliability_guided_r(const double *img_ref,
+                                       const double *img_def,
+                                       const Interpolator &interp_ref,
+                                       const Interpolator &interp_def,
+                                       std::vector<WindowLevel> &multiwindow,
+                                       const util::Config &conf,
+                                       const int img_num_ref,
+                                       const int img_num_def,
+                                       ResultArrays &stereo_results,
+                                       ResultArrays &temporal_results);
 
 
 

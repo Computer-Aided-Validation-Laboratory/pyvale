@@ -4,6 +4,7 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
+#include "dicsubset.hpp"
 #define _USE_MATH_DEFINES
 #include <cmath>
 
@@ -70,7 +71,7 @@ namespace stereo {
             stereo::undistortPoint(u_cx_l, u_cy_l, cx_l, cy_l, K0, calib.cam0.distortion);
             stereo::undistortPoint(u_cx_r, u_cy_r, cx_r, cy_r, K1, calib.cam1.distortion);
 
-            // Convert to homogeneous pixel coords
+            // 3d pixel coords guess
             Eigen::Vector3d xl(u_cx_l, u_cy_l, 1.0);
             Eigen::Vector3d xr(u_cx_r, u_cy_r, 1.0);
 
@@ -94,7 +95,7 @@ namespace stereo {
             double Y_mm = X(1);
             double Z_mm = X(2);
 
-            std::cout << u_cx_l << " " << u_cy_l << " " << u_cx_r << " " << u_cy_r << " " << X_mm << " " << Y_mm << " " << Z_mm << " " << stereo_matches.cost[ss] << std::endl;
+            //std::cout << u_cx_l << " " << u_cy_l << " " << u_cx_r << " " << u_cy_r << " " << X_mm << " " << Y_mm << " " << Z_mm << " " << stereo_matches.cost[ss] << std::endl;
 
         }
     }
@@ -128,7 +129,7 @@ namespace stereo {
             // Convert to CORNER position for get_subpx_from_img
             subset::get_corner(corner_x,corner_y, P_i(0),P_i(1),ss_l.size_x,ss_l.size_y);
 
-            subset::get_subpx_from_img(ss_r, corner_x, corner_y, interp_r);
+            subset::fill_from_img_subpx(ss_r, corner_x, corner_y, interp_r);
 
             zncc = subset::zncc(ss_l, ss_r);
 
@@ -239,7 +240,8 @@ namespace stereo {
                                                   const Eigen::Vector2d dir,
                                                   const int window_size_x, const int window_size_y,
                                                   const double *img_ref,
-                                                  const Interpolator &interp_def){
+                                                  const Interpolator &interp_def,
+                                                  const bool print){
 
         const int px_hori = interp_def.px_hori;
         const int px_vert = interp_def.px_vert;
@@ -249,13 +251,13 @@ namespace stereo {
         const int ss_half_y = ss_size_y/2;
 
         // class for FFT
-        fourier::FFT fft(window_size_x, window_size_y);
+        FFT fft(window_size_x, window_size_y);
 
         // put the subset at the centre of the window
-        fourier::fill_fft_window_with_subset_at_corner(fft.ss_ref, img_ref,
-                                                       ss_x, ss_y, px_hori, px_vert,
-                                                       ss_size_x, ss_size_y,
-                                                       window_size_x, window_size_y);
+        fill_fft_window_with_subset_at_corner(fft.ss_ref, img_ref,
+                                              ss_x, ss_y, px_hori, px_vert,
+                                              ss_size_x, ss_size_y,
+                                              window_size_x, window_size_y);
 
         // TODO: Add a proper flag for this 
         bool subpx = false;
@@ -282,8 +284,8 @@ namespace stereo {
         }
 
         // zero norm the subsets
-        fourier::zero_norm_subset(fft.ss_ref, ss_size_x,ss_size_y);
-        fourier::zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
+        fft.zero_norm_subset(fft.ss_ref, ss_size_x,ss_size_y);
+        fft.zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
 
         // get peaks from the cross correlation
         double max_val = 0.0, peak_x = 0.0, peak_y = 0.0;
@@ -295,16 +297,23 @@ namespace stereo {
         peak_x = peak_x - window_half_x;
         peak_y = peak_y + window_half_y;
 
-        // std::cout << std::endl;
-        // for (int row = 0; row < window_size_y; ++row) {
-        //     for (int col = 0; col < window_size_x; ++col) {
-        //         int idx  = row*window_size_x+col;
-        //         std::cout << col << " " << row << " ";
-        //         std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
-        //         std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
-        //         std::cout << fft.cross_corr[idx] << std::endl;
-        //     }
-        // }
+        if (print){
+            std::cout << std::endl;
+            for (int row = 0; row < window_size_y; ++row) {
+                for (int col = 0; col < window_size_x; ++col) {
+                    int idx  = row*window_size_x+col;
+                    std::cout << col << " " << row << " ";
+                    std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
+                    std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
+                    std::cout << fft.cross_corr[idx] << std::endl;
+                }
+            }
+
+            std::cout << std::endl;
+            std::cout << peak_x << " " << peak_y << std::endl;
+            exit(0);
+        }
+
 
         // Compute the unrectified position in the right image
         Eigen::Vector2d unrectified_pos = closest_point + peak_x * dir - peak_y * perp;
@@ -524,6 +533,106 @@ namespace stereo {
 
 
 
+    bool* compute_roi_r(const subset::Grid ss_grid_l,
+                        const ResultArrays &stereo_matches,
+                        const int px_hori,
+                        const int px_vert,
+                        const int ss_size_x,
+                        const int ss_size_y) {
+
+       
+        const int half_y = ss_size_y/2;
+        const int half_x = ss_size_x/2;
+
+        bool* img_roi_r = new bool[px_hori * px_vert]();
+
+        int ss_x_l, ss_y_l;
+        double ss_x_r, ss_y_r;
+        double cx, cy;
+        for (int i = 0; i < stereo_matches.u.size(); i++) {
+            
+            ss_x_l = ss_grid_l.coords[2*i];
+            ss_y_l = ss_grid_l.coords[2*i+1];
+            subset::get_centre(cx, cy, ss_x_l, ss_y_l, ss_size_x, ss_size_y);
+
+            ss_x_r = ss_x_l+stereo_matches.u[i];
+            ss_y_r = ss_y_l+stereo_matches.v[i];
+
+            for (int dy = -half_y; dy <= half_y; dy++) {
+                for (int dx = -half_x; dx <= half_x; dx++) {
+                    int x = static_cast<int>(std::round(ss_x_r)) + dx;
+                    int y = static_cast<int>(std::round(ss_y_r)) + dy;
+                    if (x >= 0 && x < px_hori && y >= 0 && y < px_vert) {
+                        img_roi_r[y * px_hori + x] = true;
+                    }
+                }
+            }
+        }
+
+        return img_roi_r;
+    }
+
+   bool* compute_roi_r_test(const bool* img_roi_l,
+                    const subset::Grid& ss_grid,
+                    const ResultArrays& stereo_matches,
+                    const int px_hori,
+                    const int px_vert) {
+
+    // Count valid matches first
+    std::vector<int> valid;
+    for (int i = 0; i < stereo_matches.u.size(); i++)
+        if (stereo_matches.conv[i] && stereo_matches.above_thresh[i])
+            valid.push_back(i);
+
+    assert(valid.size() >= 4 && "Not enough valid matches to compute H");
+
+    Eigen::MatrixXd A(valid.size() * 2, 9);
+
+    for (int i = 0; i < valid.size(); i++) {
+        int idx = valid[i];
+        double xl = ss_grid.coords[2*idx];
+        double yl = ss_grid.coords[2*idx+1];
+
+        double cx,cy;
+        subset::get_centre(cx, cy, xl, yl, ss_grid.size_x, ss_grid.size_y);
+
+        double xr = cx + stereo_matches.u[idx];
+        double yr = cy + stereo_matches.v[idx];
+
+        A.row(2*i)   << cx, cy, 1,  0,  0, 0, -xr*cx, -xr*cy, -xr;
+        A.row(2*i+1) <<  0,  0, 0, cx, cy, 1, -yr*cx, -yr*cy, -yr;
+    }
+
+    // Solve via SVD
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullV);
+    Eigen::VectorXd h = svd.matrixV().col(8);
+    Eigen::Matrix3d H;
+    H << h(0), h(1), h(2),
+         h(3), h(4), h(5),
+         h(6), h(7), h(8);
+
+    // Warp left mask to right using H
+    bool* img_roi_r = new bool[px_hori * px_vert]();
+
+    for (int v = 0; v < px_vert; v++) {
+        for (int u = 0; u < px_hori; u++) {
+            if (!img_roi_l[v * px_hori + u]) continue;
+
+            Eigen::Vector3d p = H * Eigen::Vector3d(u, v, 1.0);
+            int u_r = static_cast<int>(std::round(p.x() / p.z()));
+            int v_r = static_cast<int>(std::round(p.y() / p.z()));
+
+            for (int dv = -1; dv <= 1; dv++) {
+                for (int du = -1; du <= 1; du++) {
+                    int u_n = u_r + du, v_n = v_r + dv;
+                    if (u_n >= 0 && u_n < px_hori && v_n >= 0 && v_n < px_vert)
+                        img_roi_r[v_n * px_hori + u_n] = true;
+                }
+            }
+        }
+    }
+    return img_roi_r;
+}
 
 
 }

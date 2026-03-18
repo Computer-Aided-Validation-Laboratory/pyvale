@@ -259,8 +259,8 @@ namespace stereo {
                                                   const Eigen::Vector2d dir,
                                                   const int window_size_x, const int window_size_y,
                                                   const double *img_ref,
-                                                  const Interpolator &interp_def);
-
+                                                  const Interpolator &interp_def,
+                                                  const bool print);
 
     /**
     * @brief Estimates rigid translation by brute‑force ZNCC search along the epipolar line.
@@ -283,6 +283,25 @@ namespace stereo {
                                                     subset::Pixels &ss_l,
                                                     const Interpolator &interp_ref,
                                                     const Interpolator &interp_def);
+
+
+
+    bool* compute_roi_r(const subset::Grid ss_grid,
+                          const ResultArrays &stereo_matches,
+                          const int px_hori,
+                          const int px_vert,
+                          const int ss_size_x,
+                          const int ss_size_y);
+
+
+
+    bool* compute_roi_r_test(const bool* img_roi_l,
+                    const subset::Grid& ss_grid,
+                    const ResultArrays& stereo_matches,
+                    const int px_hori,
+                    const int px_vert);
+
+
 }
 
 
