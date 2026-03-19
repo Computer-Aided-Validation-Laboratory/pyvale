@@ -194,7 +194,8 @@ def get_colours(image_depth: int, container_depth: int, mode: str, theme) -> tup
 def generate_speckles_random_disks(screen_size_width: int, screen_size_height: int, 
                                    feature_size_width: float, feature_size_height: float,
                                    foreground_colour: int, background_colour: int,
-                                   container_depth: int, type_gen: str, seed: int, **kwargs) -> np.ndarray:
+                                   container_depth: int, type_gen: str, 
+                                   seed: int, **kwargs) -> tuple[np.ndarray, np.ndarray]:
         """A function to generate a speckle pattern image by randomly placing disk-shaped speckles
         based on uniform probability distribution.
     
@@ -250,7 +251,8 @@ def generate_speckles_random_disks(screen_size_width: int, screen_size_height: i
         image: np.ndarray = np.ones((screen_size_height,screen_size_width),
                                     dtype=selected_dtype) * background_colour
 
-        results = np.zeros([total_speckles, 5])  # speckle number, attempts, with/without/not checked overlap (1/0/2), cent_x, cent_y
+        # speckle number, attempts, with/without/not checked overlap (1/0/2), cent_x, cent_y
+        results = np.zeros([total_speckles, 5])
 
         if reduce_overlap:
                 for i in range(int(total_speckles)):
@@ -308,7 +310,8 @@ def generate_speckles_random_disks(screen_size_width: int, screen_size_height: i
 def generate_speckles_random_disks_grid(screen_size_width: int, screen_size_height: int, 
                                    feature_size_width: float, feature_size_height: float,
                                    foreground_colour: int, background_colour: int,
-                                   container_depth: int, type_gen: str, seed: int, **kwargs) -> np.ndarray:
+                                   container_depth: int, type_gen: str, 
+                                   seed: int, **kwargs) -> tuple[np.ndarray, np.ndarray]:
         """A function to generate a speckle pattern image by randomly perturbating a grid of regularly-placed
         disk-shaped speckles based on discrete uniform probability distribution.
     
@@ -360,7 +363,8 @@ def generate_speckles_random_disks_grid(screen_size_width: int, screen_size_heig
         image: np.ndarray = np.ones((screen_size_height,screen_size_width),
                                     dtype=selected_dtype) * background_colour
         
-        results = np.zeros([total_speckles, 5])  # speckle number, attempts, with/without/not checked overlap (1/0/2), cent_x, cent_y
+        # speckle number, attempts, with/without/not checked overlap (1/0/2), cent_x, cent_y
+        results = np.zeros([total_speckles, 5])
         
         # Calculate the size of each grid cell and create initial speckle positions
         grid_cols = int(np.sqrt(total_speckles))
@@ -454,8 +458,10 @@ def generate_speckles_perlin_noise(screen_size_width: int, screen_size_height: i
     assert container_depth in [8, 16, 32], "Container bit depth should be either 8, 16, or 32."
 
     if type_gen == "perlin":
-        assert screen_size_width % res_width == 0, "The screen width must be a multiple of res_width. res_width = int(screen_size_width / feature_size_width)."
-        assert screen_size_height % res_height == 0, "The screen height must be a multiple of res_height. res_height = int(screen_size_height / feature_size_height)."
+        assert screen_size_width % res_width == 0, \
+            "The screen width must be a multiple of res_width. res_width = int(screen_size_width / feature_size_width)."
+        assert screen_size_height % res_height == 0, \
+            "The screen height must be a multiple of res_height. res_height = int(screen_size_height / feature_size_height)."
         image = generate_perlin_noise_2d(shape = (screen_size_height, screen_size_width), 
                                           res = (res_height, res_width))
         
@@ -464,8 +470,10 @@ def generate_speckles_perlin_noise(screen_size_width: int, screen_size_height: i
         octaves = kwargs.get("octaves", None)
         assert lacunarity is not None, "lacunarity parameter is required for fractal noise."
         assert octaves is not None, "octaves parameter is required for fractal noise."
-        assert screen_size_width % (lacunarity ** (octaves - 1) * res_width) == 0, "The screen width must be a multiple of lacunarity^(octaves-1)*res_width. res_width = int(screen_size_width / feature_size_width)."
-        assert screen_size_height % (lacunarity ** (octaves - 1) * res_height) == 0, "The screen height must be a multiple of lacunarity^(octaves-1)*res_height. res_height = int(screen_size_height / feature_size_height)."
+        assert screen_size_width % (lacunarity ** (octaves - 1) * res_width) == 0, \
+            "The screen width must be a multiple of lacunarity^(octaves-1)*res_width. res_width = int(screen_size_width / feature_size_width)."
+        assert screen_size_height % (lacunarity ** (octaves - 1) * res_height) == 0, \
+            "The screen height must be a multiple of lacunarity^(octaves-1)*res_height. res_height = int(screen_size_height / feature_size_height)."
         image = generate_fractal_noise_2d(shape = (screen_size_height, screen_size_width), 
                                           res = (res_height, res_width),
                                           octaves = octaves)
