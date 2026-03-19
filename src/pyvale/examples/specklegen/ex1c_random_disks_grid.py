@@ -185,7 +185,8 @@ fig.savefig(f"{save_path}/autocovariance." + f'{image_format}', dpi=300, format=
 # plt.show()
 
 #%%
-# The relative errors beetween the specified speckle size and the speckle size approximated using autocovariance are calculated. 
+# The relative errors beetween the specified speckle size and the speckle size approximated 
+# using autocovariance are calculated. 
 avg_speckle_size_fwhm = results.avg_speckle_size_fwhm
 avg_speckle_size_e2 = results.avg_speckle_size_e2
 error = np.abs(avg_speckle_size_fwhm - speckle_size) * 100 / speckle_size

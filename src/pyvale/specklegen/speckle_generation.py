@@ -108,6 +108,9 @@ def postprocess_speckles(image: np.ndarray, seed: int,
     """
 
     np.random.seed(seed)
+    selected_dtype = image.dtype
+    image_min = np.min(image)
+    image_max = np.max(image)
 
     # Apply Gaussian blur
     if sigma_blur is not None:
@@ -117,15 +120,16 @@ def postprocess_speckles(image: np.ndarray, seed: int,
     if sigma_noise is not None:
         noise = np.random.normal(0.0, sigma_noise, image.shape)
         image = image + noise
+        image = np.clip(image, image_min, image_max)
 
-        # Re-position the irradiance distribution
+    # Re-position the irradiance distribution
     if centre and contrast is not None:
         v_max = centre + (contrast / 2)
         v_min = centre - (contrast / 2)
-        image_min = np.min(image)
-        image_max = np.max(image)
         image = (image - image_min) / (image_max - image_min)
         image = image * (v_max - v_min) + v_min
+    
+    image = image.astype(selected_dtype)
 
     return image
 
@@ -611,19 +615,25 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
     assert container_depth in [8, 16, 32], "Container bit depth should be either 8, 16, or 32."
     assert image_depth <= container_depth, \
     f"Image depth ({image_depth}) cannot exceed container depth ({container_depth})."
+    assert type_gen in ["random_disks", "random_disks_grid", "perlin", "fractal", "simplex"], \
+    f"Type of noise to generate should be one of 'random_disks', 'random_disks_grid', 'perlin', 'fractal', 'simplex')"
     
     background_colour, foreground_colour = get_colours(image_depth, container_depth, mode, theme)
     
     if "black_white_ratio" in kwargs:
         black_white_ratio = kwargs['black_white_ratio']
-        black_total_ratio = black_white_ratio / (black_white_ratio + 1.0) # Calculate black-to-total ratio
-        white_total_ratio = 1.0 - black_total_ratio # Calculate white-to-total ratio
+        # Calculate black-to-total ratio
+        black_total_ratio = black_white_ratio / (black_white_ratio + 1.0)
+        # Calculate white-to-total ratio
+        white_total_ratio = 1.0 - black_total_ratio
         speckle_area = (np.pi * feature_size_width * feature_size_height) / 4
         total_area = screen_size_width * screen_size_height
     
-        if background_colour == min(background_colour, foreground_colour): # Black background, white speckles
+        if background_colour == min(background_colour, foreground_colour): 
+            # Black background, white speckles
             total_speckles = int((white_total_ratio * total_area) / speckle_area)
-        elif foreground_colour == min(background_colour, foreground_colour): # White background, black speckles
+        elif foreground_colour == min(background_colour, foreground_colour): 
+            # White background, black speckles
             total_speckles = int((black_total_ratio * total_area) / speckle_area)
     
         kwargs['total_speckles'] = total_speckles
@@ -642,7 +652,7 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
                     feature_size_width, feature_size_height,
                     foreground_colour, background_colour,
                     container_depth, type_gen, seed, **kwargs)
-        if "black_white_ratio" in kwargs:
+        if type_gen in ["random_disks", "random_disks_grid"]:
             image, results = output
             image = postprocess_speckles(image, seed, sigma_blur, 
                                          sigma_noise, 
@@ -650,7 +660,10 @@ def generate_speckles(screen_size_width: int, screen_size_height: int,
             return (image, results, total_speckles)
         else:
             image = output
-            return output
+            image = postprocess_speckles(image, seed, sigma_blur, 
+                             sigma_noise, 
+                             centre, contrast)
+            return image
     else:
         raise ValueError(f"Unknown speckle generation type: {type_gen}")
     
