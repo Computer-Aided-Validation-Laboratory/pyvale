@@ -132,6 +132,24 @@ namespace subset {
         }
     }
 
+    void fill_from_centre_coords(subset::Pixels &ss_def,
+                                 const double cx, const double cy,
+                                 const Interpolator &interp_def) {
+
+        const double half_x = ss_def.size_x / 2.0;
+        const double half_y = ss_def.size_y / 2.0;
+
+        int count = 0;
+        for (int y = 0; y < ss_def.size_y; y++) {
+            for (int x = 0; x < ss_def.size_x; x++) {
+                ss_def.x[count] = cx + x - half_x;
+                ss_def.y[count] = cy + y - half_y;
+                ss_def.vals[count] = interp_def.eval(cx, cy, ss_def.x[count], ss_def.y[count]);
+                count++;
+            }
+        }
+    }
+
     subset::Grid create_grid(const bool *img_roi, const int ss_step,
                              const int ss_size_x, const int ss_size_y,
                              const int px_hori, const int px_vert,
@@ -276,8 +294,8 @@ namespace subset {
                 if (valid) {
                     const int tid = omp_get_thread_num();
                     const int offset = thread_offsets[tid] + thread_counts[tid];
-                    ss_grid.coords[2*offset] = ss_x;
-                    ss_grid.coords[2*offset + 1] = ss_y;
+                    ss_grid.coords[2*offset]     = ss_x + ss_size_x/2;
+                    ss_grid.coords[2*offset + 1] = ss_y + ss_size_y/2;
                     ss_grid.mask[j * num_ss_x + i] = offset;
                     thread_counts[tid]++;
                 }

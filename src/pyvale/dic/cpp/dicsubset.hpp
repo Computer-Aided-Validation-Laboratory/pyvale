@@ -25,7 +25,7 @@ namespace subset {
         int num_ss_x;
         int num_ss_y;
         int num_in_mask;
-        std::vector<int> coords;
+        std::vector<double> coords;
         std::vector<int> mask;
         std::vector<std::vector<int>> neigh;
     };
@@ -74,6 +74,21 @@ namespace subset {
                     const int px_vert,
                     const double *img_def);
 
+    /**
+    * @brief Fills a subset of pixels from an image using centre coordinates.
+    *
+    * Samples pixel values from the interpolator over a grid centred at (cx, cy).
+    * Equivalent to fill_from_img_subpx but takes centre coordinates rather than
+    * the top-left corner, and stores both pixel coordinates and values in ss_def.
+    *
+    * @param ss_def    Destination subset where pixel coordinates and values are stored.
+    * @param cx        X-coordinate of the CENTRE of the subset in the image.
+    * @param cy        Y-coordinate of the CENTRE of the subset in the image.
+    * @param interp_def Interpolator for the image from which to sample pixel data.
+    */    
+    void fill_from_centre_coords(subset::Pixels &ss_def,
+                                 const double cx, const double cy,
+                                 const Interpolator &interp_def);
 
     /**
      * @brief Extracts a square subset of pixels from an image and stores the data in a Subset object.
