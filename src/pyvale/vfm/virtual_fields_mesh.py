@@ -7,7 +7,7 @@ from scipy.io import loadmat
 
 
 # TODO: are these appropriate names?
-class BoundaryConditionSetting(enum.Enum):
+class EBoundaryConditionSetting(enum.Enum):
     Free = enum.auto()
     Fixed = enum.auto()
     Constant = enum.auto()
@@ -15,7 +15,7 @@ class BoundaryConditionSetting(enum.Enum):
 
 # TODO: maybe rename to stuff like min y edge, max x edge etc
 # Using edge numbering convention from globaloptions.m
-class Edge(enum.Enum):
+class EEdge(enum.Enum):
     Top = 0
     Bottom = 2
     Left = 1
@@ -26,8 +26,8 @@ class Edge(enum.Enum):
 # for non linear geometries
 @dataclass(slots=True)
 class BoundaryConditionSettings():
-    x: dict[Edge, BoundaryConditionSetting]
-    y: dict[Edge, BoundaryConditionSetting]
+    x: dict[EEdge, EBoundaryConditionSetting]
+    y: dict[EEdge, EBoundaryConditionSetting]
 
 
 # TODO: discuss type decisions e.g. using uint32s

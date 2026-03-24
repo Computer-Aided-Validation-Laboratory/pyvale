@@ -104,36 +104,36 @@ force = test_data["FGlob"] # (23, 2)
 time = test_data["time"]["time"]
 
 yield_strength = HomogeneousParameter(
-    IdentificationType.Unknown,
+    EIdentificationType.Unknown,
     ParameterBounds(100, 1000),
     ScalarValue(320)
 )
 
 hardening_modulus = HomogeneousParameter(
-    IdentificationType.Unknown,
+    EIdentificationType.Unknown,
     ParameterBounds(1000, 10_000),
     ScalarValue(3000)
 )
 
 elastic_modulus = HomogeneousParameter(
-    IdentificationType.Unknown,
+    EIdentificationType.Unknown,
     ParameterBounds(150_000, 250_000),
     ScalarValue(190_000)
 )
 
 poissons_ratio = HomogeneousParameter(
-    IdentificationType.Unknown,
+    EIdentificationType.Unknown,
     ParameterBounds(0.2, 0.4),
     ScalarValue(0.28)
 )
 
 mechanical_properties = MechanicalProperties(
-    ConstituitiveLaw.LinearHardening,
+    EConstituitiveLaw.LinearHardening,
     {
-        ParameterName.ElasticModulus: elastic_modulus,
-        ParameterName.PoissonsRatio: poissons_ratio,
-        ParameterName.YieldStrength: yield_strength,
-        ParameterName.HardeningModulus: hardening_modulus,
+        EParameterName.ElasticModulus: elastic_modulus,
+        EParameterName.PoissonsRatio: poissons_ratio,
+        EParameterName.YieldStrength: yield_strength,
+        EParameterName.HardeningModulus: hardening_modulus,
     }
 )
 
@@ -147,3 +147,12 @@ stress, equivalent_stress, yield_map, peeq = radial_return(strain, mechanical_pr
 # virtual_fields_mesh = generate_virtual_fields_mesh()
 
 print("break")
+
+
+# TODO: move this somewhere useful if needed
+# def calculate_timestep_deltas(self) -> npt.NDArray[np.float64]:
+#     delta_time = np.zeros_like(self.timesteps)
+#     delta_time[0] = self.timesteps[0]
+#     delta_time[1:] = np.diff(self.timesteps)
+
+#     return delta_time
