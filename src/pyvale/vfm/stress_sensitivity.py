@@ -4,10 +4,8 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.dic_config import DICConfig
 from pyvale.vfm.mechanical_properties import MechanicalProperties
 from pyvale.vfm.radial_return import radial_return
-# from pyvale.vfm.stress import convert_stress_to_4d
 
 
 @dataclass(slots=True)
@@ -42,16 +40,26 @@ class StressSensitivity:
 # TODO: arg/return types
 # TODO: should output be a list of sensitivities? or a tuple/dict with labels?
 # TODO: add normalisation
+#
+# Updated version:
+# - collect degrees of freedom to perturb from our mechanical properties
+# - perturb them all
+# - for each of them, calculate the new stress from that perturbation
+# - save the total and incremental stress sensitivities
+# TODO: should output stress sensitivity struct save sensitivies on a
+# per param basis? This makes more sense I think
 def calculate_stress_sensitivity(
     stress_reference: npt.NDArray[np.float64],
     strain: npt.NDArray[np.float64],
     mechanical_properties: MechanicalProperties,
-    dic_config: DICConfig
 ) -> StressSensitivity:
     stress_sensitivity = StressSensitivity({}, {})
 
     # TODO: should this be and input, and what will change this value if so?
     perturbation_factor = 0.15
+
+    unknown_params = collect_unknown_parameters(mechanical_properties)
+    degrees_of_freedom = collect_degrees_of_freedom(unknown_params)
 
     # TODO: this should be taken from args somehow, should we take in a dict of label/enum to param map?
     num_degrees_of_freedom = 2
@@ -94,5 +102,11 @@ def calculate_stress_sensitivity(
             stress_sensitivity.incremental["hardening_modulus"] = incremental_stress_sensitivity
     
     return stress_sensitivity
+
+
+def collect_unknown_parameters():
+
+
+def collect_degrees_of_freedom():
 
 
