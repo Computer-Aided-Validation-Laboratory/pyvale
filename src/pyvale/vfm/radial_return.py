@@ -3,7 +3,7 @@ import numpy.typing as npt
 
 from pyvale.vfm.mechanical_properties import (
     MechanicalProperties,
-    ParameterName,
+    EParameterName,
     parameter_to_map,
 )
 
@@ -39,10 +39,10 @@ def hardening_function(
     match hardening_law.name:
         case "LinearHardening":
             yield_strength = parameter_to_map(
-                parameters[ParameterName.YieldStrength], size_x, size_y
+                parameters[EParameterName.YieldStrength], size_x, size_y
             )
             hardening_modulus = parameter_to_map(
-                parameters[ParameterName.HardeningModulus], size_x, size_y
+                parameters[EParameterName.HardeningModulus], size_x, size_y
             )
             yield_strength_flat = yield_strength.ravel()
             hardening_modulus_flat = hardening_modulus.ravel()
@@ -52,13 +52,13 @@ def hardening_function(
             return yield_stress, hardening_modulus_flat
         case "SwiftHardening":
             strength_coefficient = parameter_to_map(
-                parameters[ParameterName.StrengthCoefficient], size_x, size_y
+                parameters[EParameterName.StrengthCoefficient], size_x, size_y
             )
             strain_offset = parameter_to_map(
-                parameters[ParameterName.StrainOffset], size_x, size_y
+                parameters[EParameterName.StrainOffset], size_x, size_y
             )
             hardening_exponent = parameter_to_map(
-                parameters[ParameterName.HardeningExponent], size_x, size_y
+                parameters[EParameterName.HardeningExponent], size_x, size_y
             )
 
             strength_coefficient_flat = strength_coefficient.ravel()
@@ -254,10 +254,10 @@ def radial_return(
     parameters = mechanical_properties.parameters
     # Elastic modulus and poissons ratio are always required to compute trial elastic stress
     elastic_modulus = parameter_to_map(
-        parameters[ParameterName.ElasticModulus], size_x, size_y
+        parameters[EParameterName.ElasticModulus], size_x, size_y
     )
     poissons_ratio = parameter_to_map(
-        parameters[ParameterName.PoissonsRatio], size_x, size_y
+        parameters[EParameterName.PoissonsRatio], size_x, size_y
     )
 
 
