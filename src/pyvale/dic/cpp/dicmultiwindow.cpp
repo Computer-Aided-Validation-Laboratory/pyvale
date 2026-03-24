@@ -250,24 +250,27 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                 // exit when ctrl+C
                 if (stop_request) continue;
 
-                const int ss_x = layout.coords[2*ss];
-                const int ss_y = layout.coords[2*ss+1];
+                const double cx = layout.coords[2*ss];
+                const double cy = layout.coords[2*ss+1];
+
+                const int corner_x = int(cx - ss_size_x/2);
+                const int corner_y = int(cy - ss_size_y/2);
 
                 // get the seed for the new window size
                 double prev_u = 0.0;
                 double prev_v = 0.0;
 
                 if (level>0)
-                    get_displacement_from_prev_window(prev_u, prev_v, prev, ss, ss_x, ss_y);
+                    get_displacement_from_prev_window(prev_u, prev_v, prev, ss, cx, cy);
 
-                double ss_x_shft = ss_x+prev_u;
-                double ss_y_shft = ss_y+prev_v;
+                double cx_shft = cx+prev_u;
+                double cy_shft = cy+prev_v;
 
                 // populate fft.ss_ref with reference subset values
-                subset::fill_from_img(fft.ss_ref,ss_x, ss_y, px_hori, px_vert, img_ref);
+                subset::fill_from_img(fft.ss_ref,corner_x, corner_y, px_hori, px_vert, img_ref);
 
                 // populate fft.ss_def with interpolator value
-                subset::fill_from_img_subpx(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
+                subset::fill_from_centre_coords(fft.ss_def, cx_shft, cy_shft, interp_def);
 
                 // zero normalise the subsets
                 fft.zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, ss_size_x, ss_size_y);
@@ -321,8 +324,8 @@ void WindowLevel::get_displacement_from_prev_window(double &prev_x,
                                                     double &prev_y,
                                                     const WindowLevel &prev,
                                                     const int ss,
-                                                    const double ss_x, 
-                                                    const double ss_y) {
+                                                    const double cx, 
+                                                    const double cy) {
 
     const double epsilon = 10.0;
     double weight_sum_x = 0.0;
@@ -335,11 +338,11 @@ void WindowLevel::get_displacement_from_prev_window(double &prev_x,
     for (size_t j = 0; j < num_neigh_list[ss]; ++j) {
 
         int nidx = neigh_list[ss*max_num_neigh+j];
-        int neigh_x = prev.layout.coords[2*nidx];
-        int neigh_y = prev.layout.coords[2*nidx+1];
+        double cx_neigh = prev.layout.coords[2*nidx];
+        double cy_neigh = prev.layout.coords[2*nidx+1];
 
-        double dx = ss_x - neigh_x;
-        double dy = ss_y - neigh_y;
+        double dx = cx - cx_neigh;
+        double dy = cy - cy_neigh;
         double dist_sq = dx * dx + dy * dy;
 
         double weight = 1.0 / (dist_sq + epsilon);

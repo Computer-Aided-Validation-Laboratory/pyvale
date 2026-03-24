@@ -190,6 +190,65 @@ struct FFT {
         //std::cout << peak_x << " " << peak_y << std::endl;
     }
 
+
+    void get_peak_nowrap(double &peak_x, double &peak_y, double &max_val, const bool subpx, const std::string &method) {
+        max_val = -std::numeric_limits<double>::infinity();
+        int x0 = 0, y0 = 0;
+
+        // Step 1: Find the integer peak
+        for (int y = 0; y < ss_size_y; ++y) {
+            for (int x = 0; x < ss_size_x; ++x) {
+                double val = cross_corr[y * ss_size_x + x];
+                if (val > max_val) {
+                    max_val = val;
+                    x0 = x;
+                    y0 = y;
+                }
+            }
+        }
+
+        // Step 2: No subpixel refinement requested
+        if (!subpx) {
+            peak_x = x0;
+            peak_y = y0;
+            return;
+        }
+
+        int i = 0;
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                int xw = wrap(x0 + dx, ss_size_x);
+                int yw = wrap(y0 + dy, ss_size_y);
+                double val = cross_corr[yw * ss_size_x + xw];
+                if (method == "GAUSSIAN_2D" && val <= 0) val = 1e-6;
+                double z = (method == "GAUSSIAN_2D") ? std::log(val) : val;
+                A(i, 0) = dx * dx;
+                A(i, 1) = dy * dy;
+                A(i, 2) = dx * dy;
+                A(i, 3) = dx;
+                A(i, 4) = dy;
+                A(i, 5) = 1.0;
+                b(i) = z;
+                i++;
+            }
+        }
+
+        // Step 4: Solve least squares
+        Eigen::VectorXd coeffs = A.colPivHouseholderQr().solve(b);
+        double a = coeffs(0), b = coeffs(1), c = coeffs(2);
+        double d = coeffs(3), e = coeffs(4);
+
+        // Step 5: Find stationary point
+        Eigen::Matrix2d H;
+        H << 2 * a, c,
+            c,     2 * b;
+        Eigen::Vector2d g(-d, -e);
+        Eigen::Vector2d offset = H.ldlt().solve(g);
+
+        peak_x = x0 + offset(0);
+        peak_y = y0 + offset(1);
+    }
+
     void get_peak_offset(double &peak_x, double &peak_y, double &max_val,
             const bool subpx, const std::string &method) {
 
@@ -342,7 +401,7 @@ struct FFT {
 };
 
     void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
-                                      const int ss_x, const int ss_y,
+                                      const double cx, const double cy,
                                       const int ss_size_x, 
                                       const int ss_size_y,
                                       const int window_size_x, 

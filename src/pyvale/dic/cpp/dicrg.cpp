@@ -155,7 +155,7 @@ namespace rg {
 
 
     void check_convergence_or_exit(const int x, const int y, const OptResult &res) {
-        if (!res.converged || !res.above_threshold) {
+        if (!res.above_threshold) {
             std::cout << "ERROR: unsuccessful convergence at seed or direct neighbour." << std::endl;
             std::cout << "Please select a different seed location." << std::endl;
             std::cout << std::endl;

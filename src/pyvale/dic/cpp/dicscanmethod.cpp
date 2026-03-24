@@ -194,19 +194,18 @@ void multiwindow_reliability_guided(const double *img_ref,
             if (tid == 0) {
 
                 // seed coordinates
-                int x = seed_x / ss_step;
-                int y = seed_y / ss_step;
-                int idx = ss_grid.mask[y * ss_grid.num_ss_x + x];
+                int grid_x = seed_x / ss_step;
+                int grid_y = seed_y / ss_step;
+                int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
+                double cx = ss_grid.coords[2*idx];
+                double cy = ss_grid.coords[2*idx+1];
 
                 // if the first image. Take the optimization parameters from rigid fourier
                 opt.copy_params_from_fft(idx, multiwindow.back().u, multiwindow.back().v);
 
                 // Extract reference subset and solve for starting seed point
                 subset::fill_from_img(ss_ref, seed_x, seed_y, px_hori, px_vert, img_ref);
-
-                double cx, cy;
-                subset::get_centre(cx, cy, seed_x, seed_y, ss_size_x, ss_size_y);
 
                 OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
@@ -233,13 +232,13 @@ void multiwindow_reliability_guided(const double *img_ref,
                     // subset index of neighbour to the current point
                     int nidx = ss_grid.neigh[idx][n];
 
-                    int nx = ss_grid.coords[nidx*2];
-                    int ny = ss_grid.coords[nidx*2+1];
+                    const double cx = ss_grid.coords[nidx*2];
+                    const double cy = ss_grid.coords[nidx*2+1];
 
-                    double cx, cy;
-                    subset::get_centre(cx, cy, nx, ny, ss_size_x, ss_size_y);
+                    const int corner_x = int(cx - ss_size_x/2);
+                    const int corner_y = int(cy - ss_size_y/2);
 
-                    subset::fill_from_img(ss_ref, nx, ny, px_hori, px_vert, img_ref);
+                    subset::fill_from_img(ss_ref, corner_x, corner_y, px_hori, px_vert, img_ref);
 
                     // get parameter values from fft output or from previous image
                     opt.copy_params_from_fft(nidx, multiwindow.back().u, multiwindow.back().v);
@@ -247,7 +246,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                     // perform optimization for seed point neighbours
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
-                    rg::check_convergence_or_exit(nx, ny, nres);
+                    rg::check_convergence_or_exit(cx, cy, nres);
 
                     // append the results for the current subset to result vectors
                     result_arrays.append(nres, results_num, nidx);
@@ -278,7 +277,6 @@ void multiwindow_reliability_guided(const double *img_ref,
             std::vector<rg::Point> temp_neigh;
             temp_neigh.reserve(4);
 
-            const int max_idle_iters = 100;
             rg::Point current(0, 0);
 
             while (!stop_request) {
@@ -303,14 +301,14 @@ void multiwindow_reliability_guided(const double *img_ref,
                     if (expected == 0) {
 
                         // coords of neigh
-                        int nx = ss_grid.coords[nidx*2];
-                        int ny = ss_grid.coords[nidx*2+1];
+                        int cx = ss_grid.coords[nidx*2];
+                        int cy = ss_grid.coords[nidx*2+1];
 
-                        double cx, cy;
-                        subset::get_centre(cx, cy, nx, ny, ss_size_x, ss_size_y);
+                        const int corner_x = int(cx - ss_size_x/2);
+                        const int corner_y = int(cy - ss_size_y/2);
 
                         // extract subset
-                        subset::fill_from_img(ss_ref, nx, ny, px_hori, px_vert, img_ref);
+                        subset::fill_from_img(ss_ref, corner_x, corner_y, px_hori, px_vert, img_ref);
 
                         if (result_arrays.cost[idx_results] < conf.threshold)
                             opt.copy_params_from_fft(nidx,
@@ -416,40 +414,34 @@ void multiwindow_reliability_guided(const double *img_ref,
             if (tid == 0) {
 
                 // seed coordinates
-                int x = seed_x / ss_step;
-                int y = seed_y / ss_step;
-                int idx = ss_grid.mask[y * ss_grid.num_ss_x + x];
+                int grid_x = seed_x / ss_step;
+                int grid_y = seed_y / ss_step;
+                int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
+                double cx = ss_grid.coords[2*idx];
+                double cy = ss_grid.coords[2*idx+1];
 
-                // need to add offset based on displacements from previous correlation
-                double seed_x_new, seed_y_new;
-                if (img_num_ref == 0) {
-                    seed_x_new = seed_x;
-                    seed_y_new = seed_y;
-                } else {
-                    seed_x_new = seed_x + prev_img_u[idx];
-                    seed_y_new = seed_y + prev_img_v[idx];
-                }
+                // get the reference subset based on the results from the previous image
+                int idx_results_prev_p = result_arrays.index_parameters(idx, img_num_ref-1);
+                opt.copy_params_from_neigh(result_arrays.p, idx_results_prev_p);
 
-                // reference subset based on results from previous image
-                // TODO: I think this needs to be centre coordinate
-                subset::fill_from_img_subpx(ss_ref, seed_x_new, seed_y_new, interp_ref);
+                subset::fill_from_shape_params(ss_ref, cx, cy, opt.p, interp_ref, conf.shape_func);
 
 
                 // if the first image. Take the optimization parameters from rigid fourier
                 std::fill(opt.p.begin(), opt.p.end(), 0.0);
                 int window_size = std::max(conf.max_disp, conf.ss_size);
                 get_single_window_fftcc_peak(opt.p[0], opt.p[1],
-                                             seed_x_new, seed_y_new,
+                                             cx, cy,
                                              ss_size_x, ss_size_y,
                                              window_size, window_size,
                                              img_ref, img_def,
                                              interp_def);
 
 
-                OptResult seed_res = opt.solve(seed_x_new, seed_y_new, ss_ref, ss_def, interp_def);
+                OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
-                rg::check_convergence_or_exit(seed_x_new, seed_y_new, seed_res);
+                //rg::check_convergence_or_exit(cx, cy, seed_res);
 
                 // add deformation from reference image to new results
                 if (img_num_ref > 0){
@@ -469,26 +461,22 @@ void multiwindow_reliability_guided(const double *img_ref,
                     // subset index of neighbour to the current point
                     int nidx = ss_grid.neigh[idx][n];
 
-                    double nx = ss_grid.coords[nidx*2];
-                    double ny = ss_grid.coords[nidx*2+1];
-                        
-
-                    // need to add displacements from previous image
-                    if (img_num_ref > 0){
-                        nx += prev_img_u[nidx];
-                        ny += prev_img_v[nidx];
-                    }
-
-                    subset::fill_from_img_subpx(ss_ref, nx, ny, interp_ref);
+                    double cx = ss_grid.coords[nidx*2];
+                    double cy = ss_grid.coords[nidx*2+1];
 
                     // get initial guess at parameter values from seed point
                     int index_p = result_arrays.index_parameters(idx,results_num);
-                    for (int i = 0; i < opt.num_params; i++){
-                        opt.p[i] = result_arrays.p[index_p+i];
+                    opt.copy_params_from_neigh(result_arrays.p, index_p);
+
+                    if (img_num_ref>0){
+                        cx += prev_img_u[nidx];
+                        cy += prev_img_v[nidx];
                     }
 
+                    subset::fill_from_shape_params(ss_ref, cx, cy, opt.p, interp_ref, conf.shape_func);
+
                     // perform optimization for seed point neighbours
-                    OptResult nres = opt.solve(nx, ny, ss_ref, ss_def, interp_def);
+                    OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
                     // add deformation from reference image to new results
                     if (img_num_ref > 0){
@@ -496,7 +484,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                         nres.v += prev_img_v[nidx];
                     }
 
-                    rg::check_convergence_or_exit(nx, ny, nres);
+                    rg::check_convergence_or_exit(cx, cy, nres);
 
 
                     // append the results for the current subset to result vectors
@@ -528,7 +516,6 @@ void multiwindow_reliability_guided(const double *img_ref,
             std::vector<rg::Point> temp_neigh;
             temp_neigh.reserve(4);
 
-            const int max_idle_iters = 100;
             rg::Point current(0, 0);
 
             while (!stop_request) {
@@ -555,13 +542,13 @@ void multiwindow_reliability_guided(const double *img_ref,
                     if (expected == 0) {
 
                         // coords of neigh
-                        double nx = ss_grid.coords[nidx*2];
-                        double ny = ss_grid.coords[nidx*2+1];
+                        double cx = ss_grid.coords[nidx*2];
+                        double cy = ss_grid.coords[nidx*2+1];
 
                         // add displacements from reference image
                         if (img_num_ref > 0){
-                            nx += prev_img_u[nidx];
-                            ny += prev_img_v[nidx];
+                            cx += prev_img_u[nidx];
+                            cy += prev_img_v[nidx];
                         }
 
                         // temporarily fill p with results from prev img to get
@@ -569,15 +556,14 @@ void multiwindow_reliability_guided(const double *img_ref,
 
                         opt.copy_params_from_neigh(result_arrays.p, idx_results_p_ref);
 
-                        subset::fill_from_shape_params(ss_ref, nx, ny, opt.p, interp_ref, conf.shape_func);
-
+                        subset::fill_from_shape_params(ss_ref, cx, cy, opt.p, interp_ref, conf.shape_func);
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
                         if (result_arrays.cost[idx_results_def] < conf.threshold){
                             std::fill(opt.p.begin(), opt.p.end(), 0.0);
                             int window_size = std::max(conf.max_disp, conf.ss_size);
                             get_single_window_fftcc_peak(opt.p[0], opt.p[1],
-                                                         nx, ny,
+                                                         cx, cy,
                                                          ss_size_x, ss_size_y,
                                                          window_size, window_size,
                                                          img_ref, img_def,
@@ -588,7 +574,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                         }
 
                         // optimize
-                        OptResult nres = opt.solve(nx, ny, ss_ref, ss_def, interp_def);
+                        OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
                         // add deformation from reference image to new results
                         if ((nres.converged) && (nres.above_threshold) && (img_num_ref > 0)){
@@ -765,27 +751,24 @@ void multiwindow_reliability_guided(const double *img_ref,
             if (tid == 0) {
 
                 // seed coordinates
-                int x = seed_x / ss_step;
-                int y = seed_y / ss_step;
-                int idx = ss_grid.mask[y * ss_grid.num_ss_x + x];
+                int grid_x = seed_x / ss_step;
+                int grid_y = seed_y / ss_step;
+                int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
+                double cx = ss_grid.coords[2*idx];
+                double cy = ss_grid.coords[2*idx+1];
 
                 // index of stereo results for seed subset
                 int idx_stereo = stereo_results.index(idx, 0);
                 int idx_stereo_p = stereo_results.index_parameters(idx, 0);
 
-
                 // if the first image. Take the optimization parameters from rigid fourier
                 opt.copy_params_from_fft(idx, multiwindow.back().u,  multiwindow.back().v);
-
-                double cx, cy;
-                subset::get_centre(cx, cy, seed_x, seed_y, ss_size_x, ss_size_y);
 
                 // Extract REFERENCE subset in the RIGHT image using shape parameters
                 std::vector<double> p_stereo(6);
                 for (int i = 0; i < conf.num_params; i++){
                     p_stereo[i] = stereo_results.p[idx_stereo_p+i];
-                    //std::cout << p_stereo[i] << std::endl;
                 }
 
                 // fill the reference subset based on the shape function
@@ -874,7 +857,6 @@ void multiwindow_reliability_guided(const double *img_ref,
             std::vector<rg::Point> temp_neigh;
             temp_neigh.reserve(4);
 
-            const int max_idle_iters = 100;
             rg::Point current(0, 0);
 
             while (!stop_request) {

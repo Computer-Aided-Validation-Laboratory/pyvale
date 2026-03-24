@@ -123,7 +123,7 @@ double debugcost(const subset::Pixels &ss_ref, const subset::Pixels &ss_def){
 
 
 void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
-                                    const int ss_x, const int ss_y,
+                                    const double cx, const double cy,
                                     const int ss_size_x, 
                                     const int ss_size_y, 
                                     const int window_size_x,
@@ -146,30 +146,48 @@ void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
     bool subpx = true;
 
     // put the subset at the centre of the window
-    fill_fft_window_with_subset_at_centre(fft.ss_ref, img_ref,
-                                ss_x, ss_y, px_hori, px_vert,
-                                ss_size_x, ss_size_y,
-                                window_size_x, window_size_y);
+    int corner_x = cx - ss_size_x/2;
+    int corner_y = cy - ss_size_y/2;
 
-    // populate fft.ss_def with interpolator values
-    int ss_x_shft = clamp_subset(ss_x, window_half_x, ss_half_x, px_hori, window_size_x);
-    int ss_y_shft = clamp_subset(ss_y, window_half_y, ss_half_y, px_vert, window_size_y);
+    fill_fft_window_with_subset_at_corner(fft.ss_ref, img_ref,
+                                          corner_x, corner_y, px_hori, px_vert,
+                                          ss_size_x, ss_size_y,
+                                          window_size_x, window_size_y);
 
     // populate deformed subset
-    subset::fill_from_img_subpx(fft.ss_def, ss_x_shft, ss_y_shft, interp_def);
+    subset::fill_from_img_subpx(fft.ss_def,
+                                corner_x-window_half_x,
+                                corner_y-window_half_y,
+                                interp_def);
 
-
-    for (int row = 0; row < window_size_y; ++row) {
-        for (int col = 0; col < window_size_x; ++col) {
-            double coeff = hanning(row,col,window_size_x, window_size_y);
-            fft.ss_def.vals[row*window_size_x+col] *= coeff;
-        }
-    }
+    // zero norm the subsets
+    fft.zero_norm_subset(fft.ss_ref, ss_size_x,ss_size_y);
+    fft.zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
 
     // get peaks from the cross correlation
     double max_val = 0.0;
-    fft.correlate_phase();
-    fft.get_peak(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+    fft.correlate();
+    fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+
+    // coordinate transform
+    peak_x = peak_x - window_half_x;
+    peak_y = peak_y - window_half_y;
+
+    // debugging
+    // std::cout << std::endl;
+    // for (int row = 0; row < window_size_y; ++row) {
+    //     for (int col = 0; col < window_size_x; ++col) {
+    //         int idx  = row*window_size_x+col;
+    //         std::cout << col << " " << row << " ";
+    //         std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
+    //         std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
+    //         std::cout << fft.cross_corr[idx] << std::endl;
+    //     }
+    // }
+    //
+    // std::cout << std::endl;
+    // std::cout << peak_x << " " << peak_y << std::endl;
+    // exit(0);
 }
 
 void get_offcentered_fftcc_peak(double &peak_x, double &peak_y,
