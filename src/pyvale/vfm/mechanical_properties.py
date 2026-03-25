@@ -15,6 +15,11 @@ class ParameterName(enum.Enum):
     PoissonsRatio = enum.auto()
     HardeningModulus = enum.auto()
     YieldStrength = enum.auto()
+    StrengthCoefficient = enum.auto()
+    HardeningExponent = enum.auto()
+    StrainOffset = enum.auto()
+    SaturationStress = enum.auto()
+    RateParameter = enum.auto()
 
 
 # Bound of the physical mechanical property (e.g. yield strength)
@@ -65,6 +70,9 @@ Parameter = (
 
 class ConstituitiveLaw(enum.Enum):
     LinearHardening = enum.auto()
+    SwiftHardening = enum.auto()
+    VoceHardening = enum.auto()
+    LudwikHardening = enum.auto()
 
 
 @dataclass(slots=True)
@@ -81,6 +89,37 @@ def check_validity(mechanical_properties: MechanicalProperties) -> bool:
                 ParameterName.PoissonsRatio,
                 ParameterName.HardeningModulus,
                 ParameterName.YieldStrength,
+            }
+
+            return required_parameters.issubset(mechanical_properties.parameters.keys())
+        case ConstituitiveLaw.SwiftHardening:
+            required_parameters = {
+                ParameterName.ElasticModulus,
+                ParameterName.PoissonsRatio,
+                ParameterName.StrengthCoefficient,
+                ParameterName.StrainOffset,
+                ParameterName.HardeningExponent,
+            }
+
+            return required_parameters.issubset(mechanical_properties.parameters.keys())
+        case ConstituitiveLaw.VoceHardening:
+            required_parameters = {
+                ParameterName.ElasticModulus,
+                ParameterName.PoissonsRatio,
+                ParameterName.YieldStrength,
+                ParameterName.HardeningModulus,
+                ParameterName.SaturationStress,
+                ParameterName.RateParameter,
+            }
+
+            return required_parameters.issubset(mechanical_properties.parameters.keys())
+        case ConstituitiveLaw.LudwikHardening:
+            required_parameters = {
+                ParameterName.ElasticModulus,
+                ParameterName.PoissonsRatio,
+                ParameterName.YieldStrength,
+                ParameterName.StrengthCoefficient,
+                ParameterName.HardeningExponent,
             }
 
             return required_parameters.issubset(mechanical_properties.parameters.keys())
