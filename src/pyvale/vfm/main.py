@@ -5,7 +5,7 @@ from scipy.io import loadmat
 from pyvale.vfm import mechanical_properties
 from pyvale.vfm.mechanical_properties import *
 from pyvale.vfm.radial_return import radial_return
-from pyvale.vfm.virtual_fields_mesh import generate_virtual_fields_mesh
+# from pyvale.vfm.virtual_fields_mesh import generate_virtual_fields_mesh
 # from pyvale.vfm.stress_sensitivity import calculate_stress_sensitivity
 
 # data = loadmat(
@@ -14,12 +14,13 @@ from pyvale.vfm.virtual_fields_mesh import generate_virtual_fields_mesh
 #     squeeze_me=True,
 #     simplify_cells=True
 # )
-data = loadmat(
-    "/Users/chris/work/vfmap-numerical-paper/data/5-testData/testData.mat",
-    struct_as_record=False,
-    squeeze_me=True,
-    simplify_cells=True
-)
+
+# data = loadmat(
+#     "/Users/chris/work/vfmap-numerical-paper/data/5-testData/testData.mat",
+#     struct_as_record=False,
+#     squeeze_me=True,
+#     simplify_cells=True
+# )
 test_data = data["testData"]
 
 # Coordinate axis convention:
@@ -104,8 +105,8 @@ time = test_data["time"]["time"]
 
 yield_strength = HomogeneousParameter(
     IdentificationType.Unknown,
-    ParameterBounds(200, 800),
-    ScalarValue(400)
+    ParameterBounds(100, 1000),
+    ScalarValue(320)
 )
 
 hardening_modulus = HomogeneousParameter(
@@ -116,14 +117,14 @@ hardening_modulus = HomogeneousParameter(
 
 elastic_modulus = HomogeneousParameter(
     IdentificationType.Unknown,
-    ParameterBounds(1000, 10_000),
-    ScalarValue(3000)
+    ParameterBounds(150_000, 250_000),
+    ScalarValue(190_000)
 )
 
 poissons_ratio = HomogeneousParameter(
     IdentificationType.Unknown,
-    ParameterBounds(1000, 10_000),
-    ScalarValue(3000)
+    ParameterBounds(0.2, 0.4),
+    ScalarValue(0.28)
 )
 
 mechanical_properties = MechanicalProperties(
@@ -141,6 +142,8 @@ mechanical_properties = MechanicalProperties(
 if not check_validity(mechanical_properties):
     print("mechanical properties invalid")
 
-stress = radial_return(strain, mechanical_properties)
+stress, equivalent_stress, yield_map, peeq = radial_return(strain, mechanical_properties)
+
 # virtual_fields_mesh = generate_virtual_fields_mesh()
+
 print("break")

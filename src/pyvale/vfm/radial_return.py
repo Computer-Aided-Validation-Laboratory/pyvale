@@ -199,6 +199,9 @@ def radial_return(
     Future enchancements:
     # TODO: support non linear geometries
     # TODO: support tangent modulus output
+    # TODO: require inputs to be flattened 2d arrays, to prevent wasted 
+    #       computation on reshaping (or perform reshaping once at start of function
+    #       Quick test of removing reshaping suggests it accounts for ~ 5% of time. 
 
     Key Equations:
         Elastic trial stress (plane stress): sig_trial = sig_prev + D : delta_eps
