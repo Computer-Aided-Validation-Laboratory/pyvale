@@ -31,7 +31,7 @@ class EDOFLabel(enum.Enum):
 
 
 @dataclass(slots=True)
-class BoundedValue:
+class DegreeOfFreedom:
     value: float
     lower_bound: float
     upper_bound: float
@@ -43,46 +43,69 @@ class IParameterisation(ABC):
         pass
 
     @abstractmethod
-    def get_degrees_of_freedom(self) -> dict[EDOFLabel, BoundedValue]:
+    def get_degrees_of_freedom(self) -> dict[EDOFLabel, DegreeOfFreedom]:
         pass
 
     @abstractmethod
-    def update_from_degrees_of_freedom(
+    def update_degree_of_freedom_value(
         self,
-        degrees_of_freedom: dict[EDOFLabel, BoundedValue]
+        degree_of_freedom: EDOFLabel,
+        value: float
+    ) -> None:
+        pass
+
+    # TODO: do we actually need this?
+    @abstractmethod
+    def update_degrees_of_freedom(
+        self,
+        degrees_of_freedom: dict[EDOFLabel, DegreeOfFreedom]
     ) -> None:
         pass
 
 
 @dataclass
 class Homogeneous(IParameterisation):
-    value: BoundedValue
+    value: DegreeOfFreedom
 
     def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
         return np.full((size_y, size_x), self.value.value)
 
-    def get_degrees_of_freedom(self) -> dict[EDOFLabel, BoundedValue]:
+    def get_degrees_of_freedom(self) -> dict[EDOFLabel, DegreeOfFreedom]:
         return { EDOFLabel.Value: self.value }
 
-    def update_from_degrees_of_freedom(
+    def update_degree_of_freedom_value(
         self,
-        degrees_of_freedom: dict[EDOFLabel, BoundedValue]
+        degree_of_freedom: EDOFLabel,
+        value: float
+    ) -> None:
+        match degree_of_freedom:
+            case EDOFLabel.Value:
+                self.value.value = value
+            case _:
+                raise ValueError(
+                    "Invalid Degree of Freedom for Homogeneous "
+                    f"parameterisation: {degree_of_freedom.name}"
+                )
+
+    def update_degrees_of_freedom(
+        self,
+        degrees_of_freedom: dict[EDOFLabel, DegreeOfFreedom]
     ) -> None:
         self.value = degrees_of_freedom[EDOFLabel.Value]
 
 
 @dataclass(slots=True)
 class UnivariateBasisFunction(IParameterisation):
-    x: BoundedValue
-    y: BoundedValue
-    height: BoundedValue
-    variance: BoundedValue
+    x: DegreeOfFreedom
+    y: DegreeOfFreedom
+    height: DegreeOfFreedom
+    variance: DegreeOfFreedom
 
     # TODO: implement
     # def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
     #     return ...
 
-    def get_degrees_of_freedom(self) -> dict[EDOFLabel, BoundedValue]:
+    def get_degrees_of_freedom(self) -> dict[EDOFLabel, DegreeOfFreedom]:
         return {
             EDOFLabel.X: self.x,
             EDOFLabel.Y: self.y,
@@ -90,9 +113,29 @@ class UnivariateBasisFunction(IParameterisation):
             EDOFLabel.Variance: self.variance
         }
 
-    def update_from_degrees_of_freedom(
+    def update_degree_of_freedom_value(
         self,
-        degrees_of_freedom: dict[EDOFLabel, BoundedValue]
+        degree_of_freedom: EDOFLabel,
+        value: float
+    ) -> None:
+        match degree_of_freedom:
+            case EDOFLabel.X:
+                self.x.value = value
+            case EDOFLabel.Y:
+                self.y.value = value
+            case EDOFLabel.Height:
+                self.height.value = value
+            case EDOFLabel.Variance:
+                self.variance.value = value
+            case _:
+                raise ValueError(
+                    "Invalid Degree of Freedom for Univariate Basis Function "
+                    f"parameterisation: {degree_of_freedom.name}"
+                )
+
+    def update_degrees_of_freedom(
+        self,
+        degrees_of_freedom: dict[EDOFLabel, DegreeOfFreedom]
     ) -> None:
         self.x = degrees_of_freedom[EDOFLabel.X]
         self.y = degrees_of_freedom[EDOFLabel.Y]
@@ -102,18 +145,18 @@ class UnivariateBasisFunction(IParameterisation):
 
 @dataclass(slots=True)
 class BivariateBasisFunction(IParameterisation):
-    x: BoundedValue
-    y: BoundedValue
-    height: BoundedValue
-    variance_1: BoundedValue
-    variance_2: BoundedValue
-    angle: BoundedValue
+    x: DegreeOfFreedom
+    y: DegreeOfFreedom
+    height: DegreeOfFreedom
+    variance_1: DegreeOfFreedom
+    variance_2: DegreeOfFreedom
+    angle: DegreeOfFreedom
 
     # TODO: implement
     # def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
     #     return ...
 
-    def get_degrees_of_freedom(self) -> dict[EDOFLabel, BoundedValue]:
+    def get_degrees_of_freedom(self) -> dict[EDOFLabel, DegreeOfFreedom]:
         return {
             EDOFLabel.X: self.x,
             EDOFLabel.Y: self.y,
@@ -123,9 +166,33 @@ class BivariateBasisFunction(IParameterisation):
             EDOFLabel.Angle: self.angle
         }
 
-    def update_from_degrees_of_freedom(
+    def update_degree_of_freedom_value(
         self,
-        degrees_of_freedom: dict[EDOFLabel, BoundedValue]
+        degree_of_freedom: EDOFLabel,
+        value: float
+    ) -> None:
+        match degree_of_freedom:
+            case EDOFLabel.X:
+                self.x.value = value
+            case EDOFLabel.Y:
+                self.y.value = value
+            case EDOFLabel.Height:
+                self.height.value = value
+            case EDOFLabel.Variance1:
+                self.variance_1.value = value
+            case EDOFLabel.Variance2:
+                self.variance_2.value = value
+            case EDOFLabel.Angle:
+                self.angle.value = value
+            case _:
+                raise ValueError(
+                    "Invalid Degree of Freedom for Bivariate Basis Function "
+                    f"parameterisation: {degree_of_freedom.name}"
+                )
+
+    def update_degrees_of_freedom(
+        self,
+        degrees_of_freedom: dict[EDOFLabel, DegreeOfFreedom]
     ) -> None:
         self.x = degrees_of_freedom[EDOFLabel.X]
         self.y = degrees_of_freedom[EDOFLabel.Y]
@@ -147,12 +214,21 @@ class Mesh(IParameterisation):
     #     return ...
 
     # TODO: implement
-    # def get_degrees_of_freedom(self) -> dict[EDOFLabel, BoundedValue]:
+    # def get_degrees_of_freedom(self) -> dict[EDOFLabel, DegreeOfFreedom]:
     #     return ...
 
     # TODO: implement
-    # def update_from_degrees_of_freedom(self, degrees_of_freedom: dict[EDOFLabel, BoundedValue]) -> None:
+    # def update_degree_of_freedom_value(
+    #     self,
+    #     degree_of_freedom: EDOFLabel,
+    #     value: float
+    # ) -> None:
     #     return ...
+
+    # TODO: implement
+    # def update_degrees_of_freedom(self, degrees_of_freedom: dict[EDOFLabel, DegreeOfFreedom]) -> None:
+    #     return ...
+
 
 Parameterisation = (
     Homogeneous |
@@ -178,17 +254,18 @@ class UnknownParameter(IParameter):
         maps = [p.to_map(size_x, size_y) for p in self.parameterisation]
         return np.sum(maps, axis=0)
 
-    def get_degrees_of_freedom(self) -> list[dict[EDOFLabel, BoundedValue]]:
+    def get_degrees_of_freedom(self) -> list[dict[EDOFLabel, DegreeOfFreedom]]:
         return [
             p.get_degrees_of_freedom() for p in self.parameterisation
         ]
 
-    def update_degrees_of_freedom(
-        self,
-        degrees_of_freedom: list[dict[EDOFLabel, BoundedValue]]
-    ) -> None:
-        for i, p in enumerate(self.parameterisation):
-            p.update_from_degrees_of_freedom(degrees_of_freedom[i])
+    # TODO: should this be removed fully?
+    # def update_degrees_of_freedom(
+    #     self,
+    #     degrees_of_freedom: list[dict[EDOFLabel, DegreeOfFreedom]]
+    # ) -> None:
+    #     for i, p in enumerate(self.parameterisation):
+    #         p.update_degrees_of_freedom(degrees_of_freedom[i])
 
 
 @dataclass(slots=True)
@@ -213,6 +290,32 @@ class EConstituitiveLaw(enum.Enum):
 class MechanicalProperties:
     constituitive_law: EConstituitiveLaw
     parameters: dict[EParameterLabel, Parameter]
+
+    def get_unknown_parameters(self) -> dict[EParameterLabel, UnknownParameter]:
+        return {
+            label: param
+            for label, param in self.parameters.items()
+            if isinstance(param, UnknownParameter)
+        }
+
+    # TODO: should this be removed fully?
+    # def update_degrees_of_freedom(
+    #     self,
+    #     degrees_of_freedom: dict[
+    #         EParameterLabel,
+    #         list[dict[EDOFLabel, DegreeOfFreedom]]
+    #     ]
+    # ) -> None:
+    #     for label, dofs in degrees_of_freedom.items():
+    #         param = self.parameters[label]
+
+    #         match param:
+    #             case UnknownParameter():
+    #                 param.update_degrees_of_freedom(dofs)
+    #             case KnownParameter():
+    #                 raise(TypeError(
+    #                     f"Expected UnknownParameter, got {type(param).__name__}"
+    #                 ))
 
 
 def check_validity(mechanical_properties: MechanicalProperties) -> bool:
