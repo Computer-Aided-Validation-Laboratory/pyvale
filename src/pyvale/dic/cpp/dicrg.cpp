@@ -24,112 +24,86 @@
 
 namespace rg {
 
-    bool try_pop_own_q(std::priority_queue<rg::Point>& q,
-                            std::mutex& mtx,
-                            rg::Point& out){
-        std::lock_guard<std::mutex> lock(mtx);
-        if (q.empty()) return false;
-        out = q.top();
-        q.pop();
+        bool QueueLocal::try_pop_own_q(const int tid, rg::Point& out) {
+        std::lock_guard<std::mutex> lock(locks[tid]);
+        if (qs[tid].empty()) return false;
+        out = qs[tid].top();
+        qs[tid].pop();
         return true;
     }
 
-    bool try_steal_from_other_q(std::vector<std::priority_queue<rg::Point>>& queues,
-                        std::vector<std::mutex>& mutexes,
-                        std::mutex& steal_mtx,
-                        rg::Point& out) {
-        std::lock_guard<std::mutex> steal_lock(steal_mtx);
-        for (size_t i = 0; i < queues.size(); ++i) {
-            std::lock_guard<std::mutex> lock(mutexes[i]);
-            if (!queues[i].empty()) {
-                out = queues[i].top();
-                queues[i].pop();
+    bool QueueLocal::try_steal_from_other_q(const int tid, rg::Point& out) {
+        std::lock_guard<std::mutex> steal_guard(steal_lock);
+        for (size_t i = 0; i < qs.size(); ++i) {
+            if (i == tid) continue;
+            std::lock_guard<std::mutex> lock(locks[i]);
+            if (!qs[i].empty()) {
+                out = qs[i].top();
+                qs[i].pop();
                 return true;
             }
         }
         return false;
     }
 
-    bool pop_next_point_local(int tid,
-                            std::vector<std::priority_queue<rg::Point>>& local_q,
-                            std::vector<std::mutex>& queue_mutexes,
-                            std::mutex& steal_mutex,
-                            rg::Point& current) {
-
-        if (try_pop_own_q(local_q[tid], queue_mutexes[tid], current))
+    bool QueueLocal::pop(const int tid, rg::Point& out) {
+        if (try_pop_own_q(tid, out))
             return true;
-
         const int max_idle_iters = 100;
         for (int idle = 0; idle < max_idle_iters; ++idle) {
-            if (try_steal_from_other_q(local_q, queue_mutexes, steal_mutex, current))
+            if (try_steal_from_other_q(tid, out))
                 return true;
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         return false;
     }
 
-    void push_points_local(int tid,
-                           std::vector<std::priority_queue<rg::Point>>& local_q,
-                           std::vector<rg::Point>  &temp_neigh,
-                           std::vector<std::mutex> &queue_mutexes) { 
-
-        for (const auto& neigh : temp_neigh) {
-            std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
-            local_q[tid].push(neigh);
+    void QueueLocal::push(const int tid, const std::vector<rg::Point>& points) {
+        for (const auto& neigh : points) {
+            std::lock_guard<std::mutex> lock(locks[tid]);
+            qs[tid].push(neigh);
         }
-
     }
 
-    bool pop_next_point_global(std::priority_queue<rg::Point>& global_q,
-                               std::mutex& global_q_mtx,
-                               std::atomic<int>& active_threads,
-                               rg::Point& current) {
-        
+    bool QueueGlobal::pop(const int tid, rg::Point& current) {
         bool found = false;
         {
-            std::lock_guard<std::mutex> lock(global_q_mtx);
-            if (!global_q.empty()) {
-                current = global_q.top();
-                global_q.pop();
+            std::lock_guard<std::mutex> lock(m);
+            if (!q.empty()) {
+                current = q.top();
+                q.pop();
                 found = true;
             }
         }
-
         if (found) return true;
 
-        // If not found, thread becomes idle
         active_threads.fetch_sub(1);
-        while (active_threads.load() > 0 && !stop_request) {
+        while (active_threads.load() > 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             {
-                std::lock_guard<std::mutex> lock(global_q_mtx);
-                if (!global_q.empty()) {
-                    current = global_q.top();
-                    global_q.pop();
+                std::lock_guard<std::mutex> lock(m);
+                if (!q.empty()) {
+                    current = q.top();
+                    q.pop();
                     found = true;
                     break;
                 }
             }
         }
-
         if (found) {
             active_threads.fetch_add(1);
             return true;
         }
-
         return false;
     }
 
-    void push_points_global(std::priority_queue<rg::Point>& global_q,
-                            std::mutex& global_q_mtx,
-                            const std::vector<rg::Point>& points) {
+    void QueueGlobal::push(const int tid, const std::vector<rg::Point>& points) {  // fixed: proper method
         if (points.empty()) return;
-        std::lock_guard<std::mutex> lock(global_q_mtx);
+        std::lock_guard<std::mutex> lock(m);  // fixed: m
         for (const auto& pt : points) {
-            global_q.push(pt);
+            q.push(pt);
         }
     }
-
 
     bool is_valid_point(const int ss_x, const int ss_y, const subset::Grid &ss_grid) {
 

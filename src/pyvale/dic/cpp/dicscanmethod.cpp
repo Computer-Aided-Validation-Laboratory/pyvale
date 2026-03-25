@@ -153,18 +153,12 @@ void multiwindow_reliability_guided(const double *img_ref,
         std::vector<std::atomic<int>> computed_mask(ss_grid.mask.size());
         for (auto& val : computed_mask) val.store(0); 
 
-        // queue for each thread
-        std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
-
-        // Mutex vector to protect each queue
-        std::vector<std::mutex> queue_mutexes(omp_get_max_threads());
-        std::mutex steal_mutex;
+        rg::QueueLocal queue(omp_get_max_threads());
 
         # pragma omp parallel
         {
 
             int tid = omp_get_thread_num();
-            std::priority_queue<rg::Point>& thread_q = local_q[tid];
 
             // Initialize ref and def subsets
             subset::Pixels ss_def(ss_size_x, ss_size_x);
@@ -255,7 +249,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                     computed_mask[nidx].store(1);
 
                     // Add points to queue
-                    local_q[0].push(rg::Point(nidx,nres.cost));
+                    queue.push(0, {rg::Point(nidx,nres.cost)});
 
                     // update progress bar
                     if (g_debug_level>0){
@@ -281,7 +275,7 @@ void multiwindow_reliability_guided(const double *img_ref,
 
             while (!stop_request) {
 
-                if (!rg::pop_next_point_local(tid, local_q, queue_mutexes, steal_mutex, current))
+                if (!queue.pop(tid, current))
                     break;
 
                 temp_neigh.clear();
@@ -333,11 +327,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                         }
                     }
                 }
-
-                for (const auto& neigh : temp_neigh) {
-                    std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
-                    thread_q.push(neigh);
-                }
+                queue.push(tid, temp_neigh);
             }
         }
         if (g_debug_level>0){
@@ -386,17 +376,12 @@ void multiwindow_reliability_guided(const double *img_ref,
         for (auto& val : computed_mask) val.store(0); 
 
         // queue for each thread
-        std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
-
-        // Mutex vector to protect each queue
-        std::vector<std::mutex> queue_mutexes(omp_get_max_threads());
-        std::mutex steal_mutex;
+        rg::QueueLocal queue(omp_get_max_threads()); 
 
         # pragma omp parallel
         {
 
             int tid = omp_get_thread_num();
-            std::priority_queue<rg::Point>& thread_q = local_q[tid];
 
             // Initialize ref and def subsets
             subset::Pixels ss_def(ss_size_x, ss_size_y);
@@ -494,7 +479,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                     computed_mask[nidx].store(1);
 
                     // add this point to queue
-                    local_q[0].push(rg::Point(nidx,nres.cost));
+                    queue.push(tid, {rg::Point(nidx,nres.cost)});
 
                     // update progress bar
                     if (g_debug_level>0){
@@ -520,7 +505,7 @@ void multiwindow_reliability_guided(const double *img_ref,
 
             while (!stop_request) {
 
-                if (!rg::pop_next_point_local(tid, local_q, queue_mutexes, steal_mutex, current))
+                if (!queue.pop(tid, current))
                     break;
 
                 temp_neigh.clear();
@@ -600,10 +585,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                     }
                 }
 
-                for (const auto& neigh : temp_neigh) {
-                    std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
-                    thread_q.push(neigh);
-                }
+                queue.push(tid, temp_neigh);
             }
         }
         
@@ -711,17 +693,12 @@ void multiwindow_reliability_guided(const double *img_ref,
         for (auto& val : computed_mask) val.store(0); 
 
         // queue for each thread
-        std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
-
-        // Mutex vector to protect each queue
-        std::vector<std::mutex> queue_mutexes(omp_get_max_threads());
-        std::mutex steal_mutex;
+        rg::QueueLocal queue(omp_get_thread_num());
 
         # pragma omp parallel
         {
 
             int tid = omp_get_thread_num();
-            std::priority_queue<rg::Point>& thread_q = local_q[tid];
 
             // Initialize ref and def subsets
             subset::Pixels ss_def(ss_size_x, ss_size_x);
@@ -835,7 +812,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                     computed_mask[nidx].store(1);
 
                     // Add points to queue
-                    local_q[0].push(rg::Point(nidx,nres.cost));
+                    queue.push(tid, {rg::Point(nidx,nres.cost)});
 
                     // update progress bar
                     if (g_debug_level>0){
@@ -861,7 +838,7 @@ void multiwindow_reliability_guided(const double *img_ref,
 
             while (!stop_request) {
 
-                if (!rg::pop_next_point_local(tid, local_q, queue_mutexes, steal_mutex, current))
+                if (!queue.pop(tid, current))
                     break;
 
                 temp_neigh.clear();
@@ -925,11 +902,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                         }
                     }
                 }
-
-                for (const auto& neigh : temp_neigh) {
-                    std::lock_guard<std::mutex> lock(queue_mutexes[tid]);
-                    thread_q.push(neigh);
-                }
+                queue.push(tid, temp_neigh);
             }
         }
         if (g_debug_level>0){
