@@ -131,200 +131,208 @@ IntersectionOutput intersect_bvh_triangles(const Ray& ray,
     return IntersectionOutput{ barycentric_coordinates, plane_normals, t_values };
 }
 
+// Helper functions and mappings for 10-node tetrahedrons
 
-struct Ray_old { Eigen::Vector3d o, d; Ray_old(Eigen::Vector3d o_, Eigen::Vector3d d_) : o(o_), d(d_) {} };
-
-void ray_convert(Ray_old &ray_old, const Ray &ray) {
-
-    for (int i = 0; i < 3; ++i) {
-        ray_old.o(i) = ray.origin(i);
-        ray_old.d(i) = ray.direction(i);
-    }
+// Quadratic triangle shape functions (g, h)
+// r = 1 - g - h
+static Eigen::VectorXd get_face_N(double g, double h) {
+    double r = 1.0 - g - h;
+    Eigen::VectorXd N(6);
+    N << r*(2*r-1), g*(2*g-1), h*(2*h-1), 4*g*r, 4*g*h, 4*h*r;
+    return N;
 }
 
-struct Quadratic_tet {
-    std::vector<Eigen::Vector3d> nodes;
+static Eigen::Matrix<double, 3, 2> get_face_Jacobian(double g, double h, 
+                                                     const std::vector<EiVector3d>& f_nodes) {
+    double r = 1.0 - g - h;
+    // Derivatives of N wrt g and h
+    double dNdu[6] = { -(4*r-1), 4*g-1, 0, 4*(r-g), 4*h, -4*h };
+    double dNdv[6] = { -(4*r-1), 0, 4*h-1, -4*g, 4*g, 4*(r-h) };
 
-    // Nodes for the 4 faces - each face has 6 nodes: 3 corners, 3 mid-edges
-    // Numbering for 1 tetrahedron example
-    // const int face_indices[4][6] = {
-    //     {0, 2, 1, 6, 5, 4}, // Face 0 (bottom)
-    //     {0, 1, 3, 4, 8, 7}, // Face 1
-    //     {1, 2, 3, 5, 9, 8}, // Face 2
-    //     {2, 0, 3, 6, 7, 9}  // Face 3
-    // };
-
-      // Correct numbering for NGSolve/Netgen
-      const int face_indices[4][6] = {
-      {0, 1, 2, 4, 7, 5}, // Face 0 (bottom) (v0, v1, v2)
-      {0, 1, 3, 4, 8, 6}, // Face 1 (v0, v1, v3)
-      {1, 2, 3, 7, 9, 8}, // Face 2 (v1, v2, v3)
-      {0, 2, 3, 5, 9, 6}  // Face 3 (v0, v2, v3)
-      };
-
-    Quadratic_tet(std::vector<Eigen::Vector3d> nodes_) :
-        nodes(nodes_) {}
-
-    // Quadratic triangle shape functions (g, h)
-    // r = 1 - g - h
-    static Eigen::VectorXd get_face_N(double g, double h) {
-        double r = 1.0 - g - h;
-        Eigen::VectorXd N(6);
-        N << r*(2*r-1), g*(2*g-1), h*(2*h-1), 4*g*r, 4*g*h, 4*h*r;
-        return N;
+    Eigen::Matrix<double, 3, 2> J = Eigen::Matrix<double, 3, 2>::Zero();
+    for (int i = 0; i < 6; ++i) {
+        J.col(0) += f_nodes[i] * dNdu[i];
+        J.col(1) += f_nodes[i] * dNdv[i];
     }
+    return J;
+}
 
-    static Eigen::Matrix<double, 3, 2> get_face_Jacobian(double g, double h, const std::vector<Eigen::Vector3d>& f_nodes) {
-        double r = 1.0 - g - h;
-        // Derivatives of N wrt g and h
-        double dNdu[6] = { -(4*r-1), 4*g-1, 0, 4*(r-g), 4*h, -4*h };
-        double dNdv[6] = { -(4*r-1), 0, 4*h-1, -4*g, 4*g, 4*(r-h) };
 
-        Eigen::Matrix<double, 3, 2> J = Eigen::Matrix<double, 3, 2>::Zero();
-        for (int i = 0; i < 6; ++i) {
-            J.col(0) += f_nodes[i] * dNdu[i];
-            J.col(1) += f_nodes[i] * dNdv[i];
-        }
-        return J;
-    }
+// Nodes for the 4 faces - each face has 6 nodes: 3 corners, 3 mid-edges
+// Numbering for 1 tetrahedron example
+// const int face_indices[4][6] = {
+//     {0, 2, 1, 6, 5, 4}, // Face 0 (bottom)
+//     {0, 1, 3, 4, 8, 7}, // Face 1
+//     {1, 2, 3, 5, 9, 8}, // Face 2
+//     {2, 0, 3, 6, 7, 9}  // Face 3
+// };
 
-    double intersect(const Ray_old &r, Eigen::Vector3d &n_out, Eigen::Vector2d &uv) const {
-      
-    // Define imprecision parameters for the initial guess, they are especially needed for the cases
-    // where the ray is close to being tangential to the linear triangle.
-    // If the determinant is close to zero, the ray misses the triangle.
-    // Imprecision levels should be relatively large for the initial guess.
-    const double eps_init_guess1 = 1e-10; // Imprecision for linear tringle's determinant
-    const double eps_init_guess2 = 0.1; // Imprecision for linear tringle's isoparametric coordinates (u, v)
-    const double eps_t = 1e-5; // Imprecision for t
+// Correct numbering for NGSolve/Netgen
+const int face_indices[4][6] = {
+{0, 1, 2, 4, 7, 5}, // Face 0 (bottom) (v0, v1, v2)
+{0, 1, 3, 4, 8, 6}, // Face 1 (v0, v1, v3)
+{1, 2, 3, 7, 9, 8}, // Face 2 (v1, v2, v3)
+{0, 2, 3, 5, 9, 6}  // Face 3 (v0, v2, v3)
+};
 
-    const int iter_max = 50; // Maximum number of iterations for Newton-Raphson method.
+// Mapping for sub-triangulation (indices within the 6-node f_nodes vector)
+// Quadratic layout: 0,1,2 are corners; 3,4,5 are midpoints of (0-1), (1-2), (2-0)
+int sub_tris[4][3] = {
+    {0, 3, 5}, // Bottom-left
+    {3, 1, 4}, // Bottom-right
+    {5, 4, 2}, // Top
+    {3, 4, 5}  // Center
+};
 
-      // Define imprecision parameters for the solution.
-      // Imprecision levels should be relatively small for solution.
-      const double eps_sol1 = 1e-7; // Imprecision for the residual
-      const double eps_sol2 = 1e-8; // Imprecision for the quadratic triangle's isoparametric coordinates (g, h)
-      const double eps_sol3 = 1e-10; // Imprecision for the determinant
+// Barycentric coordinate offsets for the sub-triangles to map back to (g, h)
+// These represent the (g, h) coordinates of the nodes in f_nodes
+Eigen::Vector2d nodes_gh[6] = {
+    {0,0}, {1,0}, {0,1}, {0.5,0}, {0.5,0.5}, {0,0.5}
+};
+
+double intersect_quad_tet(const Ray &r,
+                 const std::vector<EiVector3d> nodes,
+                 EiVector3d &n_out,
+                 Eigen::Vector2d &uv)
+{
+    const double eps_init_guess1 = 1e-10;
+    const double eps_init_guess2 = 0.1;
+    const double eps_t = 1e-5;
+
+    const int iter_max = 50;
+
+    const double eps_sol1 = 1e-7;
+    const double eps_sol2 = 1e-8;
+    const double eps_sol3 = 1e-10;
 
     double min_t = std::numeric_limits<double>::infinity();
     bool intersect = false;
 
-    // 1. Intersect ray with the 4 triangles
-    // Use the code already used for Traingle structure.
-    // Impose the defined imprecision levels
-
-    // Mapping for sub-triangulation (indices within the 6-node f_nodes vector)
-    // Quadratic layout: 0,1,2 are corners; 3,4,5 are midpoints of (0-1), (1-2), (2-0)
-    int sub_tris[4][3] = {
-        {0, 3, 5}, // Bottom-left
-        {3, 1, 4}, // Bottom-right
-        {5, 4, 2}, // Top
-        {3, 4, 5}  // Center
-    };
-
-    // Barycentric coordinate offsets for the sub-triangles to map back to (g, h)
-    // These represent the (g, h) coordinates of the nodes in f_nodes
-    Eigen::Vector2d nodes_gh[6] = {
-        {0,0}, {1,0}, {0,1}, {0.5,0}, {0.5,0.5}, {0,0.5}
-    };
-
     for (int f = 0; f < 4; ++f) {
-        std::vector<Eigen::Vector3d> f_nodes(6);
-        for(int i=0; i<6; ++i) f_nodes[i] = nodes[face_indices[f][i]];
+        std::vector<EiVector3d> f_nodes(6);
+        for (int i = 0; i < 6; ++i)
+            f_nodes[i] = nodes[face_indices[f][i]];
 
-        // Sub-triangulation
         double best_sub_t = std::numeric_limits<double>::infinity();
         Eigen::Vector2d best_gh_guess(0.33, 0.33);
         bool found_guess = false;
 
         for (int s = 0; s < 4; ++s) {
-            Eigen::Vector3d v0 = f_nodes[sub_tris[s][0]];
-            Eigen::Vector3d v1 = f_nodes[sub_tris[s][1]];
-            Eigen::Vector3d v2 = f_nodes[sub_tris[s][2]];
+            EiVector3d v0 = f_nodes[sub_tris[s][0]];
+            EiVector3d v1 = f_nodes[sub_tris[s][1]];
+            EiVector3d v2 = f_nodes[sub_tris[s][2]];
 
-            Eigen::Vector3d edge1 = v1 - v0, edge2 = v2 - v0;
-            Eigen::Vector3d pvec = r.d.cross(edge2);
+            EiVector3d edge1 = v1 - v0;
+            EiVector3d edge2 = v2 - v0;
+
+            // EiVector3d pvec =
+            //     (r.direction.cross(edge2.transpose())).transpose();
+
+            EiVector3d pvec =
+                (cross_rowwise(r.direction, edge2));
+
             double det = edge1.dot(pvec);
             if (fabs(det) < eps_init_guess1) continue;
 
             double invDet = 1.0 / det;
-            Eigen::Vector3d tvec = r.o - v0;
+
+            EiVector3d tvec = r.origin - v0;
             double u_sub = tvec.dot(pvec) * invDet;
             if (u_sub < 0 - eps_init_guess2 || u_sub > 1 + eps_init_guess2) continue;
 
-            Eigen::Vector3d qvec = tvec.cross(edge1);
-            double v_sub = r.d.dot(qvec) * invDet;
+            // EiVector3d qvec =
+            //     (tvec.transpose().cross(edge1.transpose())).transpose();
+
+            EiVector3d qvec =
+                (cross_rowwise(tvec, edge1));
+
+            double v_sub = r.direction.dot(qvec) * invDet;
             if (v_sub < 0 - eps_init_guess2 || (u_sub + v_sub) > 1 + eps_init_guess2) continue;
 
             double t_sub = edge2.dot(qvec) * invDet;
+
             if (t_sub > eps_t && t_sub < best_sub_t) {
                 best_sub_t = t_sub;
-                // Interpolate the global (g, h) from the sub-triangle's local barycentrics
+
                 double w_sub = 1.0 - u_sub - v_sub;
-                best_gh_guess = w_sub * nodes_gh[sub_tris[s][0]] + 
-                                u_sub * nodes_gh[sub_tris[s][1]] + 
-                                v_sub * nodes_gh[sub_tris[s][2]];
+                best_gh_guess =
+                    w_sub * nodes_gh[sub_tris[s][0]] +
+                    u_sub * nodes_gh[sub_tris[s][1]] +
+                    v_sub * nodes_gh[sub_tris[s][2]];
+
                 found_guess = true;
             }
         }
 
         if (!found_guess) continue;
 
-        // 2. Start Newton-Raphson at t_guess, and gh from the right triangle's centroid 
-        // or approximated (u, v) from the linear triangle. 
         Eigen::Vector2d gh = best_gh_guess;
         double t = best_sub_t;
 
         for (int iter = 0; iter < iter_max; ++iter) {
             Eigen::VectorXd N = get_face_N(gh.x(), gh.y());
-            Eigen::Vector3d P = Eigen::Vector3d::Zero();
-            for(int i=0; i<6; ++i) P += N[i] * f_nodes[i];
 
-            Eigen::Vector3d res = r.o + t * r.d - P;
+            EiVector3d P = EiVector3d::Zero();
+            for (int i = 0; i < 6; ++i)
+                P += N[i] * f_nodes[i];
+
+            EiVector3d res = r.origin + t * r.direction - P;
+
             if (res.norm() < eps_sol1) {
-                // Check if hit is within quadratic triangle bounds
-                    if (gh.x() >= 0 - eps_sol2 && gh.y() >= 0 - eps_sol2 && (gh.x() + gh.y()) <= 1 + eps_sol2) {
+                if (gh.x() >= 0 - eps_sol2 &&
+                    gh.y() >= 0 - eps_sol2 &&
+                    (gh.x() + gh.y()) <= 1 + eps_sol2)
+                {
                     if (t < min_t && t > eps_t) {
                         min_t = t;
-                        Eigen::Matrix<double, 3, 2> J = get_face_Jacobian(gh.x(), gh.y(), f_nodes);
-                        Eigen::Vector3d normal = J.col(0).cross(J.col(1)).normalized();
 
-                            // Ensure normal points against the ray (outward for convex)
-                            if (normal.dot(r.d) > 0) {
-                                normal = -normal;
-                            }
-                            n_out = normal;
-                            uv = gh;
-                            intersect = true;
+                        Eigen::Matrix<double, 3, 2> J =
+                            get_face_Jacobian(gh.x(), gh.y(), f_nodes);
+
+                        EiVector3d normal =
+                            (J.col(0).cross(J.col(1))).transpose().normalized();
+
+                        if (normal.dot(r.direction) > 0)
+                            normal = -normal;
+
+                        n_out = normal;
+                        uv = gh;
+                        intersect = true;
                     }
                 }
                 break;
             }
 
-            // Solve [rd, -dP/du, -dP/dv] * [dt, du, dv]^T = -res
-            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian(gh.x(), gh.y(), f_nodes);
+            Eigen::Matrix<double, 3, 2> J =
+                get_face_Jacobian(gh.x(), gh.y(), f_nodes);
+
             Eigen::Matrix3d M;
-            M.col(0) = r.d;
+            M.col(0) = r.direction.transpose();
             M.col(1) = -J.col(0);
             M.col(2) = -J.col(1);
 
             if (std::abs(M.determinant()) < eps_sol3) break;
-            
-            // Eigen::Vector3d delta = M.colPivHouseholderQr().solve(-res);
-            Eigen::Vector3d delta = M.inverse() * (-res);
+
+            Eigen::Vector3d delta = M.inverse() * (-res.transpose());
+
             t += delta.x();
             gh.x() += delta.y();
             gh.y() += delta.z();
 
-            if (gh.x() < -0.5 || gh.y() < -0.5 || (gh.x() + gh.y()) > 1.5) break;
+            if (gh.x() < -0.5 || gh.y() < -0.5 || (gh.x() + gh.y()) > 1.5)
+                break;
         }
     }
 
     return intersect ? min_t : std::numeric_limits<double>::infinity();
 }
+
+struct Quadratic_tet {
+    std::vector<EiVector3d> nodes;
+
+    Quadratic_tet(std::vector<EiVector3d> nodes_) :
+        nodes(nodes_) {}
 };
-
-
 
 void load_quad_tets(const std::vector<double>& node_coords, 
                     std::vector<Quadratic_tet> &quadratic_tets,
@@ -336,13 +344,13 @@ void load_quad_tets(const std::vector<double>& node_coords,
 
    for (int quad_tet_idx = 0; quad_tet_idx < bvh_node_quad_tet_count; quad_tet_idx++) {
 
-    std::vector<Eigen::Vector3d> nodes;
+    std::vector<EiVector3d> nodes;
     
     int index_min = quad_tet_idx * coords_per_element;
 
         for (int i = 0; i < 10; i++) {
 
-            Eigen::Vector3d node(0, 0, 0);
+            EiVector3d node(0, 0, 0);
 
             node(0) = node_coords[index_min + i * 3 + 0]; // X-component
             node(1) = node_coords[index_min + i * 3 + 1]; // Y-component
@@ -375,22 +383,18 @@ IntersectionOutput intersect_bvh_quad_tet(const Ray& ray,
 
     // Calculations - go through all the tetrahedrons
     
-    // Convert between 2 types of rays, need to get rid of this later
-    Eigen::Vector3d a;
-    Eigen::Vector3d b;
-    Ray_old ray_old(a, b);
-    ray_convert(ray_old, ray);
-
-
     EiVectorD3d plane_normals(bvh_node_quad_tet_count, 3);
     Eigen::ArrayXXd t_values(bvh_node_quad_tet_count, 1);
     Eigen::ArrayXXd barycentric_u(bvh_node_quad_tet_count, 1);
     Eigen::ArrayXXd barycentric_v(bvh_node_quad_tet_count, 1);
 
     for (int quad_tet_idx = 0; quad_tet_idx < bvh_node_quad_tet_count; quad_tet_idx++) {
-        Eigen::Vector3d n_tmp;
+        EiVector3d n_tmp;
         Eigen::Vector2d uv_tmp;
-        double t = quadratic_tets[quad_tet_idx].intersect(ray_old, n_tmp, uv_tmp);
+
+        std::vector<EiVector3d> nodes = quadratic_tets[quad_tet_idx].nodes;
+
+        double t = intersect_quad_tet(ray, nodes, n_tmp, uv_tmp);
 
         // Convert the intersection results to acceptable format
         for (int i = 0; i < 3; ++i) {
@@ -488,8 +492,6 @@ void intersect_BLAS(const Ray& ray,
             else if (Node.nodes_per_element == TET10) {
                 std::vector<Quadratic_tet> quadratic_tets;
                 load_quad_tets(Node.node_coords, quadratic_tets, Node.element_count, Node.nodes_per_element);
-                // IntersectionOutput out_intersection_dum = intersect_bvh_quad_tet(ray, quadratic_tets, Node.element_count);
-                // out_intersection = intersect_bvh_triangles(ray, Node.node_coords, Node.element_count);
                 out_intersection = intersect_bvh_quad_tet(ray, quadratic_tets, Node.element_count);
             }
 
