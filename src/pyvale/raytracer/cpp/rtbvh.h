@@ -124,6 +124,7 @@ struct BuildTask {
 struct BLAS_Node {
     std::vector<double> node_coords; // Coordinates of nodes comprising the mesh elements stored in the node, if applicable
     std::vector<double> face_color; // Element (face) colors based on the field values for the mesh
+    std::vector<int> material; // Element materials based on the field values for the mesh
     AABB bounding_box {};
     size_t element_count {0}; // If not zero, this is the leaf
     enum ElementNodeCount nodes_per_element {TRI3}; // Assign 3 by default for now since we only do triangles
@@ -235,6 +236,7 @@ void copy_data_to_BLAS_node(BLAS &mesh_bvh,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
     const double* mesh_face_color_ptr,
+    const int mesh_material,
     const int timestep);
     
 void copy_data_to_TLAS(TLAS &tlas,
@@ -243,5 +245,6 @@ void copy_data_to_TLAS(TLAS &tlas,
 
 TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
     const std::vector<nanobind::ndarray<const double,nanobind::c_contig>>& scene_face_colors,
+    const std::vector<int>& materials,
     const int timestep,
     const int timestep_count);

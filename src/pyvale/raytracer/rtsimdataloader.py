@@ -6,12 +6,13 @@
 
 import numpy as np
 from pathlib import Path
+from enum import Enum
 #import matplotlib as plt # for cmap face color determination
 
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.sensorsim.simtools as simtools
-from pyvale.raytracer.rtscene import Scene
+from pyvale.raytracer.rtscene import Scene,  MaterialType
 
 def simdata_to_mesh(pypath: Path, field_components, fields_to_render, scale):
     # Convert the simulation output into a SimData object
@@ -47,7 +48,11 @@ def compute_face_colors_averages(field_nodal_values: np.ndarray, connectivity: n
 #    cmap = plt.get_cmap('viridis')
  #   return cmap(field_node_norm)[:,:3]
 
-def add_mesh_to_scene(scene: Scene, pypath: Path, field_components=("disp_x","disp_y", "disp_z"), fields_to_render = ("disp_y", "disp_x"), world_position: np.ndarray = None, scale: float = 100.0) -> None:
+def add_mesh_to_scene(scene: Scene, pypath: Path,
+                      material = MaterialType.NOT_DEFINED,
+                      field_components=("disp_x","disp_y", "disp_z"), 
+                      fields_to_render = ("disp_y", "disp_x"), 
+                      world_position: np.ndarray = None, scale: float = 100.0) -> None:
     '''Adds a mesh to the scene dataclass, including the data for all timesteps.'''
     render_mesh = simdata_to_mesh(pypath, field_components, fields_to_render, scale)
     if world_position is not None:
@@ -86,7 +91,7 @@ def add_mesh_to_scene(scene: Scene, pypath: Path, field_components=("disp_x","di
     #print("face_colors_over_time: \n")
     #print(face_colors_over_time)
     # Add mesh to scene
-    scene.add_mesh(node_coords_expanded_over_time, face_colors_over_time, timestep_count)
+    scene.add_mesh(node_coords_expanded_over_time, face_colors_over_time, timestep_count, material)
 
 
 # Functions to load quadratic elements from .vol mesh file with uniform colour.
@@ -144,7 +149,9 @@ class Mesh:
         self.elem_coords = self.points[self.elements]
 
 
-def add_vol_mesh_to_scene(scene: Scene, pypath: Path, world_position: np.ndarray = None, scale: float = 100.0) -> None:
+def add_vol_mesh_to_scene(scene: Scene, pypath: Path,
+                          material: MaterialType,
+                          world_position: np.ndarray = None, scale: float = 100.0) -> None:
     '''Adds a .vol mesh to the scene with uniform element colour.'''
 
     mesh = Mesh()
@@ -169,7 +176,7 @@ def add_vol_mesh_to_scene(scene: Scene, pypath: Path, world_position: np.ndarray
 
 
 
-    scene.add_mesh(node_coords_expanded_over_time, face_colors_over_time, timestep_count)
+    scene.add_mesh(node_coords_expanded_over_time, face_colors_over_time, timestep_count, material)
 
 
     # print(face_colors_over_time)

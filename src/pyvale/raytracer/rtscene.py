@@ -7,12 +7,29 @@
 from dataclasses import dataclass, field
 from enum import Enum
 import numpy as np
+# from pyvale.raytracer.rtsimdataloader import MaterialType
 
 # Enum to specify render type to be able to let user pick between static and dynamic images
 # Would make more sense to be in rtmain, but then we suffer from circular imports
 class RenderType(Enum):
     STATIC = 0
     DYNAMIC = 1
+
+class MaterialType(str, Enum):
+    NOT_DEFINED = "NOT_DEFINED"
+    DIFFUSE = "DIFFUSE"
+    SPECULAR = "SPECULAR"
+    REFRACTIVE = "REFRACTIVE"
+
+    @property
+    def as_int(self) -> int:
+        mapping = {
+            MaterialType.NOT_DEFINED: 0,
+            MaterialType.DIFFUSE: 1,
+            MaterialType.SPECULAR: 2,
+            MaterialType.REFRACTIVE: 3
+        }
+        return mapping[self]
 
 @dataclass(slots=True)
 class Scene:
@@ -23,6 +40,7 @@ class Scene:
     coords_expanded: list[np.ndarray] = field(default_factory=list)
     deform_vals: list[np.ndarray] = field(default_factory=list)
     face_colors: list[np.ndarray] = field(default_factory=list)
+    materials: list[np.ndarray] = field(default_factory=list)
     camera_center: list[np.ndarray] = field(default_factory=list)
     pixel_00_center: list[np.ndarray] = field(default_factory=list)
     matrix_pixel_spacing: list[np.ndarray] = field(default_factory=list)
@@ -35,10 +53,11 @@ class Scene:
         self.pixel_00_center.append(pixel_00_center)
         self.matrix_pixel_spacing.append(matrix_pixel_spacing)
 
-    def add_mesh(self, node_coords_expanded: np.ndarray, face_colors: np.ndarray, timestep_count: int) -> None:
+    def add_mesh(self, node_coords_expanded: np.ndarray, face_colors: np.ndarray, timestep_count: int, material: MaterialType) -> None:
         '''Adds a mesh to the scene.'''
         self.coords_expanded.append(node_coords_expanded)
         self.face_colors.append(face_colors)
+        self.materials.append(material.as_int)
         self.mesh_count += 1
         if timestep_count > self.timestep_count: # Keep the highest timestep count (should be the same for all meshes, but you never know)
             self.timestep_count = timestep_count

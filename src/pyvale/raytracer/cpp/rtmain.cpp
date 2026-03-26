@@ -38,6 +38,7 @@ void render_scene(const int image_height,
     const int timestep_count,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_coords_expanded,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_face_colors,
+    const std::vector<int>& materials,
     const std::vector<nb::DRef<EiVector3d>> camera_centers,
     const std::vector<nb::DRef<EiVector3d>> pixel_00_centers,
     const std::vector<nb::DRef<Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>>> matrix_pixel_spacings) {
@@ -48,11 +49,17 @@ void render_scene(const int image_height,
     // Use std::filesystem so it always constructs the path properly for the running OS
     std::filesystem::path output_filepath;
     std::string filename; // Output image file
+
+
+    // for (int m : materials) {
+    //     std::cout << m << " ";
+    // }
+    // std::cout << std::endl;
     
 
     //std::chrono::time_point t1_d = std::chrono::high_resolution_clock::now();
     for (int timestep = 0; timestep < timestep_count; ++timestep){
-        TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, timestep, timestep_count); // target stack-based DoD implementation
+        TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, materials, timestep, timestep_count); // target stack-based DoD implementation
         
         // Iterate over all cameras and render an image for each
         for (size_t camera_idx = 0; camera_idx < num_cameras; ++camera_idx) {

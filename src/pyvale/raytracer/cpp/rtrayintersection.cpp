@@ -25,6 +25,14 @@ inline EiVector3d get_face_color(Eigen::Index minRowIndex,
     return face_color_vec;
 }
 
+inline int get_face_material(Eigen::Index minRowIndex,
+    const std::vector<int>& material) {
+    // Get values to colour the intersected face
+    int m1 = material[minRowIndex * 3];
+
+    return m1;
+}
+
 EiVectorD3d cross_rowwise(const EiVectorD3d& mat1, const EiVectorD3d& mat2) {
     // Row-wise cross product for 2 matrices (i.e., treating each row as a vector).
     // Also works for multiplying a matrix with a row vector, so the input order determines the multiplication order. Happy days.
@@ -517,6 +525,10 @@ void intersect_BLAS(const Ray& ray,
                 intersection_record.point_intersection = ray_at_t(closest_t, ray);
                 intersection_record.normal_surface = out_intersection.plane_normals.row(minRowIndex);
                 intersection_record.face_color = get_face_color(minRowIndex, Node.face_color);
+                MaterialType material_rec{get_face_material(minRowIndex, Node.material)};
+                // std::cout << intersection_record.material << '\n';
+                intersection_record.material = material_rec;
+                // std::cout << intersection_record.material << '\n' << '\n';
             }
         }
         else { // Not a leaf node => Test children nodes for intersections

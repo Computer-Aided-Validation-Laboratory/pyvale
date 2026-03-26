@@ -9,7 +9,10 @@ from pyvale.raytracer.rtscene import Scene, RenderType, find_max_displacements
 
 from pyvale.raytracer.rtmaincpp import cpp_render_scene # Import C++ backend
 
-def render_scene(image_height: int, image_width: int, scene: Scene, antialiasing_samples: int, out_directory_path: Path, render_type = RenderType.DYNAMIC, frames_to_render: int = None):
+def render_scene(image_height: int, image_width: int, 
+                 scene: Scene, antialiasing_samples: int, 
+                 out_directory_path: Path, 
+                 render_type = RenderType.DYNAMIC, frames_to_render: int = None):
     '''Sets appropriate settings and passes the data to the C++ renderer.
         frames_to_render - For dynamic renders, this is the number of frames to render. Defaults to all timesteps we have data for. For static renders,
         this is the number of frame to render; defaults to the first one otherwise. Nb4 this could maybe be a tuple to specify the range instead?'''
@@ -32,4 +35,8 @@ def render_scene(image_height: int, image_width: int, scene: Scene, antialiasing
     if render_type == RenderType.DYNAMIC:
         scene.fill_empty_timesteps() # VERY important to avoid segfaults if there is missing timestep data for some meshes in the scene
 
-    cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.coords_expanded, scene.face_colors, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing)
+    print(f"Materials: {scene.materials}")
+    cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, 
+                     scene.timestep_count, scene.coords_expanded, scene.face_colors, 
+                     scene.materials, scene.camera_center, 
+                     scene.pixel_00_center, scene.matrix_pixel_spacing)

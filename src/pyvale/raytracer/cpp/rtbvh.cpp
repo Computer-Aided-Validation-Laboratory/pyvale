@@ -563,6 +563,7 @@ void copy_data_to_BLAS_node(BLAS &mesh_bvh,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
     const double* mesh_face_color_ptr,
+    const int mesh_material,
     const int timestep){
     // Copies appropriate mesh data to store directly in BVH node, so it can be accessed easily upon intersection and be cache-friendly
     // This way we also avoid copying the mesh data when we move the node to the BVH tree vector as they're already there when we get to this part here.
@@ -584,6 +585,7 @@ void copy_data_to_BLAS_node(BLAS &mesh_bvh,
         const int coords_per_element = Node.nodes_per_element * NODE_COORDINATES; // number of nodes per element times 3 coordinates each
         Node.node_coords.reserve(node_element_count * coords_per_element);
         Node.face_color.reserve(node_element_count * NODE_COORDINATES);
+        Node.material.reserve(node_element_count * NODE_COORDINATES);
         
         //std::cout << "BVH node id: " << i << " with element count: " << node_element_count << std::endl;
         //std::cout << "Min element id from vector: " << node_min_element_idx << std::endl;
@@ -619,6 +621,9 @@ void copy_data_to_BLAS_node(BLAS &mesh_bvh,
             Node.face_color.push_back(mesh_face_color_ptr[face_color_idx_at_t]);
             Node.face_color.push_back(mesh_face_color_ptr[face_color_idx_at_t + 1]);
             Node.face_color.push_back(mesh_face_color_ptr[face_color_idx_at_t + 2]);
+            Node.material.push_back(mesh_material);
+            Node.material.push_back(mesh_material);
+            Node.material.push_back(mesh_material);
         }
         //std::cout << "Node coords size: " << Node.node_coords.size() << std::endl;
        // std::cout << "Node element count: " << Node.element_count << std::endl;
@@ -674,6 +679,7 @@ inline void print_TLAS(TLAS &scene_TLAS){
 */
 TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
     const std::vector<nanobind::ndarray<const double,nanobind::c_contig>>& scene_face_colors,
+    const std::vector<int>& materials,
     const int timestep,
     const int timestep_count){
 // Handles building all acceleration structures in the scene - bottom and top level
@@ -695,6 +701,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         enum ElementNodeCount nodes_per_element; // Hard-code for now since we only have triangless.
 		nanobind::ndarray<const double, nanobind::c_contig> mesh_node_coords = scene_coords_expanded[mesh_idx];
         nanobind::ndarray<const double, nanobind::c_contig> mesh_face_colors = scene_face_colors[mesh_idx];
+        int mesh_material = materials[mesh_idx];
 
         if (mesh_node_coords.shape(2) == 3) {
           nodes_per_element = TRI3;
@@ -748,7 +755,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
 
         // BLAS BVH builder functions
         build_BLAS(mesh_bvh, mesh_element_centroids, mesh_element_aabbs, mesh_element_indices, node_minimum_element_index, mesh_element_count, nodes_per_element);
-        copy_data_to_BLAS_node(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_face_colors_ptr, timestep);
+        copy_data_to_BLAS_node(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_face_colors_ptr, mesh_material, timestep);
         //std::cout << "BLAS successfully built." << std::endl;
         //std::cout << "BVH has " << mesh_bvh.tree_nodes.size() << " nodes." << std::endl;
 
