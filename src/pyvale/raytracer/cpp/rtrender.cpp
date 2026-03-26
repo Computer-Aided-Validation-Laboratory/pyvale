@@ -16,6 +16,16 @@
 #include "rtrayintersection.h"
 #include "rtmathutils.h"
 
+namespace nb = nanobind;
+
+double speckle(double u, double v) {
+    int iu = int(u * 1000);
+    int iv = int(v * 1000);
+    unsigned int seed = iu * 73856093 ^ iv * 19349663;
+    seed = (seed << 13) ^ seed;
+    return 0.5 * (1.0 + ((seed * (seed * seed * 15731 + 789221) + 1376312589) & 0x7fffffff) / double(0x7fffffff));
+}
+
 EiVector3d return_ray_color(const Ray& ray,
     const TLAS& TLAS) {
 
@@ -43,6 +53,7 @@ EiVector3d return_ray_color(const Ray& ray,
 // This a new radiance function with lighting
 EiVector3d return_ray_color_new(const Ray& ray,
                            const TLAS& TLAS,
+                           TextureProjector& texture_projector,
                            int depth = 0) {
 
     HitRecord rec; // Create HitRecord struct
@@ -74,6 +85,33 @@ EiVector3d return_ray_color_new(const Ray& ray,
             return emitted;
         albedo /= p;
     }
+    
+    double proj_scale = tan(degreesToRadians(texture_projector.proj_fov * 0.5));
+    
+    // Projector mapping
+    EiVector3d xp = rec.point_intersection - texture_projector.proj_pos;
+    
+    // Build projector basis
+    EiVector3d pw = texture_projector.proj_dir;
+    EiVector3d pu = pw.cross(EiVector3d(0,1,0)).normalized();
+    EiVector3d pv = pu.cross(pw);
+    
+    // Coordinates in projector space
+    double z = xp.dot(pw);
+    double u = xp.dot(pu) / (z * proj_scale);
+    double v = xp.dot(pv) / (z * proj_scale);
+    
+    // Normalize to [0,1]
+    u = 0.5 * (u + 1.0);
+    v = 0.5 * (v + 1.0);
+    
+    // Sample speckle
+    double pattern = 0.0;
+    if (z > 0 && u >= 0 && u <= 1 && v >= 0 && v <= 1) {
+        // pattern = speckle(u, v);
+        pattern = texture_projector.apply_texture(u, v);
+    }
+    albedo = albedo * pattern;
 
     switch (rec.material) {
 
@@ -100,7 +138,7 @@ EiVector3d return_ray_color_new(const Ray& ray,
         ray_new.direction = d;
 
         return emitted + albedo.cwiseProduct(
-            return_ray_color_new(ray_new, TLAS, depth + 1)
+            return_ray_color_new(ray_new, TLAS, texture_projector, depth + 1)
         );
     }
 
@@ -113,7 +151,7 @@ EiVector3d return_ray_color_new(const Ray& ray,
         ray_new.direction = reflected;
 
         return emitted + albedo.cwiseProduct(
-            return_ray_color_new(ray_new, TLAS, depth + 1)
+            return_ray_color_new(ray_new, TLAS, texture_projector, depth + 1)
         );
     }
 
@@ -140,7 +178,7 @@ EiVector3d return_ray_color_new(const Ray& ray,
         // Total internal reflection
         if (cos2t < 0) {
             return emitted + albedo.cwiseProduct(
-                return_ray_color_new(reflRay, TLAS, depth + 1)
+                return_ray_color_new(reflRay, TLAS, texture_projector, depth + 1)
             );
         }
     
@@ -165,7 +203,7 @@ EiVector3d return_ray_color_new(const Ray& ray,
         if (depth > 2) {
             if ((double)rand() / RAND_MAX < P) {
                 return emitted + albedo.cwiseProduct(
-                    return_ray_color_new(reflRay, TLAS, depth + 1) * RP
+                    return_ray_color_new(reflRay, TLAS, texture_projector, depth + 1) * RP
                 );
             } else {
                 Ray refrRay;
@@ -173,7 +211,7 @@ EiVector3d return_ray_color_new(const Ray& ray,
                 refrRay.direction = tdir;
     
                 return emitted + albedo.cwiseProduct(
-                    return_ray_color_new(refrRay, TLAS, depth + 1) * TP
+                    return_ray_color_new(refrRay, TLAS, texture_projector, depth + 1) * TP
                 );
             }
         } else {
@@ -182,8 +220,8 @@ EiVector3d return_ray_color_new(const Ray& ray,
             refrRay.direction = tdir;
     
             return emitted + albedo.cwiseProduct(
-                return_ray_color_new(reflRay, TLAS, depth + 1) * Re +
-                return_ray_color_new(refrRay, TLAS, depth + 1) * Tr
+                return_ray_color_new(reflRay, TLAS, texture_projector, depth + 1) * Re +
+                return_ray_color_new(refrRay, TLAS, texture_projector, depth + 1) * Tr
             );
         }
     }
@@ -203,7 +241,28 @@ void render_ppm_image(const EiVector3d& camera_center,
     const int image_height,
     const int image_width,
     const int number_of_samples,
-    const std::filesystem::path output_filepath) {
+    const std::filesystem::path output_filepath,
+    nb::ndarray<const double, nb::c_contig>& texture_img) {
+
+    
+    TextureProjector texture_projector;
+    double* texture_img_ptr = const_cast<double*>(texture_img.data());
+    int img_h = texture_img.shape(0);
+    int img_w = texture_img.shape(1);
+    // EiVector3d proj_pos(150, 50, 150);
+    EiVector3d proj_pos(-10, 60, 150);
+    EiVector3d proj_dir = (EiVector3d(0,0,0) - proj_pos).normalized();
+    double proj_fov = 30.0;
+    texture_projector.texture_img_ptr = texture_img_ptr;
+    texture_projector.proj_pos = proj_pos;
+    texture_projector.proj_dir = proj_dir;
+    texture_projector.proj_fov = proj_fov;
+    texture_projector.img_h = img_h;
+    texture_projector.img_w = img_w;
+
+
+
+    
     // Get camera parameters from the dict and cast it to Eigen types so it works with existing code; by reference to avoid copying data
 
     std::vector<uint8_t> buffer;
@@ -229,13 +288,31 @@ void render_ppm_image(const EiVector3d& camera_center,
                 
                 // pixel_color_new += return_ray_color_new(current_ray, TLAS);
                 // pixel_color += return_ray_color(current_ray, TLAS);
-                pixel_color += return_ray_color_new(current_ray, TLAS);
+                pixel_color += return_ray_color_new(current_ray, TLAS, texture_projector);
             }
+            
+            // Convert to gray
             double gray = 0.2126 * pixel_color[0] + 0.7152 * pixel_color[1] + 0.0722 * pixel_color[2];
             int gray_byte = int(gray / number_of_samples * 255.99);
             buffer.push_back(static_cast<uint8_t>(gray_byte));
             buffer.push_back(static_cast<uint8_t>(gray_byte));
             buffer.push_back(static_cast<uint8_t>(gray_byte));
+
+            
+            // Keep  the colours
+            // double r = pixel_color[0] / number_of_samples;
+            // double g = pixel_color[1] / number_of_samples;
+            // double b = pixel_color[2] / number_of_samples;
+            
+            // int r_byte = int(255.99 * r);
+            // int g_byte = int(255.99 * g);
+            // int b_byte = int(255.99 * b);
+            
+            // buffer.push_back(static_cast<uint8_t>(r_byte));
+            // buffer.push_back(static_cast<uint8_t>(g_byte));
+            // buffer.push_back(static_cast<uint8_t>(b_byte));
+
+
         }
     }
 

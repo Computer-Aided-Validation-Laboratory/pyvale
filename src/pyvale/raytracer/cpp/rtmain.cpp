@@ -41,7 +41,8 @@ void render_scene(const int image_height,
     const std::vector<int>& materials,
     const std::vector<nb::DRef<EiVector3d>> camera_centers,
     const std::vector<nb::DRef<EiVector3d>> pixel_00_centers,
-    const std::vector<nb::DRef<Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>>> matrix_pixel_spacings) {
+    const std::vector<nb::DRef<Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>>> matrix_pixel_spacings,
+    nb::ndarray<const double, nb::c_contig>& texture_img) {
 
 
     //CALLGRIND_START_INSTRUMENTATION;
@@ -57,6 +58,8 @@ void render_scene(const int image_height,
     // std::cout << std::endl;
     
 
+    std::cout << "Texture image shape: " << texture_img.shape(0) << ", " << texture_img.shape(1) << '\n';
+
     //std::chrono::time_point t1_d = std::chrono::high_resolution_clock::now();
     for (int timestep = 0; timestep < timestep_count; ++timestep){
         TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, materials, timestep, timestep_count); // target stack-based DoD implementation
@@ -71,7 +74,10 @@ void render_scene(const int image_height,
             output_filepath = output_directory;
             output_filepath.append(filename);
             std::cout << "Rendering frame " << (timestep+1) << "/" << timestep_count << std::endl;
-            render_ppm_image(camera_center, pixel_00_center, matrix_pixel_spacing, test_TLAS, image_height, image_width, number_of_samples, output_filepath);
+            render_ppm_image(camera_center, pixel_00_center,
+                             matrix_pixel_spacing, test_TLAS,
+                             image_height, image_width, number_of_samples,
+                             output_filepath, texture_img);
         }
     }
 

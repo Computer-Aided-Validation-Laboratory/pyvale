@@ -41,4 +41,5 @@ void render_scene(const int image_height,
     const std::vector<int>& materials,
     const std::vector<nb::DRef<EiVector3d>> camera_centers,
     const std::vector<nb::DRef<EiVector3d>> pixel_00_centers,
-    const std::vector<nb::DRef<Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>>> matrix_pixel_spacings);
+    const std::vector<nb::DRef<Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>>> matrix_pixel_spacings,
+    nb::ndarray<const double, nb::c_contig>& texture_img);
