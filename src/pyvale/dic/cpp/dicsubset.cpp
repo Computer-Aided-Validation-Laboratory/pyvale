@@ -100,10 +100,10 @@ namespace subset {
         }
     }
 
-    void fill_from_shape_params(subset::Pixels &ss_def, 
+    void fill_from_shape_params(subset::Pixels &ss, 
                                      const double cx, const double cy,
                                      const std::vector<double>& p,
-                                     const Interpolator &interp_def,
+                                     const Interpolator &interp,
                                      const std::string &shape_func){
 
         // Get the right shape function
@@ -116,17 +116,17 @@ namespace subset {
             exit(EXIT_FAILURE);
         }
 
-        const double half_x = ss_def.size_x / 2.0;
-        const double half_y = ss_def.size_y / 2.0;
+        const double half_x = ss.size_x / 2.0;
+        const double half_y = ss.size_y / 2.0;
 
         int count = 0;
-        for (int y = 0; y < ss_def.size_y; y++){
+        for (int y = 0; y < ss.size_y; y++){
             const double rel_y = y - half_y;
-            for (int x = 0; x < ss_def.size_x; x++){
-                get_pixel(ss_def.x[count], ss_def.y[count], x - half_x, rel_y, p);
-                ss_def.x[count]+=cx;
-                ss_def.y[count]+=cy;
-                ss_def.vals[count] = interp_def.eval(cx, cy, ss_def.x[count], ss_def.y[count]);
+            for (int x = 0; x < ss.size_x; x++){
+                get_pixel(ss.x[count], ss.y[count], x - half_x, rel_y, p);
+                ss.x[count]+=cx;
+                ss.y[count]+=cy;
+                ss.vals[count] = interp.eval(cx, cy, ss.x[count], ss.y[count]);
                 count++;
             }
         }
