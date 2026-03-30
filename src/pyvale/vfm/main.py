@@ -104,36 +104,36 @@ force = test_data["FGlob"] # (23, 2)
 time = test_data["time"]["time"]
 
 yield_strength = HomogeneousParameter(
-    IdentificationType.Unknown,
+    EIdentificationType.Unknown,
     ParameterBounds(100, 1000),
     ScalarValue(320)
 )
 
 hardening_modulus = HomogeneousParameter(
-    IdentificationType.Unknown,
+    EIdentificationType.Unknown,
     ParameterBounds(1000, 10_000),
     ScalarValue(3000)
 )
 
 elastic_modulus = HomogeneousParameter(
-    IdentificationType.Unknown,
+    EIdentificationType.Unknown,
     ParameterBounds(150_000, 250_000),
     ScalarValue(190_000)
 )
 
 poissons_ratio = HomogeneousParameter(
-    IdentificationType.Unknown,
+    EIdentificationType.Unknown,
     ParameterBounds(0.2, 0.4),
     ScalarValue(0.28)
 )
 
 mechanical_properties = MechanicalProperties(
-    ConstituitiveLaw.LinearHardening,
+    EConstituitiveLaw.LinearHardening,
     {
-        ParameterName.ElasticModulus: elastic_modulus,
-        ParameterName.PoissonsRatio: poissons_ratio,
-        ParameterName.YieldStrength: yield_strength,
-        ParameterName.HardeningModulus: hardening_modulus,
+        EParameterName.ElasticModulus: elastic_modulus,
+        EParameterName.PoissonsRatio: poissons_ratio,
+        EParameterName.YieldStrength: yield_strength,
+        EParameterName.HardeningModulus: hardening_modulus,
     }
 )
 
@@ -147,3 +147,60 @@ stress, equivalent_stress, yield_map, peeq = radial_return(strain, mechanical_pr
 # virtual_fields_mesh = generate_virtual_fields_mesh()
 
 print("break")
+
+
+def calculate_timestep_deltas(
+    timesteps: npt.NDArray[np.float64]
+) -> npt.NDArray[np.float64]:
+    delta_time = np.zeros_like(timesteps)
+    delta_time[0] = timesteps[0]
+    delta_time[1:] = np.diff(timesteps)
+
+    return delta_time
+
+# Pasting below if needed in future, can be fully deleted once we dont need this main anymore
+# TODO: assuming linear normalisation only, support other kinds of
+# normalisation in future
+# def normalise_degrees_of_freedom(
+#     degrees_of_freedom: dict[
+#         EParameterLabel,
+#         list[dict[EDOFLabel, DegreeOfFreedom]]
+#     ]
+# ) -> dict[EParameterLabel, list[dict[EDOFLabel, DegreeOfFreedom]]]:
+#     return {
+#         param_label: [
+#             {
+#                 dof_label: NormalisedValue(
+#                     (dof.value - dof.lower_bound) /
+#                     (dof.upper_bound - dof.lower_bound)
+#                 )
+#                 for dof_label, dof in parametrisation.items()
+#                 if isinstance(dof, BoundedValue)
+#             }
+#             for parametrisation in params
+#         ]
+#         for param_label, params in degrees_of_freedom.items()
+#     }
+
+
+# def perturb_normalised_degrees_of_freedom(
+#     degrees_of_freedom: dict[
+#         EParameterLabel,
+#         list[dict[EDOFLabel, DegreeOfFreedom]]
+#     ],
+#     perturbation_factor: float
+# ) -> dict[EParameterLabel, list[dict[EDOFLabel, DegreeOfFreedom]]]:
+#     for params in degrees_of_freedom.values():
+#         for parametrisation in params:
+#             for label, dof in parametrisation.items():
+#                 if isinstance(dof, NormalisedValue):
+#                     parametrisation[label] = NormalisedValue(
+#                         dof.value * (1 - perturbation_factor)
+#                     )
+#                 else:
+#                     raise(TypeError(
+#                         f"Expected NormalisedValue, got {type(dof).__name__}"
+#                     ))
+
+#     return degrees_of_freedom
+
