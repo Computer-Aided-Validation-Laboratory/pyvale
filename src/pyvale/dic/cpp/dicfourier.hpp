@@ -400,7 +400,7 @@ struct FFT {
 
 };
 
-    void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
+    void get_single_window_fftcc_peak(std::vector<double> &p,
                                       const double cx, const double cy,
                                       const int ss_size_x, 
                                       const int ss_size_y,

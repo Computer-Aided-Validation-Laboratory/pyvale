@@ -122,14 +122,14 @@ double debugcost(const subset::Pixels &ss_ref, const subset::Pixels &ss_def){
 
 
 
-void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
-                                    const double cx, const double cy,
-                                    const int ss_size_x, 
-                                    const int ss_size_y, 
-                                    const int window_size_x,
-                                    const int window_size_y,
-                                    const double *img_ref, const double *img_def,
-                                    const Interpolator &interp_def){
+void get_single_window_fftcc_peak(std::vector<double> &p,
+                                  const double cx, const double cy,
+                                  const int ss_size_x, 
+                                  const int ss_size_y, 
+                                  const int window_size_x,
+                                  const int window_size_y,
+                                  const double *img_ref, const double *img_def,
+                                  const Interpolator &interp_def){
 
     // some consts
     const int px_hori = interp_def.px_hori;
@@ -138,6 +138,10 @@ void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
     const int window_half_y = window_size_y/2;
     const int ss_half_x = ss_size_x/2;
     const int ss_half_y = ss_size_y/2;
+
+
+    // reset p values
+    std::fill(p.begin(), p.end(),0.0);
 
     // class for FFT
     FFT fft(window_size_x, window_size_y);
@@ -165,13 +169,13 @@ void get_single_window_fftcc_peak(double &peak_x, double &peak_y,
     fft.zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
 
     // get peaks from the cross correlation
-    double max_val = 0.0;
+    double peak_x = 0.0, peak_y = 0.0, max_val = 0.0;
     fft.correlate();
     fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "gaussian_2d");
 
     // coordinate transform
-    peak_x = peak_x - window_half_x;
-    peak_y = peak_y - window_half_y;
+    p[0] = peak_x - window_half_x;
+    p[1] = peak_y - window_half_y;
 
     // debugging
     // std::cout << std::endl;
