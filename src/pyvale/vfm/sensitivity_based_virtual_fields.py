@@ -6,9 +6,9 @@ import numpy.typing as npt
 from scipy.io import loadmat
 
 from pyvale.vfm.virtual_fields_mesh import (
-    BoundaryConditionSetting,
+    EBoundaryConditionSetting,
     BoundaryConditionSettings,
-    Edge,
+    EEdge,
     VirtualFieldsMesh,
 )
 
@@ -130,15 +130,15 @@ def generate_sensitivity_based_virtual_fields(
         sensitivity_based_virtual_fields.virtual_strain[t, 2, :, :] = virtual_strain_z
 
         # TODO: use Edge enum to index into this array for edges
-        sensitivity_based_virtual_fields.virtual_displacement[t, 0, Edge.Top.value] = virtual_displacement[0, 0, :].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 0, Edge.Bottom.value] = virtual_displacement[0, -1, :].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 0, Edge.Left.value] = virtual_displacement[0, :, 0].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 0, Edge.Right.value] = virtual_displacement[0, :, -1].mean()
+        sensitivity_based_virtual_fields.virtual_displacement[t, 0, EEdge.Top.value] = virtual_displacement[0, 0, :].mean()
+        sensitivity_based_virtual_fields.virtual_displacement[t, 0, EEdge.Bottom.value] = virtual_displacement[0, -1, :].mean()
+        sensitivity_based_virtual_fields.virtual_displacement[t, 0, EEdge.Left.value] = virtual_displacement[0, :, 0].mean()
+        sensitivity_based_virtual_fields.virtual_displacement[t, 0, EEdge.Right.value] = virtual_displacement[0, :, -1].mean()
 
-        sensitivity_based_virtual_fields.virtual_displacement[t, 1, Edge.Top.value] = virtual_displacement[1, 0, :].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 1, Edge.Bottom.value] = virtual_displacement[1, -1, :].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 1, Edge.Left.value] = virtual_displacement[1, :, 0].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 1, Edge.Right.value] = virtual_displacement[1, :, -1].mean()
+        sensitivity_based_virtual_fields.virtual_displacement[t, 1, EEdge.Top.value] = virtual_displacement[1, 0, :].mean()
+        sensitivity_based_virtual_fields.virtual_displacement[t, 1, EEdge.Bottom.value] = virtual_displacement[1, -1, :].mean()
+        sensitivity_based_virtual_fields.virtual_displacement[t, 1, EEdge.Left.value] = virtual_displacement[1, :, 0].mean()
+        sensitivity_based_virtual_fields.virtual_displacement[t, 1, EEdge.Right.value] = virtual_displacement[1, :, -1].mean()
 
         # End of loop var resets
         virtual_displacement.fill(0)
@@ -206,21 +206,21 @@ def flatten_virtual_displacement(virtual_displacement):
 #     - set the virtual displacement for  all edge nodes
 #       to the same value (master dof in the matlab)
 def apply_boundary_conditions(virtual_displacements):
-    for e in Edge:
+    for e in EEdge:
         match e:
-            case Edge.Top:
+            case EEdge.Top:
                 edge_elements = virtual_fields_mesh.virtual_elements[0, :]
                 constant_value_x = virtual_displacements[0, 0, 0]
                 constant_value_y = virtual_displacements[1, 0, 0]
-            case Edge.Bottom:
+            case EEdge.Bottom:
                 edge_elements = virtual_fields_mesh.virtual_elements[-1, :]
                 constant_value_x = virtual_displacements[0, -1, -1]
                 constant_value_y = virtual_displacements[1, -1, -1]
-            case Edge.Left:
+            case EEdge.Left:
                 edge_elements = virtual_fields_mesh.virtual_elements[:, 0]
                 constant_value_x = virtual_displacements[0, 0, 0]
                 constant_value_y = virtual_displacements[1, 0, 0]
-            case Edge.Right:
+            case EEdge.Right:
                 edge_elements = virtual_fields_mesh.virtual_elements[:, -1]
                 constant_value_x = virtual_displacements[0, -1, -1]
                 constant_value_y = virtual_displacements[1, -1, -1]
@@ -233,15 +233,15 @@ def apply_boundary_conditions(virtual_displacements):
         y_indices = edge_elements % virtual_fields_mesh.y.shape[0]
 
         match bc_setting_x:
-            case BoundaryConditionSetting.Fixed:
+            case EBoundaryConditionSetting.Fixed:
                 virtual_displacements[0, y_indices, x_indices] = 0
-            case BoundaryConditionSetting.Constant:
+            case EBoundaryConditionSetting.Constant:
                 virtual_displacements[0, y_indices, x_indices] = constant_value_x
 
         match bc_setting_y:
-            case BoundaryConditionSetting.Fixed:
+            case EBoundaryConditionSetting.Fixed:
                 virtual_displacements[1, y_indices, x_indices] = 0
-            case BoundaryConditionSetting.Constant:
+            case EBoundaryConditionSetting.Constant:
                 virtual_displacements[0, y_indices, x_indices] = constant_value_y
 
     return virtual_displacements
@@ -274,16 +274,16 @@ virtual_elements = mesh_data["vCoordsGrid"] - 1
 boundary_condition_settings = mesh_data["BC_settings"]
 boundary_condition_settings = BoundaryConditionSettings(
     {
-        Edge.Top: BoundaryConditionSetting.Free,
-        Edge.Bottom: BoundaryConditionSetting.Fixed,
-        Edge.Left: BoundaryConditionSetting.Free,
-        Edge.Right: BoundaryConditionSetting.Constant,
+        EEdge.Top: EBoundaryConditionSetting.Free,
+        EEdge.Bottom: EBoundaryConditionSetting.Fixed,
+        EEdge.Left: EBoundaryConditionSetting.Free,
+        EEdge.Right: EBoundaryConditionSetting.Constant,
     },
     {
-        Edge.Top: BoundaryConditionSetting.Free,
-        Edge.Bottom: BoundaryConditionSetting.Fixed,
-        Edge.Left: BoundaryConditionSetting.Free,
-        Edge.Right: BoundaryConditionSetting.Fixed,
+        EEdge.Top: EBoundaryConditionSetting.Free,
+        EEdge.Bottom: EBoundaryConditionSetting.Fixed,
+        EEdge.Left: EBoundaryConditionSetting.Free,
+        EEdge.Right: EBoundaryConditionSetting.Fixed,
     }
 )
 
