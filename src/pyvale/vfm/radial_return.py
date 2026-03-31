@@ -1,141 +1,19 @@
+import enum
+
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.vfm.hardening import hardening
 from pyvale.vfm.mechanical_properties import (
+    EParameterLabel,
     MechanicalProperties,
-    EParameterName,
-    parameter_to_map,
 )
 
 
-def hardening_function(
-    hardening_law: str,
-    equivalent_plastic_strain: npt.NDArray[np.float64],
-    mechanical_properties: MechanicalProperties,
-    size_x: int,
-    size_y: int,
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    """Return current yield stress and its derivative for the active hardening law.
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray]
-        yield_stress : Current yield stress at all datapoints
-        delta_yield_stress_delta_equivalent_plastic_strain : Derivative of yield stress
-            with respect to equivalent plastic strain (i.e. hardening slope)
-
-    Notes
-    -----
-    Supported hardening laws:
-        `LinearHardening`
-        `SwiftHardening`
-        `VoceHardening`
-        `LudwikHardening`
-
-    """
-
-    parameters = mechanical_properties.parameters
-
-    match hardening_law.name:
-        case "LinearHardening":
-            yield_strength = parameter_to_map(
-                parameters[EParameterName.YieldStrength], size_x, size_y
-            )
-            hardening_modulus = parameter_to_map(
-                parameters[EParameterName.HardeningModulus], size_x, size_y
-            )
-            yield_strength_flat = yield_strength.ravel()
-            hardening_modulus_flat = hardening_modulus.ravel()
-            yield_stress = yield_strength_flat + (
-                hardening_modulus_flat * equivalent_plastic_strain
-            )
-            return yield_stress, hardening_modulus_flat
-        case "SwiftHardening":
-            strength_coefficient = parameter_to_map(
-                parameters[EParameterName.StrengthCoefficient], size_x, size_y
-            )
-            strain_offset = parameter_to_map(
-                parameters[EParameterName.StrainOffset], size_x, size_y
-            )
-            hardening_exponent = parameter_to_map(
-                parameters[EParameterName.HardeningExponent], size_x, size_y
-            )
-
-            strength_coefficient_flat = strength_coefficient.ravel()
-            strain_offset_flat = strain_offset.ravel()
-            hardening_exponent_flat = hardening_exponent.ravel()
-            strain_term = strain_offset_flat + equivalent_plastic_strain
-
-            yield_stress = strength_coefficient_flat * strain_term**hardening_exponent_flat
-            delta_yield_stress = (
-                strength_coefficient_flat
-                * hardening_exponent_flat
-                * strain_term ** (hardening_exponent_flat - 1)
-            )
-            return yield_stress, delta_yield_stress
-        case "VoceHardening":
-            yield_strength = parameter_to_map(
-                parameters[ParameterName.YieldStrength], size_x, size_y
-            )
-            hardening_modulus = parameter_to_map(
-                parameters[ParameterName.HardeningModulus], size_x, size_y
-            )
-            saturation_stress = parameter_to_map(
-                parameters[ParameterName.SaturationStress], size_x, size_y
-            )
-            rate_parameter = parameter_to_map(
-                parameters[ParameterName.RateParameter], size_x, size_y
-            )
-
-            yield_strength_flat = yield_strength.ravel()
-            hardening_modulus_flat = hardening_modulus.ravel()
-            saturation_stress_flat = saturation_stress.ravel()
-            rate_parameter_flat = rate_parameter.ravel()
-            exp_term = np.exp(-rate_parameter_flat * equivalent_plastic_strain)
-
-            yield_stress = (
-                yield_strength_flat
-                + hardening_modulus_flat * equivalent_plastic_strain
-                + saturation_stress_flat * (1 - exp_term)
-            )
-            delta_yield_stress = (
-                hardening_modulus_flat
-                + saturation_stress_flat * rate_parameter_flat * exp_term
-            )
-            return yield_stress, delta_yield_stress
-        case "LudwikHardening":
-            yield_strength = parameter_to_map(
-                parameters[ParameterName.YieldStrength], size_x, size_y
-            )
-            strength_coefficient = parameter_to_map(
-                parameters[ParameterName.StrengthCoefficient], size_x, size_y
-            )
-            hardening_exponent = parameter_to_map(
-                parameters[ParameterName.HardeningExponent], size_x, size_y
-            )
-
-            yield_strength_flat = yield_strength.ravel()
-            strength_coefficient_flat = strength_coefficient.ravel()
-            hardening_exponent_flat = hardening_exponent.ravel()
-            clamped_equivalent_plastic_strain = np.maximum(equivalent_plastic_strain, 1e-14)
-
-            yield_stress = (
-                yield_strength_flat
-                + strength_coefficient_flat
-                * clamped_equivalent_plastic_strain**hardening_exponent_flat
-            )
-            delta_yield_stress = (
-                hardening_exponent_flat
-                * strength_coefficient_flat
-                * clamped_equivalent_plastic_strain ** (hardening_exponent_flat - 1)
-            )
-            return yield_stress, delta_yield_stress
-        case _:
-            raise NotImplementedError(
-                f"Hardening law '{hardening_law}' is not yet implemented. "
-                "Supported laws: 'LinearHardening', 'SwiftHardening', "
-                "'VoceHardening', 'LudwikHardening'"
-            )
+class EUnloading(enum.Enum):
+    NoCompensation = enum.auto()
+    ConstantStrain = enum.auto()
+    LinearExtrapolation = enum.auto()
 
 
 def radial_return(
@@ -143,8 +21,13 @@ def radial_return(
     mechanical_properties: MechanicalProperties,
     error_tolerance: float = 1e-8,
     iteration_limit: int = 100,
-    unloading: str = "constant_strain",
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.bool_], npt.NDArray[np.float64]]:
+    unloading: EUnloading = EUnloading.ConstantStrain,
+) -> tuple[
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.bool_],
+    npt.NDArray[np.float64]
+]:
     """Radial return mapping for J2 plasticity in plane stress.
 
     Parameters
@@ -253,11 +136,11 @@ def radial_return(
     num_datapoints = size_y * size_x
     parameters = mechanical_properties.parameters
     # Elastic modulus and poissons ratio are always required to compute trial elastic stress
-    elastic_modulus = parameter_to_map(
-        parameters[EParameterName.ElasticModulus], size_x, size_y
+    elastic_modulus = (
+        parameters[EParameterLabel.ElasticModulus].to_map(size_x, size_y)
     )
-    poissons_ratio = parameter_to_map(
-        parameters[EParameterName.PoissonsRatio], size_x, size_y
+    poissons_ratio = (
+        parameters[EParameterLabel.PoissonsRatio].to_map(size_x, size_y)
     )
 
 
@@ -369,7 +252,7 @@ def radial_return(
         # Compute yield stress for current plastic strain using the active
         # hardening law. The tangent term may be None for laws that do not
         # expose a simple constant hardening modulus.
-        yield_stress, _ = hardening_function(
+        yield_stress, _ = hardening(
             mechanical_properties.constituitive_law,
             prev_equivalent_plastic_strain,
             mechanical_properties,
@@ -483,7 +366,10 @@ def radial_return(
             )
 
             # Compute current yield stress and hardening variable using current equivalent plastic strain. 
-            yield_stress, delta_yield_stress_delta_equivalent_plastic_strain = hardening_function(
+            (
+                yield_stress,
+                delta_yield_stress_delta_equivalent_plastic_strain
+            ) = hardening(
                 mechanical_properties.constituitive_law,
                 equivalent_plastic_strain[t, :],
                 mechanical_properties,
@@ -546,7 +432,7 @@ def radial_return(
 
 
             # == COMPUTE UPDATED YIELD STRESS USING UPDATED EQUIVALENT PLASTIC STRAIN ==
-            yield_stress, _ = hardening_function(
+            yield_stress, _ = hardening(
                 mechanical_properties.constituitive_law,
                 equivalent_plastic_strain[t, :],
                 mechanical_properties,
@@ -632,9 +518,9 @@ def radial_return(
         # smoothed on unloading to avoid discontinuities).
         stress_output[t] = stress_state[t].copy()
         match unloading:
-            case "no_compensation":
+            case EUnloading.NoCompensation:
                 pass  # keep return-mapped current-step output without unloading correction
-            case "constant_strain":
+            case EUnloading.ConstantStrain:
                 if t > 0: 
                     unload_mask = prev_plasticity_mask & (~plasticity_mask)  # Points that were plastic in the previous step but are now elastic
                     if np.any(unload_mask):
@@ -643,7 +529,7 @@ def radial_return(
                         out_flat[unload_mask] = prev_out_flat[unload_mask]
                         stress_output[t] = np.moveaxis(out_flat.reshape(size_y, size_x, 3), -1, 0)
 
-            case "linear_extrapolation":
+            case EUnloading.LinearExtrapolation:
                 if t > 1: 
                     unload_mask = prev_plasticity_mask & (~plasticity_mask)  # Points that were plastic in the previous step but are now elastic
                     if np.any(unload_mask):
