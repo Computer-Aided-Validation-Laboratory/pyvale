@@ -3,9 +3,9 @@ name: Build Wheels and upload (if new release) to PyPI
 on:
   workflow_dispatch:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
-    branches: [main, dev]
+    branches: [main]
   release:
     types:
       - published
@@ -22,23 +22,20 @@ jobs:
             macos_deployment_target: "14.0"
           - os: macos-15-intel
             llvm: llvm@18
-            macos_deployment_target: "14.0"
+            macos_deployment_target: "15.0"
           - os: macos-latest
             llvm: llvm@18
             macos_deployment_target: "15.0"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install libomp and set compiler on macOS
+      - name: Set compiler on macOS to GCC
         if: startsWith(matrix.os, 'macos')
         run: |
           brew install libomp
           echo "MACOSX_DEPLOYMENT_TARGET=${{ matrix.macos_deployment_target }}" >> $GITHUB_ENV
-          echo "CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++" >> $GITHUB_ENV
-          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
-          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
+          echo "CC=gcc-15" >> $GITHUB_ENV
+          echo "CXX=g++-15" >> $GITHUB_ENV
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
@@ -48,12 +45,6 @@ jobs:
           config-file: "{package}/pyproject.toml"
         env:
           CIBW_SKIP: "pp*"
-        #   CIBW_ENVIRONMENT_MACOS: >
-        #     CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang
-        #     CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++
-        #     LDFLAGS="-L$(brew --prefix libomp)/lib"
-        #     CPPFLAGS="-I$(brew --prefix libomp)/include"
-        #     OpenMP_ROOT=$(brew --prefix libomp)
       - uses: actions/upload-artifact@v4
         with:
           name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}

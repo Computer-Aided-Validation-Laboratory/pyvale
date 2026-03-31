@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath('../../src/pyvale/dic/'))
 project = 'Pyvale'
 copyright = '2025, The CAV Team'
 author = 'The CAV Team at United Kingdom Atomic Energy Authority (UKAEA)'
-release = '2026.1.0'
-version = '2026.1.0'
+release = '2026.2.0'
+version = '2026.2.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -28,10 +28,13 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
-    'sphinx.ext.viewcode',  # Adds source code links
+    'sphinx.ext.intersphinx',
+    'sphinx_design',
+    'sphinx.ext.viewcode',
     'sphinx_codeautolink',
     'sphinx_copybutton',
     'sphinx_gallery.gen_gallery',
+    'sphinx.ext.mathjax',
     'breathe',
     'myst_parser'
 ]

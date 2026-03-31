@@ -18,9 +18,9 @@ test_dir = os.path.dirname(__file__)
 
 def test_dic_data_column_import():
 
-    filename = "./reference/ref_image_scan_znssd_affine_plate_rigid.csv"
+    filename = "./reference/ref_00_50.csv"
     datafile = os.path.abspath(os.path.join(test_dir,filename))
-    dicdata = dic.data_import(data=datafile, binary=False, layout='column', delimiter=",")
+    dicdata = dic.import_2d(data=datafile, binary=False, layout='column', delimiter=",")
 
     raw_data = np.loadtxt(datafile, delimiter=",", skiprows=1)
     assert np.allclose(dicdata.ss_x, raw_data[:, 0]), "Mismatch in ss_x data column"
@@ -37,9 +37,9 @@ def test_dic_data_column_import():
 
 def test_dic_data_matrix_import():
 
-    filename = "./reference/ref_image_scan_znssd_affine_plate_rigid.csv"
+    filename = "./reference/ref_00_50.csv"
     datafile = os.path.abspath(os.path.join(test_dir,filename))
-    dicdata = dic.data_import(data=datafile, binary=False, layout='matrix', delimiter=",")
+    dicdata = dic.import_2d(data=datafile, binary=False, layout='matrix', delimiter=",")
 
     raw_data = np.loadtxt(datafile, delimiter=",", skiprows=1)
 

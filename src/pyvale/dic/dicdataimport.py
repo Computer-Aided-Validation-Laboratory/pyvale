@@ -20,10 +20,10 @@ calculations.
 """
 
 
-def data_import(data: str | Path,
-                   binary: bool = False,
-                   layout: str = "matrix",
-                   delimiter: str = ",") -> Results:
+def import_2d(data: str | Path,
+              binary: bool = False,
+              layout: str = "matrix",
+              delimiter: str = ",") -> Results:
     """
     Import DIC result data from human readable text or binary files.
 
@@ -198,10 +198,12 @@ def read_binary(file: str, delimiter: str):
     has_shape_params = False
     has_rigid_params = False
     has_affine_params = False
+    has_quad_params = False
 
     row_size_basic = 3 * 4 + 6 * 8 + 1           # 61 bytes
     row_size_with_rigid = row_size_basic + 2 * 8 # 77 bytes
     row_size_with_affine = row_size_basic + 6 * 8 # 109 bytes
+    row_size_with_quad = row_size_basic + 12 * 8 # 157 bytes
 
     if len(raw) % row_size_basic == 0:
         row_size = row_size_basic
@@ -210,18 +212,21 @@ def read_binary(file: str, delimiter: str):
         has_shape_params = True
         row_size = row_size_with_rigid
         has_rigid_params = True
-        has_affine_params = False
     elif len(raw) % row_size_with_affine == 0:
         has_shape_params = True
         row_size = row_size_with_affine
         has_affine_params = True
-        has_rigid_params = False
+    elif len(raw) % row_size_with_quad == 0:
+        has_shape_params = True
+        row_size = row_size_with_quad
+        has_quad_params = True
     else:
         raise ValueError(
             f"Binary file has incomplete rows: {file}. "
             f"Expected row size: 65 ((without shape params), "
             f"81 (with rigid shape params) bytes, "
             f"109 (with affine shape params). "
+            f"157 (with quad shape params). "
             f"Actual size: {len(raw)} bytes."
         )
 
@@ -254,7 +259,21 @@ def read_binary(file: str, delimiter: str):
             p3 = extract(8, np.float64, 85)
             p4 = extract(8, np.float64, 93)
             p5 = extract(8, np.float64, 101)
-            return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter, p0,p1,p2,p3,p4,p5
+            return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter,p0,p1,p2,p3,p4,p5
+        if has_quad_params:
+            p0 = extract(8, np.float64, 61)
+            p1 = extract(8, np.float64, 69)
+            p2 = extract(8, np.float64, 77)
+            p3 = extract(8, np.float64, 85)
+            p4 = extract(8, np.float64, 93)
+            p5 = extract(8, np.float64, 101)
+            p6 = extract(8, np.float64, 109)
+            p7 = extract(8, np.float64, 117)
+            p8 = extract(8, np.float64, 125)
+            p9 = extract(8, np.float64, 133)
+            p10 = extract(8, np.float64, 141)
+            p11 = extract(8, np.float64, 149)
+            return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter,p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11
     else:
         return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter
 
@@ -325,6 +344,19 @@ def read_text(file: str, delimiter: str):
             data[:, 9].astype(np.int32), #niter
             data[:,10], data[:,11], data[:,12], data[:,13], data[:,14], data[:,15] # shape params (affine)
         )
+    #quad
+    elif data.shape[1]==22:
+        return (
+            data[:, 0].astype(np.int32),  # ss_x
+            data[:, 1].astype(np.int32),  # ss_y
+            data[:, 2], data[:, 3], data[:, 4], # u, v, mag
+            data[:, 5].astype(np.bool_), # convergence
+            data[:, 6], data[:, 7], data[:,8], # cost, ftol, xtol
+            data[:, 9].astype(np.int32), #niter
+            data[:,10], data[:,11], data[:,12], data[:,13], data[:,14], data[:,15],
+            data[:,16], data[:,17], data[:,18], data[:,19], data[:,20], data[:,21] # shape params (quad)
+        )
+
 
 
 
@@ -336,7 +368,6 @@ def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
     Maps values using reference subset coordinates (ss_x_ref, ss_y_ref).
 
     Parameters
-    ol
     ----------
     data : np.ndarray
         Array of shape (n_frames, n_points) to be reshaped into (n_frames, height, width).

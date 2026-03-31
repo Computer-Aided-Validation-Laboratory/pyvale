@@ -1,5 +1,4 @@
 name: Run tests
-
 on:
   push:
     branches: [main, dev]
@@ -14,6 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-latest]
+        env-type: [pip]
         include:
           - os: macos-14
             llvm: llvm@15
@@ -30,38 +30,33 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install libomp and set compiler on macOS
+      - name: Set default compiler on macOS to GCC
         if: startsWith(matrix.os, 'macos')
         run: |
-          brew install libomp
-          echo "CC=$(brew --prefix ${{ matrix.llvm }})/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix ${{ matrix.llvm }})/bin/clang++" >> $GITHUB_ENV
-          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> $GITHUB_ENV
-          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
+          echo "CC=gcc-15" >> $GITHUB_ENV
+          echo "CXX=g++-15" >> $GITHUB_ENV
 
-      - name: Install dependencies for ubuntu-latest
+      - name: Install system dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
           sudo apt install -y libegl1 libgl1 libxext6 libx11-6
 
-      - name: Upgrade pip and install package
+      - name: Install with pip
+        if: matrix.env-type == 'pip'
         run: |
           python -m pip install --upgrade pip
           pip install -e . -v
+          pip install pytest pytest-mock
 
       - name: Smoke test
-        run: |
-          python -c "import pyvale"
+        run: python -c "import pyvale"
 
       - name: Run sensorsim and DIC tests
-        run: |
-          pip install pytest pytest-mock
-          pytest -v tests/dic/. tests/sensorsim/.
+        shell: bash -el {0}
+        run: pytest -v tests/dic/. tests/sensorsim/. tests/strain/.
 
       - name: Run blender tests (skip macOS ARM)
         if: ${{ !startsWith(matrix.os, 'macos') || contains(matrix.os, 'intel') }}
-        run: |
-          pip install pytest pytest-mock
-          pytest -v tests/blender/.
+        shell: bash -el {0}
+        run: pytest -v tests/blender/.

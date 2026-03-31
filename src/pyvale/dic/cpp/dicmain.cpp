@@ -6,6 +6,8 @@
 
 
 // STD library Header files
+#include <atomic>
+#include <iomanip>
 #include <iostream>
 #include <cstring>
 #include <omp.h>
@@ -18,28 +20,33 @@
 #include <pybind11/stl.h>
 #include <pybind11/iostream.h>
 
-// Program Header files
-#include "./dicinterpolator.hpp"
-#include "./dicbruteforce.hpp"
+// common_cpp header files
+#include "../../common_cpp/dicsignalhandler.hpp"
+#include "../../common_cpp/defines.hpp"
+#include "../../common_cpp/util.hpp"
+
+// DIC Header files
+#include "./dicinterp.hpp"
+#include "./dicinterpBspline.hpp"
+#include "./dicinterpHermite.hpp"
 #include "./dicoptimizer.hpp"
 #include "./dicscanmethod.hpp"
-#include "./defines.hpp"
 #include "./dicutil.hpp"
-#include "./dicstrain.hpp"
 #include "./dicfourier.hpp"
-#include "./dicsignalhandler.hpp"
+#include "./dicshapefunc.hpp"
+#include "./dicresults.hpp"
+#include "dicsubset.hpp"
 
 // cuda Header files
-#include "../cuda/malloc.hpp"
+//#include "../cuda/malloc.hpp"
 
 namespace py = pybind11;
 
 
-void DICengine(const py::array_t<double>& img_ref_arr,
-               const py::array_t<double>& img_def_stack_arr,
+void DICengine(const py::array_t<double>& img_stack_arr,
                const py::array_t<bool>&   img_roi_arr, 
                util::Config &conf,
-               util::SaveConfig &saveconf){
+               common_util::SaveConfig &saveconf){
 
     // Register signal handler for Ctrl+C and set debug_level
     signal(SIGINT, signalHandler);
@@ -48,6 +55,7 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     // ------------------------------------------------------------------------
     // Initialisation
     // ------------------------------------------------------------------------
+    if (g_debug_level>0){
     TITLE("Config");
     INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
     INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
@@ -60,95 +68,143 @@ void DICengine(const py::array_t<double>& img_ref_arr,
     INFO_OUT("FFT MAD scale: ", conf.fft_mad_scale);
     INFO_OUT("Image Scan Method: ", conf.scan_method);
     INFO_OUT("Optimization Precision:", conf.precision);
-    INFO_OUT("Optimization Threshold:", conf.opt_threshold);
+    INFO_OUT("Correlation Cutoff Threshold:", conf.threshold);
     INFO_OUT("Estimate for Max Displacement:", conf.max_disp << " [px]");
     INFO_OUT("Subset Size:", conf.ss_size << " [px]");
     INFO_OUT("Subset Step:", conf.ss_step << " [px]" );
     INFO_OUT("Number of OMP threads:", omp_get_max_threads());
     INFO_OUT("Debug level: ", conf.debug_level);
-    if (conf.scan_method=="RG") INFO_OUT("Reliability Guided Seed central px location: ", "(" 
+    if (conf.scan_method.find("RG") != std::string::npos)INFO_OUT("Reliability Guided Seed central px location: ", "(" 
                                          << conf.rg_seed.first+conf.ss_size/2 << ", " << conf.rg_seed.second+conf.ss_size/2 << ") [px] " )
-
+    }
 
     // get raw pointers
     bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
-    double* img_ref = static_cast<double*>(img_ref_arr.request().ptr);
-    double* img_def_stack = static_cast<double*>(img_def_stack_arr.request().ptr);
+    double* img_stack = static_cast<double*>(img_stack_arr.request().ptr);
 
     // ------------------------------------------------------------------------
     // get a list of ss coordinates within RIO;
     // ------------------------------------------------------------------------
-    std::vector<util::SubsetData> ssdata;
+    std::vector<subset::Grid> ss_grids;
     std::vector<int> ss_sizes, ss_steps;
-    if ((conf.scan_method == "FFT") || (conf.scan_method == "RG")){
-        util::Timer timer("subset list initialisation");
-        util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.max_disp);
-        fourier::init(ssdata, ss_sizes, ss_steps, img_roi, conf);
-    }
-    else {
-        util::Timer timer("subset list initialisation");
-        ssdata.push_back(util::gen_ss_list(img_roi, conf.ss_step,
-                                           conf.ss_size, conf.px_hori, 
-                                           conf.px_vert));
-    }
-
+    util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.max_disp);
+    fourier::init(ss_grids, ss_sizes, ss_steps, img_roi, conf);
 
 
     // resize the results based on subset information
-    util::resize_results(conf.num_def_img, ssdata.back().num,
-                         conf.num_params, saveconf.at_end);
+    OptResultArrays result_arrays(conf.num_def_img, ss_grids.back().num,
+                               conf.num_params, saveconf.at_end);
 
-    // initialise the LM optimizer with shape func and corr crit
-    optimizer::init(conf.corr_crit, conf.shape_func);
 
-    // initialise the brute force scan
-    // std::string brute_method = "EXPANDING_WAVEFRONT";
-    // brute::init(conf.corr_crit, brute_method);
+    // set relevent shape function
+    shapefunc::set(conf.shape_func);
+
+    // set cost function to use in optimization
+    optimizer::set_cost_function(conf.corr_crit);
 
 
 
     // -----------------------------------------------------------------------
     // loop over deformed images and perform DIC
     // -----------------------------------------------------------------------
-    std::cout << std::endl;
-    TITLE("Starting Correlation")
-    util::Timer timer("DIC Engine:");
-    for (int img_num = 0; img_num < conf.num_def_img; img_num++){
+    if (g_debug_level>0){
+        std::cout << std::endl;
+        TITLE("Starting Correlation")
+    }
+    common_util::Timer timer("DIC Engine:");
+
+    // pointer to reference image at start of stack
+    double *img_ref = img_stack;
+    
+    // pointer to hold the reference interpolator (will be created once)
+    Interpolator* interp_ref = nullptr;
+    Interpolator* interp_ref_inc = nullptr;
+
+    // loop over deformed images. They start at index 1 in the stack
+    for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){
 
         // pointer to starting location of deformed image in memory
         int num_px_in_image = conf.px_hori * conf.px_vert;
-        double *img_def = img_def_stack + img_num*num_px_in_image;
+        double *img_def = img_stack + img_num*num_px_in_image;
 
         // define our interpolator for the reference image
-        Interpolator interp_def(img_def, conf.px_hori, conf.px_vert);
+        Interpolator* interp_def = nullptr;
+        if (conf.interp_routine == "BSPLINE") interp_def = new Bspline(img_def, conf.px_hori, conf.px_vert);
+        else if (conf.interp_routine == "HERMITE") interp_def = new Hermite(img_def, conf.px_hori, conf.px_vert);
 
+        // -------------------------------------------------------------------------------------------------------------------------------------------
         // raster scan
+        // -------------------------------------------------------------------------------------------------------------------------------------------
         if (conf.scan_method=="IMAGE_SCAN") 
-            scanmethod::image(img_ref, interp_def, ssdata[0], conf, img_num);
+            scanmethod::image(img_ref, *interp_def, ss_grids[0], conf, img_num, result_arrays);
 
-        // raster with brute force
-        else if (conf.scan_method=="IMAGE_SCAN_WITH_BF") 
-            scanmethod::image_with_bf(img_ref, img_def, interp_def, ssdata[0], conf, img_num);
 
-        // reliability Guided
-        else if (conf.scan_method=="RG")
-            scanmethod::reliability_guided(img_ref, img_def, interp_def, ssdata, conf, img_num, saveconf.at_end);
 
-        // multi window fft
-        else if (conf.scan_method=="FFT")
-            scanmethod::multi_window_fourier(img_ref, img_def, interp_def, ssdata, conf, img_num);
 
-        // single window fft
-        else if (conf.scan_method=="FFT_test")
-            scanmethod::single_window_fourier(img_ref, img_def, interp_def, ssdata[0], conf, img_num);
+        // -------------------------------------------------------------------------------------------------------------------------------------------
+        // multiwindow FFTCC + reliability Guided
+        // -------------------------------------------------------------------------------------------------------------------------------------------
+        else if (conf.scan_method=="MULTIWINDOW_RG")
+            scanmethod::multiwindow_reliability_guided(img_ref, img_def, *interp_def, ss_grids, conf, img_num, result_arrays);
+
+
+
+
+        // -------------------------------------------------------------------------------------------------------------------------------------------
+        // singlewindow FFTCC + reliability Guided
+        // -------------------------------------------------------------------------------------------------------------------------------------------
+        else if (conf.scan_method=="SINGLEWINDOW_RG"){
+            if (!interp_ref && conf.interp_routine=="BSPLINE") interp_ref = new Bspline(img_ref, conf.px_hori, conf.px_vert);
+            if (!interp_ref && conf.interp_routine=="HERMITE") interp_ref = new Hermite(img_ref, conf.px_hori, conf.px_vert);
+            scanmethod::singlewindow_incremental_reliability_guided(img_ref, img_def, *interp_ref, *interp_def, ss_grids, conf, 0, img_num, result_arrays);
+        }
+
+
+
+        // -------------------------------------------------------------------------------------------------------------------------------------------
+        // multi window FFTCC ONLY
+        // -------------------------------------------------------------------------------------------------------------------------------------------
+        else if (conf.scan_method=="MULTIWINDOW")
+            scanmethod::multiwindow(img_ref, img_def, *interp_def, ss_grids, conf, img_num, result_arrays);
+
+
+
+
+        // -------------------------------------------------------------------------------------------------------------------------------------------
+        // singlewindow FFTCC + reliability Guided + Incremental Updating
+        // -------------------------------------------------------------------------------------------------------------------------------------------
+        else if (conf.scan_method=="SINGLEWINDOW_RG_INCREMENTAL"){
+            double *img_prev = nullptr;
+            int img_num_prev = img_num-1;
+            img_prev = img_stack + img_num_prev*num_px_in_image;
+            if (conf.interp_routine=="BSPLINE") interp_ref_inc = new Bspline(img_prev, conf.px_hori, conf.px_vert);
+            if (conf.interp_routine=="HERMITE") interp_ref_inc = new Hermite(img_prev, conf.px_hori, conf.px_vert);
+            scanmethod::singlewindow_incremental_reliability_guided(img_prev, img_def, *interp_ref_inc, *interp_def, ss_grids, conf, img_num_prev, img_num, result_arrays);
+        }
+
+
+
+
 
         if (!saveconf.at_end)
-            util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params, conf.filenames);
+            result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
+
+        if (interp_def) delete interp_def;
+
+        if (stop_request) break;
     }
 
     if (saveconf.at_end)
-        for (int img_num = 0; img_num < conf.num_def_img; img_num++)
-            util::save_to_disk(img_num, saveconf, ssdata.back(), conf.num_def_img, conf.num_params, conf.filenames);
+        for (int img_num = 1; img_num < conf.num_def_img+1; img_num++)
+            result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
+
+
+    if (interp_ref) delete interp_ref;
+
+    // TODO: don't have shifts as a global var. Should probably make fourier
+    // stuff a class at some point in the future
+    fourier::shifts.clear();
+    fourier::shifts.shrink_to_fit();
 }
 
 
@@ -163,58 +219,6 @@ void build_info(){
         //INFO_OUT("- Compiled at:", BUILDTIME);
         //std::cout << std::endl;
 }
-
-
-void set_num_threads(int n) {
-    omp_set_num_threads(n);
-}
-
-
-
-PYBIND11_MODULE(dic2dcpp, m) {
-
-    py::add_ostream_redirect(m, "ostream_redirect");
-
-    py::class_<util::Config>(m, "Config")
-        .def(py::init<>())
-        .def_readwrite("ss_step", &util::Config::ss_step)
-        .def_readwrite("ss_size", &util::Config::ss_size)
-        .def_readwrite("max_iter", &util::Config::max_iter)
-        .def_readwrite("precision", &util::Config::precision)
-        .def_readwrite("opt_threshold", &util::Config::opt_threshold)
-        .def_readwrite("bf_threshold", &util::Config::bf_threshold)
-        .def_readwrite("max_disp", &util::Config::max_disp)
-        .def_readwrite("corr_crit", &util::Config::corr_crit)
-        .def_readwrite("shape_func", &util::Config::shape_func)
-        .def_readwrite("interp_routine", &util::Config::interp_routine)
-        .def_readwrite("scan_method", &util::Config::scan_method)
-        .def_readwrite("px_hori", &util::Config::px_hori)
-        .def_readwrite("px_vert", &util::Config::px_vert)
-        .def_readwrite("num_def_img", &util::Config::num_def_img)
-        .def_readwrite("rg_seed", &util::Config::rg_seed)
-        .def_readwrite("num_params", &util::Config::num_params)
-        .def_readwrite("fft_mad", &util::Config::fft_mad)
-        .def_readwrite("fft_mad_scale", &util::Config::fft_mad_scale)
-        .def_readwrite("filenames", &util::Config::filenames)
-        .def_readwrite("debug_level", &util::Config::debug_level);
-
-    py::class_<util::SaveConfig>(m, "SaveConfig")
-        .def(py::init<>())
-        .def_readwrite("basepath", &util::SaveConfig::basepath)
-        .def_readwrite("binary", &util::SaveConfig::binary)
-        .def_readwrite("prefix", &util::SaveConfig::prefix)
-        .def_readwrite("delimiter", &util::SaveConfig::delimiter)
-        .def_readwrite("at_end", &util::SaveConfig::at_end)
-        .def_readwrite("output_unconverged", &util::SaveConfig::output_unconverged)
-        .def_readwrite("shape_params", &util::SaveConfig::shape_params);
-
-    // Bind the engine function
-    m.def("build_info", &build_info, "build information");
-    m.def("dic_engine", &DICengine, "Run 2D analysis on input images with config");
-    m.def("strain_engine", &strain::engine, "Strain C++ calculations");
-    m.def("set_num_threads", &set_num_threads, "Set the number of OpenMP threads");
-}
-
 
 
 
