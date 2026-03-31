@@ -48,7 +48,8 @@ class Optimizer {
                   const double cy, 
                   subset::Pixels &ss_ref, 
                   subset::Pixels &ss_def, 
-                  const Interpolator &interp_def);
+                  const Interpolator &interp_def,
+                  const bool check_on_thresh=false);
         
         // Public access to parameters
         const int num_params;             // Number of parameters

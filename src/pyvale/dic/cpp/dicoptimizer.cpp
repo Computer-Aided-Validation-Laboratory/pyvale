@@ -98,7 +98,8 @@ OptResult Optimizer::solve(const double cx,
                            const double cy,
                         subset::Pixels &ss_ref,
                         subset::Pixels &ss_def,
-                        const Interpolator &interp_def){
+                        const Interpolator &interp_def,
+                        const bool check_on_thresh){
 
     int iter = 0;
     double ftol = 0;
@@ -132,7 +133,7 @@ OptResult Optimizer::solve(const double cx,
 
 
         // Check converged
-        if ((xtol < precision) && (ftol < precision)) {
+        if ((xtol < precision) && (ftol < precision) && (1.0-0.5*costp > check_on_thresh*threshold)) {
             //debug_print(ss_x, ss_y, iter, costp, ftol, xtol, p);
             converged=true;
             break;
@@ -398,7 +399,12 @@ void Optimizer::znssd(const subset::Pixels &ss_ref,
         mean_ref += ss_ref.vals[i];
         mean_def += ss_def.vals[i];
 
+        // debugging
+        // std::cout << ss_ref.x[i] << " " << ss_ref.y[i] << " " << ss_ref.vals[i] << " ";
+        // std::cout << ss_def.x[i] << " " << ss_def.y[i] << " " << ss_def.vals[i] << " ";
+        // std::cout << std::endl;
     }
+    //exit(0);
 
     mean_def /= num_px;
     mean_ref /= num_px;
