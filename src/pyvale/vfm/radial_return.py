@@ -42,11 +42,11 @@ def radial_return(
         Normalized Newton-Raphson convergence tolerance.
     iteration_limit : int, optional
         Maximum number of Newton-Raphson iterations per timestep.
-    unloading : str, optional
+    unloading : EUnloading, optional
         Output-only unloading compensation mode:
-        - "no_compensation": no output correction on unloading
-        - "constant_strain": hold previous output stress (default)
-        - "linear_extrapolation": extrapolate from two previous outputs
+        - NoCompensation: no output correction on unloading
+        - ConstantStrain: hold previous output stress (default)
+        - LinearExtrapolation: extrapolate from two previous outputs
 
     Returns
     -------

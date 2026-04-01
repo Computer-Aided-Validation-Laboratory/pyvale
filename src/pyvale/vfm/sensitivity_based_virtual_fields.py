@@ -1,16 +1,16 @@
 from dataclasses import dataclass
-import enum
 
 import numpy as np
 import numpy.typing as npt
-from scipy.io import loadmat
 
+from pyvale.vfm.mechanical_properties import EDOFLabel, EParameterLabel
+from pyvale.vfm.stress_sensitivity import StressSensitivity
 from pyvale.vfm.virtual_fields_mesh import (
     EBoundaryConditionSetting,
-    BoundaryConditionSettings,
     EEdge,
     VirtualFieldsMesh,
 )
+
 
 @dataclass(slots=True)
 class SensitivityBasedVirtualFields:
@@ -33,7 +33,6 @@ class SensitivityBasedVirtualFields:
 # - virtual displacements (TODO: matlab comment says maybe not needed since we have the virtual displacements above)
 # Assumptions:
 
-# TODO: return type
 # TODO: vectorise
 # TODO: matlab calls this function for each degree of freedom, but we could compute all dofs in this func
 # TODO: support non linear geometries
@@ -41,10 +40,17 @@ class SensitivityBasedVirtualFields:
 # TODO: add virtual displacement at all data points to output (for dynamics)?
 # TODO: pre allocate memory for anything in the main loop that needs it
 # TODO: should we consider creating an enum for components to use in indexing?
+# TODO: need option to use total or incremental stress sensitivity
 def generate_sensitivity_based_virtual_fields(
-    stress_sensitivity: npt.NDArray[np.float64], # (timestep, component, y, x)
+    stress_sensitivities:  dict[
+        EParameterLabel,
+        list[dict[EDOFLabel, StressSensitivity]]
+    ],
     virtual_fields_mesh: VirtualFieldsMesh
-):
+) -> dict[
+    EParameterLabel,
+    list[dict[EDOFLabel, SensitivityBasedVirtualFields]]
+]:
     # For each timestep
     # - set virtual strains equal to stress sensitivity (refmap)
     # - matrix multiply virtual strains with Binv from the virtual fields mesh to get your virtual displacements
@@ -59,96 +65,113 @@ def generate_sensitivity_based_virtual_fields(
     # - if we need to output virtual displacements at all datapoints, use global shape function (Nglob)
     # - apply mean virtual displacement to loading edges
 
-    num_timesteps = stress_sensitivity.shape[0]
-    # x and y components
-    num_components = 2
-    num_edges = 4
+    all_sbvfs = {}
 
-    sensitivity_based_virtual_fields = SensitivityBasedVirtualFields(
-        np.empty_like(stress_sensitivity),
-        np.zeros((num_timesteps, num_components, num_edges))
-    )
+    for param_label, parameterisations in stress_sensitivities.items():
 
-    num_degrees_of_freedom = (
-        virtual_fields_mesh.x.shape[0] * virtual_fields_mesh.x.shape[1] * num_components
-    )
+        per_parameterisation_sbvfs = []
 
-    # TODO: need to understand the structure of b_inv to do the below
-    # In Matlab's virtual displacement the layout is (x_component, y_component)
-    # repeated times the size of the virtual mesh
-    # I think we can assume that indexing increases column wise in the matlab
-    #
-    # Shape (num_components, y, x)
-    # component 0 is x
-    # component 1 is y
-    virtual_displacement = np.zeros(
-        (num_components, virtual_fields_mesh.y.shape[0], virtual_fields_mesh.x.shape[1])
-    )
-    virtual_displacement_flattened = np.zeros(
-        num_components * virtual_fields_mesh.y.shape[0] * virtual_fields_mesh.x.shape[1]
-    )
+        for p in parameterisations:
 
-    for t in range(num_timesteps):
-        # TODO: will we need to flatten with order F when our SS data comes from python?
-        virtual_strain = np.concatenate([
-            stress_sensitivity[t, 0, :, :].flatten(order='F')[virtual_fields_mesh.indices],
-            stress_sensitivity[t, 1, :, :].flatten(order='F')[virtual_fields_mesh.indices],
-            stress_sensitivity[t, 2, :, :].flatten(order='F')[virtual_fields_mesh.indices]
-        ])
+            per_dof_sbvfs = {}
 
-        virtual_displacement_flattened[virtual_fields_mesh.act_dofs] = virtual_fields_mesh.b_inv.dot(virtual_strain)
+            for dof_label, stress_sensitivity in p.items():
 
-        virtual_displacement = unpack_virtual_displacement(virtual_displacement_flattened)
+                num_timesteps = stress_sensitivity.total.shape[0]
+                num_edges = 4
+                # x and y components
+                num_components = 2
 
-        virtual_displacement = apply_boundary_conditions(virtual_displacement)
+                sbvfs = SensitivityBasedVirtualFields(
+                    np.empty_like(stress_sensitivity),
+                    np.zeros((num_timesteps, num_components, num_edges))
+                )
 
-        virtual_displacement_flattened = flatten_virtual_displacement(virtual_displacement)
+                # TODO: need to understand the structure of b_inv to do the below
+                # In Matlab's virtual displacement the layout is (x_component, y_component)
+                # repeated times the size of the virtual mesh
+                # I think we can assume that indexing increases column wise in the matlab
+                #
+                # Shape (num_components, y, x)
+                # component 0 is x
+                # component 1 is y
+                virtual_displacement = np.zeros(
+                    (num_components, virtual_fields_mesh.y.shape[0], virtual_fields_mesh.x.shape[1])
+                )
+                virtual_displacement_flattened = np.zeros(
+                    num_components * virtual_fields_mesh.y.shape[0] * virtual_fields_mesh.x.shape[1]
+                )
 
-        virtual_strain = virtual_fields_mesh.b_glob.dot(virtual_displacement_flattened)
+                for t in range(num_timesteps):
+                    # TODO: will we need to flatten with order F when our SS data comes from python?
+                    virtual_strain = np.concatenate([
+                        stress_sensitivity.total[t, 0, :, :].flatten(order='F')[virtual_fields_mesh.indices],
+                        stress_sensitivity.total[t, 1, :, :].flatten(order='F')[virtual_fields_mesh.indices],
+                        stress_sensitivity.total[t, 2, :, :].flatten(order='F')[virtual_fields_mesh.indices]
+                    ])
 
-        virtual_strain_x = np.full((stress_sensitivity.shape[2] * stress_sensitivity.shape[3]), np.nan)
-        virtual_strain_y = np.full_like(virtual_strain_x, np.nan)
-        virtual_strain_z = np.full_like(virtual_strain_x, np.nan)
+                    virtual_displacement_flattened[virtual_fields_mesh.act_dofs] = virtual_fields_mesh.b_inv.dot(virtual_strain)
 
-        virtual_strain_x[virtual_fields_mesh.indices] = virtual_strain[0:virtual_fields_mesh.indices.size]
-        virtual_strain_x = virtual_strain_x.reshape(
-            (stress_sensitivity.shape[2], stress_sensitivity.shape[3]), order="F"
-        )
+                    virtual_displacement = unpack_virtual_displacement(virtual_displacement_flattened)
 
-        virtual_strain_y[virtual_fields_mesh.indices] = virtual_strain[virtual_fields_mesh.indices.size:2 * virtual_fields_mesh.indices.size]
-        virtual_strain_y = virtual_strain_y.reshape(
-            (stress_sensitivity.shape[2], stress_sensitivity.shape[3]), order="F"
-        )
+                    virtual_displacement = apply_boundary_conditions(virtual_displacement)
 
-        virtual_strain_z[virtual_fields_mesh.indices] = virtual_strain[2 * virtual_fields_mesh.indices.size:3 * virtual_fields_mesh.indices.size]
-        virtual_strain_z = virtual_strain_z.reshape(
-            (stress_sensitivity.shape[2], stress_sensitivity.shape[3]), order="F"
-        )
+                    virtual_displacement_flattened = flatten_virtual_displacement(virtual_displacement)
+
+                    virtual_strain = virtual_fields_mesh.b_glob.dot(virtual_displacement_flattened)
+
+                    virtual_strain_x = np.full((stress_sensitivity.total.shape[2] * stress_sensitivity.total.shape[3]), np.nan)
+                    virtual_strain_y = np.full_like(virtual_strain_x, np.nan)
+                    virtual_strain_z = np.full_like(virtual_strain_x, np.nan)
+
+                    virtual_strain_x[virtual_fields_mesh.indices] = virtual_strain[0:virtual_fields_mesh.indices.size]
+                    virtual_strain_x = virtual_strain_x.reshape(
+                        (stress_sensitivity.total.shape[2], stress_sensitivity.total.shape[3]), order="F"
+                    )
+
+                    virtual_strain_y[virtual_fields_mesh.indices] = virtual_strain[virtual_fields_mesh.indices.size:2 * virtual_fields_mesh.indices.size]
+                    virtual_strain_y = virtual_strain_y.reshape(
+                        (stress_sensitivity.total.shape[2], stress_sensitivity.total.shape[3]), order="F"
+                    )
+
+                    virtual_strain_z[virtual_fields_mesh.indices] = virtual_strain[2 * virtual_fields_mesh.indices.size:3 * virtual_fields_mesh.indices.size]
+                    virtual_strain_z = virtual_strain_z.reshape(
+                        (stress_sensitivity.total.shape[2], stress_sensitivity.total.shape[3]), order="F"
+                    )
         
-        sensitivity_based_virtual_fields.virtual_strain[t, 0, :, :] = virtual_strain_x
-        sensitivity_based_virtual_fields.virtual_strain[t, 1, :, :] = virtual_strain_y
-        sensitivity_based_virtual_fields.virtual_strain[t, 2, :, :] = virtual_strain_z
+                    sbvfs.virtual_strain[t, 0, :, :] = virtual_strain_x
+                    sbvfs.virtual_strain[t, 1, :, :] = virtual_strain_y
+                    sbvfs.virtual_strain[t, 2, :, :] = virtual_strain_z
 
-        # TODO: use Edge enum to index into this array for edges
-        sensitivity_based_virtual_fields.virtual_displacement[t, 0, EEdge.Top.value] = virtual_displacement[0, 0, :].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 0, EEdge.Bottom.value] = virtual_displacement[0, -1, :].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 0, EEdge.Left.value] = virtual_displacement[0, :, 0].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 0, EEdge.Right.value] = virtual_displacement[0, :, -1].mean()
+                    # TODO: use Edge enum to index into this array for edges
+                    sbvfs.virtual_displacement[t, 0, EEdge.Top.value] = virtual_displacement[0, 0, :].mean()
+                    sbvfs.virtual_displacement[t, 0, EEdge.Bottom.value] = virtual_displacement[0, -1, :].mean()
+                    sbvfs.virtual_displacement[t, 0, EEdge.Left.value] = virtual_displacement[0, :, 0].mean()
+                    sbvfs.virtual_displacement[t, 0, EEdge.Right.value] = virtual_displacement[0, :, -1].mean()
 
-        sensitivity_based_virtual_fields.virtual_displacement[t, 1, EEdge.Top.value] = virtual_displacement[1, 0, :].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 1, EEdge.Bottom.value] = virtual_displacement[1, -1, :].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 1, EEdge.Left.value] = virtual_displacement[1, :, 0].mean()
-        sensitivity_based_virtual_fields.virtual_displacement[t, 1, EEdge.Right.value] = virtual_displacement[1, :, -1].mean()
+                    sbvfs.virtual_displacement[t, 1, EEdge.Top.value] = virtual_displacement[1, 0, :].mean()
+                    sbvfs.virtual_displacement[t, 1, EEdge.Bottom.value] = virtual_displacement[1, -1, :].mean()
+                    sbvfs.virtual_displacement[t, 1, EEdge.Left.value] = virtual_displacement[1, :, 0].mean()
+                    sbvfs.virtual_displacement[t, 1, EEdge.Right.value] = virtual_displacement[1, :, -1].mean()
 
-        # End of loop var resets
-        virtual_displacement.fill(0)
-        virtual_displacement_flattened.fill(0)
+                    # End of loop var resets
+                    virtual_displacement.fill(0)
+                    virtual_displacement_flattened.fill(0)
 
-    return sensitivity_based_virtual_fields
+                per_dof_sbvfs[dof_label] = sbvfs
+
+            per_parameterisation_sbvfs.append(per_dof_sbvfs)
+
+        all_sbvfs[param_label] = per_parameterisation_sbvfs
+
+    return all_sbvfs
 
 
 # TODO: verify the validity of this with Rob
-def unpack_virtual_displacement(flattened_virtual_displacement):
+def unpack_virtual_displacement(
+    virtual_fields_mesh: VirtualFieldsMesh,
+    flattened_virtual_displacement: npt.NDArray[np.float64]
+):
     # TODO: remove the order F when we are getting python data
     # Convert to the form (degrees_of_freedom, y, x)
     # TODO: in the current form the x dof is 0 and y is 1,
@@ -173,7 +196,7 @@ def unpack_virtual_displacement(flattened_virtual_displacement):
     return virtual_displacement
 
 
-def flatten_virtual_displacement(virtual_displacement):
+def flatten_virtual_displacement(virtual_displacement: npt.NDArray[np.float64]):
     virtual_displacement_x = virtual_displacement[0]
     virtual_displacement_y = virtual_displacement[1]
 
@@ -181,7 +204,9 @@ def flatten_virtual_displacement(virtual_displacement):
     flattened_x = virtual_displacement_x.ravel(order="F")
     flattened_y = virtual_displacement_y.ravel(order="F")
 
-    flattened_virtual_displacement = np.empty(flattened_x.size * 2, dtype=flattened_x.dtype)
+    flattened_virtual_displacement = np.empty(
+        flattened_x.size * 2, dtype=flattened_x.dtype
+    )
 
     flattened_virtual_displacement[0::2] = flattened_x
     flattened_virtual_displacement[1::2] = flattened_y
@@ -205,7 +230,10 @@ def flatten_virtual_displacement(virtual_displacement):
 #     - set the virtual displacement to 0 (clamped edge?)
 #     - set the virtual displacement for  all edge nodes
 #       to the same value (master dof in the matlab)
-def apply_boundary_conditions(virtual_displacements):
+def apply_boundary_conditions(
+    virtual_fields_mesh: VirtualFieldsMesh,
+    virtual_displacements: npt.NDArray[np.float64]
+):
     for e in EEdge:
         match e:
             case EEdge.Top:
@@ -246,66 +274,66 @@ def apply_boundary_conditions(virtual_displacements):
 
     return virtual_displacements
 
-data = loadmat(
-    "/Users/chris/work/vfmap-numerical-paper/test_data/sensitivity_virtual_fields_input.mat",
-    struct_as_record=False,
-    squeeze_me=True,
-    simplify_cells=True
-)
+# data = loadmat(
+#     "/Users/chris/work/vfmap-numerical-paper/test_data/sensitivity_virtual_fields_input.mat",
+#     struct_as_record=False,
+#     squeeze_me=True,
+#     simplify_cells=True
+# )
 
-# TODO: will this contains nans? matblab replaces nans with zeros
-stress_sensitivity = data["refmap"]
-stress_sensitivity = np.transpose(stress_sensitivity, (3, 2, 0, 1))
-mesh_data = data["meshData"]
+# # TODO: will this contains nans? matblab replaces nans with zeros
+# stress_sensitivity = data["refmap"]
+# stress_sensitivity = np.transpose(stress_sensitivity, (3, 2, 0, 1))
+# mesh_data = data["meshData"]
 
-x = mesh_data["vXcoords"]
-y = mesh_data["vYcoords"]
-b_glob = mesh_data["Bglob"].toarray()
-b_inv = mesh_data["Binv"].toarray()
-# -1 on each element as matlab indexing starts at 1
-active_degrees_of_freedom = mesh_data["actDofs"] - 1
-# -1 on each element as matlab indexing starts at 1
-virtual_element_connectivity = mesh_data["virtConnectivity"] - 1
-# TODO: Transposing so indices increase in a row major ordering, which is
-# idiomatic for numpy
-# virtual_elements = mesh_data["vCoordsGrid"].T - 1
-# elements need to be 0 indexed
-virtual_elements = mesh_data["vCoordsGrid"] - 1
-boundary_condition_settings = mesh_data["BC_settings"]
-boundary_condition_settings = BoundaryConditionSettings(
-    {
-        EEdge.Top: EBoundaryConditionSetting.Free,
-        EEdge.Bottom: EBoundaryConditionSetting.Fixed,
-        EEdge.Left: EBoundaryConditionSetting.Free,
-        EEdge.Right: EBoundaryConditionSetting.Constant,
-    },
-    {
-        EEdge.Top: EBoundaryConditionSetting.Free,
-        EEdge.Bottom: EBoundaryConditionSetting.Fixed,
-        EEdge.Left: EBoundaryConditionSetting.Free,
-        EEdge.Right: EBoundaryConditionSetting.Fixed,
-    }
-)
+# x = mesh_data["vXcoords"]
+# y = mesh_data["vYcoords"]
+# b_glob = mesh_data["Bglob"].toarray()
+# b_inv = mesh_data["Binv"].toarray()
+# # -1 on each element as matlab indexing starts at 1
+# active_degrees_of_freedom = mesh_data["actDofs"] - 1
+# # -1 on each element as matlab indexing starts at 1
+# virtual_element_connectivity = mesh_data["virtConnectivity"] - 1
+# # TODO: Transposing so indices increase in a row major ordering, which is
+# # idiomatic for numpy
+# # virtual_elements = mesh_data["vCoordsGrid"].T - 1
+# # elements need to be 0 indexed
+# virtual_elements = mesh_data["vCoordsGrid"] - 1
+# boundary_condition_settings = mesh_data["BC_settings"]
+# boundary_condition_settings = BoundaryConditionSettings(
+#     {
+#         EEdge.Top: EBoundaryConditionSetting.Free,
+#         EEdge.Bottom: EBoundaryConditionSetting.Fixed,
+#         EEdge.Left: EBoundaryConditionSetting.Free,
+#         EEdge.Right: EBoundaryConditionSetting.Constant,
+#     },
+#     {
+#         EEdge.Top: EBoundaryConditionSetting.Free,
+#         EEdge.Bottom: EBoundaryConditionSetting.Fixed,
+#         EEdge.Left: EBoundaryConditionSetting.Free,
+#         EEdge.Right: EBoundaryConditionSetting.Fixed,
+#     }
+# )
 
-# -1 on each element as matlab indexing starts at 1
-indices = mesh_data["indexlist"] - 1
-n_glob = mesh_data["NGlob"].toarray()
-virtual_element_point_mapping = mesh_data["ptElemAss"]
-free_degrees_of_freedom = mesh_data["freeDof"]
+# # -1 on each element as matlab indexing starts at 1
+# indices = mesh_data["indexlist"] - 1
+# n_glob = mesh_data["NGlob"].toarray()
+# virtual_element_point_mapping = mesh_data["ptElemAss"]
+# free_degrees_of_freedom = mesh_data["freeDof"]
 
-virtual_fields_mesh = VirtualFieldsMesh(
-    x,
-    y,
-    b_glob,
-    b_inv,
-    active_degrees_of_freedom,
-    virtual_element_connectivity,
-    virtual_elements,
-    boundary_condition_settings,
-    indices,
-    n_glob,
-    virtual_element_point_mapping,
-    free_degrees_of_freedom
-)
+# virtual_fields_mesh = VirtualFieldsMesh(
+#     x,
+#     y,
+#     b_glob,
+#     b_inv,
+#     active_degrees_of_freedom,
+#     virtual_element_connectivity,
+#     virtual_elements,
+#     boundary_condition_settings,
+#     indices,
+#     n_glob,
+#     virtual_element_point_mapping,
+#     free_degrees_of_freedom
+# )
 
-generate_sensitivity_based_virtual_fields(stress_sensitivity, virtual_fields_mesh)
+# generate_sensitivity_based_virtual_fields(stress_sensitivity, virtual_fields_mesh)
