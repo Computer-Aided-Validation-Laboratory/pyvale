@@ -33,7 +33,7 @@ Optimizer::Optimizer(const std::string& shape_func,
                         int num_px)
 
     : num_params(get_num_params(shape_func)),
-        lambda(0.001),
+        lambda(0.01),
         costp(0.0),
         costpdp(0.0),
         g(num_params, 0.0),
@@ -104,7 +104,7 @@ OptResult Optimizer::solve(const double cx,
     int iter = 0;
     double ftol = 0;
     double xtol = 0;
-    lambda = 0.001;
+    lambda = 0.01;
     uint8_t converged = false;
     const double eps = 1e-10;
 
@@ -624,11 +624,10 @@ void Optimizer::copy_params_from_fft(const int idx,
 }
 
 void Optimizer::copy_params_from_neigh(const std::vector<double> &results_p,
-                            const int idx_results_p) {
-
+                            const int idx) {
+    const int idx_p = idx*num_params;
     for (int i = 0; i < p.size(); i++)
-        p[i] = results_p[idx_results_p+i];
-
+        p[i] = results_p[idx_p+i];
 }
 
 // Reset parameters to zero

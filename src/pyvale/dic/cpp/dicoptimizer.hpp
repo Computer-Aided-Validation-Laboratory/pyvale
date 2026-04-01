@@ -66,7 +66,7 @@ class Optimizer {
                                   const std::vector<double> &shift_y);
 
         void copy_params_from_neigh(const std::vector<double> &results_p,
-                                    const int idx_results_p);
+                                    const int idx);
 
         void reset_params();
 
