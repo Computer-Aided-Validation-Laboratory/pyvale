@@ -14,15 +14,9 @@ from pyvale.vfm.radial_return import radial_return
 
 
 @dataclass(slots=True)
-class StressSensitivities:
-    total: dict[
-        EParameterLabel,
-        list[dict[EDOFLabel, npt.NDArray[np.float64]]]
-    ]
-    incremental: dict[
-        EParameterLabel,
-        list[dict[EDOFLabel, npt.NDArray[np.float64]]]
-    ]
+class StressSensitivity:
+    total: npt.NDArray[np.float64]
+    incremental: npt.NDArray[np.float64]
 
 
 # TODO: do we need normalisation here?
@@ -32,7 +26,10 @@ def calculate_stress_sensitivity(
     mechanical_properties: MechanicalProperties,
     timestep_deltas: npt.NDArray[np.float64],
     perturbation_factor: float = 0.15
-) -> StressSensitivities:
+) ->  dict[
+    EParameterLabel,
+    list[dict[EDOFLabel, StressSensitivity]]
+]:
     unknown_params = mechanical_properties.get_unknown_parameters()
 
     dofs = {
@@ -40,18 +37,15 @@ def calculate_stress_sensitivity(
         for label, param in unknown_params.items()
     }
 
-    total_stress_sensitivities = {}
-    incremental_stress_sensitivities = {}
+    stress_sensitivities = {}
 
     for param_label, parameterisations in dofs.items():
 
-        per_parameterisation_tss = []
-        per_parameterisation_iss = []
+        per_parameterisation_ss = []
 
         for i, p in enumerate(parameterisations):
 
-            per_dof_tss = {}
-            per_dof_iss = {}
+            per_dof_ss = {}
 
             for dof_label, dof in p.items():
                 perturbed_dof = dof.value * (1 - perturbation_factor)
@@ -69,8 +63,9 @@ def calculate_stress_sensitivity(
                             f"Unexpected type: {type(other).__name__}"
                         )
 
-                # TODO: use updated radial reuturn func once it's pulled in
-                perturbed_stress = radial_return(strain, perturbed_props)
+                (perturbed_stress, _, _, _) = radial_return(
+                    strain, perturbed_props
+                )
 
                 total_stress_sensitivity  = stress_reference - perturbed_stress
 
@@ -88,16 +83,12 @@ def calculate_stress_sensitivity(
                     incremental_stress_sensitivity / time_normalisation_mask
                 )
 
-                per_dof_tss[dof_label] = total_stress_sensitivity
-                per_dof_iss[dof_label] = incremental_stress_sensitivity
+                per_dof_ss[dof_label] = StressSensitivity(
+                    total_stress_sensitivity, incremental_stress_sensitivity
+                )
 
-            per_parameterisation_tss.append(per_dof_tss)
-            per_parameterisation_iss.append(per_dof_iss)
+            per_parameterisation_ss.append(per_dof_ss)
 
-        total_stress_sensitivities[param_label] = per_parameterisation_tss
-        incremental_stress_sensitivities[param_label] = per_parameterisation_iss
+        stress_sensitivities[param_label] = per_parameterisation_ss
 
-    return StressSensitivities(
-        total_stress_sensitivities,
-        incremental_stress_sensitivities
-    )
+    return stress_sensitivities

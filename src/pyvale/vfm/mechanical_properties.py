@@ -336,11 +336,11 @@ def check_validity(mechanical_properties: MechanicalProperties) -> bool:
 
         case EConstituitiveLaw.SwiftHardening:
             required_parameters = {
-                EParameterName.ElasticModulus,
-                EParameterName.PoissonsRatio,
-                EParameterName.StrengthCoefficient,
-                EParameterName.StrainOffset,
-                EParameterName.HardeningExponent,
+                EParameterLabel.ElasticModulus,
+                EParameterLabel.PoissonsRatio,
+                EParameterLabel.StrengthCoefficient,
+                EParameterLabel.StrainOffset,
+                EParameterLabel.HardeningExponent,
             }
 
             if not required_parameters.issubset(
@@ -350,12 +350,12 @@ def check_validity(mechanical_properties: MechanicalProperties) -> bool:
 
         case EConstituitiveLaw.VoceHardening:
             required_parameters = {
-                EParameterName.ElasticModulus,
-                EParameterName.PoissonsRatio,
-                EParameterName.YieldStrength,
-                EParameterName.HardeningModulus,
-                EParameterName.SaturationStress,
-                EParameterName.RateParameter,
+                EParameterLabel.ElasticModulus,
+                EParameterLabel.PoissonsRatio,
+                EParameterLabel.YieldStrength,
+                EParameterLabel.HardeningModulus,
+                EParameterLabel.SaturationStress,
+                EParameterLabel.RateParameter,
             }
 
             if not required_parameters.issubset(
@@ -365,11 +365,11 @@ def check_validity(mechanical_properties: MechanicalProperties) -> bool:
 
         case EConstituitiveLaw.LudwikHardening:
             required_parameters = {
-                EParameterName.ElasticModulus,
-                EParameterName.PoissonsRatio,
-                EParameterName.YieldStrength,
-                EParameterName.StrengthCoefficient,
-                EParameterName.HardeningExponent,
+                EParameterLabel.ElasticModulus,
+                EParameterLabel.PoissonsRatio,
+                EParameterLabel.YieldStrength,
+                EParameterLabel.StrengthCoefficient,
+                EParameterLabel.HardeningExponent,
             }
 
             if not required_parameters.issubset(
@@ -378,29 +378,3 @@ def check_validity(mechanical_properties: MechanicalProperties) -> bool:
                 is_valid = False
 
     return is_valid
-
-
-# TODO: support the other kinds of Parameter
-def parameter_to_scalar(param: Parameter) -> int | float:
-    match param:
-        case HomogeneousParameter(_, _, ScalarValue(value)):
-            return value
-        case HomogeneousParameter(_, _, MapValue(value)):
-            return value[0, 0]
-
-    raise TypeError("Unsupported parameter")
-
-
-# TODO: support the other kinds of Parameter
-def parameter_to_map(
-    param: Parameter,
-    size_x: int,
-    size_y: int
-) -> npt.NDArray[np.int64] | npt.NDArray[np.float64]:
-    match param:
-        case HomogeneousParameter(_, _, ScalarValue(value)):
-            return np.full((size_y, size_x), value)
-        case HomogeneousParameter(_, _, MapValue(value)):
-            return value
-
-    raise TypeError("Unsupported parameter")
