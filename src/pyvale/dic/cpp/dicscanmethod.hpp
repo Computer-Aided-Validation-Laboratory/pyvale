@@ -9,6 +9,7 @@
 
 
 // STD library Header files
+#include <optional>
 
 // Program Header files
 #include "./dicutil.hpp"
@@ -88,7 +89,10 @@ void singlewindow_incremental_reliability_guided(const double *img_ref,
                                                const util::Config &conf,
                                                const int img_num_ref,
                                                const int img_num_def,
-                                               ResultArrays &result_arrays);
+                                               const ResultArrays &results_ref,
+                                               ResultArrays &results_def,
+                                               const std::string &mode="temporal",
+                                               const std::optional<Eigen::Matrix3d> &F=std::nullopt);
 
 
 
