@@ -131,12 +131,21 @@ OptResult Optimizer::solve(const double cx,
         // variation on correlation coefficient
         ftol = std::abs(costpdp - costp) / (std::abs(costp) + eps);
 
+        bool numerically_converged = (xtol < precision) && (ftol < precision);
+        bool good_enough = 1.0-0.5*costp > threshold;
 
         // Check converged
-        if ((xtol < precision) && (ftol < precision) && (1.0-0.5*costp > check_on_thresh*threshold)) {
-            //debug_print(ss_x, ss_y, iter, costp, ftol, xtol, p);
-            converged=true;
-            break;
+        if (numerically_converged) {
+
+            if (criteria == "SSD") {
+                converged = true;
+                break;
+            }
+
+            if (!check_on_thresh || good_enough) {
+                converged = true;
+                break;
+            }
         }
         iter++;
     }
@@ -591,7 +600,8 @@ void Optimizer::update_shapefunc_parameters(std::vector<double> &pdp, std::vecto
 
 
 void Optimizer::set_cost_function(const std::string& corr_crit) {
-    if (corr_crit == "SSD") optimize_cost = &Optimizer::ssd;
+    if (corr_crit == "SSD") 
+        optimize_cost = &Optimizer::ssd;
     else if (corr_crit == "NSSD") optimize_cost = &Optimizer::nssd;
     else if (corr_crit == "ZNSSD") optimize_cost = &Optimizer::znssd;
     else {
@@ -599,6 +609,7 @@ void Optimizer::set_cost_function(const std::string& corr_crit) {
         std::cerr << "Allowed Values: 'SSD', 'NSSD', 'ZNSSD'." << std::endl;
         exit(EXIT_FAILURE);
     }
+    criteria = corr_crit;
 }
 
 

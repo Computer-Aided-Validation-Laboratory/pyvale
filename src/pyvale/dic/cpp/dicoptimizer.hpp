@@ -71,6 +71,8 @@ class Optimizer {
         void reset_params();
 
     private:
+
+        std::string criteria;
         double costp;
         double costpdp;
         std::vector<double> g;          // Gradient
