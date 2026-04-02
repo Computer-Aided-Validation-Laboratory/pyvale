@@ -263,14 +263,14 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                 if (level>0)
                     get_displacement_from_prev_window(prev_u, prev_v, prev, ss, cx, cy);
 
-                double cx_shft = cx+prev_u;
-                double cy_shft = cy+prev_v;
+                double corner_x_shft = corner_x+prev_u;
+                double corner_y_shft = corner_y+prev_v;
 
                 // populate fft.ss_ref with reference subset values
                 subset::fill_from_img(fft.ss_ref,corner_x, corner_y, px_hori, px_vert, img_ref);
 
                 // populate fft.ss_def with interpolator value
-                subset::fill_from_centre_coords(fft.ss_def, cx_shft, cy_shft, interp_def);
+                subset::fill_from_img_subpx(fft.ss_def, corner_x_shft, corner_y_shft, interp_def);
 
                 // zero normalise the subsets
                 fft.zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, ss_size_x, ss_size_y);
