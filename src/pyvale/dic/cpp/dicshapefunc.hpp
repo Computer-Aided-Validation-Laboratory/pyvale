@@ -65,6 +65,16 @@ struct Affine {
      */
     static void get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p);
 
+    /**
+    * @brief Composes two Affine transforms to produce a single equivalent transform.
+    *        If pA maps shape0->shape1 and pB maps shape1->shape2,
+    *        then pC maps shape0->shape2.
+    * @param[out] pC  Composed shape function parameters (6 elements)
+    * @param[in]  pA  Shape function parameters for shape0->shape1 (6 elements)
+    * @param[in]  pB  Shape function parameters for shape1->shape2 (6 elements)
+    */
+    static void compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB);
+
     static constexpr int num_params = 6; /**< Number of shape function parameters */
 };
 
@@ -115,6 +125,18 @@ struct Quad {
      */
     static void get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p);
 
+    /**
+    * @brief Composes two Quadratic transforms to produce a single equivalent transform.
+    *        If pA maps shape0->shape1 and pB maps shape1->shape2,
+    *        then pC maps shape0->shape2.
+    *        Note: composing two quadratic maps produces terms beyond second order;
+    *        these are truncated so the result remains a valid Quad parameter set.
+    * @param[out] pC  Composed shape function parameters (12 elements)
+    * @param[in]  pA  Shape function parameters for shape0->shape1 (12 elements)
+    * @param[in]  pB  Shape function parameters for shape1->shape2 (12 elements)
+    */
+    static void compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB);
+
     static constexpr int num_params = 12; /**< Number of shape function parameters */
 };
 
@@ -160,6 +182,16 @@ struct Rigid {
      * @param[in]  p  Shape function parameters [u, v]
      */
     static void get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p);
+
+    /**
+    * @brief Composes two Rigid transforms to produce a single equivalent transform.
+    *        If pA maps shape0->shape1 and pB maps shape1->shape2,
+    *        then pC maps shape0->shape2.
+    * @param[out] pC  Composed shape function parameters (2 elements)
+    * @param[in]  pA  Shape function parameters for shape0->shape1 (2 elements)
+    * @param[in]  pB  Shape function parameters for shape1->shape2 (2 elements)
+    */
+    static void compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB);
 
     static constexpr int num_params = 2; /**< Number of shape function parameters */
 };

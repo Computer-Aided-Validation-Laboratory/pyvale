@@ -77,3 +77,32 @@
         dfdp[10] = dfdy * x*y;
         dfdp[11] = dfdy * y*y;
     }
+
+    void Rigid::compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB){
+        pC[0] = pA[0] + pB[0];
+        pC[1] = pA[1] + pB[1];
+    }
+
+    void Affine::compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB){
+        pC[0] = pB[0] + (1.0+pB[2])*pA[0] + pB[3]*pA[1];
+        pC[1] = pB[1] + (1.0+pB[5])*pA[1] + pB[4]*pA[0];
+        pC[2] = (1.0+pB[2])*(1.0+pA[2]) + pB[3]*pA[4]  - 1.0;
+        pC[3] = (1.0+pB[2])*pA[3]       + pB[3]*(1.0+pA[5]);
+        pC[4] = (1.0+pB[5])*pA[4]       + pB[4]*(1.0+pA[2]);
+        pC[5] = (1.0+pB[5])*(1.0+pA[5]) + pB[4]*pA[3]  - 1.0;
+    }
+
+    void Quad::compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB){
+        pC[0] = pB[0] + (1.0+pB[2])*pA[0] + pB[3]*pA[1];
+        pC[1] = pB[1] + (1.0+pB[5])*pA[1] + pB[4]*pA[0];
+        pC[2] = (1.0+pB[2])*(1.0+pA[2]) + pB[3]*pA[4]  - 1.0;
+        pC[3] = (1.0+pB[2])*pA[3]       + pB[3]*(1.0+pA[5]);
+        pC[4] = (1.0+pB[5])*pA[4]       + pB[4]*(1.0+pA[2]);
+        pC[5] = (1.0+pB[5])*(1.0+pA[5]) + pB[4]*pA[3]  - 1.0;
+        pC[6]  = (1.0+pB[2])*pA[6]  + pB[3]*pA[9]  + pB[6]*(1.0+pA[2])*(1.0+pA[2]) + pB[7]*(1.0+pA[2])*pA[4]          + pB[9]*pA[4]*pA[4];
+        pC[7]  = (1.0+pB[2])*pA[7]  + pB[3]*pA[10] + pB[6]*2.0*(1.0+pA[2])*pA[3]   + pB[7]*((1.0+pA[2])*(1.0+pA[5]) + pA[3]*pA[4]) + pB[9]*2.0*pA[4]*(1.0+pA[5]);
+        pC[8]  = (1.0+pB[2])*pA[8]  + pB[3]*pA[11] + pB[6]*pA[3]*pA[3]             + pB[7]*pA[3]*(1.0+pA[5])           + pB[9]*(1.0+pA[5])*(1.0+pA[5]);
+        pC[9]  = pB[4]*pA[6]  + (1.0+pB[5])*pA[9]  + pB[9]*(1.0+pA[2])*(1.0+pA[2]) + pB[10]*(1.0+pA[2])*pA[4]         + pB[11]*pA[4]*pA[4];
+        pC[10] = pB[4]*pA[7]  + (1.0+pB[5])*pA[10] + pB[9]*2.0*(1.0+pA[2])*pA[3]   + pB[10]*((1.0+pA[2])*(1.0+pA[5]) + pA[3]*pA[4]) + pB[11]*2.0*pA[4]*(1.0+pA[5]);
+        pC[11] = pB[4]*pA[8]  + (1.0+pB[5])*pA[11] + pB[9]*pA[3]*pA[3]             + pB[10]*pA[3]*(1.0+pA[5])          + pB[11]*(1.0+pA[5])*(1.0+pA[5]);
+    }
