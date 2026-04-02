@@ -116,8 +116,10 @@ namespace subset {
             exit(EXIT_FAILURE);
         }
 
-        const double half_x = ss.size_x / 2.0;
-        const double half_y = ss.size_y / 2.0;
+
+        // NOTE: Assuming an odd number subset size
+        const double half_x = (ss.size_x - 1) / 2.0;
+        const double half_y = (ss.size_y - 1) / 2.0;
 
         int count = 0;
         for (int y = 0; y < ss.size_y; y++){
@@ -133,18 +135,21 @@ namespace subset {
     }
 
     void fill_from_centre_coords(subset::Pixels &ss_def,
-                                 const double cx, const double cy,
-                                 const Interpolator &interp_def) {
+                             const double cx, const double cy,
+                             const Interpolator &interp_def) {
 
-        const double half_x = ss_def.size_x / 2.0;
-        const double half_y = ss_def.size_y / 2.0;
+        // NOTE: Assuming an odd number subset size
+        const double half_x = (ss_def.size_x - 1) / 2.0;
+        const double half_y = (ss_def.size_y - 1) / 2.0;
 
         int count = 0;
         for (int y = 0; y < ss_def.size_y; y++) {
             for (int x = 0; x < ss_def.size_x; x++) {
                 ss_def.x[count] = cx + x - half_x;
                 ss_def.y[count] = cy + y - half_y;
-                ss_def.vals[count] = interp_def.eval(cx, cy, ss_def.x[count], ss_def.y[count]);
+                ss_def.vals[count] = interp_def.eval(cx, cy,
+                                                    ss_def.x[count],
+                                                    ss_def.y[count]);
                 count++;
             }
         }
