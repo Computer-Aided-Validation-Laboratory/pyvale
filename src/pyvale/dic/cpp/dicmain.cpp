@@ -6,15 +6,13 @@
 
 
 // STD library Header files
-#include <atomic>
 #include <iomanip>
 #include <iostream>
 #include <cstring>
-#include <mutex>
-#include <omp.h>
 #include <vector>
 #include <signal.h>
 #include <memory>
+#include <algorithm>
 
 // pybind header files
 #include <pybind11/pybind11.h>
@@ -92,12 +90,29 @@ void engine(const py::array_t<double>& img_stack_arr,
     // get a list of ss coordinates within RIO;
     // ------------------------------------------------------------------------
     std::vector<WindowLevel> multiwindow_l;
-    multiwindow_init(multiwindow_l, img_roi, conf);
-    const subset::Grid &ss_grid_l = multiwindow_l.back().layout;
+    subset::Grid ss_grid_l;   // actual object, not reference
 
+    if (conf.scan_method == "MULTIWINDOW_RG" || conf.scan_method == "MULTIWINDOW") {
+
+        multiwindow_init(multiwindow_l, img_roi, conf);
+        ss_grid_l = multiwindow_l.back().layout;
+
+    }
+    else if (conf.scan_method == "SINGLEWINDOW_RG" ||
+             conf.scan_method == "SINGLEWINDOW_RG_INCREMENTAL" ||
+             conf.scan_method == "IMAGE_SCAN") {
+
+        ss_grid_l = subset::create_grid(img_roi, conf.ss_step,
+                                        conf.ss_size, conf.ss_size,
+                                        conf.px_hori, conf.px_vert, false);
+    }
+    else {
+        std::cout << "ERROR " << std::endl;
+        exit(0);
+    }
 
     // resize the results based on subset information
-    ResultArrays result_arrays_l(conf.num_def_img, ss_grid_l.num, conf.num_params, saveconf.at_end, false);
+    ResultArrays result_arrays_l(ss_grid_l.num, conf.num_params, false);
 
     // -----------------------------------------------------------------------
     // loop over deformed images and perform DIC
@@ -130,25 +145,12 @@ void engine(const py::array_t<double>& img_stack_arr,
     common_util::SaveConfig saveconf_stereo;
 
     // split out filenames into two vectors
-    std::vector<std::string> filenames_l;
-    std::vector<std::string> filenames_r;
-
-    if (conf.stereo){
-        for (int i = 0; i < conf.filenames.size()/2; i++){
-            filenames_l.push_back(conf.filenames[i]);
-            filenames_r.push_back(conf.filenames[conf.num_def_img+1+i]);
-        }
-    }
-    else {
-        filenames_l = conf.filenames;
-    }
-
+    auto [filenames_l, filenames_r] = stereo::split_filenames(conf);
 
     // main bulk of initialisation for stereo matching
-    int match_strat=1;
+    int match_strat=3;
 
     if (conf.stereo){
-
 
         // image series goes l0,r0,l1,r1,l2,r2
         img_ref_r = img_stack + (conf.num_def_img+1)*num_px_in_image; // r0 image
@@ -158,62 +160,46 @@ void engine(const py::array_t<double>& img_stack_arr,
         interp_ref_r = make_interp(conf.interp_routine, img_ref_r, conf.px_hori, conf.px_vert);
 
         // resize the results based on subset information
-        stereo_matches = ResultArrays(1, ss_grid_l.num, 6, false, false);
+        result_arrays_r = ResultArrays(ss_grid_l.num, conf.num_params, true);
+
 
         stereo_geom = stereo::compute_stereo_geometry(calib);
 
-        // perform matching
-        stereo::matching(img_ref_l, img_ref_r,
-                         *interp_ref_l, *interp_ref_r,
-                         ss_grid_l, conf,
-                         0, conf.num_def_img+1,
-                         stereo_geom.F, result_arrays_l, stereo_matches);
-
-
-        if (match_strat==1){
-
-            // updated ROI for the right image
-            bool *img_roi_r = stereo::compute_roi_r(ss_grid_l, stereo_matches,
-                                                    conf.px_hori, conf.px_vert,
-                                                    conf.ss_size, conf.ss_size);
-
-            // multiwindow setup for the right image;
-            multiwindow_init(multiwindow_r, img_roi_r, conf);
-        }
-        else {
-            multiwindow_r = multiwindow_l;
-        }
-
-
-        // subset information in the right image
-        ss_grid_r = &multiwindow_r.back().layout;
-
-        // loop over coords and add the displacement from the matches
-        // for (int ss = 0; ss < ss_grid_r->num; ss++){
-        //    ss_grid_r->coords[2*ss]   += stereo_matches.u[ss];
-        //    ss_grid_r->coords[2*ss+1] += stereo_matches.v[ss];
+        // if (match_strat==1){
+        //     stereo_matches = ResultArrays(ss_grid_l.num, conf.num_params, true);
+        //     // updated ROI for the right image
+        //     bool *img_roi_r = stereo::compute_roi_r(ss_grid_l, stereo_matches,
+        //                                         conf.px_hori, conf.px_vert,
+        //                                         conf.ss_size, conf.ss_size);
+        //
+        //     // multiwindow setup for the right image;
+        //     multiwindow_init(multiwindow_r, img_roi_r, conf);
+        //
+        //     multiwindow_r.back() = multiwindow_l.back();
+        //
+        //     // subset information in the right image
+        //     ss_grid_r = &multiwindow_r.back().layout;
+        //
+        //     for (int ss = 0; ss < ss_grid_r->num; ss++){
+        //     ss_grid_r->coords[2*ss]   += stereo_matches.u[ss];
+        //     ss_grid_r->coords[2*ss+1] += stereo_matches.v[ss];
+        //     }
+        //
+        //     // need to redo the neighlist
+        //     multiwindow_r.back().gen_neighlist(multiwindow_r[multiwindow_r.size()-2].layout);
+        //
+        //     // subset information in the right image
+        //     ss_grid_r = &multiwindow_r.back().layout;
+        //
+        //     stereo::remove_unmatched_subsets(ss_grid_l, *ss_grid_r, stereo_matches);
         // }
-
-        stereo::pixel_to_world(ss_grid_l, calib,
-                               stereo_matches, stereo_geom.K0,
-                               stereo_geom.K1, stereo_geom.R, conf.ss_size);
-
-        saveconf_stereo = saveconf;
-        saveconf_stereo.prefix = "stereo_matching_";
-
-        stereo_matches.write_to_disk(0,
-                                     saveconf_stereo,
-                                     ss_grid_l,
-                                     conf.num_def_img,
-                                     conf.filenames);
-
-        result_arrays_r = ResultArrays(conf.num_def_img,
-                                       ss_grid_r->num,
-                                       conf.num_params,
-                                       saveconf.at_end,
-                                       false);
-
     }
+
+
+
+
+    ResultArrays result_arrays_l_prev(ss_grid_l.num, conf.num_params, false);
+
 
     // loop over deformed images. They start at index 1 in the stack
     for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){
@@ -247,27 +233,24 @@ void engine(const py::array_t<double>& img_stack_arr,
         // multiwindow FFTCC + reliability Guided
         // -------------------------------------------------------------------------------------------------------------------------------------------
         else if (conf.scan_method=="MULTIWINDOW_RG"){
-            scanmethod::multiwindow_reliability_guided(img_ref_l, img_def_l,
-                                                       *interp_def_l,
-                                                       multiwindow_l,
-                                                       conf,
-                                                       0, img_num_l,
+            scanmethod::multiwindow_reliability_guided(img_ref_l, img_def_l, *interp_def_l,
+                                                       multiwindow_l, conf, 0, img_num_l,
                                                        result_arrays_l);
 
-            // matching strategy 1 (not working yet)
             if (conf.stereo) {
-                if (match_strat==1) scanmethod::multiwindow_reliability_guided_r(img_ref_r,
-                                                                                 img_def_r,
-                                                                                 *interp_ref_r,
-                                                                                 *interp_def_r,
-                                                                                 multiwindow_r,
-                                                                                 conf,
-                                                                                 conf.num_def_img+1,
-                                                                                 img_num_r,
-                                                                                 stereo_matches,
-                                                                                 result_arrays_r);
-                //else if (match_strat==3) stereo::matching_strategy3(img_def_l, img_def_r, *interp_def_l, *interp_def_r, ss_grids_l.back(), conf, 2*img_num, 2*img_num+1, stereo_geom.F, result_arrays_r, stereo_matches);
-                else {std::cerr << "UNKNOWN MATCH_STRAT!!" << std::endl; exit(0);}
+                if (match_strat==3) {
+                    stereo::matching(img_def_l, img_def_r, *interp_def_l, *interp_def_r,
+                                        ss_grid_l, conf, img_num_l, img_num_r,
+                                        stereo_geom.F, result_arrays_l, result_arrays_r);
+
+                    stereo::pixel_to_world(ss_grid_l, calib,
+                                           result_arrays_l, result_arrays_r,
+                                           stereo_geom.K0, stereo_geom.K1,
+                                           stereo_geom.R, conf.ss_size);
+                }
+                else {
+                    std::cerr << "UNKNOWN MATCH_STRAT!!" << std::endl; exit(0);
+                }
             }
         }
 
@@ -280,20 +263,17 @@ void engine(const py::array_t<double>& img_stack_arr,
                                                           conf.px_hori,
                                                           conf.px_vert);
 
-            scanmethod::singlewindow_incremental_reliability_guided(img_ref_l, 
-                                                                    img_def_l, 
-                                                                    *interp_ref_l, 
-                                                                    *interp_def_l, 
-                                                                    ss_grid_l, 
-                                                                    conf, 
-                                                                    0, img_num, 
+            scanmethod::singlewindow_incremental_reliability_guided(img_ref_l, img_def_l,
+                                                                    *interp_ref_l, *interp_def_l,
+                                                                    ss_grid_l, conf, 0, img_num,
+                                                                    result_arrays_l_prev,
                                                                     result_arrays_l);
         }
 
 
-        // -------------------------------------------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------
         // multi window FFTCC ONLY
-        // -------------------------------------------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------
         else if (conf.scan_method=="MULTIWINDOW")
             scanmethod::multiwindow_only(img_ref_l,
                                          img_def_l,
@@ -304,37 +284,51 @@ void engine(const py::array_t<double>& img_stack_arr,
                                          result_arrays_l);
 
 
-        // -------------------------------------------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------
         // singlewindow FFTCC + reliability Guided + Incremental Updating
-        // -------------------------------------------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------
         else if (conf.scan_method=="SINGLEWINDOW_RG_INCREMENTAL"){
-            double *img_prev = nullptr;
-            int img_num_prev = img_num-1;
-            img_prev = img_stack + img_num_prev*num_px_in_image;
-            interp_ref_l_inc = make_interp(conf.interp_routine, img_prev, 
-                                           conf.px_hori, conf.px_vert);
+
+
+            double *img_prev = img_stack + (img_num-1)*num_px_in_image;
+            interp_ref_l_inc = make_interp(conf.interp_routine, img_prev, conf.px_hori, conf.px_vert);
+            std::swap(result_arrays_l_prev, result_arrays_l);
 
             scanmethod::singlewindow_incremental_reliability_guided(img_prev, img_def_l, 
                                                                     *interp_ref_l_inc, 
                                                                     *interp_def_l, 
                                                                     ss_grid_l, conf, 
-                                                                    img_num_prev, img_num, 
+                                                                    img_num-1, img_num, 
+                                                                    result_arrays_l_prev,
                                                                     result_arrays_l);
+
+
+            // REFERENCE IMAGE UPDATING CONDITIONS
+            // double avg_iter = 0.0;
+            // for (int j = 0; j < result_arrays_l.niter.size(); j++){
+            //     avg_iter += result_arrays_l.niter[j];
+            // }
+            // avg_iter /= result_arrays_l.niter.size();
+            // std::cout << "avg_iter: " << avg_iter << std::endl;
         }
 
         if (!saveconf.at_end){
-            result_arrays_l.write_to_disk(img_num, saveconf, ss_grid_l, conf.num_def_img, filenames_l);
-            if (conf.stereo) result_arrays_r.write_to_disk(img_num, saveconf, *ss_grid_r, conf.num_def_img, filenames_r);
+            if (!conf.stereo){
+                write_to_disk_2d(result_arrays_l,saveconf, ss_grid_l, filenames_l[img_num]);
+            }
+            else {
+                write_to_disk_stereo(result_arrays_l,result_arrays_r, saveconf, ss_grid_l, filenames_l[img_num]);
+            }
         }
 
         if (stop_request) break;
     }
 
-    if (saveconf.at_end)
-        for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){
-            result_arrays_l.write_to_disk(img_num, saveconf, ss_grid_l, conf.num_def_img, filenames_l);
-            if (conf.stereo) result_arrays_r.write_to_disk(img_num, saveconf, *ss_grid_r, conf.num_def_img, filenames_r);
-        }
+    // if (saveconf.at_end)
+    //     for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){
+    //         result_arrays_l.write_to_disk(img_num, saveconf, ss_grid_l, conf.num_def_img, filenames_l);
+    //         if (conf.stereo) result_arrays_r.write_to_disk(img_num, saveconf, *ss_grid_r, conf.num_def_img, filenames_r);
+    //     }
 }
 
 
