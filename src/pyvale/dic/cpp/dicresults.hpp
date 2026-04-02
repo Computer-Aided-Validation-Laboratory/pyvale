@@ -22,11 +22,13 @@
 class ResultArrays {
 
     private:
-        int num_ss;
-        int num_params;
-        bool at_end;
+
 
     public:
+
+        int num_ss;
+        int num_params;
+
         // result arrays.
         std::vector<int> niter;
         std::vector<double> u; 
@@ -38,14 +40,39 @@ class ResultArrays {
         std::vector<uint8_t> conv;
         std::vector<uint8_t> above_thresh;
 
-        ResultArrays(int num_def_img, int num_ss, int num_params, bool conf_at_end);
-        void append(OptResult &res, int img_num, int ss);
-        int index(const int subset_idx, const int img_num);
-        int index_parameters(const int subset_idx, const int img_num);
-        void write_to_disk(int img, const common_util::SaveConfig &saveconf,
-                           const subset::Grid &ss_grid, const int num_def_img,
-                           const std::vector<std::string> &filenames);
+
+        // world coordinates
+        std::vector<double> x_world; 
+        std::vector<double> y_world;
+        std::vector<double> z_world;
+        std::vector<double> u_world; 
+        std::vector<double> v_world;
+        std::vector<double> w_world;
+
+        // constructors
+        ResultArrays() = default;
+        ResultArrays(int num_ss,
+                     int num_params,
+                     bool stereo);
+
+
+        void append(OptResult &res, const int ss);
+        //int index(const int subset_idx, const int img_num);
+        //int index_parameters(const int subset_idx, const int img_num);
+
+
 };
 
+void write_to_disk_2d(ResultArrays &temporal,
+                      const common_util::SaveConfig &saveconf,
+                      const subset::Grid &ss_grid,
+                      const std::string &filename);
+
+
+void write_to_disk_stereo(ResultArrays &temporal,
+                          ResultArrays &stereo,
+                          const common_util::SaveConfig &saveconf,
+                          const subset::Grid &ss_grid,
+                          const std::string &filename);
 
 #endif // DICRESULTS_H
