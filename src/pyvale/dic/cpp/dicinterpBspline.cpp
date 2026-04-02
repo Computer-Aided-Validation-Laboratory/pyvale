@@ -12,18 +12,22 @@
 
 #include "./dicinterpBspline.hpp"
 
-Bspline::Bspline(double* img, int px_hori, int px_vert){
-
-    // intitialise vars used globally within Interpolator.
-    this->image = img;
-    this->px_vert = px_vert;
+// In your constructor
+Bspline::Bspline(double* img, int px_hori, int px_vert) {
     this->px_hori = px_hori;
-    coeff.resize(px_vert*px_hori);
+    this->px_vert = px_vert;
 
-    for (int i = 0; i < px_hori*px_vert; i++){
-        coeff[i] = img[i];
-    }
+    // Allocate padded coeff array
+    padded_hori = px_hori + 4;  // +2 left/right
+    padded_vert = px_vert + 4;  // +2 top/bottom
+    coeff_padded.resize(padded_hori * padded_vert, 0.0);
 
+    // Copy original image into center
+    for (int y = 0; y < px_vert; y++)
+        for (int x = 0; x < px_hori; x++)
+            coeff_padded[(y + 2) * padded_hori + (x + 2)] = img[y * px_hori + x];
+
+    // Now you can apply prefilter_x/prefilter_y on padded array if needed
     prefilter_x();
     prefilter_y();
 }
@@ -54,22 +58,22 @@ void Bspline::prefilter_x() {
     const double lambda = (1.0 - z)*(1.0 - 1.0/z);
 
     // Normalize
-    for (int y = 0; y < px_vert; y++)
-        for (int x = 0; x < px_hori; x++)
-            coeff[y*px_hori + x] *= lambda;
+    for (int y = 0; y < padded_vert; y++)
+        for (int x = 0; x < padded_hori; x++)
+            coeff_padded[y*padded_hori + x] *= lambda;
 
     // Causal
-    for (int y = 0; y < px_vert; y++) {
-        double* row = &coeff[y*px_hori];
-        for (int x = 1; x < px_hori; x++)
+    for (int y = 0; y < padded_vert; y++) {
+        double* row = &coeff_padded[y*padded_hori];
+        for (int x = 1; x < padded_hori; x++)
             row[x] += z * row[x-1];
     }
 
     // Anticausal
-    for (int y = 0; y < px_vert; y++) {
-        double* row = &coeff[y*px_hori];
-        row[px_hori-1] = z/(z*z - 1.0) * row[px_hori-1];
-        for (int x = px_hori-2; x >= 0; x--)
+    for (int y = 0; y < padded_vert; y++) {
+        double* row = &coeff_padded[y*padded_hori];
+        row[padded_hori-1] = z/(z*z - 1.0) * row[padded_hori-1];
+        for (int x = padded_hori-2; x >= 0; x--)
             row[x] = z*(row[x+1] - row[x]);
     }
 }
@@ -82,54 +86,53 @@ void Bspline::prefilter_y() {
     const double lambda = (1.0 - z)*(1.0 - 1.0/z);
 
     // Normalize
-    for (int y = 0; y < px_vert; y++)
-        for (int x = 0; x < px_hori; x++)
-            coeff[y*px_hori + x] *= lambda;
+    for (int y = 0; y < padded_vert; y++)
+        for (int x = 0; x < padded_hori; x++)
+            coeff_padded[y*padded_hori + x] *= lambda;
 
     // Causal
-    for (int x = 0; x < px_hori; x++) {
-        for (int y = 1; y < px_vert; y++)
-            coeff[y*px_hori + x] += z * coeff[(y-1)*px_hori + x];
+    for (int x = 0; x < padded_hori; x++) {
+        for (int y = 1; y < padded_vert; y++)
+            coeff_padded[y*padded_hori + x] += z * coeff_padded[(y-1)*padded_hori + x];
     }
 
     // Anticausal
-    for (int x = 0; x < px_hori; x++) {
-        coeff[(px_vert-1)*px_hori + x] = z/(z*z - 1.0) * coeff[(px_vert-1)*px_hori + x];
-        for (int y = px_vert-2; y >= 0; y--)
-            coeff[y*px_hori + x] = z*(coeff[(y+1)*px_hori + x] - coeff[y*px_hori + x]);
+    for (int x = 0; x < padded_hori; x++) {
+        coeff_padded[(padded_vert-1)*padded_hori + x] = z/(z*z - 1.0) * coeff_padded[(padded_vert-1)*padded_hori + x];
+        for (int y = padded_vert-2; y >= 0; y--)
+            coeff_padded[y*padded_hori + x] = z*(coeff_padded[(y+1)*padded_hori + x] - coeff_padded[y*padded_hori + x]);
     }
 }
 
 
 double Bspline::eval(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const {
 
-    const int ix = (int)subpx_x;
-    const int iy = (int)subpx_y;
-    const double tx = subpx_x - ix;
-    const double ty = subpx_y - iy;
+    const int ix = (int)subpx_x + 2;
+    const int iy = (int)subpx_y + 2;
+    const double tx = subpx_x - (ix-2);
+    const double ty = subpx_y - (iy-2);
 
-    // Precompute basis vals
     double Bx[4], By[4];
     basis(tx, Bx);
     basis(ty, By);
 
-    int xx[4], yy[4];
-    for (int i = 0; i < 4; i++) {
-        xx[i] = std::clamp(ix + i - 1, 0, px_hori - 1);
-        yy[i] = std::clamp(iy + i - 1, 0, px_vert - 1) * px_hori;
-    }
+    // Row pointers
+    const double* r0 = coeff_padded.data() + (iy-1)*padded_hori;
+    const double* r1 = coeff_padded.data() + (iy  )*padded_hori;
+    const double* r2 = coeff_padded.data() + (iy+1)*padded_hori;
+    const double* r3 = coeff_padded.data() + (iy+2)*padded_hori;
 
-    double f = 0.0;
-    for (int j = 0; j < 4; j++) {
-        const double* row = coeff.data() + yy[j];
-        const double byj = By[j];
-        double row_sum = row[xx[0]] * Bx[0]
-                       + row[xx[1]] * Bx[1]
-                       + row[xx[2]] * Bx[2]
-                       + row[xx[3]] * Bx[3];
-        f += row_sum * byj;
-    }
-    return f;
+    // Column indices
+    int xx0 = ix-1, xx1 = ix, xx2 = ix+1, xx3 = ix+2;
+
+    // Compute row sums
+    double sum0 = r0[xx0]*Bx[0] + r0[xx1]*Bx[1] + r0[xx2]*Bx[2] + r0[xx3]*Bx[3];
+    double sum1 = r1[xx0]*Bx[0] + r1[xx1]*Bx[1] + r1[xx2]*Bx[2] + r1[xx3]*Bx[3];
+    double sum2 = r2[xx0]*Bx[0] + r2[xx1]*Bx[1] + r2[xx2]*Bx[2] + r2[xx3]*Bx[3];
+    double sum3 = r3[xx0]*Bx[0] + r3[xx1]*Bx[1] + r3[xx2]*Bx[2] + r3[xx3]*Bx[3];
+
+    // Final value
+    return sum0*By[0] + sum1*By[1] + sum2*By[2] + sum3*By[3];
 }
 
 double Bspline::eval_dx(const int ss_x, const int ss_y, const double subpx_x, double subpx_y) const {
@@ -181,10 +184,10 @@ double Bspline::eval_dy(const int ss_x, const int ss_y, const double subpx_x, do
 
 InterpVals Bspline::eval_and_derivs(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const {
 
-    const int ix = (int)subpx_x;
-    const int iy = (int)subpx_y;
-    const double tx = subpx_x - ix;
-    const double ty = subpx_y - iy;
+    const int ix = (int)subpx_x + 2; // +2 for padded border
+    const int iy = (int)subpx_y + 2;
+    const double tx = subpx_x - (ix-2);
+    const double ty = subpx_y - (iy-2);
 
     double Bx[4], By[4], dBx[4], dBy[4];
     basis(tx, Bx);
@@ -192,34 +195,32 @@ InterpVals Bspline::eval_and_derivs(const int ss_x, const int ss_y, const double
     basis_d(tx, dBx);
     basis_d(ty, dBy);
 
-    // Precompute clamped indices
-    int xx[4], yy[4];
-    for (int i = 0; i < 4; i++) {
-        xx[i] = std::clamp(ix + i - 1, 0, px_hori - 1);
-        yy[i] = std::clamp(iy + i - 1, 0, px_vert - 1) * px_hori;
-    }
+    // Precompute row pointers
+    const double* r0 = coeff_padded.data() + (iy-1)*padded_hori;
+    const double* r1 = coeff_padded.data() + (iy  )*padded_hori;
+    const double* r2 = coeff_padded.data() + (iy+1)*padded_hori;
+    const double* r3 = coeff_padded.data() + (iy+2)*padded_hori;
 
-    double f = 0.0, dfdx = 0.0, dfdy = 0.0;
-    for (int j = 0; j < 4; j++) {
-        const double* row = coeff.data() + yy[j];
-        const double byj  = By[j];
-        const double dbyj = dBy[j];
+    // Column indices
+    int xx0 = ix-1;
+    int xx1 = ix;
+    int xx2 = ix+1;
+    int xx3 = ix+2;
 
-        // sum weighted coeefs
-        double sum_f    = row[xx[0]] * Bx[0]
-                        + row[xx[1]] * Bx[1]
-                        + row[xx[2]] * Bx[2]
-                        + row[xx[3]] * Bx[3];
+    // Row sums
+    double sum_f0 = r0[xx0]*Bx[0] + r0[xx1]*Bx[1] + r0[xx2]*Bx[2] + r0[xx3]*Bx[3];
+    double sum_f1 = r1[xx0]*Bx[0] + r1[xx1]*Bx[1] + r1[xx2]*Bx[2] + r1[xx3]*Bx[3];
+    double sum_f2 = r2[xx0]*Bx[0] + r2[xx1]*Bx[1] + r2[xx2]*Bx[2] + r2[xx3]*Bx[3];
+    double sum_f3 = r3[xx0]*Bx[0] + r3[xx1]*Bx[1] + r3[xx2]*Bx[2] + r3[xx3]*Bx[3];
 
-        double sum_dfdx = row[xx[0]] * dBx[0]
-                        + row[xx[1]] * dBx[1]
-                        + row[xx[2]] * dBx[2]
-                        + row[xx[3]] * dBx[3];
+    // Compute value and derivatives
+    double f    = sum_f0*By[0] + sum_f1*By[1] + sum_f2*By[2] + sum_f3*By[3];
+    double dfdx = (r0[xx0]*dBx[0] + r0[xx1]*dBx[1] + r0[xx2]*dBx[2] + r0[xx3]*dBx[3])*By[0] +
+                  (r1[xx0]*dBx[0] + r1[xx1]*dBx[1] + r1[xx2]*dBx[2] + r1[xx3]*dBx[3])*By[1] +
+                  (r2[xx0]*dBx[0] + r2[xx1]*dBx[1] + r2[xx2]*dBx[2] + r2[xx3]*dBx[3])*By[2] +
+                  (r3[xx0]*dBx[0] + r3[xx1]*dBx[1] + r3[xx2]*dBx[2] + r3[xx3]*dBx[3])*By[3];
 
-        f     += sum_f    * byj;
-        dfdx  += sum_dfdx * byj;
-        dfdy  += sum_f    * dbyj;
-    }
+    double dfdy = sum_f0*dBy[0] + sum_f1*dBy[1] + sum_f2*dBy[2] + sum_f3*dBy[3];
 
     return {f, dfdx, dfdy};
 }

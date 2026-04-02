@@ -34,6 +34,10 @@ private:
     static inline void basis(double t, double B[4]);
     static inline void basis_d(double t, double Bd[4]);
 
+    std::vector<double> coeff_padded;
+    int padded_hori;      // width of padded array (px_hori + 4)
+    int padded_vert;      // height of padded array (px_vert + 4)
+
 public:
 
     /**
