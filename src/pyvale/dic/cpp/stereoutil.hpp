@@ -10,6 +10,7 @@
 
 
 // dic header files
+#include "./dicutil.hpp"
 #include "./dicsubset.hpp"
 #include "./dicresults.hpp"
 
@@ -187,7 +188,8 @@ namespace stereo {
     */
     void pixel_to_world(const subset::Grid &ss_grid,
                         const Calib &calib,
-                        ResultArrays &stereo_matches,
+                        ResultArrays &temporal,
+                        ResultArrays &stereo,
                         const Eigen::Matrix3d K0,
                         const Eigen::Matrix3d K1,
                         const Eigen::Matrix3d R, 
@@ -241,8 +243,8 @@ namespace stereo {
     /**
     * @brief Estimates rigid translation using FFT correlation on a rectified search grid.
     * @param p Output: 6‑parameter rigid/affine displacement seed.
-    * @param ss_x Subset top‑left x coordinate.
-    * @param ss_y Subset top‑left y coordinate.
+    * @param cx Subset centre x coordinate.
+    * @param cy Subset centre y coordinate.
     * @param ss_size_x Subset width.
     * @param ss_size_y Subset height.
     * @param closest_point Epipolar closest point to the reference pixel.
@@ -253,14 +255,13 @@ namespace stereo {
     * @param interp_def Interpolator for the deformed image.
     */
     void get_rigid_translation_from_rectified_fft(std::vector<double> &p,
-                                                  const int ss_x, const int ss_y,
+                                                  const double cx, const double cy,
                                                   const int ss_size_x, const int ss_size_y,
-                                                  const Eigen::Vector2d closest_point,
-                                                  const Eigen::Vector2d dir,
                                                   const int window_size_x, const int window_size_y,
+                                                  const Eigen::Matrix3d &F,
                                                   const double *img_ref,
                                                   const Interpolator &interp_def,
-                                                  const bool print);
+                                                  const bool print=false);
 
     /**
     * @brief Estimates rigid translation by brute‑force ZNCC search along the epipolar line.
@@ -301,7 +302,13 @@ namespace stereo {
                     const int px_hori,
                     const int px_vert);
 
+    void remove_unmatched_subsets(subset::Grid& ss_grid_l, 
+                                  subset::Grid& ss_grid_r,
+                                  const ResultArrays stereo_matches);
 
+
+    std::pair<std::vector<std::string>, std::vector<std::string>>
+    split_filenames(const util::Config &filenames);
 }
 
 

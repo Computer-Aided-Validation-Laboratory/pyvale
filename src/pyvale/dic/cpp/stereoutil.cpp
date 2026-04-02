@@ -37,7 +37,8 @@ namespace stereo {
 
     void pixel_to_world(const subset::Grid &ss_grid,
                         const Calib &calib,
-                        ResultArrays &stereo_matches,
+                        ResultArrays &temporal,
+                        ResultArrays &stereo,
                         const Eigen::Matrix3d K0,
                         const Eigen::Matrix3d K1,
                         const Eigen::Matrix3d R, 
@@ -50,21 +51,26 @@ namespace stereo {
         P0 << Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero();
         P1 << R, t;   // just gonna assume t is in mm for now
 
+
+        #pragma omp for schedule(dynamic, 10)
         for (int ss = 0; ss < ss_grid.num; ss++){
-
-            // corner coords left
-            int x = ss_grid.coords[ss*2];
-            int y = ss_grid.coords[ss*2+1];
-
-            if (!stereo_matches.above_thresh[ss]) continue;
+            
+            if (!temporal.above_thresh[ss] || !stereo.above_thresh[ss])
+                continue;
 
             // centre coords left
-            double cx_l,cy_l;
-            subset::get_centre(cx_l,cy_l,x,y,ss_size,ss_size);
-            
+            double cx_l = ss_grid.coords[ss*2] + temporal.u[ss];
+            double cy_l = ss_grid.coords[ss*2+1] + temporal.v[ss];
+
             // centre coords right
-            double cx_r = cx_l+stereo_matches.u[ss];
-            double cy_r = cy_l+stereo_matches.v[ss];
+            double cx_r = ss_grid.coords[ss*2] + stereo.u[ss];
+            double cy_r = ss_grid.coords[ss*2+1] + stereo.v[ss];
+            // double cx_r = cx_l+stereo.u[ss];
+            // double cy_r = cy_l+stereo.v[ss];
+        
+            // std::cout << ss_grid.coords[2*ss] << " " << ss_grid.coords[2*ss+1] << " ";
+            // std::cout << cx_l << " " << cy_l << " " << temporal.cost[ss] << " ";
+            // std::cout << cx_r << " " << cy_r << " " << stereo.cost[ss] << std::endl;
 
             // undistorted pixel value
             double u_cx_l, u_cx_r, u_cy_l, u_cy_r;
@@ -95,8 +101,9 @@ namespace stereo {
             double Y_mm = X(1);
             double Z_mm = X(2);
 
-            //std::cout << u_cx_l << " " << u_cy_l << " " << u_cx_r << " " << u_cy_r << " " << X_mm << " " << Y_mm << " " << Z_mm << " " << stereo_matches.cost[ss] << std::endl;
-
+            stereo.x_world[ss] = X_mm;
+            stereo.y_world[ss] = Y_mm;
+            stereo.z_world[ss] = Z_mm;
         }
     }
 
@@ -234,11 +241,10 @@ namespace stereo {
     }
 
     void get_rigid_translation_from_rectified_fft(std::vector<double> &p,
-                                                  const int ss_x, const int ss_y,
+                                                  const double cx, const double cy,
                                                   const int ss_size_x, const int ss_size_y,
-                                                  const Eigen::Vector2d closest_point,
-                                                  const Eigen::Vector2d dir,
                                                   const int window_size_x, const int window_size_y,
+                                                  const Eigen::Matrix3d &F,
                                                   const double *img_ref,
                                                   const Interpolator &interp_def,
                                                   const bool print){
@@ -253,11 +259,21 @@ namespace stereo {
         // class for FFT
         FFT fft(window_size_x, window_size_y);
 
-        // put the subset at the centre of the window
+        // put the subset at the corner of the window.
+        // for the FFT I'm just using a square subset and not the shape function
+        // parameters. I've not found a case where this has been insufficient
+        int corner_x = cx - ss_size_x/2;
+        int corner_y = cy - ss_size_y/2;
         fill_fft_window_with_subset_at_corner(fft.ss_ref, img_ref,
-                                              ss_x, ss_y, px_hori, px_vert,
+                                              corner_x, corner_y, px_hori, px_vert,
                                               ss_size_x, ss_size_y,
                                               window_size_x, window_size_y);
+
+        // equation of epipolar line for the corner
+        Eigen::Vector2d closest_point, dir;
+        stereo::compute_epi(closest_point, dir, corner_x, corner_y, F);
+
+
 
         // TODO: Add a proper flag for this 
         bool subpx = false;
@@ -290,37 +306,37 @@ namespace stereo {
         // get peaks from the cross correlation
         double max_val = 0.0, peak_x = 0.0, peak_y = 0.0;
         fft.correlate();
-        fft.get_peak(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+        fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "gaussian_2d");
         //std::cout << "peak: " << peak_x << " " << peak_y << std::endl;
 
         // coordinate transform
         peak_x = peak_x - window_half_x;
-        peak_y = peak_y + window_half_y;
+        peak_y = peak_y - window_half_y;
 
-        if (print){
-            std::cout << std::endl;
-            for (int row = 0; row < window_size_y; ++row) {
-                for (int col = 0; col < window_size_x; ++col) {
-                    int idx  = row*window_size_x+col;
-                    std::cout << col << " " << row << " ";
-                    std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
-                    std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
-                    std::cout << fft.cross_corr[idx] << std::endl;
-                }
-            }
-
-            std::cout << std::endl;
-            std::cout << peak_x << " " << peak_y << std::endl;
-            exit(0);
-        }
+        // if (corner_x==1443 && corner_y==657){
+        //     std::cout << std::endl;
+        //     for (int row = 0; row < window_size_y; ++row) {
+        //         for (int col = 0; col < window_size_x; ++col) {
+        //             int idx  = row*window_size_x+col;
+        //             std::cout << col << " " << row << " ";
+        //             std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
+        //             std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
+        //             std::cout << fft.cross_corr[idx] << std::endl;
+        //         }
+        //     }
+        //
+        //     std::cout << std::endl;
+        //     std::cout << peak_x << " " << peak_y << std::endl;
+        //     exit(0);
+        // }
 
 
         // Compute the unrectified position in the right image
         Eigen::Vector2d unrectified_pos = closest_point + peak_x * dir - peak_y * perp;
 
         //std::cout << "unrectified_pos: " << unrectified_pos(0) << " " << unrectified_pos(1) << std::endl;
-        p[0] = unrectified_pos(0) - ss_x;
-        p[1] = unrectified_pos(1) - ss_y;
+        p[0] = unrectified_pos(0) - corner_x;
+        p[1] = unrectified_pos(1) - corner_y;
         p[2] = dir(0) - 1.0;
         p[3] = -perp(0);
         p[4] = dir(1);
@@ -589,15 +605,13 @@ namespace stereo {
     Eigen::MatrixXd A(valid.size() * 2, 9);
 
     for (int i = 0; i < valid.size(); i++) {
-        int idx = valid[i];
-        double xl = ss_grid.coords[2*idx];
-        double yl = ss_grid.coords[2*idx+1];
+        const int idx = valid[i];
+        
+        const double cx = ss_grid.coords[2*idx];
+        const double cy = ss_grid.coords[2*idx+1];
 
-        double cx,cy;
-        subset::get_centre(cx, cy, xl, yl, ss_grid.size_x, ss_grid.size_y);
-
-        double xr = cx + stereo_matches.u[idx];
-        double yr = cy + stereo_matches.v[idx];
+        const double xr = cx + stereo_matches.u[idx];
+        const double yr = cy + stereo_matches.v[idx];
 
         A.row(2*i)   << cx, cy, 1,  0,  0, 0, -xr*cx, -xr*cy, -xr;
         A.row(2*i+1) <<  0,  0, 0, cx, cy, 1, -yr*cx, -yr*cy, -yr;
@@ -608,8 +622,8 @@ namespace stereo {
     Eigen::VectorXd h = svd.matrixV().col(8);
     Eigen::Matrix3d H;
     H << h(0), h(1), h(2),
-         h(3), h(4), h(5),
-         h(6), h(7), h(8);
+        h(3), h(4), h(5),
+        h(6), h(7), h(8);
 
     // Warp left mask to right using H
     bool* img_roi_r = new bool[px_hori * px_vert]();
@@ -633,6 +647,84 @@ namespace stereo {
     }
     return img_roi_r;
 }
+
+    void remove_unmatched_subsets(subset::Grid& ss_grid_l, 
+                                  subset::Grid& ss_grid_r,
+                                  const ResultArrays stereo_matches) {
+
+        // Build list of subsets to keep
+        std::vector<int> keep;
+        for (int ss = 0; ss < ss_grid_l.num; ss++) {
+            if (stereo_matches.above_thresh[ss])
+                keep.push_back(ss);
+        }
+
+        // Build remap
+        std::vector<int> remap(ss_grid_l.num, -1);
+        for (int i = 0; i < keep.size(); i++)
+            remap[keep[i]] = i;
+
+        // Compact coords
+        std::vector<double> new_coords_l, new_coords_r;
+
+        for (int i = 0; i < keep.size(); i++) {
+            int ss = keep[i];
+            new_coords_l.push_back(ss_grid_l.coords[2*ss]);
+            new_coords_l.push_back(ss_grid_l.coords[2*ss + 1]);
+            new_coords_r.push_back(ss_grid_r.coords[2*ss]);
+            new_coords_r.push_back(ss_grid_r.coords[2*ss + 1]);
+        }
+
+        // Compact neigh
+        std::vector<std::vector<int>> new_neigh_l, new_neigh_r;
+        for (int i = 0; i < keep.size(); i++) {
+            int ss = keep[i];
+
+            std::vector<int> nl, nr;
+            for (int j = 0; j < ss_grid_l.neigh[ss].size(); j++) {
+                int n = ss_grid_l.neigh[ss][j];
+                if (remap[n] != -1)
+                    nl.push_back(remap[n]);
+            }
+            for (int j = 0; j < ss_grid_r.neigh[ss].size(); j++) {
+                int n = ss_grid_r.neigh[ss][j];
+                if (remap[n] != -1)
+                    nr.push_back(remap[n]);
+            }
+
+            new_neigh_l.push_back(nl);
+            new_neigh_r.push_back(nr);
+        }
+
+        // Fix mask
+        for (int i = 0; i < (int)ss_grid_l.mask.size(); i++) {
+            if (ss_grid_l.mask[i] != -1)
+                ss_grid_l.mask[i] = remap[ss_grid_l.mask[i]];
+            if (ss_grid_r.mask[i] != -1)
+                ss_grid_r.mask[i] = remap[ss_grid_r.mask[i]];
+        }
+
+        ss_grid_l.coords = new_coords_l;
+        ss_grid_l.neigh  = new_neigh_l;
+        ss_grid_l.num    = keep.size();
+
+        ss_grid_r.coords = new_coords_r;
+        ss_grid_r.neigh  = new_neigh_r;
+        ss_grid_r.num    = keep.size();
+    }
+
+    std::pair<std::vector<std::string>, std::vector<std::string>>
+    split_filenames(const util::Config& conf) {
+        if (!conf.stereo)
+            return {conf.filenames, {}};
+
+        std::vector<std::string> filenames_l, filenames_r;
+        for (int i = 0; i < conf.filenames.size() / 2; i++) {
+            filenames_l.push_back(conf.filenames[i]);
+            filenames_r.push_back(conf.filenames[conf.num_def_img + 1 + i]);
+        }
+        return {filenames_l, filenames_r};
+    }
 
 
 }
