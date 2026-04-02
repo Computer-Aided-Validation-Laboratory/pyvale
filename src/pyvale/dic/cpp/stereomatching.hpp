@@ -33,20 +33,20 @@ namespace stereo {
                 const int img_num_l,
                 const int img_num_r,
                 const Eigen::Matrix3d &F,
-                ResultArrays &result_arrays,
-                ResultArrays &matches);
+                const ResultArrays &results_l,
+                ResultArrays &results_r);
 
-    void matching_strategy3(const double *img_l,
-                            const double *img_r,
-                            const Interpolator &interp_l,
-                            const Interpolator &interp_r,
-                            const subset::Grid &ss_grid,
-                            const util::Config &conf,
-                            const int img_num_l,
-                            const int img_num_r,
-                            const Eigen::Matrix3d &F,
-                            ResultArrays &temporal,
-                            ResultArrays &matches);
+    // void matching_strategy3(const double *img_l,
+    //                         const double *img_r,
+    //                         const Interpolator &interp_l,
+    //                         const Interpolator &interp_r,
+    //                         const subset::Grid &ss_grid,
+    //                         const util::Config &conf,
+    //                         const int img_num_l,
+    //                         const int img_num_r,
+    //                         const Eigen::Matrix3d &F,
+    //                         ResultArrays &temporal,
+    //                         ResultArrays &matches);
 
 } // stereo namespace
 

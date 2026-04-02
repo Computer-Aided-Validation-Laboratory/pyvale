@@ -23,6 +23,7 @@
 #include "./dicoptimizer.hpp"
 #include "./dicinterp.hpp"
 #include "./dicrg.hpp"
+#include "./dicshapefunc.hpp"
 
 
 // Eigen 
@@ -31,17 +32,20 @@
 namespace stereo {
 
 
-    void matching(const double *img_l,
-                  const double *img_r,
-                  const Interpolator &interp_l,
-                  const Interpolator &interp_r,
-                  const subset::Grid &ss_grid,
-                  const util::Config &conf,
-                  const int img_num_l,
-                  const int img_num_r,
-                  const Eigen::Matrix3d &F,
-                  ResultArrays &result_arrays,
-                  ResultArrays &matches){
+void matching(const double *img_l,
+              const double *img_r,
+              const Interpolator &interp_l,
+              const Interpolator &interp_r,
+              const subset::Grid &ss_grid,
+              const util::Config &conf,
+              const int img_num_l,
+              const int img_num_r,
+              const Eigen::Matrix3d &F,
+              const ResultArrays &results_l,
+              ResultArrays &results_r){
+
+
+
 
 
         // assign some consts for readability
@@ -53,280 +57,48 @@ namespace stereo {
         const int ss_size_x = ss_grid.size_x;
         const int ss_size_y = ss_grid.size_y;
         const int ss_step = ss_grid.step;
-        const int results_num = 0;
 
-        std::string bar_title = "Stereo matching for \033[1;4m" + conf.filenames[img_num_l] + "\033[0m and \033[1;4m" + conf.filenames[img_num_r] + "\033[0m:";        ProgressBar pbar(bar_title, num_ss);
-        std::atomic<int> current_progress(0);
 
-        // Initialize binary mask for computed points (initialized to 0)
-        std::vector<std::atomic<int>> computed_mask(ss_grid.mask.size());
-        for (auto& val : computed_mask) val.store(0); 
+        auto get_initial_guess = [&](std::vector<double> &p, double cx, double cy) {
+            stereo::get_rigid_translation_from_rectified_fft(p, cx, cy, ss_size_x, ss_size_y,
+                                                             conf.max_disp, 1.5*ss_size_y, F,
+                                                             img_l, interp_r);
+        };
 
-        // queue for each thread
-        std::priority_queue<rg::Point> q_global;
-        std::atomic<int> active_threads(omp_get_max_threads()); 
+        std::string bar_title = "Stereo  matching for \033[1;4m" + conf.filenames[img_num_l] +
+                                    "\033[0m and \033[1;4m" + conf.filenames[img_num_r] + 
+                                    "\033[0m:";
 
-        // Mutex vector to protect each queue
-        std::mutex q_mutex;
-        std::mutex steal_mutex;
-
-        # pragma omp parallel
-        {
-
-            int tid = omp_get_thread_num();
-
-            // Initialize l and r subsets
-            subset::Pixels ss_l(ss_size_x, ss_size_y);
-            subset::Pixels ss_r(ss_size_x, ss_size_y);
-
-            // Optimization parameters. Dont have quad same convergence as
-            // affine otherwise its pointless
-            Optimizer opt_affine("AFFINE", "ZNSSD", 40, 0.001, 0.90, ss_size_x*ss_size_y);
-
-
-            // ---------------------------------------------------------------------------------------------------------------------------
-            // PROCESS THE SEED SUBSET 
-            // ---------------------------------------------------------------------------------------------------------------------------
-            if (tid == 0) {
-
-                // seed coordinates
-                int x = seed_x / ss_step;
-                int y = seed_y / ss_step;
-                int idx = ss_grid.mask[y * ss_grid.num_ss_x + x];
-
-                double cx, cy;
-                subset::get_centre(cx, cy, seed_x, seed_y, ss_size_x, ss_size_y);
-
-                // centre coordinates
-                subset::fill_from_img_subpx(ss_l, seed_x, seed_y, interp_l);
-
-
-                // for (int i=0; i < ss_l.num_px; i++){
-                //     std::cout << "matching " << ss_l.x[i] << " " << ss_l.y[i] << " " << ss_l.vals[i] << std::endl;
-                //
-                // }
-                // std::cout << std::endl;
-
-                // equation of epipolar line for the corner
-                Eigen::Vector2d closest_point, dir;
-                stereo::compute_epi(closest_point, dir, seed_x, seed_y, F);
-
-                // get an estimate for the rigid shift from fft
-                get_rigid_translation_from_rectified_fft(opt_affine.p,
-                                                         seed_x, seed_y,
-                                                         ss_size_x,ss_size_y,
-                                                         closest_point, dir,
-                                                         200,200,
-                                                         img_l, interp_r,false);
-
-                // run optimizer and check convergence 
-                OptResult seed_res = opt_affine.solve(cx, cy, ss_l, ss_r, interp_r);
-                rg::check_convergence_or_exit(seed_x, seed_y, seed_res);
-
-                // append the results for the current subset to result vectors
-                matches.append(seed_res, results_num, idx);
-
-                // mark subset as computed
-                computed_mask[idx].store(1);
-
-                // loop over the neighbours for the initial seed point
-                for (size_t n = 0; n < ss_grid.neigh[idx].size(); n++) {
-
-                    // subset index of neighbour to the current point
-                    int nidx = ss_grid.neigh[idx][n];
-
-                    double nx = ss_grid.coords[nidx*2];
-                    double ny = ss_grid.coords[nidx*2+1];
-
-                    double cx, cy;
-                    subset::get_centre(cx, cy, nx, ny, ss_size_x, ss_size_y);
-
-                    // get subset values
-                    subset::fill_from_img_subpx(ss_l, nx, ny, interp_l);
-
-                    // get initial guess at parameter values from seed point
-                    int index_p = matches.index_parameters(idx,results_num);
-
-                    // AFFINE
-                    for (int i = 0; i < opt_affine.num_params; i++){
-                        opt_affine.p[i] = matches.p[index_p+i];
-                    }
-
-                    // perform optimization for seed point neighbours
-                    OptResult nres = opt_affine.solve(cx, cy, ss_l, ss_r, interp_r);
-
-                    rg::check_convergence_or_exit(nx, ny, nres);
-
-                    // append the results for the current subset to result vectors
-                    matches.append(nres, results_num, nidx);
-
-                    // update mask
-                    computed_mask[nidx].store(1);
-
-                    // add this point to queue
-                    q_global.push(rg::Point(nidx,nres.cost));
-
-                    // update progress bar
-                    if (g_debug_level>0){
-                        int progress = current_progress.fetch_add(1);
-                        pbar.update(progress+1);
-                    }
-                }
-            }
-
-            // ---------------------------------------------------------------------------------------------------------------------------
-            // PROCESS ALL OTHER SUBSETS
-            // ---------------------------------------------------------------------------------------------------------------------------
-            #pragma omp barrier
-
-
-            opt_affine.max_iter = 40;
-
-            std::vector<rg::Point> temp_neigh;
-            temp_neigh.reserve(4);
-
-            const int max_idle_iters = 100;
-            rg::Point current(0, 0);
-
-            while (!stop_request) {
-                
-                //if (!rg::pop_next_point_local(tid, local_q, queue_mutexes, steal_mutex, current))
-                if (!rg::pop_next_point_global(q_global, q_mutex, active_threads, current))
-                    break;
-
-                temp_neigh.clear();
-
-
-                // index of current point in results arrays
-                int idx_matches = matches.index(current.idx, results_num);
-                int idx_matches_p = matches.index_parameters(current.idx, results_num);
-
-
-                // loop over neighbouring points
-                for (size_t n = 0; n < ss_grid.neigh[current.idx].size(); n++) {
-
-                    // subset index of neighbour to the current point
-                    int nidx = ss_grid.neigh[current.idx][n];
-
-                    int expected = 0;
-                    expected = computed_mask[nidx].exchange(1);
-                    if (expected == 0) {
-
-                        // coords of neigh
-                        double nx = ss_grid.coords[nidx*2];
-                        double ny = ss_grid.coords[nidx*2+1];
-
-
-                        double cx, cy;
-                        subset::get_centre(cx, cy, nx, ny, ss_size_x, ss_size_y);
-
-                        subset::fill_from_img_subpx(ss_l, nx, ny, interp_l);
-
-                        // if the neighbouring subset had not met correlation threshold,
-                        // then try values from fft windowing
-                        if (matches.cost[idx_matches] < conf.threshold){
-
-                            // equation of epipolar line for the corner
-                            Eigen::Vector2d closest_point, dir;
-                            stereo::compute_epi(closest_point, dir, nx, ny, F);
-
-                            get_rigid_translation_from_rectified_fft(opt_affine.p,
-                                                         nx, ny,
-                                                         ss_size_x,ss_size_y,
-                                                         closest_point, dir,
-                                                         400,400,
-                                                         img_l, interp_r, false);
-                        }
-                        else {
-                            for (int i = 0; i < opt_affine.num_params; i++){
-                                opt_affine.p[i] = matches.p[idx_matches_p+i];
-                            }
-                        }
-
-                        // optimize
-                        subset::fill_from_img_subpx(ss_l, nx, ny, interp_l);
-                        OptResult nres = opt_affine.solve(cx, cy, ss_l, ss_r, interp_r);
-
-                        // append results
-                        matches.append(nres, results_num, nidx);
-
-                        // add results to temp neighbour results
-                        temp_neigh.emplace_back(nidx, nres.cost);
-
-                        // update progress bar
-                        if (g_debug_level>0){
-                            int progress = current_progress.fetch_add(1);
-                            if (tid==0) pbar.update(progress+1);
-                        }
-                    }
-                }
-
-                //rg::push_points_local(tid, local_q, temp_neigh, queue_mutexes);
-                rg::push_points_global(q_global, q_mutex, temp_neigh);
-            }
-        }
-        if (g_debug_level>0){
-            pbar.update(current_progress+1);
-            pbar.finish();
-        }
-    }
-
-
-
-void matching_strategy3(const double *img_l,
-                        const double *img_r,
-                        const Interpolator &interp_l,
-                        const Interpolator &interp_r,
-                        const subset::Grid &ss_grid,
-                        const util::Config &conf,
-                        const int img_num_l,
-                        const int img_num_r,
-                        const Eigen::Matrix3d &F,
-                        ResultArrays &temporal,
-                        ResultArrays &matches){
-
-
-        // assign some consts for readability
-        const int px_hori = conf.px_hori;
-        const int px_vert = conf.px_vert;
-        int seed_x = conf.rg_seed.first;
-        int seed_y = conf.rg_seed.second;
-        const int num_ss = ss_grid.num;
-        const int ss_size_x = ss_grid.size_x;
-        const int ss_size_y = ss_grid.size_y;
-        const int ss_step = ss_grid.step;
-        const int results_num = 0;
-
-        std::string bar_title = "Stereo matching 3 for " + conf.filenames[img_num_r] + ":";
         ProgressBar pbar(bar_title, num_ss);
         std::atomic<int> current_progress(0);
 
+        // quick check for the initial seed point
+        // if (!rg::is_valid_point(seed_x, seed_y, ss_grid)) {
+        //     return;
+        // }
+
+
         // Initialize binary mask for computed points (initialized to 0)
         std::vector<std::atomic<int>> computed_mask(ss_grid.mask.size());
         for (auto& val : computed_mask) val.store(0); 
 
         // queue for each thread
-        std::vector<std::priority_queue<rg::Point>> local_q(omp_get_max_threads());
-        std::atomic<int> active_threads(omp_get_max_threads());
-
-        // Mutex vector to protect each queue
-        std::vector<std::mutex> queue_mutexes(omp_get_max_threads());
-        std::mutex steal_mutex;
+        rg::QueueGlobal queue(omp_get_max_threads()); 
 
         # pragma omp parallel
         {
 
             int tid = omp_get_thread_num();
-            std::priority_queue<rg::Point>& thread_q = local_q[tid];
 
-            // Initialize l and r subsets
-            subset::Pixels ss_l(ss_size_x, ss_size_y);
+            // Initialize ref and def subsets
             subset::Pixels ss_r(ss_size_x, ss_size_y);
+            subset::Pixels ss_l(ss_size_x, ss_size_y);
 
-            // Optimization parameters. Dont have quad same convergence as
-            // affine otherwise its pointless
-            Optimizer opt_affine("AFFINE", "ZNSSD", 40, 0.001, 0.90, ss_size_x*ss_size_y);
+            // Optimization parameters
+            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
 
+            // TODO: opt.seed_iter exposed to user.
+            opt.max_iter = 200;
 
             // ---------------------------------------------------------------------------------------------------------------------------
             // PROCESS THE SEED SUBSET 
@@ -334,61 +106,65 @@ void matching_strategy3(const double *img_l,
             if (tid == 0) {
 
                 // seed coordinates
-                int x = seed_x / ss_step;
-                int y = seed_y / ss_step;
-                int idx = ss_grid.mask[y * ss_grid.num_ss_x + x];
+                int grid_x = seed_x / ss_step;
+                int grid_y = seed_y / ss_step;
+                int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
+
+                // get the centre coordinates for the subset in img k0
+                double cx_img0 = ss_grid.coords[2*idx];
+                double cy_img0 = ss_grid.coords[2*idx+1];
 
 
-                // need the subset pixel vals in left image
-                subset::fill_from_img_subpx(ss_l, seed_x, seed_y, interp_l);
-
-                // index of temporal results for seed subset
-                int idx_temporal = temporal.index(idx, img_num_l);
-                int idx_temporal_p = temporal.index_parameters(idx, img_num_l);
-
-
-                // get the shape function parameters from the temporal match
-                std::vector<double> p_temporal(6);
-                for (int i = 0; i < opt_affine.num_params; i++){
-                    p_temporal[i] = temporal.p[idx_temporal_p+i];
-                    std::cout << p_temporal[i] << std::endl;
+                // get the centre coordinates for the subset in img k
+                double cx = cx_img0;
+                double cy = cy_img0;
+                if (img_num_l>0){
+                    // displacements are from k0 to k
+                    cx += results_l.u[idx];
+                    cy += results_l.v[idx];
                 }
 
-                double cx, cy;
-                subset::get_centre(cx, cy, seed_x, seed_y, ss_size_x, ss_size_y);
+                // populate the subset for img k using shape function parameters
+                // that map subset in img k0 to k.
+                opt.copy_params_from_neigh(results_l.p, idx);
+                subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
 
-                // get the reference subset based on the parameters 
-                subset::fill_from_shape_params(ss_l, seed_x, seed_y, p_temporal, interp_l, "AFFINE");
+                // if the first image. Take the optimization parameters from rigid fourier
+                get_initial_guess(opt.p, cx, cy);
 
-                // get the temporal displacement and use that as the initial guess
-                const double u = seed_x + temporal.u[idx_temporal];
-                const double v = seed_y + temporal.v[idx_temporal];
+                // run optimizer
+                OptResult seed_res = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
+                rg::check_convergence_or_exit(cx_img0, cy_img0, seed_res);
+
+                // add deformation from reference image to new results
+                if (img_num_l > 0){
+                    std::vector<double> pA(conf.num_params);
+                    std::vector<double> pB = seed_res.p;
+                    std::vector<double> pC(conf.num_params);
 
 
-                // equation of epipolar line for the corner
-                Eigen::Vector2d closest_point, dir;
-                stereo::compute_epi(closest_point, dir, u, v, F);
+                    // pA: k0 -> k_l
+                    std::copy(results_l.p.begin() + idx*conf.num_params,
+                            results_l.p.begin() + idx*conf.num_params + conf.num_params,
+                            pA.begin());
 
-                // get an estimate for the rigid shift from fft
-                get_rigid_translation_from_rectified_fft(opt_affine.p,
-                                                         u, v,
-                                                         ss_size_x,ss_size_y,
-                                                         closest_point, dir,
-                                                         300,300,
-                                                         img_l, interp_r, true);
-
-                std::cout << std::endl;
-                for (int i = 0; i < opt_affine.num_params; i++){
-                    std::cout << opt_affine.p[i] << std::endl;
+                    if (conf.shape_func == "RIGID") {
+                        Rigid::compose(pC, pA, pB);
+                        Rigid::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
+                    }
+                    else if (conf.shape_func == "AFFINE"){
+                        Affine::compose(pC, pA, pB);
+                        Affine::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
+                    }
+                    else if (conf.shape_func == "QUAD") {
+                        Quad::compose(pC, pA, pB);
+                        Quad::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
+                    }
+                    seed_res.p = pC;
                 }
-
-                // run optimizer and check convergence
-                OptResult seed_res = opt_affine.solve(u, v, ss_l, ss_r, interp_r);
-                rg::check_convergence_or_exit(seed_x, seed_y, seed_res);
 
                 // append the results for the current subset to result vectors
-                matches.append(seed_res, results_num, idx);
-
+                results_r.append(seed_res, idx);
 
                 // mark subset as computed
                 computed_mask[idx].store(1);
@@ -399,75 +175,94 @@ void matching_strategy3(const double *img_l,
                     // subset index of neighbour to the current point
                     int nidx = ss_grid.neigh[idx][n];
 
-                    double nx = ss_grid.coords[nidx*2];
-                    double ny = ss_grid.coords[nidx*2+1];
+                    double cx_img0 = ss_grid.coords[nidx*2];
+                    double cy_img0 = ss_grid.coords[nidx*2+1];
 
-                    // get the shape function parameters from the temporal match
-                    for (int i = 0; i < opt_affine.num_params; i++){
-                        p_temporal[i] = temporal.p[idx_temporal_p+i];
+
+                    double cx = cx_img0;
+                    double cy = cy_img0;
+                    if (img_num_l>0){
+                        cx += results_l.u[nidx];
+                        cy += results_l.v[nidx];
                     }
 
-                    // get the reference subset based on the parameters 
-                    subset::fill_from_shape_params(ss_l, nx, ny, p_temporal, interp_l, "AFFINE");
-
-                    // get initial guess at parameter values from seed point
-                    int index_p = matches.index_parameters(idx,results_num);
-
-                    // AFFINE
-                    for (int i = 0; i < opt_affine.num_params; i++){
-                        opt_affine.p[i] = matches.p[index_p+i];
-                    }
+                    // fill the reference subset using the updated cx,cy and
+                    // the shape function parameters for the correlation of
+                    // the reference image
+                    opt.copy_params_from_neigh(results_l.p, nidx);
+                    subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
 
                     // perform optimization for seed point neighbours
-                    OptResult nres = opt_affine.solve(nx, ny, ss_l, ss_r, interp_r);
+                    opt.copy_params_from_neigh(results_r.p, idx);
 
-                    rg::check_convergence_or_exit(nx, ny, nres);
+                    OptResult nres = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
+                    rg::check_convergence_or_exit(cx_img0, cy_img0, nres);
+
+                    // add deformation from reference image to new results
+                    if (img_num_l > 0){
+                        std::vector<double> pA(conf.num_params);
+                        std::vector<double> pB = nres.p;
+                        std::vector<double> pC(conf.num_params);
+
+
+                        // pA: k0 -> k_l
+                        std::copy(results_l.p.begin() + nidx*conf.num_params,
+                                results_l.p.begin() + nidx*conf.num_params + conf.num_params,
+                                pA.begin());
+
+                        if (conf.shape_func == "RIGID") {
+                            Rigid::compose(pC, pA, pB);
+                            Rigid::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                        }
+                        else if (conf.shape_func == "AFFINE"){
+                            Affine::compose(pC, pA, pB);
+                            Affine::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                        }
+                        else if (conf.shape_func == "QUAD") {
+                            Quad::compose(pC, pA, pB);
+                            Quad::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                        }
+                        nres.p = pC;
+                    }
+
 
                     // append the results for the current subset to result vectors
-                    matches.append(nres, results_num, nidx);
+                    results_r.append(nres, nidx);
 
                     // update mask
                     computed_mask[nidx].store(1);
 
                     // add this point to queue
-                    local_q[0].push(rg::Point(nidx,nres.cost));
+                    queue.push(tid, {rg::Point(nidx,nres.cost)});
 
                     // update progress bar
                     if (g_debug_level>0){
                         int progress = current_progress.fetch_add(1);
-                        pbar.update(progress+1);
+                        if (omp_get_thread_num()==0) pbar.update(progress+1);
                     }
                 }
             }
+
 
             // ---------------------------------------------------------------------------------------------------------------------------
             // PROCESS ALL OTHER SUBSETS
             // ---------------------------------------------------------------------------------------------------------------------------
             #pragma omp barrier
 
-
-            opt_affine.max_iter = 40;
+            // reset seed location using the last computed point
+            opt.max_iter = conf.max_iter;
 
             std::vector<rg::Point> temp_neigh;
             temp_neigh.reserve(4);
 
-            const int max_idle_iters = 100;
             rg::Point current(0, 0);
-
-            std::vector<double> p_temporal(6);
 
             while (!stop_request) {
 
-                //if (!rg::pop_next_point_local(tid, local_q, queue_mutexes, steal_mutex, current))
-                if (!rg::pop_next_point_global(local_q[0], queue_mutexes[0], active_threads, current))
+                if (!queue.pop(tid, current))
                     break;
 
                 temp_neigh.clear();
-
-
-                // index of current point in results arrays
-                int idx_matches = matches.index(current.idx, results_num);
-                int idx_matches_p = matches.index_parameters(current.idx, results_num);
 
 
                 // loop over neighbouring points
@@ -481,52 +276,61 @@ void matching_strategy3(const double *img_l,
                     if (expected == 0) {
 
                         // coords of neigh
-                        double nx = ss_grid.coords[nidx*2];
-                        double ny = ss_grid.coords[nidx*2+1];
+                        double cx_img0 = ss_grid.coords[nidx*2];
+                        double cy_img0 = ss_grid.coords[nidx*2+1];
 
-                        // index of current point in results arrays
-                        int nidx_temporal = matches.index(nidx, results_num);
-                        int nidx_temporal_p = matches.index_parameters(nidx, results_num);
-
-                        // get the shape function parameters from the temporal match
-                        for (int i = 0; i < opt_affine.num_params; i++){
-                            p_temporal[i] = temporal.p[nidx_temporal+i];
+                        // add displacements from base to subset coords in img0
+                        double cx = cx_img0;
+                        double cy = cy_img0;
+                        if (img_num_l > 0){
+                            cx += results_l.u[nidx];
+                            cy += results_l.v[nidx];
                         }
 
-                        // get the reference subset based on the parameters 
-                        subset::fill_from_shape_params(ss_l, nx, ny, p_temporal, interp_l, "AFFINE");
+                        // fill the reference subset using the updated cx,cy and
+                        // the shape function parameters for the correlation of
+                        // the reference image
+                        opt.copy_params_from_neigh(results_l.p, nidx);
+                        subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
 
-                        // if the neighbouring subset had not met correlation threshold,
-                        // then try values from fft windowing
-                        if (matches.cost[idx_matches] < conf.threshold){
-
-                            // equation of epipolar line for the corner
-                            Eigen::Vector2d closest_point, dir;
-                            stereo::compute_epi(closest_point, dir, nx, ny, F);
-
-                            // get the temporal displacement and use that as the initial guess
-                            const double u = seed_x + temporal.u[nidx_temporal];
-                            const double v = seed_y + temporal.v[nidx_temporal];
-
-                            get_rigid_translation_from_rectified_fft(opt_affine.p,
-                                                         u, v,
-                                                         ss_size_x,ss_size_y,
-                                                         closest_point, dir,
-                                                         200,200,
-                                                         img_l, interp_r, false);
+                        // if the neighbouring subset had not met correlation threshold then try values from fft windowing
+                        if (results_r.cost[current.idx] < conf.threshold){
+                            get_initial_guess(opt.p, cx, cy);
                         }
                         else {
-                            for (int i = 0; i < opt_affine.num_params; i++){
-                                opt_affine.p[i] = matches.p[idx_matches_p+i];
-                            }
+                            opt.copy_params_from_neigh(results_r.p, current.idx);
                         }
 
                         // optimize
-                        subset::fill_from_img_subpx(ss_l, nx, ny, interp_l);
-                        OptResult nres = opt_affine.solve(nx, ny, ss_l, ss_r, interp_r);
+                        OptResult nres = opt.solve(cx, cy, ss_l, ss_r, interp_r);
+                        // add deformation from reference image to new results
+                        if ((nres.above_threshold) && (img_num_l > 0)){
+                            std::vector<double> pA(conf.num_params);
+                            std::vector<double> pB = nres.p;
+                            std::vector<double> pC(conf.num_params);
+
+                            // pA: k0 -> k_l
+                            std::copy(results_l.p.begin() + nidx*conf.num_params,
+                                    results_l.p.begin() + nidx*conf.num_params + conf.num_params,
+                                    pA.begin());
+
+                            if (conf.shape_func == "RIGID") {
+                                Rigid::compose(pC, pA, pB);
+                                Rigid::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                            }
+                            else if (conf.shape_func == "AFFINE"){
+                                Affine::compose(pC, pA, pB);
+                                Affine::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                            }
+                            else if (conf.shape_func == "QUAD") {
+                                Quad::compose(pC, pA, pB);
+                                Quad::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                            }
+                            nres.p = pC;
+                        }
 
                         // append results
-                        matches.append(nres, results_num, nidx);
+                        results_r.append(nres, nidx);
 
                         // add results to temp neighbour results
                         temp_neigh.emplace_back(nidx, nres.cost);
@@ -539,18 +343,107 @@ void matching_strategy3(const double *img_l,
                     }
                 }
 
-                //rg::push_points_local(tid, local_q, temp_neigh, queue_mutexes);
-                rg::push_points_global(local_q[0], queue_mutexes[0], temp_neigh);
+                queue.push(tid, temp_neigh);
             }
         }
+
+        // // TODO: build a list of subsets using openmp that have correlated poorly but have atleast
+        // // one immediate neighbour above_threshold
+        // std::vector<int> retry_indices;
+        // #pragma omp parallel
+        // {
+        //     std::vector<int> local_retry;
+        //     #pragma omp for nowait
+        //     for (int i = 0; i < num_ss; ++i) {
+        //         // If the point was reached but failed threshold
+        //         if (computed_mask[i].load() == 1 && !results_r.above_thresh[i]) {
+        //             // Check if any neighbor was successful
+        //             for (int nidx : ss_grid.neigh[i]) {
+        //                 if (results_r.above_thresh[nidx]) {
+        //                     local_retry.push_back(i);
+        //                     break;
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     #pragma omp critical
+        //     retry_indices.insert(retry_indices.end(), local_retry.begin(), local_retry.end());
+        // }
+        //
+        // // TODO: retry the correlation using the parameters for the neighbour that
+        // // have successfuly correlated. use openmp
+        //
+        // #pragma omp parallel
+        // {
+        //     subset::Pixels ss_r(ss_size_x, ss_size_y);
+        //     subset::Pixels ss_l(ss_size_x, ss_size_y);
+        //     Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
+        //
+        //     #pragma omp for
+        //     for (int i = 0; i < (int)retry_indices.size(); ++i) {
+        //         int idx = retry_indices[i];
+        //
+        //         // Find the neighbor with the lowest cost (best match) to use as new guess
+        //         int best_neigh = -1;
+        //         double best_cost = -std::numeric_limits<double>::max();
+        //         for (int nidx : ss_grid.neigh[idx]) {
+        //             if (results_r.above_thresh[nidx] && results_r.cost[nidx] > best_cost) {
+        //                 best_cost = results_r.cost[nidx];
+        //                 best_neigh = nidx;
+        //             }
+        //         }
+        //
+        //         if (best_neigh != -1) {
+        //             double cx_img0 = ss_grid.coords[idx*2];
+        //             double cy_img0 = ss_grid.coords[idx*2+1];
+        //             double cx = cx_img0 + (img_num_l > 0 ? results_l.u[idx] : 0);
+        //             double cy = cy_img0 + (img_num_l > 0 ? results_l.v[idx] : 0);
+        //
+        //             // Re-fill reference
+        //             opt.copy_params_from_neigh(results_l.p, idx * conf.num_params);
+        //             subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
+        //
+        //             // Use best neighbor's converged parameters as the new starting point
+        //             opt.copy_params_from_neigh(results_r.p, best_neigh * conf.num_params);
+        //
+        //             OptResult retry_res = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
+        //
+        //             // If retry is better than original attempt, update results
+        //             if (retry_res.cost > results_r.cost[idx]) {
+        //                     std::vector<double> pA(conf.num_params);
+        //                     std::vector<double> pB = retry_res.p;
+        //                     std::vector<double> pC(conf.num_params);
+        //
+        //                     // pA: k0 -> k_l
+        //                     std::copy(results_l.p.begin() + idx*conf.num_params,
+        //                             results_l.p.begin() + idx*conf.num_params + conf.num_params,
+        //                             pA.begin());
+        //
+        //                     if (conf.shape_func == "RIGID") {
+        //                         Rigid::compose(pC, pA, pB);
+        //                         Rigid::get_displacement(retry_res.u, retry_res.v, 0.0, 0.0, pC);
+        //                     }
+        //                     else if (conf.shape_func == "AFFINE"){
+        //                         Affine::compose(pC, pA, pB);
+        //                         Affine::get_displacement(retry_res.u, retry_res.v, 0.0, 0.0, pC);
+        //                     }
+        //                     else if (conf.shape_func == "QUAD") {
+        //                         Quad::compose(pC, pA, pB);
+        //                         Quad::get_displacement(retry_res.u, retry_res.v, 0.0, 0.0, pC);
+        //                     }
+        //                     retry_res.p = pC;
+        //
+        //                 results_r.append(retry_res, idx); 
+        //             }
+        //         }
+        //     }
+        // }
+
         if (g_debug_level>0){
             pbar.update(current_progress+1);
             pbar.finish();
         }
     }
-
-
-
 
 } // namespace
 
