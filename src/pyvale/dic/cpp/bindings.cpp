@@ -15,7 +15,10 @@
 
 // DIC Header files
 #include "./dicutil.hpp"
+#include "./dicutil.hpp"
 #include "./dicmain.hpp"
+#include "./dicinterp.hpp"
+#include "./dicinterpBspline.hpp"
 
 namespace py = pybind11;
 
@@ -46,8 +49,39 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("filenames", &util::Config::filenames)
         .def_readwrite("debug_level", &util::Config::debug_level)
         .def_readwrite("stereo", &util::Config::stereo);
-    
+
     // Bind the engine function
     m.def("engine", &engine, "Run DIC analysis on input images with config");
+
+    // interpolator bindings
+    py::class_<InterpVals>(m, "InterpVals")
+        .def_readonly("f", &InterpVals::f)
+        .def_readonly("dfdx", &InterpVals::dfdx)
+        .def_readonly("dfdy", &InterpVals::dfdy);
+
+    // ABC
+    py::class_<Interpolator>(m, "Interpolator")
+        .def("eval", &Interpolator::eval)
+        .def("eval_dx", &Interpolator::eval_dx)
+        .def("eval_dy", &Interpolator::eval_dy)
+        .def("eval_and_derivs", &Interpolator::eval_and_derivs);
+
+    // 2d b-spline interpolator
+    py::class_<Bspline, Interpolator>(m, "Bspline")
+        .def(py::init([](py::array_t<double, py::array::c_style> arr,
+                         int px_hori, int px_vert) {
+
+            if (arr.ndim() != 2)
+                throw std::runtime_error("img must be a 2D numpy array");
+
+            double* ptr = static_cast<double*>(arr.mutable_data());
+
+            return new Bspline(ptr, px_hori, px_vert);
+        }))
+        .def("eval", &Bspline::eval)
+        .def("eval_dx", &Bspline::eval_dx)
+        .def("eval_dy", &Bspline::eval_dy)
+        .def("eval_and_derivs", &Bspline::eval_and_derivs);
+
 }
 
