@@ -9,7 +9,7 @@ from .dic3d import calculate_3d
 from .dicdataimport import import_2d
 from .dicregionofinterest import RegionOfInterest
 from .dicresults import Results
-from .dic2dcpp import Bspline, Interpolator
+from .diccpp import Bspline, Interpolator
 
 
 __all__ = ["calculate_2d",
