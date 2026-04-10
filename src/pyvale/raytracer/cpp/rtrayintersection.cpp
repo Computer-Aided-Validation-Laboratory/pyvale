@@ -131,6 +131,76 @@ IntersectionOutput intersect_bvh_triangles(const Ray& ray,
     return IntersectionOutput{ barycentric_coordinates, plane_normals, t_values };
 }
 
+IntersectionOutput intersect_bvh_quads(const Ray& ray,
+    const std::vector<double>& node_coords,
+    const unsigned int bvh_node_quad_count){
+    // Go through all the quads and find an intersection of each quad with a ray
+    
+    // Ray data broadcasted to use in vectorised operations on matrices
+    // This is faster than doing it in a loop
+    EiVectorD3d ray_directions = ray.direction.replicate(bvh_node_quad_count, 1);
+    EiArrayD3d ray_origins = ray.origin.replicate(bvh_node_quad_count, 1).array();
+
+    // Define default negative output if there is no intersection
+    static IntersectionOutput negative_output{
+        Eigen::ArrayXXd(bvh_node_quad_count, 3),
+        EiVectorD3d::Zero(bvh_node_quad_count, 3),
+        Eigen::Vector<double, Eigen::Dynamic>::Constant(bvh_node_quad_count, 1, std::numeric_limits<double>::infinity())
+    };
+
+    // Calculations - edges and normals
+    EiMatrixDd edge0(bvh_node_quad_count, 3), nEdge2(bvh_node_quad_count, 3); // shape (faces, 3) each
+    
+
+    Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>  nodes0(bvh_node_quad_count, 3);
+
+    for (int quad_idx = 0; quad_idx < bvh_node_quad_count; quad_idx++) {
+        int node_0 = quad_idx * 3;
+        int node_1 = quad_idx * 3 + 1;
+        int node_2 = quad_idx* 3 + 2;
+        //std::cout << "Quad node indices: " << node_0 << " " << node_1 << " " << node_2 << std::endl;
+
+        for (int j = 0; j < 3; j++) {
+            //std::cout<<node_coords_arr[i][j] << " ";
+            //edge0(i, j) = node_coords.at(node_1, j) - node_coords.at(node_0, j);
+            edge0(quad_idx, j) = node_coords[node_1 * 3 + j] - node_coords[node_0 * 3 + j];
+            //std::cout << "node_coords at " << node_1 *3 + j << " are: " << node_coords[node_1 * 3 + j] << std::endl;
+            //std::cout << "edge 0: " << edge0(triangle_idx,j) << std::endl;
+            //nodes0(i, j) = node_coords.at(node_0, j);
+            nodes0(quad_idx, j) = node_coords[node_0 * 3 + j];
+            //std::cout << "nodes0 : " << nodes0(triangle_idx,j) << std::endl;
+            // Skip edge1 because it never gets used in the calculations anyway
+            //nEdge2(i, j) = node_coords.at(node_2, j) - node_coords.at(node_0, j);
+            nEdge2(quad_idx, j) = node_coords[node_2 * 3 + j] - node_coords[node_0 * 3 + j];
+            //std::cout << "nEdge2 : " << nEdge2(triangle_idx,j) << std::endl;
+        }
+    }
+    EiVectorD3d plane_normals = cross_rowwise(edge0, nEdge2); // not normalised! Shape (faces, 3)
+
+    
+// Step 1: Quantities for the Moller Trumbore method
+    EiArrayD3d p_vec = cross_rowwise(ray_directions, nEdge2); // Assigns a vector to an array variable, but Eigen automatically converts so long as the underlying sizes are correct at initialization. Shape (faces, 3)
+    Eigen::Array<double, Eigen::Dynamic, 1> determinants = (edge0.array() * p_vec).rowwise().sum(); // Row-wise dot product; shape (faces, 1)
+
+    // Step 2: Culling.
+    //Determinant negative -> triangle is back-facing. If det is close to 0, ray and triangle are parallel and ray misses the triangle.
+    Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> valid_mask = (determinants > 1e-6) && (determinants > 0);
+    if (!valid_mask.any()) {
+        //std::cout << "Condition 1 triggered" << std::endl;
+        return negative_output; // No intersection - return infinity
+    }
+
+    // Step 3: Test if ray is in front of the triangle
+    Eigen::Array<double, Eigen::Dynamic, 1> inverse_determinants = determinants.inverse(); // Element-wise inverse. shape (faces, 1)
+    EiArrayD3d t_vec = ray_origins - nodes0; // shape (faces, 3)
+    Eigen::Array<double, Eigen::Dynamic, 1> barycentric_u = ((t_vec * p_vec).rowwise().sum()).array() * inverse_determinants; // shape (faces, 1)
+    valid_mask = valid_mask && (barycentric_u >= 0) && (barycentric_u <= 1);
+    if (!valid_mask.any()) {
+        //std::cout << "Condition 2 triggered" << std::endl;
+        return negative_output; // No intersection - return infinity
+    }
+
+    }
 
 struct Ray_old { Eigen::Vector3d o, d; Ray_old(Eigen::Vector3d o_, Eigen::Vector3d d_) : o(o_), d(d_) {} };
 

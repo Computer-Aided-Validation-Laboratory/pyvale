@@ -7,6 +7,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 import numpy as np
+from pyvale.raytracer.rtmesh import RTMesh, ElementNodeCount, SurfType
 
 # Enum to specify render type to be able to let user pick between static and dynamic images
 # Would make more sense to be in rtmain, but then we suffer from circular imports
@@ -14,18 +15,32 @@ class RenderType(Enum):
     STATIC = 0
     DYNAMIC = 1
 
+# ================================================================================
+# SCENE
+# Old implementations are at the very bottom of the class for compatibility for the time being.
+# ================================================================================
+
 @dataclass(slots=True)
 class Scene:
     '''WIP: Dataclass for storing camera, mesh, and light data in a format that should work best with C++
     while preserving user-friendly interface.'''
-    #scene_connectivity: list[np.ndarray] = field(default_factory=list) # Uncomment to test rtbvh_stack, rtbvh_recursion, or no BVH
-    #scene_coords: list[np.ndarray] = field(default_factory=list) # Uncomment to test rtbvh_stack, rtbvh_recursion, or no BVH
+    # Mesh data
+    scene_connectivity: list[np.ndarray] = field(default_factory=list) # Uncomment to test rtbvh_stack, rtbvh_recursion, or no BVH
+    scene_coords: list[np.ndarray] = field(default_factory=list) # Uncomment to test rtbvh_stack, rtbvh_recursion, or no BVH
+    # Prefer to use coords_expanded
     coords_expanded: list[np.ndarray] = field(default_factory=list)
-    deform_vals: list[np.ndarray] = field(default_factory=list)
-    face_colors: list[np.ndarray] = field(default_factory=list)
+    deform_vals: list[np.ndarray] = field(default_factory=list) # May be needed for deciding whether to update or rebuild TLAS later on
+    face_colors: list[np.ndarray] = field(default_factory=list) # Would be good to know the size of this bc it can either be the same for all frames (no need to broadcast data) or different
+    uvs: list[np.ndarray] = field(default_factory=list) # Over time, but ideally adjust the BVH code so we don't need to broadcast the data since it doesn't change across the frames
+    textures: list[np.ndarray] = field(default_factory=list)  # Expectation is that the texture will be added for each mesh separately and orderly
+    surface_types: list[SurfType] = field(default_factory=list)
+    nodes_per_element: list[ElementNodeCount] = field(default_factory=list)
+    element_count: list[int] = field(default_factory=list)
+    # Camera data
     camera_center: list[np.ndarray] = field(default_factory=list)
     pixel_00_center: list[np.ndarray] = field(default_factory=list)
     matrix_pixel_spacing: list[np.ndarray] = field(default_factory=list)
+    # Overall scene data
     timestep_count: int = 1 # Number of timesteps with the default value being 1 for static images
     mesh_count: int = 0 # Store the number of meshes in the scene simply because it is used quite a lot
 
@@ -35,6 +50,63 @@ class Scene:
         self.pixel_00_center.append(pixel_00_center)
         self.matrix_pixel_spacing.append(matrix_pixel_spacing)
 
+    def add_rtmesh(self, rtmesh: RTMesh) -> None:
+        '''Adds a rtmesh to the scene.'''
+        if rtmesh.surface_type is None:
+            raise ValueError("Please set surface type for mesh before adding it to the scene.")
+        self.scene_connectivity.append(rtmesh.connectivity)
+        self.scene_coords.append(rtmesh.node_coords)
+        self.coords_expanded.append(rtmesh.node_coords_expanded_over_time)
+        if rtmesh.surface_type == SurfType.FIELD_COLOR:
+            self.face_colors.append(rtmesh.face_colors_over_time)
+        elif rtmesh.surface_type == SurfType.TEXTURE:
+            self.uvs.append(rtmesh.uvs_over_time)
+            self.add_texture(rtmesh.texture)
+        self.mesh_count += 1
+        self.surface_types.append(rtmesh.surface_type) # Will be used for determining coloring
+        self.nodes_per_element.append(rtmesh.nodes_per_element) # Will help assign appropriate functions in ray_tracer
+        self.element_count.append(rtmesh.element_count) # Will be used in C interface
+        if rtmesh.timestep_count > self.timestep_count:  # Keep the highest timestep count (should be the same for all meshes, but you never know)
+            self.timestep_count = rtmesh.timestep_count
+
+    def fill_empty_timesteps(self):
+        '''Verifies that all meshes in the scene contain data for the defined number of timesteps. If there is missing data for some meshes,
+        it fills the nodal coordinates with the repeats of the last known position, and the face colors with grey by default. '''
+        COORDS_PER_NODE = 3  # Number of coordinates per single node of mesh element
+
+        for mesh in range(self.mesh_count):
+            mesh_timesteps = self.coords_expanded[mesh].shape[0]
+            mesh_elements = self.coords_expanded[mesh].shape[1]
+            # mesh_nodes_per_elem = self.coords_expanded[mesh].shape[2]
+            timestep_difference = self.timestep_count - mesh_timesteps  # Number of timesteps not accounted for
+            if timestep_difference > 0:
+                # Expand arrays to fill the missing data
+                # Create an array that tells numpy.repeat to to keep all data the same, and only repeat the values
+                # for the last known timestep. Add +1 to account for the existing row, i.e., get the total number of
+                # times this data appears in the array, not just how much we want to add.
+                repeat_counts = [1] * (mesh_timesteps - 1) + [timestep_difference + 1]
+                self.coords_expanded[mesh] = np.ascontiguousarray(np.repeat(self.coords_expanded[mesh], repeat_counts,
+                                                                            axis=0))  # Should be C-contiguous by default, but we need to be extra sure
+                # Case 1: Mesh filled with solid colour (assumes colour changes between frames, i.e., field-value based
+                # TO DO: Give user choice if they want it white or filled with the last known values as well. Or if the mesh should just magically vanish once we run out of timesteps.
+                if self.surface_types[mesh] == SurfType.FIELD_COLOR:
+                    # Option 1: Same as with nodal coordinates; repeat last known values
+                    self.face_colors[mesh] = np.ascontiguousarray(np.repeat(self.face_colors[mesh], repeat_counts, axis=0)) # Should be C-contiguous by default, but we need to be extra sure
+                    # Option2: Fill with uniform color (mid on the scale by default since all white/black stood out... a lot)
+                    #filler_data = np.ones(shape=(timestep_difference, mesh_elements, COORDS_PER_NODE)) * 0.5
+                    #self.face_colors[mesh] = np.ascontiguousarray(np.concatenate((self.face_colors[mesh], filler_data),axis=0))
+                elif self.surface_types[mesh] == SurfType.TEXTURE:
+                    # UVs for texture - similarly, use the last known values
+                    # Ideally WON'T BE NEEDED to avoid copying data as UVs and texture coords won't change
+                    self.uvs[mesh] = np.ascontiguousarray(np.repeat(self.uvs[mesh], repeat_counts, axis=0))
+                # No need to duplicate texture data as we assume it won't change across the frames
+            else: # Surface data not set
+                raise Exception("Surface data not set for mesh " + str(mesh))
+
+
+
+
+
     def add_mesh(self, node_coords_expanded: np.ndarray, face_colors: np.ndarray, timestep_count: int) -> None:
         '''Adds a mesh to the scene.'''
         self.coords_expanded.append(node_coords_expanded)
@@ -42,8 +114,27 @@ class Scene:
         self.mesh_count += 1
         if timestep_count > self.timestep_count: # Keep the highest timestep count (should be the same for all meshes, but you never know)
             self.timestep_count = timestep_count
+    
+    def add_mesh2(self, connectivity, coords, node_coords_expanded: np.ndarray, face_colors: np.ndarray, uvs: np.ndarray, timestep_count: int) -> None:
+        '''Adds a mesh to the scene. Second version with texturing.'''
+        self.scene_connectivity.append(connectivity)
+        self.scene_coords.append(coords)
+        self.coords_expanded.append(node_coords_expanded)
+        self.face_colors.append(face_colors)
+        self.uvs.append(uvs)
+        self.mesh_count += 1
+        if timestep_count > self.timestep_count:  # Keep the highest timestep count (should be the same for all meshes, but you never know)
+            self.timestep_count = timestep_count
 
-    def fill_empty_timesteps(self):
+    def add_texture(self, texture: np.ndarray) -> None:
+        '''Adds a texture to the scene. Only to be used with add_mesh2; RTMeshes take textures as their attribute and there is no need to add them separately.
+        Texture is expected to be a 2D numpy array of shape (width, height).
+        Values are expected to be between 0 and 1. If they are not, they will be scaled as the renderer converts floats to 0-255 integers later.'''
+        if texture.min() > 1.0 or texture.max() > 1.0:
+            texture = texture.astype(np.float64) / 255.0
+        self.textures.append(texture)
+
+    def fill_empty_timesteps_old(self):
         '''Verifies that all meshes in the scene contain data for the defined number of timesteps. If there is missing data for some meshes,
          it fills the nodal coordinates with the repeats of the last known position, and the face colors with white by default. '''
         COORDS_PER_NODE = 3 # Number of coordinates per single node of mesh element
@@ -73,6 +164,42 @@ class Scene:
 
     def clip_scene(self, frames_to_render: int, render_type: RenderType):
         '''Clips the data to render only :
+        Dynamic renders - the passed number of frames; or
+        Static renders - the frame with the passed index.'''
+        if render_type == RenderType.DYNAMIC:
+            if frames_to_render == self.timestep_count:
+                return  # No need to change anything if we are rendering all possible frames
+            else:
+                self.timestep_count = frames_to_render
+                for mesh in range(self.mesh_count):
+                    self.coords_expanded[mesh] = self.coords_expanded[mesh][:frames_to_render]
+                    # self.deform_vals = self.deform_vals[mesh][:frames_to_render]
+                    if self.surface_types[mesh] == SurfType.FIELD_COLOR:
+                        self.face_colors[mesh] = self.face_colors[mesh][:frames_to_render]
+                    elif self.surface_types[mesh] == SurfType.TEXTURE:
+                        self.uvs[mesh] = self.uvs[mesh][:frames_to_render]
+                    else:
+                        raise Exception("Surface type not set for mesh " + str(mesh))
+        elif render_type == RenderType.STATIC:
+            # Split this into two loops to avoid branching out in the main loop, although not sure if this changes much performance-wise in Python. To be tested
+            for mesh in range(self.mesh_count):
+                # Check if we have enough timestep data for all meshes to render the desired frame number
+                if (self.coords_expanded[mesh].shape[0] < frames_to_render):
+                    # If there is missing data for any mesh, fill it only up to the required frame to enable rendering
+                    self.timestep_count = frames_to_render
+                    self.fill_empty_timesteps() # This will raise an exception if SurfType not set, so no need to do it below
+                    break
+            for mesh in range(self.mesh_count):
+                self.coords_expanded[mesh] = self.coords_expanded[mesh][:frames_to_render]
+                if self.surface_types[mesh] == SurfType.FIELD_COLOR:
+                    self.face_colors[mesh] = self.face_colors[mesh][:frames_to_render]
+                elif self.surface_types[mesh] == SurfType.TEXTURE:
+                    self.uvs[mesh] = self.uvs[mesh][:frames_to_render]
+            self.timestep_count = 1
+        # print(self.coords_expanded[0].shape)
+
+    def clip_scene_old(self, frames_to_render: int, render_type: RenderType):
+        '''Clips the data to render only :
             Dynamic renders - the passed number of frames; or
             Static renders - the frame with the passed index.'''
         if render_type == RenderType.DYNAMIC:
@@ -98,6 +225,12 @@ class Scene:
                     self.face_colors[mesh] = self.face_colors[mesh][:frames_to_render]
             self.timestep_count = 1
         #print(self.coords_expanded[0].shape)
+
+
+
+# ================================================================================
+# DEV/DEBUG
+# ================================================================================
 
 def find_max_displacements(scene: Scene, render_type: RenderType):
     '''Finds the maximum displacement amongst all nodes for each mesh, so it can be compared against a characteristic length (e.g., edge length or element area)

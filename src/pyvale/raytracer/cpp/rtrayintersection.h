@@ -30,6 +30,10 @@ IntersectionOutput intersect_bvh_triangles(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_triangle_count);
 
+IntersectionOutput intersect_bvh_quads(const Ray& ray,
+    const std::vector<double>& node_coords,
+    const unsigned int bvh_node_quad_count);
+
 void intersect_BLAS(const Ray& ray,
     const BLAS& mesh_bvh,
     IntersectionOutput &out_intersection,
