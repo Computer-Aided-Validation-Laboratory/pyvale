@@ -226,7 +226,7 @@ void engine(const py::array_t<double>& img_stack_arr,
         // -------------------------------------------------------------------------------------------------------------------------------------------
         if (conf.scan_method=="IMAGE_SCAN") {
             if (conf.stereo) {std::cerr << "ERROR: Scan method=\"IMAGE_SCAN\" does not support stereo" << std::endl; return;}
-            scanmethod::image(img_ref_l, *interp_def_l, ss_grid_l, conf, 0, img_num, result_arrays_l);
+            scanmethod::raster(img_ref_l, *interp_def_l, ss_grid_l, conf, 0, img_num, result_arrays_l);
         }
 
         // -------------------------------------------------------------------------------------------------------------------------------------------

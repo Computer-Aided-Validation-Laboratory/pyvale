@@ -37,7 +37,7 @@
 namespace scanmethod {
 
 
-    void image(const double *img_ref,
+    void raster(const double *img_ref,
                const Interpolator &interp_def,
                const subset::Grid &ss_grid,
                const util::Config &conf,

@@ -34,7 +34,7 @@ namespace scanmethod {
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void image(const double *img_ref,
+void raster(const double *img_ref,
            const Interpolator &interp_def,
            const subset::Grid &ss_grid,
            const util::Config &conf,
