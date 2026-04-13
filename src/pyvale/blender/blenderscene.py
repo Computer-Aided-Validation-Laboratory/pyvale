@@ -93,6 +93,8 @@ class Scene():
         new_cam.sensor_fit = 'HORIZONTAL'
         new_cam.sensor_width = cam_data.sensor_size[0]
         new_cam.sensor_height = cam_data.sensor_size[1]
+        new_cam.shift_x = (cam_data.c0 - cam_data.pixels_num[0] / 2) / cam_data.pixels_num[0]
+        new_cam.shift_y = (cam_data.c1 - cam_data.pixels_num[1] / 2) / cam_data.pixels_num[0]
 
         if cam_data.fstop is not None:
             new_cam.dof.focus_distance = cam_data.image_dist

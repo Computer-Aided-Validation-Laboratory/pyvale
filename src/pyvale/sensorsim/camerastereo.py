@@ -93,8 +93,12 @@ class CameraStereo:
         k1_1 = calib_params["Cam1_Kappa 1"]
         k2_1 = calib_params["Cam1_Kappa 2"]
         k3_1 = calib_params["Cam1_Kappa 3"] 
-        p1_1 = calib_params["Cam1_P1"] 
-        p2_1 = calib_params["Cam1_P2"] 
+        p1_1 = calib_params["Cam1_P1"]
+        p2_1 = calib_params["Cam1_P2"]
+        c0_0 = calib_params["Cam0_Cx [pixels]"]
+        c1_0 = calib_params["Cam0_Cy [pixels]"]
+        c0_1 = calib_params["Cam1_Cx [pixels]"]
+        c1_1 = calib_params["Cam1_Cy [pixels]"]
 
         cam_data_0 = CameraData(pixels_num=pixels_num_cam0,
                                 pixels_size=np.array([pixels_size, pixels_size]),
@@ -106,7 +110,9 @@ class CameraStereo:
                                 k2 = k2_0,
                                 k3 = k3_0,
                                 p1 = p1_0,
-                                p2 = p2_0)
+                                p2 = p2_0,
+				c0 = c0_0,
+				c1 = c1_0)
         cam_data_1 = CameraData(pixels_num=pixels_num_cam1,
                                 pixels_size=np.array([pixels_size, pixels_size]),
                                 pos_world=pos_world_1,
@@ -117,7 +123,9 @@ class CameraStereo:
                                 k2 = k2_1,
                                 k3 = k3_1,
                                 p1 = p1_1,
-                                p2 = p2_1)
+                                p2 = p2_1,
+				c0 = c0_1,
+				c1 = c1_1)
         camera_stereo = cls(cam_data_0, cam_data_1)
 
         return camera_stereo
