@@ -67,11 +67,11 @@ class CameraStereo:
         pixels_num_cam1 = np.array([int(calib_params['Cam1_Cx [pixels]']*2),
                            int(calib_params['Cam1_Cy [pixels]']*2)])
         pixels_size = focal_length / calib_params["Cam0_Fx [pixels]"]
-        stereo_rotation = Rotation.from_euler("xyz", ([calib_params['Theta [deg]'],
+        stereo_rotation = Rotation.from_euler("xyz", ([-calib_params['Theta [deg]'],
                                     calib_params['Phi [deg]'],
                                     calib_params['Psi [deg]']]), degrees=True)
         stereo_dist = np.array([calib_params["Tx [mm]"],
-                                calib_params["Ty [mm]"],
+                                -calib_params["Ty [mm]"],
                                 calib_params["Tz [mm]"]])
 
         rot_world_1 = stereo_rotation * rot_world_0
