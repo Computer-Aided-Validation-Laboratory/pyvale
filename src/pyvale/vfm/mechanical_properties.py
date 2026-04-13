@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import enum
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -6,7 +8,9 @@ import numpy as np
 import numpy.typing as npt
 
 
-class EParameterLabel(enum.Enum):
+class ParameterName(enum.Enum):
+    """Supported constitutive-parameter labels."""
+
     ElasticModulus = enum.auto()
     PoissonsRatio = enum.auto()
     HardeningModulus = enum.auto()
@@ -18,363 +22,236 @@ class EParameterLabel(enum.Enum):
     RateParameter = enum.auto()
 
 
-# TODO: update with mesh dofs
-class EDOFLabel(enum.Enum):
-    Value = enum.auto()
-    X = enum.auto()
-    Y = enum.auto()
-    Height = enum.auto()
-    Variance = enum.auto()
-    Variance1 = enum.auto()
-    Variance2 = enum.auto()
-    Angle = enum.auto()
+EParameterLabel = ParameterName
+EParameterName = ParameterName
 
 
-@dataclass(slots=True)
-class DegreeOfFreedom:
-    value: float
-    lower_bound: float
-    upper_bound: float
+class ConstituitiveLaw(enum.Enum):
+    """Supported constitutive laws used by the return-mapping code."""
 
-
-class IParameterisation(ABC):
-    @abstractmethod
-    def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
-        pass
-
-    @abstractmethod
-    def get_degrees_of_freedom(self) -> dict[EDOFLabel, DegreeOfFreedom]:
-        pass
-
-    @abstractmethod
-    def update_degree_of_freedom_value(
-        self,
-        degree_of_freedom: EDOFLabel,
-        value: float
-    ) -> None:
-        pass
-
-    # TODO: do we actually need this?
-    @abstractmethod
-    def update_degrees_of_freedom(
-        self,
-        degrees_of_freedom: dict[EDOFLabel, DegreeOfFreedom]
-    ) -> None:
-        pass
-
-
-@dataclass
-class Homogeneous(IParameterisation):
-    value: DegreeOfFreedom
-
-    def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
-        return np.full((size_y, size_x), self.value.value)
-
-    def get_degrees_of_freedom(self) -> dict[EDOFLabel, DegreeOfFreedom]:
-        return { EDOFLabel.Value: self.value }
-
-    def update_degree_of_freedom_value(
-        self,
-        degree_of_freedom: EDOFLabel,
-        value: float
-    ) -> None:
-        match degree_of_freedom:
-            case EDOFLabel.Value:
-                self.value.value = value
-            case _:
-                raise ValueError(
-                    "Invalid Degree of Freedom for Homogeneous "
-                    f"parameterisation: {degree_of_freedom.name}"
-                )
-
-    def update_degrees_of_freedom(
-        self,
-        degrees_of_freedom: dict[EDOFLabel, DegreeOfFreedom]
-    ) -> None:
-        self.value = degrees_of_freedom[EDOFLabel.Value]
-
-
-@dataclass(slots=True)
-class UnivariateBasisFunction(IParameterisation):
-    x: DegreeOfFreedom
-    y: DegreeOfFreedom
-    height: DegreeOfFreedom
-    variance: DegreeOfFreedom
-
-    # TODO: implement
-    # def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
-    #     return ...
-
-    def get_degrees_of_freedom(self) -> dict[EDOFLabel, DegreeOfFreedom]:
-        return {
-            EDOFLabel.X: self.x,
-            EDOFLabel.Y: self.y,
-            EDOFLabel.Height: self.height,
-            EDOFLabel.Variance: self.variance
-        }
-
-    def update_degree_of_freedom_value(
-        self,
-        degree_of_freedom: EDOFLabel,
-        value: float
-    ) -> None:
-        match degree_of_freedom:
-            case EDOFLabel.X:
-                self.x.value = value
-            case EDOFLabel.Y:
-                self.y.value = value
-            case EDOFLabel.Height:
-                self.height.value = value
-            case EDOFLabel.Variance:
-                self.variance.value = value
-            case _:
-                raise ValueError(
-                    "Invalid Degree of Freedom for Univariate Basis Function "
-                    f"parameterisation: {degree_of_freedom.name}"
-                )
-
-    def update_degrees_of_freedom(
-        self,
-        degrees_of_freedom: dict[EDOFLabel, DegreeOfFreedom]
-    ) -> None:
-        self.x = degrees_of_freedom[EDOFLabel.X]
-        self.y = degrees_of_freedom[EDOFLabel.Y]
-        self.height = degrees_of_freedom[EDOFLabel.Height]
-        self.variance = degrees_of_freedom[EDOFLabel.Variance]
-
-
-@dataclass(slots=True)
-class BivariateBasisFunction(IParameterisation):
-    x: DegreeOfFreedom
-    y: DegreeOfFreedom
-    height: DegreeOfFreedom
-    variance_1: DegreeOfFreedom
-    variance_2: DegreeOfFreedom
-    angle: DegreeOfFreedom
-
-    # TODO: implement
-    # def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
-    #     return ...
-
-    def get_degrees_of_freedom(self) -> dict[EDOFLabel, DegreeOfFreedom]:
-        return {
-            EDOFLabel.X: self.x,
-            EDOFLabel.Y: self.y,
-            EDOFLabel.Height: self.height,
-            EDOFLabel.Variance1: self.variance_1,
-            EDOFLabel.Variance2: self.variance_2,
-            EDOFLabel.Angle: self.angle
-        }
-
-    def update_degree_of_freedom_value(
-        self,
-        degree_of_freedom: EDOFLabel,
-        value: float
-    ) -> None:
-        match degree_of_freedom:
-            case EDOFLabel.X:
-                self.x.value = value
-            case EDOFLabel.Y:
-                self.y.value = value
-            case EDOFLabel.Height:
-                self.height.value = value
-            case EDOFLabel.Variance1:
-                self.variance_1.value = value
-            case EDOFLabel.Variance2:
-                self.variance_2.value = value
-            case EDOFLabel.Angle:
-                self.angle.value = value
-            case _:
-                raise ValueError(
-                    "Invalid Degree of Freedom for Bivariate Basis Function "
-                    f"parameterisation: {degree_of_freedom.name}"
-                )
-
-    def update_degrees_of_freedom(
-        self,
-        degrees_of_freedom: dict[EDOFLabel, DegreeOfFreedom]
-    ) -> None:
-        self.x = degrees_of_freedom[EDOFLabel.X]
-        self.y = degrees_of_freedom[EDOFLabel.Y]
-        self.height = degrees_of_freedom[EDOFLabel.Height]
-        self.variance_1 = degrees_of_freedom[EDOFLabel.Variance1]
-        self.variance_2 = degrees_of_freedom[EDOFLabel.Variance2]
-        self.angle = degrees_of_freedom[EDOFLabel.Angle]
-
-
-@dataclass(slots=True)
-class Mesh(IParameterisation):
-    # TODO: should this just be size and take a numpy array?
-    size_x: int
-    size_y: int
-    # TODO: add other fields like element ordering/shape functions etc
-
-    # TODO: implement
-    # def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
-    #     return ...
-
-    # TODO: implement
-    # def get_degrees_of_freedom(self) -> dict[EDOFLabel, DegreeOfFreedom]:
-    #     return ...
-
-    # TODO: implement
-    # def update_degree_of_freedom_value(
-    #     self,
-    #     degree_of_freedom: EDOFLabel,
-    #     value: float
-    # ) -> None:
-    #     return ...
-
-    # TODO: implement
-    # def update_degrees_of_freedom(self, degrees_of_freedom: dict[EDOFLabel, DegreeOfFreedom]) -> None:
-    #     return ...
-
-
-Parameterisation = (
-    Homogeneous |
-    UnivariateBasisFunction |
-    BivariateBasisFunction |
-    Mesh
-)
-
-
-class IParameter(ABC):
-    @abstractmethod
-    def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
-        pass
-
-
-@dataclass(slots=True)
-class UnknownParameter(IParameter):
-    lower_bound: float
-    upper_bound: float
-    parameterisation: list[Parameterisation]
-
-    def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
-        maps = [p.to_map(size_x, size_y) for p in self.parameterisation]
-        return np.sum(maps, axis=0)
-
-    def get_degrees_of_freedom(self) -> list[dict[EDOFLabel, DegreeOfFreedom]]:
-        return [
-            p.get_degrees_of_freedom() for p in self.parameterisation
-        ]
-
-    # TODO: should this be removed fully?
-    # def update_degrees_of_freedom(
-    #     self,
-    #     degrees_of_freedom: list[dict[EDOFLabel, DegreeOfFreedom]]
-    # ) -> None:
-    #     for i, p in enumerate(self.parameterisation):
-    #         p.update_degrees_of_freedom(degrees_of_freedom[i])
-
-
-@dataclass(slots=True)
-class KnownParameter(IParameter):
-    value: npt.NDArray[np.float64]
-
-    def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
-        return self.value
-
-
-Parameter = KnownParameter | UnknownParameter
-
-
-class EConstituitiveLaw(enum.Enum):
     LinearHardening = enum.auto()
+    Elastic = enum.auto()
     SwiftHardening = enum.auto()
     VoceHardening = enum.auto()
     LudwikHardening = enum.auto()
 
 
+ConstitutiveLaw = ConstituitiveLaw
+EConstituitiveLaw = ConstituitiveLaw
+
+
+class IdentificationType(enum.Enum):
+    """Compatibility enum kept for the older homogeneous-parameter tests.
+
+    The new toolkit parameterisation workflow does not use this enum to
+    decide whether a parameter is fixed or optimised. That now lives in the
+    spatial-parameterisation layer.
+    """
+
+    Known = enum.auto()
+    Unknown = enum.auto()
+
+
+EIdentificationType = IdentificationType
+
+
+@dataclass(slots=True)
+class ParameterBounds:
+    """Simple lower/upper bounds container."""
+
+    lower: float
+    upper: float
+
+    @property
+    def lower_bound(self) -> float:
+        return self.lower
+
+    @property
+    def upper_bound(self) -> float:
+        return self.upper
+
+
+@dataclass(slots=True)
+class ScalarValue:
+    """Small wrapper kept for compatibility with the existing tests."""
+
+    value: float
+
+
+class ConstitutiveParameter(ABC):
+    """Resolved constitutive parameter available to the material model.
+
+    By the time the constitutive law sees a parameter it should already be a
+    concrete scalar field over the specimen. How that field was created
+    (homogeneous, mesh, basis functions, linked phase, and so on) is handled
+    elsewhere.
+    """
+
+    @abstractmethod
+    def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
+        """Return the parameter as a dense 2D map on the test-data grid."""
+
+
+@dataclass(slots=True)
+class KnownParameter(ConstitutiveParameter):
+    """Resolved parameter defined directly by a scalar or a 2D map."""
+
+    value: npt.NDArray[np.float64] | float
+
+    def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
+        value_array = np.asarray(self.value, dtype=np.float64)
+
+        if value_array.ndim == 0:
+            return np.full((size_y, size_x), float(value_array), dtype=np.float64)
+
+        if value_array.shape != (size_y, size_x):
+            raise ValueError(
+                "KnownParameter map shape does not match the requested grid. "
+                f"Expected {(size_y, size_x)}, got {value_array.shape}."
+            )
+
+        return value_array
+
+
+@dataclass(slots=True)
+class HomogeneousParameter(ConstitutiveParameter):
+    """Resolved parameter represented by one scalar everywhere.
+
+    This class is intentionally narrow: it exists mainly because the
+    radial-return tests already use it, and because a uniform parameter is a
+    useful resolved material representation. It is not the place where the
+    identification logic decides whether a parameter is fixed or unknown.
+    """
+
+    identification_type: IdentificationType
+    bounds: ParameterBounds
+    value: ScalarValue
+
+    def to_map(self, size_x: int, size_y: int) -> npt.NDArray[np.float64]:
+        return np.full((size_y, size_x), self.value.value, dtype=np.float64)
+
+    @property
+    def lower_bound(self) -> float:
+        return self.bounds.lower
+
+    @property
+    def upper_bound(self) -> float:
+        return self.bounds.upper
+
+
+Parameter = KnownParameter | HomogeneousParameter
+
+
+REQUIRED_PARAMETERS = {
+    ConstituitiveLaw.LinearHardening: (
+        ParameterName.ElasticModulus,
+        ParameterName.PoissonsRatio,
+        ParameterName.YieldStrength,
+        ParameterName.HardeningModulus,
+    ),
+    ConstituitiveLaw.Elastic: (
+        ParameterName.ElasticModulus,
+        ParameterName.PoissonsRatio,
+    ),
+    ConstituitiveLaw.SwiftHardening: (
+        ParameterName.ElasticModulus,
+        ParameterName.PoissonsRatio,
+        ParameterName.StrengthCoefficient,
+        ParameterName.StrainOffset,
+        ParameterName.HardeningExponent,
+    ),
+    ConstituitiveLaw.VoceHardening: (
+        ParameterName.ElasticModulus,
+        ParameterName.PoissonsRatio,
+        ParameterName.YieldStrength,
+        ParameterName.HardeningModulus,
+        ParameterName.SaturationStress,
+        ParameterName.RateParameter,
+    ),
+    ConstituitiveLaw.LudwikHardening: (
+        ParameterName.ElasticModulus,
+        ParameterName.PoissonsRatio,
+        ParameterName.YieldStrength,
+        ParameterName.StrengthCoefficient,
+        ParameterName.HardeningExponent,
+    ),
+}
+
+
+def coerce_parameter_name(value: ParameterName | str) -> ParameterName:
+    """Accept either an enum member or its name."""
+
+    if isinstance(value, ParameterName):
+        return value
+    return ParameterName[value]
+
+
+def coerce_constituitive_law(
+    value: ConstituitiveLaw | str,
+) -> ConstituitiveLaw:
+    """Accept either a constitutive-law enum member or its name."""
+
+    if isinstance(value, ConstituitiveLaw):
+        return value
+    return ConstituitiveLaw[value]
+
+
+def required_parameters_for_law(
+    constituitive_law: ConstituitiveLaw | str,
+) -> tuple[ParameterName, ...]:
+    """Return the required parameters for the selected law."""
+
+    law = coerce_constituitive_law(constituitive_law)
+    return REQUIRED_PARAMETERS[law]
+
+
 @dataclass(slots=True)
 class MechanicalProperties:
-    constituitive_law: EConstituitiveLaw
-    parameters: dict[EParameterLabel, Parameter]
+    """Constitutive law plus resolved parameter fields."""
 
-    def get_unknown_parameters(self) -> dict[EParameterLabel, UnknownParameter]:
-        return {
-            label: param
-            for label, param in self.parameters.items()
-            if isinstance(param, UnknownParameter)
+    constituitive_law: ConstituitiveLaw
+    parameters: dict[ParameterName, Parameter]
+
+    def __post_init__(self) -> None:
+        self.constituitive_law = coerce_constituitive_law(self.constituitive_law)
+        self.parameters = {
+            coerce_parameter_name(label): parameter
+            for label, parameter in self.parameters.items()
         }
 
-    # TODO: should this be removed fully?
-    # def update_degrees_of_freedom(
-    #     self,
-    #     degrees_of_freedom: dict[
-    #         EParameterLabel,
-    #         list[dict[EDOFLabel, DegreeOfFreedom]]
-    #     ]
-    # ) -> None:
-    #     for label, dofs in degrees_of_freedom.items():
-    #         param = self.parameters[label]
+    @property
+    def constitutive_law(self) -> ConstituitiveLaw:
+        return self.constituitive_law
 
-    #         match param:
-    #             case UnknownParameter():
-    #                 param.update_degrees_of_freedom(dofs)
-    #             case KnownParameter():
-    #                 raise(TypeError(
-    #                     f"Expected UnknownParameter, got {type(param).__name__}"
-    #                 ))
+    def validate(self) -> None:
+        required = set(required_parameters_for_law(self.constituitive_law))
+        missing = sorted(
+            required.difference(self.parameters.keys()),
+            key=lambda name: name.name,
+        )
+
+        if missing:
+            missing_names = ", ".join(name.name for name in missing)
+            raise ValueError(
+                "MechanicalProperties is missing parameters for "
+                f"{self.constituitive_law.name}: {missing_names}"
+            )
+
+    def get_unknown_parameters(self) -> dict[ParameterName, Parameter]:
+        """Legacy compatibility hook for older callers.
+
+        The new toolkit stores unknowns in the spatial parameterisation
+        state, so this always returns an empty mapping.
+        """
+
+        return {}
 
 
 def check_validity(mechanical_properties: MechanicalProperties) -> bool:
-    is_valid = True
-    match mechanical_properties.constituitive_law:
-        case EConstituitiveLaw.LinearHardening:
-            required_parameters = {
-                EParameterLabel.ElasticModulus,
-                EParameterLabel.PoissonsRatio,
-                EParameterLabel.HardeningModulus,
-                EParameterLabel.YieldStrength,
-            }
+    """Return True when the material definition is valid for its law."""
 
-            if not required_parameters.issubset(
-                mechanical_properties.parameters.keys()
-            ):
-                is_valid = False
-
-        case EConstituitiveLaw.SwiftHardening:
-            required_parameters = {
-                EParameterLabel.ElasticModulus,
-                EParameterLabel.PoissonsRatio,
-                EParameterLabel.StrengthCoefficient,
-                EParameterLabel.StrainOffset,
-                EParameterLabel.HardeningExponent,
-            }
-
-            if not required_parameters.issubset(
-                mechanical_properties.parameters.keys()
-            ):
-                is_valid = False
-
-        case EConstituitiveLaw.VoceHardening:
-            required_parameters = {
-                EParameterLabel.ElasticModulus,
-                EParameterLabel.PoissonsRatio,
-                EParameterLabel.YieldStrength,
-                EParameterLabel.HardeningModulus,
-                EParameterLabel.SaturationStress,
-                EParameterLabel.RateParameter,
-            }
-
-            if not required_parameters.issubset(
-                mechanical_properties.parameters.keys()
-            ):
-                is_valid = False
-
-        case EConstituitiveLaw.LudwikHardening:
-            required_parameters = {
-                EParameterLabel.ElasticModulus,
-                EParameterLabel.PoissonsRatio,
-                EParameterLabel.YieldStrength,
-                EParameterLabel.StrengthCoefficient,
-                EParameterLabel.HardeningExponent,
-            }
-
-            if not required_parameters.issubset(
-                mechanical_properties.parameters.keys()
-            ):
-                is_valid = False
-
-    return is_valid
+    try:
+        mechanical_properties.validate()
+    except ValueError:
+        return False
+    return True

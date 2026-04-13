@@ -117,16 +117,11 @@ def radial_return(
 
     """
 
+    unloading = _coerce_unloading_mode(unloading)
+
     # Check inputs
     if strain.ndim != 4 or strain.shape[1] != 3:
         raise ValueError("strain must have shape (timesteps, 3, y, x)")
-
-    valid_unloading = {"no_compensation", "constant_strain", "linear_extrapolation"}
-    if unloading not in valid_unloading:
-        raise ValueError(
-            f"Invalid unloading option '{unloading}'. Supported options: "
-            "'no_compensation', 'constant_strain', 'linear_extrapolation'"
-        )
 
 
     # == UNPACK COMMON VARIABLES == 
@@ -568,3 +563,22 @@ def radial_return(
         yield_map,
         np.reshape(equivalent_plastic_strain, (num_timesteps, size_y, size_x)),
     )
+
+
+def _coerce_unloading_mode(unloading: EUnloading | str) -> EUnloading:
+    if isinstance(unloading, EUnloading):
+        return unloading
+
+    string_to_mode = {
+        "no_compensation": EUnloading.NoCompensation,
+        "constant_strain": EUnloading.ConstantStrain,
+        "linear_extrapolation": EUnloading.LinearExtrapolation,
+    }
+
+    try:
+        return string_to_mode[unloading]
+    except KeyError as error:
+        raise ValueError(
+            f"Invalid unloading option '{unloading}'. Supported options: "
+            "'no_compensation', 'constant_strain', 'linear_extrapolation'"
+        ) from error

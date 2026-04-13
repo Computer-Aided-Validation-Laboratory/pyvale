@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
-from scipy.io import loadmat
 
 
 # TODO: are these appropriate names?
@@ -36,6 +35,8 @@ class BoundaryConditionSettings():
 # TODO: should we return 1d mesh or the meshgrid?
 @dataclass(slots=True)
 class VirtualFieldsMesh:
+    """Virtual-field helper mesh and the matrices derived from it."""
+
     # vXcoords 
     x: npt.NDArray[np.float64]
     # vYcoords 
@@ -52,7 +53,7 @@ class VirtualFieldsMesh:
     # vCoordsGrid 
     virtual_elements: npt.NDArray[np.int64]
     # BC_settings 
-    boundary_condition_settings: BoundaryConditionSettings
+    boundary_condition_settings: npt.NDArray[np.uint32]
     # indexlist 
     # TODO: should we use the specimen mask here instead?
     indices: npt.NDArray[np.uint32]
@@ -77,9 +78,14 @@ def generate_virtual_fields_mesh(
     y: npt.NDArray[np.float64],
     indices: npt.NDArray[np.uint32],
     settings: npt.NDArray[np.uint32],
+    mesh_size: npt.NDArray[np.uint32] | None = None,
     # nan_mask: npt.NDArray[np.float64], # TODO: is this needed?
 ):
-    mesh_x, mesh_y = generate_mesh(x, y, np.array([15, 15]))
+    """Build the reduced virtual-fields mesh used by the SBVF routines."""
+    if mesh_size is None:
+        mesh_size = np.array([15, 15], dtype=np.uint32)
+
+    mesh_x, mesh_y = generate_mesh(x, y, mesh_size)
 
     num_virtual_elements = mesh_x.size * mesh_y.size
 
@@ -353,6 +359,8 @@ def generate_mesh(
     y: npt.NDArray[np.float64],
     mesh_size: npt.NDArray[np.uint32]
 ):
+    """Snap a coarse virtual mesh onto the measured x/y grid lines."""
+
     size_x = x.shape[0]
     size_y = y.shape[0]
 
@@ -401,34 +409,3 @@ def generate_mesh(
     mesh_y[1:-1] = grid_y[closest_grid_points_y]
 
     return (mesh_x, mesh_y)
-
-
-test_data = loadmat("/Users/chris/work/vfmap-numerical-paper/test_data/generate_virtual_mesh_test_data.mat")
-test_output = loadmat("/Users/chris/work/vfmap-numerical-paper/test_data/compute_mesh_grids_output.mat")
-
-x = test_data["testData"]["X"][0][0]
-y = test_data["testData"]["Y"][0][0]
-indices = test_data["testData"]["indexList"][0][0]
-# Taken from matlab
-settings = np.array([(0, 1, 0, 2), (0, 1, 0, 1)])
-# convert python indexing
-indices = indices - 1
-# Need to convert shape into column vector instead
-# (35k, 1) -> (35k,)
-indices = indices.squeeze()
-
-
-virtual_fields_mesh = generate_virtual_fields_mesh(x[0, :], y[:, 0], indices, settings)
-print("break")
-# (grid_x, grid_y) = generate_grid(x[0, :], y[:, 0])
-
-# print(grid_x)
-
-# # print(virtual_mesh)
-# test_output_x = test_output["meshElemsX"]
-# test_output_y = test_output["meshElemsY"]
-
-# print(test_output_x)
-
-# np_test.assert_allclose(grid_x, test_output_x, rtol=1e-12, atol=1e-12)
-# np_test.assert_allclose(grid_y, test_output_y, rtol=1e-12, atol=1e-12)

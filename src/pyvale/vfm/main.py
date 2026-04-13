@@ -1,206 +1,118 @@
-import matplotlib.pyplot as plt
+# Enable postponed evaluation of type annotations (helps with typing and imports)
+from __future__ import annotations
+
+# Library for building command-line interfaces
+import argparse
+
+# Modern path handling object for file paths
+from pathlib import Path
+
 import numpy as np
-from scipy.io import loadmat
 
-from pyvale.vfm import mechanical_properties
-from pyvale.vfm.mechanical_properties import *
-from pyvale.vfm.radial_return import radial_return
-# from pyvale.vfm.virtual_fields_mesh import generate_virtual_fields_mesh
-# from pyvale.vfm.stress_sensitivity import calculate_stress_sensitivity
-
-# data = loadmat(
-#     "/home/robh/1_Projects/vfmap-numerical-paper/data/notchedButtWeld_bilin_lin360420S_hom3700H_imDef_1.5/5-testData/testData.mat",
-#     struct_as_record=False,
-#     squeeze_me=True,
-#     simplify_cells=True
-# )
-
-# data = loadmat(
-#     "/Users/chris/work/vfmap-numerical-paper/data/5-testData/testData.mat",
-#     struct_as_record=False,
-#     squeeze_me=True,
-#     simplify_cells=True
-# )
-test_data = data["testData"]
-
-# Coordinate axis convention:
-# - y coordinate increases downwards (as row number increases)
-# - x increases to the right (as col num increases)
-
-# Strain convention is (timestep, component, y, x)
-# Component convention is 0 -> c11, 1 -> c22, 2 -> c12
-strain = test_data["strain"]
-
-num_cols = 316
-num_rows = 113
-num_timesteps = 23
-
-# Strain comes in as flattened vector x timesteps
-# Matlab uses column major ordering, so using order="F" unpack this into
-# rows and cols representing y and x coords
-strain_c11 = strain["c11"].reshape((num_rows, num_cols, num_timesteps), order="F")
-strain_c22 = strain["c22"].reshape((num_rows, num_cols, num_timesteps), order="F")
-strain_c12 = strain["c12"].reshape((num_rows, num_cols, num_timesteps), order="F")
-
-# transpose and add a new axis to get this component of strain into the form we want
-strain_c11 = np.transpose(strain_c11, (2, 0, 1))
-# strain_c11 = strain_c11[:, np.newaxis, :, :] # (23, 1, 113, 316)
-assert(strain_c11.shape == (23, 113, 316))
-
-strain_c22 = np.transpose(strain_c22, (2, 0, 1))
-# strain_c22 = strain_c22[:, np.newaxis, :, :]
-assert(strain_c22.shape == (23, 113, 316))
-
-strain_c12 = np.transpose(strain_c12, (2, 0, 1))
-# strain_c12 = strain_c12[:, np.newaxis, :, :]
-assert(strain_c12.shape == (23, 113, 316))
-
-# Merging components
-strain_4d = np.stack((strain_c11, strain_c22, strain_c12), axis=1)
-# Flipping to conform to y increasing downwards convention
-strain = np.flip(strain_4d, axis=2)
-
-# STRAIN PLOT
-# strain_slice_2d = strain[20, 1, :, :]
-# plt.figure()
-# plt.imshow(slice_slice_2d, aspect='auto')
-# plt.colorbar()
-# plt.xlabel('Index (316)')
-# plt.ylabel('Index (113)')
-# plt.title('Slice strain_slice_2d[20, 1, :, :]')
-# plt.show()
-
-x = test_data["X"]
-x_vals = np.nanmean(x, axis=0, keepdims=True) # gives us a (1, 316)
-x = np.tile(x_vals, (x.shape[0], 1)) # gives us a (113, 316)
-assert(x.shape == (113, 316))
-
-y = test_data["Y"]
-y_vals = np.nanmean(y, axis=1, keepdims=True) # gives us a (113, 1)
-y = np.tile(y_vals, (1, y.shape[1])) # gives us a (113, 316)
-# Flipping to conform to y increasing downwards convention
-y = np.flip(y, axis=0)
-assert(y.shape == (113, 316))
-
-# The specimen mask is true if the datapoint is a valid material datapoint
-# of the specimen, and nan if it doesn't exist (e.g. a hole/notch).
-# Ideally this would be defined from the DIC Region of Interest, but for now
-# we're extracting the data from the x data as below
-specimen_mask = np.zeros(x.shape, dtype=bool)
-nan_mask = np.isnan(test_data["X"])
-specimen_mask = ~nan_mask
-# Flipping to conform to y increasing downwards convention
-specimen_mask = np.flip(specimen_mask, axis=0)
-
-area = test_data["area"].reshape((num_rows, num_cols), order="F")
-area = np.flip(area, axis=0)
-assert(area.shape == (113, 316))
-
-# The x and y components of force at each timestep
-# Shape is (timestep, component)
-force = test_data["FGlob"] # (23, 2)
-
-# The time at each time step
-time = test_data["time"]["time"]
-
-yield_strength = HomogeneousParameter(
-    EIdentificationType.Unknown,
-    ParameterBounds(100, 1000),
-    ScalarValue(320)
-)
-
-hardening_modulus = HomogeneousParameter(
-    EIdentificationType.Unknown,
-    ParameterBounds(1000, 10_000),
-    ScalarValue(3000)
-)
-
-elastic_modulus = HomogeneousParameter(
-    EIdentificationType.Unknown,
-    ParameterBounds(150_000, 250_000),
-    ScalarValue(190_000)
-)
-
-poissons_ratio = HomogeneousParameter(
-    EIdentificationType.Unknown,
-    ParameterBounds(0.2, 0.4),
-    ScalarValue(0.28)
-)
-
-mechanical_properties = MechanicalProperties(
-    EConstituitiveLaw.LinearHardening,
-    {
-        EParameterName.ElasticModulus: elastic_modulus,
-        EParameterName.PoissonsRatio: poissons_ratio,
-        EParameterName.YieldStrength: yield_strength,
-        EParameterName.HardeningModulus: hardening_modulus,
-    }
-)
-
-# TODO: need to figure out where this check should happen and
-# deliver useful error messages
-if not check_validity(mechanical_properties):
-    print("mechanical properties invalid")
-
-stress, equivalent_stress, yield_map, peeq = radial_return(strain, mechanical_properties)
-
-# virtual_fields_mesh = generate_virtual_fields_mesh()
-
-print("break")
+# Functions from the pyvale Virtual Fields Method toolkit
+from pyvale.vfm.identification_manager import run_identification
+from pyvale.vfm.project_definition import PhaseResult, create_default_project
+from pyvale.vfm.project_io import load_project
+from pyvale.vfm.ui import launch_gui
 
 
-def calculate_timestep_deltas(
-    timesteps: npt.NDArray[np.float64]
-) -> npt.NDArray[np.float64]:
-    delta_time = np.zeros_like(timesteps)
-    delta_time[0] = timesteps[0]
-    delta_time[1:] = np.diff(timesteps)
+def _format_phase_parameter_results(result: PhaseResult) -> list[str]:
+    """Build a simple readable summary of the identified parameter values."""
 
-    return delta_time
+    summary_lines: list[str] = []
 
-# Pasting below if needed in future, can be fully deleted once we dont need this main anymore
-# TODO: assuming linear normalisation only, support other kinds of
-# normalisation in future
-# def normalise_degrees_of_freedom(
-#     degrees_of_freedom: dict[
-#         EParameterLabel,
-#         list[dict[EDOFLabel, DegreeOfFreedom]]
-#     ]
-# ) -> dict[EParameterLabel, list[dict[EDOFLabel, DegreeOfFreedom]]]:
-#     return {
-#         param_label: [
-#             {
-#                 dof_label: NormalisedValue(
-#                     (dof.value - dof.lower_bound) /
-#                     (dof.upper_bound - dof.lower_bound)
-#                 )
-#                 for dof_label, dof in parametrisation.items()
-#                 if isinstance(dof, BoundedValue)
-#             }
-#             for parametrisation in params
-#         ]
-#         for param_label, params in degrees_of_freedom.items()
-#     }
+    for parameter_name in sorted(result.parameter_maps):
+        parameter_map = result.parameter_maps[parameter_name]
+        parameter_state = result.parameter_states.get(parameter_name)
+        dofs = [] if parameter_state is None else parameter_state.collect_dofs()
+
+        if len(dofs) == 1:
+            summary_lines.append(
+                f"  {parameter_name}: {dofs[0].value:.6g}"
+            )
+            continue
+
+        finite_values = parameter_map[np.isfinite(parameter_map)]
+        if finite_values.size == 0:
+            summary_lines.append(f"  {parameter_name}: no finite values")
+            continue
+
+        mean_value = float(np.mean(finite_values))
+        min_value = float(np.min(finite_values))
+        max_value = float(np.max(finite_values))
+
+        if np.allclose(finite_values, finite_values[0]):
+            summary_lines.append(f"  {parameter_name}: {mean_value:.6g}")
+        else:
+            summary_lines.append(
+                f"  {parameter_name}: mean={mean_value:.6g}, "
+                f"min={min_value:.6g}, max={max_value:.6g}"
+            )
+
+    return summary_lines
 
 
-# def perturb_normalised_degrees_of_freedom(
-#     degrees_of_freedom: dict[
-#         EParameterLabel,
-#         list[dict[EDOFLabel, DegreeOfFreedom]]
-#     ],
-#     perturbation_factor: float
-# ) -> dict[EParameterLabel, list[dict[EDOFLabel, DegreeOfFreedom]]]:
-#     for params in degrees_of_freedom.values():
-#         for parametrisation in params:
-#             for label, dof in parametrisation.items():
-#                 if isinstance(dof, NormalisedValue):
-#                     parametrisation[label] = NormalisedValue(
-#                         dof.value * (1 - perturbation_factor)
-#                     )
-#                 else:
-#                     raise(TypeError(
-#                         f"Expected NormalisedValue, got {type(dof).__name__}"
-#                     ))
+def main() -> None:
+    # Create a command-line argument parser
+    parser = argparse.ArgumentParser(
+        description="Run the pyvale virtual fields method toolkit."
+    )
 
-#     return degrees_of_freedom
+    # Optional argument specifying a YAML project configuration file
+    parser.add_argument(
+        "--project",
+        type=Path,
+        help="Path to a YAML project file.",
+    )
 
+    # Optional flag to open the Qt GUI interface
+    parser.add_argument(
+        "--gui",
+        action="store_true",
+        help="Open the thin Qt toolkit shell before running.",
+    )
+
+    # Optional flag to run the identification algorithm
+    parser.add_argument(
+        "--run",
+        action="store_true",
+        help="Run identification after loading the project.",
+    )
+
+    # Parse the command-line arguments into the 'args' object
+    args = parser.parse_args()
+
+    # Load an existing project if a YAML file is provided,
+    # otherwise create a default project configuration
+    if args.project is not None:
+        project = load_project(args.project)
+    else:
+        project = create_default_project()
+
+    # Launch the GUI if the --gui flag was passed
+    if args.gui:
+        project = launch_gui(project)
+
+    # Run the identification routine if the --run flag was passed
+    if args.run:
+        results = run_identification(project)
+
+        # Print results for each identified phase
+        for result in results:
+            print(
+                f"{result.phase_name}: cost={result.cost:.6g}, "
+                f"metrics={result.metric_values}"
+            )
+            print("Identified parameters:")
+            for line in _format_phase_parameter_results(result):
+                print(line)
+
+
+# Run main() only when this file is executed directly
+if __name__ == "__main__":
+    main()
+
+
+# example usage:
+# python -m pyvale.vfm.main --gui --run
+# python -m pyvale.vfm.main --project /home/robh/1_Projects/vfmap-numerical-paper/data/notchedButtWeld_bilin_lin360420S_hom3700H_imDef_1.5/5-testData/vfm_project.yaml --run
