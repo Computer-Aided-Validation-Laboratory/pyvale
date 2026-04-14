@@ -8,6 +8,41 @@ from scipy.io import loadmat
 from pyvale.vfm.project_definition import TestData
 
 
+def _extract_plane_stress_thickness(test_data: dict, default: float = 1.0) -> float:
+    data_info = test_data.get("dataInfo")
+    if not isinstance(data_info, dict):
+        return float(default)
+
+    thickness = data_info.get("planeStressThickness")
+    if thickness is None:
+        return float(default)
+    return float(thickness)
+
+
+def _load_thickness_from_mat_source(
+    source_path: Path | None,
+    default: float = 1.0,
+) -> float:
+    if source_path is None or source_path.suffix.lower() != ".mat" or not source_path.exists():
+        return float(default)
+
+    try:
+        data = loadmat(
+            source_path,
+            struct_as_record=False,
+            squeeze_me=True,
+            simplify_cells=True,
+        )
+    except Exception:
+        return float(default)
+
+    test_data = data.get("testData")
+    if not isinstance(test_data, dict):
+        return float(default)
+
+    return _extract_plane_stress_thickness(test_data, default=default)
+
+
 def parse_test_data_from_mat(mat_path: str | Path) -> TestData:
     """Load a MATLAB `testData.mat` file and rearrange it into toolkit form.
 
@@ -77,6 +112,7 @@ def parse_test_data_from_mat(mat_path: str | Path) -> TestData:
         time = np.asarray(time_data["time"], dtype=np.float64)
     else:
         time = np.asarray(time_data, dtype=np.float64)
+    thickness = _extract_plane_stress_thickness(test_data)
 
     return TestData(
         x=x,
@@ -87,6 +123,7 @@ def parse_test_data_from_mat(mat_path: str | Path) -> TestData:
         force=force,
         time=time,
         source_path=Path(mat_path),
+        thickness=thickness,
     )
 
 
@@ -109,6 +146,7 @@ def save_parsed_test_data(
         strain=test_data.strain,
         force=test_data.force,
         time=test_data.time,
+        thickness=np.array(test_data.thickness, dtype=np.float64),
         source_path=(
             "" if test_data.source_path is None else str(test_data.source_path)
         ),
@@ -122,6 +160,11 @@ def load_parsed_test_data(npz_path: str | Path) -> TestData:
     with np.load(npz_path) as saved_data:
         source_path_text = str(saved_data["source_path"])
         source_path = Path(source_path_text) if source_path_text else None
+        thickness = (
+            float(np.asarray(saved_data["thickness"], dtype=np.float64))
+            if "thickness" in saved_data
+            else _load_thickness_from_mat_source(source_path)
+        )
         return TestData(
             x=np.asarray(saved_data["x"], dtype=np.float64),
             y=np.asarray(saved_data["y"], dtype=np.float64),
@@ -131,6 +174,7 @@ def load_parsed_test_data(npz_path: str | Path) -> TestData:
             force=np.asarray(saved_data["force"], dtype=np.float64),
             time=np.asarray(saved_data["time"], dtype=np.float64),
             source_path=source_path,
+            thickness=thickness,
         )
 
 
@@ -150,5 +194,4 @@ def convert_mat_to_py_data(
 # convert_mat_to_py_data("path/to/testData.mat", "path/to/parsed_test_data.npz")
 # in terminal: 
 #  PYTHONPATH=src python -c "from pyvale.vfm.mat_to_py_data_parser import convert_mat_to_py_data; convert_mat_to_py_data('/home/robh/1_Projects/vfmap-numerical-paper/data/notchedButtWeld_bilin_lin360420S_hom3700H_imDef_1.5/5-testData/testData.mat', '/home/robh/1_Projects/vfmap-numerical-paper/data/notchedButtWeld_bilin_lin360420S_hom3700H_imDef_1.5/5-testData/test_data.npz')"
-
 

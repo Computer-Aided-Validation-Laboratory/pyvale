@@ -80,7 +80,9 @@ def run_nonlinear_identification(
     }
     evaluation_counter = {"count": 0}
 
-    def evaluate_candidate(vector: npt.NDArray[np.float64]) -> float:
+    def evaluate_candidate(
+        vector: npt.NDArray[np.float64],
+    ) -> tuple[float, npt.NDArray[np.float64]]:
         evaluation_counter["count"] += 1
         update_parameter_states_from_vector(parameter_states, active_dofs, vector)
         parameter_maps = resolve_parameter_maps(parameter_states, test_data)
@@ -94,7 +96,7 @@ def run_nonlinear_identification(
             resolved_properties,
         )
 
-        cost, metric_values, _ = evaluate_metrics(
+        cost, metric_values, metric_results = evaluate_metrics(
             metrics_with_weights,
             stress,
             test_data,
@@ -106,6 +108,10 @@ def run_nonlinear_identification(
                 active_dofs=active_dofs,
                 parameter_maps=parameter_maps,
             ),
+        )
+        residual_vector = _build_least_squares_residual_vector(
+            metrics_with_weights,
+            metric_results,
         )
 
         if cost < best["cost"]:
@@ -131,20 +137,29 @@ def run_nonlinear_identification(
                 f"current cost = {float(cost):.6g}"
             )
 
-        return float(cost)
+        return float(cost), residual_vector
+
+    def evaluate_candidate_cost(vector: npt.NDArray[np.float64]) -> float:
+        cost, _ = evaluate_candidate(vector)
+        return cost
+
+    def evaluate_candidate_residuals(vector: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        _, residual_vector = evaluate_candidate(vector)
+        return residual_vector
 
     if active_dofs:
         print(f"  Starting optimiser '{phase_definition.optimiser.kind}'.")
         best_vector = _run_optimiser(
             phase_definition=phase_definition,
-            objective_function=evaluate_candidate,
+            objective_function=evaluate_candidate_cost,
+            residual_function=evaluate_candidate_residuals,
             initial_vector=initial_vector,
             bounds=bounds,
         )
-        evaluate_candidate(best_vector)
+        evaluate_candidate_cost(best_vector)
     else:
         print("  No active DOFs, evaluating the fixed candidate once.")
-        evaluate_candidate(initial_vector)
+        evaluate_candidate_cost(initial_vector)
 
     print(
         f"  Finished phase {phase_definition.name} after "
@@ -186,6 +201,7 @@ def _resolve_mechanical_properties(
 def _run_optimiser(
     phase_definition: PhaseDefinition,
     objective_function,
+    residual_function,
     initial_vector: npt.NDArray[np.float64],
     bounds: list[tuple[float, float]],
 ) -> npt.NDArray[np.float64]:
@@ -193,7 +209,7 @@ def _run_optimiser(
 
     if optimiser_kind == "least_squares":
         return _run_least_squares(
-            objective_function,
+            residual_function,
             initial_vector,
             bounds,
             phase_definition.optimiser.options,
@@ -211,21 +227,22 @@ def _run_optimiser(
 
 
 def _run_least_squares(
-    objective_function,
+    residual_function,
     initial_vector: npt.NDArray[np.float64],
     bounds: list[tuple[float, float]],
     options: dict[str, object],
 ) -> npt.NDArray[np.float64]:
     lower_bounds = np.array([lower for lower, _ in bounds], dtype=np.float64)
     upper_bounds = np.array([upper for _, upper in bounds], dtype=np.float64)
+    initial_residual = np.asarray(residual_function(initial_vector), dtype=np.float64)
 
     method = str(options.get("method", "lm"))
-    if method == "lm" and initial_vector.size > 1:
-        # `lm` needs at least as many residuals as variables. The current
-        # scientific toolkit uses a scalar aggregated cost, so we fall back
-        # to `trf` for multi-DOF problems.
+    if method == "lm" and np.any(np.isfinite(lower_bounds) | np.isfinite(upper_bounds)):
         method = "trf"
-        print("    Switched least_squares method from 'lm' to 'trf' for multi-DOF scalar cost.")
+        print("    Switched least_squares method from 'lm' to 'trf' because bounded problems are not supported by 'lm'.")
+    if method == "lm" and initial_residual.size < initial_vector.size:
+        method = "trf"
+        print("    Switched least_squares method from 'lm' to 'trf' because the residual vector is shorter than the parameter vector.")
 
     verbose = int(options.get("verbose", 2))
     print(
@@ -234,7 +251,7 @@ def _run_least_squares(
     )
 
     result = least_squares(
-        lambda vector: np.array([objective_function(vector)], dtype=np.float64),
+        residual_function,
         x0=initial_vector,
         bounds=(lower_bounds, upper_bounds),
         method=method,
@@ -251,6 +268,33 @@ def _run_least_squares(
     )
 
     return np.asarray(result.x, dtype=np.float64)
+
+
+def _build_least_squares_residual_vector(
+    metrics_with_weights,
+    metric_results,
+) -> npt.NDArray[np.float64]:
+    residual_chunks: list[npt.NDArray[np.float64]] = []
+
+    for (_, weight), result in zip(metrics_with_weights, metric_results, strict=True):
+        raw_residual = result.details.get("residual_vector")
+        if raw_residual is None:
+            residual_chunks.append(
+                np.array([np.sqrt(max(0.0, weight * result.value))], dtype=np.float64)
+            )
+            continue
+
+        residual_vector = np.asarray(raw_residual, dtype=np.float64).reshape(-1)
+        if residual_vector.size == 0:
+            residual_chunks.append(np.zeros(0, dtype=np.float64))
+            continue
+
+        residual_chunks.append(np.sqrt(weight) * residual_vector)
+
+    if not residual_chunks:
+        return np.zeros(0, dtype=np.float64)
+
+    return np.concatenate(residual_chunks)
 
 
 def _run_pattern_search(
