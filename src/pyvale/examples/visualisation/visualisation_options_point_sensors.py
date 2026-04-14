@@ -198,34 +198,4 @@ print("Camera position after interactive view:")
 print(pv_plot.camera_position)
 print(80*"-"+"\n")
 
-#%%
-# This plots the time traces for all of our sensors. The solid line shows
-# the 'truth' interpolated from the simulation and the dashed line with
-# markers shows the simulated sensor traces. In later examples we will see
-# how to configure this plot but for now we note we that we are returned a
-# matplotlib figure and axes object which allows for further customisation.
-(fig,ax) = sens.plot_time_traces(sens_array,field_key)
 
-traceopts = sens.TraceOptsSensor()
-traceopts.sensors_per_plot = 2
-
-#%%
-# We can also save the sensor trace plot as a vector and raster graphic
-save_traces = output_path/"basics_ex1_1_sensortraces.png"
-#fig.savefig(save_traces, dpi=300, bbox_inches="tight")
-#fig.savefig(save_traces.with_suffix(".svg"), dpi=300, bbox_inches="tight")
-
-#%%
-# The trace plot can also be shown in interactive mode using `plt.show()`
-#plt.show()
-
-# Plot with limit of two traces per subplot
-traceopts = sens.TraceOptsSensor()
-traceopts.sensors_per_plot = 2
-traceopts.sensors_to_plot = [1,3,5, "fake"]
-
-(fig, ax) = sens.plot_time_traces(sens_array, field_key, trace_opts=traceopts)
-#plt.show()
-
-
-#sens.animate_trace_with_sensors(tc_array,field_key)
