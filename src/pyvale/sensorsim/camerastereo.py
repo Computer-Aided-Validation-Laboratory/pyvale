@@ -76,13 +76,7 @@ class CameraStereo:
 
         rot_world_1 = stereo_rotation * rot_world_0
 
-        inverse = stereo_rotation.inv().as_quat()
-        inverse[3] *= -1
-        inverse = Rotation.from_quat(inverse)
-
-        dist_rot = inverse.inv().apply(stereo_dist)
-        dist = rot_world_0.inv().apply(dist_rot)
-        pos_world_1 = pos_world_0 - dist
+        pos_world_1 = pos_world_0 - rot_world_1.apply(stereo_dist)
 
         k1_0 = calib_params["Cam0_Kappa 1"]
         k2_0 = calib_params["Cam0_Kappa 2"]
