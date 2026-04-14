@@ -1,5 +1,6 @@
 import enum
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
@@ -66,6 +67,23 @@ class VirtualFieldsMesh:
     # freeDof
     # TODO: rename to free_degrees_of_freedom
     free_dof: npt.NDArray[np.int64]
+
+
+def _compute_data_element_edges(
+    coords: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Build element-edge coordinates from a 1D centroid coordinate vector."""
+
+    if coords.ndim != 1:
+        raise ValueError("Expected a 1D coordinate vector.")
+    if coords.size < 2:
+        raise ValueError("Need at least two coordinates to build element edges.")
+
+    edges = np.empty(coords.size + 1, dtype=np.float64)
+    edges[1:-1] = 0.5 * (coords[:-1] + coords[1:])
+    edges[0] = coords[0] - 0.5 * (coords[1] - coords[0])
+    edges[-1] = coords[-1] + 0.5 * (coords[-1] - coords[-2])
+    return edges
 
 
 # x and y and DIC centroids
@@ -360,27 +378,8 @@ def generate_mesh(
     mesh_size: npt.NDArray[np.uint32]
 ):
     """Snap a coarse virtual mesh onto the measured x/y grid lines."""
-
-    size_x = x.shape[0]
-    size_y = y.shape[0]
-
-    grid_x = np.zeros(size_x + 1)
-    grid_y = np.zeros(size_y + 1)
-
-    pitch_x = np.diff(x)
-    pitch_y = np.diff(y)
-
-    avg_pitch_x = np.abs(np.mean(pitch_x))
-    avg_pitch_y = np.abs(np.mean(pitch_y))
-
-    grid_x[0] = x[0] - (avg_pitch_x / 2)
-    grid_y[0] = y[0] + (avg_pitch_y / 2)
-
-    grid_x[1:-1] = x[0:-1] + (pitch_x / 2)
-    grid_y[1:-1] = y[0:-1] - (pitch_y / 2)
-
-    grid_x[-1] = x[-1] + (avg_pitch_x / 2)
-    grid_y[-1] = y[-1] - (avg_pitch_y / 2)
+    grid_x = _compute_data_element_edges(x)
+    grid_y = _compute_data_element_edges(y)
 
     mesh_size_x = mesh_size[0]
     mesh_size_y = mesh_size[1]
@@ -409,3 +408,86 @@ def generate_mesh(
     mesh_y[1:-1] = grid_y[closest_grid_points_y]
 
     return (mesh_x, mesh_y)
+
+
+def plot_virtual_fields_mesh(
+    data_x: npt.NDArray[np.float64],
+    data_y: npt.NDArray[np.float64],
+    specimen_mask: npt.NDArray[np.bool_],
+    virtual_fields_mesh: VirtualFieldsMesh,
+    output_path: str | Path | None = None,
+    show: bool = False,
+) -> Path | None:
+    """Plot measured points, data-element grid lines, and the virtual mesh."""
+
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    x_coords = np.nanmean(data_x, axis=0)
+    y_coords = np.nanmean(data_y, axis=1)
+
+    data_grid_x, data_grid_y = np.meshgrid(
+        _compute_data_element_edges(x_coords),
+        _compute_data_element_edges(y_coords),
+    )
+    virtual_grid_shape = virtual_fields_mesh.virtual_elements.shape
+    virtual_grid_x = virtual_fields_mesh.x.reshape(virtual_grid_shape, order="F")
+    virtual_grid_y = virtual_fields_mesh.y.reshape(virtual_grid_shape, order="F")
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    _plot_grid_lines(ax, data_grid_x, data_grid_y, color="#49dbe6", linewidth=0.7)
+    _plot_grid_lines(ax, virtual_grid_x, virtual_grid_y, color="black", linewidth=0.9)
+
+    ax.scatter(
+        data_x[specimen_mask],
+        data_y[specimen_mask],
+        s=5,
+        marker="x",
+        linewidths=0.4,
+        color="red",
+    )
+
+    legend_handles = [
+        Line2D(
+            [0],
+            [0],
+            marker="x",
+            linestyle="None",
+            markersize=6,
+            markeredgewidth=0.8,
+            color="red",
+            label="Data points",
+        ),
+        Line2D([0], [0], color="#49dbe6", linewidth=1.0, label="Data elements"),
+        Line2D([0], [0], color="black", linewidth=1.0, label="Virtual elements"),
+    ]
+    ax.legend(handles=legend_handles, loc="best")
+    ax.set_title("SBVF Virtual Mesh")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect("equal", adjustable="box")
+    fig.tight_layout()
+
+    saved_path: Path | None = None
+    if output_path is not None:
+        saved_path = Path(output_path)
+        saved_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(saved_path, dpi=200, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    plt.close(fig)
+    return saved_path
+
+
+def _plot_grid_lines(
+    ax,
+    grid_x: npt.NDArray[np.float64],
+    grid_y: npt.NDArray[np.float64],
+    color: str,
+    linewidth: float,
+) -> None:
+    for row in range(grid_x.shape[0]):
+        ax.plot(grid_x[row, :], grid_y[row, :], color=color, linewidth=linewidth)
+    for col in range(grid_x.shape[1]):
+        ax.plot(grid_x[:, col], grid_y[:, col], color=color, linewidth=linewidth)

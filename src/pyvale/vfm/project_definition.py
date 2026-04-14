@@ -39,6 +39,7 @@ class TestData:
     force: npt.NDArray[np.float64]
     time: npt.NDArray[np.float64]
     source_path: Path | None = None
+    thickness: float = 1.0
 
     @property
     def size_x(self) -> int:
@@ -245,6 +246,8 @@ def create_default_phase_definition(
                     options={
                         "virtual_mesh_size": [15, 15],
                         "stress_sensitivity": "total",
+                        "traction_edge": 3,
+                        "scale_fraction": 0.3,
                     },
                 )
             ],
