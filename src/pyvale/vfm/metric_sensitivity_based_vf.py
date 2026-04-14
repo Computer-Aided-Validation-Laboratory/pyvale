@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -10,7 +11,10 @@ from pyvale.vfm.metrics import BaseMetric, MetricContext, MetricResult
 from pyvale.vfm.project_definition import MetricSpec, TestData
 from pyvale.vfm.sensitivity_based_virtual_fields import generate_sensitivity_based_virtual_fields
 from pyvale.vfm.stress_sensitivity import calculate_stress_sensitivity
-from pyvale.vfm.virtual_fields_mesh import generate_virtual_fields_mesh
+from pyvale.vfm.virtual_fields_mesh import (
+    generate_virtual_fields_mesh,
+    plot_virtual_fields_mesh,
+)
 
 
 @dataclass(slots=True)
@@ -56,6 +60,27 @@ class SensitivityBasedVFMetric(BaseMetric):
             mesh_size,
         )
 
+        plot_virtual_mesh = _coerce_option_bool(
+            self.options.get("plot_virtual_mesh", False)
+        )
+        plot_virtual_mesh_path = self.options.get("plot_virtual_mesh_path")
+        show_virtual_mesh_plot = _coerce_option_bool(
+            self.options.get("show_virtual_mesh_plot", False)
+        )
+        if plot_virtual_mesh or plot_virtual_mesh_path:
+            output_path = _resolve_virtual_mesh_plot_path(
+                test_data=test_data,
+                plot_path_option=plot_virtual_mesh_path,
+            )
+            plot_virtual_fields_mesh(
+                data_x=test_data.x,
+                data_y=test_data.y,
+                specimen_mask=test_data.specimen_mask,
+                virtual_fields_mesh=self.virtual_fields_mesh,
+                output_path=output_path,
+                show=show_virtual_mesh_plot,
+            )
+
     def evaluate(
         self,
         stress,
@@ -79,10 +104,10 @@ class SensitivityBasedVFMetric(BaseMetric):
 
         use_incremental = str(self.options.get("stress_sensitivity", "total")) == "incremental"
         perturbation_factor = float(self.options.get("perturbation_factor", 0.15))
-        thickness = float(self.options.get("thickness", 1.0))
-        traction_edge = int(self.options.get("traction_edge", 0))
+        thickness = float(self.options.get("thickness", test_data.thickness))
+        traction_edge = int(self.options.get("traction_edge", 3))
         scaling = bool(self.options.get("scaling", True))
-        scale_fraction = float(self.options.get("scale_fraction", 0.05))
+        scale_fraction = float(self.options.get("scale_fraction", 0.3))
 
         stress_sensitivities = calculate_stress_sensitivity(
             stress_reference=stress,
@@ -120,3 +145,22 @@ class SensitivityBasedVFMetric(BaseMetric):
 
 def build_sensitivity_based_vf_metric(metric_spec: MetricSpec) -> BaseMetric:
     return SensitivityBasedVFMetric(options=metric_spec.options)
+
+
+def _coerce_option_bool(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
+def _resolve_virtual_mesh_plot_path(
+    test_data: TestData,
+    plot_path_option: Any,
+) -> Path:
+    if plot_path_option is not None and str(plot_path_option).strip() != "":
+        return Path(str(plot_path_option))
+
+    if test_data.source_path is not None:
+        return test_data.source_path.with_name("virtual_fields_mesh.png")
+
+    return Path.cwd() / "virtual_fields_mesh.png"

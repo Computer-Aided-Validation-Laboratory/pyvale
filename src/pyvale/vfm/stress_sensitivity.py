@@ -88,16 +88,12 @@ def _apply_perturbation(
                 if dof.uid != dof_uid:
                     continue
 
-                span = dof.upper_bound - dof.lower_bound
-                if span > 0.0:
-                    perturbed_value = dof.value - perturbation_factor * span
-                elif dof.value != 0.0:
-                    perturbed_value = dof.value * (1.0 - perturbation_factor)
-                else:
-                    perturbed_value = -perturbation_factor
-
                 dof.value = float(
-                    np.clip(perturbed_value, dof.lower_bound, dof.upper_bound)
+                    np.clip(
+                        dof.value * (1.0 - perturbation_factor),
+                        dof.lower_bound,
+                        dof.upper_bound,
+                    )
                 )
                 return
 
