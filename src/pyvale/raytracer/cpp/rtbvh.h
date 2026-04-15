@@ -74,13 +74,13 @@ struct AABB {
                 corner_max[i] = std::max(corner_max[i], nodal_coordinate);
             }
         }
-*/
+
         // double padding = 8.0; 
         // for (int i = 0; i < 3; ++i) {
         //     corner_min[i] -= padding;
         //     corner_max[i] += padding;
         // }
-    }
+    }*/
 
      // Used for SAH splitting
     inline void expand_to_include_point(const std::array<double,3>& point){
