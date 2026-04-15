@@ -16,6 +16,49 @@
 #include "rtrayintersection.h"
 #include "rtmathutils.h"
 
+/* Notes for intersection equations
+intersection_record.uvs = uvs_mesh[closest_t_index] # Store this for texturing
+
+TRI3:
+solid colors:
+color = intersection_record.barycentric_coordinates(0) * intersection_record.face_color + intersection_record.barycentric_coordinates(1) * intersection_record.face_color + intersection_record.barycentric_coordinates(2) * intersection_record.face_color;
+texture:
+uvs = intersection_record.barycentric_coordinates[0] * intersection_record.uvs[0] + intersection_record.barycentric_coordinates[1] * intersection_record.uvs[1] + intersection_record.barycentric_coordinates[2] * intersection_record.uvs[2] # Very much needed for TRI3, or texturing goes completely wrong
+color = sample_texture_grayscale(texture, uvs) - nearest neighbour interpolation for now
+
+QUAD4:
+solid colors:
+color = intersection_record.face_colors[0] + intersection_record.face_colors[1] + intersection_record.face_colors[2]
+texture:
+u = intersection_record.barycentric_coordinates[0]
+v = intersection_record.barycentric_coordinates[1]
+uv0 = intersection_record.uvs[0]
+uv1 = intersection_record.uvs[1]
+uv2 = intersection_record.uvs[2]
+uv3 = intersection_record.uvs[3]
+bilinear interpolation
+uvs = ((1 - u) * (1 - v) * uv0 +u * (1 - v) * uv1 +u * v * uv2 +(1 - u) * v * uv3)
+uvs = intersection_record.uvs[0] + intersection_record.uvs[1] + intersection_record.uvs[2]
+color = sample_texture_grayscale(texture, uvs) # Correct one
+
+*/
+/*
+EiVector3d sample_texture_grayscale(std::vector<std::vector<double>> texture, // Will probably pass this as a pointer at the end, but keep as vector for now
+    std::array<double>[2] uvs) {
+    // Nearest neighbour method for tests
+    size_t height = texture.size();
+    size_t width = texture[0].size();
+    // Clip between 0.0 and 1.0
+    double u = clip(uvs[0], 0.0, 1.0);
+    double v = clip(uvs[1], 0.0, 1.0);
+    // Get the nearest integer and cast to index into the texture array
+    int ix = static_cast<int>(u * (width - 1)); //
+    int iy = static_cast<int>(1.0 - v) * (height - 1); // Flipped to have it match the image coordinates starting in top left
+    double g = texture[iy, ix];
+    EiVector3d output << g, g, g;
+    return output;
+}
+*/
 EiVector3d return_ray_color(const Ray& ray,
     const TLAS& TLAS) {
 
