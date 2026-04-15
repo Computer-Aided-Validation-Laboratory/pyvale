@@ -40,7 +40,8 @@ class CameraStereo:
                          calib_path: Path,
                          pos_world_0: np.ndarray,
                          rot_world_0: Rotation,
-                         focal_length: float) -> Self:
+                         focal_length: float,
+                         pixels_num: np.ndarray | None = None) -> Self:
         """A method to initialise the CameraStereo using a calibration file and
         some additional parameters. This creates an instance of the CameraStereo
         class from the calibration parameters.
@@ -55,6 +56,11 @@ class CameraStereo:
             The rotation of camera 0 in world coordinates.
         focal_length : float
             The focal length of camera 0.
+        pixels_num : np.ndarray | None
+            The sensor resolution as [width, height] in pixels. Both cameras
+            are assumed to have the same sensor. If None, the resolution is
+            approximated from the principal point (assumes Cx = width/2), which
+            means the principal point shift in Blender will have no effect.
 
         Returns
         -------
@@ -62,17 +68,21 @@ class CameraStereo:
             An instance of the CameraStereo class, given the specified parameters.
         """
         calib_params = yaml.safe_load(calib_path.read_text())
-        pixels_num_cam0 = np.array([int(calib_params['Cam0_Cx [pixels]']*2),
-                           int(calib_params['Cam0_Cy [pixels]']*2)])
-        pixels_num_cam1 = np.array([int(calib_params['Cam1_Cx [pixels]']*2),
-                           int(calib_params['Cam1_Cy [pixels]']*2)])
+        if pixels_num is not None:
+            pixels_num_cam0 = np.array(pixels_num)
+            pixels_num_cam1 = np.array(pixels_num)
+        else:
+            pixels_num_cam0 = np.array([int(calib_params['Cam0_Cx [pixels]']*2),
+                               int(calib_params['Cam0_Cy [pixels]']*2)])
+            pixels_num_cam1 = np.array([int(calib_params['Cam1_Cx [pixels]']*2),
+                               int(calib_params['Cam1_Cy [pixels]']*2)])
         pixels_size = focal_length / calib_params["Cam0_Fx [pixels]"]
         stereo_rotation = Rotation.from_euler("xyz", ([-calib_params['Theta [deg]'],
                                     calib_params['Phi [deg]'],
                                     calib_params['Psi [deg]']]), degrees=True)
         stereo_dist = np.array([calib_params["Tx [mm]"],
                                 -calib_params["Ty [mm]"],
-                                calib_params["Tz [mm]"]])
+                                -calib_params["Tz [mm]"]])
 
         rot_world_1 = stereo_rotation * rot_world_0
 
