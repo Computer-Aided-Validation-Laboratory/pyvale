@@ -22,18 +22,8 @@
 // raytracer header files
 #include "rteigentypes.h"
 #include "rtray.h"
+#include "rtelemconstants.h"
 
-// Enum storing the number of nodes per element, so we can update it later nicely when we add different types? At least that's the idea.
-enum ElementNodeCount {
-    TRI3 = 3,
-    QUAD4 = 4,
-    TET4 = 4,
-    TET10 = 10,
-    TET14 = 14,
-    HEX8 = 8,
-    HEX20 = 20,
-    HEX27 = 27
-};
 
 // Bounding volume structure - axis-aligned bounding boxes (AABB)
 struct AABB {
@@ -45,6 +35,20 @@ struct AABB {
         corner_max[0] = corner_max[1] = corner_max[2] = -std::numeric_limits<double>::infinity();
     }
 
+    // Used for building AABBs for all mesh elements, regardless of the type
+    inline void build_for_element(const double* element_node_coords, const int element_node_count){
+        // Iterate through each element node
+        for (int node = 0; node < element_node_count; ++node){
+            const int offset = node * 3;
+            // Iterate through all coordinates (x, y, z)
+            for (int i = 0; i < 3; ++i) {
+                const double nodal_coordinate = element_node_coords[offset + i];
+                corner_min[i] = std::min(corner_min[i], nodal_coordinate);
+                corner_max[i] = std::max(corner_max[i], nodal_coordinate);
+            }
+        }
+    }
+/*
     // Used for building AABBs for all mesh triangles
     inline void build_for_tri3(const std::array<double,9> &triangle_node_coords){
         for (int node = 0; node < 3; ++node) {
@@ -70,7 +74,7 @@ struct AABB {
                 corner_max[i] = std::max(corner_max[i], nodal_coordinate);
             }
         }
-
+*/
         // double padding = 8.0; 
         // for (int i = 0; i < 3; ++i) {
         //     corner_min[i] -= padding;
@@ -126,7 +130,7 @@ struct BLAS_Node {
     std::vector<double> face_color; // Element (face) colors based on the field values for the mesh
     AABB bounding_box {};
     size_t element_count {0}; // If not zero, this is the leaf
-    enum ElementNodeCount nodes_per_element {TRI3}; // Assign 3 by default for now since we only do triangles
+    enum ElementNodeCount nodes_per_element {ElementNodeCount::TRI3}; // Assign 3 by default for now since we only do triangles
     int left_child_idx {-1};
    // int right_child_idx {-1}; // Removed as it's left + 1, but helpful to keep it here for debugging
     //int min_elem_idx {-1};
@@ -170,17 +174,59 @@ struct TLAS {
     std::vector<TLAS_Node> tlas_nodes;
 };
 
-inline void compute_element_centroid_tri3(const std::array<double,9> &triangle_node_coords,
-    std::array<double,3> &triangle_centroid);
+inline void compute_element_centroid(const double *element_node_coords, // Pointer to an array, so we can have one centroid function to rule them all without having to specify the array size here
+    std::array<double, NODE_COORDINATES> &element_centroid,
+    int element_node_count);
 
 inline void compute_mesh_centroid(AABB& mesh_aabb, std::array<double,3>& mesh_centroid);
 
-void process_element_data_tri3(int mesh_number_of_triangles,
+template<ElementNodeCount element_node_count>
+void process_element_data(size_t mesh_number_of_elements,
     const double* mesh_node_coords_ptr,
     std::vector<std::array<double,3>>& mesh_element_centroids,
-    std::vector<AABB>& mesh_triangle_aabbs,
+    std::vector<AABB>& mesh_element_aabbs,
     AABB& mesh_aabb,
-    const int timestep);
+    const int timestep){
+
+    // We need these to be compile time constants to create arrays. They are known from switch in build_acceleration_structures
+    constexpr int nodes_per_element = static_cast<int>(element_node_count); // Explicitly cast to int
+    constexpr int coords_per_element = nodes_per_element * NODE_COORDINATES; // number of elements times 3 coordinates (x,y,z) each. size_t only to be able to pass this as an argument in array creation
+    const int timestep_stride = timestep * mesh_number_of_elements * nodes_per_element * NODE_COORDINATES;
+
+    // Allocate arrays once, then simpply keep overwriting data for each element
+    std::array<double, coords_per_element> element_node_coords;
+    std::array<double, NODE_COORDINATES> element_centroid;
+
+     // Iterate over elements comprising a mesh
+    for (int element_idx = 0; element_idx < mesh_number_of_elements; element_idx++) {
+        // Use pointers - means we treat the 2D array as a flat 1D array and do the indexing manually by calculating the offset.
+        // HAS to be contiguous in memory for this to work properly! c_contig flag in nanobind ensures that
+        int element_min_index = timestep_stride + element_idx * coords_per_element; // Find the minimum index corresponding to the given element at given timestep
+        //int element_idx_at_t = element_idx + timestep_stride;
+        
+        // Gather coordinates for all nodes in the considered element
+        // element_node_coords is structured as [x0, y0, z0, x1, y1, z1, ..., xn, yn, zn] where n = (element_node_count-1)
+        for (int i = 0; i < coords_per_element; ++i){
+            element_node_coords[i] = mesh_node_coords_ptr[element_min_index + i];
+        }
+
+        // Find centroid for this element
+        compute_element_centroid(&element_node_coords[0], element_centroid, nodes_per_element);
+        mesh_element_centroids.push_back(element_centroid);
+        //std::cout << "Centroid " << element_centroid[0] << " " << element_centroid[1] << " " << element_centroid[2] << std::endl;
+
+        // Create bounding volume for this element
+        AABB element_aabb;
+        //element_aabb.build_for_tri3(element_node_coords);
+        element_aabb.build_for_element(&element_node_coords[0], nodes_per_element);
+        mesh_element_aabbs.push_back(element_aabb);
+        //std::cout << "AABB max " << element_aabb.corner_max[0] << " " << element_aabb.corner_max[1] << " " << element_aabb.corner_max[2] << std::endl;
+        //std::cout << "AABB min " << element_aabb.corner_min[0] << " " << element_aabb.corner_min[1] << " " << element_aabb.corner_min[2] << std::endl;
+
+        // Include element AABB in mesh AABB to get the bounding box for the whole mesh
+        mesh_aabb.expand_to_include_AABB(element_aabb);
+        } // ELEMENTS
+    }
 
 AABB create_node_AABB(const std::vector<AABB>& mesh_element_abbs,
     const std::vector<int>& mesh_element_indices,

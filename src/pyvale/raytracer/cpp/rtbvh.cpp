@@ -22,37 +22,23 @@
 #include "rtrayintersection.h"
 #include "rthitrecord.h"
 
-constexpr int NODE_COORDINATES = 3; // number of coordinates per each mesh node. Used for some of flat indexing
+inline void compute_element_centroid(const double *element_node_coords,
+    std::array<double, NODE_COORDINATES> &element_centroid,
+    int element_node_count){
+    // General function finding the centroid for any element type
 
-inline void compute_element_centroid_tri3(const std::array<double,9> &triangle_node_coords,
-    std::array<double,3> &triangle_centroid) {
-    // Find the centroid of a triangle.
-    // Update the value of the passed array, so we don't have to fiddle with structs etc. to return a value.
-    for (int i=0; i < 3; ++i){
-            triangle_centroid[i] = (triangle_node_coords[i] + triangle_node_coords[i+3] + triangle_node_coords[i+6]) / 3.0;
+    // Iterate over all nodes and sum up their respective x,y,z values
+    // node_coords is structured as [x0, y0, z0, x1, y1, z1, ..., xn, yn, zn] where n = (element_node_count-1)
+    for (int i = 0; i < element_node_count; ++i){
+        element_centroid[0] += element_node_coords[i * NODE_COORDINATES + 0]; // x-component
+        element_centroid[1] += element_node_coords[i * NODE_COORDINATES + 1]; // y-component
+        element_centroid[2] += element_node_coords[i * NODE_COORDINATES + 2]; // z-component
     }
-}
-
-inline void compute_element_centroid_tet10(const std::array<double, 30> &node_coords,
-    std::array<double, 3> &centroid) {
-    
-    centroid.fill(0.0);
-
-    // Sum coordinates for all 10 nodes
-    // node_coords is structured as [x0, y0, z0, x1, y1, z1, ..., x9, y9, z9]
-    for (int i = 0; i < 10; ++i) {
-        centroid[0] += node_coords[i * 3 + 0]; // X-component
-        centroid[1] += node_coords[i * 3 + 1]; // Y-component
-        centroid[2] += node_coords[i * 3 + 2]; // Z-component
-    }
-
     // Divide by the number of nodes to get the average
-    centroid[0] /= 10.0;
-    centroid[1] /= 10.0;
-    centroid[2] /= 10.0;
+    element_centroid[0] /= element_node_count;
+    element_centroid[1] /= element_node_count;
+    element_centroid[2] /= element_node_count;
 }
-
-
 
 inline void compute_mesh_centroid(AABB& mesh_aabb, std::array<double,3>& mesh_centroid) {
     // Compute centroid of the mesh AABB
@@ -61,6 +47,7 @@ inline void compute_mesh_centroid(AABB& mesh_aabb, std::array<double,3>& mesh_ce
     }
 }
 
+/* 
 void process_element_data_tri3(int mesh_number_of_triangles,
     const double* mesh_node_coords_ptr,
     std::vector<std::array<double,3>>& mesh_element_centroids,
@@ -105,10 +92,10 @@ void process_element_data_tri3(int mesh_number_of_triangles,
         mesh_aabb.expand_to_include_AABB(triangle_aabb);
         } // ELEMENTS/TRIANGLES
 }
+*/
 
 
-
-
+/*
 void process_element_data_tet10(int mesh_number_of_tets,
     const double* mesh_node_coords_ptr,
     std::vector<std::array<double,3>>& mesh_element_centroids,
@@ -116,7 +103,7 @@ void process_element_data_tet10(int mesh_number_of_tets,
     AABB& mesh_aabb,
     const int timestep){
     // Go over all tetrahedrons in a mesh and find their AABB and centroids, build mesh AABB, and store the data in vectors
-    enum ElementNodeCount nodes_per_element = TET10;
+    enum ElementNodeCount nodes_per_element = ElementNodeCount::TET10;
     const int coords_per_element = nodes_per_element * NODE_COORDINATES; // number of elements times 3 coordinates each
     const int timestep_stride = timestep * mesh_number_of_tets * nodes_per_element * NODE_COORDINATES;
 
@@ -153,7 +140,7 @@ void process_element_data_tet10(int mesh_number_of_tets,
         mesh_aabb.expand_to_include_AABB(tet_aabb);
         } // ELEMENTS/QUAD_TERAHEDRONS
 }
-
+*/
 
 
 AABB create_node_AABB(const std::vector<AABB>& mesh_element_abbs,
@@ -692,17 +679,10 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     for (size_t mesh_idx = 0; mesh_idx < scene_mesh_count; ++mesh_idx) {
         
         // Access data from Python buffer for this particular mesh (i.e., scene->object)
-        enum ElementNodeCount nodes_per_element; // Hard-code for now since we only have triangless.
 		nanobind::ndarray<const double, nanobind::c_contig> mesh_node_coords = scene_coords_expanded[mesh_idx];
         nanobind::ndarray<const double, nanobind::c_contig> mesh_face_colors = scene_face_colors[mesh_idx];
-
-        if (mesh_node_coords.shape(2) == 3) {
-          nodes_per_element = TRI3;
-        }
-        else if (mesh_node_coords.shape(2) == 10) {
-          nodes_per_element = TET10;
-        }
-
+        enum ElementNodeCount nodes_per_element = ElementNodeCount(mesh_node_coords.shape(2));
+ 
         // size_t mesh_element_count = mesh_face_colors.shape(0); // number of elements comprising the mesh
         size_t mesh_element_count = mesh_face_colors.shape(1); // number of elements comprising the mesh WITH TIMESTEPS
 
@@ -715,19 +695,22 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         double* mesh_face_colors_ptr = const_cast<double*>(mesh_face_colors.data());
 
         // Containers for calculated data for this mesh
-        std::vector<std::array<double,3>> mesh_element_centroids; // Store centroids for this mesh
+        std::vector<std::array<double, NODE_COORDINATES>> mesh_element_centroids; // Store centroids for this mesh
         mesh_element_centroids.reserve(mesh_element_count);
         std::vector<AABB> mesh_element_aabbs; // Bounding volumes for the elements in this mesh
         mesh_element_aabbs.reserve(mesh_element_count);
         scene_blas_aabbs.emplace_back();
         AABB& mesh_aabb = scene_blas_aabbs[mesh_idx]; // AABB for the entire mesh
-
-        // Iterate over ELEMENTS in this mesh (only triangles for now)
-        if (nodes_per_element == TRI3) {
-          process_element_data_tri3(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
-        }
-        else if (nodes_per_element == TET10) {
-          process_element_data_tet10(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+        
+        // Iterate over ELEMENTS in this mesh (types specified in enum in rtelemconstants.h)
+        switch(nodes_per_element){
+            case TRI3: process_element_data<TRI3>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
+            case TRI6: process_element_data<TRI6>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
+            case QUAD4: process_element_data<QUAD4>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
+            case QUAD8: process_element_data<QUAD8>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
+            case QUAD9: process_element_data<QUAD9>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
+            default:
+            std::cerr << "Unsupported element type with " << nodes_per_element << " nodes per element.\n"; // Add sth to break the code here
         }
      
         // Find centroid of the entire mesh
