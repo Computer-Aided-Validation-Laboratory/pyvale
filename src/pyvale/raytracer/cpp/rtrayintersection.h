@@ -31,15 +31,14 @@ EiArrayD3d lerp_vectorised (const EiArrayD3d& points_A, const EiArrayD3d& points
 
 inline Eigen::Array<double, Eigen::Dynamic, 1> dot_rowwise (const EiArrayD3d& mat1, const EiArrayD3d& mat2);
 
-IntersectionOutput intersect_bvh_triangles(const Ray& ray,
+IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_triangle_count);
 
-    /*
-IntersectionOutput intersect_bvh_quads(const Ray& ray,
+IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_quad_count);
-*/
+
 void intersect_BLAS(const Ray& ray,
     const BLAS& mesh_bvh,
     IntersectionOutput &out_intersection,

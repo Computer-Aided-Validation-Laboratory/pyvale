@@ -39,7 +39,7 @@ struct AABB {
     inline void build_for_element(const double* element_node_coords, const int element_node_count){
         // Iterate through each element node
         for (int node = 0; node < element_node_count; ++node){
-            const int offset = node * 3;
+            const int offset = node * NODE_COORDINATES;
             // Iterate through all coordinates (x, y, z)
             for (int i = 0; i < 3; ++i) {
                 const double nodal_coordinate = element_node_coords[offset + i];
@@ -84,7 +84,8 @@ struct AABB {
 
      // Used for SAH splitting
     inline void expand_to_include_point(const std::array<double,3>& point){
-        for (int i = 0; i < 3; ++i){
+        // Iterate over x, y, z coordinates
+        for (int i = 0; i < NODE_COORDINATES; ++i){
             double point_coordinate = point[i];
             corner_min[i] = std::min(corner_min[i], point_coordinate);
             corner_max[i] = std::max(corner_max[i], point_coordinate);
@@ -92,7 +93,8 @@ struct AABB {
     }
      // Used for creating child node AABBs
     inline void expand_to_include_AABB(const AABB& other) {
-        for (int i = 0; i < 3; ++i){
+        // Iterate over x, y, z coordinates
+        for (int i = 0; i < NODE_COORDINATES; ++i){
             corner_min[i] = std::min(corner_min[i], other.corner_min[i]);
             corner_max[i] = std::max(corner_max[i], other.corner_max[i]);
         }
@@ -107,6 +109,7 @@ struct AABB {
         double height = find_axis_extent(2);
         double width = find_axis_extent(1);
         double depth = find_axis_extent(0);
+        // Surface area of rectangular prism
         return 2 * (height * width + width * depth + height * depth);
     }
 };
@@ -130,7 +133,7 @@ struct BLAS_Node {
     std::vector<double> face_color; // Element (face) colors based on the field values for the mesh
     AABB bounding_box {};
     size_t element_count {0}; // If not zero, this is the leaf
-    enum ElementNodeCount nodes_per_element {ElementNodeCount::TRI3}; // Assign 3 by default for now since we only do triangles
+    enum ElementNodeCount nodes_per_element {ElementNodeCount::TRI3}; // Default to triangles
     int left_child_idx {-1};
    // int right_child_idx {-1}; // Removed as it's left + 1, but helpful to keep it here for debugging
     //int min_elem_idx {-1};

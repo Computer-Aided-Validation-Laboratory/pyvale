@@ -11,15 +11,60 @@
 // ray tracer header files
 #include "rtrayintersection.h"
 #include "rtelemconstants.h"
+#include "rtmathutils.h"
+
+/* Notes for intersection equations
+intersection_record.uvs = uvs_mesh[closest_t_index] # Store this for texturing
+
+TRI3:
+solid colors:
+color = intersection_record.barycentric_coordinates(0) * intersection_record.face_color + intersection_record.barycentric_coordinates(1) * intersection_record.face_color + intersection_record.barycentric_coordinates(2) * intersection_record.face_color;
+texture:
+uvs = intersection_record.barycentric_coordinates[0] * intersection_record.uvs[0] + intersection_record.barycentric_coordinates[1] * intersection_record.uvs[1] + intersection_record.barycentric_coordinates[2] * intersection_record.uvs[2] # Very much needed for TRI3, or texturing goes completely wrong
+color = sample_texture_grayscale(texture, uvs) - nearest neighbour interpolation for now
+
+QUAD4:
+solid colors:
+color = intersection_record.face_colors[0] + intersection_record.face_colors[1] + intersection_record.face_colors[2]
+texture:
+u = intersection_record.barycentric_coordinates[0]
+v = intersection_record.barycentric_coordinates[1]
+uv0 = intersection_record.uvs[0]
+uv1 = intersection_record.uvs[1]
+uv2 = intersection_record.uvs[2]
+uv3 = intersection_record.uvs[3]
+bilinear interpolation
+uvs = ((1 - u) * (1 - v) * uv0 +u * (1 - v) * uv1 +u * v * uv2 +(1 - u) * v * uv3)
+uvs = intersection_record.uvs[0] + intersection_record.uvs[1] + intersection_record.uvs[2]
+color = sample_texture_grayscale(texture, uvs) # Correct one
+
+*/
+
+EiVector3d sample_texture_grayscale(std::vector<std::vector<double>> texture, // Will probably pass this as a pointer at the end, but keep as vector for now
+    std::array<double,2> uvs) {
+    // Nearest neighbour method for texture rendering tests. UNTESTED 
+    size_t height = texture.size();
+    size_t width = texture[0].size();
+    // Clip between 0.0 and 1.0
+    double u = clip(uvs[0], 0.0, 1.0);
+    double v = clip(uvs[1], 0.0, 1.0);
+    // Get the nearest integer and cast to index into the texture array
+    int ix = static_cast<int>(u * (width - 1)); //
+    int iy = static_cast<int>(1.0 - v) * (height - 1); // Flipped to have it match the image coordinates starting in top left
+    double g = texture[iy][ix];
+    EiVector3d output;
+    output << g, g, g;
+    return output;
+}
 
 inline EiVector3d get_face_color(Eigen::Index minRowIndex,
     const std::vector<double>& face_color) {
     // Get values to colour the intersected face
-    double c1 = face_color[minRowIndex * 3];
-    double c2 = face_color[minRowIndex * 3 + 1];
-    double c3 = face_color[minRowIndex * 3 + 2];
+    double c1 = face_color[minRowIndex * NODE_COORDINATES];
+    double c2 = face_color[minRowIndex * NODE_COORDINATES + 1];
+    double c3 = face_color[minRowIndex * NODE_COORDINATES + 2];
     EiVector3d face_color_vec;
-    //face_color_vec << 0.0, 0.0, 0.0;
+    //face_color_vec << 0.5, 0.5, 0.5;
     face_color_vec << c1, c2, c3;
     return face_color_vec;
 }
@@ -47,7 +92,14 @@ EiVectorD3d cross_rowwise(const EiVectorD3d& mat1, const EiVectorD3d& mat2) {
     return cross_product_result;
 }
 
-EiArrayD3d lerp_vectorised (const EiArrayD3d& points_A, const EiArrayD3d& points_B, const Eigen::Array<double, Eigen::Dynamic, 1> weights){
+inline EiArrayD1d dot_rowwise (const EiArrayD3d& mat1, const EiArrayD3d& mat2){
+    // Eigen should automatically convert EiVectorD3d to EiArrayD3d, so no need to do that while calling the function
+    // These change just the object behaviour: arrays are for coefficient-wise operations, matrices for linear algebra. No data copying
+    // However, if that breaks, just use e.g., mat1.array()
+    return (mat1 * mat2).rowwise().sum();
+}
+
+EiArrayD3d lerp_vectorised (const EiArrayD3d& points_A, const EiArrayD3d& points_B, const EiArrayD1d weights){
     // Linear interpolation between points stored in arrays points_A and points_B using weights from vector weights.
     // Vectorised version of calculating (1-weight) * point_a + weight * point_b
     if (points_A.rows() != points_B.rows() || points_A.rows() != weights.rows()) {
@@ -63,13 +115,7 @@ EiArrayD3d lerp_vectorised (const EiArrayD3d& points_A, const EiArrayD3d& points
     return (1.0 - weights_replicated ) * points_A + weights_replicated * points_B;
 }
 
-inline Eigen::Array<double, Eigen::Dynamic, 1> dot_rowwise (const EiArrayD3d& mat1, const EiArrayD3d& mat2){
-    // Eigen should automatically cast EiVectorD3d to EiArrayD3d, so no need to do that while calling the function
-    // However, if that breaks, just use e.g., mat1.array()
-    return (mat1 * mat2).rowwise().sum();
-}
-
-IntersectionOutput intersect_bvh_triangles(const Ray& ray,
+IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_triangle_count) {
 
@@ -91,24 +137,18 @@ IntersectionOutput intersect_bvh_triangles(const Ray& ray,
     // Calculations - edges and normals
     EiMatrixDd edge0(bvh_node_triangle_count, NODE_COORDINATES), nEdge2(bvh_node_triangle_count, NODE_COORDINATES); // shape (faces, 3) each
     EiArrayDd  nodes0(bvh_node_triangle_count, NODE_COORDINATES);
+    // Go over all TRI3s in the node to find corner and edge coordinates
+    // Node coords are stored as [xyz, xyz, xyz...]
     for (int triangle_idx = 0; triangle_idx < bvh_node_triangle_count; triangle_idx++) {
         int node_0 = triangle_idx * NODES_PER_ELEMENT;
         int node_1 = triangle_idx * NODES_PER_ELEMENT + 1;
         int node_2 = triangle_idx * NODES_PER_ELEMENT + 2;
-        //std::cout << "Triangle node indices: " << node_0 << " " << node_1 << " " << node_2 << std::endl;
 
         for (int j = 0; j < NODE_COORDINATES; j++) {
-            //std::cout<<node_coords_arr[i][j] << " ";
-            //edge0(i, j) = node_coords.at(node_1, j) - node_coords.at(node_0, j);
-            edge0(triangle_idx, j) = node_coords[node_1 * NODES_PER_ELEMENT + j] - node_coords[node_0 * NODES_PER_ELEMENT + j];
-            //std::cout << "node_coords at " << node_1 *NODES_PER_ELEMENT + j << " are: " << node_coords[node_1 * NODES_PER_ELEMENT + j] << std::endl;
-            //std::cout << "edge 0: " << edge0(triangle_idx,j) << std::endl;
-            //nodes0(i, j) = node_coords.at(node_0, j);
-            nodes0(triangle_idx, j) = node_coords[node_0 * NODES_PER_ELEMENT + j];
-            //std::cout << "nodes0 : " << nodes0(triangle_idx,j) << std::endl;
-            // Skip edge1 because it never gets used in the calculations anyway
-            //nEdge2(i, j) = node_coords.at(node_2, j) - node_coords.at(node_0, j);
-            nEdge2(triangle_idx, j) = node_coords[node_2 * NODES_PER_ELEMENT + j] - node_coords[node_0 * NODES_PER_ELEMENT + j];
+            edge0(triangle_idx, j) = node_coords[node_1 * NODE_COORDINATES + j] - node_coords[node_0 * NODE_COORDINATES + j];
+            nodes0(triangle_idx, j) = node_coords[node_0 * NODE_COORDINATES + j];
+            // Skip edge1 because it never gets used in the calculations anyway and calculate negative Edge2 as this is what we will need
+            nEdge2(triangle_idx, j) = node_coords[node_2 * NODE_COORDINATES + j] - node_coords[node_0 * NODE_COORDINATES + j];
             //std::cout << "nEdge2 : " << nEdge2(triangle_idx,j) << std::endl;
         }
     }
@@ -116,20 +156,20 @@ IntersectionOutput intersect_bvh_triangles(const Ray& ray,
 
     // Step 1: Quantities for the Moller Trumbore method
     EiArrayD3d p_vec = cross_rowwise(ray_directions, nEdge2); // Assigns a vector to an array variable, but Eigen automatically converts so long as the underlying sizes are correct at initialization. Shape (faces, 3)
-    Eigen::Array<double, Eigen::Dynamic, 1> determinants = (edge0.array() * p_vec).rowwise().sum(); // Row-wise dot product; shape (faces, 1)
+    EiArrayD1d discriminants = dot_rowwise(edge0, p_vec);  // Row-wise dot product; shape (faces, 1)
 
     // Step 2: Culling.
-    //Determinant negative -> triangle is back-facing. If det is close to 0, ray and triangle are parallel and ray misses the triangle.
-    Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> valid_mask = (determinants > EPSILON) && (determinants > 0);
+    //Discriminant negative -> triangle is back-facing. If discriminant is close to 0, ray and triangle are parallel and ray misses the triangle.
+    EiBoolMask valid_mask = (discriminants > EPSILON) && (discriminants > 0);
     if (!valid_mask.any()) {
         //std::cout << "Condition 1 triggered" << std::endl;
         return negative_output; // No intersection - return infinity
     }
 
     // Step 3: Test if ray is in front of the triangle
-    Eigen::Array<double, Eigen::Dynamic, 1> inverse_determinants = determinants.inverse(); // Element-wise inverse. shape (faces, 1)
+    EiArrayD1d inverse_discriminants = discriminants.inverse(); // Element-wise inverse. shape (faces, 1)
     EiArrayD3d t_vec = ray_origins - nodes0; // shape (faces, 3)
-    Eigen::Array<double, Eigen::Dynamic, 1> barycentric_u = ((t_vec * p_vec).rowwise().sum()).array() * inverse_determinants; // shape (faces, 1)
+    EiArrayD1d barycentric_u = dot_rowwise(t_vec, p_vec) * inverse_discriminants; // shape (faces, 1)
     valid_mask = valid_mask && (barycentric_u >= 0) && (barycentric_u <= 1);
     if (!valid_mask.any()) {
         //std::cout << "Condition 2 triggered" << std::endl;
@@ -137,11 +177,11 @@ IntersectionOutput intersect_bvh_triangles(const Ray& ray,
     }
 
     EiArrayD3d q_vec = cross_rowwise(t_vec.matrix(), edge0); // shape (faces, 3)
-    Eigen::Array<double, Eigen::Dynamic, 1> barycentric_v = (ray_directions.array() * q_vec).rowwise().sum().matrix().array() * inverse_determinants; // shape (faces, 1)
+    EiArrayD1d barycentric_v = dot_rowwise(ray_directions, q_vec) * inverse_discriminants; // shape (faces, 1)
     // Check barycentric_v and sum
     valid_mask = valid_mask && (barycentric_v >= 0) && ((barycentric_u + barycentric_v) <= 1);
     // t values
-    Eigen::Array<double, Eigen::Dynamic, 1> t_values = (nEdge2.array() * q_vec).rowwise().sum().array() * inverse_determinants; // shape (faces, 1)
+    EiArrayD1d t_values = dot_rowwise(nEdge2, q_vec) * inverse_discriminants; // shape (faces, 1)
     valid_mask = valid_mask && (t_values >= ray.t_min) && (t_values <= ray.t_max);
 
     // Iterate through all t_values and set them to infinity if they don't satisfy the conditions imposed by the mask
@@ -160,22 +200,27 @@ IntersectionOutput intersect_bvh_triangles(const Ray& ray,
     return IntersectionOutput{ barycentric_coordinates, plane_normals, t_values };
 }
 
-/*
+
+// Quad intersection - compiles fine, needs further tests
 IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_quad_count){
     // Go through all the quads and find an intersection of each quad with a ray
-    int NODES_PER_ELEMENT = 4;
+    // Method based on NVIDIA 2019, E. Haines, T. Akenine-Möller (eds.), Ray Tracing Gems, https://doi.org/10.1007/978-1-4842-4427-2_8
+    // More specifically: Chapter 8, "Cool Patches: A Geometric Approach to Ray/Bilinear Patch Intersections" by A. Reshetov
+    static const int NODES_PER_ELEMENT = 4;
+    static const int COORDS_PER_ELEMENT = NODES_PER_ELEMENT * NODE_COORDINATES;
+    double EPSILON = 1e-6;
     
     // 1. COORDINATES AND EDGES
-
+    //std::cout << "Entered quad intersection" << std::endl;
     // Ray data broadcasted to use in vectorised operations on matrices
     // This is faster than doing it in a loop
     EiVectorD3d ray_directions = ray.direction.replicate(bvh_node_quad_count, 1);
     EiArrayD3d ray_origins = ray.origin.replicate(bvh_node_quad_count, 1).array();
 
     // Define default negative output if there is no intersection
-    static IntersectionOutput negative_output{
+    IntersectionOutput negative_output{
         Eigen::ArrayXXd(bvh_node_quad_count, NODE_COORDINATES), // barycentric coordinates/other for interpolation
         EiVectorD3d::Zero(bvh_node_quad_count, NODE_COORDINATES), //  plane normals
         Eigen::Vector<double, Eigen::Dynamic>::Constant(bvh_node_quad_count, 1, std::numeric_limits<double>::infinity()) // t_values
@@ -183,138 +228,146 @@ IntersectionOutput intersect_bvh_quad4(const Ray& ray,
 
     // 4 corner coordinates, where bl - bottom left, br - bottom right, tr - top right, tl - top left. 
     // Potentially change these to EiArrayD3d since these are (D,3) anyway?
-    EiArrayDd corners_bl(bvh_node_quad_count, NODE_COORDINATES), corners_br(bvh_node_quad_count, NODE_COORDINATES), corners_tr(bvh_node_quad_count, NODE_COORDINATES), corners_tl(bvh_node_quad_count, NODE_COORDINATES), normals(bvh_node_quad_count, NODE_COORDINATES); // Shape (faces, NODE_COORDINATES) each
-    EiArrayDd edge_bottom(bvh_node_triangle_count, NODE_COORDINATES), edge_right(bvh_node_triangle_count, NODE_COORDINATES), edge_left(bvh_node_triangle_count, NODE_COORDINATES); // shape (faces, 3) each
-    // Temp for easier comparison with the nVidia paper
-    using q00 = corners_bl;
-    using q10 = corners_br;
-    using q11 = corners_tr;
-    using q01 = corners_tl;
-    using e10 = edge_bottom;
-    using e00 = edge_left;
-    using e11 = edge_right;
-    using qn = normals;
+    EiArrayDd corners_bl(bvh_node_quad_count, NODE_COORDINATES), corners_br(bvh_node_quad_count, NODE_COORDINATES), corners_tr(bvh_node_quad_count, NODE_COORDINATES), corners_tl(bvh_node_quad_count, NODE_COORDINATES); // shape (faces, 3) each
+    EiArrayDd edges_bottom(bvh_node_quad_count, NODE_COORDINATES), edges_top(bvh_node_quad_count, NODE_COORDINATES), edges_right(bvh_node_quad_count, NODE_COORDINATES), edges_left(bvh_node_quad_count, NODE_COORDINATES); // shape (faces, 3) each
 
+    //std::cout << "Getting corners and edges" << std::endl;
+    // Go over all quads in the node to find corner and edge coordinates
+    // Node coords are stored as [xyz, xyz, xyz...]
     for (int quad_idx = 0; quad_idx < bvh_node_quad_count; quad_idx++) {
-        int node_0 = quad_idx * NODES_PER_ELEMENT; // Bottom left corner node ID
-        int node_1 = quad_idx * NODES_PER_ELEMENT + 1; // Bottom right corner ID
-        int node_2 = quad_idx * NODES_PER_ELEMENT + 2; // Top right corner ID 
-        int node_3 = quad_idx * NODES_PER_ELEMENT + 3; // Top left corner ID
-        //std::cout << "Quad node indices: " << node_0 << " " << node_1 << " " << node_2 << std::endl;
+        int base_stride = quad_idx * COORDS_PER_ELEMENT;
         // Go over x, y, z coordinates
         for (int j = 0; j < NODE_COORDINATES; j++) {
-            corners_bl(quad_idx, j) = node_coords[node_0 * NODES_PER_ELEMENT + j]; // Bottom left corner coordinates
-            corners_br(quad_idx, j) = node_coords[node_1 * NODES_PER_ELEMENT + j]; // Bottom right corner coordinates
-            corners_tr(quad_idx, j) = node_coords[node_2 * NODES_PER_ELEMENT + j]; // Top right corner coordinates
-            corners_tl(quad_idx, j) = node_coords[node_3 * NODES_PER_ELEMENT + j];  // Top left corner coordinates
-            //std::cout<<node_coords_arr[i][j] << " ";
-            //edge0(i, j) = node_coords.at(node_1, j) - node_coords.at(node_0, j);
-            e00(quad_idx, j) = q01(quad_idx, j) - q00(quad_idx, j); // Left edge
-            e10(quad_idx, j) = q10(quad_idx,j) - q00(quad_idx, j); // Bottom edge
-            e11(quad_idx, j) = q11(quad_idx, j) -q10(quad_idx, j); // Right edge
+            // Access n-th node via base_stride + n, where n e [0, 3] for QUAD4
+            // Then use access x, y, z coordinates in flattened array
+            // E.g., [base_stride + 1 * NODE_COORDINATES + 2] would be node_1, coordinate z
+            corners_bl(quad_idx, j) = node_coords[base_stride + 0 * NODE_COORDINATES + j]; // Bottom left corner coordinates; q00 in paper
+            corners_br(quad_idx, j) = node_coords[base_stride + 1 * NODE_COORDINATES + j]; // Bottom right corner coordinates; q10 in paper
+            corners_tr(quad_idx, j) = node_coords[base_stride + 2 * NODE_COORDINATES + j]; // Top right corner coordinates; q11 in paper
+            corners_tl(quad_idx, j) = node_coords[base_stride + 3 * NODE_COORDINATES + j]; // Top left corner coordinates; q01 in paper
+            edges_left(quad_idx, j) = corners_tl(quad_idx, j) - corners_bl(quad_idx, j); // Left edge; e00 in paper
+            edges_right(quad_idx, j) = corners_tr(quad_idx, j) -corners_br(quad_idx, j); // Right edge; e11 in paper
+            edges_bottom(quad_idx, j) = corners_br(quad_idx,j) - corners_bl(quad_idx, j); // Bottom edge; e10 in paper
+            edges_top(quad_idx, j) = corners_tr(quad_idx, j) - corners_tl(quad_idx, j); // Top edge
         }
     }
-    EiVectorD3d normals = cross_rowwise(q10-q00, q01-q11); // not normalised! Shape (faces,3)
+
+    EiArrayD3d normals = cross_rowwise(corners_br-corners_bl, corners_tl-corners_tr).array(); // not normalised! Shape (faces,3)
     // Translate only the coordinates that need ray-origin subtraction
-    q00 -= ray_origins;
-    q10 -= ray_origins;
+    corners_bl -= ray_origins;
+    corners_br -= ray_origins;
 
     // 2. SOLVING THE INTERSECTION
 
     // 1. Solve quadratic a + b*u + c*u^2
-    Eigen::Array<double, Eigen::Dynamic, 1> a = ((cross_rowwise(q00, ray_directions)).array() * e00).rowwise().sum(); // Row-wise dot product; shape (faces, 1))
-    Eigen::Array<double, Eigen::Dynamic, 1> c = (qn * ray_directions.array()).rowwise().sum(); // Row-wise dot product; shape (faces, 1)
-    Eigen::Array<double, Eigen::Dynamic, 1> b = ((cross_rowwise(q10, ray_directions)).array() * e11).rowwise().sum(); // Row-wise dot product; shape (faces, 1))
+    //std::cout << "Getting a,b,c" << std::endl;
+    EiArrayD1d a = dot_rowwise(cross_rowwise(corners_bl, ray_directions), edges_left); // Row-wise dot product; shape (faces, 1)
+    //((cross_rowwise(corners_bl, ray_directions)).array() * edges_left).rowwise().sum(); // Row-wise dot product; shape (faces, 1))
+    EiArrayD1d c = dot_rowwise(normals, ray_directions); //
+    //(normals * ray_directions.array()).rowwise().sum(); // Row-wise dot product; shape (faces, 1)
+    EiArrayD1d b = dot_rowwise(cross_rowwise(corners_br, ray_directions), edges_right);
+    //((cross_rowwise(corners_br, ray_directions)).array() * edges_right).rowwise().sum(); // Row-wise dot product; shape (faces, 1))
     b = b - (a + c); 
-    Eigen::Array<double, Eigen::Dynamic, 1> determinants = b.square() - 4*a*c; // Shape (faces, 1)
-    // Determinant negative -> triangle is back-facing. If det is close to 0, ray and triangle are parallel and ray misses the triangle.
-    Eigen::Array<bool,  Eigen::Dynamic, 1> valid_mask = (determinants > EPSILON) && (determinants > 0); // Shape (faces, 1)
+    EiArrayD1d discriminants = b.square() - 4*a*c; // Shape (faces, 1)
+    // Discriminant negative -> triangle is back-facing. If discriminant is close to 0, ray and triangle are parallel and ray misses the triangle.
+    EiBoolMask valid_mask = (discriminants > EPSILON) && (discriminants > 0); // Shape (faces, 1)
     if (!valid_mask.any()) {
         //std::cout << "Condition 1 triggered" << std::endl;
         return negative_output; // No intersection - return infinity
     }
-    determinants = determinants.sqrt(); // Pre-compute square root of determinant
-
+    discriminants = discriminants.sqrt(); // Pre-compute square root of discriminant
     // Two roots (u_1, u_2)
-    Eigen::Array<double, Eigen::Dynamic, 1> u1, u2;
+    EiArrayD1d u1(bvh_node_quad_count, 1), u2(bvh_node_quad_count, 1);
 
     // We can have c == 0 or c!=0 so create two masks for these cases to handle the vectorised version properly
     // c == 0 => Trapezoid, only one root
-    Eigen::Array<bool, Eigen::Dynamic, 1> c_zero_mask = c.abs() < EPSILON; // Shape (faces, 1)
+    EiBoolMask c_zero_mask = c.abs() < EPSILON; // Shape (faces, 1)
     // c != 0 => Stanford model
-    Eigen::Array<bool, Eigen::Dynamic, 1> c_nonzero_mask = !c_zero_mask; // Shape (faces, 1)
-    
+    EiBoolMask c_nonzero_mask = !c_zero_mask; // Shape (faces, 1)
+
+    // Additionally check b values to avoid division by 0
+    EiBoolMask b_zero_mask = b.abs() < EPSILON;
+    EiArrayD1d safe_b = (!b_zero_mask).select(b, 1.0);
+
     // 2. Compute roots
     // 2.1. Trapezoid branch
-    u1 = c_zero_mask.select(-a/b, u1); // Equivalent of if (c == 0) { u_1 = -a/b; } else { u_1 = u1; } (where u1 is undefined here, but will be found for the other branch)
+    //u1 = c_zero_mask.select(-a/b, u1); // Equivalent of if (c == 0) { u_1 = -a/b; } else { u_1 = u1; } (where u1 is undefined here, but will be found for the other branch)
+    // Safer version with avoiding division by b ~ 0. Set to -1 otherwise as solution not found
+    EiArrayD1d trapezoid_u1 = (!b_zero_mask).select(-a / safe_b, -1.0);
+    u1 = c_zero_mask.select(trapezoid_u1, u1); // 
     u2 = c_zero_mask.select(-1.0, u2);
+
     // 2.2. Stanford branch
+    //std::cout << "Stanford branch" << std::endl;
     // We cannot use copysign for Eigen arrays, so use Eigen's boolean selections instead
-    // If b>=0, we want to add the determinant, else we subtract it
-    Eigen::Array<double, Eigen::Dynamic, 1> copysign_det_b = (b >= 0.0).select(determinants, -determinants); // Shape (faces, 1)
-    Eigen::Array<double, Eigen::Dynamic, 1> tmp = (-b - copysign_det_b) / 2.0; // Shape (faces, 1)
-    Eigen::Array<bool, Eigen::Dynamic, 1> tmp_zero_mask = tmp.abs() < EPSILON; // Shape (faces, 1)
-    u1 = (c_nonzero_mask).select(tmp/c, u1); // Numerically stable root
-    // tmp ~ 0 branch to avoid division by 0
+    // If b>=0, we want to add the discriminant, else we subtract it
+    
+    // Copysign will not work on an Eigen array, so create a mask based on the sign of b, which updates the sign of the discriminant
+    EiArrayD1d copysign_disc_b = (b >= 0.0).select(discriminants, -discriminants); // Shape (faces, 1)
+    EiArrayD1d tmp_root = (-b - copysign_disc_b) / 2.0; // Shape (faces, 1). Part of the quadratic root (-b +/- sqrt(discriminant))/ 2 with missing "a" in the denominator
+    EiBoolMask tmp_zero_mask = tmp_root.abs() < EPSILON; // Shape (faces, 1). Check that tmp != 0
+    u1 = (c_nonzero_mask).select(tmp_root/c, u1); // Numerically stable root
+    // tmp_root ~ 0 branch to avoid division by 0
     u2 = (c_nonzero_mask && tmp_zero_mask).select(-1.0, u2);
-    // tmp != 0 branch - use Viete's formula for u1*u2
-    u2 = (c_nonzero_mask && !tmp_zero_mask).select(a/tmp, u2);
+    // tmp_root != 0 branch - use Viete's formula for u1*u2
+    u2 = (c_nonzero_mask && !tmp_zero_mask).select(a/tmp_root, u2);
 
     // 3. Evaluate and check whether the solution lies inside the patch (quad)
     // Initialize output values with default negatives. (u,v) are the solutions; we are looking for (u,v) for the smallest t > 0 
-    Eigen::Array<double, Eigen::Dynamic, 1> t_values = Eigen::Array<double, Eigen::Dynamic, 1>::Constant(bvh_node_quad_count, 1, std::numeric_limits<double>::infinity()); // Array, not a vector for now as this enables element-wise access in Eigen
-    Eigen::Array<double, Eigen::Dynamic, 1> u_values = Eigen::Array<double, Eigen::Dynamic, 1>::Constant(bvh_node_quad_count, 1, -1.0);
-    Eigen::Array<double, Eigen::Dynamic, 1> v_values = Eigen::Array<double, Eigen::Dynamic, 1>::Constant(bvh_node_quad_count, 1, -1.0);
+    EiArrayD1d t_values = EiArrayD1d::Constant(bvh_node_quad_count, 1, std::numeric_limits<double>::infinity()); // Array, not a vector for now as this enables element-wise access in Eigen
+    EiArrayD1d u_values = EiArrayD1d::Constant(bvh_node_quad_count, 1, -1.0);
+    EiArrayD1d v_values = EiArrayD1d::Constant(bvh_node_quad_count, 1, -1.0);
 
     // 3.1. Evaluate case 0.0 <= u1 <= 1.0
-    Eigen::Array<bool, Eigen::Dynamic, 1> u1_valid = valid_mask && (0.0 <= u1) && (u1 <= 1.0);
-    EiArrayD3d pa1 = lerp_vectorised(q00, q10, u1);
-    EiArrayD3d pb1 = lerp_vectorised(e00, e11, u1);
+    //std::cout << "u1" << std::endl;
+    EiBoolMask u1_valid = valid_mask && (0.0 <= u1) && (u1 <= 1.0);
+    EiArrayD3d pa1 = lerp_vectorised(corners_bl, corners_br, u1);
+    EiArrayD3d pb1 = lerp_vectorised(edges_left, edges_right, u1);
     EiVectorD3d n1 = cross_rowwise(ray_directions, pb1.matrix());
-    Eigen::Array<double, Eigen::Dynamic, 1> det1 = n1.array().square().rowwise().sum();
-    Eigen::Array<bool, Eigen::Dynamic, 1> det1_valid = det1 > EPSILON; // Non-zero determinant
+    EiArrayD1d det1 = n1.array().square().rowwise().sum();
+    EiBoolMask det1_valid = det1 > EPSILON; // Non-zero discriminant
     EiVectorD3d n1_cross = cross_rowwise(n1, pa1);
-    Eigen::Array<double, Eigen::Dynamic, 1> t1 = dot_rowwise(n1_cross, pb1); // TEST OF DOT_ROWWISE AS WELL SINCE N1_CROSS ISN'T AN ARRAY
-    Eigen::Array<double, Eigen::Dynamic, 1> v1 = dot_rowwise(n1_cross, ray_direction);
-    // Create a hit mask if we are in the u1 branch, determinant is valid, and t1 > 0 and 0.0 <= v1 <= det1
-    Eigen::Array<bool, Eigen::Dynamic, 1> hit_mask1 = u1_valid && det1_valid && (t1 > 0.0) && (v1 >= 0.0) && (det1 >= v1)
+    EiArrayD1d t1 = dot_rowwise(n1_cross, pb1); // TEST OF DOT_ROWWISE AS WELL SINCE N1_CROSS ISN'T AN ARRAY
+    EiArrayD1d v1 = dot_rowwise(n1_cross, ray_directions);
+    // Create a hit mask if we are in the u1 branch, discriminant is valid, and t1 > 0 and 0.0 <= v1 <= det1
+    EiBoolMask hit_mask1 = u1_valid && det1_valid && (t1 > 0.0) && (v1 >= 0.0) && (det1 >= v1);
     // Update values where we have a hit
     t_values = hit_mask1.select(t1/det1, t_values);
-    u_values = hit_mask1.select(u1 u);
-    v_values = hit_mask1.select(v1/det1, v);
+    u_values = hit_mask1.select(u1, u_values);
+    v_values = hit_mask1.select(v1/det1, v_values);
 
     // 3.2. Evaluate case 0.0 <= u2 <= 1.0 - Slightly different since u1 might be good and we need 0 < t2 < t1
-    Eigen::Array<bool, Eigen::Dynamic, 1> u2_valid = valid_mask && (0.0 <= u2) && (u2 <= 1.0);
-    EiArrayD3d pa2 = lerp_vectorised(q00, q10, u2);
-    EiArrayD3d pb2 = lerp_vectorised(e00, e11, u2);
+    //std::cout << "u2" << std::endl;
+    EiBoolMask u2_valid = valid_mask && (0.0 <= u2) && (u2 <= 1.0);
+    EiArrayD3d pa2 = lerp_vectorised(corners_bl, corners_br, u2);
+    EiArrayD3d pb2 = lerp_vectorised(edges_left, edges_right, u2);
     EiVectorD3d n2 = cross_rowwise(ray_directions, pb2.matrix());
-    Eigen::Array<double, Eigen::Dynamic, 1> det2 = n2.array().square().rowwise().sum();
-    Eigen::Array<bool, Eigen::Dynamic, 1> det2_valid = det2 > EPSILON; // Non-zero determinant
+    EiArrayD1d det2 = n2.array().square().rowwise().sum();
+    EiBoolMask det2_valid = det2 > EPSILON; // Non-zero discriminant
     EiVectorD3d n2_cross = cross_rowwise(n2, pa2);
-    Eigen::Array<double, Eigen::Dynamic, 1> t2 = dot_rowwise(n2_cross, pb2); // TEST OF DOT_ROWWISE AS WELL SINCE N1_CROSS ISN'T AN ARRAY
-    Eigen::Array<double, Eigen::Dynamic, 1> v2 = dot_rowwise(n2_cross, ray_direction);
-    // Hit mask for u2 branch, determinant is valid, 0 < t2 < t and 0 <= v2 <= det2
-    Eigen::Array<bool, Eigen::Dynamic, 1> hit_mask2 = u2_valid && det2_valid && (t2 > 0.0) && (t > t2) && (det2 >= v2) && (v2 >= 0)
+    EiArrayD1d t2 = dot_rowwise(n2_cross, pb2) / det2; //
+    EiArrayD1d v2 = dot_rowwise(n2_cross, ray_directions);
+    // Hit mask for u2 branch, discriminant is valid, 0 < t2 < t and 0 <= v2 <= det2
+    EiBoolMask hit_mask2 = u2_valid && det2_valid && (t2 > 0.0) && (t_values > t2) && (det2 >= v2) && (v2 >= 0);
     // Update values where we have a hit
     t_values = hit_mask2.select(t2, t_values);
     u_values = hit_mask2.select(u2, u_values);
-    v_values = hit_mask2.select(v2/det, v_values);
+    v_values = hit_mask2.select(v2/det2, v_values);
 
     // 4. Interpolate final results, find geometric normals and texture coordinates
-    EiArrayD3d top_edges = q11 - q01
-    EiArrayD3d du = lerp_rowwise(e00, top_edges, v);
-    EiArrayD3d dv = lerp_rowwise(e00, e11, u);
-    EiArrayD3d geometric_normals = cross_rowwise(du, dv); // Check if it crashes or if we can get away without explicitly casting it to matrix as du.matrix()
-
+    //std::cout << "Final results" << std::endl;
+    EiArrayD3d du = lerp_vectorised(edges_left, edges_top, v_values);
+    EiArrayD3d dv = lerp_vectorised(edges_left, edges_right, u_values);
+    EiVectorD3d geometric_normals = cross_rowwise(du, dv);
     // Assign the final outputs and return
     // Create an array for barycentric coordinates so we can do things element-wise with those
-    Eigen::ArrayXXd quad_coordinates = Eigen::ArrayXxd::Zero(bvh_node_quad_count, NODE_COORDINATES);
+    Eigen::ArrayXXd quad_coordinates = Eigen::ArrayXXd::Zero(bvh_node_quad_count, NODE_COORDINATES);
     quad_coordinates.col(0) = u_values;
     quad_coordinates.col(1) = v_values;
     // Leave last column at 0 - matches out output format and this is also what they do explicitly in the paper
-    return IntersectionOutput{ barycentric_coordinates, plane_normals, t_values };
+    return IntersectionOutput{ quad_coordinates, geometric_normals, t_values };
     }
-*/
+
 struct Ray_old { Eigen::Vector3d o, d; Ray_old(Eigen::Vector3d o_, Eigen::Vector3d d_) : o(o_), d(d_) {} };
 
 void ray_convert(Ray_old &ray_old, const Ray &ray) {
@@ -375,9 +428,9 @@ struct Quadratic_tet {
       
     // Define imprecision parameters for the initial guess, they are especially needed for the cases
     // where the ray is close to being tangential to the linear triangle.
-    // If the determinant is close to zero, the ray misses the triangle.
+    // If the discriminant is close to zero, the ray misses the triangle.
     // Imprecision levels should be relatively large for the initial guess.
-    const double eps_init_guess1 = 1e-10; // Imprecision for linear tringle's determinant
+    const double eps_init_guess1 = 1e-10; // Imprecision for linear tringle's discriminant
     const double eps_init_guess2 = 0.1; // Imprecision for linear tringle's isoparametric coordinates (u, v)
     const double eps_t = 1e-5; // Imprecision for t
 
@@ -387,7 +440,7 @@ struct Quadratic_tet {
       // Imprecision levels should be relatively small for solution.
       const double eps_sol1 = 1e-7; // Imprecision for the residual
       const double eps_sol2 = 1e-8; // Imprecision for the quadratic triangle's isoparametric coordinates (g, h)
-      const double eps_sol3 = 1e-10; // Imprecision for the determinant
+      const double eps_sol3 = 1e-10; // Imprecision for the discriminant
 
     double min_t = std::numeric_limits<double>::infinity();
     bool intersect = false;
@@ -653,20 +706,20 @@ void intersect_BLAS(const Ray& ray,
         const BLAS_Node& Node = mesh_bvh.tree_nodes[stack.back()];
         stack.pop_back();
 
-        // Debug notes: Renders wrong if I uncomment below. But renders ok if I don't
-        // So all triangle data per node is still preserved, which is good
-        // => intersect AABB is wrong? calculating AABB? Like this suggests that we exit prematurely
         if (!intersect_AABB(ray, Node.bounding_box)) continue; // Early exit if ray does not intersect the AABB of the node
 
         if (Node.left_child_idx == -1) {
             // No children => Leaf node => Intersect triangles
-
+            //std::cout << "We are trying to intersect elements in node now" << std::endl;
             
-            // std::cout << '\n' << Node.nodes_per_element << '\n';
-            // std::cout << "The size of node_coords is: " << Node.node_coords.size() << '\n' << '\n';
-
-            if (Node.nodes_per_element == TRI3) {
-                out_intersection = intersect_bvh_triangles(ray, Node.node_coords, Node.element_count);
+            //std::cout << '\n' << Node.nodes_per_element << '\n';
+            //std::cout << "The size of node_coords is: " << Node.node_coords.size() << '\n' << '\n';
+            //out_intersection = intersect_bvh_triangles(ray, Node.node_coords, Node.element_count);
+            if (Node.nodes_per_element == 3) { // was TRI3
+                out_intersection = intersect_bvh_tri3(ray, Node.node_coords, Node.element_count);
+            }
+            else if (Node.nodes_per_element == 4){ // was QUAD4
+                out_intersection = intersect_bvh_quad4(ray, Node.node_coords, Node.element_count);
             }
             /*
             else if (Node.nodes_per_element == TET10) {
@@ -745,3 +798,9 @@ void intersect_TLAS(const Ray& ray,
         }
      }
 }
+
+
+    
+
+        
+           

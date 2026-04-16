@@ -12,7 +12,9 @@
 // we want it to be compatible with the C-layout (row-major)
 using EiMatrix4d = Eigen::Matrix<double, 4, 4, Eigen::StorageOptions::RowMajor>; // Shape (4,4)
 using EiVector3d = Eigen::Matrix<double, 1, 3, Eigen::StorageOptions::RowMajor>; // Vector; shape (3)
-using EiMatrixDd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>; // Dynamic-size matrix (Dd = dynamic double)
-using EiArrayDd = Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>; // Dynamic-size array (Dd = dynamic double) for coefficient-wise operations
-using EiVectorD3d = Eigen::Matrix<double, Eigen::Dynamic, 3, Eigen::RowMajor>; // Matrix shaped (D,3); mostly for coordinates to avoid having to loop constantly in the intersection code to get cross products etc. Think coordinates stacked together
-using EiArrayD3d = Eigen::Array<double, Eigen::Dynamic, 3, Eigen::RowMajor>; // Same as VectorD3d, just an array for coefficient-wise operations
+using EiMatrixDd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::StorageOptions::RowMajor>; // Dynamic-size matrix (Dd = dynamic double)
+using EiArrayDd = Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::StorageOptions::RowMajor>; // Dynamic-size array (Dd = dynamic double) for coefficient-wise operations
+using EiVectorD3d = Eigen::Matrix<double, Eigen::Dynamic, 3, Eigen::StorageOptions::RowMajor>; // Matrix shaped (D,3); mostly for coordinates to avoid having to loop constantly in the intersection code to get cross products etc. Think coordinates stacked together
+using EiArrayD3d = Eigen::Array<double, Eigen::Dynamic, 3, Eigen::StorageOptions::RowMajor>; // Same as VectorD3d, just an array for coefficient-wise operations
+using EiArrayD1d = Eigen::Array<double, Eigen::Dynamic, 1>; // Array shaped (D, 1) for doubles. Mostly used for cases where 1 row = 1 element of a mesh for example
+using EiBoolMask = Eigen::Array<bool, Eigen::Dynamic, 1>; // Array shaped (D, 1) with booleans. Used for boolean masks where 1 row = 1 element of a mesh for example

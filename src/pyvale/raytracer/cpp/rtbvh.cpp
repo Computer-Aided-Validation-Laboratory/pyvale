@@ -27,10 +27,11 @@ inline void compute_element_centroid(const double *element_node_coords,
     int element_node_count){
     // General function finding the centroid for any element type
 
+    element_centroid.fill(0.0);
     // Iterate over all nodes and sum up their respective x,y,z values
     // node_coords is structured as [x0, y0, z0, x1, y1, z1, ..., xn, yn, zn] where n = (element_node_count-1)
     for (int i = 0; i < element_node_count; ++i){
-        element_centroid[0] += element_node_coords[i * NODE_COORDINATES + 0]; // x-component
+        element_centroid[0] += element_node_coords[i * NODE_COORDINATES]; // x-component
         element_centroid[1] += element_node_coords[i * NODE_COORDINATES + 1]; // y-component
         element_centroid[2] += element_node_coords[i * NODE_COORDINATES + 2]; // z-component
     }
@@ -42,7 +43,7 @@ inline void compute_element_centroid(const double *element_node_coords,
 
 inline void compute_mesh_centroid(AABB& mesh_aabb, std::array<double,3>& mesh_centroid) {
     // Compute centroid of the mesh AABB
-    for (int i = 0; i < 3; ++i){
+    for (int i = 0; i < NODE_COORDINATES; ++i){
         mesh_centroid[i] = (mesh_aabb.corner_min[i] + mesh_aabb.corner_max[i]) / 2.0;
     }
 }
@@ -373,7 +374,10 @@ void build_BLAS(BLAS &mesh_bvh,
 
     // std::cout << nodes_per_element << '\n';
 
+    // DEBUG HINT: If your render isn't correct and you want to test the intersection without potential influences from the BVH, set MAX_ELEMENT_PER_LEAF
+    // to mesh_element_count (just noting that you either have to read and hardcode the value or change type from constexpr)
     static constexpr int MAX_ELEMENTS_PER_LEAF = 4; // Max number of mesh faces per leaf node. According to research 4-16 range works best
+
 
     // DFS implementation so LIFO; need to think if queue with BFS wouldn't work better since we don't care THAT much about the memory
     mesh_bvh.tree_nodes.clear();
@@ -610,7 +614,7 @@ void copy_data_to_BLAS_node(BLAS &mesh_bvh,
         //std::cout << "Node coords size: " << Node.node_coords.size() << std::endl;
        // std::cout << "Node element count: " << Node.element_count << std::endl;
     }
-   // std::cout << "Total BVH coordinate count: " << coord_count << std::endl;
+    //std::cout << "Total BVH coordinate count: " << coord_count << std::endl;
 }
 
 void copy_data_to_TLAS(TLAS &tlas,
@@ -632,7 +636,7 @@ void copy_data_to_TLAS(TLAS &tlas,
     }
  }
 
- /*
+/*
  // Helper/debug functions
 inline void print_BLAS_data(BLAS& mesh_bvh){
     std::cout << "     BLAS has " << mesh_bvh.tree_nodes.size() << " nodes." << std::endl;
@@ -644,7 +648,7 @@ inline void print_BLAS_data(BLAS& mesh_bvh){
         std::cout << "              Node struct size total [bytes]: " << sizeof(Node) << std::endl;
  }
 }
-
+ 
 inline void print_TLAS(TLAS &scene_TLAS){
     for (int i = 0; i < scene_TLAS.tlas_nodes.size(); ++i){
         std::cout << "TLAS Node ID: " << i << std::endl;
@@ -734,6 +738,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         copy_data_to_BLAS_node(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_face_colors_ptr, timestep);
         //std::cout << "BLAS successfully built." << std::endl;
         //std::cout << "BVH has " << mesh_bvh.tree_nodes.size() << " nodes." << std::endl;
+        //print_BLAS_data(mesh_bvh);
 
         // DEBUG LINES
         /*
