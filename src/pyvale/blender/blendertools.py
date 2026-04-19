@@ -427,6 +427,102 @@ class Tools:
         print('Total number of calibration images = ' + str(render_counter))
         return render_counter
 
+    @staticmethod
+    def setup_distortion_compositor(cam_data) -> None:
+        """Set up the Blender compositor to apply Brown-Conrady lens distortion
+        via the Movie Distortion node. This must be called before rendering so
+        that the Render Layers output is distorted in a single pass.
+
+        The compositor node tree is wired as:
+            Render Layers -> Movie Distortion (DISTORT) -> Composite
+
+        A temporary MovieClip is created to carry the tracking camera metadata
+        (distortion model, focal length, sensor width, and Brown-Conrady
+        coefficients) that the Movie Distortion node requires.
+
+        Parameters
+        ----------
+        cam_data : CameraData
+            The camera data containing distortion coefficients (k1, k2, k3,
+            p1, p2), focal length, pixel size, pixel count, and principal
+            point (c0, c1).
+        """
+        scene = bpy.context.scene
+        scene.use_nodes = True
+        scene.render.use_compositing = True
+        tree = scene.node_tree
+        tree.nodes.clear()
+
+        # The Movie Distortion node requires a MovieClip object to read
+        # distortion parameters from. bpy.data.movieclips.load() needs a
+        # file on disk, so we save a temporary TIFF at the render resolution.
+        # The image content is irrelevant -- only the clip's tracking camera
+        # metadata is used. The actual distortion is applied to the Render
+        # Layers output, not to this temporary image.
+        w = int(cam_data.pixels_num[0])
+        h = int(cam_data.pixels_num[1])
+        temp_name = "_distortion_temp"
+        if temp_name in bpy.data.images:
+            bpy.data.images.remove(bpy.data.images[temp_name])
+        temp_img = bpy.data.images.new(temp_name, width=w, height=h)
+        temp_path = Path(bpy.app.tempdir) / "distortion_temp.tiff"
+        temp_img.filepath_raw = str(temp_path)
+        temp_img.file_format = "TIFF"
+        temp_img.save()
+
+        clip = bpy.data.movieclips.load(str(temp_path))
+
+        # Configure the clip's tracking camera with Brown-Conrady parameters
+        tc = clip.tracking.camera
+        tc.distortion_model = 'BROWN'
+
+        focal_length_mm = cam_data.focal_length
+        sensor_width_mm = cam_data.pixels_num[0] * cam_data.pixels_size[0]
+
+        tc.focal_length = focal_length_mm
+        tc.sensor_width = sensor_width_mm
+        tc.brown_k1 = cam_data.k1
+        tc.brown_k2 = cam_data.k2
+        tc.brown_k3 = cam_data.k3
+        tc.brown_p1 = cam_data.p1
+        tc.brown_p2 = cam_data.p2
+
+        w = cam_data.pixels_num[0]
+        h = cam_data.pixels_num[1]
+        tc.principal_point = ((cam_data.c0 - w / 2) / w,
+                              (cam_data.c1 - h / 2) / h)
+
+        # Build compositor node tree
+        render_layers = tree.nodes.new(type='CompositorNodeRLayers')
+        distort_node = tree.nodes.new(type='CompositorNodeMovieDistortion')
+        distort_node.clip = clip
+        distort_node.distortion_type = 'DISTORT'
+        comp_node = tree.nodes.new(type='CompositorNodeComposite')
+
+        tree.links.new(render_layers.outputs['Image'],
+                        distort_node.inputs['Image'])
+        tree.links.new(distort_node.outputs['Image'],
+                        comp_node.inputs['Image'])
+
+    @staticmethod
+    def clear_distortion_compositor() -> None:
+        """Remove the distortion compositor node tree and restore default
+        compositing (no post-processing). Also cleans up any temporary
+        MovieClips and images created by setup_distortion_compositor.
+        """
+        scene = bpy.context.scene
+        if scene.use_nodes and scene.node_tree is not None:
+            scene.node_tree.nodes.clear()
+        scene.use_nodes = False
+        scene.render.use_compositing = False
+
+        # Clean up temporary data
+        for clip in list(bpy.data.movieclips):
+            bpy.data.movieclips.remove(clip)
+        temp_name = "_distortion_temp"
+        if temp_name in bpy.data.images:
+            bpy.data.images.remove(bpy.data.images[temp_name])
+
     def check_for_GPU() -> bool:
         """A method to check whether the machine has a GPU or not.
 

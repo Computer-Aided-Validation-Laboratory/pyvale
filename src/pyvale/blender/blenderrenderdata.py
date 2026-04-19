@@ -29,6 +29,7 @@ class RenderData:
     max_bounces: int = 12
     bit_size: int = 8
     threads:int = 4
+    apply_distortion: bool = False
 
     def __post_init__(self) -> None:
         if self.base_dir is None:

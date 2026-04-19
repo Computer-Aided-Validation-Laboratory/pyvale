@@ -356,6 +356,8 @@ class Scene():
                 cam_data_render = render_data.cam_data[cam_count]
                 bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
                 bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
+                if render_data.apply_distortion:
+                    Tools.setup_distortion_compositor(cam_data_render)
                 filename = "blenderimage_" + str(image_count) + "_" + str(cam_count) + ".tiff"
                 filepath = save_dir / filename
                 bpy.context.scene.render.filepath = str(filepath)
@@ -366,6 +368,8 @@ class Scene():
                 else:
                     bpy.ops.render.render(write_still=True)
                 cam_count += 1
+            if render_data.apply_distortion:
+                Tools.clear_distortion_compositor()
             if stage_image:
                 image_arrays = np.dstack(image_arrays)
                 return image_arrays
@@ -373,15 +377,21 @@ class Scene():
             image_count = 0
             bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
             bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_num[1]
+            if render_data.apply_distortion:
+                Tools.setup_distortion_compositor(render_data.cam_data)
             filename = "blenderimage_" + str(image_count) + ".tiff"
             filepath = save_dir / filename
             bpy.context.scene.render.filepath = str(filepath)
             if stage_image:
                 bpy.ops.render.render(write_still=True)
                 image_array = Tools.save_render_as_array(filepath)
+                if render_data.apply_distortion:
+                    Tools.clear_distortion_compositor()
                 return image_array
             else:
                 bpy.ops.render.render(write_still=True)
+                if render_data.apply_distortion:
+                    Tools.clear_distortion_compositor()
 
     def render_deformed_images(self,
                                render_mesh: RenderMesh,
@@ -461,6 +471,8 @@ class Scene():
                         cam_data_render = render_data.cam_data[cam_count]
                         bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
                         bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
+                        if render_data.apply_distortion:
+                            Tools.setup_distortion_compositor(cam_data_render)
                         filename = "blenderimage_" + str(timestep) + "_" + str(cam_count) + ".tiff"
                         filepath = save_dir / filename
                         bpy.context.scene.render.filepath = str(filepath)
@@ -471,18 +483,23 @@ class Scene():
                         else:
                             bpy.ops.render.render(write_still=True)
                         cam_count += 1
+                    if render_data.apply_distortion:
+                        Tools.clear_distortion_compositor()
                 else:
                     bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
                     bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_num[1]
+                    if render_data.apply_distortion:
+                        Tools.setup_distortion_compositor(render_data.cam_data)
                     filename = "blenderimage_" + str(timestep) + ".tiff"
                     filepath = save_dir / filename
                     bpy.context.scene.render.filepath = str(filepath)
                     if stage_image:
                         bpy.ops.render.render(write_still=True)
                         image_array = Tools.save_render_as_array(filepath)
-                        image_arrays.append(image_array)
                     else:
                         bpy.ops.render.render(write_still=True)
+                    if render_data.apply_distortion:
+                        Tools.clear_distortion_compositor()
         if stage_image:
             image_arrays = np.dstack(image_arrays)
             # TODO: Potentially change the way images are stacked for stereo systems
