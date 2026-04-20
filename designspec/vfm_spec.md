@@ -227,3 +227,159 @@ This sub-module computes various stress equilibrium metrics. These metrics can b
 ...
 
 
+---
+
+## Example user flow 
+The below flow is deliberating complex to capture the breadth of possibilities surrounding the identification procedure.
+
+
+### Context
+The user has performed experimental DIC testing on a welded joint. They know the elastic properties (elastic modulus and Poisson's ratio) and want to identify the spatially-varying maps of yield strength and hardening modulus assuming a linear hardening law.
+
+### Inputs
+
+#### Specimen geometry
+- x coord  
+- y coord
+- specimen thickness
+- specimen mask (2D boolean array)
+- area   (2d array of scalars. mm^2/px)
+- optional: region of interest (polygon defining specimen boundary)
+- data point spacing (mm/px) (just calc from x and y?)
+#### Boundary conditions
+- bc on 4 edges (e.g. lower: fixed, upper: traction, left: free, right: free where lower is min(y), left is min(x) )
+- force (nsteps x components)
+#### Strain data
+- 4d array (timesteps, components,y,x)
+
+### Outputs
+- 2d arrays of parameter maps
+- final identified stress (4d array)
+- identification metrics:
+	- duration
+	- number of iterations
+	- convergence stats etc.
+- optional:
+	- dofs and parameterisations throughout identification to reconstruct maps and stresses at any point? useful for debugging
+	- cost function terms throughout identification to examine convergence
+
+### Identification config
+
+##### Constitutive law
+###### Type
+- Type: Linear Hardening 
+###### Associated parameters
+Elastic modulus
+- Initial value: scalar or 2d array
+- Lower bound: scalar
+- Upper Bound: scalar
+
+Poisson's ratio
+- Initial value: scalar or 2d array
+- Lower bound: scalar
+- Upper Bound: scalar
+
+Yield strength
+- Initial value: scalar or 2d array
+- Lower bound: scalar
+- Upper Bound: scalar
+
+Hardening modulus
+- Initial value: scalar or 2d array
+- Lower bound: scalar
+- Upper Bound: scalar
+
+
+Each phase should have defined:
+- parameterisation type
+- cost function 
+- optimisations
+
+##### Phase 1
+###### Parameterisation
+- Elastic modulus: Known
+- Poisson’s ratio: Known
+- Yield strength: Homogeneous
+- Hardening modulus: Homogeneous
+###### Cost function
+- uniform virtual fields (UDVF) 
+	- uniform extension in y
+###### Optimiser
+- Levenberg-Marquadt
+
+##### Phase 2
+###### Parameterisation
+- Elastic modulus: Known
+- Poisson’s ratio: Known
+- Yield strength: slice-wise
+	- number of slices: 30
+- Hardening modulus: slice-wise
+	- number of slices: 15
+###### Cost function
+- slice-wise cost function
+###### Optimiser
+- gradient based (fsolve)
+
+##### Phase 3
+###### Parameterisation
+- Elastic modulus: Known
+- Poisson’s ratio: Known
+- Yield strength: Mesh
+	- initial mesh size: 2 rows x 3 columns
+	- initial element order: 0 
+	- refinement: h-refinement (elements can be merged or split)
+- Hardening modulus:
+	- initial mesh size: 2 rows x 3 columns
+	- initial element order: 0 
+	- refinement: h-refinement (element order can be changed)
+###### Cost function
+- SBVF
+###### Optimiser
+- Levenberg-Marquardt
+
+##### Phase 4
+###### Parameterisation
+- Elastic modulus: Known
+- Poisson’s ratio: Known
+- Yield strength: basis functions
+	- basis function type
+	- initial number of basis functions
+- Hardening modulus: Known (result from previous phase)
+###### Cost function
+- EGI
+	- n windows
+	- window size for each window
+- FRE
+	- npts per slice
+###### Optimiser
+- Pattern search
+
+
+##### Phase 5
+###### Parameterisation
+- Elastic modulus: Known
+- Poisson’s ratio: Known
+- Yield strength: Known
+- Hardening modulus: BFS using yield-strength distribution from Phase 4
+  - Linked to the Phase 4 yield-strength distribution
+###### Cost function
+- EGI
+- FRE
+###### Optimiser
+- Pattern search
+
+
+##### Phase 6
+###### Parameterisation
+- Elastic modulus: Known
+- Poisson’s ratio: Known
+- Yield strength: BFS
+- Hardening modulus: BFS
+###### Cost function
+- SBVF
+###### Optimiser
+- Gradient-based (Levenberg-Marquardt)
+
+
+
+
