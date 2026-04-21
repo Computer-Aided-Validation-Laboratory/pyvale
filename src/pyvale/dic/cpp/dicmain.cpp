@@ -93,7 +93,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
     if (conf.scan_method == "MULTIWINDOW_RG" || conf.scan_method == "MULTIWINDOW") {
 
-        multiwindow_init(multiwindow_l, img_roi, conf);
+        multiwindow_init(multiwindow_l, img_roi, conf, saveconf);
         ss_grid_l = multiwindow_l.back().layout;
 
     }

@@ -29,7 +29,8 @@
 
 void multiwindow_init(std::vector<WindowLevel> &level, 
                       const bool *img_roi, 
-                      const util::Config &conf){
+                      const util::Config &conf,
+                      const common_util::SaveConfig &saveconf) {
 
     // timer for the initialisation
     //Timer timer("entire FFT initislisation");
@@ -56,6 +57,7 @@ void multiwindow_init(std::vector<WindowLevel> &level,
                            conf.px_hori, conf.px_vert, 
                            !is_last, lvl, 
                            conf.fft_mad, conf.fft_mad_scale,
+                           conf.fft_save, saveconf,
                            prev);
 
     }
@@ -308,14 +310,29 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         //smooth_field(level[i].x, current_level, 7.0, 5);
         //smooth_field(level[i].y, current_level, 7.0, 5);
 
-        // debugging
-        // for (int ss = 0; ss < layout.num; ss++){
-        //     std::cout << layout.coords[2*ss] << " " << layout.coords[2*ss+1] << " ";
-        //     std::cout << u[ss] << " " << v[ss] << " ";
-        //     std::cout << max_val[ss] << std::endl;
-        //     //std::cout << level[i].cost[ss] << std::endl;
-        // }
-        // std::cout << std::endl;
+        if (fft_save){
+
+            std::string filename = saveconf.basepath + "fft_displacements_" +
+                                   std::to_string(ss_size_x) + "x" +
+                                   std::to_string(ss_size_y) + ".txt";
+            std::ofstream fout(filename);
+
+            fout << "x" << saveconf.delimiter;
+            fout << "y" << saveconf.delimiter;
+            fout << "u" << saveconf.delimiter;
+            fout << "v" << saveconf.delimiter;
+            fout << "max_val" << saveconf.delimiter;
+            fout << "\n";
+
+            for (int ss = 0; ss < layout.num; ss++){
+                fout << layout.coords[2*ss] << saveconf.delimiter;
+                fout << layout.coords[2*ss+1] << saveconf.delimiter;
+                fout << u[ss] << saveconf.delimiter;
+                fout << v[ss] << saveconf.delimiter;
+                fout << max_val[ss] << "\n";
+            }
+            fout.close();
+        }
 
         if (g_debug_level>1){
             pbar.update(current_progress);

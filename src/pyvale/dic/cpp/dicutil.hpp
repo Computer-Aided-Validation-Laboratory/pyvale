@@ -49,6 +49,7 @@ namespace util {
         std::vector<std::string> basenames;
         std::vector<std::string> fullpaths;
         bool fft_mad;
+        bool fft_save;
         double fft_mad_scale;
         unsigned int debug_level;
         bool stereo;

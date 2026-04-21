@@ -64,6 +64,10 @@ struct WindowLevel {
     subset::Grid layout;
     bool mad_filter;
     double mad_scale;
+    bool fft_save;
+    common_util::SaveConfig saveconf;
+
+
 
 
     WindowLevel(const bool *img_roi,
@@ -75,6 +79,8 @@ struct WindowLevel {
            const size_t level,
            const bool mad_filter,
            const double mad_scale,
+           const bool fft_save,
+           const common_util::SaveConfig &saveconf,
            const subset::Grid *prev_layout) {
 
         // create grid for the window
@@ -83,11 +89,12 @@ struct WindowLevel {
         v.resize(layout.num);
         cost.resize(layout.num);
         max_val.resize(layout.num);
-        
+
         this->level = level;
         this->mad_filter = mad_filter;
         this->mad_scale = mad_scale;
-
+        this->fft_save = fft_save;
+        this->saveconf = saveconf;
 
         // create neighbourlist if there's a a previous window size
         if (prev_layout) {
@@ -247,9 +254,11 @@ struct WindowLevel {
  * @param[out] level   Output container to which new levels are appended.
  * @param[in]  img_roi Pointer to the image ROI (mask) used by the layouts. Must remain valid during level construction.
  * @param[in]  conf    Runtime configuration containing max_disp, ss_size, ss_step, px_hori, px_vert.
+ * @param[in]  saveconf Configuration for saving intermediate FFT results .
  */
 void multiwindow_init(std::vector<WindowLevel> &level, 
                       const bool *img_roi, 
-                      const util::Config &conf);
+                      const util::Config &conf,
+                      const common_util::SaveConfig &saveconf);
 
 #endif // DICMULTIWINDOW_H

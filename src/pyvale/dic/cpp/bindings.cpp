@@ -46,6 +46,7 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("num_params", &util::Config::num_params)
         .def_readwrite("fft_mad", &util::Config::fft_mad)
         .def_readwrite("fft_mad_scale", &util::Config::fft_mad_scale)
+        .def_readwrite("fft_save", &util::Config::fft_save)
         .def_readwrite("basenames", &util::Config::basenames)
         .def_readwrite("fullpaths", &util::Config::fullpaths)
         .def_readwrite("debug_level", &util::Config::debug_level)
