@@ -35,6 +35,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  method: str="MULTIWINDOW_RG",
                  fft_mad: bool=False,
                  fft_mad_scale: float=3.0,
+                 fft_save: bool=False,
                  output_at_end: bool=False,
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
@@ -176,6 +177,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.fullpaths = fullpaths
     config.fft_mad = fft_mad
     config.fft_mad_scale = fft_mad_scale
+    config.fft_save = fft_save
     config.debug_level = debug_level
 
     # assigning c++ struct vals for save config
