@@ -548,29 +548,32 @@ void multiwindow_reliability_guided(const Image &img_ref,
                         // add displacements from base to subset coords in img0
                         double cx = cx_img0;
                         double cy = cy_img0;
-                        if (img_num_ref > 0){
+
+                        OptResult nres(opt.num_params);
+                        if (((results_ref.above_thresh[nidx]) && (img_num_ref > 0)) ||
+                            (img_num_ref == 0)){
                             cx += results_ref.u[nidx];
                             cy += results_ref.v[nidx];
-                        }
 
-                        // fill the reference subset
-                        subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
+                            // fill the reference subset
+                            subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
-                        if (results_def.cost[current.idx] < conf.threshold){
-                            if (ss_ref.sum!=0) get_initial_guess(opt.p, cx, cy);
-                        }
-                        else {
-                            opt.copy_params_from_neigh(results_def.p, current.idx);
-                        }
+                            if (results_def.cost[current.idx] < conf.threshold){
+                                if (ss_ref.sum!=0) get_initial_guess(opt.p, cx, cy);
+                            }
+                            else {
+                                opt.copy_params_from_neigh(results_def.p, current.idx);
+                            }
 
-                        // optimize
-                        OptResult nres(opt.num_params);
-                        if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+                            // optimize
+                            if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
-                        // add deformation from reference image to new results
-                        if ((nres.above_threshold) && (img_num_ref > 0)){
-                            nres.u += results_ref.u[nidx];
-                            nres.v += results_ref.v[nidx];
+                            // add deformation from reference image to new results
+                            if ((nres.above_threshold) && (img_num_ref > 0)){
+                                nres.u += results_ref.u[nidx];
+                                nres.v += results_ref.v[nidx];
+                            }
+
                         }
 
                         // append results
