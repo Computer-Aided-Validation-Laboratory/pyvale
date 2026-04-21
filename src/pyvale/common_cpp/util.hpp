@@ -21,6 +21,17 @@
 // common_cpp header files
 #include "./defines.hpp"
 
+enum class PixelType { UINT8, UINT16, UINT32};
+
+struct Image {
+    PixelType type;
+    uint32_t width;
+    uint32_t height;
+    std::vector<uint8_t>  data8;
+    std::vector<uint16_t> data16;
+    std::vector<uint32_t> data32;
+};
+
 namespace common_util {
 
     struct SaveConfig {

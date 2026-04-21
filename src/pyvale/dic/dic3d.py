@@ -136,30 +136,30 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     """
 
 
+
     if (debug_level>0):
         common_py_util.print_pyvale_banner()
         dicchecks.print_title("Initial Checks")
 
+    # make sure ROI is in the correct format
+    roi_c = np.ascontiguousarray(roi_mask)
+
     # do checks on vars in python land
-    image_stack0, roi_c, filenames0 = dicchecks.check_and_get_images(reference[0],deformed[0],roi_mask,debug_level)
-    image_stack1, _    , filenames1 = dicchecks.check_and_get_images(reference[1],deformed[1],roi_mask,debug_level)
-    assert(image_stack0.shape == image_stack1.shape)
-    assert(len(filenames0) == len(filenames1))
-    image_stack = np.concatenate((image_stack0, image_stack1), axis=0)
-    filenames = filenames0 + filenames1
+    if (isinstance(reference[0], (str, Path)) and isinstance(deformed[0], (str, Path)) and 
+        isinstance(reference[1], (str, Path)) and isinstance(deformed[1], (str, Path))):
 
+        basenames0, fullpaths0, w0, h0 = dicchecks.check_images(reference[0],deformed[0],roi_mask,debug_level)
+        basenames1, fullpaths1, w1, h1 = dicchecks.check_images(reference[1],deformed[1],roi_mask,debug_level)
+    else:
+        raise ValueError("Currently only file paths are accepted for reference and deformed images. Please provide paths to the images you want to analyze.")
 
-    # # sort it so that images go l0,r0,l1,r1,l2,r2 ....
-    # # Interleave so images go l0,r0,l1,r1,l2,r2,...
-    # n = image_stack0.shape[0]
-    #
-    # # Interleave image stacks: shape goes from (n, ...) to (2n, ...)
-    # image_stack = np.empty((2 * n, *image_stack0.shape[1:]), dtype=image_stack0.dtype)
-    # image_stack[0::2] = image_stack0  # even indices: left
-    # image_stack[1::2] = image_stack1  # odd indices:  right
-    #
-    # # Interleave filenames
-    # filenames = [name for pair in zip(filenames0, filenames1) for name in pair]
+    assert(w0 == w1)
+    assert(h0 == h1)
+    assert(len(basenames0) == len(basenames1))
+    assert(len(basenames0) == len(basenames1))
+    assert(len(fullpaths0) == len(fullpaths1))
+    basenames = basenames0 + basenames1
+    fullpaths = fullpaths0 + fullpaths1
 
     dicchecks.check_correlation_criteria(correlation_criteria)
     dicchecks.check_interpolation(interpolation_routine)
@@ -167,12 +167,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     dicchecks.check_thresholds(threshold, bf_threshold, precision)
     common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks.check_subsets(subset_size, subset_step)
-    updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, image_stack0.shape[2], image_stack0.shape[1], subset_size, subset_step)
+    updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, w0, h0, subset_size, subset_step)
     num_params = dicchecks.check_shape_function(shape_function)
-
-
-
-
 
     # Assign values to config struct for c++ land
     config = diccpp.Config()
@@ -187,12 +183,13 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.shape_func = shape_function
     config.interp_routine = interpolation_routine
     config.scan_method = method
-    config.px_hori = image_stack0.shape[2]
-    config.px_vert = image_stack0.shape[1]
-    config.num_def_img = image_stack0.shape[0]-1 # subtract ref image
+    config.px_hori = w0
+    config.px_vert = h0
+    config.num_def_img = len(basenames0)-1 # subtract ref image
     config.num_params = num_params
     config.rg_seed = updated_seed
-    config.filenames = filenames
+    config.basenames = basenames
+    config.fullpaths = fullpaths
     config.fft_mad = fft_mad
     config.fft_mad_scale = fft_mad_scale
     config.debug_level = debug_level
@@ -242,4 +239,4 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        diccpp.engine(image_stack, roi_c, calib, config, saveconf)
+        diccpp.engine(roi_c, calib, config, saveconf)

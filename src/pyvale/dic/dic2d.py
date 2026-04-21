@@ -134,15 +134,23 @@ def calculate_2d(reference: np.ndarray | str | Path,
         common_py_util.print_pyvale_banner()
         dicchecks.print_title("Initial Checks")
 
-    # do checks on vars in python land
-    image_stack, roi_c, filenames = dicchecks.check_and_get_images(reference,deformed,roi_mask, debug_level)
+    # make sure ROI is in the correct format
+    roi_c = np.ascontiguousarray(roi_mask)
+
+    if isinstance(reference, (str, Path)) and isinstance(deformed, (str, Path)):
+        basenames, fullpaths, w, h = dicchecks.check_images(reference,deformed,roi_mask, debug_level)
+    else:
+        raise ValueError("Currently only file paths are accepted for reference and deformed images. Please provide paths to the images you want to analyze.")
+        #image_stack, roi_c, basenames, fullpaths = dicchecks.check_and_get_images(reference,deformed,roi_mask, debug_level)
+
+    # checks on the config
     dicchecks.check_correlation_criteria(correlation_criteria)
     dicchecks.check_interpolation(interpolation_routine)
     dicchecks.check_method(method)
     dicchecks.check_thresholds(threshold, bf_threshold, precision)
     common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks.check_subsets(subset_size, subset_step)
-    updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, image_stack.shape[2], image_stack.shape[1], subset_size, subset_step)
+    updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, w, h, subset_size, subset_step)
     num_params = dicchecks.check_shape_function(shape_function)
 
 
@@ -159,12 +167,13 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.shape_func = shape_function
     config.interp_routine = interpolation_routine
     config.scan_method = method
-    config.px_hori = image_stack.shape[2]
-    config.px_vert = image_stack.shape[1]
-    config.num_def_img = image_stack.shape[0]-1 # subtract ref image
+    config.px_hori = w
+    config.px_vert = h
+    config.num_def_img = len(basenames)-1 # subtract ref image
     config.num_params = num_params
     config.rg_seed = updated_seed
-    config.filenames = filenames
+    config.basenames = basenames
+    config.fullpaths = fullpaths
     config.fft_mad = fft_mad
     config.fft_mad_scale = fft_mad_scale
     config.debug_level = debug_level
@@ -217,4 +226,4 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        diccpp.engine(image_stack, roi_c, calib, config, saveconf)
+        diccpp.engine(roi_c, calib, config, saveconf)

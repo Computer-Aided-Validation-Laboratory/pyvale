@@ -15,7 +15,6 @@
 
 Image read_tiff(const std::string &fullpath) {
 
-    std::cout << "attempting to read TIFF file: " << fullpath << std::endl;
     TIFF* tif = TIFFOpen(fullpath.c_str(), "r");
     if (!tif) throw std::runtime_error("Failed to open: " + fullpath);
     uint32_t width = 0, height = 0;

@@ -46,7 +46,8 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("num_params", &util::Config::num_params)
         .def_readwrite("fft_mad", &util::Config::fft_mad)
         .def_readwrite("fft_mad_scale", &util::Config::fft_mad_scale)
-        .def_readwrite("filenames", &util::Config::filenames)
+        .def_readwrite("basenames", &util::Config::basenames)
+        .def_readwrite("fullpaths", &util::Config::fullpaths)
         .def_readwrite("debug_level", &util::Config::debug_level)
         .def_readwrite("stereo", &util::Config::stereo);
 
@@ -68,20 +69,50 @@ PYBIND11_MODULE(diccpp, m) {
 
     // 2d b-spline interpolator
     py::class_<Bspline, Interpolator>(m, "Bspline")
-        .def(py::init([](py::array_t<double, py::array::c_style> arr,
-                         int px_hori, int px_vert) {
+    .def(py::init([](py::array arr) {
 
-            if (arr.ndim() != 2)
-                throw std::runtime_error("img must be a 2D numpy array");
+        if (arr.ndim() != 2)
+            throw std::runtime_error("img must be a 2D numpy array");
 
-            double* ptr = static_cast<double*>(arr.mutable_data());
+        int px_vert = arr.shape(0);
+        int px_hori = arr.shape(1);
 
-            return new Bspline(ptr, px_hori, px_vert);
-        }))
-        .def("eval", &Bspline::eval)
-        .def("eval_dx", &Bspline::eval_dx)
-        .def("eval_dy", &Bspline::eval_dy)
-        .def("eval_and_derivs", &Bspline::eval_and_derivs);
+        Image img;
+        img.width  = px_hori;
+        img.height = px_vert;
+
+        // CHecking the type of the python array
+        if (py::isinstance<py::array_t<uint8_t>>(arr)) {
+
+            img.type = PixelType::UINT8;
+            auto buf = arr.cast<py::array_t<uint8_t, py::array::c_style>>();
+
+            img.data8.assign(buf.data(), buf.data() + px_hori * px_vert);
+
+        } else if (py::isinstance<py::array_t<uint16_t>>(arr)) {
+
+            img.type = PixelType::UINT16;
+            auto buf = arr.cast<py::array_t<uint16_t, py::array::c_style>>();
+
+            img.data16.assign(buf.data(), buf.data() + px_hori * px_vert);
+
+        } else if (py::isinstance<py::array_t<uint32_t>>(arr)) {
+
+            img.type = PixelType::UINT32;
+            auto buf = arr.cast<py::array_t<uint32_t, py::array::c_style>>();
+
+            img.data32.assign(buf.data(), buf.data() + px_hori * px_vert);
+
+        } else {
+            throw std::runtime_error("Unsupported numpy dtype (expected uint8/uint16/uint32)");
+        }
+
+        return std::make_unique<Bspline>(img);
+    }))
+    .def("eval", &Bspline::eval)
+    .def("eval_dx", &Bspline::eval_dx)
+    .def("eval_dy", &Bspline::eval_dy)
+    .def("eval_and_derivs", &Bspline::eval_and_derivs);
 
 }
 

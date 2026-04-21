@@ -286,11 +286,41 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
     return [new_x, new_y]
 
 
-def check_and_get_images(reference: np.ndarray | str | Path,
-                         deformed: np.ndarray | str | Path | list[Path],
-                         roi: np.ndarray, debug_level: int) -> tuple[np.ndarray, np.ndarray, list[str]]:
+# def save_np_as_tiff(img_array: np.ndarray, output_path: str) -> None:
+#     """
+#     Save a NumPy array as a TIFF image file.
+#
+#     Parameters
+#     ----------
+#     img_array : np.ndarray
+#         The image data to be saved, expected to be a 2D array (grayscale) or 3D array (multi-channel).
+#     output_path : str
+#         The file path where the TIFF image will be saved.
+#     """
+#
+#     # Ensure the output directory exists
+#     os.makedirs(os.path.dirname(output_path), exist_ok=True)
+#
+#     # check array dimensions
+#     if img_array.ndim != 2 and img_array.ndim != 3:
+#         raise ValueError(f"Expected a 2D or 3D array, but got an array with {img_array.ndim} dimensions.")
+#
+#     # save the 3D numpy array as separate TIFF files.
+#     if img_array.ndim == 3:
+#         for img in range(img_array.shape[0]):
+#             img_path = output_path.replace(".tiff", f"_{img:04d}.tiff")
+#             Image.fromarray(img_array[img]).save(img_path)
+#
+#
+#     if img_array.ndim == 2:
+#         Image.fromarray(img_array).save(output_path)
+
+
+def check_images(reference: str | Path,
+                 deformed: str | Path | list[Path],
+                 roi: np.ndarray, debug_level: int) -> tuple[list[str], list[str], int, int]:
     """
-    Load and validate reference and deformed images, checks consistency in shape/format.
+    Validate reference and deformed images, checks consistency in shape/format.
 
     This function accepts either:
     - A file path to a reference image and a glob pattern for a sequence of deformed image files, or
@@ -310,7 +340,7 @@ def check_and_get_images(reference: np.ndarray | str | Path,
     deformed : np.ndarray, str, pathlib.Path, list[pathlib.Path]
         Either a NumPy array representing a sequence of deformed images (shape: [N, H, W]),
         or a glob pattern string pointing to multiple image files.
-    roi : np.ndarray
+    std::cout << img_num_l << " " << img_num_r << std::endl;
         A 2D NumPy array defining the region of interest. Must match the reference image shape
         if ``reference`` is an array.
     debug_level: int
@@ -318,10 +348,10 @@ def check_and_get_images(reference: np.ndarray | str | Path,
 
     Returns
     -------
-    image_stack: np.ndarray
-        A 3D NumPy array containing all deformed images with shape (N, H, W).
-    filenames : list of str
+    basename : list of str
         List of base filenames of all images (empty if images are passed as arrays).
+    fullpath : list of str
+        List of full paths of all images (empty if images are passed as arrays).
 
     Raises
     ------
@@ -333,7 +363,8 @@ def check_and_get_images(reference: np.ndarray | str | Path,
         If no files are found matching the deformed image pattern.
     """
 
-    filenames = []
+    basename = []
+    fullpath = []
 
     # Normalize Path or str to Path
     if isinstance(reference, (str, Path)):
@@ -368,23 +399,24 @@ def check_and_get_images(reference: np.ndarray | str | Path,
             print(f"  - {reference}\n")
 
         # Load reference image
-        ref_arr = np.array(Image.open(reference))
+        ref_img = Image.open(reference)
 
-        if ref_arr.ndim == 3:
-            if (debug_level>0):
-                print(f"Reference image appears to have {ref_arr.shape[2]} channels. Using channel 0.")
-            ref_arr = ref_arr[:, :, 0]
+        # if ref_arr.ndim == 3:
+        #     if (debug_level>0):
+        #         print(f"Reference image appears to have {ref_arr.shape[2]} channels. Using channel 0.")
+        #     ref_arr = ref_arr[:, :, 0]
 
         if (debug_level>0):
-            print(f"Reference image shape: {ref_arr.shape}")
+            print(f"Reference image shape: {ref_img.size}")
             print("")
 
-        filenames.append(os.path.basename(reference))
+        basename.append(os.path.basename(reference))
+        fullpath.append(str(reference))
 
         if isinstance(deformed, Path):
             files = sorted(glob.glob(str(deformed)))
         else:
-            files = [str(p) for p in deformed]
+            files = sorted(deformed, key=lambda p: os.path.basename(p))
 
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
@@ -398,52 +430,51 @@ def check_and_get_images(reference: np.ndarray | str | Path,
             print("")
 
         # populate filenames list. Stars with ref image.
-        filenames.extend(os.path.basename(f) for f in files)
+        basename.extend(os.path.basename(f) for f in files)
+        fullpath.extend(str(f) for f in files)
 
-        def_arr = np.zeros((len(files), *ref_arr.shape), dtype=ref_arr.dtype)
+        #def_arr = np.zeros((len(files), *ref_arr.size), dtype=ref_arr.dtype)
 
         for i, file in enumerate(files):
-            img = np.array(Image.open(file))
-            if img.ndim == 3:
-                print(f"Deformed image {file} appears to have {img.shape[2]} channels. Using channel 0.")
-                img = img[:, :, 0]
-            if img.shape != ref_arr.shape:
-                raise ValueError(f"Shape mismatch: '{file}' has shape {img.shape}, expected {ref_arr.shape}")
-            def_arr[i] = img
+            def_img = Image.open(file)
+            # if img.ndim == 3:
+            #     print(f"Deformed image {file} appears to have {img.shape[2]} channels. Using channel 0.")
+            #     img = img[:, :, 0]
+            if def_img.size != ref_img.size:
+                raise ValueError(f"Shape mismatch: '{file}' has shape {def_img.size}, expected {ref_img.size}")
+            #def_arr[i] = img
 
+
+    #TODO: Sort out the array based input
     # Array-based input
-    else:
-        assert isinstance(reference, np.ndarray)
-        assert isinstance(deformed, np.ndarray)
-        ref_arr = reference
-        def_arr = deformed
 
-        # user might only pass a single deformed image. need to convert to 'stack'
-        if (reference.shape == deformed.shape):
-            def_arr = def_arr.reshape((1,def_arr.shape[0],def_arr.shape[1]))
+    # else:
+    #     assert isinstance(reference, np.ndarray)
+    #     assert isinstance(deformed, np.ndarray)
+    #     ref_arr = reference
+    #     def_arr = deformed
+    #
+    #     # user might only pass a single deformed image. need to convert to 'stack'
+    #     if (reference.shape == deformed.shape):
+    #         def_arr = def_arr.reshape((1,def_arr.shape[0],def_arr.shape[1]))
+    #
+    #     elif (reference.shape != deformed[0].shape or reference.shape != roi.shape):
+    #         raise ValueError(f"Shape mismatch: reference={reference.shape}, "
+    #                          f"deformed[0]={deformed[0].shape}, roi={roi.shape}")
+    #
+    #     # check ROI dimensions agrees with reference image
+    #     if (reference.shape != roi.shape):
+    #         raise ValueError(f"Shape mismatch: reference={reference.shape}, "
+    #                          f"roi={roi.shape}")
+    #
+    #     # need to set some dummy filenames in the case that the user passes numpy arrays
+    #     basename = ["ref_img"]
+    #     for f in range(0,def_arr.shape[0]):
+    #         basename.append(f"def_img_{f:04d}")
+    #
+    w, h = ref_img.size
 
-        elif (reference.shape != deformed[0].shape or reference.shape != roi.shape):
-            raise ValueError(f"Shape mismatch: reference={reference.shape}, "
-                             f"deformed[0]={deformed[0].shape}, roi={roi.shape}")
-
-        # check ROI dimensions agrees with reference image
-        if (reference.shape != roi.shape):
-            raise ValueError(f"Shape mismatch: reference={reference.shape}, "
-                             f"roi={roi.shape}")
- 
-        # need to set some dummy filenames in the case that the user passes numpy arrays
-        filenames = ["ref_img"]
-        for f in range(0,def_arr.shape[0]):
-            filenames.append(f"def_img_{f:04d}")
-
-    # it might be the case that the roi has been manipulated prior to DIC run
-    # and therefore we need to to prevent the roi mask from being a 'view'
-    roi_c = np.ascontiguousarray(roi)
-
-    # Build image stack: reference first, then deformed images
-    image_stack = np.concatenate(([ref_arr], def_arr), axis=0)
-
-    return image_stack, roi_c, filenames
+    return basename, fullpath, w, h
 
 
 
