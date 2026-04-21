@@ -12,7 +12,8 @@
 #include "./dicsubset.hpp"
 #include "./dicshapefunc.hpp"
 
-
+// common_cpp header files
+#include "../../common_cpp/util.hpp"
 
 namespace subset {
 
@@ -20,30 +21,35 @@ namespace subset {
                     const int ss_x, const int ss_y, 
                     const int px_hori,
                     const int px_vert,
-                    const double *img_def){
+                    const Image &img){
 
-        int count = 0;
-        int idx;
-
-        for (int px_y = ss_y; px_y < ss_y+ss_ref.size_y; px_y++){
-            for (int px_x = ss_x; px_x < ss_x+ss_ref.size_x; px_x++){
-
-                // get coordinate values
-                ss_ref.x[count] = px_x; 
-                ss_ref.y[count] = px_y; 
-
-                // get pixel values
-                idx = px_y * px_hori + px_x;
-                ss_ref.vals[count] = img_def[idx];
-                count++;
-
-                // debugging
-                //std::cout << px_x << " " << px_y << " ";
-                //std::cout << img_def[idx] << std::endl;
-            }
+        switch (img.type) {
+            case PixelType::UINT8:  fill_impl(ss_ref, img.data8,  ss_x, ss_y, px_hori); break;
+            case PixelType::UINT16: fill_impl(ss_ref, img.data16, ss_x, ss_y, px_hori); break;
+            case PixelType::UINT32: fill_impl(ss_ref, img.data32, ss_x, ss_y, px_hori); break;
         }
     }
 
+    template<typename T>
+    void fill_impl(subset::Pixels &ss_ref,
+                const std::vector<T> &data,
+                int ss_x, int ss_y,
+                int px_hori) {
+
+        int count = 0;
+        ss_ref.sum = 0.0;
+
+        for (int y = ss_y; y < ss_y + ss_ref.size_y; ++y) {
+            for (int x = ss_x; x < ss_x + ss_ref.size_x; ++x) {
+                int idx = y * px_hori + x;
+                ss_ref.x[count] = x;
+                ss_ref.y[count] = y;
+                ss_ref.vals[count] = data[idx];
+                ss_ref.sum += data[idx];
+                count++;
+            }
+        }
+    }
 
     double zncc(const subset::Pixels &ss_ref, const subset::Pixels &ss_def) {
         double mean_ref = 0.0;
@@ -122,6 +128,7 @@ namespace subset {
         const double half_y = (ss.size_y - 1) / 2.0;
 
         int count = 0;
+        ss.sum = 0.0;
         for (int y = 0; y < ss.size_y; y++){
             const double rel_y = y - half_y;
             for (int x = 0; x < ss.size_x; x++){
@@ -129,6 +136,7 @@ namespace subset {
                 ss.x[count]+=cx;
                 ss.y[count]+=cy;
                 ss.vals[count] = interp.eval(cx, cy, ss.x[count], ss.y[count]);
+                ss.sum += ss.vals[count];
                 count++;
             }
         }
@@ -143,6 +151,7 @@ namespace subset {
         const double half_y = (ss_def.size_y - 1) / 2.0;
 
         int count = 0;
+        ss_def.sum = 0.0;
         for (int y = 0; y < ss_def.size_y; y++) {
             for (int x = 0; x < ss_def.size_x; x++) {
                 ss_def.x[count] = cx + x - half_x;
@@ -150,6 +159,7 @@ namespace subset {
                 ss_def.vals[count] = interp_def.eval(cx, cy,
                                                     ss_def.x[count],
                                                     ss_def.y[count]);
+                ss_def.sum += ss_def.vals[count];
                 count++;
             }
         }

@@ -13,21 +13,30 @@
 #include "./dicinterpBspline.hpp"
 
 // In your constructor
-Bspline::Bspline(double* img, int px_hori, int px_vert) {
-    this->px_hori = px_hori;
-    this->px_vert = px_vert;
+Bspline::Bspline(const Image &img) {
 
-    // Allocate padded coeff array
-    padded_hori = px_hori + 4;  // +2 left/right
-    padded_vert = px_vert + 4;  // +2 top/bottom
+    this->px_hori = img.width;
+    this->px_vert = img.height;
+
+    padded_hori = px_hori + 4;
+    padded_vert = px_vert + 4;
     coeff_padded.resize(padded_hori * padded_vert, 0.0);
 
-    // Copy original image into center
-    for (int y = 0; y < px_vert; y++)
-        for (int x = 0; x < px_hori; x++)
-            coeff_padded[(y + 2) * padded_hori + (x + 2)] = img[y * px_hori + x];
+    // Lambda to get clamped pixel value regardless of type
+    auto getpix = [&](int x, int y) -> double {
+        x = std::clamp(x, 0, px_hori - 1);
+        y = std::clamp(y, 0, px_vert - 1);
+        if (img.type == PixelType::UINT8)  return img.data8 [y * px_hori + x];
+        if (img.type == PixelType::UINT16) return img.data16[y * px_hori + x];
+        if (img.type == PixelType::UINT32) return img.data32[y * px_hori + x];
+        throw std::runtime_error("Unsupported pixel type");
+    };
 
-    // Now you can apply prefilter_x/prefilter_y on padded array if needed
+    // Fill entire padded array using clamped reads — handles interior, edges, and corners
+    for (int y = 0; y < padded_vert; y++)
+        for (int x = 0; x < padded_hori; x++)
+            coeff_padded[y * padded_hori + x] = getpix(x - 2, y - 2);
+
     prefilter_x();
     prefilter_y();
 }
@@ -107,10 +116,12 @@ void Bspline::prefilter_y() {
 
 double Bspline::eval(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const {
 
-    const int ix = (int)subpx_x + 2;
-    const int iy = (int)subpx_y + 2;
-    const double tx = subpx_x - (ix-2);
-    const double ty = subpx_y - (iy-2);
+    double x = std::clamp(subpx_x, 0.0, (double)(px_hori - 1));
+    double y = std::clamp(subpx_y, 0.0, (double)(px_vert - 1));
+    const int ix = (int)x + 2;
+    const int iy = (int)y + 2;
+    const double tx = x - (ix-2);
+    const double ty = y - (iy-2);
 
     double Bx[4], By[4];
     basis(tx, Bx);
@@ -184,10 +195,12 @@ double Bspline::eval_dy(const int ss_x, const int ss_y, const double subpx_x, do
 
 InterpVals Bspline::eval_and_derivs(const int ss_x, const int ss_y, const double subpx_x, const double subpx_y) const {
 
-    const int ix = (int)subpx_x + 2; // +2 for padded border
-    const int iy = (int)subpx_y + 2;
-    const double tx = subpx_x - (ix-2);
-    const double ty = subpx_y - (iy-2);
+    double x = std::clamp(subpx_x, 0.0, (double)(px_hori - 1));
+    double y = std::clamp(subpx_y, 0.0, (double)(px_vert - 1));
+    const int ix = (int)x + 2;
+    const int iy = (int)y + 2;
+    const double tx = x - (ix-2);
+    const double ty = y - (iy-2);
 
     double Bx[4], By[4], dBx[4], dBy[4];
     basis(tx, Bx);

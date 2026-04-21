@@ -128,7 +128,7 @@ void get_single_window_fftcc_peak(std::vector<double> &p,
                                   const int ss_size_y, 
                                   const int window_size_x,
                                   const int window_size_y,
-                                  const double *img_ref, const double *img_def,
+                                  const Image &img_ref, const Image &img_def,
                                   const Interpolator &interp_def){
 
     // some consts
@@ -165,13 +165,16 @@ void get_single_window_fftcc_peak(std::vector<double> &p,
                                 interp_def);
 
     // zero norm the subsets
-    fft.zero_norm_subset(fft.ss_ref, ss_size_x,ss_size_y);
-    fft.zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
+    bool normed_ref = fft.zero_norm_subset(fft.ss_ref, ss_size_x,ss_size_y);
+    bool normed_def = fft.zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
 
     // get peaks from the cross correlation
     double peak_x = 0.0, peak_y = 0.0, max_val = 0.0;
-    fft.correlate();
-    fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+
+    if (normed_ref && normed_def){
+        fft.correlate();
+        fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+    } 
 
     // coordinate transform
     p[0] = peak_x - window_half_x;
@@ -199,7 +202,7 @@ void get_offcentered_fftcc_peak(double &peak_x, double &peak_y,
                                 const int ss_size_x, const int ss_size_y,
                                 const int window_x, const int window_y,
                                 const int window_size_x, const int window_size_y,
-                                const double *img_ref, const double *img_def,
+                                const Image &img_ref, const Image &img_def,
                                 const Interpolator &interp_def){
 
     const int px_hori = interp_def.px_hori;
@@ -239,8 +242,11 @@ void get_offcentered_fftcc_peak(double &peak_x, double &peak_y,
     fft.get_peak(peak_x, peak_y, max_val, subpx, "gaussian_2d");
 }
 
-void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
-                                            const double *img_ref,
+
+
+template<typename T>
+void fill_fft_window_with_subset_at_centre_impl(subset::Pixels &ss_ref,
+                                            const std::vector<T> &img,
                                             const int ss_x,
                                             const int ss_y,
                                             const int px_hori,
@@ -250,47 +256,90 @@ void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
                                             const int window_size_x,
                                             const int window_size_y){
 
-const int window_half_x = window_size_x / 2;
-const int window_half_y = window_size_y / 2;
-const int ss_half_x = ss_size_x / 2;
-const int ss_half_y = ss_size_y / 2;
+    const int window_half_x = window_size_x / 2;
+    const int window_half_y = window_size_y / 2;
+    const int ss_half_x = ss_size_x / 2;
+    const int ss_half_y = ss_size_y / 2;
 
-// Iterate over subset pixels using offsets relative to the subset center
-for (int row = -ss_half_y; row < ss_size_y - ss_half_y; ++row) {
-    for (int col = -ss_half_x; col < ss_size_x - ss_half_x; ++col) {
+    // Iterate over subset pixels using offsets relative to the subset center
+    for (int row = -ss_half_y; row < ss_size_y - ss_half_y; ++row) {
+        for (int col = -ss_half_x; col < ss_size_x - ss_half_x; ++col) {
 
-        int px_x = ss_x + col;
-        int px_y = ss_y + row;
+            int px_x = ss_x + col;
+            int px_y = ss_y + row;
 
-        int target_x = window_half_x + col;
-        int target_y = window_half_y + row;
+            int target_x = window_half_x + col;
+            int target_y = window_half_y + row;
 
-        if (px_x < 0 || px_x >= px_hori || px_y < 0 || px_y >= px_vert) {
-            std::cout << "Image access out of bounds! px: ("
-                        << px_x << ", " << px_y << ")\n";
-            continue;
+            if (px_x < 0 || px_x >= px_hori || px_y < 0 || px_y >= px_vert) {
+                std::cout << "Image access out of bounds! px: ("
+                            << px_x << ", " << px_y << ")\n";
+                continue;
+            }
+            if (target_x < 0 || target_x >= window_size_x ||
+                target_y < 0 || target_y >= window_size_y) {
+                std::cout << "Window access out of bounds! target: ("
+                            << target_x << ", " << target_y << ")\n";
+                continue;
+            }
+
+            int idx_img    = px_y * px_hori + px_x;
+            int idx_window = target_y * window_size_x + target_x;
+
+            double coeff = hamming(row + ss_half_y, col + ss_half_x, ss_size_x, ss_size_y);
+
+            ss_ref.x[idx_window]    = px_x;
+            ss_ref.y[idx_window]    = px_y;
+            ss_ref.vals[idx_window] = coeff * img[idx_img];
         }
-        if (target_x < 0 || target_x >= window_size_x ||
-            target_y < 0 || target_y >= window_size_y) {
-            std::cout << "Window access out of bounds! target: ("
-                        << target_x << ", " << target_y << ")\n";
-            continue;
-        }
-
-        int idx_img    = px_y * px_hori + px_x;
-        int idx_window = target_y * window_size_x + target_x;
-
-        double coeff = hamming(row + ss_half_y, col + ss_half_x, ss_size_x, ss_size_y);
-
-        ss_ref.x[idx_window]    = px_x;
-        ss_ref.y[idx_window]    = px_y;
-        ss_ref.vals[idx_window] = coeff * img_ref[idx_img];
     }
 }
+
+void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
+                                           const Image &img_ref,
+                                           const int ss_x,
+                                           const int ss_y,
+                                           const int px_hori,
+                                           const int px_vert,
+                                           const int ss_size_x,
+                                           const int ss_size_y,
+                                           const int window_size_x,
+                                           const int window_size_y) {
+    switch (img_ref.type) {
+        case PixelType::UINT8:
+            fill_fft_window_with_subset_at_centre_impl(
+                ss_ref, img_ref.data8,
+                ss_x, ss_y, px_hori, px_vert,
+                ss_size_x, ss_size_y,
+                window_size_x, window_size_y);
+            break;
+
+        case PixelType::UINT16:
+            fill_fft_window_with_subset_at_centre_impl(
+                ss_ref, img_ref.data16,
+                ss_x, ss_y, px_hori, px_vert,
+                ss_size_x, ss_size_y,
+                window_size_x, window_size_y);
+            break;
+
+        case PixelType::UINT32:
+            fill_fft_window_with_subset_at_centre_impl(
+                ss_ref, img_ref.data32,
+                ss_x, ss_y, px_hori, px_vert,
+                ss_size_x, ss_size_y,
+                window_size_x, window_size_y);
+            break;
+
+        default:
+            throw std::runtime_error("Unsupported pixel type");
+    }
 }
 
-void fill_fft_window_with_subset_at_corner(subset::Pixels &ss_ref,
-                                            const double *img_ref,
+
+
+template<typename T>
+void fill_fft_window_with_subset_at_corner_impl(subset::Pixels &ss_ref,
+                                            const std::vector<T> &img,
                                             const int ss_x,
                                             const int ss_y,
                                             const int px_hori,
@@ -323,9 +372,49 @@ void fill_fft_window_with_subset_at_corner(subset::Pixels &ss_ref,
             double coeff = 1.0; //fourier::hamming(row, col, ss_size_x, ss_size_y);
             ss_ref.x[idx_window]    = px_x;
             ss_ref.y[idx_window]    = px_y;
-            ss_ref.vals[idx_window] = coeff * img_ref[idx_img];
+            ss_ref.vals[idx_window] = coeff * img[idx_img];
 
         }
+    }
+}
+
+void fill_fft_window_with_subset_at_corner(subset::Pixels &ss_ref,
+                                           const Image &img_ref,
+                                           const int ss_x,
+                                           const int ss_y,
+                                           const int px_hori,
+                                           const int px_vert,
+                                           const int ss_size_x,
+                                           const int ss_size_y,
+                                           const int window_size_x,
+                                           const int window_size_y) {
+    switch (img_ref.type) {
+        case PixelType::UINT8:
+            fill_fft_window_with_subset_at_corner_impl(
+                ss_ref, img_ref.data8,
+                ss_x, ss_y, px_hori, px_vert,
+                ss_size_x, ss_size_y,
+                window_size_x, window_size_y);
+            break;
+
+        case PixelType::UINT16:
+            fill_fft_window_with_subset_at_corner_impl(
+                ss_ref, img_ref.data16,
+                ss_x, ss_y, px_hori, px_vert,
+                ss_size_x, ss_size_y,
+                window_size_x, window_size_y);
+            break;
+
+        case PixelType::UINT32:
+            fill_fft_window_with_subset_at_corner_impl(
+                ss_ref, img_ref.data32,
+                ss_x, ss_y, px_hori, px_vert,
+                ss_size_x, ss_size_y,
+                window_size_x, window_size_y);
+            break;
+
+        default:
+            throw std::runtime_error("Unsupported pixel type");
     }
 }
 

@@ -46,7 +46,8 @@ namespace util {
         std::string shape_func;
         std::string interp_routine;
         std::string scan_method;
-        std::vector<std::string> filenames;
+        std::vector<std::string> basenames;
+        std::vector<std::string> fullpaths;
         bool fft_mad;
         double fft_mad_scale;
         unsigned int debug_level;

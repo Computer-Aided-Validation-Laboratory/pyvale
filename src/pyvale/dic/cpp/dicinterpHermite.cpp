@@ -21,14 +21,27 @@
 
 
 
-Hermite::Hermite(double *img, int px_hori, int px_vert){
+Hermite::Hermite(const Image &img) {
 
     //Timer timer("interpolator initialisation");
 
     // intitialise vars used globally within Interpolator.
-    this->image = img;
-    this->px_vert = px_vert;
-    this->px_hori = px_hori;
+    image.resize(px_hori*px_vert);
+    if (img.type == PixelType::UINT8) {
+        for (size_t i = 0; i < img.data8.size(); i++) {
+            image[i] = static_cast<double>(img.data8[i]);
+        }
+    } 
+    else if (img.type == PixelType::UINT16) {
+        for (size_t i = 0; i < img.data16.size(); i++) {
+            image[i] = static_cast<double>(img.data16[i]);
+        }
+    } 
+    else if (img.type == PixelType::UINT32) {
+        for (size_t i = 0; i < img.data32.size(); i++) {
+            image[i] = static_cast<double>(img.data32[i]);
+        }
+    }
 
     // allocate memory for pixel coordinate arrays
     px_y.resize(px_vert);

@@ -18,13 +18,15 @@
 // Program Header files
 #include "./dicinterp.hpp"
 
+// common_cpp header files
+#include "../../common_cpp/util.hpp"
+
 
 class Bspline : public Interpolator {
 
 private:
 
     std::vector<double> coeff;
-    double *image;
 
     // Recursive spline prefilter
     void prefilter_x();
@@ -49,7 +51,7 @@ public:
      * @param px_hori Width of the image in pixels
      * @param px_vert Height of the image in pixels
      */
-    Bspline(double * img, int px_hori, int px_vert);
+    Bspline(const Image &img);
 
     /**
      * @brief Evaluates the bicubic interpolation at a specified point.

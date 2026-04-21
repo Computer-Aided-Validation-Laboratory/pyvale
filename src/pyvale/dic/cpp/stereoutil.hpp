@@ -259,7 +259,7 @@ namespace stereo {
                                                   const int ss_size_x, const int ss_size_y,
                                                   const int window_size_x, const int window_size_y,
                                                   const Eigen::Matrix3d &F,
-                                                  const double *img_ref,
+                                                  const Image &img_ref,
                                                   const Interpolator &interp_def,
                                                   const bool print=false);
 
@@ -308,7 +308,7 @@ namespace stereo {
 
 
     std::pair<std::vector<std::string>, std::vector<std::string>>
-    split_filenames(const util::Config &filenames);
+    split_basenames(const util::Config &conf);
 }
 
 

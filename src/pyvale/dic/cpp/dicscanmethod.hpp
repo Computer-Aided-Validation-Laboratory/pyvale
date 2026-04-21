@@ -34,7 +34,7 @@ namespace scanmethod {
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void raster(const double *img_ref,
+void raster(const Image &img_ref,
            const Interpolator &interp_def,
            const subset::Grid &ss_grid,
            const util::Config &conf,
@@ -56,8 +56,8 @@ void raster(const double *img_ref,
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void multiwindow_reliability_guided(const double *img_ref,
-                                   const double *img_def,
+void multiwindow_reliability_guided(const Image &img_ref,
+                                   const Image &img_def,
                                    const Interpolator &interp_def,
                                    std::vector<WindowLevel> &multiwindow,
                                    const util::Config &conf,
@@ -68,8 +68,8 @@ void multiwindow_reliability_guided(const double *img_ref,
 /**
  * @brief reliability guided scan method using a single grid FFTCC to estimate rigid displacements.
  */
-void singlewindow_reliability_guided(const double *img_ref,
-                                   const double *img_def,
+void singlewindow_reliability_guided(const Image &img_ref,
+                                   const Image &img_def,
                                    const Interpolator &interp_def,
                                    std::vector<WindowLevel> &multiwindow,
                                    const util::Config &conf,
@@ -81,8 +81,8 @@ void singlewindow_reliability_guided(const double *img_ref,
 /**
  * @brief reliability guided scan method with incremental updating.
  */
-void singlewindow_incremental_reliability_guided(const double *img_ref,
-                                               const double *img_def,
+void singlewindow_incremental_reliability_guided(const Image &img_ref,
+                                               const Image &img_def,
                                                const Interpolator &interp_ref,
                                                const Interpolator &interp_def,
                                                const subset::Grid &ss_grid,
@@ -110,8 +110,8 @@ void singlewindow_incremental_reliability_guided(const double *img_ref,
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void multiwindow_only(const double *img_ref,
-                      const double *img_def,
+void multiwindow_only(const Image &img_ref,
+                      const Image &img_def,
                       const Interpolator &interp_def,
                       std::vector<WindowLevel> &multiwindow,
                       const util::Config &conf,
@@ -119,8 +119,8 @@ void multiwindow_only(const double *img_ref,
                       const int img_num_def,
                       ResultArrays &result_arrays);
 
- void multiwindow_reliability_guided_r(const double *img_ref,
-                                       const double *img_def,
+ void multiwindow_reliability_guided_r(const Image &img_ref,
+                                       const Image &img_def,
                                        const Interpolator &interp_ref,
                                        const Interpolator &interp_def,
                                        std::vector<WindowLevel> &multiwindow,

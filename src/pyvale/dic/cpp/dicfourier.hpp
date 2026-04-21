@@ -328,7 +328,7 @@ struct FFT {
         if (peak_y >  center_y - 1e-12) peak_y -= ss_size_y;
     }
 
-    void zero_norm_subsets(std::vector<double>& ref_vals, 
+    bool zero_norm_subsets(std::vector<double>& ref_vals, 
                         std::vector<double>& def_vals, 
                         const int ss_size_x,
                         const int ss_size_y) {
@@ -354,14 +354,20 @@ struct FFT {
         std_def = std::sqrt(std_def / total_px);
         std_ref = std::sqrt(std_ref / total_px);
 
+
+        // small tolerance to avoid division by zero - if std is too small, return without normalizing
+        if (std_def < 1e-10 || std_ref < 1e-10) return false;
+
         // Normalize
         for (int i = 0; i < total_px; ++i) {
             def_vals[i] = (def_vals[i] - mean_def) / std_def;
             ref_vals[i] = (ref_vals[i] - mean_ref) / std_ref;
         }
+
+        return true;
     }
 
-    void zero_norm_subset(subset::Pixels &ss, 
+    bool zero_norm_subset(subset::Pixels &ss, 
                         const int ss_size_x,
                         const int ss_size_y) {
 
@@ -389,6 +395,9 @@ struct FFT {
         }
         std_ref = std::sqrt(std_ref / total_px);
 
+
+        if (std_ref < 1e-10) return false;
+
         // Normalize
         for (int y = 0; y < ss_size_y; ++y) {
             for (int x = 0; x < ss_size_x; ++x) {
@@ -396,6 +405,8 @@ struct FFT {
                 ss.vals[idx] = (ss.vals[idx] - mean_ref) / std_ref;
             }
         }
+
+        return true;
     }
 
 };
@@ -406,7 +417,7 @@ struct FFT {
                                       const int ss_size_y,
                                       const int window_size_x, 
                                       const int window_size_y,
-                                      const double *img_ref, const double *img_def,
+                                      const Image &img_ref, const Image &img_def,
                                       const Interpolator &interp_def);
 
     void get_offcentered_fftcc_peak(double &peak_x, double &peak_y,
@@ -414,11 +425,11 @@ struct FFT {
                                    const int ss_size_x, const int ss_size_y,
                                    const int window_x, const int window_y,
                                    const int window_size_x, const int window_size_y,
-                                   const double *img_ref, const double *img_def,
+                                   const Image &img_ref, const Image &img_def,
                                    const Interpolator &interp_def);
 
     void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
-                                     const double *img_ref,
+                                     const Image &img_ref,
                                      const int ss_x,
                                      const int ss_y,
                                      const int px_hori,
@@ -430,7 +441,7 @@ struct FFT {
 
 
     void fill_fft_window_with_subset_at_corner(subset::Pixels &ss_ref,
-                                               const double *img_ref,
+                                               const Image &img_ref,
                                                const int ss_x,
                                                const int ss_y,
                                                const int px_hori,

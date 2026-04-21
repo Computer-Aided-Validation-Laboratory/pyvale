@@ -207,8 +207,8 @@ void WindowLevel::remove_outliers(std::vector<double> &u,
 }
 
 void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
-                                           const double *img_ref,
-                                           const double *img_def,
+                                           const Image &img_ref,
+                                           const Image &img_def,
                                            const Interpolator &interp_def,
                                            const int img_num_ref,
                                            const int img_num_def,
@@ -273,12 +273,15 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                 subset::fill_from_img_subpx(fft.ss_def, corner_x_shft, corner_y_shft, interp_def);
 
                 // zero normalise the subsets
-                fft.zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, ss_size_x, ss_size_y);
+                bool normalised = fft.zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, ss_size_x, ss_size_y);
 
                 // get peaks from the cross correlation
                 double peak_x = 0, peak_y = 0, temp_max = 0.0;
-                fft.correlate();
-                fft.get_peak(peak_x, peak_y, temp_max, subpx, "GAUSSIAN_2D");
+
+                if (normalised){
+                    fft.correlate();
+                    fft.get_peak(peak_x, peak_y, temp_max, subpx, "GAUSSIAN_2D");
+                }
 
                 u[ss] = prev_u+peak_x;
                 v[ss] = prev_v+peak_y;
@@ -305,13 +308,14 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         //smooth_field(level[i].x, current_level, 7.0, 5);
         //smooth_field(level[i].y, current_level, 7.0, 5);
 
-        //for (int ss = 0; ss < current_level.num; ss++){
-        //    std::cout << current_level.coords[2*ss] << " " << current_level.coords[2*ss+1] << " ";
-        //    std::cout << level[i].x[ss] << " " << level[i].y[ss] << " ";
-        //    std::cout << level[i].max_val[ss] << " ";
-        //    std::cout << level[i].cost[ss] << std::endl;
-        //}
-        //std::cout << std::endl;
+        // debugging
+        // for (int ss = 0; ss < layout.num; ss++){
+        //     std::cout << layout.coords[2*ss] << " " << layout.coords[2*ss+1] << " ";
+        //     std::cout << u[ss] << " " << v[ss] << " ";
+        //     std::cout << max_val[ss] << std::endl;
+        //     //std::cout << level[i].cost[ss] << std::endl;
+        // }
+        // std::cout << std::endl;
 
         if (g_debug_level>1){
             pbar.update(current_progress);

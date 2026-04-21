@@ -37,7 +37,7 @@
 namespace scanmethod {
 
 
-    void raster(const double *img_ref,
+    void raster(const Image &img_ref,
                const Interpolator &interp_def,
                const subset::Grid &ss_grid,
                const util::Config &conf,
@@ -51,7 +51,7 @@ namespace scanmethod {
         const int results_num = img_num_def-1;
 
         // progress bar
-        std::string bar_title = "Temporal matching for \033[1;4m" + conf.filenames[img_num_ref] + "\033[0m and \033[1;4m" + conf.filenames[img_num_def] + "\033[0m:";
+        std::string bar_title = "Temporal matching for \033[1;4m" + conf.basenames[img_num_ref] + "\033[0m and \033[1;4m" + conf.basenames[img_num_def] + "\033[0m:";
         ProgressBar pbar(bar_title, num_ss);
         std::atomic<int> current_progress = 0;
         int prev_pct = 0;
@@ -87,9 +87,10 @@ namespace scanmethod {
                 for (int i = 0; i < opt.num_params; i++){
                     opt.p[i] = 0.0;
                 }
-
-                // perform optimization on subset from deformed image
-                OptResult res = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+                
+                // if the reference subset is empty, then skip the optimization and set results to nan
+                OptResult res(opt.num_params);
+                if (ss_ref.sum!=0) res = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
                 // append the results for the current subset to result vectors
                 result_arrays.append(res, ss);
@@ -108,8 +109,8 @@ namespace scanmethod {
         }
     }
 
-void multiwindow_reliability_guided(const double *img_ref,
-                                    const double *img_def,
+void multiwindow_reliability_guided(const Image &img_ref,
+                                    const Image &img_def,
                                     const Interpolator &interp_def,
                                     std::vector<WindowLevel> &multiwindow,
                                     const util::Config &conf,
@@ -137,7 +138,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                                                       img_ref, img_def,
                                                       interp_def,
                                                       img_num_ref, img_num_def,
-                                                      conf.filenames);
+                                                      conf.basenames);
         }
 
     // auto res = coarsefine::coarse_to_fine_search(
@@ -154,7 +155,7 @@ void multiwindow_reliability_guided(const double *img_ref,
     // }
 
         // progress bar
-        std::string bar_title = "Temporal matching for \033[1;4m" + conf.filenames[img_num_ref] + "\033[0m and \033[1;4m" + conf.filenames[img_num_def] + "\033[0m:";
+        std::string bar_title = "Temporal matching for \033[1;4m" + conf.basenames[img_num_ref] + "\033[0m and \033[1;4m" + conf.basenames[img_num_def] + "\033[0m:";
         ProgressBar pbar(bar_title, num_ss);
         std::atomic<int> current_progress(0);
 
@@ -180,13 +181,6 @@ void multiwindow_reliability_guided(const double *img_ref,
 
             // Optimization parameters
             Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
-
-            std::vector<std::unique_ptr<FFT>> fft_windows;
-
-            for (size_t lvl = 0; lvl < multiwindow.size(); lvl++) {
-                fft_windows.push_back(std::make_unique<FFT>(multiwindow[lvl].layout.size_x, 
-                                                            multiwindow[lvl].layout.size_y));
-            }
 
             // TODO: for the seed location I'm going to overwride the max 
             // number of iterations to make sure we get a good convergence.
@@ -322,7 +316,8 @@ void multiwindow_reliability_guided(const double *img_ref,
                             opt.copy_params_from_neigh(results_def.p, current.idx);
 
                         // optimize
-                        OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+                        OptResult nres(opt.num_params);
+                        if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
                         // append results
                         results_def.append(nres, nidx);
@@ -346,8 +341,8 @@ void multiwindow_reliability_guided(const double *img_ref,
         }
     }
 
-    void singlewindow_incremental_reliability_guided(const double *img_ref,
-                                                     const double *img_def,
+    void singlewindow_incremental_reliability_guided(const Image &img_ref,
+                                                     const Image &img_def,
                                                      const Interpolator &interp_ref,
                                                      const Interpolator &interp_def,
                                                      const subset::Grid &ss_grid,
@@ -381,8 +376,8 @@ void multiwindow_reliability_guided(const double *img_ref,
                                             img_ref, img_def, interp_def);
         };
 
-        std::string bar_title = "Temporal matching for \033[1;4m" + conf.filenames[img_num_ref] +
-                                          "\033[0m and \033[1;4m" + conf.filenames[img_num_def] + 
+        std::string bar_title = "Temporal matching for \033[1;4m" + conf.basenames[img_num_ref] +
+                                          "\033[0m and \033[1;4m" + conf.basenames[img_num_def] + 
                                           "\033[0m:";
 
         ProgressBar pbar(bar_title, num_ss);
@@ -562,14 +557,15 @@ void multiwindow_reliability_guided(const double *img_ref,
                         subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
                         if (results_def.cost[current.idx] < conf.threshold){
-                            get_initial_guess(opt.p, cx, cy);
+                            if (ss_ref.sum!=0) get_initial_guess(opt.p, cx, cy);
                         }
                         else {
                             opt.copy_params_from_neigh(results_def.p, current.idx);
                         }
 
                         // optimize
-                        OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+                        OptResult nres(opt.num_params);
+                        if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
                         // add deformation from reference image to new results
                         if ((nres.above_threshold) && (img_num_ref > 0)){
@@ -693,8 +689,8 @@ void multiwindow_reliability_guided(const double *img_ref,
         }
     }
 
-    void multiwindow_only(const double *img_ref,
-                              const double *img_def,
+    void multiwindow_only(const Image &img_ref,
+                              const Image &img_def,
                               const Interpolator &interp_def,
                               std::vector<WindowLevel> &multiwindow,
                               const util::Config &conf,
@@ -709,7 +705,7 @@ void multiwindow_reliability_guided(const double *img_ref,
                                                      img_ref, img_def,
                                                      interp_def,
                                                      img_num_ref, img_num_def,
-                                                     conf.filenames);
+                                                     conf.basenames);
         }
 
         const int nsizes = multiwindow.size();
@@ -741,8 +737,8 @@ void multiwindow_reliability_guided(const double *img_ref,
 // TODO: This is for matching strategy 1. Need to sort at a later date.
 // This function is reliant on a multiwindow setup for the right image.
 // I dunno whether this is the best approach.
- void multiwindow_reliability_guided_r(const double *img_ref,
-                                       const double *img_def,
+ void multiwindow_reliability_guided_r(const Image &img_ref,
+                                       const Image &img_def,
                                        const Interpolator &interp_ref,
                                        const Interpolator &interp_def,
                                        std::vector<WindowLevel> &multiwindow,
@@ -775,11 +771,11 @@ void multiwindow_reliability_guided(const double *img_ref,
     //                                                  img_ref, img_def,
     //                                                  interp_def,
     //                                                  img_num_ref, img_num_def,
-    //                                                  conf.filenames);
+    //                                                  conf.basenames);
     //     }
     //
     //     // progress bar
-    //     std::string bar_title = "Temporal matching for \033[1;4m" + conf.filenames[img_num_ref] + "\033[0m and \033[1;4m" + conf.filenames[img_num_def] + "\033[0m:";
+    //     std::string bar_title = "Temporal matching for \033[1;4m" + conf.basenames[img_num_ref] + "\033[0m and \033[1;4m" + conf.basenames[img_num_def] + "\033[0m:";
     //     ProgressBar pbar(bar_title, num_ss);
     //     std::atomic<int> current_progress(0);
     //

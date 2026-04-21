@@ -32,8 +32,8 @@
 namespace stereo {
 
 
-void matching(const double *img_l,
-              const double *img_r,
+void matching(const Image &img_l,
+              const Image &img_r,
               const Interpolator &interp_l,
               const Interpolator &interp_r,
               const subset::Grid &ss_grid,
@@ -61,12 +61,12 @@ void matching(const double *img_l,
 
         auto get_initial_guess = [&](std::vector<double> &p, double cx, double cy) {
             stereo::get_rigid_translation_from_rectified_fft(p, cx, cy, ss_size_x, ss_size_y,
-                                                             conf.max_disp, 1.5*ss_size_y, F,
+                                                             2*conf.max_disp, 1.5*ss_size_y, F,
                                                              img_l, interp_r);
         };
 
-        std::string bar_title = "Stereo  matching for \033[1;4m" + conf.filenames[img_num_l] +
-                                    "\033[0m and \033[1;4m" + conf.filenames[img_num_r] + 
+        std::string bar_title = "Stereo  matching for \033[1;4m" + conf.basenames[img_num_l] +
+                                    "\033[0m and \033[1;4m" + conf.basenames[img_num_r] + 
                                     "\033[0m:";
 
         ProgressBar pbar(bar_title, num_ss);

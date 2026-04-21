@@ -245,7 +245,7 @@ namespace stereo {
                                                   const int ss_size_x, const int ss_size_y,
                                                   const int window_size_x, const int window_size_y,
                                                   const Eigen::Matrix3d &F,
-                                                  const double *img_ref,
+                                                  const Image &img_ref,
                                                   const Interpolator &interp_def,
                                                   const bool print){
 
@@ -300,13 +300,15 @@ namespace stereo {
         }
 
         // zero norm the subsets
-        fft.zero_norm_subset(fft.ss_ref, ss_size_x,ss_size_y);
-        fft.zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
+        bool normed_ref = fft.zero_norm_subset(fft.ss_ref, ss_size_x,ss_size_y);
+        bool normed_def = fft.zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
 
         // get peaks from the cross correlation
         double max_val = 0.0, peak_x = 0.0, peak_y = 0.0;
-        fft.correlate();
-        fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+        if (normed_ref && normed_def){
+            fft.correlate();
+            fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+        }
         //std::cout << "peak: " << peak_x << " " << peak_y << std::endl;
 
         // coordinate transform
@@ -714,16 +716,16 @@ namespace stereo {
     }
 
     std::pair<std::vector<std::string>, std::vector<std::string>>
-    split_filenames(const util::Config& conf) {
+    split_basenames(const util::Config &conf) {
         if (!conf.stereo)
-            return {conf.filenames, {}};
+            return {conf.basenames, {}};
 
-        std::vector<std::string> filenames_l, filenames_r;
-        for (int i = 0; i < conf.filenames.size() / 2; i++) {
-            filenames_l.push_back(conf.filenames[i]);
-            filenames_r.push_back(conf.filenames[conf.num_def_img + 1 + i]);
+        std::vector<std::string> basenames_l, basenames_r;
+        for (int i = 0; i < conf.basenames.size() / 2; i++) {
+            basenames_l.push_back(conf.basenames[i]);
+            basenames_r.push_back(conf.basenames[conf.num_def_img + 1 + i]);
         }
-        return {filenames_l, filenames_r};
+        return {basenames_l, basenames_r};
     }
 
 

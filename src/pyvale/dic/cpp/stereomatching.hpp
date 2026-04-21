@@ -24,8 +24,8 @@
 
 namespace stereo {
 
-    void matching(const double *img_l,
-                const double *img_r,
+    void matching(const Image &img_l,
+                const Image &img_r,
                 const Interpolator &interp_l,
                 const Interpolator &interp_r,
                 const subset::Grid &ss_grid,
@@ -36,8 +36,8 @@ namespace stereo {
                 const ResultArrays &results_l,
                 ResultArrays &results_r);
 
-    // void matching_strategy3(const double *img_l,
-    //                         const double *img_r,
+    // void matching_strategy3(const Image &img_l,
+    //                         const Image &img_r,
     //                         const Interpolator &interp_l,
     //                         const Interpolator &interp_r,
     //                         const subset::Grid &ss_grid,

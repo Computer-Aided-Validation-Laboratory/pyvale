@@ -22,6 +22,7 @@
 
 // common_cpp header files
 #include "../../common_cpp/dicsignalhandler.hpp"
+#include "../../common_cpp/img_read.hpp"
 #include "../../common_cpp/defines.hpp"
 #include "../../common_cpp/util.hpp"
 
@@ -43,11 +44,10 @@
 namespace py = pybind11;
 
 
-void engine(const py::array_t<double>& img_stack_arr,
-               const py::array_t<bool>&   img_roi_arr, 
-               const Calib &calib,
-               const util::Config &conf,
-               const common_util::SaveConfig &saveconf){
+void engine(const py::array_t<bool>& img_roi_arr, 
+            const Calib &calib,
+            const util::Config &conf,
+            const common_util::SaveConfig &saveconf){
 
     // Register signal handler for Ctrl+C and set debug_level
     signal(SIGINT, signalHandler);
@@ -84,7 +84,6 @@ void engine(const py::array_t<double>& img_stack_arr,
 
     // get raw pointers
     bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
-    double* img_stack = static_cast<double*>(img_stack_arr.request().ptr);
 
     // ------------------------------------------------------------------------
     // get a list of ss coordinates within RIO;
@@ -124,8 +123,9 @@ void engine(const py::array_t<double>& img_stack_arr,
     common_util::Timer timer("DIC Engine:");
 
     // pointer to reference images at start of stack
-    double *img_ref_l = img_stack;
-    double *img_ref_r = nullptr;
+    //double *img_ref_l = img_stack;
+    Image img_ref_l = read_tiff(conf.fullpaths[0]);
+    Image img_ref_r;
 
     // pointer to hold the reference interpolators (will be created once)
     std::unique_ptr<Interpolator> interp_ref_l;
@@ -145,7 +145,7 @@ void engine(const py::array_t<double>& img_stack_arr,
     common_util::SaveConfig saveconf_stereo;
 
     // split out filenames into two vectors
-    auto [filenames_l, filenames_r] = stereo::split_filenames(conf);
+    auto [basenames_l, basenames_r] = stereo::split_basenames(conf);
 
     // main bulk of initialisation for stereo matching
     int match_strat=3;
@@ -153,11 +153,12 @@ void engine(const py::array_t<double>& img_stack_arr,
     if (conf.stereo){
 
         // image series goes l0,r0,l1,r1,l2,r2
-        img_ref_r = img_stack + (conf.num_def_img+1)*num_px_in_image; // r0 image
+        //img_ref_r = img_stack + (conf.num_def_img+1)*num_px_in_image; // r0 image
+        img_ref_r = read_tiff(conf.fullpaths[conf.num_def_img+1]);
 
         // interpolators
-        interp_ref_l = make_interp(conf.interp_routine, img_ref_l, conf.px_hori, conf.px_vert);
-        interp_ref_r = make_interp(conf.interp_routine, img_ref_r, conf.px_hori, conf.px_vert);
+        interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
+        interp_ref_r = make_interp(conf.interp_routine, img_ref_r);
 
         // resize the results based on subset information
         result_arrays_r = ResultArrays(ss_grid_l.num, conf.num_params, true);
@@ -208,17 +209,17 @@ void engine(const py::array_t<double>& img_stack_arr,
         // Layout is l0,l1,l2,...,ln,r0,r1,r2,r3,...,rn,
         const int img_num_l = img_num;
         const int img_num_r = conf.num_def_img+1+img_num;
-        double *img_def_l = img_stack + img_num_l*num_px_in_image;
-        double *img_def_r = img_stack + img_num_r*num_px_in_image;
 
-
+        Image img_def_l, img_def_r;
 
         // interpolator for the L image
-        interp_def_l = make_interp(conf.interp_routine, img_def_l, conf.px_hori, conf.px_vert);
+        img_def_l = read_tiff(conf.fullpaths[img_num_l]);
+        interp_def_l = make_interp(conf.interp_routine, img_def_l);
 
         // interpolator for the R image
         if (conf.stereo) {
-            interp_def_r = make_interp(conf.interp_routine, img_def_r, conf.px_hori, conf.px_vert);
+            img_def_r = read_tiff(conf.fullpaths[img_num_r]);
+            interp_def_r = make_interp(conf.interp_routine, img_def_r);
         }
 
         // -------------------------------------------------------------------------------------------------------------------------------------------
@@ -258,11 +259,7 @@ void engine(const py::array_t<double>& img_stack_arr,
         // singlewindow FFTCC + reliability Guided
         // -------------------------------------------------------------------------------------------------------------------------------------------
         else if (conf.scan_method=="SINGLEWINDOW_RG"){
-            if (!interp_ref_l) interp_ref_l = make_interp(conf.interp_routine,
-                                                          img_ref_l,
-                                                          conf.px_hori,
-                                                          conf.px_vert);
-
+            if (!interp_ref_l) interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
             scanmethod::singlewindow_incremental_reliability_guided(img_ref_l, img_def_l,
                                                                     *interp_ref_l, *interp_def_l,
                                                                     ss_grid_l, conf, 0, img_num,
@@ -289,12 +286,11 @@ void engine(const py::array_t<double>& img_stack_arr,
         // ----------------------------------------------------------------------------------------
         else if (conf.scan_method=="SINGLEWINDOW_RG_INCREMENTAL"){
 
-
-            double *img_prev = img_stack + (img_num-1)*num_px_in_image;
-            interp_ref_l_inc = make_interp(conf.interp_routine, img_prev, conf.px_hori, conf.px_vert);
+            img_ref_l = read_tiff(conf.fullpaths[img_num_l-1]);
+            interp_ref_l_inc = make_interp(conf.interp_routine, img_ref_l);
             std::swap(result_arrays_l_prev, result_arrays_l);
 
-            scanmethod::singlewindow_incremental_reliability_guided(img_prev, img_def_l, 
+            scanmethod::singlewindow_incremental_reliability_guided(img_ref_l, img_def_l, 
                                                                     *interp_ref_l_inc, 
                                                                     *interp_def_l, 
                                                                     ss_grid_l, conf, 
@@ -314,10 +310,10 @@ void engine(const py::array_t<double>& img_stack_arr,
 
         if (!saveconf.at_end){
             if (!conf.stereo){
-                write_to_disk_2d(result_arrays_l,saveconf, ss_grid_l, filenames_l[img_num]);
+                write_to_disk_2d(result_arrays_l,saveconf, ss_grid_l, basenames_l[img_num]);
             }
             else {
-                write_to_disk_stereo(result_arrays_l,result_arrays_r, saveconf, ss_grid_l, filenames_l[img_num]);
+                write_to_disk_stereo(result_arrays_l,result_arrays_r, saveconf, ss_grid_l, basenames_l[img_num]);
             }
         }
 

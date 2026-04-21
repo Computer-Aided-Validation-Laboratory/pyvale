@@ -15,6 +15,9 @@
 // Program Header files
 #include "./dicinterp.hpp"
 
+// common_cpp header files
+#include "../../common_cpp/util.hpp"
+
 namespace subset {
 
     struct Grid {
@@ -42,6 +45,7 @@ namespace subset {
         int size_x;
         int size_y;
         int num_px;
+        int sum;
 
         // Constructor to initialize the vectors with ss_size
         Pixels(int ss_size_x, int ss_size_y) 
@@ -72,7 +76,13 @@ namespace subset {
                     const int ss_x, const int ss_y,
                     const int px_hori,
                     const int px_vert,
-                    const double *img_def);
+                    const Image &img);
+
+    template<typename T>
+    void fill_impl(subset::Pixels &ss_ref,
+                const std::vector<T> &data,
+                int ss_x, int ss_y,
+                int px_hori);
 
     /**
     * @brief Fills a subset of pixels from an image using centre coordinates.

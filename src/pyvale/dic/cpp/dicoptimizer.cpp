@@ -117,6 +117,10 @@ OptResult Optimizer::solve(const double cx,
 
     while (iter < max_iter) {
 
+        // if (cx == 360 && cy ==300){
+        //     std::cout << " iter: " << iter; 
+        // }
+
         // perform the optimization
         (this->*optimize_cost)(ss_ref, ss_def, interp_def, cx, cy);
 
@@ -131,27 +135,20 @@ OptResult Optimizer::solve(const double cx,
         // variation on correlation coefficient
         ftol = std::abs(costpdp - costp) / (std::abs(costp) + eps);
 
-        bool numerically_converged = (xtol < precision) && (ftol < precision);
+        converged = (xtol < precision) && (ftol < precision);
         bool good_enough = 1.0-0.5*costp > threshold;
 
         // Check converged
-        if (numerically_converged) {
-
-            if (criteria == "SSD") {
-                converged = true;
-                break;
-            }
-
-            if (!check_on_thresh || good_enough) {
-                converged = true;
-                break;
-            }
+        if (converged) {
+            if (criteria == "SSD") break;
+            if (!check_on_thresh || good_enough) break;
         }
         iter++;
     }
 
 
     // calculate zncc value
+    double zncc = 0.0;
     double mean_def = 0.0;
     double mean_ref = 0.0;
 
@@ -170,16 +167,20 @@ OptResult Optimizer::solve(const double cx,
         sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
     }
 
-    const double inv_sum_squared = 1.0 / sqrt(sum_squared_ref*sum_squared_def);
-
-    double zncc = 0.0;
-    for (int i = 0; i < ss_def.num_px; ++i) {
-        const double def_norm = (ss_def.vals[i] - mean_def);
-        const double ref_norm = (ss_ref.vals[i] - mean_ref);
-        zncc += ref_norm*def_norm; 
+    // Bail out if either subset is degenerate (uniform/zero intensity)
+    if (sum_squared_def < 1e-12 || sum_squared_ref < 1e-12) {
+        zncc = 0.0;
     }
-    zncc *= inv_sum_squared;
+    else {
+        const double inv_sum_squared = 1.0 / sqrt(sum_squared_ref*sum_squared_def);
 
+        for (int i = 0; i < ss_def.num_px; ++i) {
+            const double def_norm = (ss_def.vals[i] - mean_def);
+            const double ref_norm = (ss_ref.vals[i] - mean_ref);
+            zncc += ref_norm*def_norm; 
+        }
+        zncc *= inv_sum_squared;
+    }
     OptResult res(num_params);
     get_displacement(res.u, res.v, 0.0, 0.0, p);
     res.iter = iter;
@@ -423,6 +424,13 @@ void Optimizer::znssd(const subset::Pixels &ss_ref,
     for (int i = 0; i < num_px; ++i) {
         sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
         sum_squared_ref += (ss_ref.vals[i] - mean_ref) * (ss_ref.vals[i] - mean_ref);
+    }
+
+    // Bail out if either subset is degenerate (uniform/zero intensity)
+    if (sum_squared_def < 1e-12 || sum_squared_ref < 1e-12) {
+        costp   = 2.0;  // max possible ZNSSD value, signals failure
+        costpdp = 2.0;
+        return;
     }
 
     double inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
