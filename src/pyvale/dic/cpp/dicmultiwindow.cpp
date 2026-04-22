@@ -312,9 +312,23 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
 
         if (fft_save){
 
-            std::string filename = saveconf.basepath + "fft_displacements_" +
-                                   std::to_string(ss_size_x) + "x" +
-                                   std::to_string(ss_size_y) + ".txt";
+            // derive base name from deformed filename (remove path and extension)
+            std::string base = filenames[img_num_def];
+            size_t slash = base.find_last_of("/\\");
+            if (slash != std::string::npos) base = base.substr(slash + 1);
+            size_t dot = base.find_last_of('.');
+            if (dot != std::string::npos) base = base.substr(0, dot);
+
+            std::ostringstream str_size_x;
+            std::ostringstream str_size_y;
+
+            str_size_x << std::setw(4) << std::setfill('0') << ss_size_x;
+            str_size_y << std::setw(4) << std::setfill('0') << ss_size_y;
+
+            std::string filename = saveconf.basepath + "fft_displacements_" + base + "_" +
+                                   str_size_x.str() + "x" +
+                                   str_size_y.str() + ".csv";
+
             std::ofstream fout(filename);
 
             fout << "x" << saveconf.delimiter;
