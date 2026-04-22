@@ -479,8 +479,11 @@ class Tools:
         focal_length_mm = cam_data.focal_length
         sensor_width_mm = cam_data.pixels_num[0] * cam_data.pixels_size[0]
 
-        tc.focal_length = focal_length_mm
+        # NOTE: sensor_width MUST be set before focal_length. Setting
+        # sensor_width after focal_length causes Blender to rescale
+        # focal_length proportionally, resulting in incorrect focal_length_pixels.
         tc.sensor_width = sensor_width_mm
+        tc.focal_length = focal_length_mm
         tc.brown_k1 = cam_data.k1
         tc.brown_k2 = cam_data.k2
         tc.brown_k3 = cam_data.k3
