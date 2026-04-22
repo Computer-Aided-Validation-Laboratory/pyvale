@@ -76,7 +76,10 @@ class CameraStereo:
                                int(calib_params['Cam0_Cy [pixels]']*2)])
             pixels_num_cam1 = np.array([int(calib_params['Cam1_Cx [pixels]']*2),
                                int(calib_params['Cam1_Cy [pixels]']*2)])
-        pixels_size = focal_length / calib_params["Cam0_Fx [pixels]"]
+        pixels_size_cam0 = np.array([focal_length / calib_params["Cam0_Fx [pixels]"],
+                                     focal_length / calib_params["Cam0_Fy [pixels]"]])
+        pixels_size_cam1 = np.array([focal_length / calib_params["Cam1_Fx [pixels]"],
+                                     focal_length / calib_params["Cam1_Fy [pixels]"]])
         stereo_rotation = Rotation.from_euler("xyz", ([-calib_params['Theta [deg]'],
                                     calib_params['Phi [deg]'],
                                     calib_params['Psi [deg]']]), degrees=True)
@@ -105,12 +108,12 @@ class CameraStereo:
         c1_1 = calib_params["Cam1_Cy [pixels]"]
 
         cam_data_0 = CameraData(pixels_num=pixels_num_cam0,
-                                pixels_size=np.array([pixels_size, pixels_size]),
+                                pixels_size=pixels_size_cam0,
                                 pos_world=pos_world_0,
                                 rot_world=rot_world_0,
                                 roi_cent_world=np.array([0, 0, 0]),
-                                focal_length=focal_length, 
-                                k1 = k1_0, 
+                                focal_length=focal_length,
+                                k1 = k1_0,
                                 k2 = k2_0,
                                 k3 = k3_0,
                                 p1 = p1_0,
@@ -118,12 +121,12 @@ class CameraStereo:
 				c0 = c0_0,
 				c1 = c1_0)
         cam_data_1 = CameraData(pixels_num=pixels_num_cam1,
-                                pixels_size=np.array([pixels_size, pixels_size]),
+                                pixels_size=pixels_size_cam1,
                                 pos_world=pos_world_1,
                                 rot_world=rot_world_1,
                                 roi_cent_world=np.array([0, 0, 0]),
                                 focal_length=focal_length,
-                                k1 = k1_1, 
+                                k1 = k1_1,
                                 k2 = k2_1,
                                 k3 = k3_1,
                                 p1 = p1_1,
