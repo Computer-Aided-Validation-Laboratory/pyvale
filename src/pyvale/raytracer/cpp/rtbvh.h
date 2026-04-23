@@ -161,11 +161,17 @@ struct BLAS_Node {
     {}; 
 };
 
+// Forward declarations (incomplete types) so we can use them in function pointers in BLAS while avoiding circular dependencies (since they depend on BLAS_Node defined here)
+struct IntersectionOutput; 
+struct HitRecord;
+
 struct BLAS {
     std::vector<BLAS_Node> tree_nodes;
-    AABB bounding_box;
+    AABB bounding_box {};
     // We cannot just copy relevant pieces of texture into different BLAS nodes, so keep it at the BLAS level. This will also allow us to do fewer if/else checks in intersection for coloring
     Texture texture {}; // If texture.data is not a nullptr, face_color is (u,v). This logic saves us having to store surface type explicitly
+    IntersectionOutput (*intersection_function_ptr)(const Ray&, const std::vector<double>& node_coords, const unsigned int bvh_node_element_count) {nullptr}; // Ray-mesh element intersection (TRI3, QUAD4, etc.)
+    void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx) {nullptr}; // Saving data to HitRecord depending on the surface type (color/texture) and element type
     int root_idx {-1};
 
     BLAS() = default; // Constructor for emplace_back to avoid temporary copies
@@ -330,3 +336,6 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     const int timestep,
     const int timestep_count);
 */
+
+
+

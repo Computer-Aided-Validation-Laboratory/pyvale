@@ -69,7 +69,7 @@ void overwrite_intersection_quad4_tex(HitRecord& intersection_record,
     const Texture& texture,
     Eigen::Index min_row_idx){     
     // Texture color save for QUAD4           
-        
+
     // Find (u,v) coordinates for each node of the intersected element
     std::array<double, ElementNodeCount::QUAD4 * UV_COORDINATES> element_uvs; // Flat array so we can pass a pointer to get_face_uvs. Texture (u,v) for each node of mesh element
     get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::QUAD4, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
@@ -225,14 +225,13 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     return IntersectionOutput{ barycentric_coordinates, plane_normals, t_values };
 }
 
-
-// Quad intersection - compiles fine, needs further tests
 IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_quad_count){
     // Go through all the quads and find an intersection of each quad with a ray
     // Method based on NVIDIA 2019, E. Haines, T. Akenine-Möller (eds.), Ray Tracing Gems, https://doi.org/10.1007/978-1-4842-4427-2_8
     // More specifically: Chapter 8, "Cool Patches: A Geometric Approach to Ray/Bilinear Patch Intersections" by A. Reshetov
+
     static const int NODES_PER_ELEMENT = 4;
     static const int COORDS_PER_ELEMENT = NODES_PER_ELEMENT * NODE_COORDINATES;
     double EPSILON = 1e-6;
@@ -718,7 +717,6 @@ void intersect_BLAS(const Ray& ray,
 
     //std::cout << "  BLAS: Starting BVH intersection test" << std::endl;
 
-   
     // Find the number of nodes per mesh element NOW to limit branching
     // This is valid only if we assume that one mesh can contain only one type of element
     enum ElementNodeCount nodes_per_element = mesh_bvh.tree_nodes[mesh_bvh.root_idx].nodes_per_element;
@@ -726,44 +724,11 @@ void intersect_BLAS(const Ray& ray,
 
     // this could be stored in BLAS and assigned when we build it to remove these checks
     void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx); // Saving data to HitRecord depending on the surface type (color/texture) and element type
-    if (texture.data != nullptr){ // Pointer to the texture array isn't null -> We will be sampling it
-        switch(nodes_per_element){
-            case TRI3:
-                overwrite_intersection_function_ptr = &overwrite_intersection_tri3_tex;
-                break;
-            case QUAD4:
-                overwrite_intersection_function_ptr = &overwrite_intersection_quad4_tex;
-                break;
-        }
-    }
-    else { // Nullptr -> No texture -> Solid fill
-        switch(nodes_per_element){
-            case TRI3:
-                overwrite_intersection_function_ptr = &overwrite_intersection_tri3_col; // Color with barycentric interpolation
-                break;
-            default:
-                overwrite_intersection_function_ptr = &overwrite_intersection_any_col; // Just solid color for all other element types
-                break;
-        }
-    }
+    overwrite_intersection_function_ptr = mesh_bvh.overwrite_intersection_function_ptr;
+
     // Function pointer to the appropriate intersection function. Nb4 this syntax means that they should require the same arguments
     IntersectionOutput (*intersection_function_ptr)(const Ray&, const std::vector<double>& node_coords, const unsigned int bvh_node_element_count); // Ray-mesh element intersection (TRI3, QUAD4, etc.)
-    switch(nodes_per_element){
-        case TRI3:
-            intersection_function_ptr = &intersect_bvh_tri3;
-            break;
-       case QUAD4:
-            intersection_function_ptr = &intersect_bvh_quad4;
-            break;
-        /* Old TET10 code - will not work with this syntax (different element type in vector and load_quad_tets needs to happen inside the while loop), but keeping it here for reference
-        case TET10:
-            std::vector<Quadratic_tet> quadratic_tets;
-            load_quad_tets(Node.node_coords, quadratic_tets, Node.element_count, Node.nodes_per_element);
-            intersection_function_ptr = intersect_bvh_quad_tet(ray, quadratic_tets, Node.element_count);
-            break;
-        */     
-    }
-
+    intersection_function_ptr = mesh_bvh.intersection_function_ptr;
         
     // Create stack to intersect BLAS nodes. Stack (LIFO) so DFS
     std::vector<int> stack; // Store node indices on the stack

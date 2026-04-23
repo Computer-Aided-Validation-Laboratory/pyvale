@@ -798,13 +798,31 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         // Pointer to access data for copying into BVH nodes - much faster than doing it through nanobind interface. Lifetime managed by Python
         double* mesh_node_coords_ptr = const_cast<double*>(mesh_node_coords.data());
         
-        // Iterate over ELEMENTS in this mesh (types specified in enum in rtelemconstants.h)
+        // Create BLAS (BVH) for this mesh
+        //std::cout << "Generating BLAS for mesh " << mesh_idx << std::endl;
+        scene_blases.emplace_back(); // Generate directly inside the vector to avoid copying data
+        BLAS& mesh_bvh = scene_blases[mesh_idx]; // Get a reference to the BVH of the current mesh to pass it to the builder functions
+
+        // Iterate over ELEMENTS in this mesh (types specified in enum in rtelemconstants.h) 
+        // And assign appropriate intersection function pointers based on the element type here, so we do not need to run these checks in intersection hot loops
         switch(nodes_per_element){
-            case TRI3: process_element_data<TRI3>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
-            case TRI6: process_element_data<TRI6>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
-            case QUAD4: process_element_data<QUAD4>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
-            case QUAD8: process_element_data<QUAD8>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
-            case QUAD9: process_element_data<QUAD9>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
+            case TRI3:
+                process_element_data<TRI3>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_tri3;
+                break;
+            case TRI6:
+                process_element_data<TRI6>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+                break;
+            case QUAD4:
+                process_element_data<QUAD4>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad4;
+                break;
+            case QUAD8:
+                process_element_data<QUAD8>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+                break;
+            case QUAD9:
+                process_element_data<QUAD9>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+                break;
             default: throw std::invalid_argument("Unsupported element type."); // Shouldn't ever get triggered since we check element type on the Python side as well
         }
      
@@ -820,9 +838,6 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         std::iota(mesh_element_indices.begin(), mesh_element_indices.end(), 0);
         std::vector<int> node_minimum_element_index; // Instead of wasting BLAS_Node struct space on storing this value
 
-        //std::cout << "Generating BLAS for mesh " << mesh_idx << std::endl;
-        scene_blases.emplace_back(); // Generate directly inside the vector to avoid copying data
-        BLAS& mesh_bvh = scene_blases[mesh_idx]; // Get a reference to the BVH of the current mesh to pass it to the builder functions
 
         // 2. BLAS BVH builder functions - this part depends on the surface type
         build_BLAS(mesh_bvh, mesh_element_centroids, mesh_element_aabbs, mesh_element_indices, node_minimum_element_index, mesh_element_count, nodes_per_element);
@@ -846,13 +861,34 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
             }
             std::cout << std::endl;
             */
-            
+
             copy_data_to_BLAS_node_tex(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_uvs_ptr, timestep);
+
+            // Assign appropriate texture interpolation function pointer
+            switch(nodes_per_element){
+                case TRI3:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3_tex;
+                    break;
+                case QUAD4:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4_tex;
+                    break;
+                default: throw std::invalid_argument("Unsupported element type.");
+            }
         }
         else if (surface_type == 0){ // Solid surface fill
             nanobind::ndarray<const double, nanobind::c_contig> mesh_face_colors = scene_face_colors[mesh_idx];
             double* mesh_face_colors_ptr = const_cast<double*>(mesh_face_colors.data());
             copy_data_to_BLAS_node_color(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_face_colors_ptr, timestep);
+
+            // Assign appropriate color interpolation function pointer
+            switch(nodes_per_element){
+                case TRI3:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3_col; // Color with barycentric interpolation
+                    break;
+                default:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_any_col; // Just solid color for all other element types
+                    break;
+            }
         }
         else {
             throw std::invalid_argument("Unsupported surface type."); // Shouldn't ever get triggered since we check element type on the Python side as well, but might be useful for debugging
