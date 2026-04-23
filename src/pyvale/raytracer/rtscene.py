@@ -59,9 +59,12 @@ class Scene:
         self.coords_expanded.append(rtmesh.node_coords_expanded_over_time)
         if rtmesh.surface_type == SurfType.FIELD_COLOR:
             self.face_colors.append(rtmesh.face_colors_over_time)
+            self.textures.append(np.zeros(shape=(1,1))) # Append a small array of zeros, only so we have matching indices but this data should never be accessed. Hacky solution, to be resolved better (probably merging face_colors and textures into one)
+            self.uvs.append(np.zeros(shape=(1,1))) # Append a small array of zeros, only so we have matching indices but this data should never be accessed. Hacky solution
         elif rtmesh.surface_type == SurfType.TEXTURE:
             self.uvs.append(rtmesh.uvs_over_time)
             self.add_texture(rtmesh.texture)
+            self.face_colors.append(np.zeros(shape=(1,1))) # Append a small array of zeros, only so we have matching indices but this data should never be accessed. Hacky solution, to be resolved better (probably merging face_colors and textures into one)
         self.mesh_count += 1
         self.surface_types.append(rtmesh.surface_type) # Will be used for determining coloring
         self.nodes_per_element.append(rtmesh.nodes_per_element) # Will help assign appropriate functions in ray_tracer

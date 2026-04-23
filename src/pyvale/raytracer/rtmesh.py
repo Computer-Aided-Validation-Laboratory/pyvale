@@ -26,9 +26,9 @@ COORDS_PER_NODE = 3
 RGB_VALS = 3
 
 # Type of coloring that goes onto the mesh surface
-class SurfType(StrEnum):
-    FIELD_COLOR = "field_color"
-    TEXTURE = "texture"
+class SurfType(IntEnum): # IntEnum so it can be passed to C++ nicely
+    FIELD_COLOR = 0,
+    TEXTURE = 1
 
 # Number of nodes per element
 class ElementNodeCount(IntEnum):

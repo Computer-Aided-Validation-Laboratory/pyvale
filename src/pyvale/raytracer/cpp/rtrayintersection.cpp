@@ -12,62 +12,8 @@
 #include "rtrayintersection.h"
 #include "rtelemconstants.h"
 #include "rtmathutils.h"
-
-/* Notes for intersection equations
-intersection_record.uvs = uvs_mesh[closest_t_index] # Store this for texturing
-
-TRI3:
-solid colors:
-color = intersection_record.barycentric_coordinates(0) * intersection_record.face_color + intersection_record.barycentric_coordinates(1) * intersection_record.face_color + intersection_record.barycentric_coordinates(2) * intersection_record.face_color;
-texture:
-uvs = intersection_record.barycentric_coordinates[0] * intersection_record.uvs[0] + intersection_record.barycentric_coordinates[1] * intersection_record.uvs[1] + intersection_record.barycentric_coordinates[2] * intersection_record.uvs[2] # Very much needed for TRI3, or texturing goes completely wrong
-color = sample_texture_grayscale(texture, uvs) - nearest neighbour interpolation for now
-
-QUAD4:
-solid colors:
-color = intersection_record.face_colors[0] + intersection_record.face_colors[1] + intersection_record.face_colors[2]
-texture:
-u = intersection_record.barycentric_coordinates[0]
-v = intersection_record.barycentric_coordinates[1]
-uv0 = intersection_record.uvs[0]
-uv1 = intersection_record.uvs[1]
-uv2 = intersection_record.uvs[2]
-uv3 = intersection_record.uvs[3]
-bilinear interpolation
-uvs = ((1 - u) * (1 - v) * uv0 +u * (1 - v) * uv1 +u * v * uv2 +(1 - u) * v * uv3)
-uvs = intersection_record.uvs[0] + intersection_record.uvs[1] + intersection_record.uvs[2]
-color = sample_texture_grayscale(texture, uvs) # Correct one
-
-*/
-
-EiVector3d sample_texture_grayscale(std::vector<std::vector<double>> texture, // Will probably pass this as a pointer at the end, but keep as vector for now
-    std::array<double,2> uvs) {
-    // Nearest neighbour method for texture rendering tests. UNTESTED 
-    size_t height = texture.size();
-    size_t width = texture[0].size();
-    // Clip between 0.0 and 1.0
-    double u = clip(uvs[0], 0.0, 1.0);
-    double v = clip(uvs[1], 0.0, 1.0);
-    // Get the nearest integer and cast to index into the texture array
-    int ix = static_cast<int>(u * (width - 1)); //
-    int iy = static_cast<int>(1.0 - v) * (height - 1); // Flipped to have it match the image coordinates starting in top left
-    double g = texture[iy][ix];
-    EiVector3d output;
-    output << g, g, g;
-    return output;
-}
-
-inline EiVector3d get_face_color(Eigen::Index minRowIndex,
-    const std::vector<double>& face_color) {
-    // Get values to colour the intersected face
-    double c1 = face_color[minRowIndex * NODE_COORDINATES];
-    double c2 = face_color[minRowIndex * NODE_COORDINATES + 1];
-    double c3 = face_color[minRowIndex * NODE_COORDINATES + 2];
-    EiVector3d face_color_vec;
-    //face_color_vec << 0.5, 0.5, 0.5;
-    face_color_vec << c1, c2, c3;
-    return face_color_vec;
-}
+#include "rtbvh.h"
+#include "rtcolorsampling.h"
 
 EiVectorD3d cross_rowwise(const EiVectorD3d& mat1, const EiVectorD3d& mat2) {
     // Row-wise cross product for 2 matrices (i.e., treating each row as a vector).
@@ -99,7 +45,9 @@ inline EiArrayD1d dot_rowwise (const EiArrayD3d& mat1, const EiArrayD3d& mat2){
     return (mat1 * mat2).rowwise().sum();
 }
 
-EiArrayD3d lerp_vectorised (const EiArrayD3d& points_A, const EiArrayD3d& points_B, const EiArrayD1d weights){
+EiArrayD3d lerp_vectorised (const EiArrayD3d& points_A,
+    const EiArrayD3d& points_B,
+    const EiArrayD1d weights){
     // Linear interpolation between points stored in arrays points_A and points_B using weights from vector weights.
     // Vectorised version of calculating (1-weight) * point_a + weight * point_b
     if (points_A.rows() != points_B.rows() || points_A.rows() != weights.rows()) {
@@ -113,6 +61,78 @@ EiArrayD3d lerp_vectorised (const EiArrayD3d& points_A, const EiArrayD3d& points
     // Replicate the (N, 1) weights array to (N, 3) so we can take advantage of Eigen's coefficient-wise array operations
     EiArrayD3d weights_replicated = weights.replicate(1, 3);
     return (1.0 - weights_replicated ) * points_A + weights_replicated * points_B;
+}
+
+
+void overwrite_intersection_quad4_tex(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx){     
+    // Texture color save for QUAD4           
+        
+    // Find (u,v) coordinates for each node of the intersected element
+    std::array<double, ElementNodeCount::QUAD4 * UV_COORDINATES> element_uvs; // Flat array so we can pass a pointer to get_face_uvs. Texture (u,v) for each node of mesh element
+    get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::QUAD4, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
+    // Interpolation coordinates from the ray-quad intersection
+    const double u = intersection_record.elem_interp_coords(0);
+    const double v = intersection_record.elem_interp_coords(1);
+    // Convert to Eigen format so we can use it for the maths below
+    EiArray2d uv0, uv1, uv2, uv3;
+    uv0 << element_uvs[0], element_uvs[1]; // (u,v) for node 0
+    uv1 << element_uvs[2], element_uvs[3]; // (u,v) for node 1
+    uv2 << element_uvs[4], element_uvs[5]; // (u,v) for node 2
+    uv3 << element_uvs[6], element_uvs[7]; // (u,v) for node 3
+    // Weights for bilinear interpolation
+    const double w0 = (1.0 - u) * (1.0 - v);
+    const double w1 = u * (1.0 - v);
+    const double w2 = u * v;
+    const double w3 = (1.0 - u) * v;
+
+    const EiArray2d uvs = w0 * uv0 + w1 * uv1 + w2 * uv2 + w3 * uv3; // Final (u,v)
+    // These uvs can be sent to sample the texture
+    intersection_record.face_color = sample_texture_nearest_neighbour(texture, uvs); // this can be just returned to return_ray_color, regardless of the element type down the line
+}
+
+void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx){
+    // Texture color save for TRI3
+
+    std::array<double, ElementNodeCount::TRI3 * UV_COORDINATES> element_uvs; // Shape (faces, 2) but flat. Texture (u,v) for each node of mesh element
+    get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::TRI3, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
+    EiArray2d uv0, uv1, uv2;
+    uv0 << element_uvs[0], element_uvs[1]; // (u,v) for node 0
+    uv1 << element_uvs[2], element_uvs[3]; // (u,v) for node 1
+    uv2 << element_uvs[4], element_uvs[5]; // (u,v) for node 2 
+    // Original arrangement that works if barycentric coordinates are stored as (w, u, v) - otherwise there is a mismatch and it does not render correctly
+    EiArray2d uvs = intersection_record.elem_interp_coords(0) * uv0 + intersection_record.elem_interp_coords(1) * uv1 + intersection_record.elem_interp_coords(2) * uv2;
+
+    // Barycentric interpolation that actually works if we want to store barycentric coordinates as (u, v, w)
+    //EiArray2d uvs = intersection_record.elem_interp_coords(2) * uv0 + intersection_record.elem_interp_coords(0) * uv1 + intersection_record.elem_interp_coords(1) * uv2;  // Final (u,v)
+    // These uvs can be sent to sample the texture
+    intersection_record.face_color = sample_texture_nearest_neighbour(texture, uvs); // this can be just returned to return_ray_color, regardless of the element type down the line
+}
+
+
+void overwrite_intersection_tri3_col(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx){
+    // Solid surface color save for TRI3 with barycentric interpolation
+
+    EiVector3d color_data = get_face_color(min_row_idx, Node.face_color); 
+    // Barycentric interpolation
+    intersection_record.face_color = intersection_record.elem_interp_coords(0) * color_data + intersection_record.elem_interp_coords(1) * color_data + intersection_record.elem_interp_coords(2) * color_data;
+};
+
+
+void overwrite_intersection_any_col(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx){
+    // Solid surface color save for any element other than TRI3 (no interpolation)
+    intersection_record.face_color = get_face_color(min_row_idx, Node.face_color); // Write solid color without any interpolation
 }
 
 IntersectionOutput intersect_bvh_tri3(const Ray& ray,
@@ -194,9 +214,14 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     }
     // Create an array for barycentric coordinates so we can do things element-wise with those
     Eigen::ArrayXXd barycentric_coordinates(bvh_node_triangle_count, NODE_COORDINATES);
+    barycentric_coordinates.col(0) = 1.0 - barycentric_u - barycentric_v; // barycentric_w
+    barycentric_coordinates.col(1) = barycentric_u;
+    barycentric_coordinates.col(2) = barycentric_v;
+    /* Original order (u, v, w), but not representative of our and the texture does not render correctly 
     barycentric_coordinates.col(0) = barycentric_u;
     barycentric_coordinates.col(1) = barycentric_v;
     barycentric_coordinates.col(2) = 1.0 - barycentric_u - barycentric_v; // barycentric_w
+    */
     return IntersectionOutput{ barycentric_coordinates, plane_normals, t_values };
 }
 
@@ -213,7 +238,6 @@ IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     double EPSILON = 1e-6;
     
     // 1. COORDINATES AND EDGES
-    //std::cout << "Entered quad intersection" << std::endl;
     // Ray data broadcasted to use in vectorised operations on matrices
     // This is faster than doing it in a loop
     EiVectorD3d ray_directions = ray.direction.replicate(bvh_node_quad_count, 1);
@@ -221,15 +245,14 @@ IntersectionOutput intersect_bvh_quad4(const Ray& ray,
 
     // Define default negative output if there is no intersection
     IntersectionOutput negative_output{
-        Eigen::ArrayXXd(bvh_node_quad_count, NODE_COORDINATES), // barycentric coordinates/other for interpolation
-        EiVectorD3d::Zero(bvh_node_quad_count, NODE_COORDINATES), //  plane normals
+        Eigen::ArrayXXd(bvh_node_quad_count, NODE_COORDINATES), // elem_interp_coords
+        EiVectorD3d::Zero(bvh_node_quad_count, NODE_COORDINATES), //  plane_normals
         Eigen::Vector<double, Eigen::Dynamic>::Constant(bvh_node_quad_count, 1, std::numeric_limits<double>::infinity()) // t_values
     };
 
     // 4 corner coordinates, where bl - bottom left, br - bottom right, tr - top right, tl - top left. 
-    // Potentially change these to EiArrayD3d since these are (D,3) anyway?
-    EiArrayDd corners_bl(bvh_node_quad_count, NODE_COORDINATES), corners_br(bvh_node_quad_count, NODE_COORDINATES), corners_tr(bvh_node_quad_count, NODE_COORDINATES), corners_tl(bvh_node_quad_count, NODE_COORDINATES); // shape (faces, 3) each
-    EiArrayDd edges_bottom(bvh_node_quad_count, NODE_COORDINATES), edges_top(bvh_node_quad_count, NODE_COORDINATES), edges_right(bvh_node_quad_count, NODE_COORDINATES), edges_left(bvh_node_quad_count, NODE_COORDINATES); // shape (faces, 3) each
+    EiArrayD3d corners_bl(bvh_node_quad_count, NODE_COORDINATES), corners_br(bvh_node_quad_count, NODE_COORDINATES), corners_tr(bvh_node_quad_count, NODE_COORDINATES), corners_tl(bvh_node_quad_count, NODE_COORDINATES); // shape (faces, 3) each
+    EiArrayD3d edges_bottom(bvh_node_quad_count, NODE_COORDINATES), edges_top(bvh_node_quad_count, NODE_COORDINATES), edges_right(bvh_node_quad_count, NODE_COORDINATES), edges_left(bvh_node_quad_count, NODE_COORDINATES); // shape (faces, 3) each
 
     //std::cout << "Getting corners and edges" << std::endl;
     // Go over all quads in the node to find corner and edge coordinates
@@ -595,7 +618,6 @@ void load_quad_tets(const std::vector<double>& node_coords,
 }
 
 
-
 IntersectionOutput intersect_bvh_quad_tet(const Ray& ray,
     std::vector<Quadratic_tet> quadratic_tets,
     const unsigned int bvh_node_quad_tet_count) {
@@ -665,9 +687,7 @@ IntersectionOutput intersect_bvh_quad_tet(const Ray& ray,
     barycentric_coordinates.col(2) = 1.0 - barycentric_u - barycentric_v; // barycentric_w
 
     return IntersectionOutput{ barycentric_coordinates, plane_normals, t_values };
-
 }
-
 
 bool intersect_AABB (const Ray& ray, const AABB& AABB) {
     // Slab method for ray-AABB intersection
@@ -693,14 +713,61 @@ bool intersect_AABB (const Ray& ray, const AABB& AABB) {
 
 void intersect_BLAS(const Ray& ray,
     const BLAS& mesh_bvh,
-    IntersectionOutput &out_intersection,
-    HitRecord &intersection_record) {
+    IntersectionOutput& out_intersection,
+    HitRecord& intersection_record) {
 
-     //std::cout << "  BLAS: Starting BVH intersection test" << std::endl;
-     //const BLAS_Node& root = mesh_bvh.tree_nodes[mesh_bvh.root_idx];
+    //std::cout << "  BLAS: Starting BVH intersection test" << std::endl;
 
-     std::vector<int> stack; // Store node indices on the stack
-     stack.push_back(mesh_bvh.root_idx);
+   
+    // Find the number of nodes per mesh element NOW to limit branching
+    // This is valid only if we assume that one mesh can contain only one type of element
+    enum ElementNodeCount nodes_per_element = mesh_bvh.tree_nodes[mesh_bvh.root_idx].nodes_per_element;
+    Texture texture = mesh_bvh.texture;
+
+    // this could be stored in BLAS and assigned when we build it to remove these checks
+    void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx); // Saving data to HitRecord depending on the surface type (color/texture) and element type
+    if (texture.data != nullptr){ // Pointer to the texture array isn't null -> We will be sampling it
+        switch(nodes_per_element){
+            case TRI3:
+                overwrite_intersection_function_ptr = &overwrite_intersection_tri3_tex;
+                break;
+            case QUAD4:
+                overwrite_intersection_function_ptr = &overwrite_intersection_quad4_tex;
+                break;
+        }
+    }
+    else { // Nullptr -> No texture -> Solid fill
+        switch(nodes_per_element){
+            case TRI3:
+                overwrite_intersection_function_ptr = &overwrite_intersection_tri3_col; // Color with barycentric interpolation
+                break;
+            default:
+                overwrite_intersection_function_ptr = &overwrite_intersection_any_col; // Just solid color for all other element types
+                break;
+        }
+    }
+    // Function pointer to the appropriate intersection function. Nb4 this syntax means that they should require the same arguments
+    IntersectionOutput (*intersection_function_ptr)(const Ray&, const std::vector<double>& node_coords, const unsigned int bvh_node_element_count); // Ray-mesh element intersection (TRI3, QUAD4, etc.)
+    switch(nodes_per_element){
+        case TRI3:
+            intersection_function_ptr = &intersect_bvh_tri3;
+            break;
+       case QUAD4:
+            intersection_function_ptr = &intersect_bvh_quad4;
+            break;
+        /* Old TET10 code - will not work with this syntax (different element type in vector and load_quad_tets needs to happen inside the while loop), but keeping it here for reference
+        case TET10:
+            std::vector<Quadratic_tet> quadratic_tets;
+            load_quad_tets(Node.node_coords, quadratic_tets, Node.element_count, Node.nodes_per_element);
+            intersection_function_ptr = intersect_bvh_quad_tet(ray, quadratic_tets, Node.element_count);
+            break;
+        */     
+    }
+
+        
+    // Create stack to intersect BLAS nodes. Stack (LIFO) so DFS
+    std::vector<int> stack; // Store node indices on the stack
+    stack.push_back(mesh_bvh.root_idx);
 
      while(!stack.empty()){
         const BLAS_Node& Node = mesh_bvh.tree_nodes[stack.back()];
@@ -708,51 +775,29 @@ void intersect_BLAS(const Ray& ray,
 
         if (!intersect_AABB(ray, Node.bounding_box)) continue; // Early exit if ray does not intersect the AABB of the node
 
+        // No children => Leaf node => Intersect triangles
         if (Node.left_child_idx == -1) {
-            // No children => Leaf node => Intersect triangles
+            
             //std::cout << "We are trying to intersect elements in node now" << std::endl;
             
-            //std::cout << '\n' << Node.nodes_per_element << '\n';
-            //std::cout << "The size of node_coords is: " << Node.node_coords.size() << '\n' << '\n';
-            //out_intersection = intersect_bvh_triangles(ray, Node.node_coords, Node.element_count);
-            if (Node.nodes_per_element == 3) { // was TRI3
-                out_intersection = intersect_bvh_tri3(ray, Node.node_coords, Node.element_count);
-            }
-            else if (Node.nodes_per_element == 4){ // was QUAD4
-                out_intersection = intersect_bvh_quad4(ray, Node.node_coords, Node.element_count);
-            }
-            /*
-            else if (Node.nodes_per_element == TET10) {
-                std::vector<Quadratic_tet> quadratic_tets;
-                load_quad_tets(Node.node_coords, quadratic_tets, Node.element_count, Node.nodes_per_element);
-                // IntersectionOutput out_intersection_dum = intersect_bvh_quad_tet(ray, quadratic_tets, Node.element_count);
-                // out_intersection = intersect_bvh_triangles(ray, Node.node_coords, Node.element_count);
-                out_intersection = intersect_bvh_quad_tet(ray, quadratic_tets, Node.element_count);
-            }
-        */
+            out_intersection = intersection_function_ptr(ray, Node.node_coords, Node.element_count);
 
-            // TEST
-            // Ray ray_dum;
-            // std::vector<double> node_coords_dum; 
-            // unsigned int bvh_node_triangle_quad_count;
-            // std::vector<Quadratic_tet> quadratic_tets; 
-            // IntersectionOutput out_intersection_dum = intersect_bvh_quad_tet(ray_dum, quadratic_tets, bvh_node_triangle_quad_count);
-
-
-            Eigen::Index minRowIndex, minColIndex;
+            Eigen::Index min_row_idx, min_col_idx;
             //std::cout << "Number of t_values: " << out_intersection.t_values.size() << std::endl;
 
-            out_intersection.t_values.minCoeff(&minRowIndex, &minColIndex); // Find indices of the smallest t_value
-            double closest_t = out_intersection.t_values(minRowIndex, minColIndex);
+            out_intersection.t_values.minCoeff(&min_row_idx, &min_col_idx); // Find indices of the smallest t_value
+            double closest_t = out_intersection.t_values(min_row_idx, min_col_idx);
             //std::cout << "Closest t found: " << closest_t << std::endl;
 
+            // Store the closest intersection if it is closer than the previously stored one
             if (closest_t < intersection_record.t) {
                 intersection_record.t = closest_t;
-                intersection_record.barycentric_coordinates = out_intersection.barycentric_coordinates.row(minRowIndex);
+                intersection_record.elem_interp_coords = out_intersection.elem_interp_coords.row(min_row_idx);
                 intersection_record.point_intersection = ray_at_t(closest_t, ray);
-                intersection_record.normal_surface = out_intersection.plane_normals.row(minRowIndex);
-                intersection_record.face_color = get_face_color(minRowIndex, Node.face_color);
-            }
+                intersection_record.normal_surface = out_intersection.plane_normals.row(min_row_idx);
+                intersection_record.face_color = get_face_color(min_row_idx, Node.face_color); // the OG part
+                overwrite_intersection_function_ptr(intersection_record, Node, texture, min_row_idx);
+            } 
         }
         else { // Not a leaf node => Test children nodes for intersections
             // DFS order
@@ -768,8 +813,8 @@ void intersect_BLAS(const Ray& ray,
 
 void intersect_TLAS(const Ray& ray,
     const TLAS& scene_TLAS,
-    IntersectionOutput &out_intersection,
-    HitRecord &out_intersection_record){
+    IntersectionOutput& out_intersection,
+    HitRecord& out_intersection_record){
 
     //std::cout << "TLAS: Starting BVH intersection test" << std::endl;
      std::vector<int> stack; // Store node indices on the stack
@@ -785,6 +830,8 @@ void intersect_TLAS(const Ray& ray,
             //std::cout << "TLAS: Leaf node reached with " << Node.blas_count << " BLASes." << std::endl;
             int node_max_index = Node.min_blas_idx + Node.blas_count;
             for (int i = Node.min_blas_idx; i < node_max_index; ++i){
+                // Note: Comment out the below check if MAX_ELEMENTS_PER_LEAF = 1; in build_TLAS because then TLAS node AABB = BLAS AABB, so this check is unnecessary
+                if (!intersect_AABB(ray, scene_TLAS.blases[i].bounding_box)) continue; // Early exit if the ray does not intersect the AABB of the BLAS (mesh).
                 //std::cout << " TLAS: Intersected BLAS index: " << i << std::endl;
                 intersect_BLAS(ray, scene_TLAS.blases[i], out_intersection, out_intersection_record);
             }
@@ -798,9 +845,5 @@ void intersect_TLAS(const Ray& ray,
         }
      }
 }
-
-
-    
-
         
            

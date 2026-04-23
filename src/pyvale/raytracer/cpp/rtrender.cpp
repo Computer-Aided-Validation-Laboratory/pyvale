@@ -28,7 +28,7 @@ EiVector3d return_ray_color(const Ray& ray,
         //std::cout << "Coloring..." << std::endl;
         set_face_normal(ray, intersection_record.normal_surface);
         // Color interpolated for a triangle
-        //return intersection_record.barycentric_coordinates(0) * intersection_record.face_color + intersection_record.barycentric_coordinates(1) * intersection_record.face_color + intersection_record.barycentric_coordinates(2) * intersection_record.face_color;
+        //return intersection_record.elem_interp_coords(0) * intersection_record.face_color + intersection_record.elem_interp_coords(1) * intersection_record.face_color + intersection_record.elem_interp_coords(2) * intersection_record.face_color;
         return intersection_record.face_color; // To test quads without any special coloring for now
     }
 
@@ -54,7 +54,7 @@ void render_ppm_image(const EiVector3d& camera_center,
     buffer.reserve(image_width * image_height * 12); // Preallocate memory for the image buffer (conservatively)
 
     for (int j = 0; j < image_height; j++) {
-        //std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush << std::endl;
+        //std::cerr << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush << std::endl;
         for (int i = 0; i < image_width; i++) {
             EiVector3d pixel_color = EiVector3d::Zero();
             for (int k = 0; k < number_of_samples; k++) {

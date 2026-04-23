@@ -122,15 +122,29 @@ struct Bin {
 
 // Struct used as a temporary data carrier in build_BLAS and build_TLAS
 struct BuildTask {
-    size_t element_count;      // number of elements
+    size_t element_count; // Number of elements
     int node_idx;
-    int min_element_idx;      // first triangle index in tri_indices
+    int min_element_idx; // First triangle index in element_indices
+};
+
+struct Texture {
+    const double* data {nullptr}; // Pointer to the texture, so we can just assign it to relevant BVH nodes and sample
+    int height {0};
+    int width {0};
+    
+    // Default constructor
+   Texture() = default;
+   Texture(const double* data, int height, int width):
+    data(data),
+    height(height),
+    width(width)
+    {};
 };
 
 // BLAS - Bottom Level Acceleration Structure. Each BLAS stores a BVH for one mesh in the scene
 struct BLAS_Node {
     std::vector<double> node_coords; // Coordinates of nodes comprising the mesh elements stored in the node, if applicable
-    std::vector<double> face_color; // Element (face) colors based on the field values for the mesh
+    std::vector<double> face_color; // Either (faces, 3) array with color values or (faces,2) array with (u,v) coordinates
     AABB bounding_box {};
     size_t element_count {0}; // If not zero, this is the leaf
     enum ElementNodeCount nodes_per_element {ElementNodeCount::TRI3}; // Default to triangles
@@ -150,6 +164,8 @@ struct BLAS_Node {
 struct BLAS {
     std::vector<BLAS_Node> tree_nodes;
     AABB bounding_box;
+    // We cannot just copy relevant pieces of texture into different BLAS nodes, so keep it at the BLAS level. This will also allow us to do fewer if/else checks in intersection for coloring
+    Texture texture {}; // If texture.data is not a nullptr, face_color is (u,v). This logic saves us having to store surface type explicitly
     int root_idx {-1};
 
     BLAS() = default; // Constructor for emplace_back to avoid temporary copies
@@ -279,18 +295,38 @@ void build_TLAS(std::vector<TLAS_Node>& TLAS,
     std::vector<int>& scene_blas_indices,
     size_t scene_mesh_count);
 
-void copy_data_to_BLAS_node(BLAS &mesh_bvh,
+// Mixed version
+void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
+    std::vector<int>& mesh_element_indices,
+    std::vector<int>& node_minimum_element_index,
+    const double* mesh_node_coords_expanded_ptr,
+    const double* mesh_uvs_ptr,
+    const int timestep);
+
+
+void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
     std::vector<int>& mesh_element_indices,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
     const double* mesh_face_color_ptr,
     const int timestep);
-    
+
 void copy_data_to_TLAS(TLAS &tlas,
     std::vector<BLAS>& scene_BLASes,
     const std::vector<int>& scene_blas_indices);
 
+
+TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
+    const std::vector<nanobind::ndarray<const double,nanobind::c_contig>>& scene_face_colors,
+    const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_uvs,
+    const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_textures,
+    const std::vector<int>& scene_surface_types,
+    const int timestep,
+    const int timestep_count);
+
+/* OG color only version
 TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
     const std::vector<nanobind::ndarray<const double,nanobind::c_contig>>& scene_face_colors,
     const int timestep,
     const int timestep_count);
+*/

@@ -81,11 +81,11 @@ class BlenderUnwrapper:
         """
         Removes the mesh and object from Blender. Important if you want to compare multiple UV unwrapping methods in one go to "reset" the data.
         """
-        if self.blender_mesh is not None or self.blender_obj is not None:
+        if self.blender_mesh is None or self.blender_obj is None:
             print("Nothing to remove.")
             return
         bpy.data.meshes.remove(self.blender_mesh)
-        bpy.data.objects.remove(self.blender_obj, do_unlink=True)
+        #bpy.data.objects.remove(self.blender_obj, do_unlink=True)
         self.blender_mesh = None
         self.blender_obj = None
 
@@ -166,7 +166,7 @@ class BlenderUnwrapper:
                 uvs_list.append([uv.x, uv.y])
                 original_vertex_indices.append(vertex_idx)
 
-        uvs = np.array(uvs_list, dtype=np.double)  # (num_loops, 2)
+        uvs = np.array(uvs_list, dtype=np.float64)  # (num_loops, 2)
         vmapping = np.array(original_vertex_indices, dtype=np.uint64)  # (num_loops,)
 
         # 2. Build new face indices (sequential: 0,1,2, 3,4,5, etc.)
@@ -226,7 +226,7 @@ class BlenderUnwrapper:
         if not selected_faces:
             raise ValueError("No faces selected!")
 
-        uvs = np.array(uvs_list, dtype=np.double)  # (num_loops_selected, 2)
+        uvs = np.array(uvs_list, dtype=np.float64)  # (num_loops_selected, 2)
         vmapping = np.array(original_vertex_indices, dtype=np.uint64)  # (num_loops_selected,)
 
         # Sequential indices for selected faces only
@@ -356,7 +356,7 @@ class BlenderUnwrapper:
                 for local_corner in range(3): 
                     tri_uv_vid = int(tri_uv_vertex_ids[local_corner])
                     orig_node = int(tri_uv_to_orig_node[tri_uv_vid])
-                    uv_xy = np.ascontiguousarray(self.uvs[tri_uv_vid], dtype=np.double)
+                    uv_xy = np.ascontiguousarray(self.uvs[tri_uv_vid], dtype=np.float64)
 
                     # Only assign UVs for nodes that actually belong to this original element
                     # (important when multiple elements share triangulated boundary vertices)
@@ -383,14 +383,14 @@ class BlenderUnwrapper:
             for node in orig_node_ids:
                 if int(node) not in local_node_to_uv:
                     # Seam-safe fallback: duplicate a valid UV from the same element
-                    uv_xy = np.ascontiguousarray(uv_vertices[fallback_vid], dtype=np.double)
+                    uv_xy = np.ascontiguousarray(uv_vertices[fallback_vid], dtype=np.float64)
                     local_node_to_uv[int(node)] = get_or_create_uv_vertex(int(node), uv_xy)
 
             # Now build element connectivity in the original local-node order
             for local_idx, node in enumerate(orig_node_ids):
                 orig_indices[orig_element_idx, local_idx] = local_node_to_uv[int(node)]
 
-        orig_uvs = np.ascontiguousarray(np.ascontiguousarray(uv_vertices, dtype=np.double))
+        orig_uvs = np.ascontiguousarray(np.ascontiguousarray(uv_vertices, dtype=np.float64))
         orig_vmapping = np.ascontiguousarray(np.ascontiguousarray(uv_vertex_orig_node, dtype=np.uint64))
         orig_indices = np.ascontiguousarray(orig_indices, dtype=np.uint64)
 
@@ -414,28 +414,31 @@ class BlenderUnwrapper:
                face_uvs.append((uv.x, uv.y))
            uv_coords.append(face_uvs)
 
-        print("uvs as from blender directly:")
-        print(f"uvs[0] shape: {len(uv_coords[0])}")
-        print(f"uvs[0][0] shape: {len(uv_coords[0][0])}")
-        print(f"size of list: {len(uv_coords)}")
+        # DEBUG COMMENTS
+        #print("uvs as from blender directly:")
+        #print(f"uvs[0] shape: {len(uv_coords[0])}")
+        #print(f"uvs[0][0] shape: {len(uv_coords[0][0])}")
+        #print(f"size of list: {len(uv_coords)}")
         self.uvs, self.vertex_map, self.faces_cut = self._get_xatlas_uv_format(self.blender_obj.data)
-        print(f"uvs shape: {self.uvs.shape}")
-        print(f"vmapping shape: {self.vertex_map.shape}")
-        print(f"indices shape: {self.faces_cut.shape}")
+        # DEBUG COMMENTS
+        #print(f"uvs shape: {self.uvs.shape}")
+        #print(f"vmapping shape: {self.vertex_map.shape}")
+        #print(f"indices shape: {self.faces_cut.shape}")
 
         if self.rtmesh.tri_face_mapping is None or self.rtmesh.tri_node_mapping is None: # Triangular mesh
-            #self.rtmesh.uvs = np.ascontiguousarray(self.uvs, dtype=np.double)
+            #self.rtmesh.uvs = np.ascontiguousarray(self.uvs, dtype=np.float64)
             #self.rtmesh.connectivity_uv = np.ascontiguousarray(self.faces_cut)
-            self.rtmesh.uvs = np.ascontiguousarray(self.uvs[self.faces_cut], dtype=np.double) # To get shape (element count, nodes_per_element, 2)
+            self.rtmesh.uvs = np.ascontiguousarray(self.uvs[self.faces_cut], dtype=np.float64) # To get shape (element count, nodes_per_element, 2)
         else: # Any other mesh - we need to map back to higher order elements
             orig_uvs, orig_vmapping, orig_face_indices = self.map_uvs_to_higher_order()
-            print(f"orig_uvs shape: {orig_uvs.shape}")
-            print(f"orig_vmapping shape: {orig_vmapping.shape}")
-            print(f"orig_indices shape: {orig_face_indices.shape}")
+            # DEBUG COMMENTS
+            #print(f"orig_uvs shape: {orig_uvs.shape}")
+            #print(f"orig_vmapping shape: {orig_vmapping.shape}") # Node mapping
+            #print(f"orig_indices shape: {orig_face_indices.shape}") # Faces cut/indices used to index into UVs
             # Save the seam-aware higher-order UV connectivity
-            #self.rtmesh.uvs = np.ascontiguousarray(orig_uvs, dtype=np.double)
+            #self.rtmesh.uvs = np.ascontiguousarray(orig_uvs, dtype=np.float64)
             #self.rtmesh.connectivity_uv = np.ascontiguousarray(orig_face_indices, dtype=np.uint64)
-            self.rtmesh.uvs = np.ascontiguousarray(orig_uvs[orig_face_indices], dtype=np.double) # To get shape (element count, nodes_per_element, 2)
+            self.rtmesh.uvs = np.ascontiguousarray(orig_uvs[orig_face_indices], dtype=np.float64) # To get shape (element count, nodes_per_element, 2)
 
     def _get_uvs_selected(self):
         """
@@ -456,12 +459,12 @@ class BlenderUnwrapper:
         if self.rtmesh.tri_face_mapping is None or self.rtmesh.tri_node_mapping is None: # Triangular mesh
             #self.rtmesh.uvs = np.ascontiguousarray(self.uvs)
             #self.rtmesh.connectivity_uv = np.ascontiguousarray(self.faces_cut, dtype=np.uint64)
-            self.rtmesh.uvs = np.ascontiguousarray(self.uvs[self.faces_cut], dtype=np.double) # To get shape (element count, nodes_per_element, 2)
+            self.rtmesh.uvs = np.ascontiguousarray(self.uvs[self.faces_cut], dtype=np.float64) # To get shape (element count, nodes_per_element, 2)
         else: # Any other mesh - we need to map back to higher order elements
             orig_uvs, orig_vmapping, orig_face_indices = self.map_uvs_to_higher_order()
-            #self.rtmesh.uvs = np.ascontiguousarray(orig_uvs, dtype=np.double)
+            #self.rtmesh.uvs = np.ascontiguousarray(orig_uvs, dtype=np.float64)
             #self.rtmesh.connectivity_uv = np.ascontiguousarray(orig_face_indices, dtype=np.uint64)
-            self.rtmesh.uvs = np.ascontiguousarray(orig_uvs[orig_face_indices], dtype=np.double) # To get shape (element count, nodes_per_element, 2)
+            self.rtmesh.uvs = np.ascontiguousarray(orig_uvs[orig_face_indices], dtype=np.float64) # To get shape (element count, nodes_per_element, 2)
 
     def smart_unwrap(self,
                      pack_islands=True,
