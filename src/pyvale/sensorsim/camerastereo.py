@@ -80,7 +80,7 @@ class CameraStereo:
                                      focal_length / calib_params["Cam0_Fy [pixels]"]])
         pixels_size_cam1 = np.array([focal_length / calib_params["Cam1_Fx [pixels]"],
                                      focal_length / calib_params["Cam1_Fy [pixels]"]])
-        stereo_rotation = Rotation.from_euler("xyz", ([-calib_params['Theta [deg]'],
+        stereo_rotation = Rotation.from_euler("XYZ", ([-calib_params['Theta [deg]'],
                                     calib_params['Phi [deg]'],
                                     calib_params['Psi [deg]']]), degrees=True)
         stereo_dist = np.array([calib_params["Tx [mm]"],
