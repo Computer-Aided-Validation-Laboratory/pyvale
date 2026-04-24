@@ -321,7 +321,7 @@ bool split_BVH_node(BuildTask &task,
     size_t& out_left_count){
 
     // Splitting BVH node into child nodes
-    // Here element = face in case of a BLAS, or BLAS in case of a TLAS
+    // Here element = face in case of a BLAS, or element = BLAS in case of a TLAS
     int element_count = task.element_count;
     unsigned int min_element_idx = out_left_min_element_idx;
 
@@ -350,7 +350,7 @@ bool split_BVH_node(BuildTask &task,
             std::swap(element_indices[mid], element_indices[end]);
         }
     }
-    // How many triangles are on the left and on the right
+    // How many elements are on the left and on the right
     size_t left_count = mid - begin;
     size_t right_count = element_count - left_count;
     out_left_count = left_count;
@@ -377,10 +377,9 @@ void build_BLAS(BLAS &mesh_bvh,
 
     // DEBUG HINT: If your render isn't correct and you want to test the intersection without potential influences from the BVH, set MAX_ELEMENT_PER_LEAF
     // to mesh_element_count (just noting that you either have to read and hardcode the value or change type from constexpr)
-    //static constexpr int MAX_ELEMENTS_PER_LEAF = 4; // Max number of mesh faces per leaf node. According to research 4-16 range works best
-    static constexpr int MAX_ELEMENTS_PER_LEAF = 4;
+    static constexpr int MAX_ELEMENTS_PER_LEAF = 4; // Max number of mesh faces per leaf node. According to research 4-16 range works best
 
-    // DFS implementation so LIFO; need to think if queue with BFS wouldn't work better since we don't care THAT much about the memory
+    // DFS implementation so LIFO
     mesh_bvh.tree_nodes.clear();
     mesh_bvh.tree_nodes.reserve(mesh_element_indices.size() * 2); // crude upper bound
 
@@ -471,8 +470,8 @@ void build_TLAS(std::vector<TLAS_Node>& TLAS,
     size_t scene_mesh_count){
 
     static constexpr int MAX_ELEMENTS_PER_LEAF = 2; // Max number of BLASes per leaf node. Meshes are big, so more than 2 doesn't seem to make sense
-    // DFS implementation so LIFO; need to think if queue with BFS wouldn't work better since we don't care THAT much about the memory
 
+    // DFS implementation so LIFO
     //std::cout << "TLAS builder: Splitting into nodes..." << std::endl;
 
     // Create root
@@ -557,6 +556,7 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
     const double* mesh_node_coords_expanded_ptr,
     const double* mesh_uvs_ptr,
     const int timestep){
+    // Texture version - UVs are accessed slightly differently than solid color values
     // Copies appropriate mesh data to store directly in BVH node, so it can be accessed easily upon intersection and be cache-friendly
     // This way we also avoid copying the mesh data when we move the node to the BVH tree vector as they're already there when we get to this part here.
 
@@ -586,22 +586,24 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
 
         // Find strides for the given timestep to index correctly into Python buffers via pointers
         // Node coords are dimensioned as [timesteps, element count, nodes per element, coords per node]
-        // Face colors are dimensioned as [timesteps, element count, 2]
         const int timestep_coords_stride = timestep * mesh_element_count * coords_per_element;
-        const int timestep_color_stride = timestep * mesh_element_count * uvs_per_element; // to be updated when we remove timesteps from UVs
+         // Face colors are dimensioned as [timesteps, element count, 2] IF using uvs_over_time (not default). Use this stride then
+        //const int timestep_color_stride = timestep * mesh_element_count * uvs_per_element;
 
         // Iterate over elements in the node
         for (int element_idx = node_min_element_idx; element_idx < node_max_element_idx; ++element_idx){
             // Get the index of the stored mesh element from the reshuffled vector of indices that was created in BLAS builder
             int original_element_idx = mesh_element_indices[element_idx];
-            // Add element dimension stride to find min index of nodes comprising current mesh element
+            // Add element dimension stride to find min index of the nodes comprising current mesh element
             size_t original_element_idx_at_t = timestep_coords_stride + original_element_idx * coords_per_element; 
 
             //std::cout << "Original element idx in flat array: " << original_element_idx << " " << std::endl;
-            //std::cout << "Min element idx: " << element_min_index << std::endl;
 
+            // Find the corresponding index in the uvs array for the current element
+            //size_t uv_idx_at_t = timestep_color_stride + original_element_idx * uvs_per_element; // If using uvs_over_time
+            size_t uv_idx_at_t = original_element_idx * uvs_per_element; // UVs constant across all frames
+            
             // Iterate over all nodes in this mesh element to copy the data
-            size_t uv_idx_at_t = timestep_color_stride + original_element_idx * uvs_per_element; // to be updated when we remove timesteps from UVs
             for (int j = 0; j < Node.nodes_per_element; ++j){
                 // Nodal coordinates
                 Node.node_coords.push_back(mesh_node_coords_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES]); // x
@@ -641,6 +643,7 @@ void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
     const double* mesh_node_coords_expanded_ptr,
     const double* mesh_face_color_ptr,
     const int timestep){
+    // Solid color version
     // Copies appropriate mesh data to store directly in BVH node, so it can be accessed easily upon intersection and be cache-friendly
     // This way we also avoid copying the mesh data when we move the node to the BVH tree vector as they're already there when we get to this part here.
 

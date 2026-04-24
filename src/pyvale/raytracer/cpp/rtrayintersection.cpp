@@ -719,7 +719,6 @@ void intersect_BLAS(const Ray& ray,
 
     // Find the number of nodes per mesh element NOW to limit branching
     // This is valid only if we assume that one mesh can contain only one type of element
-    enum ElementNodeCount nodes_per_element = mesh_bvh.tree_nodes[mesh_bvh.root_idx].nodes_per_element;
     Texture texture = mesh_bvh.texture;
 
     // this could be stored in BLAS and assigned when we build it to remove these checks

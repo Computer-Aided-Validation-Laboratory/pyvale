@@ -23,7 +23,8 @@ inline double clip(double number, double lower_boundary, double upper_boundary){
 }
 
 static std::uniform_real_distribution<double> distribution(0.0, 1.0);
-static std::mt19937 generator;
+static std::mt19937 generator; // No seed
+//static std::mt19937 generator(123456u); // With seed to get deterministic results for regression tests. Guaranteed to get the same sequence for the same seed via the C++ standard
 inline double random_double() {
     return distribution(generator);
 }

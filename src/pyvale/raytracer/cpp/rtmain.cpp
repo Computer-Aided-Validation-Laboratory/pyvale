@@ -53,10 +53,13 @@ void render_scene(const int image_height,
     std::string filename; // Output image file
     
 
-    //std::chrono::time_point t1_d = std::chrono::high_resolution_clock::now();
+    
     for (int timestep = 0; timestep < timestep_count; ++timestep){
         //TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, timestep, timestep_count); // target stack-based DoD implementation
+        //std::chrono::time_point t1_build = std::chrono::high_resolution_clock::now();
         TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, scene_uvs, scene_textures, scene_surface_types, timestep, timestep_count);
+        //std::chrono::time_point t2_build = std::chrono::high_resolution_clock::now();
+
         
         // Iterate over all cameras and render an image for each
         for (size_t camera_idx = 0; camera_idx < num_cameras; ++camera_idx) {
@@ -68,13 +71,20 @@ void render_scene(const int image_height,
             output_filepath = output_directory;
             output_filepath.append(filename);
             std::cout << "Rendering frame " << (timestep+1) << "/" << timestep_count << std::endl;
+            //std::chrono::time_point t1_render = std::chrono::high_resolution_clock::now();
             render_ppm_image(camera_center, pixel_00_center, matrix_pixel_spacing, test_TLAS, image_height, image_width, number_of_samples, output_filepath);
+            //std::chrono::time_point t2_render = std::chrono::high_resolution_clock::now();
+            
+            //std::chrono::duration t_render = std::chrono::duration_cast<std::chrono::milliseconds>(t2_render - t1_render);
+            //std::cout << "Render time: " << t_render.count() << " ms \n";
         }
+
+            //std::chrono::duration t_build = std::chrono::duration_cast<std::chrono::nanoseconds>(t2_build - t1_build);
+            //std::cout << "AS build time: " << t_build.count() << " ns \n";
     }
 
-    //std::chrono::time_point t2_d = std::chrono::high_resolution_clock::now();
-    //std::chrono::duration t_d = std::chrono::duration_cast<std::chrono::nanoseconds>(t2_d - t1_d);
-    //std::cout << "Iterative, DoD approach duration: " << t_d.count() << "ns \n";
+
+    
 
     
         

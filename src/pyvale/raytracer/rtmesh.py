@@ -97,7 +97,7 @@ class RTMesh:
     #node_coords_over_time: np.ndarray = field(default=None)
     node_coords_expanded_over_time: np.ndarray = field(default=None)
     face_colors_over_time: np.ndarray = field(default=None)
-    uvs_over_time: np.ndarray = field(default=None) # Temporary because it's easier to index this way in ray tracing engine. But uvs don't change over time, so to do is fix this on the ray tracer side, so we can use less memory (UVs can be massive)
+    #uvs_over_time: np.ndarray = field(default=None) # Temporary used in development. But uvs should not change over time and they can be massive, so this was deprecated to reduce memory consumption. Keeping it just in case
     uvs: np.ndarray = field(default=None)
     seams: list = field(default_factory=list)
     texture: np.ndarray = field(default=None)
@@ -144,7 +144,7 @@ class RTMesh:
             self.face_colors_over_time = None
             self.texture = None
             self.uvs = None
-            self.uvs_over_time = None
+            #self.uvs_over_time = None
         self.surface_type = surface_type
         # Solid colors
         if surface_type == SurfType.FIELD_COLOR:
@@ -173,7 +173,8 @@ class RTMesh:
             if surface_fill.ndim != 2:
                 raise ValueError("Wrong number of dimensions. The array containing the texture should be two-dimensional.")
             # Convert UVs to the format similar to node_coords_expanded: (element_count, nodes_per_element, 2)
-            self.uvs_over_time = np.broadcast_to(self.uvs[np.newaxis, ...], (self.timestep_count, self.element_count, self.nodes_per_element, 2))
+            # NOTE: UVS should **NOT** change across the frames, so we do not need that. If you need to use it, uncomment relevant lines in rtscene.py and copy_data_to_blas_tex in rtbvh.cpp
+            #self.uvs_over_time = np.broadcast_to(self.uvs[np.newaxis, ...], (self.timestep_count, self.element_count, self.nodes_per_element, 2))
             # TO DO: Add check for shape of texture array
             self.texture = surface_fill
 
