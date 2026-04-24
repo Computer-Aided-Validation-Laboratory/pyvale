@@ -59,3 +59,7 @@ inline void get_face_uvs(Eigen::Index min_row_idx,
 // Greyscale nearest neighbour sampling
 EiVector3d sample_texture_nearest_neighbour(const Texture& texture,
     const EiArray2d& uvs);
+
+// Greyscale Lanczos 3
+EiVector3d sample_texture_lanczos3(const Texture& texture,
+    const EiArray2d& uvs);

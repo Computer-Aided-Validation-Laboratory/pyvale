@@ -91,6 +91,7 @@ void overwrite_intersection_quad4_tex(HitRecord& intersection_record,
     const EiArray2d uvs = w0 * uv0 + w1 * uv1 + w2 * uv2 + w3 * uv3; // Final (u,v)
     // These uvs can be sent to sample the texture
     intersection_record.face_color = sample_texture_nearest_neighbour(texture, uvs); // this can be just returned to return_ray_color, regardless of the element type down the line
+    //intersection_record.face_color = sample_texture_lanczos3(texture, uvs);
 }
 
 void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
@@ -112,6 +113,7 @@ void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
     //EiArray2d uvs = intersection_record.elem_interp_coords(2) * uv0 + intersection_record.elem_interp_coords(0) * uv1 + intersection_record.elem_interp_coords(1) * uv2;  // Final (u,v)
     // These uvs can be sent to sample the texture
     intersection_record.face_color = sample_texture_nearest_neighbour(texture, uvs); // this can be just returned to return_ray_color, regardless of the element type down the line
+    //intersection_record.face_color = sample_texture_lanczos3(texture, uvs);
 }
 
 
