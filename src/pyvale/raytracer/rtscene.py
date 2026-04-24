@@ -146,7 +146,8 @@ class Scene:
                 
                 # Case 2: Mesh with texture
                 # Uncomment if you use uvs_over_time in rtmesh; otherwise, not necessary as uvs do not change across timeframes.
-                #elif self.surface_types[mesh] == SurfType.TEXTURE:
+                elif self.surface_types[mesh] == SurfType.TEXTURE:
+                    pass
                     #self.uvs[mesh] = np.ascontiguousarray(np.repeat(self.uvs[mesh], repeat_counts, axis=0))
                 # No need to duplicate texture data as we assume it won't change across the frames
                 else: # Surface data not set
@@ -187,7 +188,8 @@ class Scene:
                     if self.surface_types[mesh] == SurfType.FIELD_COLOR:
                         self.face_colors[mesh] = self.face_colors[mesh][:frames_to_render]
                     # Uncomment if you use uvs_over_time in rtmesh; otherwise, not necessary as uvs do not change across timeframes.
-                    #elif self.surface_types[mesh] == SurfType.TEXTURE:
+                    elif self.surface_types[mesh] == SurfType.TEXTURE:
+                        pass
                         #self.uvs[mesh] = self.uvs[mesh][:frames_to_render]
                     else: # Potentially an unnecessary check as meshes without surface type cannot be added to the scene
                         raise ValueError("Surface type not set for mesh " + str(mesh))
