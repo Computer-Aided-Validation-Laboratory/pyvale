@@ -42,7 +42,7 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("px_hori", &util::Config::px_hori)
         .def_readwrite("px_vert", &util::Config::px_vert)
         .def_readwrite("num_def_img", &util::Config::num_def_img)
-        .def_readwrite("rg_seed", &util::Config::rg_seed)
+        .def_readwrite("rg_seeds", &util::Config::rg_seeds)
         .def_readwrite("num_params", &util::Config::num_params)
         .def_readwrite("fft_mad", &util::Config::fft_mad)
         .def_readwrite("fft_mad_scale", &util::Config::fft_mad_scale)

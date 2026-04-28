@@ -51,8 +51,6 @@ void matching(const Image &img_l,
         // assign some consts for readability
         const int px_hori = conf.px_hori;
         const int px_vert = conf.px_vert;
-        int seed_x = conf.rg_seed.first;
-        int seed_y = conf.rg_seed.second;
         const int num_ss = ss_grid.num;
         const int ss_size_x = ss_grid.size_x;
         const int ss_size_y = ss_grid.size_y;
@@ -105,144 +103,153 @@ void matching(const Image &img_l,
             // ---------------------------------------------------------------------------------------------------------------------------
             if (tid == 0) {
 
-                // seed coordinates
-                int grid_x = seed_x / ss_step;
-                int grid_y = seed_y / ss_step;
-                int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
-                // get the centre coordinates for the subset in img k0
-                double cx_img0 = ss_grid.coords[2*idx];
-                double cy_img0 = ss_grid.coords[2*idx+1];
+                // num seeds 
+                int num_seeds = conf.rg_seeds.size() / 2;
 
+                for (int s = 0; s < num_seeds; s++){
 
-                // get the centre coordinates for the subset in img k
-                double cx = cx_img0;
-                double cy = cy_img0;
-                if (img_num_l>0){
-                    // displacements are from k0 to k
-                    cx += results_l.u[idx];
-                    cy += results_l.v[idx];
-                }
+                    int seed_x = conf.rg_seeds[2*s];
+                    int seed_y = conf.rg_seeds[2*s+1];
 
-                // populate the subset for img k using shape function parameters
-                // that map subset in img k0 to k.
-                opt.copy_params_from_neigh(results_l.p, idx);
-                subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
+                    // seed coordinates
+                    int grid_x = seed_x / ss_step;
+                    int grid_y = seed_y / ss_step;
+                    int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
-                // if the first image. Take the optimization parameters from rigid fourier
-                get_initial_guess(opt.p, cx, cy);
-
-                // run optimizer
-                OptResult seed_res = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
-                rg::check_convergence_or_exit(cx_img0, cy_img0, seed_res);
-
-                // add deformation from reference image to new results
-                if (img_num_l > 0){
-                    std::vector<double> pA(conf.num_params);
-                    std::vector<double> pB = seed_res.p;
-                    std::vector<double> pC(conf.num_params);
+                    // get the centre coordinates for the subset in img k0
+                    double cx_img0 = ss_grid.coords[2*idx];
+                    double cy_img0 = ss_grid.coords[2*idx+1];
 
 
-                    // pA: k0 -> k_l
-                    std::copy(results_l.p.begin() + idx*conf.num_params,
-                            results_l.p.begin() + idx*conf.num_params + conf.num_params,
-                            pA.begin());
-
-                    if (conf.shape_func == "RIGID") {
-                        Rigid::compose(pC, pA, pB);
-                        Rigid::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
-                    }
-                    else if (conf.shape_func == "AFFINE"){
-                        Affine::compose(pC, pA, pB);
-                        Affine::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
-                    }
-                    else if (conf.shape_func == "QUAD") {
-                        Quad::compose(pC, pA, pB);
-                        Quad::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
-                    }
-                    seed_res.p = pC;
-                }
-
-                // append the results for the current subset to result vectors
-                results_r.append(seed_res, idx);
-
-                // mark subset as computed
-                computed_mask[idx].store(1);
-
-                // loop over the neighbours for the initial seed point
-                for (size_t n = 0; n < ss_grid.neigh[idx].size(); n++) {
-
-                    // subset index of neighbour to the current point
-                    int nidx = ss_grid.neigh[idx][n];
-
-                    double cx_img0 = ss_grid.coords[nidx*2];
-                    double cy_img0 = ss_grid.coords[nidx*2+1];
-
-
+                    // get the centre coordinates for the subset in img k
                     double cx = cx_img0;
                     double cy = cy_img0;
                     if (img_num_l>0){
-                        cx += results_l.u[nidx];
-                        cy += results_l.v[nidx];
+                        // displacements are from k0 to k
+                        cx += results_l.u[idx];
+                        cy += results_l.v[idx];
                     }
 
-                    // fill the reference subset using the updated cx,cy and
-                    // the shape function parameters for the correlation of
-                    // the reference image
-                    opt.copy_params_from_neigh(results_l.p, nidx);
+                    // populate the subset for img k using shape function parameters
+                    // that map subset in img k0 to k.
+                    opt.copy_params_from_neigh(results_l.p, idx);
                     subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
 
-                    // perform optimization for seed point neighbours
-                    opt.copy_params_from_neigh(results_r.p, idx);
+                    // if the first image. Take the optimization parameters from rigid fourier
+                    get_initial_guess(opt.p, cx, cy);
 
-                    OptResult nres = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
-                    rg::check_convergence_or_exit(cx_img0, cy_img0, nres);
+                    // run optimizer
+                    OptResult seed_res = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
+                    rg::check_convergence_or_exit(cx_img0, cy_img0, seed_res);
 
                     // add deformation from reference image to new results
                     if (img_num_l > 0){
                         std::vector<double> pA(conf.num_params);
-                        std::vector<double> pB = nres.p;
+                        std::vector<double> pB = seed_res.p;
                         std::vector<double> pC(conf.num_params);
 
 
                         // pA: k0 -> k_l
-                        std::copy(results_l.p.begin() + nidx*conf.num_params,
-                                results_l.p.begin() + nidx*conf.num_params + conf.num_params,
+                        std::copy(results_l.p.begin() + idx*conf.num_params,
+                                results_l.p.begin() + idx*conf.num_params + conf.num_params,
                                 pA.begin());
 
                         if (conf.shape_func == "RIGID") {
                             Rigid::compose(pC, pA, pB);
-                            Rigid::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                            Rigid::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
                         }
                         else if (conf.shape_func == "AFFINE"){
                             Affine::compose(pC, pA, pB);
-                            Affine::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                            Affine::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
                         }
                         else if (conf.shape_func == "QUAD") {
                             Quad::compose(pC, pA, pB);
-                            Quad::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                            Quad::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
                         }
-                        nres.p = pC;
+                        seed_res.p = pC;
                     }
 
-
                     // append the results for the current subset to result vectors
-                    results_r.append(nres, nidx);
+                    results_r.append(seed_res, idx);
 
-                    // update mask
-                    computed_mask[nidx].store(1);
+                    // mark subset as computed
+                    computed_mask[idx].store(1);
 
-                    // add this point to queue
-                    queue.push(tid, {rg::Point(nidx,nres.cost)});
+                    // loop over the neighbours for the initial seed point
+                    for (size_t n = 0; n < ss_grid.neigh[idx].size(); n++) {
 
-                    // update progress bar
-                    if (g_debug_level>0){
-                        int progress = current_progress.fetch_add(1);
-                        if (omp_get_thread_num()==0) pbar.update(progress+1);
+                        // subset index of neighbour to the current point
+                        int nidx = ss_grid.neigh[idx][n];
+
+                        double cx_img0 = ss_grid.coords[nidx*2];
+                        double cy_img0 = ss_grid.coords[nidx*2+1];
+
+
+                        double cx = cx_img0;
+                        double cy = cy_img0;
+                        if (img_num_l>0){
+                            cx += results_l.u[nidx];
+                            cy += results_l.v[nidx];
+                        }
+
+                        // fill the reference subset using the updated cx,cy and
+                        // the shape function parameters for the correlation of
+                        // the reference image
+                        opt.copy_params_from_neigh(results_l.p, nidx);
+                        subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
+
+                        // perform optimization for seed point neighbours
+                        opt.copy_params_from_neigh(results_r.p, idx);
+
+                        OptResult nres = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
+                        rg::check_convergence_or_exit(cx_img0, cy_img0, nres);
+
+                        // add deformation from reference image to new results
+                        if (img_num_l > 0){
+                            std::vector<double> pA(conf.num_params);
+                            std::vector<double> pB = nres.p;
+                            std::vector<double> pC(conf.num_params);
+
+
+                            // pA: k0 -> k_l
+                            std::copy(results_l.p.begin() + nidx*conf.num_params,
+                                    results_l.p.begin() + nidx*conf.num_params + conf.num_params,
+                                    pA.begin());
+
+                            if (conf.shape_func == "RIGID") {
+                                Rigid::compose(pC, pA, pB);
+                                Rigid::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                            }
+                            else if (conf.shape_func == "AFFINE"){
+                                Affine::compose(pC, pA, pB);
+                                Affine::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                            }
+                            else if (conf.shape_func == "QUAD") {
+                                Quad::compose(pC, pA, pB);
+                                Quad::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                            }
+                            nres.p = pC;
+                        }
+
+
+                        // append the results for the current subset to result vectors
+                        results_r.append(nres, nidx);
+
+                        // update mask
+                        computed_mask[nidx].store(1);
+
+                        // add this point to queue
+                        queue.push(tid, {rg::Point(nidx,nres.cost)});
+
+                        // update progress bar
+                        if (g_debug_level>0){
+                            int progress = current_progress.fetch_add(1);
+                            if (omp_get_thread_num()==0) pbar.update(progress+1);
+                        }
                     }
                 }
             }
-
 
             // ---------------------------------------------------------------------------------------------------------------------------
             // PROCESS ALL OTHER SUBSETS

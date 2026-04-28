@@ -15,6 +15,7 @@
 #include <omp.h>
 #include <csignal>
 #include <optional>
+#include <chrono>
 
 // common_cpp headers
 #include "../../common_cpp/defines.hpp"
@@ -121,8 +122,6 @@ void multiwindow_reliability_guided(const Image &img_ref,
         // assign some consts for readability
         const int px_hori = conf.px_hori;
         const int px_vert = conf.px_vert;
-        const int seed_x = conf.rg_seed.first;
-        const int seed_y = conf.rg_seed.second;
 
         // subset information
         const subset::Grid &ss_grid = multiwindow.back().layout;
@@ -159,10 +158,7 @@ void multiwindow_reliability_guided(const Image &img_ref,
         ProgressBar pbar(bar_title, num_ss);
         std::atomic<int> current_progress(0);
 
-        // quick check for the initial seed point
-        if (!rg::is_valid_point(seed_x, seed_y, ss_grid)) {
-            return;
-        }
+        const auto t0 = std::chrono::steady_clock::now();
 
         // Initialize binary mask for computed points (initialized to 0)
         std::vector<std::atomic<int>> computed_mask(ss_grid.mask.size());
@@ -195,70 +191,79 @@ void multiwindow_reliability_guided(const Image &img_ref,
             // ---------------------------------------------------------------------------------------------------------------------------
             if (tid == 0) {
 
-                // seed coordinates
-                int grid_x = seed_x / ss_step;
-                int grid_y = seed_y / ss_step;
-                int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
+                // num seeds
+                int num_seeds = conf.rg_seeds.size() / 2;
 
-                double cx = ss_grid.coords[2*idx];
-                double cy = ss_grid.coords[2*idx+1];
 
-                // if the first image. Take the optimization parameters from rigid fourier
-                opt.copy_params_from_fft(idx, multiwindow.back().u, multiwindow.back().v);
+                for (int s = 0; s < num_seeds; s++){
 
-                // Extract reference subset and solve for starting seed point
-                subset::fill_from_img(ss_ref, seed_x, seed_y, px_hori, px_vert, img_ref);
+                    int seed_x = conf.rg_seeds[2*s];
+                    int seed_y = conf.rg_seeds[2*s+1];
 
-                OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
+                    // seed coordinates
+                    int grid_x = seed_x / ss_step;
+                    int grid_y = seed_y / ss_step;
+                    int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
-                rg::check_convergence_or_exit(seed_x, seed_y, seed_res);
+                    double cx = ss_grid.coords[2*idx];
+                    double cy = ss_grid.coords[2*idx+1];
 
-                // append the results for the current subset to result vectors
-                results_def.append(seed_res, idx);
+                    // if the first image. Take the optimization parameters from rigid fourier
+                    opt.copy_params_from_fft(idx, multiwindow.back().u, multiwindow.back().v);
 
-                computed_mask[idx].store(1);
+                    // Extract reference subset and solve for starting seed point
+                    subset::fill_from_img(ss_ref, seed_x, seed_y, px_hori, px_vert, img_ref);
 
-                // loop over the neighbours for the initial seed point
-                for (size_t n = 0; n < ss_grid.neigh[idx].size(); n++) {
+                    OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                    if (stop_request) continue;
-
-                    // subset index of neighbour to the current point
-                    int nidx = ss_grid.neigh[idx][n];
-
-                    const double cx_img0 = ss_grid.coords[nidx*2];
-                    const double cy_img0 = ss_grid.coords[nidx*2+1];
-
-                    const int corner_x = int(cx - ss_size_x/2);
-                    const int corner_y = int(cy - ss_size_y/2);
-
-                    subset::fill_from_img(ss_ref, corner_x, corner_y, px_hori, px_vert, img_ref);
-
-                    // get parameter values from fft output or from previous image
-                    opt.copy_params_from_fft(nidx, multiwindow.back().u, multiwindow.back().v);
-
-                    // perform optimization for seed point neighbours
-                    OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
-
-                    rg::check_convergence_or_exit(cx, cy, nres, true);
+                    rg::check_convergence_or_exit(seed_x, seed_y, seed_res);
 
                     // append the results for the current subset to result vectors
-                    results_def.append(nres, nidx);
+                    results_def.append(seed_res, idx);
 
-                    // update mask
-                    computed_mask[nidx].store(1);
+                    computed_mask[idx].store(1);
 
-                    // Add points to queue
-                    queue.push(0, {rg::Point(nidx,nres.cost)});
+                    // loop over the neighbours for the initial seed point
+                    for (size_t n = 0; n < ss_grid.neigh[idx].size(); n++) {
 
-                    // update progress bar
-                    if (g_debug_level>0){
-                        int progress = current_progress.fetch_add(1);
-                        if (omp_get_thread_num()==0) pbar.update(progress);
+                        if (stop_request) continue;
+
+                        // subset index of neighbour to the current point
+                        int nidx = ss_grid.neigh[idx][n];
+
+                        const double cx_img0 = ss_grid.coords[nidx*2];
+                        const double cy_img0 = ss_grid.coords[nidx*2+1];
+
+                        const int corner_x = int(cx - ss_size_x/2);
+                        const int corner_y = int(cy - ss_size_y/2);
+
+                        subset::fill_from_img(ss_ref, corner_x, corner_y, px_hori, px_vert, img_ref);
+
+                        // get parameter values from fft output or from previous image
+                        opt.copy_params_from_fft(nidx, multiwindow.back().u, multiwindow.back().v);
+
+                        // perform optimization for seed point neighbours
+                        OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
+
+                        rg::check_convergence_or_exit(cx, cy, nres, true);
+
+                        // append the results for the current subset to result vectors
+                        results_def.append(nres, nidx);
+
+                        // update mask
+                        computed_mask[nidx].store(1);
+
+                        // Add points to queue
+                        queue.push(0, {rg::Point(nidx,nres.cost)});
+
+                        // update progress bar
+                        if (g_debug_level>0){
+                            int progress = current_progress.fetch_add(1);
+                            if (omp_get_thread_num()==0) pbar.update(progress);
+                        }
                     }
                 }
             }
-
 
             // ---------------------------------------------------------------------------------------------------------------------------
             // PROCESS ALL OTHER SUBSETS
@@ -353,8 +358,6 @@ void multiwindow_reliability_guided(const Image &img_ref,
         // assign some consts for readability
         const int px_hori = conf.px_hori;
         const int px_vert = conf.px_vert;
-        int seed_x = conf.rg_seed.first;
-        int seed_y = conf.rg_seed.second;
         const int num_ss = ss_grid.num;
         const int ss_size_x = ss_grid.size_x;
         const int ss_size_y = ss_grid.size_y;
@@ -407,103 +410,112 @@ void multiwindow_reliability_guided(const Image &img_ref,
             // ---------------------------------------------------------------------------------------------------------------------------
             if (tid == 0) {
 
-                // seed coordinates
-                int grid_x = seed_x / ss_step;
-                int grid_y = seed_y / ss_step;
-                int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
+
+                // num seeds
+                int num_seeds = conf.rg_seeds.size() / 2;
+
+                for (int s = 0; s < num_seeds; s++){
+
+                    int seed_x = conf.rg_seeds[2*s];
+                    int seed_y = conf.rg_seeds[2*s+1];
+
+                    // seed coordinates
+                    int grid_x = seed_x / ss_step;
+                    int grid_y = seed_y / ss_step;
+                    int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
 
 
-                // get the centre coordinates for the subset in img k0
-                double cx_img0 = ss_grid.coords[2*idx];
-                double cy_img0 = ss_grid.coords[2*idx+1];
+                    // get the centre coordinates for the subset in img k0
+                    double cx_img0 = ss_grid.coords[2*idx];
+                    double cy_img0 = ss_grid.coords[2*idx+1];
 
 
-                // get the centre coordinates for the subset in img k
-                double cx = cx_img0;
-                double cy = cy_img0;
-                if (img_num_ref>0){
-                    // displacements are from k0 to k
-                    cx += results_ref.u[idx];
-                    cy += results_ref.v[idx];
-                }
-
-                // fill the reference subset
-                subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-
-                // if the first image. Take the optimization parameters from rigid fourier
-                get_initial_guess(opt.p, cx, cy);
-
-                // run optimizer
-                OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
-                rg::check_convergence_or_exit(cx_img0, cy_img0, seed_res);
-
-                // add deformation from reference image to new results
-                if (img_num_ref > 0){
-                    seed_res.u += results_ref.u[idx];
-                    seed_res.v += results_ref.v[idx];
-                }
-
-                // append the results for the current subset to result vectors
-                results_def.append(seed_res, idx);
-
-                // mark subset as computed
-                computed_mask[idx].store(1);
-
-                // loop over the neighbours for the initial seed point
-                for (size_t n = 0; n < ss_grid.neigh[idx].size(); n++) {
-
-                    if (stop_request) continue;
-
-                    // subset index of neighbour to the current point
-                    int nidx = ss_grid.neigh[idx][n];
-
-                    double cx_img0 = ss_grid.coords[nidx*2];
-                    double cy_img0 = ss_grid.coords[nidx*2+1];
-
-
+                    // get the centre coordinates for the subset in img k
                     double cx = cx_img0;
                     double cy = cy_img0;
                     if (img_num_ref>0){
-                        cx += results_ref.u[nidx];
-                        cy += results_ref.v[nidx];
+                        // displacements are from k0 to k
+                        cx += results_ref.u[idx];
+                        cy += results_ref.v[idx];
                     }
 
                     // fill the reference subset
                     subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
+                    // if the first image. Take the optimization parameters from rigid fourier
+                    get_initial_guess(opt.p, cx, cy);
 
-                    // perform optimization for seed point neighbours
-                    opt.copy_params_from_neigh(results_def.p, idx);
-
-                    OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
-
-                    rg::check_convergence_or_exit(cx_img0, cy_img0, nres, true);
+                    // run optimizer
+                    OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
+                    rg::check_convergence_or_exit(cx_img0, cy_img0, seed_res);
 
                     // add deformation from reference image to new results
                     if (img_num_ref > 0){
-                        nres.u += results_ref.u[nidx];
-                        nres.v += results_ref.v[nidx];
+                        seed_res.u += results_ref.u[idx];
+                        seed_res.v += results_ref.v[idx];
                     }
 
-
                     // append the results for the current subset to result vectors
-                    results_def.append(nres, nidx);
+                    results_def.append(seed_res, idx);
 
-                    // update mask
-                    computed_mask[nidx].store(1);
+                    // mark subset as computed
+                    computed_mask[idx].store(1);
 
-                    // add this point to queue
-                    queue.push(tid, {rg::Point(nidx,nres.cost)});
+                    // loop over the neighbours for the initial seed point
+                    for (size_t n = 0; n < ss_grid.neigh[idx].size(); n++) {
 
-                    // update progress bar
-                    if (g_debug_level>0){
-                        int progress = current_progress.fetch_add(1);
-                        if (omp_get_thread_num()==0) pbar.update(progress+1);
+                        if (stop_request) continue;
+
+                        // subset index of neighbour to the current point
+                        int nidx = ss_grid.neigh[idx][n];
+
+                        double cx_img0 = ss_grid.coords[nidx*2];
+                        double cy_img0 = ss_grid.coords[nidx*2+1];
+
+
+                        double cx = cx_img0;
+                        double cy = cy_img0;
+                        if (img_num_ref>0){
+                            cx += results_ref.u[nidx];
+                            cy += results_ref.v[nidx];
+                        }
+
+                        // fill the reference subset
+                        subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
+
+
+                        // perform optimization for seed point neighbours
+                        opt.copy_params_from_neigh(results_def.p, idx);
+
+                        OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
+
+                        rg::check_convergence_or_exit(cx_img0, cy_img0, nres, true);
+
+                        // add deformation from reference image to new results
+                        if (img_num_ref > 0){
+                            nres.u += results_ref.u[nidx];
+                            nres.v += results_ref.v[nidx];
+                        }
+
+
+                        // append the results for the current subset to result vectors
+                        results_def.append(nres, nidx);
+
+                        // update mask
+                        computed_mask[nidx].store(1);
+
+                        // add this point to queue
+                        queue.push(tid, {rg::Point(nidx,nres.cost)});
+
+                        // update progress bar
+                        if (g_debug_level>0){
+                            int progress = current_progress.fetch_add(1);
+                            if (omp_get_thread_num()==0) pbar.update(progress+1);
+                        }
                     }
                 }
             }
-
 
             // ---------------------------------------------------------------------------------------------------------------------------
             // PROCESS ALL OTHER SUBSETS

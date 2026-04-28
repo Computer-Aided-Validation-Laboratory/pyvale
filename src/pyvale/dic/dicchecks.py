@@ -198,7 +198,12 @@ def check_subsets(subset_size: int, subset_step: int) -> None:
 
 
 
-def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_mask: np.ndarray, method: str, px_hori: int, px_vert: int, subset_size: int, subset_step: int) -> list[int]:
+def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_mask: np.ndarray, 
+                             method: str, 
+                             px_hori: int, 
+                             px_vert: int, 
+                             subset_size: int, 
+                             subset_step: int) -> list[int]:
     """
     Validate and update the region-growing seed location to align with image bounds and subset spacing.
 
@@ -238,52 +243,61 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
     if "RG" not in method:
         return [0,0]
 
-    if (len(seed) != 2):
-        raise ValueError(f"Reliability Guided seed does not have two elements: " \
+    # check that seed list is a multiple of 2
+    if (len(seed) % 2 != 0):
+        raise ValueError(f"Reliability Guided seed does not have an even number of  elements: " \
                          f"seed={seed}. Seed " \
-                         f" must be a list of two integers: seed=[x, y]")
+                         f" must be a list of two integers: seed=[x0, y0, x1, y1, ...]")
 
     if not isinstance(seed, (list, np.ndarray)) or not all(isinstance(coord, (int, np.int32)) for coord in seed):
         raise ValueError("Reliability Guided seed must be a list of two integers: seed=[x, y]")
 
-    x, y = seed
 
-    if x < 0 or x >= px_hori or y < 0 or y >= px_vert:
-        raise ValueError(f"Seed ({x}, {y}) goes outside the image bounds: ({px_hori}, {px_vert})")
+    updated_seeds = []
 
-    corner_x = x - subset_size//2
-    corner_y = y - subset_size//2
+    for idx in range(0,len(seed)//2):
 
-    def round_to_step(value: int, step: int) -> int:
-        return round(value / step) * step
+        x = seed[2*idx]
+        y = seed[2*idx+1]
+        if x < 0 or x >= px_hori or y < 0 or y >= px_vert:
+            raise ValueError(f"Seed {idx} ({x}, {y}) goes outside the image bounds: ({px_hori}, {px_vert})")
 
-    # snap to grid
-    new_x = round_to_step(corner_x, subset_step)
-    new_y = round_to_step(corner_y, subset_step)
+        corner_x = x - subset_size//2
+        corner_y = y - subset_size//2
 
-    # check if all pixel values within the seed location are within the ROI
-    # seed coordinates are the central pixel to the subset
-    max_x = new_x + subset_size//2+1
-    max_y = new_y + subset_size//2+1
+        def round_to_step(value: int, step: int) -> int:
+            return round(value / step) * step
+
+        # snap to grid
+        new_x = round_to_step(corner_x, subset_step)
+        new_y = round_to_step(corner_y, subset_step)
+
+        # check if all pixel values within the seed location are within the ROI
+        # seed coordinates are the central pixel to the subset
+        max_x = new_x + subset_size//2+1
+        max_y = new_y + subset_size//2+1
 
 
-    # check whether all values in the roi_mask are 0
-    all_zeros = not np.any(roi_mask)
-    if (all_zeros):
-        raise ValueError("All values in the ROI mask are 0. Please check the "
-                         "ROI mask and try again.")
+        # check whether all values in the roi_mask are 0
+        all_zeros = not np.any(roi_mask)
+        if (all_zeros):
+            raise ValueError("All values in the ROI mask are 0. Please check the "
+                            "ROI mask and try again.")
 
-    # Check if all pixel values in the ROI are valid
-    for i in range(new_x, max_x):
-        for j in range(new_y, max_y):
+        # Check if all pixel values in the ROI are valid
+        for i in range(new_x, max_x):
+            for j in range(new_y, max_y):
 
-            if i < 0 or i >= px_hori or j < 0 or j >= px_vert:
-                raise ValueError(f"Seed ({x}, {y}) goes outside the image bounds at pixel ({i}, {j})")
+                if i < 0 or i >= px_hori or j < 0 or j >= px_vert:
+                    raise ValueError(f"Seed {idx} ({x}, {y}) goes outside the image bounds at pixel ({i}, {j})")
 
-            if not roi_mask[j, i]:
-                raise ValueError(f"Seed ({x}, {y}) goes outside the ROI at pixel ({i}, {j})")
+                if not roi_mask[j, i]:
+                    raise ValueError(f"Seed {idx} ({x}, {y}) goes outside the ROI at pixel ({i}, {j})")
 
-    return [new_x, new_y]
+        updated_seeds.append(new_x)
+        updated_seeds.append(new_y)
+
+    return updated_seeds
 
 
 # def save_np_as_tiff(img_array: np.ndarray, output_path: str) -> None:

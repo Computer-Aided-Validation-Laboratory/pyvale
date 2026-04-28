@@ -41,7 +41,7 @@ namespace util {
         double threshold;
         double bf_threshold;
         int max_disp;
-        std::pair<int, int> rg_seed;
+        std::vector<int> rg_seeds;
         std::string corr_crit;
         std::string shape_func;
         std::string interp_routine;

@@ -61,7 +61,9 @@ def calculate_2d(reference: np.ndarray | str | Path,
     roi_mask : np.ndarray
         A binary mask indicating the Region of Interest (ROI) for analysis (same size as image).
     seed : list[int], list[np.int32] or np.ndarray
-        Coordinates `[x, y]` of the seed point for Reliability-Guided (RG) scanning, default is empty.
+        Coordinates `[x, y]` of the seed point for Reliability-Guided (RG) scanning. It's possible
+        to provide mutiple seed points using `[x0, y0, x1, y1,...]` format. If the method is not 
+        RG, this will be ignored.
     subset_size : int, optional
         Size of the square subset window in pixels (default: 21).
     subset_step : int, optional
@@ -151,9 +153,12 @@ def calculate_2d(reference: np.ndarray | str | Path,
     dicchecks.check_thresholds(threshold, bf_threshold, precision)
     common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks.check_subsets(subset_size, subset_step)
-    updated_seed = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, w, h, subset_size, subset_step)
+    updated_seeds = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, w, h, subset_size, subset_step)
     num_params = dicchecks.check_shape_function(shape_function)
 
+
+    print(updated_seeds)
+    print(basenames)
 
     # Assign values to config struct for c++ land
     config = diccpp.Config()
@@ -172,7 +177,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.px_vert = h
     config.num_def_img = len(basenames)-1 # subtract ref image
     config.num_params = num_params
-    config.rg_seed = updated_seed
+    config.rg_seeds = updated_seeds
     config.basenames = basenames
     config.fullpaths = fullpaths
     config.fft_mad = fft_mad
