@@ -43,7 +43,8 @@ void render_scene(const int image_height,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_face_colors,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_uvs,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_textures,
-    const std::vector<int>& scene_surface_types);
+    const std::vector<int>& scene_surface_types,
+    const int texture_sampler);
 
     /*
     // Version used if all meshes in the scene have solid colour surface

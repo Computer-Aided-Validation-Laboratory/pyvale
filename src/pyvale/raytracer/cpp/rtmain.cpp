@@ -28,6 +28,7 @@
 // raytracer header files
 #include "rteigentypes.h"
 #include "rtrender.h"
+#include "rtcolorsampling.h"
 
 namespace nb = nanobind;
 
@@ -43,7 +44,8 @@ void render_scene(const int image_height,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_face_colors,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_uvs,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_textures,
-    const std::vector<int>& scene_surface_types) {
+    const std::vector<int>& scene_surface_types,
+    const int texture_sampler) {
 
 
     //CALLGRIND_START_INSTRUMENTATION;
@@ -52,7 +54,8 @@ void render_scene(const int image_height,
     std::filesystem::path output_filepath;
     std::string filename; // Output image file
     
-
+    // Set the texture sampling algorithm based on the passed value
+    texsampler::set(TextureSampler(texture_sampler));
     
     for (int timestep = 0; timestep < timestep_count; ++timestep){
         //TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, timestep, timestep_count); // target stack-based DoD implementation

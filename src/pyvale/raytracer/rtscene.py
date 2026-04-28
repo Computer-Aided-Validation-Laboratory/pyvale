@@ -5,7 +5,7 @@
 # ================================================================================
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, IntEnum
 import numpy as np
 from pyvale.raytracer.rtmesh import RTMesh, ElementNodeCount, SurfType
 from pyvale.raytracer.rtcamera import Camera
@@ -15,6 +15,18 @@ from pyvale.raytracer.rtcamera import Camera
 class RenderType(Enum):
     STATIC = 0
     DYNAMIC = 1
+
+# Enum to specify the type of texture sampler type.
+# Must match the enum in rtcolorsampling.h on the C++ side
+class TextureSampler(IntEnum):
+    NEAREST_NEIGHBOUR = 0
+    LANCZOS_2 = 1
+    LANCZOS_3 = 2
+    CATMULL_ROM = 3
+    MITCHELL_NETRAVALI = 4
+    BSPLINE = 5
+    QUINTIC_SPLINE = 6
+
 
 # ================================================================================
 # SCENE

@@ -5,7 +5,7 @@
 # ================================================================================
 
 from pathlib import Path
-from pyvale.raytracer.rtscene import Scene, RenderType, find_max_displacements
+from pyvale.raytracer.rtscene import Scene, RenderType, TextureSampler, find_max_displacements
 from pyvale.raytracer.rtmesh import SurfType, ElementNodeCount, RTMesh
 
 from pyvale.raytracer.rtmaincpp import cpp_render_scene # Import C++ backend
@@ -51,13 +51,11 @@ def render_scene(image_height: int,
                  scene: Scene,
                  antialiasing_samples: int,
                  out_directory_path: Path,
-                 render_type = RenderType.DYNAMIC,
-                 frames_to_render: int = None):
+                 render_type: RenderType = RenderType.DYNAMIC,
+                 frames_to_render: int = None,
+                 texture_sampler: TextureSampler | None = None):
     """
     Performs checks and dispatches the scene to the C++ rendering backend.
-
-    frames_to_render - For dynamic renders, this is the number of frames to render.  For static renders,
-    this is the 
 
     Parameters:
     -----------
@@ -76,6 +74,8 @@ def render_scene(image_height: int,
     frames_to_render: int
         Dynamic renders: The number of frames to render. Defaults to the maximum timesteps there is available data for; if some meshes lack data for all timeframes, it is pre-filled with last known values.
         Static renders: The number of the single frame to render; defaults to the first one otherwise. Nb4 this could maybe be a tuple to specify the range instead?
+    texture_sampler: TextureSampler | None
+        The algorithm used to sample the textures onto the mesh surfaces. Defaults to None and gets set to nearest neighbour.
 
     Raises:
     -------
@@ -110,6 +110,14 @@ def render_scene(image_height: int,
     if render_type == RenderType.DYNAMIC:
         scene._fill_empty_timesteps() # VERY important to avoid segfaults if there is missing timestep data for some meshes in the scene
 
+    # If texture sampling method is not selected, set to nearest neighbour by default (both to be able to render and because C++ expects an int, so we want to pass a number even for solid surfaces)
+    if texture_sampler is None:
+        texture_sampler = TextureSampler.NEAREST_NEIGHBOUR
+        print(type(texture_sampler))
+        # Display information about setting the algorithm type if there are textured meshes in the scene 
+        if SurfType.TEXTURE in scene.surface_types:
+            print("Texture sampler not selected. Using nearest neighbour.")
+        
     # Select appropriate rendering function based on these booleans to minimize branching in backend rendered if possible
     # Not sure if we will need to implement this yet - BVH builder is still fast with conditional checks (and we run it once per frame), and branching based on element/surface type was moved out of the hot loops
     #if uniform_surfaces and uniform_elements:
@@ -128,4 +136,4 @@ def render_scene(image_height: int,
     # For now use the general function with branching in it
     #cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.coords_expanded, scene.face_colors, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing)
 
-    cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing, scene.coords_expanded, scene.face_colors, scene.uvs, scene.textures, scene.surface_types)
+    cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing, scene.coords_expanded, scene.face_colors, scene.uvs, scene.textures, scene.surface_types, texture_sampler)

@@ -26,7 +26,6 @@ inline EiVector3d get_face_color(Eigen::Index min_row_idx,
     return face_color_vec;
 }
 
-
 // Getter for (u,v) coordinates for the intersected surface element to interpolate texture
 inline void get_face_uvs(Eigen::Index min_row_idx,
     const std::vector<double>& face_uvs,
@@ -56,10 +55,49 @@ inline void get_face_uvs(Eigen::Index min_row_idx,
     //std::cerr << std::endl;
 }
 
-// Greyscale nearest neighbour sampling
-EiVector3d sample_texture_nearest_neighbour(const Texture& texture,
-    const EiArray2d& uvs);
+// Scoped enum, so will not implicitly convert to int
+// Ensure that these match the enum in Python. Integers used to avoid using strings in C-interface
+enum class TextureSampler{
+    NEAREST_NEIGHBOUR = 0,
+    LANCZOS_2 = 1,
+    LANCZOS_3 = 2,
+    CATMULL_ROM = 3,
+    MITCHELL_NETRAVALI = 4,
+    BSPLINE = 5,
+    QUINTIC_SPLINE = 6
+};
 
-// Greyscale Lanczos 3
-EiVector3d sample_texture_lanczos3(const Texture& texture,
-    const EiArray2d& uvs);
+namespace texsampler{
+
+    // Pointer to the selected function
+    extern EiVector3d (*sample_texture)(const Texture& texture, const EiArray2d& uvs);
+    extern int lower_boundary, upper_boundary; // Boundaries for loops going over texel neighbourhoods
+
+    // Sampler function declarations
+    // Greyscale nearest neighbour sampling
+    EiVector3d sample_texture_nearest_neighbour(const Texture& texture,
+        const EiArray2d& uvs);
+
+    // Greyscale Lanczos 3
+    EiVector3d sample_texture_lanczos3(const Texture& texture,
+        const EiArray2d& uvs);
+
+    EiVector3d sample_texture_CatmullRom(const Texture& texture,
+        const EiArray2d& uvs);
+
+    EiVector3d sample_texture_MitchellNetravali(const Texture& texture,
+        const EiArray2d& uvs);
+
+    EiVector3d sample_texture_Bspline(const Texture& texture,
+        const EiArray2d& uvs);
+
+    EiVector3d sample_texture_quin_spline(const Texture& texture,
+        const EiArray2d& uvs);
+
+
+    // Setter for the current function
+    void set(TextureSampler sampler_type);
+}
+
+
+
