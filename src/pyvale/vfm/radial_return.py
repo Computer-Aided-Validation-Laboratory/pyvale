@@ -5,7 +5,7 @@ import numpy.typing as npt
 
 from pyvale.vfm.hardening import hardening
 from pyvale.vfm.mechanical_properties import (
-    EParameterLabel,
+    EParameterName,
     MechanicalProperties,
 )
 
@@ -132,10 +132,10 @@ def radial_return(
     parameters = mechanical_properties.parameters
     # Elastic modulus and poissons ratio are always required to compute trial elastic stress
     elastic_modulus = (
-        parameters[EParameterLabel.ElasticModulus].to_map(size_x, size_y)
+        parameters[EParameterName.ElasticModulus].to_map(size_x, size_y)
     )
     poissons_ratio = (
-        parameters[EParameterLabel.PoissonsRatio].to_map(size_x, size_y)
+        parameters[EParameterName.PoissonsRatio].to_map(size_x, size_y)
     )
 
 
