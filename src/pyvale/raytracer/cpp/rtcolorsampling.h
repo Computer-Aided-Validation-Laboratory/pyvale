@@ -71,33 +71,74 @@ namespace texsampler{
 
     // Pointer to the selected function
     extern EiVector3d (*sample_texture)(const Texture& texture, const EiArray2d& uvs);
-    extern int lower_boundary, upper_boundary; // Boundaries for loops going over texel neighbourhoods
-
+    
     // Sampler function declarations
+
     // Greyscale nearest neighbour sampling
-    EiVector3d sample_texture_nearest_neighbour(const Texture& texture,
+    EiVector3d sample_greyscale_nearest_neighbour(const Texture& texture,
         const EiArray2d& uvs);
 
-    // Greyscale Lanczos 3
-    EiVector3d sample_texture_lanczos3(const Texture& texture,
-        const EiArray2d& uvs);
+    // Kernels (coefficient calculators) for the cubic filters used in the template below to avoid repeating code unnecessarily while avoiding runtime overhead
 
-    EiVector3d sample_texture_CatmullRom(const Texture& texture,
-        const EiArray2d& uvs);
+    inline double kernel_lanczos2(const double x);
+    inline double kernel_lanczos3(const double x);
+    inline double kernel_catmull_rom(const double x);
+    inline double kernel_mitchell_netravali(const double x);
+    inline double kernel_bspline(const double x);
+    inline double kernel_quintic_spline(const double x);
+    
+    // Template parameters are the kernel functions above and loop_start and loop_end for different neighbourhood sizes, so we can cover quintic spline in the same template
+    template <double (*kernel_function)(double), int loop_start, int loop_end>
+    EiVector3d sample_greyscale(const Texture& texture, const EiArray2d& uvs) {
+        // Retrieve values
+        int height = texture.height;
+        int width = texture.width;
+        double u = uvs(0);
+        double v = uvs(1);
 
-    EiVector3d sample_texture_MitchellNetravali(const Texture& texture,
-        const EiArray2d& uvs);
+        // Texture grid coordinates based on (u,v) of where in the texture the ray hit
+        double texel_x = u * width - 0.5;
+        double texel_y = v * height - 0.5; 
 
-    EiVector3d sample_texture_Bspline(const Texture& texture,
-        const EiArray2d& uvs);
+        // Indices of the texel whose center is the closest to the texture hit point. Lanczos window is centered around those
+        int center_x = static_cast<int>(std::round(texel_x));
+        int center_y = static_cast<int>(std::round(texel_y));
 
-    EiVector3d sample_texture_quin_spline(const Texture& texture,
-        const EiArray2d& uvs);
+        double color = 0.0; // Single value that will have to be stashed into EiVector3d at the end
+        double total_weight = 0.0; // Sum of weights over all neighbours used for normalisation
 
+        // Pre-declare outside of the loop to avoid re-creating them multiple times
+        int sample_x, sample_y;
+        double sample_weight, distance_x, distance_y;
+        
+        for (int offset_y = loop_start; offset_y <= loop_end; ++offset_y) {
+            for (int offset_x = loop_start; offset_x <= loop_end; ++offset_x) {
+                // Texel indices of the currently processed neighbour texel (found via center_texel + offset)
+                sample_x = std::clamp(center_x + offset_x, 0, width  - 1); // Clamp for texture access
+                sample_y = std::clamp(center_y + offset_y, 0, height - 1);
+                
+                // Find the x- and y- distances to the neighbour texel (unclamped for the mathematical stencil points)
+                distance_x = texel_x - static_cast<double>(center_x + offset_x); 
+                distance_y = texel_y - static_cast<double>(center_y + offset_y);
+
+                // Find the weight contributed by this neighbour texel to the final interpolated result
+                sample_weight = kernel_function(distance_x) * kernel_function(distance_y);
+
+                // Colour is a weighted colour sum
+                // texel_value = texture.data[sample_y * width + sample_x]
+                color += sample_weight * texture.data[sample_y * width + sample_x];
+                total_weight += sample_weight;
+
+            }
+        }
+        // Normalise (or set to 0 if very small) - important near edges
+        const double color_normalised = (std::abs(total_weight) > 1e-12) ? (color / total_weight) : 0.0;
+        EiVector3d output;
+        output << color_normalised, color_normalised, color_normalised;
+
+        return output;
+    }
 
     // Setter for the current function
     void set(TextureSampler sampler_type);
 }
-
-
-
