@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.mechanical_properties import ParameterName
+from pyvale.vfm.mechanical_properties import EParameterName
 
 if TYPE_CHECKING:
     from pyvale.vfm.project_definition import ParameterDefinition, ParameterisationSpec, PhaseResult, TestData
@@ -61,7 +61,7 @@ class BaseParameterisation(ABC):
 class ParameterState:
     """All contributions currently used to build one constitutive parameter."""
 
-    parameter_name: ParameterName
+    parameter_name: EParameterName
     parameterisations: list[BaseParameterisation] = field(default_factory=list)
 
     def prepare(self, test_data: TestData) -> None:
@@ -83,7 +83,7 @@ class ParameterState:
         return dofs
 
     def to_map(self, test_data: TestData) -> npt.NDArray[np.float64]:
-        parameter_map = np.zeros((test_data.size_y, test_data.size_x), dtype=np.float64)
+        parameter_map = np.zeros((test_data.x.shape[0], test_data.x.shape[1]), dtype=np.float64)
 
         for parameterisation in self.parameterisations:
             parameter_map = parameter_map + parameterisation.to_map(test_data)

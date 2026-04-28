@@ -7,13 +7,11 @@ import numpy as np
 from scipy.io import loadmat
 
 from pyvale.vfm.mechanical_properties import (
-    ConstituitiveLaw,
+    EConstituitiveLaw,
     HomogeneousParameter,
-    IdentificationType,
     MechanicalProperties,
     ParameterBounds,
-    ParameterName,
-    ScalarValue,
+    EParameterName,
 )
 from pyvale.vfm.radial_return import radial_return
 

@@ -5,13 +5,11 @@ import numpy.testing as npt
 import pytest
 
 from pyvale.vfm.mechanical_properties import (
-    ConstituitiveLaw,
+    EConstituitiveLaw,
     HomogeneousParameter,
-    IdentificationType,
     MechanicalProperties,
     ParameterBounds,
-    ParameterName,
-    ScalarValue,
+    EParameterName,
 )
 from pyvale.vfm.radial_return import radial_return
 
