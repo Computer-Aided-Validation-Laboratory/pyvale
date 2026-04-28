@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-
+import enum
 import numpy as np
 import numpy.typing as npt
 
@@ -27,6 +27,23 @@ DEFAULT_TEST_DATA_PATH = Path(
     "/home/robh/1_Projects/vfmap-numerical-paper/data/"
     "notchedButtWeld_bilin_lin360420S_hom3700H_imDef_1.5/5-testData/test_data.npz"
 )
+
+class EEdgeBoundaryCondition(enum.Enum):
+    FREE = enum.auto()
+    FIXED = enum.auto()
+    TRACTION = enum.auto()
+
+@dataclass(slots=True)
+class EdgeBoundaryCondition:
+    x: EEdgeBoundaryCondition
+    y: EEdgeBoundaryCondition
+
+@dataclass(slots=True)
+class BoundaryConditions:
+    left: EdgeBoundaryCondition
+    upper: EdgeBoundaryCondition
+    right: EdgeBoundaryCondition
+    lower: EdgeBoundaryCondition
 
 
 @dataclass(slots=True)
@@ -60,6 +77,8 @@ class TestData:
         The specimen thickness, used for stress calculations.
     source_path : Path or None, optional
         The file path from which the test data was loaded, if applicable.
+    boundary_conditions : BoundaryConditions
+        The boundary conditions associated with the test data.
     """
 
     x: npt.NDArray[np.float64]
@@ -69,9 +88,9 @@ class TestData:
     strain: npt.NDArray[np.float64]
     force: npt.NDArray[np.float64]
     time: npt.NDArray[np.float64]
-    thickness: float = 1.0
+    thickness: float
+    boundary_conditions: BoundaryConditions
     source_path: Path | None = None
-
 
 # Exclude TestData from test collection since it's just a data container and not a test case
 TestData.__test__ = False
