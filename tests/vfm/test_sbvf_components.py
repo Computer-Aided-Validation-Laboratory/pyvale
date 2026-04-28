@@ -76,7 +76,7 @@ def _build_small_virtual_fields_mesh(
 
 
 def _build_parameter_state(
-    parameter_name: ParameterName,
+    parameter_name: EParameterName,
     initial_value: float,
     lower_bound: float,
     upper_bound: float,
@@ -229,7 +229,7 @@ def test_calculate_stress_sensitivity_matches_explicit_perturbation() -> None:
     )
 
     perturbed_states = deepcopy(parameter_states)
-    perturbed_dof = perturbed_states[ParameterName.YieldStrength.name].collect_dofs()[0]
+    perturbed_dof = perturbed_states[EParameterName.YieldStrength.name].collect_dofs()[0]
     perturbed_dof.value = float(
         np.clip(
             perturbed_dof.value * 0.85,

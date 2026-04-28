@@ -85,7 +85,8 @@ class BasisFunctionParameterisation(BaseParameterisation):
 
     def to_map(self, test_data: TestData) -> npt.NDArray[np.float64]:
         self._ensure_kernels(test_data)
-        parameter_map = np.zeros((test_data.size_y, test_data.size_x), dtype=np.float64)
+        size_y, size_x = test_data.x.shape[0], test_data.x.shape[1]
+        parameter_map = np.zeros((size_y, size_x), dtype=np.float64)
 
         for kernel in self.kernels:
             contribution = _evaluate_kernel(

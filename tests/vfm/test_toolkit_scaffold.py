@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.io import savemat
 
-from pyvale.vfm.mechanical_properties import ConstituitiveLaw, ParameterName
+from pyvale.vfm.mechanical_properties import EConstituitiveLaw, EParameterName
 from pyvale.vfm.mat_to_py_data_parser import (
     convert_mat_to_py_data,
     load_parsed_test_data,
@@ -40,12 +40,12 @@ def _make_small_test_data() -> TestData:
 
 
 def test_project_yaml_round_trip(tmp_path) -> None:
-    project = create_default_project(ConstituitiveLaw.LinearHardening)
+    project = create_default_project(EConstituitiveLaw.LinearHardening)
     project.name = "demo"
     project.test_data_path = tmp_path / "testData.mat"
-    project.parameters[ParameterName.ElasticModulus.name].initial_value_type = "2d np array"
-    project.parameters[ParameterName.ElasticModulus.name].initial_value = "maps/elastic_modulus.npy"
-    project.phases[0].parameterisations[ParameterName.YieldStrength.name].append(
+    project.parameters[EParameterName.ElasticModulus.name].initial_value_type = "2d np array"
+    project.parameters[EParameterName.ElasticModulus.name].initial_value = "maps/elastic_modulus.npy"
+    project.phases[0].parameterisations[EParameterName.YieldStrength.name].append(
         ParameterisationSpec(
             kind="basis_function",
             options={"kernel_shape": "univariate", "initial_count": 2},
@@ -57,24 +57,24 @@ def test_project_yaml_round_trip(tmp_path) -> None:
     reloaded = load_project(project_path)
 
     assert reloaded.name == "demo"
-    assert reloaded.constituitive_law is ConstituitiveLaw.LinearHardening
-    assert reloaded.parameters[ParameterName.ElasticModulus.name].initial_value_type == "2d np array"
-    assert reloaded.parameters[ParameterName.ElasticModulus.name].initial_value == "maps/elastic_modulus.npy"
-    assert len(reloaded.phases[0].parameterisations[ParameterName.YieldStrength.name]) == 2
+    assert reloaded.constituitive_law is EConstituitiveLaw.LinearHardening
+    assert reloaded.parameters[EParameterName.ElasticModulus.name].initial_value_type == "2d np array"
+    assert reloaded.parameters[EParameterName.ElasticModulus.name].initial_value == "maps/elastic_modulus.npy"
+    assert len(reloaded.phases[0].parameterisations[EParameterName.YieldStrength.name]) == 2
     assert (
-        reloaded.phases[0].parameterisations[ParameterName.YieldStrength.name][1].kind
+        reloaded.phases[0].parameterisations[EParameterName.YieldStrength.name][1].kind
         == "basis_function"
     )
 
 
 def test_default_linear_hardening_project_uses_expected_defaults() -> None:
-    project = create_default_project(ConstituitiveLaw.LinearHardening)
+    project = create_default_project(EConstituitiveLaw.LinearHardening)
 
-    assert project.parameters[ParameterName.ElasticModulus.name].initial_value == 190.0e3
-    assert project.parameters[ParameterName.ElasticModulus.name].initial_value_type == "float"
-    assert project.parameters[ParameterName.ElasticModulus.name].lower_bound == 150.0e3
-    assert project.parameters[ParameterName.ElasticModulus.name].upper_bound == 250.0e3
-    assert project.parameters[ParameterName.PoissonsRatio.name].initial_value == 0.28
+    assert project.parameters[EParameterName.ElasticModulus.name].initial_value == 190.0e3
+    assert project.parameters[EParameterName.ElasticModulus.name].initial_value_type == "float"
+    assert project.parameters[EParameterName.ElasticModulus.name].lower_bound == 150.0e3
+    assert project.parameters[EParameterName.ElasticModulus.name].upper_bound == 250.0e3
+    assert project.parameters[EParameterName.PoissonsRatio.name].initial_value == 0.28
     assert len(project.phases) == 1
     assert project.phases[0].metrics[0].kind == "sbvf"
     assert project.phases[0].optimiser.kind == "least_squares"
@@ -95,11 +95,11 @@ def test_homogeneous_parameter_state_resolves_map() -> None:
     )
 
     parameter_maps = resolve_parameter_maps(
-        {ParameterName.YieldStrength.name: parameter_state},
+        {EParameterName.YieldStrength.name: parameter_state},
         test_data,
     )
 
-    yield_map = parameter_maps[ParameterName.YieldStrength.name]
+    yield_map = parameter_maps[EParameterName.YieldStrength.name]
     assert yield_map.shape == (2, 2)
     assert np.isclose(yield_map[0, 0], 320.0)
     assert np.isnan(yield_map[1, 1])

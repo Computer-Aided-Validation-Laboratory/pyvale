@@ -19,7 +19,11 @@ from pyvale.vfm.virtual_fields_mesh import (
 
 @dataclass(slots=True)
 class SensitivityBasedVFMetric(BaseMetric):
-    """Sensitivity-based virtual-field cost using the current active DOFs."""
+    """Sensitivity-based virtual-field cost using the current active DOFs.
+    
+    TODO: I removed defaults from below to prevent hidden bugs. Default definition should be centralised
+    and implemented with proper validation.
+    """
 
     options: dict[str, Any] = field(default_factory=dict)
     kind: str = "sensitivity_based_vf"
@@ -35,42 +39,24 @@ class SensitivityBasedVFMetric(BaseMetric):
             return
 
         mesh_size = np.asarray(
-            self.options.get("virtual_mesh_size", [15, 15]),
+            self.options.get("virtual_mesh_size"),
             dtype=np.uint32,
         )
         if mesh_size.shape != (2,):
             raise ValueError("SBVF option 'virtual_mesh_size' must have two entries.")
 
-        settings = np.asarray(
-            self.options.get("boundary_settings", [[0, 1, 0, 2], [0, 1, 0, 1]]),
-            dtype=np.uint32,
-        )
-        if settings.shape != (2, 4):
-            raise ValueError("SBVF option 'boundary_settings' must be shape (2, 4).")
-
-        x_coords = np.nanmean(test_data.x, axis=0)
-        y_coords = np.nanmean(test_data.y, axis=1)
-        indices = np.flatnonzero(test_data.specimen_mask.flatten(order="F")).astype(np.uint32)
-
         self.virtual_fields_mesh = generate_virtual_fields_mesh(
-            x_coords,
-            y_coords,
-            indices,
-            settings,
+            test_data.x,
+            test_data.y,
+            test_data.specimen_mask,
+            test_data.boundary_conditions,
             mesh_size,
         )
 
-        plot_virtual_mesh = _coerce_option_bool(
-            self.options.get("plot_virtual_mesh", False)
-        )
-        plot_virtual_mesh_path = self.options.get("plot_virtual_mesh_path")
-        show_virtual_mesh_plot = _coerce_option_bool(
-            self.options.get("show_virtual_mesh_plot", False)
-        )
-        if plot_virtual_mesh or plot_virtual_mesh_path:
+        if self.options.get("plot_virtual_mesh", False) and self.options.get("plot_virtual_mesh_path") is not None:
             output_path = _resolve_virtual_mesh_plot_path(
                 test_data=test_data,
-                plot_path_option=plot_virtual_mesh_path,
+                plot_path_option=self.options.get("plot_virtual_mesh_path"),
             )
             plot_virtual_fields_mesh(
                 data_x=test_data.x,
@@ -78,7 +64,7 @@ class SensitivityBasedVFMetric(BaseMetric):
                 specimen_mask=test_data.specimen_mask,
                 virtual_fields_mesh=self.virtual_fields_mesh,
                 output_path=output_path,
-                show=show_virtual_mesh_plot,
+                show=self.options.get("show_virtual_mesh_plot", False),
             )
 
     def evaluate(
