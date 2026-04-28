@@ -49,7 +49,9 @@ def run_nonlinear_identification(
 
     metrics_with_weights = []
     for metric_spec in phase_definition.metrics:
+        # Intantiate MetricSpec object from user-defined spec
         metric = build_metric(metric_spec)
+        # Prepare reusable metric data before optimisation (e.g. sbvf mesh)
         metric.prepare(test_data, metric_context)
         metrics_with_weights.append((metric, metric_spec.weight))
         print(
