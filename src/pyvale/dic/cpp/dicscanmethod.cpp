@@ -211,17 +211,7 @@ void multiwindow_reliability_guided(const Image &img_ref,
 
                 OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                // for (int i=0; i < ss_ref.num_px; i++){
-                //     std::cout << "temporal_L " << ss_ref.x[i] << " " << ss_ref.y[i] << " " << ss_ref.vals[i] << " ";
-                //     std::cout << ss_def.x[i] << " " << ss_def.y[i] << " " << ss_def.vals[i] << std::endl;
-                //
-                // }
-                // std::cout << std::endl;
-
-
-
                 rg::check_convergence_or_exit(seed_x, seed_y, seed_res);
-
 
                 // append the results for the current subset to result vectors
                 results_def.append(seed_res, idx);
@@ -230,6 +220,8 @@ void multiwindow_reliability_guided(const Image &img_ref,
 
                 // loop over the neighbours for the initial seed point
                 for (size_t n = 0; n < ss_grid.neigh[idx].size(); n++) {
+
+                    if (stop_request) continue;
 
                     // subset index of neighbour to the current point
                     int nidx = ss_grid.neigh[idx][n];
@@ -248,7 +240,7 @@ void multiwindow_reliability_guided(const Image &img_ref,
                     // perform optimization for seed point neighbours
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                    rg::check_convergence_or_exit(cx, cy, nres);
+                    rg::check_convergence_or_exit(cx, cy, nres, true);
 
                     // append the results for the current subset to result vectors
                     results_def.append(nres, nidx);
@@ -461,6 +453,8 @@ void multiwindow_reliability_guided(const Image &img_ref,
                 // loop over the neighbours for the initial seed point
                 for (size_t n = 0; n < ss_grid.neigh[idx].size(); n++) {
 
+                    if (stop_request) continue;
+
                     // subset index of neighbour to the current point
                     int nidx = ss_grid.neigh[idx][n];
 
@@ -483,7 +477,8 @@ void multiwindow_reliability_guided(const Image &img_ref,
                     opt.copy_params_from_neigh(results_def.p, idx);
 
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
-                    rg::check_convergence_or_exit(cx_img0, cy_img0, nres);
+
+                    rg::check_convergence_or_exit(cx_img0, cy_img0, nres, true);
 
                     // add deformation from reference image to new results
                     if (img_num_ref > 0){
@@ -550,8 +545,7 @@ void multiwindow_reliability_guided(const Image &img_ref,
                         double cy = cy_img0;
 
                         OptResult nres(opt.num_params);
-                        if (((results_ref.above_thresh[nidx]) && (img_num_ref > 0)) ||
-                            (img_num_ref == 0)){
+                        if (((results_ref.above_thresh[nidx]) && (img_num_ref > 0)) || (img_num_ref == 0)){
                             cx += results_ref.u[nidx];
                             cy += results_ref.v[nidx];
 
