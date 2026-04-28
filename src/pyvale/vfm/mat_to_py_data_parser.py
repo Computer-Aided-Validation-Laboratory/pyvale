@@ -5,7 +5,12 @@ from pathlib import Path
 import numpy as np
 from scipy.io import loadmat
 
-from pyvale.vfm.project_definition import TestData
+from pyvale.vfm.project_definition import (
+    BoundaryConditions,
+    EEdgeBoundaryCondition,
+    EdgeBoundaryCondition,
+    TestData,
+)
 
 
 def _extract_plane_stress_thickness(test_data: dict, default: float = 1.0) -> float:
@@ -41,6 +46,79 @@ def _load_thickness_from_mat_source(
         return float(default)
 
     return _extract_plane_stress_thickness(test_data, default=default)
+
+
+def _default_boundary_conditions() -> BoundaryConditions:
+    """Temporary hard-coded BCs matching the current numerical dataset."""
+
+    return BoundaryConditions(
+        left=EdgeBoundaryCondition(
+            x=EEdgeBoundaryCondition.FIXED,
+            y=EEdgeBoundaryCondition.FREE,
+        ),
+        upper=EdgeBoundaryCondition(
+            x=EEdgeBoundaryCondition.FIXED,
+            y=EEdgeBoundaryCondition.TRACTION,
+        ),
+        right=EdgeBoundaryCondition(
+            x=EEdgeBoundaryCondition.FREE,
+            y=EEdgeBoundaryCondition.FREE,
+        ),
+        lower=EdgeBoundaryCondition(
+            x=EEdgeBoundaryCondition.FREE,
+            y=EEdgeBoundaryCondition.FREE,
+        ),
+    )
+
+
+def _boundary_conditions_to_array(
+    boundary_conditions: BoundaryConditions,
+) -> np.ndarray:
+    return np.array(
+        [
+            [
+                boundary_conditions.left.x.name,
+                boundary_conditions.left.y.name,
+                boundary_conditions.upper.x.name,
+                boundary_conditions.upper.y.name,
+                boundary_conditions.right.x.name,
+                boundary_conditions.right.y.name,
+                boundary_conditions.lower.x.name,
+                boundary_conditions.lower.y.name,
+            ]
+        ],
+        dtype="<U16",
+    )
+
+
+def _boundary_conditions_from_array(
+    saved_boundary_conditions: np.ndarray,
+) -> BoundaryConditions:
+    values = np.asarray(saved_boundary_conditions).reshape(-1).tolist()
+    if len(values) != 8:
+        raise ValueError(
+            "Saved boundary_conditions must contain 8 entries "
+            "(left/upper/right/lower x/y pairs)."
+        )
+
+    return BoundaryConditions(
+        left=EdgeBoundaryCondition(
+            x=EEdgeBoundaryCondition[str(values[0])],
+            y=EEdgeBoundaryCondition[str(values[1])],
+        ),
+        upper=EdgeBoundaryCondition(
+            x=EEdgeBoundaryCondition[str(values[2])],
+            y=EEdgeBoundaryCondition[str(values[3])],
+        ),
+        right=EdgeBoundaryCondition(
+            x=EEdgeBoundaryCondition[str(values[4])],
+            y=EEdgeBoundaryCondition[str(values[5])],
+        ),
+        lower=EdgeBoundaryCondition(
+            x=EEdgeBoundaryCondition[str(values[6])],
+            y=EEdgeBoundaryCondition[str(values[7])],
+        ),
+    )
 
 
 def parse_test_data_from_mat(mat_path: str | Path) -> TestData:
@@ -113,6 +191,7 @@ def parse_test_data_from_mat(mat_path: str | Path) -> TestData:
     else:
         time = np.asarray(time_data, dtype=np.float64)
     thickness = _extract_plane_stress_thickness(test_data)
+    boundary_conditions = _default_boundary_conditions()
 
     return TestData(
         x=x,
@@ -122,8 +201,9 @@ def parse_test_data_from_mat(mat_path: str | Path) -> TestData:
         strain=strain_4d,
         force=force,
         time=time,
-        source_path=Path(mat_path),
         thickness=thickness,
+        boundary_conditions=boundary_conditions,
+        source_path=Path(mat_path),
     )
 
 
@@ -147,6 +227,9 @@ def save_parsed_test_data(
         force=test_data.force,
         time=test_data.time,
         thickness=np.array(test_data.thickness, dtype=np.float64),
+        boundary_conditions=_boundary_conditions_to_array(
+            test_data.boundary_conditions
+        ),
         source_path=(
             "" if test_data.source_path is None else str(test_data.source_path)
         ),
@@ -165,6 +248,11 @@ def load_parsed_test_data(npz_path: str | Path) -> TestData:
             if "thickness" in saved_data
             else _load_thickness_from_mat_source(source_path)
         )
+        boundary_conditions = (
+            _boundary_conditions_from_array(saved_data["boundary_conditions"])
+            if "boundary_conditions" in saved_data
+            else _default_boundary_conditions()
+        )
         return TestData(
             x=np.asarray(saved_data["x"], dtype=np.float64),
             y=np.asarray(saved_data["y"], dtype=np.float64),
@@ -173,8 +261,9 @@ def load_parsed_test_data(npz_path: str | Path) -> TestData:
             strain=np.asarray(saved_data["strain"], dtype=np.float64),
             force=np.asarray(saved_data["force"], dtype=np.float64),
             time=np.asarray(saved_data["time"], dtype=np.float64),
-            source_path=source_path,
             thickness=thickness,
+            boundary_conditions=boundary_conditions,
+            source_path=source_path,
         )
 
 
@@ -194,4 +283,3 @@ def convert_mat_to_py_data(
 # convert_mat_to_py_data("path/to/testData.mat", "path/to/parsed_test_data.npz")
 # in terminal: 
 #  PYTHONPATH=src python -c "from pyvale.vfm.mat_to_py_data_parser import convert_mat_to_py_data; convert_mat_to_py_data('/home/robh/1_Projects/vfmap-numerical-paper/data/notchedButtWeld_bilin_lin360420S_hom3700H_imDef_1.5/5-testData/testData.mat', '/home/robh/1_Projects/vfmap-numerical-paper/data/notchedButtWeld_bilin_lin360420S_hom3700H_imDef_1.5/5-testData/test_data.npz')"
-

@@ -57,7 +57,7 @@ class VirtualFieldsMesh:
     boundary_condition_settings: npt.NDArray[np.uint32]
     # indexlist 
     # TODO: should we use the specimen mask here instead?
-    indices: npt.NDArray[np.uint32]
+    specimen_mask: npt.NDArray[np.uint32]
     # NGlob 
     # TODO: I think this is some kind of global shape function, probably worth a rename
     n_glob: npt.NDArray[np.float64]
@@ -90,16 +90,23 @@ def _compute_data_element_edges(
 # Expect x and y to be 1d coordinate arrays without nans
 # Assuming that 0,0 in index space is top left in coord space
 # TODO: add return type
-# TODO: indices coming from matlab test data will be 1 index rather than zero indexed
+# TODO: specimen_mask coming from matlab test data will be 1 index rather than zero indexed
 def generate_virtual_fields_mesh(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
-    indices: npt.NDArray[np.uint32],
-    settings: npt.NDArray[np.uint32],
+    specimen_mask: npt.NDArray[np.uint32],
+    boundary_conditions: npt.NDArray[np.uint32],
     mesh_size: npt.NDArray[np.uint32] | None = None,
     # nan_mask: npt.NDArray[np.float64], # TODO: is this needed?
 ):
     """Build the reduced virtual-fields mesh used by the SBVF routines."""
+    
+    # x_coords = np.nanmean(test_data.x, axis=0)
+    # y_coords = np.nanmean(test_data.y, axis=1)
+    # indices = np.flatnonzero(test_data.specimen_mask.flatten(order="F")).astype(np.uint32)
+
+    
+    
     if mesh_size is None:
         mesh_size = np.array([15, 15], dtype=np.uint32)
 
@@ -135,8 +142,8 @@ def generate_virtual_fields_mesh(
     ymin = elem_y.min(axis=0)
     ymax = elem_y.max(axis=0)
 
-    x_points = grid_x.flatten(order="F")[indices]
-    y_points = grid_y.flatten(order="F")[indices]
+    x_points = grid_x.flatten(order="F")[specimen_mask]
+    y_points = grid_y.flatten(order="F")[specimen_mask]
 
     inside = (
         (x_points[:, None] >= xmin[None, :]) &
@@ -147,7 +154,7 @@ def generate_virtual_fields_mesh(
 
     virtual_element_point_mapping = inside.argmax(axis=1)
 
-    num_measured_points = indices.size
+    num_measured_points = specimen_mask.size
     degrees_of_freedom = 2 * num_virtual_elements
 
     b_glob = np.zeros((3 * num_measured_points, degrees_of_freedom))
@@ -280,17 +287,17 @@ def generate_virtual_fields_mesh(
             slave_dofs = np.vstack((edge_dofs_x[:-1], edge_dofs_y[:-1]))
 
         # X-direction BCs
-        if settings[0, edge] == 1:  # fixed
+        if boundary_conditions[0, edge] == 1:  # fixed
             bc_fixed = np.concatenate((bc_fixed, edge_dofs_x))
-        elif settings[0, edge] == 2:  # constant
+        elif boundary_conditions[0, edge] == 2:  # constant
             b_bar[:, master_dofs[0]] += np.sum(b_bar[:, slave_dofs[0, :]], axis=1)
             bc_slaves = np.concatenate((bc_slaves, slave_dofs[0, :]))
             bc_masters = np.concatenate((bc_masters, [master_dofs[0]]))
 
         # Y-direction BCs
-        if settings[1, edge] == 1:  # fixed
+        if boundary_conditions[1, edge] == 1:  # fixed
             bc_fixed = np.concatenate((bc_fixed, edge_dofs_y))
-        elif settings[1, edge] == 2:  # constant
+        elif boundary_conditions[1, edge] == 2:  # constant
             b_bar[:, master_dofs[1]] += np.sum(b_bar[:, slave_dofs[1, :]], axis=1)
             bc_slaves = np.concatenate((bc_slaves, slave_dofs[1, :]))
             bc_masters = np.concatenate((bc_masters, [master_dofs[1]]))
@@ -330,7 +337,7 @@ def generate_virtual_fields_mesh(
     # Loop over the four edges
     for e in range(4):
         # Only consider edges that are fixed or constant
-        if settings[0, e] == 1 or settings[0, e] == 2:
+        if boundary_conditions[0, e] == 1 or boundary_conditions[0, e] == 2:
             if e == 0:  # Top e (first row)
                 not_free_dof_x = xDofGrid[0, :]
                 not_free_dof_y = yDofGrid[0, :]
@@ -358,8 +365,8 @@ def generate_virtual_fields_mesh(
         act_dofs,
         virtual_element_connectivity,
         virtual_elements,
-        settings,
-        indices,
+        boundary_conditions,
+        specimen_mask,
         n_glob,
         virtual_element_point_mapping,
         free_dof

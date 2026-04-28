@@ -3,7 +3,7 @@ import numpy.typing as npt
 
 from pyvale.vfm.mechanical_properties import (
     EConstituitiveLaw,
-    EParameterLabel,
+    EParameterName,
     MechanicalProperties,
 )
 
@@ -32,10 +32,10 @@ def hardening(
     match constituitive_law:
         case EConstituitiveLaw.LinearHardening:
             yield_strength = (
-                parameters[EParameterLabel.YieldStrength].to_map(size_x, size_y)
+                parameters[EParameterName.YieldStrength].to_map(size_x, size_y)
             )
             hardening_modulus = (
-                parameters[EParameterLabel.HardeningModulus].to_map(
+                parameters[EParameterName.HardeningModulus].to_map(
                     size_x, size_y
                 )
             )
@@ -51,15 +51,15 @@ def hardening(
 
         case EConstituitiveLaw.SwiftHardening:
             strength_coefficient = (
-                parameters[EParameterLabel.StrengthCoefficient].to_map(
+                parameters[EParameterName.StrengthCoefficient].to_map(
                     size_x, size_y
                 )
             )
             strain_offset = (
-                parameters[EParameterLabel.StrainOffset].to_map(size_x, size_y)
+                parameters[EParameterName.StrainOffset].to_map(size_x, size_y)
             )
             hardening_exponent = (
-                parameters[EParameterLabel.HardeningExponent].to_map(
+                parameters[EParameterName.HardeningExponent].to_map(
                     size_x, size_y
                 )
             )
@@ -84,20 +84,20 @@ def hardening(
 
         case EConstituitiveLaw.VoceHardening:
             yield_strength = (
-                parameters[EParameterLabel.YieldStrength].to_map(size_x, size_y)
+                parameters[EParameterName.YieldStrength].to_map(size_x, size_y)
             )
             hardening_modulus = (
-                parameters[EParameterLabel.HardeningModulus].to_map(
+                parameters[EParameterName.HardeningModulus].to_map(
                     size_x, size_y
                 )
             )
             saturation_stress = (
-                parameters[EParameterLabel.SaturationStress].to_map(
+                parameters[EParameterName.SaturationStress].to_map(
                     size_x, size_y
                 )
             )
             rate_parameter = (
-                parameters[EParameterLabel.RateParameter].to_map(size_x, size_y)
+                parameters[EParameterName.RateParameter].to_map(size_x, size_y)
             )
 
             yield_strength_flat = yield_strength.ravel()
@@ -122,15 +122,15 @@ def hardening(
 
         case EConstituitiveLaw.LudwikHardening:
             yield_strength = (
-                parameters[EParameterLabel.YieldStrength].to_map(size_x, size_y)
+                parameters[EParameterName.YieldStrength].to_map(size_x, size_y)
             )
             strength_coefficient = (
-                parameters[EParameterLabel.StrengthCoefficient].to_map(
+                parameters[EParameterName.StrengthCoefficient].to_map(
                     size_x, size_y
                 )
             )
             hardening_exponent = (
-                parameters[EParameterLabel.HardeningExponent].to_map(
+                parameters[EParameterName.HardeningExponent].to_map(
                     size_x, size_y
                 )
             )

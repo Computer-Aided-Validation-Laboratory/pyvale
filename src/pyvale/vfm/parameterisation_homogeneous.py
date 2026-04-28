@@ -28,19 +28,20 @@ class KnownParameterisation(BaseParameterisation):
 
     def to_map(self, test_data: TestData) -> npt.NDArray[np.float64]:
         value_array = np.asarray(self.value, dtype=np.float64)
+        size_y, size_x = test_data.x.shape[0], test_data.x.shape[1]
 
         if value_array.ndim == 0:
             parameter_map = np.full(
-                (test_data.size_y, test_data.size_x),
+                (size_y, size_x),
                 float(value_array),
                 dtype=np.float64,
             )
         else:
-            if value_array.shape != (test_data.size_y, test_data.size_x):
+            if value_array.shape != (size_y, size_x):
                 raise ValueError(
                     f"Known parameter '{self.parameter_name}' has shape "
                     f"{value_array.shape}, expected "
-                    f"{(test_data.size_y, test_data.size_x)}."
+                    f"{(size_y, size_x)}."
                 )
             parameter_map = value_array.copy()
 
@@ -72,8 +73,9 @@ class HomogeneousParameterisation(BaseParameterisation):
         self.dof.value = float(np.nanmean(source_map[test_data.specimen_mask]))
 
     def to_map(self, test_data: TestData) -> npt.NDArray[np.float64]:
+        size_y, size_x = test_data.x.shape[0], test_data.x.shape[1]
         parameter_map = np.full(
-            (test_data.size_y, test_data.size_x),
+            (size_y, size_x),
             self.dof.value,
             dtype=np.float64,
         )
