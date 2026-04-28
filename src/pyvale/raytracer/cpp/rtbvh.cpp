@@ -818,13 +818,15 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
                 break;
             case QUAD4:
                 process_element_data<QUAD4>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
-                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad4;
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad;
                 break;
             case QUAD8:
                 process_element_data<QUAD8>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad;
                 break;
             case QUAD9:
                 process_element_data<QUAD9>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad;
                 break;
             default: throw std::invalid_argument("Unsupported element type."); // Shouldn't ever get triggered since we check element type on the Python side as well
         }
@@ -875,6 +877,11 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
                 case QUAD4:
                     mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4_tex;
                     break;
+                case QUAD8: 
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8_tex;
+                    break;
+                case QUAD9:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9_tex;
                 default: throw std::invalid_argument("Unsupported element type.");
             }
         }

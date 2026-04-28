@@ -93,6 +93,97 @@ void overwrite_intersection_quad4_tex(HitRecord& intersection_record,
     intersection_record.face_color = texsampler::sample_texture(texture, uvs);
 }
 
+void overwrite_intersection_quad8_tex(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx){     
+    // Texture color save for QUAD4           
+
+    // Find (u,v) coordinates for each node of the intersected element
+    std::array<double, ElementNodeCount::QUAD8 * UV_COORDINATES> element_uvs; // Flat array so we can pass a pointer to get_face_uvs. Texture (u,v) for each node of mesh element
+    get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::QUAD8, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
+    // Interpolation coordinates from the ray-quad intersection
+    const double u = intersection_record.elem_interp_coords(0);
+    const double v = intersection_record.elem_interp_coords(1);
+    // Map from [0,1] (typical for (u,v)) to [-1, 1] (typical for FEM shape functions)
+    const double xi = 2.0 * u - 1.0;
+    const double eta = 2.0 * v - 1.0;
+    // Pre-compute squares
+    const double xi2 = xi * xi;
+    const double eta2 = eta * eta;
+    
+     // Shape functions (weights) for QUAD8
+    std::array<double, ElementNodeCount::QUAD8> N;
+    // Corners
+    N[0] = -0.25 * (1.0 - xi) * (1.0 - eta) * (1.0 + xi + eta); // Bottom left
+    N[1] = -0.25 * (1.0 + xi) * (1.0 - eta) * (1.0 - xi + eta); // Bottom right
+    N[2] = -0.25 * (1.0 + xi) * (1.0 + eta) * (1.0 - xi - eta); // Top right
+    N[3] = -0.25 * (1.0 - xi) * (1.0 + eta) * (1.0 + xi - eta); // Top left
+    // Mid-edges
+    N[4] =  0.5 * (1.0 - xi2) * (1.0 - eta); // Bottom mid-edge
+    N[5] =  0.5 * (1.0 + xi)  * (1.0 - eta2); // Right mid-edge
+    N[6] =  0.5 * (1.0 - xi2) * (1.0 + eta); // Top mid-edge
+    N[7] =  0.5 * (1.0 - xi)  * (1.0 - eta2); // Left mid-edge
+
+    // Interpolate final (u,v) coordinates
+    EiArray2d uvs(0.0, 0.0);
+    for (int i = 0; i < ElementNodeCount::QUAD8; ++i) {
+        EiArray2d node_uv;
+        node_uv << element_uvs[UV_COORDINATES * i], element_uvs[UV_COORDINATES * i + 1];
+        uvs += N[i] * node_uv;
+    }
+
+    // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
+    intersection_record.face_color = texsampler::sample_texture(texture, uvs);
+}
+
+void overwrite_intersection_quad9_tex(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx){     
+    // Texture color save for QUAD4           
+
+    // Find (u,v) coordinates for each node of the intersected element
+    std::array<double, ElementNodeCount::QUAD9 * UV_COORDINATES> element_uvs; // Flat array so we can pass a pointer to get_face_uvs. Texture (u,v) for each node of mesh element
+    get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::QUAD9, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
+    // Interpolation coordinates from the ray-quad intersection
+    const double u = intersection_record.elem_interp_coords(0);
+    const double v = intersection_record.elem_interp_coords(1);
+    // Map from [0,1] (typical for (u,v)) to [-1, 1] (typical for FEM shape functions)
+    const double xi = 2.0 * u - 1.0;
+    const double eta = 2.0 * v - 1.0;
+    // Pre-compute squares
+    const double xi2 = xi * xi;
+    const double eta2 = eta * eta;
+    
+     // Shape functions (weights) for QUAD9
+    std::array<double, ElementNodeCount::QUAD9> N;
+    // Corners
+    N[0] =  0.25 * xi * (xi - 1.0) * eta * (eta - 1.0); // Bottom left
+    N[1] =  0.25 * xi * (xi + 1.0) * eta * (eta - 1.0); // Bottom right
+    N[2] =  0.25 * xi * (xi + 1.0) * eta * (eta + 1.0); // Top right
+    N[3] =  0.25 * xi * (xi - 1.0) * eta * (eta + 1.0); // Top left
+    // Mid-edges
+    N[4] =  0.5 * (1.0 - xi2) * eta * (eta - 1.0); // Bottom mid-edge
+    N[5] =  0.5 * xi * (xi + 1.0) * (1.0 - eta2);  // Right mid-edge
+    N[6] =  0.5 * (1.0 - xi2) * eta * (eta + 1.0); // Top mid-edge
+    N[7] =  0.5 * xi * (xi - 1.0) * (1.0 - eta2);  // Left mid-edge
+    // Center node
+    N[8] =  (1.0 - xi2) * (1.0 - eta2); 
+
+    // Interpolate final (u,v) coordinates
+    EiArray2d uvs(0.0, 0.0);
+    for (int i = 0; i < ElementNodeCount::QUAD9; ++i) {
+        EiArray2d node_uv;
+        node_uv << element_uvs[UV_COORDINATES * i], element_uvs[UV_COORDINATES * i + 1];
+        uvs += N[i] * node_uv;
+    }
+
+    // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
+    intersection_record.face_color = texsampler::sample_texture(texture, uvs);
+}
+
+
 void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
     const BLAS_Node& Node,
     const Texture& texture,
@@ -112,9 +203,7 @@ void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
     //EiArray2d uvs = intersection_record.elem_interp_coords(2) * uv0 + intersection_record.elem_interp_coords(0) * uv1 + intersection_record.elem_interp_coords(1) * uv2;  // Final (u,v)
     // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
     intersection_record.face_color = texsampler::sample_texture(texture, uvs);
-
 }
-
 
 void overwrite_intersection_tri3_col(HitRecord& intersection_record,
     const BLAS_Node& Node,
@@ -226,12 +315,15 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     return IntersectionOutput{ barycentric_coordinates, plane_normals, t_values };
 }
 
-IntersectionOutput intersect_bvh_quad4(const Ray& ray,
+IntersectionOutput intersect_bvh_quad(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_quad_count){
     // Go through all the quads and find an intersection of each quad with a ray
     // Method based on NVIDIA 2019, E. Haines, T. Akenine-Möller (eds.), Ray Tracing Gems, https://doi.org/10.1007/978-1-4842-4427-2_8
     // More specifically: Chapter 8, "Cool Patches: A Geometric Approach to Ray/Bilinear Patch Intersections" by A. Reshetov
+
+    // IMPORTANT NOTE: This should work for QUAD8 and QUAD9 in both the VTK and Exodus order without any changes as they also store corner nodes at indices 0-3 in the connectivity array,
+    // and this is developed for non-planar quadrilaterals. Still, as of now, it was only tested with QUAD4
 
     static const int NODES_PER_ELEMENT = 4;
     static const int COORDS_PER_ELEMENT = NODES_PER_ELEMENT * NODE_COORDINATES;
@@ -760,7 +852,7 @@ void intersect_BLAS(const Ray& ray,
                 intersection_record.elem_interp_coords = out_intersection.elem_interp_coords.row(min_row_idx);
                 intersection_record.point_intersection = ray_at_t(closest_t, ray);
                 intersection_record.normal_surface = out_intersection.plane_normals.row(min_row_idx);
-                intersection_record.face_color = get_face_color(min_row_idx, Node.face_color); // the OG part
+                //intersection_record.face_color = get_face_color(min_row_idx, Node.face_color); // the OG part
                 overwrite_intersection_function_ptr(intersection_record, Node, texture, min_row_idx);
             } 
         }

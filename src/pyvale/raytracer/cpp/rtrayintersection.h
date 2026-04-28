@@ -35,6 +35,15 @@ void overwrite_intersection_quad4_tex(HitRecord& intersection_record,
     const Texture& texture,
     Eigen::Index min_row_idx);
 
+void overwrite_intersection_quad8_tex(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx);
+
+void overwrite_intersection_quad9_tex(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx);
 
 void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
     const BLAS_Node& Node,
@@ -57,7 +66,7 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_triangle_count);
 
-IntersectionOutput intersect_bvh_quad4(const Ray& ray,
+IntersectionOutput intersect_bvh_quad(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_quad_count);
 
