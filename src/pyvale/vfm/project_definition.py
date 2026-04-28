@@ -8,17 +8,19 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.vfm.mechanical_properties import (
-    ConstituitiveLaw,
-    ParameterName,
-    required_parameters_for_law,
+    EConstituitiveLaw,
+    EParameterName,
+    REQUIRED_PARAMETERS,
+    KnownParameter,
+    MechanicalProperties,
 )
 
 
-LINEAR_HARDENING_PARAMETER_DEFAULTS: dict[ParameterName, tuple[float, float, float]] = {
-    ParameterName.ElasticModulus: (190.0e3, 150.0e3, 250.0e3),
-    ParameterName.PoissonsRatio: (0.28, 0.2, 0.4),
-    ParameterName.YieldStrength: (320.0, 100.0, 1000.0),
-    ParameterName.HardeningModulus: (3000.0, 1000.0, 10000.0),
+LINEAR_HARDENING_PARAMETER_DEFAULTS: dict[EParameterName, tuple[float, float, float]] = {
+    EParameterName.ElasticModulus: (190.0e3, 150.0e3, 250.0e3),
+    EParameterName.PoissonsRatio: (0.28, 0.2, 0.4),
+    EParameterName.YieldStrength: (320.0, 100.0, 1000.0),
+    EParameterName.HardeningModulus: (3000.0, 1000.0, 10000.0),
 }
 
 DEFAULT_TEST_DATA_PATH = Path(
@@ -29,7 +31,36 @@ DEFAULT_TEST_DATA_PATH = Path(
 
 @dataclass(slots=True)
 class TestData:
-    """Common numerical test-data layout used by the toolkit."""
+    """Common numerical test-data layout used by the toolkit.
+    
+    Parameters
+    ----------
+    x : ndarray
+        Shape (num_points_y, num_points_x).
+        The x coordinates of the measurement points.
+    y : ndarray
+        Shape (num_points_y, num_points_x).
+        The y coordinates of the measurement points.
+    specimen_mask : ndarray of bool
+        Shape (num_points_y, num_points_x).
+        A mask indicating the specimen region (True for points inside the specimen).
+    area : ndarray
+        Shape (num_points_y, num_points_x).
+        The area associated with each measurement point, used for integration.
+    strain : ndarray
+        Shape (num_timesteps, num_strain_components, num_points_y, num_points_x).
+        The measured strain components at each point (e.g., [exx, eyy, exy]).
+    force : ndarray
+        Shape (num_timesteps,).
+        The applied force measurements corresponding to each time step.
+    time : ndarray
+        Shape (num_timesteps,).
+        The time points corresponding to the measurements.
+    thickness : float, default=1.0
+        The specimen thickness, used for stress calculations.
+    source_path : Path or None, optional
+        The file path from which the test data was loaded, if applicable.
+    """
 
     x: npt.NDArray[np.float64]
     y: npt.NDArray[np.float64]
@@ -38,24 +69,17 @@ class TestData:
     strain: npt.NDArray[np.float64]
     force: npt.NDArray[np.float64]
     time: npt.NDArray[np.float64]
-    source_path: Path | None = None
     thickness: float = 1.0
-
-    @property
-    def size_x(self) -> int:
-        return int(self.x.shape[1])
-
-    @property
-    def size_y(self) -> int:
-        return int(self.x.shape[0])
+    source_path: Path | None = None
 
 
+# Exclude TestData from test collection since it's just a data container and not a test case
 TestData.__test__ = False
 
 
 @dataclass(slots=True)
 class ParameterDefinition:
-    name: ParameterName
+    name: EParameterName
     initial_value_type: str = "float"
     initial_value: float | str | None = None
     lower_bound: float | None = None
@@ -151,7 +175,7 @@ class PhaseDefinition:
 @dataclass(slots=True)
 class IdentificationProject:
     name: str = "vfm_project"
-    constituitive_law: ConstituitiveLaw = ConstituitiveLaw.LinearHardening
+    constituitive_law: EConstituitiveLaw = EConstituitiveLaw.LinearHardening
     test_data_path: Path | None = None
     use_gui: bool = False
     parameters: dict[str, ParameterDefinition] = field(default_factory=dict)
@@ -174,11 +198,11 @@ class PhaseResult:
     parameter_states: dict[str, Any] = field(default_factory=dict)
 
 def create_default_project(
-    constituitive_law: ConstituitiveLaw = ConstituitiveLaw.LinearHardening,
+    constituitive_law: EConstituitiveLaw = EConstituitiveLaw.LinearHardening,
 ) -> IdentificationProject:
     parameters: dict[str, ParameterDefinition] = {}
 
-    for parameter_name in required_parameters_for_law(constituitive_law):
+    for parameter_name in REQUIRED_PARAMETERS[constituitive_law]:
         parameters[parameter_name.name] = create_default_parameter_definition(
             constituitive_law,
             parameter_name,
@@ -193,11 +217,11 @@ def create_default_project(
 
 
 def create_default_parameter_definition(
-    constituitive_law: ConstituitiveLaw,
-    parameter_name: ParameterName,
+    constituitive_law: EConstituitiveLaw,
+    parameter_name: EParameterName,
 ) -> ParameterDefinition:
     defaults = {}
-    if constituitive_law is ConstituitiveLaw.LinearHardening:
+    if constituitive_law is EConstituitiveLaw.LinearHardening:
         defaults = LINEAR_HARDENING_PARAMETER_DEFAULTS
 
     try:
@@ -215,24 +239,24 @@ def create_default_parameter_definition(
 
 
 def create_default_phase_definition(
-    constituitive_law: ConstituitiveLaw,
+    constituitive_law: EConstituitiveLaw,
     phase_index: int = 1,
 ) -> PhaseDefinition:
     phase_name = f"phase_{phase_index}"
 
-    if constituitive_law is ConstituitiveLaw.LinearHardening:
+    if constituitive_law is EConstituitiveLaw.LinearHardening:
         return PhaseDefinition(
             name=phase_name,
             parameterisations={
-                ParameterName.ElasticModulus.name: [ParameterisationSpec(kind="known")],
-                ParameterName.PoissonsRatio.name: [ParameterisationSpec(kind="known")],
-                ParameterName.YieldStrength.name: [
+                EParameterName.ElasticModulus.name: [ParameterisationSpec(kind="known")],
+                EParameterName.PoissonsRatio.name: [ParameterisationSpec(kind="known")],
+                EParameterName.YieldStrength.name: [
                     ParameterisationSpec(
                         kind="homogeneous",
                         options={"initialise_from": "initial_value"},
                     )
                 ],
-                ParameterName.HardeningModulus.name: [
+                EParameterName.HardeningModulus.name: [
                     ParameterisationSpec(
                         kind="homogeneous",
                         options={"initialise_from": "initial_value"},
@@ -261,8 +285,45 @@ def create_default_phase_definition(
         name=phase_name,
         parameterisations={
             parameter_name.name: [ParameterisationSpec(kind="known")]
-            for parameter_name in required_parameters_for_law(constituitive_law)
+            for parameter_name in REQUIRED_PARAMETERS[constituitive_law]
         },
         metrics=[MetricSpec(kind="sbvf", weight=1.0)],
         optimiser=OptimiserSpec(kind="least_squares"),
     )
+
+
+def build_mechanical_properties_from_project(
+    project: IdentificationProject,
+) -> MechanicalProperties:
+    """Build the resolved material definition used by constitutive updates.
+
+    At this stage each parameter is just a scalar placeholder. During
+    identification the active parameter maps are rebuilt from the spatial
+    parameterisation state and replace the corresponding placeholders.
+    """
+
+    parameters = {}
+    for parameter_name in REQUIRED_PARAMETERS[project.constituitive_law]:
+        try:
+            parameter_definition = project.parameters[parameter_name.name]
+        except KeyError as error:
+            raise ValueError(
+                f"Project is missing parameter '{parameter_name.name}'."
+            ) from error
+
+        initial_value = resolve_parameter_initial_value_scalar(parameter_definition)
+        if initial_value is None:
+            raise ValueError(
+                f"Parameter '{parameter_name.name}' needs an initial_value."
+            )
+
+        parameters[parameter_name] = KnownParameter(
+            value=float(initial_value),
+        )
+
+    mechanical_properties = MechanicalProperties(
+        constituitive_law=project.constituitive_law,
+        parameters=parameters,
+    )
+    mechanical_properties.validate()
+    return mechanical_properties

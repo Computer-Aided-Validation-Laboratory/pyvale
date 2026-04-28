@@ -10,9 +10,9 @@ from pymoo.optimize import minimize
 from scipy.optimize import least_squares
 
 from pyvale.vfm.mechanical_properties import (
+    EParameterName,
     KnownParameter,
     MechanicalProperties,
-    coerce_parameter_name,
 )
 from pyvale.vfm.metrics import MetricContext, build_metric, evaluate_metrics
 from pyvale.vfm.project_definition import PhaseDefinition, PhaseResult, TestData
@@ -188,7 +188,7 @@ def _resolve_mechanical_properties(
     resolved_parameters = dict(base_mechanical_properties.parameters)
 
     for parameter_name, parameter_map in parameter_maps.items():
-        resolved_parameters[coerce_parameter_name(parameter_name)] = KnownParameter(
+        resolved_parameters[EParameterName[parameter_name]] = KnownParameter(
             parameter_map
         )
 

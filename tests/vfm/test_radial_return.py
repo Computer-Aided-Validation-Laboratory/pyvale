@@ -2,13 +2,11 @@ import numpy as np
 import numpy.testing as npt
 
 from pyvale.vfm.mechanical_properties import (
-    ConstituitiveLaw,
+    EConstituitiveLaw,
     HomogeneousParameter,
-    IdentificationType,
     MechanicalProperties,
     ParameterBounds,
-    ParameterName,
-    ScalarValue,
+    EParameterName,
 )
 from pyvale.vfm.radial_return import radial_return
 
@@ -20,27 +18,23 @@ def _make_mechanical_properties(
     hardening_modulus: float,
 ) -> MechanicalProperties:
     return MechanicalProperties(
-        ConstituitiveLaw.LinearHardening,
+        EConstituitiveLaw.LinearHardening,
         {
-            ParameterName.ElasticModulus: HomogeneousParameter(
-                IdentificationType.Known,
-                ParameterBounds(1.0, 1.0e9),
-                ScalarValue(elastic_modulus),
+            EParameterName.ElasticModulus: HomogeneousParameter(
+                bounds=ParameterBounds(1.0, 1.0e9),
+                value=elastic_modulus,
             ),
-            ParameterName.PoissonsRatio: HomogeneousParameter(
-                IdentificationType.Known,
-                ParameterBounds(0.0, 0.49),
-                ScalarValue(poissons_ratio),
+            EParameterName.PoissonsRatio: HomogeneousParameter(
+                bounds=ParameterBounds(0.0, 0.49),
+                value=poissons_ratio,
             ),
-            ParameterName.YieldStrength: HomogeneousParameter(
-                IdentificationType.Known,
-                ParameterBounds(1.0, 1.0e9),
-                ScalarValue(yield_strength),
+            EParameterName.YieldStrength: HomogeneousParameter(
+                bounds=ParameterBounds(1.0, 1.0e9),
+                value=yield_strength,
             ),
-            ParameterName.HardeningModulus: HomogeneousParameter(
-                IdentificationType.Known,
-                ParameterBounds(0.0, 1.0e9),
-                ScalarValue(hardening_modulus),
+            EParameterName.HardeningModulus: HomogeneousParameter(
+                bounds=ParameterBounds(0.0, 1.0e9),
+                value=hardening_modulus,
             ),
         },
     )
