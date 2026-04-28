@@ -15,6 +15,10 @@ from pyvale.vfm.mechanical_properties import (
     MechanicalProperties,
 )
 
+# TODO - LF 
+# - There is an absolute ton of hard coded logic in here and a bunch of different
+#   classes and functions doing different things. We should probably break up 
+#   this file for clarity. 
 
 LINEAR_HARDENING_PARAMETER_DEFAULTS: dict[EParameterName, tuple[float, float, float]] = {
     EParameterName.ElasticModulus: (190.0e3, 150.0e3, 250.0e3),
@@ -95,7 +99,10 @@ class TestData:
 # Exclude TestData from test collection since it's just a data container and not a test case
 TestData.__test__ = False
 
-
+# TODO - LF
+# - There are way too many things in the code base named Parameter that mean
+#   different things. In another place Parameter means spatial parametrisation
+#   here it means an actual consitutive parameter I think...
 @dataclass(slots=True)
 class ParameterDefinition:
     name: EParameterName
@@ -176,12 +183,19 @@ class MetricSpec:
     options: dict[str, Any] = field(default_factory=dict)
 
 
+# TODO - LF
+# - Optimiser should probably also be an ABC where we wrap various optimisers
+#   for the user. The user should just be able to provide a concrete implementation
+#   of the optimiser ABC 
 @dataclass(slots=True)
 class OptimiserSpec:
     kind: str = "least_squares"
     options: dict[str, Any] = field(default_factory=dict)
 
 
+# TODO - LF
+# - name and notes fields seem redundant - the code should be self documenting
+#   if you need notes to explain what this is doing then the code names are wrong
 @dataclass(slots=True)
 class PhaseDefinition:
     name: str
@@ -190,10 +204,17 @@ class PhaseDefinition:
     optimiser: OptimiserSpec = field(default_factory=OptimiserSpec)
     notes: str = ""
 
+# TODO - LF
+# - This massive objects should probably be broken up and these should be 
+#   explicitly passed to the run_identification function. Actually having the
+#   parameters of the ident function laid out in the signature makes it much
+#   easier for a user to see what the function needs rather than having to 
+#   check this object and the run function signature
 
 @dataclass(slots=True)
 class IdentificationProject:
     name: str = "vfm_project"
+    # TODO - this should be an interface IConstLaw
     constituitive_law: EConstituitiveLaw = EConstituitiveLaw.LinearHardening
     test_data_path: Path | None = None
     use_gui: bool = False

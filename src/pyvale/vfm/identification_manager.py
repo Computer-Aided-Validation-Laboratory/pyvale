@@ -11,7 +11,9 @@ from pyvale.vfm.project_definition import (
 )
 from pyvale.vfm.spatial_parameterisation import build_parameter_state
 
-
+# TODO - LF
+# - Should probably take a list of [PhaseDefinition,..] + options
+# - User programmatically builds phase objects and sends us the list
 def run_identification(project: IdentificationProject) -> list[PhaseResult]:
     """Run the phase list defined in the project from start to finish."""
 
