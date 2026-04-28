@@ -5,10 +5,7 @@ from typing import Any
 
 import yaml
 
-from pyvale.vfm.mechanical_properties import (
-    coerce_constituitive_law,
-    coerce_parameter_name,
-)
+from pyvale.vfm.mechanical_properties import EConstituitiveLaw, EParameterName
 from pyvale.vfm.project_definition import (
     IdentificationProject,
     MetricSpec,
@@ -26,9 +23,7 @@ def load_project(project_path: str | Path) -> IdentificationProject:
     with project_file.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle) or {}
 
-    law = coerce_constituitive_law(
-        data.get("constituitive_law", "LinearHardening")
-    )
+    law = EConstituitiveLaw[data.get("constituitive_law", "LinearHardening")]
     project = create_default_project(law)
     project.project_path = project_file
     project.name = data.get("name", project.name)
@@ -41,7 +36,7 @@ def load_project(project_path: str | Path) -> IdentificationProject:
 
     parameter_data = data.get("parameters", {})
     for parameter_name, parameter_dict in parameter_data.items():
-        coerced_name = coerce_parameter_name(parameter_name)
+        coerced_name = EParameterName[parameter_name]
         project.parameters[coerced_name.name] = _load_parameter_definition(
             coerced_name.name,
             parameter_dict,
@@ -110,7 +105,7 @@ def _load_parameter_definition(
     data: dict[str, Any],
 ) -> ParameterDefinition:
     return ParameterDefinition(
-        name=coerce_parameter_name(parameter_name),
+        name=EParameterName[parameter_name],
         initial_value_type=str(data.get("initial_value_type", "float")),
         initial_value=data.get("initial_value"),
         lower_bound=data.get("lower_bound"),

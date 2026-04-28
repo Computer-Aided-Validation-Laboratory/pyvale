@@ -1,63 +1,15 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-import numpy as np
-from scipy.io import loadmat
-
 from pyvale.vfm.identification_linear import run_linear_identification
 from pyvale.vfm.identification_nonlinear import run_nonlinear_identification
 from pyvale.vfm.mat_to_py_data_parser import load_parsed_test_data
-from pyvale.vfm.mechanical_properties import (
-    ConstituitiveLaw,
-    KnownParameter,
-    MechanicalProperties,
-    required_parameters_for_law,
-)
+from pyvale.vfm.mechanical_properties import EConstituitiveLaw
 from pyvale.vfm.project_definition import (
     IdentificationProject,
     PhaseResult,
-    TestData,
+    build_mechanical_properties_from_project
 )
-from pyvale.vfm.project_definition import resolve_parameter_initial_value_scalar
 from pyvale.vfm.spatial_parameterisation import build_parameter_state
-
-
-def build_mechanical_properties_from_project(
-    project: IdentificationProject,
-) -> MechanicalProperties:
-    """Build the resolved material definition used by constitutive updates.
-
-    At this stage each parameter is just a scalar placeholder. During
-    identification the active parameter maps are rebuilt from the spatial
-    parameterisation state and replace the corresponding placeholders.
-    """
-
-    parameters = {}
-    for parameter_name in required_parameters_for_law(project.constituitive_law):
-        try:
-            parameter_definition = project.parameters[parameter_name.name]
-        except KeyError as error:
-            raise ValueError(
-                f"Project is missing parameter '{parameter_name.name}'."
-            ) from error
-
-        initial_value = resolve_parameter_initial_value_scalar(parameter_definition)
-        if initial_value is None:
-            raise ValueError(
-                f"Parameter '{parameter_name.name}' needs an initial_value."
-            )
-
-        parameters[parameter_name] = KnownParameter(
-            value=float(initial_value),
-        )
-
-    mechanical_properties = MechanicalProperties(
-        constituitive_law=project.constituitive_law,
-        parameters=parameters,
-    )
-    mechanical_properties.validate()
-    return mechanical_properties
 
 
 def run_identification(project: IdentificationProject) -> list[PhaseResult]:
@@ -114,7 +66,7 @@ def run_identification(project: IdentificationProject) -> list[PhaseResult]:
         print(f"  Built {len(parameter_states)} parameter states.")
 
         # Run identification for this phase
-        if project.constituitive_law is ConstituitiveLaw.Elastic:
+        if project.constituitive_law is EConstituitiveLaw.Elastic:
             phase_result = run_linear_identification(test_data, phase_definition)
         else:
             phase_result = run_nonlinear_identification(

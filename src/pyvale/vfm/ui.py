@@ -8,9 +8,9 @@ from pathlib import Path
 from pyqtgraph.Qt import QtCore, QtWidgets
 
 from pyvale.vfm.mechanical_properties import (
-    ConstituitiveLaw,
-    ParameterName,
-    required_parameters_for_law,
+    EConstituitiveLaw,
+    EParameterName,
+    REQUIRED_PARAMETERS,
 )
 from pyvale.vfm.project_definition import (
     IdentificationProject,
@@ -132,12 +132,12 @@ def _readonly_item(text: str) -> QtWidgets.QTableWidgetItem:
     return item
 
 
-def _required_parameter_names(constituitive_law: ConstituitiveLaw) -> list[str]:
-    return [parameter_name.name for parameter_name in required_parameters_for_law(constituitive_law)]
+def _required_parameter_names(constituitive_law: EConstituitiveLaw) -> list[str]:
+    return [parameter_name.name for parameter_name in REQUIRED_PARAMETERS[constituitive_law]]
 
 
 def _default_parameterisation_spec(
-    constituitive_law: ConstituitiveLaw,
+    constituitive_law: EConstituitiveLaw,
     parameter_name: str,
 ) -> ParameterisationSpec:
     default_phase = create_default_phase_definition(constituitive_law)
