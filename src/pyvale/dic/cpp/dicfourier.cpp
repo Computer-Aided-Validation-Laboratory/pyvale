@@ -361,18 +361,20 @@ void fill_fft_window_with_subset_at_corner_impl(subset::Pixels &ss_ref,
             int px_x = ss_x + col;
             int px_y = ss_y + row;
 
-            if (px_x < 0 || px_x >= px_hori || px_y < 0 || px_y >= px_vert) {
-                std::cout << "Image access out of bounds! px: ("
-                        << px_x << ", " << px_y << ")\n";
-                continue;
-            }
+
 
             int idx_img    = px_y * px_hori + px_x;
             int idx_window = row * window_size_x + col;
             double coeff = 1.0; //fourier::hamming(row, col, ss_size_x, ss_size_y);
             ss_ref.x[idx_window]    = px_x;
             ss_ref.y[idx_window]    = px_y;
-            ss_ref.vals[idx_window] = coeff * img[idx_img];
+
+            if (px_x < 0 || px_x >= px_hori || px_y < 0 || px_y >= px_vert) {
+                ss_ref.vals[idx_window] = 0.0;
+            }
+            else { 
+                ss_ref.vals[idx_window] = coeff * img[idx_img];
+            }
 
         }
     }
