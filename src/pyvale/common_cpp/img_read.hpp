@@ -14,5 +14,7 @@
 // common_cpp header files
 #include "./util.hpp"
 
+Image  read_img(const std::string& filename);
+Image  read_bmp(const std::string& filename);
 Image read_tiff(const std::string& filename);
 

@@ -7,11 +7,40 @@
 #include <tiffio.h>
 #include <vector>
 #include <cstdint>
+#include <string>
+#include <algorithm>
 #include <cstdlib>
 #include <stdexcept>
 
 #include "./util.hpp"
+#include "./img_read.hpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "../common_cpp/stb_image.h"
+
+Image read_img(const std::string& fullpath) {
+    // Find extension
+    auto dotPos = fullpath.find_last_of('.');
+    if (dotPos == std::string::npos) {
+        throw std::runtime_error("File has no extension: " + fullpath);
+    }
+
+    std::string ext = fullpath.substr(dotPos);
+
+    // Convert extension to lowercase
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    if (ext == ".tif" || ext == ".tiff") {
+        return read_tiff(fullpath);
+    }
+    else if (ext == ".bmp") {
+        return read_bmp(fullpath);
+    }
+    else {
+        throw std::runtime_error("Unsupported image format: " + ext);
+    }
+}
 
 Image read_tiff(const std::string &fullpath) {
 
@@ -65,4 +94,75 @@ Image read_tiff(const std::string &fullpath) {
     }
     TIFFClose(tif);
     return img;
+}
+
+Image read_bmp(const std::string& fullpath) {
+    int width = 0, height = 0, channels = 0;
+
+    // First, check if image is 16-bit
+    if (stbi_is_16_bit(fullpath.c_str())) {
+        uint16_t* raw = stbi_load_16(
+            fullpath.c_str(),
+            &width,
+            &height,
+            &channels,
+            0
+        );
+
+        if (!raw) {
+            throw std::runtime_error(
+                "Failed to open BMP: " + fullpath + " (" + stbi_failure_reason() + ")"
+            );
+        }
+
+        Image img;
+        img.width = static_cast<uint32_t>(width);
+        img.height = static_cast<uint32_t>(height);
+        img.type = PixelType::UINT16;
+        img.data16.resize(static_cast<size_t>(width) * height);
+
+        // Use first channel only
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                img.data16[y * width + x] =
+                    raw[(y * width + x) * channels];
+            }
+        }
+
+        stbi_image_free(raw);
+        return img;
+    }
+    else {
+        // Standard 8-bit BMP
+        uint8_t* raw = stbi_load(
+            fullpath.c_str(),
+            &width,
+            &height,
+            &channels,
+            0
+        );
+
+        if (!raw) {
+            throw std::runtime_error(
+                "Failed to open BMP: " + fullpath + " (" + stbi_failure_reason() + ")"
+            );
+        }
+
+        Image img;
+        img.width = static_cast<uint32_t>(width);
+        img.height = static_cast<uint32_t>(height);
+        img.type = PixelType::UINT8;
+        img.data8.resize(static_cast<size_t>(width) * height);
+
+        // Use first channel only
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                img.data8[y * width + x] =
+                    raw[(y * width + x) * channels];
+            }
+        }
+
+        stbi_image_free(raw);
+        return img;
+    }
 }
