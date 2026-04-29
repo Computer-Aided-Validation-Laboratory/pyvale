@@ -50,7 +50,10 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("basenames", &util::Config::basenames)
         .def_readwrite("fullpaths", &util::Config::fullpaths)
         .def_readwrite("debug_level", &util::Config::debug_level)
-        .def_readwrite("stereo", &util::Config::stereo);
+        .def_readwrite("stereo", &util::Config::stereo)
+        .def_readwrite("incremental", &util::Config::incremental)
+        .def_readwrite("incremental_update_cond", &util::Config::incremental_update_cond)
+        .def_readwrite("incremental_update_val",  &util::Config::incremental_update_val);
 
     // Bind the engine function
     m.def("engine", &engine, "Run DIC analysis on input images with config");
