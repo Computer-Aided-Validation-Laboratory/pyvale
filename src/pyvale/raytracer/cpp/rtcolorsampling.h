@@ -87,11 +87,10 @@ namespace texsampler{
     inline double kernel_bspline(const double x);
     inline double kernel_quintic_spline(const double x);
     
-    // TO DO: Timing and profiling to determine which of the below implementations is the most optimal, so please DO NOT DELETE THEM
+    // TO DO: Delete remaining versions after discussing the profiling/timing results; use version 2 for now as on average, it was best
 
     // Template parameters are the kernel functions above and loop_start and loop_end for different neighbourhood sizes, so we can cover quintic spline in the same template
     // Version 2: Do not separate x and y, but process whole rows at once
-    /*
     template <double (*kernel_function)(double), const int loop_start, const int loop_end>
     EiVector3d sample_greyscale(const Texture& texture, const EiArray2d& uvs) {
         // Retrieve values
@@ -155,8 +154,8 @@ namespace texsampler{
 
         return output;
     }
-*/
 
+  /*  
     //VERSION 1: Potentially optimised by doing 1D passes for x and y
     template <double (*kernel_function)(double), const int loop_start, const int loop_end>
     EiVector3d sample_greyscale(const Texture& texture, const EiArray2d& uvs) {
@@ -231,9 +230,7 @@ namespace texsampler{
         return output;
     }
 
-
     //VERSION 0: Unoptimised, nested loops, processing each (x,y) separately
-    /*
     template <double (*kernel_function)(double), const int loop_start, const int loop_end>
     EiVector3d sample_greyscale(const Texture& texture, const EiArray2d& uvs) {
         // Retrieve values
@@ -285,8 +282,7 @@ namespace texsampler{
 
         return output;
     }
-    */
-
+   */
     // Setter for the current function
     void set(TextureSampler sampler_type);
 }

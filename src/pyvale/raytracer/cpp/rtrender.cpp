@@ -43,6 +43,7 @@ EiVector3d return_ray_color(const Ray& ray,
 void render_ppm_image(const EiVector3d& camera_center,
     const EiVector3d& pixel_00_center,
     const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_defocus_disc,
     const TLAS& TLAS,
     const int image_height,
     const int image_width,
@@ -62,7 +63,12 @@ void render_ppm_image(const EiVector3d& camera_center,
                 EiVector3d pixel_sample = pixel_00_center +
                     (i + offset[0]) * matrix_pixel_spacing.row(0) +
                     (j + offset[1]) * matrix_pixel_spacing.row(1);
-                EiVector3d ray_direction = pixel_sample - camera_center;
+                std::array<double, 2> defocus_disc_offset = point_in_unit_disk();
+                EiVector3d defocus_disc_sample = defocus_disc_offset[0] * matrix_defocus_disc.row(0) + defocus_disc_offset[1] * matrix_defocus_disc.row(1);
+                //EiVector3d ray_origin = camera_center + defocus_disc_sample; // ray direction in thin lens approx
+                EiVector3d ray_direction = pixel_sample - (camera_center + defocus_disc_sample); // ray direction in thin lens approx
+                //EiVector3d ray_origin = camera_center; // ray origin in pinhole camera mode
+                //EiVector3d ray_direction = pixel_sample - camera_center; // ray direction in pinhole camera mode;
                 Ray current_ray{ camera_center, ray_direction.normalized() };
                 pixel_color += return_ray_color(current_ray, TLAS);
             }

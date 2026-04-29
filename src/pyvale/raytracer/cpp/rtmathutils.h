@@ -28,3 +28,18 @@ static std::mt19937 generator; // No seed
 inline double random_double() {
     return distribution(generator);
 }
+
+
+static std::uniform_real_distribution<double> distribution2(-1.0, 1.0);
+inline double random_double_disk() {
+    return distribution2(generator);
+}
+
+inline std::array<double,2> point_in_unit_disk(){
+    while (true){
+        std::array<double,2> offset = { random_double_disk(), random_double_disk()};
+        if (offset[0] * offset[0] + offset[1] * offset[1] < 1.0){
+            return offset;
+        }
+    }
+}

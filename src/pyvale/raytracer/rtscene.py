@@ -53,6 +53,7 @@ class Scene:
     camera_center: list[np.ndarray] = field(default_factory=list)
     pixel_00_center: list[np.ndarray] = field(default_factory=list)
     matrix_pixel_spacing: list[np.ndarray] = field(default_factory=list)
+    matrix_defocus_disc: list[np.ndarray] = field(default_factory=list)
     # Overall scene data
     timestep_count: int = 1 # Number of timesteps with the default value being 1 for static images
     mesh_count: int = 0 # Store the number of meshes in the scene simply because it is used quite a lot
@@ -73,6 +74,8 @@ class Scene:
         self.camera_center.append(camera.camera_center)
         self.pixel_00_center.append(camera.pixel_00_center)
         self.matrix_pixel_spacing.append(camera.matrix_pixel_spacing)
+        self.matrix_defocus_disc.append(camera.matrix_defocus_disc)
+
 
 
     def add_rtmesh(self, rtmesh: RTMesh) -> None:

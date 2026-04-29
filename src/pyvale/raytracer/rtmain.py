@@ -96,6 +96,8 @@ def render_scene(image_height: int,
      # Check if there are meshes in the scene and if there are, check their surfaces and element types
     if scene.mesh_count == 0:
         raise ValueError("No meshes in scene.")
+    if len(scene.camera_center) == 0:
+        raise ValueError("No cameras in scene.")
     #else: # For potential dispatch to different versions of the renderer - it might or might not be implemented
     #    uniform_surfaces = check_uniform_surfaces(scene)
     #    uniform_elements = check_uniform_elements(scene)
@@ -136,4 +138,4 @@ def render_scene(image_height: int,
     # For now use the general function with branching in it
     #cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.coords_expanded, scene.face_colors, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing)
 
-    cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing, scene.coords_expanded, scene.face_colors, scene.uvs, scene.textures, scene.surface_types, texture_sampler)
+    cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing, scene.matrix_defocus_disc, scene.coords_expanded, scene.face_colors, scene.uvs, scene.textures, scene.surface_types, texture_sampler)

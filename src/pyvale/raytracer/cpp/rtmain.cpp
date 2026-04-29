@@ -20,7 +20,7 @@
 #include <array>
 #include <vector>
 //#include <chrono>
-//#include <valgrind/callgrind.h>
+#include <valgrind/callgrind.h>
 
 // common_cpp header files
 #include "../../common_cpp/Eigen/Dense"
@@ -40,6 +40,7 @@ void render_scene(const int image_height,
     const std::vector<nb::DRef<EiVector3d>> camera_centers,
     const std::vector<nb::DRef<EiVector3d>> pixel_00_centers,
     const std::vector<nb::DRef<Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>>> matrix_pixel_spacings,
+        const std::vector<nb::DRef<Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>>> matrix_defocus_discs,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_coords_expanded,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_face_colors,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_uvs,
@@ -57,6 +58,7 @@ void render_scene(const int image_height,
     // Set the texture sampling algorithm based on the passed value
     texsampler::set(TextureSampler(texture_sampler));
     
+    
     for (int timestep = 0; timestep < timestep_count; ++timestep){
         //TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, timestep, timestep_count); // target stack-based DoD implementation
         //std::chrono::time_point t1_build = std::chrono::high_resolution_clock::now();
@@ -69,13 +71,16 @@ void render_scene(const int image_height,
             EiVector3d camera_center = camera_centers[camera_idx];
             EiVector3d pixel_00_center = pixel_00_centers[camera_idx];
             Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor> matrix_pixel_spacing = matrix_pixel_spacings[camera_idx];
+            Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor> matrix_defocus_disc = matrix_pixel_spacings[camera_idx];
             // Create the filepath for the rendered images
             filename = "rtimage_" + std::to_string(timestep) + "_cam" + std::to_string(camera_idx) + ".ppm"; // Output images in format rtimage_1_cam1 etc.
             output_filepath = output_directory;
             output_filepath.append(filename);
             std::cout << "Rendering frame " << (timestep+1) << "/" << timestep_count << std::endl;
             //std::chrono::time_point t1_render = std::chrono::high_resolution_clock::now();
-            render_ppm_image(camera_center, pixel_00_center, matrix_pixel_spacing, test_TLAS, image_height, image_width, number_of_samples, output_filepath);
+            //CALLGRIND_START_INSTRUMENTATION;
+            render_ppm_image(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, test_TLAS, image_height, image_width, number_of_samples, output_filepath);
+            //CALLGRIND_STOP_INSTRUMENTATION;
             //std::chrono::time_point t2_render = std::chrono::high_resolution_clock::now();
             
             //std::chrono::duration t_render = std::chrono::duration_cast<std::chrono::milliseconds>(t2_render - t1_render);
