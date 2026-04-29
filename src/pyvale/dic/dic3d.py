@@ -8,6 +8,7 @@
 from logging import debug
 import numpy as np
 from pathlib import Path
+from typing import Literal
 
 # pyvale
 import pyvale.dic.diccpp as diccpp
@@ -25,16 +26,19 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  seed: list[int] | list[np.int32] | np.ndarray,
                  subset_size: int = 21,
                  subset_step: int = 10,
-                 correlation_criteria: str="ZNSSD",
-                 shape_function: str="AFFINE",
-                 interpolation_routine: str="BSPLINE",
+                 correlation_criteria: Literal["ZNSSD","NSSD","SSD"]="ZNSSD",
+                 shape_function: Literal["AFFINE","QUAD","RIGID"]="AFFINE",
+                 interpolation_routine: Literal["BSPLINE","HERMITE"]="BSPLINE",
                  max_iterations: int=40,
                  precision: float=0.001,
                  threshold: float=0.9,
                  bf_threshold: float=0.6,
                  num_threads: int | None = None,
                  max_displacement: int=128,
-                 method: str="MULTIWINDOW_RG",
+                 method: Literal["MULTIWINDOW_RG","SINGLEWINDOW_RG","MULTIWINDOW","RASTER"] = "MULTIWINDOW_RG",
+                 incremental: bool=False,
+                 incremental_update_condition: Literal["IMAGE","COST","ITER"]="IMAGE",
+                 incremental_update_value: float | int=1,
                  fft_mad: bool=False,
                  fft_mad_scale: float=3.0,
                  output_at_end: bool=False,
@@ -90,10 +94,37 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     max_displacement : int, optional
         Estimate for the Maximum displacement in any direction (in pixels) (default: 128).
     method : str, optional
-        Subset scanning method: "RG" for Reliability-Guided (best overall approach), 
-        "IMAGE_SCAN" for a standard scan across the image with no seeding 
-        (best performance with for subpixel displacements with high quality images), 
-        "FFT" for a multi-window FFT based approach (Good for large displacements)
+        Subset scanning method: 
+        * ``"MULTIWINDOW_RG"``: 
+          for multi-window Reliability-Guided DIC (best overall approach),
+        * ``"SINGLEWINDOW_RG"``:
+          uses a single window for the rigid estimate for
+          each subset. The size of the window is determined by the `max_displacement` parameter.
+        * ``"MULTIWINDOW"``:
+          only uses the multi-window FFT strategy. Only works
+          for rigid shape functions and is not recommended for general use, but
+          can be very fast for large rigid displacements.
+        * ``"RASTER"``:
+          no FFT initialization. Performs a raster scan of the image. 
+          No seed location is used and work is split evenly between threads. 
+          Not recommended except for testing with small displacements
+    incremental : bool, optional
+        If True, then references images will be updated depending on the
+        condition set by argument `incremental_update_condition`. This is useful
+        for large deformations where the original reference may no longer be
+        valid for tracking. If False, the original reference image(s) will be
+        used for tracking all deformed images (default: False).
+    incremental_update_condition : str, optional
+        Condition for updating reference images when `incremental` is True. Options include:
+        `"IMAGE"` to update every `N` images, `"COST"` to update when the average ZNCC cost
+        value falls below a threshold, `"ITER"` to update when the average number
+        of subset optimizer iterations exceeds a threshold. (default: `"PER_IMAGE"`).
+    incremental_update_value : float, optional
+        Value corresponding to the `incremental_update_condition`. For example,
+        if the condition is "IMAGE", this would be the number of images after
+        which to update the reference. If the condition is `"COST"`, this would be
+        the cost threshold for updating. If the condition is `"ITER"`, this would
+        be the iteration threshold for updating. (default: 1).
     fft_mad : bool, optional
         The option to smooth FFT windowing data by identifying and replacing outliers using 
         a robust statistical method. For each subset, the function collects values from its 
@@ -163,14 +194,19 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     basenames = basenames0 + basenames1
     fullpaths = fullpaths0 + fullpaths1
 
-    dicchecks.check_correlation_criteria(correlation_criteria)
-    dicchecks.check_interpolation(interpolation_routine)
-    dicchecks.check_method(method)
+    # string to enum
+    method_enum = dicchecks.ScanMethod(method)
+    shape_function_enum = dicchecks.Shape(shape_function)
+    correlation_criteria_enum = dicchecks.CorrCrit(correlation_criteria)
+    interpolation_routine_enum = dicchecks.Interp(interpolation_routine)
+    incremental_update_condition_enum = dicchecks.InrementalMethod(incremental_update_condition)
+
+    # checks on the config
     dicchecks.check_thresholds(threshold, bf_threshold, precision)
     common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks.check_subsets(subset_size, subset_step)
     updated_seeds = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, w0, h0, subset_size, subset_step)
-    num_params = dicchecks.check_shape_function(shape_function)
+    num_params = dicchecks.check_shape_function(shape_function_enum)
 
     # Assign values to config struct for c++ land
     config = diccpp.Config()
@@ -181,10 +217,14 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.threshold = threshold
     config.bf_threshold = bf_threshold
     config.max_disp = max_displacement
-    config.corr_crit = correlation_criteria
-    config.shape_func = shape_function
-    config.interp_routine = interpolation_routine
-    config.scan_method = method
+    config.corr_crit = correlation_criteria_enum.value
+    config.shape_func = shape_function_enum.value
+    config.interp_routine = interpolation_routine_enum.value
+    config.shape_func = shape_function_enum.value
+    config.scan_method = method_enum.value
+    config.incremental = incremental
+    config.incremental_update_cond = incremental_update_condition_enum.value
+    config.incremental_update_val = incremental_update_value
     config.px_hori = w0
     config.px_vert = h0
     config.num_def_img = len(basenames0)-1 # subtract ref image
