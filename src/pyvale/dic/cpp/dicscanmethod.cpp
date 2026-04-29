@@ -717,28 +717,83 @@ namespace scanmethod {
         const int last_size = nsizes-1;
         const int results_num = img_num-1;
 
-        // get number of subsets and the size for the smalllest window size
-        const int num_ss  = ss_grid[last_size].num;
-        const int ss_size = ss_grid[last_size].size;
+        #pragma omp parallel shared(stop_request, result_arrays, ss_grid, conf, interp_def)
+        {
 
-        for (int ss = 0; ss < num_ss; ss++){
+            subset::Pixels ss_ref(ss_grid[last_size].size);
+            subset::Pixels ss_def(ss_grid[last_size].size);
 
-            // exit the main DIC loop when ctrl+C is hit
-            if (stop_request){
-                continue;
+            // get number of subsets and the size for the smalllest window size
+            const int num_ss  = ss_grid[last_size].num;
+
+
+
+            #pragma omp for
+            for (int ss = 0; ss < num_ss; ss++){
+
+                // exit the main DIC loop when ctrl+C is hit
+                if (stop_request){
+                    continue;
+                }
+
+                // append fourier results to master result vectors
+                OptResult res(conf.num_params);
+                res.u    = fourier::shifts[last_size].x[ss];
+                res.p[0] = fourier::shifts[last_size].x[ss];
+                res.v    = fourier::shifts[last_size].y[ss];
+                res.p[1] = fourier::shifts[last_size].y[ss];
+
+                // get the reference subset
+                const double ss_x = ss_grid[last_size].coords[ss*2];
+                const double ss_y = ss_grid[last_size].coords[ss*2+1];
+
+                // get the reference subset
+                subset::get_px_from_img(ss_ref, ss_x, ss_y, conf.px_hori, conf.px_vert, img_ref);
+                subset::get_subpx_from_img(ss_def, ss_x+res.u, ss_y+res.v, interp_def);
+
+                // calculate zncc value
+                double zncc = 0.0;
+                double mean_def = 0.0;
+                double mean_ref = 0.0;
+
+                for (int i = 0; i < ss_def.num_px; ++i) {
+                    mean_ref += ss_ref.vals[i];
+                    mean_def += ss_def.vals[i];
+                }
+
+                mean_ref /= ss_ref.num_px;
+                mean_def /= ss_def.num_px;
+
+                double sum_squared_ref = 0.0;
+                double sum_squared_def = 0.0;
+                for (int i = 0; i < ss_def.num_px; ++i) {
+                    sum_squared_ref += (ss_ref.vals[i] - mean_ref) * (ss_ref.vals[i] - mean_ref);
+                    sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
+                }
+
+                // Bail out if either subset is degenerate (uniform/zero intensity)
+                if (sum_squared_def < 1e-12 || sum_squared_ref < 1e-12) {
+                    zncc = 0.0;
+                }
+                else {
+                    const double inv_sum_squared = 1.0 / sqrt(sum_squared_ref*sum_squared_def);
+
+                    for (int i = 0; i < ss_def.num_px; ++i) {
+                        const double def_norm = (ss_def.vals[i] - mean_def);
+                        const double ref_norm = (ss_ref.vals[i] - mean_ref);
+                        zncc += ref_norm*def_norm; 
+                    }
+                    zncc *= inv_sum_squared;
+                }
+
+                res.cost = zncc;
+                res.converged=true;
+                res.above_threshold=true;
+                result_arrays.append(res, results_num, ss);
             }
-
-            // append fourier results to master result vectors
-            OptResult res(conf.num_params);
-            res.u    = fourier::shifts[last_size].x[ss];
-            res.p[0] = fourier::shifts[last_size].x[ss];
-            res.v    = fourier::shifts[last_size].y[ss];
-            res.p[1] = fourier::shifts[last_size].y[ss];
-            res.converged=true;
-            res.above_threshold=true;
-            result_arrays.append(res, results_num, ss);
         }
     }
+
 
 
     void single_window_fourier(const double *img_ref,
