@@ -10,12 +10,37 @@ import os
 import sys
 from PIL import Image
 from pathlib import Path
+from enum import Enum
 
 """
 This module contains functions for checking arguments passed to the 2D DIC
 Engine.
 """
 
+class ScanMethod(str, Enum):
+    MULTIWINDOW_RG = "MULTIWINDOW_RG"
+    SINGLEWINDOW_RG = "SINGLEWINDOW_RG"
+    MULTIWINDOW = "MULTIWINDOW"
+    IMAGE = "IMAGE"
+
+class Shape(str, Enum):
+    RIGID = "RIGID"
+    AFFINE = "AFFINE"
+    QUAD = "QUAD"
+
+class CorrCrit(str, Enum):
+    SSD = "SSD"
+    NSSD = "NSSD"
+    ZNSSD = "ZNSSD"
+
+class Interp(str, Enum):
+    BSPLINE = "BSPLINE"
+    HERMITE = "HERMITE"
+
+class InrementalMethod(str, Enum):
+    IMAGE = "IMAGE"
+    COST = "COST"
+    ITER = "ITER"
 
 def check_correlation_criteria(correlation_criteria: str) -> None:
     """
@@ -45,41 +70,31 @@ def check_correlation_criteria(correlation_criteria: str) -> None:
 
 
 
-def check_shape_function(shape_function: str) -> int:
+def check_shape_function(shape: Shape) -> int:
     """
-    Checks whether input `shape_function` is one of the allowed
-    values (``"RIGID"``, ``"AFFINE"`` or ``"QUAD"``). If valid, it returns the number of transformation
-    parameters associated with that shape function.
+    Returns the number of parameters associated with that shape function.
 
     Parameters
     ----------
     shape_function : str
-        The shape function type. Must be either ``"RIGID"``, ``"AFFINE"`` or ``"QUAD"``.
+        The shape function type. Must be either ``RIGID``, ``AFFINE`` or ``QUAD``.
 
     Returns
     -------
     int
         The number of parameters for the specified shape function:
-        - 2 for ``"RIGID"``
-        - 6 for ``"AFFINE"``
-        - 12 for ``"QUAD"``
-
-    Raises
-    ------
-    ValueError
-        If ``shape_function`` is not one of the allowed values.
+        - 2 for ``RIGID``
+        - 6 for ``AFFINE``
+        - 12 for ``QUAD``
     """
 
-    if (shape_function=="RIGID"):
+    if (shape==Shape.RIGID):
         num_params = 2
-    elif (shape_function=="AFFINE"): 
+    elif (shape==Shape.AFFINE): 
         num_params = 6
-    elif (shape_function=="QUAD"): 
+    elif (shape==Shape.QUAD): 
         num_params = 12
-    else:
-        raise ValueError(f"Invalid shape_function: {shape_function}. "
-                         f"Allowed values are: 'AFFINE', 'RIGID', 'QUAD'.")
-
+    
     return num_params
 
 
@@ -120,7 +135,7 @@ def check_method(method: str) -> None:
     Parameters
     ----------
     method : str
-        Allowed values are ``"MULTIWINDOW_RG"``, ``"MULTIWINDOW"``, ``"SINGLEWINDOW_RG"``, ``"SINGLEWINDOW_RG_INCREMENTAL"``, ``"IMAGE_SCAN"``.
+        Allowed values are ``"MULTIWINDOW_RG"``, ``"MULTIWINDOW"``, ``"SINGLEWINDOW_RG"``, ``"RASTER"``.
 
     Raises
     ------
@@ -129,7 +144,7 @@ def check_method(method: str) -> None:
 
     """
 
-    allowed_values = {"MULTIWINDOW_RG", "MULTIWINDOW", "SINGLEWINDOW_RG", "SINGLEWINDOW_RG_INCREMENTAL", "IMAGE_SCAN"}
+    allowed_values = {"MULTIWINDOW_RG", "MULTIWINDOW", "SINGLEWINDOW_RG", "SINGLEWINDOW_RG", "RASTER"}
 
     if method not in allowed_values:
         raise ValueError(f"Invalid method: {method}. "
