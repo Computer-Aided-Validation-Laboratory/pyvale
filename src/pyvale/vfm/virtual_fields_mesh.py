@@ -249,7 +249,7 @@ def generate_virtual_fields_mesh(
     # Debug: plot data mesh overlaid on data points 
     plot_data_mesh(x, y, data_mesh, specimen_mask)
 
-    vf_mesh = generate_vf_mesh(data_mesh,mesh_size)
+    vf_mesh = generate_virtual_fields_mesh(data_mesh,mesh_size)
 
 
     mesh_x, mesh_y = generate_mesh(x, y, mesh_size)
