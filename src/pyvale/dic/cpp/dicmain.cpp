@@ -99,14 +99,14 @@ void engine(const py::array_t<bool>& img_roi_arr,
     }
     else if (conf.scan_method == "SINGLEWINDOW_RG" ||
              conf.scan_method == "SINGLEWINDOW_RG_INCREMENTAL" ||
-             conf.scan_method == "IMAGE_SCAN") {
+             conf.scan_method == "RASTER") {
 
         ss_grid_l = subset::create_grid(img_roi, conf.ss_step,
                                         conf.ss_size, conf.ss_size,
                                         conf.px_hori, conf.px_vert, false);
     }
     else {
-        std::cout << "ERROR " << std::endl;
+        std::cout << "ERROR: Unsupported scan method: " << conf.scan_method << std::endl;
         exit(0);
     }
 
@@ -124,7 +124,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
     // pointer to reference images at start of stack
     //double *img_ref_l = img_stack;
-    Image img_ref_l = read_tiff(conf.fullpaths[0]);
+    Image img_ref_l = read_img(conf.fullpaths[0]);
     Image img_ref_r;
 
     // pointer to hold the reference interpolators (will be created once)
@@ -154,7 +154,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
         // image series goes l0,r0,l1,r1,l2,r2
         //img_ref_r = img_stack + (conf.num_def_img+1)*num_px_in_image; // r0 image
-        img_ref_r = read_tiff(conf.fullpaths[conf.num_def_img+1]);
+        img_ref_r = read_img(conf.fullpaths[conf.num_def_img+1]);
 
         // interpolators
         interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
@@ -213,20 +213,20 @@ void engine(const py::array_t<bool>& img_roi_arr,
         Image img_def_l, img_def_r;
 
         // interpolator for the L image
-        img_def_l = read_tiff(conf.fullpaths[img_num_l]);
+        img_def_l = read_img(conf.fullpaths[img_num_l]);
         interp_def_l = make_interp(conf.interp_routine, img_def_l);
 
         // interpolator for the R image
         if (conf.stereo) {
-            img_def_r = read_tiff(conf.fullpaths[img_num_r]);
+            img_def_r = read_img(conf.fullpaths[img_num_r]);
             interp_def_r = make_interp(conf.interp_routine, img_def_r);
         }
 
         // -------------------------------------------------------------------------------------------------------------------------------------------
         // raster scan
         // -------------------------------------------------------------------------------------------------------------------------------------------
-        if (conf.scan_method=="IMAGE_SCAN") {
-            if (conf.stereo) {std::cerr << "ERROR: Scan method=\"IMAGE_SCAN\" does not support stereo" << std::endl; return;}
+        if (conf.scan_method=="RASTER") {
+            if (conf.stereo) {std::cerr << "ERROR: Scan method=\"RASTER\" does not support stereo" << std::endl; return;}
             scanmethod::raster(img_ref_l, *interp_def_l, ss_grid_l, conf, 0, img_num, result_arrays_l);
         }
 
@@ -258,7 +258,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // -------------------------------------------------------------------------------------------------------------------------------------------
         // singlewindow FFTCC + reliability Guided
         // -------------------------------------------------------------------------------------------------------------------------------------------
-        else if (conf.scan_method=="SINGLEWINDOW_RG"){
+        else if (conf.scan_method=="SINGLEWINDOW_RG" && !conf.incremental){
             if (!interp_ref_l) interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
             scanmethod::singlewindow_incremental_reliability_guided(img_ref_l, img_def_l,
                                                                     *interp_ref_l, *interp_def_l,
@@ -274,8 +274,10 @@ void engine(const py::array_t<bool>& img_roi_arr,
         else if (conf.scan_method=="MULTIWINDOW")
             scanmethod::multiwindow_only(img_ref_l,
                                          img_def_l,
+                                         *interp_ref_l,
                                          *interp_def_l,
                                          multiwindow_l,
+                                         ss_grid_l,
                                          conf,
                                          0, img_num,
                                          result_arrays_l);
@@ -284,11 +286,45 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // ----------------------------------------------------------------------------------------
         // singlewindow FFTCC + reliability Guided + Incremental Updating
         // ----------------------------------------------------------------------------------------
-        else if (conf.scan_method=="SINGLEWINDOW_RG_INCREMENTAL"){
+        else if (conf.scan_method=="SINGLEWINDOW_RG" && conf.incremental){
 
-            img_ref_l = read_tiff(conf.fullpaths[img_num_l-1]);
-            interp_ref_l_inc = make_interp(conf.interp_routine, img_ref_l);
-            std::swap(result_arrays_l_prev, result_arrays_l);
+            if (conf.incremental_update_cond=="IMAGE"){
+                int update_interval = static_cast<int>(conf.incremental_update_val);
+                if ((img_num_l - 1) % update_interval == 0) {
+                    img_ref_l = read_img(conf.fullpaths[img_num_l - 1]);
+                    interp_ref_l_inc = make_interp(conf.interp_routine, img_ref_l);
+                    std::swap(result_arrays_l_prev, result_arrays_l);
+                }
+            }
+            else if (conf.incremental_update_cond=="ITER"){
+                double avg_iter = 0.0;
+                for (int j = 0; j < result_arrays_l.niter.size(); j++){
+                    avg_iter += result_arrays_l.niter[j];
+                }
+                avg_iter /= result_arrays_l.niter.size();
+
+                if (avg_iter > conf.incremental_update_val){
+                    img_ref_l = read_img(conf.fullpaths[img_num_l]);
+                    interp_ref_l_inc = make_interp(conf.interp_routine, img_ref_l);
+                    std::swap(result_arrays_l_prev, result_arrays_l);
+                }
+            }
+            else if (conf.incremental_update_cond=="COST"){
+                double avg_cost = 0.0;
+                for (int j = 0; j < result_arrays_l.cost.size(); j++){
+                    avg_cost += result_arrays_l.cost[j];
+                }
+                avg_cost /= result_arrays_l.cost.size();
+                if (avg_cost > conf.incremental_update_val){
+                    img_ref_l = read_img(conf.fullpaths[img_num_l]);
+                    interp_ref_l_inc = make_interp(conf.interp_routine, img_ref_l);
+                    std::swap(result_arrays_l_prev, result_arrays_l);
+                }
+            }
+            else {
+                std::cerr << "ERROR: Unknown incremental update condition: " << conf.incremental_update_cond << std::endl;
+                exit(0);
+            }
 
             scanmethod::singlewindow_incremental_reliability_guided(img_ref_l, img_def_l, 
                                                                     *interp_ref_l_inc, 
@@ -297,15 +333,6 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                                                     img_num-1, img_num, 
                                                                     result_arrays_l_prev,
                                                                     result_arrays_l);
-
-
-            // REFERENCE IMAGE UPDATING CONDITIONS
-            // double avg_iter = 0.0;
-            // for (int j = 0; j < result_arrays_l.niter.size(); j++){
-            //     avg_iter += result_arrays_l.niter[j];
-            // }
-            // avg_iter /= result_arrays_l.niter.size();
-            // std::cout << "avg_iter: " << avg_iter << std::endl;
         }
 
         if (!saveconf.at_end){
