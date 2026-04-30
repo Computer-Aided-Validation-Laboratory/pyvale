@@ -818,15 +818,15 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
                 break;
             case QUAD4:
                 process_element_data<QUAD4>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
-                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad;
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad<QuadType::QUAD4>;
                 break;
             case QUAD8:
                 process_element_data<QUAD8>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
-                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad;
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad<QuadType::QUAD8>;
                 break;
             case QUAD9:
                 process_element_data<QUAD9>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
-                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad;
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad<QuadType::QUAD9>;
                 break;
             default: throw std::invalid_argument("Unsupported element type."); // Shouldn't ever get triggered since we check element type on the Python side as well
         }

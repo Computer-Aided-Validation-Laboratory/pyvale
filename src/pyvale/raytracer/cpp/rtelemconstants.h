@@ -16,3 +16,11 @@ enum ElementNodeCount {
     QUAD8 = 8,
     QUAD9 = 9
 };
+
+// Same as ElementNodeCount, created purely for intersect_bvh_quad template so it does not get generated for TRI3 and TRI6
+// Scoped (enum class) to avoid clashes with ElementNodeCount
+enum class QuadType{
+    QUAD4 = 4,
+    QUAD8 = 8,
+    QUAD9 = 9
+};

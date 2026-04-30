@@ -23,12 +23,26 @@ struct IntersectionOutput {
     Eigen::Array<double, Eigen::Dynamic, 1> t_values;
 };
 
+/* ********************************************** 
+ * Eigen algebra functions
+********************************************** */
+
 EiVectorD3d cross_rowwise(const EiVectorD3d& mat1, const EiVectorD3d& mat2);
 
-inline Eigen::Array<double, Eigen::Dynamic, 1> dot_rowwise (const EiArrayD3d& mat1, const EiArrayD3d& mat2);
+//inline Eigen::Array<double, Eigen::Dynamic, 1> dot_rowwise (const EiArrayD3d& mat1, const EiArrayD3d& mat2);
+// Had to be moved here to allow the templated intersect_bvh_quad to compile 
+inline EiArrayD1d dot_rowwise (const EiArrayD3d& mat1, const EiArrayD3d& mat2){
+    // Eigen should automatically convert EiVectorD3d to EiArrayD3d, so no need to do that while calling the function
+    // These change just the object behaviour: arrays are for coefficient-wise operations, matrices for linear algebra. No data copying
+    // However, if that breaks, just use e.g., mat1.array()
+    return (mat1 * mat2).rowwise().sum();
+}
 
 EiArrayD3d lerp_vectorised (const EiArrayD3d& points_A, const EiArrayD3d& points_B, const Eigen::Array<double, Eigen::Dynamic, 1> weights);
 
+/* ********************************************** 
+ * Overwrite intersection output - textures
+********************************************** */
 
 void overwrite_intersection_quad4_tex(HitRecord& intersection_record,
     const BLAS_Node& Node,
@@ -50,6 +64,9 @@ void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
     const Texture& texture,
     Eigen::Index min_row_idx);
 
+/* ********************************************** 
+ * Overwrite intersection output - solid colour
+********************************************** */
 
 void overwrite_intersection_tri3_col(HitRecord& intersection_record,
     const BLAS_Node& Node,
@@ -61,14 +78,22 @@ void overwrite_intersection_any_col(HitRecord& intersection_record,
     const Texture& texture,
     Eigen::Index min_row_idx);
 
+/* ********************************************** 
+ * Ray-mesh element intersections
+********************************************** */
 
 IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_triangle_count);
 
+template<QuadType element_node_count>
 IntersectionOutput intersect_bvh_quad(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_quad_count);
+    
+/* ********************************************** 
+ * Ray-acceleration structure intersections
+********************************************** */
 
 void intersect_BLAS(const Ray& ray,
     const BLAS& mesh_bvh,

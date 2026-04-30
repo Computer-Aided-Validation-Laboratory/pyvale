@@ -115,7 +115,6 @@ def render_scene(image_height: int,
     # If texture sampling method is not selected, set to nearest neighbour by default (both to be able to render and because C++ expects an int, so we want to pass a number even for solid surfaces)
     if texture_sampler is None:
         texture_sampler = TextureSampler.NEAREST_NEIGHBOUR
-        print(type(texture_sampler))
         # Display information about setting the algorithm type if there are textured meshes in the scene 
         if SurfType.TEXTURE in scene.surface_types:
             print("Texture sampler not selected. Using nearest neighbour.")

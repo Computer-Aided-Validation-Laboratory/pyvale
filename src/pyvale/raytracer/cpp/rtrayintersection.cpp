@@ -38,13 +38,14 @@ EiVectorD3d cross_rowwise(const EiVectorD3d& mat1, const EiVectorD3d& mat2) {
     return cross_product_result;
 }
 
+/*
 inline EiArrayD1d dot_rowwise (const EiArrayD3d& mat1, const EiArrayD3d& mat2){
     // Eigen should automatically convert EiVectorD3d to EiArrayD3d, so no need to do that while calling the function
     // These change just the object behaviour: arrays are for coefficient-wise operations, matrices for linear algebra. No data copying
     // However, if that breaks, just use e.g., mat1.array()
     return (mat1 * mat2).rowwise().sum();
 }
-
+*/
 EiArrayD3d lerp_vectorised (const EiArrayD3d& points_A,
     const EiArrayD3d& points_B,
     const EiArrayD1d weights){
@@ -315,6 +316,8 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     return IntersectionOutput{ barycentric_coordinates, plane_normals, t_values };
 }
 
+// Implement template
+template<QuadType element_node_count>
 IntersectionOutput intersect_bvh_quad(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_quad_count){
@@ -322,12 +325,11 @@ IntersectionOutput intersect_bvh_quad(const Ray& ray,
     // Method based on NVIDIA 2019, E. Haines, T. Akenine-Möller (eds.), Ray Tracing Gems, https://doi.org/10.1007/978-1-4842-4427-2_8
     // More specifically: Chapter 8, "Cool Patches: A Geometric Approach to Ray/Bilinear Patch Intersections" by A. Reshetov
 
-    // IMPORTANT NOTE: This should work for QUAD8 and QUAD9 in both the VTK and Exodus order without any changes as they also store corner nodes at indices 0-3 in the connectivity array,
-    // and this is developed for non-planar quadrilaterals. Still, as of now, it was only tested with QUAD4
+    // This should work for QUAD8 and QUAD9 in both the VTK and Exodus order without any changes as they also store corner nodes at indices 0-3 in the connectivity array,
+    // and this algorithm was developed for non-planar quadrilaterals. 
 
-    static const int NODES_PER_ELEMENT = 4;
-    static const int COORDS_PER_ELEMENT = NODES_PER_ELEMENT * NODE_COORDINATES;
-    double EPSILON = 1e-6;
+    static constexpr int COORDS_PER_ELEMENT = static_cast<int>(element_node_count) * NODE_COORDINATES;
+    static constexpr double EPSILON = 1e-6;
     
     // 1. COORDINATES AND EDGES
     // Ray data broadcasted to use in vectorised operations on matrices
@@ -346,7 +348,6 @@ IntersectionOutput intersect_bvh_quad(const Ray& ray,
     EiArrayD3d corners_bl(bvh_node_quad_count, NODE_COORDINATES), corners_br(bvh_node_quad_count, NODE_COORDINATES), corners_tr(bvh_node_quad_count, NODE_COORDINATES), corners_tl(bvh_node_quad_count, NODE_COORDINATES); // shape (faces, 3) each
     EiArrayD3d edges_bottom(bvh_node_quad_count, NODE_COORDINATES), edges_top(bvh_node_quad_count, NODE_COORDINATES), edges_right(bvh_node_quad_count, NODE_COORDINATES), edges_left(bvh_node_quad_count, NODE_COORDINATES); // shape (faces, 3) each
 
-    //std::cout << "Getting corners and edges" << std::endl;
     // Go over all quads in the node to find corner and edge coordinates
     // Node coords are stored as [xyz, xyz, xyz...]
     for (int quad_idx = 0; quad_idx < bvh_node_quad_count; quad_idx++) {
@@ -375,13 +376,9 @@ IntersectionOutput intersect_bvh_quad(const Ray& ray,
     // 2. SOLVING THE INTERSECTION
 
     // 1. Solve quadratic a + b*u + c*u^2
-    //std::cout << "Getting a,b,c" << std::endl;
     EiArrayD1d a = dot_rowwise(cross_rowwise(corners_bl, ray_directions), edges_left); // Row-wise dot product; shape (faces, 1)
-    //((cross_rowwise(corners_bl, ray_directions)).array() * edges_left).rowwise().sum(); // Row-wise dot product; shape (faces, 1))
     EiArrayD1d c = dot_rowwise(normals, ray_directions); //
-    //(normals * ray_directions.array()).rowwise().sum(); // Row-wise dot product; shape (faces, 1)
     EiArrayD1d b = dot_rowwise(cross_rowwise(corners_br, ray_directions), edges_right);
-    //((cross_rowwise(corners_br, ray_directions)).array() * edges_right).rowwise().sum(); // Row-wise dot product; shape (faces, 1))
     b = b - (a + c); 
     EiArrayD1d discriminants = b.square() - 4*a*c; // Shape (faces, 1)
     // Discriminant negative -> triangle is back-facing. If discriminant is close to 0, ray and triangle are parallel and ray misses the triangle.
@@ -434,7 +431,6 @@ IntersectionOutput intersect_bvh_quad(const Ray& ray,
     EiArrayD1d v_values = EiArrayD1d::Constant(bvh_node_quad_count, 1, -1.0);
 
     // 3.1. Evaluate case 0.0 <= u1 <= 1.0
-    //std::cout << "u1" << std::endl;
     EiBoolMask u1_valid = valid_mask && (0.0 <= u1) && (u1 <= 1.0);
     EiArrayD3d pa1 = lerp_vectorised(corners_bl, corners_br, u1);
     EiArrayD3d pb1 = lerp_vectorised(edges_left, edges_right, u1);
@@ -452,7 +448,6 @@ IntersectionOutput intersect_bvh_quad(const Ray& ray,
     v_values = hit_mask1.select(v1/det1, v_values);
 
     // 3.2. Evaluate case 0.0 <= u2 <= 1.0 - Slightly different since u1 might be good and we need 0 < t2 < t1
-    //std::cout << "u2" << std::endl;
     EiBoolMask u2_valid = valid_mask && (0.0 <= u2) && (u2 <= 1.0);
     EiArrayD3d pa2 = lerp_vectorised(corners_bl, corners_br, u2);
     EiArrayD3d pb2 = lerp_vectorised(edges_left, edges_right, u2);
@@ -482,6 +477,20 @@ IntersectionOutput intersect_bvh_quad(const Ray& ray,
     // Leave last column at 0 - matches out output format and this is also what they do explicitly in the paper
     return IntersectionOutput{ quad_coordinates, geometric_normals, t_values };
     }
+
+// Explicit template instantiations to avoid having to implement the above in the header file
+template IntersectionOutput intersect_bvh_quad<QuadType::QUAD4>(const Ray& ray,
+    const std::vector<double>& node_coords,
+    const unsigned int bvh_node_quad_count);
+
+template IntersectionOutput intersect_bvh_quad<QuadType::QUAD8>(const Ray& ray,
+    const std::vector<double>& node_coords,
+    const unsigned int bvh_node_quad_count);
+
+template IntersectionOutput intersect_bvh_quad<QuadType::QUAD9>(const Ray& ray,
+    const std::vector<double>& node_coords,
+    const unsigned int bvh_node_quad_count);
+
 
 struct Ray_old { Eigen::Vector3d o, d; Ray_old(Eigen::Vector3d o_, Eigen::Vector3d d_) : o(o_), d(d_) {} };
 
