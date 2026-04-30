@@ -815,6 +815,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
                 break;
             case TRI6:
                 process_element_data<TRI6>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_tri6;
                 break;
             case QUAD4:
                 process_element_data<QUAD4>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
@@ -873,6 +874,9 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
             switch(nodes_per_element){
                 case TRI3:
                     mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3_tex;
+                    break;
+                case TRI6:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6_tex;
                     break;
                 case QUAD4:
                     mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4_tex;

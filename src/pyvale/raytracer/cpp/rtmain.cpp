@@ -71,7 +71,7 @@ void render_scene(const int image_height,
             EiVector3d camera_center = camera_centers[camera_idx];
             EiVector3d pixel_00_center = pixel_00_centers[camera_idx];
             Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor> matrix_pixel_spacing = matrix_pixel_spacings[camera_idx];
-            Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor> matrix_defocus_disc = matrix_pixel_spacings[camera_idx];
+            Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor> matrix_defocus_disc = matrix_defocus_discs[camera_idx];
             // Create the filepath for the rendered images
             filename = "rtimage_" + std::to_string(timestep) + "_cam" + std::to_string(camera_idx) + ".ppm"; // Output images in format rtimage_1_cam1 etc.
             output_filepath = output_directory;
