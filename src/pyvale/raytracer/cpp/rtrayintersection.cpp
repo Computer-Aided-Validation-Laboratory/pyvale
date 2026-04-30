@@ -231,7 +231,7 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     const unsigned int bvh_node_triangle_count) {
 
     // Go through all the triangles and find an intersection of each triangle with a ray
-    int NODES_PER_ELEMENT = 3; // Number of nodes per triangle/quad. Used for some of flat indexing.
+    static constexpr int NODES_PER_ELEMENT = static_cast<int>(ElementNodeCount::TRI3); // Number of nodes per triangle/quad. Used for some of flat indexing.
     double EPSILON = 1e-6;
     // Ray data broadcasted to use in vectorised operations on matrices
     // This is faster than doing it in a loop

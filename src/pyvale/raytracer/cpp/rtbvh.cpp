@@ -882,6 +882,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
                     break;
                 case QUAD9:
                     mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9_tex;
+                    break;
                 default: throw std::invalid_argument("Unsupported element type.");
             }
         }
