@@ -131,7 +131,7 @@ def test_image_scan_znssd_affine():
                      max_displacement=2,
                      correlation_criteria="ZNSSD",
                      shape_function="AFFINE",
-                     method="IMAGE_SCAN",
+                     method="RASTER",
                      output_basepath=test_dir,
                      output_prefix="test_image_scan_znssd_affine_")
 
@@ -159,7 +159,7 @@ def test_image_scan_znssd_rigid():
                      max_displacement=2,
                      correlation_criteria="ZNSSD",
                      shape_function="RIGID",
-                     method="IMAGE_SCAN",
+                     method="RASTER",
                      output_basepath=test_dir,
                      output_prefix="test_image_scan_znssd_rigid_")
 
@@ -187,7 +187,7 @@ def test_image_scan_nssd_affine():
                      max_displacement=2,
                      correlation_criteria="NSSD",
                      shape_function="AFFINE",
-                     method="IMAGE_SCAN",
+                     method="RASTER",
                      output_basepath=test_dir,
                      output_prefix="test_image_scan_nssd_affine_")
 

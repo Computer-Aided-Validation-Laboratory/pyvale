@@ -27,7 +27,7 @@ pyvale.dic.calculate_2d(reference=ref_pattern,
             correlation_criteria="ZNSSD",
             interpolation_routine="BICUBIC",
             shape_function="AFFINE",
-            method="IMAGE_SCAN",
+            method="RASTER",
             output_prefix="test_image_scan_znssd_affine_")
 
 pyvale.dic.calculate_2d(reference=ref_pattern,
@@ -40,7 +40,7 @@ pyvale.dic.calculate_2d(reference=ref_pattern,
             correlation_criteria="ZNSSD",
             interpolation_routine="BICUBIC",
             shape_function="RIGID",
-            method="IMAGE_SCAN",
+            method="RASTER",
             output_prefix="test_image_scan_znssd_rigid_")
 
 pyvale.dic.calculate_2d(reference=ref_pattern,
@@ -53,7 +53,7 @@ pyvale.dic.calculate_2d(reference=ref_pattern,
             correlation_criteria="NSSD",
             interpolation_routine="BICUBIC",
             shape_function="AFFINE",
-            method="IMAGE_SCAN",
+            method="RASTER",
             output_prefix="test_image_scan_nssd_affine_")
 
 pyvale.dic.calculate_2d(reference=ref_pattern,
