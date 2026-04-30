@@ -53,6 +53,9 @@ namespace util {
         double fft_mad_scale;
         unsigned int debug_level;
         bool stereo;
+        bool incremental;
+        std::string incremental_update_cond;
+        double incremental_update_val;
     };
 
 
