@@ -6,34 +6,7 @@ import numpy as np
 import numpy.typing as npt
 
 
-# TODO: are these appropriate names?
-class EBoundaryConditionSetting(enum.Enum):
-    Free = enum.auto()
-    Fixed = enum.auto()
-    Constant = enum.auto()
 
-
-# TODO: maybe rename to stuff like min y edge, max x edge etc
-# Using edge numbering convention from globaloptions.m
-class EEdge(enum.Enum):
-    Top = 0
-    Bottom = 2
-    Left = 1
-    Right = 3
-
-
-# TODO: assuming x and y are the only dofs for now, may need to be expanded
-# for non linear geometries
-@dataclass(slots=True)
-class BoundaryConditionSettings():
-    x: dict[EEdge, EBoundaryConditionSetting]
-    y: dict[EEdge, EBoundaryConditionSetting]
-
-
-# TODO: discuss type decisions e.g. using uint32s
-# TODO: do we need y decrease flag
-# TODO: naming
-# TODO: should we return 1d mesh or the meshgrid?
 @dataclass(slots=True)
 class VirtualFieldsMesh:
     """Virtual-field helper mesh and the matrices derived from it."""
@@ -86,29 +59,198 @@ def _compute_data_element_edges(
     return edges
 
 
-# x and y and DIC centroids
-# Expect x and y to be 1d coordinate arrays without nans
-# Assuming that 0,0 in index space is top left in coord space
-# TODO: add return type
-# TODO: specimen_mask coming from matlab test data will be 1 index rather than zero indexed
+@dataclass(slots=True)
+class DataPointMesh:
+    """Fine mesh formed by the corners of the measured data-point areas."""
+
+    nodal_coords_x: npt.NDArray[np.float64]   # shape (num_points_y + 1, num_points_x + 1)
+    nodal_coords_y: npt.NDArray[np.float64]   # shape (num_points_y + 1, num_points_x + 1)
+
+
+
+def _extend_centroid_grid(
+    values: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Pad a centroid grid of coordinates by one layer using linear extrapolation."""
+
+    if values.ndim != 2:
+        raise ValueError("Expected a 2D centroid grid.")
+    if values.shape[0] < 2 or values.shape[1] < 2:
+        raise ValueError("Need at least a 2x2 centroid grid to build a data mesh.")
+    if not np.all(np.isfinite(values)):
+        raise ValueError("Centroid grid must contain only finite values.")
+
+    ny, nx = values.shape
+    # Initialise extended grid of coordinates
+    extended = np.empty((ny + 2, nx + 2), dtype=np.float64)
+    # Populate interior with original values
+    extended[1:-1, 1:-1] = values
+    
+    # Populate edges by linear extrapolation from the interior
+    # v_edge = v_boundary + (v_boundary - v_adjacent) = 2 * v_boundary - v_adjacent
+    extended[0, 1:-1]  = 2.0 * extended[1, 1:-1]  - extended[2, 1:-1]  # top row = 2 * first interior row - second interior row
+    extended[-1, 1:-1] = 2.0 * extended[-2, 1:-1] - extended[-3, 1:-1] # bottom row = 2 * last interior row - second to last interior row
+    extended[1:-1, 0]  = 2.0 * extended[1:-1, 1]  - extended[1:-1, 2]  # left column = 2 * first interior column - second interior column
+    extended[1:-1, -1] = 2.0 * extended[1:-1, -2] - extended[1:-1, -3] # right column = 2 * last interior column - second to last interior column
+    
+    # Populate corners by linear extrapolation from the edges
+    extended[0, 0] = extended[0, 1] + extended[1, 0] - extended[1, 1]           # top-left corner = top edge + left edge - first interior point
+    extended[0, -1] = extended[0, -2] + extended[1, -1] - extended[1, -2]       # top-right corner = top edge + right edge - first interior point on the right
+    extended[-1, 0] = extended[-2, 0] + extended[-1, 1] - extended[-2, 1]       # bottom-left corner = bottom edge + left edge - last interior point on the left
+    extended[-1, -1] = extended[-2, -1] + extended[-1, -2] - extended[-2, -2]   # bottom-right corner = bottom edge + right edge - last interior point on the right
+
+    return extended
+
+
+
+def generate_data_mesh(
+    x: npt.NDArray[np.float64],
+    y: npt.NDArray[np.float64],
+) -> DataPointMesh:
+    """Construct the fine mesh of data-point elements from centroid coordinates.
+
+    Assumes:
+    - `x` and `y` are 2D centroid grids with shape (num_points_y, num_points_x)
+    - row index increases downward
+    - the coordinate convention in the test data is already the intended one
+    """
+
+    x = np.asarray(x, dtype=np.float64)
+    y = np.asarray(y, dtype=np.float64)
+
+    if x.shape != y.shape:
+        raise ValueError("x and y must have the same shape.")
+    if x.ndim != 2:
+        raise ValueError("x and y must be 2D arrays.")
+    if x.shape[0] < 2 or x.shape[1] < 2:
+        raise ValueError("Need at least a 2x2 measurement grid.")
+
+    x_ext = _extend_centroid_grid(x)
+    y_ext = _extend_centroid_grid(y)
+
+    nodal_coords_x = 0.25 * (
+        x_ext[:-1, :-1]
+        + x_ext[:-1, 1:]
+        + x_ext[1:, :-1]
+        + x_ext[1:, 1:]
+    )
+    nodal_coords_y = 0.25 * (
+        y_ext[:-1, :-1]
+        + y_ext[:-1, 1:]
+        + y_ext[1:, :-1]
+        + y_ext[1:, 1:]
+    )
+
+    return DataPointMesh(
+        nodal_coords_x=nodal_coords_x,
+        nodal_coords_y=nodal_coords_y,
+    )
+
+
+def plot_data_mesh(
+    x: npt.NDArray[np.float64],
+    y: npt.NDArray[np.float64],
+    data_mesh: DataPointMesh,
+    specimen_mask: npt.NDArray[np.bool_] | None = None,
+):
+    """Debug plot of the data-point mesh overlaid on the measurement points."""
+
+    import matplotlib.pyplot as plt
+
+    if specimen_mask is None:
+        specimen_mask = np.ones(x.shape, dtype=bool)
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+
+    for row in range(data_mesh.nodal_coords_x.shape[0]):
+        ax.plot(
+            data_mesh.nodal_coords_x[row, :],
+            data_mesh.nodal_coords_y[row, :],
+            color="black",
+            linewidth=0.8,
+        )
+    for col in range(data_mesh.nodal_coords_x.shape[1]):
+        ax.plot(
+            data_mesh.nodal_coords_x[:, col],
+            data_mesh.nodal_coords_y[:, col],
+            color="black",
+            linewidth=0.8,
+        )
+
+    ax.scatter(
+        x[specimen_mask],
+        y[specimen_mask],
+        s=8,
+        marker="x",
+        color="red",
+        linewidths=0.5,
+    )
+
+    ax.set_title("Data-point mesh")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect("equal", adjustable="box")
+
+
+    # ax.invert_yaxis()
+
+    fig.tight_layout()
+    plt.show()
+
+
 def generate_virtual_fields_mesh(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
     specimen_mask: npt.NDArray[np.uint32],
-    boundary_conditions: npt.NDArray[np.uint32],
-    mesh_size: npt.NDArray[np.uint32] | None = None,
-    # nan_mask: npt.NDArray[np.float64], # TODO: is this needed?
+    boundary_conditions: dict[str, str],
+    mesh_size: npt.NDArray[np.uint32],
 ):
-    """Build the reduced virtual-fields mesh used by the SBVF routines."""
+    """Construct a mesh over the test data to be used for virtual field generation.
     
-    # x_coords = np.nanmean(test_data.x, axis=0)
-    # y_coords = np.nanmean(test_data.y, axis=1)
-    # indices = np.flatnonzero(test_data.specimen_mask.flatten(order="F")).astype(np.uint32)
+    Parameters
+    ----------
+    x : ndarray
+        Shape (num_points_y, num_points_x).
+        The x coordinates of the measurement points.
+    y : ndarray
+        Shape (num_points_y, num_points_x).
+        The y coordinates of the measurement points.
+    specimen_mask : ndarray of bool
+        Shape (num_points_y, num_points_x).
+        A mask indicating the specimen region (True for points inside the specimen).
+    boundary_conditions : BoundaryConditions
+        The boundary conditions associated with the test data. 
+        Defined as a dictionary with keys 'x' and 'y', each mapping to a list of 4 strings corresponding to the 4 edges of the specimen.
+    mesh_size : ndarray
+        Shape (2,1)
+        The number of virtual elements in the x and y directions, respectively.   
 
+    Returns
+    -------
+    VirtualFieldsMesh
+        A dataclass containing the virtual fields mesh and related matrices.
+
+
+    Workflow
+    --------
+    1. Construct fine mesh consisting of 'data point elements' (associated area of each point)
+    2. Construct coarse virtual mesh by snapping a regular grid onto the data point element edges
+    3. Assemble connectivity matrix (defining associations between virtual elements and data points)
+    4. Assemble global shape function matrix (Nglob) and global strain-displacement matrix (Bglob) for the virtual mesh
+    5. Impose virtual boundary conditions to Bglob to get Bbar 
+    6. Compute pseudo-inverse of Bbar (Binv)
+    7. Return virtual fields mesh object containing required data
+
+    """
     
-    
-    if mesh_size is None:
-        mesh_size = np.array([15, 15], dtype=np.uint32)
+    # Construct fine mesh around data points
+    data_mesh=generate_data_mesh(x,y)
+
+    # Debug: plot data mesh overlaid on data points 
+    plot_data_mesh(x, y, data_mesh, specimen_mask)
+
+    vf_mesh = generate_vf_mesh(data_mesh,mesh_size)
+
 
     mesh_x, mesh_y = generate_mesh(x, y, mesh_size)
 
@@ -376,9 +518,6 @@ def generate_virtual_fields_mesh(
 
 
 
-# TODO: add return type
-# Generate a grid from DIC centroids and create a mesh which conforms to those
-# grid lines
 def generate_mesh(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
@@ -498,3 +637,135 @@ def _plot_grid_lines(
         ax.plot(grid_x[row, :], grid_y[row, :], color=color, linewidth=linewidth)
     for col in range(grid_x.shape[1]):
         ax.plot(grid_x[:, col], grid_y[:, col], color=color, linewidth=linewidth)
+
+
+
+
+@dataclass(slots=True)
+class GlobalVirtualFields:
+    """Virtual strains and edge displacements generated from one sensitivity map."""
+
+    virtual_strain: npt.NDArray[np.float64]
+    edge_displacement: npt.NDArray[np.float64]
+    full_displacement: npt.NDArray[np.float64]
+
+
+
+
+def generate_vf_from_mesh(
+    reference_map: npt.NDArray[np.float64],
+    virtual_fields_mesh: VirtualFieldsMesh,
+) -> GlobalVirtualFields:
+    num_timesteps, _, size_y, size_x = reference_map.shape
+    num_measured_points = int(virtual_fields_mesh.indices.size)
+    num_dofs = int(virtual_fields_mesh.b_glob.shape[1])
+
+    virtual_strain = np.full((num_timesteps, 3, size_y, size_x), np.nan, dtype=np.float64)
+    edge_displacement = np.zeros((num_timesteps, 2, 4), dtype=np.float64)
+    full_displacement = np.full((num_timesteps, 2, size_y, size_x), np.nan, dtype=np.float64)
+
+    for timestep in range(num_timesteps):
+        target_strain = np.concatenate(
+            [
+                reference_map[timestep, 0, :, :].flatten(order="F")[virtual_fields_mesh.indices],
+                reference_map[timestep, 1, :, :].flatten(order="F")[virtual_fields_mesh.indices],
+                reference_map[timestep, 2, :, :].flatten(order="F")[virtual_fields_mesh.indices],
+            ]
+        )
+        target_strain = np.nan_to_num(target_strain, nan=0.0)
+
+        virtual_displacement_vector = np.zeros(num_dofs, dtype=np.float64)
+        virtual_displacement_vector[virtual_fields_mesh.act_dofs] = (
+            virtual_fields_mesh.b_inv @ target_strain
+        )
+        virtual_displacement_vector = _apply_boundary_conditions(
+            virtual_displacement_vector,
+            virtual_fields_mesh.boundary_condition_settings,
+            virtual_fields_mesh.virtual_elements,
+        )
+
+        reconstructed_virtual_strain = (
+            virtual_fields_mesh.b_glob @ virtual_displacement_vector
+        )
+
+        for component in range(3):
+            component_map = np.full(size_x * size_y, np.nan, dtype=np.float64)
+            start = component * num_measured_points
+            stop = (component + 1) * num_measured_points
+            component_map[virtual_fields_mesh.indices] = reconstructed_virtual_strain[start:stop]
+            virtual_strain[timestep, component, :, :] = component_map.reshape(
+                (size_y, size_x),
+                order="F",
+            )
+
+        x_displacement = virtual_fields_mesh.n_glob @ virtual_displacement_vector[0::2]
+        y_displacement = virtual_fields_mesh.n_glob @ virtual_displacement_vector[1::2]
+
+        flat_x = np.full(size_x * size_y, np.nan, dtype=np.float64)
+        flat_y = np.full(size_x * size_y, np.nan, dtype=np.float64)
+        flat_x[virtual_fields_mesh.indices] = x_displacement
+        flat_y[virtual_fields_mesh.indices] = y_displacement
+        full_displacement[timestep, 0, :, :] = flat_x.reshape((size_y, size_x), order="F")
+        full_displacement[timestep, 1, :, :] = flat_y.reshape((size_y, size_x), order="F")
+
+        edge_displacement[timestep, 0, 0] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[0, :]])
+        edge_displacement[timestep, 0, 1] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[:, 0]])
+        edge_displacement[timestep, 0, 2] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[-1, :]])
+        edge_displacement[timestep, 0, 3] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[:, -1]])
+
+        edge_displacement[timestep, 1, 0] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[0, :] + 1])
+        edge_displacement[timestep, 1, 1] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[:, 0] + 1])
+        edge_displacement[timestep, 1, 2] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[-1, :] + 1])
+        edge_displacement[timestep, 1, 3] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[:, -1] + 1])
+
+    return SensitivityBasedVirtualFields(
+        virtual_strain=virtual_strain,
+        edge_displacement=edge_displacement,
+        full_displacement=full_displacement,
+    )
+
+
+
+def _apply_boundary_conditions(
+    virtual_displacement: npt.NDArray[np.float64],
+    settings: npt.NDArray[np.uint32],
+    virtual_elements: npt.NDArray[np.int64],
+) -> npt.NDArray[np.float64]:
+    updated = virtual_displacement.copy()
+
+    for edge in range(4):
+        if edge == 0:
+            edge_nodes = virtual_elements[0, :]
+            master_node = virtual_elements[0, 0]
+            slave_nodes = edge_nodes[1:]
+        elif edge == 1:
+            edge_nodes = virtual_elements[:, 0]
+            master_node = virtual_elements[0, 0]
+            slave_nodes = edge_nodes[1:]
+        elif edge == 2:
+            edge_nodes = virtual_elements[-1, :]
+            master_node = virtual_elements[-1, -1]
+            slave_nodes = edge_nodes[:-1]
+        else:
+            edge_nodes = virtual_elements[:, -1]
+            master_node = virtual_elements[-1, -1]
+            slave_nodes = edge_nodes[:-1]
+
+        edge_dofs_x = 2 * edge_nodes
+        edge_dofs_y = edge_dofs_x + 1
+        master_dof_x = 2 * master_node
+        master_dof_y = master_dof_x + 1
+        slave_dofs_x = 2 * slave_nodes
+        slave_dofs_y = slave_dofs_x + 1
+
+        if settings[0, edge] == 1:
+            updated[edge_dofs_x] = 0.0
+        elif settings[0, edge] == 2:
+            updated[slave_dofs_x] = updated[master_dof_x]
+
+        if settings[1, edge] == 1:
+            updated[edge_dofs_y] = 0.0
+        elif settings[1, edge] == 2:
+            updated[slave_dofs_y] = updated[master_dof_y]
+
+    return updated

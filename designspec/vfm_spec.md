@@ -105,7 +105,7 @@ Two main approaches are implemented in this package:
 - strain ()
 	- convention of strain variable to be defined consistently.
 	- options include:
-		- 4d array: x,y,component,time 
+		- 4d array: time, component, y, x 
 		- multiple 2d, 3d arrays e.g.  strain.c11 is 3d array
 	- think 4d array is probably best for vectorisation etc. Need to ensure consistent order of dimensions throughout.
 	- number of components could possibly change in future

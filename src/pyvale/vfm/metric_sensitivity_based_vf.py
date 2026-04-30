@@ -14,7 +14,10 @@ from pyvale.vfm.stress_sensitivity import calculate_stress_sensitivity
 from pyvale.vfm.virtual_fields_mesh import (
     generate_virtual_fields_mesh,
     plot_virtual_fields_mesh,
+    generate_vf_from_mesh
 )
+from pyvale.vfm.stress_sensitivity import StressSensitivity
+from pyvale.vfm.virtual_fields_mesh import VirtualFieldsMesh
 
 
 @dataclass(slots=True)
@@ -150,3 +153,37 @@ def _resolve_virtual_mesh_plot_path(
         return test_data.source_path.with_name("virtual_fields_mesh.png")
 
     return Path.cwd() / "virtual_fields_mesh.png"
+
+
+@dataclass(slots=True)
+class SensitivityBasedVirtualFields:
+    """Virtual strains and edge displacements generated from one sensitivity map."""
+
+    virtual_strain: npt.NDArray[np.float64]
+    edge_displacement: npt.NDArray[np.float64]
+    full_displacement: npt.NDArray[np.float64]
+
+
+def generate_sensitivity_based_virtual_fields(
+    stress_sensitivities: dict[str, StressSensitivity],
+    virtual_fields_mesh: VirtualFieldsMesh,
+    use_incremental: bool = False,
+) -> dict[str, SensitivityBasedVirtualFields]:
+    """Generate one SBVF set per active DOF.
+
+    This follows the MATLAB `sensitivityVFs.m` idea fairly directly:
+    project a stress-sensitivity field onto the virtual mesh, recover the
+    nodal virtual displacements, enforce the edge boundary conditions, then
+    rebuild virtual strains from those displacements.
+    """
+
+    virtual_fields: dict[str, SensitivityBasedVirtualFields] = {}
+
+    for dof_uid, sensitivity in stress_sensitivities.items():
+        sensitivity_map = sensitivity.incremental if use_incremental else sensitivity.total
+        virtual_fields[dof_uid] = generate_vf_from_mesh(
+            sensitivity_map,
+            virtual_fields_mesh,
+        )
+
+    return virtual_fields
