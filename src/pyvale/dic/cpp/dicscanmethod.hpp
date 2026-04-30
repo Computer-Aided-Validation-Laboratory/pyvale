@@ -111,13 +111,15 @@ void singlewindow_incremental_reliability_guided(const Image &img_ref,
  * @param img_num current image number
  */
 void multiwindow_only(const Image &img_ref,
-                      const Image &img_def,
-                      const Interpolator &interp_def,
-                      std::vector<WindowLevel> &multiwindow,
-                      const util::Config &conf,
-                      const int img_num_ref,
-                      const int img_num_def,
-                      ResultArrays &result_arrays);
+                        const Image &img_def,
+                        const Interpolator &interp_ref,
+                        const Interpolator &interp_def,
+                        std::vector<WindowLevel> &multiwindow,
+                        const subset::Grid &ss_grid,
+                        const util::Config &conf,
+                        const int img_num_ref,
+                        const int img_num_def,
+                        ResultArrays &result_arrays);
 
  void multiwindow_reliability_guided_r(const Image &img_ref,
                                        const Image &img_def,
