@@ -41,7 +41,6 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  incremental_update_value: float | int=1,
                  fft_mad: bool=False,
                  fft_mad_scale: float=3.0,
-                 output_at_end: bool=False,
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
                  output_prefix: str="dic_results_",
@@ -136,8 +135,6 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         An outlier is defined as a value whose deviation from the local median exceeds 
         `fft_mad_scale` times the MAD. This value choses the scaling factor that determines 
         the threshold for detecting outliers relative to the MAD.
-    output_at_end : bool, optional
-        If True, results will only be written at the end of processing (default: False).
     output_basepath : str or pathlib.Path, optional
         Directory path where output files will be written (default: "./").
     output_binary : bool, optional
@@ -242,7 +239,6 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     saveconf.binary = output_binary
     saveconf.prefix = output_prefix
     saveconf.delimiter = output_delimiter
-    saveconf.at_end = output_at_end
     saveconf.output_below_threshold = output_below_threshold
     saveconf.shape_params = output_shape_params
 

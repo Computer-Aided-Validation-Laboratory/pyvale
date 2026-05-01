@@ -24,7 +24,6 @@ def calculate_2d(data: dicResults | str | Path,
               output_binary: bool=False,
               output_prefix: str="strain_",
               output_delimiter: str=",",
-              output_at_end: bool=False,
               strain_formulation: str="HENCKY"):
     """
     Compute strain fields from DIC displacement data using a finite element smoothing approach.
@@ -122,7 +121,6 @@ def calculate_2d(data: dicResults | str | Path,
     strain_save_conf.binary = output_binary
     strain_save_conf.prefix = output_prefix
     strain_save_conf.delimiter = output_delimiter
-    strain_save_conf.at_end = output_at_end
 
     print(type(filenames))
 

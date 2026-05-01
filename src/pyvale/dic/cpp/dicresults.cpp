@@ -27,7 +27,6 @@ ResultArrays::ResultArrays(int num_ss,
     if (g_debug_level>0) 
         common_util::Timer timer("resizing of result arrays:");
 
-    //this->at_end = at_end;
     this->num_ss = num_ss;
     this->num_params = num_params;
 

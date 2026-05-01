@@ -40,7 +40,6 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  fft_mad: bool=False,
                  fft_mad_scale: float=3.0,
                  fft_save: bool=False,
-                 output_at_end: bool=False,
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
                  output_prefix: str="dic_results_",
@@ -134,8 +133,6 @@ def calculate_2d(reference: np.ndarray | str | Path,
         ``fft_mad_scale`` times the MAD. This value choses the scaling factor that determines 
         the threshold for detecting outliers relative to the MAD. A larger ``fft_mad_scale`` 
         is more tolerant, while a smaller value kills larger deviations.
-    output_at_end : bool, optional
-        If True, results will only be written at the end of processing (default: ``False``).
     output_basepath : str or pathlib.Path, optional
         Directory path where output files will be written (default: ``"./"``).
     output_binary : bool, optional
@@ -234,7 +231,6 @@ def calculate_2d(reference: np.ndarray | str | Path,
     saveconf.binary = output_binary
     saveconf.prefix = output_prefix
     saveconf.delimiter = output_delimiter
-    saveconf.at_end = output_at_end
     saveconf.output_below_threshold = output_below_threshold
     saveconf.shape_params = output_shape_params
 

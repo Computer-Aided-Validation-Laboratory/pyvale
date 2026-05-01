@@ -110,7 +110,7 @@ namespace strain {
     /**
      */
     void append_results(int sw, strain::Results &results,
-                        const bool save_at_end, const int x0, const int y0, 
+                        const int x0, const int y0, 
                         const Eigen::Matrix2d &deform_grad, 
                         const Eigen::Matrix2d &eps, 
                         const int nwindows, const int img);

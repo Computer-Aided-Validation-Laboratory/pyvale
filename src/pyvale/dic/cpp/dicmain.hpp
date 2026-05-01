@@ -45,8 +45,7 @@ namespace py = pybind11;
  * between the reference and deformed images over subsets defined by the ROI.
  * 
  * Subset data is initialized and processed in parallel using OpenMP.
- * Results are optionally saved after each image or at the end of processing,
- * depending on `saveconf.at_end`.
+ * Results are saved after processing each image.
  *
  * @note This function is intended to be called via the Python interface using pybind11.
  *       Image arrays are expected to be contiguous and C-style (row-major) in memory.

@@ -39,7 +39,6 @@ namespace common_util {
         std::string prefix;
         std::string delimiter;
         bool binary;
-        bool at_end;
         bool output_below_threshold;
         bool shape_params;
     };

@@ -55,7 +55,6 @@ namespace strain {
         INFO_OUT("Saving data as binary ", strain_save_conf.binary)
 
 
-        const bool save_at_end = strain_save_conf.at_end;
         const int nwindows = nss_x*nss_y;
 
         // get raw pointers for numpy arrays
@@ -69,7 +68,7 @@ namespace strain {
 
 
         strain::Window window(sw_size);
-        strain::Results results(save_at_end ? nimg * nwindows : nwindows);
+        strain::Results results(nwindows);
 
 
         TITLE("Deformation Gradient and Strain Calculation")
@@ -107,7 +106,7 @@ namespace strain {
                     vc = smooth_window(window.x, window.y, window.v);
                     deform_grad = compute_def_grad(q, uc, vc, x0, y0);
                     eps = compute_strain(form, deform_grad);
-                    append_results(sw, results, save_at_end, x0, y0, 
+                    append_results(sw, results, x0, y0, 
                                    deform_grad, eps, nwindows, img_num);
                 }
 
@@ -118,16 +117,7 @@ namespace strain {
             // finish up progress bar
             pbar.finish();
 
-            if (!save_at_end){
-                strain::save_to_disk(img_num, results, strain_save_conf, 
-                                     nwindows, nimg, filenames);
-            }
-        }
-
-        if (save_at_end){
-            for (int img_num = 0; img_num < nimg; img_num++)
-                strain::save_to_disk(img_num, results, strain_save_conf,
-                                     nwindows, nimg, filenames);
+            strain::save_to_disk(img_num, results, strain_save_conf, nwindows, nimg, filenames);
         }
     }
 
@@ -280,24 +270,19 @@ namespace strain {
 
 
     void append_results(int sw, strain::Results &results, 
-                        const bool save_at_end, const int x0, const int y0, 
+                        const int x0, const int y0, 
                         const Eigen::Matrix2d &deform_grad, 
                         const Eigen::Matrix2d &eps, 
                         const int nwindows, const int img){
 
-        // index in results arrays depending on whether saving at end or on a per image basis
-        int idx;
-        if (save_at_end) idx = nwindows * img + sw;
-        else idx = sw;
-
-        results.def_grad[4*idx+0] = deform_grad(0,0);
-        results.def_grad[4*idx+1] = deform_grad(0,1);
-        results.def_grad[4*idx+2] = deform_grad(1,0);
-        results.def_grad[4*idx+3] = deform_grad(1,1);
-        results.strain[4*idx+0] = eps(0,0);
-        results.strain[4*idx+1] = eps(0,1);
-        results.strain[4*idx+2] = eps(1,0);
-        results.strain[4*idx+3] = eps(1,1);
+        results.def_grad[4*sw+0] = deform_grad(0,0);
+        results.def_grad[4*sw+1] = deform_grad(0,1);
+        results.def_grad[4*sw+2] = deform_grad(1,0);
+        results.def_grad[4*sw+3] = deform_grad(1,1);
+        results.strain[4*sw+0] = eps(0,0);
+        results.strain[4*sw+1] = eps(0,1);
+        results.strain[4*sw+2] = eps(1,0);
+        results.strain[4*sw+3] = eps(1,1);
     }
 
     void save_to_disk(int img_num, const strain::Results &results, 
@@ -329,7 +314,7 @@ namespace strain {
         strain_save_conf.prefix << full_filename << file_ext;
 
         // set the img var to 0 after opening file if not saving at end
-        if (!strain_save_conf.at_end) img_num = 0;
+        img_num = 0;
 
         // save in binary format
         if (strain_save_conf.binary){

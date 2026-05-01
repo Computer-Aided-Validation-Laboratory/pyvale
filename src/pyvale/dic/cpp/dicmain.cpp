@@ -335,13 +335,11 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                                                     result_arrays_l);
         }
 
-        if (!saveconf.at_end){
-            if (!conf.stereo){
-                write_to_disk_2d(result_arrays_l,saveconf, ss_grid_l, basenames_l[img_num]);
-            }
-            else {
-                write_to_disk_stereo(result_arrays_l,result_arrays_r, saveconf, ss_grid_l, basenames_l[img_num]);
-            }
+        if (!conf.stereo){
+            write_to_disk_2d(result_arrays_l,saveconf, ss_grid_l, basenames_l[img_num]);
+        }
+        else {
+            write_to_disk_stereo(result_arrays_l,result_arrays_r, saveconf, ss_grid_l, basenames_l[img_num]);
         }
 
         if (stop_request) break;
