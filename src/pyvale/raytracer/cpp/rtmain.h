@@ -41,6 +41,7 @@ void render_scene(const int image_height,
     const std::vector<nb::DRef<Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>>> matrix_pixel_spacings,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_coords_expanded,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_face_colors,
+    const std::vector<int>& materials,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_uvs,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_textures,
     const std::vector<int>& scene_surface_types);

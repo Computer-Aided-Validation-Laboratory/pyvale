@@ -145,6 +145,7 @@ struct Texture {
 struct BLAS_Node {
     std::vector<double> node_coords; // Coordinates of nodes comprising the mesh elements stored in the node, if applicable
     std::vector<double> face_color; // Either (faces, 3) array with color values or (faces,2) array with (u,v) coordinates
+    std::vector<int> material; // Element materials based on the field values for the mesh
     AABB bounding_box {};
     size_t element_count {0}; // If not zero, this is the leaf
     enum ElementNodeCount nodes_per_element {ElementNodeCount::TRI3}; // Default to triangles
@@ -307,6 +308,7 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
     const double* mesh_uvs_ptr,
+    const int mesh_material,
     const int timestep);
 
 
@@ -315,6 +317,7 @@ void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
     const double* mesh_face_color_ptr,
+     const int mesh_material,
     const int timestep);
 
 void copy_data_to_TLAS(TLAS &tlas,
@@ -324,6 +327,7 @@ void copy_data_to_TLAS(TLAS &tlas,
 
 TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
     const std::vector<nanobind::ndarray<const double,nanobind::c_contig>>& scene_face_colors,
+    const std::vector<int>& materials,
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_uvs,
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_textures,
     const std::vector<int>& scene_surface_types,

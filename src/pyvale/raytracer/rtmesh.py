@@ -11,6 +11,7 @@ from pathlib import Path
 from scipy.spatial.transform import Rotation
 from enum import StrEnum, IntEnum
 from dataclasses import dataclass, field
+from enum import Enum
 # import matplotlib as plt # for cmap face color determination
 
 import pyvale.mooseherder as mh
@@ -29,6 +30,24 @@ RGB_VALS = 3
 class SurfType(IntEnum): # IntEnum so it can be passed to C++ nicely
     FIELD_COLOR = 0,
     TEXTURE = 1
+
+class MaterialType(str, Enum):
+    NOT_DEFINED = "NOT_DEFINED" # Nothing stopping the ray, i.e. empty space
+    DIFFUSE = "DIFFUSE"
+    SPECULAR = "SPECULAR"
+    REFRACTIVE = "REFRACTIVE"
+    UNLIT = "UNLIT" # Just surface color, ignoring all lighting calculations, i.e. no shadows, no shading, no reflections
+
+    @property
+    def as_int(self) -> int:
+        mapping = {
+            MaterialType.NOT_DEFINED: 0,
+            MaterialType.DIFFUSE: 1,
+            MaterialType.SPECULAR: 2,
+            MaterialType.REFRACTIVE: 3,
+            MaterialType.UNLIT: 4
+        }
+        return mapping[self]
 
 # Number of nodes per element
 class ElementNodeCount(IntEnum):
@@ -114,7 +133,8 @@ class RTMesh:
 
     def set_surface(self,
                     surface_type: SurfType = SurfType.FIELD_COLOR,
-                    surface_fill: np.ndarray = None) -> None:
+                    surface_fill: np.ndarray = None,
+                    material = MaterialType.NOT_DEFINED) -> None:
         """
         Sets the surface type and fill for the mesh.
         
@@ -176,6 +196,8 @@ class RTMesh:
             self.uvs_over_time = np.broadcast_to(self.uvs[np.newaxis, ...], (self.timestep_count, self.element_count, self.nodes_per_element, 2))
             # TO DO: Add check for shape of texture array
             self.texture = surface_fill
+        
+        self.material = material
 
     def set_custom_uvs(self,
                        uv_coords: np.ndarray = None,

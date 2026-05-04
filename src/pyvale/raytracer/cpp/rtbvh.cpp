@@ -556,6 +556,7 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
     const double* mesh_uvs_ptr,
+    const int mesh_material,
     const int timestep){
     // Copies appropriate mesh data to store directly in BVH node, so it can be accessed easily upon intersection and be cache-friendly
     // This way we also avoid copying the mesh data when we move the node to the BVH tree vector as they're already there when we get to this part here.
@@ -578,6 +579,7 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
         const int uvs_per_element = Node.nodes_per_element * UV_COORDINATES; // number of nodes per element times 2 coordinates each
         Node.node_coords.reserve(node_element_count * coords_per_element);
         Node.face_color.reserve(node_element_count * Node.nodes_per_element * UV_COORDINATES); // face_color will store uvs; each comprising vertex/node will have its own uvs
+        Node.material.reserve(node_element_count * NODE_COORDINATES);
 
         //std::cout << "BVH node id: " << i << " with element count: " << node_element_count << std::endl;
         //std::cout << "Min element id from vector: " << node_min_element_idx << std::endl;
@@ -611,6 +613,9 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
                 Node.face_color.push_back(mesh_uvs_ptr[uv_idx_at_t + j * UV_COORDINATES]); // u
                 Node.face_color.push_back(mesh_uvs_ptr[uv_idx_at_t + j * UV_COORDINATES + 1]); // v 
                 //std::cout << "Face color size: " << Node.face_color.size() << std::endl;
+                Node.material.push_back(mesh_material);
+                Node.material.push_back(mesh_material);
+                Node.material.push_back(mesh_material);
             }
             
             /* DEBUG VERSION. Does the same thing, but says very explicitly the indices, so they can be compared against a flat array in Python to see retrieved values etc.
@@ -640,6 +645,7 @@ void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
     const double* mesh_face_color_ptr,
+     const int mesh_material,
     const int timestep){
     // Copies appropriate mesh data to store directly in BVH node, so it can be accessed easily upon intersection and be cache-friendly
     // This way we also avoid copying the mesh data when we move the node to the BVH tree vector as they're already there when we get to this part here.
@@ -661,6 +667,7 @@ void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
         const int coords_per_element = Node.nodes_per_element * NODE_COORDINATES; // number of nodes per element times 3 coordinates each
         Node.node_coords.reserve(node_element_count * coords_per_element);
         Node.face_color.reserve(node_element_count * NODE_COORDINATES); // face_color will store 3 values
+        Node.material.reserve(node_element_count * NODE_COORDINATES);
         
         //std::cout << "BVH node id: " << i << " with element count: " << node_element_count << std::endl;
         //std::cout << "Min element id from vector: " << node_min_element_idx << std::endl;
@@ -697,6 +704,10 @@ void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
             Node.face_color.push_back(mesh_face_color_ptr[face_color_idx_at_t]);
             Node.face_color.push_back(mesh_face_color_ptr[face_color_idx_at_t + 1]);
             Node.face_color.push_back(mesh_face_color_ptr[face_color_idx_at_t + 2]);
+
+            Node.material.push_back(mesh_material);
+            Node.material.push_back(mesh_material);
+            Node.material.push_back(mesh_material);
         }
         //std::cout << "Node coords size: " << Node.node_coords.size() << std::endl;
        // std::cout << "Node element count: " << Node.element_count << std::endl;
@@ -754,6 +765,7 @@ inline void print_TLAS(TLAS &scene_TLAS){
 // Main function allowing mixed surface types
 TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
     const std::vector<nanobind::ndarray<const double,nanobind::c_contig>>& scene_face_colors,
+    const std::vector<int>& materials,
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_uvs,
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_textures,
     const std::vector<int>& scene_surface_types,
@@ -843,6 +855,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         // 2. BLAS BVH builder functions - this part depends on the surface type
         build_BLAS(mesh_bvh, mesh_element_centroids, mesh_element_aabbs, mesh_element_indices, node_minimum_element_index, mesh_element_count, nodes_per_element);
 
+        int mesh_material = materials[mesh_idx];
         int surface_type = scene_surface_types[mesh_idx];
 
         if (surface_type == 1){ // Texture
@@ -863,7 +876,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
             std::cout << std::endl;
             */
 
-            copy_data_to_BLAS_node_tex(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_uvs_ptr, timestep);
+            copy_data_to_BLAS_node_tex(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_uvs_ptr, mesh_material, timestep);
 
             // Assign appropriate texture interpolation function pointer
             switch(nodes_per_element){
@@ -882,7 +895,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         else if (surface_type == 0){ // Solid surface fill
             nanobind::ndarray<const double, nanobind::c_contig> mesh_face_colors = scene_face_colors[mesh_idx];
             double* mesh_face_colors_ptr = const_cast<double*>(mesh_face_colors.data());
-            copy_data_to_BLAS_node_color(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_face_colors_ptr, timestep);
+            copy_data_to_BLAS_node_color(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_face_colors_ptr, mesh_material, timestep);
 
             // Assign appropriate color interpolation function pointer
             switch(nodes_per_element){
