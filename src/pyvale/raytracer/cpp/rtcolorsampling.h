@@ -26,6 +26,14 @@ inline EiVector3d get_face_color(Eigen::Index min_row_idx,
     return face_color_vec;
 }
 
+inline int get_face_material(Eigen::Index minRowIndex,
+    const std::vector<int>& material) {
+    // Get material type of the intersected face
+    int m1 = material[minRowIndex * 3];
+
+    return m1;
+}
+
 // Getter for (u,v) coordinates for the intersected surface element to interpolate texture
 inline void get_face_uvs(Eigen::Index min_row_idx,
     const std::vector<double>& face_uvs,

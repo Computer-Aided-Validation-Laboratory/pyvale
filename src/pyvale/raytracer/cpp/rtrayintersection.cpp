@@ -986,6 +986,10 @@ void intersect_BLAS(const Ray& ray,
                 intersection_record.point_intersection = ray_at_t(closest_t, ray);
                 intersection_record.normal_surface = out_intersection.plane_normals.row(min_row_idx);
                 //intersection_record.face_color = get_face_color(min_row_idx, Node.face_color); // the OG part
+                MaterialType material_rec{get_face_material(min_row_idx, Node.material)};
+                // std::cout << intersection_record.material << '\n';
+                intersection_record.material = material_rec;
+                // std::cout << intersection_record.material << '\n' << '\n';
                 overwrite_intersection_function_ptr(intersection_record, Node, texture, min_row_idx);
             } 
         }

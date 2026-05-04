@@ -44,6 +44,7 @@ class Scene:
     coords_expanded: list[np.ndarray] = field(default_factory=list) # # Replace connectivity and coords; dimensioned as [mesh_idx, timestep, mesh_element_count, nodes_per_element, 3 (for x,y,z)]
     #deform_vals: list[np.ndarray] = field(default_factory=list) # May be needed for deciding whether to update or rebuild TLAS later on
     face_colors: list[np.ndarray] = field(default_factory=list) # Would be good to know the size of this bc it can either be the same for all frames (no need to broadcast data) or different. Do we want this much functionality?
+    materials: list[int] = field(default_factory=list)
     uvs: list[np.ndarray] = field(default_factory=list) # Not over time, so the dimensions here are [mesh_idx, mesh_element_count, nodes_per_element, 2]
     textures: list[np.ndarray] = field(default_factory=list)
     surface_types: list[SurfType] = field(default_factory=list)
@@ -113,6 +114,7 @@ class Scene:
             self.face_colors.append(np.zeros(shape=(1,1))) # Append a small array of zeros, only so we have matching indices but this data should never be accessed. Hacky solution, to be resolved better (probably merging face_colors and textures into one)
         self.mesh_count += 1
         self.surface_types.append(rtmesh.surface_type) # Will be used for determining coloring
+        self.materials.append(rtmesh.material.as_int)
         self.nodes_per_element.append(rtmesh.nodes_per_element) # Will help assign appropriate functions in ray_tracer
         self.element_count.append(rtmesh.element_count) # Will be used in C interface
         if rtmesh.timestep_count > self.timestep_count:  # Keep the highest timestep count (should be the same for all meshes, but you never know)
