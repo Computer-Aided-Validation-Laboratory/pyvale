@@ -637,8 +637,15 @@ class BlenderUnwrapper:
         ------
             - uvs - nd.ndarray of shape (N,2) containing the UV coordinates for each vertex in the flattened mesh. These coordinates are used as x and y positions for visualization, with z set to 0.
             - faces_cut - nd.ndarray of shape (F, 3) containing the indices of the vertices that form each triangle in the flattened mesh. Equivalent to connectivity, just cut.
+        
+        Raises:
+        -------
+            ValueError
+                If UV data has not been generated yet.
 
         """
+        if self.uvs is None:
+            raise ValueError("UV data has not been generated yet.")
         uvs = self.uvs
         uv_3d = np.hstack((uvs, np.zeros((len(uvs), 1))))
         texture_bg = vedo.Image(texture)

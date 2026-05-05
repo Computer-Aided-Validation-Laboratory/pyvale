@@ -120,6 +120,7 @@ class RTMesh:
     uvs: np.ndarray = field(default=None)
     seams: list = field(default_factory=list)
     texture: np.ndarray = field(default=None)
+    material: MaterialType = field(default=None)
     # mesh_to_world_mat: np.ndarray = field(default=None)
     pyvista_surface: pv.UnstructuredGrid | pv.PolyData = field(default=None) # For SeamSplitter
     tri_face_mapping: np.ndarray = field(default=None) # To map triangulated faces back to original elements; needed for Blender UV unwrapping
@@ -134,7 +135,7 @@ class RTMesh:
     def set_surface(self,
                     surface_type: SurfType = SurfType.FIELD_COLOR,
                     surface_fill: np.ndarray = None,
-                    material = MaterialType.NOT_DEFINED) -> None:
+                    material: MaterialType = MaterialType.NOT_DEFINED) -> None:
         """
         Sets the surface type and fill for the mesh.
         
@@ -154,6 +155,9 @@ class RTMesh:
                 - If shape is (timestep_count, element_count, 3), it is interpreted as an RGB color for each element at each timestep.
             - For TEXTURE:
                 - The surface_fill should be a 2D array representing the texture image. The UV coordinates must be set for the mesh to apply the texture correctly.
+        material: MaterialType
+            The material type to apply to the mesh.
+
         Raises:
         -------
         ValueError:
@@ -166,6 +170,7 @@ class RTMesh:
             self.uvs = None
             #self.uvs_over_time = None
         self.surface_type = surface_type
+        self.material = material
         # Solid colors
         if surface_type == SurfType.FIELD_COLOR:
             if surface_fill is None:
@@ -177,6 +182,7 @@ class RTMesh:
             elif surface_fill.shape == (self.element_count, RGB_VALS):
                 # One avg. RGB colour value per element, given only for one timestep
                 self.face_colors_over_time =  np.broadcast_to(surface_fill[np.newaxis, ...], (self.timestep_count, self.element_count, RGB_VALS))
+                return
             elif surface_fill.shape == (self.timestep_count, self.element_count, RGB_VALS):
                 # One avg. RGB colour value per element, given for each timestep
                 self.face_colors_over_time = surface_fill
@@ -197,8 +203,6 @@ class RTMesh:
             #self.uvs_over_time = np.broadcast_to(self.uvs[np.newaxis, ...], (self.timestep_count, self.element_count, self.nodes_per_element, 2))
             # TO DO: Add check for shape of texture array
             self.texture = surface_fill
-        
-        self.material = material
 
     def set_custom_uvs(self,
                        uv_coords: np.ndarray = None,

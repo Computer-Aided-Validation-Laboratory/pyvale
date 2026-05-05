@@ -7,7 +7,7 @@
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 import numpy as np
-from pyvale.raytracer.rtmesh import RTMesh, ElementNodeCount, SurfType
+from pyvale.raytracer.rtmesh import RTMesh, ElementNodeCount, SurfType, MaterialType
 from pyvale.raytracer.rtcamera import Camera
 
 # Enum to specify render type to be able to let user pick between static and dynamic images
