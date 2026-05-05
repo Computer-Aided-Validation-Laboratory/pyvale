@@ -227,10 +227,11 @@ def extract_surf_mesh(sim_data: mh.SimData) -> mh.SimData:
         for nn in sim_data.node_vars:
             face_data.node_vars[nn] = sim_data.node_vars[nn][faces_coord_inds,:]
 
-    if sim_data.elem_vars is not None:
-        face_data.elem_vars = {}
-        for ee in sim_data.node_vars:
-            face_data.elem_vars[ee] = sim_data.elem_vars[ee][faces_coord_inds,:]
+    # TODO fix this it is bugged
+    # if sim_data.elem_vars is not None:
+    #     face_data.elem_vars = {}
+    #     for ee in sim_data.elem_vars:
+    #         face_data.elem_vars[ee] = sim_data.elem_vars[ee][faces_coord_inds,:]
 
     return face_data
 
