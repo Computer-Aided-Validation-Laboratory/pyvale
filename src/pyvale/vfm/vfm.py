@@ -1,25 +1,33 @@
-import enum
-
-from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
-from pyvale.vfm.identification_phase import IdentificationPhase
-from pyvale.vfm.parameter import Parameter
-
-
-class EIdentificationType(enum.Enum):
-    Linear = enum.auto()
-    Nonlinear = enum.auto()
+from pyvale.vfm.experiment_data import ExperimentData
+from pyvale.vfm.identification import EIdentificationType, Identification
 
 
 # TODO: return type
+# TODO: config validation
+#       - no forward referencing in phases list
 def vfm(
-    constitutive_law: ConstitutiveLaw,
-    identification_type: EIdentificationType,
-    parameters: dict[str, Parameter],
-    identification_phases: dict[int, IdentificationPhase]
+    experiment_data: ExperimentData,
+    identification: Identification
 ):
-    print("test")
+     match identification.constitutive_law.identification_type:
+        # TODO: implement linear case
+        case EIdentificationType.Linear:
+            ...
+        case EIdentificationType.Nonlinear:
+            for phase in identification.phases:
+                # Collect unknown parameterisations
+                # run optimiser
 
-
-# TODO: remove when calling this as a module
-# if __name__ == "__main__":
-    # vfm()
+    # check identification type
+    # for non linear
+    # run each phase sequentially
+    # get unknown params
+    # build parameterisations?
+    # build metrics?
+    # build optimiser?
+    # (Above might all be already build and passed to vfm)
+    # Run optimiser
+    # Collect best result
+    # Optionally perform refinement
+    # Collect best result
+    # Output result from all phases
