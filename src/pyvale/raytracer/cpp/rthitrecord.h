@@ -21,15 +21,15 @@ enum MaterialType : int {
     UNLIT = 4 
 };
 
+// Struct size [bytes]: 5 x 24 + 1 x 8 + 1 x 4 = 132 bytes
 struct HitRecord {
-    EiVector3d point_intersection {EiVector3d::Zero()};
+    EiVector3d point_intersection {EiVector3d::Zero()}; 
     EiVector3d normal_surface {EiVector3d::Zero()};
     EiVector3d elem_interp_coords {EiVector3d::Zero()}; // E.g., barycentric coordinates for TRI3, bilinear interpolation coords for QUAD4
     EiVector3d face_color {EiVector3d::Zero()}; // 3D color - already sampled from texture or solid surface color, albedo
-    double t {std::numeric_limits<double>::infinity()};
-
     EiVector3d emission{ EiVector3d::Zero() };     // light source
-    MaterialType material{ NOT_DEFINED };
+    double t {std::numeric_limits<double>::infinity()};
+    MaterialType material{ NOT_DEFINED }; // int 
 };
 
 inline void set_face_normal(const Ray& ray, EiVector3d& normal_surface) {
