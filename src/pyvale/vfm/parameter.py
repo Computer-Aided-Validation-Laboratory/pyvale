@@ -5,11 +5,12 @@ import numpy.typing as npt
 
 
 @dataclass(slots=True)
-class Parameter:
+class ConstitutiveParameter:
     value: npt.NDArray[np.float64]
     lower_bound: float
     upper_bound: float
 
+    # TODO: enforce bounds on input value
     # map_size must be in form (y, x)
     def __init__(
         self,
