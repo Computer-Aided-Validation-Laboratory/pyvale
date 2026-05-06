@@ -11,7 +11,7 @@ from pyvale.vfm.identification import Identification
 from pyvale.vfm.constitutive_laws.linear_hardening import LinearHardening
 from pyvale.vfm.identification_phase import IdentificationPhase
 from pyvale.vfm.metrics.sensitivity_based_virtual_fields import (
-    SensitivityBasedVitualFieldsMetric,
+    SensitivityBasedVirtualFieldsMetric,
 )
 from pyvale.vfm.constitutive_parameter import ConstitutiveParameter
 from pyvale.vfm.spatial_parameterisations.known import (
@@ -82,7 +82,7 @@ def main():
                     )
                 ),
             },
-            [(1.0, SensitivityBasedVitualFieldsMetric(np.array([3, 3])))],
+            [(1.0, SensitivityBasedVirtualFieldsMetric(np.array([3, 3])))],
             LeastSquares(),
         )
     ]

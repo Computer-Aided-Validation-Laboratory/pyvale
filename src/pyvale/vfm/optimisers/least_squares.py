@@ -3,12 +3,12 @@ import numpy.typing as npt
 from scipy.optimize import least_squares
 
 from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
+from pyvale.vfm.experiment_data import ExperimentData
 from pyvale.vfm.metrics.metric import Metric
 from pyvale.vfm.optimisers.optimiser import (
     Optimiser,
     evaluate_candidate,
 )
-from pyvale.vfm.optimisers.optimiser import evaluate_candidate
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
     SpatialParameterisation,
 )
@@ -32,7 +32,7 @@ class LeastSquares(Optimiser):
     def optimise(
         self,
         constitutive_law: ConstitutiveLaw,
-        strain: npt.NDArray[np.float64],
+        experiment_data: ExperimentData,
         parameter_map_size: npt.NDArray[np.uint32],
         spatial_parameterisations: dict[str, SpatialParameterisation],
         weighted_metrics: list[tuple[float, Metric]],
@@ -60,7 +60,7 @@ class LeastSquares(Optimiser):
             method="trf",
             args=(
                 constitutive_law,
-                strain,
+                experiment_data,
                 parameter_map_size,
                 spatial_parameterisations,
                 weighted_metrics,
