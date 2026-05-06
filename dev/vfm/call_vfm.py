@@ -13,13 +13,14 @@ from pyvale.vfm.identification_phase import IdentificationPhase
 from pyvale.vfm.metrics.sensitivity_based_virtual_fields import (
     SensitivityBasedVitualFieldsMetric,
 )
-from pyvale.vfm.parameter import ConstitutiveParameter
+from pyvale.vfm.constitutive_parameter import ConstitutiveParameter
 from pyvale.vfm.spatial_parameterisations.known import (
     KnownSpatialParameterisation
 )
 from pyvale.vfm.spatial_parameterisations.homogeneous import (
     HomogeneousSpatialParameterisation
 )
+from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import DegreeOfFreedom
 from pyvale.vfm.vfm import vfm
 from pyvale.vfm.optimisers.least_squares import LeastSquares
 
@@ -64,12 +65,24 @@ def main():
     phases = [
         IdentificationPhase(
             {
-                "elastic_modulus": KnownSpatialParameterisation("elastic_modulus"),
-                "poissons_ratio": KnownSpatialParameterisation("poissons_ratio"),
-                "yield_strength": HomogeneousSpatialParameterisation("yield_strength"),
-                "hardening_modulus": HomogeneousSpatialParameterisation("hardening_modulus"),
+                "elastic_modulus": KnownSpatialParameterisation(parameters["elastic_modulus"].value),
+                "poissons_ratio": KnownSpatialParameterisation(parameters["poissons_ratio"].value),
+                "yield_strength": HomogeneousSpatialParameterisation(
+                    DegreeOfFreedom(
+                        parameters["yield_strength"].value[0],
+                        parameters["yield_strength"].lower_bound,
+                        parameters["yield_strength"].upper_bound
+                    )
+                ),
+                "hardening_modulus": HomogeneousSpatialParameterisation(
+                    DegreeOfFreedom(
+                        parameters["hardening_modulus"].value[0],
+                        parameters["hardening_modulus"].lower_bound,
+                        parameters["hardening_modulus"].upper_bound
+                    )
+                ),
             },
-            [(SensitivityBasedVitualFieldsMetric(np.array([3, 3])), 1.0)],
+            [(1.0, SensitivityBasedVitualFieldsMetric(np.array([3, 3])))],
             LeastSquares(),
         )
     ]

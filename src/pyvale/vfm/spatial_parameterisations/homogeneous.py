@@ -4,22 +4,40 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
+    DegreeOfFreedom,
     SpatialParameterisation,
 )
-from pyvale.vfm.parameter import ConstitutiveParameter
 
 
 @dataclass(slots=True)
 class HomogeneousSpatialParameterisation(SpatialParameterisation):
-    parameter_name: str
+    value: DegreeOfFreedom
+
+    @property
+    def num_degrees_of_freedom(self) -> int:
+        return 1
 
     def to_map(
         self,
-        params: dict[str, ConstitutiveParameter],
-        size :npt.NDArray[np.uint32]
+        size: npt.NDArray[np.uint32]
     ) -> npt.NDArray[np.float64]:
-        parameter = params[self.parameter_name]
+        return np.full((size[0], size[1]), self.value.value)
 
-        # TODO: value error if param value not the right size
+    def pack_degrees_of_freedom(
+        self,
+    ) -> tuple[
+        npt.NDArray[np.float64],
+        npt.NDArray[np.float64],
+        npt.NDArray[np.float64]
+    ]:
+        return (
+            np.array([self.value.value]),
+            np.array([self.value.lower_bound]),
+            np.array([self.value.upper_bound])
+        )
 
-        return parameter.value
+    def update_from_packed_degrees_of_freedom(
+        self,
+        degrees_of_freedom: npt.NDArray[np.float64]
+    ) -> None:
+        self.value.value = degrees_of_freedom[0]

@@ -4,7 +4,9 @@ from pyvale.vfm.identification import EIdentificationType, Identification
 
 # TODO: return type
 # TODO: config validation
-#       - no forward referencing in phases list
+#   - no forward referencing in phases list
+#   - individual weights cant be greater than 1.0 in total
+#   - sum of weights must be 1.0
 def vfm(
     experiment_data: ExperimentData,
     identification: Identification
