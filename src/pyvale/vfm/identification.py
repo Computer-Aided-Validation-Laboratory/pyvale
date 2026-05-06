@@ -3,7 +3,7 @@ import enum
 
 from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
 from pyvale.vfm.identification_phase import IdentificationPhase
-from pyvale.vfm.parameter import ConstitutiveParameter
+from pyvale.vfm.constitutive_parameter import ConstitutiveParameter
 
 
 class EIdentificationType(enum.Enum):

@@ -10,7 +10,6 @@ from pyvale.vfm.radial_return import radial_return
 
 @dataclass(slots=True)
 class LinearHardening(ConstitutiveLaw):
-
     @property
     def identification_type(self) -> EIdentificationType:
         return EIdentificationType.Nonlinear
