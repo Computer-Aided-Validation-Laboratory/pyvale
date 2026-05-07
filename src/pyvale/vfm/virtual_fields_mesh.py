@@ -42,27 +42,10 @@ class VirtualFieldsMesh:
     free_dof: npt.NDArray[np.int64]
 
 
-def _compute_data_element_edges(
-    coords: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
-    """Build element-edge coordinates from a 1D centroid coordinate vector."""
-
-    if coords.ndim != 1:
-        raise ValueError("Expected a 1D coordinate vector.")
-    if coords.size < 2:
-        raise ValueError("Need at least two coordinates to build element edges.")
-
-    edges = np.empty(coords.size + 1, dtype=np.float64)
-    edges[1:-1] = 0.5 * (coords[:-1] + coords[1:])
-    edges[0] = coords[0] - 0.5 * (coords[1] - coords[0])
-    edges[-1] = coords[-1] + 0.5 * (coords[-1] - coords[-2])
-    return edges
-
 
 @dataclass(slots=True)
 class DataPointMesh:
     """Fine mesh formed by the corners of the measured data-point areas."""
-
     nodal_coords_x: npt.NDArray[np.float64]   # shape (num_points_y + 1, num_points_x + 1)
     nodal_coords_y: npt.NDArray[np.float64]   # shape (num_points_y + 1, num_points_x + 1)
 
@@ -103,7 +86,7 @@ def _extend_centroid_grid(
 
 
 
-def generate_data_mesh(
+def _generate_data_mesh_nodal_coord(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
 ) -> DataPointMesh:
@@ -198,6 +181,83 @@ def plot_data_mesh(
     plt.show()
 
 
+
+
+def _generate_vf_mesh_nodal_coord(
+    data_mesh:DataPointMesh,
+    mesh_size:npt.NDArray[np.uint32],  # column_count, row_count
+) -> VirtualFieldsMesh:
+    """Snap user-defined virtual mesh onto the measured x/y grid lines."""
+    
+    if mesh_size.shape != (2,):
+        raise ValueError("mesh_size must contain [column_count, row_count].")
+    if mesh_size[0] < 1 or mesh_size[1] < 1:
+        raise ValueError("mesh_size must be at least [1, 1].")
+    
+    # Check data mesh nodal y coordinates are constant along rows (within 0.1% of mean row value)
+    if not np.all(np.isclose(data_mesh.nodal_coords_y.mean(axis=1), data_mesh.nodal_coords_y[:, 0], rtol=0.001)):
+        raise ValueError("Data mesh nodal y coordinates are not constant along rows. Current implementation assumes they should be.")
+    # Check data mesh nodal x coordinates are constant along columns (within 0.1% of mean row value)
+    if not np.all(np.isclose(data_mesh.nodal_coords_x.mean(axis=0), data_mesh.nodal_coords_x[0, :], rtol=0.001)):
+        raise ValueError("Data mesh nodal x coordinates are not constant along columns. Current implementation assumes they should be.")
+
+    # Extract the structured 1D nodal coordinate lines from the data mesh
+    data_mesh_nodal_coord_x_1d = data_mesh.nodal_coords_x[0, :]
+    data_mesh_nodal_coord_y_1d = data_mesh.nodal_coords_y[:, 0]
+
+    # Initialise vf mesh nodal coords by linearly spacing along specimen dimensions, ensuring one on each edge
+    vf_mesh_nodal_coord_x_1d=np.linspace(data_mesh_nodal_coord_x_1d[0],data_mesh_nodal_coord_x_1d[-1],mesh_size[0]+1)
+    vf_mesh_nodal_coord_y_1d=np.linspace(data_mesh_nodal_coord_y_1d[0],data_mesh_nodal_coord_y_1d[-1],mesh_size[1]+1)
+
+    # Compute x distance from vf mesh nodes to data mesh nodes
+    x_distances = np.abs(
+        vf_mesh_nodal_coord_x_1d[:, np.newaxis]
+        - data_mesh_nodal_coord_x_1d[np.newaxis, :]
+    )
+
+    # Closest data mesh nodal x coordinate idx for each vf mesh node
+    closest_x_idx = np.argmin(x_distances, axis=1)
+
+    # Compute y distance from vf mesh nodes to data mesh nodes
+    y_distances = np.abs(
+        vf_mesh_nodal_coord_y_1d[:, np.newaxis]
+        - data_mesh_nodal_coord_y_1d[np.newaxis, :]
+    )
+
+    # Closest data mesh nodal y coordinate idx for each vf mesh node
+    closest_y_idx = np.argmin(y_distances, axis=1)
+
+    # Force the outer virtual mesh nodes to lie exactly on the specimen edges
+    closest_x_idx[0] = 0
+    closest_x_idx[-1] = data_mesh_nodal_coord_x_1d.size - 1
+    closest_y_idx[0] = 0
+    closest_y_idx[-1] = data_mesh_nodal_coord_y_1d.size - 1
+
+    # Check snapping has not collapsed neighbouring virtual nodes onto the same data-mesh node
+    if np.unique(closest_x_idx).size != closest_x_idx.size:
+        raise ValueError(
+            "mesh_size is too fine in the x direction: multiple virtual nodes snapped to the same data-mesh x coordinate."
+        )
+    if np.unique(closest_y_idx).size != closest_y_idx.size:
+        raise ValueError(
+            "mesh_size is too fine in the y direction: multiple virtual nodes snapped to the same data-mesh y coordinate."
+        )
+
+    # Updated vf mesh nodal coordinates after snapping to closest data mesh nodes (so no data element is split)
+    vf_mesh_nodal_coord_x_1d = data_mesh_nodal_coord_x_1d[closest_x_idx]
+    vf_mesh_nodal_coord_y_1d = data_mesh_nodal_coord_y_1d[closest_y_idx]
+
+    # Expand vf mesh nodal coords to 2D grid
+    vf_mesh_nodal_coord_x, vf_mesh_nodal_coord_y = np.meshgrid(
+        vf_mesh_nodal_coord_x_1d,
+        vf_mesh_nodal_coord_y_1d,
+    )
+    
+    return VirtualFieldsMesh(
+        nodal_coords_x=vf_mesh_nodal_coord_x,
+        nodal_coords_y=vf_mesh_nodal_coord_y,
+    )
+
 def generate_virtual_fields_mesh(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
@@ -244,15 +304,13 @@ def generate_virtual_fields_mesh(
     """
     
     # Construct fine mesh around data points
-    data_mesh=generate_data_mesh(x,y)
+    data_mesh=_generate_data_mesh_nodal_coord(x,y)
 
     # Debug: plot data mesh overlaid on data points 
-    plot_data_mesh(x, y, data_mesh, specimen_mask)
+    # plot_data_mesh(x, y, data_mesh, specimen_mask)
 
-    vf_mesh = generate_virtual_fields_mesh(data_mesh,mesh_size)
+    vf_mesh = _generate_vf_mesh_nodal_coord(data_mesh,mesh_size)
 
-
-    mesh_x, mesh_y = generate_mesh(x, y, mesh_size)
 
     num_virtual_elements = mesh_x.size * mesh_y.size
 
@@ -517,43 +575,6 @@ def generate_virtual_fields_mesh(
 
 
 
-
-def generate_mesh(
-    x: npt.NDArray[np.float64],
-    y: npt.NDArray[np.float64],
-    mesh_size: npt.NDArray[np.uint32]
-):
-    """Snap a coarse virtual mesh onto the measured x/y grid lines."""
-    grid_x = _compute_data_element_edges(x)
-    grid_y = _compute_data_element_edges(y)
-
-    mesh_size_x = mesh_size[0]
-    mesh_size_y = mesh_size[1]
-
-    mesh_x = np.zeros(mesh_size_x + 1)
-    mesh_y = np.zeros(mesh_size_y + 1)
-
-    mesh_nodes_x = np.linspace(grid_x[0], grid_x[-1], mesh_size_x + 1)
-    mesh_nodes_y = np.linspace(grid_y[0], grid_y[-1], mesh_size_y + 1)
-
-    closest_grid_points_x = (
-        np.abs(mesh_nodes_x[1:-1, np.newaxis] - grid_x).argmin(axis=1)
-    )
-
-    closest_grid_points_y = (
-        np.abs(mesh_nodes_y[1:-1, np.newaxis] - grid_y).argmin(axis=1)
-    )
-
-    mesh_x[0] = grid_x[0]
-    mesh_y[0] = grid_y[0]
-
-    mesh_x[-1] = grid_x[-1]
-    mesh_y[-1] = grid_y[-1]
-
-    mesh_x[1:-1] = grid_x[closest_grid_points_x]
-    mesh_y[1:-1] = grid_y[closest_grid_points_y]
-
-    return (mesh_x, mesh_y)
 
 
 def plot_virtual_fields_mesh(
