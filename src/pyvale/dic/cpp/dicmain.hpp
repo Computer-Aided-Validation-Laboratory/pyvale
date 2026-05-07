@@ -18,6 +18,7 @@
 
 // DIC Header Files
 #include "./dicutil.hpp"
+#include "./dicmultiwindow.hpp"
 
 namespace py = pybind11;
 
@@ -53,6 +54,7 @@ namespace py = pybind11;
 void engine(const py::array_t<bool>& img_roi_arr,
             const Calib &calib,
             const util::Config& conf,
+            const MultiwindowConfig &multiwindowconf,
             const common_util::SaveConfig& saveconf);
 
 void build_info();

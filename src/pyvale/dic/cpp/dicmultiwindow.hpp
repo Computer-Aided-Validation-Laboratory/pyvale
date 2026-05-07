@@ -24,6 +24,22 @@
 
 
 
+/** 
+ * @brief Configuration struct for multiwindow correlation parameters.
+ *
+ * Members:
+ *   - @c overlap : percentage overlap between adjacent subsets at each level (e.g., 50 for 50% overlap).
+ *   - @c subset_size : vector of subset sizes for each level, ordered from coarsest (largest window) to finest (smallest window).
+ *   - @c search_area : vector of search area sizes (in pixels) for FFT
+ *   correlation at each level, ordered from coarsest to finest.
+ */
+struct MultiwindowConfig
+{
+    std::vector<int> overlap;
+    std::vector<int> subset_size;
+    std::vector<int> search_area;
+};
+
 /**
  * @brief Represents one level in a multiwindow FFT-based correlation hierarchy.
  *
@@ -66,13 +82,17 @@ struct WindowLevel {
     double mad_scale;
     bool fft_save;
     common_util::SaveConfig saveconf;
+    int step;
+    int template_size;
+    int search_area;
 
 
 
 
     WindowLevel(const bool *img_roi,
            const int step,
-           const int size,
+           const int template_size,
+           const int search_area,
            const int px_hori,
            const int px_vert,
            const bool allow_outside,
@@ -84,7 +104,7 @@ struct WindowLevel {
            const subset::Grid *prev_layout) {
 
         // create grid for the window
-        layout = subset::create_grid(img_roi, step, size, size, px_hori, px_vert, allow_outside);
+        layout = subset::create_grid(img_roi, step, template_size, template_size, px_hori, px_vert, allow_outside);
         u.resize(layout.num);
         v.resize(layout.num);
         cost.resize(layout.num);
@@ -95,6 +115,9 @@ struct WindowLevel {
         this->mad_scale = mad_scale;
         this->fft_save = fft_save;
         this->saveconf = saveconf;
+        this->step = step;
+        this->template_size = template_size;
+        this->search_area = search_area;
 
         // create neighbourlist if there's a a previous window size
         if (prev_layout) {
@@ -259,6 +282,7 @@ struct WindowLevel {
 void multiwindow_init(std::vector<WindowLevel> &level, 
                       const bool *img_roi, 
                       const util::Config &conf,
+                      const MultiwindowConfig &mwconf,
                       const common_util::SaveConfig &saveconf);
 
 #endif // DICMULTIWINDOW_H

@@ -175,6 +175,7 @@ namespace stereo {
         double y_u = y_n;
 
         // simple NR
+        // TODO: fix number of iterations here.
         for (int i = 0; i < 20; i++) {
             double r2 = x_u*x_u + y_u*y_u;
             double r4 = r2*r2;

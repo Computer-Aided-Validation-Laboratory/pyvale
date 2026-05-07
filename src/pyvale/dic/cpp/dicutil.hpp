@@ -56,6 +56,9 @@ namespace util {
         bool incremental;
         std::string incremental_update_cond;
         double incremental_update_val;
+        int multiwindow_overlap;
+        std::vector<int> multiwindow_subset_size;
+        std::vector<int> multiwindow_search_area;
     };
 
 

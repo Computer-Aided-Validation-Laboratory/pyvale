@@ -42,6 +42,61 @@ class InrementalMethod(str, Enum):
     COST = "COST"
     ITER = "ITER"
 
+
+def multiwindow_init(subset_size: int, 
+                     subset_step: int,
+                     max_displacement: int,
+                     multiwindow_overlap: float,
+                     multiwindow_subset_size: list[int],
+                     multiwindow_search_area: list[int]) -> tuple[list [int], list[int], list[int]]:
+
+
+    # check multiwindow_subset_size and multiwindow_search_area are same length
+    if len(multiwindow_subset_size) != len(multiwindow_search_area):
+        raise ValueError(f"multiwindow_subset_size and multiwindow_search_area must be the same length. "
+                         f"Got lengths {len(multiwindow_subset_size)} and {len(multiwindow_search_area)}")
+
+    # check if the overlap is a value between 0 and 100
+    if multiwindow_overlap < 0 or multiwindow_overlap > 1:
+        raise ValueError(f"multiwindow_overlap must be a fractional value between 0 and 1."
+                         f"Got {multiwindow_overlap}")
+
+    # if they are both empty then use max_displacement as the largest subset_size and multiwindow_search_area
+    if len(multiwindow_subset_size) == 0 and len(multiwindow_search_area) == 0:
+        multiwindow_subset_size = [max_displacement]
+        multiwindow_search_area = [max_displacement]
+
+        # get descending powers from max_displacement down
+        powers_of_two = [2**i for i in range(int(np.floor(np.log2(max_displacement))), -1, -1)]
+
+        # if elements of power_of_two are less than subset_size then remove them
+        powers_of_two = [p for p in powers_of_two if p >= subset_size]
+
+        multiwindow_subset_size = multiwindow_subset_size + powers_of_two
+        multiwindow_search_area = multiwindow_search_area + powers_of_two
+
+    # check that all multiwindow_subset_sizes are less than or equal to the
+    # multiwindow_search_area elements
+    for i in range(len(multiwindow_subset_size)):
+        if multiwindow_subset_size[i] > multiwindow_search_area[i]:
+            raise ValueError(f"multiwindow_subset_size elements must be less than or equal to the corresponding "
+                             f"multiwindow_search_area elements. Got {multiwindow_subset_size[i]} and "
+                             f"{multiwindow_search_area[i]} at index {i}")
+
+    overlap = [x * (1.0-multiwindow_overlap) for x in multiwindow_subset_size]
+    overlap.append(subset_step)
+    overlap  = list(map(int,overlap))
+
+    multiwindow_subset_size.append(subset_size)
+    multiwindow_search_area.append(subset_size)
+
+    return overlap, multiwindow_subset_size, multiwindow_search_area
+
+
+
+
+
+
 def check_correlation_criteria(correlation_criteria: str) -> None:
     """
     Validate that the correlation criteria is one of the allowed values.

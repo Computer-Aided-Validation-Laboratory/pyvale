@@ -409,9 +409,70 @@ struct FFT {
         return true;
     }
 
+    bool zero_norm_subsets_centered(subset::Pixels &ss,
+                                    const int ss_size_x,
+                                    const int ss_size_y,
+                                    const int window_size_x,
+                                    const int window_size_y) {
+        const int window_half_x = window_size_x / 2;
+        const int window_half_y = window_size_y / 2;
+
+        const int ss_half_x = ss_size_x / 2;
+        const int ss_half_y = ss_size_y / 2;
+
+        // ---- Compute means ----
+        double mean_ref = 0.0;
+        int count = 0;
+
+        for (int row = -ss_half_y; row < ss_size_y - ss_half_y; ++row) {
+            for (int col = -ss_half_x; col < ss_size_x - ss_half_x; ++col) {
+
+                int x = window_half_x + col;
+                int y = window_half_y + row;
+                int idx = y * window_size_x + x;
+
+                mean_ref += ss_ref.vals[idx];
+                ++count;
+            }
+        }
+
+        mean_ref /= count;
+
+        // ---- Compute std ----
+        double std_ref = 0.0;
+
+        for (int row = -ss_half_y; row < ss_size_y - ss_half_y; ++row) {
+            for (int col = -ss_half_x; col < ss_size_x - ss_half_x; ++col) {
+
+                int x = window_half_x + col;
+                int y = window_half_y + row;
+                int idx = y * window_size_x + x;
+
+                std_ref += std::pow(ss_ref.vals[idx] - mean_ref, 2);
+            }
+        }
+
+        std_ref = std::sqrt(std_ref / count);
+
+        if (std_ref < 1e-10) return false;
+
+        // ---- Normalize ----
+        for (int row = -ss_half_y; row < ss_size_y - ss_half_y; ++row) {
+            for (int col = -ss_half_x; col < ss_size_x - ss_half_x; ++col) {
+
+                int x = window_half_x + col;
+                int y = window_half_y + row;
+                int idx = y * window_size_x + x;
+
+                ss_ref.vals[idx] = (ss_ref.vals[idx] - mean_ref) / std_ref;
+            }
+        }
+        return true;
+    }
 };
 
     void get_single_window_fftcc_peak(std::vector<double> &p,
+                                      double &max_val,
                                       const double cx, const double cy,
                                       const int ss_size_x, 
                                       const int ss_size_y,
@@ -420,13 +481,18 @@ struct FFT {
                                       const Image &img_ref, const Image &img_def,
                                       const Interpolator &interp_def);
 
-    void get_offcentered_fftcc_peak(double &peak_x, double &peak_y,
-                                   const int ss_x, const int ss_y,
-                                   const int ss_size_x, const int ss_size_y,
-                                   const int window_x, const int window_y,
-                                   const int window_size_x, const int window_size_y,
-                                   const Image &img_ref, const Image &img_def,
-                                   const Interpolator &interp_def);
+
+
+    void get_single_window_fftcc_peak_centre(std::vector<double> &p,
+                                         double &max_val,
+                                         const double cx, const double cy,
+                                         const double offset_x, const double offset_y,
+                                         const int ss_size_x, 
+                                         const int ss_size_y, 
+                                         const int window_size_x,
+                                         const int window_size_y,
+                                         const Image &img_ref, const Image &img_def,
+                                         const Interpolator &interp_def);
 
     void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
                                      const Image &img_ref,

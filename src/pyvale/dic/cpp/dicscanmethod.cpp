@@ -364,9 +364,9 @@ void multiwindow_reliability_guided(const Image &img_ref,
         const int ss_step = ss_grid.step;
 
 
-        auto get_initial_guess = [&](std::vector<double> &p, double cx, double cy) {
-            get_single_window_fftcc_peak(p, cx, cy,
-                                            ss_size_x, ss_size_y, 
+        auto get_initial_guess = [&](std::vector<double> &p, double &max_val, double cx, double cy) {
+            get_single_window_fftcc_peak(p, max_val, cx, cy,
+                                            ss_size_x, ss_size_y,
                                             conf.max_disp, conf.max_disp,
                                             img_ref, img_def, interp_def);
         };
@@ -398,6 +398,7 @@ void multiwindow_reliability_guided(const Image &img_ref,
             // Initialize ref and def subsets
             subset::Pixels ss_def(ss_size_x, ss_size_y);
             subset::Pixels ss_ref(ss_size_x, ss_size_y);
+            double max_val = 0.0;
 
             // Optimization parameters
             Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
@@ -444,7 +445,7 @@ void multiwindow_reliability_guided(const Image &img_ref,
                     subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
                     // if the first image. Take the optimization parameters from rigid fourier
-                    get_initial_guess(opt.p, cx, cy);
+                    get_initial_guess(opt.p, max_val, cx, cy);
 
                     // run optimizer
                     OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
@@ -565,14 +566,14 @@ void multiwindow_reliability_guided(const Image &img_ref,
                             subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
                             if (results_def.cost[current.idx] < conf.threshold){
-                                if (ss_ref.sum!=0) get_initial_guess(opt.p, cx, cy);
+                                if (ss_ref.sum!=0) get_initial_guess(opt.p, max_val, cx, cy);
                             }
                             else {
                                 opt.copy_params_from_neigh(results_def.p, current.idx);
                             }
 
                             // optimize
-                            if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+                            if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, false);
 
                             // add deformation from reference image to new results
                             if ((nres.above_threshold) && (img_num_ref > 0)){

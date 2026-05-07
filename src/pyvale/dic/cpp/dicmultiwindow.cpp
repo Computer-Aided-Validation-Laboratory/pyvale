@@ -30,30 +30,19 @@
 void multiwindow_init(std::vector<WindowLevel> &level, 
                       const bool *img_roi, 
                       const util::Config &conf,
+                      const MultiwindowConfig &mwconf,
                       const common_util::SaveConfig &saveconf) {
 
-    // timer for the initialisation
-    //Timer timer("entire FFT initislisation");
-    
-    std::vector<int> ss_sizes;
-    std::vector<int> ss_steps;
 
-    int power = util::next_pow2(conf.max_disp);
-    while (power > conf.ss_size) {
-        ss_sizes.push_back(power);
-        ss_steps.push_back(power / 2);
-        power /= 2;
-    }
-    ss_sizes.push_back(conf.ss_size);
-    ss_steps.push_back(conf.ss_step);
+    for (size_t lvl = 0; lvl < mwconf.overlap.size(); lvl++) {
 
-    for (size_t lvl = 0; lvl < ss_sizes.size(); lvl++) {
-
-        const bool is_last = (lvl == ss_sizes.size() - 1);
+        const bool is_last = (lvl == mwconf.overlap.size() - 1);
         const subset::Grid *prev = (lvl > 0) ? &level[lvl-1].layout : nullptr;
 
         level.emplace_back(img_roi, 
-                           ss_steps[lvl], ss_sizes[lvl],
+                           mwconf.overlap[lvl], 
+                           mwconf.subset_size[lvl],
+                           mwconf.search_area[lvl],
                            conf.px_hori, conf.px_vert, 
                            !is_last, lvl, 
                            conf.fft_mad, conf.fft_mad_scale,
@@ -222,28 +211,24 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         // TODO: Add a proper flag for this 
         bool subpx = true;
 
-
         // consts
-        const int ss_size_x = layout.size_x;
-        const int ss_size_y = layout.size_y;
-        const int num_ss  = layout.num;
+        const int num_ss = layout.num;
 
         // set all displacements for multiwindow level to 0
         std::fill(u.begin(), u.end(), 0.0);
         std::fill(v.begin(), v.end(), 0.0);
 
         // progress bar initialisation
-        std::string bar_title = "FFT windowing " + std::to_string(ss_size_x) + "x" + std::to_string(ss_size_y) + " for \033[1;4m" + filenames[img_num_ref] + "\033[0m and \033[1;4m" + filenames[img_num_def] + "\033[0m:";
+        std::string bar_title = "FFT windowing " + std::to_string(search_area) + "x" + std::to_string(search_area) + " for \033[1;4m" + filenames[img_num_ref] + "\033[0m and \033[1;4m" + filenames[img_num_def] + "\033[0m:";
         ProgressBar pbar(bar_title, layout.num);
         std::atomic<int> current_progress = 0;
 
 
-        #pragma omp parallel shared(stop_request, level, prev, interp_def, ss_size_x, ss_size_y)
+        #pragma omp parallel shared(stop_request, level, prev, interp_def, search_area)
         {
 
 
             // class for FFT
-            FFT fft(ss_size_x, ss_size_y);
 
             // loop over subsets for each size/step
             #pragma omp for schedule(dynamic,10)
@@ -255,9 +240,6 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                 const double cx = layout.coords[2*ss];
                 const double cy = layout.coords[2*ss+1];
 
-                const int corner_x = int(cx - ss_size_x/2);
-                const int corner_y = int(cy - ss_size_y/2);
-
                 // get the seed for the new window size
                 double prev_u = 0.0;
                 double prev_v = 0.0;
@@ -265,34 +247,17 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                 if (level>0)
                     get_displacement_from_prev_window(prev_u, prev_v, prev, ss, cx, cy);
 
-                double corner_x_shft = corner_x+prev_u;
-                double corner_y_shft = corner_y+prev_v;
+                std::vector<double> p(6,0.0);
+                get_single_window_fftcc_peak_centre(p, max_val[ss],
+                                             cx, cy,
+                                             prev_u, prev_v,
+                                             template_size, template_size,
+                                             search_area, search_area,
+                                             img_ref, img_def,
+                                             interp_def);
 
-                // populate fft.ss_ref with reference subset values
-                subset::fill_from_img(fft.ss_ref,corner_x, corner_y, px_hori, px_vert, img_ref);
-
-                // populate fft.ss_def with interpolator value
-                subset::fill_from_img_subpx(fft.ss_def, corner_x_shft, corner_y_shft, interp_def);
-
-                // zero normalise the subsets
-                bool normalised = fft.zero_norm_subsets(fft.ss_ref.vals, fft.ss_def.vals, ss_size_x, ss_size_y);
-
-                // get peaks from the cross correlation
-                double peak_x = 0, peak_y = 0, temp_max = 0.0;
-
-                if (normalised){
-                    fft.correlate();
-                    fft.get_peak(peak_x, peak_y, temp_max, subpx, "GAUSSIAN_2D");
-                }
-
-                u[ss] = prev_u+peak_x;
-                v[ss] = prev_v+peak_y;
-
-                // this isn't essential. storing peak amplitude and cost value for level
-                //subset::get_subpx_from_img(fft.ss_def, ss_x+level[i].x[ss], ss_y+level[i].y[ss], interp_def);
-                //level[i].cost[ss] = debugcost(fft.ss_ref,fft.ss_def);
-                max_val[ss] = temp_max;
-
+                u[ss] = prev_u+p[0];
+                v[ss] = prev_v+p[1];
 
                 if (g_debug_level>1){
                     int progress = current_progress.fetch_add(1);
@@ -322,8 +287,8 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
             std::ostringstream str_size_x;
             std::ostringstream str_size_y;
 
-            str_size_x << std::setw(4) << std::setfill('0') << ss_size_x;
-            str_size_y << std::setw(4) << std::setfill('0') << ss_size_y;
+            str_size_x << std::setw(4) << std::setfill('0') << search_area;
+            str_size_y << std::setw(4) << std::setfill('0') << search_area;
 
             std::string filename = saveconf.basepath + "fft_displacements_" + base + "_" +
                                    str_size_x.str() + "x" +
@@ -379,7 +344,6 @@ void WindowLevel::get_displacement_from_prev_window(double &prev_x,
         double dx = cx - cx_neigh;
         double dy = cy - cy_neigh;
         double dist_sq = dx * dx + dy * dy;
-
         double weight = 1.0 / (dist_sq + epsilon);
 
         //sum_x += level[i-1].x[nidx];

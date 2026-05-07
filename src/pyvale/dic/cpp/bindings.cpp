@@ -18,6 +18,7 @@
 #include "./dicutil.hpp"
 #include "./dicmain.hpp"
 #include "./dicinterp.hpp"
+#include "./dicmultiwindow.hpp"
 #include "./dicinterpBspline.hpp"
 
 namespace py = pybind11;
@@ -54,6 +55,12 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("incremental", &util::Config::incremental)
         .def_readwrite("incremental_update_cond", &util::Config::incremental_update_cond)
         .def_readwrite("incremental_update_val",  &util::Config::incremental_update_val);
+
+    py::class_<MultiwindowConfig>(m, "MultiwindowConfig")
+        .def(py::init<>())
+        .def_readwrite("overlap", &MultiwindowConfig::overlap)
+        .def_readwrite("subset_size", &MultiwindowConfig::subset_size)
+        .def_readwrite("search_area", &MultiwindowConfig::search_area);
 
     // Bind the engine function
     m.def("engine", &engine, "Run DIC analysis on input images with config");

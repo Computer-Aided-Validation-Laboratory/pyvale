@@ -47,6 +47,7 @@ namespace py = pybind11;
 void engine(const py::array_t<bool>& img_roi_arr, 
             const Calib &calib,
             const util::Config &conf,
+            const MultiwindowConfig &mwconf,
             const common_util::SaveConfig &saveconf){
 
     // Register signal handler for Ctrl+C and set debug_level
@@ -93,7 +94,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
     if (conf.scan_method == "MULTIWINDOW_RG" || conf.scan_method == "MULTIWINDOW") {
 
-        multiwindow_init(multiwindow_l, img_roi, conf, saveconf);
+        multiwindow_init(multiwindow_l, img_roi, conf, mwconf, saveconf);
         ss_grid_l = multiwindow_l.back().layout;
 
     }
@@ -134,6 +135,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
     std::unique_ptr<Interpolator> interp_def_r;
     std::unique_ptr<Interpolator> interp_ref_l_inc;
     std::unique_ptr<Interpolator> interp_ref_r_inc;
+    interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
 
 
     // objects only needed for stereo
@@ -259,7 +261,6 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // singlewindow FFTCC + reliability Guided
         // -------------------------------------------------------------------------------------------------------------------------------------------
         else if (conf.scan_method=="SINGLEWINDOW_RG" && !conf.incremental){
-            if (!interp_ref_l) interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
             scanmethod::singlewindow_incremental_reliability_guided(img_ref_l, img_def_l,
                                                                     *interp_ref_l, *interp_def_l,
                                                                     ss_grid_l, conf, 0, img_num,

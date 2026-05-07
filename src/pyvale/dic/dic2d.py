@@ -32,11 +32,14 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  threshold: float=0.9,
                  bf_threshold: float=0.6,
                  num_threads: int | None = None,
-                 max_displacement: int=128,
+                 max_displacement: int=64,
                  method: Literal["MULTIWINDOW_RG","SINGLEWINDOW_RG","MULTIWINDOW","RASTER"] = "MULTIWINDOW_RG",
                  incremental: bool=False,
                  incremental_update_condition: Literal["IMAGE","COST","ITER"]="IMAGE",
                  incremental_update_value: float=1,
+                 multiwindow_overlap: float=0.5,
+                 multiwindow_subset_sizes: list[int] = [],
+                 multiwindow_search_areas: list[int] = [],
                  fft_mad: bool=False,
                  fft_mad_scale: float=3.0,
                  fft_save: bool=False,
@@ -124,6 +127,16 @@ def calculate_2d(reference: np.ndarray | str | Path,
         which to update the reference. If the condition is `"COST"`, this would be
         the cost threshold for updating. If the condition is `"ITER"`, this would
         be the iteration threshold for updating. (default: 1).
+    multiwindow_overlap : float, optional
+        For multi-window methods, the percentage overlap between adjacent FFT windows 
+        at each level (default: 0.5).
+    multiwindow_subset_sizes: list[int], optional
+        List of subset_sizes for the multi-window FFT approach. If
+        None, defaults to powers of 2 with the largest window size determined by
+        the next power of 2 above `max_displacement` (default: None).
+    multiwindow_search_areas: list[int], optional
+        List of search window sizes for the multi-window FFT approach. If None,
+        defaults to the corresponding template window size (default: None).
     fft_mad : bool, optional
         Median Absolute Deviation (MAD) outlier removal flag that 
         will kill likely incorrect spikes in the rigid estimates 
@@ -185,15 +198,19 @@ def calculate_2d(reference: np.ndarray | str | Path,
     incremental_update_condition_enum = dicchecks.InrementalMethod(incremental_update_condition)
 
     # checks on the config
+    mw_overlap, mw_subset_size, mw_search_area  = dicchecks.multiwindow_init(subset_size,
+                                                                 subset_step,
+                                                                 max_displacement, 
+                                                                 multiwindow_overlap, 
+                                                                 multiwindow_subset_sizes,
+                                                                 multiwindow_search_areas)
+
     dicchecks.check_thresholds(threshold, bf_threshold, precision)
     common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks.check_subsets(subset_size, subset_step)
     updated_seeds = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, w, h, subset_size, subset_step)
     num_params = dicchecks.check_shape_function(shape_function_enum)
 
-
-    print(updated_seeds)
-    print(basenames)
 
     # Assign values to config struct for c++ land
     config = diccpp.Config()
@@ -212,6 +229,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.incremental = incremental
     config.incremental_update_cond = incremental_update_condition_enum.value
     config.incremental_update_val = incremental_update_value
+
     config.num_params = num_params
     config.px_hori = w
     config.px_vert = h
@@ -224,6 +242,11 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.fft_mad_scale = fft_mad_scale
     config.fft_save = fft_save
     config.debug_level = debug_level
+
+    multiwindowconf = diccpp.MultiwindowConfig()
+    multiwindowconf.overlap = mw_overlap
+    multiwindowconf.subset_size = mw_subset_size
+    multiwindowconf.search_area = mw_search_area
 
     # assigning c++ struct vals for save config
     saveconf = common_cpp.SaveConfig()
@@ -271,4 +294,4 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        diccpp.engine(roi_c, calib, config, saveconf)
+        diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
