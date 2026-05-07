@@ -9,7 +9,7 @@ import numpy as np
 from pyvale.vfm.global_virtual_fields_cost_function import global_vf_cost_function
 from pyvale.vfm.metrics import BaseMetric, MetricContext, MetricResult
 from pyvale.vfm.project_definition import MetricSpec, TestData
-from pyvale.vfm.sensitivity_based_virtual_fields import generate_sensitivity_based_virtual_fields
+# from pyvale.vfm.sensitivity_based_virtual_fields import generate_sensitivity_based_virtual_fields
 from pyvale.vfm.stress_sensitivity import calculate_stress_sensitivity
 from pyvale.vfm.virtual_fields_mesh import (
     generate_virtual_fields_mesh,
@@ -61,9 +61,9 @@ class SensitivityBasedVFMetric(BaseMetric):
                 test_data=test_data,
                 plot_path_option=self.options.get("plot_virtual_mesh_path"),
             )
-            plot_virtual_fields_mesh(
-                data_x=test_data.x,
-                data_y=test_data.y,
+            plot_vf_mesh(
+                x=test_data.x,
+                y=test_data.y,
                 specimen_mask=test_data.specimen_mask,
                 virtual_fields_mesh=self.virtual_fields_mesh,
                 output_path=output_path,

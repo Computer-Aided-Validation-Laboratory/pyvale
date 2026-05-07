@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.sensitivity_based_virtual_fields import SensitivityBasedVirtualFields
+# from pyvale.vfm.sensitivity_based_virtual_fields import SensitivityBasedVirtualFields
 
 
 @dataclass(slots=True)
