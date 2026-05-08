@@ -139,6 +139,8 @@ def plot_virtual_fields_mesh(
     output_path: str | Path | None = None,
     show: bool = True,
     plot_data_points: bool = True,
+    node_ids: npt.NDArray[np.int32] | None = None,
+    element_node_ids: npt.NDArray[np.int32] | None = None,
 ) -> Path | None:
     """Plot data points plus whichever of the data mesh and VF mesh are provided."""
 
@@ -205,6 +207,35 @@ def plot_virtual_fields_mesh(
             )
         )
 
+    if node_ids is not None:
+        for row in range(node_ids.shape[0]):
+            for col in range(node_ids.shape[1]):
+                ax.text(
+                    virtual_grid_x[row, col],
+                    virtual_grid_y[row, col],
+                    str(node_ids[row, col]),
+                    color="blue",
+                    fontsize=8,
+                    ha="center",
+                    va="center",
+                )
+
+    if element_node_ids is not None:
+        for element_id in range(element_node_ids.shape[0]):
+            element_nodes = element_node_ids[element_id]
+            elem_x = virtual_grid_x.ravel()[element_nodes]
+            elem_y = virtual_grid_y.ravel()[element_nodes]
+            ax.text(
+                np.mean(elem_x),
+                np.mean(elem_y),
+                f"E{element_id}",
+                color="black",
+                fontsize=8,
+                ha="center",
+                va="center",
+                bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=1.0),
+            )
+
     if legend_handles:
         ax.legend(handles=legend_handles, loc="best")
     ax.set_title("Mesh Plot")
@@ -229,12 +260,12 @@ def plot_virtual_fields_mesh(
 
 def _generate_vf_mesh_nodal_coord(
     data_mesh:MeshNodalCoordinates,
-    mesh_size:npt.NDArray[np.uint32],  # column_count, row_count
+    mesh_size:npt.NDArray[np.uint32],  # row_count, column_count
 ) -> MeshNodalCoordinates:
     """Snap user-defined virtual mesh onto the measured x/y grid lines."""
     
     if mesh_size.shape != (2,):
-        raise ValueError("mesh_size must contain [column_count, row_count].")
+        raise ValueError("mesh_size must contain [row_count, column_count].")
     if mesh_size[0] < 1 or mesh_size[1] < 1:
         raise ValueError("mesh_size must be at least [1, 1].")
     
@@ -253,8 +284,9 @@ def _generate_vf_mesh_nodal_coord(
     mean_data_dy = np.nanmean(np.diff(data_mesh_nodal_coord_y_1d,axis=0))
 
     # Initialise vf mesh nodal coord by linearly spacing along specimen dimensions, ensuring one on each edge
-    vf_mesh_nodal_coord_x_1d=np.linspace(data_mesh_nodal_coord_x_1d[0],data_mesh_nodal_coord_x_1d[-1],mesh_size[0]+1)
-    vf_mesh_nodal_coord_y_1d=np.linspace(data_mesh_nodal_coord_y_1d[0],data_mesh_nodal_coord_y_1d[-1],mesh_size[1]+1)
+    vf_mesh_nodal_coord_y_1d=np.linspace(data_mesh_nodal_coord_y_1d[0],data_mesh_nodal_coord_y_1d[-1],mesh_size[0]+1)
+    vf_mesh_nodal_coord_x_1d=np.linspace(data_mesh_nodal_coord_x_1d[0],data_mesh_nodal_coord_x_1d[-1],mesh_size[1]+1)
+    
 
     # Compute x distance from vf mesh nodes to data mesh nodes
 
@@ -358,6 +390,215 @@ def _generate_vf_mesh_nodal_coord(
         nodal_coord_y=vf_mesh_nodal_coord_y,
     )
 
+
+def _evaluate_linear_shape_functions(
+    xi: float,
+    eta: float,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Evaluate bilinear quad shape functions at local coordinates.
+
+    Node order is:
+    1. lower-left  -> (-1, -1)
+    2. lower-right -> (+1, -1)
+    3. upper-right -> (+1, +1)
+    4. upper-left  -> (-1, +1)
+    """
+
+    shape_functions = np.array(
+        [
+            0.25 * (1.0 - xi) * (1.0 - eta),
+            0.25 * (1.0 + xi) * (1.0 - eta),
+            0.25 * (1.0 + xi) * (1.0 + eta),
+            0.25 * (1.0 - xi) * (1.0 + eta),
+        ],
+        dtype=np.float64,
+    )
+
+    shape_function_derivatives = np.array(
+        [
+            [-0.25 * (1.0 - eta), -0.25 * (1.0 - xi)],
+            [0.25 * (1.0 - eta), -0.25 * (1.0 + xi)],
+            [0.25 * (1.0 + eta), 0.25 * (1.0 + xi)],
+            [-0.25 * (1.0 + eta), 0.25 * (1.0 - xi)],
+        ],
+        dtype=np.float64,
+    )
+
+    return shape_functions, shape_function_derivatives
+
+
+def _compute_local_element_coordinates(
+    point_coordinates: npt.NDArray[np.float64],
+    element_node_coordinates: npt.NDArray[np.float64],
+    tolerance: float = 1.0e-10,
+    max_iterations: int = 25,
+) -> tuple[float, float]:
+    """Find local element coordinates for a point inside a bilinear quad.
+
+    An iterative Newton-Raphson method is used to solve the nonlinear mapping 
+    from local to global coordinates. It is possible to used a closed form solution,
+    as per the previous MATLAB implementation of this code (see below). However,
+    the iterative method is more general and readible and the performance is not a 
+    concern given the small number of points we need to evaluate this for.
+
+    % Closed form solution based on "Chongyu Hua, An inverse transformation for 
+    % quadrilateral isoparametric elements: Analysis and application, 
+    % Finite Elements in Analysis and Design, vol 7, 1990"
+
+    % Node ordering is of type (d) in the article
+    %%Function
+    A = [-1 1 -1 1; -1 -1 1 1; 1 -1 -1 1]*nodeCoords; %eq (12)
+    d = [4*ptCoords(1)-(sum(nodeCoords(:,1))); 4*ptCoords(2)-(sum(nodeCoords(:,2)))]; %eq (8)
+
+    d1 = d(1); d2=d(2);
+    a1 = A(1,1); a2 = A(1,2); b1 = A(2,1); b2 = A(2,2); c1 = A(3,1); c2 = A(3,2);
+    % Parameters from table 1
+    ab = a1*b2-a2*b1; ac = a1*c2-a2*c1; ad = a1*d2-a2*d1; cb = c1*b2-c2*b1;
+    da = d1*a2-d2*a1; dc = d1*c2-d2*c1; ba = b1*a2-b2*a1; db = d1*b2-d2*b1;
+    bd = b1*d2-b2*d1; bc = b1*c2-b2*c1;
+
+    % Algorithms from table 1
+    if a1*a2*ab*ac ~= 0 || (a1==0 && a2*c1 ~= 0) || (a2 == 0 && a1*b2 ~= 0)
+        xi = roots([ab, cb+da, dc]);
+        xi = xi(abs(xi)<1);
+        eta = (ad+ba*xi)/ac;
+    elseif a1*a2 ~= 0 && ab == 0
+        xi = (a1*dc)/(b1*ac+a1*ad);
+        eta = ad/ac;
+    elseif a1*a2 ~= 0 && ac == 0
+        xi = ad/ab;
+        eta = (a1*db)/(c1*ab+a1*ad);
+    else
+        xi = dc/(a1*d2+bc);
+        eta = bd/(a2*d1+bc);
+    end
+
+    """
+
+    # Initial guess at local coordinates is the element center (0, 0) 
+    xi = 0.0
+    eta = 0.0
+
+    for _ in range(max_iterations):
+        # Evaluate shape functions and their derivatives at current local coordinates
+        shape_functions, shape_function_derivatives = _evaluate_linear_shape_functions(xi,eta)
+        # Evaluate global coordinates for the current identified shape function matrix
+        mapped_coordinates = shape_functions @ element_node_coordinates
+        # compute residual between known global point coordinates and evaluated
+        residual = point_coordinates - mapped_coordinates
+        # jacobian = dNdxi / dNdx??
+        jacobian = shape_function_derivatives.T @ element_node_coordinates
+        # compute step (unsure what solve does exatly)
+        update = np.linalg.solve(jacobian, residual)
+        # update guess of local coordinates
+        xi += float(update[0])
+        eta += float(update[1])
+
+        if np.linalg.norm(update, ord=np.inf) < tolerance:
+            tol = 1e-3
+            if not (-1.0 - tol <= xi <= 1.0 + tol and -1.0 - tol <= eta <= 1.0 + tol):
+                raise ValueError("Point mapped outside its assigned virtual element.")
+            
+            return xi, eta
+
+    raise ValueError(
+        "Could not determine local element coordinates for a measurement point."
+    )
+
+
+def _assemble_strain_displacement_matrix(
+    shape_function_gradients_global: npt.NDArray[np.float64],
+    use_nlgeom: bool = False,
+) -> npt.NDArray[np.float64]:
+    """Assemble the strain-displacement matrix for a 4-node quad."""
+
+    if use_nlgeom:
+        return np.array(
+            [
+                [
+                    shape_function_gradients_global[0, 0], 0.0,
+                    shape_function_gradients_global[1, 0], 0.0,
+                    shape_function_gradients_global[2, 0], 0.0,
+                    shape_function_gradients_global[3, 0], 0.0,
+                ],
+                [
+                    0.0, shape_function_gradients_global[0, 1],
+                    0.0, shape_function_gradients_global[1, 1],
+                    0.0, shape_function_gradients_global[2, 1],
+                    0.0, shape_function_gradients_global[3, 1],
+                ],
+                [
+                    shape_function_gradients_global[0, 1], 0.0,
+                    shape_function_gradients_global[1, 1], 0.0,
+                    shape_function_gradients_global[2, 1], 0.0,
+                    shape_function_gradients_global[3, 1], 0.0,
+                ],
+                [
+                    0.0, shape_function_gradients_global[0, 0],
+                    0.0, shape_function_gradients_global[1, 0],
+                    0.0, shape_function_gradients_global[2, 0],
+                    0.0, shape_function_gradients_global[3, 0],
+                ],
+            ],
+            dtype=np.float64,
+        )
+
+    return np.array(
+        [
+            [
+                shape_function_gradients_global[0, 0], 0.0,
+                shape_function_gradients_global[1, 0], 0.0,
+                shape_function_gradients_global[2, 0], 0.0,
+                shape_function_gradients_global[3, 0], 0.0,
+            ],
+            [
+                0.0, shape_function_gradients_global[0, 1],
+                0.0, shape_function_gradients_global[1, 1],
+                0.0, shape_function_gradients_global[2, 1],
+                0.0, shape_function_gradients_global[3, 1],
+            ],
+            [
+                shape_function_gradients_global[0, 1], shape_function_gradients_global[0, 0],
+                shape_function_gradients_global[1, 1], shape_function_gradients_global[1, 0],
+                shape_function_gradients_global[2, 1], shape_function_gradients_global[2, 0],
+                shape_function_gradients_global[3, 1], shape_function_gradients_global[3, 0],
+            ],
+        ],
+        dtype=np.float64,
+    )
+
+
+def _compute_point_shape_and_strain_matrices(
+    point_coordinates: npt.NDArray[np.float64],
+    element_node_coordinates: npt.NDArray[np.float64],
+    use_nlgeom: bool = False,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Evaluate shape functions and the strain-displacement matrix at one point."""
+
+    # Compute local element coordinates for datapoint
+    xi, eta = _compute_local_element_coordinates(point_coordinates, element_node_coordinates)
+
+    # Compute shape functions and derivatives for datapoint (could this use derivates from above to save recalc?)
+    shape_functions, shape_function_derivatives = _evaluate_linear_shape_functions(
+        xi,
+        eta,
+    )
+
+    # Compute derivatives of shape functions
+    jacobian = shape_function_derivatives.T @ element_node_coordinates
+    shape_function_gradients_global = np.linalg.solve(
+        jacobian.T,
+        shape_function_derivatives.T,
+    ).T
+
+    # Assemble strain displacement matrix
+    strain_displacement_matrix = _assemble_strain_displacement_matrix(
+        shape_function_gradients_global,
+        use_nlgeom=use_nlgeom,
+    )
+
+    return strain_displacement_matrix, shape_functions
+
 def generate_virtual_fields_mesh(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
@@ -382,8 +623,8 @@ def generate_virtual_fields_mesh(
         The boundary conditions associated with the test data. 
         Defined as a dictionary with keys 'x' and 'y', each mapping to a list of 4 strings corresponding to the 4 edges of the specimen.
     mesh_size : ndarray
-        Shape (2,1)
-        The number of virtual elements in the x and y directions, respectively.   
+        Shape (2,1) 
+        The number of virtual elements in the y (n rows) and x directions (n columns), respectively.   
 
     Returns
     -------
@@ -402,19 +643,24 @@ def generate_virtual_fields_mesh(
     7. Return virtual fields mesh object containing required data
 
     """
+
+    # Check physical y coordinates increase as array row increases
+    if y[0,0] > y[-1,0]:
+        raise ValueError("Coordinate data is not in the expected format. y-coordinate should increase as array row increases.")
     
     # Construct fine mesh around data points
     data_mesh_nodal_coord =_generate_data_mesh_nodal_coord(x,y)
 
     # Debug: plot data mesh overlaid on data points 
-    plot_virtual_fields_mesh(
-        x,
-        y,
-        data_mesh=data_mesh_nodal_coord,
-        specimen_mask=specimen_mask,
-        plot_data_points=True,
-    )
+    # plot_virtual_fields_mesh(
+    #     x,
+    #     y,
+    #     data_mesh=data_mesh_nodal_coord,
+    #     specimen_mask=specimen_mask,
+    #     plot_data_points=True,
+    # )
 
+    # Construct coarse virtual mesh (of user-defined size) by snapping a regular grid onto the data point element edges
     vf_mesh_nodal_coord = _generate_vf_mesh_nodal_coord(data_mesh_nodal_coord,mesh_size)
 
     # Debug: plot virtual fields mesh and data mesh overlaid on data points 
@@ -428,267 +674,208 @@ def generate_virtual_fields_mesh(
         show=True,
     )
 
+    # Define counts
+    n_datapoints = x.size # all datapoints including outside the specimen mask
+    n_elem_rows = mesh_size[0]
+    n_elem_cols = mesh_size[1]
+    n_node_cols = n_elem_cols + 1
+    n_node_rows = n_elem_rows + 1
+    n_elements = n_elem_cols * n_elem_rows
+    n_nodes = n_node_cols * n_node_rows
 
-    # Assemble virtual mesh connectivity
-    num_virtual_elements = mesh_x.size * mesh_y.size
+    # Define node IDs
+    vf_mesh_node_ids = np.arange(0,n_nodes,1) # start, end (exclusive), step
+    vf_mesh_node_ids = vf_mesh_node_ids.reshape(n_node_rows, n_node_cols)
 
-    virtual_elements = np.arange(num_virtual_elements).reshape(
-        (mesh_y.size, mesh_x.size), order="F"
+
+    # Define nodes associated with each element ("connectivity matrix")
+    #
+    # CONVENTION (Providing physical y coords increase downwards):
+    # left = min(x)
+    # right = max(x)
+    # lower = min(y)
+    # upper = max(y)
+    #
+    # For each element, node order is: lower-left, lower-right, upper-right, upper-left
+    # vf_element_node_ids has:
+    #   a row for each element (row 0 corresponds to element 0)columns
+    #   NODES_PER_ELEMENT columns in the node ordered defined above (col 0 is lower-left node etc.)
+
+    NODES_PER_ELEMENT= 4 # current implementation assumes linear quadrilateral elements
+    vf_element_node_ids = np.empty((n_elements,NODES_PER_ELEMENT),dtype=np.int32) # element index, node index within element
+
+
+    # Providing physical y coords increase downwards
+    elem_rows_in_numbering_order = range(0, n_elem_rows)
+
+
+    element_id = 0
+    for elem_row in elem_rows_in_numbering_order:
+        for elem_col in range(n_elem_cols):
+            lower_left = vf_mesh_node_ids[elem_row, elem_col]
+            lower_right = vf_mesh_node_ids[elem_row, elem_col + 1]
+            upper_right = vf_mesh_node_ids[elem_row + 1, elem_col + 1]
+            upper_left = vf_mesh_node_ids[elem_row + 1, elem_col]
+
+
+            vf_element_node_ids[element_id, :] = [
+                lower_left,
+                lower_right,
+                upper_right,
+                upper_left,
+            ]
+            element_id += 1
+
+
+    # Debug: plot virtual fields mesh and data mesh overlaid on data points with node and elem ids annotated
+    plot_virtual_fields_mesh(
+        x,
+        y,
+        virtual_fields_mesh=vf_mesh_nodal_coord,
+        data_mesh=data_mesh_nodal_coord,
+        specimen_mask=specimen_mask,
+        plot_data_points=True,
+        show=True,
+        node_ids=vf_mesh_node_ids,
+        element_node_ids=vf_element_node_ids,
     )
 
-    top_left = virtual_elements[0:-1, 0:-1].flatten(order="F")
-    bottom_left = virtual_elements[1:, 0:-1].flatten(order="F")
-    bottom_right = virtual_elements[1:, 1:].flatten(order="F")
-    top_right = virtual_elements[0:-1, 1:].flatten(order="F")
 
-    virtual_element_connectivity = np.stack(
-        (top_left, bottom_left, bottom_right, top_right),
-        axis=0
-    ).astype(np.uint32)
+    # == Define element associated with each datapoint ==
 
-    grid_x, grid_y = np.meshgrid(x, y)
+    # Flatten datapoints and specimen mask in row-major order
+    x_points = x.ravel()
+    y_points = y.ravel()
+    specimen_mask_flat = specimen_mask.ravel().astype(bool)
 
-    mesh_grid_x, mesh_grid_y = np.meshgrid(mesh_x, mesh_y)
-    mesh_grid_x = mesh_grid_x.flatten(order="F")
-    mesh_grid_y = mesh_grid_y.flatten(order="F")
-
-    elem_x = mesh_grid_x[virtual_element_connectivity]
-    elem_y = mesh_grid_y[virtual_element_connectivity]
-
-    xmin = elem_x.min(axis=0)
-    xmax = elem_x.max(axis=0)
-    ymin = elem_y.min(axis=0)
-    ymax = elem_y.max(axis=0)
-
-    x_points = grid_x.flatten(order="F")[specimen_mask]
-    y_points = grid_y.flatten(order="F")[specimen_mask]
-
-    inside = (
-        (x_points[:, None] >= xmin[None, :]) &
-        (x_points[:, None] <= xmax[None, :]) &
-        (y_points[:, None] >= ymin[None, :]) &
-        (y_points[:, None] <= ymax[None, :])
-    )
-
-    virtual_element_point_mapping = inside.argmax(axis=1)
-
-    num_measured_points = specimen_mask.size
-    degrees_of_freedom = 2 * num_virtual_elements
-
-    b_glob = np.zeros((3 * num_measured_points, degrees_of_freedom))
-    n_glob = np.zeros((num_measured_points, num_virtual_elements))
-
-    transform_matrix = np.array([
-        [-1,  1, -1,  1],
-        [-1, -1,  1,  1],
-        [ 1, -1, -1,  1]
-    ])
-
-    for p in range(num_measured_points):
-
-        elem_index = virtual_element_point_mapping[p]
-        connected = virtual_element_connectivity[:, elem_index]
-
-        x_dofs = 2 * connected
-        y_dofs = 2 * connected + 1
-        p_dofs = np.vstack((x_dofs, y_dofs)).reshape(-1, order="F")
-
-        x_point = x_points[p]
-        y_point = y_points[p]
-
-        rows = connected % mesh_y.size
-        cols = connected // mesh_y.size
-
-        coord = np.column_stack((mesh_x[cols], mesh_y[rows]))
-
-        a_matrix = transform_matrix.dot(coord)
-
-        d_vector = np.array([
-            4 * x_point - np.sum(coord[:, 0]),
-            4 * y_point - np.sum(coord[:, 1])
-        ])
-
-        d1, d2 = d_vector
-        a1, a2 = a_matrix[0]
-        b1, b2 = a_matrix[1]
-        c1, c2 = a_matrix[2]
-
-        ab = a1*b2 - a2*b1
-        ac = a1*c2 - a2*c1
-        ad = a1*d2 - a2*d1
-        cb = c1*b2 - c2*b1
-        da = d1*a2 - d2*a1
-        dc = d1*c2 - d2*c1
-        ba = b1*a2 - b2*a1
-        db = d1*b2 - d2*b1
-        bd = b1*d2 - b2*d1
-        bc = b1*c2 - b2*c1
-
-        if (a1*a2*ab*ac != 0) or (a1 == 0 and a2*c1 != 0) or (a2 == 0 and a1*b2 != 0):
-            xi_candidates = np.roots([ab, cb+da, dc])
-            xi = xi_candidates[np.abs(xi_candidates) < 1][0]
-            eta = (ad + ba*xi) / ac
-        elif a1*a2 != 0 and ab == 0:
-            xi = (a1*dc) / (b1*ac + a1*ad)
-            eta = ad / ac
-        elif a1*a2 != 0 and ac == 0:
-            xi = ad / ab
-            eta = (a1*db) / (c1*ab + a1*ad)
-        else:
-            xi = dc / (a1*d2 + bc)
-            eta = bd / (a2*d1 + bc)
-
-        n = 0.25 * np.array([
-            (1-xi)*(1+eta),
-            (1-xi)*(1-eta),
-            (1+xi)*(1-eta),
-            (1+xi)*(1+eta)
-        ])
-
-        dn_dxi = np.array([
-            [-0.25*(1+eta),  0.25*(1-xi)],
-            [-0.25*(1-eta), -0.25*(1-xi)],
-            [ 0.25*(1-eta), -0.25*(1+xi)],
-            [ 0.25*(1+eta),  0.25*(1+xi)]
-        ])
-
-        jacobian = dn_dxi.T.dot(coord)
-        dn_dx = np.linalg.solve(jacobian.T, dn_dxi.T).T
-
-        b = np.array([
-            [dn_dx[0,0], 0, dn_dx[1,0], 0, dn_dx[2,0], 0, dn_dx[3,0], 0],
-            [0, dn_dx[0,1], 0, dn_dx[1,1], 0, dn_dx[2,1], 0, dn_dx[3,1]],
-            [dn_dx[0,1], dn_dx[0,0], dn_dx[1,1], dn_dx[1,0],
-             dn_dx[2,1], dn_dx[2,0], dn_dx[3,1], dn_dx[3,0]]
-        ])
-
-        b_glob[p, p_dofs] = b[0]
-        b_glob[p + num_measured_points, p_dofs] = b[1]
-        b_glob[p + 2*num_measured_points, p_dofs] = b[2]
-
-        n_glob[p, connected] = n
+    # Initialise data_point_element_ids defining element associated with each datapoint
+    # Use -1 for points outside the specimen or not assigned.
+    data_point_element_ids = np.full(n_datapoints, -1, dtype=np.int32)
 
 
-    # boundary condition stuff
-    b_bar = b_glob.copy()
+    # Loop over virtual elements and assign contained data points.
+    # Element connectivity local order is [lower_left, lower_right, upper_right, upper_left].
+    for element_id in range(n_elements):
+        element_node_ids = vf_element_node_ids[element_id]
+        element_node_coords_x = vf_mesh_nodal_coord.nodal_coord_x.ravel()[element_node_ids]
+        element_node_coords_y = vf_mesh_nodal_coord.nodal_coord_y.ravel()[element_node_ids]
 
-    # TODO: should types be uint?
-    bc_fixed = np.array([], dtype=np.int64)
-    bc_slaves = np.array([], dtype=np.int64)
-    bc_masters = np.array([], dtype=np.int64)
+        x_min = np.min(element_node_coords_x)
+        x_max = np.max(element_node_coords_x)
+        y_min = np.min(element_node_coords_y)
+        y_max = np.max(element_node_coords_y)
 
-    for edge in range(4):
-        # Get edge DOFs
-        if edge == 0:  # Top edge
-            edge_dofs_x = 2 * virtual_elements[0, :]
-            edge_dofs_y = edge_dofs_x + 1
-            master_dofs = np.array([2 * virtual_elements[0, 0],
-                                    2 * virtual_elements[0, 0] + 1])
-            slave_dofs = np.vstack((edge_dofs_x[1:], edge_dofs_y[1:]))
-        elif edge == 1:  # Left edge
-            edge_dofs_x = (2 * virtual_elements[:, 0]).T
-            edge_dofs_y = edge_dofs_x + 1
-            master_dofs = np.array([2 * virtual_elements[0, 0],
-                                    2 * virtual_elements[0, 0] + 1])
-            slave_dofs = np.vstack((edge_dofs_x[1:], edge_dofs_y[1:]))
-        elif edge == 2:  # Bottom edge
-            edge_dofs_x = 2 * virtual_elements[-1, :]
-            edge_dofs_y = edge_dofs_x + 1
-            master_dofs = np.array([2 * virtual_elements[-1, -1],
-                                    2 * virtual_elements[-1, -1] + 1])
-            slave_dofs = np.vstack((edge_dofs_x[:-1], edge_dofs_y[:-1]))
-        else:  # Right edge
-            edge_dofs_x = (2 * virtual_elements[:, -1]).T
-            edge_dofs_y = edge_dofs_x + 1
-            master_dofs = np.array([2 * virtual_elements[-1, -1],
-                                    2 * virtual_elements[-1, -1] + 1])
-            slave_dofs = np.vstack((edge_dofs_x[:-1], edge_dofs_y[:-1]))
-
-        # X-direction BCs
-        if boundary_conditions[0, edge] == 1:  # fixed
-            bc_fixed = np.concatenate((bc_fixed, edge_dofs_x))
-        elif boundary_conditions[0, edge] == 2:  # constant
-            b_bar[:, master_dofs[0]] += np.sum(b_bar[:, slave_dofs[0, :]], axis=1)
-            bc_slaves = np.concatenate((bc_slaves, slave_dofs[0, :]))
-            bc_masters = np.concatenate((bc_masters, [master_dofs[0]]))
-
-        # Y-direction BCs
-        if boundary_conditions[1, edge] == 1:  # fixed
-            bc_fixed = np.concatenate((bc_fixed, edge_dofs_y))
-        elif boundary_conditions[1, edge] == 2:  # constant
-            b_bar[:, master_dofs[1]] += np.sum(b_bar[:, slave_dofs[1, :]], axis=1)
-            bc_slaves = np.concatenate((bc_slaves, slave_dofs[1, :]))
-            bc_masters = np.concatenate((bc_masters, [master_dofs[1]]))
-
-    # Remove duplicates
-    bc_fixed = np.unique(bc_fixed)
-    bc_slaves = np.unique(bc_slaves)
-    bc_masters = np.unique(bc_masters)
-
-    # Check for conflicts
-    conflict = np.intersect1d(bc_masters, bc_fixed)
-    if conflict.size > 0:
-        raise ValueError(
-            "Incompatible Boundary Conditions, adjacent boundary "
-            "conditions cannot be both fixed/uniform"
+        points_in_element = (
+            specimen_mask_flat
+            & (x_points >= x_min)
+            & (x_points <= x_max)
+            & (y_points >= y_min)
+            & (y_points <= y_max)
         )
 
-    # Remove BCs from b_bar
-    remove_cols = np.unique(np.concatenate((bc_fixed, bc_slaves)))
-    b_bar = np.delete(b_bar, remove_cols.astype(int), axis=1)
+        data_point_element_ids[points_in_element] = element_id
 
-    # Active DOFs
-    total_dofs = 2 * virtual_elements.size
-    act_dofs = np.setdiff1d(np.arange(total_dofs), remove_cols)
 
-    # Calculate pseudo-inverse of modified global strain-displacement matrix
-    b_inv = np.linalg.pinv(b_bar)  # Bbar is the modified global matrix
 
-    # Compute DOFs for x and y directions
-    xDofGrid = virtual_elements * 2      # 0-based nodes: x DOFs
-    yDofGrid = virtual_elements * 2 + 1  # y DOFs come right after x
+    # One displacement DOF pair per node: [ux, uy]
+    DOF_PER_NODE = 2
+    node_dof_ids = np.empty((n_nodes, DOF_PER_NODE), dtype=np.int32)
+    node_dof_ids[:, 0] = 2 * np.arange(n_nodes, dtype=np.int32)
+    node_dof_ids[:, 1] = 2 * np.arange(n_nodes, dtype=np.int32) + 1
 
-    # Initialize all DOFs as free
-    free_dof = np.zeros((xDofGrid.size, yDofGrid.size), dtype=np.uint32)
-    free_dof = np.hstack((xDofGrid, yDofGrid)).flatten(order="F")
+    # Element DOFs gathered from the element-node connectivity
+    # Local order: [ux1, uy1, ux2, uy2, ux3, uy3, ux4, uy4]
+    n_dof_per_element = NODES_PER_ELEMENT * DOF_PER_NODE
+    element_dof_ids = np.empty((n_elements, n_dof_per_element), dtype=np.int32)
+    for element_id in range(n_elements):
+        element_node_ids = vf_element_node_ids[element_id]
+        element_dof_ids[element_id, :] = node_dof_ids[element_node_ids, :].reshape(1,n_dof_per_element)
 
-    # Loop over the four edges
-    for e in range(4):
-        # Only consider edges that are fixed or constant
-        if boundary_conditions[0, e] == 1 or boundary_conditions[0, e] == 2:
-            if e == 0:  # Top e (first row)
-                not_free_dof_x = xDofGrid[0, :]
-                not_free_dof_y = yDofGrid[0, :]
-            elif e == 1:  # Left e (first column)
-                not_free_dof_x = xDofGrid[:, 0]
-                not_free_dof_y = yDofGrid[:, 0]
-            elif e == 2:  # Bottom e (last row)
-                not_free_dof_x = xDofGrid[-1, :]
-                not_free_dof_y = yDofGrid[-1, :]
-            else:  # Right edge (last column)
-                not_free_dof_x = xDofGrid[:, -1]
-                not_free_dof_y = yDofGrid[:, -1]
 
-            # Remove the DOFs on this edge from the free DOFs
-            # Use np.isin to mimic MATLAB's ismember
-            not_free_dof = np.concatenate((not_free_dof_x, not_free_dof_y))  # 1D array of all DOFs to remove
-            mask = ~np.isin(free_dof, not_free_dof).flatten(order="F")
-            free_dof = free_dof[mask]
-    
-    return VirtualFieldsMesh(
-        mesh_grid_x,
-        mesh_grid_y,
-        b_glob,
-        b_inv,
-        act_dofs,
-        virtual_element_connectivity,
-        virtual_elements,
-        boundary_conditions,
-        specimen_mask,
-        n_glob,
-        virtual_element_point_mapping,
-        free_dof
-    )
+    specimen_point_indices = np.flatnonzero(specimen_mask_flat)
+    n_specimen_points = specimen_point_indices.size
+    n_total_dofs = DOF_PER_NODE * n_nodes
+
+    # Initialise global shape function matrix (which computes displacements at datapoints from nodal displacements)
+    global_shape_function_matrix = np.zeros((n_specimen_points, n_nodes), dtype=np.float64)
+    # Initialise global strain-displacement matrix (which computes strains at datapoints from nodal displacements)
+    global_strain_displacement_matrix = np.zeros((3 * n_specimen_points, n_total_dofs), dtype=np.float64)
+
+    if np.any(data_point_element_ids[specimen_point_indices] < 0):
+        raise ValueError(
+            "Some specimen data points were not assigned to a virtual element."
+        )
+
+    vf_node_x_flat = vf_mesh_nodal_coord.nodal_coord_x.ravel()
+    vf_node_y_flat = vf_mesh_nodal_coord.nodal_coord_y.ravel()
+
+    # Assemble global shape-function and strain-displacement matrices 
+    # TODO: vectorise this loop to increase speed (or even loop over elements rather than pts)
+    for datapoint_row, datapoint_idx in enumerate(specimen_point_indices):  #does datapoint_row ever differ from datapoint_idx?
+        
+        # Gather x and y coordinates of datapoint
+        point_coordinates = np.array(
+            [x_points[datapoint_idx], y_points[datapoint_idx]],
+            dtype=np.float64,
+        )
+
+        # Gather associated element id, nodal ids and nodal coordinates for datapoint
+        element_id = data_point_element_ids[datapoint_idx]
+        element_node_ids = vf_element_node_ids[element_id, :]
+        # element_node_coordinates has shape n_nodes_per_elem x 2 (e.g. 4 x 2).
+        element_node_coordinates = np.column_stack(
+            (
+                vf_node_x_flat[element_node_ids],
+                vf_node_y_flat[element_node_ids],
+            )
+        )
+
+        # 
+        strain_displacement_matrix, shape_functions = (
+            _compute_point_shape_and_strain_matrices(
+                point_coordinates,
+                element_node_coordinates,
+                use_nlgeom=False,
+            )
+        )
+
+        global_shape_function_matrix[datapoint_row, element_node_ids] = (
+            shape_functions
+        )
+
+        element_dofs = element_dof_ids[element_id, :]
+        global_strain_displacement_matrix[
+            datapoint_row,
+            element_dofs,
+        ] = strain_displacement_matrix[0, :]
+        global_strain_displacement_matrix[
+            datapoint_row + n_specimen_points,
+            element_dofs,
+        ] = strain_displacement_matrix[1, :]
+        global_strain_displacement_matrix[
+            datapoint_row + 2 * n_specimen_points,
+            element_dofs,
+        ] = strain_displacement_matrix[2, :]
+
+    constrained_strain_displacement_matrix = None
+    strain_displacement_pseudoinverse = None
+
+
+
+
+
+
+    # node_dof_ids: int32[(n_nodes, 2)] where columns are [ux_dof, uy_dof]
+    # element_dof_ids: int32[(n_elements, 8)]
+    # global_shape_function_matrix: float64[(n_specimen_points, n_nodes)]
+    # global_strain_displacement_matrix: float64[(3*n_specimen_points, 2*n_nodes)]
+    # constrained_strain_displacement_matrix: float64[(3*n_specimen_points, n_active_dofs)]
+    # strain_displacement_pseudoinverse: float64[(n_active_dofs, 3*n_specimen_points)]
+
+
+
+
+    return None
 
 
 
