@@ -42,6 +42,7 @@ void render_scene(const int image_height,
     const std::vector<nb::DRef<Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>>> matrix_pixel_spacings,
     const std::vector<nb::DRef<Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>>> matrix_defocus_discs,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_coords_expanded,
+    const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_normals_expanded,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_face_colors,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_uvs,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_textures,
@@ -64,7 +65,7 @@ void render_scene(const int image_height,
         //TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, timestep, timestep_count); // target stack-based DoD implementation
         //std::chrono::time_point t1_build = std::chrono::high_resolution_clock::now();
         //TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, scene_uvs, scene_textures, scene_surface_types, timestep, timestep_count);
-        TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, materials, scene_uvs, scene_textures, scene_surface_types, timestep, timestep_count);
+        TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_normals_expanded, scene_face_colors, materials, scene_uvs, scene_textures, scene_surface_types, timestep, timestep_count);
         //std::chrono::time_point t2_build = std::chrono::high_resolution_clock::now();
 
         

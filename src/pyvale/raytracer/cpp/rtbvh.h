@@ -23,6 +23,8 @@
 #include "rteigentypes.h"
 #include "rtray.h"
 #include "rtelemconstants.h"
+#include "rthitrecord.h"
+#include "rtmaterials.h"
 
 
 // Bounding volume structure - axis-aligned bounding boxes (AABB)
@@ -144,8 +146,9 @@ struct Texture {
 // BLAS - Bottom Level Acceleration Structure. Each BLAS stores a BVH for one mesh in the scene
 struct BLAS_Node {
     std::vector<double> node_coords; // Coordinates of nodes comprising the mesh elements stored in the node, if applicable
+    std::vector<double> node_normals; // Normals of nodes comprising the mesh elements stored in the node, if applicable
     std::vector<double> face_color; // Either (faces, 3) array with color values or (faces,2) array with (u,v) coordinates
-    std::vector<int> material; // Element materials based on the field values for the mesh
+    //std::vector<int> material; // Element materials based on the field values for the mesh
     AABB bounding_box {};
     size_t element_count {0}; // If not zero, this is the leaf
     enum ElementNodeCount nodes_per_element {ElementNodeCount::TRI3}; // Default to triangles
@@ -162,9 +165,8 @@ struct BLAS_Node {
     {}; 
 };
 
-// Forward declarations (incomplete types) so we can use them in function pointers in BLAS while avoiding circular dependencies (since they depend on BLAS_Node defined here)
+// Forward declaration (incomplete types) so we can use them in function pointers in BLAS while avoiding circular dependencies (since they depend on BLAS_Node defined here)
 struct IntersectionOutput; 
-struct HitRecord;
 
 struct BLAS {
     std::vector<BLAS_Node> tree_nodes;
@@ -173,6 +175,7 @@ struct BLAS {
     Texture texture {}; // If texture.data is not a nullptr, face_color is (u,v). This logic saves us having to store surface type explicitly
     IntersectionOutput (*intersection_function_ptr)(const Ray&, const std::vector<double>& node_coords, const unsigned int bvh_node_element_count) {nullptr}; // Ray-mesh element intersection (TRI3, QUAD4, etc.)
     void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx) {nullptr}; // Saving data to HitRecord depending on the surface type (color/texture) and element type
+    void (*ray_material_ptr)(const RayState& current_state, const HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
     int root_idx {-1};
 
     BLAS() = default; // Constructor for emplace_back to avoid temporary copies
@@ -307,25 +310,31 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
     std::vector<int>& mesh_element_indices,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
+    const double* mesh_node_normals_expanded_ptr,
     const double* mesh_uvs_ptr,
     const int mesh_material,
     const int timestep);
-
 
 void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
     std::vector<int>& mesh_element_indices,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
+    const double* mesh_node_normals_expanded_ptr,
     const double* mesh_face_color_ptr,
-     const int mesh_material,
+    const int mesh_material,
     const int timestep);
 
 void copy_data_to_TLAS(TLAS &tlas,
     std::vector<BLAS>& scene_BLASes,
     const std::vector<int>& scene_blas_indices);
 
+inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material);
+inline void set_BLAS_intersection_texture(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element);
+inline void set_BLAS_intersection_color(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element);
+
 
 TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
+    const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_normals_expanded,
     const std::vector<nanobind::ndarray<const double,nanobind::c_contig>>& scene_face_colors,
     const std::vector<int>& materials,
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_uvs,

@@ -25,6 +25,7 @@ from pyvale.sensorsim import RenderMesh, EDim, simdata_to_pyvista_interp, extrac
 
 COORDS_PER_NODE = 3
 RGB_VALS = 3
+FEATURE_ANGLE = 60.0 # For calculating surface normals; edges sharper than this will not be smoothed
 
 # Type of coloring that goes onto the mesh surface
 class SurfType(IntEnum): # IntEnum so it can be passed to C++ nicely
@@ -116,6 +117,7 @@ class RTMesh:
     #node_coords_over_time: np.ndarray = field(default=None)
     node_coords_expanded_over_time: np.ndarray = field(default=None)
     face_colors_over_time: np.ndarray = field(default=None)
+    node_normals_expanded_over_time: np.ndarray = field(default=None) # Node normals that will be used to find shading normals
     #uvs_over_time: np.ndarray = field(default=None) # Temporary used in development. But uvs should not change over time and they can be massive, so this was deprecated to reduce memory consumption. Keeping it just in case
     uvs: np.ndarray = field(default=None)
     seams: list = field(default_factory=list)
@@ -330,6 +332,63 @@ def pyvista_faces_to_connectivity(pv_grid: pv.UnstructuredGrid | pv.PolyData) ->
     # shape=(num_elems,nodes_per_elem), C format
     connectivity = np.ascontiguousarray(connectivity[:, 1:], dtype=np.uintp)
     return connectivity
+
+def find_node_normals(pv_grid: pv.UnstructuredGrid | pv.PolyData) -> np.ndarray:
+    """
+    Finds the node normals for a PyVista UnstructuredGrid or PolyData object.
+
+    Parameters:
+    -----------
+     pv_grid: pv.UnstructuredGrid | pv.PolyData
+        The PyVista object to find the node normals for.
+
+    Returns:
+    -----------
+        node_normals: np.ndarray
+            Shape (mesh node count, 3). A 2D array containing the connectivity information for the mesh elements, formatted in C style (0-based indexing, contiguous in memory).
+    Raises:
+    --------
+    ValueError
+        If the number of node normals does not match the number of mesh nodes.
+    KeyError
+        If the node normals cannot be mapped back to the original node indices.
+    """
+
+    if type(pv_grid) == pv.PolyData:
+        # Compute smooth point (vertex) normals on the surface
+        surface = pv_grid.compute_normals(
+            point_normals=True, 
+            cell_normals=False, 
+            auto_orient_normals=True, # Ensures normals point outwards
+            feature_angle=FEATURE_ANGLE,
+            inplace=False)
+        normals = np.ascontiguousarray(surface.point_data["Normals"], dtype=np.float64) # Shape (mesh node count, 3)
+        if normals.shape[0] != pv_grid.n_points:
+            raise ValueError("PolyData normals do not match PolyData point count.")
+        return normals
+
+    elif type(pv_grid) == pv.UnstructuredGrid:
+        surface = pv_grid.extract_surface(pass_pointid=True, algorithm="dataset_surface") # For UnstructuredGrid, we have to extract the surface to use the functions for normals and keep the original point IDs to map them back
+        # Compute smooth point (vertex) normals on the surface
+        surface = surface.compute_normals(
+        point_normals=True, 
+        cell_normals=False, 
+        auto_orient_normals=True, # Ensures normals point outwards
+        feature_angle=FEATURE_ANGLE,
+        inplace=False)
+        surface_normals = np.ascontiguousarray(surface.point_data["Normals"], dtype=np.float64) # Shape (mesh node count per element, 3)
+
+        # Map back to the original UnstructuredGrid point indices
+        if "vtkOriginalPointIds" in surface.point_data:
+            original_point_ids = np.asarray(surface.point_data["vtkOriginalPointIds"])
+        elif "pyvistaOriginalPointIds" in surface.point_data:
+            original_point_ids = np.asarray(surface.point_data["pyvistaOriginalPointIds"])
+        else:
+            raise KeyError("No original point id array found on extracted surface.")
+
+        node_normals = np.zeros((pv_grid.n_points, 3), dtype=np.float64)
+        node_normals[original_point_ids] = surface_normals
+        return node_normals
 
 def display_pyvista_grid_with_indices(pv_grid: pv.UnstructuredGrid | pv.PolyData) -> None:
     """
@@ -611,12 +670,23 @@ def simdata_to_rtmesh(pypath: Path,
     coords = np.ascontiguousarray(render_mesh.coords[:, :COORDS_PER_NODE])
     coords_over_time = np.ndarray(shape=(timestep_count, node_count, COORDS_PER_NODE), dtype=np.float64)
     coords_over_time[0] = coords
-    # This may stay, or may not. TBD
+    # Node coords and normals expanded
     node_coords_expanded_over_time = np.ndarray(shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
                                                 dtype=np.float64)  # Store nodal coordinates over all timesteps
     node_coords_expanded_over_time[0] = coords[
         connectivity, :COORDS_PER_NODE]  # Expanded nodal coords, so we do not need the connectivity array
+    node_normals_expanded_over_time  = np.ndarray(shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
+                                                 dtype=np.float64)  # Store nodal normals over all timesteps
+    # NOTE: TEMPORARY! Assumes that node normals don't change over time, which is wrong if we deform the mesh. But it's easier to use pyvista to see if this fixes our issues
+    node_normals = find_node_normals(pv_grid) # Find node normals for shading; same shape as node_coords
+    node_normals_expanded_over_time[0] = node_normals[
+        connectivity, :COORDS_PER_NODE]  # Expanded nodal coords, so we do not need the connectivity array
 
+    #print(f"Node normals shape: {node_normals.shape}")
+    node_coords_expanded_over_time = np.ndarray(
+        shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
+        dtype=np.float64)  # Store nodal coordinates over all timesteps
+    
     # Get data over multiple timesteps
     if rtmesh.timestep_count != 1:
         for timestep in range(1, timestep_count):
@@ -625,9 +695,11 @@ def simdata_to_rtmesh(pypath: Path,
             coords = np.ascontiguousarray(node_coords)
             #coords_over_time[timestep] = coords
             node_coords_expanded_over_time[timestep] = coords[connectivity]  # Expand nodal coords,
+            node_normals_expanded_over_time[timestep] = node_normals # TEMPORARY!!!!
             #node_coords_expanded_over_time[timestep] = coords[connectivity, :COORDS_PER_NODE]  # Expand nodal coords,
     #rtmesh.node_coords_over_time = coords_over_time
     rtmesh.node_coords_expanded_over_time = node_coords_expanded_over_time
+    rtmesh.node_normals_expanded_over_time = node_normals_expanded_over_time
     return rtmesh
 
 # ================================================================================
@@ -1077,14 +1149,21 @@ def any_mesh_to_rtmesh(pypath: Path,
     #rtmesh.node_coords_over_time = coords_over_time
     # rtmesh.face_colors_over_time = np.ones((rtmesh.timestep_count, rtmesh.element_count, COORDS_PER_NODE)) * [1.0, 0.078, 0.57]
 
-    # Node coords expanded. TBD if they stay
+    # Node coords and normals expanded
+    node_normals = find_node_normals(pv_ugrid) # Find node normals for shading; same shape as node_coords. TEMPORARY as this will not work with timed meshes
+    #print(f"Node normals shape: {node_normals.shape}")
     node_coords_expanded_over_time = np.ndarray(
         shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
         dtype=np.float64)  # Store nodal coordinates over all timesteps
+    node_normals_expanded_over_time  = np.ndarray(
+        shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
+        dtype=np.float64)  # Store nodal normals over all timesteps
     # face_colors_over_time = np.ndarray(shape=(timestep_count, element_count, RGB_VALS), dtype=np.float64)  # Store face colors over all timesteps
     # face_colors_over_time[:, :] = [1.0, 0.078, 0.57]
     node_coords_expanded_over_time[0, :, :, :] = coords_mesh[connectivity]
     rtmesh.node_coords_expanded_over_time = node_coords_expanded_over_time
+    node_normals_expanded_over_time[0, :, :, :] = node_normals[connectivity]
+    rtmesh.node_normals_expanded_over_time = node_normals_expanded_over_time
     return rtmesh
 
 
@@ -1245,187 +1324,3 @@ def get_pyvista_surface(rtmesh: RTMesh):
     surf = grid.extract_surface()
     return surf
 """
-
-def get_pyvista_surface(rtmesh: RTMesh):
-    """Helper function to get a PyVista surface mesh."""
-    # VTK format: [node_count, id0, id1, ..., node_count, id0, id1, ...]
-    connectivity = np.empty((rtmesh.element_count, rtmesh.nodes_per_element + 1), dtype=np.int32)
-    connectivity[:, 0] = rtmesh.nodes_per_element
-
-    # FIX: Use the actual shared connectivity to maintain topology
-    connectivity[:, 1:] = rtmesh.connectivity
-
-    pv_cell_type = sens.fieldconverter._get_pyvista_cell_type(rtmesh.nodes_per_element, rtmesh.spatial_dimensions)
-    cell_type = np.full(rtmesh.element_count, [pv_cell_type])
-
-    # FIX: Use the original unique node coordinates, NOT the expanded view
-    #raw_vertices = rtmesh.node_coords_over_time[0]
-    raw_vertices = rtmesh.node_coords
-    #grid = pv.UnstructuredGrid(connectivity.ravel(), cell_type, raw_vertices)
-    cells = np.hstack([np.full((rtmesh.connectivity.shape[0],1), 10, np.int32), rtmesh.connectivity]).ravel()
-    cell_types = np.full(rtmesh.connectivity.shape[0], [pv_cell_type], np.int32)
-    grid = pv.UnstructuredGrid(cells, cell_types, rtmesh.node_coords)
-
-    # Now that nodes are natively shared, this will correctly extract only the true boundary
-    surf = grid.extract_surface()
-    return surf
-
-def vol_mesh_to_rtmesh(pypath: Path,
-                    scale: float = 100.0,
-                    spatial_dim: sens.EDim = sens.EDim.THREED,
-                    world_position: np.ndarray = None,
-                    world_rotation: Rotation = None):
-    '''Converts a .vol mesh to a RenderMesh object and returns it.'''
-    mesh = Mesh()
-    mesh.loadVolFile(pypath)
-    mesh.getElementCoords()
-
-    # Set world position and rotation (where applicable)
-    if world_position is None:
-        world_position = np.array((0.0, 0.0, 0.0), dtype=np.float64)
-    if world_rotation is None:
-        world_rotation = Rotation.from_euler("zyx", (0.0, 0.0, 0.0), degrees=True)
-
-    # Handle nodal coordinates (scaling, positioning)
-    coords_mesh = mesh.points * scale
-    coords_mesh = orient_mesh_in_world(coords_mesh, world_position, world_rotation)
-
-    # Create RTMesh object and assign data appropriately
-    rtmesh = RTMesh()
-    rtmesh.node_coords = coords_mesh
-    rtmesh.connectivity = mesh.elements
-    #rtmesh.connectivity = rtmesh.connectivity[:, [0,1,2,3,4,7,5,6,9,8]]  # Netgen -> VTK quad tet order
-    rtmesh.spatial_dimensions = spatial_dim
-    timestep_count = 1
-    rtmesh.timestep_count = timestep_count  # Temporarily they only have data for static renders
-    element_count = mesh.elements.shape[0]
-    rtmesh.element_count = element_count
-    rtmesh.nodes_per_element = ElementNodeCount(mesh.elements.shape[1]) # Is 10
-
-    # Data "over time"
-    node_count = mesh.points.shape[0]
-    rtmesh.node_count = node_count
-    coords_over_time = np.ndarray(shape=(timestep_count, node_count, COORDS_PER_NODE), dtype=np.float64)
-    coords_over_time[0,:,:] = coords_mesh
-    #rtmesh.node_coords_over_time = coords_over_time
-    #rtmesh.face_colors_over_time = np.ones((rtmesh.timestep_count, rtmesh.element_count, COORDS_PER_NODE)) * [1.0, 0.078, 0.57]
-
-    # Node coords expanded. TBD if they stay
-    mesh.getElementCoords() # Not need it anymore
-    node_coords_expanded_over_time = np.ndarray(shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
-                                                dtype=np.float64)  # Store nodal coordinates over all timesteps
-    #face_colors_over_time = np.ndarray(shape=(timestep_count, element_count, RGB_VALS), dtype=np.float64)  # Store face colors over all timesteps
-    #face_colors_over_time[:, :] = [1.0, 0.078, 0.57]
-    node_coords_expanded_over_time[0, :, :, :] = coords_mesh[rtmesh.connectivity]
-    rtmesh.node_coords_expanded_over_time = node_coords_expanded_over_time
-    rtmesh.pyvista_surface = get_pyvista_surface(rtmesh)
-
-    # For indexing tests
-    #print(f"Elements as done by Wiera: {mesh.elem_coords}")
-    #print(f"Elements as done by me: {mesh.points[rtmesh.connectivity]}")
-    #print(f"Are the same?: {(mesh.elem_coords == mesh.points[rtmesh.connectivity]).all()}")
-
-    # Get data over multiple timesteps - tbd when we actually render something non-static for these elements
-    #if rtmesh.timestep_count != 1:
-    #    for timestep in range(1, timestep_count):
-    #        # Get deformed nodal coordinates and expand them
-    #        node_coords = simtools.get_deformed_nodes(timestep, render_mesh)
-    #        coords = np.ascontiguousarray(node_coords)
-    #        coords_over_time[timestep] = coords
-    #rtmesh.node_coords_over_time = coords_over_time
-    return rtmesh
-
-# Test to cheat a little bit with loading non-simdata meshes for now
-def vtk_mesh_to_rtmesh(pypath: Path,
-                    scale: float = 100.0,
-                    spatial_dim: sens.EDim = sens.EDim.THREED,
-                    world_position: np.ndarray = None,
-                    world_rotation: Rotation = None):
-
-    # Set world position and rotation (where applicable)
-    if world_position is None:
-        world_position = np.array((0.0, 0.0, 0.0), dtype=np.float64)
-    if world_rotation is None:
-        world_rotation = Rotation.from_euler("zyx", (0.0, 0.0, 0.0), degrees=True)
-
-    mesh = pv.read(pypath)
-    print(mesh)
-    #print(f"Cell type:{mesh.celltypes}")
-    surf = mesh.extract_surface()
-    #grid = mesh.merge_points(tolerance=1e-5)  # Might change node/point ID, so need old->new mapping
-    #surf = grid.extract_surface()
-
-    # World positioning - handle nodal coordinates (scaling, positioning)
-    coords_world = np.array(surf.points) * scale
-    coords_mesh = orient_mesh_in_world(coords_world, world_position, world_rotation)
-
-    # Connectivity
-    connectivity = pyvista_faces_to_connectivity(surf)
-
-    #faces = np.array(surf.faces)
-    #first_elem_nodes_per_face = faces[0]
-    #nodes_per_face_vec = faces[0::(first_elem_nodes_per_face + 1)]
-    #nodes_per_face = first_elem_nodes_per_face
-    #num_faces = int(faces.shape[0] / (nodes_per_face + 1))
-    #connectivity = np.reshape(faces, (num_faces, nodes_per_face + 1))
-    ## shape=(num_elems,nodes_per_elem), C format
-    #connectivity = np.ascontiguousarray(connectivity[:, 1:], dtype=np.uintp)
-
-    # Create RTMesh object and assign data appropriately
-    rtmesh = RTMesh()
-    rtmesh.node_coords = coords_mesh
-    rtmesh.connectivity = connectivity
-    rtmesh.pyvista_surface = surf
-    rtmesh.spatial_dimensions = spatial_dim
-    timestep_count = 1
-    rtmesh.timestep_count = timestep_count  # Temporarily they only have data for static renders
-    element_count = connectivity.shape[0]
-    rtmesh.element_count = element_count
-    rtmesh.nodes_per_element = ElementNodeCount(connectivity.shape[1])
-
-    # Data "over time"
-    node_count = coords_mesh.shape[0]
-    rtmesh.node_count = node_count
-    coords_over_time = np.ndarray(shape=(timestep_count, node_count, COORDS_PER_NODE), dtype=np.float64)
-    coords_over_time[0, :, :] = coords_mesh
-    #rtmesh.node_coords_over_time = coords_over_time
-    # rtmesh.face_colors_over_time = np.ones((rtmesh.timestep_count, rtmesh.element_count, COORDS_PER_NODE)) * [1.0, 0.078, 0.57]
-
-    # Node coords expanded. TBD if they stay
-    node_coords_expanded_over_time = np.ndarray(
-        shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
-        dtype=np.float64)  # Store nodal coordinates over all timesteps
-    # face_colors_over_time = np.ndarray(shape=(timestep_count, element_count, RGB_VALS), dtype=np.float64)  # Store face colors over all timesteps
-    # face_colors_over_time[:, :] = [1.0, 0.078, 0.57]
-    node_coords_expanded_over_time[0, :, :, :] = coords_mesh[connectivity]
-    rtmesh.node_coords_expanded_over_time = node_coords_expanded_over_time
-    return rtmesh
-
-def simdata_to_mesh(pypath: Path, field_components, fields_to_render, scale):
-    # Convert the simulation output into a SimData object
-    # sim_data = mh.ExodusReader(pypath).read_all_sim_data() # Pyvale 2025.8.1
-    sim_data = mh.ExodusLoader(pypath).load_all_sim_data()  # Pyvale 2026.1.0
-    # Scale the coordinates and displ. fields to mm
-    # sim_data = sens.scale_length_units(scale=scale,sim_data=sim_data,disp_comps=field_components) # Pyvale 2025.8.1
-    sim_data = sens.scale_length_units(scale=scale, sim_data=sim_data, disp_keys=field_components)  # Pyvale 2026.1.0
-    # render_mesh = sens.create_render_mesh(sim_data, fields_to_render ,sim_spat_dim=3,field_disp_keys=field_components) # Pyvale 2025.8.1. Still works, but now we use enum for spatial dim, not a number
-    render_mesh = sens.create_render_mesh(sim_data, fields_to_render, sim_spat_dim=sens.EDim.THREED,
-                                          field_disp_keys=field_components)  # Pyvale 2026.1.0
-    return render_mesh
-
-
-def compute_face_colors_averages(field_nodal_values: np.ndarray, connectivity: np.ndarray):
-    '''Calculates face colors based on the nodal values for the chosen field. Approach 2 - taking averages and stacking them together'''
-    field_node_norm = (field_nodal_values - field_nodal_values.min()) / (
-                field_nodal_values.max() - field_nodal_values.min())  # Normalize displacement values, scaling them to range [0,1] so they can map to color intensities
-    node_colors = np.column_stack(
-        (field_node_norm, field_node_norm, field_node_norm))  # Convert each scalar to an RGB triplet
-    face_colors = np.mean(node_colors[connectivity], axis=1)
-    # print(f"face_colors_shape: {face_colors.shape}")
-    return face_colors  # Compute each face's colour as the average of its 3 node colours
-
-    # def compute_face_colors_cmap(field_nodal_values: np.ndarray):
-    '''Approach 1 - using a colour map to assign an rgb value'''
-#   field_node_norm = (field_nodal_values - field_nodal_values.min())/(field_nodal_values.max()-field_nodal_values.min()) # Normalize displacement values, scaling them to range [0,1] so they can map to color intensities
-#    cmap = plt.get_cmap('viridis')
-#   return cmap(field_node_norm)[:,:3]

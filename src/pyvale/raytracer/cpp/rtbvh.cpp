@@ -49,100 +49,6 @@ inline void compute_mesh_centroid(AABB& mesh_aabb, std::array<double,3>& mesh_ce
     }
 }
 
-/* 
-void process_element_data_tri3(int mesh_number_of_triangles,
-    const double* mesh_node_coords_ptr,
-    std::vector<std::array<double,3>>& mesh_element_centroids,
-    std::vector<AABB>& mesh_triangle_aabbs,
-    AABB& mesh_aabb,
-    const int timestep){
-    // Go over all triangles in a mesh and find their AABB and centroids, build mesh AABB, and store the data in vectors
-    enum ElementNodeCount nodes_per_element = TRI3;
-    const int coords_per_element = nodes_per_element * NODE_COORDINATES; // number of elements times 3 coordinates each
-    const int timestep_stride = timestep * mesh_number_of_triangles * nodes_per_element * NODE_COORDINATES;
-
-    // Iterate over triangles comprising a mesh
-    for (int triangle_idx = 0; triangle_idx < mesh_number_of_triangles; triangle_idx++) {
-        // Use pointers - means we treat the 2D array as a flat 1D array and do the indexing manually by calculating the offset.
-        // HAS to be contiguous in memory for this to work properly! c_contig flag in nanobind ensures that
-        int triangle_min_index = timestep_stride + triangle_idx * coords_per_element; // Find the minimum index corresponding to the given triangle at given timestep
-        //int triangle_idx_at_t = triangle_idx + timestep_stride;
-        //std::cout << "Triangle idx at t: " << triangle_idx_at_t << std::endl;
-        std::array<double,9> triangle_node_coords;
-        //int triangle_min_index = triangle_idx_at_t * coords_per_element;
-        //std::cout << "Triangle " << triangle_idx << " nodes: ";
-        for (int i = 0; i < coords_per_element; ++i){
-            triangle_node_coords[i] = mesh_node_coords_ptr[triangle_min_index + i];
-            //std::cout << triangle_node_coords[i] << " , ";
-        }
-        //std::cout<<std::endl;
-            
-        // Find centroid for this triangle
-        std::array<double,3> triangle_centroid;
-        compute_element_centroid_tri3(triangle_node_coords, triangle_centroid);
-            
-        mesh_element_centroids.push_back(triangle_centroid);
-        //std::cout << "Centroid " << triangle_centroid[0] << " " << triangle_centroid[1] << " " << triangle_centroid[2] << std::endl;
-
-        // Create bounding volume for this triangle
-        AABB triangle_aabb;
-        triangle_aabb.build_for_tri3(triangle_node_coords);
-        mesh_triangle_aabbs.push_back(triangle_aabb);
-        //std::cout << "AABB max " << triangle_aabb.corner_max[0] << " " << triangle_aabb.corner_max[1] << " " << triangle_aabb.corner_max[2] << std::endl;
-        //std::cout << "AABB min " << triangle_aabb.corner_min[0] << " " << triangle_aabb.corner_min[1] << " " << triangle_aabb.corner_min[2] << std::endl;
-        // Include triangle AABB in mesh AABB to get the bounding box for the whole thing
-        mesh_aabb.expand_to_include_AABB(triangle_aabb);
-        } // ELEMENTS/TRIANGLES
-}
-*/
-
-
-/*
-void process_element_data_tet10(int mesh_number_of_tets,
-    const double* mesh_node_coords_ptr,
-    std::vector<std::array<double,3>>& mesh_element_centroids,
-    std::vector<AABB>& mesh_tet_aabbs,
-    AABB& mesh_aabb,
-    const int timestep){
-    // Go over all tetrahedrons in a mesh and find their AABB and centroids, build mesh AABB, and store the data in vectors
-    enum ElementNodeCount nodes_per_element = ElementNodeCount::TET10;
-    const int coords_per_element = nodes_per_element * NODE_COORDINATES; // number of elements times 3 coordinates each
-    const int timestep_stride = timestep * mesh_number_of_tets * nodes_per_element * NODE_COORDINATES;
-
-    // Iterate over tetrahedrons comprising a mesh
-    for (int quad_tet_idx = 0; quad_tet_idx < mesh_number_of_tets; quad_tet_idx++) {
-        // Use pointers - means we treat the 2D array as a flat 1D array and do the indexing manually by calculating the offset.
-        // HAS to be contiguous in memory for this to work properly! c_contig flag in nanobind ensures that
-        int triangle_min_index = timestep_stride + quad_tet_idx * coords_per_element; // Find the minimum index corresponding to the given triangle at given timestep
-        //int triangle_idx_at_t = triangle_idx + timestep_stride;
-        //std::cout << "Triangle idx at t: " << triangle_idx_at_t << std::endl;
-        std::array<double,30> tets_node_coords;
-        //int triangle_min_index = triangle_idx_at_t * coords_per_element;
-        //std::cout << "Triangle " << triangle_idx << " nodes: ";
-        for (int i = 0; i < coords_per_element; ++i){
-            tets_node_coords[i] = mesh_node_coords_ptr[triangle_min_index + i];
-            //std::cout << triangle_node_coords[i] << " , ";
-        }
-        //std::cout<<std::endl;
-            
-        // Find centroid for this tetrahedron
-        std::array<double,3> tet_centroid;
-        compute_element_centroid_tet10(tets_node_coords, tet_centroid);
-            
-        mesh_element_centroids.push_back(tet_centroid);
-        //std::cout << "Centroid " << triangle_centroid[0] << " " << triangle_centroid[1] << " " << triangle_centroid[2] << std::endl;
-
-        // Create bounding volume for this tetrahedron
-        AABB tet_aabb;
-        tet_aabb.build_for_tet10(tets_node_coords);
-        mesh_tet_aabbs.push_back(tet_aabb);
-        //std::cout << "AABB max " << triangle_aabb.corner_max[0] << " " << triangle_aabb.corner_max[1] << " " << triangle_aabb.corner_max[2] << std::endl;
-        //std::cout << "AABB min " << triangle_aabb.corner_min[0] << " " << triangle_aabb.corner_min[1] << " " << triangle_aabb.corner_min[2] << std::endl;
-        // Include triangle AABB in mesh AABB to get the bounding box for the whole thing
-        mesh_aabb.expand_to_include_AABB(tet_aabb);
-        } // ELEMENTS/QUAD_TERAHEDRONS
-}
-*/
 
 
 AABB create_node_AABB(const std::vector<AABB>& mesh_element_abbs,
@@ -378,6 +284,7 @@ void build_BLAS(BLAS &mesh_bvh,
     // DEBUG HINT: If your render isn't correct and you want to test the intersection without potential influences from the BVH, set MAX_ELEMENT_PER_LEAF
     // to mesh_element_count (just noting that you either have to read and hardcode the value or change type from constexpr)
     static constexpr int MAX_ELEMENTS_PER_LEAF = 4; // Max number of mesh faces per leaf node. According to research 4-16 range works best
+    //int MAX_ELEMENTS_PER_LEAF = mesh_element_count/2; // Max number of mesh faces per leaf node. According to research 4-16 range works best
 
     // DFS implementation so LIFO
     mesh_bvh.tree_nodes.clear();
@@ -549,11 +456,11 @@ void build_TLAS(std::vector<TLAS_Node>& TLAS,
     }
 }
 
-
 void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
     std::vector<int>& mesh_element_indices,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
+    const double* mesh_node_normals_expanded_ptr,
     const double* mesh_uvs_ptr,
     const int mesh_material,
     const int timestep){
@@ -578,8 +485,9 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
         const int coords_per_element = Node.nodes_per_element * NODE_COORDINATES; // number of nodes per element times 3 coordinates each
         const int uvs_per_element = Node.nodes_per_element * UV_COORDINATES; // number of nodes per element times 2 coordinates each
         Node.node_coords.reserve(node_element_count * coords_per_element);
+        Node.node_normals.reserve(node_element_count * coords_per_element);
         Node.face_color.reserve(node_element_count * Node.nodes_per_element * UV_COORDINATES); // face_color will store uvs; each comprising vertex/node will have its own uvs
-        Node.material.reserve(node_element_count * NODE_COORDINATES);
+        //Node.material.reserve(node_element_count * NODE_COORDINATES);
 
         //std::cout << "BVH node id: " << i << " with element count: " << node_element_count << std::endl;
         //std::cout << "Min element id from vector: " << node_min_element_idx << std::endl;
@@ -611,13 +519,17 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
                 Node.node_coords.push_back(mesh_node_coords_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES]); // x
                 Node.node_coords.push_back(mesh_node_coords_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES + 1]); // y
                 Node.node_coords.push_back(mesh_node_coords_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES + 2]); // z
+                // Nodal normals
+                Node.node_normals.push_back(mesh_node_normals_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES]); // x
+                Node.node_normals.push_back(mesh_node_normals_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES + 1]); // y
+                Node.node_normals.push_back(mesh_node_normals_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES + 2]); // z
                 // (u,v) for texturing
                 Node.face_color.push_back(mesh_uvs_ptr[uv_idx_at_t + j * UV_COORDINATES]); // u
                 Node.face_color.push_back(mesh_uvs_ptr[uv_idx_at_t + j * UV_COORDINATES + 1]); // v 
                 //std::cout << "Face color size: " << Node.face_color.size() << std::endl;
-                Node.material.push_back(mesh_material);
-                Node.material.push_back(mesh_material);
-                Node.material.push_back(mesh_material);
+                //Node.material.push_back(mesh_material);
+                //Node.material.push_back(mesh_material);
+                //Node.material.push_back(mesh_material);
             }
             
             /* DEBUG VERSION. Does the same thing, but says very explicitly the indices, so they can be compared against a flat array in Python to see retrieved values etc.
@@ -646,8 +558,9 @@ void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
     std::vector<int>& mesh_element_indices,
     std::vector<int>& node_minimum_element_index,
     const double* mesh_node_coords_expanded_ptr,
+    const double* mesh_node_normals_expanded_ptr,
     const double* mesh_face_color_ptr,
-     const int mesh_material,
+    const int mesh_material,
     const int timestep){
     // Solid color version
     // Copies appropriate mesh data to store directly in BVH node, so it can be accessed easily upon intersection and be cache-friendly
@@ -669,8 +582,9 @@ void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
         const int node_max_element_idx = node_min_element_idx + Node.element_count;
         const int coords_per_element = Node.nodes_per_element * NODE_COORDINATES; // number of nodes per element times 3 coordinates each
         Node.node_coords.reserve(node_element_count * coords_per_element);
+        Node.node_normals.reserve(node_element_count * coords_per_element);
         Node.face_color.reserve(node_element_count * NODE_COORDINATES); // face_color will store 3 values
-        Node.material.reserve(node_element_count * NODE_COORDINATES);
+        //Node.material.reserve(node_element_count * NODE_COORDINATES);
         
         //std::cout << "BVH node id: " << i << " with element count: " << node_element_count << std::endl;
         //std::cout << "Min element id from vector: " << node_min_element_idx << std::endl;
@@ -697,8 +611,9 @@ void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
             // Copy all nodal coordinates
             for (int j = 0; j < coords_per_element; ++j){
                 //std:: cout << mesh_node_coords_expanded_ptr[element_min_index + j] << " ";
-                //Node.node_coords.push_back(mesh_node_coords_expanded_ptr[element_min_index + j]);
+                //Node.node_coords.push_back(mesh_node_coords_expanded_ptr[original_element_idx_at_t + j]);
                 Node.node_coords.push_back(mesh_node_coords_expanded_ptr[original_element_idx_at_t + j]);
+                Node.node_normals.push_back(mesh_node_normals_expanded_ptr[original_element_idx_at_t + j]);
             }
             //std::cout << std::endl;
             // Copy all color (field) values for the mesh element
@@ -708,9 +623,9 @@ void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
             Node.face_color.push_back(mesh_face_color_ptr[face_color_idx_at_t + 1]);
             Node.face_color.push_back(mesh_face_color_ptr[face_color_idx_at_t + 2]);
 
-            Node.material.push_back(mesh_material);
-            Node.material.push_back(mesh_material);
-            Node.material.push_back(mesh_material);
+            //Node.material.push_back(mesh_material);
+            //Node.material.push_back(mesh_material);
+            //Node.material.push_back(mesh_material);
         }
         //std::cout << "Node coords size: " << Node.node_coords.size() << std::endl;
        // std::cout << "Node element count: " << Node.element_count << std::endl;
@@ -736,6 +651,66 @@ void copy_data_to_TLAS(TLAS &tlas,
         }
     }
  }
+
+inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material){
+    switch (mesh_material) {
+        case UNLIT: {
+            mesh_bvh.ray_material_ptr = &ray_unlit;
+            return;
+        }
+        case DIFFUSE: { // Diffuse
+            mesh_bvh.ray_material_ptr = &ray_diffuse;
+            return;
+    }
+        case SPECULAR: {// Specular (mirror)
+            mesh_bvh.ray_material_ptr = &ray_specular;
+            return;
+        }
+        case REFRACTIVE: {// Refraction (dielectric)
+            mesh_bvh.ray_material_ptr = &ray_refractive;
+            return;
+        }
+        default: { // Undefined
+            mesh_bvh.ray_material_ptr = &ray_undefined;
+            return;;
+        }
+    }
+}
+    
+inline void set_BLAS_intersection_texture(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element){
+    // Assigns appropriate texture interpolation function pointer
+    switch(nodes_per_element){
+        case TRI3:
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3_tex;
+            break;
+        case TRI6:
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6_tex;
+            break;
+        case QUAD4:
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4_tex;
+            break;
+        case QUAD8: 
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8_tex;
+            break;
+        case QUAD9:
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9_tex;
+            break;
+        default: throw std::invalid_argument("Unsupported element type.");
+    }
+}
+
+inline void set_BLAS_intersection_color(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element){
+    // Assigns appropriate color interpolation function pointer
+    switch(nodes_per_element){
+        case TRI3:
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3_col; // Color with barycentric interpolation
+            break;
+        default:
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_any_col; // Just solid color for all other element types
+            break;
+    }
+}
+
 
 /*
  // Helper/debug functions
@@ -767,6 +742,7 @@ inline void print_TLAS(TLAS &scene_TLAS){
 
 // Main function allowing mixed surface types
 TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
+    const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_normals_expanded,
     const std::vector<nanobind::ndarray<const double,nanobind::c_contig>>& scene_face_colors,
     const std::vector<int>& materials,
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_uvs,
@@ -859,8 +835,9 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
 
         // 2. BLAS BVH builder functions - this part depends on the surface type
         build_BLAS(mesh_bvh, mesh_element_centroids, mesh_element_aabbs, mesh_element_indices, node_minimum_element_index, mesh_element_count, nodes_per_element);
-
         int mesh_material = materials[mesh_idx];
+        set_BLAS_material(mesh_bvh, mesh_material);
+
         int surface_type = scene_surface_types[mesh_idx];
 
         if (surface_type == 1){ // Texture
@@ -871,6 +848,8 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
 
             nanobind::ndarray<const double, nanobind::c_contig> mesh_uvs = scene_uvs[mesh_idx];
             double* mesh_uvs_ptr = const_cast<double*>(mesh_uvs.data());
+            double* mesh_node_normals_ptr = const_cast<double*>(mesh_node_coords.data()); // Index into the node normals to copy them
+
             // DEBUG to ensure data is copied correctly
             /*
             std::cout << "Mesh uvs shape for this mesh as extracted from scene: " << std::endl;
@@ -881,42 +860,16 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
             std::cout << std::endl;
             */
 
-            copy_data_to_BLAS_node_tex(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_uvs_ptr, mesh_material, timestep);
-
-            // Assign appropriate texture interpolation function pointer
-            switch(nodes_per_element){
-                case TRI3:
-                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3_tex;
-                    break;
-                case TRI6:
-                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6_tex;
-                    break;
-                case QUAD4:
-                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4_tex;
-                    break;
-                case QUAD8: 
-                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8_tex;
-                    break;
-                case QUAD9:
-                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9_tex;
-                    break;
-                default: throw std::invalid_argument("Unsupported element type.");
-            }
+            copy_data_to_BLAS_node_tex(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_node_normals_ptr, mesh_uvs_ptr, mesh_material, timestep);
+            set_BLAS_intersection_texture(mesh_bvh, nodes_per_element);
+           
         }
         else if (surface_type == 0){ // Solid surface fill
             nanobind::ndarray<const double, nanobind::c_contig> mesh_face_colors = scene_face_colors[mesh_idx];
             double* mesh_face_colors_ptr = const_cast<double*>(mesh_face_colors.data());
-            copy_data_to_BLAS_node_color(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_face_colors_ptr, mesh_material, timestep);
-
-            // Assign appropriate color interpolation function pointer
-            switch(nodes_per_element){
-                case TRI3:
-                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3_col; // Color with barycentric interpolation
-                    break;
-                default:
-                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_any_col; // Just solid color for all other element types
-                    break;
-            }
+            double* mesh_node_normals_ptr = const_cast<double*>(mesh_node_coords.data()); // Index into the node normals to copy them
+            copy_data_to_BLAS_node_color(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_node_normals_ptr, mesh_face_colors_ptr, mesh_material, timestep);
+            set_BLAS_intersection_color(mesh_bvh, nodes_per_element);
         }
         else {
             throw std::invalid_argument("Unsupported surface type."); // Shouldn't ever get triggered since we check element type on the Python side as well, but might be useful for debugging

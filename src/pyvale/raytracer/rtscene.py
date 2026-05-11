@@ -41,7 +41,8 @@ class Scene:
     # Mesh data
     #scene_connectivity: list[np.ndarray] = field(default_factory=list) # Uncomment to test rtbvh_stack, rtbvh_recursion, or no BVH
     #scene_coords: list[np.ndarray] = field(default_factory=list) # Uncomment to test rtbvh_stack, rtbvh_recursion, or no BVH
-    coords_expanded: list[np.ndarray] = field(default_factory=list) # # Replace connectivity and coords; dimensioned as [mesh_idx, timestep, mesh_element_count, nodes_per_element, 3 (for x,y,z)]
+    coords_expanded: list[np.ndarray] = field(default_factory=list) # Replace connectivity and coords; dimensioned as [mesh_idx, timestep, mesh_element_count, nodes_per_element, 3 (for x,y,z)]
+    normals_expanded: list[np.ndarray] = field(default_factory=list) # Node normals for shading; dimensioned as [mesh_idx, timestep, mesh_element_count, nodes_per_element, 3 (for x,y,z)]
     #deform_vals: list[np.ndarray] = field(default_factory=list) # May be needed for deciding whether to update or rebuild TLAS later on
     face_colors: list[np.ndarray] = field(default_factory=list) # Would be good to know the size of this bc it can either be the same for all frames (no need to broadcast data) or different. Do we want this much functionality?
     materials: list[int] = field(default_factory=list)
@@ -103,6 +104,7 @@ class Scene:
         #self.scene_connectivity.append(rtmesh.connectivity)
         #self.scene_coords.append(rtmesh.node_coords)
         self.coords_expanded.append(rtmesh.node_coords_expanded_over_time)
+        self.normals_expanded.append(rtmesh.node_normals_expanded_over_time)
         if rtmesh.surface_type == SurfType.FIELD_COLOR:
             self.face_colors.append(rtmesh.face_colors_over_time)
             self.textures.append(np.zeros(shape=(1,1))) # Append a small array of zeros, only so we have matching indices but this data should never be accessed. Hacky solution, to be resolved better (probably merging face_colors and textures into one)
@@ -152,6 +154,8 @@ class Scene:
                 repeat_counts = [1] * (mesh_timesteps - 1) + [timestep_difference + 1]
                 self.coords_expanded[mesh] = np.ascontiguousarray(np.repeat(self.coords_expanded[mesh], repeat_counts,
                                                                             axis=0))  # Should be C-contiguous by default, but we need to be extra sure
+                self.normals_expanded[mesh] = np.ascontiguousarray(np.repeat(self.normals_expanded[mesh], repeat_counts,
+                                                                            axis=0))
                 # Case 1: Mesh filled with solid colour (assumes colour changes between frames, i.e., field-value based). Might remove this entirely if we keep one solid color for all timeframes.
                 # TO DO: Give user choice if they want it white or filled with the last known values as well. Or if the mesh should just magically vanish once we run out of timesteps.
                 if self.surface_types[mesh] == SurfType.FIELD_COLOR:
@@ -201,6 +205,7 @@ class Scene:
                 self.timestep_count = frames_to_render
                 for mesh in range(self.mesh_count):
                     self.coords_expanded[mesh] = self.coords_expanded[mesh][:frames_to_render]
+                    self.normals_expanded[mesh] = self.normals_expanded[mesh][:frames_to_render]
                     # self.deform_vals = self.deform_vals[mesh][:frames_to_render]
                     if self.surface_types[mesh] == SurfType.FIELD_COLOR:
                         self.face_colors[mesh] = self.face_colors[mesh][:frames_to_render]
@@ -221,6 +226,7 @@ class Scene:
                     break
             for mesh in range(self.mesh_count):
                 self.coords_expanded[mesh] = self.coords_expanded[mesh][:frames_to_render]
+                self.normals_expanded[mesh] = self.normals_expanded[mesh][:frames_to_render]
                 if self.surface_types[mesh] == SurfType.FIELD_COLOR:
                     self.face_colors[mesh] = self.face_colors[mesh][:frames_to_render]
                 # Uncomment if you use uvs_over_time in rtmesh; otherwise, not necessary as uvs do not change across timeframes.

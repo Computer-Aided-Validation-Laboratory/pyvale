@@ -23,29 +23,6 @@
 #include "rtray.h"
 #include "rtbvh.h"
 
-// Struct to store ray data in the stack-based shader
-struct RayState{
-    Ray ray;
-    EiVector3d accumulated_color; // Accumulated multipliers (albedo, Fresnel terms, etc.)
-    int depth;
-};
-
-static inline EiVector3d ray_blue_sky(const Ray& ray);
-
-inline void ray_diffuse(const RayState& current_state,
-    const HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack);
-
-inline void ray_specular(const RayState& current_state,
-    const HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack);
-
-inline void ray_refractive(const RayState& current_state,
-    const HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack);
 
 EiVector3d return_ray_color_stack(const Ray& primary_ray, const TLAS& TLAS);
 

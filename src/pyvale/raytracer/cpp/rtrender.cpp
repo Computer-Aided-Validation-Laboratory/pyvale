@@ -15,237 +15,17 @@
 #include "rthitrecord.h"
 #include "rtrayintersection.h"
 #include "rtmathutils.h"
-
-inline EiVector3d ray_blue_sky(const Ray& ray){
-    double a = 0.5 * (ray.direction(1) + 1.0);
-    static EiVector3d white, blue;
-    white << 1.0, 1.0, 1.0;
-    blue << 0.5, 0.7, 1.0;
-    return (1.0 - a) * white + a * blue;
-}
-
-inline void ray_diffuse(const RayState& current_state,
-    const HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack){
-    // Secondary ray is randomly scattered from the hit point
-    // Depends on: Incident ray direction
-    // Use non-uniform Lambertian distribution weighed by cos of the angle between the indicent ray and surface normal. Scattering is more likely close to the normal.
-
-    //EiVector3d emitted = intersection_record.emission;
-    EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
-
-    EiVector3d w = intersection_record.normal_surface;
-
-    EiVector3d u =
-        ((fabs(w.x()) > 0.1 ? EiVector3d(0,1,0) : EiVector3d(1,0,0))
-        .cross(w)).normalized();
-
-    EiVector3d v = w.cross(u);
-
-    double r1 = 2 * M_PI * ((double)rand() / RAND_MAX);
-    double r2 = (double)rand() / RAND_MAX;
-    double r2s = sqrt(r2);
-
-    EiVector3d d =
-        (u * cos(r1) * r2s +
-            v * sin(r1) * r2s +
-            w * sqrt(1 - r2)).normalized();
-
-    Ray ray_new;
-    ray_new.origin = intersection_record.point_intersection + w * 1e-4;
-    ray_new.direction = d;
-
-    stack.push_back({ray_new, next_accumulated_color, current_state.depth + 1});
-}
-
-inline void ray_specular(const RayState& current_state,
-    const HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack){
-    // Secondary ray traced in the direction about the normal
-    // Depends on: angle between the viewing direction and the surface normal
-    
-    EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
-    EiVector3d ray_direction = current_state.ray.direction;
-
-    EiVector3d reflected = ray_direction - 2 * ray_direction.dot(intersection_record.normal_surface) * intersection_record.normal_surface;
-    Ray ray_new;
-    ray_new.origin = intersection_record.point_intersection + intersection_record.normal_surface * 1e-4;
-    ray_new.direction = reflected;
-
-    stack.push_back({ray_new, next_accumulated_color, current_state.depth + 1});
-}
-
-
-// Michael's WIP version
-inline void ray_refractive(const RayState& current_state,
-    const HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack){
-    // Secondary ray may reflect or refract
-    // Depends on: surface normal, refractive indices, sometimes wavelength
-    EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
-    EiVector3d ray_direction = current_state.ray.direction;
-
-    EiVector3d n = intersection_record.normal_surface; // Geometric normal
-    EiVector3d nl = (ray_direction.dot(n) < 0) ? n : -n; // Corrected normal
-
-    EiVector3d reflected = ray_direction - 2 * ray_direction.dot(n) * n;
-
-    Ray reflRay;
-    //reflRay.origin = intersection_record.point_intersection;
-    reflRay.origin = intersection_record.point_intersection + nl * 1e-4; // Push secondary rays slightly off the surface to remove the shadow acne
-    reflRay.direction = reflected;
-
-    //bool into = ray_direction.dot(nl) < 0; // entering or exiting <- Always true because nl is constructed to always face opposite to ray_direction
-    bool into = ray_direction.dot(n) < 0; // Check against the actual normal instead rather than the corrected version
-
-    double nc = 1.0;   // air
-    double nt = 1.5;   // glass
-    double nnt = into ? nc / nt : nt / nc;
-
-    double ddn = ray_direction.dot(nl);
-    double cos2t = 1 - nnt * nnt * (1 - ddn * ddn);
-
-    // Total internal reflection
-    if (cos2t < 0) {
-        stack.push_back({reflRay, next_accumulated_color, current_state.depth + 1});
-        return;
-    }
-
-    EiVector3d tdir = (ray_direction * nnt - nl * (ddn * nnt + sqrt(cos2t))).normalized();
-    //(ray_direction * nnt - n * ((into ? 1 : -1) * (ddn * nnt + sqrt(cos2t)))).normalized(); // Original version, but observe that n * ((into ? 1 : -1) = nl, so we can just replace that
-
-
-    // Schlick approximation
-    double a = nt - nc;
-    double b = nt + nc;
-    double R0 = (a * a) / (b * b);
-
-    double c = 1 - (into ? -ddn : tdir.dot(n));
-    double Re = R0 + (1 - R0) * c * c * c * c * c;
-    double Tr = 1 - Re;
-
-    // Russian roulette between reflection and refraction
-    double P = 0.25 + 0.5 * Re;
-    double RP = Re / P;
-    double TP = Tr / (1 - P);
-
-    if (current_state.depth > 2) {
-        if (random_double() < P){ // Note: for multi-threading this will have to be replaced with thread_local generator
-        //if ((double)rand() / RAND_MAX < P) { // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
-            stack.push_back({reflRay, next_accumulated_color * RP, current_state.depth + 1});
-            return;
-        } else {
-            Ray refrRay;
-            //refrRay.origin = intersection_record.point_intersection;
-            //refrRay.origin = intersection_record.point_intersection - nl * 1e-4; // Push secondary rays slightly inside the surface to remove the shadow acne
-            refrRay.direction = tdir;
-
-            stack.push_back({refrRay, next_accumulated_color * TP, current_state.depth + 1});
-            return;
-        }
-    } else {
-        Ray refrRay;
-        //refrRay.origin = intersection_record.point_intersection;
-        //refrRay.origin = intersection_record.point_intersection - nl * 1e-4; // Push secondary rays slightly inside the surface to remove the shadow acne
-        refrRay.direction = tdir;
-
-        // Push both rays
-        stack.push_back({reflRay, next_accumulated_color * Re, current_state.depth + 1});
-        stack.push_back({refrRay, next_accumulated_color * Tr, current_state.depth + 1});
-        return;
-    }
-}
-
-
-/*
-// original version
-inline void ray_refractive(const RayState& current_state,
-    const HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack){
-    // Secondary ray may reflect or refract
-    // Depends on: surface normal, refractive indices, sometimes wavelength
-    EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
-    EiVector3d ray_direction = current_state.ray.direction;
-
-    EiVector3d n = intersection_record.normal_surface;
-    EiVector3d nl = (ray_direction.dot(n) < 0) ? n : -n;
-
-    EiVector3d reflected = ray_direction - 2 * ray_direction.dot(n) * n;
-
-    Ray reflRay;
-    reflRay.origin = intersection_record.point_intersection;
-    reflRay.direction = reflected;
-
-    bool into = ray_direction.dot(nl) < 0; // entering or exiting
-
-    double nc = 1.0;   // air
-    double nt = 1.5;   // glass
-    double nnt = into ? nc / nt : nt / nc;
-
-    double ddn = ray_direction.dot(nl);
-    double cos2t = 1 - nnt * nnt * (1 - ddn * ddn);
-
-    // Total internal reflection
-    if (cos2t < 0) {
-        stack.push_back({reflRay, next_accumulated_color, current_state.depth + 1});
-        return;
-    }
-
-    EiVector3d tdir =
-        (ray_direction * nnt -
-        n * ((into ? 1 : -1) * (ddn * nnt + sqrt(cos2t)))).normalized();
-
-    // Schlick approximation
-    double a = nt - nc;
-    double b = nt + nc;
-    double R0 = (a * a) / (b * b);
-
-    double c = 1 - (into ? -ddn : tdir.dot(n));
-    double Re = R0 + (1 - R0) * c * c * c * c * c;
-    double Tr = 1 - Re;
-
-    // Russian roulette between reflection and refraction
-    double P = 0.25 + 0.5 * Re;
-    double RP = Re / P;
-    double TP = Tr / (1 - P);
-
-    if (current_state.depth > 2) {
-        if ((double)rand() / RAND_MAX < P) {
-            stack.push_back({reflRay, next_accumulated_color * RP, current_state.depth + 1});
-            return;
-        } else {
-            Ray refrRay;
-            refrRay.origin = intersection_record.point_intersection;
-            refrRay.direction = tdir;
-
-            stack.push_back({refrRay, next_accumulated_color * TP, current_state.depth + 1});
-            return;
-        }
-    } else {
-        Ray refrRay;
-        refrRay.origin = intersection_record.point_intersection;
-        refrRay.direction = tdir;
-
-        // Push both rays
-        stack.push_back({reflRay, next_accumulated_color * Re, current_state.depth + 1});
-        stack.push_back({refrRay, next_accumulated_color * Tr, current_state.depth + 1});
-        return;
-    }
-}
-*/
+#include "rtmaterials.h"
 
 // New radiance function with lighting but iterative and refactored 
 EiVector3d return_ray_color_stack(const Ray& primary_ray, const TLAS& TLAS){
 
-    static constexpr int MAX_DEPTH = 10; // Max depth for the secondary rays
+    static constexpr int MAX_DEPTH = 50; // Max depth for the secondary rays
     EiVector3d total_color = EiVector3d::Zero();
     std::vector<RayState> stack;
     stack.reserve(MAX_DEPTH);
-    stack.push_back({ primary_ray, EiVector3d(1.0, 1.0, 1.0), 0 });
+    stack.push_back({primary_ray, EiVector3d(1.0, 1.0, 1.0), 0});
+    void (*ray_material_interaction_ptr)(const RayState& current_state, const HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
 
     while(!stack.empty()){
         RayState current_state = stack.back();
@@ -256,21 +36,38 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const TLAS& TLAS){
         // Look for the first intersection for this ray
         IntersectionOutput intersection;
         intersect_TLAS(current_ray, TLAS, intersection, intersection_record);
+        ray_material_interaction_ptr = intersection_record.ray_material_ptr;
+        //std::cout << "Ray material interaction ptr: " << ray_material_interaction_ptr << std::endl;
+    
 
-        if (intersection_record.t == std::numeric_limits<double>::infinity() || intersection_record.material == NOT_DEFINED) {
+        if (intersection_record.t == std::numeric_limits<double>::infinity()) {
             const EiVector3d blue_sky = ray_blue_sky(current_ray); // Early termination - no bounces here anyway
             total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
             continue;
         }
 
-        set_face_normal(current_ray, intersection_record.normal_surface);
+        // Set and normalize surface and shading normals - had to move this inside the specific material functions as flipping here broke the logic for refractive materials
+        //set_face_normal(current_ray, intersection_record.normal_surface);
+        //set_face_normal(current_ray, intersection_record.normal_shading);
 
         EiVector3d emitted = intersection_record.emission;
         EiVector3d albedo = intersection_record.face_color;
 
-        // Russian roulette early termination
-        double p = std::max({albedo.x(), albedo.y(), albedo.z()});
+        
+        // Explicit depth limit with ambient fallback ---
+        if (current_state.depth >= MAX_DEPTH) {
+        //    // Add a fallback ambient color to compensate for truncated energy 
+            // Avoids the "plain black shadows" caused by zero light return
+            EiVector3d ambient_fallback = ray_blue_sky(current_ray) * 0.2; 
+            total_color += current_state.accumulated_color.cwiseProduct(emitted + ambient_fallback);
+            continue; 
+        }
+        
         if (current_state.depth > MAX_DEPTH/2) { // Start early termination if we are at least halfway through the maximum allowed depth
+            // Russian roulette early termination
+            double p = std::max({albedo.x(), albedo.y(), albedo.z()});
+            // Clamp to prevent infinite loops (p=1.0) and division by zero (p=0.0)
+            p = std::clamp(p, 0.05, 0.95); 
             if (random_double() > p){  // Note: for multi-threading this will have to be replaced with thread_local generator
             //if ((double)rand() / RAND_MAX > p){ // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
                 //return emitted;
@@ -279,33 +76,8 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const TLAS& TLAS){
             }
             albedo /= p;
         }
-
-        switch (intersection_record.material) {
-
-            case UNLIT: {
-                // Quite key - face_color, NOT albedo, because albedo might be changed through the Russian roulette above
-                total_color += current_state.accumulated_color.cwiseProduct(intersection_record.face_color);
-                break;
-            }
-
-            case DIFFUSE: { // Diffuse
-                total_color += current_state.accumulated_color.cwiseProduct(emitted); // Add emission for the current intersection
-                ray_diffuse(current_state, intersection_record, albedo, stack);
-                break;
-            }
-
-            case SPECULAR: {// Specular (mirror)
-                total_color += current_state.accumulated_color.cwiseProduct(emitted); // Add emission for the current intersection
-                ray_specular(current_state, intersection_record, albedo, stack);
-                break;
-            }
-
-            case REFRACTIVE: {// Refraction (dielectric)
-                total_color += current_state.accumulated_color.cwiseProduct(emitted); // Add emission for the current intersection
-                ray_refractive(current_state, intersection_record, albedo, stack);
-                break;
-            }
-        } // Switch material type
+        // Process ray and update the stack and total color based on the material of the intersected mesh
+        ray_material_interaction_ptr(current_state, intersection_record, albedo, stack, total_color);
     } // Stack while loop
     return total_color;
 } 
@@ -400,66 +172,66 @@ EiVector3d return_ray_color_new(const Ray& ray,
         EiVector3d reflected =
             ray.direction - 2 * ray.direction.dot(n) * n;
     
-        Ray reflRay;
-        reflRay.origin = rec.point_intersection;
-        reflRay.direction = reflected;
+        Ray reflected_ray;
+        reflected_ray.origin = rec.point_intersection;
+        reflected_ray.direction = reflected;
     
         bool into = ray.direction.dot(nl) < 0; // entering or exiting
     
-        double nc = 1.0;   // air
-        double nt = 1.5;   // glass
-        double nnt = into ? nc / nt : nt / nc;
+        double ri_surrounding = 1.0;   // air
+        double ri_material = 1.5;   // glass
+        double ri_ratio = into ? ri_surrounding / ri_material : ri_material / ri_surrounding;
     
-        double ddn = ray.direction.dot(nl);
-        double cos2t = 1 - nnt * nnt * (1 - ddn * ddn);
+        double dot_incidence = ray.direction.dot(nl);
+        double cos_transmission2 = 1 - ri_ratio * ri_ratio * (1 - dot_incidence * dot_incidence);
     
         // Total internal reflection
-        if (cos2t < 0) {
+        if (cos_transmission2 < 0) {
             return emitted + albedo.cwiseProduct(
-                return_ray_color_new(reflRay, TLAS, depth + 1)
+                return_ray_color_new(reflected_ray, TLAS, depth + 1)
             );
         }
     
-        EiVector3d tdir =
-            (ray.direction * nnt -
-             n * ((into ? 1 : -1) * (ddn * nnt + sqrt(cos2t)))).normalized();
+        EiVector3d dir_transmission =
+            (ray.direction * ri_ratio -
+             n * ((into ? 1 : -1) * (dot_incidence * ri_ratio + sqrt(cos_transmission2)))).normalized();
     
         // Schlick approximation
-        double a = nt - nc;
-        double b = nt + nc;
+        double a = ri_material - ri_surrounding;
+        double b = ri_material + ri_surrounding;
         double R0 = (a * a) / (b * b);
     
-        double c = 1 - (into ? -ddn : tdir.dot(n));
-        double Re = R0 + (1 - R0) * c * c * c * c * c;
-        double Tr = 1 - Re;
+        double c = 1 - (into ? -dot_incidence : dir_transmission.dot(n));
+        double reflectance = R0 + (1 - R0) * c * c * c * c * c;
+        double transmittance = 1 - reflectance;
     
         // Russian roulette between reflection and refraction
-        double P = 0.25 + 0.5 * Re;
-        double RP = Re / P;
-        double TP = Tr / (1 - P);
+        double P = 0.25 + 0.5 * reflectance;
+        double P_reflect = reflectance / P;
+        double P_transmit = transmittance / (1 - P);
     
         if (depth > 2) {
             if ((double)rand() / RAND_MAX < P) {
                 return emitted + albedo.cwiseProduct(
-                    return_ray_color_new(reflRay, TLAS, depth + 1) * RP
+                    return_ray_color_new(reflected_ray, TLAS, depth + 1) * P_reflect
                 );
             } else {
-                Ray refrRay;
-                refrRay.origin = rec.point_intersection;
-                refrRay.direction = tdir;
+                Ray refracted_ray;
+                refracted_ray.origin = rec.point_intersection;
+                refracted_ray.direction = dir_transmission;
     
                 return emitted + albedo.cwiseProduct(
-                    return_ray_color_new(refrRay, TLAS, depth + 1) * TP
+                    return_ray_color_new(refracted_ray, TLAS, depth + 1) * P_transmit
                 );
             }
         } else {
-            Ray refrRay;
-            refrRay.origin = rec.point_intersection;
-            refrRay.direction = tdir;
+            Ray refracted_ray;
+            refracted_ray.origin = rec.point_intersection;
+            refracted_ray.direction = dir_transmission;
     
             return emitted + albedo.cwiseProduct(
-                return_ray_color_new(reflRay, TLAS, depth + 1) * Re +
-                return_ray_color_new(refrRay, TLAS, depth + 1) * Tr
+                return_ray_color_new(reflected_ray, TLAS, depth + 1) * reflectance +
+                return_ray_color_new(refracted_ray, TLAS, depth + 1) * transmittance
             );
         }
     }

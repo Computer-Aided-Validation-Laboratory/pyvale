@@ -16,10 +16,12 @@
 #include "rtbvh.h"
 #include "rtelemconstants.h"
 #include "rtcolorsampling.h"
+#include "rtshapefuncs.h"
 
 struct IntersectionOutput {
     Eigen::ArrayXXd elem_interp_coords; // E.g., barycentric coordinates for TRI3, bilinear interpolation coords for QUAD4
-    EiVectorD3d plane_normals;
+    EiVectorD3d geometric_normals;
+    //EiVectorD3d shading_normals;
     Eigen::Array<double, Eigen::Dynamic, 1> t_values;
 };
 

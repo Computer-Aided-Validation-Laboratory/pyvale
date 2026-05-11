@@ -17,7 +17,7 @@
 inline EiVector3d get_face_color(Eigen::Index min_row_idx,
     const std::vector<double>& face_color) {
     // Get values to colour the intersected face
-    double c1 = face_color[min_row_idx* NODE_COORDINATES];
+    double c1 = face_color[min_row_idx * NODE_COORDINATES];
     double c2 = face_color[min_row_idx * NODE_COORDINATES + 1];
     double c3 = face_color[min_row_idx * NODE_COORDINATES + 2];
     EiVector3d face_color_vec;
@@ -41,7 +41,7 @@ inline void get_face_uvs(Eigen::Index min_row_idx,
     double* out_element_uvs) { // Pointer, so we can pass an array depending on element node count without creating separate functions for every case
     // Get uv values of the intersected face
     int base_idx = min_row_idx * UV_COORDINATES * element_node_count;
-    std::array<double, 2> element_node_uvs;
+    std::array<double, UV_COORDINATES> element_node_uvs;
     
     // DEBUG PRINTS
     //std::cerr << "get_face_uvs" << std::endl;
@@ -56,11 +56,38 @@ inline void get_face_uvs(Eigen::Index min_row_idx,
 
     // Find (u,v) for each node in the mesh element and write it in the passed output array
     for (int i = 0; i < element_node_count; i++){
-        out_element_uvs[0 + i * 2] = face_uvs[base_idx + i * UV_COORDINATES]; // Element node u
-        out_element_uvs[1 + i * 2] = face_uvs[base_idx + i * UV_COORDINATES + 1]; // Element node v
+        out_element_uvs[0 + i * UV_COORDINATES] = face_uvs[base_idx + i * UV_COORDINATES]; // Element node u
+        out_element_uvs[1 + i * UV_COORDINATES] = face_uvs[base_idx + i * UV_COORDINATES + 1]; // Element node v
         //std::cerr << "\t " << i << " : " << out_element_uvs[0 + i * 2] << " (access idx: " << base_idx + i * UV_COORDINATES + 0 << "), " << out_element_uvs[1 + i * 2] << std::endl;
     }
     //std::cerr << std::endl;
+}
+
+// Getter for node normals
+inline void get_face_normals(Eigen::Index min_row_idx,
+    const std::vector<double>& node_normals,
+    int element_node_count,
+    double* out_element_normals) {
+    
+    /*
+    int base_idx = min_row_idx * NODE_COORDINATES * element_node_count;
+    EiVectorD3d node_normals = EiVectorD3d::Zero(element_node_count, NODE_COORDINATES); // Shape (nodes per element, 3)
+     for (int i = 0; i < element_node_count; ++i){
+        node_normals(i, 0) = node_normals[base_idx + i * NODE_COORDINATES]; // x
+        node_normals(i, 1) = node_normals[base_idx + i * NODE_COORDINATES + 1]; // y
+        node_normals(i, 2) = node_normals[base_idx + i * NODE_COORDINATES + 2]; // z
+    }
+    return node_normals;*/
+     // Get node normals of the intersected face
+    int base_idx = min_row_idx * NODE_COORDINATES * element_node_count;
+    std::array<double, NODE_COORDINATES> element_node_normal;
+
+    // Find the normal (x,y,z) for each node in the mesh element and write it in the passed output array
+    for (int i = 0; i < element_node_count; i++){
+        out_element_normals[0 + i * NODE_COORDINATES] = node_normals[base_idx + i * NODE_COORDINATES]; // x
+        out_element_normals[1 + i * NODE_COORDINATES] = node_normals[base_idx + i * NODE_COORDINATES + 1]; // y
+        out_element_normals[2 + i * NODE_COORDINATES] = node_normals[base_idx + i * NODE_COORDINATES + 2]; // z
+    }
 }
 
 // Scoped enum, so will not implicitly convert to int
