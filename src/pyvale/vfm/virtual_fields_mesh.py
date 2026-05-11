@@ -5,6 +5,12 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.vfm.project_definition import (
+    BoundaryConditions,
+    EdgeBoundaryCondition,
+    EEdgeBoundaryCondition,
+)
+
 
 
 @dataclass(slots=True)
@@ -130,6 +136,105 @@ def _generate_data_mesh_nodal_coord(
     )
 
 
+def _plot_grid_lines(
+    ax,
+    grid_x: npt.NDArray[np.float64],
+    grid_y: npt.NDArray[np.float64],
+    color: str,
+    linewidth: float,
+) -> None:
+    for row in range(grid_x.shape[0]):
+        ax.plot(grid_x[row, :], grid_y[row, :], color=color, linewidth=linewidth)
+    for col in range(grid_x.shape[1]):
+        ax.plot(grid_x[:, col], grid_y[:, col], color=color, linewidth=linewidth)
+
+
+def _compute_glyph_half_size_from_spacing(
+    coordinates: npt.NDArray[np.float64],
+    axis: int,
+    fraction_of_spacing: float = 0.3,
+) -> float:
+    """Return a glyph half-size based on the smallest adjacent node spacing."""
+
+    spacing = np.abs(np.diff(coordinates, axis=axis))
+    finite_positive_spacing = spacing[np.isfinite(spacing) & (spacing > 0.0)]
+    if finite_positive_spacing.size > 0:
+        return 0.5 * fraction_of_spacing * float(np.min(finite_positive_spacing))
+
+    span = float(np.max(coordinates) - np.min(coordinates))
+    if span > 0.0:
+        return 0.5 * fraction_of_spacing * span
+
+    return 0.1
+
+
+def _plot_node_constraint_glyphs(
+    ax,
+    virtual_grid_x: npt.NDArray[np.float64],
+    virtual_grid_y: npt.NDArray[np.float64],
+    node_dof_conditions: dict[int, tuple[EEdgeBoundaryCondition, EEdgeBoundaryCondition]],
+) -> None:
+    """Overlay per-DOF constraint glyphs at constrained nodes."""
+
+    half_width = _compute_glyph_half_size_from_spacing(virtual_grid_x, axis=1)
+    half_height = _compute_glyph_half_size_from_spacing(virtual_grid_y, axis=0)
+
+    x_flat = virtual_grid_x.ravel()
+    y_flat = virtual_grid_y.ravel()
+
+    for node_id, (x_condition, y_condition) in node_dof_conditions.items():
+        node_x = float(x_flat[node_id])
+        node_y = float(y_flat[node_id])
+
+        if x_condition is EEdgeBoundaryCondition.FIXED:
+            ax.plot(
+                [node_x - half_width, node_x + half_width],
+                [node_y, node_y],
+                color="red",
+                linewidth=2.0,
+                solid_capstyle="round",
+                zorder=5,
+            )
+        elif x_condition is EEdgeBoundaryCondition.TRACTION:
+            ax.annotate(
+                "",
+                xy=(node_x + half_width, node_y),
+                xytext=(node_x - half_width, node_y),
+                arrowprops=dict(
+                    arrowstyle="<->",
+                    color="green",
+                    linewidth=4,
+                    shrinkA=0.0,
+                    shrinkB=0.0,
+                ),
+                zorder=5,
+            )
+
+        if y_condition is EEdgeBoundaryCondition.FIXED:
+            ax.plot(
+                [node_x, node_x],
+                [node_y - half_height, node_y + half_height],
+                color="red",
+                linewidth=2.0,
+                solid_capstyle="round",
+                zorder=5,
+            )
+        elif y_condition is EEdgeBoundaryCondition.TRACTION:
+            ax.annotate(
+                "",
+                xy=(node_x, node_y + half_height),
+                xytext=(node_x, node_y - half_height),
+                arrowprops=dict(
+                    arrowstyle="<->",
+                    color="green",
+                    linewidth=1.4,
+                    shrinkA=0.0,
+                    shrinkB=0.0,
+                ),
+                zorder=5,
+            )
+
+
 def plot_virtual_fields_mesh(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
@@ -141,6 +246,7 @@ def plot_virtual_fields_mesh(
     plot_data_points: bool = True,
     node_ids: npt.NDArray[np.int32] | None = None,
     element_node_ids: npt.NDArray[np.int32] | None = None,
+    node_dof_conditions: dict[int, tuple[EEdgeBoundaryCondition, EEdgeBoundaryCondition]] | None = None,
 ) -> Path | None:
     """Plot data points plus whichever of the data mesh and VF mesh are provided."""
 
@@ -207,17 +313,35 @@ def plot_virtual_fields_mesh(
             )
         )
 
+    if node_dof_conditions is not None:
+        _plot_node_constraint_glyphs(
+            ax,
+            virtual_grid_x,
+            virtual_grid_y,
+            node_dof_conditions,
+        )
+        legend_handles.append(
+            Line2D([0], [0], color="red", linewidth=2.0, label="Fixed DOF")
+        )
+        legend_handles.append(
+            Line2D([0], [0], color="green", linewidth=1.4, label="Traction DOF")
+        )
+
     if node_ids is not None:
         for row in range(node_ids.shape[0]):
             for col in range(node_ids.shape[1]):
+                node_id = int(node_ids[row, col])
+                if node_dof_conditions is not None and node_id not in node_dof_conditions:
+                    continue
                 ax.text(
                     virtual_grid_x[row, col],
                     virtual_grid_y[row, col],
-                    str(node_ids[row, col]),
+                    str(node_id),
                     color="blue",
                     fontsize=8,
                     ha="center",
                     va="center",
+                    bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=0.5),
                 )
 
     if element_node_ids is not None:
@@ -391,7 +515,7 @@ def _generate_vf_mesh_nodal_coord(
     )
 
 
-def _evaluate_linear_shape_functions(
+def _evaluate_bilinear_shape_functions(
     xi: float,
     eta: float,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
@@ -404,7 +528,7 @@ def _evaluate_linear_shape_functions(
     4. upper-left  -> (-1, +1)
     """
 
-    shape_functions = np.array(
+    shape_function_values = np.array(
         [
             0.25 * (1.0 - xi) * (1.0 - eta),
             0.25 * (1.0 + xi) * (1.0 - eta),
@@ -424,7 +548,7 @@ def _evaluate_linear_shape_functions(
         dtype=np.float64,
     )
 
-    return shape_functions, shape_function_derivatives
+    return shape_function_values, shape_function_derivatives
 
 
 def _compute_local_element_coordinates(
@@ -481,9 +605,9 @@ def _compute_local_element_coordinates(
 
     for _ in range(max_iterations):
         # Evaluate shape functions and their derivatives at current local coordinates
-        shape_functions, shape_function_derivatives = _evaluate_linear_shape_functions(xi,eta)
+        shape_function_values, shape_function_derivatives = _evaluate_bilinear_shape_functions(xi,eta)
         # Evaluate global coordinates for the current identified shape function matrix
-        mapped_coordinates = shape_functions @ element_node_coordinates
+        mapped_coordinates = shape_function_values @ element_node_coordinates
         # compute residual between known global point coordinates and evaluated
         residual = point_coordinates - mapped_coordinates
         # jacobian = dNdxi / dNdx??
@@ -510,7 +634,49 @@ def _assemble_strain_displacement_matrix(
     shape_function_gradients_global: npt.NDArray[np.float64],
     use_nlgeom: bool = False,
 ) -> npt.NDArray[np.float64]:
-    """Assemble the strain-displacement matrix for a 4-node quad."""
+    """Assemble the strain-displacement matrix ("B matrix") for a 4-node quad.
+    
+    shape_function_gradients_global is (4,2) with each row corresponding to a node, and the two columns corresponding to the derivatives with respect to x and y, respectively.
+    [
+    [dN1/dx, dN1/dy],
+    [dN2/dx, dN2/dy],
+    [dN3/dx, dN3/dy],
+    [dN4/dx, dN4/dy],
+    ]
+    
+    The element displacement vector is assumed to be ordered as
+    u_e = [u1, v1, u2, v2, u3, v3, u4, v4]^T.
+
+    If `use_nlgeom` is False:
+        return B matrix with shape (3, 8) that maps nodal displacements to the small-strain vector
+        [epsilon_xx, epsilon_yy, gamma_xy]^T = [du/dx, dv/dy, du/dy + dv/dx]^T.
+
+        B =
+            [
+                [dN1/dx, 0,      dN2/dx, 0,      dN3/dx, 0,      dN4/dx, 0     ],
+                [0,      dN1/dy, 0,      dN2/dy, 0,      dN3/dy, 0,      dN4/dy],
+                [dN1/dy, dN1/dx, dN2/dy, dN2/dx, dN3/dy, dN3/dx, dN4/dy, dN4/dx],
+            ]
+
+    If `use_nlgeom` is True:
+        return B matrix with shape (4, 8) that maps nodal displacements to the separate displacement-gradient components
+        [epsilon_xx, epsilon_yy, du/dy, dv/dx]^T = [du/dx, dv/dy, du/dy, dv/dx]^T.
+
+        B =
+            [
+                [dN1/dx, 0,      dN2/dx, 0,      dN3/dx, 0,      dN4/dx, 0     ],
+                [0,      dN1/dy, 0,      dN2/dy, 0,      dN3/dy, 0,      dN4/dy],
+                [dN1/dy, 0,      dN2/dy, 0,      dN3/dy, 0,      dN4/dy, 0     ],
+                [0,      dN1/dx, 0,      dN2/dx, 0,      dN3/dx, 0,      dN4/dx],
+            ]
+
+    Returns
+    -------
+    ndarray
+        Strain-displacement matrix with columns ordered as
+        [u1, v1, u2, v2, u3, v3, u4, v4].
+
+    """
 
     if use_nlgeom:
         return np.array(
@@ -568,7 +734,7 @@ def _assemble_strain_displacement_matrix(
     )
 
 
-def _compute_point_shape_and_strain_matrices(
+def _compute_point_shape_function_values_and_strain_displacement_matrices(
     point_coordinates: npt.NDArray[np.float64],
     element_node_coordinates: npt.NDArray[np.float64],
     use_nlgeom: bool = False,
@@ -578,17 +744,27 @@ def _compute_point_shape_and_strain_matrices(
     # Compute local element coordinates for datapoint
     xi, eta = _compute_local_element_coordinates(point_coordinates, element_node_coordinates)
 
-    # Compute shape functions and derivatives for datapoint (could this use derivates from above to save recalc?)
-    shape_functions, shape_function_derivatives = _evaluate_linear_shape_functions(
-        xi,
-        eta,
-    )
+    # Compute shape functions and derivatives at this points local coordinates (could this use derivates from above to save recalc?)
+    shape_function_values, shape_function_local_derivatives = _evaluate_bilinear_shape_functions(xi,eta)
 
-    # Compute derivatives of shape functions
-    jacobian = shape_function_derivatives.T @ element_node_coordinates
+    # Note: shape_function_local_derivatives (4,2) are with respect to local element coordinates, 
+    # so we need to transform to global coordinates before assembling the strain-displacement matrix.
+    # Each row of shape_function_local_derivatives corresponds to a node, and the two columns correspond to 
+    # the derivatives with respect to xi and eta, respectively.
+    # element_node_coordinates is (4,2) with each row corresponding to a node and the two columns 
+    # corresponding to x and y coordinates of the node, respectively.
+    # Hence: shape_function_local_derivatives.T is (2,4) and element_node_coordinates is (4,2), 
+    # so the matrix multiplication gives a (2,2) jacobian matrix.
+    # jacobian =[ [dx/dxi,  dy/dxi ],  [dx/deta, dy/deta] ]
+
+    # Compute the Jacobian of the local-to-physical coordinate mapping (matrix multiplication of shape function derivatives with element node coordinates)
+    jacobian = shape_function_local_derivatives.T @ element_node_coordinates  
+    # Solve linear system to get shape function gradients with respect to global coordinates 
+    # J.T @ shape_function_gradients_global.T = shape_function_local_derivatives.T
+    # Ax=b where A is jacobian.T, x is shape_function_gradients_global.T and b is shape_function_local_derivatives.T
     shape_function_gradients_global = np.linalg.solve(
         jacobian.T,
-        shape_function_derivatives.T,
+        shape_function_local_derivatives.T,
     ).T
 
     # Assemble strain displacement matrix
@@ -597,14 +773,268 @@ def _compute_point_shape_and_strain_matrices(
         use_nlgeom=use_nlgeom,
     )
 
-    return strain_displacement_matrix, shape_functions
+    return shape_function_values, strain_displacement_matrix
+
+
+@dataclass(slots=True)
+class _EdgeDofConstraintDefinition:
+    """DOF condensation metadata for one named edge."""
+
+    edge_name: str
+    edge_condition: EdgeBoundaryCondition
+    edge_nodes: npt.NDArray[np.int64]
+    master_node: int
+    slave_nodes: npt.NDArray[np.int64]
+
+
+@dataclass(slots=True)
+class _BoundaryConstraintDebugInfo:
+    """Optional debug metadata for plotting node-level DOF constraints."""
+
+    node_dof_conditions: dict[int, tuple[EEdgeBoundaryCondition, EEdgeBoundaryCondition]]
+
+
+def _apply_direction_constraint(
+    constraint: EEdgeBoundaryCondition,
+    edge_dofs: npt.NDArray[np.int64],
+    master_dof: int,
+    slave_edge_dofs: npt.NDArray[np.int64],
+ ) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+    """Return fixed, slave, and master DOFs for one constrained direction."""
+
+    empty_dofs = np.empty(0, dtype=np.int64)
+
+    if constraint is EEdgeBoundaryCondition.FREE:
+        return empty_dofs, empty_dofs, empty_dofs
+
+    if constraint is EEdgeBoundaryCondition.FIXED:
+        return edge_dofs.astype(np.int64, copy=False), empty_dofs, empty_dofs
+
+    if constraint is EEdgeBoundaryCondition.TRACTION:
+        return (
+            empty_dofs,
+            slave_edge_dofs.astype(np.int64, copy=False),
+            np.array([master_dof], dtype=np.int64),
+        )
+
+    raise ValueError(f"Unsupported edge boundary condition: {constraint!r}")
+
+
+def _build_boundary_constraint_debug_info(
+    fixed_dofs: set[int],
+    slave_dofs: set[int],
+    master_dofs: set[int],
+) -> _BoundaryConstraintDebugInfo:
+    """Build per-node x/y DOF conditions from constrained DOF sets."""
+
+    traction_dofs = slave_dofs.union(master_dofs)
+    constrained_dofs = fixed_dofs.union(traction_dofs)
+    constrained_node_ids = sorted({dof // 2 for dof in constrained_dofs})
+
+    node_dof_conditions: dict[
+        int, tuple[EEdgeBoundaryCondition, EEdgeBoundaryCondition]
+    ] = {}
+    for node_id in constrained_node_ids:
+        x_dof = 2 * node_id
+        y_dof = x_dof + 1
+
+        if x_dof in fixed_dofs:
+            x_condition = EEdgeBoundaryCondition.FIXED
+        elif x_dof in traction_dofs:
+            x_condition = EEdgeBoundaryCondition.TRACTION
+        else:
+            x_condition = EEdgeBoundaryCondition.FREE
+
+        if y_dof in fixed_dofs:
+            y_condition = EEdgeBoundaryCondition.FIXED
+        elif y_dof in traction_dofs:
+            y_condition = EEdgeBoundaryCondition.TRACTION
+        else:
+            y_condition = EEdgeBoundaryCondition.FREE
+
+        node_dof_conditions[node_id] = (x_condition, y_condition)
+
+    return _BoundaryConstraintDebugInfo(node_dof_conditions=node_dof_conditions)
+
+
+def _compute_constrained_strain_displacement_matrix(
+    global_strain_displacement_matrix: npt.NDArray[np.float64],
+    virtual_node_ids: npt.NDArray[np.int64],
+    boundary_conditions: BoundaryConditions,
+) -> tuple[
+    npt.NDArray[np.float64],
+    npt.NDArray[np.int64],
+    _BoundaryConstraintDebugInfo,
+]:
+    """Apply virtual boundary constraints to the global strain-displacement matrix.
+
+    - `FREE` leaves the edge DOFs untouched.
+    - `FIXED` removes the edge DOFs from the active unknowns.
+    - `TRACTION` enforces a constant virtual displacement along the edge by
+      condensing slave edge DOFs into one master edge DOF.
+
+    Edge convention:
+    - left = min(x)
+    - lower = min(y)
+    - right = max(x)
+    - upper = max(y)
+
+    Input global_strain_displacement_matrix has shape (3 * n_specimen_points, 2 * n_nodes)
+    
+    The rows correspond to virtual strain components at specimen data points:
+        rows 0                    : n_specimen_points      -> eps_xx
+        rows n_specimen_points    : 2*n_specimen_points    -> eps_yy
+        rows 2*n_specimen_points  : 3*n_specimen_points    -> gamma_xy
+
+    The columns correspond to nodal virtual displacement DOFs:
+        [ux_0, uy_0, ux_1, uy_1, ..., ux_n, uy_n]
+
+
+    For a TRACTION condition we want to impose constant virtual displacement along the edge,
+    which means all dofs (e.g. x dofs) on that edge are tied together. To do this we designate
+    one master DOF (e.g. x dof of first node on edge) and treat the rest as slave DOFs. The 
+    slave DOFs are then condensed into the master DOF by summing the corresponding columns in the constrained matrix.
+    
+    Before applying the constraint, the virtual strain field contains separate
+    contributions from the master and slave DOFs:
+        eps = B_m ux_m + B_s1 ux_s1 + B_s2 ux_s2 + ...
+    
+    A TRACTION condition on this edge enforces:
+        ux_s1 = ux_m
+        ux_s2 = ux_m
+        ...
+    
+    Substituting this into the strain expression gives:
+        eps = (B_m + B_s1 + B_s2 + ...) ux_m
+    
+    Therefore, the slave columns are summed and added to the master column.
+    The slave columns are then removed later because they are no longer
+    independent unknowns.
+        
+    """
+
+    # Initialise the constrained matrix as a copy of the global matrix, and empty sets to track which DOFs are fixed, slave, or master.
+    constrained_matrix = np.array(global_strain_displacement_matrix, copy=True)
+    fixed_dofs: set[int] = set()
+    slave_dofs: set[int] = set()
+    master_dofs: set[int] = set()
+
+    edge_dof_constraints = (
+        _EdgeDofConstraintDefinition(
+            edge_name="left",
+            edge_condition=boundary_conditions.left,
+            edge_nodes=virtual_node_ids[:, 0],
+            master_node=int(virtual_node_ids[0, 0]), # left edge master node is first node in column
+            slave_nodes=virtual_node_ids[:, 0][1:],
+        ),
+        _EdgeDofConstraintDefinition(
+            edge_name="lower",
+            edge_condition=boundary_conditions.lower,
+            edge_nodes=virtual_node_ids[0, :],
+            master_node=int(virtual_node_ids[0, 0]), # lower edge master node is first node in row
+            slave_nodes=virtual_node_ids[0, :][1:],
+        ),
+        _EdgeDofConstraintDefinition(
+            edge_name="right",
+            edge_condition=boundary_conditions.right,
+            edge_nodes=virtual_node_ids[:, -1],
+            master_node=int(virtual_node_ids[-1, -1]), # right edge master node is last node in column
+            slave_nodes=virtual_node_ids[:, -1][:-1],
+        ),
+        _EdgeDofConstraintDefinition(
+            edge_name="upper",
+            edge_condition=boundary_conditions.upper,
+            edge_nodes=virtual_node_ids[-1, :],
+            master_node=int(virtual_node_ids[-1, -1]), # upper edge master node is last node in row
+            slave_nodes=virtual_node_ids[-1, :][:-1],
+        ),
+    )
+
+    for edge_dof_constraint in edge_dof_constraints:
+        # Gather the DOF indices for the edge nodes, master node, and slave nodes. Each node has two DOFs (x and y).
+        edge_dofs_x = 2 * edge_dof_constraint.edge_nodes
+        edge_dofs_y = edge_dofs_x + 1
+        master_dof_x = int(2 * edge_dof_constraint.master_node)
+        master_dof_y = master_dof_x + 1
+        slave_dofs_x = 2 * edge_dof_constraint.slave_nodes
+        slave_dofs_y = slave_dofs_x + 1
+
+        # Impose x direction constraint and return the affected DOFs
+        fixed_dofs_x, slave_dofs_x, master_dofs_x = _apply_direction_constraint(
+            edge_dof_constraint.edge_condition.x,
+            edge_dofs_x,
+            master_dof_x,
+            slave_dofs_x,
+        )
+
+        # Impose y direction constraint and return the affected DOFs
+        fixed_dofs_y, slave_dofs_y, master_dofs_y = _apply_direction_constraint(
+            edge_dof_constraint.edge_condition.y,
+            edge_dofs_y,
+            master_dof_y,
+            slave_dofs_y,
+        )
+
+        # Update DOF sets according to imposed constraints
+        fixed_dofs.update(fixed_dofs_x.tolist())
+        fixed_dofs.update(fixed_dofs_y.tolist())
+        slave_dofs.update(slave_dofs_x.tolist())
+        slave_dofs.update(slave_dofs_y.tolist())
+
+        # Condense slave DOFs into master DOF by summing corresponding columns in constrained matrix (see docstring)
+        if master_dofs_x.size > 0:
+            constrained_matrix[:, master_dofs_x[0]] += np.sum(
+                constrained_matrix[:, slave_dofs_x],
+                axis=1,
+            )
+            # Keep track of master DOFs
+            master_dofs.update(master_dofs_x.tolist())
+
+        # Condense slave DOFs into master DOF by summing corresponding columns in constrained matrix (see docstring)
+        if master_dofs_y.size > 0:
+            constrained_matrix[:, master_dofs_y[0]] += np.sum(
+                constrained_matrix[:, slave_dofs_y],
+                axis=1,
+            )
+            # Keep track of master DOFs
+            master_dofs.update(master_dofs_y.tolist())
+
+    # Check for any conflicting constraints.
+    conflicting_master_dofs = master_dofs.intersection(fixed_dofs)
+    if conflicting_master_dofs:
+        raise ValueError(
+            "Incompatible boundary conditions: a master DOF cannot also be fixed."
+        )
+
+    # Remove fixed and slave DOFs from the active DOF mask
+    active_dof_mask = np.ones(constrained_matrix.shape[1], dtype=bool)
+    if fixed_dofs:
+        active_dof_mask[np.fromiter(fixed_dofs, dtype=np.int64)] = False
+    if slave_dofs:
+        active_dof_mask[np.fromiter(slave_dofs, dtype=np.int64)] = False
+    active_dof_ids = np.flatnonzero(active_dof_mask).astype(np.int64)
+
+    # Retain only the active DOF columns in the constrained matrix (i.e. remove fixed and slave DOFs)
+    constrained_matrix = constrained_matrix[:, active_dof_ids]
+
+    # Build debug info for plotting node-level DOF conditions (e.g. to verify correct application of boundary conditions)
+    boundary_constraint_debug_info = _build_boundary_constraint_debug_info(
+        fixed_dofs,
+        slave_dofs,
+        master_dofs,
+    )
+
+    return constrained_matrix, active_dof_ids, boundary_constraint_debug_info
+
 
 def generate_virtual_fields_mesh(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
     specimen_mask: npt.NDArray[np.uint32],
-    boundary_conditions: dict[str, str],
+    boundary_conditions: BoundaryConditions,
     mesh_size: npt.NDArray[np.uint32],
+    use_nlgeom: bool = False,
+    generate_plots: bool = True,
 ):
     """Construct a mesh over the test data to be used for virtual field generation.
     
@@ -620,8 +1050,7 @@ def generate_virtual_fields_mesh(
         Shape (num_points_y, num_points_x).
         A mask indicating the specimen region (True for points inside the specimen).
     boundary_conditions : BoundaryConditions
-        The boundary conditions associated with the test data. 
-        Defined as a dictionary with keys 'x' and 'y', each mapping to a list of 4 strings corresponding to the 4 edges of the specimen.
+        The boundary conditions associated with the test data.
     mesh_size : ndarray
         Shape (2,1) 
         The number of virtual elements in the y (n rows) and x directions (n columns), respectively.   
@@ -664,15 +1093,16 @@ def generate_virtual_fields_mesh(
     vf_mesh_nodal_coord = _generate_vf_mesh_nodal_coord(data_mesh_nodal_coord,mesh_size)
 
     # Debug: plot virtual fields mesh and data mesh overlaid on data points 
-    plot_virtual_fields_mesh(
-        x,
-        y,
-        virtual_fields_mesh=vf_mesh_nodal_coord,
-        data_mesh=data_mesh_nodal_coord,
-        specimen_mask=specimen_mask,
-        plot_data_points=True,
-        show=True,
-    )
+    if generate_plots:
+        plot_virtual_fields_mesh(
+            x,
+            y,
+            virtual_fields_mesh=vf_mesh_nodal_coord,
+            data_mesh=data_mesh_nodal_coord,
+            specimen_mask=specimen_mask,
+            plot_data_points=True,
+            show=True,
+        )
 
     # Define counts
     n_datapoints = x.size # all datapoints including outside the specimen mask
@@ -728,17 +1158,18 @@ def generate_virtual_fields_mesh(
 
 
     # Debug: plot virtual fields mesh and data mesh overlaid on data points with node and elem ids annotated
-    plot_virtual_fields_mesh(
-        x,
-        y,
-        virtual_fields_mesh=vf_mesh_nodal_coord,
-        data_mesh=data_mesh_nodal_coord,
-        specimen_mask=specimen_mask,
-        plot_data_points=True,
-        show=True,
-        node_ids=vf_mesh_node_ids,
-        element_node_ids=vf_element_node_ids,
-    )
+    if generate_plots:
+        plot_virtual_fields_mesh(
+            x,
+            y,
+            virtual_fields_mesh=vf_mesh_nodal_coord,
+            data_mesh=data_mesh_nodal_coord,
+            specimen_mask=specimen_mask,
+            plot_data_points=True,
+            show=True,
+            node_ids=vf_mesh_node_ids,
+            element_node_ids=vf_element_node_ids,
+        )
 
 
     # == Define element associated with each datapoint ==
@@ -830,19 +1261,22 @@ def generate_virtual_fields_mesh(
             )
         )
 
-        # 
-        strain_displacement_matrix, shape_functions = (
-            _compute_point_shape_and_strain_matrices(
+        # Compute shape function values and strain-displacement matrix for the datapoint
+        shape_function_values, strain_displacement_matrix = (
+            _compute_point_shape_function_values_and_strain_displacement_matrices(
                 point_coordinates,
                 element_node_coordinates,
-                use_nlgeom=False,
+                use_nlgeom=use_nlgeom,
             )
         )
 
+        # Populate global shape function matrix for this datapoint
         global_shape_function_matrix[datapoint_row, element_node_ids] = (
-            shape_functions
+            shape_function_values
         )
 
+
+        # Populate global strain-displacement matrix for this datapoint shape: float64[(3*n_specimen_points, 2*n_nodes)]
         element_dofs = element_dof_ids[element_id, :]
         global_strain_displacement_matrix[
             datapoint_row,
@@ -857,42 +1291,42 @@ def generate_virtual_fields_mesh(
             element_dofs,
         ] = strain_displacement_matrix[2, :]
 
-    constrained_strain_displacement_matrix = None
-    strain_displacement_pseudoinverse = None
+    # Impose virtual boundary conditions to get constrained strain-displacement matrix and active DOF ids
+    constrained_strain_displacement_matrix, active_dof_ids, boundary_constraint_debug_info = (
+        _compute_constrained_strain_displacement_matrix(
+            global_strain_displacement_matrix,
+            vf_mesh_node_ids,
+            boundary_conditions,
+        )
+    )
 
 
+    # Debug: plot virtual fields mesh and data mesh overlaid on data points with node and elem ids annotated and B.Cs
+    # fixed nodes are red squares, traction master nodes are green stars and slave nodes are green triangles. Shown in legend.
+    if generate_plots:
+        plot_virtual_fields_mesh(
+            x,
+            y,
+            virtual_fields_mesh=vf_mesh_nodal_coord,
+            data_mesh=data_mesh_nodal_coord,
+            specimen_mask=specimen_mask,
+            plot_data_points=True,
+            show=True,
+            node_ids=vf_mesh_node_ids,
+            element_node_ids=vf_element_node_ids,
+            node_dof_conditions=boundary_constraint_debug_info.node_dof_conditions,
+        )
 
 
-
-
-    # node_dof_ids: int32[(n_nodes, 2)] where columns are [ux_dof, uy_dof]
-    # element_dof_ids: int32[(n_elements, 8)]
-    # global_shape_function_matrix: float64[(n_specimen_points, n_nodes)]
-    # global_strain_displacement_matrix: float64[(3*n_specimen_points, 2*n_nodes)]
-    # constrained_strain_displacement_matrix: float64[(3*n_specimen_points, n_active_dofs)]
-    # strain_displacement_pseudoinverse: float64[(n_active_dofs, 3*n_specimen_points)]
-
+    # Compute pseudo-inverse of constrained strain-displacement matrix for use in virtual field generation
+    strain_displacement_pseudoinverse = np.linalg.pinv(
+        constrained_strain_displacement_matrix
+    )
 
 
 
     return None
 
-
-
-
-
-
-def _plot_grid_lines(
-    ax,
-    grid_x: npt.NDArray[np.float64],
-    grid_y: npt.NDArray[np.float64],
-    color: str,
-    linewidth: float,
-) -> None:
-    for row in range(grid_x.shape[0]):
-        ax.plot(grid_x[row, :], grid_y[row, :], color=color, linewidth=linewidth)
-    for col in range(grid_x.shape[1]):
-        ax.plot(grid_x[:, col], grid_y[:, col], color=color, linewidth=linewidth)
 
 
 

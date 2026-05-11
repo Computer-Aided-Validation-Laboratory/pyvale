@@ -30,7 +30,10 @@ from pyvale.vfm.stress_sensitivity import (
     StressSensitivity,
     calculate_stress_sensitivity,
 )
-from pyvale.vfm.virtual_fields_mesh import generate_virtual_fields_mesh
+from pyvale.vfm.virtual_fields_mesh import (
+    _compute_glyph_half_size_from_spacing,
+    generate_virtual_fields_mesh,
+)
 
 
 def _build_small_test_data() -> TestData:
@@ -73,6 +76,20 @@ def _build_small_virtual_fields_mesh(
         mesh_size=np.array([1, 1], dtype=np.uint32),
     )
     return x, y, indices, mesh
+
+
+def test_compute_glyph_half_size_from_spacing_uses_smallest_adjacent_spacing() -> None:
+    grid_x = np.array([[0.0, 2.0, 5.0], [0.0, 2.0, 5.0]], dtype=np.float64)
+    grid_y = np.array([[0.0, 0.0, 0.0], [4.0, 4.0, 4.0]], dtype=np.float64)
+
+    nptest.assert_allclose(
+        _compute_glyph_half_size_from_spacing(grid_x, axis=1),
+        0.3,
+    )
+    nptest.assert_allclose(
+        _compute_glyph_half_size_from_spacing(grid_y, axis=0),
+        0.6,
+    )
 
 
 def _build_parameter_state(
