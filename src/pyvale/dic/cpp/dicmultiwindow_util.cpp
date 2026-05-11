@@ -21,7 +21,7 @@
 #include "../../common_cpp/dicsignalhandler.hpp"
 
 // DIC Header files
-#include "./dicmultiwindow.hpp"
+#include "./dicmultiwindow_util.hpp"
 #include "./dicfourier.hpp"
 #include "./dicsubset.hpp"
 #include "./dicinterp.hpp"

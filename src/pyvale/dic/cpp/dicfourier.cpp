@@ -130,7 +130,8 @@ void get_single_window_fftcc_peak(std::vector<double> &p,
                                   const int window_size_x,
                                   const int window_size_y,
                                   const Image &img_ref, const Image &img_def,
-                                  const Interpolator &interp_def){
+                                  const Interpolator &interp_def,
+                                  const bool debug){
 
     // some consts
     const int px_hori = interp_def.px_hori;
@@ -182,19 +183,18 @@ void get_single_window_fftcc_peak(std::vector<double> &p,
     p[1] = peak_y - window_half_y;
 
     // debugging
-    // std::cout << std::endl;
-    // for (int row = 0; row < window_size_y; ++row) {
-    //     for (int col = 0; col < window_size_x; ++col) {
-    //         int idx  = row*window_size_x+col;
-    //         std::cout << col << " " << row << " ";
-    //         std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
-    //         std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
-    //         std::cout << fft.cross_corr[idx] << std::endl;
-    //     }
-    // }
-    //
-    // std::cout << std::endl;
-    // exit(0);
+    if (debug) {
+        for (int row = 0; row < window_size_y; ++row) {
+            for (int col = 0; col < window_size_x; ++col) {
+                int idx  = row*window_size_x+col;
+                std::cout << col << " " << row << " ";
+                std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
+                std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
+                std::cout << fft.cross_corr[idx] << std::endl;
+            }
+        }
+        std::cout << std::endl;
+    }
 }
 
 
@@ -207,7 +207,8 @@ void get_single_window_fftcc_peak_centre(std::vector<double> &p,
                                          const int window_size_x,
                                          const int window_size_y,
                                          const Image &img_ref, const Image &img_def,
-                                         const Interpolator &interp_def){
+                                         const Interpolator &interp_def,
+                                         const bool debug){
 
     // some consts
     const int px_hori = interp_def.px_hori;
@@ -261,21 +262,18 @@ void get_single_window_fftcc_peak_centre(std::vector<double> &p,
     p[1] = peak_y;
     
     //debugging
-    //if (cx == 512 && cy == 1024){
-    //     std::cout << std::endl;
-    //     for (int row = 0; row < window_size_y; ++row) {
-    //         for (int col = 0; col < window_size_x; ++col) {
-    //             int idx  = row*window_size_x+col;
-    //             std::cout << col << " " << row << " ";
-    //             std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
-    //             std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
-    //             std::cout << fft.cross_corr[idx] << std::endl;
-    //         }
-    //     }
-    //     std::cout << std::endl;
-    //     std::cout << peak_x << " " << peak_y << std::endl;
-    //     exit(0);
-    // }
+    if (debug) {
+        for (int row = 0; row < window_size_y; ++row) {
+            for (int col = 0; col < window_size_x; ++col) {
+                int idx  = row*window_size_x+col;
+                std::cout << col << " " << row << " ";
+                std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
+                std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
+                std::cout << fft.cross_corr[idx] << std::endl;
+            }
+        }
+        std::cout << std::endl;
+    }
 }
 
 

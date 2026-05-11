@@ -4,13 +4,12 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#ifndef DICMULTIWINDOW_H
-#define DICMULTIWINDOW_H
+#ifndef DICMULTIWINDOW_UTIL_H
+#define DICMULTIWINDOW_UTIL_H
 
 // STD library Header files
 #include <csignal>
 #include <cstdlib>
-#include <iostream>
 #include <cmath>
 
 // common header files 
@@ -285,4 +284,4 @@ void multiwindow_init(std::vector<WindowLevel> &level,
                       const MultiwindowConfig &mwconf,
                       const common_util::SaveConfig &saveconf);
 
-#endif // DICMULTIWINDOW_H
+#endif // DICMULTIWINDOW_UTIL_H

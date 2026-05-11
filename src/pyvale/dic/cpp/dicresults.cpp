@@ -16,7 +16,6 @@
 
 // DIC Header files
 #include "./dicresults.hpp"
-#include "./dicutil.hpp"
 
 
 
@@ -29,6 +28,7 @@ ResultArrays::ResultArrays(int num_ss,
 
     this->num_ss = num_ss;
     this->num_params = num_params;
+    this->stereo = stereo;
 
     niter.resize(num_ss, 0.0);
     u.resize(num_ss, 0.0);
@@ -39,6 +39,15 @@ ResultArrays::ResultArrays(int num_ss,
     cost.resize(num_ss, 0.0);
     conv.resize(num_ss, 0.0);
     above_thresh.resize(num_ss);
+
+
+    // incremental tracking
+    u_last_good.resize(num_ss, 0.0);
+    v_last_good.resize(num_ss, 0.0);
+    du_dt.resize(num_ss, 0.0);
+    dv_dt.resize(num_ss, 0.0);
+    last_success_frame.resize(num_ss, -1);
+    has_good_history.resize(num_ss, 0);
 
     if (stereo){
         x_world.resize(num_ss,0.0);
@@ -60,11 +69,74 @@ void ResultArrays::append(OptResult &res, const int i) {
     xtol[i] = res.xtol;
     cost[i] = res.cost;
     conv[i] = res.converged;
-    above_thresh[i] = res.above_threshold;
+    above_thresh[i] = res.above_thresh;
     for (size_t i = 0; i < num_params; i++){
         p[pp+i] = res.p[i];
     }
 }
+
+
+void ResultArrays::get_latest_matches(const ResultArrays &results_def, const int img_num_def) {
+
+    // Naive check that that results_ref and results_def are the same size
+    if (u.size() != results_def.u.size()){
+        niter.resize(num_ss, 0.0);
+        u.resize(num_ss, 0.0);
+        v.resize(num_ss, 0.0);
+        p.resize(num_ss * num_params, 0.0);
+        ftol.resize(num_ss, 0.0);
+        xtol.resize(num_ss, 0.0);
+        cost.resize(num_ss, 0.0);
+        conv.resize(num_ss, 0.0);
+        above_thresh.resize(num_ss);
+
+
+        // incremental tracking
+        u_last_good.resize(num_ss, 0.0);
+        v_last_good.resize(num_ss, 0.0);
+        du_dt.resize(num_ss, 0.0);
+        dv_dt.resize(num_ss, 0.0);
+        last_success_frame.resize(num_ss, -1);
+        has_good_history.resize(num_ss, 0);
+
+        if (stereo){
+            x_world.resize(num_ss,0.0);
+            y_world.resize(num_ss,0.0);
+            z_world.resize(num_ss,0.0);
+            u_world.resize(num_ss,0.0);
+            v_world.resize(num_ss,0.0);
+            w_world.resize(num_ss,0.0);
+        }
+    }
+
+    for (int i = 0; i < u.size(); i++){
+
+        if (results_def.above_thresh[i]){
+
+            if (has_good_history[i]){
+
+                int dt = img_num_def - last_success_frame[i];
+
+                if (dt > 0){
+                    du_dt[i] = (results_def.u[i] - u_last_good[i]) / dt;
+                    dv_dt[i] = (results_def.v[i] - v_last_good[i]) / dt;
+                }
+            }
+
+            // update last good state
+            u_last_good[i] = results_def.u[i];
+            v_last_good[i] = results_def.v[i];
+            last_success_frame[i] = img_num_def;
+            has_good_history[i] = 1;
+            u[i] = results_def.u[i];
+            v[i] = results_def.v[i];
+            p[i] = results_def.p[i];
+            above_thresh[i] = 1;
+        }
+    }
+}
+
+
 
 // int ResultArrays::index(const int subset_idx, const int results_num){
 //     int idx = at_end ? (results_num) * num_ss + subset_idx : subset_idx;
@@ -77,10 +149,9 @@ void ResultArrays::append(OptResult &res, const int i) {
 // }
 
 
-void write_to_disk_2d(ResultArrays &temporal,
-                      const common_util::SaveConfig &saveconf,
-                      const subset::Grid &ss_grid,
-                      const std::string &filename){
+void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
+                                    const subset::Grid &ss_grid,
+                                    const std::string &filename){
 
     const std::string delimiter = saveconf.delimiter;
 
@@ -112,19 +183,19 @@ void write_to_disk_2d(ResultArrays &temporal,
         for (int i = 0; i < ss_grid.num; ++i) {
 
             // if the subset has not met threshold, set values to nan
-            if (!saveconf.output_below_threshold && !temporal.above_thresh[i]) {
-                temporal.u[i] = NAN;
-                temporal.v[i] = NAN;
-                for (int pp = 0; pp < temporal.num_params; pp++){
-                    temporal.p[temporal.num_params*i+pp] = NAN;
+            if (!saveconf.output_below_threshold && !above_thresh[i]) {
+                u[i] = NAN;
+                v[i] = NAN;
+                for (int pp = 0; pp < num_params; pp++){
+                    p[num_params*i+pp] = NAN;
                 }
-                temporal.cost[i] = NAN;
-                temporal.ftol[i] = NAN;
-                temporal.xtol[i] = NAN;
+                cost[i] = NAN;
+                ftol[i] = NAN;
+                xtol[i] = NAN;
             }
 
             // displacement magnitude
-            double mag = std::sqrt(temporal.u[i]*temporal.u[i]+temporal.v[i]*temporal.v[i]);
+            double mag = std::sqrt(u[i]*u[i]+v[i]*v[i]);
 
             // convert from corner to centre subset coords
             double ss_x = ss_grid.coords[2*i  ];
@@ -132,18 +203,18 @@ void write_to_disk_2d(ResultArrays &temporal,
 
             common_util::write_int(outfile, ss_x);
             common_util::write_int(outfile, ss_y);
-            common_util::write_dbl(outfile, temporal.u[i]);
-            common_util::write_dbl(outfile, temporal.v[i]);
+            common_util::write_dbl(outfile, u[i]);
+            common_util::write_dbl(outfile, v[i]);
             common_util::write_dbl(outfile, mag);
-            common_util::write_uint8t(outfile, temporal.conv[i]);
-            common_util::write_dbl(outfile, temporal.cost[i]);
-            common_util::write_dbl(outfile, temporal.ftol[i]);
-            common_util::write_dbl(outfile, temporal.xtol[i]);
-            common_util::write_int(outfile, temporal.niter[i]);
+            common_util::write_uint8t(outfile, conv[i]);
+            common_util::write_dbl(outfile, cost[i]);
+            common_util::write_dbl(outfile, ftol[i]);
+            common_util::write_dbl(outfile, xtol[i]);
+            common_util::write_int(outfile, niter[i]);
 
             if (saveconf.shape_params) {
-                for (int pp = 0; pp < temporal.num_params; pp++){
-                    common_util::write_dbl(outfile, temporal.p[temporal.num_params*i+pp]);
+                for (int pp = 0; pp < num_params; pp++){
+                    common_util::write_dbl(outfile, p[num_params*i+pp]);
                 }
             }
 
@@ -169,7 +240,7 @@ void write_to_disk_2d(ResultArrays &temporal,
 
         // column headers for shape parameters
         // if (saveconf.shape_params) {
-        //     for (int p = 0; p < temporal.num_params; p++){
+        //     for (int p = 0; p < num_params; p++){
         //         outfile << "\"shape_p\"" <<  p;
         //         outfile << delimiter;
         //     }
@@ -185,36 +256,36 @@ void write_to_disk_2d(ResultArrays &temporal,
             double ss_y = ss_grid.coords[2*i+1];
 
             // if the subset has not met threshold, set values to nan
-            if (!saveconf.output_below_threshold && !temporal.above_thresh[i]) {
-                temporal.u[i] = NAN;
-                temporal.v[i] = NAN;
-                for (int pi = 0; pi < temporal.num_params; pi++){
-                    temporal.p[temporal.num_params*i+pi] = NAN;
+            if (!saveconf.output_below_threshold && !above_thresh[i]) {
+                u[i] = NAN;
+                v[i] = NAN;
+                for (int pi = 0; pi < num_params; pi++){
+                    p[num_params*i+pi] = NAN;
                 }
-                temporal.cost[i] = NAN;
-                temporal.ftol[i] = NAN;
-                temporal.xtol[i] = NAN;
+                cost[i] = NAN;
+                ftol[i] = NAN;
+                xtol[i] = NAN;
             }
 
             // displacement magnitude
-            double mag = std::sqrt(temporal.u[i]*temporal.u[i]+temporal.v[i]*temporal.v[i]);
+            double mag = std::sqrt(u[i]*u[i]+v[i]*v[i]);
 
             outfile << ss_x << delimiter;
             outfile << ss_y << delimiter;
-            outfile << temporal.u[i] << delimiter;
-            outfile << temporal.v[i] << delimiter;
+            outfile << u[i] << delimiter;
+            outfile << v[i] << delimiter;
             outfile << mag << delimiter;
-            outfile << static_cast<int>(temporal.conv[i]) << delimiter;
-            outfile << temporal.cost[i] << delimiter;
-            outfile << temporal.ftol[i] << delimiter;
-            outfile << temporal.xtol[i] << delimiter;
-            outfile << temporal.niter[i];
+            outfile << static_cast<int>(conv[i]) << delimiter;
+            outfile << cost[i] << delimiter;
+            outfile << ftol[i] << delimiter;
+            outfile << xtol[i] << delimiter;
+            outfile << niter[i];
 
             // write shape parameters if requested
             // if (saveconf.shape_params) {
-            //     for (int pp = 0; pp < temporal.num_params; pp++){
+            //     for (int pp = 0; pp < num_params; pp++){
             //         outfile << delimiter;
-            //         outfile << temporal.p[temporal.num_params*i+pp];
+            //         outfile << p[num_params*i+pp];
             //     }
             // }
 
@@ -229,11 +300,10 @@ void write_to_disk_2d(ResultArrays &temporal,
 
 
 
-void write_to_disk_stereo(ResultArrays &temporal,
-                          ResultArrays &stereo,
-                          const common_util::SaveConfig &saveconf,
-                          const subset::Grid &ss_grid,
-                          const std::string &filename){
+void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
+                                        const common_util::SaveConfig &saveconf,
+                                        const subset::Grid &ss_grid,
+                                        const std::string &filename){
 
     const std::string delimiter = saveconf.delimiter;
 
@@ -265,22 +335,22 @@ void write_to_disk_stereo(ResultArrays &temporal,
         for (int i = 0; i < ss_grid.num; ++i) {
 
             // if the subset has not met threshold, set values to nan
-            if ((!saveconf.output_below_threshold && !temporal.above_thresh[i]) ||
+            if ((!saveconf.output_below_threshold && !above_thresh[i]) ||
                (!saveconf.output_below_threshold && !stereo.above_thresh[i])) {
 
-                temporal.u[i] = NAN;
-                temporal.v[i] = NAN;
+                u[i] = NAN;
+                v[i] = NAN;
                 stereo.u[i] = NAN;
                 stereo.v[i] = NAN;
 
-                for (int pp = 0; pp < temporal.num_params; pp++){
-                    temporal.p[temporal.num_params*i+pp] = NAN;
+                for (int pp = 0; pp < num_params; pp++){
+                    p[num_params*i+pp] = NAN;
                       stereo.p[  stereo.num_params*i+pp] = NAN;
                 }
 
-                temporal.cost[i] = NAN;
-                temporal.ftol[i] = NAN;
-                temporal.xtol[i] = NAN;
+                cost[i] = NAN;
+                ftol[i] = NAN;
+                xtol[i] = NAN;
                 stereo.cost[i] = NAN;
                 stereo.ftol[i] = NAN;
                 stereo.xtol[i] = NAN;
@@ -298,19 +368,19 @@ void write_to_disk_stereo(ResultArrays &temporal,
             double ss_y = ss_grid.coords[2*i+1];
 
             // displacement magnitude
-            double mag_temporal = std::sqrt(temporal.u[i]*temporal.u[i]+temporal.v[i]*temporal.v[i]);
+            double mag_temporal = std::sqrt(u[i]*u[i]+v[i]*v[i]);
             double mag_stereo = std::sqrt(stereo.u[i]*stereo.u[i]+stereo.v[i]*stereo.v[i]);
 
             common_util::write_int(outfile, ss_x);
             common_util::write_int(outfile, ss_y);
-            common_util::write_dbl(outfile, temporal.u[i]);
-            common_util::write_dbl(outfile, temporal.v[i]);
+            common_util::write_dbl(outfile, u[i]);
+            common_util::write_dbl(outfile, v[i]);
             common_util::write_dbl(outfile, mag_temporal);
-            common_util::write_uint8t(outfile, temporal.conv[i]);
-            common_util::write_dbl(outfile, temporal.cost[i]);
-            common_util::write_dbl(outfile, temporal.ftol[i]);
-            common_util::write_dbl(outfile, temporal.xtol[i]);
-            common_util::write_int(outfile, temporal.niter[i]);
+            common_util::write_uint8t(outfile, conv[i]);
+            common_util::write_dbl(outfile, cost[i]);
+            common_util::write_dbl(outfile, ftol[i]);
+            common_util::write_dbl(outfile, xtol[i]);
+            common_util::write_int(outfile, niter[i]);
             common_util::write_dbl(outfile, stereo.u[i]);
             common_util::write_dbl(outfile, stereo.v[i]);
             common_util::write_dbl(outfile, mag_stereo);
@@ -327,8 +397,8 @@ void write_to_disk_stereo(ResultArrays &temporal,
             common_util::write_int(outfile, stereo.niter[i]);
 
             // if (saveconf.shape_params) {
-            //     for (int pp = 0; pp < temporal.num_params; pp++){
-            //         common_util::write_dbl(outfile, temporal.p[temporal.num_params*i+pp]);
+            //     for (int pp = 0; pp < num_params; pp++){
+            //         common_util::write_dbl(outfile, p[num_params*i+pp]);
             //         common_util::write_dbl(outfile, stereo.p[stereo.num_params*i+pp]);
             //     }
             // }
@@ -393,22 +463,22 @@ void write_to_disk_stereo(ResultArrays &temporal,
 
             // if the subset has not met threshold, set values to nan
                         // if the subset has not met threshold, set values to nan
-            if ((!saveconf.output_below_threshold && !temporal.above_thresh[i]) ||
+            if ((!saveconf.output_below_threshold && !above_thresh[i]) ||
                (!saveconf.output_below_threshold && !stereo.above_thresh[i])) {
 
-                temporal.u[i] = NAN;
-                temporal.v[i] = NAN;
+                u[i] = NAN;
+                v[i] = NAN;
                 stereo.u[i] = NAN;
                 stereo.v[i] = NAN;
 
-                for (int pp = 0; pp < temporal.num_params; pp++){
-                    temporal.p[temporal.num_params*i+pp] = NAN;
+                for (int pp = 0; pp < num_params; pp++){
+                    p[num_params*i+pp] = NAN;
                       stereo.p[  stereo.num_params*i+pp] = NAN;
                 }
 
-                temporal.cost[i] = NAN;
-                temporal.ftol[i] = NAN;
-                temporal.xtol[i] = NAN;
+                cost[i] = NAN;
+                ftol[i] = NAN;
+                xtol[i] = NAN;
                 stereo.cost[i] = NAN;
                 stereo.ftol[i] = NAN;
                 stereo.xtol[i] = NAN;
@@ -421,20 +491,20 @@ void write_to_disk_stereo(ResultArrays &temporal,
             }
 
             // displacement magnitude
-            double mag_temporal = std::sqrt(temporal.u[i]*temporal.u[i]+temporal.v[i]*temporal.v[i]);
+            double mag_= std::sqrt(u[i]*u[i]+v[i]*v[i]);
             double mag_stereo = std::sqrt(stereo.u[i]*stereo.u[i]+stereo.v[i]*stereo.v[i]);
 
 
             outfile << ss_x << delimiter;
             outfile << ss_y << delimiter;
-            outfile << temporal.u[i] << delimiter;
-            outfile << temporal.v[i] << delimiter;
-            outfile << mag_temporal << delimiter;
-            outfile << static_cast<int>(temporal.conv[i]) << delimiter;
-            outfile << temporal.cost[i] << delimiter;
-            outfile << temporal.ftol[i] << delimiter;
-            outfile << temporal.xtol[i] << delimiter;
-            outfile << temporal.niter[i] << delimiter;
+            outfile << u[i] << delimiter;
+            outfile << v[i] << delimiter;
+            outfile << mag_<< delimiter;
+            outfile << static_cast<int>(conv[i]) << delimiter;
+            outfile << cost[i] << delimiter;
+            outfile << ftol[i] << delimiter;
+            outfile << xtol[i] << delimiter;
+            outfile << niter[i] << delimiter;
             outfile << stereo.u[i] << delimiter;
             outfile << stereo.v[i] << delimiter;
             outfile << mag_stereo << delimiter;

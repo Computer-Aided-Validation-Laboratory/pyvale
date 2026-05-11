@@ -189,7 +189,7 @@ OptResult Optimizer::solve(const double cx,
     res.p = p;
     res.cost = zncc;
     res.converged = converged;
-    if (zncc >= threshold) res.above_threshold = true;
+    if (zncc >= threshold) res.above_thresh = true;
 
     // debugging
     //if (iter == max_iter) {

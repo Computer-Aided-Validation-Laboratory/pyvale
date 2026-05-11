@@ -6,6 +6,10 @@
 #ifndef DICMAIN_H
 #define DICMAIN_H
 
+
+// STD Library header files
+#include <iostream>
+
 // Pybind11 Header Files
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -18,7 +22,8 @@
 
 // DIC Header Files
 #include "./dicutil.hpp"
-#include "./dicmultiwindow.hpp"
+#include "./dicmultiwindow_util.hpp"
+#include "./dicresults.hpp"
 
 namespace py = pybind11;
 
@@ -58,6 +63,10 @@ void engine(const py::array_t<bool>& img_roi_arr,
             const common_util::SaveConfig& saveconf);
 
 void build_info();
+
+
+
+bool should_update_ref(const int img_num_def_l, const ResultArrays& results, const util::Config& conf);
 
 
 

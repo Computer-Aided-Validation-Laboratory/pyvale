@@ -129,7 +129,7 @@ namespace rg {
 
 
     void check_convergence_or_exit(const int x, const int y, const OptResult &res, bool direct_neigh) {
-        if (!res.above_threshold) {
+        if (!res.above_thresh) {
             std::cout << std::endl;
             if (!direct_neigh) std::cout << "\033[1mERROR: Seed subset did not meet minimum Threshold to be considered matched.\033[0m" << std::endl;
             if (direct_neigh) std::cout << "\033[1mERROR: Direct neighbour of the seed subset did not meet minimum Threshold to be considered matched.\033[0m" << std::endl;
@@ -138,7 +138,7 @@ namespace rg {
             std::cout << "  - " << std::left << std::setw(50) << "cost: " << res.cost << std::endl;
             std::cout << "  - " << std::left << std::setw(50) << "xtol: " << res.xtol << std::endl;
             std::cout << "  - " << std::left << std::setw(50) << "ftol: " << res.ftol << std::endl;
-            std::cout << "  - " << std::left << std::setw(50) << "above_threshold: " << static_cast<unsigned>(res.above_threshold) << std::endl;
+            std::cout << "  - " << std::left << std::setw(50) << "above_thresh: " << static_cast<unsigned>(res.above_thresh) << std::endl;
             std::cout << "  - " << std::left << std::setw(50) << "converged: " << static_cast<unsigned>(res.converged) << std::endl;
             std::cout << "  - " << std::left << std::setw(50) << "iterations: " << res.iter << std::endl;
             std::cout << std::endl;

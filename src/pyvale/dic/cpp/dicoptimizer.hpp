@@ -28,7 +28,7 @@ struct OptResult {
     int iter = 0;
     double cost = 0.0;
     uint8_t converged = false;
-    uint8_t above_threshold = false;
+    uint8_t above_thresh = false;
     OptResult(size_t num_params) : p(num_params, 0.0) {}
 };
 

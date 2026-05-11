@@ -18,7 +18,7 @@
 #include "./dicutil.hpp"
 #include "./dicmain.hpp"
 #include "./dicinterp.hpp"
-#include "./dicmultiwindow.hpp"
+#include "./dicmultiwindow_util.hpp"
 #include "./dicinterpBspline.hpp"
 
 namespace py = pybind11;

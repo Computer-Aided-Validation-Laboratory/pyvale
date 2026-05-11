@@ -311,7 +311,7 @@ void matching(const Image &img_l,
                         // optimize
                         OptResult nres = opt.solve(cx, cy, ss_l, ss_r, interp_r);
                         // add deformation from reference image to new results
-                        if ((nres.above_threshold) && (img_num_l > 0)){
+                        if ((nres.above_thresh) && (img_num_l > 0)){
                             std::vector<double> pA(conf.num_params);
                             std::vector<double> pB = nres.p;
                             std::vector<double> pC(conf.num_params);
