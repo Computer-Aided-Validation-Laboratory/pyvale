@@ -1,5 +1,10 @@
+import numpy as np
+
 from pyvale.vfm.experiment_data import ExperimentData
 from pyvale.vfm.identification import EIdentificationType, Identification
+from pyvale.vfm.spatial_parameterisations.known import (
+     KnownSpatialParameterisation,
+)
 
 
 # TODO: return type
@@ -16,20 +21,19 @@ def vfm(
         case EIdentificationType.Linear:
             ...
         case EIdentificationType.Nonlinear:
-            for phase in identification.phases:
-                # Collect unknown parameterisations
-                # run optimiser
+            parameter_map_size = np.array(
+                experiment_data.specimen_geometry.x.shape,
+                dtype=np.uint32
+            )
 
-    # check identification type
-    # for non linear
-    # run each phase sequentially
-    # get unknown params
-    # build parameterisations?
-    # build metrics?
-    # build optimiser?
-    # (Above might all be already build and passed to vfm)
-    # Run optimiser
-    # Collect best result
-    # Optionally perform refinement
-    # Collect best result
-    # Output result from all phases
+            for phase in identification.phases:
+                optimisation_result = phase.optimiser.optimise(
+                    identification.constitutive_law,
+                    parameter_map_size,
+                    phase.spatial_parameterisations,
+                    phase.weighted_metrics,
+                    experiment_data
+                )
+
+                # update parameter maps
+                # perform refinement?

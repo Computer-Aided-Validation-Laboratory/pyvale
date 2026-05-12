@@ -31,8 +31,14 @@ class EEdge(enum.Enum):
 
 
 @dataclass(slots=True)
+class EdgeConditions:
+    x: dict[EEdge, EEdgeCondition]
+    y: dict[EEdge, EEdgeCondition]
+
+
+@dataclass(slots=True)
 class BoundaryConditions:
-    edge_conditions: dict[EEdge, EEdgeCondition]
+    edge_conditions: EdgeConditions
     force: npt.NDArray[np.float64]
 
 

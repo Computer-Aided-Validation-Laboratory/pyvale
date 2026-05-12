@@ -12,6 +12,8 @@ class DegreeOfFreedom:
     upper_bound: float
 
 
+# For both update from dof methods, we assume the order of the list/array is
+# the same as the order we provided when we collected/packed the dofs
 class SpatialParameterisation(ABC):
     @property
     @abstractmethod
@@ -23,6 +25,19 @@ class SpatialParameterisation(ABC):
         self,
         size: npt.NDArray[np.uint32]
     ) -> npt.NDArray[np.float64]:
+        pass
+
+    @abstractmethod
+    def collect_degrees_of_freedom(
+        self,
+    ) -> list[DegreeOfFreedom]:
+        pass
+
+    @abstractmethod
+    def update_from_collected_degrees_of_freedom(
+        self,
+        degrees_of_freedom: list[DegreeOfFreedom]
+    ) -> None:
         pass
 
     # returns a tuple of (array of dofs, array of lower bounds, array of upper bounds)
