@@ -1,4 +1,3 @@
-import enum
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,7 +15,6 @@ from pyvale.vfm.project_definition import (
 @dataclass(slots=True)
 class VirtualFieldsMesh:
     """Virtual-field helper mesh and the matrices derived from it."""
-
     virtual_node_coordinates_x: npt.NDArray[np.float64]
     virtual_node_coordinates_y: npt.NDArray[np.float64]
     specimen_point_indices: npt.NDArray[np.int64]
@@ -36,6 +34,28 @@ class MeshNodalCoordinates:
     nodal_coord_x: npt.NDArray[np.float64]   # shape (n_points_y + 1, n_points_x + 1)
     nodal_coord_y: npt.NDArray[np.float64]   # shape (n_points_y + 1, n_points_x + 1)
 
+
+@dataclass(slots=True)
+class GlobalVirtualFields:
+    """Virtual strains and displacements generated from reference map using VF mesh."""
+    virtual_strain: npt.NDArray[np.float64]
+    virtual_displacement_edge: npt.NDArray[np.float64]
+    virtual_displacement: npt.NDArray[np.float64]
+
+@dataclass(slots=True)
+class _EdgeDofConstraintDefinition:
+    """DOF condensation metadata for one named edge."""
+    edge_name: str
+    edge_condition: EdgeBoundaryCondition
+    edge_nodes: npt.NDArray[np.int64]
+    master_node: int
+    slave_nodes: npt.NDArray[np.int64]
+
+
+@dataclass(slots=True)
+class _BoundaryConstraintInfo:
+    """Metadata for plotting node-level DOF constraints."""
+    node_dof_conditions: dict[int, tuple[EEdgeBoundaryCondition, EEdgeBoundaryCondition]]
 
 
 def _extend_centroid_grid(
@@ -70,7 +90,6 @@ def _extend_centroid_grid(
     extended[-1, -1] = extended[-2, -1] + extended[-1, -2] - extended[-2, -2]   # bottom-right corner = bottom edge + right edge - last interior point on the right
 
     return extended
-
 
 
 def _generate_data_mesh_nodal_coord(
@@ -214,152 +233,6 @@ def _plot_node_constraint_glyphs(
                 ),
                 zorder=5,
             )
-
-
-def plot_virtual_fields_mesh(
-    x: npt.NDArray[np.float64],
-    y: npt.NDArray[np.float64],
-    virtual_fields_mesh: MeshNodalCoordinates | None = None,
-    data_mesh: MeshNodalCoordinates | None = None,
-    specimen_mask: npt.NDArray[np.bool_] | None = None,
-    output_path: str | Path | None = None,
-    show: bool = True,
-    plot_data_points: bool = True,
-    node_ids: npt.NDArray[np.int32] | None = None,
-    element_node_ids: npt.NDArray[np.int32] | None = None,
-    node_dof_conditions: dict[int, tuple[EEdgeBoundaryCondition, EEdgeBoundaryCondition]] | None = None,
-) -> Path | None:
-    """Plot data points plus whichever of the data mesh and VF mesh are provided."""
-
-    import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
-
-    if data_mesh is None and virtual_fields_mesh is None:
-        raise ValueError("At least one of data_mesh or virtual_fields_mesh must be provided.")
-
-    fig, ax = plt.subplots(figsize=(10, 4))
-
-    legend_handles: list[Line2D] = []
-
-    if data_mesh is not None:
-        _plot_grid_lines(
-            ax,
-            data_mesh.nodal_coord_x,
-            data_mesh.nodal_coord_y,
-            color="#49dbe6",
-            linewidth=0.7,
-        )
-        legend_handles.append(
-            Line2D([0], [0], color="#49dbe6", linewidth=1.0, label="Data elements")
-        )
-
-    if virtual_fields_mesh is not None:
-        if isinstance(virtual_fields_mesh, VirtualFieldsMesh):
-            virtual_grid_x = virtual_fields_mesh.virtual_node_coordinates_x
-            virtual_grid_y = virtual_fields_mesh.virtual_node_coordinates_y
-        else:
-            virtual_grid_x = virtual_fields_mesh.nodal_coord_x
-            virtual_grid_y = virtual_fields_mesh.nodal_coord_y
-        _plot_grid_lines(ax, virtual_grid_x, virtual_grid_y, color="black", linewidth=0.9)
-        legend_handles.append(
-            Line2D([0], [0], color="black", linewidth=1.0, label="Virtual elements")
-        )
-
-    if plot_data_points:
-        if specimen_mask is None:
-            point_x = x
-            point_y = y
-        else:
-            point_x = x[specimen_mask]
-            point_y = y[specimen_mask]
-        ax.scatter(
-            point_x,
-            point_y,
-            s=5,
-            marker="x",
-            linewidths=0.4,
-            color="red",
-        )
-        legend_handles.append(
-            Line2D(
-                [0],
-                [0],
-                marker="x",
-                linestyle="None",
-                markersize=6,
-                markeredgewidth=0.8,
-                color="red",
-                label="Data points",
-            )
-        )
-
-    if node_dof_conditions is not None:
-        _plot_node_constraint_glyphs(
-            ax,
-            virtual_grid_x,
-            virtual_grid_y,
-            node_dof_conditions,
-        )
-        legend_handles.append(
-            Line2D([0], [0], color="red", linewidth=2.0, label="Fixed DOF")
-        )
-        legend_handles.append(
-            Line2D([0], [0], color="green", linewidth=1.4, label="Traction DOF")
-        )
-
-    if node_ids is not None:
-        for row in range(node_ids.shape[0]):
-            for col in range(node_ids.shape[1]):
-                node_id = int(node_ids[row, col])
-                if node_dof_conditions is not None and node_id not in node_dof_conditions:
-                    continue
-                ax.text(
-                    virtual_grid_x[row, col],
-                    virtual_grid_y[row, col],
-                    str(node_id),
-                    color="blue",
-                    fontsize=8,
-                    ha="center",
-                    va="center",
-                    bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=0.5),
-                )
-
-    if element_node_ids is not None:
-        for element_id in range(element_node_ids.shape[0]):
-            element_nodes = element_node_ids[element_id]
-            elem_x = virtual_grid_x.ravel()[element_nodes]
-            elem_y = virtual_grid_y.ravel()[element_nodes]
-            ax.text(
-                np.mean(elem_x),
-                np.mean(elem_y),
-                f"E{element_id}",
-                color="black",
-                fontsize=8,
-                ha="center",
-                va="center",
-                bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=1.0),
-            )
-
-    if legend_handles:
-        ax.legend(handles=legend_handles, loc="best")
-    ax.set_title("Mesh Plot")
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_aspect("equal", adjustable="box")
-    fig.tight_layout()
-
-    saved_path: Path | None = None
-    if output_path is not None:
-        saved_path = Path(output_path)
-        saved_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(saved_path, dpi=200, bbox_inches="tight")
-
-    if show:
-        plt.show()
-    # plt.close(fig)
-    return saved_path
-
-
 
 
 def _generate_vf_mesh_nodal_coord(
@@ -532,8 +405,8 @@ def _compute_local_element_coordinates(
     An iterative Newton-Raphson method is used to solve the nonlinear mapping 
     from local to global coordinates. It is possible to used a closed form solution,
     as per the previous MATLAB implementation of this code (see below). However,
-    the iterative method is more general and readible and the performance is not a 
-    concern given the small number of points we need to evaluate this for.
+    the iterative method is more general and readible and the performance is unlikely
+    to be an issue.
 
     % Closed form solution based on "Chongyu Hua, An inverse transformation for 
     % quadrilateral isoparametric elements: Analysis and application, 
@@ -746,22 +619,6 @@ def _compute_point_shape_function_values_and_strain_displacement_matrices(
     return shape_function_values, strain_displacement_matrix
 
 
-@dataclass(slots=True)
-class _EdgeDofConstraintDefinition:
-    """DOF condensation metadata for one named edge."""
-
-    edge_name: str
-    edge_condition: EdgeBoundaryCondition
-    edge_nodes: npt.NDArray[np.int64]
-    master_node: int
-    slave_nodes: npt.NDArray[np.int64]
-
-
-@dataclass(slots=True)
-class _BoundaryConstraintDebugInfo:
-    """Optional debug metadata for plotting node-level DOF constraints."""
-
-    node_dof_conditions: dict[int, tuple[EEdgeBoundaryCondition, EEdgeBoundaryCondition]]
 
 
 def _apply_direction_constraint(
@@ -794,7 +651,7 @@ def _build_boundary_constraint_debug_info(
     fixed_dofs: set[int],
     slave_dofs: set[int],
     master_dofs: set[int],
-) -> _BoundaryConstraintDebugInfo:
+) -> _BoundaryConstraintInfo:
     """Build per-node x/y DOF conditions from constrained DOF sets."""
 
     traction_dofs = slave_dofs.union(master_dofs)
@@ -824,7 +681,7 @@ def _build_boundary_constraint_debug_info(
 
         node_dof_conditions[node_id] = (x_condition, y_condition)
 
-    return _BoundaryConstraintDebugInfo(node_dof_conditions=node_dof_conditions)
+    return _BoundaryConstraintInfo(node_dof_conditions=node_dof_conditions)
 
 
 def _compute_constrained_strain_displacement_matrix(
@@ -834,7 +691,7 @@ def _compute_constrained_strain_displacement_matrix(
 ) -> tuple[
     npt.NDArray[np.float64],
     npt.NDArray[np.int64],
-    _BoundaryConstraintDebugInfo,
+    _BoundaryConstraintInfo,
 ]:
     """Apply virtual boundary constraints to the global strain-displacement matrix.
 
@@ -842,12 +699,6 @@ def _compute_constrained_strain_displacement_matrix(
     - `FIXED` removes the edge DOFs from the active unknowns.
     - `TRACTION` enforces a constant virtual displacement along the edge by
       condensing slave edge DOFs into one master edge DOF.
-
-    Edge convention:
-    - left = min(x)
-    - lower = min(y)
-    - right = max(x)
-    - upper = max(y)
 
     Input global_strain_displacement_matrix has shape (3 * n_specimen_points, 2 * n_nodes)
     
@@ -858,7 +709,6 @@ def _compute_constrained_strain_displacement_matrix(
 
     The columns correspond to nodal virtual displacement DOFs:
         [ux_0, uy_0, ux_1, uy_1, ..., ux_n, uy_n]
-
 
     For a TRACTION condition we want to impose constant virtual displacement along the edge,
     which means all dofs (e.g. x dofs) on that edge are tied together. To do this we designate
@@ -891,31 +741,31 @@ def _compute_constrained_strain_displacement_matrix(
 
     edge_dof_constraints = (
         _EdgeDofConstraintDefinition(
-            edge_name="left",
-            edge_condition=boundary_conditions.left,
+            edge_name="min_x_edge",
+            edge_condition=boundary_conditions.min_x_edge,
             edge_nodes=virtual_node_ids[:, 0],
-            master_node=int(virtual_node_ids[0, 0]), # left edge master node is first node in column
+            master_node=int(virtual_node_ids[0, 0]), # min-x edge master node is first node in column
             slave_nodes=virtual_node_ids[:, 0][1:],
         ),
         _EdgeDofConstraintDefinition(
-            edge_name="lower",
-            edge_condition=boundary_conditions.lower,
+            edge_name="min_y_edge",
+            edge_condition=boundary_conditions.min_y_edge,
             edge_nodes=virtual_node_ids[0, :],
-            master_node=int(virtual_node_ids[0, 0]), # lower edge master node is first node in row
+            master_node=int(virtual_node_ids[0, 0]), # min-y edge master node is first node in row
             slave_nodes=virtual_node_ids[0, :][1:],
         ),
         _EdgeDofConstraintDefinition(
-            edge_name="right",
-            edge_condition=boundary_conditions.right,
+            edge_name="max_x_edge",
+            edge_condition=boundary_conditions.max_x_edge,
             edge_nodes=virtual_node_ids[:, -1],
-            master_node=int(virtual_node_ids[-1, -1]), # right edge master node is last node in column
+            master_node=int(virtual_node_ids[-1, -1]), # max-x edge master node is last node in column
             slave_nodes=virtual_node_ids[:, -1][:-1],
         ),
         _EdgeDofConstraintDefinition(
-            edge_name="upper",
-            edge_condition=boundary_conditions.upper,
+            edge_name="max_y_edge",
+            edge_condition=boundary_conditions.max_y_edge,
             edge_nodes=virtual_node_ids[-1, :],
-            master_node=int(virtual_node_ids[-1, -1]), # upper edge master node is last node in row
+            master_node=int(virtual_node_ids[-1, -1]), # max-y edge master node is last node in row
             slave_nodes=virtual_node_ids[-1, :][:-1],
         ),
     )
@@ -997,6 +847,249 @@ def _compute_constrained_strain_displacement_matrix(
     return constrained_matrix, active_dof_ids, boundary_constraint_debug_info
 
 
+
+def _apply_boundary_conditions(
+    virtual_displacement: npt.NDArray[np.float64],
+    boundary_conditions: BoundaryConditions,
+    virtual_node_ids: npt.NDArray[np.int64],
+) -> npt.NDArray[np.float64]:
+    updated = virtual_displacement.copy()
+
+    for edge in range(4):
+        if edge == 0: 
+            edge_nodes = virtual_node_ids[0, :]
+            master_node = virtual_node_ids[0, 0]
+            slave_nodes = edge_nodes[1:]
+            x_condition = boundary_conditions.min_y_edge.x
+            y_condition = boundary_conditions.min_y_edge.y
+        elif edge == 1:
+            edge_nodes = virtual_node_ids[:, 0]
+            master_node = virtual_node_ids[0, 0]
+            slave_nodes = edge_nodes[1:]
+            x_condition = boundary_conditions.min_x_edge.x
+            y_condition = boundary_conditions.min_x_edge.y
+        elif edge == 2:
+            edge_nodes = virtual_node_ids[-1, :]
+            master_node = virtual_node_ids[-1, -1]
+            slave_nodes = edge_nodes[:-1]
+            x_condition = boundary_conditions.max_y_edge.x
+            y_condition = boundary_conditions.max_y_edge.y
+        else:
+            edge_nodes = virtual_node_ids[:, -1]
+            master_node = virtual_node_ids[-1, -1]
+            slave_nodes = edge_nodes[:-1]
+            x_condition = boundary_conditions.max_x_edge.x
+            y_condition = boundary_conditions.max_x_edge.y
+
+        edge_dofs_x = 2 * edge_nodes
+        edge_dofs_y = edge_dofs_x + 1
+        master_dof_x = 2 * master_node
+        master_dof_y = master_dof_x + 1
+        slave_dofs_x = 2 * slave_nodes
+        slave_dofs_y = slave_dofs_x + 1
+
+        if x_condition is EEdgeBoundaryCondition.FIXED:
+            updated[edge_dofs_x] = 0.0
+        elif x_condition is EEdgeBoundaryCondition.TRACTION:
+            updated[slave_dofs_x] = updated[master_dof_x]
+
+        if y_condition is EEdgeBoundaryCondition.FIXED:
+            updated[edge_dofs_y] = 0.0
+        elif y_condition is EEdgeBoundaryCondition.TRACTION:
+            updated[slave_dofs_y] = updated[master_dof_y]
+
+    return updated
+
+
+def _plot_generated_virtual_fields(
+    reference_map: npt.NDArray[np.float64],
+    virtual_displacement: npt.NDArray[np.float64],
+    virtual_strain: npt.NDArray[np.float64],
+) -> None:
+    """Plot one summary figure per selected timestep."""
+
+    import matplotlib.pyplot as plt
+
+    n_timesteps, n_components, _, _ = reference_map.shape
+    n_timesteps_to_plot = min(5, n_timesteps)
+    timestep_indices = np.linspace(
+        0,
+        n_timesteps - 1,
+        n_timesteps_to_plot,
+        dtype=int,
+    )
+    timestep_indices = np.unique(timestep_indices)
+
+    for timestep in timestep_indices:
+        fig, axes = plt.subplots(2, 3, figsize=(14, 8))
+        axes = axes.ravel()
+
+        ref_im = axes[0].imshow(reference_map[timestep, 0, :, :])
+        axes[0].set_title(f"Reference map t{timestep}")
+        fig.colorbar(ref_im, ax=axes[0])
+
+        disp_x_im = axes[1].imshow(virtual_displacement[timestep, 0, :, :])
+        axes[1].set_title("Virtual displacement x")
+        fig.colorbar(disp_x_im, ax=axes[1])
+
+        disp_y_im = axes[2].imshow(virtual_displacement[timestep, 1, :, :])
+        axes[2].set_title("Virtual displacement y")
+        fig.colorbar(disp_y_im, ax=axes[2])
+
+        strain_component_titles = ["Virtual strain xx", "Virtual strain yy", "Virtual strain xy"]
+        for component in range(min(3, n_components)):
+            strain_im = axes[3 + component].imshow(virtual_strain[timestep, component, :, :])
+            axes[3 + component].set_title(strain_component_titles[component])
+            fig.colorbar(strain_im, ax=axes[3 + component])
+
+        fig.tight_layout()
+        plt.show()
+
+
+def plot_virtual_fields_mesh(
+    x: npt.NDArray[np.float64],
+    y: npt.NDArray[np.float64],
+    virtual_fields_mesh: MeshNodalCoordinates | None = None,
+    data_mesh: MeshNodalCoordinates | None = None,
+    specimen_mask: npt.NDArray[np.bool_] | None = None,
+    output_path: str | Path | None = None,
+    show: bool = True,
+    plot_data_points: bool = True,
+    node_ids: npt.NDArray[np.int32] | None = None,
+    element_node_ids: npt.NDArray[np.int32] | None = None,
+    node_dof_conditions: dict[int, tuple[EEdgeBoundaryCondition, EEdgeBoundaryCondition]] | None = None,
+) -> Path | None:
+    """Plot data points plus whichever of the data mesh and VF mesh are provided."""
+
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    if data_mesh is None and virtual_fields_mesh is None:
+        raise ValueError("At least one of data_mesh or virtual_fields_mesh must be provided.")
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+
+    legend_handles: list[Line2D] = []
+
+    if data_mesh is not None:
+        _plot_grid_lines(
+            ax,
+            data_mesh.nodal_coord_x,
+            data_mesh.nodal_coord_y,
+            color="#49dbe6",
+            linewidth=0.7,
+        )
+        legend_handles.append(
+            Line2D([0], [0], color="#49dbe6", linewidth=1.0, label="Data elements")
+        )
+
+    if virtual_fields_mesh is not None:
+        if isinstance(virtual_fields_mesh, VirtualFieldsMesh):
+            virtual_grid_x = virtual_fields_mesh.virtual_node_coordinates_x
+            virtual_grid_y = virtual_fields_mesh.virtual_node_coordinates_y
+        else:
+            virtual_grid_x = virtual_fields_mesh.nodal_coord_x
+            virtual_grid_y = virtual_fields_mesh.nodal_coord_y
+        _plot_grid_lines(ax, virtual_grid_x, virtual_grid_y, color="black", linewidth=0.9)
+        legend_handles.append(
+            Line2D([0], [0], color="black", linewidth=1.0, label="Virtual elements")
+        )
+
+    if plot_data_points:
+        if specimen_mask is None:
+            point_x = x
+            point_y = y
+        else:
+            point_x = x[specimen_mask]
+            point_y = y[specimen_mask]
+        ax.scatter(
+            point_x,
+            point_y,
+            s=5,
+            marker="x",
+            linewidths=0.4,
+            color="red",
+        )
+        legend_handles.append(
+            Line2D(
+                [0],
+                [0],
+                marker="x",
+                linestyle="None",
+                markersize=6,
+                markeredgewidth=0.8,
+                color="red",
+                label="Data points",
+            )
+        )
+
+    if node_dof_conditions is not None:
+        _plot_node_constraint_glyphs(
+            ax,
+            virtual_grid_x,
+            virtual_grid_y,
+            node_dof_conditions,
+        )
+        legend_handles.append(
+            Line2D([0], [0], color="red", linewidth=2.0, label="Fixed DOF")
+        )
+        legend_handles.append(
+            Line2D([0], [0], color="green", linewidth=1.4, label="Traction DOF")
+        )
+
+    if node_ids is not None:
+        for row in range(node_ids.shape[0]):
+            for col in range(node_ids.shape[1]):
+                node_id = int(node_ids[row, col])
+                if node_dof_conditions is not None and node_id not in node_dof_conditions:
+                    continue
+                ax.text(
+                    virtual_grid_x[row, col],
+                    virtual_grid_y[row, col],
+                    str(node_id),
+                    color="blue",
+                    fontsize=8,
+                    ha="center",
+                    va="center",
+                    bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=0.5),
+                )
+
+    if element_node_ids is not None:
+        for element_id in range(element_node_ids.shape[0]):
+            element_nodes = element_node_ids[element_id]
+            elem_x = virtual_grid_x.ravel()[element_nodes]
+            elem_y = virtual_grid_y.ravel()[element_nodes]
+            ax.text(
+                np.mean(elem_x),
+                np.mean(elem_y),
+                f"E{element_id}",
+                color="black",
+                fontsize=8,
+                ha="center",
+                va="center",
+                bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=1.0),
+            )
+
+    if legend_handles:
+        ax.legend(handles=legend_handles, loc="best")
+    ax.set_title("Mesh Plot")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect("equal", adjustable="box")
+    fig.tight_layout()
+
+    saved_path: Path | None = None
+    if output_path is not None:
+        saved_path = Path(output_path)
+        saved_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(saved_path, dpi=200, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    # plt.close(fig)
+    return saved_path
+
+
 def generate_virtual_fields_mesh(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
@@ -1051,13 +1144,14 @@ def generate_virtual_fields_mesh(
     data_mesh_nodal_coord =_generate_data_mesh_nodal_coord(x,y)
 
     # Debug: plot data mesh overlaid on data points 
-    # plot_virtual_fields_mesh(
-    #     x,
-    #     y,
-    #     data_mesh=data_mesh_nodal_coord,
-    #     specimen_mask=specimen_mask,
-    #     plot_data_points=True,
-    # )
+    if generate_plots:
+        plot_virtual_fields_mesh(
+            x,
+            y,
+            data_mesh=data_mesh_nodal_coord,
+            specimen_mask=specimen_mask,
+            plot_data_points=True,
+        )
 
     # Construct coarse virtual mesh (of user-defined size) by snapping a regular grid onto the data point element edges
     vf_mesh_nodal_coord = _generate_vf_mesh_nodal_coord(data_mesh_nodal_coord,mesh_size)
@@ -1089,12 +1183,6 @@ def generate_virtual_fields_mesh(
 
 
     # Define nodes associated with each element ("connectivity matrix")
-    #
-    # CONVENTION (Providing physical y coords increase downwards):
-    # left = min(x)
-    # right = max(x)
-    # lower = min(y)
-    # upper = max(y)
     #
     # For each element, node order is: lower-left, lower-right, upper-right, upper-left
     # vf_element_node_ids has:
@@ -1307,18 +1395,10 @@ def generate_virtual_fields_mesh(
     )
 
 
-@dataclass(slots=True)
-class GlobalVirtualFields:
-    """Virtual strains and displacements generated from reference map using VF mesh."""
-
-    virtual_strain: npt.NDArray[np.float64]
-    virtual_displacement_edge: npt.NDArray[np.float64]
-    virtual_displacement: npt.NDArray[np.float64]
-
-
 def generate_vf_from_mesh(
     reference_map: npt.NDArray[np.float64],
     virtual_fields_mesh: VirtualFieldsMesh,
+    plot_fields: bool = False,
 ) -> GlobalVirtualFields:
     """Generate virtual fields that replicate the reference map as closely as possible, 
     while also enforcing any required virtual boundary conditions.
@@ -1412,29 +1492,37 @@ def generate_vf_from_mesh(
 
         # Extract edge displacements by averaging virtual displacements at nodes along each edge of the virtual mesh
         virtual_displacement_edge[timestep, 0, 0] = np.mean(
-            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[0, :]] # x displacement on upper edge 
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[0, :]] # x displacement on upper (min y) edge
         )
         virtual_displacement_edge[timestep, 0, 1] = np.mean(
-            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, 0]] # x displacement on left edge
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, 0]] # x displacement on left (min x) edge
         )
         virtual_displacement_edge[timestep, 0, 2] = np.mean(
-            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[-1, :]] # x displacement on lower edge
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[-1, :]] # x displacement on lower (max y) edge
         )
         virtual_displacement_edge[timestep, 0, 3] = np.mean(
-            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, -1]] # x displacement on right edge
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, -1]] # x displacement on right (max x) edge
         )
 
         virtual_displacement_edge[timestep, 1, 0] = np.mean(
-            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[0, :] + 1] # y displacement on upper edge
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[0, :] + 1] # y displacement on upper (min y) edge
         )
         virtual_displacement_edge[timestep, 1, 1] = np.mean(
-            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, 0] + 1] # y displacement on left edge
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, 0] + 1] # y displacement on left (min x) edge
         )
         virtual_displacement_edge[timestep, 1, 2] = np.mean(
-            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[-1, :] + 1] # y displacement on lower edge
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[-1, :] + 1] # y displacement on lower (max y) edge
         )
         virtual_displacement_edge[timestep, 1, 3] = np.mean(
-            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, -1] + 1] # y displacement on right edge
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, -1] + 1] # y displacement on right (max x) edge
+        )
+
+    # Debug: plot reference map, virtual displacement, and virtual strain for selected timesteps
+    if plot_fields:
+        _plot_generated_virtual_fields(
+            reference_map,
+            virtual_displacement,
+            virtual_strain,
         )
 
     return GlobalVirtualFields(
@@ -1442,57 +1530,3 @@ def generate_vf_from_mesh(
         virtual_displacement_edge=virtual_displacement_edge,
         virtual_displacement=virtual_displacement,
     )
-
-
-
-def _apply_boundary_conditions(
-    virtual_displacement: npt.NDArray[np.float64],
-    boundary_conditions: BoundaryConditions,
-    virtual_node_ids: npt.NDArray[np.int64],
-) -> npt.NDArray[np.float64]:
-    updated = virtual_displacement.copy()
-
-    for edge in range(4):
-        if edge == 0:
-            edge_nodes = virtual_node_ids[0, :]
-            master_node = virtual_node_ids[0, 0]
-            slave_nodes = edge_nodes[1:]
-            x_condition = boundary_conditions.upper.x
-            y_condition = boundary_conditions.upper.y
-        elif edge == 1:
-            edge_nodes = virtual_node_ids[:, 0]
-            master_node = virtual_node_ids[0, 0]
-            slave_nodes = edge_nodes[1:]
-            x_condition = boundary_conditions.left.x
-            y_condition = boundary_conditions.left.y
-        elif edge == 2:
-            edge_nodes = virtual_node_ids[-1, :]
-            master_node = virtual_node_ids[-1, -1]
-            slave_nodes = edge_nodes[:-1]
-            x_condition = boundary_conditions.lower.x
-            y_condition = boundary_conditions.lower.y
-        else:
-            edge_nodes = virtual_node_ids[:, -1]
-            master_node = virtual_node_ids[-1, -1]
-            slave_nodes = edge_nodes[:-1]
-            x_condition = boundary_conditions.right.x
-            y_condition = boundary_conditions.right.y
-
-        edge_dofs_x = 2 * edge_nodes
-        edge_dofs_y = edge_dofs_x + 1
-        master_dof_x = 2 * master_node
-        master_dof_y = master_dof_x + 1
-        slave_dofs_x = 2 * slave_nodes
-        slave_dofs_y = slave_dofs_x + 1
-
-        if x_condition is EEdgeBoundaryCondition.FIXED:
-            updated[edge_dofs_x] = 0.0
-        elif x_condition is EEdgeBoundaryCondition.TRACTION:
-            updated[slave_dofs_x] = updated[master_dof_x]
-
-        if y_condition is EEdgeBoundaryCondition.FIXED:
-            updated[edge_dofs_y] = 0.0
-        elif y_condition is EEdgeBoundaryCondition.TRACTION:
-            updated[slave_dofs_y] = updated[master_dof_y]
-
-    return updated

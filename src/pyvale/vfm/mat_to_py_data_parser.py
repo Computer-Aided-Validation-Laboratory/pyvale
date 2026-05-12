@@ -52,19 +52,19 @@ def _default_boundary_conditions() -> BoundaryConditions:
     """Temporary hard-coded BCs matching the current numerical dataset."""
 
     return BoundaryConditions(
-        left=EdgeBoundaryCondition(
+        min_x_edge=EdgeBoundaryCondition(
             x=EEdgeBoundaryCondition.FIXED,
             y=EEdgeBoundaryCondition.FREE,
         ),
-        upper=EdgeBoundaryCondition(
+        max_y_edge=EdgeBoundaryCondition(
             x=EEdgeBoundaryCondition.FIXED,
             y=EEdgeBoundaryCondition.TRACTION,
         ),
-        right=EdgeBoundaryCondition(
+        max_x_edge=EdgeBoundaryCondition(
             x=EEdgeBoundaryCondition.FREE,
             y=EEdgeBoundaryCondition.FREE,
         ),
-        lower=EdgeBoundaryCondition(
+        min_y_edge=EdgeBoundaryCondition(
             x=EEdgeBoundaryCondition.FREE,
             y=EEdgeBoundaryCondition.FREE,
         ),
@@ -77,14 +77,14 @@ def _boundary_conditions_to_array(
     return np.array(
         [
             [
-                boundary_conditions.left.x.name,
-                boundary_conditions.left.y.name,
-                boundary_conditions.upper.x.name,
-                boundary_conditions.upper.y.name,
-                boundary_conditions.right.x.name,
-                boundary_conditions.right.y.name,
-                boundary_conditions.lower.x.name,
-                boundary_conditions.lower.y.name,
+                boundary_conditions.min_x_edge.x.name,
+                boundary_conditions.min_x_edge.y.name,
+                boundary_conditions.max_y_edge.x.name,
+                boundary_conditions.max_y_edge.y.name,
+                boundary_conditions.max_x_edge.x.name,
+                boundary_conditions.max_x_edge.y.name,
+                boundary_conditions.min_y_edge.x.name,
+                boundary_conditions.min_y_edge.y.name,
             ]
         ],
         dtype="<U16",
@@ -98,23 +98,23 @@ def _boundary_conditions_from_array(
     if len(values) != 8:
         raise ValueError(
             "Saved boundary_conditions must contain 8 entries "
-            "(left/upper/right/lower x/y pairs)."
+            "(min_x_edge/max_y_edge/max_x_edge/min_y_edge x/y pairs)."
         )
 
     return BoundaryConditions(
-        left=EdgeBoundaryCondition(
+        min_x_edge=EdgeBoundaryCondition(
             x=EEdgeBoundaryCondition[str(values[0])],
             y=EEdgeBoundaryCondition[str(values[1])],
         ),
-        upper=EdgeBoundaryCondition(
+        max_y_edge=EdgeBoundaryCondition(
             x=EEdgeBoundaryCondition[str(values[2])],
             y=EEdgeBoundaryCondition[str(values[3])],
         ),
-        right=EdgeBoundaryCondition(
+        max_x_edge=EdgeBoundaryCondition(
             x=EEdgeBoundaryCondition[str(values[4])],
             y=EEdgeBoundaryCondition[str(values[5])],
         ),
-        lower=EdgeBoundaryCondition(
+        min_y_edge=EdgeBoundaryCondition(
             x=EEdgeBoundaryCondition[str(values[6])],
             y=EEdgeBoundaryCondition[str(values[7])],
         ),

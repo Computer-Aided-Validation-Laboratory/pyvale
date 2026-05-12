@@ -40,10 +40,10 @@ class EdgeBoundaryCondition:
 
 @dataclass(slots=True)
 class BoundaryConditions:
-    left: EdgeBoundaryCondition
-    upper: EdgeBoundaryCondition
-    right: EdgeBoundaryCondition
-    lower: EdgeBoundaryCondition
+    min_x_edge: EdgeBoundaryCondition
+    max_y_edge: EdgeBoundaryCondition
+    max_x_edge: EdgeBoundaryCondition
+    min_y_edge: EdgeBoundaryCondition
 
 
 @dataclass(slots=True)
