@@ -1201,7 +1201,6 @@ def generate_virtual_fields_mesh(
     vf_mesh_node_ids = np.arange(0,n_nodes,1) # start, end (exclusive), step
     vf_mesh_node_ids = vf_mesh_node_ids.reshape(n_node_rows, n_node_cols)
 
-
     # Define nodes associated with each element ("connectivity matrix")
     #
     # For each element, node order is: lower-left, lower-right, upper-right, upper-left
@@ -1464,6 +1463,10 @@ def generate_vf_from_mesh(
         target_strain = strain_at_points.ravel()
 
         # Set NaN values to zero. Will mask out later
+        # TODO: This is a bit hacky and will bias the generated virtual fields
+        # towards replicating zero strain at the NaN points, which may not be desirable.
+        # Ideally would modify the least squares solve to ignore NaN values rather than 
+        # setting to zero, but the pesudoinverse is built for full system.
         target_strain = np.nan_to_num(target_strain, nan=0.0)
 
         # Compute virtual displacement vector that replicates the target strain as closely as possible in a least squares sense
