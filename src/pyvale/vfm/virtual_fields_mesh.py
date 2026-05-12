@@ -10,8 +10,6 @@ from pyvale.vfm.project_definition import (
     EEdgeBoundaryCondition,
 )
 
-
-
 @dataclass(slots=True)
 class VirtualFieldsMesh:
     """Virtual-field helper mesh and the matrices derived from it."""
@@ -911,6 +909,7 @@ def _plot_generated_virtual_fields(
     import matplotlib.pyplot as plt
 
     n_timesteps, n_components, _, _ = reference_map.shape
+    # Select up to 5 timesteps, evenly spaced (but always include the first and last timesteps)
     n_timesteps_to_plot = min(5, n_timesteps)
     timestep_indices = np.linspace(
         0,
@@ -920,27 +919,48 @@ def _plot_generated_virtual_fields(
     )
     timestep_indices = np.unique(timestep_indices)
 
+    # Create figure for each select timestep
     for timestep in timestep_indices:
-        fig, axes = plt.subplots(2, 3, figsize=(14, 8))
-        axes = axes.ravel()
+        # 3 x 3 grid of subplots. 
+        # Row 0: ref map, Row 1: virtual strain, Row 2: virtual displacement. 
+        # Cols: components
+        fig, axes = plt.subplots(3, 3, figsize=(14, 12))
 
-        ref_im = axes[0].imshow(reference_map[timestep, 0, :, :])
-        axes[0].set_title(f"Reference map t{timestep}")
-        fig.colorbar(ref_im, ax=axes[0])
+        component_titles = ["xx", "yy", "xy"]
+        n_components_to_plot = min(3, n_components)
 
-        disp_x_im = axes[1].imshow(virtual_displacement[timestep, 0, :, :])
-        axes[1].set_title("Virtual displacement x")
-        fig.colorbar(disp_x_im, ax=axes[1])
+        for component in range(n_components_to_plot):
+            # Plot ref map for each component
+            reference_field = reference_map[timestep, component, :, :]
+            reference_field_finite = reference_field[np.isfinite(reference_field)]
+            ref_plot_kwargs: dict[str, float] = {}
+            # Set color limits to 2nd and 98th percentile to avoid outliers dominating
+            if reference_field_finite.size > 0:
+                ref_plot_kwargs["vmin"] = float(np.percentile(reference_field_finite, 2.0))
+                ref_plot_kwargs["vmax"] = float(np.percentile(reference_field_finite, 98.0))
+                if np.isclose(ref_plot_kwargs["vmin"], ref_plot_kwargs["vmax"]):
+                    ref_plot_kwargs = {}
 
-        disp_y_im = axes[2].imshow(virtual_displacement[timestep, 1, :, :])
-        axes[2].set_title("Virtual displacement y")
-        fig.colorbar(disp_y_im, ax=axes[2])
+            ref_im = axes[0, component].imshow(reference_field, **ref_plot_kwargs)
+            axes[0, component].set_title(f"Reference map {component_titles[component]} t{timestep}")
+            fig.colorbar(ref_im, ax=axes[0, component])
 
-        strain_component_titles = ["Virtual strain xx", "Virtual strain yy", "Virtual strain xy"]
-        for component in range(min(3, n_components)):
-            strain_im = axes[3 + component].imshow(virtual_strain[timestep, component, :, :])
-            axes[3 + component].set_title(strain_component_titles[component])
-            fig.colorbar(strain_im, ax=axes[3 + component])
+            # Plot virtual strain for each component
+            strain_im = axes[1, component].imshow(virtual_strain[timestep, component, :, :])
+            axes[1, component].set_title(f"Virtual strain {component_titles[component]}")
+            fig.colorbar(strain_im, ax=axes[1, component])
+
+        # Plot virtual displacement for first component
+        disp_x_im = axes[2, 0].imshow(virtual_displacement[timestep, 0, :, :])
+        axes[2, 0].set_title("Virtual displacement x")
+        fig.colorbar(disp_x_im, ax=axes[2, 0])
+
+        # Plot virtual displacement for second component
+        disp_y_im = axes[2, 1].imshow(virtual_displacement[timestep, 1, :, :])
+        axes[2, 1].set_title("Virtual displacement y")
+        fig.colorbar(disp_y_im, ax=axes[2, 1])
+
+        axes[2, 2].axis("off")
 
         fig.tight_layout()
         plt.show()
