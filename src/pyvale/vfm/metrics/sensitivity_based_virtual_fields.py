@@ -13,6 +13,9 @@ from pyvale.vfm.metrics.virtual_fields_mesh import (
     VirtualFieldsMesh,
     generate_virtual_fields_mesh,
 )
+from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
+    SpatialParameterisation,
+)
 
 
 @dataclass(slots=True)
@@ -36,10 +39,30 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
     def evaluate(
         self,
         stress: npt.NDArray[np.float64],
+        spatial_parameterisations: dict[str, SpatialParameterisation],
         experiment_data: ExperimentData
     ) -> float:
+        degrees_of_freedom = []
+        for sp in spatial_parameterisations.values():
+            for dof in sp.collect_degrees_of_freedom():
+                degrees_of_freedom.append(dof)
+
         # for each dof compute its stress sensitivity
         stress_sensitivities = calculate_stress_sensitivity()
         sbvfs = generate_sensitivity_based_virtual_fields()
         # perform metric evaluation
+        # for each sbvf
+        #   build internal virtual work
+        #   build external virtual work
+        #   calculate error for that sbvf (ivw - evw)
         return 0
+
+
+    def calculate_stress_sensitivities(
+        self,
+        spatial_parameterisations: dict[str, SpatialParameterisation],
+    ) -> None:
+        degrees_of_freedom = []
+        for sp in spatial_parameterisations.values():
+            for dof in sp.collect_degrees_of_freedom():
+                degrees_of_freedom.append(dof)
