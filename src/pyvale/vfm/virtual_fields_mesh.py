@@ -17,43 +17,24 @@ from pyvale.vfm.project_definition import (
 class VirtualFieldsMesh:
     """Virtual-field helper mesh and the matrices derived from it."""
 
-    # vXcoord 
-    x: npt.NDArray[np.float64]
-    # vYcoord 
-    y: npt.NDArray[np.float64]
-    # Bglob 
-    b_glob: npt.NDArray[np.float64]
-    # Binv 
-    b_inv: npt.NDArray[np.float64]
-    # actDofs 
-    # TODO: rename to active_degrees_of_freedom
-    act_dofs: npt.NDArray[np.int64]
-    # virtConnectivity 
-    virtual_element_connectivity: npt.NDArray[np.uint32]
-    # vcoordGrid 
-    virtual_elements: npt.NDArray[np.int64]
-    # BC_settings 
-    boundary_condition_settings: npt.NDArray[np.uint32]
-    # indexlist 
-    # TODO: should we use the specimen mask here instead?
-    specimen_mask: npt.NDArray[np.uint32]
-    # NGlob 
-    # TODO: I think this is some kind of global shape function, probably worth a rename
-    n_glob: npt.NDArray[np.float64]
-    # YDownDecreaseFlag 
-    # ptElemAss
-    virtual_element_point_mapping: npt.NDArray[np.uint32]
-    # freeDof
-    # TODO: rename to free_degrees_of_freedom
-    free_dof: npt.NDArray[np.int64]
-
+    virtual_node_coordinates_x: npt.NDArray[np.float64]
+    virtual_node_coordinates_y: npt.NDArray[np.float64]
+    specimen_point_indices: npt.NDArray[np.int64]
+    boundary_conditions: BoundaryConditions
+    virtual_node_ids: npt.NDArray[np.int64]
+    virtual_element_node_ids: npt.NDArray[np.int64]
+    data_point_virtual_element_ids: npt.NDArray[np.int64]
+    global_shape_function_matrix: npt.NDArray[np.float64]
+    global_strain_displacement_matrix: npt.NDArray[np.float64]
+    global_strain_displacement_matrix_pseudoinverse: npt.NDArray[np.float64]
+    active_degrees_of_freedom: npt.NDArray[np.int64]
 
 
 @dataclass(slots=True)
 class MeshNodalCoordinates:
     """Nodal coordinates defining a mesh."""
-    nodal_coord_x: npt.NDArray[np.float64]   # shape (num_points_y + 1, num_points_x + 1)
-    nodal_coord_y: npt.NDArray[np.float64]   # shape (num_points_y + 1, num_points_x + 1)
+    nodal_coord_x: npt.NDArray[np.float64]   # shape (n_points_y + 1, n_points_x + 1)
+    nodal_coord_y: npt.NDArray[np.float64]   # shape (n_points_y + 1, n_points_x + 1)
 
 
 
@@ -99,7 +80,7 @@ def _generate_data_mesh_nodal_coord(
     """Construct the fine mesh of data-point elements from centroid coordinates.
 
     Assumes:
-    - `x` and `y` are 2D centroid grids with shape (num_points_y, num_points_x)
+    - `x` and `y` are 2D centroid grids with shape (n_points_y, n_points_x)
     - row index increases downward
     - the coordinate convention in the test data is already the intended one
     """
@@ -274,9 +255,8 @@ def plot_virtual_fields_mesh(
 
     if virtual_fields_mesh is not None:
         if isinstance(virtual_fields_mesh, VirtualFieldsMesh):
-            virtual_grid_shape = virtual_fields_mesh.virtual_elements.shape
-            virtual_grid_x = virtual_fields_mesh.x.reshape(virtual_grid_shape, order="F")
-            virtual_grid_y = virtual_fields_mesh.y.reshape(virtual_grid_shape, order="F")
+            virtual_grid_x = virtual_fields_mesh.virtual_node_coordinates_x
+            virtual_grid_y = virtual_fields_mesh.virtual_node_coordinates_y
         else:
             virtual_grid_x = virtual_fields_mesh.nodal_coord_x
             virtual_grid_y = virtual_fields_mesh.nodal_coord_y
@@ -414,12 +394,6 @@ def _generate_vf_mesh_nodal_coord(
 
     # Compute x distance from vf mesh nodes to data mesh nodes
 
-    # Note: np.newaxis is used to broadcast the 1D arrays into 2D. Python then broadcasts arrays to  for pairwise distance calculation
-    # x_distances = np.abs(
-    #     vf_mesh_nodal_coord_x_1d[:, np.newaxis]
-    #     - data_mesh_nodal_coord_x_1d[np.newaxis, :]
-    # )
-
     # Reshape vf_mesh_nodal_coord_x_1d to (n, 1)
     vf_mesh_nodal_coord_x_reshaped = vf_mesh_nodal_coord_x_1d[:, np.newaxis]  # Shape (n, 1)
 
@@ -450,10 +424,6 @@ def _generate_vf_mesh_nodal_coord(
 
 
     # Compute y distance from vf mesh nodes to data mesh nodes
-    # y_distances = np.abs(
-    #     vf_mesh_nodal_coord_y_1d[:, np.newaxis]
-    #     - data_mesh_nodal_coord_y_1d[np.newaxis, :]
-    # )
 
     # Reshape vf_mesh_nodal_coord_y_1d to (n, 1)
     vf_mesh_nodal_coord_y_reshaped = vf_mesh_nodal_coord_y_1d[:, np.newaxis]  # Shape (n, 1)
@@ -1034,20 +1004,20 @@ def generate_virtual_fields_mesh(
     boundary_conditions: BoundaryConditions,
     mesh_size: npt.NDArray[np.uint32],
     use_nlgeom: bool = False,
-    generate_plots: bool = True,
+    generate_plots: bool = False,
 ):
     """Construct a mesh over the test data to be used for virtual field generation.
     
     Parameters
     ----------
     x : ndarray
-        Shape (num_points_y, num_points_x).
+        Shape (n_points_y, n_points_x).
         The x coordinates of the measurement points.
     y : ndarray
-        Shape (num_points_y, num_points_x).
+        Shape (n_points_y, n_points_x).
         The y coordinates of the measurement points.
     specimen_mask : ndarray of bool
-        Shape (num_points_y, num_points_x).
+        Shape (n_points_y, n_points_x).
         A mask indicating the specimen region (True for points inside the specimen).
     boundary_conditions : BoundaryConditions
         The boundary conditions associated with the test data.
@@ -1317,129 +1287,196 @@ def generate_virtual_fields_mesh(
             node_dof_conditions=boundary_constraint_debug_info.node_dof_conditions,
         )
 
-
     # Compute pseudo-inverse of constrained strain-displacement matrix for use in virtual field generation
     strain_displacement_pseudoinverse = np.linalg.pinv(
         constrained_strain_displacement_matrix
     )
 
-
-
-    return None
-
-
-
+    return VirtualFieldsMesh(
+        virtual_node_coordinates_x=vf_mesh_nodal_coord.nodal_coord_x,
+        virtual_node_coordinates_y=vf_mesh_nodal_coord.nodal_coord_y,
+        global_strain_displacement_matrix=global_strain_displacement_matrix,
+        global_strain_displacement_matrix_pseudoinverse=strain_displacement_pseudoinverse,
+        active_degrees_of_freedom=active_dof_ids,
+        virtual_element_node_ids=vf_element_node_ids.astype(np.int64, copy=False),
+        virtual_node_ids=vf_mesh_node_ids.astype(np.int64, copy=False),
+        boundary_conditions=boundary_conditions,
+        specimen_point_indices=specimen_point_indices.astype(np.int64, copy=False),
+        global_shape_function_matrix=global_shape_function_matrix,
+        data_point_virtual_element_ids=data_point_element_ids.astype(np.int64, copy=False),
+    )
 
 
 @dataclass(slots=True)
 class GlobalVirtualFields:
-    """Virtual strains and edge displacements generated from one sensitivity map."""
+    """Virtual strains and displacements generated from reference map using VF mesh."""
 
     virtual_strain: npt.NDArray[np.float64]
-    edge_displacement: npt.NDArray[np.float64]
-    full_displacement: npt.NDArray[np.float64]
-
-
+    virtual_displacement_edge: npt.NDArray[np.float64]
+    virtual_displacement: npt.NDArray[np.float64]
 
 
 def generate_vf_from_mesh(
     reference_map: npt.NDArray[np.float64],
     virtual_fields_mesh: VirtualFieldsMesh,
 ) -> GlobalVirtualFields:
-    num_timesteps, _, size_y, size_x = reference_map.shape
-    num_measured_points = int(virtual_fields_mesh.indices.size)
-    num_dofs = int(virtual_fields_mesh.b_glob.shape[1])
+    """Generate virtual fields that replicate the reference map as closely as possible, 
+    while also enforcing any required virtual boundary conditions.
+    
+    Parameters
+    ----------
+    reference_map : ndarray
+        Shape (n_timesteps, n_components, n_points_y, n_points_x).
+        The reference strain map from which to generate virtual fields. e.g. stress sensitivity map
+    virtual_fields_mesh : VirtualFieldsMesh
+        The virtual fields mesh data containing global strain-displacement matrix etc. for 
+        construction of virtual fields.
+        
+    Returns
+    -------
+    GlobalVirtualFields
+        The generated virtual fields, including virtual strain fields over the specimen,
+        virtual displacements at the specimen edges, and (optionally) full-field virtual displacements over the specimen.
 
-    virtual_strain = np.full((num_timesteps, 3, size_y, size_x), np.nan, dtype=np.float64)
-    edge_displacement = np.zeros((num_timesteps, 2, 4), dtype=np.float64)
-    full_displacement = np.full((num_timesteps, 2, size_y, size_x), np.nan, dtype=np.float64)
+    """
 
-    for timestep in range(num_timesteps):
-        target_strain = np.concatenate(
-            [
-                reference_map[timestep, 0, :, :].flatten(order="F")[virtual_fields_mesh.indices],
-                reference_map[timestep, 1, :, :].flatten(order="F")[virtual_fields_mesh.indices],
-                reference_map[timestep, 2, :, :].flatten(order="F")[virtual_fields_mesh.indices],
-            ]
-        )
+    # Gather dimensions
+    n_timesteps, n_components, size_y, size_x = reference_map.shape
+    n_measured_points = int(virtual_fields_mesh.specimen_point_indices.size)
+    n_dofs = int(virtual_fields_mesh.global_strain_displacement_matrix.shape[1])
+    # Initialise output arrays
+    virtual_strain = np.full((n_timesteps, n_components, size_y, size_x), np.nan, dtype=np.float64)
+    virtual_displacement_edge = np.zeros((n_timesteps, 2, 4), dtype=np.float64)
+    virtual_displacement = np.full((n_timesteps, 2, size_y, size_x), np.nan, dtype=np.float64)
+
+    # Loop over timesteps and generate virtual fields for each timestep's reference map
+    for timestep in range(n_timesteps):
+
+        # Get strain map for this timestep (shape: n_components, n_y, n_x)
+        strain_map = reference_map[timestep]  # (n_components, n_y, n_x)
+        # Extract strain values at valid (non-NaN) specimen data points (shape: n_components, n_specimen_points)
+        strain_at_points = strain_map.reshape(n_components, -1)[
+            :, virtual_fields_mesh.specimen_point_indices]
+        # Flatten to 1D array (shape: n_components * n_specimen_points) where 
+        # target_strain(0:n_specimen_points) correspond to component 0 
+        # target_strain(n_specimen_points:2*n_specimen_points) corresponds to component 1 etc. 
+        # This is the format expected by the global strain-displacement matrix
+        target_strain = strain_at_points.ravel()
+
+        # Set NaN values to zero. Will mask out later
         target_strain = np.nan_to_num(target_strain, nan=0.0)
 
-        virtual_displacement_vector = np.zeros(num_dofs, dtype=np.float64)
-        virtual_displacement_vector[virtual_fields_mesh.act_dofs] = (
-            virtual_fields_mesh.b_inv @ target_strain
+        # Compute virtual displacement vector that replicates the target strain as closely as possible in a least squares sense
+        virtual_displacement_vector = np.zeros(n_dofs, dtype=np.float64)
+        virtual_displacement_vector[virtual_fields_mesh.active_degrees_of_freedom] = (
+            virtual_fields_mesh.global_strain_displacement_matrix_pseudoinverse @ target_strain
         )
+
+        # Impose virtual boundary conditions on the virtual displacement vector
         virtual_displacement_vector = _apply_boundary_conditions(
             virtual_displacement_vector,
-            virtual_fields_mesh.boundary_condition_settings,
-            virtual_fields_mesh.virtual_elements,
+            virtual_fields_mesh.boundary_conditions,
+            virtual_fields_mesh.virtual_node_ids,
         )
 
+        # Recompute virtual strain with the constrained virtual displacement vector to ensure BCs are satisifed
         reconstructed_virtual_strain = (
-            virtual_fields_mesh.b_glob @ virtual_displacement_vector
+            virtual_fields_mesh.global_strain_displacement_matrix @ virtual_displacement_vector
         )
 
-        for component in range(3):
+        # Map reconstructed virtual strains back to specimen grid (excluding NaN datapoints)
+        for component in range(n_components):
             component_map = np.full(size_x * size_y, np.nan, dtype=np.float64)
-            start = component * num_measured_points
-            stop = (component + 1) * num_measured_points
-            component_map[virtual_fields_mesh.indices] = reconstructed_virtual_strain[start:stop]
+            start = component * n_measured_points
+            stop = (component + 1) * n_measured_points
+            component_map[virtual_fields_mesh.specimen_point_indices] = (
+                reconstructed_virtual_strain[start:stop]
+            )
             virtual_strain[timestep, component, :, :] = component_map.reshape(
                 (size_y, size_x),
-                order="F",
             )
 
-        x_displacement = virtual_fields_mesh.n_glob @ virtual_displacement_vector[0::2]
-        y_displacement = virtual_fields_mesh.n_glob @ virtual_displacement_vector[1::2]
-
+        # Map virtual displacements to specimen grid using global shape function matrix (excluding NaN datapoints)
+        x_displacement = (
+            virtual_fields_mesh.global_shape_function_matrix @ virtual_displacement_vector[0::2]
+        )
+        y_displacement = (
+            virtual_fields_mesh.global_shape_function_matrix @ virtual_displacement_vector[1::2]
+        )
         flat_x = np.full(size_x * size_y, np.nan, dtype=np.float64)
         flat_y = np.full(size_x * size_y, np.nan, dtype=np.float64)
-        flat_x[virtual_fields_mesh.indices] = x_displacement
-        flat_y[virtual_fields_mesh.indices] = y_displacement
-        full_displacement[timestep, 0, :, :] = flat_x.reshape((size_y, size_x), order="F")
-        full_displacement[timestep, 1, :, :] = flat_y.reshape((size_y, size_x), order="F")
+        flat_x[virtual_fields_mesh.specimen_point_indices] = x_displacement
+        flat_y[virtual_fields_mesh.specimen_point_indices] = y_displacement
+        virtual_displacement[timestep, 0, :, :] = flat_x.reshape((size_y, size_x))
+        virtual_displacement[timestep, 1, :, :] = flat_y.reshape((size_y, size_x))
 
-        edge_displacement[timestep, 0, 0] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[0, :]])
-        edge_displacement[timestep, 0, 1] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[:, 0]])
-        edge_displacement[timestep, 0, 2] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[-1, :]])
-        edge_displacement[timestep, 0, 3] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[:, -1]])
+        # Extract edge displacements by averaging virtual displacements at nodes along each edge of the virtual mesh
+        virtual_displacement_edge[timestep, 0, 0] = np.mean(
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[0, :]] # x displacement on upper edge 
+        )
+        virtual_displacement_edge[timestep, 0, 1] = np.mean(
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, 0]] # x displacement on left edge
+        )
+        virtual_displacement_edge[timestep, 0, 2] = np.mean(
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[-1, :]] # x displacement on lower edge
+        )
+        virtual_displacement_edge[timestep, 0, 3] = np.mean(
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, -1]] # x displacement on right edge
+        )
 
-        edge_displacement[timestep, 1, 0] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[0, :] + 1])
-        edge_displacement[timestep, 1, 1] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[:, 0] + 1])
-        edge_displacement[timestep, 1, 2] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[-1, :] + 1])
-        edge_displacement[timestep, 1, 3] = np.mean(virtual_displacement_vector[2 * virtual_fields_mesh.virtual_elements[:, -1] + 1])
+        virtual_displacement_edge[timestep, 1, 0] = np.mean(
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[0, :] + 1] # y displacement on upper edge
+        )
+        virtual_displacement_edge[timestep, 1, 1] = np.mean(
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, 0] + 1] # y displacement on left edge
+        )
+        virtual_displacement_edge[timestep, 1, 2] = np.mean(
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[-1, :] + 1] # y displacement on lower edge
+        )
+        virtual_displacement_edge[timestep, 1, 3] = np.mean(
+            virtual_displacement_vector[2 * virtual_fields_mesh.virtual_node_ids[:, -1] + 1] # y displacement on right edge
+        )
 
-    return SensitivityBasedVirtualFields(
+    return GlobalVirtualFields(
         virtual_strain=virtual_strain,
-        edge_displacement=edge_displacement,
-        full_displacement=full_displacement,
+        virtual_displacement_edge=virtual_displacement_edge,
+        virtual_displacement=virtual_displacement,
     )
 
 
 
 def _apply_boundary_conditions(
     virtual_displacement: npt.NDArray[np.float64],
-    settings: npt.NDArray[np.uint32],
-    virtual_elements: npt.NDArray[np.int64],
+    boundary_conditions: BoundaryConditions,
+    virtual_node_ids: npt.NDArray[np.int64],
 ) -> npt.NDArray[np.float64]:
     updated = virtual_displacement.copy()
 
     for edge in range(4):
         if edge == 0:
-            edge_nodes = virtual_elements[0, :]
-            master_node = virtual_elements[0, 0]
+            edge_nodes = virtual_node_ids[0, :]
+            master_node = virtual_node_ids[0, 0]
             slave_nodes = edge_nodes[1:]
+            x_condition = boundary_conditions.upper.x
+            y_condition = boundary_conditions.upper.y
         elif edge == 1:
-            edge_nodes = virtual_elements[:, 0]
-            master_node = virtual_elements[0, 0]
+            edge_nodes = virtual_node_ids[:, 0]
+            master_node = virtual_node_ids[0, 0]
             slave_nodes = edge_nodes[1:]
+            x_condition = boundary_conditions.left.x
+            y_condition = boundary_conditions.left.y
         elif edge == 2:
-            edge_nodes = virtual_elements[-1, :]
-            master_node = virtual_elements[-1, -1]
+            edge_nodes = virtual_node_ids[-1, :]
+            master_node = virtual_node_ids[-1, -1]
             slave_nodes = edge_nodes[:-1]
+            x_condition = boundary_conditions.lower.x
+            y_condition = boundary_conditions.lower.y
         else:
-            edge_nodes = virtual_elements[:, -1]
-            master_node = virtual_elements[-1, -1]
+            edge_nodes = virtual_node_ids[:, -1]
+            master_node = virtual_node_ids[-1, -1]
             slave_nodes = edge_nodes[:-1]
+            x_condition = boundary_conditions.right.x
+            y_condition = boundary_conditions.right.y
 
         edge_dofs_x = 2 * edge_nodes
         edge_dofs_y = edge_dofs_x + 1
@@ -1448,14 +1485,14 @@ def _apply_boundary_conditions(
         slave_dofs_x = 2 * slave_nodes
         slave_dofs_y = slave_dofs_x + 1
 
-        if settings[0, edge] == 1:
+        if x_condition is EEdgeBoundaryCondition.FIXED:
             updated[edge_dofs_x] = 0.0
-        elif settings[0, edge] == 2:
+        elif x_condition is EEdgeBoundaryCondition.TRACTION:
             updated[slave_dofs_x] = updated[master_dof_x]
 
-        if settings[1, edge] == 1:
+        if y_condition is EEdgeBoundaryCondition.FIXED:
             updated[edge_dofs_y] = 0.0
-        elif settings[1, edge] == 2:
+        elif y_condition is EEdgeBoundaryCondition.TRACTION:
             updated[slave_dofs_y] = updated[master_dof_y]
 
     return updated
