@@ -1,3 +1,4 @@
+from copy import copy
 from dataclasses import dataclass
 
 import numpy as np
@@ -22,6 +23,18 @@ class HomogeneousSpatialParameterisation(SpatialParameterisation):
         size: npt.NDArray[np.uint32]
     ) -> npt.NDArray[np.float64]:
         return np.full((size[0], size[1]), self.value.value)
+
+    def collect_degrees_of_freedom(
+        self,
+    ) -> list[DegreeOfFreedom]:
+        return [copy(self.value)]
+
+    def update_from_degrees_of_freedom(
+        self,
+        degrees_of_freedom: list[DegreeOfFreedom]
+    ) -> None:
+        # TODO: length list check to match num dofs
+        self.value = degrees_of_freedom[0]
 
     def pack_degrees_of_freedom(
         self,

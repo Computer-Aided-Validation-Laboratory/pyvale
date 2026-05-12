@@ -12,6 +12,7 @@ from pyvale.vfm.spatial_parameterisations.known import (
 #   - no forward referencing in phases list
 #   - individual weights cant be greater than 1.0 in total
 #   - sum of weights must be 1.0
+#   - optimiser is compatible with objective function
 def vfm(
     experiment_data: ExperimentData,
     identification: Identification
@@ -31,7 +32,8 @@ def vfm(
                     identification.constitutive_law,
                     parameter_map_size,
                     phase.spatial_parameterisations,
-                    phase.weighted_metrics,
+                    phase.metrics,
+                    phase.objective_function,
                     experiment_data
                 )
 

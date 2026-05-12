@@ -4,6 +4,7 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
+    DegreeOfFreedom,
     SpatialParameterisation,
 )
 
@@ -24,6 +25,17 @@ class KnownSpatialParameterisation(SpatialParameterisation):
 
         return self.value
 
+    def collect_degrees_of_freedom(
+        self,
+    ) -> list[DegreeOfFreedom]:
+        return []
+
+    def update_from_degrees_of_freedom(
+        self,
+        degrees_of_freedom: list[DegreeOfFreedom]
+    ) -> None:
+        return
+
     def pack_degrees_of_freedom(
         self,
     ) -> tuple[
@@ -37,4 +49,4 @@ class KnownSpatialParameterisation(SpatialParameterisation):
         self,
         degrees_of_freedom: npt.NDArray[np.float64]
     ) -> None:
-        return None
+        return
