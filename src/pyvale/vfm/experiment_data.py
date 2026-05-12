@@ -10,7 +10,7 @@ class SpecimenGeometry:
     x: npt.NDArray[np.float64]
     y: npt.NDArray[np.float64]
     # TODO: not sure exactly what this should be
-    region_of_interest: npt.NDArray[np.uint64]
+    region_of_interest: npt.NDArray[np.uint32]
     thickness: float
     pixel_area: npt.NDArray[np.float64]
 

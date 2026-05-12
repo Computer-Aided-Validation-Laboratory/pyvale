@@ -34,7 +34,7 @@ class SpatialParameterisation(ABC):
         pass
 
     @abstractmethod
-    def update_from_collected_degrees_of_freedom(
+    def update_from_degrees_of_freedom(
         self,
         degrees_of_freedom: list[DegreeOfFreedom]
     ) -> None:
