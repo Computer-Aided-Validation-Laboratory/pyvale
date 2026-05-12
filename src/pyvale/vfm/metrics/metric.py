@@ -16,6 +16,7 @@ class Metric(ABC):
         self,
         stress: npt.NDArray[np.float64],
         constitutive_law: ConstitutiveLaw,
+        parameter_map_size: npt.NDArray[np.uint32],
         spatial_parameterisations: dict[str, SpatialParameterisation],
         experiment_data: ExperimentData
     ) -> npt.NDArray[np.float64]:
