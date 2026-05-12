@@ -679,8 +679,7 @@ def simdata_to_rtmesh(pypath: Path,
                                                  dtype=np.float64)  # Store nodal normals over all timesteps
     # NOTE: TEMPORARY! Assumes that node normals don't change over time, which is wrong if we deform the mesh. But it's easier to use pyvista to see if this fixes our issues
     node_normals = find_node_normals(pv_grid) # Find node normals for shading; same shape as node_coords
-    node_normals_expanded_over_time[0] = node_normals[
-        connectivity, :COORDS_PER_NODE]  # Expanded nodal coords, so we do not need the connectivity array
+    node_normals_expanded_over_time[0, :, :, :] = node_normals[connectivity]
 
     #print(f"Node normals shape: {node_normals.shape}")
     node_coords_expanded_over_time = np.ndarray(
@@ -695,7 +694,7 @@ def simdata_to_rtmesh(pypath: Path,
             coords = np.ascontiguousarray(node_coords)
             #coords_over_time[timestep] = coords
             node_coords_expanded_over_time[timestep] = coords[connectivity]  # Expand nodal coords,
-            node_normals_expanded_over_time[timestep] = node_normals # TEMPORARY!!!!
+            node_normals_expanded_over_time[timestep, :, :, :] = node_normals[connectivity] # TEMPORARY!!!!
             #node_coords_expanded_over_time[timestep] = coords[connectivity, :COORDS_PER_NODE]  # Expand nodal coords,
     #rtmesh.node_coords_over_time = coords_over_time
     rtmesh.node_coords_expanded_over_time = node_coords_expanded_over_time

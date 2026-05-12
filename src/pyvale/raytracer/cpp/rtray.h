@@ -16,7 +16,7 @@ struct Ray {
     //EIGEN_MAKE_ALIGNED_OPERATOR_NEW; // Required for structures using Eigen members
     EiVector3d origin;
     EiVector3d direction;
-    double t_min;
+    double t_min {1e-8};
     double t_max{ std::numeric_limits<double>::infinity() };
 };
 

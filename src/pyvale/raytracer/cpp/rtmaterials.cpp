@@ -16,9 +16,10 @@
 #include "rtrayintersection.h"
 #include "rtmathutils.h"
 
+static constexpr double OFFSET_SHADOW = 1e-2;
 
 void ray_diffuse(const RayState& current_state,
-    const HitRecord& intersection_record,
+    HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color){
@@ -26,11 +27,16 @@ void ray_diffuse(const RayState& current_state,
     // Depends on: Incident ray direction
     // Use non-uniform Lambertian distribution weighed by cos of the angle between the indicent ray and surface normal. Scattering is more likely close to the normal.
     //EiVector3d emitted = intersection_record.emission;
+    const EiVector3d p = intersection_record.point_intersection; // Point of intersection
+    //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
     
+    intersection_record.normalize_and_flip_normals(current_state.ray);
+    intersection_record.align_normals();
     EiVector3d normal_shade = intersection_record.normal_shading; // Shading normal
-    set_face_normal(current_state.ray, normal_shade); // Normalise and flip
 
     // Generate orthonormal basis (Hughes-Moller method)
     //EiVector3d b1 =
@@ -59,56 +65,60 @@ void ray_diffuse(const RayState& current_state,
     double r2s = sqrt(r2);
 
     EiVector3d direction_scatter = (b1 * cos(r1) * r2s + b2 * sin(r1) * r2s + normal_shade * sqrt(1 - r2));
+    //direction_scatter.stableNormalize();
     
+    /*
     // Catch degenerate scatter direction (NaN prevention)
-    if (direction_scatter .squaredNorm() < 1e-8) {
+    if (direction_scatter.squaredNorm() < 1e-8) {
         direction_scatter = normal_shade;
     }
-
+*/
     EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
-    set_face_normal(current_state.ray, normal_geo);
 
     Ray ray_new;
-    ray_new.origin = intersection_record.point_intersection + normal_geo * 1e-4;
+    ray_new.origin = intersection_record.point_intersection + normal_geo * OFFSET;
+    //ray_new.origin = intersection_record.point_intersection + direction_scatter * OFFSET;
     ray_new.direction = direction_scatter;
 
     stack.push_back({ray_new, next_accumulated_color, current_state.depth + 1});
 }
 
 void ray_specular(const RayState& current_state,
-    const HitRecord& intersection_record,
+    HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color){
     // Secondary ray traced in the direction about the normal
     // Depends on: angle between the viewing direction and the surface normal
     //EiVector3d emitted = intersection_record.emission;
+    const EiVector3d p = intersection_record.point_intersection; // Point of intersection
+    //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     
+    intersection_record.normalize_and_flip_normals(current_state.ray);
+    intersection_record.align_normals();
     EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
     EiVector3d normal_shade = intersection_record.normal_shading; // Shading normal
-    // Normalise and flip the normals
-    set_face_normal(current_state.ray, normal_geo);
-    set_face_normal(current_state.ray, normal_shade);
 
     EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
     EiVector3d ray_direction = current_state.ray.direction;
 
     EiVector3d reflected = ray_direction - 2 * ray_direction.dot(normal_shade) * normal_shade;
+    //reflected.stableNormalize();
+    
     if (reflected.dot(normal_geo) < 0.0) { // If reflected ray points inside the geometry
         reflected = ray_direction - 2 * ray_direction.dot(normal_geo) * normal_geo;
     }
     Ray ray_new;
-    ray_new.origin = intersection_record.point_intersection + normal_geo * 1e-4;
+    ray_new.origin = intersection_record.point_intersection + normal_geo * OFFSET;
     ray_new.direction = reflected;
 
     stack.push_back({ray_new, next_accumulated_color, current_state.depth + 1});
 }
 
-
-// Michael's WIP version - latest
 void ray_refractive(const RayState& current_state,
-    const HitRecord& intersection_record,
+    HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color){
@@ -117,18 +127,24 @@ void ray_refractive(const RayState& current_state,
     //EiVector3d emitted = intersection_record.emission;
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
-    static constexpr double OFFSET = 1e-4;
-    
+    const EiVector3d p = intersection_record.point_intersection; // Point of intersection
+    //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
     EiVector3d ray_direction = current_state.ray.direction;
-    EiVector3d normal_geo = intersection_record.normal_surface.normalized(); // Geometric normal; use for secondary rays and seeing if ray enters or exits the volume
-    EiVector3d normal_shade = intersection_record.normal_shading.normalized(); // Shading normal; use for Physics to dictate how light behaves
-    bool into = ray_direction.dot(normal_geo) < 0;
+    bool into = ray_direction.dot(intersection_record.normal_surface) < 0;
 
     // Ensure normals always point against the incident ray
+    intersection_record.align_normals();
+    EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
+    normal_geo.stableNormalize();
+    EiVector3d normal_shade = intersection_record.normal_shading; //  // Shading normal; use for Physics to dictate how light behaves
+    normal_shade.stableNormalize();
     if (!into) {
         normal_geo = -normal_geo;
-    }
-    set_face_normal(current_state.ray, normal_shade); // Shade normal won't necessarily point in the same direction as geometric normal, so we can't move it inside the if statement above
+        normal_shade = -normal_shade;
+    };
+
+    //set_face_normal(current_state.ray, normal_shade); // Shade normal won't necessarily point in the same direction as geometric normal, so we can't move it inside the if statement above
 
     EiVector3d reflected = ray_direction - 2 * ray_direction.dot(normal_shade) * normal_shade;
 
@@ -136,16 +152,35 @@ void ray_refractive(const RayState& current_state,
     //double cos_theta_i = -ray_direction.dot(normal_shade); // Cosine of the incident angle
     double cos_theta_i = std::clamp(-ray_direction.dot(normal_shade), 0.0, 1.0); // To avoid floating point errors
     EiVector3d reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_shade; // Reflection direction
-    /*
+    //reflected_dir.stableNormalize();
+    
     if (reflected_dir.dot(normal_geo) < 0.0) { // If reflected ray points inside the geometry
         reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_geo; 
     }
-*/
+
     double ri_surrounding = 1.0;   // Refractive index of the surrounding medium; for now hardcoded for air
     double ri_material = 1.5;   // Refractive index of the material/volume; for now hardcoded for glass
     double ri_ratio = into ? ri_surrounding / ri_material : ri_material / ri_surrounding; 
 
     double sin2_theta_t = ri_ratio * ri_ratio * (1.0 - cos_theta_i * cos_theta_i); // Sin^2 of the transmission angle
+
+    /* // tbd which calculation gives better results
+    EiVector3d r_out_perp = ri_ratio * (ray_direction + cos_theta_i * normal_shade); // Perpendicular component
+    double r_out_perp_length_squared = r_out_perp.squaredNorm();
+
+    // If the squared length is > 1.0, Total Internal Reflection occurs
+    if (r_out_perp_length_squared > 1.0) {
+        Ray reflected_ray;
+        reflected_ray.origin = intersection_record.point_intersection + normal_geo * OFFSET; // Push secondary rays slightly off the surface to remove the shadow acne
+        reflected_ray.direction = reflected_dir;
+        
+        stack.push_back({reflected_ray, next_accumulated_color, current_state.depth + 1});
+        return;
+    }
+
+    // Calculate the parallel component
+    EiVector3d r_out_parallel = -sqrt(fabs(1.0 - r_out_perp_length_squared)) * normal_shade;
+    */
 
     
     // Total internal reflection
@@ -157,7 +192,7 @@ void ray_refractive(const RayState& current_state,
         stack.push_back({reflected_ray, next_accumulated_color, current_state.depth + 1});
         return;
     }
-
+    
     // Schlick's approximation
     double a = ri_material - ri_surrounding;
     double b = ri_material + ri_surrounding;
@@ -174,14 +209,15 @@ void ray_refractive(const RayState& current_state,
     Ray reflected_ray;
     reflected_ray.origin = intersection_record.point_intersection + normal_geo * OFFSET; // Push back into incident medium (i.e., off the surface)
     reflected_ray.direction = reflected_dir;
+    reflected_ray.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
 
     Ray refracted_ray;
     refracted_ray.origin = intersection_record.point_intersection - normal_geo * OFFSET; // Push forward into new medium (i.e., into the surface)
     refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_shade; // Transmitted/refracted direction
-    // TEST FOR ONLY REFRACTING RAYS
-    double P = 0.25 + 0.5 * reflectance; // Reflection's chance of surviving
-    double P_transmit = transmittance / (1.0 - P); 
+    //refracted_ray.direction = r_out_perp + r_out_parallel;
 
+    //refracted_ray.direction.stableNormalize();
+    
     /*
     if (reflected_ray.direction.dot(normal_geo) < 0.0) { // If reflected ray points inside the geometry
         refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_geo;
@@ -214,7 +250,7 @@ void ray_refractive(const RayState& current_state,
 
 // We don't really need most these arguments, but this is to match the function pointer signature to avoid having a switch in the rendering loop
 void ray_unlit(const RayState& current_state,
-    const HitRecord& intersection_record,
+    HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color){
@@ -224,7 +260,7 @@ void ray_unlit(const RayState& current_state,
 }
 
 void ray_undefined(const RayState& current_state,
-    const HitRecord& intersection_record,
+    HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color){

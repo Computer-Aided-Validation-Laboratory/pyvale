@@ -705,9 +705,19 @@ inline void set_BLAS_intersection_color(BLAS &mesh_bvh,  const enum ElementNodeC
         case TRI3:
             mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3_col; // Color with barycentric interpolation
             break;
-        default:
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_any_col; // Just solid color for all other element types
+        case TRI6:
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6_col;
             break;
+         case QUAD4:
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4_col;
+            break;
+        case QUAD8: 
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8_col;
+            break;
+        case QUAD9:
+            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9_col;
+            break;
+        default: throw std::invalid_argument("Unsupported element type.");
     }
 }
 

@@ -30,31 +30,31 @@ inline EiVector3d ray_blue_sky(const Ray& ray){
 }
 
 void ray_diffuse(const RayState& current_state,
-    const HitRecord& intersection_record,
+    HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color);
 
 void ray_specular(const RayState& current_state,
-    const HitRecord& intersection_record,
+    HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color);
 
 void ray_refractive(const RayState& current_state,
-    const HitRecord& intersection_record,
+    HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color);
 
 void ray_unlit(const RayState& current_state,
-    const HitRecord& intersection_record,
+    HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color);
 
 void ray_undefined(const RayState& current_state,
-    const HitRecord& intersection_record,
+    HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color);

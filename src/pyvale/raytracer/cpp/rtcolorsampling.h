@@ -12,6 +12,18 @@
 #include "rteigentypes.h"
 #include "rtbvh.h"
 
+// Scoped enum, so will not implicitly convert to int
+// Ensure that these match the enum in Python. Integers used to avoid using strings in C-interface
+enum class TextureSampler{
+    NEAREST_NEIGHBOUR = 0,
+    LANCZOS_2 = 1,
+    LANCZOS_3 = 2,
+    CATMULL_ROM = 3,
+    MITCHELL_NETRAVALI = 4,
+    BSPLINE = 5,
+    QUINTIC_SPLINE = 6
+};
+
 
 // Getter for (R,G,B) values for the intersected surface element if it uses solid colour
 inline EiVector3d get_face_color(Eigen::Index min_row_idx,
@@ -90,17 +102,6 @@ inline void get_face_normals(Eigen::Index min_row_idx,
     }
 }
 
-// Scoped enum, so will not implicitly convert to int
-// Ensure that these match the enum in Python. Integers used to avoid using strings in C-interface
-enum class TextureSampler{
-    NEAREST_NEIGHBOUR = 0,
-    LANCZOS_2 = 1,
-    LANCZOS_3 = 2,
-    CATMULL_ROM = 3,
-    MITCHELL_NETRAVALI = 4,
-    BSPLINE = 5,
-    QUINTIC_SPLINE = 6
-};
 
 namespace texsampler{
 

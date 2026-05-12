@@ -20,25 +20,25 @@
 // New radiance function with lighting but iterative and refactored 
 EiVector3d return_ray_color_stack(const Ray& primary_ray, const TLAS& TLAS){
 
-    static constexpr int MAX_DEPTH = 50; // Max depth for the secondary rays
+    static constexpr int MAX_DEPTH = 60; // Max depth for the secondary rays
     EiVector3d total_color = EiVector3d::Zero();
     std::vector<RayState> stack;
     stack.reserve(MAX_DEPTH);
     stack.push_back({primary_ray, EiVector3d(1.0, 1.0, 1.0), 0});
-    void (*ray_material_interaction_ptr)(const RayState& current_state, const HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
+    void (*ray_material_interaction_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color); // Pointer to the function determining the interaction between the ray and the mesh material
 
     while(!stack.empty()){
         RayState current_state = stack.back();
         stack.pop_back();
+        current_state.ray.direction.stableNormalize();
         Ray current_ray = current_state.ray;
 
         HitRecord intersection_record; // Create HitRecord struct
         // Look for the first intersection for this ray
         IntersectionOutput intersection;
         intersect_TLAS(current_ray, TLAS, intersection, intersection_record);
+
         ray_material_interaction_ptr = intersection_record.ray_material_ptr;
-        //std::cout << "Ray material interaction ptr: " << ray_material_interaction_ptr << std::endl;
-    
 
         if (intersection_record.t == std::numeric_limits<double>::infinity()) {
             const EiVector3d blue_sky = ray_blue_sky(current_ray); // Early termination - no bounces here anyway
@@ -53,15 +53,15 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const TLAS& TLAS){
         EiVector3d emitted = intersection_record.emission;
         EiVector3d albedo = intersection_record.face_color;
 
-        
-        // Explicit depth limit with ambient fallback ---
+        /*
+        // Explicit depth limit with ambient fallback
         if (current_state.depth >= MAX_DEPTH) {
         //    // Add a fallback ambient color to compensate for truncated energy 
             // Avoids the "plain black shadows" caused by zero light return
             EiVector3d ambient_fallback = ray_blue_sky(current_ray) * 0.2; 
             total_color += current_state.accumulated_color.cwiseProduct(emitted + ambient_fallback);
             continue; 
-        }
+        }*/
         
         if (current_state.depth > MAX_DEPTH/2) { // Start early termination if we are at least halfway through the maximum allowed depth
             // Russian roulette early termination
@@ -290,7 +290,8 @@ void render_ppm_image(const EiVector3d& camera_center,
                 EiVector3d ray_direction = pixel_sample - ray_origin; // ray direction in thin lens approx
                 //EiVector3d ray_origin = camera_center; // ray origin in pinhole camera mode
                 //EiVector3d ray_direction = pixel_sample - camera_center; // ray direction in pinhole camera mode;
-                Ray current_ray{ ray_origin, ray_direction.normalized() };
+                //Ray current_ray{ ray_origin, ray_direction.normalized() };
+                Ray current_ray{ ray_origin, ray_direction};
                 //pixel_color += return_ray_color(current_ray, TLAS);
                 //pixel_color += return_ray_color_new(current_ray, TLAS);
                 pixel_color += return_ray_color_stack(current_ray, TLAS);

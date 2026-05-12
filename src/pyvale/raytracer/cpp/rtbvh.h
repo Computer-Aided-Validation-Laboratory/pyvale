@@ -114,6 +114,11 @@ struct AABB {
         // Surface area of rectangular prism
         return 2 * (height * width + width * depth + height * depth);
     }
+
+    inline double find_diagonal() const{
+        // Diagonal of rectangular prism
+        return std::sqrt(std::pow(corner_max[0] - corner_min[0], 2) + std::pow(corner_max[1] - corner_min[1], 2) + std::pow(corner_max[2] - corner_min[2], 2));
+    }
 };
 
 struct Bin {
@@ -175,7 +180,7 @@ struct BLAS {
     Texture texture {}; // If texture.data is not a nullptr, face_color is (u,v). This logic saves us having to store surface type explicitly
     IntersectionOutput (*intersection_function_ptr)(const Ray&, const std::vector<double>& node_coords, const unsigned int bvh_node_element_count) {nullptr}; // Ray-mesh element intersection (TRI3, QUAD4, etc.)
     void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx) {nullptr}; // Saving data to HitRecord depending on the surface type (color/texture) and element type
-    void (*ray_material_ptr)(const RayState& current_state, const HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
+    void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
     int root_idx {-1};
 
     BLAS() = default; // Constructor for emplace_back to avoid temporary copies

@@ -74,13 +74,27 @@ void overwrite_intersection_tri6_tex(HitRecord& intersection_record,
 /* ********************************************** 
  * Overwrite intersection output - solid colour
 ********************************************** */
+void overwrite_intersection_quad4_col(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx);
+
+void overwrite_intersection_quad8_col(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx);
+
+void overwrite_intersection_quad9_col(HitRecord& intersection_record,
+    const BLAS_Node& Node,
+    const Texture& texture,
+    Eigen::Index min_row_idx);
 
 void overwrite_intersection_tri3_col(HitRecord& intersection_record,
     const BLAS_Node& Node,
     const Texture& texture,
     Eigen::Index min_row_idx);
-
-void overwrite_intersection_any_col(HitRecord& intersection_record,
+    
+void overwrite_intersection_tri6_col(HitRecord& intersection_record,
     const BLAS_Node& Node,
     const Texture& texture,
     Eigen::Index min_row_idx);
