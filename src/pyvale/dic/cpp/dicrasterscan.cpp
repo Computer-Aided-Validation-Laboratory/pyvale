@@ -55,8 +55,8 @@ void raster(const Image &img_ref,
     {
 
         // initialise subsets
-        subset::Pixels ss_def(ss_size_x, ss_size_x);
-        subset::Pixels ss_ref(ss_size_y, ss_size_y);
+        subset::Pixels ss_def(ss_size_x, ss_size_y);
+        subset::Pixels ss_ref(ss_size_x, ss_size_y);
 
         // optimization parameters
         Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
