@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <iostream>
 #include <cstring>
+#include <stdexcept>
 #include <vector>
 #include <signal.h>
 #include <memory>
@@ -94,26 +95,25 @@ void engine(const py::array_t<bool>& img_roi_arr,
     // get a list of ss coordinates within RIO;
     // ------------------------------------------------------------------------
     std::vector<WindowLevel> multiwindow_l;
-    subset::Grid ss_grid_l;   // actual object, not reference
+    subset::Grid ss_grid_l;
+    subset::Grid ss_grid_l_inc;
 
     if (conf.scan_method == "MULTIWINDOW_RG" || conf.scan_method == "MULTIWINDOW") {
-
         multiwindow_init(multiwindow_l, img_roi, conf, mwconf, saveconf);
         ss_grid_l = multiwindow_l.back().layout;
-
+        ss_grid_l_inc = ss_grid_l;
     }
     else if (conf.scan_method == "SINGLEWINDOW_RG" ||
              conf.scan_method == "SINGLEWINDOW_RG_INCREMENTAL" ||
              conf.scan_method == "RASTER") {
-
         ss_grid_l = subset::create_grid(img_roi, conf.ss_step,
                                         conf.ss_size, conf.ss_size,
                                         conf.px_hori, conf.px_vert, false);
     }
     else {
-        std::cout << "ERROR: Unsupported scan method: " << conf.scan_method << std::endl;
-        exit(0);
+        throw std::invalid_argument("Unsupported scan method: " + conf.scan_method);
     }
+
 
     // resize the results based on subset information
     ResultArrays results_def_l(ss_grid_l.num, conf.num_params, false);
@@ -231,47 +231,89 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // multiwindow FFTCC + reliability Guided
         // ----------------------------------------------------------------------------------------
         else if (conf.scan_method == "MULTIWINDOW_RG") {
-            if (conf.incremental) {
-                if (should_update_ref(img_num_def_l, results_def_l, conf)) {
-                    img_num_ref_l = img_num_def_l - 1;
-                    img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
-                    interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
-                    std::swap(results_ref_l, results_def_l);
-                    //results_ref_l.get_latest_matches(results_def_l, img_num_def_l);
-                }
-                
-                // update ROI
+            if (conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf)) {
+                img_num_ref_l = img_num_def_l - 1;
+                img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
+                interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
+
                 bool* roi_updated = propagate_roi(img_roi, results_def_l, conf, ss_grid_l);
-                
-                // reconfigure multiwindowing
                 multiwindow_l.clear();
-                multiwindow_init(multiwindow_l, roi_updated, conf, mwconf, saveconf);
+                multiwindow_init_partial(multiwindow_l, roi_updated, conf, mwconf, saveconf,
+                                        mwconf.overlap.size() - 1);
 
-                // add displacements from previous correlation
+                WindowLevel last_level;
+                last_level.layout        = ss_grid_l;  // original coords, untouched
+                last_level.u.assign(ss_grid_l.num, 0.0);
+                last_level.v.assign(ss_grid_l.num, 0.0);
+                last_level.cost.assign(ss_grid_l.num, 0.0);
+                last_level.max_val.assign(ss_grid_l.num, 0.0);
+                last_level.level         = mwconf.overlap.size() - 1;
+                last_level.mad_filter    = conf.fft_mad;
+                last_level.mad_scale     = conf.fft_mad_scale;
+                last_level.fft_save      = conf.fft_save;
+                last_level.saveconf      = saveconf;
+                last_level.step          = mwconf.overlap.back();
+                last_level.template_size = mwconf.subset_size.back();
+                last_level.search_area   = mwconf.search_area.back();
+
+
+                // Step 1: update active flags on ss_grid_l
+                if (img_num_def_l > 1){
+                    for (int i = 0; i < ss_grid_l.num; i++) {
+                        if (!results_ref_l.above_thresh[i]) {
+                            ss_grid_l.active_ss[i] = false;
+                        }
+                    }
+                }
+                last_level.layout = ss_grid_l;
                 for (int i = 0; i < ss_grid_l.num; i++) {
-                    ss_grid_l.coords[2*i]   += results_def_l.u[i];
-                    ss_grid_l.coords[2*i+1] += results_def_l.v[i];
+                    if (ss_grid_l.active_ss[i]) {
+                        last_level.layout.coords[2*i]   += results_ref_l.u[i];
+                        last_level.layout.coords[2*i+1] += results_ref_l.v[i];
+                    }
                 }
 
-                // update the last window in the multiwindow struct
-                multiwindow_l.back().layout = ss_grid_l;
-
-                // recalculate the neighbours for the updated subset grid
+                multiwindow_l.push_back(std::move(last_level));
                 multiwindow_l.back().gen_neighlist(multiwindow_l[multiwindow_l.size()-2].layout);
+
             }
 
-
-
             multiwindow_rg(img_ref_l, img_def_l, *interp_ref_l, *interp_def_l,
-                        multiwindow_l, conf, img_num_ref_l, img_num_def_l, results_ref_l, results_def_l);
+                        multiwindow_l, conf, img_num_ref_l, img_num_def_l,
+                        results_ref_l, results_def_l);
 
+            results_ref_l  = results_def_l;
+
+            // ------------------------------------------------------------
+            // stereo
+            // ------------------------------------------------------------
             if (conf.stereo) {
-                if (match_strat != 3) { std::cerr << "UNKNOWN MATCH_STRAT\n"; exit(0); }
-                stereo::matching(img_def_l, img_def_r, *interp_def_l, *interp_def_r,
-                                ss_grid_l, conf, img_num_def_l, img_num_def_r,
-                                stereo_geom.F, results_def_l, results_def_r);
-                stereo::pixel_to_world(ss_grid_l, calib, results_def_l, results_def_r,
-                                    stereo_geom.K0, stereo_geom.K1, stereo_geom.R, conf.ss_size);
+
+                if (match_strat != 3) {
+                    std::cerr << "UNKNOWN MATCH_STRAT\n";
+                    exit(0);
+                }
+
+                stereo::matching(img_def_l,
+                                img_def_r,
+                                *interp_def_l,
+                                *interp_def_r,
+                                ss_grid_l_inc,
+                                conf,
+                                img_num_def_l,
+                                img_num_def_r,
+                                stereo_geom.F,
+                                results_def_l,
+                                results_def_r);
+
+                stereo::pixel_to_world(ss_grid_l_inc,
+                                    calib,
+                                    results_def_l,
+                                    results_def_r,
+                                    stereo_geom.K0,
+                                    stereo_geom.K1,
+                                    stereo_geom.R,
+                                    conf.ss_size);
             }
         }
 
@@ -305,6 +347,12 @@ void build_info(){
 }
 
 bool should_update_ref(const int img_num_def_l, const ResultArrays& results, const util::Config& conf) {
+
+    // never update on the first deformed image
+    if (img_num_def_l == 1) {
+        return false;
+    }
+
     if (conf.incremental_update_cond == "IMAGE") {
         int interval = static_cast<int>(conf.incremental_update_val);
         return (img_num_def_l - 1) % interval == 0;
