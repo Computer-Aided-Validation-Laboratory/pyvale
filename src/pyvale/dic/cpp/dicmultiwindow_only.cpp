@@ -52,6 +52,7 @@ void multiwindow_only(const Image &img_ref,
                                                     img_ref, img_def,
                                                     interp_def,
                                                     img_num_ref, img_num_def,
+                                                    lvl, multiwindow.size(),
                                                     conf.basenames);
     }
 

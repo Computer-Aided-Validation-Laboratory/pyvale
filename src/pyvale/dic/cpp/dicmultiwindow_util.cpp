@@ -258,6 +258,8 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                                            const Interpolator &interp_def,
                                            const int img_num_ref,
                                            const int img_num_def,
+                                           const int window_level,
+                                           const int num_levels,
                                            const std::vector<std::string> &filenames){
 
         const int px_hori = interp_def.px_hori;
@@ -327,14 +329,9 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         }
 
         // remove outliers in fft
-        if (mad_filter){
-            //remove_outliers(u, mad_scale);
-            //remove_outliers(v, mad_scale);
+        if (mad_filter && (window_level != num_levels-1)){
             remove_outliers_vector(u,v,max_val);
         }
-
-        //smooth_field(level[i].x, current_level, 7.0, 5);
-        //smooth_field(level[i].y, current_level, 7.0, 5);
 
         if (fft_save){
 
