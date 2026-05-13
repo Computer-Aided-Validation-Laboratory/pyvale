@@ -19,7 +19,8 @@ bool* propagate_roi(
     const bool* img_roi,
     const ResultArrays results_def,
     const util::Config conf,
-    const subset::Grid ss_grid){
+    const subset::Grid ss_grid,
+    const bool debug){
 
 
     const int half = conf.ss_size / 2;
@@ -61,9 +62,20 @@ bool* propagate_roi(
 
     bool* roi_out = new bool[conf.px_hori * conf.px_vert];
 
-    for (int y = 0; y < conf.px_vert; y++)
-        for (int x = 0; x < conf.px_hori; x++)
+    for (int y = 0; y < conf.px_vert; y++){
+        for (int x = 0; x < conf.px_hori; x++){
             roi_out[y * conf.px_hori + x] = roi_mat.at<uchar>(y, x) > 0;
+            //std::cout << x << " " << y << " " << roi_out[y*conf.px_hori+x] << std::endl;
+        }
+    }
+
+    if (debug){
+        for (int y = 0; y < conf.px_vert; y++){
+            for (int x = 0; x < conf.px_hori; x++){
+                std::cout << x << " " << y << " " << roi_out[y*conf.px_hori+x] << std::endl;
+            }
+        }
+    }
 
     return roi_out;
 }
