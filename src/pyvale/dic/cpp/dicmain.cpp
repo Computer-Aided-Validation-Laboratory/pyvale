@@ -195,7 +195,9 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // raster scan
         // ----------------------------------------------------------------------------------------
         if (conf.scan_method == "RASTER") {
-            if (conf.stereo) { std::cerr << "ERROR: RASTER does not support stereo\n"; return; }
+            if (conf.stereo) 
+                throw std::invalid_argument("Unsupported scan method: " + conf.scan_method);
+
             raster(img_ref_l, *interp_def_l, ss_grid_l, conf, 0, img_num, results_def_l);
         }
 
@@ -316,10 +318,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                     conf.ss_size);
             }
         }
-
         else {
-            std::cerr << "ERROR: Unsupported scan method: " << conf.scan_method << "\n";
-            exit(1);
+            throw std::invalid_argument("Unsupported scan method: " + conf.scan_method);
         }
 
         if (!conf.stereo){
