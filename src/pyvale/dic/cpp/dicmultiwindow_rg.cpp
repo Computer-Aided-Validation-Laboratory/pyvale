@@ -244,9 +244,9 @@ void multiwindow_rg(const Image &img_ref,
                     subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
                     if (results_def.above_thresh[current.idx])
-                        opt.copy_params_from_fft(nidx, multiwindow.back().u, multiwindow.back().v);
-                    else
                         opt.copy_params_from_neigh(results_def.p, current.idx);
+                    else
+                        opt.copy_params_from_fft(nidx, multiwindow.back().u, multiwindow.back().v);
 
                     // optimize
                     if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
