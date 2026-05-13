@@ -57,8 +57,8 @@ void singlewindow_rg(const Image &img_ref,
     const int ss_step = ss_grid.step;
 
 
-    auto get_initial_guess = [&](std::vector<double> &p, double &max_val, double cx, double cy, int ss_size_x, int ss_size_y, bool debug) {
-        get_single_window_fftcc_peak(p, max_val, cx, cy,
+    auto get_initial_guess = [&](FFT &fft, std::vector<double> &p, double &max_val, double cx, double cy, int ss_size_x, int ss_size_y, bool debug) {
+        get_single_window_fftcc_peak(fft, p, max_val, cx, cy,
                                         ss_size_x, ss_size_y,
                                         conf.max_disp, conf.max_disp,
                                         img_ref, img_def, interp_def, debug);
@@ -91,6 +91,10 @@ void singlewindow_rg(const Image &img_ref,
         // Initialize ref and def subsets
         subset::Pixels ss_def(ss_size_x, ss_size_y);
         subset::Pixels ss_ref(ss_size_x, ss_size_y);
+
+        // initialize FFT stuff
+        FFT fft(conf.max_disp, conf.max_disp);
+
         double max_val = 0.0;
 
         // Optimization parameters
@@ -138,7 +142,7 @@ void singlewindow_rg(const Image &img_ref,
                 subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
                 // if the first image. Take the optimization parameters from rigid fourier
-                get_initial_guess(opt.p, max_val, cx, cy, ss_size_x, ss_size_y, false);
+                get_initial_guess(fft, opt.p, max_val, cx, cy, ss_size_x, ss_size_y, false);
 
 
                 // run optimizer
