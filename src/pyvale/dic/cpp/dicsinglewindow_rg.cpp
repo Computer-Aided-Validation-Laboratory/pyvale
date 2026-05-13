@@ -13,6 +13,7 @@
 #include <omp.h>
 #include <csignal>
 #include <optional>
+#include <stdexcept>
 
 // common_cpp headers
 #include "../../common_cpp/defines.hpp"
@@ -137,7 +138,7 @@ void singlewindow_rg(const Image &img_ref,
                 subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
                 // if the first image. Take the optimization parameters from rigid fourier
-                get_initial_guess(opt.p, max_val, cx, cy, ss_size_x*2, ss_size_y*2, false);
+                get_initial_guess(opt.p, max_val, cx, cy, ss_size_x, ss_size_y, false);
 
 
                 // run optimizer
@@ -260,15 +261,10 @@ void singlewindow_rg(const Image &img_ref,
                         // fill the reference subset
                         subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
-                        if (!results_def.above_thresh[current.idx]){
-                            if (ss_ref.sum!=0) get_initial_guess(opt.p, max_val, cx, cy, ss_size_x, ss_size_y, false);
-                        }
-                        else {
+                        if (results_def.above_thresh[current.idx]){
                             opt.copy_params_from_neigh(results_def.p, current.idx);
+                            if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, false);
                         }
-
-                        // optimize
-                        if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, false);
 
                         // add deformation from reference image to new results
                         if ((nres.above_thresh) && (img_num_ref > 0)){

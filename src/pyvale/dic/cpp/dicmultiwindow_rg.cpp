@@ -84,8 +84,8 @@ void multiwindow_rg(const Image &img_ref,
         int tid = omp_get_thread_num();
 
         // Initialize ref and def subsets
-        subset::Pixels ss_def(ss_size_x, ss_size_x);
-        subset::Pixels ss_ref(ss_size_y, ss_size_y);
+        subset::Pixels ss_def(ss_size_x, ss_size_y);
+        subset::Pixels ss_ref(ss_size_x, ss_size_y);
 
         // Optimization parameters
         Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
@@ -117,6 +117,12 @@ void multiwindow_rg(const Image &img_ref,
                 int grid_y = seed_y / ss_step;
                 int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
+                // if a seed subset is no longer active then we've hit a problemo
+                if (!ss_grid.active_ss[idx]){
+                    throw std::runtime_error("Seed subset (" + std::to_string(seed_x) + "," +
+                                             std::to_string(seed_y) + ") is no longer active. The seed subset failed to converge in a previous calculation");
+                }
+
                 double cx = ss_grid.coords[2*idx];
                 double cy = ss_grid.coords[2*idx+1];
 
@@ -129,14 +135,12 @@ void multiwindow_rg(const Image &img_ref,
 
                 OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
+                rg::check_convergence_or_exit(seed_x, seed_y, seed_res);
 
-                // add deformation from reference image to new results
                 if (img_num_ref > 0){
                     seed_res.u += results_ref.u[idx];
                     seed_res.v += results_ref.v[idx];
                 }
-
-                rg::check_convergence_or_exit(seed_x, seed_y, seed_res);
 
                 // append the results for the current subset to result vectors
                 results_def.append(seed_res, idx);
@@ -154,6 +158,12 @@ void multiwindow_rg(const Image &img_ref,
                     const double cx = ss_grid.coords[nidx*2];
                     const double cy = ss_grid.coords[nidx*2+1];
 
+                    if (!ss_grid.active_ss[nidx]){
+                    throw std::runtime_error("Direct neighbour (" + std::to_string(cx) + "," + 
+                                                std::to_string(cy) + ") of seed subset (" + std::to_string(seed_x) + "," +
+                                                std::to_string(seed_y) + ") is no longer active. The seed subset failed to converge in a previous calculation");
+                    }
+
                     // fill the reference subset
                     subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
@@ -165,8 +175,6 @@ void multiwindow_rg(const Image &img_ref,
 
                     rg::check_convergence_or_exit(cx, cy, nres, true);
 
-
-                    // add deformation from reference image to new results
                     if (img_num_ref > 0){
                         nres.u += results_ref.u[nidx];
                         nres.v += results_ref.v[nidx];
@@ -225,25 +233,27 @@ void multiwindow_rg(const Image &img_ref,
                     double cy = ss_grid.coords[nidx*2+1];
 
                     OptResult nres(opt.num_params);
-                    if (((results_ref.above_thresh[nidx]) && (img_num_ref > 0)) || (img_num_ref == 0)){
-                        // fill the reference subset
-                        subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
-                        if (results_def.cost[current.idx] < conf.threshold)
-                            opt.copy_params_from_fft(nidx,
-                                                    multiwindow.back().u,
-                                                    multiwindow.back().v);
-                        else 
-                            opt.copy_params_from_neigh(results_def.p, current.idx);
+                    // if the subset is no longer active then skip
+                    if (!ss_grid.active_ss[nidx]){
+                        results_def.append(nres, nidx);
+                        continue;
+                    }
 
-                        // optimize
-                        if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+                    // fill the reference subset
+                    subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
-                        // add deformation from reference image to new results
-                        if ((nres.above_thresh) && (img_num_ref > 0)){
-                            nres.u += results_ref.u[nidx];
-                            nres.v += results_ref.v[nidx];
-                        }
+                    if (results_def.above_thresh[current.idx])
+                        opt.copy_params_from_fft(nidx, multiwindow.back().u, multiwindow.back().v);
+                    else
+                        opt.copy_params_from_neigh(results_def.p, current.idx);
+
+                    // optimize
+                    if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+
+                    if (img_num_ref > 0){
+                        nres.u += results_ref.u[nidx];
+                        nres.v += results_ref.v[nidx];
                     }
 
                     // append results
