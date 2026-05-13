@@ -3,9 +3,13 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
-from pyvale.vfm.identification import EIdentificationType
+from pyvale.vfm.constitutive_laws.constitutive_law import (
+    ConstitutiveLaw,
+    EIdentificationType,
+)
+from pyvale.vfm.constitutive_laws.hardening import EHardening
 from pyvale.vfm.constitutive_laws.radial_return import radial_return
+
 
 @dataclass(slots=True)
 class LinearHardening(ConstitutiveLaw):
@@ -18,5 +22,10 @@ class LinearHardening(ConstitutiveLaw):
         strain: npt.NDArray[np.float64],
         constitutive_parameter_maps: dict[str, npt.NDArray[np.float64]],
     ) -> npt.NDArray[np.float64]:
-        # radial_return(strain)
-        ...
+        stress, _, _, _ = radial_return(
+            strain,
+            constitutive_parameter_maps,
+            EHardening.Linear
+        )
+
+        return stress

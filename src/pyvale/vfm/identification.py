@@ -1,4 +1,3 @@
-import enum
 from dataclasses import dataclass
 
 from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
@@ -11,11 +10,6 @@ from pyvale.vfm.optimisers.optimiser import Optimiser
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
     SpatialParameterisation,
 )
-
-
-class EIdentificationType(enum.Enum):
-    Linear = enum.auto()
-    Nonlinear = enum.auto()
 
 
 @dataclass(slots=True)

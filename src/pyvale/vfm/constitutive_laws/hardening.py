@@ -1,19 +1,19 @@
+import enum
+
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.mechanical_properties import (
-    EConstituitiveLaw,
-    EParameterName,
-    MechanicalProperties,
-)
+class EHardening(enum.Enum):
+    Linear = enum.auto()
+    Swift = enum.auto()
+    Voce = enum.auto()
+    Ludwik = enum.auto()
 
 
-def hardening(
-    constituitive_law: EConstituitiveLaw,
+def hardening_func(
+    hardening: EHardening,
+    parameter_maps: dict[str, npt.NDArray[np.float64]],
     equivalent_plastic_strain: npt.NDArray[np.float64],
-    mechanical_properties: MechanicalProperties,
-    size_x: int,
-    size_y: int,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """
     Return current yield stress and its derivative for the active hardening law.
@@ -27,18 +27,10 @@ def hardening(
             (i.e. hardening slope)
     """
 
-    parameters = mechanical_properties.parameters
-
-    match constituitive_law:
-        case EConstituitiveLaw.LinearHardening:
-            yield_strength = (
-                parameters[EParameterName.YieldStrength].to_map(size_x, size_y)
-            )
-            hardening_modulus = (
-                parameters[EParameterName.HardeningModulus].to_map(
-                    size_x, size_y
-                )
-            )
+    match hardening:
+        case EHardening.Linear:
+            yield_strength = parameter_maps["yield_strength"]
+            hardening_modulus = parameter_maps["hardening_modulus"]
 
             yield_strength_flat = yield_strength.ravel()
             hardening_modulus_flat = hardening_modulus.ravel()
@@ -49,20 +41,10 @@ def hardening(
 
             return yield_stress, hardening_modulus_flat
 
-        case EConstituitiveLaw.SwiftHardening:
-            strength_coefficient = (
-                parameters[EParameterName.StrengthCoefficient].to_map(
-                    size_x, size_y
-                )
-            )
-            strain_offset = (
-                parameters[EParameterName.StrainOffset].to_map(size_x, size_y)
-            )
-            hardening_exponent = (
-                parameters[EParameterName.HardeningExponent].to_map(
-                    size_x, size_y
-                )
-            )
+        case EHardening.Swift:
+            strength_coefficient = parameter_maps["strength_coefficient"]
+            strain_offset = parameter_maps["strain_offset"]
+            hardening_exponent = parameter_maps["hardening_exponent"]
 
             strength_coefficient_flat = strength_coefficient.ravel()
             strain_offset_flat = strain_offset.ravel()
@@ -82,23 +64,11 @@ def hardening(
 
             return yield_stress, delta_yield_stress
 
-        case EConstituitiveLaw.VoceHardening:
-            yield_strength = (
-                parameters[EParameterName.YieldStrength].to_map(size_x, size_y)
-            )
-            hardening_modulus = (
-                parameters[EParameterName.HardeningModulus].to_map(
-                    size_x, size_y
-                )
-            )
-            saturation_stress = (
-                parameters[EParameterName.SaturationStress].to_map(
-                    size_x, size_y
-                )
-            )
-            rate_parameter = (
-                parameters[EParameterName.RateParameter].to_map(size_x, size_y)
-            )
+        case EHardening.Voce:
+            yield_strength = parameter_maps["yield_strength"]
+            hardening_modulus = parameter_maps["hardening_modulus"]
+            saturation_stress = parameter_maps["saturation_stress"]
+            rate_parameter = parameter_maps["rate_parameter"]
 
             yield_strength_flat = yield_strength.ravel()
             hardening_modulus_flat = hardening_modulus.ravel()
@@ -120,20 +90,10 @@ def hardening(
 
             return yield_stress, delta_yield_stress
 
-        case EConstituitiveLaw.LudwikHardening:
-            yield_strength = (
-                parameters[EParameterName.YieldStrength].to_map(size_x, size_y)
-            )
-            strength_coefficient = (
-                parameters[EParameterName.StrengthCoefficient].to_map(
-                    size_x, size_y
-                )
-            )
-            hardening_exponent = (
-                parameters[EParameterName.HardeningExponent].to_map(
-                    size_x, size_y
-                )
-            )
+        case EHardening.Ludwik:
+            yield_strength = parameter_maps["yield_strength"]
+            strength_coefficient = parameter_maps["strength_coefficient"]
+            hardening_exponent = parameter_maps["hardening_exponent"]
 
             yield_strength_flat = yield_strength.ravel()
             strength_coefficient_flat = strength_coefficient.ravel()
@@ -161,11 +121,8 @@ def hardening(
             return yield_stress, delta_yield_stress
 
         case _:
-            variants = ", ".join(e.name for e in EConstituitiveLaw) 
-
             raise NotImplementedError(
-                f"Hardening law '{constituitive_law}' is not yet implemented. "
-                f"Supported laws: {variants}"
+                f"Unsupported hardening: '{hardening}'"
             )
 
 

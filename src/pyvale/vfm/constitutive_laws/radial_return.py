@@ -3,12 +3,7 @@ import enum
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.hardening import hardening
-from pyvale.vfm.mechanical_properties import (
-    EParameterName,
-    MechanicalProperties,
-)
-
+from pyvale.vfm.constitutive_laws.hardening import EHardening, hardening_func
 
 class EUnloading(enum.Enum):
     NoCompensation = enum.auto()
@@ -16,9 +11,11 @@ class EUnloading(enum.Enum):
     LinearExtrapolation = enum.auto()
 
 
+# TODO: update docstring
 def radial_return(
     strain: npt.NDArray[np.float64],
-    mechanical_properties: MechanicalProperties,
+    constitutive_parameter_maps: dict[str, npt.NDArray[np.float64]],
+    hardening: EHardening,
     error_tolerance: float = 1e-8,
     iteration_limit: int = 100,
     unloading: EUnloading = EUnloading.ConstantStrain,
@@ -117,27 +114,19 @@ def radial_return(
 
     """
 
-    unloading = _coerce_unloading_mode(unloading)
-
     # Check inputs
     if strain.ndim != 4 or strain.shape[1] != 3:
         raise ValueError("strain must have shape (timesteps, 3, y, x)")
-
 
     # == UNPACK COMMON VARIABLES == 
     num_timesteps = strain.shape[0]
     size_y = strain.shape[2]
     size_x = strain.shape[3]
     num_datapoints = size_y * size_x
-    parameters = mechanical_properties.parameters
-    # Elastic modulus and poissons ratio are always required to compute trial elastic stress
-    elastic_modulus = (
-        parameters[EParameterName.ElasticModulus].to_map(size_x, size_y)
-    )
-    poissons_ratio = (
-        parameters[EParameterName.PoissonsRatio].to_map(size_x, size_y)
-    )
 
+    # Elastic modulus and poissons ratio are always required to compute trial elastic stress
+    elastic_modulus = constitutive_parameter_maps["elastic_modulus"]
+    poissons_ratio = constitutive_parameter_maps["poissons_ratio"]
 
     # == COMPUTE PLANE STRESS FACTOR (AND / OR ELASTIC STIFFNESS MATRIX) ==
     shear_modulus = elastic_modulus / (2 * (1 + poissons_ratio))     
@@ -247,12 +236,10 @@ def radial_return(
         # Compute yield stress for current plastic strain using the active
         # hardening law. The tangent term may be None for laws that do not
         # expose a simple constant hardening modulus.
-        yield_stress, _ = hardening(
-            mechanical_properties.constituitive_law,
+        yield_stress, _ = hardening_func(
+            hardening,
+            constitutive_parameter_maps,
             prev_equivalent_plastic_strain,
-            mechanical_properties,
-            size_x,
-            size_y,
         )
 
         # Check yield criterion for each point
@@ -364,12 +351,10 @@ def radial_return(
             (
                 yield_stress,
                 delta_yield_stress_delta_equivalent_plastic_strain
-            ) = hardening(
-                mechanical_properties.constituitive_law,
+            ) = hardening_func(
+                hardening,
+                constitutive_parameter_maps,
                 equivalent_plastic_strain[t, :],
-                mechanical_properties,
-                size_x,
-                size_y,
             )
 
             # Compute h_bar (hardening term in the consistency condition derivative) for
@@ -427,12 +412,10 @@ def radial_return(
 
 
             # == COMPUTE UPDATED YIELD STRESS USING UPDATED EQUIVALENT PLASTIC STRAIN ==
-            yield_stress, _ = hardening(
-                mechanical_properties.constituitive_law,
+            yield_stress, _ = hardening_func(
+                hardening,
+                constitutive_parameter_maps,
                 equivalent_plastic_strain[t, :],
-                mechanical_properties,
-                size_x,
-                size_y,
             )
 
 
@@ -563,22 +546,3 @@ def radial_return(
         yield_map,
         np.reshape(equivalent_plastic_strain, (num_timesteps, size_y, size_x)),
     )
-
-
-def _coerce_unloading_mode(unloading: EUnloading | str) -> EUnloading:
-    if isinstance(unloading, EUnloading):
-        return unloading
-
-    string_to_mode = {
-        "no_compensation": EUnloading.NoCompensation,
-        "constant_strain": EUnloading.ConstantStrain,
-        "linear_extrapolation": EUnloading.LinearExtrapolation,
-    }
-
-    try:
-        return string_to_mode[unloading]
-    except KeyError as error:
-        raise ValueError(
-            f"Invalid unloading option '{unloading}'. Supported options: "
-            "'no_compensation', 'constant_strain', 'linear_extrapolation'"
-        ) from error

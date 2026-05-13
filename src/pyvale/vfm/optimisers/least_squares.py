@@ -52,6 +52,10 @@ class LeastSquares(Optimiser):
             dofs_lower_bounds.append(sp_dofs_lower_bounds)
             dofs_upper_bounds.append(sp_dofs_upper_bounds)
 
+        dofs = np.concatenate(dofs)
+        dofs_lower_bounds = np.concatenate(dofs_lower_bounds)
+        dofs_upper_bounds = np.concatenate(dofs_upper_bounds)
+
         result = least_squares(
             evaluate_candidate,
             dofs,

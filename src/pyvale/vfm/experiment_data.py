@@ -21,19 +21,18 @@ class EEdgeCondition(enum.Enum):
     Traction = enum.auto()
 
 
-# Bottom is defined as the edge with the lower y value
-# Left is defined as the edge with the lower x value
-class EEdge(enum.Enum):
-    Top = 0
-    Bottom = 2
-    Left = 1
-    Right = 3
+@dataclass(slots=True)
+class Edge:
+    x: EEdgeCondition
+    y: EEdgeCondition
 
 
 @dataclass(slots=True)
 class EdgeConditions:
-    x: dict[EEdge, EEdgeCondition]
-    y: dict[EEdge, EEdgeCondition]
+    min_x_edge: Edge
+    max_x_edge: Edge
+    min_y_edge: Edge
+    max_y_edge: Edge
 
 
 @dataclass(slots=True)
