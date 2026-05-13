@@ -75,6 +75,8 @@ def evaluate_candidate(
         metric_results.append(
             metric.evaluate(
                 updated_stress,
+                constitutive_law,
+                parameter_map_size,
                 updated_spatial_parameterisations,
                 experiment_data
             )

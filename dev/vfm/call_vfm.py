@@ -1,9 +1,10 @@
 import numpy as np
+from pathlib import Path
 
 from pyvale.vfm.experiment_data import (
     BoundaryConditions,
-    EEdge,
     EEdgeCondition,
+    Edge,
     EdgeConditions,
     ExperimentData,
     SpecimenGeometry,
@@ -11,13 +12,13 @@ from pyvale.vfm.experiment_data import (
 from pyvale.vfm.identification import Identification
 from pyvale.vfm.constitutive_laws.linear_hardening import LinearHardening
 from pyvale.vfm.identification import IdentificationPhase
-from pyvale.vfm.metrics.sensitivity_based_virtual_fields import (
+from pyvale.vfm.metrics.virtual_fields.sensitivity_based_virtual_fields import (
     SensitivityBasedVirtualFieldsMetric,
 )
 from pyvale.vfm.constitutive_laws.constitutive_parameter import (
     ConstitutiveParameter,
 )
-from pyvale.vfm.objective_functions.rms import RMS
+from pyvale.vfm.objective_functions.residuals import Residuals
 from pyvale.vfm.spatial_parameterisations.known import (
     KnownSpatialParameterisation,
 )
@@ -30,39 +31,44 @@ from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
 from pyvale.vfm.vfm import vfm
 from pyvale.vfm.optimisers.least_squares import LeastSquares
 
+inputs_path = Path(__file__).resolve().parent / "inputs"
 
 def main():
     specimen_geometry = SpecimenGeometry(
-        np.load("inputs/x.npy"),
-        np.load("inputs/y.npy"),
-        np.load("inputs/specimen_mask.npy"),
+        np.load(inputs_path / "x.npy"),
+        np.load(inputs_path / "y.npy"),
+        np.load(inputs_path / "specimen_mask.npy"),
         1.8,
-        np.load("inputs/pixel_area.npy"),
+        np.load(inputs_path / "pixel_area.npy"),
     )
 
     boundary_conditions = BoundaryConditions(
         EdgeConditions(
-            x={
-                EEdge.Top: EEdgeCondition.Traction,
-                EEdge.Bottom: EEdgeCondition.Fixed,
-                EEdge.Left: EEdgeCondition.Free,
-                EEdge.Right: EEdgeCondition.Free,
-            },
-            y={
-                EEdge.Top: EEdgeCondition.Traction,
-                EEdge.Bottom: EEdgeCondition.Fixed,
-                EEdge.Left: EEdgeCondition.Free,
-                EEdge.Right: EEdgeCondition.Free,
-            },
+            Edge(
+                EEdgeCondition.Free,
+                EEdgeCondition.Free
+            ),
+            Edge(
+                EEdgeCondition.Free,
+                EEdgeCondition.Free
+            ),
+            Edge(
+                EEdgeCondition.Free,
+                EEdgeCondition.Free
+            ),
+            Edge(
+                EEdgeCondition.Free,
+                EEdgeCondition.Free
+            )
         ),
-        np.load("inputs/force.npy"),
+        np.load(inputs_path / "force.npy"),
     )
 
     experiment_data = ExperimentData(
-        np.load("inputs/strain.npy"),
+        np.load(inputs_path / "strain.npy"),
         specimen_geometry,
         boundary_conditions,
-        np.load("inputs/time.npy"),
+        np.load(inputs_path / "time.npy"),
     )
 
     parameters = {
@@ -91,14 +97,14 @@ def main():
                 ),
                 "yield_strength": HomogeneousSpatialParameterisation(
                     DegreeOfFreedom(
-                        parameters["yield_strength"].value[0],
+                        parameters["yield_strength"].value[0, 0],
                         parameters["yield_strength"].lower_bound,
                         parameters["yield_strength"].upper_bound,
                     )
                 ),
                 "hardening_modulus": HomogeneousSpatialParameterisation(
                     DegreeOfFreedom(
-                        parameters["hardening_modulus"].value[0],
+                        parameters["hardening_modulus"].value[0, 0],
                         parameters["hardening_modulus"].lower_bound,
                         parameters["hardening_modulus"].upper_bound,
                     )
@@ -113,7 +119,7 @@ def main():
                     np.array([3, 3]),
                 )
             ],
-            RMS(),
+            Residuals(),
             LeastSquares(),
         )
     ]

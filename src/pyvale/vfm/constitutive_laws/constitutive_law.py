@@ -1,9 +1,13 @@
+import enum
 from abc import ABC, abstractmethod
 
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.identification import EIdentificationType
+
+class EIdentificationType(enum.Enum):
+    Linear = enum.auto()
+    Nonlinear = enum.auto()
 
 
 class ConstitutiveLaw(ABC):

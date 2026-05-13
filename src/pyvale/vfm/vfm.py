@@ -1,10 +1,8 @@
 import numpy as np
 
+from pyvale.vfm.constitutive_laws.constitutive_law import EIdentificationType
 from pyvale.vfm.experiment_data import ExperimentData
-from pyvale.vfm.identification import EIdentificationType, Identification
-from pyvale.vfm.spatial_parameterisations.known import (
-     KnownSpatialParameterisation,
-)
+from pyvale.vfm.identification import Identification
 
 
 # TODO: return type
@@ -28,6 +26,7 @@ def vfm(
             )
 
             for phase in identification.phases:
+                print("started opt")
                 optimisation_result = phase.optimiser.optimise(
                     identification.constitutive_law,
                     parameter_map_size,
@@ -36,6 +35,8 @@ def vfm(
                     phase.objective_function,
                     experiment_data
                 )
+
+                print(optimisation_result)
 
                 # update parameter maps
                 # perform refinement?

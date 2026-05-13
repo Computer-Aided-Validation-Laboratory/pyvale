@@ -6,13 +6,11 @@ import numpy.typing as npt
 
 from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
 from pyvale.vfm.experiment_data import EdgeConditions, ExperimentData
-from pyvale.vfm.metrics.generate_sensitivity_based_virtual_fields import (
-    generate_sensitivity_based_virtual_fields,
-)
 from pyvale.vfm.metrics.metric import Metric
-from pyvale.vfm.metrics.virtual_fields_mesh import (
+from pyvale.vfm.metrics.virtual_fields.virtual_fields_mesh import (
     VirtualFieldsMesh,
     generate_virtual_fields_mesh,
+    generate_virtual_fields_from_mesh,
 )
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
     DegreeOfFreedom,
@@ -59,15 +57,52 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
             experiment_data.delta_timesteps
         )
 
-        # sbvfs = generate_sensitivity_based_virtual_fields()
-        # perform metric evaluation
-        # for each sbvf
-        #   build internal virtual work
-        #   build external virtual work
-        #   calculate error for that sbvf (ivw - evw)
-        return np.array([])
+        # TODO: option to use incremental stress sensitivities
+        sensitivity_based_virtual_fields = [
+            generate_virtual_fields_from_mesh(
+                total_stress_sensitivity,
+                self.virtual_fields_mesh
+            )
+            for (total_stress_sensitivity, _) in stress_sensitivities
+        ]
+
+        pixel_area = experiment_data.specimen_geometry.pixel_area[np.newaxis, np.newaxis, :, :]
+
+        evaluations = []
+        for sbvf in sensitivity_based_virtual_fields:
+            internal_virtual_work = (
+                stress
+                * sbvf.virtual_strain
+                * pixel_area
+                * experiment_data.specimen_geometry.thickness
+            )
+
+            internal_virtual_work = np.nan_to_num(
+                internal_virtual_work,
+                nan=0
+            )
+
+            internal_virtual_work = np.sum(
+                internal_virtual_work,
+                axis=(1, 2, 3)
+            )
+
+            # TODO: add option for configurable traction edge, or can we
+            #   calc this somehow?
+            external_virtual_work = (
+                experiment_data.boundary_conditions.force[:, 0]
+                * sbvf.virtual_displacement_edge[:, 0, 0]
+                + experiment_data.boundary_conditions.force[:, 1]
+                * sbvf.virtual_displacement_edge[:, 1, 0]
+            )
+
+            # TODO: add option for scaling
+            evaluations.append(internal_virtual_work - external_virtual_work)
+
+        return np.concatenate(evaluations)
 
 
+    # TODO: need to normalise
     def calculate_stress_sensitivities(
         self,
         strain: npt.NDArray[np.float64],
