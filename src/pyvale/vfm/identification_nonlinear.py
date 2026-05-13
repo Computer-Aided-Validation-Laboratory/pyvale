@@ -64,6 +64,16 @@ def run_nonlinear_identification(
             f"Phase '{phase_definition.name}' does not define any metrics."
         )
 
+    if phase_definition.optimiser.kind == "independent_slices":
+        return _run_independent_slices_identification(
+            test_data=test_data,
+            phase_definition=phase_definition,
+            base_mechanical_properties=base_mechanical_properties,
+            parameter_states=parameter_states,
+            active_dofs=active_dofs,
+            metrics_with_weights=metrics_with_weights,
+        )
+
     initial_vector, bounds = pack_dof_vector(active_dofs)
     print(
         f"  Initial optimiser vector has shape {initial_vector.shape}."
@@ -197,6 +207,281 @@ def _resolve_mechanical_properties(
     return MechanicalProperties(
         constituitive_law=base_mechanical_properties.constituitive_law,
         parameters=resolved_parameters,
+    )
+
+
+def _run_independent_slices_identification(
+    test_data: TestData,
+    phase_definition: PhaseDefinition,
+    base_mechanical_properties: MechanicalProperties,
+    parameter_states: dict[str, ParameterState],
+    active_dofs,
+    metrics_with_weights,
+) -> PhaseResult:
+    from pyvale.vfm.metric_udvf_slicewise import UDVFSlicewiseMetric
+    from pyvale.vfm.parameterisation_slice import (
+        SlicePartition,
+        SliceWiseParameterisation,
+        slice_partitions_match,
+    )
+
+    if not active_dofs:
+        raise ValueError(
+            "The 'independent_slices' optimiser requires active slicewise DOFs."
+        )
+
+    slicewise_metrics = [
+        (metric, weight)
+        for metric, weight in metrics_with_weights
+        if isinstance(metric, UDVFSlicewiseMetric)
+    ]
+    if len(metrics_with_weights) != 1 or len(slicewise_metrics) != 1:
+        raise ValueError(
+            "The 'independent_slices' optimiser currently supports exactly one "
+            "'udvf_slicewise' metric."
+        )
+
+    slicewise_metric, metric_weight = slicewise_metrics[0]
+    slicewise_parameterisations = _collect_slicewise_parameterisations(parameter_states)
+    common_partition = _extract_common_slice_partition(slicewise_parameterisations)
+
+    if len(active_dofs) != len(slicewise_parameterisations) * common_partition.num_slices:
+        raise ValueError(
+            "The 'independent_slices' optimiser currently requires every active DOF "
+            "to belong to a slicewise parameterisation."
+        )
+
+    local_solver_kind = str(
+        phase_definition.optimiser.options.get("local_solver", "least_squares")
+    )
+    print(
+        f"  Starting optimiser 'independent_slices' with "
+        f"{common_partition.num_slices} slice(s) and local solver "
+        f"'{local_solver_kind}'."
+    )
+
+    total_local_evaluations = 0
+
+    for slice_index, slice_subdomain in enumerate(common_partition.slice_subdomains):
+        local_dofs = [
+            parameterisation.slice_dof(slice_index)
+            for parameterisation in slicewise_parameterisations
+            if parameterisation.slice_dof(slice_index).active
+        ]
+        initial_vector, bounds = pack_dof_vector(local_dofs)
+        print(
+            f"    Slice {slice_index + 1}/{common_partition.num_slices}: "
+            f"{len(local_dofs)} local DOF(s)."
+        )
+
+        local_evaluation_counter = {"count": 0}
+        local_best = {
+            "cost": np.inf,
+            "vector": initial_vector.copy(),
+        }
+
+        def evaluate_local_candidate(
+            vector: npt.NDArray[np.float64],
+        ) -> tuple[float, npt.NDArray[np.float64]]:
+            local_evaluation_counter["count"] += 1
+            total_vector_update = {
+                dof.uid: float(value)
+                for dof, value in zip(local_dofs, vector, strict=True)
+            }
+            for parameter_state in parameter_states.values():
+                for parameterisation in parameter_state.parameterisations:
+                    parameterisation.update_from_values(total_vector_update)
+
+            parameter_maps = resolve_parameter_maps(parameter_states, test_data)
+            local_parameter_maps = {
+                parameter_name: parameter_map[
+                    slice_subdomain.row_slice,
+                    slice_subdomain.col_slice,
+                ].copy()
+                for parameter_name, parameter_map in parameter_maps.items()
+            }
+            resolved_properties = _resolve_mechanical_properties(
+                base_mechanical_properties,
+                local_parameter_maps,
+            )
+            stress, _, _, _ = radial_return(
+                slice_subdomain.local_test_data.strain,
+                resolved_properties,
+            )
+            metric_result = slicewise_metric.evaluate_single_slice(
+                stress=stress,
+                test_data=slice_subdomain.local_test_data,
+                slice_width=float(common_partition.slice_widths[slice_index]),
+                slice_index=slice_index,
+            )
+            raw_residual = np.asarray(
+                metric_result.details["residual_vector"],
+                dtype=np.float64,
+            ).reshape(-1)
+            residual_vector = np.sqrt(metric_weight) * raw_residual
+            cost = float(residual_vector @ residual_vector)
+
+            if cost < local_best["cost"]:
+                local_best["cost"] = cost
+                local_best["vector"] = vector.copy()
+
+            return cost, residual_vector
+
+        def evaluate_local_cost(vector: npt.NDArray[np.float64]) -> float:
+            cost, _ = evaluate_local_candidate(vector)
+            return cost
+
+        def evaluate_local_residual(vector: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            _, residual_vector = evaluate_local_candidate(vector)
+            return residual_vector
+
+        if local_dofs:
+            best_local_vector = _run_local_slice_optimiser(
+                solver_kind=local_solver_kind,
+                options=phase_definition.optimiser.options,
+                objective_function=evaluate_local_cost,
+                residual_function=evaluate_local_residual,
+                initial_vector=initial_vector,
+                bounds=bounds,
+            )
+            evaluate_local_cost(best_local_vector)
+
+        total_local_evaluations += local_evaluation_counter["count"]
+        print(
+            f"      Completed slice {slice_index + 1} after "
+            f"{local_evaluation_counter['count']} evaluation(s). "
+            f"Best local cost = {float(local_best['cost']):.6g}."
+        )
+
+    parameter_maps = resolve_parameter_maps(parameter_states, test_data)
+    resolved_properties = _resolve_mechanical_properties(
+        base_mechanical_properties,
+        parameter_maps,
+    )
+    stress, equivalent_stress, yield_map, equivalent_plastic_strain = radial_return(
+        test_data.strain,
+        resolved_properties,
+    )
+    cost, metric_values, _ = evaluate_metrics(
+        metrics_with_weights,
+        stress,
+        test_data,
+        MetricContext(
+            phase_definition=phase_definition,
+            base_mechanical_properties=base_mechanical_properties,
+            resolved_mechanical_properties=resolved_properties,
+            parameter_states=parameter_states,
+            active_dofs=active_dofs,
+            parameter_maps=parameter_maps,
+        ),
+    )
+    best_vector, _ = pack_dof_vector(active_dofs)
+
+    print(
+        f"  Finished phase {phase_definition.name} after "
+        f"{total_local_evaluations} local evaluation(s). Best cost = "
+        f"{float(cost):.6g}."
+    )
+
+    return PhaseResult(
+        phase_name=phase_definition.name,
+        cost=float(cost),
+        metric_values=metric_values,
+        parameter_maps=parameter_maps,
+        stress=stress,
+        equivalent_stress=equivalent_stress,
+        yield_map=yield_map,
+        equivalent_plastic_strain=equivalent_plastic_strain,
+        best_dof_vector=best_vector,
+        parameter_states=deepcopy(parameter_states),
+    )
+
+
+def _collect_slicewise_parameterisations(
+    parameter_states: dict[str, ParameterState],
+):
+    from pyvale.vfm.parameterisation_slice import SliceWiseParameterisation
+
+    slicewise_parameterisations: list[SliceWiseParameterisation] = []
+    non_slicewise_active_dofs: list[str] = []
+
+    for parameter_state in parameter_states.values():
+        for parameterisation in parameter_state.parameterisations:
+            active_dofs = parameterisation.active_dofs()
+            if not active_dofs:
+                continue
+
+            if isinstance(parameterisation, SliceWiseParameterisation):
+                slicewise_parameterisations.append(parameterisation)
+            else:
+                non_slicewise_active_dofs.extend(dof.uid for dof in active_dofs)
+
+    if non_slicewise_active_dofs:
+        joined = ", ".join(non_slicewise_active_dofs)
+        raise ValueError(
+            "The 'independent_slices' optimiser only supports slicewise active "
+            f"DOFs. Found: {joined}."
+        )
+
+    return slicewise_parameterisations
+
+
+def _extract_common_slice_partition(slicewise_parameterisations):
+    from pyvale.vfm.parameterisation_slice import slice_partitions_match
+
+    if not slicewise_parameterisations:
+        raise ValueError(
+            "The 'independent_slices' optimiser needs at least one slicewise "
+            "parameterisation."
+        )
+
+    common_partition = slicewise_parameterisations[0].partition
+    if common_partition is None:
+        raise ValueError(
+            "Slicewise parameterisations must be prepared before optimisation."
+        )
+
+    for parameterisation in slicewise_parameterisations[1:]:
+        if parameterisation.partition is None:
+            raise ValueError(
+                "Slicewise parameterisations must be prepared before optimisation."
+            )
+        if not slice_partitions_match(common_partition, parameterisation.partition):
+            raise ValueError(
+                "All slicewise parameterisations in an 'independent_slices' phase "
+                "must share the same slice layout."
+            )
+
+    return common_partition
+
+
+def _run_local_slice_optimiser(
+    solver_kind: str,
+    options: dict[str, object],
+    objective_function,
+    residual_function,
+    initial_vector: npt.NDArray[np.float64],
+    bounds: list[tuple[float, float]],
+) -> npt.NDArray[np.float64]:
+    if solver_kind == "least_squares":
+        return _run_least_squares(
+            residual_function=residual_function,
+            initial_vector=initial_vector,
+            bounds=bounds,
+            options=options,
+        )
+
+    if solver_kind == "pattern_search":
+        return _run_pattern_search(
+            objective_function=objective_function,
+            initial_vector=initial_vector,
+            bounds=bounds,
+            options=options,
+        )
+
+    raise ValueError(
+        "The 'independent_slices' optimiser currently supports local_solver "
+        "'least_squares' or 'pattern_search'."
     )
 
 

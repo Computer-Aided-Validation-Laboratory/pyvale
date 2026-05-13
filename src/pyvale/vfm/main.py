@@ -6,12 +6,17 @@ import argparse
 
 # Modern path handling object for file paths
 from pathlib import Path
+from typing import Iterable
 
 import numpy as np
 
 # Functions from the pyvale Virtual Fields Method toolkit
 from pyvale.vfm.identification_manager import run_identification
-from pyvale.vfm.project_definition import PhaseResult, create_default_project
+from pyvale.vfm.project_definition import (
+    IdentificationProject,
+    PhaseResult,
+    create_default_project,
+)
 from pyvale.vfm.project_io import load_project
 from pyvale.vfm.ui import launch_gui
 
@@ -25,6 +30,14 @@ def _format_phase_parameter_results(result: PhaseResult) -> list[str]:
         parameter_map = result.parameter_maps[parameter_name]
         parameter_state = result.parameter_states.get(parameter_name)
         dofs = [] if parameter_state is None else parameter_state.collect_dofs()
+
+        if _are_slicewise_dofs(dofs):
+            summary_lines.append(f"  {parameter_name}:")
+            for slice_index, dof in enumerate(dofs, start=1):
+                summary_lines.append(
+                    f"    slice_{slice_index}: {dof.value:.6g}"
+                )
+            continue
 
         if len(dofs) == 1:
             summary_lines.append(
@@ -50,6 +63,44 @@ def _format_phase_parameter_results(result: PhaseResult) -> list[str]:
             )
 
     return summary_lines
+
+
+def _are_slicewise_dofs(dofs: Iterable[object]) -> bool:
+    dof_list = list(dofs)
+    if not dof_list:
+        return False
+
+    return all(
+        hasattr(dof, "uid") and ".slicewise.slice_" in str(dof.uid)
+        for dof in dof_list
+    )
+
+
+def _build_results_text(results: list[PhaseResult]) -> str:
+    lines: list[str] = []
+
+    for result in results:
+        lines.append(
+            f"{result.phase_name}: cost={result.cost:.6g}, "
+            f"metrics={result.metric_values}"
+        )
+        lines.append("Identified parameters:")
+        lines.extend(_format_phase_parameter_results(result))
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _save_results_text(
+    project: IdentificationProject,
+    results_text: str,
+) -> Path | None:
+    if project.project_path is None:
+        return None
+
+    output_path = project.project_path.parent / "identified_parameters.txt"
+    output_path.write_text(results_text, encoding="utf-8")
+    return output_path
 
 
 def main() -> None:
@@ -96,16 +147,14 @@ def main() -> None:
     # Run the identification routine if the --run flag was passed
     if args.run:
         results = run_identification(project)
+        results_text = _build_results_text(results)
 
         # Print results for each identified phase
-        for result in results:
-            print(
-                f"{result.phase_name}: cost={result.cost:.6g}, "
-                f"metrics={result.metric_values}"
-            )
-            print("Identified parameters:")
-            for line in _format_phase_parameter_results(result):
-                print(line)
+        print(results_text, end="")
+
+        saved_results_path = _save_results_text(project, results_text)
+        if saved_results_path is not None:
+            print(f"Saved identified parameters to {saved_results_path}")
 
 
 # Run main() only when this file is executed directly
