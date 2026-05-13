@@ -308,7 +308,7 @@ namespace stereo {
         double max_val = 0.0, peak_x = 0.0, peak_y = 0.0;
         if (normed_ref && normed_def){
             fft.correlate();
-            fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+            fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "GAUSSIAN_2D");
         }
         //std::cout << "peak: " << peak_x << " " << peak_y << std::endl;
 
