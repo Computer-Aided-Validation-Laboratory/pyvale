@@ -284,6 +284,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
 
 
             // class for FFT
+            FFT fft(search_area, search_area);
 
             // loop over subsets for each size/step
             #pragma omp for schedule(dynamic,10)
@@ -306,7 +307,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
 
                 std::vector<double> p(6,0.0);
                 double maxv_local = 0.0;
-                get_single_window_fftcc_peak_centre(p, maxv_local,
+                get_single_window_fftcc_peak_centre(fft, p, maxv_local,
                                              cx, cy,
                                              prev_u, prev_v,
                                              template_size, template_size,
@@ -327,8 +328,9 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
 
         // remove outliers in fft
         if (mad_filter){
-            remove_outliers(u, mad_scale);
-            remove_outliers(v, mad_scale);
+            //remove_outliers(u, mad_scale);
+            //remove_outliers(v, mad_scale);
+            remove_outliers_vector(u,v,max_val);
         }
 
         //smooth_field(level[i].x, current_level, 7.0, 5);
@@ -423,4 +425,247 @@ void WindowLevel::get_displacement_from_prev_window(double &prev_x,
     prev_x = weight_sum_x / weight_tot;
     prev_y = weight_sum_y / weight_tot;
 
+}
+
+
+static double weighted_median(std::vector<std::pair<double,double>>& vals)
+{
+    // pair = {value, weight}
+
+    std::sort(vals.begin(), vals.end(),
+        [](const auto& a, const auto& b)
+        {
+            return a.first < b.first;
+        });
+
+    double total_w = 0.0;
+    for (const auto& v : vals)
+        total_w += v.second;
+
+    double accum = 0.0;
+    for (const auto& v : vals)
+    {
+        accum += v.second;
+
+        if (accum >= 0.5 * total_w)
+            return v.first;
+    }
+
+    return vals.back().first;
+}
+
+
+void WindowLevel::remove_outliers_vector(
+    std::vector<double>& u,
+    std::vector<double>& v,
+    const std::vector<double>& max_val,
+    double threshold,
+    int radius,
+    double corr_power,
+    double eps)
+{
+    std::vector<double> u_new = u;
+    std::vector<double> v_new = v;
+
+    // ---------------------------------------------------------
+    // Global max correlation
+    // ---------------------------------------------------------
+
+    double max_corr =
+        *std::max_element(max_val.begin(),
+                          max_val.end());
+
+    if (max_corr <= eps)
+        return;
+
+    double log_max_corr = std::log1p(max_corr);
+
+    // ---------------------------------------------------------
+    // Main loop
+    // ---------------------------------------------------------
+
+    for (int ss = 0; ss < layout.num; ++ss)
+    {
+        // subset coords
+        int ss_x = layout.coords[2 * ss];
+        int ss_y = layout.coords[2 * ss + 1];
+
+        // grid coords
+        int idx_x = ss_x / layout.step;
+        int idx_y = ss_y / layout.step;
+
+        int min_x = std::max(0, idx_x - radius);
+        int min_y = std::max(0, idx_y - radius);
+
+        int max_x =
+            std::min(layout.num_ss_x,
+                     idx_x + radius + 1);
+
+        int max_y =
+            std::min(layout.num_ss_y,
+                     idx_y + radius + 1);
+
+        // -----------------------------------------------------
+        // Gather weighted neighbours
+        // -----------------------------------------------------
+
+        std::vector<std::pair<double,double>> neigh_u;
+        std::vector<std::pair<double,double>> neigh_v;
+
+        neigh_u.reserve((2*radius+1)*(2*radius+1));
+        neigh_v.reserve((2*radius+1)*(2*radius+1));
+
+        for (int y = min_y; y < max_y; ++y)
+        {
+            for (int x = min_x; x < max_x; ++x)
+            {
+                int nss_idx =
+                    layout.mask[y * layout.num_ss_x + x];
+
+                if (nss_idx == -1 || nss_idx == ss)
+                    continue;
+
+                // ---------------------------------------------
+                // Spatial weight
+                // ---------------------------------------------
+
+                double dx = double(x - idx_x);
+                double dy = double(y - idx_y);
+
+                double dist2 = dx*dx + dy*dy;
+
+                double spatial_w =
+                    std::exp(
+                        -dist2 /
+                        (2.0 * radius * radius));
+
+                // ---------------------------------------------
+                // Correlation confidence
+                // LOG compression for huge dynamic range
+                // ---------------------------------------------
+
+                double confidence =
+                    std::log1p(max_val[nss_idx]) /
+                    log_max_corr;
+
+                confidence =
+                    std::clamp(confidence,
+                               0.0,
+                               1.0);
+
+                double corr_w =
+                    std::pow(confidence,
+                             corr_power);
+
+                // ---------------------------------------------
+                // Final neighbour weight
+                // ---------------------------------------------
+
+                double w = spatial_w * corr_w;
+
+                neigh_u.push_back(
+                    {u[nss_idx], w});
+
+                neigh_v.push_back(
+                    {v[nss_idx], w});
+            }
+        }
+
+        // too few neighbours
+        if (neigh_u.size() < 5)
+            continue;
+
+        // -----------------------------------------------------
+        // Weighted vector median
+        // -----------------------------------------------------
+
+        double med_u =
+            weighted_median(neigh_u);
+
+        double med_v =
+            weighted_median(neigh_v);
+
+        // -----------------------------------------------------
+        // Compute neighbour residuals
+        // -----------------------------------------------------
+
+        std::vector<std::pair<double,double>>
+            residuals;
+
+        residuals.reserve(neigh_u.size());
+
+        for (size_t i = 0; i < neigh_u.size(); ++i)
+        {
+            double du =
+                neigh_u[i].first - med_u;
+
+            double dv =
+                neigh_v[i].first - med_v;
+
+            double r =
+                std::sqrt(du*du + dv*dv);
+
+            double w =
+                neigh_u[i].second;
+
+            residuals.push_back({r, w});
+        }
+
+        // weighted median residual
+        double med_res =
+            weighted_median(residuals);
+
+        med_res =
+            std::max(med_res, eps);
+
+        // -----------------------------------------------------
+        // Current vector residual
+        // -----------------------------------------------------
+
+        double du0 = u[ss] - med_u;
+        double dv0 = v[ss] - med_v;
+
+        double r0 =
+            std::sqrt(du0*du0 + dv0*dv0);
+
+        double normalized_residual =
+            r0 / med_res;
+
+        // -----------------------------------------------------
+        // Adaptive threshold
+        // high confidence vectors trusted more
+        // -----------------------------------------------------
+
+        double self_confidence =
+            std::log1p(max_val[ss]) /
+            log_max_corr;
+
+        self_confidence =
+            std::clamp(self_confidence,
+                       0.0,
+                       1.0);
+
+        // threshold range:
+        // low confidence -> 1.5
+        // high confidence -> threshold
+
+        double adaptive_threshold =
+            1.5 +
+            self_confidence *
+            (threshold - 1.5);
+
+        // -----------------------------------------------------
+        // Reject outlier
+        // -----------------------------------------------------
+
+        if (normalized_residual >
+            adaptive_threshold)
+        {
+            u_new[ss] = med_u;
+            v_new[ss] = med_v;
+        }
+    }
+
+    u = std::move(u_new);
+    v = std::move(v_new);
 }

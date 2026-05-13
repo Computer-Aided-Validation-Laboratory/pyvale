@@ -252,6 +252,17 @@ struct WindowLevel {
                                            const double ss_x,
                                            const double ss_y);
 
+
+
+    void remove_outliers_vector(
+        std::vector<double>& u,
+        std::vector<double>& v,
+        const std::vector<double>& max_val,
+        double threshold = 3.0,
+        int radius = 3,
+        double corr_power = 2.0,
+        double eps = 1e-6);
+
 };
 
 
@@ -290,4 +301,6 @@ void multiwindow_init_partial(std::vector<WindowLevel> &level,
                                const MultiwindowConfig &mwconf,
                                const common_util::SaveConfig &saveconf,
                                const size_t num_levels);
+
+
 #endif // DICMULTIWINDOW_UTIL_H
