@@ -115,7 +115,9 @@ def calculate_2d(reference: np.ndarray | str | Path,
         condition set by argument `incremental_update_condition`. This is useful
         for large deformations where the original reference may no longer be
         valid for tracking. If False, the original reference image(s) will be
-        used for tracking all deformed images (default: False).
+        used for tracking all deformed images. Displacements will still be given relative to the 
+        first reference image. Note, cost values will be reported for relative to the deformed and 
+        updated reference image. (default: False).
     incremental_update_condition : str, optional
         Condition for updating reference images when `incremental` is True. Options include:
         `"IMAGE"` to update every `N` images, `"COST"` to update when the average ZNCC cost
