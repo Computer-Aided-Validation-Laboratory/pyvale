@@ -52,12 +52,35 @@ void multiwindow_init(std::vector<WindowLevel> &level,
     }
 }
 
+void multiwindow_init_partial(std::vector<WindowLevel> &level,
+                               const bool *img_roi,
+                               const util::Config &conf,
+                               const MultiwindowConfig &mwconf,
+                               const common_util::SaveConfig &saveconf,
+                               const size_t num_levels) {
+
+    for (size_t lvl = 0; lvl < num_levels; lvl++) {
+        
+        const bool is_last = (lvl == num_levels - 1);
+        const subset::Grid *prev = (lvl > 0) ? &level[lvl-1].layout : nullptr;
+
+        level.emplace_back(img_roi,
+                           mwconf.overlap[lvl],
+                           mwconf.subset_size[lvl],
+                           mwconf.search_area[lvl],
+                           conf.px_hori, conf.px_vert,
+                           !is_last, lvl,
+                           conf.fft_mad, conf.fft_mad_scale,
+                           conf.fft_save, saveconf,
+                           prev);
+    }
+}
+
 void WindowLevel::gen_neighlist(const subset::Grid &layout_prev) {
 
     //Timer timer("nearest neighbour collection for :");
 
     const int prev_step = layout_prev.step;
-
 
     // a list containing the number of neighbours from the previous
     // window size for each subset in the current window size
@@ -67,9 +90,27 @@ void WindowLevel::gen_neighlist(const subset::Grid &layout_prev) {
     // max_neigh*num_ss. we can resize this later once populated
     neigh_list.resize(max_num_neigh*layout.num);
 
+    // shared error state
+    std::atomic<bool> failed(false);
+
+    struct ErrorInfo {
+        int ss = -1;
+        int ss_x = 0;
+        int ss_y = 0;
+        size_t num_found = 0;
+    };
+
+    ErrorInfo error;
+
     // For each subset, find 4 nearest neighbours in layout_prev
     #pragma omp parallel for
     for (int ss = 0; ss < layout.num; ++ss) {
+
+        // another thread already failed
+        if (failed.load()) continue;
+
+
+        if (!layout.active_ss[ss]) continue;
 
         // corner of subset
         const int ss_x = layout.coords[2*ss];
@@ -91,18 +132,18 @@ void WindowLevel::gen_neighlist(const subset::Grid &layout_prev) {
         for (int y = min_y; y < max_y; y++){
             for (int x = min_x; x < max_x; x++){
 
-            // check if point is a valid subset
-            int nss_idx = layout_prev.mask[y*layout_prev.num_ss_x+x];
-            if (nss_idx == -1) continue;
+                // check if point is a valid subset
+                int nss_idx = layout_prev.mask[y*layout_prev.num_ss_x+x];
+                if (nss_idx == -1) continue;
 
-            int nss_x = layout_prev.coords[2*nss_idx];
-            int nss_y = layout_prev.coords[2*nss_idx+1];
+                int nss_x = layout_prev.coords[2*nss_idx];
+                int nss_y = layout_prev.coords[2*nss_idx+1];
 
-            double dx = (nss_x) - ss_x;
-            double dy = (nss_y) - ss_y;
-            double dist_sq = dx*dx + dy*dy;
+                double dx = (nss_x) - ss_x;
+                double dy = (nss_y) - ss_y;
+                double dist_sq = dx*dx + dy*dy;
 
-            dist_index_list.emplace_back(dist_sq, nss_idx);
+                dist_index_list.emplace_back(dist_sq, nss_idx);
             }
         }
 
@@ -111,17 +152,15 @@ void WindowLevel::gen_neighlist(const subset::Grid &layout_prev) {
 
         // can't find any neighbours.
         if (num_neigh == 0){
-            std::cerr << "Could not find any neighbours from the previous FFT window size for point (" << ss_x << ", " << ss_y << ")." << std::endl;
-            std::cerr << "Number of neighbours: " << dist_index_list.size() << std::endl;
-            std::cerr << "Neighbours from previous window: " << std::endl;
-            for (size_t n = 0; n < dist_index_list.size(); n++){
-                int nss_idx = dist_index_list[n].second;
-                int nss_x = layout_prev.coords[2*nss_idx];
-                int nss_y = layout_prev.coords[2*nss_idx+1];
-                std::cerr << "(" << nss_x << ", " << nss_y << "), ";
+            bool expected = false;
+            // only first thread records error
+            if (failed.compare_exchange_strong(expected, true)) {
+                error.ss = ss;
+                error.ss_x = ss_x;
+                error.ss_y = ss_y;
+                error.num_found = dist_index_list.size();
             }
-            std::cerr << std::endl;
-            exit(EXIT_FAILURE);
+            continue;
         }
 
         num_neigh_list[ss] = num_neigh;
@@ -132,7 +171,23 @@ void WindowLevel::gen_neighlist(const subset::Grid &layout_prev) {
         for (size_t i = 0; i < num_neigh; ++i) {
             neigh_list[ss*max_num_neigh+i] = dist_index_list[i].second;
         }
+    }
 
+    // report outside OpenMP
+    if (failed.load()) {
+
+        // char msg[512];
+        //
+        // snprintf(msg,
+        //          sizeof(msg),
+        //          "Could not find any neighbours from the previous FFT "
+        //          "window size for subset (%d, %d). "
+        //          "Found %zu neighbours.",
+        //          error.ss_x,
+        //          error.ss_y,
+        //          error.num_found);
+        //
+        // throw std::runtime_error(msg);
     }
 }
 
@@ -224,7 +279,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         std::atomic<int> current_progress = 0;
 
 
-        #pragma omp parallel shared(stop_request, level, prev, interp_def, search_area)
+        #pragma omp parallel shared(stop_request, level, prev, interp_def, search_area, u, v, max_val)
         {
 
 
@@ -237,6 +292,8 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                 // exit when ctrl+C
                 if (stop_request) continue;
 
+                if (!layout.active_ss[ss]) continue;
+
                 const double cx = layout.coords[2*ss];
                 const double cy = layout.coords[2*ss+1];
 
@@ -248,13 +305,15 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                     get_displacement_from_prev_window(prev_u, prev_v, prev, ss, cx, cy);
 
                 std::vector<double> p(6,0.0);
-                get_single_window_fftcc_peak_centre(p, max_val[ss],
+                double maxv_local = 0.0;
+                get_single_window_fftcc_peak_centre(p, maxv_local,
                                              cx, cy,
                                              prev_u, prev_v,
                                              template_size, template_size,
                                              search_area, search_area,
                                              img_ref, img_def,
                                              interp_def);
+                max_val[ss] = maxv_local;
 
                 u[ss] = prev_u+p[0];
                 v[ss] = prev_v+p[1];
@@ -290,7 +349,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
             str_size_x << std::setw(4) << std::setfill('0') << search_area;
             str_size_y << std::setw(4) << std::setfill('0') << search_area;
 
-            std::string filename = saveconf.basepath + "fft_displacements_" + base + "_" +
+            std::string filename = saveconf.basepath + "/fft_displacements_" + base + "_" +
                                    str_size_x.str() + "x" +
                                    str_size_y.str() + ".csv";
 
@@ -326,6 +385,12 @@ void WindowLevel::get_displacement_from_prev_window(double &prev_x,
                                                     const int ss,
                                                     const double cx, 
                                                     const double cy) {
+
+    if (num_neigh_list[ss] == 0){
+        prev_x = 0.0;
+        prev_y = 0.0;
+        return;
+    }
 
     const double epsilon = 10.0;
     double weight_sum_x = 0.0;

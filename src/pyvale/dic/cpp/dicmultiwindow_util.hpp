@@ -86,7 +86,7 @@ struct WindowLevel {
     int search_area;
 
 
-
+    WindowLevel() = default;
 
     WindowLevel(const bool *img_roi,
            const int step,
@@ -284,4 +284,10 @@ void multiwindow_init(std::vector<WindowLevel> &level,
                       const MultiwindowConfig &mwconf,
                       const common_util::SaveConfig &saveconf);
 
+void multiwindow_init_partial(std::vector<WindowLevel> &level,
+                               const bool *img_roi,
+                               const util::Config &conf,
+                               const MultiwindowConfig &mwconf,
+                               const common_util::SaveConfig &saveconf,
+                               const size_t num_levels);
 #endif // DICMULTIWINDOW_UTIL_H
