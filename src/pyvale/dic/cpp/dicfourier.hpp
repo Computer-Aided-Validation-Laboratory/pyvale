@@ -471,7 +471,8 @@ struct FFT {
     }
 };
 
-    void get_single_window_fftcc_peak(std::vector<double> &p,
+    void get_single_window_fftcc_peak(FFT &fft,
+                                      std::vector<double> &p,
                                       double &max_val,
                                       const double cx, const double cy,
                                       const int ss_size_x, 
@@ -484,17 +485,18 @@ struct FFT {
 
 
 
-    void get_single_window_fftcc_peak_centre(std::vector<double> &p,
-                                         double &max_val,
-                                         const double cx, const double cy,
-                                         const double offset_x, const double offset_y,
-                                         const int ss_size_x, 
-                                         const int ss_size_y, 
-                                         const int window_size_x,
-                                         const int window_size_y,
-                                         const Image &img_ref, const Image &img_def,
-                                         const Interpolator &interp_def,
-                                         const bool debug=false);
+    void get_single_window_fftcc_peak_centre(FFT &fft,
+                                             std::vector<double> &p,
+                                             double &max_val,
+                                             const double cx, const double cy,
+                                             const double offset_x, const double offset_y,
+                                             const int ss_size_x, 
+                                             const int ss_size_y, 
+                                             const int window_size_x,
+                                             const int window_size_y,
+                                             const Image &img_ref, const Image &img_def,
+                                             const Interpolator &interp_def,
+                                             const bool debug=false);
 
     void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
                                      const Image &img_ref,

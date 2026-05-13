@@ -122,7 +122,8 @@ double debugcost(const subset::Pixels &ss_ref, const subset::Pixels &ss_def){
 
 
 
-void get_single_window_fftcc_peak(std::vector<double> &p,
+void get_single_window_fftcc_peak(FFT &fft,
+                                  std::vector<double> &p,
                                   double &max_val,
                                   const double cx, const double cy,
                                   const int ss_size_x, 
@@ -144,9 +145,6 @@ void get_single_window_fftcc_peak(std::vector<double> &p,
 
     // reset p values
     std::fill(p.begin(), p.end(),0.0);
-
-    // class for FFT
-    FFT fft(window_size_x, window_size_y);
 
     // TODO: Add a proper flag for this 
     bool subpx = true;
@@ -198,7 +196,8 @@ void get_single_window_fftcc_peak(std::vector<double> &p,
 }
 
 
-void get_single_window_fftcc_peak_centre(std::vector<double> &p,
+void get_single_window_fftcc_peak_centre(FFT &fft,
+                                         std::vector<double> &p,
                                          double &max_val,
                                          const double cx, const double cy,
                                          const double offset_x, const double offset_y,
@@ -221,9 +220,6 @@ void get_single_window_fftcc_peak_centre(std::vector<double> &p,
 
     // reset p values
     std::fill(p.begin(), p.end(),0.0);
-
-    // class for FFT
-    FFT fft(window_size_x, window_size_y);
 
     // TODO: Add a proper flag for this 
     bool subpx = true;
