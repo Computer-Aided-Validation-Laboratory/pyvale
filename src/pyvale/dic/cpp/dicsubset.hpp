@@ -31,6 +31,7 @@ namespace subset {
         std::vector<double> coords;
         std::vector<int> mask;
         std::vector<std::vector<int>> neigh;
+        std::vector<bool> active_ss;
     };
 
     /**

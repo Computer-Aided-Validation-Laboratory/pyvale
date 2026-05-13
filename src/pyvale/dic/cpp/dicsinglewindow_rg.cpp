@@ -143,7 +143,7 @@ void singlewindow_rg(const Image &img_ref,
 
                 // run optimizer
                 OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
-                rg::check_convergence_or_exit(cx_img0, cy_img0, seed_res);
+                rg::check_convergence(cx_img0, cy_img0, seed_res);
 
                 // add deformation from reference image to new results
                 if (img_num_ref > 0){
@@ -185,7 +185,7 @@ void singlewindow_rg(const Image &img_ref,
 
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                    rg::check_convergence_or_exit(cx_img0, cy_img0, nres, true);
+                    rg::check_convergence(cx_img0, cy_img0, nres, true);
 
                     // add deformation from reference image to new results
                     if (img_num_ref > 0){

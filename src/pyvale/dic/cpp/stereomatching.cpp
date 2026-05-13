@@ -141,7 +141,7 @@ void matching(const Image &img_l,
 
                     // run optimizer
                     OptResult seed_res = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
-                    rg::check_convergence_or_exit(cx_img0, cy_img0, seed_res);
+                    rg::check_convergence(cx_img0, cy_img0, seed_res);
 
                     // add deformation from reference image to new results
                     if (img_num_l > 0){
@@ -203,7 +203,7 @@ void matching(const Image &img_l,
                         opt.copy_params_from_neigh(results_r.p, idx);
 
                         OptResult nres = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
-                        rg::check_convergence_or_exit(cx_img0, cy_img0, nres);
+                        rg::check_convergence(cx_img0, cy_img0, nres);
 
                         // add deformation from reference image to new results
                         if (img_num_l > 0){

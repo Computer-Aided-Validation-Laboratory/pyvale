@@ -135,7 +135,7 @@ void multiwindow_rg(const Image &img_ref,
 
                 OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                rg::check_convergence_or_exit(seed_x, seed_y, seed_res);
+                rg::check_convergence(seed_x, seed_y, seed_res);
 
                 if (img_num_ref > 0){
                     seed_res.u += results_ref.u[idx];
@@ -173,7 +173,7 @@ void multiwindow_rg(const Image &img_ref,
                     // perform optimization for seed point neighbours
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                    rg::check_convergence_or_exit(cx, cy, nres, true);
+                    rg::check_convergence(cx, cy, nres, true);
 
                     if (img_num_ref > 0){
                         nres.u += results_ref.u[nidx];

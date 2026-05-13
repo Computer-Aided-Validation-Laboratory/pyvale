@@ -192,6 +192,7 @@ namespace subset {
 
         ss_grid.mask.resize(ss_grid.num_in_mask, -1);
         ss_grid.coords.resize(2*ss_grid.num_in_mask, -1);
+        ss_grid.active_ss.resize(ss_grid.num_in_mask, true);
 
 
         // temp array for storing subset coords for each thread
