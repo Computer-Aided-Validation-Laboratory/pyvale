@@ -431,7 +431,7 @@ struct FFT {
                 int y = window_half_y + row;
                 int idx = y * window_size_x + x;
 
-                mean_ref += ss_ref.vals[idx];
+                mean_ref += ss.vals[idx];
                 ++count;
             }
         }
@@ -448,7 +448,7 @@ struct FFT {
                 int y = window_half_y + row;
                 int idx = y * window_size_x + x;
 
-                std_ref += std::pow(ss_ref.vals[idx] - mean_ref, 2);
+                std_ref += std::pow(ss.vals[idx] - mean_ref, 2);
             }
         }
 
@@ -464,7 +464,7 @@ struct FFT {
                 int y = window_half_y + row;
                 int idx = y * window_size_x + x;
 
-                ss_ref.vals[idx] = (ss_ref.vals[idx] - mean_ref) / std_ref;
+                ss.vals[idx] = (ss.vals[idx] - mean_ref) / std_ref;
             }
         }
         return true;

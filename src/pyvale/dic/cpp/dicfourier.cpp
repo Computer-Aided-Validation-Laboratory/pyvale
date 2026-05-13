@@ -175,7 +175,7 @@ void get_single_window_fftcc_peak(std::vector<double> &p,
 
     if (normed_ref && normed_def){
         fft.correlate();
-        fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "gaussian_2d");
+        fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "GAUSSIAN_2D");
     } 
 
     // coordinate transform
@@ -254,8 +254,8 @@ void get_single_window_fftcc_peak_centre(std::vector<double> &p,
 
     if (normed_ref && normed_def){
         fft.correlate();
-        fft.get_peak(peak_x, peak_y, max_val, subpx, "gaussian_2d");
-    } 
+        fft.get_peak(peak_x, peak_y, max_val, subpx, "GAUSSIAN_2D");
+    }
 
     // coordinate transform
     p[0] = peak_x;
@@ -381,10 +381,6 @@ void fill_fft_window_with_subset_at_corner_impl(subset::Pixels &ss_ref,
                                             const int window_size_x,
                                             const int window_size_y){
 
-    const int window_half_x = window_size_x / 2;
-    const int window_half_y = window_size_y / 2;
-    const int ss_half_x = ss_size_x / 2;
-    const int ss_half_y = ss_size_y / 2;
 
     // Iterate over subset pixels using offsets relative to the subset center
     for (int row = 0; row < ss_size_y; ++row) {
