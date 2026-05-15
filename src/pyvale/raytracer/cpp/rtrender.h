@@ -24,7 +24,7 @@
 #include "rtbvh.h"
 
 
-EiVector3d return_ray_color_stack(const Ray& primary_ray, const TLAS& TLAS);
+EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri, const TLAS& TLAS);
 
 EiVector3d return_ray_color_new(const Ray& ray,
     const TLAS& TLAS,
@@ -41,4 +41,5 @@ void render_ppm_image(const EiVector3d &camera_center,
     const int image_height,
     const int image_width,
     const int number_of_samples,
+    const double scene_ri,
     const std::filesystem::path output_filepath);

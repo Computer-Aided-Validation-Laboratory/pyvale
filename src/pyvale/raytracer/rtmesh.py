@@ -33,7 +33,7 @@ class SurfType(IntEnum): # IntEnum so it can be passed to C++ nicely
     TEXTURE = 1
 
 class MaterialType(str, Enum):
-    NOT_DEFINED = "NOT_DEFINED" # Nothing stopping the ray, i.e. empty space
+    #NOT_DEFINED = "NOT_DEFINED" # Nothing stopping the ray, i.e. empty space
     DIFFUSE = "DIFFUSE"
     SPECULAR = "SPECULAR"
     REFRACTIVE = "REFRACTIVE"
@@ -42,7 +42,7 @@ class MaterialType(str, Enum):
     @property
     def as_int(self) -> int:
         mapping = {
-            MaterialType.NOT_DEFINED: 0,
+            #MaterialType.NOT_DEFINED: 0,
             MaterialType.DIFFUSE: 1,
             MaterialType.SPECULAR: 2,
             MaterialType.REFRACTIVE: 3,
@@ -63,6 +63,13 @@ class ElementNodeCount(IntEnum):
     HEX8 = 8,
     HEX20 = 20,
     HEX27 = 27
+
+# Mesh type - used for adjusting refractive behaviour
+class MeshType(IntEnum):
+    SOLID_VOLUME = 1, # 
+    #THIN_SHELL = 2, # Shell with 0 thickness; not available for now - how to differentiate between those computationally?
+    THICK_SHELL_OUTER = 3, # Outer surface of a shell with a non-zero thickness
+    THICK_SHELL_INNER = 4 # Inner surface of a shell with a non-zero thickness
 
 # Meshio mapping
 # Enum with surface elements (so 2D that we get after skinning the mesh) and their names in meshio cell types
@@ -123,6 +130,8 @@ class RTMesh:
     seams: list = field(default_factory=list)
     texture: np.ndarray = field(default=None)
     material: MaterialType = field(default=None)
+    refractive_index: float = field(default=1.0003) # Refractive index of the material comprising the mesh; defaults to 1.003 for air, i.e., no refraction
+    mesh_type: MeshType = field(default=MeshType.SOLID_VOLUME) # Type of mesh determining the refractive behaviour
     # mesh_to_world_mat: np.ndarray = field(default=None)
     pyvista_surface: pv.UnstructuredGrid | pv.PolyData = field(default=None) # For SeamSplitter
     tri_face_mapping: np.ndarray = field(default=None) # To map triangulated faces back to original elements; needed for Blender UV unwrapping
@@ -133,11 +142,13 @@ class RTMesh:
     element_count: int = field(default=0)
     node_count: int = field(default=0)
     nodes_per_element: ElementNodeCount = field(default=ElementNodeCount.TRI3)
-
+   
     def set_surface(self,
                     surface_type: SurfType = SurfType.FIELD_COLOR,
                     surface_fill: np.ndarray = None,
-                    material: MaterialType = MaterialType.NOT_DEFINED) -> None:
+                    material: MaterialType = MaterialType.UNLIT,
+                    mesh_type: MeshType = MeshType.SOLID_VOLUME,
+                    refractive_index: float = 1.0003) -> None:
         """
         Sets the surface type and fill for the mesh.
         
@@ -158,27 +169,46 @@ class RTMesh:
             - For TEXTURE:
                 - The surface_fill should be a 2D array representing the texture image. The UV coordinates must be set for the mesh to apply the texture correctly.
         material: MaterialType
-            The material type to apply to the mesh.
-
+            The material type to apply to the mesh. Defaults to UNLIT for no shading effects.
+        mesh_type: MeshType
+            The type of mesh, which will affect the refractive behaviour, where applicable. Defaults to SOLID_VOLUME.
+        refractive_index: float
+            The refractive index to apply to the mesh. Applicable only for refractive materials. Defaults to 1.0003 for air. 
+    
         Raises:
         -------
         ValueError:
-            If the surface_fill does not match the expected format for the given surface_type, or if UV coordinates are required but not provided for texture mapping.
+            If the surface_fill does not match the expected format for the given surface_type, or if UV coordinates are required but not provided for texture mapping, or if the refractive_index is less than 0.
+        TypeError:
+            If the material is set to REFRACTIVE and texture is passed, as the physics for this is currently not supported.
         """
         # Reset everything if user is changing the surface type
         if self.surface_type is not None and surface_type != self.surface_type:
             self.face_colors_over_time = None
             self.texture = None
             self.uvs = None
+            self.material = None
+            self.refractive_index = 1.0003
+            self.mesh_type = MeshType.SOLID_VOLUME
             #self.uvs_over_time = None
         self.surface_type = surface_type
         self.material = material
+        self.mesh_type = mesh_type
+
+        # Refractive index
+        if refractive_index > 0.0:
+            self.refractive_index = refractive_index
+        else: 
+            raise ValueError("Refractive index can be negative only for metamaterials, and these are not supported yet.")
+        
         # Solid colors
         if surface_type == SurfType.FIELD_COLOR:
+            if material == MaterialType.REFRACTIVE:
+                print("Tinting for refractive materials is currently not supported, so the colour data will be ignored.")
             if surface_fill is None:
                 print("No colour data passed. Pre-filling automatically with grey.")
-            elif surface_fill.shape == (RGB_VALS,):
-                # Populate with passed solid color
+            elif surface_fill.shape == (RGB_VALS,): 
+                # Populate with passed solid color, e.g., [0.5, 0.2, 0.45]
                 self.face_colors_over_time = np.ones((self.timestep_count, self.element_count, RGB_VALS)) * surface_fill
                 return
             elif surface_fill.shape == (self.element_count, RGB_VALS):
@@ -200,6 +230,8 @@ class RTMesh:
                 raise ValueError("UV coordinates are required to append texture.")
             if surface_fill.ndim != 2:
                 raise ValueError("Wrong number of dimensions. The array containing the texture should be two-dimensional.")
+            if material == MaterialType.REFRACTIVE:
+                raise TypeError("Textures with refractive materials are currently not supported.") # They might be in the future if we use transparency etc.
             # Convert UVs to the format similar to node_coords_expanded: (element_count, nodes_per_element, 2)
             # NOTE: UVS should **NOT** change across the frames, so we do not need that. If you need to use it, uncomment relevant lines in rtscene.py and copy_data_to_blas_tex in rtbvh.cpp
             #self.uvs_over_time = np.broadcast_to(self.uvs[np.newaxis, ...], (self.timestep_count, self.element_count, self.nodes_per_element, 2))
@@ -360,6 +392,7 @@ def find_node_normals(pv_grid: pv.UnstructuredGrid | pv.PolyData) -> np.ndarray:
             point_normals=True, 
             cell_normals=False, 
             auto_orient_normals=True, # Ensures normals point outwards
+            consistent_normals=True,
             feature_angle=FEATURE_ANGLE,
             inplace=False)
         normals = np.ascontiguousarray(surface.point_data["Normals"], dtype=np.float64) # Shape (mesh node count, 3)
@@ -374,6 +407,7 @@ def find_node_normals(pv_grid: pv.UnstructuredGrid | pv.PolyData) -> np.ndarray:
         point_normals=True, 
         cell_normals=False, 
         auto_orient_normals=True, # Ensures normals point outwards
+        consistent_normals=True,
         feature_angle=FEATURE_ANGLE,
         inplace=False)
         surface_normals = np.ascontiguousarray(surface.point_data["Normals"], dtype=np.float64) # Shape (mesh node count per element, 3)

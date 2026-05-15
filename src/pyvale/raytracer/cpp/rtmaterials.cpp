@@ -80,7 +80,7 @@ void ray_diffuse(const RayState& current_state,
     //ray_new.origin = intersection_record.point_intersection + direction_scatter * OFFSET;
     ray_new.direction = direction_scatter;
 
-    stack.push_back({ray_new, next_accumulated_color, current_state.depth + 1});
+    stack.push_back({ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1});
 }
 
 void ray_specular(const RayState& current_state,
@@ -115,7 +115,7 @@ void ray_specular(const RayState& current_state,
     ray_new.direction = reflected;
     ray_new.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
 
-    stack.push_back({ray_new, next_accumulated_color, current_state.depth + 1});
+    stack.push_back({ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1});
 }
 
 void ray_refractive(const RayState& current_state,
@@ -126,8 +126,11 @@ void ray_refractive(const RayState& current_state,
     // Secondary ray may reflect or refract
     // Depends on: surface normal, refractive indices, sometimes wavelength
     //EiVector3d emitted = intersection_record.emission;
+    EiVector3d attenuation(1.0, 1.0, 1.0); // Instead of albedo as for refractive materials, we absorb nothing and we want to make sure that is the case
+    // Data stored in albedo can be used later for tinting, though, so we keep the interface
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
-    EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
+    //EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
+    EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(attenuation); // Pre-calculate the baseline for the next bounce
     const EiVector3d p = intersection_record.point_intersection; // Point of intersection
     //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
     const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
@@ -159,8 +162,8 @@ void ray_refractive(const RayState& current_state,
         reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_geo; 
     }
 
-    double ri_surrounding = 1.0;   // Refractive index of the surrounding medium; for now hardcoded for air
-    double ri_material = 1.5;   // Refractive index of the material/volume; for now hardcoded for glass
+    double ri_surrounding = current_state.outer_refractive_index;   // Refractive index of the surrounding medium
+    double ri_material = intersection_record.refractive_index;   // Refractive index of the material/volume
     double ri_ratio = into ? ri_surrounding / ri_material : ri_material / ri_surrounding; 
 
     double sin2_theta_t = ri_ratio * ri_ratio * (1.0 - cos_theta_i * cos_theta_i); // Sin^2 of the transmission angle
@@ -191,7 +194,7 @@ void ray_refractive(const RayState& current_state,
         reflected_ray.direction = reflected_dir;
         reflected_ray.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
         
-        stack.push_back({reflected_ray, next_accumulated_color, current_state.depth + 1});
+        stack.push_back({reflected_ray, next_accumulated_color, ri_material, current_state.depth + 1});
         return;
     }
     
@@ -233,19 +236,19 @@ void ray_refractive(const RayState& current_state,
         if (random_double() < P){ // Note: for multi-threading this will have to be replaced with thread_local generator
         //if ((double)rand() / RAND_MAX < P) { // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
             double P_reflect = reflectance / P; // Adjust original reflectance based on P
-            stack.push_back({reflected_ray, next_accumulated_color * P_reflect, current_state.depth + 1});
+            stack.push_back({reflected_ray, next_accumulated_color * P_reflect, ri_material, current_state.depth + 1});
             return;
         }
         else {
             double P_transmit = transmittance / (1.0 - P); // Adjust original transmittance based on P
-            stack.push_back({refracted_ray, next_accumulated_color * P_transmit, current_state.depth + 1});
+            stack.push_back({refracted_ray, next_accumulated_color * P_transmit, ri_material, current_state.depth + 1});
             return;
         }
     } 
     else {
         // Push both rays
-        stack.push_back({reflected_ray, next_accumulated_color * reflectance, current_state.depth + 1});
-        stack.push_back({refracted_ray, next_accumulated_color * transmittance, current_state.depth + 1});
+        stack.push_back({reflected_ray, next_accumulated_color * reflectance, ri_material, current_state.depth + 1});
+        stack.push_back({refracted_ray, next_accumulated_color * transmittance, ri_material, current_state.depth + 1});
         return;
     }
 }

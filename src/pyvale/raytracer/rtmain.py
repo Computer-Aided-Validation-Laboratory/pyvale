@@ -118,6 +118,8 @@ def render_scene(image_height: int,
         # Display information about setting the algorithm type if there are textured meshes in the scene 
         if SurfType.TEXTURE in scene.surface_types:
             print("Texture sampler not selected. Using nearest neighbour.")
+
+    scene.refractive_indices.append(scene.scene_ri) # Append the scene RI at the end of the refractive indices list to pass fewer arguments to the renderer, while keeping indexing for the meshes consistent
         
     # Select appropriate rendering function based on these booleans to minimize branching in backend rendered if possible
     # Not sure if we will need to implement this yet - BVH builder is still fast with conditional checks (and we run it once per frame), and branching based on element/surface type was moved out of the hot loops
@@ -137,4 +139,4 @@ def render_scene(image_height: int,
     # For now use the general function with branching in it
     #cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.coords_expanded, scene.face_colors, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing)
     #print(f"Materials: {scene.materials}")
-    cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing, scene.matrix_defocus_disc, scene.coords_expanded, scene.normals_expanded, scene.face_colors, scene.uvs, scene.textures, scene.surface_types, scene.materials, texture_sampler)
+    cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing, scene.matrix_defocus_disc, scene.coords_expanded, scene.normals_expanded, scene.face_colors, scene.uvs, scene.textures, scene.surface_types, scene.materials, scene.refractive_indices, texture_sampler)

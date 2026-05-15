@@ -18,6 +18,7 @@
 struct RayState{
     Ray ray;
     EiVector3d accumulated_color; // Accumulated multipliers (albedo, Fresnel terms, etc.)
+    double outer_refractive_index; // Refractive index of the material where the ray originates
     int depth;
 };
 

@@ -48,6 +48,7 @@ void render_scene(const int image_height,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_textures,
     const std::vector<int>& scene_surface_types,
     const std::vector<int>& materials,
+    const std::vector<double>& scene_refractive_indices,
     const int texture_sampler) {
 
 
@@ -59,13 +60,16 @@ void render_scene(const int image_height,
     
     // Set the texture sampling algorithm based on the passed value
     texsampler::set(TextureSampler(texture_sampler));
-    
+
+    // Get the refractive index of the scene (typically air, but in case it is not)
+    const int last_index = scene_refractive_indices.size() - 1;
+    const float scene_ri = scene_refractive_indices[last_index]; // Scene RI is stored at the last position always
     
     for (int timestep = 0; timestep < timestep_count; ++timestep){
         //TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, timestep, timestep_count); // target stack-based DoD implementation
         //std::chrono::time_point t1_build = std::chrono::high_resolution_clock::now();
         //TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, scene_uvs, scene_textures, scene_surface_types, timestep, timestep_count);
-        TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_normals_expanded, scene_face_colors, materials, scene_uvs, scene_textures, scene_surface_types, timestep, timestep_count);
+        TLAS current_TLAS = build_acceleration_structures(scene_coords_expanded, scene_normals_expanded, scene_face_colors, materials, scene_uvs, scene_textures, scene_surface_types, scene_refractive_indices, timestep, timestep_count);
         //std::chrono::time_point t2_build = std::chrono::high_resolution_clock::now();
 
         
@@ -82,7 +86,7 @@ void render_scene(const int image_height,
             std::cout << "Rendering frame " << (timestep+1) << "/" << timestep_count << std::endl;
             //std::chrono::time_point t1_render = std::chrono::high_resolution_clock::now();
             //CALLGRIND_START_INSTRUMENTATION;
-            render_ppm_image(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, test_TLAS, image_height, image_width, number_of_samples, output_filepath);
+            render_ppm_image(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
             //CALLGRIND_STOP_INSTRUMENTATION;
             //std::chrono::time_point t2_render = std::chrono::high_resolution_clock::now();
             

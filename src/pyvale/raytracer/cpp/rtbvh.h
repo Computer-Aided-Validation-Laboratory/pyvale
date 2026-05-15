@@ -181,6 +181,7 @@ struct BLAS {
     IntersectionOutput (*intersection_function_ptr)(const Ray&, const std::vector<double>& node_coords, const unsigned int bvh_node_element_count) {nullptr}; // Ray-mesh element intersection (TRI3, QUAD4, etc.)
     void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx) {nullptr}; // Saving data to HitRecord depending on the surface type (color/texture) and element type
     void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
+    double refractive_index {0.1}; // Refractive index of the mesh material; set to 0.1 to avoid bad division in case it somehow gets unitialised
     int root_idx {-1};
 
     BLAS() = default; // Constructor for emplace_back to avoid temporary copies
@@ -333,7 +334,7 @@ void copy_data_to_TLAS(TLAS &tlas,
     std::vector<BLAS>& scene_BLASes,
     const std::vector<int>& scene_blas_indices);
 
-inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material);
+inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const double mesh_ri, const double scene_ri);
 inline void set_BLAS_intersection_texture(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element);
 inline void set_BLAS_intersection_color(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element);
 
@@ -345,6 +346,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_uvs,
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_textures,
     const std::vector<int>& scene_surface_types,
+    const std::vector<double>& scene_refractive_indices,
     const int timestep,
     const int timestep_count);
 

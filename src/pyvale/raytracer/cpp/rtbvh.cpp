@@ -652,27 +652,32 @@ void copy_data_to_TLAS(TLAS &tlas,
     }
  }
 
-inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material){
+inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const double mesh_ri, const double scene_ri){
     switch (mesh_material) {
         case UNLIT: {
             mesh_bvh.ray_material_ptr = &ray_unlit;
+            mesh_bvh.refractive_index = scene_ri; // for non-refractive materials we expect mesh_ri = scene_ri, but just to be on the safe side
             return;
         }
         case DIFFUSE: { // Diffuse
             mesh_bvh.ray_material_ptr = &ray_diffuse;
+            mesh_bvh.refractive_index = scene_ri;
             return;
     }
         case SPECULAR: {// Specular (mirror)
             mesh_bvh.ray_material_ptr = &ray_specular;
+            mesh_bvh.refractive_index = scene_ri;
             return;
         }
         case REFRACTIVE: {// Refraction (dielectric)
             mesh_bvh.ray_material_ptr = &ray_refractive;
+            mesh_bvh.refractive_index = mesh_ri;
             return;
         }
-        default: { // Undefined
+        default: { // Undefined - removed, so this should never, technically, get assigned
             mesh_bvh.ray_material_ptr = &ray_undefined;
-            return;;
+            mesh_bvh.refractive_index = scene_ri;
+            return;
         }
     }
 }
@@ -758,6 +763,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_uvs,
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_textures,
     const std::vector<int>& scene_surface_types,
+    const std::vector<double>& scene_refractive_indices,
     const int timestep,
     const int timestep_count){
 // Handles building all acceleration structures in the scene - bottom and top level
@@ -771,6 +777,10 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     scene_blas_aabbs.reserve(scene_mesh_count);
     std::vector<BLAS> scene_blases; // Store mesh_bvhs - this will be used for TLAS
     scene_blases.reserve(scene_mesh_count);
+
+    // Get the refractive index of the scene (typically air, but in case it is not)
+    const int last_index = scene_refractive_indices.size() - 1;
+    const float scene_ri = scene_refractive_indices[last_index]; // Scene RI is stored at the last position always
 
     // Iterate over MESHES to build BLASes - BVHs for respective meshes
     for (size_t mesh_idx = 0; mesh_idx < scene_mesh_count; ++mesh_idx) {
@@ -846,7 +856,8 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         // 2. BLAS BVH builder functions - this part depends on the surface type
         build_BLAS(mesh_bvh, mesh_element_centroids, mesh_element_aabbs, mesh_element_indices, node_minimum_element_index, mesh_element_count, nodes_per_element);
         int mesh_material = materials[mesh_idx];
-        set_BLAS_material(mesh_bvh, mesh_material);
+        double mesh_ri = scene_refractive_indices[mesh_idx];
+        set_BLAS_material(mesh_bvh, mesh_material, mesh_ri, scene_ri);
 
         int surface_type = scene_surface_types[mesh_idx];
 

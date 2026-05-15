@@ -420,7 +420,7 @@ void overwrite_intersection_tri3_col(HitRecord& intersection_record,
     intersection_record.face_color = intersection_record.elem_interp_coords(0) * color_data + intersection_record.elem_interp_coords(1) * color_data + intersection_record.elem_interp_coords(2) * color_data;
    
     // Get shading normal - tbd
-    //intersection_record.normal_shading = intersection_record.normal_surface;
+    intersection_record.normal_shading = intersection_record.normal_surface;
     /*
     std::array<double, ElementNodeCount::TRI3 * NODE_COORDINATES> node_normals; // Shape (faces, 3) but flat
     get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::TRI3, &node_normals[0]);
@@ -1190,6 +1190,7 @@ void intersect_BLAS(const Ray& ray,
                 // std::cout << intersection_record.material << '\n';
                 //intersection_record.material = material_rec;
                 intersection_record.ray_material_ptr = mesh_bvh.ray_material_ptr;
+                intersection_record.refractive_index = mesh_bvh.refractive_index;
                 // std::cout << intersection_record.material << '\n' << '\n';
                 overwrite_intersection_function_ptr(intersection_record, Node, texture, min_row_idx);
             } 

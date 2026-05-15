@@ -33,6 +33,7 @@ struct HitRecord {
     EiVector3d face_color {EiVector3d::Zero()}; // 3D color - already sampled from texture or solid surface color, albedo
     EiVector3d emission{ EiVector3d::Zero() };     // light source
     double t {std::numeric_limits<double>::infinity()};
+    double refractive_index;
     void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
     //MaterialType material{ NOT_DEFINED }; // int 
 

@@ -47,6 +47,7 @@ void render_scene(const int image_height,
     const std::vector<nb::ndarray<const double, nb::c_contig>>& scene_textures,
     const std::vector<int>& scene_surface_types,
     const std::vector<int>& materials,
+    const std::vector<double>& refractive_indices,
     const int texture_sampler);
 
     /*

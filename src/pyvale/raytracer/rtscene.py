@@ -7,7 +7,7 @@
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 import numpy as np
-from pyvale.raytracer.rtmesh import RTMesh, ElementNodeCount, SurfType, MaterialType
+from pyvale.raytracer.rtmesh import RTMesh, ElementNodeCount, SurfType, MaterialType, MeshType
 from pyvale.raytracer.rtcamera import Camera
 
 # Enum to specify render type to be able to let user pick between static and dynamic images
@@ -51,6 +51,7 @@ class Scene:
     surface_types: list[SurfType] = field(default_factory=list)
     nodes_per_element: list[ElementNodeCount] = field(default_factory=list)
     element_count: list[int] = field(default_factory=list)
+    refractive_indices: list[float] = field(default_factory=list) # Refractive indices of meshes stored in the scene
     # Camera data
     camera_center: list[np.ndarray] = field(default_factory=list)
     pixel_00_center: list[np.ndarray] = field(default_factory=list)
@@ -59,6 +60,8 @@ class Scene:
     # Overall scene data
     timestep_count: int = 1 # Number of timesteps with the default value being 1 for static images
     mesh_count: int = 0 # Store the number of meshes in the scene simply because it is used quite a lot
+    scene_ri: float = 1.0003 # Refractive index of the material filling the scene. 1.0 set as default for air
+
 
     def add_camera(self, camera: Camera) -> None:
         """
@@ -77,8 +80,6 @@ class Scene:
         self.pixel_00_center.append(camera.pixel_00_center)
         self.matrix_pixel_spacing.append(camera.matrix_pixel_spacing)
         self.matrix_defocus_disc.append(camera.matrix_defocus_disc)
-
-
 
     def add_rtmesh(self, rtmesh: RTMesh) -> None:
         """
@@ -121,6 +122,31 @@ class Scene:
         self.element_count.append(rtmesh.element_count) # Will be used in C interface
         if rtmesh.timestep_count > self.timestep_count:  # Keep the highest timestep count (should be the same for all meshes, but you never know)
             self.timestep_count = rtmesh.timestep_count
+        self.refractive_indices.append(rtmesh.refractive_index)
+        
+
+    def set_refractive_index(self, refractive_index: float):
+        """
+        Sets the refractive index of the scene.
+
+        Parameters:
+        -----------
+        refractive_index: float
+            The refractive index of the scene. Default is 1.0003 for air in visible light. (https://refractiveindex.info/?shelf=other&book=air&page=Ciddor)
+        
+        Returns:
+        --------
+        None
+
+        Raises:
+        -------
+        ValueError:
+            If the refractive index is negative.
+        """
+        if refractive_index > 0.0:
+            self.scene_ri = refractive_index
+        else:
+            raise ValueError("Refractive index can be negative only for metamaterials, and it is highly unlikely that the entire scene is filled with one.")
 
     def _fill_empty_timesteps(self) -> None:
         """
@@ -234,8 +260,7 @@ class Scene:
                     #self.uvs[mesh] = self.uvs[mesh][:frames_to_render]
             self.timestep_count = 1
         # print(self.coords_expanded[0].shape)
-
-
+                    
 # ================================================================================
 # DEV/DEBUG/DEPRECATED
 # ================================================================================

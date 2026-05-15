@@ -13,18 +13,18 @@
 // raytracer header files
 #include "rtrender.h"
 #include "rthitrecord.h"
-#include "rtrayintersection.h"
+#include "rtrayintersection.h"I
 #include "rtmathutils.h"
 #include "rtmaterials.h"
 
 // New radiance function with lighting but iterative and refactored 
-EiVector3d return_ray_color_stack(const Ray& primary_ray, const TLAS& TLAS){
+EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri, const TLAS& TLAS){
 
     static constexpr int MAX_DEPTH = 500; // Max depth for the secondary rays
     EiVector3d total_color = EiVector3d::Zero();
     std::vector<RayState> stack;
     stack.reserve(MAX_DEPTH);
-    stack.push_back({primary_ray, EiVector3d(1.0, 1.0, 1.0), 0});
+    stack.push_back({primary_ray, EiVector3d(1.0, 1.0, 1.0), scene_ri, 0});
     void (*ray_material_interaction_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color); // Pointer to the function determining the interaction between the ray and the mesh material
 
     while(!stack.empty()){
@@ -271,6 +271,7 @@ void render_ppm_image(const EiVector3d& camera_center,
     const int image_height,
     const int image_width,
     const int number_of_samples,
+    const double scene_ri,
     const std::filesystem::path output_filepath) {
     // Get camera parameters from the dict and cast it to Eigen types so it works with existing code; by reference to avoid copying data
 
@@ -296,7 +297,7 @@ void render_ppm_image(const EiVector3d& camera_center,
                 Ray current_ray{ ray_origin, ray_direction};
                 //pixel_color += return_ray_color(current_ray, TLAS);
                 //pixel_color += return_ray_color_new(current_ray, TLAS);
-                pixel_color += return_ray_color_stack(current_ray, TLAS);
+                pixel_color += return_ray_color_stack(current_ray, scene_ri, TLAS);
             }
             double gray = 0.2126 * pixel_color[0] + 0.7152 * pixel_color[1] + 0.0722 * pixel_color[2];
             int gray_byte = int(gray / number_of_samples * 255.99);
