@@ -20,7 +20,7 @@
 // New radiance function with lighting but iterative and refactored 
 EiVector3d return_ray_color_stack(const Ray& primary_ray, const TLAS& TLAS){
 
-    static constexpr int MAX_DEPTH = 60; // Max depth for the secondary rays
+    static constexpr int MAX_DEPTH = 500; // Max depth for the secondary rays
     EiVector3d total_color = EiVector3d::Zero();
     std::vector<RayState> stack;
     stack.reserve(MAX_DEPTH);
@@ -39,8 +39,10 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const TLAS& TLAS){
         intersect_TLAS(current_ray, TLAS, intersection, intersection_record);
 
         ray_material_interaction_ptr = intersection_record.ray_material_ptr;
+        //intersection_record.temp_flat_shading(); // Temporary function to swap shading normal with geometric normal and test flat shading before it is implemented as its own separate option
 
         if (intersection_record.t == std::numeric_limits<double>::infinity()) {
+            //const EiVector3d blue_sky(0.5, 0.5, 0.5);
             const EiVector3d blue_sky = ray_blue_sky(current_ray); // Early termination - no bounces here anyway
             total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
             continue;

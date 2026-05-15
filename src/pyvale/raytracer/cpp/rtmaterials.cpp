@@ -28,8 +28,8 @@ void ray_diffuse(const RayState& current_state,
     // Use non-uniform Lambertian distribution weighed by cos of the angle between the indicent ray and surface normal. Scattering is more likely close to the normal.
     //EiVector3d emitted = intersection_record.emission;
     const EiVector3d p = intersection_record.point_intersection; // Point of intersection
-    //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
-    const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    //const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
 
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
@@ -111,8 +111,9 @@ void ray_specular(const RayState& current_state,
         reflected = ray_direction - 2 * ray_direction.dot(normal_geo) * normal_geo;
     }
     Ray ray_new;
-    ray_new.origin = intersection_record.point_intersection + normal_geo * OFFSET;
+    ray_new.origin = intersection_record.point_intersection - normal_geo * OFFSET;
     ray_new.direction = reflected;
+    ray_new.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
 
     stack.push_back({ray_new, next_accumulated_color, current_state.depth + 1});
 }
@@ -188,6 +189,7 @@ void ray_refractive(const RayState& current_state,
         Ray reflected_ray;
         reflected_ray.origin = intersection_record.point_intersection + normal_geo * OFFSET; // Push secondary rays slightly off the surface to remove the shadow acne
         reflected_ray.direction = reflected_dir;
+        reflected_ray.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
         
         stack.push_back({reflected_ray, next_accumulated_color, current_state.depth + 1});
         return;

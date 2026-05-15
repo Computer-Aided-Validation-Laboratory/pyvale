@@ -63,6 +63,11 @@ struct HitRecord {
             normal_shading = (alpha * normal_shading + (1.0 - alpha) * normal_surface).normalized();
         }
     }
+
+    inline void temp_flat_shading(){
+        // Temporary function to swap shading normal with geometric normal and test flat shading before it is implemented as its own separate option
+        normal_shading = normal_surface;
+    }
 };
 
 inline void set_face_normal(const Ray& ray, EiVector3d& normal_surface) {

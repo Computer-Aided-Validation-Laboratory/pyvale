@@ -88,25 +88,30 @@ void overwrite_intersection_quad4_tex(HitRecord& intersection_record,
     // Find (u,v) coordinates for each node of the intersected element
     std::array<double, ElementNodeCount::QUAD4 * UV_COORDINATES> element_uvs; // Flat array so we can pass a pointer to get_face_uvs. Texture (u,v) for each node of mesh element
     get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::QUAD4, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
+    
     // Get node normals
-    std::array<double, ElementNodeCount::QUAD4 * NODE_COORDINATES> node_normals;
-    get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD4, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
+    //std::array<double, ElementNodeCount::QUAD4 * NODE_COORDINATES> node_normals;
+    //get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD4, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
 
-    // Interpolate final (u,v) coordinates and shading normal
+    // Interpolate final (u,v) coordinates
     EiArray2d uvs(0.0, 0.0);
-    EiArray3d shading_normal(0.0, 0.0, 0.0);
+    //EiArray3d shading_normal(0.0, 0.0, 0.0);
      for (int i = 0; i < ElementNodeCount::QUAD4; ++i) {
         EiArray2d node_uv;
         node_uv << element_uvs[UV_COORDINATES * i], element_uvs[UV_COORDINATES * i + 1];
         uvs += shape_weights[i] * node_uv;
-        EiArray3d node_normal;
-        node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        shading_normal += shape_weights[i] * node_normal;
+        //EiArray3d node_normal;
+        //node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
+        //shading_normal += shape_weights[i] * node_normal;
     }
    
     // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
     intersection_record.face_color = texsampler::sample_texture(texture, uvs);
-    intersection_record.normal_shading = shading_normal;
+
+    // Get shading normal
+    //intersection_record.normal_shading = shading_normal;
+    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad4(u, v, Node.node_coords);
+    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
 }
 
 void overwrite_intersection_quad8_tex(HitRecord& intersection_record,
@@ -127,25 +132,29 @@ void overwrite_intersection_quad8_tex(HitRecord& intersection_record,
      // Find (u,v) coordinates for each node of the intersected element
     std::array<double, ElementNodeCount::QUAD8 * UV_COORDINATES> element_uvs; // Flat array so we can pass a pointer to get_face_uvs. Texture (u,v) for each node of mesh element
     get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::QUAD8, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
-    // Get node normals
-    std::array<double, ElementNodeCount::QUAD8 * NODE_COORDINATES> node_normals;
-    get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD8, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
    
+     // Get node normals
+    //std::array<double, ElementNodeCount::QUAD8 * NODE_COORDINATES> node_normals;
+    //get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD8, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
     // Interpolate final (u,v) coordinates and shading normal
     EiArray2d uvs(0.0, 0.0);
-    EiArray3d shading_normal(0.0, 0.0, 0.0);
+    //EiArray3d shading_normal(0.0, 0.0, 0.0);
     for (int i = 0; i < ElementNodeCount::QUAD8; ++i) {
         EiArray2d node_uv;
         node_uv << element_uvs[UV_COORDINATES * i], element_uvs[UV_COORDINATES * i + 1];
         uvs += shape_weights[i] * node_uv;
-        EiArray3d node_normal;
-        node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        shading_normal += shape_weights[i] * node_normal;
+        //EiArray3d node_normal;
+        //node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
+        //shading_normal += shape_weights[i] * node_normal;
     }
 
     // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
     intersection_record.face_color = texsampler::sample_texture(texture, uvs);
-    intersection_record.normal_shading = shading_normal;
+
+    // Get shading normal
+    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad8(u, v, Node.node_coords);
+    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
+    //intersection_record.normal_shading = shading_normal;
 }
 
 void overwrite_intersection_quad9_tex(HitRecord& intersection_record,
@@ -166,25 +175,28 @@ void overwrite_intersection_quad9_tex(HitRecord& intersection_record,
     // Find (u,v) coordinates for each node of the intersected element
     std::array<double, ElementNodeCount::QUAD9 * UV_COORDINATES> element_uvs; // Flat array so we can pass a pointer to get_face_uvs. Texture (u,v) for each node of mesh element
     get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::QUAD9, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
-    // Get node normals
-    std::array<double, ElementNodeCount::QUAD9 * NODE_COORDINATES> node_normals;
-    get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD9, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
+
+     // Get node normals
+    //std::array<double, ElementNodeCount::QUAD9 * NODE_COORDINATES> node_normals;
+    //get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD9, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
  
     // Interpolate final (u,v) coordinates
     EiArray2d uvs(0.0, 0.0);
-    EiArray3d shading_normal(0.0, 0.0, 0.0);
+    //EiArray3d shading_normal(0.0, 0.0, 0.0);
     for (int i = 0; i < ElementNodeCount::QUAD9; ++i) {
         EiArray2d node_uv;
         node_uv << element_uvs[UV_COORDINATES * i], element_uvs[UV_COORDINATES * i + 1];
         uvs += shape_weights[i] * node_uv;
-        EiArray3d node_normal;
-        node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        shading_normal += shape_weights[i] * node_normal;
+        //EiArray3d node_normal;
+        //node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
+        //shading_normal += shape_weights[i] * node_normal;
     }
     // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
     intersection_record.face_color = texsampler::sample_texture(texture, uvs);
-    intersection_record.normal_shading = shading_normal;
-
+    // Get shading normal
+    //intersection_record.normal_shading = shading_normal;
+    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad9(u, v, Node.node_coords);
+    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
 }
 
 void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
@@ -201,15 +213,15 @@ void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
     uv2 << element_uvs[4], element_uvs[5]; // (u,v) for node 2 
     // Original arrangement that works if barycentric coordinates are stored as (w, u, v) - otherwise there is a mismatch and it does not render correctly
     EiArray2d uvs = intersection_record.elem_interp_coords(0) * uv0 + intersection_record.elem_interp_coords(1) * uv1 + intersection_record.elem_interp_coords(2) * uv2;
-    
-
 
     // Barycentric interpolation that actually works if we want to store barycentric coordinates as (u, v, w)
     //EiArray2d uvs = intersection_record.elem_interp_coords(2) * uv0 + intersection_record.elem_interp_coords(0) * uv1 + intersection_record.elem_interp_coords(1) * uv2;  // Final (u,v)
     // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
     intersection_record.face_color = texsampler::sample_texture(texture, uvs);
 
-    // Find shading normal
+    // Find shading normal - tbd
+    intersection_record.normal_shading = intersection_record.normal_surface;
+    /*
     std::array<double, ElementNodeCount::TRI3 * NODE_COORDINATES> node_normals; // Shape (faces, 2) but flat. Texture (u,v) for each node of mesh element
     get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::TRI3, &node_normals[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
     EiArray3d normal_0, normal_1, normal_2;
@@ -219,6 +231,7 @@ void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
     // Original that should work if we store barycentric coordinates as (w, u, v)
     EiVector3d shading_normal = intersection_record.elem_interp_coords(0) * normal_0 + intersection_record.elem_interp_coords(1) * normal_1 + intersection_record.elem_interp_coords(2) * normal_2;
     intersection_record.normal_shading = shading_normal;
+    */
 }
 
 void overwrite_intersection_tri6_tex(HitRecord& intersection_record,
@@ -269,7 +282,9 @@ void overwrite_intersection_tri6_tex(HitRecord& intersection_record,
     // Sample texture
     intersection_record.face_color = texsampler::sample_texture(texture, uvs);
     
-     // Get node normals for shading
+     // Get shading normal - move this out of intersection code, tbd
+    intersection_record.normal_shading = intersection_record.normal_surface;
+    /*
     std::array<double, ElementNodeCount::TRI6 * NODE_COORDINATES> node_normals;
     get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::TRI6, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
     
@@ -281,7 +296,7 @@ void overwrite_intersection_tri6_tex(HitRecord& intersection_record,
         shading_normal += shape_weight * node_normal;
     }
     intersection_record.normal_shading = shading_normal.matrix();
-
+    */
 };
 
 void overwrite_intersection_quad4_col(HitRecord& intersection_record,
@@ -296,6 +311,7 @@ void overwrite_intersection_quad4_col(HitRecord& intersection_record,
     const double u = intersection_record.elem_interp_coords(0);
     const double v = intersection_record.elem_interp_coords(1);
     std::array<double, ElementNodeCount::QUAD4> shape_weights = compute_shape_quad4(u, v);
+    
     // Get node normals
     std::array<double, ElementNodeCount::QUAD4 * NODE_COORDINATES> node_normals;
     get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD4, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
@@ -310,7 +326,13 @@ void overwrite_intersection_quad4_col(HitRecord& intersection_record,
         shading_normal += shape_weights[i] * node_normal;
     }
     intersection_record.face_color = interpolated_color;
-    intersection_record.normal_shading = shading_normal;
+    //intersection_record.normal_shading = shading_normal;
+
+    // Get shading normal
+    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad4(u, v, Node.node_coords);
+    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
+    //intersection_record.normal_surface = intersection_record.normal_shading;
+    //intersection_record.normal_shading = intersection_record.normal_surface;
 }
 
 void overwrite_intersection_quad8_col(HitRecord& intersection_record,
@@ -329,6 +351,7 @@ void overwrite_intersection_quad8_col(HitRecord& intersection_record,
     const double eta = 2.0 * v - 1.0;
      // Shape functions (weights) for QUAD9
     std::array<double, ElementNodeCount::QUAD8> shape_weights = compute_shape_quad8(xi, eta);
+
     // Get node normals
     std::array<double, ElementNodeCount::QUAD8 * NODE_COORDINATES> node_normals;
     get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD8, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
@@ -343,7 +366,9 @@ void overwrite_intersection_quad8_col(HitRecord& intersection_record,
         shading_normal += shape_weights[i] * node_normal;
     }
     intersection_record.face_color = interpolated_color;
-    intersection_record.normal_shading = shading_normal;
+    //intersection_record.normal_shading = shading_normal;
+    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad8(u, v, Node.node_coords);
+    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
 }
 
 void overwrite_intersection_quad9_col(HitRecord& intersection_record,
@@ -376,7 +401,11 @@ void overwrite_intersection_quad9_col(HitRecord& intersection_record,
         shading_normal += shape_weights[i] * node_normal;
     }
     intersection_record.face_color = interpolated_color;
-    intersection_record.normal_shading = shading_normal;
+    //intersection_record.normal_shading = shading_normal;
+
+    // Get shading normal
+    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad9(u, v, Node.node_coords);
+    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
 }
 
 // Section below: We may not need to interpolate the solid colours (likely the case), just added here for the time being
@@ -389,7 +418,10 @@ void overwrite_intersection_tri3_col(HitRecord& intersection_record,
     const EiVector3d color_data = get_face_color(min_row_idx, Node.face_color); 
     // Barycentric interpolation
     intersection_record.face_color = intersection_record.elem_interp_coords(0) * color_data + intersection_record.elem_interp_coords(1) * color_data + intersection_record.elem_interp_coords(2) * color_data;
-     // Find shading normal
+   
+    // Get shading normal - tbd
+    //intersection_record.normal_shading = intersection_record.normal_surface;
+    /*
     std::array<double, ElementNodeCount::TRI3 * NODE_COORDINATES> node_normals; // Shape (faces, 3) but flat
     get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::TRI3, &node_normals[0]);
     EiArray3d normal_0, normal_1, normal_2;
@@ -398,6 +430,7 @@ void overwrite_intersection_tri3_col(HitRecord& intersection_record,
     normal_2 << node_normals[6], node_normals[7], node_normals[8];
     EiVector3d shading_normal = intersection_record.elem_interp_coords(0) * normal_0 + intersection_record.elem_interp_coords(1) * normal_1 + intersection_record.elem_interp_coords(2) * normal_2;
     intersection_record.normal_shading = shading_normal;
+    */
 };
 
 void overwrite_intersection_tri6_col(HitRecord& intersection_record,
@@ -407,28 +440,31 @@ void overwrite_intersection_tri6_col(HitRecord& intersection_record,
     // Get solid surface color
     EiVector3d color_data = get_face_color(min_row_idx, Node.face_color); 
 
-    std::array<double, ElementNodeCount::TRI6 * NODE_COORDINATES> node_normals;
-    get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::TRI6, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
-
      // Get barycentric coordinates (g, h)
     const double g = intersection_record.elem_interp_coords(0);
     const double h = intersection_record.elem_interp_coords(1);
     const double r = intersection_record.elem_interp_coords(2);
     // Compute quadratic shape functions
     Eigen::VectorXd N = get_face_N(g, h); // size = 6
+
+    //std::array<double, ElementNodeCount::TRI6 * NODE_COORDINATES> node_normals; // Shape (faces, 3) but flat
+    //get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::TRI6, &node_normals[0]);
     
     EiVector3d interpolated_color(0.0, 0.0, 0.0);
     EiArray3d shading_normal(0.0, 0.0, 0.0);
     for(int i = 0; i < ElementNodeCount::TRI6; i++){
         double shape_weight = N(i);
         interpolated_color += shape_weight * color_data;
-        EiArray3d node_normal;
-        node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        shading_normal += shape_weight * node_normal;
+        //EiArray3d node_normal;
+        //node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
+        //shading_normal += shape_weight * node_normal;
     }
 
     intersection_record.face_color = interpolated_color;
-    intersection_record.normal_shading = shading_normal.matrix();
+    //intersection_record.normal_shading = shading_normal.matrix();
+    
+    // Get shading normal - tbd
+    intersection_record.normal_shading = intersection_record.normal_surface;
 }
 
 IntersectionOutput intersect_bvh_tri3(const Ray& ray,

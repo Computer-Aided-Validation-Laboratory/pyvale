@@ -89,3 +89,114 @@ static inline Eigen::VectorXd get_face_N(double g, double h) {
     N << r*(2*r-1), g*(2*g-1), h*(2*h-1), 4*g*r, 4*g*h, 4*h*r;
     return N;
 }
+
+
+static inline Eigen::Matrix<double, 3, 2> get_face_Jacobian_quad4(const double u, const double v, 
+    const std::vector<double> node_coords) {
+    // May have to multiply these by 1/4
+    std::array<double, ElementNodeCount::QUAD4> dNdu;
+
+    dNdu[0] = -1.0 + v;
+    dNdu[1] = 1.0 - v;
+    dNdu[2] = v;
+    dNdu[3] = -v;
+
+    std::array<double, ElementNodeCount::QUAD4> dNdv;
+    dNdv[0] = -1.0 + u;
+    dNdv[1] = -u;
+    dNdv[2] = u;
+    dNdv[3] = 1.0 - u;
+
+    Eigen::Matrix<double, 3, 2> J = Eigen::Matrix<double, 3, 2>::Zero();
+    for (int i = 0; i < ElementNodeCount::QUAD4; ++i) {
+        EiVector3d node_point;
+        node_point << node_coords[i * NODE_COORDINATES], node_coords[i * NODE_COORDINATES + 1], node_coords[i * NODE_COORDINATES + 2];
+        J.col(0) += node_point * dNdu[i];
+        J.col(1) += node_point * dNdv[i];
+    }
+    return J;
+}
+
+static inline Eigen::Matrix<double, 3, 2> get_face_Jacobian_quad8(double xi, double eta, 
+    const std::vector<double> node_coords) {
+    
+    std::array<double, ElementNodeCount::QUAD8> dNdxi;
+    std::array<double, ElementNodeCount::QUAD8> dNdeta;
+
+    // Pre-compute squares and intermediate terms
+    const double xi2 = xi * xi;
+    const double eta2 = eta * eta;
+
+    // Derivatives with respect to xi
+    dNdxi[0] = 0.25 * (eta - 1.0) * (-eta - 2.0 * xi);
+    dNdxi[1] = 0.25 * (eta - 1.0) * (eta - 2.0 * xi);
+    dNdxi[2] = 0.25 * (eta + 1.0) * (eta + 2.0 * xi);
+    dNdxi[3] = 0.25 * (eta + 1.0) * (-eta + 2.0 * xi);
+    dNdxi[4] = xi * (eta - 1.0);
+    dNdxi[5] = 0.5 * (1.0 - eta2);
+    dNdxi[6] = -xi * (eta + 1.0);
+    dNdxi[7] = -0.5 * (1.0 - eta2);
+
+    // Derivatives with respect to eta
+    dNdeta[0] = 0.25 * (xi - 1.0) * (-2.0 * eta - xi);
+    dNdeta[1] = 0.25 * (xi + 1.0) * (2.0 * eta - xi);
+    dNdeta[2] = 0.25 * (xi + 1.0) * (2.0 * eta + xi);
+    dNdeta[3] = 0.25 * (xi - 1.0) * (-2.0 * eta + xi);
+    dNdeta[4] = -0.5 * (1.0 - xi2);
+    dNdeta[5] = -eta * (xi + 1.0);
+    dNdeta[6] = 0.5 * (1.0 - xi2);
+    dNdeta[7] = eta * (xi - 1.0);
+
+    Eigen::Matrix<double, 3, 2> J = Eigen::Matrix<double, 3, 2>::Zero();
+    for (int i = 0; i < ElementNodeCount::QUAD8; ++i) {
+        EiVector3d node_point;
+        node_point << node_coords[i * NODE_COORDINATES], node_coords[i * NODE_COORDINATES + 1], node_coords[i * NODE_COORDINATES + 2];
+        J.col(0) += node_point * dNdxi[i];
+        J.col(1) += node_point * dNdeta[i];
+    }
+    return J;
+}
+
+static inline Eigen::Matrix<double, 3, 2> get_face_Jacobian_quad9(double xi, double eta, 
+    const std::vector<double> node_coords) {
+    
+    std::array<double, ElementNodeCount::QUAD9> dNdxi;
+    std::array<double, ElementNodeCount::QUAD9> dNdeta;
+
+    // Pre-compute squares and intermediate terms
+    const double xi2 = xi * xi;
+    const double eta2 = eta * eta;
+    const double two_xi = 2.0 * xi;
+    const double two_eta = 2.0 * eta;
+
+    // Derivatives with respect to xi
+    dNdxi[0] = 0.25 * eta * (eta - 1.0) * (two_xi - 1.0);
+    dNdxi[1] = 0.25 * eta * (eta - 1.0) * (two_xi + 1.0);
+    dNdxi[2] = 0.25 * eta * (eta + 1.0) * (two_xi + 1.0);
+    dNdxi[3] = 0.25 * eta * (eta + 1.0) * (two_xi - 1.0);
+    dNdxi[4] = -xi * eta * (eta - 1.0);
+    dNdxi[5] = 0.5 * (1.0 - eta2) * (two_xi + 1.0);
+    dNdxi[6] = -xi * eta * (eta + 1.0);
+    dNdxi[7] = 0.5 * (1.0 - eta2) * (two_xi - 1.0);
+    dNdxi[8] = -two_xi * (1.0 - eta2);
+
+    // Derivatives with respect to eta
+    dNdeta[0] = 0.25 * xi * (xi - 1.0) * (two_eta - 1.0);
+    dNdeta[1] = 0.25 * xi * (xi + 1.0) * (two_eta - 1.0);
+    dNdeta[2] = 0.25 * xi * (xi + 1.0) * (two_eta + 1.0);
+    dNdeta[3] = 0.25 * xi * (xi - 1.0) * (two_eta + 1.0);
+    dNdeta[4] = 0.5 * (1.0 - xi2) * (two_eta - 1.0);
+    dNdeta[5] = -eta * xi * (xi + 1.0);
+    dNdeta[6] = 0.5 * (1.0 - xi2) * (two_eta + 1.0);
+    dNdeta[7] = -eta * xi * (xi - 1.0);
+    dNdeta[8] = -two_eta * (1.0 - xi2);
+
+    Eigen::Matrix<double, 3, 2> J = Eigen::Matrix<double, 3, 2>::Zero();
+    for (int i = 0; i < ElementNodeCount::QUAD9; ++i) {
+         EiVector3d node_point;
+        node_point << node_coords[i * NODE_COORDINATES], node_coords[i * NODE_COORDINATES + 1], node_coords[i * NODE_COORDINATES + 2];
+        J.col(0) += node_point * dNdxi[i];
+        J.col(1) += node_point * dNdeta[i];
+    }
+    return J;
+}
