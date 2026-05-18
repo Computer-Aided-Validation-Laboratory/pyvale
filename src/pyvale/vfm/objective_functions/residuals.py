@@ -9,6 +9,4 @@ class Residuals(VectorObjectiveFunction):
         self,
         metric_results: list[npt.NDArray[np.float64]],
     ) -> npt.NDArray[np.float64]:
-        x = metric_results[0]
-        print(x)
-        return x
+        return metric_results[0]

@@ -91,9 +91,9 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
             #   calc this somehow?
             external_virtual_work = (
                 experiment_data.boundary_conditions.force[:, 0]
-                * sbvf.virtual_displacement_edge[:, 0, 0]
+                * sbvf.virtual_displacement_edge[:, 0, 3]
                 + experiment_data.boundary_conditions.force[:, 1]
-                * sbvf.virtual_displacement_edge[:, 1, 0]
+                * sbvf.virtual_displacement_edge[:, 1, 3]
             )
 
             # TODO: add option for scaling
@@ -103,6 +103,10 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
 
 
     # TODO: need to normalise
+    #   2 types:
+    #     normalise dofs
+    #     normalise params themselves
+    # TODO: perturbation on params rather than dofs
     def calculate_stress_sensitivities(
         self,
         strain: npt.NDArray[np.float64],
