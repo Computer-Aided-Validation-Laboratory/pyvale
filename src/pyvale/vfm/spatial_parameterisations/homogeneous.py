@@ -4,13 +4,16 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.vfm.constitutive_laws.constitutive_parameter import (
+    ConstitutiveParameter,
+)
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
     DegreeOfFreedom,
     SpatialParameterisation,
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, init=False)
 class HomogeneousSpatialParameterisation(SpatialParameterisation):
     value: DegreeOfFreedom
 
@@ -31,26 +34,20 @@ class HomogeneousSpatialParameterisation(SpatialParameterisation):
 
     def update_from_degrees_of_freedom(
         self,
-        degrees_of_freedom: list[DegreeOfFreedom]
+        degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
     ) -> None:
         # TODO: length list check to match num dofs
-        self.value = degrees_of_freedom[0]
+        if isinstance(degrees_of_freedom, list):
+            self.value = degrees_of_freedom[0]
+        else:
+            self.value.value = degrees_of_freedom[0]
 
-    def pack_degrees_of_freedom(
+    def update_from_constitutive_parameter(
         self,
-    ) -> tuple[
-        npt.NDArray[np.float64],
-        npt.NDArray[np.float64],
-        npt.NDArray[np.float64]
-    ]:
-        return (
-            np.array([self.value.value]),
-            np.array([self.value.lower_bound]),
-            np.array([self.value.upper_bound])
-        )
-
-    def update_from_packed_degrees_of_freedom(
-        self,
-        degrees_of_freedom: npt.NDArray[np.float64]
+        constitutive_parameter: ConstitutiveParameter
     ) -> None:
-        self.value.value = degrees_of_freedom[0]
+        self.value =  DegreeOfFreedom(
+            constitutive_parameter.value[0, 0],
+            constitutive_parameter.lower_bound,
+            constitutive_parameter.upper_bound,
+        )

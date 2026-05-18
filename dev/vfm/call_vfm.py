@@ -25,9 +25,6 @@ from pyvale.vfm.spatial_parameterisations.known import (
 from pyvale.vfm.spatial_parameterisations.homogeneous import (
     HomogeneousSpatialParameterisation,
 )
-from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
-    DegreeOfFreedom,
-)
 from pyvale.vfm.vfm import vfm
 from pyvale.vfm.optimisers.least_squares import LeastSquares
 
@@ -89,26 +86,10 @@ def main():
     phases = [
         IdentificationPhase(
             {
-                "elastic_modulus": KnownSpatialParameterisation(
-                    parameters["elastic_modulus"].value
-                ),
-                "poissons_ratio": KnownSpatialParameterisation(
-                    parameters["poissons_ratio"].value
-                ),
-                "yield_strength": HomogeneousSpatialParameterisation(
-                    DegreeOfFreedom(
-                        parameters["yield_strength"].value[0, 0],
-                        parameters["yield_strength"].lower_bound,
-                        parameters["yield_strength"].upper_bound,
-                    )
-                ),
-                "hardening_modulus": HomogeneousSpatialParameterisation(
-                    DegreeOfFreedom(
-                        parameters["hardening_modulus"].value[0, 0],
-                        parameters["hardening_modulus"].lower_bound,
-                        parameters["hardening_modulus"].upper_bound,
-                    )
-                ),
+                "elastic_modulus": KnownSpatialParameterisation(),
+                "poissons_ratio": KnownSpatialParameterisation(),
+                "yield_strength": HomogeneousSpatialParameterisation(),
+                "hardening_modulus": HomogeneousSpatialParameterisation(),
             },
             [
                 SensitivityBasedVirtualFieldsMetric(
@@ -127,6 +108,7 @@ def main():
     identification = Identification(LinearHardening(), parameters, phases)
 
     vfm_result = vfm(experiment_data, identification)
+    print(vfm_result)
 
 
 if __name__ == "__main__":

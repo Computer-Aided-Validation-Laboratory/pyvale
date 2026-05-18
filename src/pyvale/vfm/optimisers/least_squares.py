@@ -5,6 +5,7 @@ from scipy.optimize import least_squares
 from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
 from pyvale.vfm.experiment_data import ExperimentData
 from pyvale.vfm.metrics.metric import Metric
+from pyvale.vfm.normalisation import normalise_degrees_of_freedom
 from pyvale.vfm.objective_functions.objective_function import ObjectiveFunction
 from pyvale.vfm.optimisers.optimiser import (
     Optimiser,
@@ -12,6 +13,7 @@ from pyvale.vfm.optimisers.optimiser import (
 )
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
     SpatialParameterisation,
+    unpack_spatial_parameterisations,
 )
 
 
@@ -22,13 +24,6 @@ from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
 #   - max_nfev
 #   if we need these, should treat the below as a dataclass and
 #   take these options as inputs in construction
-# TODO: how should I calculate residuals?
-#   For sbvfs, to calc residual we need:
-#     - stress
-#     - sbvfs
-#     - force
-#     - area
-#     - thickness
 class LeastSquares(Optimiser):
     def optimise(
         self,
@@ -38,30 +33,22 @@ class LeastSquares(Optimiser):
         metrics: list[Metric],
         objective_function: ObjectiveFunction,
         experiment_data: ExperimentData,
-    ) -> float | npt.NDArray[np.float64]:
-        dofs = []
-        dofs_lower_bounds = []
-        dofs_upper_bounds = []
+    ) -> dict[str, SpatialParameterisation]:
+        normalised_degrees_of_freedom = []
 
         for sp in spatial_parameterisations.values():
-            (sp_dofs, sp_dofs_lower_bounds, sp_dofs_upper_bounds) = (
-                sp.pack_degrees_of_freedom()
+            degrees_of_freedom = sp.collect_degrees_of_freedom()
+
+            normalised_degrees_of_freedom.append(
+                normalise_degrees_of_freedom(degrees_of_freedom)
             )
 
-            dofs.append(sp_dofs)
-            dofs_lower_bounds.append(sp_dofs_lower_bounds)
-            dofs_upper_bounds.append(sp_dofs_upper_bounds)
-
-        # TODO: normalise dofs?
-        #   how to normalise bounds?
-        dofs = np.concatenate(dofs)
-        dofs_lower_bounds = np.concatenate(dofs_lower_bounds)
-        dofs_upper_bounds = np.concatenate(dofs_upper_bounds)
+        dofs = np.concatenate(normalised_degrees_of_freedom)
 
         result = least_squares(
             evaluate_candidate,
             dofs,
-            # bounds=(dofs_lower_bounds, dofs_upper_bounds),
+            # TODO: add bounds
             # TODO: should we change class name to align with least squares method?
             # I suspect we might want to do that for LM so maybe for trf/dogbox too?
             method="lm",
@@ -72,8 +59,12 @@ class LeastSquares(Optimiser):
                 metrics,
                 objective_function,
                 experiment_data,
-            ),
-            verbose=1
+            )
         )
 
-        return result.x
+        optimised_spatial_parameterisations = unpack_spatial_parameterisations(
+            spatial_parameterisations,
+            result.x
+        )
+
+        return optimised_spatial_parameterisations

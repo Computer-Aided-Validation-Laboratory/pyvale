@@ -1,4 +1,4 @@
-from copy import deepcopy
+from copy import deepcopy, copy
 from dataclasses import dataclass
 
 import numpy as np
@@ -9,8 +9,12 @@ from pyvale.vfm.experiment_data import EdgeConditions, ExperimentData
 from pyvale.vfm.metrics.metric import Metric
 from pyvale.vfm.metrics.virtual_fields.virtual_fields_mesh import (
     VirtualFieldsMesh,
-    generate_virtual_fields_mesh,
     generate_virtual_fields_from_mesh,
+    generate_virtual_fields_mesh,
+)
+from pyvale.vfm.normalisation import (
+    denormalise_degree_of_freedom,
+    normalise_degree_of_freedom,
 )
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
     DegreeOfFreedom,
@@ -96,7 +100,7 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
                 * sbvf.virtual_displacement_edge[:, 1, 3]
             )
 
-            # TODO: add option for scaling
+            # TODO: add scaling
             evaluations.append(internal_virtual_work - external_virtual_work)
 
         return np.concatenate(evaluations)
@@ -122,26 +126,32 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
         stress_sensitivities = []
 
         for param_name, sp in spatial_parameterisations.items():
-            sp_dofs =  sp.collect_degrees_of_freedom()
+            dofs =  sp.collect_degrees_of_freedom()
 
-            for i, dof in enumerate(sp_dofs):
+            for i, dof in enumerate(dofs):
+                normalised_dof = normalise_degree_of_freedom(dof)
+
                 perturbed_dof_value = (
-                    dof.value * (1 - perturbation_factor)
+                    normalised_dof * (1 - perturbation_factor)
                 )
 
-                if perturbed_dof_value < dof.lower_bound:
-                    perturbed_dof_value = dof.lower_bound
+                if perturbed_dof_value < 0:
+                    perturbed_dof_value = 0
 
-                elif perturbed_dof_value > dof.upper_bound:
-                    perturbed_dof_value = dof.upper_bound
+                elif perturbed_dof_value > 1:
+                    perturbed_dof_value = 1
 
-                perturbed_sp_dofs = deepcopy(sp_dofs)
-
-                perturbed_sp_dofs[i] = DegreeOfFreedom(
+                denormalised_dof_value = denormalise_degree_of_freedom(
                     perturbed_dof_value,
                     dof.lower_bound,
                     dof.upper_bound
                 )
+
+                perturbed_dof = copy(dof)
+                perturbed_dof.value = denormalised_dof_value
+
+                perturbed_dofs = deepcopy(dofs)
+                perturbed_dofs[i] = perturbed_dof
 
                 perturbed_spatial_parameterisations = deepcopy(
                     spatial_parameterisations
@@ -149,7 +159,7 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
 
                 perturbed_spatial_parameterisations[
                     param_name
-                ].update_from_degrees_of_freedom(perturbed_sp_dofs)
+                ].update_from_degrees_of_freedom(perturbed_dofs)
 
                 perturbed_spatial_parameter_maps = {
                     parameter_name: sp.to_map(parameter_map_size)
