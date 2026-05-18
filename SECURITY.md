@@ -10,4 +10,4 @@ If you believe you have found a security vulnerability in pyvale:
 
 We will acknowledge your report as soon as possible and update you on our assessment and fixes.
 
-Thank you for keeping pyvale and its use base safe.
+Thank you for keeping pyvale and its user base safe.
