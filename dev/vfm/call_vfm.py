@@ -45,12 +45,12 @@ def main():
     boundary_conditions = BoundaryConditions(
         EdgeConditions(
             Edge(
-                EEdgeCondition.Free,
-                EEdgeCondition.Free
+                EEdgeCondition.Fixed,
+                EEdgeCondition.Fixed
             ),
             Edge(
-                EEdgeCondition.Free,
-                EEdgeCondition.Free
+                EEdgeCondition.Traction,
+                EEdgeCondition.Fixed
             ),
             Edge(
                 EEdgeCondition.Free,
@@ -79,7 +79,7 @@ def main():
             0.28, 0.2, 0.4, np.array([113, 316])
         ),
         "yield_strength": ConstitutiveParameter(
-            320, 100, 2000, np.array([113, 316])
+            320, 100, 1000, np.array([113, 316])
         ),
         "hardening_modulus": ConstitutiveParameter(
             3000, 1000, 10_000, np.array([113, 316])
@@ -116,7 +116,7 @@ def main():
                     experiment_data.specimen_geometry.y,
                     experiment_data.specimen_geometry.region_of_interest,
                     experiment_data.boundary_conditions.edge_conditions,
-                    np.array([3, 3]),
+                    np.array([5, 10]),
                 )
             ],
             Residuals(),

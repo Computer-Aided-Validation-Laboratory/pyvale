@@ -52,6 +52,8 @@ class LeastSquares(Optimiser):
             dofs_lower_bounds.append(sp_dofs_lower_bounds)
             dofs_upper_bounds.append(sp_dofs_upper_bounds)
 
+        # TODO: normalise dofs?
+        #   how to normalise bounds?
         dofs = np.concatenate(dofs)
         dofs_lower_bounds = np.concatenate(dofs_lower_bounds)
         dofs_upper_bounds = np.concatenate(dofs_upper_bounds)
@@ -59,10 +61,10 @@ class LeastSquares(Optimiser):
         result = least_squares(
             evaluate_candidate,
             dofs,
-            bounds=(dofs_lower_bounds, dofs_upper_bounds),
+            # bounds=(dofs_lower_bounds, dofs_upper_bounds),
             # TODO: should we change class name to align with least squares method?
             # I suspect we might want to do that for LM so maybe for trf/dogbox too?
-            method="trf",
+            method="lm",
             args=(
                 constitutive_law,
                 parameter_map_size,
@@ -71,6 +73,7 @@ class LeastSquares(Optimiser):
                 objective_function,
                 experiment_data,
             ),
+            verbose=1
         )
 
         return result.x
