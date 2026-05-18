@@ -1,4 +1,3 @@
-import copy
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -7,9 +6,11 @@ import numpy.typing as npt
 from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
 from pyvale.vfm.experiment_data import ExperimentData
 from pyvale.vfm.metrics.metric import Metric
+from pyvale.vfm.normalisation import denormalise_degrees_of_freedom
 from pyvale.vfm.objective_functions.objective_function import ObjectiveFunction
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
     SpatialParameterisation,
+    unpack_spatial_parameterisations,
 )
 
 
@@ -25,7 +26,7 @@ class Optimiser(ABC):
         metrics: list[Metric],
         objective_function: ObjectiveFunction,
         experiment_data: ExperimentData,
-    ) -> float | npt.NDArray[np.float64]:
+    ) -> dict[str, SpatialParameterisation]:
         pass
 
 
@@ -41,25 +42,23 @@ def evaluate_candidate(
     objective_function: ObjectiveFunction,
     experiment_data: ExperimentData,
 ) -> float | npt.NDArray[np.float64]:
-    updated_spatial_parameterisations: dict[str, SpatialParameterisation] = {}
+    lower_bounds = []
+    upper_bounds = []
+    for sp in spatial_parameterisations.values():
+        for dof in sp.collect_degrees_of_freedom():
+            lower_bounds.append(dof.lower_bound)
+            upper_bounds.append(dof.upper_bound)
 
-    index = 0
-    for param_name, sp in spatial_parameterisations.items():
-        num_dofs = sp.num_degrees_of_freedom
+    degrees_of_freedom = denormalise_degrees_of_freedom(
+        vector,
+        np.concatenate(lower_bounds),
+        np.concatenate(upper_bounds)
+    )
 
-        if num_dofs == 0:
-            updated_spatial_parameterisations[param_name] = sp
-            continue
-
-        updated_sp = copy.deepcopy(sp)
-
-        sp_dofs = vector[index:index + num_dofs]
-
-        updated_sp.update_from_packed_degrees_of_freedom(sp_dofs)
-        updated_spatial_parameterisations[param_name] = updated_sp
-
-        index += num_dofs
-
+    updated_spatial_parameterisations = unpack_spatial_parameterisations(
+        spatial_parameterisations,
+        degrees_of_freedom
+    )
 
     updated_constitutive_parameter_maps = {
         param_name: sp.to_map(parameter_map_size)

@@ -3,13 +3,16 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.vfm.constitutive_laws.constitutive_parameter import (
+    ConstitutiveParameter,
+)
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
     DegreeOfFreedom,
     SpatialParameterisation,
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, init=False)
 class KnownSpatialParameterisation(SpatialParameterisation):
     value: npt.NDArray[np.float64]
 
@@ -32,21 +35,12 @@ class KnownSpatialParameterisation(SpatialParameterisation):
 
     def update_from_degrees_of_freedom(
         self,
-        degrees_of_freedom: list[DegreeOfFreedom]
+        degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
     ) -> None:
         return
 
-    def pack_degrees_of_freedom(
+    def update_from_constitutive_parameter(
         self,
-    ) -> tuple[
-        npt.NDArray[np.float64],
-        npt.NDArray[np.float64],
-        npt.NDArray[np.float64]
-    ]:
-        return (np.array([]), np.array([]), np.array([]))
-
-    def update_from_packed_degrees_of_freedom(
-        self,
-        degrees_of_freedom: npt.NDArray[np.float64]
+        constitutive_parameter: ConstitutiveParameter
     ) -> None:
-        return
+        pass
