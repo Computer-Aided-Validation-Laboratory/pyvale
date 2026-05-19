@@ -1,10 +1,10 @@
 import numpy as np
 import numpy.typing as npt
 from pyvale.vfm.objective_functions.objective_function import (
-    VectorObjectiveFunction,
+    IVectorObjectiveFunction,
 )
 
-class Residuals(VectorObjectiveFunction):
+class Residuals(IVectorObjectiveFunction):
     def evaluate(
         self,
         metric_results: list[npt.NDArray[np.float64]],

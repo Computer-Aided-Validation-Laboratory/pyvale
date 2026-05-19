@@ -4,7 +4,7 @@ import numpy as np
 import numpy.typing as npt
 
 
-class ScalarObjectiveFunction(ABC):
+class IScalarObjectiveFunction(ABC):
     @abstractmethod
     def evaluate(
         self,
@@ -13,7 +13,7 @@ class ScalarObjectiveFunction(ABC):
         pass
 
 
-class VectorObjectiveFunction(ABC):
+class IVectorObjectiveFunction(ABC):
     @abstractmethod
     def evaluate(
         self,
@@ -22,4 +22,4 @@ class VectorObjectiveFunction(ABC):
         pass
 
 
-ObjectiveFunction = ScalarObjectiveFunction | VectorObjectiveFunction
+IObjectiveFunction = IScalarObjectiveFunction | IVectorObjectiveFunction

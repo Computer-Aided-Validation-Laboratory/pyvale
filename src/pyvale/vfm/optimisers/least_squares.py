@@ -2,17 +2,17 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import least_squares
 
-from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
+from pyvale.vfm.constitutive_laws.constitutive_law import IConstitutiveLaw
 from pyvale.vfm.experiment_data import ExperimentData
-from pyvale.vfm.metrics.metric import Metric
+from pyvale.vfm.metrics.metric import IMetric
 from pyvale.vfm.normalisation import normalise_degrees_of_freedom
-from pyvale.vfm.objective_functions.objective_function import ObjectiveFunction
+from pyvale.vfm.objective_functions.objective_function import IObjectiveFunction
 from pyvale.vfm.optimisers.optimiser import (
-    Optimiser,
+    IOptimiser,
     evaluate_candidate,
 )
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
-    SpatialParameterisation,
+    ISpatialParameterisation,
     unpack_spatial_parameterisations,
 )
 
@@ -24,16 +24,16 @@ from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
 #   - max_nfev
 #   if we need these, should treat the below as a dataclass and
 #   take these options as inputs in construction
-class LeastSquares(Optimiser):
+class LeastSquares(IOptimiser):
     def optimise(
         self,
-        constitutive_law: ConstitutiveLaw,
+        constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, SpatialParameterisation],
-        metrics: list[Metric],
-        objective_function: ObjectiveFunction,
+        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        metrics: list[IMetric],
+        objective_function: IObjectiveFunction,
         experiment_data: ExperimentData,
-    ) -> dict[str, SpatialParameterisation]:
+    ) -> dict[str, ISpatialParameterisation]:
         normalised_degrees_of_freedom = []
 
         for sp in spatial_parameterisations.values():

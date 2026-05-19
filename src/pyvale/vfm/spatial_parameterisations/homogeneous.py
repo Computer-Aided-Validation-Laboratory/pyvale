@@ -11,12 +11,12 @@ from pyvale.vfm.spatial_parameterisations.degree_of_freedom import (
     DegreeOfFreedom,
 )
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
-    SpatialParameterisation,
+    ISpatialParameterisation,
 )
 
 
 @dataclass(slots=True, init=False)
-class HomogeneousSpatialParameterisation(SpatialParameterisation):
+class HomogeneousSpatialParameterisation(ISpatialParameterisation):
     value: DegreeOfFreedom
 
     @property

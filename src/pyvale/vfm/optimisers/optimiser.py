@@ -3,29 +3,29 @@ from abc import ABC, abstractmethod
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
+from pyvale.vfm.constitutive_laws.constitutive_law import IConstitutiveLaw
 from pyvale.vfm.experiment_data import ExperimentData
-from pyvale.vfm.metrics.metric import Metric
-from pyvale.vfm.objective_functions.objective_function import ObjectiveFunction
+from pyvale.vfm.metrics.metric import IMetric
+from pyvale.vfm.objective_functions.objective_function import IObjectiveFunction
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
-    SpatialParameterisation,
+    ISpatialParameterisation,
     unpack_spatial_parameterisations,
 )
 
 
-class Optimiser(ABC):
+class IOptimiser(ABC):
     # Run a set of optimisation passes until a best guess is found
     # TODO: figure out what to return for different optimisers
     @abstractmethod
     def optimise(
         self,
-        constitutive_law: ConstitutiveLaw,
+        constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, SpatialParameterisation],
-        metrics: list[Metric],
-        objective_function: ObjectiveFunction,
+        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        metrics: list[IMetric],
+        objective_function: IObjectiveFunction,
         experiment_data: ExperimentData,
-    ) -> dict[str, SpatialParameterisation]:
+    ) -> dict[str, ISpatialParameterisation]:
         pass
 
 
@@ -34,11 +34,11 @@ class Optimiser(ABC):
 #   or have the scalar representation just be a 1 elem vector?
 def evaluate_candidate(
     degrees_of_freedom: npt.NDArray[np.float64],
-    constitutive_law: ConstitutiveLaw,
+    constitutive_law: IConstitutiveLaw,
     parameter_map_size: npt.NDArray[np.uint32],
-    spatial_parameterisations: dict[str, SpatialParameterisation],
-    metrics: list[Metric],
-    objective_function: ObjectiveFunction,
+    spatial_parameterisations: dict[str, ISpatialParameterisation],
+    metrics: list[IMetric],
+    objective_function: IObjectiveFunction,
     experiment_data: ExperimentData,
 ) -> float | npt.NDArray[np.float64]:
     updated_spatial_parameterisations = unpack_spatial_parameterisations(

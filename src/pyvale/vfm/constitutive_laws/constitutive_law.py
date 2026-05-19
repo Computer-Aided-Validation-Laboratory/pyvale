@@ -10,7 +10,7 @@ class EIdentificationType(enum.Enum):
     Nonlinear = enum.auto()
 
 
-class ConstitutiveLaw(ABC):
+class IConstitutiveLaw(ABC):
     @property
     @abstractmethod
     def identification_type(self) -> EIdentificationType:

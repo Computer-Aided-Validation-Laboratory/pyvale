@@ -4,9 +4,9 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
+from pyvale.vfm.constitutive_laws.constitutive_law import IConstitutiveLaw
 from pyvale.vfm.experiment_data import EdgeConditions, ExperimentData
-from pyvale.vfm.metrics.metric import Metric
+from pyvale.vfm.metrics.metric import IMetric
 from pyvale.vfm.metrics.virtual_fields.virtual_fields_mesh import (
     VirtualFieldsMesh,
     generate_virtual_fields_from_mesh,
@@ -17,12 +17,12 @@ from pyvale.vfm.normalisation import (
     normalise_degree_of_freedom,
 )
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
-    SpatialParameterisation,
+    ISpatialParameterisation,
 )
 
 
 @dataclass(slots=True)
-class SensitivityBasedVirtualFieldsMetric(Metric):
+class SensitivityBasedVirtualFieldsMetric(IMetric):
     virtual_fields_mesh: VirtualFieldsMesh
 
     def __init__(
@@ -46,9 +46,9 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
     def evaluate(
         self,
         stress: npt.NDArray[np.float64],
-        constitutive_law: ConstitutiveLaw,
+        constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, SpatialParameterisation],
+        spatial_parameterisations: dict[str, ISpatialParameterisation],
         experiment_data: ExperimentData
     ) -> npt.NDArray[np.float64]:
         stress_sensitivities = self.calculate_stress_sensitivities(
@@ -114,9 +114,9 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
         self,
         strain: npt.NDArray[np.float64],
         stress_reference: npt.NDArray[np.float64],
-        constitutive_law: ConstitutiveLaw,
+        constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, SpatialParameterisation],
+        spatial_parameterisations: dict[str, ISpatialParameterisation],
         delta_timesteps: npt.NDArray[np.float64]
     ) -> list[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]]:
         # TODO: make this a config option
