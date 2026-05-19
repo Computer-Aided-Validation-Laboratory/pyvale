@@ -6,7 +6,6 @@ import numpy.typing as npt
 from pyvale.vfm.constitutive_laws.constitutive_law import ConstitutiveLaw
 from pyvale.vfm.experiment_data import ExperimentData
 from pyvale.vfm.metrics.metric import Metric
-from pyvale.vfm.normalisation import denormalise_degrees_of_freedom
 from pyvale.vfm.objective_functions.objective_function import ObjectiveFunction
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
     SpatialParameterisation,
@@ -34,7 +33,7 @@ class Optimiser(ABC):
 # TODO: should we constrain return type? or have 2 functions for scalar/vector?
 #   or have the scalar representation just be a 1 elem vector?
 def evaluate_candidate(
-    vector: npt.NDArray[np.float64],
+    degrees_of_freedom: npt.NDArray[np.float64],
     constitutive_law: ConstitutiveLaw,
     parameter_map_size: npt.NDArray[np.uint32],
     spatial_parameterisations: dict[str, SpatialParameterisation],
@@ -42,19 +41,6 @@ def evaluate_candidate(
     objective_function: ObjectiveFunction,
     experiment_data: ExperimentData,
 ) -> float | npt.NDArray[np.float64]:
-    lower_bounds = []
-    upper_bounds = []
-    for sp in spatial_parameterisations.values():
-        for dof in sp.collect_degrees_of_freedom():
-            lower_bounds.append(dof.lower_bound)
-            upper_bounds.append(dof.upper_bound)
-
-    degrees_of_freedom = denormalise_degrees_of_freedom(
-        vector,
-        np.concatenate(lower_bounds),
-        np.concatenate(upper_bounds)
-    )
-
     updated_spatial_parameterisations = unpack_spatial_parameterisations(
         spatial_parameterisations,
         degrees_of_freedom

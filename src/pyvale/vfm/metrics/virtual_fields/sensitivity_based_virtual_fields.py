@@ -17,7 +17,6 @@ from pyvale.vfm.normalisation import (
     normalise_degree_of_freedom,
 )
 from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
-    DegreeOfFreedom,
     SpatialParameterisation,
 )
 
@@ -121,6 +120,8 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
         delta_timesteps: npt.NDArray[np.float64]
     ) -> list[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]]:
         # TODO: make this a config option
+        # TODO: when this is a config option, clamp its max value and
+        #   spit out an error/warning in validation that we had to clamp
         perturbation_factor = 0.15
 
         stress_sensitivities = []
@@ -129,17 +130,20 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
             dofs =  sp.collect_degrees_of_freedom()
 
             for i, dof in enumerate(dofs):
+                # TODO: normalisation here seems completely pointless
+                #   in the matlab we denormalise anyway to do perturb,
+                #   so why are we doing this at all?
                 normalised_dof = normalise_degree_of_freedom(dof)
 
                 perturbed_dof_value = (
                     normalised_dof * (1 - perturbation_factor)
                 )
 
-                if perturbed_dof_value < 0:
-                    perturbed_dof_value = 0
+                if perturbed_dof_value < 0.0:
+                    perturbed_dof_value = 0.0
 
-                elif perturbed_dof_value > 1:
-                    perturbed_dof_value = 1
+                elif perturbed_dof_value > 1.0:
+                    perturbed_dof_value = 1.0
 
                 denormalised_dof_value = denormalise_degree_of_freedom(
                     perturbed_dof_value,
@@ -156,7 +160,6 @@ class SensitivityBasedVirtualFieldsMetric(Metric):
                 perturbed_spatial_parameterisations = deepcopy(
                     spatial_parameterisations
                 )
-
                 perturbed_spatial_parameterisations[
                     param_name
                 ].update_from_degrees_of_freedom(perturbed_dofs)

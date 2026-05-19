@@ -89,10 +89,10 @@ force = test_data["FGlob"] # (23, 2)
 # The time at each time step
 time = test_data["time"]["time"]
 
-np.save("/Users/chris/work/pyvale/dev/vfm/strain", strain)
-np.save("/Users/chris/work/pyvale/dev/vfm/x", x)
-np.save("/Users/chris/work/pyvale/dev/vfm/y", y)
-np.save("/Users/chris/work/pyvale/dev/vfm/specimen_mask", specimen_mask)
-np.save("/Users/chris/work/pyvale/dev/vfm/pixel_area", area)
-np.save("/Users/chris/work/pyvale/dev/vfm/force", force)
-np.save("/Users/chris/work/pyvale/dev/vfm/time", time)
+np.save("/Users/chris/work/pyvale/dev/vfm/inputs/strain", strain)
+np.save("/Users/chris/work/pyvale/dev/vfm/inputs/x", x)
+np.save("/Users/chris/work/pyvale/dev/vfm/inputs/y", y)
+np.save("/Users/chris/work/pyvale/dev/vfm/inputs/specimen_mask", specimen_mask)
+np.save("/Users/chris/work/pyvale/dev/vfm/inputs/pixel_area", area)
+np.save("/Users/chris/work/pyvale/dev/vfm/inputs/force", force)
+np.save("/Users/chris/work/pyvale/dev/vfm/inputs/time", time)

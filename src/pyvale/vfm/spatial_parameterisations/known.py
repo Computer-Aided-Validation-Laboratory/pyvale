@@ -6,8 +6,10 @@ import numpy.typing as npt
 from pyvale.vfm.constitutive_laws.constitutive_parameter import (
     ConstitutiveParameter,
 )
-from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
+from pyvale.vfm.spatial_parameterisations.degree_of_freedom import (
     DegreeOfFreedom,
+)
+from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
     SpatialParameterisation,
 )
 
@@ -43,4 +45,4 @@ class KnownSpatialParameterisation(SpatialParameterisation):
         self,
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
-        pass
+        self.value = constitutive_parameter.value

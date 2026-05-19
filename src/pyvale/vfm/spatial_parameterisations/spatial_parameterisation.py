@@ -1,6 +1,5 @@
 import copy
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -8,13 +7,10 @@ import numpy.typing as npt
 from pyvale.vfm.constitutive_laws.constitutive_parameter import (
     ConstitutiveParameter,
 )
-
-
-@dataclass(slots=True)
-class DegreeOfFreedom:
-    value: float
-    lower_bound: float
-    upper_bound: float
+from pyvale.vfm.normalisation import denormalise_degrees_of_freedom
+from pyvale.vfm.spatial_parameterisations.degree_of_freedom import (
+    DegreeOfFreedom,
+)
 
 
 # For the update from dof methods, we assume the order of the list/array is
@@ -55,8 +51,22 @@ class SpatialParameterisation(ABC):
 
 def unpack_spatial_parameterisations(
     reference_spatial_parameterisations: dict[str, SpatialParameterisation],
-    degrees_of_freedom: npt.NDArray[np.float64],
+    normalised_degrees_of_freedom: npt.NDArray[np.float64],
 ) -> dict[str, SpatialParameterisation]:
+    lower_bounds = []
+    upper_bounds = []
+
+    for sp in reference_spatial_parameterisations.values():
+        for dof in sp.collect_degrees_of_freedom():
+            lower_bounds.append(dof.lower_bound)
+            upper_bounds.append(dof.upper_bound)
+
+    degrees_of_freedom = denormalise_degrees_of_freedom(
+        normalised_degrees_of_freedom,
+        np.array(lower_bounds),
+        np.array(upper_bounds)
+    )
+
     unpacked_spatial_parameterisations = {}
 
     index = 0
