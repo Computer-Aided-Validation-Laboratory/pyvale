@@ -7,6 +7,14 @@ data = loadmat(
     squeeze_me=True,
     simplify_cells=True
 )
+
+# data = loadmat(
+#     "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/testData.mat",
+#     struct_as_record=False,
+#     squeeze_me=True,
+#     simplify_cells=True
+# )
+
 test_data = data["testData"]
 
 # Coordinate axis convention:
@@ -96,3 +104,11 @@ np.save("/Users/chris/work/pyvale/dev/vfm/inputs/specimen_mask", specimen_mask)
 np.save("/Users/chris/work/pyvale/dev/vfm/inputs/pixel_area", area)
 np.save("/Users/chris/work/pyvale/dev/vfm/inputs/force", force)
 np.save("/Users/chris/work/pyvale/dev/vfm/inputs/time", time)
+
+# np.save("/home/robh/1_Projects/pyvale/dev/vfm/inputs/strain", strain)
+# np.save("/home/robh/1_Projects/pyvale/dev/vfm/inputs/x", x)
+# np.save("/home/robh/1_Projects/pyvale/dev/vfm/inputs/y", y)
+# np.save("/home/robh/1_Projects/pyvale/dev/vfm/inputs/specimen_mask", specimen_mask)
+# np.save("/home/robh/1_Projects/pyvale/dev/vfm/inputs/pixel_area", area)
+# np.save("/home/robh/1_Projects/pyvale/dev/vfm/inputs/force", force)
+# np.save("/home/robh/1_Projects/pyvale/dev/vfm/inputs/time", time)
