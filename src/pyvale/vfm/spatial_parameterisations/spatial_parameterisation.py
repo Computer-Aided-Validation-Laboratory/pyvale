@@ -15,7 +15,7 @@ from pyvale.vfm.spatial_parameterisations.degree_of_freedom import (
 
 # For the update from dof methods, we assume the order of the list/array is
 # the same as the order we provided when we collected the dofs
-class SpatialParameterisation(ABC):
+class ISpatialParameterisation(ABC):
     @property
     @abstractmethod
     def num_degrees_of_freedom(self) -> int:
@@ -50,9 +50,9 @@ class SpatialParameterisation(ABC):
 
 
 def unpack_spatial_parameterisations(
-    reference_spatial_parameterisations: dict[str, SpatialParameterisation],
+    reference_spatial_parameterisations: dict[str, ISpatialParameterisation],
     normalised_degrees_of_freedom: npt.NDArray[np.float64],
-) -> dict[str, SpatialParameterisation]:
+) -> dict[str, ISpatialParameterisation]:
     lower_bounds = []
     upper_bounds = []
 
