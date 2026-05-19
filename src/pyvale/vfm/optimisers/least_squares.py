@@ -37,6 +37,9 @@ class LeastSquares(Optimiser):
         normalised_degrees_of_freedom = []
 
         for sp in spatial_parameterisations.values():
+            if sp.num_degrees_of_freedom == 0:
+                continue 
+
             degrees_of_freedom = sp.collect_degrees_of_freedom()
 
             normalised_degrees_of_freedom.append(
