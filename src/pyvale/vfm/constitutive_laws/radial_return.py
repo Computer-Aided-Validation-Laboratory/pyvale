@@ -3,7 +3,10 @@ import enum
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constitutive_laws.hardening import EHardening, hardening_func
+from pyvale.vfm.constitutive_laws.hardening_functions.hardening_function import (
+    IHardeningFunction,
+)
+
 
 class EUnloading(enum.Enum):
     NoCompensation = enum.auto()
@@ -15,7 +18,9 @@ class EUnloading(enum.Enum):
 def radial_return(
     strain: npt.NDArray[np.float64],
     constitutive_parameter_maps: dict[str, npt.NDArray[np.float64]],
-    hardening: EHardening,
+    elastic_modulus: npt.NDArray[np.float64],
+    poissons_ratio: npt.NDArray[np.float64],
+    hardening_function: IHardeningFunction,
     error_tolerance: float = 1e-8,
     iteration_limit: int = 100,
     unloading: EUnloading = EUnloading.ConstantStrain,
@@ -236,8 +241,7 @@ def radial_return(
         # Compute yield stress for current plastic strain using the active
         # hardening law. The tangent term may be None for laws that do not
         # expose a simple constant hardening modulus.
-        yield_stress, _ = hardening_func(
-            hardening,
+        yield_stress, _ = hardening_function.hardening(
             constitutive_parameter_maps,
             prev_equivalent_plastic_strain,
         )
@@ -351,8 +355,7 @@ def radial_return(
             (
                 yield_stress,
                 delta_yield_stress_delta_equivalent_plastic_strain
-            ) = hardening_func(
-                hardening,
+            ) = hardening_function.hardening(
                 constitutive_parameter_maps,
                 equivalent_plastic_strain[t, :],
             )
@@ -412,8 +415,7 @@ def radial_return(
 
 
             # == COMPUTE UPDATED YIELD STRESS USING UPDATED EQUIVALENT PLASTIC STRAIN ==
-            yield_stress, _ = hardening_func(
-                hardening,
+            yield_stress, _ = hardening_function.hardening(
                 constitutive_parameter_maps,
                 equivalent_plastic_strain[t, :],
             )

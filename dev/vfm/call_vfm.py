@@ -1,32 +1,37 @@
-import numpy as np
 from pathlib import Path
 
-from pyvale.vfm.experiment_data import (
-    BoundaryConditions,
-    EEdgeCondition,
-    Edge,
-    EdgeConditions,
-    ExperimentData,
-    SpecimenGeometry,
-)
-from pyvale.vfm.identification import Identification
-from pyvale.vfm.constitutive_laws.linear_hardening import LinearHardening
-from pyvale.vfm.identification import IdentificationPhase
-from pyvale.vfm.metrics.virtual_fields.sensitivity_based_virtual_fields import (
-    SensitivityBasedVirtualFieldsMetric,
-)
+import numpy as np
+
 from pyvale.vfm.constitutive_laws.constitutive_parameter import (
     ConstitutiveParameter,
 )
-from pyvale.vfm.objective_functions.residuals import Residuals
-from pyvale.vfm.spatial_parameterisations.known import (
-    KnownSpatialParameterisation,
+from pyvale.vfm.constitutive_laws.hardening_functions.linear import (
+    LinearHardening,
 )
+from pyvale.vfm.constitutive_laws.isotropic_von_mises_elastoplasticity import (
+    IsotropicVonMisesElastoplasticity,
+)
+from pyvale.vfm.experiment_data import (
+    BoundaryConditions,
+    Edge,
+    EdgeConditions,
+    EEdgeCondition,
+    ExperimentData,
+    SpecimenGeometry,
+)
+from pyvale.vfm.identification import Identification, IdentificationPhase
+from pyvale.vfm.metrics.virtual_fields.sensitivity_based_virtual_fields import (
+    SensitivityBasedVirtualFieldsMetric,
+)
+from pyvale.vfm.objective_functions.residuals import Residuals
+from pyvale.vfm.optimisers.least_squares import LeastSquares
 from pyvale.vfm.spatial_parameterisations.homogeneous import (
     HomogeneousSpatialParameterisation,
 )
+from pyvale.vfm.spatial_parameterisations.known import (
+    KnownSpatialParameterisation,
+)
 from pyvale.vfm.vfm import vfm
-from pyvale.vfm.optimisers.least_squares import LeastSquares
 
 inputs_path = Path(__file__).resolve().parent / "inputs"
 
@@ -105,7 +110,13 @@ def main():
         )
     ]
 
-    identification = Identification(LinearHardening(), parameters, phases)
+    identification = Identification(
+        IsotropicVonMisesElastoplasticity(
+            LinearHardening()
+        ),
+        parameters,
+        phases
+    )
 
     vfm_result = vfm(experiment_data, identification)
     print(vfm_result)
