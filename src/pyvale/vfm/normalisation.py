@@ -5,6 +5,8 @@ from pyvale.vfm.spatial_parameterisations.degree_of_freedom import (
     DegreeOfFreedom,
 )
 
+#TODO implement normalisation for various scaling types (e.g. linear, log etc)
+#TODO depending on above, could vectorise functions 
 
 def normalise_degree_of_freedom(
     degree_of_freedom: DegreeOfFreedom
@@ -32,8 +34,8 @@ def denormalise_degree_of_freedom(
     return ((upper_bound - lower_bound) * normalised_value) + lower_bound
 
 def denormalise_degrees_of_freedom(
-    degrees_of_freedom: npt.NDArray[np.float64],
+    normalised_values: npt.NDArray[np.float64],
     lower_bounds: npt.NDArray[np.float64],
     upper_bounds: npt.NDArray[np.float64]
 ) -> npt.NDArray[np.float64]:
-    return ((upper_bounds - lower_bounds) * degrees_of_freedom) + lower_bounds
+    return ((upper_bounds - lower_bounds) * normalised_values) + lower_bounds
