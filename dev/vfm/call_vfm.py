@@ -23,7 +23,9 @@ from pyvale.vfm.identification import Identification, IdentificationPhase
 from pyvale.vfm.metrics.virtual_fields.sensitivity_based_virtual_fields import (
     SensitivityBasedVirtualFieldsMetric,
 )
-from pyvale.vfm.objective_functions.residuals import Residuals
+from pyvale.vfm.objective_functions.vector_first_result_passthrough import (
+    VectorFirstResultPassthrough,
+)
 from pyvale.vfm.optimisers.least_squares import LeastSquares
 from pyvale.vfm.spatial_parameterisations.homogeneous import (
     HomogeneousSpatialParameterisation,
@@ -105,7 +107,7 @@ def main():
                     np.array([5, 10]),
                 )
             ],
-            Residuals(),
+            VectorFirstResultPassthrough(),
             LeastSquares(),
         )
     ]
