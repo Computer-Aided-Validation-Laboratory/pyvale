@@ -311,7 +311,6 @@ void build_TLAS(std::vector<TLAS_Node>& TLAS,
     std::vector<int>& scene_blas_indices,
     size_t scene_mesh_count);
 
-// Mixed version
 void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
     std::vector<int>& mesh_element_indices,
     std::vector<int>& node_minimum_element_index,
@@ -335,8 +334,8 @@ void copy_data_to_TLAS(TLAS &tlas,
     const std::vector<int>& scene_blas_indices);
 
 inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const double mesh_ri, const double scene_ri);
-inline void set_BLAS_intersection_texture(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element);
-inline void set_BLAS_intersection_color(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element);
+inline void set_BLAS_intersection_texture(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element, const enum ShadingType shading_type);
+inline void set_BLAS_intersection_color(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element, const enum ShadingType shading_type);
 
 
 TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
@@ -347,15 +346,8 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_textures,
     const std::vector<int>& scene_surface_types,
     const std::vector<double>& scene_refractive_indices,
+    const int shading_type,
     const int timestep,
     const int timestep_count);
-
-/* OG color only version
-TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
-    const std::vector<nanobind::ndarray<const double,nanobind::c_contig>>& scene_face_colors,
-    const int timestep,
-    const int timestep_count);
-*/
-
 
 

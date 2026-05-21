@@ -5,7 +5,7 @@
 # ================================================================================
 
 from pathlib import Path
-from pyvale.raytracer.rtscene import Scene, RenderType, TextureSampler, find_max_displacements
+from pyvale.raytracer.rtscene import Scene, RenderType, TextureSampler, ShadingType, find_max_displacements
 from pyvale.raytracer.rtmesh import SurfType, ElementNodeCount, RTMesh
 
 from pyvale.raytracer.rtmaincpp import cpp_render_scene # Import C++ backend
@@ -53,7 +53,9 @@ def render_scene(image_height: int,
                  out_directory_path: Path,
                  render_type: RenderType = RenderType.DYNAMIC,
                  frames_to_render: int = None,
-                 texture_sampler: TextureSampler | None = None):
+                 texture_sampler: TextureSampler | None = None,
+                 shading_type: ShadingType = ShadingType.FLAT,
+                 grayscale: bool = True):
     """
     Performs checks and dispatches the scene to the C++ rendering backend.
 
@@ -76,6 +78,10 @@ def render_scene(image_height: int,
         Static renders: The number of the single frame to render; defaults to the first one otherwise. Nb4 this could maybe be a tuple to specify the range instead?
     texture_sampler: TextureSampler | None
         The algorithm used to sample the textures onto the mesh surfaces. Defaults to None and gets set to nearest neighbour.
+    shading_type: ShadingType
+        The type of shading to use. Can be either FLAT (geometric normals used for shading) or BLENDED (node normals used for shading). Defaults to FLAT.
+    grayscale: bool
+        Flag to determine whether the image is to be rendered using grayscale or in colour. Defaults to True.
 
     Raises:
     -------
@@ -120,6 +126,13 @@ def render_scene(image_height: int,
             print("Texture sampler not selected. Using nearest neighbour.")
 
     scene.refractive_indices.append(scene.scene_ri) # Append the scene RI at the end of the refractive indices list to pass fewer arguments to the renderer, while keeping indexing for the meshes consistent
+
+    if shading_type == ShadingType.FLAT:
+        print("Flat shading selected. Geometric normals will be used for all elements.")
+    elif shading_type == ShadingType.BLENDED:
+        print("Blended shading selected. Angle-averaged node normals will be used for TRI3, and Jacobians for QUAD4, QUAD8, QUAD9, and TRI6.")
+    elif shading_type == ShadingType.ANGLE_AVG_BLENDED:
+        print("Angle-averaged blended shading selected. Angle-averaged node normals will be used for all elements.")
         
     # Select appropriate rendering function based on these booleans to minimize branching in backend rendered if possible
     # Not sure if we will need to implement this yet - BVH builder is still fast with conditional checks (and we run it once per frame), and branching based on element/surface type was moved out of the hot loops
@@ -139,4 +152,23 @@ def render_scene(image_height: int,
     # For now use the general function with branching in it
     #cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.coords_expanded, scene.face_colors, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing)
     #print(f"Materials: {scene.materials}")
-    cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing, scene.matrix_defocus_disc, scene.coords_expanded, scene.normals_expanded, scene.face_colors, scene.uvs, scene.textures, scene.surface_types, scene.materials, scene.refractive_indices, texture_sampler)
+    cpp_render_scene(image_height,
+                     image_width,
+                     antialiasing_samples,
+                     out_directory_path,
+                     scene.timestep_count,
+                     scene.camera_center,
+                     scene.pixel_00_center,
+                     scene.matrix_pixel_spacing,
+                     scene.matrix_defocus_disc,
+                     scene.coords_expanded,
+                     scene.normals_expanded,
+                     scene.face_colors,
+                     scene.uvs,
+                     scene.textures,
+                     scene.surface_types,
+                     scene.materials,
+                     scene.refractive_indices,
+                     texture_sampler,
+                     shading_type,
+                     grayscale)

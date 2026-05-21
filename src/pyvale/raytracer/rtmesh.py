@@ -12,12 +12,16 @@ from scipy.spatial.transform import Rotation
 from enum import StrEnum, IntEnum
 from dataclasses import dataclass, field
 from enum import Enum
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import connected_components
+from collections import defaultdict
 # import matplotlib as plt # for cmap face color determination
 
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.sensorsim.simtools as simtools
 from pyvale.sensorsim import RenderMesh, EDim, simdata_to_pyvista_interp, extract_surf_mesh
+from pyvale.raytracer.rtcamera import Camera
 
 # ================================================================================
 # CONSTANTS AND ENUMS
@@ -142,6 +146,58 @@ class RTMesh:
     element_count: int = field(default=0)
     node_count: int = field(default=0)
     nodes_per_element: ElementNodeCount = field(default=ElementNodeCount.TRI3)
+
+    def get_mesh_data_over_time(self, render_mesh: RenderMesh = None) -> None:
+        """
+        Fetches mesh data over the number of timesteps.
+        Currently works only for simdata-based meshes - for others, the timestep count is always assumed to be 1.
+
+        Parameters:
+        -----------
+        render_mesh: RenderMesh
+            Optional. RenderMesh object used to fetch deformed nodal coordinates. Defaults to None.
+        """
+        timestep_count = self.timestep_count
+        nodes_per_element = self.nodes_per_element
+        element_count = self.element_count
+        coords = self.node_coords
+        connectivity = self.connectivity
+        # Process data for the 0th element - always the same for deformable and static images
+        #coords_over_time = np.ndarray(shape=(timestep_count, node_count, COORDS_PER_NODE), dtype=np.float64)
+        #coords_over_time[0] = coords
+        # Node coords and normals expanded
+        node_coords_expanded_over_time = np.ndarray(shape=(timestep_count, element_count, nodes_per_element, COORDS_PER_NODE),
+                                                    dtype=np.float64)  # Store nodal coordinates over all timesteps
+        node_coords_expanded_over_time[0] = coords[connectivity, :COORDS_PER_NODE]  # Expanded nodal coords, so we do not need the connectivity array
+        node_normals_expanded_over_time  = np.ndarray(shape=(timestep_count, element_count, nodes_per_element, COORDS_PER_NODE),
+                                                    dtype=np.float64)  # Store nodal normals over all timesteps
+        node_normals = find_node_normals(coords, connectivity, element_count) # Find node normals for shading; same shape as node_coords
+        node_normals_expanded_over_time[0] = node_normals[connectivity, :COORDS_PER_NODE]
+
+        # Get data over multiple timesteps
+        if timestep_count != 1:
+            if render_mesh is not None:
+                for timestep in range(1, timestep_count):
+                    # Get deformed nodal coordinates and expand them
+                    node_coords = simtools.get_deformed_nodes(timestep, render_mesh)
+                    coords = np.ascontiguousarray(node_coords)
+                    #coords_over_time[timestep] = coords
+                    node_coords_expanded_over_time[timestep] = coords[connectivity] # Expand nodal coords
+                    node_normals = find_node_normals(coords, connectivity, element_count)
+                    node_normals_expanded_over_time[timestep] = node_normals[connectivity]
+            else: # Any other mesh
+                print("Timesteps aren't currently supported for meshes that aren't imported as SimData.")
+                # Data "over time" - currently not supported for non-simdata as other formats don't seem to work with multi-step data, so not sure how this would look like?
+                # But data extraction overall should be similar to what is done in the simdata branch
+                #coords_over_time[0, :, :] = coords
+                # Node coords and normals expanded
+                node_coords_expanded_over_time[0, :, :, :] = coords[connectivity]
+                node_normals_expanded_over_time[0, :, :, :] = node_normals[connectivity]
+
+        # Update the rtmesh object
+        #self.node_coords_over_time = coords_over_time
+        self.node_coords_expanded_over_time = node_coords_expanded_over_time
+        self.node_normals_expanded_over_time = node_normals_expanded_over_time
    
     def set_surface(self,
                     surface_type: SurfType = SurfType.FIELD_COLOR,
@@ -320,9 +376,280 @@ class RTMesh:
             one_seam.clear()
         self.seams = list_of_seams
 
+    def get_size(self, timestep: int = 0) -> np.ndarray:
+        """
+        Returns the size of the mesh in world units at the given timestep.
+
+        Parameters
+        ----------
+        timestep : int, optional
+            The timestep to get the mesh size for (default is 0 for static meshes).
+        Returns
+        -------
+        np.ndarray
+            The size of the mesh in world units at the given timestep.
+        """
+        coords = self.node_coords_expanded_over_time[timestep, :, :] # Coords
+        spans = np.abs(coords.max(axis=(0,1)) - coords.min(axis=(0,1)))
+        return spans
+
+    def get_bounding_box(self, timestep: int = 0) -> dict:
+        """
+        Returns mesh position information as a dictionary containing the minimum and maximum x, y, and z coordinates,
+        and the center (mean nodal position; not an actual nodal position) in world coordinates at the given timestep.
+
+        Parameters
+        ----------
+        rtmesh : RTMesh
+            The RTMesh object containing the mesh data.
+        timestep : int, optional
+            The timestep to get the bounding box for (default is 0 for static meshes).
+        Returns
+        -------
+        dict
+            A dictionary containing the minimum and maximum x, y, and z coordinates, and the center (mean nodal position; not an actual nodal position) in world coordinates at the given timestep.
+        """
+        coords = self.node_coords_expanded_over_time[timestep, :, :]
+        center = coords.mean(axis=(0,1))
+        minimal_coords = coords.min(axis=(0,1))
+        maximal_coords = coords.max(axis=(0,1))
+        return {"min_corner": minimal_coords, "max_corner": maximal_coords, "center": center}
+    
+    def is_visible_in_viewport(self, camera: Camera, timestep: int = 0):
+        """
+        Checks if a mesh is visible in the viewport of a camera.
+
+        Parameters
+        ----------
+        camera : Camera
+            The Camera object containing the camera data.
+        timestep : int, optional
+            The timestep to check the mesh visibility for (default is 0 for static meshes).
+        Returns
+        -------
+        bool
+            True if the mesh is fully or partially visible in the viewport, False if the mesh is completely outside the viewport or behind the camera,
+            along with hints on how to adjust the mesh position to make it visible, and an estimate of how much of the viewport it should cover if it is visible.
+        """
+        # Get mesh bounds
+        mesh_aabb = self.get_bounding_box(timestep)
+        mesh_center = mesh_aabb["center"]
+        half_extents = self.get_size(timestep)/2
+
+        # Extract camera basis vectors from the camera-to-world matrix
+        c2w = camera.matrix_camera_to_world
+        cam_right = c2w[0,:3]
+        cam_up = c2w[1, :3]
+        cam_forward = -c2w[2, :3]  # Camera looking down -z hence negative
+
+        # Perspective projection parameters
+        # tan(FOV/2) gives us the boundary of the frustum at distance 1.0; or, half of the viewport height
+        h_temp = np.tan(camera.angle_vertical_view / 2)
+        aspect_ratio = camera.image_width / camera.image_height
+        tan_half_fov_h = h_temp * aspect_ratio
+
+        # Check the 8 corners of the AABB
+        corners_in_front = 0
+        any_in_view = False
+
+        # Track NDC bounds to see how much of the screen it covers
+        ndc_bounds = {"x": [np.inf, -np.inf], "y": [np.inf, -np.inf]}
+
+        for signs in itertools.product([-1, 1], repeat=3):
+            p_world = mesh_center + (np.array(signs) * half_extents)
+            delta = p_world - camera.camera_center
+
+            # Project world point onto camera axes (transform to camera space)
+            z_cam = np.dot(delta, cam_forward)
+            x_cam = np.dot(delta, cam_right)
+            y_cam = np.dot(delta, cam_up)
+
+            # Skip points behind the camera (near plane clipping)
+            if z_cam <= 0.001:
+                continue
+
+            corners_in_front += 1
+            # Project to Normalized Device Coordinates (NDC)
+            # Range will be [-1, 1] if the point is inside the frustum
+            x_ndc = x_cam / (z_cam * h_temp)
+            y_ndc = y_cam / (z_cam * h_temp)
+
+            ndc_bounds["x"][0] = min(ndc_bounds["x"][0], x_ndc)
+            ndc_bounds["x"][1] = max(ndc_bounds["x"][1], x_ndc)
+            ndc_bounds["y"][0] = min(ndc_bounds["y"][0], y_ndc)
+            ndc_bounds["y"][1] = max(ndc_bounds["y"][1], y_ndc)
+
+            if -1 <= x_ndc <= 1 and -1 <= y_ndc <= 1:
+                any_in_view = True
+
+        if corners_in_front == 0:
+            print(f"Mesh is entirely behind the camera.")
+            return False
+
+        if not any_in_view:
+            # Check if the mesh is so large it spans the whole viewport, but it's corners are outside
+            if (ndc_bounds["x"][0] < -1 and ndc_bounds["x"][1] > 1 and
+                    ndc_bounds["y"][0] < -1 and ndc_bounds["y"][1] > 1):
+                print(f"Mesh spans the whole viewport, but its corners are outside.")
+                return True
+            # Positioning guidance if the mesh is outside the frustum
+            hints = []
+            # Horizontal positioning
+            if ndc_bounds["x"][1] < -1:
+                hints.append("too far LEFT (increase X or pan camera left)")
+            elif ndc_bounds["x"][0] > 1:
+                hints.append("too far RIGHT (decrease X or pan camera right)")
+
+            # Vertical positioning
+            if ndc_bounds["y"][1] < -1:
+                hints.append("too far DOWN (increase Y or tilt camera down)")
+            elif ndc_bounds["y"][0] > 1:
+                hints.append("too far UP (decrease Y or tilt camera up)")
+
+            # Depth positioning (if all corners were behind the camera)
+            if corners_in_front == 0:
+                hints.append("BEHIND the camera (check Z-positioning)")
+
+            direction_str = " and ".join(hints) if hints else "out of frustum range"
+            print(f"Mesh is invisible: {direction_str}.")
+
+            # Debugging values
+            print(f"   NDC X-range: [{ndc_bounds['x'][0]:.2f}, {ndc_bounds['x'][1]:.2f}]")
+            print(f"   NDC Y-range: [{ndc_bounds['y'][0]:.2f}, {ndc_bounds['y'][1]:.2f}]")
+
+            return False
+
+        # Estimate screen coverage - useful for scaling
+        # Clamp bounds to screen for area calculation
+        x_range = min(1, ndc_bounds["x"][1]) - max(-1, ndc_bounds["x"][0])
+        y_range = min(1, ndc_bounds["y"][1]) - max(-1, ndc_bounds["y"][0])
+
+        # Area in NDC is 2x2=4. Percentage of screen:
+        pct_coverage = (max(0, x_range) * max(0, y_range) / 4.0) * 100
+
+        print(f"Mesh is fully visible in viewport. It should occupy about {pct_coverage:.2f}% of the viewport.")
+        return True
+
 # ================================================================================
 # UTILITY FUNCTIONS
 # ================================================================================
+
+def segment_into_charts(connectivity):
+    """
+    Segment mesh into charts using sparse adjacency matrix.
+
+    Parameters:
+    -----------
+    connectivity : ndarray, shape (element_count, nodes_per_element)
+        Face connectivity after seam cutting
+
+    Returns:
+    --------
+    chart_labels: ndarray
+        Chart ID for each face (0, 1, 2, ...). Shape (element_count,)
+    chart_count: int
+        Total number of charts
+    charts: list of ndarray
+        List where charts[i] contains face indices belonging to chart i
+    adjacency: csr_matrix
+        Sparse matrix storing face-to-face adjacency data for the input connectivity array
+    
+    """
+
+    element_count = len(connectivity)
+    nodes_per_element = connectivity.shape[1]
+
+    # Get the number of corners to correctly extract the connectivity
+    corner_count = 0
+    if nodes_per_element in (ElementNodeCount.QUAD4, ElementNodeCount.QUAD8, ElementNodeCount.QUAD9):
+        corner_count = 4
+    elif nodes_per_element in (ElementNodeCount.TRI3, ElementNodeCount.TRI6):
+        corner_count = 3
+
+    # Slice the connectivity array to only look at the corner nodes
+    corner_connectivity = connectivity[:, :corner_count]
+
+    # Build edge -> face mapping
+    edge_to_faces = defaultdict(list)
+
+    for face_idx, face_vertices in enumerate(corner_connectivity):
+        # Generate all edges of this face
+        for i in range(corner_count):
+            v1 = face_vertices[i]
+            #v2 = face_verts[(i + 1) % nodes_per_element]
+            v2 = face_vertices[(i + 1) % corner_count]
+            edge = tuple(sorted([v1, v2]))
+            edge_to_faces[edge].append(face_idx)
+
+    # Build sparse adjacency matrix (face-to-face)
+    row_indices = []
+    col_indices = []
+
+    for edge, face_list in edge_to_faces.items():
+        # Faces sharing this edge are neighbors
+        for i, f1 in enumerate(face_list):
+            for f2 in face_list[i + 1:]:
+                row_indices.extend([f1, f2])
+                col_indices.extend([f2, f1])
+
+    # Create sparse adjacency matrix
+    data = np.ones(len(row_indices), dtype=np.uint8)
+    adjacency = csr_matrix(
+        (data, (row_indices, col_indices)),
+        shape=(element_count, element_count),
+        dtype=np.uint8)
+
+    # Find connected components using scipy
+    chart_count, chart_labels = connected_components(
+        csgraph=adjacency,
+        directed=False,
+        return_labels=True)
+
+    # Group faces by chart
+    charts = [np.where(chart_labels == i)[0] for i in range(chart_count)]
+
+    return chart_labels, chart_count, charts, adjacency
+
+def extract_submesh(pv_grid: pv.UnstructuredGrid | pv.PolyData, 
+                    chart_face_indices: np.ndarray,
+                    element_node_count: ElementNodeCount,
+                    spatial_dim: sens.EDim,
+                    render_mesh: RenderMesh = None) -> RTMesh:
+    """
+    Extracts a submesh from the passed PyVista UnstructuredGrid or PolyData object based on the passed face indices.
+
+    Parameters:
+    ----------- 
+    pv_grid: pv.UnstructuredGrid | pv.PolyData
+        The PyVista object to extract the submesh from.
+    chart_face_indices: np.ndarray
+        The face indices of the submesh to extract.
+    element_node_coupt: ElementNodeCount
+        Element node count of the submesh, identifying its type.
+    spatial_dim: sens.EDim
+        The spatial dimension of the submesh.
+    render_mesh: RenderMesh
+        Optional. RenderMesh object passed for RTMesh generation if the mesh is SimData-based. Defaults to None.
+    
+    Returns:
+    chart_rtmesh: RTMesh
+        The extracted submesh as an RTMesh object.
+    """
+    
+    sub_ugrid = pv_grid.extract_cells(chart_face_indices, pass_point_ids=True)
+            
+    sub_coords = np.array(sub_ugrid.points)
+    sub_connectivity = pyvista_faces_to_connectivity(sub_ugrid)
+            
+    # Create RTMesh for this specific chart
+    chart_rtmesh = create_rtmesh(coords_mesh=sub_coords, 
+        pv_ugrid=sub_ugrid, 
+        element_node_count = element_node_count, 
+        spatial_dim=spatial_dim,
+        connectivity=sub_connectivity,
+        render_mesh = render_mesh)
+    return chart_rtmesh
+
 
 def pyvista_faces_to_connectivity(pv_grid: pv.UnstructuredGrid | pv.PolyData) -> np.ndarray:
     """
@@ -337,8 +664,8 @@ def pyvista_faces_to_connectivity(pv_grid: pv.UnstructuredGrid | pv.PolyData) ->
 
     Returns:
     -----------
-        connectivity: np.ndarray
-            Shape (num_elements, nodes_per_element). A 2D array containing the connectivity information for the mesh elements, formatted in C style (0-based indexing, contiguous in memory).
+    connectivity: np.ndarray
+        Shape (num_elements, nodes_per_element). A 2D array containing the connectivity information for the mesh elements, formatted in C style (0-based indexing, contiguous in memory).
     Raises:
     --------
     TypeError:
@@ -365,64 +692,118 @@ def pyvista_faces_to_connectivity(pv_grid: pv.UnstructuredGrid | pv.PolyData) ->
     connectivity = np.ascontiguousarray(connectivity[:, 1:], dtype=np.uintp)
     return connectivity
 
-def find_node_normals(pv_grid: pv.UnstructuredGrid | pv.PolyData) -> np.ndarray:
-    """
-    Finds the node normals for a PyVista UnstructuredGrid or PolyData object.
 
+def find_node_normals(node_coords: np.ndarray, 
+                      connectivity: np.ndarray, 
+                      element_count: int) -> np.ndarray:
+    """
+    Finds angle-weighted node normals for surface meshes. Should handle quadratic elements (TRI6, QUAD8, QUAD9) as well.
+
+    For each element we compute a normal per corner from the two edges incident to that corner, weighted by the interior angle at that corner (https://www.tandfonline.com/doi/abs/10.1080/10867651.1999.10487501).
+    Corner contributions are accumulated to corner nodes only. Mid-edge nodes get the average of their two adjacent corners' weighted normals, and QUAD9 center node gets the average of all 4 corners.
+    
     Parameters:
     -----------
-     pv_grid: pv.UnstructuredGrid | pv.PolyData
-        The PyVista object to find the node normals for.
-
-    Returns:
+    node_coords: np.ndarray
+        Shape (node_count, 3). The coordinates of the nodes in the mesh.
+    connectivity: np.ndarray
+        Shape (element_count, nodes_per_element). The connectivity of the mesh elements.
+    element_count: int
+        Number of elements in the mesh.
+    
+     Returns:
     -----------
-        node_normals: np.ndarray
-            Shape (mesh node count, 3). A 2D array containing the connectivity information for the mesh elements, formatted in C style (0-based indexing, contiguous in memory).
+    node_normals: np.ndarray
+        Shape (node_count, 3). The angle-averaged normal vector for each node.
+
     Raises:
     --------
-    ValueError
-        If the number of node normals does not match the number of mesh nodes.
-    KeyError
-        If the node normals cannot be mapped back to the original node indices.
+    ValueError:
+        If the input element type is unsupported.
     """
 
-    if type(pv_grid) == pv.PolyData:
-        # Compute smooth point (vertex) normals on the surface
-        surface = pv_grid.compute_normals(
-            point_normals=True, 
-            cell_normals=False, 
-            auto_orient_normals=True, # Ensures normals point outwards
-            consistent_normals=True,
-            feature_angle=FEATURE_ANGLE,
-            inplace=False)
-        normals = np.ascontiguousarray(surface.point_data["Normals"], dtype=np.float64) # Shape (mesh node count, 3)
-        if normals.shape[0] != pv_grid.n_points:
-            raise ValueError("PolyData normals do not match PolyData point count.")
-        return normals
+    node_count = node_coords.shape[0]
+    node_normals = np.zeros((node_count, 3), dtype=np.float64)
+    nodes_per_element = connectivity.shape[1]
 
-    elif type(pv_grid) == pv.UnstructuredGrid:
-        surface = pv_grid.extract_surface(pass_pointid=True, algorithm="dataset_surface") # For UnstructuredGrid, we have to extract the surface to use the functions for normals and keep the original point IDs to map them back
-        # Compute smooth point (vertex) normals on the surface
-        surface = surface.compute_normals(
-        point_normals=True, 
-        cell_normals=False, 
-        auto_orient_normals=True, # Ensures normals point outwards
-        consistent_normals=True,
-        feature_angle=FEATURE_ANGLE,
-        inplace=False)
-        surface_normals = np.ascontiguousarray(surface.point_data["Normals"], dtype=np.float64) # Shape (mesh node count per element, 3)
-
-        # Map back to the original UnstructuredGrid point indices
-        if "vtkOriginalPointIds" in surface.point_data:
-            original_point_ids = np.asarray(surface.point_data["vtkOriginalPointIds"])
-        elif "pyvistaOriginalPointIds" in surface.point_data:
-            original_point_ids = np.asarray(surface.point_data["pyvistaOriginalPointIds"])
+    # 1. Define corner topology per element type
+    # corner_local_idx[i] gives the local index (column in `connectivity`) of the i-th corner. edge_mid maps a mid-edge local index to the two
+    # corner local indices that bracket it
+    if nodes_per_element in (ElementNodeCount.TRI3, ElementNodeCount.TRI6): # Triangles
+        corner_local = [0, 1, 2]
+        # Local prev/next corner for each corner (for the two incident edges)
+        corner_neighbors = [(2, 1), (0, 2), (1, 0)]
+        # Mid-edge node -> (corner_a_local, corner_b_local) for TRI6
+        edge_mid = {3: (0, 1), 4: (1, 2), 5: (2, 0)} if nodes_per_element == ElementNodeCount.TRI6 else {}
+        center_local = None
+    elif nodes_per_element in (ElementNodeCount.QUAD4, ElementNodeCount.QUAD8, ElementNodeCount.QUAD9): # Quads
+        corner_local = [0, 1, 2, 3]
+        corner_neighbors = [(3, 1), (0, 2), (1, 3), (2, 0)]
+        if nodes_per_element in (ElementNodeCount.QUAD8, ElementNodeCount.QUAD9):
+            edge_mid = {4: (0, 1), 5: (1, 2), 6: (2, 3), 7: (3, 0)}
         else:
-            raise KeyError("No original point id array found on extracted surface.")
+            edge_mid = {}
+        center_local = 8 if nodes_per_element == ElementNodeCount.QUAD9 else None
+    else:
+        raise ValueError(f"Unsupported nodes_per_element: {nodes_per_element}")
 
-        node_normals = np.zeros((pv_grid.n_points, 3), dtype=np.float64)
-        node_normals[original_point_ids] = surface_normals
-        return node_normals
+    # 2. Per-corner angle-weighted normals
+    # corner_normals[c] has shape (element_count, 3): the contribution that corner c of every element makes to its own node
+    corner_normals = np.empty((len(corner_local), element_count, 3), dtype=np.float64)
+
+    eps = 1e-30
+    # corner_idx - Corner index in the corner list (corner_normals, corner_neightbours) etc.
+    # local_corner_idx - Local (to the element) corner node index; indexes into connectivity for that corner, e.g., (0,1,2) for TRI3 
+    for corner_idx, local_corner_idx in enumerate(corner_local):
+        previous_idx, next_idx = corner_neighbors[corner_idx] # Get indices of the local neighbours of current corner
+        # Get node coordinates
+        coords_current = node_coords[connectivity[:, local_corner_idx]] # Current corner
+        coords_previous = node_coords[connectivity[:, previous_idx]] # Previous corner
+        coords_next = node_coords[connectivity[:, next_idx]] # Next corner
+
+        edge_1 = coords_next - coords_current # Outgoing edge to "next"
+        edge_2 = coords_previous - coords_current # Outgoing edge to "previous"
+
+        n = np.cross(edge_1, edge_2) # Raw normal at this corner
+        n_len = np.linalg.norm(n, axis=1, keepdims=True)
+        n_unit = np.divide(n, n_len, out=np.zeros_like(n), where=n_len > eps)
+
+        # Interior angle at the corner (via atan2(|a x b|, a . b)).
+        length_e1 = np.linalg.norm(edge_1, axis=1)
+        length_e2 = np.linalg.norm(edge_2, axis=1)
+        dot = np.einsum('ij,ij->i', edge_1, edge_2)
+        cross_len = n_len[:, 0]
+        angle = np.arctan2(cross_len, dot) # in [0, pi]
+        # Guard against degenerate edges
+        good = (length_e1 > eps) & (length_e2 > eps)
+        angle = np.where(good, angle, 0.0)
+
+        corner_normals[corner_idx] = n_unit * angle[:, None]
+
+        # Accumulate to the corner node
+        np.add.at(node_normals, connectivity[:, local_corner_idx], corner_normals[corner_idx]) # Add corner normals to node normals, using indices from connectivity 
+
+    # 3. Mid-edge nodes: average of the two bracketing corners' contributions
+    # corner_a, corner_b are element-local node indices (the same system as corner_local and connectivity) of the nodes at the ends of the edge, where the given mid-node is
+    for mid_local, (corner_a, corner_b) in edge_mid.items():
+        # Find which entry of corner_local each refers to
+        idx_a = corner_local.index(corner_a)
+        idx_b = corner_local.index(corner_b)
+        contrib = 0.5 * (corner_normals[idx_a] + corner_normals[idx_b]) # Get the contribution
+        np.add.at(node_normals, connectivity[:, mid_local], contrib)
+
+    # QUAD9 center node: mean of the four corner contributions
+    if center_local is not None:
+        contrib = 0.25 * corner_normals.sum(axis=0)
+        np.add.at(node_normals, connectivity[:, center_local], contrib)
+
+    # 4. Normalize
+    magnitudes = np.linalg.norm(node_normals, axis=1, keepdims=True)
+    magnitudes = np.where(magnitudes > eps, magnitudes, 1.0)
+    node_normals /= magnitudes
+
+    return node_normals
+
 
 def display_pyvista_grid_with_indices(pv_grid: pv.UnstructuredGrid | pv.PolyData) -> None:
     """
@@ -438,15 +819,15 @@ def display_pyvista_grid_with_indices(pv_grid: pv.UnstructuredGrid | pv.PolyData
 
     Returns:
     -----------
-       None. Displays the PyVista grid with point labels showing the node indices.
+    None. Displays the PyVista grid with point labels showing the node indices.
 
     Raises:
     --------
     TypeError:
         If the input grid is not a PyVista UnstructuredGrid or PolyData object.
     """
-    if not type(pv_grid) == pv.UnstructuredGrid or not type(pv_grid) == pv.PolyData:
-        raise TypeError("Input grid must be a PyVista UnstructuredGrid or PolyData object.")
+    #if not type(pv_grid) == pv.UnstructuredGrid or not type(pv_grid) == pv.PolyData:
+    #    raise TypeError("Input grid must be a PyVista UnstructuredGrid or PolyData object.")
     
     pv_grid.point_data['NodeID'] = np.arange(pv_grid.n_points)
     plotter = pv.Plotter()
@@ -467,8 +848,8 @@ def triangulate_and_map(pv_grid: pv.UnstructuredGrid | pv.PolyData) -> tuple[pv.
 
     Returns:
     --------
-        tuple[pv.UnstructuredGrid, np.ndarray, np.ndarray]:
-            The triangulated grid, face mapping, and node mapping.
+    tuple[pv.UnstructuredGrid, np.ndarray, np.ndarray]:
+        The triangulated grid, face mapping, and node mapping.
     
     """
     # Assign a unique ID to every original cell/coordinate
@@ -556,6 +937,79 @@ def prune_internal_nodes(node_coords: np.ndarray,
     pruned_node_coords = node_coords[used_nodes]
     pruned_connectivity = remap[connectivity]
     return pruned_node_coords, pruned_connectivity
+
+def create_rtmesh(coords_mesh: np.ndarray,
+                  pv_ugrid: pv.UnstructuredGrid | pv.PolyData,
+                  element_node_count: ElementNodeCount,
+                  spatial_dim: EDim,
+                  connectivity: np.ndarray,
+                  render_mesh: RenderMesh = None) -> RTMesh:
+    """
+    Creates an RTMesh object based on the passed data.
+
+    Factored out to support the pipeline for SimData- and any other mesh type-data, while allowing simple creation of submeshes.
+
+    Parameters:
+    -----------
+    coords_mesh: np.ndarray
+        Shape (node_count, 3). The coordinates of the nodes in the mesh.
+    pv_grid: pv.UnstructuredGrid | pv.PolyData
+        PyVista data structure used to create texture mapping.
+    element_count: int
+        Number of elements in the mesh.
+    connectivity: np.ndarray
+        Shape (element_count, nodes_per_element). The connectivity of the mesh elements.
+    render_mesh: RenderMesh
+            Optional. RenderMesh object used to fetch deformed nodal coordinates. Defaults to None.
+
+    Raises:
+    -------
+    ValueError:
+        If the element type is not supported.
+    """
+    # Create RTMesh object and assign data appropriately
+    rtmesh = RTMesh()
+    try:
+        rtmesh.nodes_per_element = ElementNodeCount(element_node_count)
+    except ValueError:
+        print(f"Error: Invalid nodes_per_elem value: {element_node_count}.")
+    # Triangulation for everything that is not a TRI3 (QUAD4 would pass in Blender, but not SeamSplitter)
+    if element_node_count == ElementNodeCount.TRI3:
+        rtmesh.pyvista_surface = pv_ugrid
+    else: # Everything else - triangulate and create mappings for UV-unwrapping
+        pv_triangulated, mapped_face_ids, mapped_coords = triangulate_and_map(pv_ugrid)
+        rtmesh.pyvista_surface = pv_triangulated
+        rtmesh.tri_face_mapping = np.ascontiguousarray(mapped_face_ids, dtype=np.int64)
+        rtmesh.tri_node_mapping = np.ascontiguousarray(mapped_coords, dtype=np.int64)
+
+    rtmesh.node_coords = np.ascontiguousarray(coords_mesh, dtype=np.double)
+
+    # RenderMesh passed = processing SimData object
+    if render_mesh is not None:
+        rtmesh.connectivity = np.ascontiguousarray(connectivity, dtype=np.uint64)
+        rtmesh.spatial_dimensions = spatial_dim
+        rtmesh.timestep_count = render_mesh.fields_render.shape[1]
+        rtmesh.element_count = render_mesh.elem_count
+        rtmesh.node_count = render_mesh.node_count
+        rtmesh.nodes_per_element = element_node_count
+        rtmesh.get_mesh_data_over_time(render_mesh) # Pass render_mesh to extract deformation data
+    else: # No RenderMesh = not SimData
+        rtmesh.connectivity = np.ascontiguousarray(connectivity, dtype=np.uint64)
+        rtmesh.spatial_dimensions = spatial_dim
+        timestep_count = 1 # Temporarily they only have data for static renders
+        rtmesh.timestep_count = timestep_count  
+        element_count = connectivity.shape[0]
+        rtmesh.element_count = element_count
+        # DEBUG NOTES: If this breaks (particularly by trying to pass an invalid value like 1)
+        # -> Meshio probably detected some weird element types in your mesh; where applicable, updating MESHIO_BAD_TYPES with whatever was found should help
+        rtmesh.nodes_per_element = element_node_count
+        node_count = coords_mesh.shape[0]
+        rtmesh.node_count = node_count
+        rtmesh.get_mesh_data_over_time()
+
+    #print(f"Connectivity shape: {connectivity.shape}")
+    #print(f"Node coords shape: {coords_mesh.shape}")
+    return rtmesh
 
 # ================================================================================
 # SIMDATA -> RTMESH
@@ -650,7 +1104,32 @@ def simdata_to_rtmesh(pypath: Path,
                     spatial_dim: sens.EDim = sens.EDim.THREED,
                     scale: float = 100.0,
                     world_position: np.ndarray = None,
-                    world_rotation: Rotation = None) -> RTMesh:
+                    world_rotation: Rotation = None) -> RTMesh | list[RTMesh]:
+    """
+    Converts a SimData object to an RTMesh.
+
+    Parameters:
+    -----------
+    pypath: Path
+        The path to the mesh to convert.
+    fields_component: tuple
+        Component fields.
+    fields_to_render: tuple
+        Fields that are supposed to be rendered.
+    spatial_dim: sens.EDim
+        The spatial dimension of the mesh.
+    scale: float
+        The scale factor to apply to the mesh.
+    world_position: np.ndarray
+        The position of the mesh in world coordinates.
+    world_rotation: Rotation
+        The rotation of the mesh in world coordinates.
+
+    Returns:
+    --------
+    RTMesh | list[RTMesh]
+        The converted RTMesh object or a list of two RTMesh objects in order [outer, inner] based on their bounding box size.
+    """
     # Convert the simulation output into a SimData object
     sim_data = mh.ExodusLoader(pypath).load_all_sim_data()  # Pyvale 2026.1.0
     # Scale the coordinates and displacement fields to mm
@@ -674,66 +1153,31 @@ def simdata_to_rtmesh(pypath: Path,
     render_mesh.coords = coords_world  # Replace nodal coordinates in RenderMesh with their world coordinate equivalents. We can do that since for deformed nodes, we just add values
     coords = np.ascontiguousarray(render_mesh.coords[:, :COORDS_PER_NODE])
 
-    # Create RTMesh object and assign data appropriately
-    rtmesh = RTMesh()
-    try:
-        rtmesh.nodes_per_element = ElementNodeCount(render_mesh.nodes_per_elem)
-    except ValueError:
-        print(f"Error: Invalid nodes_per_elem value: {render_mesh.nodes_per_elem}.")
-    rtmesh.node_coords = np.ascontiguousarray(coords, dtype=np.double)
     connectivity = np.ascontiguousarray(render_mesh.connectivity, dtype=np.uint64)
-    rtmesh.connectivity = connectivity
-    rtmesh.spatial_dimensions = spatial_dim
-    timestep_count = render_mesh.fields_render.shape[1]
-    rtmesh.timestep_count = timestep_count
-    element_count = render_mesh.elem_count
-    rtmesh.element_count = element_count
-    node_count = render_mesh.node_count
-    rtmesh.node_count = render_mesh.node_count
-    rtmesh.nodes_per_element = render_mesh.nodes_per_elem
-    if rtmesh.nodes_per_element == 3: # Triangular mesh doesn't need to be triangulated
-        rtmesh.pyvista_surface = pv_grid
+    element_node_count = render_mesh.nodes_per_elem
+
+    # Check whether mesh has more than 1 surface and get its adjacency matrix
+    chart_labels, chart_count, charts, adjacency_matrix = segment_into_charts(connectivity)
+    #print(f"Chart labels: {chart_labels}")
+    #print(f"Number of charts: {chart_count}")
+    #print(f"Charts: {charts}"
+    if chart_count == 2:
+        print("Detected mesh with more than 1 surface. It will be treated as a hollowed solid, and returned as 2 separate RTMesh objects: [outer, inner]. \nAssign surface data to the inner surface only if the object is supposed to be refractive.")
+        sub_rtmesh_1 = extract_submesh(pv_grid, charts[0], element_node_count, spatial_dim, render_mesh)
+        sub_rtmesh_2 = extract_submesh(pv_grid, charts[1], element_node_count, spatial_dim, render_mesh)
+        # Compare bounding boxes; bigger => this RTMesh is the outer shell
+        if sub_rtmesh_1.get_size(0).min() > sub_rtmesh_2.get_size(0).max():
+            sub_rtmesh_1.mesh_type = MeshType.THICK_SHELL_OUTER
+            sub_rtmesh_2.mesh_type = MeshType.THICK_SHELL_INNER
+            return [sub_rtmesh_1, sub_rtmesh_2]
+        else:
+            sub_rtmesh_1.mesh_type = MeshType.THICK_SHELL_INNER
+            sub_rtmesh_2.mesh_type = MeshType.THICK_SHELL_OUTER
+            return [sub_rtmesh_2, sub_rtmesh_1]
+    elif chart_count == 1:
+        return create_rtmesh(coords, pv_grid, element_node_count, spatial_dim, connectivity, render_mesh)
     else:
-        pv_triangulated, mapped_face_ids, mapped_coords = triangulate_and_map(pv_grid)
-        rtmesh.pyvista_surface = pv_triangulated
-        rtmesh.tri_face_mapping = np.ascontiguousarray(mapped_face_ids, dtype=np.int64)
-        rtmesh.tri_node_mapping = np.ascontiguousarray(mapped_coords, dtype=np.int64)
-
-    # Nodal coordinates over time
-    # Process data for the 0th element - always the same for deformable and static images
-    coords = np.ascontiguousarray(render_mesh.coords[:, :COORDS_PER_NODE])
-    coords_over_time = np.ndarray(shape=(timestep_count, node_count, COORDS_PER_NODE), dtype=np.float64)
-    coords_over_time[0] = coords
-    # Node coords and normals expanded
-    node_coords_expanded_over_time = np.ndarray(shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
-                                                dtype=np.float64)  # Store nodal coordinates over all timesteps
-    node_coords_expanded_over_time[0] = coords[
-        connectivity, :COORDS_PER_NODE]  # Expanded nodal coords, so we do not need the connectivity array
-    node_normals_expanded_over_time  = np.ndarray(shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
-                                                 dtype=np.float64)  # Store nodal normals over all timesteps
-    # NOTE: TEMPORARY! Assumes that node normals don't change over time, which is wrong if we deform the mesh. But it's easier to use pyvista to see if this fixes our issues
-    node_normals = find_node_normals(pv_grid) # Find node normals for shading; same shape as node_coords
-    node_normals_expanded_over_time[0, :, :, :] = node_normals[connectivity]
-
-    #print(f"Node normals shape: {node_normals.shape}")
-    node_coords_expanded_over_time = np.ndarray(
-        shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
-        dtype=np.float64)  # Store nodal coordinates over all timesteps
-    
-    # Get data over multiple timesteps
-    if rtmesh.timestep_count != 1:
-        for timestep in range(1, timestep_count):
-            # Get deformed nodal coordinates and expand them
-            node_coords = simtools.get_deformed_nodes(timestep, render_mesh)
-            coords = np.ascontiguousarray(node_coords)
-            #coords_over_time[timestep] = coords
-            node_coords_expanded_over_time[timestep] = coords[connectivity]  # Expand nodal coords,
-            node_normals_expanded_over_time[timestep, :, :, :] = node_normals[connectivity] # TEMPORARY!!!!
-            #node_coords_expanded_over_time[timestep] = coords[connectivity, :COORDS_PER_NODE]  # Expand nodal coords,
-    #rtmesh.node_coords_over_time = coords_over_time
-    rtmesh.node_coords_expanded_over_time = node_coords_expanded_over_time
-    rtmesh.node_normals_expanded_over_time = node_normals_expanded_over_time
-    return rtmesh
+        raise IOError(f"Detected mesh with more than 2 surfaces: {chart_count}. This is currently not supported.") # More than 2 meshes - cannot guarantee what it is or why
 
 # ================================================================================
 # ANY MESH -> RTMESH
@@ -1056,7 +1500,7 @@ def any_mesh_to_rtmesh(pypath: Path,
                        scale: float = 100.0,
                        spatial_dim: sens.EDim = sens.EDim.THREED,
                        world_position: np.ndarray = None,
-                       world_rotation: Rotation = None) -> RTMesh:
+                       world_rotation: Rotation = None) -> RTMesh | list[RTMesh]:
     """Converts any mesh to an RTMesh object.
 
     Parameters:
@@ -1074,8 +1518,8 @@ def any_mesh_to_rtmesh(pypath: Path,
 
     Returns:
     --------
-    RTMesh
-        The converted RTMesh object.
+    RTMesh | list[RTMesh]
+        The converted RTMesh object or a list of two RTMesh objects in order [outer, inner] based on their bounding box size.
 
     Raises:
     -------
@@ -1142,6 +1586,7 @@ def any_mesh_to_rtmesh(pypath: Path,
 
     # Connectivity
     connectivity = pyvista_faces_to_connectivity(pv_ugrid)
+    element_node_count = MESHIO_TO_ELEMENTNODECOUNT[element_type] # Convert meshio element type to ElementNodeCount to keep the same interface as simdata pipeline
     #faces = np.array(pv_ugrid.cells)
     #first_elem_nodes_per_face = faces[0]
     #nodes_per_face_vec = faces[0::(first_elem_nodes_per_face + 1)]
@@ -1151,54 +1596,30 @@ def any_mesh_to_rtmesh(pypath: Path,
     # shape=(num_elems,nodes_per_elem), C format
     #connectivity = np.ascontiguousarray(connectivity[:, 1:], dtype=np.uintp)
 
-    # Create RTMesh object and assign data appropriately
-    rtmesh = RTMesh()
-    rtmesh.node_coords = np.ascontiguousarray(coords_mesh, dtype=np.float64)
-    rtmesh.connectivity = np.ascontiguousarray(connectivity, dtype=np.uint64)
-    # Triangulation for everything that is not a triangle (quad would pass in Blender, but not SeamSplitter)
-    if element_type == "triangle":
-        rtmesh.pyvista_surface = pv_ugrid
-    else: # Everything else - triangulate and create mappings for UV-unwrapping
-        pv_triangulated, mapped_face_ids, mapped_coords = triangulate_and_map(pv_ugrid)
-        rtmesh.pyvista_surface = pv_triangulated
-        rtmesh.tri_face_mapping = np.ascontiguousarray(mapped_face_ids, dtype=np.int64)
-        rtmesh.tri_node_mapping = np.ascontiguousarray(mapped_coords, dtype=np.int64)
-    rtmesh.spatial_dimensions = spatial_dim
-    timestep_count = 1
-    rtmesh.timestep_count = timestep_count  # Temporarily they only have data for static renders
-    element_count = connectivity.shape[0]
-    print(f"Connectivity shape: {connectivity.shape}")
-    print(f"Node coords shape: {coords_mesh.shape}")
-    rtmesh.element_count = element_count
-    # DEBUG NOTES: If this breaks (particularly by trying to pass an invalid value like 1)
-    # -> Meshio probably detected some weird element types in your mesh; where applicable, updating MESHIO_BAD_TYPES with whatever was found should help
-    rtmesh.nodes_per_element = ElementNodeCount(connectivity.shape[1])
-
-    # Data "over time"
-    node_count = coords_mesh.shape[0]
-    rtmesh.node_count = node_count
-    coords_over_time = np.ndarray(shape=(timestep_count, node_count, COORDS_PER_NODE), dtype=np.float64)
-    coords_over_time[0, :, :] = coords_mesh
-    #rtmesh.node_coords_over_time = coords_over_time
-    # rtmesh.face_colors_over_time = np.ones((rtmesh.timestep_count, rtmesh.element_count, COORDS_PER_NODE)) * [1.0, 0.078, 0.57]
-
-    # Node coords and normals expanded
-    node_normals = find_node_normals(pv_ugrid) # Find node normals for shading; same shape as node_coords. TEMPORARY as this will not work with timed meshes
-    #print(f"Node normals shape: {node_normals.shape}")
-    node_coords_expanded_over_time = np.ndarray(
-        shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
-        dtype=np.float64)  # Store nodal coordinates over all timesteps
-    node_normals_expanded_over_time  = np.ndarray(
-        shape=(timestep_count, element_count, rtmesh.nodes_per_element, COORDS_PER_NODE),
-        dtype=np.float64)  # Store nodal normals over all timesteps
-    # face_colors_over_time = np.ndarray(shape=(timestep_count, element_count, RGB_VALS), dtype=np.float64)  # Store face colors over all timesteps
-    # face_colors_over_time[:, :] = [1.0, 0.078, 0.57]
-    node_coords_expanded_over_time[0, :, :, :] = coords_mesh[connectivity]
-    rtmesh.node_coords_expanded_over_time = node_coords_expanded_over_time
-    node_normals_expanded_over_time[0, :, :, :] = node_normals[connectivity]
-    rtmesh.node_normals_expanded_over_time = node_normals_expanded_over_time
-    return rtmesh
-
+    # Check whether mesh has more than 1 surface and get its adjacency matrix
+    chart_labels, chart_count, charts, adjacency_matrix = segment_into_charts(connectivity)
+    #print(f"Chart labels: {chart_labels}")
+    #print(f"Number of charts: {chart_count}")
+    #print(f"Charts: {charts}"
+    if chart_count == 2:
+        print("Detected mesh with more than 1 surface. It will be treated as a hollowed solid, and returned as 2 separate RTMesh objects: [outer, inner]. \nAssign surface data to the inner surface only if the object is supposed to be refractive.")
+        sub_rtmesh_1 = extract_submesh(pv_ugrid, charts[0], element_node_count, spatial_dim)
+        sub_rtmesh_2 = extract_submesh(pv_ugrid, charts[1], element_node_count, spatial_dim)
+        # Compare bounding boxes; bigger => this RTMesh is the outer shell
+        if sub_rtmesh_1.get_size(0).min() > sub_rtmesh_2.get_size(0).max():
+            sub_rtmesh_1.mesh_type = MeshType.THICK_SHELL_OUTER
+            sub_rtmesh_2.mesh_type = MeshType.THICK_SHELL_INNER
+            return [sub_rtmesh_1, sub_rtmesh_2]
+        else:
+            sub_rtmesh_1.mesh_type = MeshType.THICK_SHELL_INNER
+            sub_rtmesh_2.mesh_type = MeshType.THICK_SHELL_OUTER
+            return [sub_rtmesh_2, sub_rtmesh_1]
+    #else:
+    #    return create_rtmesh(connectivity, coords_mesh, pv_ugrid, element_type, spatial_dim) # For now, because for higher order elements, it detects far too many charts idk why
+    elif chart_count == 1:
+        return create_rtmesh(coords_mesh, pv_ugrid, element_node_count, spatial_dim, connectivity)
+    else:
+        raise IOError(f"Detected mesh with more than 2 surfaces: {chart_count}. This is currently not supported.") # More than 2 meshes - cannot guarantee what it is or why
 
 # ================================================================================
 # TESTS

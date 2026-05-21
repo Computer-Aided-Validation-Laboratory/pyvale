@@ -13,18 +13,10 @@
 #include "rteigentypes.h"
 #include "rtray.h"
 
-enum MaterialType : int { 
-    NOT_DEFINED = 0,
-    DIFFUSE = 1, 
-    SPECULAR = 2, 
-    REFRACTIVE = 3,
-    UNLIT = 4 
-};
-
 // Forward declaration (incomplete types) so we can use them in function pointers in BLAS while avoiding circular dependencies
 struct RayState;
 
-// Struct size [bytes]: 5 x 24 + 1 x 8 + 1 x 4 = 132 bytes
+// Struct size [bytes]: 6 x 24 + 2 x 8 + 1 x 4 = 164 bytes
 struct HitRecord {
     EiVector3d point_intersection {EiVector3d::Zero()}; 
     EiVector3d normal_surface {EiVector3d::Zero()}; // Geometric normal (might not be needed; tbd)
@@ -51,23 +43,6 @@ struct HitRecord {
         if (normal_shading.dot(normal_surface) < 0.0){
             normal_shading = -normal_shading;
         }
-    }
-
-    inline void blend_shading_normal(){
-        double max_deviation_cos = 0.17;
-        double c = normal_shading.dot(normal_surface);
-        if (c < max_deviation_cos){
-            // Blend toward geometric normal until we reach the allowed cone.
-            // Simple linear blend; you can tweak the mapping from c to alpha.
-            double alpha = (c + 1.0) / (max_deviation_cos + 1.0); // in (0,1]
-            alpha = std::clamp(alpha, 0.0, 1.0);
-            normal_shading = (alpha * normal_shading + (1.0 - alpha) * normal_surface).normalized();
-        }
-    }
-
-    inline void temp_flat_shading(){
-        // Temporary function to swap shading normal with geometric normal and test flat shading before it is implemented as its own separate option
-        normal_shading = normal_surface;
     }
 };
 

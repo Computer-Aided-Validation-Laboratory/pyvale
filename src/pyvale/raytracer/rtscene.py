@@ -27,6 +27,12 @@ class TextureSampler(IntEnum):
     BSPLINE = 5
     QUINTIC_SPLINE = 6
 
+# Enum to specify which normals are used for shading
+class ShadingType(IntEnum):
+    FLAT = 0 # Shade with geometric normals for all elements
+    BLENDED = 1 # Use angle-avg node normals for TRI3 and QUAD4, Jacobians for curved elements
+    ANGLE_AVG_BLENDED = 2 # Angle-avg node normals for all elements
+
 
 # ================================================================================
 # SCENE
@@ -58,10 +64,9 @@ class Scene:
     matrix_pixel_spacing: list[np.ndarray] = field(default_factory=list)
     matrix_defocus_disc: list[np.ndarray] = field(default_factory=list)
     # Overall scene data
+    scene_ri: float = 1.0003 # Refractive index of the material filling the scene. 1.0 set as default for air
     timestep_count: int = 1 # Number of timesteps with the default value being 1 for static images
     mesh_count: int = 0 # Store the number of meshes in the scene simply because it is used quite a lot
-    scene_ri: float = 1.0003 # Refractive index of the material filling the scene. 1.0 set as default for air
-
 
     def add_camera(self, camera: Camera) -> None:
         """

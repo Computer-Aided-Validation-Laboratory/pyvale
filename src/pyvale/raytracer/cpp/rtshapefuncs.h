@@ -15,10 +15,16 @@
 inline std::array<double, ElementNodeCount::QUAD4> compute_shape_quad4(const double u, const double v){
     // Weights for bilinear interpolation
     std::array<double, ElementNodeCount::QUAD4> N;
+    // If u, v in [0,1], which they should be
     N[0] = (1.0 - u) * (1.0 - v);
     N[1] = u * (1.0 - v);
     N[2] = u * v;
     N[3] = (1.0 - u) * v;
+    // If u, v in [-1,1]
+    //N[0] = 0.25 * (1.0 - u) * (1.0 - v);
+    //N[1] = 0.25 * (1.0 + u) * (1.0 - v);
+    //N[2] = 0.25 * (1.0 + u) * (1.0 + v);
+    //N[3] = 0.25 * (1.0 - u) * (1.0 + v);
     return N;
 }
 
@@ -68,7 +74,7 @@ inline std::array<double, ElementNodeCount::QUAD9> compute_shape_quad9(const dou
 
 // Quadratic triangle (TRI6) shape functions (g, h)
 // r = 1 - g - h
-static inline Eigen::VectorXd get_face_N(double g, double h) {
+static inline Eigen::VectorXd compute_shape_tri6(double g, double h) {
     /* 
     Function to compute the shape functions for a TRI6 triangle at a given point in barycentric coordinates.
 
@@ -95,17 +101,28 @@ static inline Eigen::Matrix<double, 3, 2> get_face_Jacobian_quad4(const double u
     const std::vector<double> node_coords) {
     // May have to multiply these by 1/4
     std::array<double, ElementNodeCount::QUAD4> dNdu;
-
-    dNdu[0] = -1.0 + v;
-    dNdu[1] = 1.0 - v;
-    dNdu[2] = v;
-    dNdu[3] = -v;
+    // If u, v in [0,1], which they should be
+    dNdu[0] = (-1.0 + v);
+    dNdu[1] = (1.0 - v);
+    dNdu[2] = v * 0.25;
+    dNdu[3] = -v * 0.25;
+    // If u, v in [-1,1]
+    dNdu[0] = -0.25 * (1.0 - v);
+    dNdu[1] = 0.25 * (1.0 - v);
+    dNdu[2] = 0.25 * (1.0 + v);
+    dNdu[3] = -0.25 * (1.0 + v);
 
     std::array<double, ElementNodeCount::QUAD4> dNdv;
+    // If u, v in [0,1], which they should be
     dNdv[0] = -1.0 + u;
     dNdv[1] = -u;
     dNdv[2] = u;
     dNdv[3] = 1.0 - u;
+    // If u, v in [-1,1]
+    //dNdv[0] = -0.25 * (1.0 - u);
+    //dNdv[1] = -0.25 * (1.0 + u);
+    //dNdv[2] = 0.25 * (1.0 + u);
+    //dNdv[3] = 0.25 * (1.0 - u);
 
     Eigen::Matrix<double, 3, 2> J = Eigen::Matrix<double, 3, 2>::Zero();
     for (int i = 0; i < ElementNodeCount::QUAD4; ++i) {
@@ -193,10 +210,61 @@ static inline Eigen::Matrix<double, 3, 2> get_face_Jacobian_quad9(double xi, dou
 
     Eigen::Matrix<double, 3, 2> J = Eigen::Matrix<double, 3, 2>::Zero();
     for (int i = 0; i < ElementNodeCount::QUAD9; ++i) {
-         EiVector3d node_point;
+        EiVector3d node_point;
         node_point << node_coords[i * NODE_COORDINATES], node_coords[i * NODE_COORDINATES + 1], node_coords[i * NODE_COORDINATES + 2];
         J.col(0) += node_point * dNdxi[i];
         J.col(1) += node_point * dNdeta[i];
     }
     return J;
 }
+
+static Eigen::Matrix<double, 3, 2> get_face_Jacobian_tri6(double g, double h, 
+    const std::vector<EiVector3d>& nodes) {
+    /* 
+    Function to compute the Jacobian matrix of a TRI6 triangle at a given point in barycentric coordinates.
+
+    Parameters
+    ----------
+    g : double
+        First barycentric coordinate
+    h : double
+        Second barycentric coordinate
+    nodes : const std::vector<EiVector3d>
+        Triangle node coordinates
+
+    Returns
+    -------
+    Eigen::Matrix<double, 3, 2>
+        Jacobian matrix
+    */
+    double r = 1.0 - g - h;
+    // Derivatives of N wrt g and h
+    double dNdu[6] = { -(4*r-1), 4*g-1, 0, 4*(r-g), 4*h, -4*h };
+    double dNdv[6] = { -(4*r-1), 0, 4*h-1, -4*g, 4*g, 4*(r-h) };
+
+    Eigen::Matrix<double, 3, 2> J = Eigen::Matrix<double, 3, 2>::Zero();
+    for (int i = 0; i < ElementNodeCount::TRI6; ++i) {
+        J.col(0) += nodes[i] * dNdu[i];
+        J.col(1) += nodes[i] * dNdv[i];
+    }
+    return J;
+}
+
+/*
+static Eigen::Matrix<double, 3, 2> get_face_Jacobian_tri6_vec(double g, double h, 
+    const std::vector<double> node_coords) {
+    
+    double r = 1.0 - g - h;
+    // Derivatives of N wrt g and h
+    double dNdu[6] = { -(4*r-1), 4*g-1, 0, 4*(r-g), 4*h, -4*h };
+    double dNdv[6] = { -(4*r-1), 0, 4*h-1, -4*g, 4*g, 4*(r-h) };
+
+    Eigen::Matrix<double, 3, 2> J = Eigen::Matrix<double, 3, 2>::Zero();
+    for (int i = 0; i < ElementNodeCount::TRI6; ++i) {
+        EiVector3d node_point;
+        node_point << node_coords[i * NODE_COORDINATES], node_coords[i * NODE_COORDINATES + 1], node_coords[i * NODE_COORDINATES + 2];
+        J.col(0) += node_point [i] * dNdu[i];
+        J.col(1) += node_point [i] * dNdv[i];
+    }
+    return J;
+}*/

@@ -16,456 +16,13 @@
 #include "rtcolorsampling.h"
 #include "rtshapefuncs.h"
 #include "rtmaterials.h"
-
-enum class ShadingMode{
-    FLAT = 0,
-    GOURAUD = 1,
-    PHONG = 2
-};
+#include "rteigentypes.h"
 
 
-EiVectorD3d cross_rowwise(const EiVectorD3d& mat1, const EiVectorD3d& mat2) {
-    // Row-wise cross product for 2 matrices (i.e., treating each row as a vector).
-    // Also works for multiplying a matrix with a row vector, so the input order determines the multiplication order. Happy days.
-    // Written because this otherwise can't be a one-liner like in NumPy - Eigen's cross product works only for vector types.
 
-    // We shouldn't need this check in principle due to how EiVectorD3d is defined - remove it?
-    if (mat1.cols() != 3 || mat2.cols() != 3) {
-        std::cerr << "Error: matrices need to have exactly 3 columns to find the cross product" << std::endl;
-        return {};
-    }
-    // This also should be possible to comment out in production since it is used strictly for intersection code, where these are always created to be the same.
-    if (mat1.rows() != mat2.rows()){
-        std::cerr << "Error: matrices need to have the same number of rows to find the cross product" << std::endl;
-        return {};
-    }
-    long long number_of_rows = mat1.rows(); // number of rows. Long long to match the type from Eigen::Index
-    EiVectorD3d cross_product_result(number_of_rows, 3);
-    cross_product_result.col(0) = mat1.col(1).cwiseProduct(mat2.col(2)) - mat1.col(2).cwiseProduct(mat2.col(1));
-    cross_product_result.col(1) = mat1.col(2).cwiseProduct(mat2.col(0)) - mat1.col(0).cwiseProduct(mat2.col(2));
-    cross_product_result.col(2) = mat1.col(0).cwiseProduct(mat2.col(1)) - mat1.col(1).cwiseProduct(mat2.col(0));
-    return cross_product_result;
-}
-
-/*
-inline EiArrayD1d dot_rowwise (const EiArrayD3d& mat1, const EiArrayD3d& mat2){
-    // Eigen should automatically convert EiVectorD3d to EiArrayD3d, so no need to do that while calling the function
-    // These change just the object behaviour: arrays are for coefficient-wise operations, matrices for linear algebra. No data copying
-    // However, if that breaks, just use e.g., mat1.array()
-    return (mat1 * mat2).rowwise().sum();
-}
-*/
-EiArrayD3d lerp_vectorised (const EiArrayD3d& points_A,
-    const EiArrayD3d& points_B,
-    const EiArrayD1d weights){
-    // Linear interpolation between points stored in arrays points_A and points_B using weights from vector weights.
-    // Vectorised version of calculating (1-weight) * point_a + weight * point_b
-    if (points_A.rows() != points_B.rows() || points_A.rows() != weights.rows()) {
-        std::cerr << "Error: points_A, points_B and weights need to have the same number of rows for lerp" << std::endl;
-        return {};
-    }
-    if (points_A.cols() != 3 || points_B.cols() != 3) {
-        std::cerr << "Error: matrices need to have exactly 3 columns to find the interpolation." << std::endl;
-        return {};
-    }
-    // Replicate the (N, 1) weights array to (N, 3) so we can take advantage of Eigen's coefficient-wise array operations
-    EiArrayD3d weights_replicated = weights.replicate(1, 3);
-    return (1.0 - weights_replicated ) * points_A + weights_replicated * points_B;
-}
-
-void overwrite_intersection_quad4_tex(HitRecord& intersection_record,
-    const BLAS_Node& Node,
-    const Texture& texture,
-    Eigen::Index min_row_idx){     
-    // Texture color save for QUAD4           
-
-    // Interpolation coordinates from the ray-quad intersection
-    const double u = intersection_record.elem_interp_coords(0);
-    const double v = intersection_record.elem_interp_coords(1);    
-    // Weights for bilinear interpolation
-    const std::array<double, ElementNodeCount::QUAD4> shape_weights = compute_shape_quad4(u, v);
-    
-    // Find (u,v) coordinates for each node of the intersected element
-    std::array<double, ElementNodeCount::QUAD4 * UV_COORDINATES> element_uvs; // Flat array so we can pass a pointer to get_face_uvs. Texture (u,v) for each node of mesh element
-    get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::QUAD4, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
-    
-    // Get node normals
-    //std::array<double, ElementNodeCount::QUAD4 * NODE_COORDINATES> node_normals;
-    //get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD4, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
-
-    // Interpolate final (u,v) coordinates
-    EiArray2d uvs(0.0, 0.0);
-    //EiArray3d shading_normal(0.0, 0.0, 0.0);
-     for (int i = 0; i < ElementNodeCount::QUAD4; ++i) {
-        EiArray2d node_uv;
-        node_uv << element_uvs[UV_COORDINATES * i], element_uvs[UV_COORDINATES * i + 1];
-        uvs += shape_weights[i] * node_uv;
-        //EiArray3d node_normal;
-        //node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        //shading_normal += shape_weights[i] * node_normal;
-    }
-   
-    // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
-    intersection_record.face_color = texsampler::sample_texture(texture, uvs);
-
-    // Get shading normal
-    //intersection_record.normal_shading = shading_normal;
-    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad4(u, v, Node.node_coords);
-    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
-}
-
-void overwrite_intersection_quad8_tex(HitRecord& intersection_record,
-    const BLAS_Node& Node,
-    const Texture& texture,
-    Eigen::Index min_row_idx){     
-    // Texture color save for QUAD4           
-
-    // Interpolation coordinates from the ray-quad intersection
-    const double u = intersection_record.elem_interp_coords(0);
-    const double v = intersection_record.elem_interp_coords(1);
-    // Map from [0,1] (typical for (u,v)) to [-1, 1] (typical for FEM shape functions)
-    const double xi = 2.0 * u - 1.0;
-    const double eta = 2.0 * v - 1.0;
-     // Shape functions (weights) for QUAD8
-    std::array<double, ElementNodeCount::QUAD8> shape_weights = compute_shape_quad8(xi, eta);
-
-     // Find (u,v) coordinates for each node of the intersected element
-    std::array<double, ElementNodeCount::QUAD8 * UV_COORDINATES> element_uvs; // Flat array so we can pass a pointer to get_face_uvs. Texture (u,v) for each node of mesh element
-    get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::QUAD8, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
-   
-     // Get node normals
-    //std::array<double, ElementNodeCount::QUAD8 * NODE_COORDINATES> node_normals;
-    //get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD8, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
-    // Interpolate final (u,v) coordinates and shading normal
-    EiArray2d uvs(0.0, 0.0);
-    //EiArray3d shading_normal(0.0, 0.0, 0.0);
-    for (int i = 0; i < ElementNodeCount::QUAD8; ++i) {
-        EiArray2d node_uv;
-        node_uv << element_uvs[UV_COORDINATES * i], element_uvs[UV_COORDINATES * i + 1];
-        uvs += shape_weights[i] * node_uv;
-        //EiArray3d node_normal;
-        //node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        //shading_normal += shape_weights[i] * node_normal;
-    }
-
-    // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
-    intersection_record.face_color = texsampler::sample_texture(texture, uvs);
-
-    // Get shading normal
-    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad8(u, v, Node.node_coords);
-    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
-    //intersection_record.normal_shading = shading_normal;
-}
-
-void overwrite_intersection_quad9_tex(HitRecord& intersection_record,
-    const BLAS_Node& Node,
-    const Texture& texture,
-    Eigen::Index min_row_idx){     
-    // Texture color save for QUAD4           
-
-    // Interpolation coordinates from the ray-quad intersection
-    const double u = intersection_record.elem_interp_coords(0);
-    const double v = intersection_record.elem_interp_coords(1);
-    // Map from [0,1] (typical for (u,v)) to [-1, 1] (typical for FEM shape functions)
-    const double xi = 2.0 * u - 1.0;
-    const double eta = 2.0 * v - 1.0;
-     // Shape functions (weights) for QUAD9
-    std::array<double, ElementNodeCount::QUAD9> shape_weights = compute_shape_quad9(xi, eta);
-
-    // Find (u,v) coordinates for each node of the intersected element
-    std::array<double, ElementNodeCount::QUAD9 * UV_COORDINATES> element_uvs; // Flat array so we can pass a pointer to get_face_uvs. Texture (u,v) for each node of mesh element
-    get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::QUAD9, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
-
-     // Get node normals
-    //std::array<double, ElementNodeCount::QUAD9 * NODE_COORDINATES> node_normals;
-    //get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD9, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
- 
-    // Interpolate final (u,v) coordinates
-    EiArray2d uvs(0.0, 0.0);
-    //EiArray3d shading_normal(0.0, 0.0, 0.0);
-    for (int i = 0; i < ElementNodeCount::QUAD9; ++i) {
-        EiArray2d node_uv;
-        node_uv << element_uvs[UV_COORDINATES * i], element_uvs[UV_COORDINATES * i + 1];
-        uvs += shape_weights[i] * node_uv;
-        //EiArray3d node_normal;
-        //node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        //shading_normal += shape_weights[i] * node_normal;
-    }
-    // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
-    intersection_record.face_color = texsampler::sample_texture(texture, uvs);
-    // Get shading normal
-    //intersection_record.normal_shading = shading_normal;
-    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad9(u, v, Node.node_coords);
-    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
-}
-
-void overwrite_intersection_tri3_tex(HitRecord& intersection_record,
-    const BLAS_Node& Node,
-    const Texture& texture,
-    Eigen::Index min_row_idx){
-    // Texture color save for TRI3
-
-    std::array<double, ElementNodeCount::TRI3 * UV_COORDINATES> element_uvs; // Shape (faces, 2) but flat. Texture (u,v) for each node of mesh element
-    get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::TRI3, &element_uvs[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
-    EiArray2d uv0, uv1, uv2;
-    uv0 << element_uvs[0], element_uvs[1]; // (u,v) for node 0
-    uv1 << element_uvs[2], element_uvs[3]; // (u,v) for node 1
-    uv2 << element_uvs[4], element_uvs[5]; // (u,v) for node 2 
-    // Original arrangement that works if barycentric coordinates are stored as (w, u, v) - otherwise there is a mismatch and it does not render correctly
-    EiArray2d uvs = intersection_record.elem_interp_coords(0) * uv0 + intersection_record.elem_interp_coords(1) * uv1 + intersection_record.elem_interp_coords(2) * uv2;
-
-    // Barycentric interpolation that actually works if we want to store barycentric coordinates as (u, v, w)
-    //EiArray2d uvs = intersection_record.elem_interp_coords(2) * uv0 + intersection_record.elem_interp_coords(0) * uv1 + intersection_record.elem_interp_coords(1) * uv2;  // Final (u,v)
-    // These uvs can be sent to sample the texture and the output returned to return_ray_color, regardless  of the element type down the line
-    intersection_record.face_color = texsampler::sample_texture(texture, uvs);
-
-    // Find shading normal - tbd
-    intersection_record.normal_shading = intersection_record.normal_surface;
-    /*
-    std::array<double, ElementNodeCount::TRI3 * NODE_COORDINATES> node_normals; // Shape (faces, 2) but flat. Texture (u,v) for each node of mesh element
-    get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::TRI3, &node_normals[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
-    EiArray3d normal_0, normal_1, normal_2;
-    normal_0 << node_normals[0], node_normals[1], node_normals[2];
-    normal_1 << node_normals[3], node_normals[4], node_normals[5];
-    normal_2 << node_normals[6], node_normals[7], node_normals[8];
-    // Original that should work if we store barycentric coordinates as (w, u, v)
-    EiVector3d shading_normal = intersection_record.elem_interp_coords(0) * normal_0 + intersection_record.elem_interp_coords(1) * normal_1 + intersection_record.elem_interp_coords(2) * normal_2;
-    intersection_record.normal_shading = shading_normal;
-    */
-}
-
-void overwrite_intersection_tri6_tex(HitRecord& intersection_record,
-    const BLAS_Node& Node,
-    const Texture& texture,
-    Eigen::Index min_row_idx) {
-    
-    // Texture color save for TRI6
-
-    std::array<double, ElementNodeCount::TRI6 * UV_COORDINATES> element_uvs;
-    get_face_uvs(min_row_idx, Node.face_color, ElementNodeCount::TRI6, &element_uvs[0]);
-
-    // Extract UVs for each node
-    EiArray2d uv0, uv1, uv2, uv3, uv4, uv5;
-
-    uv0 << element_uvs[0],  element_uvs[1];
-    uv1 << element_uvs[2],  element_uvs[3];
-    uv2 << element_uvs[4],  element_uvs[5];
-    uv3 << element_uvs[6],  element_uvs[7];
-    uv4 << element_uvs[8],  element_uvs[9];
-    uv5 << element_uvs[10], element_uvs[11];
-
-    uv3 = 0.5 * (uv0 + uv1); // edge 0-1
-    uv4 = 0.5 * (uv1 + uv2); // edge 1-2
-    uv5 = 0.5 * (uv2 + uv0); // edge 2-0
-
-    // Get barycentric coordinates (g, h)
-    const double g = intersection_record.elem_interp_coords(0);
-    const double h = intersection_record.elem_interp_coords(1);
-    const double r = intersection_record.elem_interp_coords(2);
-
-    // Compute quadratic shape functions
-    Eigen::VectorXd N = get_face_N(g, h); // size = 6
-
-    // Interpolate UVs using shape functions
-    EiArray2d uvs =
-          N(0) * uv0
-        + N(1) * uv1
-        + N(2) * uv2
-        + N(3) * uv3
-        + N(4) * uv4
-        + N(5) * uv5;
-
-    // uvs = g*uv0 + h*uv1 + r*uv2;
-
-    // uvs = intersection_record.elem_interp_coords(2) * uv0 + intersection_record.elem_interp_coords(0) * uv1 + intersection_record.elem_interp_coords(1) * uv2;
-
-    // Sample texture
-    intersection_record.face_color = texsampler::sample_texture(texture, uvs);
-    
-     // Get shading normal - move this out of intersection code, tbd
-    intersection_record.normal_shading = intersection_record.normal_surface;
-    /*
-    std::array<double, ElementNodeCount::TRI6 * NODE_COORDINATES> node_normals;
-    get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::TRI6, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
-    
-    EiArray3d shading_normal(0.0, 0.0, 0.0);
-    for(int i = 0; i < ElementNodeCount::TRI6; i++){
-        double shape_weight = N(i);
-        EiArray3d node_normal;
-        node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        shading_normal += shape_weight * node_normal;
-    }
-    intersection_record.normal_shading = shading_normal.matrix();
-    */
-};
-
-void overwrite_intersection_quad4_col(HitRecord& intersection_record,
-    const BLAS_Node& Node,
-    const Texture& texture,
-    Eigen::Index min_row_idx){
-    // Solid surface color save for any element other than TRI3 (no interpolation)
-    //intersection_record.face_color = get_face_color(min_row_idx, Node.face_color); // Write solid color without any interpolation
-    const EiVector3d color_data = get_face_color(min_row_idx, Node.face_color); 
-
-    // Interpolation coordinates from the ray-quad intersection
-    const double u = intersection_record.elem_interp_coords(0);
-    const double v = intersection_record.elem_interp_coords(1);
-    std::array<double, ElementNodeCount::QUAD4> shape_weights = compute_shape_quad4(u, v);
-    
-    // Get node normals
-    std::array<double, ElementNodeCount::QUAD4 * NODE_COORDINATES> node_normals;
-    get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD4, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
-
-    // Interpolate
-    EiVector3d interpolated_color(0.0, 0.0, 0.0);
-    EiArray3d shading_normal(0.0, 0.0, 0.0);
-    for (int i = 0; i < ElementNodeCount::QUAD4; ++i) {
-        interpolated_color += shape_weights[i] * color_data;
-        EiArray3d node_normal;
-        node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        shading_normal += shape_weights[i] * node_normal;
-    }
-    intersection_record.face_color = interpolated_color;
-    //intersection_record.normal_shading = shading_normal;
-
-    // Get shading normal
-    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad4(u, v, Node.node_coords);
-    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
-    //intersection_record.normal_surface = intersection_record.normal_shading;
-    //intersection_record.normal_shading = intersection_record.normal_surface;
-}
-
-void overwrite_intersection_quad8_col(HitRecord& intersection_record,
-    const BLAS_Node& Node,
-    const Texture& texture,
-    Eigen::Index min_row_idx){
-    // Solid surface color save for any element other than TRI3 (no interpolation)
-    //intersection_record.face_color = get_face_color(min_row_idx, Node.face_color); // Write solid color without any interpolation
-    const EiVector3d color_data = get_face_color(min_row_idx, Node.face_color); 
-
-    // Interpolation coordinates from the ray-quad intersection
-    const double u = intersection_record.elem_interp_coords(0);
-    const double v = intersection_record.elem_interp_coords(1);
-    // Map from [0,1] (typical for (u,v)) to [-1, 1] (typical for FEM shape functions)
-    const double xi = 2.0 * u - 1.0;
-    const double eta = 2.0 * v - 1.0;
-     // Shape functions (weights) for QUAD9
-    std::array<double, ElementNodeCount::QUAD8> shape_weights = compute_shape_quad8(xi, eta);
-
-    // Get node normals
-    std::array<double, ElementNodeCount::QUAD8 * NODE_COORDINATES> node_normals;
-    get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD8, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
-
-    // Interpolate
-    EiVector3d interpolated_color(0.0, 0.0, 0.0);
-    EiArray3d shading_normal(0.0, 0.0, 0.0);
-    for (int i = 0; i < ElementNodeCount::QUAD8; ++i) {
-        interpolated_color += shape_weights[i] * color_data;
-        EiArray3d node_normal;
-        node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        shading_normal += shape_weights[i] * node_normal;
-    }
-    intersection_record.face_color = interpolated_color;
-    //intersection_record.normal_shading = shading_normal;
-    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad8(u, v, Node.node_coords);
-    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
-}
-
-void overwrite_intersection_quad9_col(HitRecord& intersection_record,
-    const BLAS_Node& Node,
-    const Texture& texture,
-    Eigen::Index min_row_idx){
-    // Solid surface color save for any element other than TRI3 (no interpolation)
-    //intersection_record.face_color = get_face_color(min_row_idx, Node.face_color); // Write solid color without any interpolation
-    const EiVector3d color_data = get_face_color(min_row_idx, Node.face_color); 
-
-    // Interpolation coordinates from the ray-quad intersection
-    const double u = intersection_record.elem_interp_coords(0);
-    const double v = intersection_record.elem_interp_coords(1);
-    // Map from [0,1] (typical for (u,v)) to [-1, 1] (typical for FEM shape functions)
-    const double xi = 2.0 * u - 1.0;
-    const double eta = 2.0 * v - 1.0;
-     // Shape functions (weights) for QUAD9
-    std::array<double, ElementNodeCount::QUAD9> shape_weights = compute_shape_quad9(xi, eta);
-    // Get node normals
-    std::array<double, ElementNodeCount::QUAD9 * NODE_COORDINATES> node_normals;
-    get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::QUAD9, &node_normals[0]); // node_normals are shaped (nodes_per_element, 3)
-
-    // Interpolate
-    EiVector3d interpolated_color(0.0, 0.0, 0.0);
-    EiArray3d shading_normal(0.0, 0.0, 0.0);
-    for (int i = 0; i < ElementNodeCount::QUAD9; ++i) {
-        interpolated_color += shape_weights[i] * color_data;
-        EiArray3d node_normal;
-        node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        shading_normal += shape_weights[i] * node_normal;
-    }
-    intersection_record.face_color = interpolated_color;
-    //intersection_record.normal_shading = shading_normal;
-
-    // Get shading normal
-    Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad9(u, v, Node.node_coords);
-    intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose().normalized();
-}
-
-// Section below: We may not need to interpolate the solid colours (likely the case), just added here for the time being
-void overwrite_intersection_tri3_col(HitRecord& intersection_record,
-    const BLAS_Node& Node,
-    const Texture& texture,
-    Eigen::Index min_row_idx){
-    // Solid surface color save for TRI3 with barycentric interpolation
-
-    const EiVector3d color_data = get_face_color(min_row_idx, Node.face_color); 
-    // Barycentric interpolation
-    intersection_record.face_color = intersection_record.elem_interp_coords(0) * color_data + intersection_record.elem_interp_coords(1) * color_data + intersection_record.elem_interp_coords(2) * color_data;
-   
-    // Get shading normal - tbd
-    intersection_record.normal_shading = intersection_record.normal_surface;
-    /*
-    std::array<double, ElementNodeCount::TRI3 * NODE_COORDINATES> node_normals; // Shape (faces, 3) but flat
-    get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::TRI3, &node_normals[0]);
-    EiArray3d normal_0, normal_1, normal_2;
-    normal_0 << node_normals[0], node_normals[1], node_normals[2];
-    normal_1 << node_normals[3], node_normals[4], node_normals[5];
-    normal_2 << node_normals[6], node_normals[7], node_normals[8];
-    EiVector3d shading_normal = intersection_record.elem_interp_coords(0) * normal_0 + intersection_record.elem_interp_coords(1) * normal_1 + intersection_record.elem_interp_coords(2) * normal_2;
-    intersection_record.normal_shading = shading_normal;
-    */
-};
-
-void overwrite_intersection_tri6_col(HitRecord& intersection_record,
-    const BLAS_Node& Node,
-    const Texture& texture,
-    Eigen::Index min_row_idx){
-    // Get solid surface color
-    EiVector3d color_data = get_face_color(min_row_idx, Node.face_color); 
-
-     // Get barycentric coordinates (g, h)
-    const double g = intersection_record.elem_interp_coords(0);
-    const double h = intersection_record.elem_interp_coords(1);
-    const double r = intersection_record.elem_interp_coords(2);
-    // Compute quadratic shape functions
-    Eigen::VectorXd N = get_face_N(g, h); // size = 6
-
-    //std::array<double, ElementNodeCount::TRI6 * NODE_COORDINATES> node_normals; // Shape (faces, 3) but flat
-    //get_face_normals(min_row_idx, Node.node_normals, ElementNodeCount::TRI6, &node_normals[0]);
-    
-    EiVector3d interpolated_color(0.0, 0.0, 0.0);
-    EiArray3d shading_normal(0.0, 0.0, 0.0);
-    for(int i = 0; i < ElementNodeCount::TRI6; i++){
-        double shape_weight = N(i);
-        interpolated_color += shape_weight * color_data;
-        //EiArray3d node_normal;
-        //node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
-        //shading_normal += shape_weight * node_normal;
-    }
-
-    intersection_record.face_color = interpolated_color;
-    //intersection_record.normal_shading = shading_normal.matrix();
-    
-    // Get shading normal - tbd
-    intersection_record.normal_shading = intersection_record.normal_surface;
-}
+/* ********************************************** 
+ * TRI3 intersection
+********************************************** */
 
 IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     const std::vector<double>& node_coords,
@@ -492,18 +49,18 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     // Go over all TRI3s in the node to find corner and edge coordinates
     // Node coords are stored as [xyz, xyz, xyz...]
     for (int triangle_idx = 0; triangle_idx < bvh_node_triangle_count; triangle_idx++) {
-        int node_0 = triangle_idx * NODES_PER_ELEMENT;
-        int node_1 = triangle_idx * NODES_PER_ELEMENT + 1;
-        int node_2 = triangle_idx * NODES_PER_ELEMENT + 2;
-
+        int base_stride = triangle_idx * NODES_PER_ELEMENT * NODE_COORDINATES;
+        // Go over x, y, z coordinates
         for (int j = 0; j < NODE_COORDINATES; j++) {
-            edge0(triangle_idx, j) = node_coords[node_1 * NODE_COORDINATES + j] - node_coords[node_0 * NODE_COORDINATES + j];
-            nodes0(triangle_idx, j) = node_coords[node_0 * NODE_COORDINATES + j];
-            // Skip edge1 because it never gets used in the calculations anyway and calculate negative Edge2 as this is what we will need
-            nEdge2(triangle_idx, j) = node_coords[node_2 * NODE_COORDINATES + j] - node_coords[node_0 * NODE_COORDINATES + j];
-            //std::cout << "nEdge2 : " << nEdge2(triangle_idx,j) << std::endl;
+            // Access n-th node via base_stride + n, where n e [0, 2] for TRI3
+            // Then use access x, y, z coordinates in flattened array
+            // E.g., [base_stride + 1 * NODE_COORDINATES + 2] would be node_1, coordinate z
+            nodes0(triangle_idx, j) = node_coords[base_stride + 0 * NODE_COORDINATES + j];
+            edge0(triangle_idx, j) = node_coords[base_stride + 1 * NODE_COORDINATES + j] - node_coords[base_stride + 0 * NODE_COORDINATES + j];
+            nEdge2(triangle_idx, j) = node_coords[base_stride + 2 * NODE_COORDINATES + j] - node_coords[base_stride + 0 * NODE_COORDINATES + j];
         }
     }
+
     EiVectorD3d geometric_normals = cross_rowwise(edge0, nEdge2); // not normalised! Shape (faces, 3)
 
     // Step 1: Quantities for the Moller Trumbore method
@@ -562,19 +119,18 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     return IntersectionOutput{ barycentric_coordinates, geometric_normals, t_values };
 }
 
-// Implement template for QUAD4, QUAD8, QUAD9
-template<QuadType element_node_count>
-IntersectionOutput intersect_bvh_quad(const Ray& ray,
+/* ********************************************** 
+ *  QUAD4 intersection
+********************************************** */
+
+IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_quad_count){
     // Go through all the quads and find an intersection of each quad with a ray
-    // Method based on NVIDIA 2019, E. Haines, T. Akenine-Möller (eds.), Ray Tracing Gems, https://doi.org/10.1007/978-1-4842-4427-2_8
+    // Method based on NVIDIA 2019, E. Haines, T. Akenine-Möller (eds.), Ray Tracing Gems, https://doi.org/10.1007/978-1-4842-4427-2_8 that should work for non-planar quads
     // More specifically: Chapter 8, "Cool Patches: A Geometric Approach to Ray/Bilinear Patch Intersections" by A. Reshetov
 
-    // This should work for QUAD8 and QUAD9 in both the VTK and Exodus order without any changes as they also store corner nodes at indices 0-3 in the connectivity array,
-    // and this algorithm was developed for non-planar quadrilaterals. 
-
-    static constexpr int COORDS_PER_ELEMENT = static_cast<int>(element_node_count) * NODE_COORDINATES;
+    static constexpr int COORDS_PER_ELEMENT = static_cast<int>(ElementNodeCount::QUAD4) * NODE_COORDINATES;
     static constexpr double EPSILON = 1e-8;
     
     // 1. COORDINATES AND EDGES
@@ -614,7 +170,9 @@ IntersectionOutput intersect_bvh_quad(const Ray& ray,
         }
     }
 
-    EiArrayD3d normals = cross_rowwise(corners_br-corners_bl, corners_tl-corners_tr).array(); // not normalised! Shape (faces,3)
+    EiArrayD3d normals = cross_rowwise(corners_br-corners_bl, corners_tl-corners_tr).array(); // not normalised! Shape (faces,3); original code
+    //EiArrayD3d normals = cross_rowwise(corners_br-corners_bl, corners_tr-corners_bl).array(); // not normalised! Shape (faces,3); non-parallel 
+    //EiArrayD3d normals = cross_rowwise(corners_tr-corners_bl, corners_tl-corners_br).array(); // not normalised! Shape (faces,3); try using diagonals
     // Translate only the coordinates that need ray-origin subtraction
     corners_bl -= ray_origins;
     corners_br -= ray_origins;
@@ -689,17 +247,17 @@ IntersectionOutput intersect_bvh_quad(const Ray& ray,
     EiVectorD3d n1_cross = cross_rowwise(n1, pa1);
     //EiArrayD1d t1 = dot_rowwise(n1_cross, pb1); 
     EiArrayD1d t1 = dot_rowwise(n1_cross, pb1) / det1; 
-    EiArrayD1d v1 = dot_rowwise(n1_cross, ray_directions);
-    // Create a hit mask if we are in the u1 branch, discriminant is valid, and t1 > 0 and 0.0 <= v1 <= det1
-    //EiBoolMask hit_mask1 = u1_valid && det1_valid && (t1 > 0.0) && (v1 >= 0.0) && (det1 >= v1);
-    //EiBoolMask hit_mask1 = u1_valid && det1_valid && (t1 > EPSILON) && (v1 >= EPSILON) && (det1 >= v1);
-    EiBoolMask hit_mask1 = u1_valid && det1_valid && (t1 > EPSILON) && (v1 >= 0.0) && (det1 >= v1);
+    EiArrayD1d nodes_1 = dot_rowwise(n1_cross, ray_directions);
+    // Create a hit mask if we are in the u1 branch, discriminant is valid, and t1 > 0 and 0.0 <= nodes_1 <= det1
+    //EiBoolMask hit_mask1 = u1_valid && det1_valid && (t1 > 0.0) && (nodes_1 >= 0.0) && (det1 >= nodes_1);
+    //EiBoolMask hit_mask1 = u1_valid && det1_valid && (t1 > EPSILON) && (nodes_1 >= EPSILON) && (det1 >= nodes_1);
+    EiBoolMask hit_mask1 = u1_valid && det1_valid && (t1 > EPSILON) && (nodes_1 >= 0.0) && (det1 >= nodes_1);
 
 
     // Update values where we have a hit
     t_values = hit_mask1.select(t1, t_values);
     u_values = hit_mask1.select(u1, u_values);
-    v_values = hit_mask1.select(v1/det1, v_values);
+    v_values = hit_mask1.select(nodes_1/det1, v_values);
 
     // 3.2. Evaluate case 0.0 <= u2 <= 1.0 - Slightly different since u1 might be good and we need 0 < t2 < t1
     EiBoolMask u2_valid = valid_mask && (0.0 <= u2) && (u2 <= 1.0);
@@ -710,15 +268,15 @@ IntersectionOutput intersect_bvh_quad(const Ray& ray,
     EiBoolMask det2_valid = det2 > EPSILON; // Non-zero discriminant
     EiVectorD3d n2_cross = cross_rowwise(n2, pa2);
     EiArrayD1d t2 = dot_rowwise(n2_cross, pb2) / det2; //
-    EiArrayD1d v2 = dot_rowwise(n2_cross, ray_directions);
-    // Hit mask for u2 branch, discriminant is valid, 0 < t2 < t and 0 <= v2 <= det2
-    //EiBoolMask hit_mask2 = u2_valid && det2_valid && (t2 > 0.0) && (t_values > t2) && (det2 >= v2) && (v2 >= 0);
-    EiBoolMask hit_mask2 = u2_valid && det2_valid && (t2 > EPSILON) && (t_values > t2) && (det2 >= v2) && (v2 >= 0);
+    EiArrayD1d nodes_2 = dot_rowwise(n2_cross, ray_directions);
+    // Hit mask for u2 branch, discriminant is valid, 0 < t2 < t and 0 <= nodes_2 <= det2
+    //EiBoolMask hit_mask2 = u2_valid && det2_valid && (t2 > 0.0) && (t_values > t2) && (det2 >= nodes_2) && (nodes_2 >= 0);
+    EiBoolMask hit_mask2 = u2_valid && det2_valid && (t2 > EPSILON) && (t_values > t2) && (det2 >= nodes_2) && (nodes_2 >= 0);
 
     // Update values where we have a hit
     t_values = hit_mask2.select(t2, t_values);
     u_values = hit_mask2.select(u2, u_values);
-    v_values = hit_mask2.select(v2/det2, v_values);
+    v_values = hit_mask2.select(nodes_2/det2, v_values);
 
     // Apply ray segment bounds
     EiBoolMask in_range = (t_values >= ray.t_min) && (t_values <= ray.t_max);
@@ -743,53 +301,548 @@ IntersectionOutput intersect_bvh_quad(const Ray& ray,
     return IntersectionOutput{ quad_coordinates, geometric_normals, t_values };
     }
 
-// Explicit template instantiations to avoid having to implement the above in the header file
-template IntersectionOutput intersect_bvh_quad<QuadType::QUAD4>(const Ray& ray,
-    const std::vector<double>& node_coords,
-    const unsigned int bvh_node_quad_count);
 
-template IntersectionOutput intersect_bvh_quad<QuadType::QUAD8>(const Ray& ray,
-    const std::vector<double>& node_coords,
-    const unsigned int bvh_node_quad_count);
+/* ********************************************** 
+ *  Precision parameters for QUAD8 and QUAD9
+********************************************** */
 
-template IntersectionOutput intersect_bvh_quad<QuadType::QUAD9>(const Ray& ray,
-    const std::vector<double>& node_coords,
-    const unsigned int bvh_node_quad_count);
+// Sub-triangle Moller-Trumbore acceptance slack (on barycentrics)
+static const double eps_sub_bary = 1e-6;
+// Minimum |det| accepted in the sub-triangle MT solve
+static const double eps_sub_det = 1e-12;
+// Minimum t accepted (initial guess and final acceptance floor)
+static const double eps_t_min = 1e-7;
 
+// Newton residual tolerance: max(eps_res_abs, eps_res_rel * find_element_diagonal)
+static const double eps_res_rel = 1e-10;
+static const double eps_res_abs = 1e-12;
 
-// Functions and mappings for 6-node triangles
+// Parametric slack on [-1, 1]^2 for final acceptance
+static const double eps_param_accept = 1e-6;
+// Trust region: abort the Newton seed if (xi, eta) leaves this box
+static const double xi_eta_trust = 1.6;
 
-static Eigen::Matrix<double, 3, 2> get_face_Jacobian(double g, double h, 
-    const std::vector<EiVector3d>& nodes) {
-    /* 
-    Function to compute the Jacobian matrix of a TRI6 triangle at a given point in barycentric coordinates.
+// Newton iteration budget
+static const int iter_max = 30;
+// Backtracking line-search budget per Newton step
+static const int backtrack_max = 8;
+static const double backtrack_factor= 0.5;
 
-    Parameters
-    ----------
-    g : double
-        First barycentric coordinate
-    h : double
-        Second barycentric coordinate
-    nodes : const std::vector<EiVector3d>
-        Triangle node coordinates
+/* ********************************************** 
+ *  QUAD9
+********************************************** */
 
-    Returns
-    -------
-    Eigen::Matrix<double, 3, 2>
-        Jacobian matrix
-    */
-    double r = 1.0 - g - h;
-    // Derivatives of N wrt g and h
-    double dNdu[6] = { -(4*r-1), 4*g-1, 0, 4*(r-g), 4*h, -4*h };
-    double dNdv[6] = { -(4*r-1), 0, 4*h-1, -4*g, 4*g, 4*(r-h) };
-
-    Eigen::Matrix<double, 3, 2> J = Eigen::Matrix<double, 3, 2>::Zero();
-    for (int i = 0; i < 6; ++i) {
-        J.col(0) += nodes[i] * dNdu[i];
-        J.col(1) += nodes[i] * dNdv[i];
+// Evaluate S(xi, eta) = sum_i N_i(xi, eta) * x_i for the 9 quad9 nodes.
+static inline EiVector3d evaluate_surface_quad9(const double xi, const double eta,
+        const std::vector<EiVector3d>& nodes) {
+    const std::array<double, ElementNodeCount::QUAD9> N = compute_shape_quad9(xi, eta);
+    EiVector3d S = EiVector3d::Zero();
+    for (int i = 0; i < ElementNodeCount::QUAD9; ++i) {
+        S += N[i] * nodes[i];
     }
-    return J;
+    return S;
 }
+
+static inline void quad9_node_xi_eta(Eigen::Vector2d out[9]) {
+    // Parametric (xi, eta) of each QUAD9 node, in shape-function index order
+    out[0] = Eigen::Vector2d(-1.0, -1.0); // Bottom left corner
+    out[1] = Eigen::Vector2d( 1.0, -1.0); // Bottom right corner
+    out[2] = Eigen::Vector2d( 1.0,  1.0); // Top right corner
+    out[3] = Eigen::Vector2d(-1.0,  1.0); // Top left corner
+    out[4] = Eigen::Vector2d( 0.0, -1.0); // Bottom mid
+    out[5] = Eigen::Vector2d( 1.0,  0.0); // Right mid
+    out[6] = Eigen::Vector2d( 0.0,  1.0); // Top mid
+    out[7] = Eigen::Vector2d(-1.0,  0.0); // Left mid
+    out[8] = Eigen::Vector2d( 0.0,  0.0); // Centre
+}
+
+// 8-triangle fan around index 8 (centre node)
+static const int quad_sub_tris[8][3] = {
+    {0, 4, 8}, {4, 1, 8},
+    {1, 5, 8}, {5, 2, 8},
+    {2, 6, 8}, {6, 3, 8},
+    {3, 7, 8}, {7, 0, 8}
+};
+
+void load_quad9(const std::vector<double>& node_coords,
+    const unsigned int bvh_node_quad_count,
+    std::vector<QUAD9_GROUP>& out) {
+
+    static const int NODES_PER_ELEMENT  = ElementNodeCount::QUAD9;
+    static const int COORDS_PER_ELEMENT = NODES_PER_ELEMENT * NODE_COORDINATES;
+
+    for (unsigned int element = 0; element < bvh_node_quad_count; ++element) {
+        std::vector<EiVector3d> nodes;
+        std::vector<double> flat;
+        const int base = element * COORDS_PER_ELEMENT;
+
+        for (int i = 0; i < NODES_PER_ELEMENT; ++i) {
+            EiVector3d node(0, 0, 0);
+            node(0) = node_coords[base + i * NODE_COORDINATES + 0];
+            node(1) = node_coords[base + i * NODE_COORDINATES + 1];
+            node(2) = node_coords[base + i * NODE_COORDINATES + 2];
+            nodes.emplace_back(node);
+            flat.push_back(node(0));
+            flat.push_back(node(1));
+            flat.push_back(node(2));
+        }
+        out.emplace_back(nodes, flat);
+    }
+}
+
+double intersect_quad9(const Ray& ray,
+    const std::vector<EiVector3d>& nodes,
+    const std::vector<double>& node_coords_flat,
+    EiVector3d& surface_normals_out,
+    Eigen::Vector2d& xi_eta_out) {
+
+    // Element-scale residual tolerance
+    const double diagonal = find_element_diagonal(nodes);
+    double res_tol_local = eps_res_rel * diagonal; // Scaled tolerance for residuals based on the element diagonal
+    if (res_tol_local < eps_res_abs) res_tol_local = eps_res_abs;
+
+    // Parametric coordinates of every node, used to recover (xi, eta) from sub-triangle barycentrics
+    Eigen::Vector2d xi_eta_table[9];
+    quad9_node_xi_eta(xi_eta_table);
+
+    // Best hit found so far across all seeds
+    double best_t = std::numeric_limits<double>::infinity();
+    Eigen::Vector2d best_xi_eta(0.0, 0.0);
+    bool have_hit = false;
+
+    // Iterate over sub-triangle fan, run MT to get seeds, then Newton
+    for (int s = 0; s < 8; ++s) {
+        const EiVector3d nodes_0 = nodes[quad_sub_tris[s][0]];
+        const EiVector3d nodes_1 = nodes[quad_sub_tris[s][1]];
+        const EiVector3d nodes_2 = nodes[quad_sub_tris[s][2]];
+
+        const EiVector3d edge1 = nodes_1 - nodes_0;
+        const EiVector3d edge2 = nodes_2 - nodes_0;
+
+        // Moller-Trumbore TRI3 intersection
+        const EiVector3d pvec = cross_rowwise_vec3(ray.direction, edge2);
+        const double det = edge1.dot(pvec);
+        if (std::fabs(det) < eps_sub_det) continue;
+        const double inv_det = 1.0 / det;
+
+        const EiVector3d tvec = ray.origin - nodes_0;
+        const double u_sub = tvec.dot(pvec) * inv_det;
+        if (u_sub < -eps_sub_bary || u_sub > 1.0 + eps_sub_bary) continue;
+
+        const EiVector3d qvec = cross_rowwise_vec3(tvec, edge1);
+        const double v_sub = ray.direction.dot(qvec) * inv_det;
+        if (v_sub < -eps_sub_bary || (u_sub + v_sub) > 1.0 + eps_sub_bary) continue;
+
+        const double t_sub = edge2.dot(qvec) * inv_det;
+        if (t_sub <= eps_t_min) continue;
+
+        // Initial guess in (xi, eta), via linear interpolation of the sub-triangle vertices' parametric coordinates
+        const double w_sub = 1.0 - u_sub - v_sub;
+        Eigen::Vector2d xi_eta_guess =
+              w_sub * xi_eta_table[quad_sub_tris[s][0]]
+            + u_sub * xi_eta_table[quad_sub_tris[s][1]]
+            + v_sub * xi_eta_table[quad_sub_tris[s][2]];
+
+        // Skip seeds that cannot improve on the current best
+        if (t_sub >= best_t) continue;
+
+        // Damped Newton on F(t, xi, eta) = O + t*D - S(xi, eta)
+        double t = t_sub;
+        double xi = xi_eta_guess.x();
+        double eta = xi_eta_guess.y();
+
+        EiVector3d S = evaluate_surface_quad9(xi, eta, nodes);
+        Eigen::Vector3d residual = (ray.origin + t * ray.direction).transpose() - S.transpose();
+        double res_norm = residual.norm();
+        bool converged = false;
+
+        for (int it = 0; it < iter_max; ++it) {
+            if (res_norm < res_tol_local) {
+                converged = true;
+                break;
+            }
+
+            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad9(xi, eta, node_coords_flat);
+
+            Eigen::Matrix3d M;
+            M.col(0) = ray.direction.transpose();
+            M.col(1) = -J.col(0);
+            M.col(2) = -J.col(1);
+
+            Eigen::Vector3d delta;
+            if (!solve_3x3(M, -residual, delta)) break; // Singular
+
+            // Backtracking line search on ||F|| to prevent divergence near folded surfaces
+            double step = 1.0;
+            bool step_ok = false;
+            for (int bt = 0; bt < backtrack_max; ++bt) {
+                const double t_n = t + step * delta(0);
+                const double xi_n = xi + step * delta(1);
+                const double eta_n = eta + step * delta(2);
+
+                if (std::fabs(xi_n)  > xi_eta_trust ||
+                    std::fabs(eta_n) > xi_eta_trust) {
+                    step *= backtrack_factor;
+                    continue;
+                }
+
+                const EiVector3d S_n = evaluate_surface_quad9(xi_n, eta_n, nodes);
+                const Eigen::Vector3d res_n = (ray.origin + t_n * ray.direction).transpose() - S_n.transpose();
+                const double n_n = res_n.norm();
+
+                if (n_n < res_norm) {
+                    t = t_n;
+                    xi = xi_n;
+                    eta = eta_n;
+                    residual = res_n;
+                    res_norm = n_n;
+                    step_ok = true;
+                    break;
+                }
+                step *= backtrack_factor;
+            }
+            if (!step_ok) break; // No progress on this seed
+        }
+        // Last-chance acceptance after exhausting iterations
+        if (!converged && res_norm < res_tol_local) converged = true;
+        if (!converged) continue;
+
+        // Final acceptance gates
+        if (t <= eps_t_min) continue;
+        if (t < ray.t_min || t > ray.t_max) continue;
+        if (std::fabs(xi)  > 1.0 + eps_param_accept) continue;
+        if (std::fabs(eta) > 1.0 + eps_param_accept) continue;
+
+        if (t < best_t) {
+            best_t = t;
+            best_xi_eta = Eigen::Vector2d(xi, eta);
+            have_hit = true;
+        }
+    }
+
+    if (!have_hit) return std::numeric_limits<double>::infinity();
+
+    // Geometric normal at the converged hit, from the true quadratic Jacobian
+    Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad9(best_xi_eta.x(), best_xi_eta.y(), node_coords_flat);
+    EiVector3d normal = (J_hit.col(0).cross(J_hit.col(1))).transpose().normalized();
+
+    surface_normals_out = normal;
+    xi_eta_out = best_xi_eta;
+    return best_t;
+}
+
+/* ********************************************** 
+ *  QUAD8
+********************************************** */
+// Same structure as QUAD9, but:
+// - Shape-function set has 8 entries (no centre node),
+// - We synthesise a proxy centre at (xi, eta) = (0, 0) from the average of
+//   the 4 mid-edge nodes (closer to the true serendipity surface centre
+//   than the corner average), purely for the sub-triangle fan seed step.
+// - Newton residual still uses the true 8-node surface S(xi, eta)
+
+static inline EiVector3d evaluate_surface_quad8(const double xi, const double eta,
+        const std::vector<EiVector3d>& nodes) {
+
+    const std::array<double, ElementNodeCount::QUAD8> N = compute_shape_quad8(xi, eta);
+    EiVector3d S = EiVector3d::Zero();
+    for (int i = 0; i < ElementNodeCount::QUAD8; ++i) {
+        S += N[i] * nodes[i];
+    }
+    return S;
+}
+
+void load_quad8(const std::vector<double>& node_coords,
+    const unsigned int bvh_node_quad_count,
+    std::vector<QUAD8_GROUP>& out) {
+
+    static const int NODES_PER_ELEMENT = ElementNodeCount::QUAD8;
+    static const int COORDS_PER_ELEMENT = NODES_PER_ELEMENT * NODE_COORDINATES;
+
+    for (unsigned int element = 0; element < bvh_node_quad_count; ++element) {
+        std::vector<EiVector3d> nodes;
+        std::vector<double> flat;
+        const int base = element * COORDS_PER_ELEMENT;
+
+        for (int i = 0; i < NODES_PER_ELEMENT; ++i) {
+            EiVector3d node(0, 0, 0);
+            node(0) = node_coords[base + i * NODE_COORDINATES + 0];
+            node(1) = node_coords[base + i * NODE_COORDINATES + 1];
+            node(2) = node_coords[base + i * NODE_COORDINATES + 2];
+            nodes.emplace_back(node);
+            flat.push_back(node(0));
+            flat.push_back(node(1));
+            flat.push_back(node(2));
+        }
+        out.emplace_back(nodes, flat);
+    }
+}
+
+double intersect_quad8(const Ray& ray,
+    const std::vector<EiVector3d>& nodes,
+    const std::vector<double>& node_coords_flat,
+    EiVector3d& surface_normals_out,
+    Eigen::Vector2d& xi_eta_out) {
+
+    const double diagonal = find_element_diagonal(nodes);
+    double res_tol_local = eps_res_rel * diagonal;
+    if (res_tol_local < eps_res_abs) res_tol_local = eps_res_abs;
+
+    // Build the 9-entry proxy: 8 quad nodes + synthesised centre at index 8
+    // The synthesised centre is only used for the sub-triangle fan; the Newton residual uses the real 8-node surface
+    EiVector3d proxy_nodes[9];
+    Eigen::Vector2d xi_eta_table[9];
+    // Copy nodes to proxy nodes to differentiate between real data and the vector where we added computed 9-th centre node
+    for (int i = 0; i < 8; ++i){
+        proxy_nodes[i] = nodes[i];
+    } 
+    proxy_nodes[8] = 0.25 * (nodes[4] + nodes[5] + nodes[6] + nodes[7]);
+
+    xi_eta_table[0] = Eigen::Vector2d(-1.0, -1.0);
+    xi_eta_table[1] = Eigen::Vector2d( 1.0, -1.0);
+    xi_eta_table[2] = Eigen::Vector2d( 1.0,  1.0);
+    xi_eta_table[3] = Eigen::Vector2d(-1.0,  1.0);
+    xi_eta_table[4] = Eigen::Vector2d( 0.0, -1.0);
+    xi_eta_table[5] = Eigen::Vector2d( 1.0,  0.0);
+    xi_eta_table[6] = Eigen::Vector2d( 0.0,  1.0);
+    xi_eta_table[7] = Eigen::Vector2d(-1.0,  0.0);
+    xi_eta_table[8] = Eigen::Vector2d( 0.0,  0.0);
+
+    double best_t = std::numeric_limits<double>::infinity();
+    Eigen::Vector2d best_xi_eta(0.0, 0.0);
+    bool have_hit = false;
+
+    for (int s = 0; s < 8; ++s) {
+        const EiVector3d nodes_0 = proxy_nodes[quad_sub_tris[s][0]];
+        const EiVector3d nodes_1 = proxy_nodes[quad_sub_tris[s][1]];
+        const EiVector3d nodes_2 = proxy_nodes[quad_sub_tris[s][2]];
+
+        const EiVector3d edge1 = nodes_1 - nodes_0;
+        const EiVector3d edge2 = nodes_2 - nodes_0;
+
+        const EiVector3d pvec = cross_rowwise_vec3(ray.direction, edge2);
+        const double det = edge1.dot(pvec);
+        if (std::fabs(det) < eps_sub_det) continue;
+        const double inv_det = 1.0 / det;
+
+        const EiVector3d tvec = ray.origin - nodes_0;
+        const double u_sub = tvec.dot(pvec) * inv_det;
+        if (u_sub < -eps_sub_bary || u_sub > 1.0 + eps_sub_bary) continue;
+
+        const EiVector3d qvec = cross_rowwise_vec3(tvec, edge1);
+        const double v_sub = ray.direction.dot(qvec) * inv_det;
+        if (v_sub < -eps_sub_bary || (u_sub + v_sub) > 1.0 + eps_sub_bary) continue;
+
+        const double t_sub = edge2.dot(qvec) * inv_det;
+        if (t_sub <= eps_t_min) continue;
+
+        const double w_sub = 1.0 - u_sub - v_sub;
+        Eigen::Vector2d xi_eta_guess =
+              w_sub * xi_eta_table[quad_sub_tris[s][0]]
+            + u_sub * xi_eta_table[quad_sub_tris[s][1]]
+            + v_sub * xi_eta_table[quad_sub_tris[s][2]];
+
+        if (t_sub >= best_t) continue;
+
+        // Newton on the true quad8 surface
+        double t = t_sub;
+        double xi = xi_eta_guess.x();
+        double eta = xi_eta_guess.y();
+
+        EiVector3d S = evaluate_surface_quad8(xi, eta, nodes);
+        Eigen::Vector3d residual = (ray.origin + t * ray.direction).transpose() - S.transpose();
+        double res_norm = residual.norm();
+        bool converged = false;
+
+        for (int it = 0; it < iter_max; ++it) {
+            if (res_norm < res_tol_local) {
+                converged = true;
+                break;
+            }
+
+            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad8(xi, eta, node_coords_flat);
+
+            Eigen::Matrix3d M;
+            M.col(0) =  ray.direction.transpose();
+            M.col(1) = -J.col(0);
+            M.col(2) = -J.col(1);
+
+            Eigen::Vector3d delta;
+            if (!solve_3x3(M, -residual, delta)) break;
+
+            // Backtracking line search on ||F|| to prevent divergence near folded surfaces
+            double step = 1.0;
+            bool   step_ok = false;
+            for (int bt = 0; bt < backtrack_max; ++bt) {
+                const double t_n = t + step * delta(0);
+                const double xi_n = xi + step * delta(1);
+                const double eta_n = eta + step * delta(2);
+
+                if (std::fabs(xi_n)  > xi_eta_trust ||
+                    std::fabs(eta_n) > xi_eta_trust) {
+                    step *= backtrack_factor;
+                    continue;
+                }
+
+                const EiVector3d S_n = evaluate_surface_quad8(xi_n, eta_n, nodes);
+                const Eigen::Vector3d res_n = (ray.origin + t_n * ray.direction).transpose() - S_n.transpose();
+                const double n_n = res_n.norm();
+
+                if (n_n < res_norm) {
+                    t = t_n;
+                    xi = xi_n;
+                    eta = eta_n;
+                    residual = res_n;
+                    res_norm = n_n;
+                    step_ok = true;
+                    break;
+                }
+                step *= backtrack_factor;
+            }
+            if (!step_ok) break;
+        }
+        if (!converged && res_norm < res_tol_local) converged = true;
+        if (!converged) continue;
+
+        if (t <= eps_t_min) continue;
+        if (t < ray.t_min || t > ray.t_max) continue;
+        if (std::fabs(xi)  > 1.0 + eps_param_accept) continue;
+        if (std::fabs(eta) > 1.0 + eps_param_accept) continue;
+
+        if (t < best_t) {
+            best_t      = t;
+            best_xi_eta = Eigen::Vector2d(xi, eta);
+            have_hit    = true;
+        }
+    }
+
+    if (!have_hit) return std::numeric_limits<double>::infinity();
+
+    Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad8(
+        best_xi_eta.x(), best_xi_eta.y(), node_coords_flat);
+    EiVector3d normal = (J_hit.col(0).cross(J_hit.col(1))).transpose().normalized();
+
+    surface_normals_out = normal;
+    xi_eta_out = best_xi_eta;
+    return best_t;
+}
+
+// Same structure as intersect_bvh_tri6: load, loop, pack outputs.
+// The two wrappers are duplicated rather than templated to keep the code as
+// flat as the TRI6 case.
+
+IntersectionOutput intersect_bvh_quad9(const Ray& ray,
+    const std::vector<double>& node_coords,
+    const unsigned int bvh_node_quad_count) {
+
+    // Load element data
+    std::vector<QUAD9_GROUP> group;
+    load_quad9(node_coords, bvh_node_quad_count, group);
+
+    // Default "no intersection" output
+    IntersectionOutput negative_output{
+        Eigen::ArrayXXd(bvh_node_quad_count, NODE_COORDINATES),
+        EiVectorD3d::Zero(bvh_node_quad_count, NODE_COORDINATES),
+        Eigen::Vector<double, Eigen::Dynamic>::Constant(
+            bvh_node_quad_count, 1, std::numeric_limits<double>::infinity())
+    };
+
+    EiVectorD3d geometric_normals = EiVectorD3d::Zero(bvh_node_quad_count, 3);
+    Eigen::ArrayXXd t_values(bvh_node_quad_count, 1);
+    Eigen::ArrayXXd xi_values(bvh_node_quad_count, 1);
+    Eigen::ArrayXXd eta_values(bvh_node_quad_count, 1);
+
+    for (unsigned int e = 0; e < bvh_node_quad_count; ++e) {
+        EiVector3d n_tmp;
+        Eigen::Vector2d xe_tmp;
+        const double t = intersect_quad9(ray, group[e].nodes, group[e].node_coords, n_tmp, xe_tmp);
+
+        t_values  (e, 0) = t;
+        xi_values (e, 0) = xe_tmp.x();
+        eta_values(e, 0) = xe_tmp.y();
+        if (std::isfinite(t)) {
+            for (int k = 0; k < 3; ++k){
+                geometric_normals(e, k) = n_tmp(k);
+            }
+        }
+    }
+
+    // Mask out anything outside the ray segment
+    Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> valid_mask =
+        (t_values > 0.0) && (t_values >= ray.t_min) && (t_values <= ray.t_max);
+    if (!valid_mask.any()) return negative_output;
+
+    for (Eigen::Index i = 0; i < t_values.rows(); ++i) {
+        for (Eigen::Index j = 0; j < t_values.cols(); ++j) {
+            if (!valid_mask(i, j)) {
+                t_values(i, j) = std::numeric_limits<double>::infinity();
+            }
+        }
+    }
+
+    // Pack output: (u, v, 0) with u = (xi+1)/2, v = (eta+1)/2
+    Eigen::ArrayXXd quad_coords = Eigen::ArrayXXd::Zero(bvh_node_quad_count, NODE_COORDINATES);
+    quad_coords.col(0) = 0.5 * (xi_values.col(0)  + 1.0);
+    quad_coords.col(1) = 0.5 * (eta_values.col(0) + 1.0);
+    // Column 2 left at 0
+
+    return IntersectionOutput{ quad_coords, geometric_normals, t_values };
+}
+
+IntersectionOutput intersect_bvh_quad8(const Ray& ray,
+    const std::vector<double>& node_coords,
+    const unsigned int bvh_node_quad_count) {
+
+    std::vector<QUAD8_GROUP> group;
+    load_quad8(node_coords, bvh_node_quad_count, group);
+
+    IntersectionOutput negative_output{
+        Eigen::ArrayXXd(bvh_node_quad_count, NODE_COORDINATES),
+        EiVectorD3d::Zero(bvh_node_quad_count, NODE_COORDINATES),
+        Eigen::Vector<double, Eigen::Dynamic>::Constant(bvh_node_quad_count, 1, std::numeric_limits<double>::infinity())};
+
+    EiVectorD3d geometric_normals = EiVectorD3d::Zero(bvh_node_quad_count, 3);
+    Eigen::ArrayXXd t_values(bvh_node_quad_count, 1);
+    Eigen::ArrayXXd xi_values(bvh_node_quad_count, 1);
+    Eigen::ArrayXXd eta_values(bvh_node_quad_count, 1);
+
+    for (unsigned int e = 0; e < bvh_node_quad_count; ++e) {
+        EiVector3d n_tmp;
+        Eigen::Vector2d xe_tmp;
+        const double t = intersect_quad8(ray, group[e].nodes,group[e].node_coords, n_tmp, xe_tmp);
+
+        t_values  (e, 0) = t;
+        xi_values (e, 0) = xe_tmp.x();
+        eta_values(e, 0) = xe_tmp.y();
+        if (std::isfinite(t)) {
+            for (int k = 0; k < 3; ++k){
+                geometric_normals(e, k) = n_tmp(k);
+            } 
+        }
+    }
+
+    Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> valid_mask =
+        (t_values > 0.0) && (t_values >= ray.t_min) && (t_values <= ray.t_max);
+    if (!valid_mask.any()) return negative_output;
+
+    for (Eigen::Index i = 0; i < t_values.rows(); ++i) {
+        for (Eigen::Index j = 0; j < t_values.cols(); ++j) {
+            if (!valid_mask(i, j)) {
+                t_values(i, j) = std::numeric_limits<double>::infinity();
+            }
+        }
+    }
+
+    Eigen::ArrayXXd quad_coords = Eigen::ArrayXXd::Zero(bvh_node_quad_count, NODE_COORDINATES);
+    quad_coords.col(0) = 0.5 * (xi_values.col(0)  + 1.0);
+    quad_coords.col(1) = 0.5 * (eta_values.col(0) + 1.0);
+
+    return IntersectionOutput{ quad_coords, geometric_normals, t_values };
+}
+
+/* ********************************************** 
+ *  TRI6
+********************************************** */
 
 // Mapping for sub-triangulation (indices within the 6-node nodes vector)
 // Quadratic layout: 0,1,2 are corners; 3,4,5 are midpoints of (0-1), (1-2), (2-0)
@@ -806,20 +859,20 @@ Eigen::Vector2d nodes_gh[6] = {
     {0,0}, {1,0}, {0,1}, {0.5,0}, {0.5,0.5}, {0,0.5}
 };
 
-double intersect_tri6(const Ray &r,
+double intersect_tri6(const Ray &ray,
     const std::vector<EiVector3d> nodes,
-    EiVector3d &n_out,
+    EiVector3d &surface_normals_out,
     Eigen::Vector2d &uv) {
     /* 
     Function to find intersection between one TRI6 triangle and a ray.
 
     Parameters
     ----------
-    r : const Ray
+    ray : const Ray
         Ray with which the intersection is found
     nodes : const std::vector<EiVector3d>
         Triangle node coordinates
-    n_out : EiVector3d
+    surface_normals_out : EiVector3d
         Empty vector to which the normal at the intersection point should be loaded
     uv : Eigen::Vector2d
         Empty vector to which the triangle-relative UV coordinates at the intersection point should be loaded
@@ -835,8 +888,6 @@ double intersect_tri6(const Ray &r,
     const double eps_init_guess2 = 0.1;
     const double eps_t = 1e-5;
 
-    const int iter_max = 50;
-
     const double eps_sol1 = 1e-7;
     const double eps_sol2 = 1e-8;
     const double eps_sol3 = 1e-10;
@@ -850,29 +901,29 @@ double intersect_tri6(const Ray &r,
     bool found_guess = false;
 
     for (int s = 0; s < 4; ++s) {
-        EiVector3d v0 = nodes[sub_tris[s][0]];
-        EiVector3d v1 = nodes[sub_tris[s][1]];
-        EiVector3d v2 = nodes[sub_tris[s][2]];
+        EiVector3d nodes_0 = nodes[sub_tris[s][0]];
+        EiVector3d nodes_1 = nodes[sub_tris[s][1]];
+        EiVector3d nodes_2 = nodes[sub_tris[s][2]];
 
-        EiVector3d edge1 = v1 - v0;
-        EiVector3d edge2 = v2 - v0;
+        EiVector3d edge1 = nodes_1 - nodes_0;
+        EiVector3d edge2 = nodes_2 - nodes_0;
 
         EiVector3d pvec =
-            (cross_rowwise(r.direction, edge2));
+            (cross_rowwise(ray.direction, edge2));
 
         double det = edge1.dot(pvec);
         if (fabs(det) < eps_init_guess1) continue;
 
         double invDet = 1.0 / det;
 
-        EiVector3d tvec = r.origin - v0;
+        EiVector3d tvec = ray.origin - nodes_0;
         double u_sub = tvec.dot(pvec) * invDet;
         if (u_sub < 0 - eps_init_guess2 || u_sub > 1 + eps_init_guess2) continue;
 
         EiVector3d qvec =
             (cross_rowwise(tvec, edge1));
 
-        double v_sub = r.direction.dot(qvec) * invDet;
+        double v_sub = ray.direction.dot(qvec) * invDet;
         if (v_sub < 0 - eps_init_guess2 || (u_sub + v_sub) > 1 + eps_init_guess2) continue;
 
         double t_sub = edge2.dot(qvec) * invDet;
@@ -896,15 +947,15 @@ double intersect_tri6(const Ray &r,
         double t = best_sub_t;
 
         for (int iter = 0; iter < iter_max; ++iter) {
-            Eigen::VectorXd N = get_face_N(gh.x(), gh.y());
+            Eigen::VectorXd N = compute_shape_tri6(gh.x(), gh.y());
     
             EiVector3d P = EiVector3d::Zero();
             for (int i = 0; i < 6; ++i)
                 P += N[i] * nodes[i];
     
-            EiVector3d res = r.origin + t * r.direction - P;
+            EiVector3d residual = ray.origin + t * ray.direction - P;
     
-            if (res.norm() < eps_sol1) {
+            if (residual.norm() < eps_sol1) {
                 if (gh.x() >= 0 - eps_sol2 &&
                     gh.y() >= 0 - eps_sol2 &&
                     (gh.x() + gh.y()) <= 1 + eps_sol2)
@@ -913,16 +964,16 @@ double intersect_tri6(const Ray &r,
                             min_t = t;
         
                             Eigen::Matrix<double, 3, 2> J =
-                                get_face_Jacobian(gh.x(), gh.y(), nodes);
+                                get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
         
                             EiVector3d normal =
                                 (J.col(0).cross(J.col(1))).transpose().normalized();
         
                             /*
-                            if (normal.dot(r.direction) > 0)
+                            if (normal.dot(ray.direction) > 0)
                                 normal = -normal;
                             */
-                            n_out = normal;
+                            surface_normals_out = normal;
                             uv = gh;
                             intersect = true;
                         }
@@ -931,16 +982,16 @@ double intersect_tri6(const Ray &r,
             }
     
             Eigen::Matrix<double, 3, 2> J =
-                get_face_Jacobian(gh.x(), gh.y(), nodes);
+                get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
     
             Eigen::Matrix3d M;
-            M.col(0) = r.direction.transpose();
+            M.col(0) = ray.direction.transpose();
             M.col(1) = -J.col(0);
             M.col(2) = -J.col(1);
     
             if (std::abs(M.determinant()) < eps_sol3) break;
     
-            Eigen::Vector3d delta = M.inverse() * (-res.transpose());
+            Eigen::Vector3d delta = M.inverse() * (-residual.transpose());
     
             t += delta.x();
             gh.x() += delta.y();
@@ -953,24 +1004,6 @@ double intersect_tri6(const Ray &r,
 
     return intersect ? min_t : std::numeric_limits<double>::infinity();
 }
-
-struct TRI6_GROUP {
-    /* 
-    TRI6 structure to store TRI6 triangle group in a vector-based format.
-
-    Parameters
-    ----------
-    node_ : std::vector<EiVector3d>
-        Node coordinates of all triangles to be contained in the structure  
-
-    */
-
-    std::vector<EiVector3d> nodes;
-
-    TRI6_GROUP(std::vector<EiVector3d> nodes_) :
-        nodes(nodes_) {}
-};
-
 
 void load_tri6(const std::vector<double>& node_coords,
     const unsigned int bvh_node_triangle_count,
@@ -1105,6 +1138,10 @@ IntersectionOutput intersect_bvh_tri6(const Ray& ray,
 
 }
 
+/* ********************************************** 
+ *  AABB
+********************************************** */
+
 bool intersect_AABB (const Ray& ray, const AABB& AABB) {
     // Slab method for ray-AABB intersection
     double t_axis[6]; // t values for each axis, so [0,1] are for x, [2,3] for y, and [4,5] for z
@@ -1136,6 +1173,10 @@ bool intersect_AABB (const Ray& ray, const AABB& AABB) {
     return t_min <= t_max && t_max > 0.0 && t_min < ray.t_max; // False => No overlap => Ray does not intersect the AABB.
 }
 
+/* ********************************************** 
+ *  BLAS and TLAS
+********************************************** */
+
 void intersect_BLAS(const Ray& ray,
     const BLAS& mesh_bvh,
     IntersectionOutput& out_intersection,
@@ -1161,6 +1202,8 @@ void intersect_BLAS(const Ray& ray,
 
      while(!stack.empty()){
         const BLAS_Node& Node = mesh_bvh.tree_nodes[stack.back()];
+        int node_id = stack.back();
+        //std::cout << "Intersecting BLAS node ID: " << node_id << std::endl;
         stack.pop_back();
 
         if (!intersect_AABB(ray, Node.bounding_box)) continue; // Early exit if ray does not intersect the AABB of the node

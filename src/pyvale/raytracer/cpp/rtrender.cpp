@@ -13,7 +13,7 @@
 // raytracer header files
 #include "rtrender.h"
 #include "rthitrecord.h"
-#include "rtrayintersection.h"I
+#include "rtrayintersection.h"
 #include "rtmathutils.h"
 #include "rtmaterials.h"
 
@@ -47,7 +47,12 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
             total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
             continue;
         }
-
+        /*
+        if (current_state.depth == 0){
+            std::cerr << "PRIMARY ray direction: " << current_ray.direction.x() << ", " << current_ray.direction.y() << ", " << current_ray.direction.z() << std::endl;
+            std::cerr << "PRIMARY ray origin: " << current_ray.origin.x() << ", " << current_ray.origin.y() << ", " << current_ray.origin.z() << std::endl;
+        }
+        */  
         // Set and normalize surface and shading normals - had to move this inside the specific material functions as flipping here broke the logic for refractive materials
         //set_face_normal(current_ray, intersection_record.normal_surface);
         //set_face_normal(current_ray, intersection_record.normal_shading);
@@ -299,6 +304,8 @@ void render_ppm_image(const EiVector3d& camera_center,
                 //pixel_color += return_ray_color_new(current_ray, TLAS);
                 pixel_color += return_ray_color_stack(current_ray, scene_ri, TLAS);
             }
+            // Get the RGB components of the pixel color (in [0,1] range) and convert them to a single-channel grayscale
+            //std::clamp(pixel_color[0], 0.0, 0.999);
             double gray = 0.2126 * pixel_color[0] + 0.7152 * pixel_color[1] + 0.0722 * pixel_color[2];
             int gray_byte = int(gray / number_of_samples * 255.99);
             buffer.push_back(static_cast<uint8_t>(gray_byte));
@@ -320,4 +327,90 @@ void render_ppm_image(const EiVector3d& camera_center,
 
     image_file.close();
     std::cout << "\r Done. \n";
+}
+
+
+void render_ppm_image_color(const EiVector3d& camera_center,
+    const EiVector3d& pixel_00_center,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_defocus_disc,
+    const TLAS& TLAS,
+    const int image_height,
+    const int image_width,
+    const int number_of_samples,
+    const double scene_ri,
+    const std::filesystem::path output_filepath) {
+    // Get camera parameters from the dict and cast it to Eigen types so it works with existing code; by reference to avoid copying data
+
+    std::vector<uint8_t> buffer;
+    buffer.reserve(image_width * image_height * 12); // Preallocate memory for the image buffer (conservatively)
+
+    for (int j = 0; j < image_height; j++) {
+        //std::cerr << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush << std::endl;
+        for (int i = 0; i < image_width; i++) {
+            EiVector3d pixel_color = EiVector3d::Zero();
+            for (int k = 0; k < number_of_samples; k++) {
+                double offset[2] = { random_double() - 0.5, random_double() - 0.5 };
+                EiVector3d pixel_sample = pixel_00_center +
+                    (i + offset[0]) * matrix_pixel_spacing.row(0) +
+                    (j + offset[1]) * matrix_pixel_spacing.row(1);
+                std::array<double, 2> defocus_disc_offset = point_in_unit_disk();
+                EiVector3d defocus_disc_sample = defocus_disc_offset[0] * matrix_defocus_disc.row(0) + defocus_disc_offset[1] * matrix_defocus_disc.row(1);
+                EiVector3d ray_origin = camera_center + defocus_disc_sample; // ray direction in thin lens approx
+                EiVector3d ray_direction = pixel_sample - ray_origin; // ray direction in thin lens approx
+                //EiVector3d ray_origin = camera_center; // ray origin in pinhole camera mode
+                //EiVector3d ray_direction = pixel_sample - camera_center; // ray direction in pinhole camera mode;
+                //Ray current_ray{ ray_origin, ray_direction.normalized() };
+                Ray current_ray{ ray_origin, ray_direction};
+                //pixel_color += return_ray_color(current_ray, TLAS);
+                //pixel_color += return_ray_color_new(current_ray, TLAS);
+                pixel_color += return_ray_color_stack(current_ray, scene_ri, TLAS);
+            }
+
+            // Get the RGB components of the pixel color (in [0,1] range) and convert them to the byte range [0,255]
+            //std::clamp(pixel_color[0], 0.0, 0.999);
+            pixel_color /= number_of_samples;
+            pixel_color *= 255.999;
+            buffer.push_back(static_cast<uint8_t>(pixel_color.x()));
+            buffer.push_back(static_cast<uint8_t>(pixel_color.y()));
+            buffer.push_back(static_cast<uint8_t>(pixel_color.z()));
+        }
+    }
+
+    std::ofstream image_file;
+
+    image_file.open(output_filepath);
+    if (!image_file.is_open()) {
+        std::cerr << "Failed to open the output file.\n";
+        return;
+    }
+
+    image_file << "P6\n" << image_width << ' ' << image_height << "\n255\n";
+    image_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+
+    image_file.close();
+    std::cout << "\r Done. \n";
+}
+
+
+void mock_ray_shoot(const EiVector3d& camera_center,
+    const EiVector3d& pixel_00_center,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_defocus_disc,
+    const TLAS& TLAS,
+    const int image_height,
+    const int image_width,
+    const int number_of_samples,
+    const double scene_ri,
+    const std::filesystem::path output_filepath) {
+    // Shoot a single mock ray to see what happens - helpful in debugging
+
+    Ray mock_ray;
+    //mock_ray.origin = EiVector3d(0.0, 0.0, 410.0); wedge tests
+    //mock_ray.direction = EiVector3d(0.15963, -0.0311445, -0.986686);
+    mock_ray.origin = EiVector3d(0.0, 0.0, 410.0); //normals tests
+    mock_ray.direction = EiVector3d(0.0814686, 0.171913, -0.981738);
+    EiVector3d pixel_color = EiVector3d::Zero();
+    pixel_color += return_ray_color_stack(mock_ray, scene_ri, TLAS);
+    std::cerr << "Final color: " << pixel_color.x() << ", " << pixel_color.y() << ", " << pixel_color.z() << std::endl;
 }

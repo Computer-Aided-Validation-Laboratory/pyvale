@@ -24,6 +24,9 @@ enum class TextureSampler{
     QUINTIC_SPLINE = 6
 };
 
+/* ********************************************** 
+ * Getters for color/texture values, etc.
+********************************************** */
 
 // Getter for (R,G,B) values for the intersected surface element if it uses solid colour
 inline EiVector3d get_face_color(Eigen::Index min_row_idx,
@@ -75,33 +78,28 @@ inline void get_face_uvs(Eigen::Index min_row_idx,
     //std::cerr << std::endl;
 }
 
-// Getter for node normals
-inline void get_face_normals(Eigen::Index min_row_idx,
-    const std::vector<double>& node_normals,
+// Getter for node normals and node coordinates
+inline void get_face_vectors(Eigen::Index min_row_idx,
+    const std::vector<double>& node_data, // Stored as [xyz, xyz, xyz...]
     int element_node_count,
-    double* out_element_normals) {
-    
-    /*
-    int base_idx = min_row_idx * NODE_COORDINATES * element_node_count;
-    EiVectorD3d node_normals = EiVectorD3d::Zero(element_node_count, NODE_COORDINATES); // Shape (nodes per element, 3)
-     for (int i = 0; i < element_node_count; ++i){
-        node_normals(i, 0) = node_normals[base_idx + i * NODE_COORDINATES]; // x
-        node_normals(i, 1) = node_normals[base_idx + i * NODE_COORDINATES + 1]; // y
-        node_normals(i, 2) = node_normals[base_idx + i * NODE_COORDINATES + 2]; // z
-    }
-    return node_normals;*/
+    double* out_element_vectors) {
+
      // Get node normals of the intersected face
     int base_idx = min_row_idx * NODE_COORDINATES * element_node_count;
     std::array<double, NODE_COORDINATES> element_node_normal;
 
     // Find the normal (x,y,z) for each node in the mesh element and write it in the passed output array
     for (int i = 0; i < element_node_count; i++){
-        out_element_normals[0 + i * NODE_COORDINATES] = node_normals[base_idx + i * NODE_COORDINATES]; // x
-        out_element_normals[1 + i * NODE_COORDINATES] = node_normals[base_idx + i * NODE_COORDINATES + 1]; // y
-        out_element_normals[2 + i * NODE_COORDINATES] = node_normals[base_idx + i * NODE_COORDINATES + 2]; // z
+        out_element_vectors[0 + i * NODE_COORDINATES] = node_data[base_idx + i * NODE_COORDINATES]; // x
+        out_element_vectors[1 + i * NODE_COORDINATES] = node_data[base_idx + i * NODE_COORDINATES + 1]; // y
+        out_element_vectors[2 + i * NODE_COORDINATES] = node_data[base_idx + i * NODE_COORDINATES + 2]; // z
     }
 }
 
+
+/* ********************************************** 
+ * Texture sampler
+********************************************** */
 
 namespace texsampler{
 
@@ -319,6 +317,7 @@ namespace texsampler{
         return output;
     }
    */
+  
     // Setter for the current function
     void set(TextureSampler sampler_type);
 }

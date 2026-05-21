@@ -43,3 +43,25 @@ void render_ppm_image(const EiVector3d &camera_center,
     const int number_of_samples,
     const double scene_ri,
     const std::filesystem::path output_filepath);
+
+void render_ppm_image_color(const EiVector3d& camera_center,
+    const EiVector3d& pixel_00_center,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_defocus_disc,
+    const TLAS& TLAS,
+    const int image_height,
+    const int image_width,
+    const int number_of_samples,
+    const double scene_ri,
+    const std::filesystem::path output_filepath);
+
+void mock_ray_shoot(const EiVector3d& camera_center,
+    const EiVector3d& pixel_00_center,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_defocus_disc,
+    const TLAS& TLAS,
+    const int image_height,
+    const int image_width,
+    const int number_of_samples,
+    const double scene_ri,
+    const std::filesystem::path output_filepath);

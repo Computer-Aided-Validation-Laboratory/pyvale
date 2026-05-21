@@ -284,7 +284,7 @@ void build_BLAS(BLAS &mesh_bvh,
     // DEBUG HINT: If your render isn't correct and you want to test the intersection without potential influences from the BVH, set MAX_ELEMENT_PER_LEAF
     // to mesh_element_count (just noting that you either have to read and hardcode the value or change type from constexpr)
     static constexpr int MAX_ELEMENTS_PER_LEAF = 4; // Max number of mesh faces per leaf node. According to research 4-16 range works best
-    //int MAX_ELEMENTS_PER_LEAF = mesh_element_count/2; // Max number of mesh faces per leaf node. According to research 4-16 range works best
+    //int MAX_ELEMENTS_PER_LEAF = mesh_element_count; // Max number of mesh faces per leaf node. According to research 4-16 range works best
 
     // DFS implementation so LIFO
     mesh_bvh.tree_nodes.clear();
@@ -523,6 +523,7 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
                 Node.node_normals.push_back(mesh_node_normals_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES]); // x
                 Node.node_normals.push_back(mesh_node_normals_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES + 1]); // y
                 Node.node_normals.push_back(mesh_node_normals_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES + 2]); // z
+                //std::cout << "Node normals: " << mesh_node_normals_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES] << " " << mesh_node_normals_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES + 1] << " " << mesh_node_normals_expanded_ptr[original_element_idx_at_t + j * NODE_COORDINATES + 2] << std::endl;
                 // (u,v) for texturing
                 Node.face_color.push_back(mesh_uvs_ptr[uv_idx_at_t + j * UV_COORDINATES]); // u
                 Node.face_color.push_back(mesh_uvs_ptr[uv_idx_at_t + j * UV_COORDINATES + 1]); // v 
@@ -532,8 +533,9 @@ void copy_data_to_BLAS_node_tex(BLAS &mesh_bvh,
                 //Node.material.push_back(mesh_material);
             }
             
-            /* DEBUG VERSION. Does the same thing, but says very explicitly the indices, so they can be compared against a flat array in Python to see retrieved values etc.
+            //DEBUG VERSION. Does the same thing, but says very explicitly the indices, so they can be compared against a flat array in Python to see retrieved values etc.
             // Copy all uv coordinates for the mesh element
+            /*
             std::cout << "\t UVs for this element: " << std::endl;
             std:: cout << "\t UV idx at t: " << uv_idx_at_t << std::endl;
             for (int j = 0; j < Node.nodes_per_element; ++j){
@@ -604,18 +606,17 @@ void copy_data_to_BLAS_node_color(BLAS &mesh_bvh,
             // Add element dimension stride to find min index of nodes comprising current mesh element
             int original_element_idx_at_t = timestep_coords_stride + original_element_idx * coords_per_element; 
 
-            //std::cout << "Element id " << element_idx << " with coords: " << std::endl;
-            //std::cout << original_element_idx << " " << std::endl;
+            //std::cout << "\nOriginal element id: " << original_element_idx << std::endl;
+            //std::cout << "\tidx at t: " << original_element_idx_at_t << std::endl;
             
-            //std::cout << "Min element idx: " << element_min_index << std::endl;
             // Copy all nodal coordinates
+            //std::cout << "\t Node normals for this element: \n\t";
             for (int j = 0; j < coords_per_element; ++j){
                 //std:: cout << mesh_node_coords_expanded_ptr[element_min_index + j] << " ";
-                //Node.node_coords.push_back(mesh_node_coords_expanded_ptr[original_element_idx_at_t + j]);
                 Node.node_coords.push_back(mesh_node_coords_expanded_ptr[original_element_idx_at_t + j]);
                 Node.node_normals.push_back(mesh_node_normals_expanded_ptr[original_element_idx_at_t + j]);
+                //std::cout << mesh_node_normals_expanded_ptr[original_element_idx_at_t + j] << " ";
             }
-            //std::cout << std::endl;
             // Copy all color (field) values for the mesh element
             size_t face_color_idx_at_t = timestep_color_stride + original_element_idx * NODE_COORDINATES;
             // Retrieve and copy 3 RGB values for this element to the BLAS node
@@ -681,65 +682,201 @@ inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const dou
         }
     }
 }
-    
-inline void set_BLAS_intersection_texture(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element){
+
+// Unfortunately, these switches have to be this long if we want compile-time resolution of what happens inside these functions
+inline void set_BLAS_intersection_texture(BLAS &mesh_bvh, const enum ElementNodeCount nodes_per_element, const enum ShadingType shading_type){
     // Assigns appropriate texture interpolation function pointer
     switch(nodes_per_element){
         case TRI3:
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3_tex;
+            switch(shading_type){
+                case ShadingType::FLAT:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3<ShadingType::FLAT, SurfaceType::TEXTURE>;
+                    break;
+                case ShadingType::BLENDED: // For TRI3 blended and angle-averaged blended are the same thing, so it does not matter what gets picked here
+                case ShadingType::ANGLE_AVG_BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3<ShadingType::ANGLE_AVG_BLENDED, SurfaceType::TEXTURE>;
+                    break;
+                default: throw std::invalid_argument("Unsupported shading type.");
+            }
             break;
+            
         case TRI6:
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6_tex;
+            switch(shading_type){
+                case ShadingType::FLAT:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6<ShadingType::FLAT, SurfaceType::TEXTURE>;
+                    break;
+                case ShadingType::BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6<ShadingType::BLENDED, SurfaceType::TEXTURE>;
+                    break;
+                case ShadingType::ANGLE_AVG_BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6<ShadingType::ANGLE_AVG_BLENDED, SurfaceType::TEXTURE>;
+                    break;
+                default: throw std::invalid_argument("Unsupported shading type.");
+            }
             break;
+            
         case QUAD4:
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4_tex;
+            switch(shading_type){
+                case ShadingType::FLAT:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4<ShadingType::FLAT, SurfaceType::TEXTURE>;
+                    break;
+                case ShadingType::BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4<ShadingType::BLENDED, SurfaceType::TEXTURE>;
+                    break;
+                case ShadingType::ANGLE_AVG_BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4<ShadingType::ANGLE_AVG_BLENDED, SurfaceType::TEXTURE>;
+                    break;
+                default: throw std::invalid_argument("Unsupported shading type.");
+            }
             break;
+            
         case QUAD8: 
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8_tex;
+            switch(shading_type){
+                case ShadingType::FLAT:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8<ShadingType::FLAT, SurfaceType::TEXTURE>;
+                    break;
+                case ShadingType::BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8<ShadingType::BLENDED, SurfaceType::TEXTURE>;
+                    break;
+                case ShadingType::ANGLE_AVG_BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8<ShadingType::ANGLE_AVG_BLENDED, SurfaceType::TEXTURE>;
+                    break;
+                default: throw std::invalid_argument("Unsupported shading type.");
+            }
             break;
+            
         case QUAD9:
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9_tex;
+            switch(shading_type){
+                case ShadingType::FLAT:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9<ShadingType::FLAT, SurfaceType::TEXTURE>;
+                    break;
+                case ShadingType::BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9<ShadingType::BLENDED, SurfaceType::TEXTURE>;
+                    break;
+                case ShadingType::ANGLE_AVG_BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9<ShadingType::ANGLE_AVG_BLENDED, SurfaceType::TEXTURE>;
+                    break;
+                default: throw std::invalid_argument("Unsupported shading type.");
+            }
             break;
+            
         default: throw std::invalid_argument("Unsupported element type.");
     }
 }
 
-inline void set_BLAS_intersection_color(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element){
+inline void set_BLAS_intersection_color(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element, const enum ShadingType shading_type){
     // Assigns appropriate color interpolation function pointer
     switch(nodes_per_element){
         case TRI3:
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3_col; // Color with barycentric interpolation
+            switch(shading_type){
+                case ShadingType::FLAT:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3<ShadingType::FLAT, SurfaceType::SOLID_COLOR>;
+                    break;
+                case ShadingType::BLENDED: // For TRI3 blended and angle-averaged blended are the same thing, so it does not matter what gets picked here
+                case ShadingType::ANGLE_AVG_BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri3<ShadingType::ANGLE_AVG_BLENDED, SurfaceType::SOLID_COLOR>;
+                    break;
+                default: throw std::invalid_argument("Unsupported shading type.");
+            }
             break;
+            
         case TRI6:
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6_col;
+            switch(shading_type){
+                case ShadingType::FLAT:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6<ShadingType::FLAT, SurfaceType::SOLID_COLOR>;
+                    break;
+                case ShadingType::BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6<ShadingType::BLENDED, SurfaceType::SOLID_COLOR>;
+                    break;
+                case ShadingType::ANGLE_AVG_BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_tri6<ShadingType::ANGLE_AVG_BLENDED, SurfaceType::SOLID_COLOR>;
+                    break;
+                default: throw std::invalid_argument("Unsupported shading type.");
+            }
             break;
-         case QUAD4:
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4_col;
+            
+        case QUAD4:
+            switch(shading_type){
+                case ShadingType::FLAT:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4<ShadingType::FLAT, SurfaceType::SOLID_COLOR>;
+                    break;
+                case ShadingType::BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4<ShadingType::BLENDED, SurfaceType::SOLID_COLOR>;
+                    break;
+                case ShadingType::ANGLE_AVG_BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad4<ShadingType::ANGLE_AVG_BLENDED, SurfaceType::SOLID_COLOR>;
+                    break;
+                default: throw std::invalid_argument("Unsupported shading type.");
+            }
             break;
+            
         case QUAD8: 
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8_col;
+            switch(shading_type){
+                case ShadingType::FLAT:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8<ShadingType::FLAT, SurfaceType::SOLID_COLOR>;
+                    break;
+                case ShadingType::BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8<ShadingType::BLENDED, SurfaceType::SOLID_COLOR>;
+                    break;
+                case ShadingType::ANGLE_AVG_BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad8<ShadingType::ANGLE_AVG_BLENDED, SurfaceType::SOLID_COLOR>;
+                    break;
+                default: throw std::invalid_argument("Unsupported shading type.");
+            }
             break;
+            
         case QUAD9:
-            mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9_col;
+            switch(shading_type){
+                case ShadingType::FLAT:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9<ShadingType::FLAT, SurfaceType::SOLID_COLOR>;
+                    break;
+                case ShadingType::BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9<ShadingType::BLENDED, SurfaceType::SOLID_COLOR>;
+                    break;
+                case ShadingType::ANGLE_AVG_BLENDED:
+                    mesh_bvh.overwrite_intersection_function_ptr = &overwrite_intersection_quad9<ShadingType::ANGLE_AVG_BLENDED, SurfaceType::SOLID_COLOR>;
+                    break;
+                default: throw std::invalid_argument("Unsupported shading type.");
+            }
             break;
+            
         default: throw std::invalid_argument("Unsupported element type.");
     }
 }
 
 
-/*
  // Helper/debug functions
+ /*
 inline void print_BLAS_data(BLAS& mesh_bvh){
     std::cout << "     BLAS has " << mesh_bvh.tree_nodes.size() << " nodes." << std::endl;
+    // Iterate over tree nodes
     for (int i = 0; i < mesh_bvh.tree_nodes.size(); ++i){
         std::cout << "          BLAS Node ID: " << i << std::endl;
         BLAS_Node& Node = mesh_bvh.tree_nodes[i];
         std::cout << "              Node coords vector size [elements]: " << Node.node_coords.size() << std::endl;
-        std::cout << "              Node face colors vector size [elements]: " << Node.face_color.size() << std::endl;
         std::cout << "              Node struct size total [bytes]: " << sizeof(Node) << std::endl;
- }
+        for (int j = 0; j < Node.element_count; ++j){
+            std::cout << "              Mesh element ID: " << j << std::endl;
+            int element_base_idx = j * Node.nodes_per_element * NODE_COORDINATES;
+
+            for (int k = 0; k < Node.nodes_per_element; ++k){
+                int node_base_idx = element_base_idx + k * NODE_COORDINATES;
+                std::cout << "                Node: " << k << std::endl;      
+                std::cout << "                  Node normal: ";
+                for (int z = 0; z < NODE_COORDINATES; ++z){
+                    std::cout << Node.node_normals[node_base_idx + z] << " ";
+                }
+                std::cout << std::endl;
+                std::cout << "                  Node coords: ";   
+                for (int z = 0; z < NODE_COORDINATES; ++z){
+                    std::cout << Node.node_coords[node_base_idx + z] << " ";
+                }
+            std::cout << std::endl;
+        }
+    }
 }
- 
+}
+
 inline void print_TLAS(TLAS &scene_TLAS){
     for (int i = 0; i < scene_TLAS.tlas_nodes.size(); ++i){
         std::cout << "TLAS Node ID: " << i << std::endl;
@@ -764,6 +901,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_textures,
     const std::vector<int>& scene_surface_types,
     const std::vector<double>& scene_refractive_indices,
+    const int shading_type,
     const int timestep,
     const int timestep_count){
 // Handles building all acceleration structures in the scene - bottom and top level
@@ -781,6 +919,9 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     // Get the refractive index of the scene (typically air, but in case it is not)
     const int last_index = scene_refractive_indices.size() - 1;
     const float scene_ri = scene_refractive_indices[last_index]; // Scene RI is stored at the last position always
+
+    // Get shading type
+    ShadingType shading_type_enum = static_cast<ShadingType>(shading_type);
 
     // Iterate over MESHES to build BLASes - BVHs for respective meshes
     for (size_t mesh_idx = 0; mesh_idx < scene_mesh_count; ++mesh_idx) {
@@ -827,15 +968,15 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
                 break;
             case QUAD4:
                 process_element_data<QUAD4>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
-                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad<QuadType::QUAD4>;
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad4;
                 break;
             case QUAD8:
                 process_element_data<QUAD8>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
-                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad<QuadType::QUAD8>;
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad8;
                 break;
             case QUAD9:
                 process_element_data<QUAD9>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep);
-                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad<QuadType::QUAD9>;
+                mesh_bvh.intersection_function_ptr = &intersect_bvh_quad9;
                 break;
             default: throw std::invalid_argument("Unsupported element type."); // Shouldn't ever get triggered since we check element type on the Python side as well
         }
@@ -860,17 +1001,30 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         set_BLAS_material(mesh_bvh, mesh_material, mesh_ri, scene_ri);
 
         int surface_type = scene_surface_types[mesh_idx];
+		nanobind::ndarray<const double, nanobind::c_contig> mesh_node_normals = scene_normals_expanded[mesh_idx];
+        double* mesh_node_normals_ptr = const_cast<double*>(mesh_node_normals.data()); // Index into the node normals to copy them
+
+        // Uncomment if in doubt the data from Python gets passed correctly before it is copied
+        /*
+        for (int element = 0; element < 10; ++element){
+            std::cout << "\nElement: " << element << std::endl;
+            for (int node = 0; node < 3; ++node){
+                int base_idx = element * 3 * NODE_COORDINATES;
+                int i = base_idx + node * NODE_COORDINATES;
+                std::cout << "\n\t Node " << node << ": ";
+                std::cout << "\n\t\tCoords: " << mesh_node_coords_ptr[i] << " " << mesh_node_coords_ptr[i+1] << " " << mesh_node_coords_ptr[i+2] << " ";
+                std::cout << "\n\t\tNormal: " <<  mesh_node_normals_ptr[i] << " " << mesh_node_normals_ptr[i+1] << " " << mesh_node_normals_ptr[i+2] << " ";
+            }
+        }
+        std::cout << std::endl;*/
 
         if (surface_type == 1){ // Texture
             nanobind::ndarray<const double, nanobind::c_contig> mesh_texture_arr = scene_textures[mesh_idx];
             double* mesh_texture_ptr = const_cast<double*>(mesh_texture_arr.data());
             Texture mesh_texture(mesh_texture_ptr, mesh_texture_arr.shape(0), mesh_texture_arr.shape(1)); // Pointer, height, width
             mesh_bvh.texture = mesh_texture; // Assign texture struct to the BLAS
-
             nanobind::ndarray<const double, nanobind::c_contig> mesh_uvs = scene_uvs[mesh_idx];
             double* mesh_uvs_ptr = const_cast<double*>(mesh_uvs.data());
-            double* mesh_node_normals_ptr = const_cast<double*>(mesh_node_coords.data()); // Index into the node normals to copy them
-
             // DEBUG to ensure data is copied correctly
             /*
             std::cout << "Mesh uvs shape for this mesh as extracted from scene: " << std::endl;
@@ -882,15 +1036,14 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
             */
 
             copy_data_to_BLAS_node_tex(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_node_normals_ptr, mesh_uvs_ptr, mesh_material, timestep);
-            set_BLAS_intersection_texture(mesh_bvh, nodes_per_element);
+            set_BLAS_intersection_texture(mesh_bvh, nodes_per_element, shading_type_enum);
            
         }
         else if (surface_type == 0){ // Solid surface fill
             nanobind::ndarray<const double, nanobind::c_contig> mesh_face_colors = scene_face_colors[mesh_idx];
             double* mesh_face_colors_ptr = const_cast<double*>(mesh_face_colors.data());
-            double* mesh_node_normals_ptr = const_cast<double*>(mesh_node_coords.data()); // Index into the node normals to copy them
             copy_data_to_BLAS_node_color(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_node_normals_ptr, mesh_face_colors_ptr, mesh_material, timestep);
-            set_BLAS_intersection_color(mesh_bvh, nodes_per_element);
+            set_BLAS_intersection_color(mesh_bvh, nodes_per_element, shading_type_enum);
         }
         else {
             throw std::invalid_argument("Unsupported surface type."); // Shouldn't ever get triggered since we check element type on the Python side as well, but might be useful for debugging
@@ -926,117 +1079,3 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
 
     return scene_TLAS;
  } // SCENE (end of function)
-
-
-/* COLOR ONLY VERSION (OG one)
-TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const double,nanobind::c_contig>>& scene_coords_expanded,
-    const std::vector<nanobind::ndarray<const double,nanobind::c_contig>>& scene_face_colors,
-    const int timestep,
-    const int timestep_count){
-// Handles building all acceleration structures in the scene - bottom and top level
-
-    size_t scene_mesh_count = scene_coords_expanded.size(); 
-   
-    // All containers to store the data in the scene
-    std::vector<std::array<double,3>> scene_blas_centroids; // Stores centroids of the whole objectes (meshes) in this scene
-    scene_blas_centroids.reserve(scene_mesh_count);
-    std::vector<AABB> scene_blas_aabbs; // Store AABBs of the whole objects in this scene
-    scene_blas_aabbs.reserve(scene_mesh_count);
-    std::vector<BLAS> scene_blases; // Store mesh_bvhs - this will be used for TLAS
-    scene_blases.reserve(scene_mesh_count);
-
-    // Iterate over MESHES to build BLASes - BVHs for respective meshes
-    for (size_t mesh_idx = 0; mesh_idx < scene_mesh_count; ++mesh_idx) {
-        
-        // Access data from Python buffer for this particular mesh (i.e., scene->object)
-		nanobind::ndarray<const double, nanobind::c_contig> mesh_node_coords = scene_coords_expanded[mesh_idx];
-        nanobind::ndarray<const double, nanobind::c_contig> mesh_face_colors = scene_face_colors[mesh_idx];
-        enum ElementNodeCount nodes_per_element = ElementNodeCount(mesh_node_coords.shape(2));
- 
-        // size_t mesh_element_count = mesh_face_colors.shape(0); // number of elements comprising the mesh
-        size_t mesh_element_count = mesh_face_colors.shape(1); // number of elements comprising the mesh WITH TIMESTEPS
-
-        std::cout << "Mesh: " << mesh_idx << "; Timesteps: " << mesh_node_coords.shape(0) << 
-                                              "; Elements: " << mesh_node_coords.shape(1) << 
-                                     "; Nodes per element: " << mesh_node_coords.shape(2) <<
-                                  "; Coordinates per node: " << mesh_node_coords.shape(3) << '\n';
-
-        double* mesh_node_coords_ptr = const_cast<double*>(mesh_node_coords.data());
-        double* mesh_face_colors_ptr = const_cast<double*>(mesh_face_colors.data());
-
-        // Containers for calculated data for this mesh
-        std::vector<std::array<double, NODE_COORDINATES>> mesh_element_centroids; // Store centroids for this mesh
-        mesh_element_centroids.reserve(mesh_element_count);
-        std::vector<AABB> mesh_element_aabbs; // Bounding volumes for the elements in this mesh
-        mesh_element_aabbs.reserve(mesh_element_count);
-        scene_blas_aabbs.emplace_back();
-        AABB& mesh_aabb = scene_blas_aabbs[mesh_idx]; // AABB for the entire mesh
-        
-        // Iterate over ELEMENTS in this mesh (types specified in enum in rtelemconstants.h)
-        switch(nodes_per_element){
-            case TRI3: process_element_data<TRI3>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
-            case TRI6: process_element_data<TRI6>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
-            case QUAD4: process_element_data<QUAD4>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
-            case QUAD8: process_element_data<QUAD8>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
-            case QUAD9: process_element_data<QUAD9>(mesh_element_count, mesh_node_coords_ptr, mesh_element_centroids, mesh_element_aabbs, mesh_aabb, timestep); break;
-            default:
-            std::cerr << "Unsupported element type with " << nodes_per_element << " nodes per element.\n"; // Add sth to break the code here
-        }
-     
-        // Find centroid of the entire mesh
-        scene_blas_centroids.emplace_back();
-        std::array<double,3>& mesh_centroid = scene_blas_centroids[mesh_idx];
-        compute_mesh_centroid(mesh_aabb, mesh_centroid);
-
-        // Temporary vectors to reshuffle element indices as we build the BVH, then using this mapping
-        // to append the mesh data in the nodes instead of needing to access it at the split time
-        std::vector<int> mesh_element_indices;
-        mesh_element_indices.resize(mesh_element_count);
-        std::iota(mesh_element_indices.begin(), mesh_element_indices.end(), 0);
-        std::vector<int> node_minimum_element_index; // Instead of wasting BLAS_Node struct space on storing this value
-
-        //std::cout << "Generating BLAS for mesh " << mesh_idx << std::endl;
-        scene_blases.emplace_back(); // Generate directly inside the vector to avoid copying data
-        BLAS& mesh_bvh = scene_blases[mesh_idx]; // Get a reference to the BVH of the current mesh to pass it to the builder functions
-
-        // BLAS BVH builder functions
-        build_BLAS(mesh_bvh, mesh_element_centroids, mesh_element_aabbs, mesh_element_indices, node_minimum_element_index, mesh_element_count, nodes_per_element);
-        copy_data_to_BLAS_node(mesh_bvh, mesh_element_indices, node_minimum_element_index, mesh_node_coords_ptr, mesh_face_colors_ptr, timestep);
-        //std::cout << "BLAS successfully built." << std::endl;
-        //std::cout << "BVH has " << mesh_bvh.tree_nodes.size() << " nodes." << std::endl;
-        //print_BLAS_data(mesh_bvh);
-
-        // DEBUG LINES
-        
-        //Ray test_ray;
-        //test_ray.origin = EiVector3d(0.0, 0.0, 0.0);
-        //test_ray.direction = EiVector3d(1.0, 0.0, 0.0);
-        //HitRecord intersection_record; 
-        //intersect_BLAS(test_ray, intersection_record, mesh_bvh);
-        
-    } //MESHES
-
-    // BUILD TLAS - structure of BLASes
-    TLAS scene_TLAS;
-    scene_TLAS.tlas_nodes.reserve(scene_mesh_count);
-    scene_TLAS.blases.reserve(scene_blases.size()); // Can guarantee this size as it will store all BLASes, just re-shuffled
-    // Temporary vector to reshuffle element indices as we build the BVH, instead of having to access the mesh data all the time to append it in nodes right away as we do so
-    
-    // TLAS is much smaller, so in this case we will be keeping the vector with indices and using it to index into BLASes stored in the node
-    std::vector<int> scene_blas_indices;
-    scene_blas_indices.resize(scene_mesh_count);
-    std::iota(scene_blas_indices.begin(), scene_blas_indices.end(), 0);
-
-    // TLAS BVH builder functions
-    build_TLAS(scene_TLAS.tlas_nodes, scene_blas_centroids, scene_blas_aabbs, scene_blas_indices, scene_mesh_count);
-    copy_data_to_TLAS(scene_TLAS, scene_blases, scene_blas_indices);
-    //std::cout << "TLAS successfully built." << std::endl;
-    Ray test_ray;
-    test_ray.origin = EiVector3d(0.0, 0.0, 0.0);
-    test_ray.direction = EiVector3d(1.0, 0.0, 0.0);
-    //intersect_tlas(test_ray, scene_TLAS);
-    //print_TLAS(scene_TLAS);
-
-    return scene_TLAS;
- } // SCENE (end of function)
- */

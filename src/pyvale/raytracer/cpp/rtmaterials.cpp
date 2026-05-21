@@ -63,8 +63,7 @@ void ray_diffuse(const RayState& current_state,
     double r1 = 2 * M_PI * (random_double());
     double r2 = random_double();
     double r2s = sqrt(r2);
-
-    EiVector3d direction_scatter = (b1 * cos(r1) * r2s + b2 * sin(r1) * r2s + normal_shade * sqrt(1 - r2));
+    
     //direction_scatter.stableNormalize();
     
     /*
@@ -78,7 +77,17 @@ void ray_diffuse(const RayState& current_state,
     Ray ray_new;
     ray_new.origin = intersection_record.point_intersection + normal_geo * OFFSET;
     //ray_new.origin = intersection_record.point_intersection + direction_scatter * OFFSET;
+   
+    EiVector3d direction_scatter = (b1 * cos(r1) * r2s + b2 * sin(r1) * r2s + normal_shade * sqrt(1 - r2));
     ray_new.direction = direction_scatter;
+
+    /*
+    std::cerr << "DIFFUSE" << std::endl;
+    std::cerr << "\tShading normal: " << normal_shade.x() << ", " << normal_shade.y() << ", " << normal_shade.z() << std::endl;
+    std::cerr << "\tGeometric normal: " << normal_geo.x() << ", " << normal_geo.y() << ", " << normal_geo.z() << std::endl;
+    std::cerr << "\tScattering direction: " << direction_scatter.x() << ", " << direction_scatter.y() << ", " << direction_scatter.z() << std::endl;
+    std::cerr << "\tPoint of intersection: " << p.x() << ", " << p.y() << ", " << p.z() << std::endl; 
+    */
 
     stack.push_back({ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1});
 }
@@ -115,6 +124,13 @@ void ray_specular(const RayState& current_state,
     ray_new.direction = reflected;
     ray_new.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
 
+    
+    /* std::cerr << "SPECULAR" << std::endl;
+    std::cerr << "\tShading normal: " << normal_shade.x() << ", " << normal_shade.y() << ", " << normal_shade.z() << std::endl;
+    std::cerr << "\tGeometric normal: " << normal_geo.x() << ", " << normal_geo.y() << ", " << normal_geo.z() << std::endl;
+    std::cerr << "Reflected ray direction: " << reflected.x() << ", " << reflected.y() << ", " << reflected.z() << std::endl;
+    std::cerr << "\tPoint of intersection: " << intersection_record.point_intersection.x() << ", " << intersection_record.point_intersection.y() << ", " << intersection_record.point_intersection.z() << std::endl; */
+
     stack.push_back({ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1});
 }
 
@@ -143,10 +159,23 @@ void ray_refractive(const RayState& current_state,
     normal_geo.stableNormalize();
     EiVector3d normal_shade = intersection_record.normal_shading; //  // Shading normal; use for Physics to dictate how light behaves
     normal_shade.stableNormalize();
+
+    
+    std::cerr << "REFRACTIVE" << std::endl;
+    std::cerr << "\tIncoming ray direction:" << ray_direction.x() << ", " << ray_direction.y() << ", " << ray_direction.z() << std::endl;
+    std::cerr << "\tRefractive index of previous medium: " << current_state.outer_refractive_index << std::endl;
+    std::cerr << "\tRefractive index of current medium: " << intersection_record.refractive_index << std::endl;
+    std::cerr << "\tShading normal before aligning: " << normal_shade.x() << ", " << normal_shade.y() << ", " << normal_shade.z() << std::endl;
+    std::cerr << "\tGeometric normal before aligning: " << normal_geo.x() << ", " << normal_geo.y() << ", " << normal_geo.z() << std::endl;
+    std::cerr << "\tPoint of intersection: " << p.x() << ", " << p.y() << ", " << p.z() << std::endl;
+
     if (!into) {
         normal_geo = -normal_geo;
         normal_shade = -normal_shade;
     };
+
+    std::cerr << "\tShading normal after aligning: " << normal_shade.x() << ", " << normal_shade.y() << ", " << normal_shade.z() << std::endl;
+    std::cerr << "\tGeometric normal after aligning: " << normal_geo.x() << ", " << normal_geo.y() << ", " << normal_geo.z() << std::endl;
 
     //set_face_normal(current_state.ray, normal_shade); // Shade normal won't necessarily point in the same direction as geometric normal, so we can't move it inside the if statement above
 
@@ -186,6 +215,7 @@ void ray_refractive(const RayState& current_state,
     EiVector3d r_out_parallel = -sqrt(fabs(1.0 - r_out_perp_length_squared)) * normal_shade;
     */
 
+    std::cerr << "\tReflected ray direction: " << reflected_dir.x() << ", " << reflected_dir.y() << ", " << reflected_dir.z() << std::endl;
     
     // Total internal reflection
     if (sin2_theta_t > 1.0) {
@@ -195,6 +225,7 @@ void ray_refractive(const RayState& current_state,
         reflected_ray.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
         
         stack.push_back({reflected_ray, next_accumulated_color, ri_material, current_state.depth + 1});
+        std::cerr << "Total internal reflection. Only shot reflected ray" << std::endl;
         return;
     }
     
@@ -220,7 +251,7 @@ void ray_refractive(const RayState& current_state,
     refracted_ray.origin = intersection_record.point_intersection - normal_geo * OFFSET; // Push forward into new medium (i.e., into the surface)
     refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_shade; // Transmitted/refracted direction
     //refracted_ray.direction = r_out_perp + r_out_parallel;
-
+    std::cerr << "\tRefracted ray direction: " <<  refracted_ray.direction.x() << ", " <<  refracted_ray.direction.y() << ", " <<  refracted_ray.direction.z() << std::endl;
     //refracted_ray.direction.stableNormalize();
     
     /*
@@ -237,11 +268,13 @@ void ray_refractive(const RayState& current_state,
         //if ((double)rand() / RAND_MAX < P) { // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
             double P_reflect = reflectance / P; // Adjust original reflectance based on P
             stack.push_back({reflected_ray, next_accumulated_color * P_reflect, ri_material, current_state.depth + 1});
+            std::cerr << "\tShot reflected ray " << std::endl;
             return;
         }
         else {
             double P_transmit = transmittance / (1.0 - P); // Adjust original transmittance based on P
             stack.push_back({refracted_ray, next_accumulated_color * P_transmit, ri_material, current_state.depth + 1});
+            std::cerr << "\tShot refracted ray " << std::endl;
             return;
         }
     } 
@@ -249,6 +282,7 @@ void ray_refractive(const RayState& current_state,
         // Push both rays
         stack.push_back({reflected_ray, next_accumulated_color * reflectance, ri_material, current_state.depth + 1});
         stack.push_back({refracted_ray, next_accumulated_color * transmittance, ri_material, current_state.depth + 1});
+        std::cerr << "\tShot both reflected and refracted rays " << std::endl;
         return;
     }
 }
