@@ -47,7 +47,7 @@ void overwrite_intersection_quad4(HitRecord& intersection_record,
     // Get node normals if the shading type calls for them
     std::array<double, ElementNodeCount::QUAD4 * NODE_COORDINATES> node_normals;
     if constexpr (Mode == ShadingType::ANGLE_AVG_BLENDED) {
-        get_face_vectors(min_row_idx, Node.node_normals, ElementNodeCount::QUAD4, &node_normals[0]);  // node_normals are shaped (nodes_per_element, 3)
+        get_face_data_array(min_row_idx, Node.node_normals, ElementNodeCount::QUAD4, &node_normals[0]);  // node_normals are shaped (nodes_per_element, 3)
     }
     EiArray3d shading_normal(0.0, 0.0, 0.0);
 
@@ -93,8 +93,8 @@ void overwrite_intersection_quad4(HitRecord& intersection_record,
 
     } else if constexpr (Mode == ShadingType::BLENDED) {
         // Blended for anything that is not TRI3 = shading normal is from Jacobians
-        std::vector<double> node_coords(ElementNodeCount::QUAD4 * NODE_COORDINATES);
-        get_face_vectors(min_row_idx, Node.node_coords, ElementNodeCount::QUAD4, &node_coords[0]);
+        std::array<EiVector3d, ElementNodeCount::QUAD4> node_coords;
+        get_face_data_vector(min_row_idx, Node.node_coords, ElementNodeCount::QUAD4, &node_coords[0]);
         Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad4(u, v, node_coords);
         intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose();
 
@@ -126,7 +126,7 @@ void overwrite_intersection_quad8(HitRecord& intersection_record,
     // Get node normals if the shading type calls for them
     std::array<double, ElementNodeCount::QUAD8 * NODE_COORDINATES> node_normals;
     if constexpr (Mode == ShadingType::ANGLE_AVG_BLENDED) {
-        get_face_vectors(min_row_idx, Node.node_normals, ElementNodeCount::QUAD8, &node_normals[0]);  // node_normals are shaped (nodes_per_element, 3)
+        get_face_data_array(min_row_idx, Node.node_normals, ElementNodeCount::QUAD8, &node_normals[0]);  // node_normals are shaped (nodes_per_element, 3)
     }
     EiArray3d shading_normal(0.0, 0.0, 0.0);
 
@@ -172,8 +172,8 @@ void overwrite_intersection_quad8(HitRecord& intersection_record,
 
     } else if constexpr (Mode == ShadingType::BLENDED) {
         // Blended for anything that is not TRI3 = shading normal is from Jacobians
-        std::vector<double> node_coords(ElementNodeCount::QUAD8 * NODE_COORDINATES);
-        get_face_vectors(min_row_idx, Node.node_coords, ElementNodeCount::QUAD8, &node_coords[0]);
+        std::array<EiVector3d, ElementNodeCount::QUAD8> node_coords;
+        get_face_data_vector(min_row_idx, Node.node_coords, ElementNodeCount::QUAD8, &node_coords[0]);
         Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad8(xi, eta, node_coords);
         intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose();
 
@@ -205,7 +205,7 @@ void overwrite_intersection_quad9(HitRecord& intersection_record,
     // Get node normals if the shading type calls for them
     std::array<double, ElementNodeCount::QUAD9 * NODE_COORDINATES> node_normals;
     if constexpr (Mode == ShadingType::ANGLE_AVG_BLENDED) {
-        get_face_vectors(min_row_idx, Node.node_normals, ElementNodeCount::QUAD9, &node_normals[0]);  // node_normals are shaped (nodes_per_element, 3)
+        get_face_data_array(min_row_idx, Node.node_normals, ElementNodeCount::QUAD9, &node_normals[0]);  // node_normals are shaped (nodes_per_element, 3)
     }
     EiArray3d shading_normal(0.0, 0.0, 0.0);
 
@@ -252,9 +252,8 @@ void overwrite_intersection_quad9(HitRecord& intersection_record,
 
     } else if constexpr (Mode == ShadingType::BLENDED) {
         // Blended for anything that is not TRI3 = shading normal is from Jacobians
-        std::vector<double> node_coords(ElementNodeCount::QUAD9 * NODE_COORDINATES);
-        //std::array<double, ElementNodeCount::QUAD9 * NODE_COORDINATES> node_coords;
-        get_face_vectors(min_row_idx, Node.node_coords, ElementNodeCount::QUAD9, &node_coords[0]);
+        std::array<EiVector3d, ElementNodeCount::QUAD9> node_coords;
+        get_face_data_vector(min_row_idx, Node.node_coords, ElementNodeCount::QUAD9, &node_coords[0]);
         Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad9(xi, eta, node_coords);
         intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose();
 
@@ -297,7 +296,7 @@ void overwrite_intersection_tri3(HitRecord& intersection_record,
     // For TRI3 we do not have Jacobians, so blended = angle averaged blended shading based on node normals
     if constexpr (Mode == ShadingType::ANGLE_AVG_BLENDED || Mode == ShadingType::BLENDED){
          std::array<double, ElementNodeCount::TRI3 * NODE_COORDINATES> node_normals; // Shape (faces, 2) but flat. Texture (u,v) for each node of mesh element
-        get_face_vectors(min_row_idx, Node.node_normals, ElementNodeCount::TRI3, &node_normals[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
+        get_face_data_array(min_row_idx, Node.node_normals, ElementNodeCount::TRI3, &node_normals[0]); // element_uvs are shaped (nodes_per_element, 2) - one (u,v) pair for every element node
         EiArray3d normal_0, normal_1, normal_2;
         normal_0 << node_normals[0], node_normals[1], node_normals[2];
         normal_1 << node_normals[3], node_normals[4], node_normals[5];
@@ -334,7 +333,7 @@ void overwrite_intersection_tri6(HitRecord& intersection_record,
     // Get node normals if the shading type calls for them
     std::array<double, ElementNodeCount::TRI6 * NODE_COORDINATES> node_normals; // Shape (faces, 3) but flat
     if constexpr (Mode == ShadingType::ANGLE_AVG_BLENDED){
-        get_face_vectors(min_row_idx, Node.node_normals, ElementNodeCount::TRI6, &node_normals[0]); // element_uvs are shaped (nodes_per_element, 3)    
+        get_face_data_array(min_row_idx, Node.node_normals, ElementNodeCount::TRI6, &node_normals[0]); // element_uvs are shaped (nodes_per_element, 3)    
     }
     EiArray3d shading_normal(0.0, 0.0, 0.0);
     
@@ -396,10 +395,9 @@ void overwrite_intersection_tri6(HitRecord& intersection_record,
 
     } else if constexpr (Mode == ShadingType::BLENDED) {
         // Blended for anything that is not TRI3 = shading normal is from Jacobians
-        //std::vector<double> node_coords(ElementNodeCount::QUAD9 * NODE_COORDINATES);
-        //get_face_vectors(min_row_idx, Node.node_coords, ElementNodeCount::QUAD9, &node_coords[0]);
-        //Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_quad9(xi, eta, node_coords);
-        intersection_record.normal_shading = intersection_record.normal_surface; // For TRI6 geometric normal is already from Jacobians
+        std::array<EiVector3d, ElementNodeCount::TRI6> node_coords;
+        get_face_data_vector(min_row_idx, Node.node_coords, ElementNodeCount::TRI6, &node_coords[0]);
+        Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_tri6(g, h, node_coords);
 
     } else if constexpr (Mode == ShadingType::FLAT) {
         // Use geometric normal as the shading normal
@@ -432,80 +430,26 @@ IntersectionOutput intersect_bvh_quad9(const Ray& ray,
 IntersectionOutput intersect_bvh_tri6(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_triangle_count);
-
-/* ********************************************** 
- * Curved elements: Helper structs
-********************************************** */
-
-struct QUAD8_GROUP {
-    std::vector<EiVector3d> nodes;        // 8 nodes
-    std::vector<double>     node_coords;  // flat, size 8 * 3 = 24 (for Jacobian helpers)
-
-    // Constructor
-    QUAD8_GROUP(std::vector<EiVector3d> nodes_, std::vector<double> node_coords_)
-        : nodes(nodes_), node_coords(node_coords_) {}
-};
-
-struct QUAD9_GROUP {
-    std::vector<EiVector3d> nodes;        // 9 nodes
-    std::vector<double> node_coords;  // flat, size 9 * 3 = 27 (for Jacobian helpers)
-
-    // Constructor
-    QUAD9_GROUP(std::vector<EiVector3d> nodes_, std::vector<double> node_coords_)
-        : nodes(nodes_), node_coords(node_coords_) {}
-};
-
-struct TRI6_GROUP {
-    /* 
-    TRI6 structure to store TRI6 triangle group in a vector-based format.
-
-    Parameters
-    ----------
-    node_ : std::vector<EiVector3d>
-        Node coordinates of all triangles to be contained in the structure  
-
-    */
-
-    std::vector<EiVector3d> nodes;
-    TRI6_GROUP(std::vector<EiVector3d> nodes_) :
-        nodes(nodes_) {}
-};
-
-/* ********************************************** 
- * Curved elements: Loaders
-********************************************** */
-
-void load_quad8(const std::vector<double>& node_coords,
-                const unsigned int bvh_node_quad_count,
-                std::vector<QUAD8_GROUP>& out);
-
-//void load_quad9(const std::vector<double>& node_coords,
-//                const unsigned int bvh_node_quad_count,
-//                std::vector<QUAD9_GROUP>& out);
-
-void load_tri6(const std::vector<double>& node_coords,
-    const unsigned int bvh_node_triangle_count,
-    std::vector<TRI6_GROUP> &tri6_group);
     
 /* ********************************************** 
  * Curved elements: Single-element intersections
 ********************************************** */
 // Return t at the intersection (or +infinity if none); also fill the geometric normal surface_normals_out and the parametric (xi, eta) at the hit.
+
 double intersect_quad8(const Ray& ray,
-                       const std::vector<EiVector3d>& nodes,
-                       const std::vector<double>& node_coords_flat,
-                       EiVector3d& surface_normals_out,
-                       Eigen::Vector2d& xi_eta_out);
+    const std::array<EiVector3d, ElementNodeCount::QUAD8>& nodes,
+    EiVector3d& surface_normals_out,
+    Eigen::Vector2d& xi_eta_out);
 
-//double intersect_quad9(const Ray& ray,
-//                       const std::vector<EiVector3d>& nodes,
-//                       const std::vector<double>& node_coords_flat,
-//                      EiVector3d& surface_normals_out,
-//                       Eigen::Vector2d& xi_eta_out);
+double intersect_quad9(const Ray& ray,
+    const std::array<EiVector3d, ElementNodeCount::QUAD9>& nodes,
+    EiVector3d& surface_normals_out,
+    Eigen::Vector2d& xi_eta_out);
 
-IntersectionOutput intersect_bvh_tri6(const Ray& ray,
-    const std::vector<double>& node_coords,
-    const unsigned int bvh_node_triangle_count);
+double intersect_tri6(const Ray &ray,
+    const std::array<EiVector3d, ElementNodeCount::TRI6> nodes,
+    EiVector3d &surface_normals_out,
+    Eigen::Vector2d &uv);
     
 /* ********************************************** 
  * Ray-acceleration structure intersections

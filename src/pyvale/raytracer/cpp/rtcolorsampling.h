@@ -79,20 +79,34 @@ inline void get_face_uvs(Eigen::Index min_row_idx,
 }
 
 // Getter for node normals and node coordinates
-inline void get_face_vectors(Eigen::Index min_row_idx,
+inline void get_face_data_array(Eigen::Index element_idx,
     const std::vector<double>& node_data, // Stored as [xyz, xyz, xyz...]
-    int element_node_count,
-    double* out_element_vectors) {
+    const int element_node_count,
+    double* out_element_array) {
 
-     // Get node normals of the intersected face
-    int base_idx = min_row_idx * NODE_COORDINATES * element_node_count;
-    std::array<double, NODE_COORDINATES> element_node_normal;
+    const int base_idx = element_idx * NODE_COORDINATES * element_node_count;
 
-    // Find the normal (x,y,z) for each node in the mesh element and write it in the passed output array
-    for (int i = 0; i < element_node_count; i++){
-        out_element_vectors[0 + i * NODE_COORDINATES] = node_data[base_idx + i * NODE_COORDINATES]; // x
-        out_element_vectors[1 + i * NODE_COORDINATES] = node_data[base_idx + i * NODE_COORDINATES + 1]; // y
-        out_element_vectors[2 + i * NODE_COORDINATES] = node_data[base_idx + i * NODE_COORDINATES + 2]; // z
+    // Find the normal/coords (x,y,z) for each node in the intersected mesh element and write it in the passed output array
+    for (int node_idx = 0; node_idx < element_node_count; node_idx++){
+        out_element_array[0 + node_idx * NODE_COORDINATES] = node_data[base_idx + node_idx * NODE_COORDINATES]; // x
+        out_element_array[1 + node_idx * NODE_COORDINATES] = node_data[base_idx + node_idx * NODE_COORDINATES + 1]; // y
+        out_element_array[2 + node_idx * NODE_COORDINATES] = node_data[base_idx + node_idx * NODE_COORDINATES + 2]; // z
+    }
+}
+
+inline void get_face_data_vector(Eigen::Index element_idx,
+    const std::vector<double>& node_data, // Stored as [xyz, xyz, xyz...]
+    const int element_node_count,
+    EiVector3d* out_element_vectors) { // In form of vectors, for Jacobian calculations
+
+    const int base_idx = element_idx * NODE_COORDINATES * element_node_count;
+    // Find the normal/coords (x,y,z) for each node in the mesh element and write it in the passed output array
+    for (int node_idx = 0; node_idx < element_node_count; node_idx++){
+        EiVector3d node_vector(0, 0, 0);
+        node_vector(0) = node_data[base_idx + node_idx * NODE_COORDINATES]; // X-component
+        node_vector(1) = node_data[base_idx + node_idx * NODE_COORDINATES + 1]; // Y-component
+        node_vector(2) = node_data[base_idx + node_idx * NODE_COORDINATES + 2]; // Z-component
+        out_element_vectors[node_idx] = node_vector;
     }
 }
 

@@ -334,7 +334,7 @@ static const double backtrack_factor= 0.5;
 
 // Evaluate S(xi, eta) = sum_i N_i(xi, eta) * x_i for the 9 quad9 nodes.
 static inline EiVector3d evaluate_surface_quad9(const double xi, const double eta,
-        const std::vector<EiVector3d>& nodes) {
+        const std::array<EiVector3d, ElementNodeCount::QUAD9>& nodes) {
     const std::array<double, ElementNodeCount::QUAD9> N = compute_shape_quad9(xi, eta);
     EiVector3d S = EiVector3d::Zero();
     for (int i = 0; i < ElementNodeCount::QUAD9; ++i) {
@@ -364,40 +364,14 @@ static const int quad_sub_tris[8][3] = {
     {3, 7, 8}, {7, 0, 8}
 };
 
-void load_quad9(const std::vector<double>& node_coords,
-    const unsigned int bvh_node_quad_count,
-    std::vector<QUAD9_GROUP>& out) {
-
-    static const int NODES_PER_ELEMENT  = ElementNodeCount::QUAD9;
-    static const int COORDS_PER_ELEMENT = NODES_PER_ELEMENT * NODE_COORDINATES;
-
-    for (unsigned int element = 0; element < bvh_node_quad_count; ++element) {
-        std::vector<EiVector3d> nodes;
-        std::vector<double> flat;
-        const int base = element * COORDS_PER_ELEMENT;
-
-        for (int i = 0; i < NODES_PER_ELEMENT; ++i) {
-            EiVector3d node(0, 0, 0);
-            node(0) = node_coords[base + i * NODE_COORDINATES + 0];
-            node(1) = node_coords[base + i * NODE_COORDINATES + 1];
-            node(2) = node_coords[base + i * NODE_COORDINATES + 2];
-            nodes.emplace_back(node);
-            flat.push_back(node(0));
-            flat.push_back(node(1));
-            flat.push_back(node(2));
-        }
-        out.emplace_back(nodes, flat);
-    }
-}
 
 double intersect_quad9(const Ray& ray,
-    const std::vector<EiVector3d>& nodes,
-    const std::vector<double>& node_coords_flat,
+    const std::array<EiVector3d, ElementNodeCount::QUAD9>& nodes,
     EiVector3d& surface_normals_out,
     Eigen::Vector2d& xi_eta_out) {
 
     // Element-scale residual tolerance
-    const double diagonal = find_element_diagonal(nodes);
+    const double diagonal = find_element_diagonal(&nodes[0], ElementNodeCount::QUAD9);
     double res_tol_local = eps_res_rel * diagonal; // Scaled tolerance for residuals based on the element diagonal
     if (res_tol_local < eps_res_abs) res_tol_local = eps_res_abs;
 
@@ -462,7 +436,7 @@ double intersect_quad9(const Ray& ray,
                 break;
             }
 
-            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad9(xi, eta, node_coords_flat);
+            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad9(xi, eta, nodes);
 
             Eigen::Matrix3d M;
             M.col(0) = ray.direction.transpose();
@@ -523,12 +497,68 @@ double intersect_quad9(const Ray& ray,
     if (!have_hit) return std::numeric_limits<double>::infinity();
 
     // Geometric normal at the converged hit, from the true quadratic Jacobian
-    Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad9(best_xi_eta.x(), best_xi_eta.y(), node_coords_flat);
+    Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad9(best_xi_eta.x(), best_xi_eta.y(), nodes);
     EiVector3d normal = (J_hit.col(0).cross(J_hit.col(1))).transpose().normalized();
 
     surface_normals_out = normal;
     xi_eta_out = best_xi_eta;
     return best_t;
+}
+
+IntersectionOutput intersect_bvh_quad9(const Ray& ray,
+    const std::vector<double>& node_coords,
+    const unsigned int bvh_node_quad_count) {
+
+    // Default "no intersection" output
+    IntersectionOutput negative_output{
+        Eigen::ArrayXXd(bvh_node_quad_count, NODE_COORDINATES),
+        EiVectorD3d::Zero(bvh_node_quad_count, NODE_COORDINATES),
+        Eigen::Vector<double, Eigen::Dynamic>::Constant(
+            bvh_node_quad_count, 1, std::numeric_limits<double>::infinity())
+    };
+
+    EiVectorD3d geometric_normals = EiVectorD3d::Zero(bvh_node_quad_count, 3);
+    Eigen::ArrayXXd t_values(bvh_node_quad_count, 1);
+    Eigen::ArrayXXd xi_values(bvh_node_quad_count, 1);
+    Eigen::ArrayXXd eta_values(bvh_node_quad_count, 1);
+
+    for (unsigned int element_idx = 0; element_idx < bvh_node_quad_count; ++element_idx) {
+        std::array<EiVector3d, ElementNodeCount::QUAD9> quad9_node_coords; // Single QUAD9 as an array of its constituent nodal coordinates in the EiVector3d format for Jacobian calculations
+        get_face_data_vector(element_idx, node_coords, ElementNodeCount::QUAD9, &quad9_node_coords[0]);
+        EiVector3d n_tmp;
+        Eigen::Vector2d xe_tmp;
+        const double t = intersect_quad9(ray, quad9_node_coords, n_tmp, xe_tmp);
+
+        t_values  (element_idx, 0) = t;
+        xi_values (element_idx, 0) = xe_tmp.x();
+        eta_values(element_idx, 0) = xe_tmp.y();
+        if (std::isfinite(t)) {
+            for (int k = 0; k < 3; ++k){
+                geometric_normals(element_idx, k) = n_tmp(k);
+            }
+        }
+    }
+
+    // Mask out anything outside the ray segment
+    Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> valid_mask =
+        (t_values > 0.0) && (t_values >= ray.t_min) && (t_values <= ray.t_max);
+    if (!valid_mask.any()) return negative_output;
+
+    for (Eigen::Index i = 0; i < t_values.rows(); ++i) {
+        for (Eigen::Index j = 0; j < t_values.cols(); ++j) {
+            if (!valid_mask(i, j)) {
+                t_values(i, j) = std::numeric_limits<double>::infinity();
+            }
+        }
+    }
+
+    // Pack output: (u, v, 0) with u = (xi+1)/2, v = (eta+1)/2
+    Eigen::ArrayXXd quad_coords = Eigen::ArrayXXd::Zero(bvh_node_quad_count, NODE_COORDINATES);
+    quad_coords.col(0) = 0.5 * (xi_values.col(0)  + 1.0);
+    quad_coords.col(1) = 0.5 * (eta_values.col(0) + 1.0);
+    // Column 2 left at 0
+
+    return IntersectionOutput{ quad_coords, geometric_normals, t_values };
 }
 
 /* ********************************************** 
@@ -542,7 +572,7 @@ double intersect_quad9(const Ray& ray,
 // - Newton residual still uses the true 8-node surface S(xi, eta)
 
 static inline EiVector3d evaluate_surface_quad8(const double xi, const double eta,
-        const std::vector<EiVector3d>& nodes) {
+        const std::array<EiVector3d, ElementNodeCount::QUAD8>& nodes) {
 
     const std::array<double, ElementNodeCount::QUAD8> N = compute_shape_quad8(xi, eta);
     EiVector3d S = EiVector3d::Zero();
@@ -552,39 +582,12 @@ static inline EiVector3d evaluate_surface_quad8(const double xi, const double et
     return S;
 }
 
-void load_quad8(const std::vector<double>& node_coords,
-    const unsigned int bvh_node_quad_count,
-    std::vector<QUAD8_GROUP>& out) {
-
-    static const int NODES_PER_ELEMENT = ElementNodeCount::QUAD8;
-    static const int COORDS_PER_ELEMENT = NODES_PER_ELEMENT * NODE_COORDINATES;
-
-    for (unsigned int element = 0; element < bvh_node_quad_count; ++element) {
-        std::vector<EiVector3d> nodes;
-        std::vector<double> flat;
-        const int base = element * COORDS_PER_ELEMENT;
-
-        for (int i = 0; i < NODES_PER_ELEMENT; ++i) {
-            EiVector3d node(0, 0, 0);
-            node(0) = node_coords[base + i * NODE_COORDINATES + 0];
-            node(1) = node_coords[base + i * NODE_COORDINATES + 1];
-            node(2) = node_coords[base + i * NODE_COORDINATES + 2];
-            nodes.emplace_back(node);
-            flat.push_back(node(0));
-            flat.push_back(node(1));
-            flat.push_back(node(2));
-        }
-        out.emplace_back(nodes, flat);
-    }
-}
-
 double intersect_quad8(const Ray& ray,
-    const std::vector<EiVector3d>& nodes,
-    const std::vector<double>& node_coords_flat,
+    const std::array<EiVector3d, ElementNodeCount::QUAD8>& nodes,
     EiVector3d& surface_normals_out,
     Eigen::Vector2d& xi_eta_out) {
 
-    const double diagonal = find_element_diagonal(nodes);
+    const double diagonal = find_element_diagonal(&nodes[0], ElementNodeCount::QUAD8);
     double res_tol_local = eps_res_rel * diagonal;
     if (res_tol_local < eps_res_abs) res_tol_local = eps_res_abs;
 
@@ -660,7 +663,8 @@ double intersect_quad8(const Ray& ray,
                 break;
             }
 
-            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad8(xi, eta, node_coords_flat);
+            //Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad8(xi, eta, node_coords_flat);
+            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad8(xi, eta, nodes);
 
             Eigen::Matrix3d M;
             M.col(0) =  ray.direction.transpose();
@@ -718,8 +722,8 @@ double intersect_quad8(const Ray& ray,
 
     if (!have_hit) return std::numeric_limits<double>::infinity();
 
-    Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad8(
-        best_xi_eta.x(), best_xi_eta.y(), node_coords_flat);
+    //Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad8(best_xi_eta.x(), best_xi_eta.y(), node_coords_flat);
+    Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad8(best_xi_eta.x(), best_xi_eta.y(), nodes);
     EiVector3d normal = (J_hit.col(0).cross(J_hit.col(1))).transpose().normalized();
 
     surface_normals_out = normal;
@@ -727,74 +731,9 @@ double intersect_quad8(const Ray& ray,
     return best_t;
 }
 
-// Same structure as intersect_bvh_tri6: load, loop, pack outputs.
-// The two wrappers are duplicated rather than templated to keep the code as
-// flat as the TRI6 case.
-
-IntersectionOutput intersect_bvh_quad9(const Ray& ray,
-    const std::vector<double>& node_coords,
-    const unsigned int bvh_node_quad_count) {
-
-    // Load element data
-    std::vector<QUAD9_GROUP> group;
-    load_quad9(node_coords, bvh_node_quad_count, group);
-
-    // Default "no intersection" output
-    IntersectionOutput negative_output{
-        Eigen::ArrayXXd(bvh_node_quad_count, NODE_COORDINATES),
-        EiVectorD3d::Zero(bvh_node_quad_count, NODE_COORDINATES),
-        Eigen::Vector<double, Eigen::Dynamic>::Constant(
-            bvh_node_quad_count, 1, std::numeric_limits<double>::infinity())
-    };
-
-    EiVectorD3d geometric_normals = EiVectorD3d::Zero(bvh_node_quad_count, 3);
-    Eigen::ArrayXXd t_values(bvh_node_quad_count, 1);
-    Eigen::ArrayXXd xi_values(bvh_node_quad_count, 1);
-    Eigen::ArrayXXd eta_values(bvh_node_quad_count, 1);
-
-    for (unsigned int e = 0; e < bvh_node_quad_count; ++e) {
-        EiVector3d n_tmp;
-        Eigen::Vector2d xe_tmp;
-        const double t = intersect_quad9(ray, group[e].nodes, group[e].node_coords, n_tmp, xe_tmp);
-
-        t_values  (e, 0) = t;
-        xi_values (e, 0) = xe_tmp.x();
-        eta_values(e, 0) = xe_tmp.y();
-        if (std::isfinite(t)) {
-            for (int k = 0; k < 3; ++k){
-                geometric_normals(e, k) = n_tmp(k);
-            }
-        }
-    }
-
-    // Mask out anything outside the ray segment
-    Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> valid_mask =
-        (t_values > 0.0) && (t_values >= ray.t_min) && (t_values <= ray.t_max);
-    if (!valid_mask.any()) return negative_output;
-
-    for (Eigen::Index i = 0; i < t_values.rows(); ++i) {
-        for (Eigen::Index j = 0; j < t_values.cols(); ++j) {
-            if (!valid_mask(i, j)) {
-                t_values(i, j) = std::numeric_limits<double>::infinity();
-            }
-        }
-    }
-
-    // Pack output: (u, v, 0) with u = (xi+1)/2, v = (eta+1)/2
-    Eigen::ArrayXXd quad_coords = Eigen::ArrayXXd::Zero(bvh_node_quad_count, NODE_COORDINATES);
-    quad_coords.col(0) = 0.5 * (xi_values.col(0)  + 1.0);
-    quad_coords.col(1) = 0.5 * (eta_values.col(0) + 1.0);
-    // Column 2 left at 0
-
-    return IntersectionOutput{ quad_coords, geometric_normals, t_values };
-}
-
 IntersectionOutput intersect_bvh_quad8(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_quad_count) {
-
-    std::vector<QUAD8_GROUP> group;
-    load_quad8(node_coords, bvh_node_quad_count, group);
 
     IntersectionOutput negative_output{
         Eigen::ArrayXXd(bvh_node_quad_count, NODE_COORDINATES),
@@ -806,17 +745,20 @@ IntersectionOutput intersect_bvh_quad8(const Ray& ray,
     Eigen::ArrayXXd xi_values(bvh_node_quad_count, 1);
     Eigen::ArrayXXd eta_values(bvh_node_quad_count, 1);
 
-    for (unsigned int e = 0; e < bvh_node_quad_count; ++e) {
+    for (unsigned int element_idx = 0; element_idx < bvh_node_quad_count; ++element_idx) {
+        std::array<EiVector3d, ElementNodeCount::QUAD8> quad8_node_coords; // Single QUAD8 as an array of its constituent nodal coordinates in the EiVector3d format for Jacobian calculations
+        get_face_data_vector(element_idx, node_coords, ElementNodeCount::QUAD8, &quad8_node_coords[0]);
+
         EiVector3d n_tmp;
         Eigen::Vector2d xe_tmp;
-        const double t = intersect_quad8(ray, group[e].nodes,group[e].node_coords, n_tmp, xe_tmp);
+        const double t = intersect_quad8(ray, quad8_node_coords, n_tmp, xe_tmp);
 
-        t_values  (e, 0) = t;
-        xi_values (e, 0) = xe_tmp.x();
-        eta_values(e, 0) = xe_tmp.y();
+        t_values  (element_idx, 0) = t;
+        xi_values (element_idx, 0) = xe_tmp.x();
+        eta_values(element_idx, 0) = xe_tmp.y();
         if (std::isfinite(t)) {
             for (int k = 0; k < 3; ++k){
-                geometric_normals(e, k) = n_tmp(k);
+                geometric_normals(element_idx, k) = n_tmp(k);
             } 
         }
     }
@@ -860,7 +802,7 @@ Eigen::Vector2d nodes_gh[6] = {
 };
 
 double intersect_tri6(const Ray &ray,
-    const std::vector<EiVector3d> nodes,
+    const std::array<EiVector3d, ElementNodeCount::TRI6> nodes,
     EiVector3d &surface_normals_out,
     Eigen::Vector2d &uv) {
     /* 
@@ -870,7 +812,7 @@ double intersect_tri6(const Ray &ray,
     ----------
     ray : const Ray
         Ray with which the intersection is found
-    nodes : const std::vector<EiVector3d>
+    nodes : const std::array<EiVector3d, 6>
         Triangle node coordinates
     surface_normals_out : EiVector3d
         Empty vector to which the normal at the intersection point should be loaded
@@ -1005,52 +947,6 @@ double intersect_tri6(const Ray &ray,
     return intersect ? min_t : std::numeric_limits<double>::infinity();
 }
 
-void load_tri6(const std::vector<double>& node_coords,
-    const unsigned int bvh_node_triangle_count,
-    std::vector<TRI6_GROUP> &tri6_group) {
-    /* 
-    Function to load provided TRI6 triangles in a TRI6 structure.
-
-    Parameters
-    ----------
-    node_coords : const std::vector<double>
-        Triangle node coordinates
-    bvh_node_triangle_count : const unsigned int
-        Number of the given triangles
-    tri6_group : td::vector<TRI6_GROUP>
-        Empty TRI6 structure to which the triangles should be loaded
-
-    Returns
-    -------
-    Nothing
-    */       
-
-    static const int NODES_PER_ELEMENT = 6;
-    static const int COORDS_PER_ELEMENT = NODES_PER_ELEMENT * NODE_COORDINATES;
-
-    for (int tri_idx = 0; tri_idx < bvh_node_triangle_count; tri_idx++) {
-        
-        std::vector<EiVector3d> nodes;
-        int index_min = tri_idx * COORDS_PER_ELEMENT;
-
-        for (int i = 0; i < NODES_PER_ELEMENT; i++) {
-
-            EiVector3d node(0, 0, 0);
-
-            node(0) = node_coords[index_min + i * 3 + 0]; // X-component
-            node(1) = node_coords[index_min + i * 3 + 1]; // Y-component
-            node(2) = node_coords[index_min + i * 3 + 2]; // Z-component
-
-            nodes.emplace_back(node);
-            // std::cerr << "Loaded " << i << "\n" << node << "\n";
-        }
-
-        tri6_group.emplace_back(nodes);
-
-        // std::cerr << "Loaded " << tri6_group.size() << " quadratic triangles" << "\n";
-    }
-}
-
 IntersectionOutput intersect_bvh_tri6(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_triangle_count) {
@@ -1072,10 +968,6 @@ IntersectionOutput intersect_bvh_tri6(const Ray& ray,
         Intersection result containing information about intersections of each triangle with the ray 
     */
 
-    // Load the triangles into the triangle group structure
-    std::vector<TRI6_GROUP> tri6_group;
-    load_tri6(node_coords, bvh_node_triangle_count, tri6_group);
-
     // Define default negative output if there is no intersection
     IntersectionOutput negative_output{
         Eigen::ArrayXXd(bvh_node_triangle_count, 3),
@@ -1091,11 +983,12 @@ IntersectionOutput intersect_bvh_tri6(const Ray& ray,
     Eigen::ArrayXXd barycentric_v(bvh_node_triangle_count, 1);
 
     for (int triangle_idx = 0; triangle_idx < bvh_node_triangle_count; triangle_idx++) {
+        std::array<EiVector3d, ElementNodeCount::TRI6> tri6_node_coords; // Single TRI6 as an array of its constituent nodal coordinates in the EiVector3d format for Jacobian calculations
+        get_face_data_vector(triangle_idx, node_coords, ElementNodeCount::TRI6, &tri6_node_coords[0]);
 
         EiVector3d n_tmp;
         Eigen::Vector2d uv_tmp;
-        std::vector<EiVector3d> nodes = tri6_group[triangle_idx].nodes;
-        double t = intersect_tri6(ray, nodes, n_tmp, uv_tmp);
+        double t = intersect_tri6(ray, tri6_node_coords, n_tmp, uv_tmp);
 
         // Convert the intersection results to acceptable format
         for (int i = 0; i < 3; ++i) {

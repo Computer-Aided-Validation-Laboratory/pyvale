@@ -135,18 +135,19 @@ static inline bool solve_3x3(const Eigen::Matrix3d& A,
     return std::isfinite(x(0)) && std::isfinite(x(1)) && std::isfinite(x(2));
 }
 
-static inline double find_element_diagonal(const std::vector<EiVector3d> nodes) {
+
+static inline double find_element_diagonal(const EiVector3d* nodes, const ElementNodeCount element_node_count) {
     // Element spatial scale: diagonal of the axis-aligned bounding box of the node set. Used to scale the residual tolerance.
     EiVector3d low = nodes[0];
     EiVector3d high = nodes[0];
-    for (int i = 1; i < nodes.size(); ++i) {
+    for (int i = 1; i < element_node_count; ++i) {
         int element_idx = i * NODE_COORDINATES - 1;
-        if (nodes[element_idx](0) < low(0)) low(0) = nodes[element_idx](0);
-        if (nodes[element_idx](1) < low(1)) low(1) = nodes[element_idx](1);
-        if (nodes[element_idx](2) < low(2)) low(2) = nodes[element_idx](2);
-        if (nodes[element_idx](0) > high(0)) high(0) = nodes[element_idx](0);
-        if (nodes[element_idx](1) > high(1)) high(1) = nodes[element_idx](1);
-        if (nodes[element_idx](2) > high(2)) high(2) = nodes[element_idx](2);
+        if (nodes[element_idx](0) < low(0)) low(0) = nodes[i](0);
+        if (nodes[element_idx](1) < low(1)) low(1) = nodes[i](1);
+        if (nodes[element_idx](2) < low(2)) low(2) = nodes[i](2);
+        if (nodes[element_idx](0) > high(0)) high(0) = nodes[i](0);
+        if (nodes[element_idx](1) > high(1)) high(1) = nodes[i](1);
+        if (nodes[element_idx](2) > high(2)) high(2) = nodes[i](2);
     }
     const double d = (high - low).norm();
     return d > 0.0 ? d : 1.0;
