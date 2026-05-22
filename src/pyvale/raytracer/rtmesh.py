@@ -70,10 +70,8 @@ class ElementNodeCount(IntEnum):
 
 # Mesh type - used for adjusting refractive behaviour
 class MeshType(IntEnum):
-    SOLID_VOLUME = 1, # 
-    #THIN_SHELL = 2, # Shell with 0 thickness; not available for now - how to differentiate between those computationally?
-    THICK_SHELL_OUTER = 3, # Outer surface of a shell with a non-zero thickness
-    THICK_SHELL_INNER = 4 # Inner surface of a shell with a non-zero thickness
+    SOLID = 0, 
+    THIN_SHELL = 1
 
 # Meshio mapping
 # Enum with surface elements (so 2D that we get after skinning the mesh) and their names in meshio cell types
@@ -135,8 +133,9 @@ class RTMesh:
     texture: np.ndarray = field(default=None)
     material: MaterialType = field(default=None)
     refractive_index: float = field(default=1.0003) # Refractive index of the material comprising the mesh; defaults to 1.003 for air, i.e., no refraction
-    mesh_type: MeshType = field(default=MeshType.SOLID_VOLUME) # Type of mesh determining the refractive behaviour
-    # mesh_to_world_mat: np.ndarray = field(default=None)
+    priority: int = field(default=0) # Mesh priority to determine refraction in nested volumes. 0 is the default, value not used for non-refractive cases
+    mesh_type: MeshType = field(default=MeshType.SOLID) # Type of mesh determining the refractive behaviour
+    #mesh_to_world_mat: np.ndarray = field(default=None)
     pyvista_surface: pv.UnstructuredGrid | pv.PolyData = field(default=None) # For SeamSplitter
     tri_face_mapping: np.ndarray = field(default=None) # To map triangulated faces back to original elements; needed for Blender UV unwrapping
     tri_node_mapping: np.ndarray = field(default=None) # To map triangulated vertex v to original higher order node/vertex
@@ -203,8 +202,9 @@ class RTMesh:
                     surface_type: SurfType = SurfType.FIELD_COLOR,
                     surface_fill: np.ndarray = None,
                     material: MaterialType = MaterialType.UNLIT,
-                    mesh_type: MeshType = MeshType.SOLID_VOLUME,
-                    refractive_index: float = 1.0003) -> None:
+                    refractive_index: float = 1.0003,
+                    priority: int = 0,
+                    mesh_type: MeshType = MeshType.SOLID) -> None:
         """
         Sets the surface type and fill for the mesh.
         
@@ -226,10 +226,13 @@ class RTMesh:
                 - The surface_fill should be a 2D array representing the texture image. The UV coordinates must be set for the mesh to apply the texture correctly.
         material: MaterialType
             The material type to apply to the mesh. Defaults to UNLIT for no shading effects.
-        mesh_type: MeshType
-            The type of mesh, which will affect the refractive behaviour, where applicable. Defaults to SOLID_VOLUME.
         refractive_index: float
             The refractive index to apply to the mesh. Applicable only for refractive materials. Defaults to 1.0003 for air. 
+        priority: int
+            The priority of the mesh. Used only if the material is set to refractive. The higher the priority, the more internal the mesh is, so e.g., a glass cup would have a lower priority than the water contained (nested) in it.
+            Defaults to 0.
+        mesh_type: MeshType
+            The type of mesh, which will affect the refractive behaviour, where applicable. Defaults to SOLID.
     
         Raises:
         -------
@@ -245,7 +248,8 @@ class RTMesh:
             self.uvs = None
             self.material = None
             self.refractive_index = 1.0003
-            self.mesh_type = MeshType.SOLID_VOLUME
+            self.priority = 0
+            self.mesh_type = MeshType.SOLID
             #self.uvs_over_time = None
         self.surface_type = surface_type
         self.material = material
@@ -256,6 +260,12 @@ class RTMesh:
             self.refractive_index = refractive_index
         else: 
             raise ValueError("Refractive index can be negative only for metamaterials, and these are not supported yet.")
+        
+        # Priority
+        if priority >= 0:
+            self.priority = priority
+        else: 
+            raise ValueError("Priority should be greater or equal to 0.")
         
         # Solid colors
         if surface_type == SurfType.FIELD_COLOR:
@@ -1167,13 +1177,9 @@ def simdata_to_rtmesh(pypath: Path,
         sub_rtmesh_2 = extract_submesh(pv_grid, charts[1], element_node_count, spatial_dim, render_mesh)
         # Compare bounding boxes; bigger => this RTMesh is the outer shell
         if sub_rtmesh_1.get_size(0).min() > sub_rtmesh_2.get_size(0).max():
-            sub_rtmesh_1.mesh_type = MeshType.THICK_SHELL_OUTER
-            sub_rtmesh_2.mesh_type = MeshType.THICK_SHELL_INNER
-            return [sub_rtmesh_1, sub_rtmesh_2]
+            return [sub_rtmesh_1, sub_rtmesh_2] # Outer, inner
         else:
-            sub_rtmesh_1.mesh_type = MeshType.THICK_SHELL_INNER
-            sub_rtmesh_2.mesh_type = MeshType.THICK_SHELL_OUTER
-            return [sub_rtmesh_2, sub_rtmesh_1]
+            return [sub_rtmesh_2, sub_rtmesh_1] #Outer, inner
     elif chart_count == 1:
         return create_rtmesh(coords, pv_grid, element_node_count, spatial_dim, connectivity, render_mesh)
     else:

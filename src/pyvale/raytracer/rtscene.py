@@ -58,6 +58,8 @@ class Scene:
     nodes_per_element: list[ElementNodeCount] = field(default_factory=list)
     element_count: list[int] = field(default_factory=list)
     refractive_indices: list[float] = field(default_factory=list) # Refractive indices of meshes stored in the scene
+    mesh_priorities: list[float] = field(default_factory=list) # Priorities of objects used to determine the intersections if there are nested volumes that are refractive
+    mesh_object_types: list[float] = field(default_factory=list) # Tells us if solids or thin shells to adjust refractive behaviour
     # Camera data
     camera_center: list[np.ndarray] = field(default_factory=list)
     pixel_00_center: list[np.ndarray] = field(default_factory=list)
@@ -128,6 +130,8 @@ class Scene:
         if rtmesh.timestep_count > self.timestep_count:  # Keep the highest timestep count (should be the same for all meshes, but you never know)
             self.timestep_count = rtmesh.timestep_count
         self.refractive_indices.append(rtmesh.refractive_index)
+        self.mesh_priorities.append(rtmesh.priority)
+        self.mesh_object_types.append(rtmesh.mesh_type)
         
 
     def set_refractive_index(self, refractive_index: float):

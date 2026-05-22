@@ -398,6 +398,7 @@ void overwrite_intersection_tri6(HitRecord& intersection_record,
         std::array<EiVector3d, ElementNodeCount::TRI6> node_coords;
         get_face_data_vector(min_row_idx, Node.node_coords, ElementNodeCount::TRI6, &node_coords[0]);
         Eigen::Matrix<double, 3, 2> jacobian = get_face_Jacobian_tri6(g, h, node_coords);
+        intersection_record.normal_shading = (jacobian.col(0).cross(jacobian.col(1))).transpose();
 
     } else if constexpr (Mode == ShadingType::FLAT) {
         // Use geometric normal as the shading normal

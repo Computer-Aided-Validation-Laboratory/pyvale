@@ -498,7 +498,7 @@ double intersect_quad9(const Ray& ray,
 
     // Geometric normal at the converged hit, from the true quadratic Jacobian
     Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad9(best_xi_eta.x(), best_xi_eta.y(), nodes);
-    EiVector3d normal = (J_hit.col(0).cross(J_hit.col(1))).transpose().normalized();
+    EiVector3d normal = (J_hit.col(0).cross(J_hit.col(1))).transpose();
 
     surface_normals_out = normal;
     xi_eta_out = best_xi_eta;
@@ -663,7 +663,6 @@ double intersect_quad8(const Ray& ray,
                 break;
             }
 
-            //Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad8(xi, eta, node_coords_flat);
             Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad8(xi, eta, nodes);
 
             Eigen::Matrix3d M;
@@ -722,9 +721,8 @@ double intersect_quad8(const Ray& ray,
 
     if (!have_hit) return std::numeric_limits<double>::infinity();
 
-    //Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad8(best_xi_eta.x(), best_xi_eta.y(), node_coords_flat);
     Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad8(best_xi_eta.x(), best_xi_eta.y(), nodes);
-    EiVector3d normal = (J_hit.col(0).cross(J_hit.col(1))).transpose().normalized();
+    EiVector3d normal = (J_hit.col(0).cross(J_hit.col(1))).transpose();
 
     surface_normals_out = normal;
     xi_eta_out = best_xi_eta;
@@ -909,12 +907,8 @@ double intersect_tri6(const Ray &ray,
                                 get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
         
                             EiVector3d normal =
-                                (J.col(0).cross(J.col(1))).transpose().normalized();
+                                (J.col(0).cross(J.col(1))).transpose();
         
-                            /*
-                            if (normal.dot(ray.direction) > 0)
-                                normal = -normal;
-                            */
                             surface_normals_out = normal;
                             uv = gh;
                             intersect = true;
@@ -1121,13 +1115,14 @@ void intersect_BLAS(const Ray& ray,
                 intersection_record.elem_interp_coords = out_intersection.elem_interp_coords.row(min_row_idx);
                 intersection_record.point_intersection = ray_at_t(closest_t, ray);
                 intersection_record.normal_surface = out_intersection.geometric_normals.row(min_row_idx);
+                intersection_record.ray_material_ptr = mesh_bvh.ray_material_ptr;
+                // Data for refractive indices
+                intersection_record.hit_blas_idx = mesh_bvh.blas_idx;
+                intersection_record.hit_blas_priority = mesh_bvh.priority;
+                intersection_record.refractive_index = mesh_bvh.refractive_index;
                 //intersection_record.face_color = get_face_color(min_row_idx, Node.face_color); // the OG part
                 //MaterialType material_rec{get_face_material(min_row_idx, Node.material)};
-                // std::cout << intersection_record.material << '\n';
                 //intersection_record.material = material_rec;
-                intersection_record.ray_material_ptr = mesh_bvh.ray_material_ptr;
-                intersection_record.refractive_index = mesh_bvh.refractive_index;
-                // std::cout << intersection_record.material << '\n' << '\n';
                 overwrite_intersection_function_ptr(intersection_record, Node, texture, min_row_idx);
             } 
         }

@@ -14,17 +14,19 @@
 #include "rtrender.h"
 #include "rthitrecord.h"
 #include "rtrayintersection.h"
-#include "rtmathutils.h"
 #include "rtmaterials.h"
 
-// New radiance function with lighting but iterative and refactored 
-EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri, const TLAS& TLAS){
+static constexpr int MAX_DEPTH = 500; // Max depth for the secondary rays
 
-    static constexpr int MAX_DEPTH = 500; // Max depth for the secondary rays
+
+// Radiance with refractive materials - but we could make this into a separate option if refractive materials are present in the scene to avoid needing to branch into true/false hits if not necessary?
+// This case would also have its own separate HitRecord, RayState structs since we could carry less data and fit more of those into cache lines
+EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri, const TLAS& TLAS){
     EiVector3d total_color = EiVector3d::Zero();
     std::vector<RayState> stack;
     stack.reserve(MAX_DEPTH);
-    stack.push_back({primary_ray, EiVector3d(1.0, 1.0, 1.0), scene_ri, 0});
+    stack.emplace_back(primary_ray, scene_ri);
+
     void (*ray_material_interaction_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color); // Pointer to the function determining the interaction between the ray and the mesh material
 
     while(!stack.empty()){
@@ -47,20 +49,50 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
             total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
             continue;
         }
-        /*
-        if (current_state.depth == 0){
-            std::cerr << "PRIMARY ray direction: " << current_ray.direction.x() << ", " << current_ray.direction.y() << ", " << current_ray.direction.z() << std::endl;
-            std::cerr << "PRIMARY ray origin: " << current_ray.origin.x() << ", " << current_ray.origin.y() << ", " << current_ray.origin.z() << std::endl;
+
+        // Handle nested dielectrics
+        // Classify nested dielectrics if material is refractive
+        if (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID> || intersection_record.ray_material_ptr == &ray_refractive<ObjectType::THIN_SHELL>) {
+
+            int hit_idx = intersection_record.hit_blas_idx;
+            int hit_priority = intersection_record.hit_blas_priority;
+            double hit_ri = intersection_record.refractive_index;
+            // Get and compare the max priority currently surrounding the ray (or min value of int, if the list is empty)
+            int top_idx = interior_highest_priority_idx(&current_state.interior_list[0], current_state.interior_count);
+            int top_priority;
+
+            if (top_idx < 0){
+                top_priority = std::numeric_limits<int>::min();
+            }
+            else {
+                top_priority = current_state.interior_list[top_idx].priority;
+            }
+            
+            // Check if it is a true hit
+            if (!(current_state.interior_count == 0 || hit_priority >= top_priority)){
+                // False hit: priority of hit object < max priority in interior list (Schmidt's algorithm for nested volumes)
+                // => Do not shade; re-cast the ray from hit point in the same direction by pushing a new RayState whose origin is the current hit point
+                RayState next_state = current_state;
+                interior_toggle(&next_state.interior_list[0], next_state.interior_count, hit_idx, hit_priority, hit_ri);
+                // Offset the ray minimnally to avoid self-intersecting - much like we do for all secondary rays
+                const double offset = std::numeric_limits<double>::epsilon() * 10.0 *
+                    std::max({std::fabs(intersection_record.point_intersection.x()),
+                    std::fabs(intersection_record.point_intersection.y()),
+                    std::fabs(intersection_record.point_intersection.z())});
+                next_state.ray.origin = intersection_record.point_intersection + offset * current_ray.direction.stableNormalized();
+                next_state.ray.direction = current_ray.direction;
+                next_state.ray.t_min = current_ray.t_min;
+                next_state.ray.t_max = std::numeric_limits<double>::infinity();
+                // DO NOT INCREMENT DEPTH - false hits are invisible according to the paper, so they do not affect the ray bounce count or energy
+                stack.push_back(next_state);
+                continue;
+            }
         }
-        */  
-        // Set and normalize surface and shading normals - had to move this inside the specific material functions as flipping here broke the logic for refractive materials
-        //set_face_normal(current_ray, intersection_record.normal_surface);
-        //set_face_normal(current_ray, intersection_record.normal_shading);
 
         EiVector3d emitted = intersection_record.emission;
         EiVector3d albedo = intersection_record.face_color;
 
-        /*
+        
         // Explicit depth limit with ambient fallback
         if (current_state.depth >= MAX_DEPTH) {
         //    // Add a fallback ambient color to compensate for truncated energy 
@@ -68,7 +100,77 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
             EiVector3d ambient_fallback = ray_blue_sky(current_ray) * 0.2; 
             total_color += current_state.accumulated_color.cwiseProduct(emitted + ambient_fallback);
             continue; 
-        }*/
+        }
+        
+        if (current_state.depth > MAX_DEPTH/2) { // Start early termination if we are at least halfway through the maximum allowed depth
+            // Russian roulette early termination
+            double p = std::max({albedo.x(), albedo.y(), albedo.z()});
+            // Clamp to prevent infinite loops (p=1.0) and division by zero (p=0.0)
+            p = std::clamp(p, 0.05, 0.95); 
+            if (random_double() > p){  // Note: for multi-threading this will have to be replaced with thread_local generator
+            //if ((double)rand() / RAND_MAX > p){ // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
+                //return emitted;
+                total_color += current_state.accumulated_color.cwiseProduct(emitted);
+                continue;
+            }
+            albedo /= p;
+        }
+
+        // True hit: priority of hit object >= max priority in interior list OR the list is empty
+        // Shade normally
+        // Process ray and update the stack and total color based on the material of the intersected mesh
+        ray_material_interaction_ptr(current_state, intersection_record, albedo, stack, total_color);
+    } // Stack while loop
+    return total_color;
+} 
+
+// Old implementation of iterative shader, without nested refractive volumes
+/*
+EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri, const TLAS& TLAS){
+
+    EiVector3d total_color = EiVector3d::Zero();
+    std::vector<RayState> stack;
+    stack.reserve(MAX_DEPTH);
+    stack.emplace_back(primary_ray, scene_ri);
+    void (*ray_material_interaction_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color); // Pointer to the function determining the interaction between the ray and the mesh material
+
+    while(!stack.empty()){
+        RayState current_state = stack.back();
+        stack.pop_back();
+        current_state.ray.direction.stableNormalize();
+        Ray current_ray = current_state.ray;
+
+        HitRecord intersection_record; // Create HitRecord struct
+        // Look for the first intersection for this ray
+        IntersectionOutput intersection;
+        intersect_TLAS(current_ray, TLAS, intersection, intersection_record);
+
+        ray_material_interaction_ptr = intersection_record.ray_material_ptr;
+        //intersection_record.temp_flat_shading(); // Temporary function to swap shading normal with geometric normal and test flat shading before it is implemented as its own separate option
+
+        if (intersection_record.t == std::numeric_limits<double>::infinity()) {
+            //const EiVector3d blue_sky(0.5, 0.5, 0.5);
+            const EiVector3d blue_sky = ray_blue_sky(current_ray); // Early termination - no bounces here anyway
+            total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
+            continue;
+        }
+        
+        // Set and normalize surface and shading normals - had to move this inside the specific material functions as flipping here broke the logic for refractive materials
+        //set_face_normal(current_ray, intersection_record.normal_surface);
+        //set_face_normal(current_ray, intersection_record.normal_shading);
+
+        EiVector3d emitted = intersection_record.emission;
+        EiVector3d albedo = intersection_record.face_color;
+
+        
+        // Explicit depth limit with ambient fallback
+        if (current_state.depth >= MAX_DEPTH) {
+        //    // Add a fallback ambient color to compensate for truncated energy 
+            // Avoids the "plain black shadows" caused by zero light return
+            EiVector3d ambient_fallback = ray_blue_sky(current_ray) * 0.2; 
+            total_color += current_state.accumulated_color.cwiseProduct(emitted + ambient_fallback);
+            continue; 
+        }
         
         if (current_state.depth > MAX_DEPTH/2) { // Start early termination if we are at least halfway through the maximum allowed depth
             // Russian roulette early termination
@@ -88,6 +190,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
     } // Stack while loop
     return total_color;
 } 
+*/
 
 /*
 // This a new radiance function with lighting
@@ -248,6 +351,7 @@ EiVector3d return_ray_color_new(const Ray& ray,
 }
 */
 
+/*
 // Original, no-shading function
 EiVector3d return_ray_color(const Ray& ray,
     const TLAS& TLAS) {
@@ -267,131 +371,7 @@ EiVector3d return_ray_color(const Ray& ray,
     // Blue sky gradient
     return ray_blue_sky(ray);
 }
-
-void render_ppm_image(const EiVector3d& camera_center,
-    const EiVector3d& pixel_00_center,
-    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
-    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_defocus_disc,
-    const TLAS& TLAS,
-    const int image_height,
-    const int image_width,
-    const int number_of_samples,
-    const double scene_ri,
-    const std::filesystem::path output_filepath) {
-    // Get camera parameters from the dict and cast it to Eigen types so it works with existing code; by reference to avoid copying data
-
-    std::vector<uint8_t> buffer;
-    buffer.reserve(image_width * image_height * 12); // Preallocate memory for the image buffer (conservatively)
-
-    for (int j = 0; j < image_height; j++) {
-        //std::cerr << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush << std::endl;
-        for (int i = 0; i < image_width; i++) {
-            EiVector3d pixel_color = EiVector3d::Zero();
-            for (int k = 0; k < number_of_samples; k++) {
-                double offset[2] = { random_double() - 0.5, random_double() - 0.5 };
-                EiVector3d pixel_sample = pixel_00_center +
-                    (i + offset[0]) * matrix_pixel_spacing.row(0) +
-                    (j + offset[1]) * matrix_pixel_spacing.row(1);
-                std::array<double, 2> defocus_disc_offset = point_in_unit_disk();
-                EiVector3d defocus_disc_sample = defocus_disc_offset[0] * matrix_defocus_disc.row(0) + defocus_disc_offset[1] * matrix_defocus_disc.row(1);
-                EiVector3d ray_origin = camera_center + defocus_disc_sample; // ray direction in thin lens approx
-                EiVector3d ray_direction = pixel_sample - ray_origin; // ray direction in thin lens approx
-                //EiVector3d ray_origin = camera_center; // ray origin in pinhole camera mode
-                //EiVector3d ray_direction = pixel_sample - camera_center; // ray direction in pinhole camera mode;
-                //Ray current_ray{ ray_origin, ray_direction.normalized() };
-                Ray current_ray{ ray_origin, ray_direction};
-                //pixel_color += return_ray_color(current_ray, TLAS);
-                //pixel_color += return_ray_color_new(current_ray, TLAS);
-                pixel_color += return_ray_color_stack(current_ray, scene_ri, TLAS);
-            }
-            // Get the RGB components of the pixel color (in [0,1] range) and convert them to a single-channel grayscale
-            //std::clamp(pixel_color[0], 0.0, 0.999);
-            double gray = 0.2126 * pixel_color[0] + 0.7152 * pixel_color[1] + 0.0722 * pixel_color[2];
-            int gray_byte = int(gray / number_of_samples * 255.99);
-            buffer.push_back(static_cast<uint8_t>(gray_byte));
-            buffer.push_back(static_cast<uint8_t>(gray_byte));
-            buffer.push_back(static_cast<uint8_t>(gray_byte));
-        }
-    }
-
-    std::ofstream image_file;
-
-    image_file.open(output_filepath);
-    if (!image_file.is_open()) {
-        std::cerr << "Failed to open the output file.\n";
-        return;
-    }
-
-    image_file << "P6\n" << image_width << ' ' << image_height << "\n255\n";
-    image_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-
-    image_file.close();
-    std::cout << "\r Done. \n";
-}
-
-
-void render_ppm_image_color(const EiVector3d& camera_center,
-    const EiVector3d& pixel_00_center,
-    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
-    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_defocus_disc,
-    const TLAS& TLAS,
-    const int image_height,
-    const int image_width,
-    const int number_of_samples,
-    const double scene_ri,
-    const std::filesystem::path output_filepath) {
-    // Get camera parameters from the dict and cast it to Eigen types so it works with existing code; by reference to avoid copying data
-
-    std::vector<uint8_t> buffer;
-    buffer.reserve(image_width * image_height * 12); // Preallocate memory for the image buffer (conservatively)
-
-    for (int j = 0; j < image_height; j++) {
-        //std::cerr << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush << std::endl;
-        for (int i = 0; i < image_width; i++) {
-            EiVector3d pixel_color = EiVector3d::Zero();
-            for (int k = 0; k < number_of_samples; k++) {
-                double offset[2] = { random_double() - 0.5, random_double() - 0.5 };
-                EiVector3d pixel_sample = pixel_00_center +
-                    (i + offset[0]) * matrix_pixel_spacing.row(0) +
-                    (j + offset[1]) * matrix_pixel_spacing.row(1);
-                std::array<double, 2> defocus_disc_offset = point_in_unit_disk();
-                EiVector3d defocus_disc_sample = defocus_disc_offset[0] * matrix_defocus_disc.row(0) + defocus_disc_offset[1] * matrix_defocus_disc.row(1);
-                EiVector3d ray_origin = camera_center + defocus_disc_sample; // ray direction in thin lens approx
-                EiVector3d ray_direction = pixel_sample - ray_origin; // ray direction in thin lens approx
-                //EiVector3d ray_origin = camera_center; // ray origin in pinhole camera mode
-                //EiVector3d ray_direction = pixel_sample - camera_center; // ray direction in pinhole camera mode;
-                //Ray current_ray{ ray_origin, ray_direction.normalized() };
-                Ray current_ray{ ray_origin, ray_direction};
-                //pixel_color += return_ray_color(current_ray, TLAS);
-                //pixel_color += return_ray_color_new(current_ray, TLAS);
-                pixel_color += return_ray_color_stack(current_ray, scene_ri, TLAS);
-            }
-
-            // Get the RGB components of the pixel color (in [0,1] range) and convert them to the byte range [0,255]
-            //std::clamp(pixel_color[0], 0.0, 0.999);
-            pixel_color /= number_of_samples;
-            pixel_color *= 255.999;
-            buffer.push_back(static_cast<uint8_t>(pixel_color.x()));
-            buffer.push_back(static_cast<uint8_t>(pixel_color.y()));
-            buffer.push_back(static_cast<uint8_t>(pixel_color.z()));
-        }
-    }
-
-    std::ofstream image_file;
-
-    image_file.open(output_filepath);
-    if (!image_file.is_open()) {
-        std::cerr << "Failed to open the output file.\n";
-        return;
-    }
-
-    image_file << "P6\n" << image_width << ' ' << image_height << "\n255\n";
-    image_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-
-    image_file.close();
-    std::cout << "\r Done. \n";
-}
-
+*/
 
 void mock_ray_shoot(const EiVector3d& camera_center,
     const EiVector3d& pixel_00_center,

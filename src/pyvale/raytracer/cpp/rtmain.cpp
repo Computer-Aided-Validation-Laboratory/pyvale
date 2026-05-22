@@ -49,6 +49,8 @@ void render_scene(const int image_height,
     const std::vector<int>& scene_surface_types,
     const std::vector<int>& materials,
     const std::vector<double>& scene_refractive_indices,
+    const std::vector<int>& scene_mesh_priorities,
+    const std::vector<int>& scene_mesh_object_types,
     const int texture_sampler,
     const int shading_type,
     const bool grayscale_flag) {
@@ -77,17 +79,18 @@ void render_scene(const int image_height,
     const int image_width,
     const int number_of_samples,
     const double scene_ri,
-    const std::filesystem::path output_filepath) = &render_ppm_image;
+    const std::filesystem::path output_filepath) = &render_ppm_image<RenderColor::GRAYSCALE>;
+
 
     if (grayscale_flag == false){
-        render_function_ptr = &render_ppm_image_color;
+        render_function_ptr = &render_ppm_image<RenderColor::COLOR>;
     }
 
     for (int timestep = 0; timestep < timestep_count; ++timestep){
         //TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, timestep, timestep_count); // target stack-based DoD implementation
         //std::chrono::time_point t1_build = std::chrono::high_resolution_clock::now();
         //TLAS test_TLAS = build_acceleration_structures(scene_coords_expanded, scene_face_colors, scene_uvs, scene_textures, scene_surface_types, timestep, timestep_count);
-        TLAS current_TLAS = build_acceleration_structures(scene_coords_expanded, scene_normals_expanded, scene_face_colors, materials, scene_uvs, scene_textures, scene_surface_types, scene_refractive_indices, shading_type, timestep, timestep_count);
+        TLAS current_TLAS = build_acceleration_structures(scene_coords_expanded, scene_normals_expanded, scene_face_colors, materials, scene_uvs, scene_textures, scene_surface_types, scene_refractive_indices, scene_mesh_priorities, scene_mesh_object_types, shading_type, timestep, timestep_count);
         //std::chrono::time_point t2_build = std::chrono::high_resolution_clock::now();
 
         

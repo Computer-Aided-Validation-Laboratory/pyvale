@@ -649,11 +649,12 @@ void copy_data_to_TLAS(TLAS &tlas,
         for(int j = Node.min_blas_idx; j < node_max_index; ++j){
             int blas_idx = scene_blas_indices[j];
             blases_ordered.push_back(scene_BLASes[blas_idx]);
+            blases_ordered[j].blas_idx = j;
         }
     }
  }
 
-inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const double mesh_ri, const double scene_ri){
+inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const double mesh_ri, const double scene_ri, const enum ObjectType object_type){
     switch (mesh_material) {
         case UNLIT: {
             mesh_bvh.ray_material_ptr = &ray_unlit;
@@ -671,7 +672,12 @@ inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const dou
             return;
         }
         case REFRACTIVE: {// Refraction (dielectric)
-            mesh_bvh.ray_material_ptr = &ray_refractive;
+            if (object_type == ObjectType::SOLID){
+                mesh_bvh.ray_material_ptr = &ray_refractive<ObjectType::SOLID>;
+            }
+            else{
+                mesh_bvh.ray_material_ptr = &ray_refractive<ObjectType::THIN_SHELL>;
+            }
             mesh_bvh.refractive_index = mesh_ri;
             return;
         }
@@ -901,6 +907,8 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     const std::vector<nanobind::ndarray<const double, nanobind::c_contig>>& scene_textures,
     const std::vector<int>& scene_surface_types,
     const std::vector<double>& scene_refractive_indices,
+    const std::vector<int>& mesh_priorities,
+    const std::vector<int>& mesh_object_types,
     const int shading_type,
     const int timestep,
     const int timestep_count){
@@ -998,8 +1006,10 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         build_BLAS(mesh_bvh, mesh_element_centroids, mesh_element_aabbs, mesh_element_indices, node_minimum_element_index, mesh_element_count, nodes_per_element);
         int mesh_material = materials[mesh_idx];
         double mesh_ri = scene_refractive_indices[mesh_idx];
-        set_BLAS_material(mesh_bvh, mesh_material, mesh_ri, scene_ri);
-
+        ObjectType mesh_object_type = static_cast<ObjectType>(mesh_object_types[mesh_idx]);
+        set_BLAS_material(mesh_bvh, mesh_material, mesh_ri, scene_ri, mesh_object_type);
+        mesh_bvh.priority = mesh_priorities[mesh_idx];
+       
         int surface_type = scene_surface_types[mesh_idx];
 		nanobind::ndarray<const double, nanobind::c_contig> mesh_node_normals = scene_normals_expanded[mesh_idx];
         double* mesh_node_normals_ptr = const_cast<double*>(mesh_node_normals.data()); // Index into the node normals to copy them

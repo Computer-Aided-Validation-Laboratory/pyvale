@@ -17,7 +17,6 @@ enum ElementNodeCount {
     QUAD9 = 9
 };
 
-
 // Scoped enum, so will not implicitly convert to int
 // Ensure that these match the enum in Python. Integers used to avoid using strings in C-interface
 enum class ShadingType{
@@ -37,4 +36,9 @@ enum MaterialType : int {
     SPECULAR = 2, 
     REFRACTIVE = 3,
     UNLIT = 4 
+};
+
+enum class ObjectType {
+    SOLID = 1,
+    THIN_SHELL = 2
 };

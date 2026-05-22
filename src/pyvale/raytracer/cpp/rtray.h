@@ -18,6 +18,10 @@ struct Ray {
     EiVector3d direction;
     double t_min {1e-8};
     double t_max{ std::numeric_limits<double>::infinity() };
+
+    // Constructor
+    Ray() = default;
+    Ray(const EiVector3d origin_, const EiVector3d direction_) : origin(origin_), direction(direction_) {};
 };
 
 inline EiVector3d ray_at_t(const double t, const Ray& ray) {

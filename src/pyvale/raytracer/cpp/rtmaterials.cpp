@@ -88,8 +88,9 @@ void ray_diffuse(const RayState& current_state,
     std::cerr << "\tScattering direction: " << direction_scatter.x() << ", " << direction_scatter.y() << ", " << direction_scatter.z() << std::endl;
     std::cerr << "\tPoint of intersection: " << p.x() << ", " << p.y() << ", " << p.z() << std::endl; 
     */
-
-    stack.push_back({ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1});
+    
+    //stack.emplace_back(ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1);
+    stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.outer_refractive_index, current_state.depth + 1, current_state.interior_count);
 }
 
 void ray_specular(const RayState& current_state,
@@ -105,8 +106,7 @@ void ray_specular(const RayState& current_state,
     const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     
-    intersection_record.normalize_and_flip_normals(current_state.ray);
-    intersection_record.align_normals();
+     
     EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
     EiVector3d normal_shade = intersection_record.normal_shading; // Shading normal
 
@@ -131,9 +131,34 @@ void ray_specular(const RayState& current_state,
     std::cerr << "Reflected ray direction: " << reflected.x() << ", " << reflected.y() << ", " << reflected.z() << std::endl;
     std::cerr << "\tPoint of intersection: " << intersection_record.point_intersection.x() << ", " << intersection_record.point_intersection.y() << ", " << intersection_record.point_intersection.z() << std::endl; */
 
-    stack.push_back({ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1});
+    //stack.emplace_back(ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1);
+    stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.outer_refractive_index, current_state.depth + 1, current_state.interior_count);
 }
 
+// We don't really need most these arguments, but this is to match the function pointer signature to avoid having a switch in the rendering loop
+void ray_unlit(const RayState& current_state,
+    HitRecord& intersection_record,
+    const EiVector3d& albedo,
+    std::vector<RayState>& stack,
+    EiVector3d& total_color){
+
+    total_color += current_state.accumulated_color.cwiseProduct(intersection_record.face_color);
+    return;
+}
+
+void ray_undefined(const RayState& current_state,
+    HitRecord& intersection_record,
+    const EiVector3d& albedo,
+    std::vector<RayState>& stack,
+    EiVector3d& total_color){
+    
+    const EiVector3d blue_sky = ray_blue_sky(current_state.ray); // Early termination - no bounces here anyway
+    total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
+    return;
+}
+
+/*
+// Implementation of refractive rays before we added nested volumes
 void ray_refractive(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
@@ -160,15 +185,7 @@ void ray_refractive(const RayState& current_state,
     EiVector3d normal_shade = intersection_record.normal_shading; //  // Shading normal; use for Physics to dictate how light behaves
     normal_shade.stableNormalize();
 
-    /*
-    std::cerr << "REFRACTIVE" << std::endl;
-    std::cerr << "\tIncoming ray direction:" << ray_direction.x() << ", " << ray_direction.y() << ", " << ray_direction.z() << std::endl;
-    std::cerr << "\tRefractive index of previous medium: " << current_state.outer_refractive_index << std::endl;
-    std::cerr << "\tRefractive index of current medium: " << intersection_record.refractive_index << std::endl;
-    std::cerr << "\tShading normal before aligning: " << normal_shade.x() << ", " << normal_shade.y() << ", " << normal_shade.z() << std::endl;
-    std::cerr << "\tGeometric normal before aligning: " << normal_geo.x() << ", " << normal_geo.y() << ", " << normal_geo.z() << std::endl;
-    std::cerr << "\tPoint of intersection: " << p.x() << ", " << p.y() << ", " << p.z() << std::endl;
-    */
+   
     if (!into) {
         normal_geo = -normal_geo;
         normal_shade = -normal_shade;
@@ -197,7 +214,7 @@ void ray_refractive(const RayState& current_state,
 
     double sin2_theta_t = ri_ratio * ri_ratio * (1.0 - cos_theta_i * cos_theta_i); // Sin^2 of the transmission angle
 
-    /* // tbd which calculation gives better results
+    // tbd which calculation gives better results
     EiVector3d r_out_perp = ri_ratio * (ray_direction + cos_theta_i * normal_shade); // Perpendicular component
     double r_out_perp_length_squared = r_out_perp.squaredNorm();
 
@@ -213,7 +230,7 @@ void ray_refractive(const RayState& current_state,
 
     // Calculate the parallel component
     EiVector3d r_out_parallel = -sqrt(fabs(1.0 - r_out_perp_length_squared)) * normal_shade;
-    */
+
 
     //std::cerr << "\tReflected ray direction: " << reflected_dir.x() << ", " << reflected_dir.y() << ", " << reflected_dir.z() << std::endl;
     
@@ -224,7 +241,9 @@ void ray_refractive(const RayState& current_state,
         reflected_ray.direction = reflected_dir;
         reflected_ray.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
         
-        stack.push_back({reflected_ray, next_accumulated_color, ri_material, current_state.depth + 1});
+        stack.emplace_back(reflected_ray, next_accumulated_color, ri_material, current_state.depth + 1);
+        //stack.emplace_back(reflected_rat, next_accumulated_color, current_state.interior_list, ri_material, current_state.depth + 1, current_state.interior_count);
+
         //std::cerr << "Total internal reflection. Only shot reflected ray" << std::endl;
         return;
     }
@@ -254,11 +273,6 @@ void ray_refractive(const RayState& current_state,
     //std::cerr << "\tRefracted ray direction: " <<  refracted_ray.direction.x() << ", " <<  refracted_ray.direction.y() << ", " <<  refracted_ray.direction.z() << std::endl;
     //refracted_ray.direction.stableNormalize();
     
-    /*
-    if (reflected_ray.direction.dot(normal_geo) < 0.0) { // If reflected ray points inside the geometry
-        refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_geo;
-    }
-*/
 
     // Russian roulette between reflection and refraction
     if (current_state.depth > 2) {
@@ -267,44 +281,23 @@ void ray_refractive(const RayState& current_state,
         if (random_double() < P){ // Note: for multi-threading this will have to be replaced with thread_local generator
         //if ((double)rand() / RAND_MAX < P) { // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
             double P_reflect = reflectance / P; // Adjust original reflectance based on P
-            stack.push_back({reflected_ray, next_accumulated_color * P_reflect, ri_material, current_state.depth + 1});
+            stack.emplace_back(reflected_ray, next_accumulated_color * P_reflect, ri_material, current_state.depth + 1);
             //std::cerr << "\tShot reflected ray " << std::endl;
             return;
         }
         else {
             double P_transmit = transmittance / (1.0 - P); // Adjust original transmittance based on P
-            stack.push_back({refracted_ray, next_accumulated_color * P_transmit, ri_material, current_state.depth + 1});
+            stack.emplace_back(refracted_ray, next_accumulated_color * P_transmit, ri_material, current_state.depth + 1);
             //std::cerr << "\tShot refracted ray " << std::endl;
             return;
         }
     } 
     else {
         // Push both rays
-        stack.push_back({reflected_ray, next_accumulated_color * reflectance, ri_material, current_state.depth + 1});
-        stack.push_back({refracted_ray, next_accumulated_color * transmittance, ri_material, current_state.depth + 1});
+        stack.emplace_back(reflected_ray, next_accumulated_color * reflectance, ri_material, current_state.depth + 1);
+        stack.emplace_back(refracted_ray, next_accumulated_color * transmittance, ri_material, current_state.depth + 1);
         //std::cerr << "\tShot both reflected and refracted rays " << std::endl;
         return;
     }
 }
-
-// We don't really need most these arguments, but this is to match the function pointer signature to avoid having a switch in the rendering loop
-void ray_unlit(const RayState& current_state,
-    HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack,
-    EiVector3d& total_color){
-
-    total_color += current_state.accumulated_color.cwiseProduct(intersection_record.face_color);
-    return;
-}
-
-void ray_undefined(const RayState& current_state,
-    HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack,
-    EiVector3d& total_color){
-    
-    const EiVector3d blue_sky = ray_blue_sky(current_state.ray); // Early termination - no bounces here anyway
-    total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
-    return;
-}
+*/
