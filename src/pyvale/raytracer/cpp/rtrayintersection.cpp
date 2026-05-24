@@ -1046,6 +1046,7 @@ bool intersect_AABB (const Ray& ray, const AABB& AABB) {
     double t_max = std::min(std::min(std::max(t_axis[0], t_axis[1]), std::max(t_axis[2], t_axis[3])), std::max(t_axis[4], t_axis[5]));
 
     // Temporary debug because it often indicates something went wrong with secondary rays
+    
     if (std::isnan(t_min) || std::isnan(t_max)) {
     std::cerr << "NaN slab: origin=" << ray.origin.transpose()
               << " dir=" << ray.direction.transpose()
@@ -1053,7 +1054,7 @@ bool intersect_AABB (const Ray& ray, const AABB& AABB) {
               << " max=" << AABB.corner_max[0] << "," << AABB.corner_max[1] << "," << AABB.corner_max[2]
               << "\n";
     }
-
+    
     // t_min < t_max - Ray which just touches a corner, edge, or face of the AABB will be considered non-intersecting
     // t_min <= t_max - Rays which touch the box boundary are considered intersecting. A bit of a degenerate case, but decided to include it here, hence more relaxed inequality.
     // t_min < ray.t_max - Clip to ray segment
@@ -1120,6 +1121,7 @@ void intersect_BLAS(const Ray& ray,
                 intersection_record.hit_blas_idx = mesh_bvh.blas_idx;
                 intersection_record.hit_blas_priority = mesh_bvh.priority;
                 intersection_record.refractive_index = mesh_bvh.refractive_index;
+                intersection_record.thickness = mesh_bvh.thickness;
                 //intersection_record.face_color = get_face_color(min_row_idx, Node.face_color); // the OG part
                 //MaterialType material_rec{get_face_material(min_row_idx, Node.material)};
                 //intersection_record.material = material_rec;

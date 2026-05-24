@@ -52,7 +52,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
 
         // Handle nested dielectrics
         // Classify nested dielectrics if material is refractive
-        if (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID> || intersection_record.ray_material_ptr == &ray_refractive<ObjectType::THIN_SHELL>) {
+        if (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID> || intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SHELL>) {
 
             int hit_idx = intersection_record.hit_blas_idx;
             int hit_priority = intersection_record.hit_blas_priority;

@@ -71,7 +71,7 @@ class ElementNodeCount(IntEnum):
 # Mesh type - used for adjusting refractive behaviour
 class MeshType(IntEnum):
     SOLID = 0, 
-    THIN_SHELL = 1
+    SHELL = 1
 
 # Meshio mapping
 # Enum with surface elements (so 2D that we get after skinning the mesh) and their names in meshio cell types
@@ -135,8 +135,9 @@ class RTMesh:
     refractive_index: float = field(default=1.0003) # Refractive index of the material comprising the mesh; defaults to 1.003 for air, i.e., no refraction
     priority: int = field(default=0) # Mesh priority to determine refraction in nested volumes. 0 is the default, value not used for non-refractive cases
     mesh_type: MeshType = field(default=MeshType.SOLID) # Type of mesh determining the refractive behaviour
+    thickness: float = field(default=1.0) # Mesh thickness used for SHELLs
     #mesh_to_world_mat: np.ndarray = field(default=None)
-    pyvista_surface: pv.UnstructuredGrid | pv.PolyData = field(default=None) # For SeamSplitter
+    pyvista_surface: pv.UnstructuredGrid | pv.PolyData = field(default=None) # For SeamSplitter; TRIANGULATED mesh surface - used for UV-unwrapping procedures, not for rendering
     tri_face_mapping: np.ndarray = field(default=None) # To map triangulated faces back to original elements; needed for Blender UV unwrapping
     tri_node_mapping: np.ndarray = field(default=None) # To map triangulated vertex v to original higher order node/vertex
     surface_type: SurfType = field(default=None)
@@ -145,6 +146,7 @@ class RTMesh:
     element_count: int = field(default=0)
     node_count: int = field(default=0)
     nodes_per_element: ElementNodeCount = field(default=ElementNodeCount.TRI3)
+    avg_element_length: float = field(default=0.0) # Average edge length of mesh elements in this mesh
 
     def get_mesh_data_over_time(self, render_mesh: RenderMesh = None) -> None:
         """
@@ -204,7 +206,8 @@ class RTMesh:
                     material: MaterialType = MaterialType.UNLIT,
                     refractive_index: float = 1.0003,
                     priority: int = 0,
-                    mesh_type: MeshType = MeshType.SOLID) -> None:
+                    mesh_type: MeshType = MeshType.SOLID,
+                    thickness: float | None = None) -> None:
         """
         Sets the surface type and fill for the mesh.
         
@@ -233,11 +236,13 @@ class RTMesh:
             Defaults to 0.
         mesh_type: MeshType
             The type of mesh, which will affect the refractive behaviour, where applicable. Defaults to SOLID.
+        thickness: float
+            The thickness of the mesh shell, counted INWARDS from the actual boundary. Optional. Defaults to None or the maximum allowed thickness for a given shell.
     
         Raises:
         -------
         ValueError:
-            If the surface_fill does not match the expected format for the given surface_type, or if UV coordinates are required but not provided for texture mapping, or if the refractive_index is less than 0.
+            If the surface_fill does not match the expected format for the given surface_type, or if UV coordinates are required but not provided for texture mapping, or if the refractive_index is less than 0. Also if the mesh thickness has an unphysical value.
         TypeError:
             If the material is set to REFRACTIVE and texture is passed, as the physics for this is currently not supported.
         """
@@ -250,6 +255,7 @@ class RTMesh:
             self.refractive_index = 1.0003
             self.priority = 0
             self.mesh_type = MeshType.SOLID
+            self.thickness = 1.0
             #self.uvs_over_time = None
         self.surface_type = surface_type
         self.material = material
@@ -267,6 +273,21 @@ class RTMesh:
         else: 
             raise ValueError("Priority should be greater or equal to 0.")
         
+        # Thickness
+        if mesh_type == MeshType.SOLID and thickness is not None:
+            print("Thickness value is ignored for solid meshes.")
+        elif mesh_type == MeshType.SHELL:
+            shell_thickness_cutoff = 0.1 * self.avg_element_length # Reissner-Mindlin cut-off for thickness that makes sense physically: 1/10 of a planar dimension, in this case edge length
+            if thickness is None:
+                print(f"Thickness not set for a thin shell. Setting it to the maximum allowed value: {shell_thickness_cutoff:.6f}.") # Or we could just force it to be represented as solid?
+                self.thickness = shell_thickness_cutoff
+            elif thickness < 0.0:
+                raise ValueError("Thickness of a shell cannot be negative.")
+            elif thickness > shell_thickness_cutoff:
+                raise ValueError(f"Thickness of the shell should not exceed 1/10th of the average edge length. The cut-off value is {shell_thickness_cutoff:.6f}. Current thickness is {thickness:.6f}.")
+            else:
+                self.thickness = thickness
+
         # Solid colors
         if surface_type == SurfType.FIELD_COLOR:
             if material == MaterialType.REFRACTIVE:
@@ -948,6 +969,10 @@ def prune_internal_nodes(node_coords: np.ndarray,
     pruned_connectivity = remap[connectivity]
     return pruned_node_coords, pruned_connectivity
 
+# ================================================================================
+# SIMDATA -> RTMESH
+# ================================================================================
+
 def create_rtmesh(coords_mesh: np.ndarray,
                   pv_ugrid: pv.UnstructuredGrid | pv.PolyData,
                   element_node_count: ElementNodeCount,
@@ -964,7 +989,7 @@ def create_rtmesh(coords_mesh: np.ndarray,
     coords_mesh: np.ndarray
         Shape (node_count, 3). The coordinates of the nodes in the mesh.
     pv_grid: pv.UnstructuredGrid | pv.PolyData
-        PyVista data structure used to create texture mapping.
+        PyVista data structure representing the mesh. This should NOT be triangulated for non-TRI3 elements.
     element_count: int
         Number of elements in the mesh.
     connectivity: np.ndarray
@@ -983,6 +1008,7 @@ def create_rtmesh(coords_mesh: np.ndarray,
         rtmesh.nodes_per_element = ElementNodeCount(element_node_count)
     except ValueError:
         print(f"Error: Invalid nodes_per_elem value: {element_node_count}.")
+
     # Triangulation for everything that is not a TRI3 (QUAD4 would pass in Blender, but not SeamSplitter)
     if element_node_count == ElementNodeCount.TRI3:
         rtmesh.pyvista_surface = pv_ugrid
@@ -992,6 +1018,14 @@ def create_rtmesh(coords_mesh: np.ndarray,
         rtmesh.tri_face_mapping = np.ascontiguousarray(mapped_face_ids, dtype=np.int64)
         rtmesh.tri_node_mapping = np.ascontiguousarray(mapped_coords, dtype=np.int64)
 
+    # Compute average element edge length for validating thickness for shells. We use a rough approximate from the triangulated surface where need be for now as the
+    # length parameter does not work for 2D elements (i.e., not lines), so we have to use the area and reverse engineer it
+    # We assume that a ~ h, so A_triangle ~ 0.5 * 2a => A_triangle ~ a, which definitely is not the best method moving forward, but should be an okay-ish ballpark
+    # cut-off value for non-degenerate elements
+    pv_temp = rtmesh.pyvista_surface.compute_cell_sizes(area = True)
+    rtmesh.avg_element_length = np.mean(pv_temp.cell_data['Area'])
+
+    # Set node coordinates
     rtmesh.node_coords = np.ascontiguousarray(coords_mesh, dtype=np.double)
 
     # RenderMesh passed = processing SimData object
@@ -1020,10 +1054,6 @@ def create_rtmesh(coords_mesh: np.ndarray,
     #print(f"Connectivity shape: {connectivity.shape}")
     #print(f"Node coords shape: {coords_mesh.shape}")
     return rtmesh
-
-# ================================================================================
-# SIMDATA -> RTMESH
-# ================================================================================
 
 def create_render_mesh_higher_order(sim_data: mh.SimData,
                        field_render_keys: tuple[str,...],
@@ -1613,12 +1643,12 @@ def any_mesh_to_rtmesh(pypath: Path,
         sub_rtmesh_2 = extract_submesh(pv_ugrid, charts[1], element_node_count, spatial_dim)
         # Compare bounding boxes; bigger => this RTMesh is the outer shell
         if sub_rtmesh_1.get_size(0).min() > sub_rtmesh_2.get_size(0).max():
-            sub_rtmesh_1.mesh_type = MeshType.THICK_SHELL_OUTER
-            sub_rtmesh_2.mesh_type = MeshType.THICK_SHELL_INNER
+            sub_rtmesh_1.mesh_type = MeshType.SHELL
+            sub_rtmesh_2.mesh_type = MeshType.SHELL
             return [sub_rtmesh_1, sub_rtmesh_2]
         else:
-            sub_rtmesh_1.mesh_type = MeshType.THICK_SHELL_INNER
-            sub_rtmesh_2.mesh_type = MeshType.THICK_SHELL_OUTER
+            sub_rtmesh_1.mesh_type = MeshType.SHELL
+            sub_rtmesh_2.mesh_type = MeshType.SHELL
             return [sub_rtmesh_2, sub_rtmesh_1]
     #else:
     #    return create_rtmesh(connectivity, coords_mesh, pv_ugrid, element_type, spatial_dim) # For now, because for higher order elements, it detects far too many charts idk why

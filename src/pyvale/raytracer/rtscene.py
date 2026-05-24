@@ -60,6 +60,7 @@ class Scene:
     refractive_indices: list[float] = field(default_factory=list) # Refractive indices of meshes stored in the scene
     mesh_priorities: list[float] = field(default_factory=list) # Priorities of objects used to determine the intersections if there are nested volumes that are refractive
     mesh_object_types: list[float] = field(default_factory=list) # Tells us if solids or thin shells to adjust refractive behaviour
+    mesh_thickness: list[float] = field(default_factory=list) # Mesh thicknesses used if mesh_type is declared as SHELL
     # Camera data
     camera_center: list[np.ndarray] = field(default_factory=list)
     pixel_00_center: list[np.ndarray] = field(default_factory=list)
@@ -132,6 +133,7 @@ class Scene:
         self.refractive_indices.append(rtmesh.refractive_index)
         self.mesh_priorities.append(rtmesh.priority)
         self.mesh_object_types.append(rtmesh.mesh_type)
+        self.mesh_thickness.append(rtmesh.thickness)
         
 
     def set_refractive_index(self, refractive_index: float):

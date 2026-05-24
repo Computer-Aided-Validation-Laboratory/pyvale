@@ -164,6 +164,7 @@ void ray_undefined(const RayState& current_state,
     EiVector3d& total_color);
 
 
+// Implementation with thickness for thin shell 
 template <ObjectType object_type>
 void ray_refractive(const RayState& current_state,
     HitRecord& intersection_record,
@@ -203,11 +204,13 @@ void ray_refractive(const RayState& current_state,
     }
    
     double ri_to = scene_ri; // Fallback assignment in case something breaks
+    double thickness = 0.0; // Used for thin shell only
 
-    if constexpr (object_type == ObjectType::THIN_SHELL) {
+    if constexpr (object_type == ObjectType::SHELL) {
         // Thin shell: We don't toggle volumes as we stay in the same bulk medium
         // We use the shell RI only as an effective interface RI so the pane can still bend rays
         ri_to = intersection_record.refractive_index;
+        thickness = intersection_record.thickness;
     }
     else if constexpr (object_type == ObjectType::SOLID){
         // Solid volume boundary: toggle interior membership
@@ -237,7 +240,7 @@ void ray_refractive(const RayState& current_state,
     double ri_ratio = ri_from / ri_to; // In the nested implementation, these are already correct by construction
     double sin2_theta_t = ri_ratio * ri_ratio * (1.0 - cos_theta_i * cos_theta_i); // Sin^2 of the transmission angle
     
-    // Total internal reflection
+    // Total internal reflection; should not occur for a thin shell
     if (sin2_theta_t > 1.0) {
         Ray reflected_ray;
         reflected_ray.origin = intersection_record.point_intersection + normal_geo * OFFSET; // Push secondary rays slightly off the surface to remove the shadow acne
@@ -256,7 +259,18 @@ void ray_refractive(const RayState& current_state,
     // Use cosine of the medium with the lower index of refraction
     double cos_theta_t = sqrt(1.0 - sin2_theta_t);
     double c = 1 - (ri_from <= ri_to ? cos_theta_i : cos_theta_t);
-    double reflectance = R0 + (1 - R0) * (c * c * c * c * c);
+
+    double reflectance = 0.0;
+    if constexpr (object_type == ObjectType::SHELL){
+        // In a thin shell with thickness, we have double-interface
+        // In ray-tracing we ignore interfecence for very thin films and use standard thin dielectric closed form from PBRT
+        double R = R0 + (1 - R0) * (c * c * c * c * c);
+        reflectance = (2.0 * R) / (1.0 + R); // Closed form double-interface for a shell with thickness
+    }
+    else if constexpr (object_type == ObjectType::SOLID){
+        double reflectance = R0 + (1 - R0) * (c * c * c * c * c);
+    }
+
     double transmittance = 1 - reflectance;
 
     // Define new rays
@@ -269,10 +283,22 @@ void ray_refractive(const RayState& current_state,
     refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_shade; // Transmitted/refracted direction
     refracted_ray.t_min = spawned_ray_t_min;
 
-    if constexpr (object_type == ObjectType::THIN_SHELL) {
+    if constexpr (object_type == ObjectType::SHELL) {
         // Thin shell: do not move into a new volume; keep the stack unchanged
         // Offset slightly along the refracted direction to avoid immediately rehitting the same triangle.
-        refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * OFFSET;
+        //refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * OFFSET;
+        EiVector3d in_slab_dir = refracted_ray.direction; // Refracted direction in-slab
+        double cos_t_abs = std::max(1e-8, std::abs(in_slab_dir.dot(-normal_shade)));
+        //std::cerr << "Cos t abs: " << cos_t_abs << std::endl;
+        double thickness = intersection_record.thickness;
+        double path_in_slab = thickness / cos_t_abs; // Distance travelled inside the shell with given thickness
+        //std::cerr << "Path in slab: " << path_in_slab << std::endl;
+        EiVector3d exit_point = intersection_record.point_intersection + in_slab_dir * path_in_slab; // Can also add optional epsilon: - normal_shade * 0.0
+        //std::cerr << "Exit point: " << exit_point << std::endl;
+        // Parallel slabs cancel angular deflection, so the ougoing direction = incident direction
+        refracted_ray.origin = exit_point - normal_geo * OFFSET;
+        refracted_ray.direction = ray_direction;
+
     }
     else if constexpr (object_type == ObjectType::SOLID){
          // Solid volume: push into the transmitted medium
@@ -291,7 +317,7 @@ void ray_refractive(const RayState& current_state,
         }
         else {
             double P_transmit = transmittance / (1.0 - P); // Adjust original transmittance based on P
-            if constexpr (object_type == ObjectType::THIN_SHELL) {
+            if constexpr (object_type == ObjectType::SHELL) {
                 stack.emplace_back(refracted_ray, next_accumulated_color * P_transmit, current_state.interior_list,
                     scene_ri, current_state.depth + 1, current_state.interior_count);
             }
@@ -305,7 +331,7 @@ void ray_refractive(const RayState& current_state,
     else {
         // Push both rays
         stack.emplace_back(reflected_ray, next_accumulated_color * reflectance, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
-        if constexpr (object_type == ObjectType::THIN_SHELL) {
+        if constexpr (object_type == ObjectType::SHELL) {
             stack.emplace_back(refracted_ray, next_accumulated_color * transmittance, current_state.interior_list,
                 scene_ri, current_state.depth + 1, current_state.interior_count);
         }

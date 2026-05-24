@@ -181,7 +181,8 @@ struct BLAS {
     IntersectionOutput (*intersection_function_ptr)(const Ray&, const std::vector<double>& node_coords, const unsigned int bvh_node_element_count) {nullptr}; // Ray-mesh element intersection (TRI3, QUAD4, etc.)
     void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx) {nullptr}; // Saving data to HitRecord depending on the surface type (color/texture) and element type
     void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
-    double refractive_index {0.1}; // Refractive index of the mesh material; set to 0.1 to avoid bad division in case it somehow gets unitialised
+    double refractive_index {1.0}; // Refractive index of the mesh material; set to 1.0 to avoid bad division in case it somehow gets unitialised
+    double thickness {1.0}; // Thickness of a SHELL mesh; unused for solids
     int priority; // Priority - tells us the ordering of nested volumes in the scene
     int root_idx {-1};
     int blas_idx {-1}; // ID in TLAS, used for handling nested refractive volumes without OOP/pointers
@@ -350,6 +351,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     const std::vector<double>& scene_refractive_indices,
     const std::vector<int>& mesh_priorities,
     const std::vector<int>& mesh_object_types,
+    const std::vector<double>& scene_mesh_thickness,
     const int shading_type,
     const int timestep,
     const int timestep_count);

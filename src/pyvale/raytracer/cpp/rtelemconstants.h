@@ -39,6 +39,6 @@ enum MaterialType : int {
 };
 
 enum class ObjectType {
-    SOLID = 1,
-    THIN_SHELL = 2
+    SOLID = 0,
+    SHELL = 1
 };

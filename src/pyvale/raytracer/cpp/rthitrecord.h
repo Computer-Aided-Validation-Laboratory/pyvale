@@ -26,6 +26,7 @@ struct HitRecord {
     EiVector3d emission{ EiVector3d::Zero() };     // light source
     double t {std::numeric_limits<double>::infinity()};
     double refractive_index;
+    double thickness;
     void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
     int hit_blas_idx; // ID of the intersected BLAS
     int hit_blas_priority; // Priority of the intersected BLAS

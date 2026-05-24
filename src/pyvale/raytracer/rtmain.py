@@ -171,6 +171,7 @@ def render_scene(image_height: int,
                      scene.refractive_indices,
                      scene.mesh_priorities,
                      scene.mesh_object_types,
+                     scene.mesh_thickness,
                      texture_sampler,
                      shading_type,
                      grayscale)

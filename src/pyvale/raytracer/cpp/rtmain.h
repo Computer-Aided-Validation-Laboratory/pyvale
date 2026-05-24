@@ -50,6 +50,7 @@ void render_scene(const int image_height,
     const std::vector<double>& scene_refractive_indices,
     const std::vector<int>& scene_mesh_priorities,
     const std::vector<int>& scene_mesh_object_types,
+    const std::vector<double>& scene_mesh_thickness,
     const int texture_sampler,
     const int shading_type,
     const bool grayscale_flag);
