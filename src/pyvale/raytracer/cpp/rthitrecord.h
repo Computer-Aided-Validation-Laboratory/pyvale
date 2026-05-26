@@ -22,7 +22,7 @@ struct HitRecord {
     EiVector3d normal_surface {EiVector3d::Zero()}; // Geometric normal (might not be needed; tbd)
     EiVector3d normal_shading {EiVector3d::Zero()}; // Shading normal
     EiVector3d elem_interp_coords {EiVector3d::Zero()}; // E.g., barycentric coordinates for TRI3, bilinear interpolation coords for QUAD4
-    EiVector3d face_color {EiVector3d::Zero()}; // 3D color - already sampled from texture or solid surface color, albedo
+    EiVector3d face_color {EiVector3d::Zero()}; // 3D color - already sampled from texture or solid surface color. Albedo for diffuse/specular materials, absorption for refractive ones
     EiVector3d emission{ EiVector3d::Zero() };     // light source
     double t {std::numeric_limits<double>::infinity()};
     double refractive_index;

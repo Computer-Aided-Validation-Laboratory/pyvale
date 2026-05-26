@@ -19,6 +19,7 @@ static constexpr int INTERIOR_LIST_MAX = 10; // Size of the interior list. Shoul
 
 // Struct size 8 + 2 x 4 = 16 bytes
 struct InteriorEntry{
+    EiVector3d absorption {EiVector3d::Zero()}; // (length unit)^-1, gives the tint/colour of the medium. (0.0, 0.0, 0.0) = clear
     double refractive_index {1.0003}; // Refractive index of the medium
     int priority {-1}; // Priority - tells us the ordering of nested volumes in the scene (e.g.,lower number = higher priority)
     int blas_idx {-1}; // Index of the corresponding BLAS, so we know which mesh is intersected - used to index into TLAS
@@ -26,7 +27,7 @@ struct InteriorEntry{
     // Constructor
     InteriorEntry() = default;
     InteriorEntry(double ri_): refractive_index(ri_) {};
-    InteriorEntry(double ri_, int priority_, int blas_idx_) : refractive_index(ri_), priority(priority_), blas_idx(blas_idx_) {};
+    InteriorEntry(EiVector3d absorption_, double ri_, int priority_, int blas_idx_) : absorption(absorption_), refractive_index(ri_), priority(priority_), blas_idx(blas_idx_) {};
 };
 
 
@@ -97,7 +98,12 @@ inline int interior_highest_priority_idx(const InteriorEntry* interior_list, int
     return highest_priority_idx;
 };
 
-inline bool interior_toggle(InteriorEntry* interior_list, int& count, int blas_idx, int priority, double refractive_index){
+inline bool interior_toggle(InteriorEntry* interior_list,
+    int& count, // We update this value, hence pass by reference
+    int blas_idx,
+    int priority,
+    double refractive_index,
+    const EiVector3d& absorption){
     // Add or remove the entry (toggle) for BLAS_ID.
     //Returns true if ray entered the object (add antry), false if exited (remove entry)
 
@@ -108,6 +114,7 @@ inline bool interior_toggle(InteriorEntry* interior_list, int& count, int blas_i
         return false;
     }
     else { // Enter
+        interior_list[count].absorption = absorption;
         interior_list[count].refractive_index = refractive_index;
         interior_list[count].priority = priority;
         interior_list[count].blas_idx = blas_idx;
@@ -116,12 +123,23 @@ inline bool interior_toggle(InteriorEntry* interior_list, int& count, int blas_i
     }
 };
 
-inline double find_top_ri(const InteriorEntry* interior_list, int interior_count, double fallback_ri){
+inline double find_top_ri(const InteriorEntry* interior_list,
+    int interior_count,
+    double fallback_ri){
     // Finds the top refractive index in the interior list
     // fallback_ri = scene_ri, which we set if the list is empty
     int current_highest_idx = interior_highest_priority_idx(interior_list, interior_count);
     return (current_highest_idx < 0) ? fallback_ri : interior_list[current_highest_idx].refractive_index;
 };
+
+inline EiVector3d find_top_absorption(const InteriorEntry* interior_list,
+    int interior_count,
+    const EiVector3d& fallback) { //
+    // Finds the top refractive index in the interior list
+    // fallback_ri = scene_ri; we assume clear medium (e.g., air) for now, but we could add the functionality to set it to something != 0, like fog etc.
+    int idx = interior_highest_priority_idx(interior_list, interior_count);
+    return (idx < 0) ? fallback : interior_list[idx].absorption;
+}
 
 inline EiVector3d ray_blue_sky(const Ray& ray){
     double a = 0.5 * (ray.direction(1) + 1.0);
@@ -177,7 +195,10 @@ void ray_refractive(const RayState& current_state,
     EiVector3d attenuation(1.0, 1.0, 1.0); // Instead of albedo as for refractive materials, we absorb nothing and we want to make sure that is the case
     // Data stored in albedo can be used later for tinting, though, so we keep the interface
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
-    EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(attenuation); // Pre-calculate the baseline for the next bounce
+    // Pre-calculate the baseline for the next bounces
+    // We split the values as in the Beer-Lambert implementation they will differ
+    EiVector3d next_accumulated_color_reflected = current_state.accumulated_color.cwiseProduct(attenuation); 
+    EiVector3d next_accumulated_color_refracted = next_accumulated_color_reflected;
     const EiVector3d p = intersection_record.point_intersection; // Point of intersection
     //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
     const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
@@ -217,7 +238,9 @@ void ray_refractive(const RayState& current_state,
         const int hit_idx = intersection_record.hit_blas_idx;
         const int hit_priority = intersection_record.hit_blas_priority;
         const double hit_ri = intersection_record.refractive_index;
-        interior_toggle(&refracted_list[0], refracted_count, hit_idx, hit_priority, hit_ri);
+        const EiVector3d hit_absorption = intersection_record.face_color;
+
+        interior_toggle(&refracted_list[0], refracted_count, hit_idx, hit_priority, hit_ri, hit_absorption);
 
         // Check whether ray enters or exits the object
         //If it is in the current interior list, the ray exits
@@ -247,7 +270,7 @@ void ray_refractive(const RayState& current_state,
         reflected_ray.direction = reflected_dir;
         reflected_ray.t_min = spawned_ray_t_min;
         
-        stack.emplace_back(reflected_ray, next_accumulated_color, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
+        stack.emplace_back(reflected_ray, next_accumulated_color_reflected, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
         return;
     }
     
@@ -293,11 +316,19 @@ void ray_refractive(const RayState& current_state,
         double thickness = intersection_record.thickness;
         double path_in_slab = thickness / cos_t_abs; // Distance travelled inside the shell with given thickness
         //std::cerr << "Path in slab: " << path_in_slab << std::endl;
-        EiVector3d exit_point = intersection_record.point_intersection + in_slab_dir * path_in_slab; // Can also add optional epsilon: - normal_shade * 0.0
+        EiVector3d exit_point = intersection_record.point_intersection + in_slab_dir * path_in_slab;
         //std::cerr << "Exit point: " << exit_point << std::endl;
-        // Parallel slabs cancel angular deflection, so the ougoing direction = incident direction
+        
+        // Beer-Lambert law for the slab traversal. We consider it per channel
+        const EiVector3d absorption = intersection_record.face_color; // sigma_a in Beer-Lambert law used for volumetric absorption to determine the tint
+        EiVector3d shell_transmission;
+        shell_transmission << std::exp(-absorption(0) * path_in_slab), std::exp(-absorption(1) * path_in_slab), std::exp(-absorption(2) * path_in_slab);
+
+        // Include absorption into the transmitted/refracted throughput
+        next_accumulated_color_refracted = next_accumulated_color_refracted.cwiseProduct(shell_transmission);
+
         refracted_ray.origin = exit_point - normal_geo * OFFSET;
-        refracted_ray.direction = ray_direction;
+        refracted_ray.direction = ray_direction; // Parallel slabs cancel angular deflection, so the ougoing direction = incident direction
 
     }
     else if constexpr (object_type == ObjectType::SOLID){
@@ -312,17 +343,17 @@ void ray_refractive(const RayState& current_state,
         //if ((double)rand() / RAND_MAX < P) { // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
             // Reflection works the same way for shells and solids
             double P_reflect = reflectance / P; // Adjust original reflectance based on P
-            stack.emplace_back(reflected_ray, next_accumulated_color * P_reflect, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
+            stack.emplace_back(reflected_ray, next_accumulated_color_reflected * P_reflect, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
             return;
         }
         else {
             double P_transmit = transmittance / (1.0 - P); // Adjust original transmittance based on P
             if constexpr (object_type == ObjectType::SHELL) {
-                stack.emplace_back(refracted_ray, next_accumulated_color * P_transmit, current_state.interior_list,
+                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, current_state.interior_list,
                     scene_ri, current_state.depth + 1, current_state.interior_count);
             }
             else if (object_type == ObjectType::SOLID){
-                stack.emplace_back(refracted_ray, next_accumulated_color * P_transmit, refracted_list,
+                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, refracted_list,
                     scene_ri, current_state.depth + 1, refracted_count);
             }
             return;
@@ -330,13 +361,13 @@ void ray_refractive(const RayState& current_state,
     } 
     else {
         // Push both rays
-        stack.emplace_back(reflected_ray, next_accumulated_color * reflectance, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
+        stack.emplace_back(reflected_ray, next_accumulated_color_reflected * reflectance, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
         if constexpr (object_type == ObjectType::SHELL) {
-            stack.emplace_back(refracted_ray, next_accumulated_color * transmittance, current_state.interior_list,
+            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance, current_state.interior_list,
                 scene_ri, current_state.depth + 1, current_state.interior_count);
         }
         else if constexpr (object_type == ObjectType::SOLID){
-            stack.emplace_back(refracted_ray, next_accumulated_color * transmittance, refracted_list,
+            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance, refracted_list,
                 scene_ri, current_state.depth + 1, refracted_count);
         }
         return;

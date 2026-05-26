@@ -199,7 +199,99 @@ class RTMesh:
         #self.node_coords_over_time = coords_over_time
         self.node_coords_expanded_over_time = node_coords_expanded_over_time
         self.node_normals_expanded_over_time = node_normals_expanded_over_time
-   
+
+    def _set_refractive_index(self, refractive_index: float) -> None:
+        """
+        Sets the refractive index of the mesh. 
+
+        Helper function to clean up set_surface a little bit.
+
+        Parameters:
+        -----------
+        refractive_index: float
+            The refractive index to set for the mesh. Defaults to 1.0003 for air. 
+
+        Raises:
+        -------
+        ValueError:
+            If the refractive index is less than 0.
+        """
+        if refractive_index > 0.0:
+                self.refractive_index = refractive_index
+        else: 
+            raise ValueError("Refractive index can be negative only for metamaterials, and these are not supported yet.")
+    
+    def _set_reference_thickness(self, reference_thickness: float, mesh_type: MeshType) -> float:
+        """
+        Validates and sets the reference thickness of a (refractive) mesh.
+
+        Helper function to clean up set_surface a little bit.
+
+        Parameters:
+        -----------
+        reference_thickness: float
+            The relative thickness to set for the mesh. If passed as none, we assign:
+            - For MeshType.SHELL: reference_thickness = thickness
+            - For MeshType.SOLID: reference_thickness = bounding box diagonal
+        mesh_type: MeshType
+            The type of mesh, which will affect the refractive behaviour, where applicable.
+
+        Returns:
+        --------
+        float
+            The updated reference thickness.
+
+        Raises:
+        -------
+        ValueError:
+            If the reference thickness is negative.
+        """
+        if reference_thickness is not None:
+            if reference_thickness < 0.0:
+                raise ValueError("Reference thickness cannot be negative.")
+        else:
+            if mesh_type == MeshType.SHELL:
+                reference_thickness = self.thickness
+            elif mesh_type == MeshType.SOLID:
+                # For solids, set to the diagonal of the bounding box as a ballpark value that should give us decent enough values
+                bounding_box = self.get_bounding_box()
+                diagonal = np.linalg.norm(bounding_box["max_corner"] - bounding_box["min_corner"])
+                reference_thickness = diagonal
+        return reference_thickness
+        
+    def _set_thickness(self, thickness: float, mesh_type: MeshType) -> None:
+        """
+        Sets the thickness of the shell mesh.
+
+        Helper function to clean up set_surface a little bit.
+
+        Parameters:
+        -----------
+        thickness: float
+             The thickness of the mesh shell, counted INWARDS from the actual boundary. Optional. Defaults to None or the maximum allowed thickness for a given shell, given as 1/10 of the average element length.
+        mesh_type: MeshType
+            The type of mesh, which will affect the refractive behaviour, where applicable.
+
+        Raises:
+        -------
+        ValueError:
+            If the reference thickness is negative.
+        """
+        if mesh_type == MeshType.SOLID:
+            if thickness is not None:
+                print("Thickness value is ignored for solid meshes.")
+        elif mesh_type == MeshType.SHELL:
+            shell_thickness_cutoff = 0.1 * self.avg_element_length # Reissner-Mindlin cut-off for thickness that makes sense physically: 1/10 of a planar dimension, in this case edge length
+            if thickness is None:
+                print(f"Thickness not set for a thin shell. Setting it to the maximum allowed value: {shell_thickness_cutoff:.6f}.") # Or we could just force it to be represented as solid?
+                self.thickness = shell_thickness_cutoff
+            elif thickness < 0.0:
+                raise ValueError("Thickness of a shell cannot be negative.")
+            elif thickness > shell_thickness_cutoff:
+                raise ValueError(f"Thickness of the shell should not exceed 1/10th of the average edge length. The cut-off value is {shell_thickness_cutoff:.6f}. Current thickness is {thickness:.6f}.")
+            else:
+                self.thickness = thickness
+
     def set_surface(self,
                     surface_type: SurfType = SurfType.FIELD_COLOR,
                     surface_fill: np.ndarray = None,
@@ -207,7 +299,8 @@ class RTMesh:
                     refractive_index: float = 1.0003,
                     priority: int = 0,
                     mesh_type: MeshType = MeshType.SOLID,
-                    thickness: float | None = None) -> None:
+                    thickness: float | None = None,
+                    reference_thickness: float | None = None) -> None:
         """
         Sets the surface type and fill for the mesh.
         
@@ -220,7 +313,7 @@ class RTMesh:
         surface_type: SurfType
             The type of surface to apply to the mesh. Can be either FIELD_COLOR or TEXTURE.
         surface_fill: np.ndarray
-            The fill to apply to the mesh. The expected format depends on the surface type:
+            The fill to apply to the mesh, clamped to the [0,1] intensity range. The expected format depends on the surface type:
             - For FIELD_COLOR:
                 - If shape is (3,), it is interpreted as a single RGB color applied to the entire mesh.
                 - If shape is (element_count, 3), it is interpreted as an RGB color for each element, applied to the entire time series.
@@ -237,14 +330,21 @@ class RTMesh:
         mesh_type: MeshType
             The type of mesh, which will affect the refractive behaviour, where applicable. Defaults to SOLID.
         thickness: float
-            The thickness of the mesh shell, counted INWARDS from the actual boundary. Optional. Defaults to None or the maximum allowed thickness for a given shell.
-    
+            The thickness of the mesh shell, counted INWARDS from the actual boundary. Optional. Defaults to None or the maximum allowed thickness for a given shell given as 1/10 of the average element length.
+        reference_thickness: float | None
+            Optional. Used only for refractive materials. Defines how thick the slab of a medium should be to see exactly the colour passed in surface_fil to determine the absorption via Beer-Lambert's law. Defaults to None, and then we assign:
+            - For MeshType.SHELL: reference_thickness = thickness
+            - For MeshType.SOLID: reference_thickness = bounding box diagonal
+            
         Raises:
         -------
         ValueError:
-            If the surface_fill does not match the expected format for the given surface_type, or if UV coordinates are required but not provided for texture mapping, or if the refractive_index is less than 0. Also if the mesh thickness has an unphysical value.
+            If the surface_fill does not match the expected format for the given surface_type, or;
+            - UV coordinates are required but not provided for texture mapping,
+            - Refractive_index is less than 0; or
+            - Mesh thickness/relative_thickness has an unphysical value.
         TypeError:
-            If the material is set to REFRACTIVE and texture is passed, as the physics for this is currently not supported.
+            If the material is set to REFRACTIVE and texture is passed, as this is currently not supported.
         """
         # Reset everything if user is changing the surface type
         if self.surface_type is not None and surface_type != self.surface_type:
@@ -260,12 +360,6 @@ class RTMesh:
         self.surface_type = surface_type
         self.material = material
         self.mesh_type = mesh_type
-
-        # Refractive index
-        if refractive_index > 0.0:
-            self.refractive_index = refractive_index
-        else: 
-            raise ValueError("Refractive index can be negative only for metamaterials, and these are not supported yet.")
         
         # Priority
         if priority >= 0:
@@ -273,42 +367,43 @@ class RTMesh:
         else: 
             raise ValueError("Priority should be greater or equal to 0.")
         
-        # Thickness
-        if mesh_type == MeshType.SOLID and thickness is not None:
-            print("Thickness value is ignored for solid meshes.")
-        elif mesh_type == MeshType.SHELL:
-            shell_thickness_cutoff = 0.1 * self.avg_element_length # Reissner-Mindlin cut-off for thickness that makes sense physically: 1/10 of a planar dimension, in this case edge length
-            if thickness is None:
-                print(f"Thickness not set for a thin shell. Setting it to the maximum allowed value: {shell_thickness_cutoff:.6f}.") # Or we could just force it to be represented as solid?
-                self.thickness = shell_thickness_cutoff
-            elif thickness < 0.0:
-                raise ValueError("Thickness of a shell cannot be negative.")
-            elif thickness > shell_thickness_cutoff:
-                raise ValueError(f"Thickness of the shell should not exceed 1/10th of the average edge length. The cut-off value is {shell_thickness_cutoff:.6f}. Current thickness is {thickness:.6f}.")
-            else:
-                self.thickness = thickness
-
+        self._set_thickness(thickness, mesh_type)
+                
         # Solid colors
         if surface_type == SurfType.FIELD_COLOR:
-            if material == MaterialType.REFRACTIVE:
-                print("Tinting for refractive materials is currently not supported, so the colour data will be ignored.")
+            #if material == MaterialType.REFRACTIVE:
+            #    print("Tinting for refractive materials is currently not supported, so the colour data will be ignored.")
             if surface_fill is None:
                 print("No colour data passed. Pre-filling automatically with grey.")
-            elif surface_fill.shape == (RGB_VALS,): 
-                # Populate with passed solid color, e.g., [0.5, 0.2, 0.45]
-                self.face_colors_over_time = np.ones((self.timestep_count, self.element_count, RGB_VALS)) * surface_fill
-                return
-            elif surface_fill.shape == (self.element_count, RGB_VALS):
-                # One avg. RGB colour value per element, given only for one timestep
-                self.face_colors_over_time =  np.broadcast_to(surface_fill[np.newaxis, ...], (self.timestep_count, self.element_count, RGB_VALS))
-                return
-            elif surface_fill.shape == (self.timestep_count, self.element_count, RGB_VALS):
-                # One avg. RGB colour value per element, given for each timestep
-                self.face_colors_over_time = surface_fill
-                return
             else:
-                print("Surface fill must be of shape (3,) or (element_count, 3) or (timestep_count, element_count, 3).\nPre-filling automatically with grey.")
-            # Create face colors over time of appropriate size and pre-populate with grey
+                # Validate input values
+                if np.any(surface_fill < 0.0):
+                    raise ValueError("Surface fill cannot be negative.")
+                elif np.any(surface_fill > 1.0):
+                    print("Passed colour data contains values exceeding 1.0. It is assumed that it was given as regular RBG values in range [0, 255], so they will be clamped.")
+                    surface_fill = np.clip(surface_fill/255, 0.0, 1.0)
+                # For refractive materials, we want to turn tint into absorption based on the Beer-Lambert law to get tinting and set all other quantities that we need
+                if material == MaterialType.REFRACTIVE:
+                    self._set_refractive_index(refractive_index)
+                    reference_thickness = self._set_reference_thickness(reference_thickness, mesh_type) # Validate and update value if needed
+                    surface_fill = -np.log(surface_fill) / reference_thickness # This is the sigma_a in the equation, given in (length unit)^-1
+                    print(f"Absorption: {surface_fill}")
+                # Process data based on the shape
+                if surface_fill.shape == (RGB_VALS,): 
+                    # Populate with passed solid color, e.g., [0.5, 0.2, 0.45]
+                    self.face_colors_over_time = np.ones((self.timestep_count, self.element_count, RGB_VALS)) * surface_fill
+                    return
+                elif surface_fill.shape == (self.element_count, RGB_VALS):
+                    # One avg. RGB colour value per element, given only for one timestep
+                    self.face_colors_over_time =  np.broadcast_to(surface_fill[np.newaxis, ...], (self.timestep_count, self.element_count, RGB_VALS))
+                    return
+                elif surface_fill.shape == (self.timestep_count, self.element_count, RGB_VALS):
+                    # One avg. RGB colour value per element, given for each timestep
+                    self.face_colors_over_time = surface_fill
+                    return
+                else:
+                    print("Surface fill must be of shape (3,) or (element_count, 3) or (timestep_count, element_count, 3).\nPre-filling automatically with grey.")
+            # Create face colors over time of appropriate size and pre-populate with grey (this ignores absorption)
             self.face_colors_over_time = np.ones((self.timestep_count, self.element_count, RGB_VALS), dtype=np.float64) * 0.5
         # Texture
         elif surface_type == SurfType.TEXTURE:
@@ -324,6 +419,7 @@ class RTMesh:
             #self.uvs_over_time = np.broadcast_to(self.uvs[np.newaxis, ...], (self.timestep_count, self.element_count, self.nodes_per_element, 2))
             # TO DO: Add check for shape of texture array
             self.texture = surface_fill
+
 
     def set_custom_uvs(self,
                        uv_coords: np.ndarray = None,

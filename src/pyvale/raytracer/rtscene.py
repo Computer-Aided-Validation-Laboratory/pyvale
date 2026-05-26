@@ -123,7 +123,6 @@ class Scene:
             self.uvs.append(rtmesh.uvs)
             self.add_texture(rtmesh.texture)
             self.face_colors.append(np.zeros(shape=(1,1))) # Append a small array of zeros, only so we have matching indices but this data should never be accessed. Hacky solution, to be resolved better (probably merging face_colors and textures into one)
-        self.mesh_count += 1
         self.surface_types.append(rtmesh.surface_type) # Will be used for determining coloring
         self.materials.append(rtmesh.material.as_int)
         self.nodes_per_element.append(rtmesh.nodes_per_element) # Will help assign appropriate functions in ray_tracer
@@ -134,6 +133,7 @@ class Scene:
         self.mesh_priorities.append(rtmesh.priority)
         self.mesh_object_types.append(rtmesh.mesh_type)
         self.mesh_thickness.append(rtmesh.thickness)
+        self.mesh_count += 1
         
 
     def set_refractive_index(self, refractive_index: float):

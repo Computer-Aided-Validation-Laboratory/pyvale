@@ -43,8 +43,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
         ray_material_interaction_ptr = intersection_record.ray_material_ptr;
         //intersection_record.temp_flat_shading(); // Temporary function to swap shading normal with geometric normal and test flat shading before it is implemented as its own separate option
 
-        if (intersection_record.t == std::numeric_limits<double>::infinity()) {
-            //const EiVector3d blue_sky(0.5, 0.5, 0.5);
+        if (intersection_record.t == std::numeric_limits<double>::infinity()) { // No hit
             const EiVector3d blue_sky = ray_blue_sky(current_ray); // Early termination - no bounces here anyway
             total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
             continue;
@@ -73,7 +72,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
                 // False hit: priority of hit object < max priority in interior list (Schmidt's algorithm for nested volumes)
                 // => Do not shade; re-cast the ray from hit point in the same direction by pushing a new RayState whose origin is the current hit point
                 RayState next_state = current_state;
-                interior_toggle(&next_state.interior_list[0], next_state.interior_count, hit_idx, hit_priority, hit_ri);
+                interior_toggle(&next_state.interior_list[0], next_state.interior_count, hit_idx, hit_priority, hit_ri, intersection_record.face_color);
                 // Offset the ray minimnally to avoid self-intersecting - much like we do for all secondary rays
                 const double offset = std::numeric_limits<double>::epsilon() * 10.0 *
                     std::max({std::fabs(intersection_record.point_intersection.x()),
