@@ -387,7 +387,6 @@ class RTMesh:
                     self._set_refractive_index(refractive_index)
                     reference_thickness = self._set_reference_thickness(reference_thickness, mesh_type) # Validate and update value if needed
                     surface_fill = -np.log(surface_fill) / reference_thickness # This is the sigma_a in the equation, given in (length unit)^-1
-                    print(f"Absorption: {surface_fill}")
                 # Process data based on the shape
                 if surface_fill.shape == (RGB_VALS,): 
                     # Populate with passed solid color, e.g., [0.5, 0.2, 0.45]
@@ -930,7 +929,6 @@ def find_node_normals(node_coords: np.ndarray,
     node_normals /= magnitudes
 
     return node_normals
-
 
 def display_pyvista_grid_with_indices(pv_grid: pv.UnstructuredGrid | pv.PolyData) -> None:
     """

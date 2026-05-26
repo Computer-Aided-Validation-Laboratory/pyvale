@@ -655,6 +655,9 @@ void copy_data_to_TLAS(TLAS &tlas,
  }
 
 inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const double mesh_ri, const double scene_ri, const enum ObjectType object_type){
+    // Uncomment the below 2 lines if deciding to go for switch-based dispatcj in return_ray_color
+    //mesh_bvh.material = mesh_material;
+    //mesh_bvh.object_type = object_type;
     switch (mesh_material) {
         case UNLIT: {
             mesh_bvh.ray_material_ptr = &ray_unlit;
@@ -672,6 +675,7 @@ inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const dou
             return;
         }
         case REFRACTIVE: {// Refraction (dielectric)
+            
             if (object_type == ObjectType::SOLID){
                 mesh_bvh.ray_material_ptr = &ray_refractive<ObjectType::SOLID>;
             }

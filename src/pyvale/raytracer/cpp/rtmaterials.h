@@ -136,7 +136,7 @@ inline EiVector3d find_top_absorption(const InteriorEntry* interior_list,
     int interior_count,
     const EiVector3d& fallback) { //
     // Finds the top refractive index in the interior list
-    // fallback_ri = scene_ri; we assume clear medium (e.g., air) for now, but we could add the functionality to set it to something != 0, like fog etc.
+    // fallback_ri = scene_ri
     int idx = interior_highest_priority_idx(interior_list, interior_count);
     return (idx < 0) ? fallback : interior_list[idx].absorption;
 }
@@ -181,6 +181,14 @@ void ray_undefined(const RayState& current_state,
     std::vector<RayState>& stack,
     EiVector3d& total_color);
 
+
+inline void apply_absorption(EiVector3d& accumulated_color, const EiVector3d& absorption, const double path_length){
+    // Applies the absorption from the Beer Lambert law; path length is the travelled distance over some segment
+    EiVector3d segment_transmission;
+    segment_transmission << std::exp(-absorption(0) * path_length), std::exp(-absorption(1) * path_length), std::exp(-absorption(2) * path_length);
+    // Include absorption into the transmitted/refracted throughput
+    accumulated_color = accumulated_color.cwiseProduct(segment_transmission);
+};
 
 // Implementation with thickness for thin shell 
 template <ObjectType object_type>
@@ -255,6 +263,7 @@ void ray_refractive(const RayState& current_state,
 
     double cos_theta_i = std::clamp(-ray_direction.dot(normal_shade), 0.0, 1.0); // To avoid floating point errors
     EiVector3d reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_shade; // Reflection direction
+    reflected_dir.stableNormalize();
 
     if (reflected_dir.dot(normal_geo) < 0.0) { // If reflected ray points inside the geometry
         reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_geo; 
@@ -304,6 +313,7 @@ void ray_refractive(const RayState& current_state,
 
     Ray refracted_ray;
     refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_shade; // Transmitted/refracted direction
+    refracted_ray.direction.stableNormalize();
     refracted_ray.t_min = spawned_ray_t_min;
 
     if constexpr (object_type == ObjectType::SHELL) {
@@ -321,14 +331,9 @@ void ray_refractive(const RayState& current_state,
         
         // Beer-Lambert law for the slab traversal. We consider it per channel
         const EiVector3d absorption = intersection_record.face_color; // sigma_a in Beer-Lambert law used for volumetric absorption to determine the tint
-        EiVector3d shell_transmission;
-        shell_transmission << std::exp(-absorption(0) * path_in_slab), std::exp(-absorption(1) * path_in_slab), std::exp(-absorption(2) * path_in_slab);
-
-        // Include absorption into the transmitted/refracted throughput
-        next_accumulated_color_refracted = next_accumulated_color_refracted.cwiseProduct(shell_transmission);
-
+        apply_absorption(next_accumulated_color_refracted, absorption, path_in_slab);
         refracted_ray.origin = exit_point - normal_geo * OFFSET;
-        refracted_ray.direction = ray_direction; // Parallel slabs cancel angular deflection, so the ougoing direction = incident direction
+        refracted_ray.direction = ray_direction; // Parallel slabs cancel angular deflection, so the ougoing direction = incident direction; already normalised at creation
 
     }
     else if constexpr (object_type == ObjectType::SOLID){

@@ -18,10 +18,12 @@
 
 static constexpr int MAX_DEPTH = 500; // Max depth for the secondary rays
 
-
 // Radiance with refractive materials - but we could make this into a separate option if refractive materials are present in the scene to avoid needing to branch into true/false hits if not necessary?
 // This case would also have its own separate HitRecord, RayState structs since we could carry less data and fit more of those into cache lines
-EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri, const TLAS& TLAS){
+EiVector3d return_ray_color_stack(const Ray& primary_ray,
+    const double scene_ri,
+    const TLAS& TLAS){
+
     EiVector3d total_color = EiVector3d::Zero();
     std::vector<RayState> stack;
     stack.reserve(MAX_DEPTH);
@@ -32,24 +34,39 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
     while(!stack.empty()){
         RayState current_state = stack.back();
         stack.pop_back();
-        current_state.ray.direction.stableNormalize();
-        Ray current_ray = current_state.ray;
+        const Ray& current_ray = current_state.ray;
 
         HitRecord intersection_record; // Create HitRecord struct
-        // Look for the first intersection for this ray
+        // Look for the intersection for this ray
         IntersectionOutput intersection;
-        intersect_TLAS(current_ray, TLAS, intersection, intersection_record);
+        const bool hit_anything = intersect_TLAS(current_ray, TLAS, intersection, intersection_record);
 
-        ray_material_interaction_ptr = intersection_record.ray_material_ptr;
-        //intersection_record.temp_flat_shading(); // Temporary function to swap shading normal with geometric normal and test flat shading before it is implemented as its own separate option
-
-        if (intersection_record.t == std::numeric_limits<double>::infinity()) { // No hit
-            const EiVector3d blue_sky = ray_blue_sky(current_ray); // Early termination - no bounces here anyway
-            total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
-            continue;
+        EiVector3d absorption = EiVector3d::Zero(); // Set default absorption to 0.0 = clear medium
+        bool has_medium = current_state.interior_count > 0; // Check if our ray has traversed any media that could attenuate the accumulated colour
+        if (has_medium){
+            absorption = find_top_absorption(&current_state.interior_list[0], current_state.interior_count, EiVector3d::Zero());
+        }
+        const bool has_absorption = absorption.x() > 0.0 || absorption.y() > 0.0 || absorption.z() > 0.0; // Save ourselves having to compute exponentials if there is no absorption
+        
+        if (!hit_anything) {
+            if (has_absorption) {
+                // Apply huge distance - ray travels into the sky, so we account for the light lost as the ray travels from inside of some absorbing medium out of the scene
+                apply_absorption(current_state.accumulated_color, absorption, 1e30);
+            }
+            total_color += current_state.accumulated_color.cwiseProduct(ray_blue_sky(current_ray)); // Sky/background colour
+            continue; // Early termination - no bounces here anyway
         }
 
-        // Handle nested dielectrics
+        if (has_absorption){
+            // path length = path_length = (intersection_record.point_intersection - current_ray.origin).norm() if we calculate things with unnormalised ray directions; or simply intersection point for normalised values
+            double path_length = intersection_record.point_intersection.norm();
+            apply_absorption(current_state.accumulated_color, absorption, path_length);
+        }
+       
+        // Assign what happens with the secondary rays based on the material pointer
+        ray_material_interaction_ptr = intersection_record.ray_material_ptr;
+        
+        // Handle nested dielectrics - if using function pointer approach
         // Classify nested dielectrics if material is refractive
         if (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID> || intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SHELL>) {
 
@@ -78,7 +95,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
                     std::max({std::fabs(intersection_record.point_intersection.x()),
                     std::fabs(intersection_record.point_intersection.y()),
                     std::fabs(intersection_record.point_intersection.z())});
-                next_state.ray.origin = intersection_record.point_intersection + offset * current_ray.direction.stableNormalized();
+                next_state.ray.origin = intersection_record.point_intersection + offset * current_ray.direction;
                 next_state.ray.direction = current_ray.direction;
                 next_state.ray.t_min = current_ray.t_min;
                 next_state.ray.t_max = std::numeric_limits<double>::infinity();
@@ -88,28 +105,24 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
             }
         }
 
-        EiVector3d emitted = intersection_record.emission;
-        EiVector3d albedo = intersection_record.face_color;
-
-        
         // Explicit depth limit with ambient fallback
         if (current_state.depth >= MAX_DEPTH) {
-        //    // Add a fallback ambient color to compensate for truncated energy 
+            // Add a fallback ambient color to compensate for truncated energy 
             // Avoids the "plain black shadows" caused by zero light return
             EiVector3d ambient_fallback = ray_blue_sky(current_ray) * 0.2; 
-            total_color += current_state.accumulated_color.cwiseProduct(emitted + ambient_fallback);
+            total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission + ambient_fallback);
             continue; 
         }
         
+        EiVector3d albedo = intersection_record.face_color;
         if (current_state.depth > MAX_DEPTH/2) { // Start early termination if we are at least halfway through the maximum allowed depth
             // Russian roulette early termination
-            double p = std::max({albedo.x(), albedo.y(), albedo.z()});
             // Clamp to prevent infinite loops (p=1.0) and division by zero (p=0.0)
-            p = std::clamp(p, 0.05, 0.95); 
+            double p = std::clamp(albedo.maxCoeff(), 0.05, 0.95);
             if (random_double() > p){  // Note: for multi-threading this will have to be replaced with thread_local generator
             //if ((double)rand() / RAND_MAX > p){ // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
                 //return emitted;
-                total_color += current_state.accumulated_color.cwiseProduct(emitted);
+                total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission);
                 continue;
             }
             albedo /= p;
@@ -118,15 +131,79 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
         // True hit: priority of hit object >= max priority in interior list OR the list is empty
         // Shade normally
         // Process ray and update the stack and total color based on the material of the intersected mesh
+        // FUNCTION POINTER VARIANT
         ray_material_interaction_ptr(current_state, intersection_record, albedo, stack, total_color);
+
+        // SWITCH DISPATCH VARIANT
+        // Requires updating rtbvh.cpp and .h, rthitrecord, rtrayintersection (intersect_BLAS) to store material & object_type data
+        // During profiling in May 2026, this showed marginally fewer L1 instruction cache misses (0-0.01 percent point difference in all test runs), BUT the average runtime was 1.58% worse
+        // This was not enough to rule out this approach definitely, so while the function pointer approach was retained as the default, this is kept commented out in case
+        /*
+        switch (intersection_record.material) {
+            case UNLIT: {
+            ray_unlit(current_state, intersection_record, albedo, stack, total_color);
+                break;
+            }
+            case DIFFUSE: { // Diffuse
+                ray_diffuse(current_state, intersection_record, albedo, stack, total_color);
+                break;
+            }
+            case SPECULAR: {// Specular (mirror)
+                ray_specular(current_state, intersection_record, albedo, stack, total_color);
+                break;
+            }
+            case REFRACTIVE: {// Refraction (dielectric)
+                // Check for false hit
+                int hit_idx = intersection_record.hit_blas_idx;
+                int hit_priority = intersection_record.hit_blas_priority;
+                double hit_ri = intersection_record.refractive_index;
+                // Get and compare the max priority currently surrounding the ray (or min value of int, if the list is empty)
+                int top_idx = interior_highest_priority_idx(&current_state.interior_list[0], current_state.interior_count);
+                int top_priority;
+
+                if (top_idx < 0){
+                    top_priority = std::numeric_limits<int>::min();
+                }
+                else {
+                    top_priority = current_state.interior_list[top_idx].priority;
+                }
+                
+                // Check if it is a true hit
+                if (!(current_state.interior_count == 0 || hit_priority >= top_priority)){
+                    // False hit: priority of hit object < max priority in interior list (Schmidt's algorithm for nested volumes)
+                    // => Do not shade; re-cast the ray from hit point in the same direction by pushing a new RayState whose origin is the current hit point
+                    RayState next_state = current_state;
+                    interior_toggle(&next_state.interior_list[0], next_state.interior_count, hit_idx, hit_priority, hit_ri, intersection_record.face_color);
+                    // Offset the ray minimnally to avoid self-intersecting - much like we do for all secondary rays
+                    const double offset = std::numeric_limits<double>::epsilon() * 10.0 *
+                        std::max({std::fabs(intersection_record.point_intersection.x()),
+                        std::fabs(intersection_record.point_intersection.y()),
+                        std::fabs(intersection_record.point_intersection.z())});
+                    next_state.ray.origin = intersection_record.point_intersection + offset * current_ray.direction;
+                    next_state.ray.direction = current_ray.direction;
+                    next_state.ray.t_min = current_ray.t_min;
+                    next_state.ray.t_max = std::numeric_limits<double>::infinity();
+                    // DO NOT INCREMENT DEPTH - false hits are invisible according to the paper, so they do not affect the ray bounce count or energy
+                    stack.push_back(next_state);
+                    continue;
+                }
+                if (intersection_record.object_type == ObjectType::SOLID){
+                    ray_refractive<ObjectType::SOLID>(current_state, intersection_record, albedo, stack, total_color);
+                }
+                else{
+                    ray_refractive<ObjectType::SHELL>(current_state, intersection_record, albedo, stack, total_color);
+                }
+                break;
+            }
+        }*/
+        
     } // Stack while loop
     return total_color;
 } 
 
-// Old implementation of iterative shader, without nested refractive volumes
 /*
-EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri, const TLAS& TLAS){
-
+// Previous version without nested refractive materials or Beer-Lambert
+EiVector3d return_ray_color_stack_nr(const Ray& primary_ray, const double scene_ri, const TLAS& TLAS){
     EiVector3d total_color = EiVector3d::Zero();
     std::vector<RayState> stack;
     stack.reserve(MAX_DEPTH);
@@ -154,13 +231,8 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray, const double scene_ri,
             continue;
         }
         
-        // Set and normalize surface and shading normals - had to move this inside the specific material functions as flipping here broke the logic for refractive materials
-        //set_face_normal(current_ray, intersection_record.normal_surface);
-        //set_face_normal(current_ray, intersection_record.normal_shading);
-
         EiVector3d emitted = intersection_record.emission;
         EiVector3d albedo = intersection_record.face_color;
-
         
         // Explicit depth limit with ambient fallback
         if (current_state.depth >= MAX_DEPTH) {

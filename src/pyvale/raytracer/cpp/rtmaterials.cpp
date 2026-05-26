@@ -64,14 +64,6 @@ void ray_diffuse(const RayState& current_state,
     double r2 = random_double();
     double r2s = sqrt(r2);
     
-    //direction_scatter.stableNormalize();
-    
-    /*
-    // Catch degenerate scatter direction (NaN prevention)
-    if (direction_scatter.squaredNorm() < 1e-8) {
-        direction_scatter = normal_shade;
-    }
-*/
     EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
 
     Ray ray_new;
@@ -79,7 +71,7 @@ void ray_diffuse(const RayState& current_state,
     //ray_new.origin = intersection_record.point_intersection + direction_scatter * OFFSET;
    
     EiVector3d direction_scatter = (b1 * cos(r1) * r2s + b2 * sin(r1) * r2s + normal_shade * sqrt(1 - r2));
-    ray_new.direction = direction_scatter;
+    ray_new.direction = direction_scatter.stableNormalized();
 
     /*
     std::cerr << "DIFFUSE" << std::endl;
@@ -114,14 +106,13 @@ void ray_specular(const RayState& current_state,
     EiVector3d ray_direction = current_state.ray.direction;
 
     EiVector3d reflected = ray_direction - 2 * ray_direction.dot(normal_shade) * normal_shade;
-    //reflected.stableNormalize();
     
     if (reflected.dot(normal_geo) < 0.0) { // If reflected ray points inside the geometry
         reflected = ray_direction - 2 * ray_direction.dot(normal_geo) * normal_geo;
     }
     Ray ray_new;
     ray_new.origin = intersection_record.point_intersection - normal_geo * OFFSET;
-    ray_new.direction = reflected;
+    ray_new.direction = reflected.stableNormalized();
     ray_new.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
 
     
@@ -156,148 +147,3 @@ void ray_undefined(const RayState& current_state,
     total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
     return;
 }
-
-/*
-// Implementation of refractive rays before we added nested volumes
-void ray_refractive(const RayState& current_state,
-    HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack,
-    EiVector3d& total_color){
-    // Secondary ray may reflect or refract
-    // Depends on: surface normal, refractive indices, sometimes wavelength
-    //EiVector3d emitted = intersection_record.emission;
-    EiVector3d attenuation(1.0, 1.0, 1.0); // Instead of albedo as for refractive materials, we absorb nothing and we want to make sure that is the case
-    // Data stored in albedo can be used later for tinting, though, so we keep the interface
-    total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
-    //EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
-    EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(attenuation); // Pre-calculate the baseline for the next bounce
-    const EiVector3d p = intersection_record.point_intersection; // Point of intersection
-    //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
-    const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
-    EiVector3d ray_direction = current_state.ray.direction;
-    bool into = ray_direction.dot(intersection_record.normal_surface) < 0;
-
-    // Ensure normals always point against the incident ray
-    intersection_record.align_normals();
-    EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
-    normal_geo.stableNormalize();
-    EiVector3d normal_shade = intersection_record.normal_shading; //  // Shading normal; use for Physics to dictate how light behaves
-    normal_shade.stableNormalize();
-
-   
-    if (!into) {
-        normal_geo = -normal_geo;
-        normal_shade = -normal_shade;
-    };
-
-    //std::cerr << "\tShading normal after aligning: " << normal_shade.x() << ", " << normal_shade.y() << ", " << normal_shade.z() << std::endl;
-    //std::cerr << "\tGeometric normal after aligning: " << normal_geo.x() << ", " << normal_geo.y() << ", " << normal_geo.z() << std::endl;
-
-    //set_face_normal(current_state.ray, normal_shade); // Shade normal won't necessarily point in the same direction as geometric normal, so we can't move it inside the if statement above
-
-    EiVector3d reflected = ray_direction - 2 * ray_direction.dot(normal_shade) * normal_shade;
-
-    //double cos_theta_i = std::max(0.0, -ray_direction.dot(normal_shade)); // Cosine of the incident angle
-    //double cos_theta_i = -ray_direction.dot(normal_shade); // Cosine of the incident angle
-    double cos_theta_i = std::clamp(-ray_direction.dot(normal_shade), 0.0, 1.0); // To avoid floating point errors
-    EiVector3d reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_shade; // Reflection direction
-    //reflected_dir.stableNormalize();
-    
-    if (reflected_dir.dot(normal_geo) < 0.0) { // If reflected ray points inside the geometry
-        reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_geo; 
-    }
-
-    double ri_surrounding = current_state.outer_refractive_index;   // Refractive index of the surrounding medium
-    double ri_material = intersection_record.refractive_index;   // Refractive index of the material/volume
-    double ri_ratio = into ? ri_surrounding / ri_material : ri_material / ri_surrounding; 
-
-    double sin2_theta_t = ri_ratio * ri_ratio * (1.0 - cos_theta_i * cos_theta_i); // Sin^2 of the transmission angle
-
-    // tbd which calculation gives better results
-    EiVector3d r_out_perp = ri_ratio * (ray_direction + cos_theta_i * normal_shade); // Perpendicular component
-    double r_out_perp_length_squared = r_out_perp.squaredNorm();
-
-    // If the squared length is > 1.0, Total Internal Reflection occurs
-    if (r_out_perp_length_squared > 1.0) {
-        Ray reflected_ray;
-        reflected_ray.origin = intersection_record.point_intersection + normal_geo * OFFSET; // Push secondary rays slightly off the surface to remove the shadow acne
-        reflected_ray.direction = reflected_dir;
-        
-        stack.push_back({reflected_ray, next_accumulated_color, current_state.depth + 1});
-        return;
-    }
-
-    // Calculate the parallel component
-    EiVector3d r_out_parallel = -sqrt(fabs(1.0 - r_out_perp_length_squared)) * normal_shade;
-
-
-    //std::cerr << "\tReflected ray direction: " << reflected_dir.x() << ", " << reflected_dir.y() << ", " << reflected_dir.z() << std::endl;
-    
-    // Total internal reflection
-    if (sin2_theta_t > 1.0) {
-        Ray reflected_ray;
-        reflected_ray.origin = intersection_record.point_intersection + normal_geo * OFFSET; // Push secondary rays slightly off the surface to remove the shadow acne
-        reflected_ray.direction = reflected_dir;
-        reflected_ray.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
-        
-        stack.emplace_back(reflected_ray, next_accumulated_color, ri_material, current_state.depth + 1);
-        //stack.emplace_back(reflected_rat, next_accumulated_color, current_state.interior_list, ri_material, current_state.depth + 1, current_state.interior_count);
-
-        //std::cerr << "Total internal reflection. Only shot reflected ray" << std::endl;
-        return;
-    }
-    
-    // Schlick's approximation
-    double a = ri_material - ri_surrounding;
-    double b = ri_material + ri_surrounding;
-    double R0 = (a * a) / (b * b);
-
-    // Use cosine of the medium with the lower index of refraction
-    double cos_theta_t = sqrt(1.0 - sin2_theta_t);
-    double c = 1 - (into ? cos_theta_i : cos_theta_t);
-    //double c = 1 - (into ? -dot_incidence : -dir_transmission.dot(normal_shade));
-    double reflectance = R0 + (1 - R0) * (c * c * c * c * c);
-    double transmittance = 1 - reflectance;
-
-    // Define new rays
-    Ray reflected_ray;
-    reflected_ray.origin = intersection_record.point_intersection + normal_geo * OFFSET; // Push back into incident medium (i.e., off the surface)
-    reflected_ray.direction = reflected_dir;
-    reflected_ray.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
-
-    Ray refracted_ray;
-    refracted_ray.origin = intersection_record.point_intersection - normal_geo * OFFSET; // Push forward into new medium (i.e., into the surface)
-    refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_shade; // Transmitted/refracted direction
-    //refracted_ray.direction = r_out_perp + r_out_parallel;
-    //std::cerr << "\tRefracted ray direction: " <<  refracted_ray.direction.x() << ", " <<  refracted_ray.direction.y() << ", " <<  refracted_ray.direction.z() << std::endl;
-    //refracted_ray.direction.stableNormalize();
-    
-
-    // Russian roulette between reflection and refraction
-    if (current_state.depth > 2) {
-        double P = 0.25 + 0.5 * reflectance; // Reflection's chance of surviving
-
-        if (random_double() < P){ // Note: for multi-threading this will have to be replaced with thread_local generator
-        //if ((double)rand() / RAND_MAX < P) { // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
-            double P_reflect = reflectance / P; // Adjust original reflectance based on P
-            stack.emplace_back(reflected_ray, next_accumulated_color * P_reflect, ri_material, current_state.depth + 1);
-            //std::cerr << "\tShot reflected ray " << std::endl;
-            return;
-        }
-        else {
-            double P_transmit = transmittance / (1.0 - P); // Adjust original transmittance based on P
-            stack.emplace_back(refracted_ray, next_accumulated_color * P_transmit, ri_material, current_state.depth + 1);
-            //std::cerr << "\tShot refracted ray " << std::endl;
-            return;
-        }
-    } 
-    else {
-        // Push both rays
-        stack.emplace_back(reflected_ray, next_accumulated_color * reflectance, ri_material, current_state.depth + 1);
-        stack.emplace_back(refracted_ray, next_accumulated_color * transmittance, ri_material, current_state.depth + 1);
-        //std::cerr << "\tShot both reflected and refracted rays " << std::endl;
-        return;
-    }
-}
-*/

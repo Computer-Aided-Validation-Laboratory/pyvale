@@ -179,10 +179,14 @@ struct BLAS {
     // We cannot just copy relevant pieces of texture into different BLAS nodes, so keep it at the BLAS level. This will also allow us to do fewer if/else checks in intersection for coloring
     Texture texture {}; // If texture.data is not a nullptr, face_color is (u,v). This logic saves us having to store surface type explicitly
     IntersectionOutput (*intersection_function_ptr)(const Ray&, const std::vector<double>& node_coords, const unsigned int bvh_node_element_count) {nullptr}; // Ray-mesh element intersection (TRI3, QUAD4, etc.)
-    void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx) {nullptr}; // Saving data to HitRecord depending on the surface type (color/texture) and element type
-    void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
     double refractive_index {1.0}; // Refractive index of the mesh material; set to 1.0 to avoid bad division in case it somehow gets unitialised
     double thickness {1.0}; // Thickness of a SHELL mesh; unused for solids
+    // Void function pointer will be 8 bytes in 64-bit system, 4 in a 32x, so this should be the best positioning of those for memory alignment
+    void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx) {nullptr}; // Saving data to HitRecord depending on the surface type (color/texture) and element type
+    void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
+    // Uncomment the below 2 lines if deciding to go for switch-based dispatcj in return_ray_color
+    //ObjectType object_type;
+    //int material;
     int priority; // Priority - tells us the ordering of nested volumes in the scene
     int root_idx {-1};
     int blas_idx {-1}; // ID in TLAS, used for handling nested refractive volumes without OOP/pointers

@@ -22,7 +22,6 @@
 struct IntersectionOutput {
     Eigen::ArrayXXd elem_interp_coords; // E.g., barycentric coordinates for TRI3, bilinear interpolation coords for QUAD4
     EiVectorD3d geometric_normals;
-    //EiVectorD3d shading_normals;
     Eigen::Array<double, Eigen::Dynamic, 1> t_values;
 };
 
@@ -461,7 +460,7 @@ void intersect_BLAS(const Ray& ray,
     IntersectionOutput& out_intersection,
     HitRecord& intersection_record);
 
-void intersect_TLAS(const Ray& ray,
+bool intersect_TLAS(const Ray& ray,
     const TLAS& scene_TLAS,
     IntersectionOutput& out_intersection,
     HitRecord& out_intersection_record);

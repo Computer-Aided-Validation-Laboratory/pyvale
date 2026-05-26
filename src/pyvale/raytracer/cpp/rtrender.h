@@ -74,7 +74,7 @@ void render_ppm_image(const EiVector3d& camera_center,
                     EiVector3d defocus_disc_sample = defocus_disc_offset[0] * matrix_defocus_disc.row(0) + defocus_disc_offset[1] * matrix_defocus_disc.row(1);
                     EiVector3d ray_origin = camera_center + defocus_disc_sample; // ray direction in thin lens approx
                     EiVector3d ray_direction = pixel_sample - ray_origin; // ray direction in thin lens approx
-                    Ray current_ray{ ray_origin, ray_direction};
+                    Ray current_ray{ ray_origin, ray_direction.stableNormalized() }; 
                     pixel_color += return_ray_color_stack(current_ray, scene_ri, TLAS);
             
         }
