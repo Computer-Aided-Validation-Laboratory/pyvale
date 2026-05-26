@@ -133,7 +133,7 @@ def render_scene(image_height: int,
         print("Blended shading selected. Angle-averaged node normals will be used for TRI3, and Jacobians for QUAD4, QUAD8, QUAD9, and TRI6.")
     elif shading_type == ShadingType.ANGLE_AVG_BLENDED:
         print("Angle-averaged blended shading selected. Angle-averaged node normals will be used for all elements.")
-        
+    
     # Select appropriate rendering function based on these booleans to minimize branching in backend rendered if possible
     # Not sure if we will need to implement this yet - BVH builder is still fast with conditional checks (and we run it once per frame), and branching based on element/surface type was moved out of the hot loops
     #if uniform_surfaces and uniform_elements:
@@ -148,10 +148,7 @@ def render_scene(image_height: int,
     #else:
         # Worst case: mixture of different surface and element types
     #    pass
-
-    # For now use the general function with branching in it
-    #cpp_render_scene(image_height, image_width, antialiasing_samples, out_directory_path, scene.timestep_count, scene.coords_expanded, scene.face_colors, scene.camera_center, scene.pixel_00_center, scene.matrix_pixel_spacing)
-    #print(f"Materials: {scene.materials}")
+    
     cpp_render_scene(image_height,
                      image_width,
                      antialiasing_samples,
@@ -175,3 +172,4 @@ def render_scene(image_height: int,
                      texture_sampler,
                      shading_type,
                      grayscale)
+    

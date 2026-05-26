@@ -3,6 +3,8 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
+
+import itertools
 import meshio
 import pandas as pd
 import numpy as np
@@ -30,6 +32,22 @@ from pyvale.raytracer.rtcamera import Camera
 COORDS_PER_NODE = 3
 RGB_VALS = 3
 FEATURE_ANGLE = 60.0 # For calculating surface normals; edges sharper than this will not be smoothed
+
+# Axes for orienting/resizing the meshes
+class Axis(IntEnum):
+    X = 0 # Left/right
+    Y = 1 # +Y is up if camera vector_view_up = [0,1,0], which is currently the hard-coded default
+    Z = 2 # Forward/backwards
+
+
+class Anchor(StrEnum):
+    """Specifies which point on a mesh's bounding box the position refers to."""
+    CENTER = "center"
+    MIN = "min" # Min corner on all 3 axes
+    MAX = "max" # Max corner on all 3 axes
+    BASE = "base" # Centered in X/Z, min in Y  (sits on a floor)
+    TOP = "top" # Centered in X/Z, max in Y
+
 
 # Type of coloring that goes onto the mesh surface
 class SurfType(IntEnum): # IntEnum so it can be passed to C++ nicely
@@ -111,6 +129,41 @@ MESHIO_TO_ELEMENTNODECOUNT = {
 }
 
 # ================================================================================
+# Drop-in (for compatibility) that should probably go to simtools
+# ================================================================================
+
+def get_displacement_at_timestep(timestep: int,
+                                  render_mesh: RenderMesh) -> np.ndarray | None:
+    """
+    Returns only the displacement field (not absolute position) for all nodes
+    at a given timestep. 
+    
+    This is preferable to get_deformed_nodes for the new orienting system, when the caller needs to compute a *delta* between two timesteps,
+    because the raw displacement values are independent of the coordinate scaling / translation / rotation applied to the RTMesh in world space.
+
+    Parameters:
+    -----------
+    timestep: int
+        Timestep at which we want to get the displacement field.
+    render_mesh: RenderMesh
+        RenderMesh object whose displacement field we want to extract.
+
+    Returns:
+    --------
+    np.ndarray
+        Displacement field at the given timestep.
+    
+    """
+    if render_mesh.fields_disp is None:
+        return None
+
+    disp = render_mesh.fields_disp[:, timestep]  # shape (N, num_components)
+    if disp.shape[1] == 2:
+        disp = np.hstack((disp, np.zeros([disp.shape[0], 1], dtype=np.float64)))
+    return disp  # shape (node_count, 3)
+
+
+# ================================================================================
 # RTMESH CLASS
 # ================================================================================
 
@@ -123,7 +176,6 @@ class RTMesh:
     """
     node_coords: np.ndarray = field(default=None)
     connectivity: np.ndarray = field(default=None)
-    #node_coords_over_time: np.ndarray = field(default=None)
     node_coords_expanded_over_time: np.ndarray = field(default=None)
     face_colors_over_time: np.ndarray = field(default=None)
     node_normals_expanded_over_time: np.ndarray = field(default=None) # Node normals that will be used to find shading normals
@@ -147,8 +199,10 @@ class RTMesh:
     node_count: int = field(default=0)
     nodes_per_element: ElementNodeCount = field(default=ElementNodeCount.TRI3)
     avg_element_length: float = field(default=0.0) # Average edge length of mesh elements in this mesh
+    _rm_point_ids: np.ndarray | None = field(default=None) # For SimData/RenderMesh submeshes: maps local node index -> render_mesh global node index
 
-    def get_mesh_data_over_time(self, render_mesh: RenderMesh = None) -> None:
+    def get_mesh_data_over_time(self, render_mesh: RenderMesh = None,
+                                scaling_factor: float = 1.0) -> None:
         """
         Fetches mesh data over the number of timesteps.
         Currently works only for simdata-based meshes - for others, the timestep count is always assumed to be 1.
@@ -157,6 +211,8 @@ class RTMesh:
         -----------
         render_mesh: RenderMesh
             Optional. RenderMesh object used to fetch deformed nodal coordinates. Defaults to None.
+        scaling_factor: float
+            The scalar used to scale the deformed nodal coordinates based on the desired position. Defaults to 1.0.
         """
         timestep_count = self.timestep_count
         nodes_per_element = self.nodes_per_element
@@ -164,8 +220,6 @@ class RTMesh:
         coords = self.node_coords
         connectivity = self.connectivity
         # Process data for the 0th element - always the same for deformable and static images
-        #coords_over_time = np.ndarray(shape=(timestep_count, node_count, COORDS_PER_NODE), dtype=np.float64)
-        #coords_over_time[0] = coords
         # Node coords and normals expanded
         node_coords_expanded_over_time = np.ndarray(shape=(timestep_count, element_count, nodes_per_element, COORDS_PER_NODE),
                                                     dtype=np.float64)  # Store nodal coordinates over all timesteps
@@ -178,27 +232,122 @@ class RTMesh:
         # Get data over multiple timesteps
         if timestep_count != 1:
             if render_mesh is not None:
+                base_displacement = get_displacement_at_timestep(0, render_mesh)  # shape (node_count, 3)
                 for timestep in range(1, timestep_count):
-                    # Get deformed nodal coordinates and expand them
-                    node_coords = simtools.get_deformed_nodes(timestep, render_mesh)
-                    coords = np.ascontiguousarray(node_coords)
-                    #coords_over_time[timestep] = coords
-                    node_coords_expanded_over_time[timestep] = coords[connectivity] # Expand nodal coords
+                    current_displacement = get_displacement_at_timestep(timestep, render_mesh)
+                    delta_disp = (current_displacement - base_displacement) * scaling_factor  # shape (node_count, 3)
+
+                    # Map render_mesh-global node indices back to submesh-local indices
+                    # When the RTMesh was built from a submesh, sub_ugrid was extracted with pass_point_ids=True so self.node_coords rows correspond to
+                    # the render_mesh rows stored in self._rm_point_ids (set below). For the full-mesh case _rm_point_ids is None and we use all rows.
+                    if self._rm_point_ids is not None:
+                        local_delta = delta_disp[self._rm_point_ids]  # (N_local, 3)
+                    else:
+                        local_delta = delta_disp  # (N_rm == N_local, 3)
+
+                    # Apply delta on top of the already world-positioned coords
+                    deformed_coords = coords + local_delta  # (N_local, 3)
+                    deformed_coords = np.ascontiguousarray(deformed_coords)
+
+
+                    node_coords_expanded_over_time[timestep, :, :, :] = deformed_coords[connectivity] # Expand nodal coords
                     node_normals = find_node_normals(coords, connectivity, element_count)
-                    node_normals_expanded_over_time[timestep] = node_normals[connectivity]
+                    node_normals_expanded_over_time[timestep, :, :, :] = node_normals[connectivity]
             else: # Any other mesh
                 print("Timesteps aren't currently supported for meshes that aren't imported as SimData.")
                 # Data "over time" - currently not supported for non-simdata as other formats don't seem to work with multi-step data, so not sure how this would look like?
                 # But data extraction overall should be similar to what is done in the simdata branch
-                #coords_over_time[0, :, :] = coords
                 # Node coords and normals expanded
                 node_coords_expanded_over_time[0, :, :, :] = coords[connectivity]
                 node_normals_expanded_over_time[0, :, :, :] = node_normals[connectivity]
 
         # Update the rtmesh object
-        #self.node_coords_over_time = coords_over_time
         self.node_coords_expanded_over_time = node_coords_expanded_over_time
         self.node_normals_expanded_over_time = node_normals_expanded_over_time
+
+    def _translate(self, delta: np.ndarray) -> None:
+        """
+        In-place world-space translation by a given vector delta.
+
+        Parameters:
+        -----------
+        delta: np.ndarray
+            The translation vector. Expected to be shaped (3).
+        """
+
+        self.node_coords_expanded_over_time[..., :] += delta
+        self.node_coords = self.node_coords + delta
+
+    def place_at(self, target_position: np.ndarray,
+             anchor: Anchor = Anchor.CENTER,
+             timestep: int = 0) -> None:
+        """
+        Moves the mesh so that its anchor point ends up at world position.
+        
+        Parameters:
+        -----------
+        target_position: np.ndarray
+            Target world position of the anchor point after the placement.
+        anchor: Anchor
+            Selected point on the mesh whose target is specified. Defaults to CENTER.
+        timestep: int
+            Optional. Timestep at which the bounding box is calculated.
+        """
+        aabb = self._get_bounding_box(timestep)
+        self._translate(np.ascontiguousarray(target_position, dtype=np.float64) - get_anchor_point(aabb, anchor))
+
+    def fit_size(self, target_size: float,
+             axis: Axis | None = None,
+             timestep: int = 0) -> float:
+        """
+        Uniformly rescales the mesh so that its AABB measures target world units along axis (or along its longest axis if axis is None).
+        
+        Parameters:
+        -----------
+        target_size: np.ndarray
+            Target size along the given axis following the rescaling, in the specified world units.
+        axis: Axis | None
+            Axis alongisde which the target_size is specified. Defaults to the longest axis at timestep = 0.
+        timestep: int
+            Optional. Timestep at which the longest axis is found.
+
+        Returns
+        --------
+        factor: float
+            The scaling factor applied to the mesh.
+        """
+
+        size = self.get_size(timestep)
+        current = size.max() if axis is None else size[axis.value]
+        if current <= 0:
+            raise ValueError("Degenerate mesh.")
+        factor = target_size / current
+        centre = self.get_bounding_box(timestep)["center"]
+        self.node_coords_expanded_over_time[...] = (self.node_coords_expanded_over_time - centre) * factor + centre
+        self.node_coords = (self.node_coords - centre) * factor + centre
+        return factor
+    
+    def rotate(self, rotation: Rotation,
+           pivot: np.ndarray | None = None,
+           timestep: int = 0) -> None:
+        """
+        Applies the passed rotation about the specified pivot to the mesh.
+        
+        Parameters:
+        -----------
+        rotation: Rotation
+            The rotation to apply.
+        pivot: np.ndarray | None
+            Point used as a pivot around which the location is applied. Defaults to the bounding box center at timestep = 0.
+        timestep: int
+            Optional. Timestep at which the pivot position is found.
+        """
+        if pivot is None:
+            pivot = self._get_bounding_box(timestep)["center"]
+        R = rotation.as_matrix()
+        arr = self.node_coords_expanded_over_time
+        arr[...] = ((arr - pivot) @ R.T) + pivot
+        self.node_coords = ((self.node_coords - pivot) @ R.T) + pivot
 
     def _set_refractive_index(self, refractive_index: float) -> None:
         """
@@ -238,7 +387,7 @@ class RTMesh:
 
         Returns:
         --------
-        float
+        reference_thickness: float
             The updated reference thickness.
 
         Raises:
@@ -254,9 +403,16 @@ class RTMesh:
                 reference_thickness = self.thickness
             elif mesh_type == MeshType.SOLID:
                 # For solids, set to the diagonal of the bounding box as a ballpark value that should give us decent enough values
-                bounding_box = self.get_bounding_box()
+                # Below assumption is valid for previous mesh positioning/orienting where we were scaling the meshes massively, but in the new implementation, they are so small that they turn black
+                bounding_box = self._get_bounding_box()
                 diagonal = np.linalg.norm(bounding_box["max_corner"] - bounding_box["min_corner"])
-                reference_thickness = diagonal
+                #reference_thickness = diagonal 
+                # Safer assumption under the new implementation. Two options:
+                #reference_thickness = 1.0 # We just do not change the absorption. Meshes with target_size < 1 still come out dark, but not pitch black
+                # or
+                reference_thickness = diagonal * 10 # Artifically inflate it to get smaller absorption (since this is used to divide the value)
+                # With above, renders seem to come out better, regardless of their size, hence this is kept as a fallback
+                # Still, best if user passes their own value, based on whatever scene units they choose
         return reference_thickness
         
     def _set_thickness(self, thickness: float, mesh_type: MeshType) -> None:
@@ -387,6 +543,7 @@ class RTMesh:
                     self._set_refractive_index(refractive_index)
                     reference_thickness = self._set_reference_thickness(reference_thickness, mesh_type) # Validate and update value if needed
                     surface_fill = -np.log(surface_fill) / reference_thickness # This is the sigma_a in the equation, given in (length unit)^-1
+                    print(f"Absorption: {surface_fill}")
                 # Process data based on the shape
                 if surface_fill.shape == (RGB_VALS,): 
                     # Populate with passed solid color, e.g., [0.5, 0.2, 0.45]
@@ -418,7 +575,6 @@ class RTMesh:
             #self.uvs_over_time = np.broadcast_to(self.uvs[np.newaxis, ...], (self.timestep_count, self.element_count, self.nodes_per_element, 2))
             # TO DO: Add check for shape of texture array
             self.texture = surface_fill
-
 
     def set_custom_uvs(self,
                        uv_coords: np.ndarray = None,
@@ -519,15 +675,13 @@ class RTMesh:
         spans = np.abs(coords.max(axis=(0,1)) - coords.min(axis=(0,1)))
         return spans
 
-    def get_bounding_box(self, timestep: int = 0) -> dict:
+    def _get_bounding_box(self, timestep: int = 0) -> dict:
         """
         Returns mesh position information as a dictionary containing the minimum and maximum x, y, and z coordinates,
         and the center (mean nodal position; not an actual nodal position) in world coordinates at the given timestep.
 
         Parameters
         ----------
-        rtmesh : RTMesh
-            The RTMesh object containing the mesh data.
         timestep : int, optional
             The timestep to get the bounding box for (default is 0 for static meshes).
         Returns
@@ -558,7 +712,7 @@ class RTMesh:
             along with hints on how to adjust the mesh position to make it visible, and an estimate of how much of the viewport it should cover if it is visible.
         """
         # Get mesh bounds
-        mesh_aabb = self.get_bounding_box(timestep)
+        mesh_aabb = self._get_bounding_box(timestep)
         mesh_center = mesh_aabb["center"]
         half_extents = self.get_size(timestep)/2
 
@@ -657,6 +811,215 @@ class RTMesh:
         return True
 
 # ================================================================================
+# POSITIONING HELPERS
+# ================================================================================
+
+def get_bounding_box_coords(coords: np.ndarray) -> dict:
+    """
+    Returns mesh position information as a dictionary containing the minimum and maximum x, y, and z coordinates,
+    and the center (mean nodal position; not an actual nodal position) in world coordinates, given the passed coordinate array.
+
+    Parameters
+    ----------
+    coords: np.ndarray
+        Shape (node_count, 3).The coordinates of the nodes in the mesh.
+    Returns
+    -------
+    dict
+        A dictionary containing the minimum and maximum x, y, and z coordinates, and the center (mean nodal position; not an actual nodal position) in world coordinates at the given timestep.
+    """
+    # Here coords is a (N, 3) array with (x, y, z) coordinates
+    center = coords.mean(axis=(0))
+    minimal_coords = coords.min(axis=(0))
+    maximal_coords = coords.max(axis=(0))
+    return {"min_corner": minimal_coords, "max_corner": maximal_coords, "center": center}
+
+def get_anchor_point(aabb: dict, anchor: Anchor) -> np.ndarray:
+    """
+    Gets the coordinates of the specified anchor point of the bounding box.
+
+    Parameters:
+    -----------
+    aabb: dict
+        Mesh bounding box. A dictionary containing the minimum and maximum x, y, and z coordinates, and the center (mean nodal position; not an actual nodal position) in world coordinates at the given timestep.
+    anchor: Anchor
+        Specified anchor point of the bounding box.
+    """
+    low, high, center = aabb["min_corner"], aabb["max_corner"], aabb["center"]
+    if anchor is Anchor.CENTER: return center
+    if anchor is Anchor.MIN: return low
+    if anchor is Anchor.MAX: return high
+    if anchor is Anchor.BASE: return np.array([center[0], low[1], center[2]])
+    if anchor is Anchor.TOP: return np.array([center[0], high[1], center[2]])
+    raise ValueError(f"Invalid anchor: {anchor}")
+
+def fit_size_coords(coords: np.ndarray,
+             target: float,
+             axis: Axis | None = None) -> tuple[np.ndarray, float]:
+    """
+    Uniformly rescales a (node_count, 3) point cloud so that its AABB measures target world units along axis (or along its longest axis if axis is None).
+    
+    Parameters:
+    -----------
+    coords: np.ndarray
+        Shape (node_count, 3).The coordinates of the nodes in the mesh to be scaled.
+    target_size: np.ndarray
+        Target size along the given axis following the rescaling, in the specified world units.
+    axis: Axis | None
+        Axis alongisde which the target_size is specified. Defaults to the longest axis at timestep = 0.
+
+    Returns
+    --------
+    tuple[np.ndarray, float]
+        The rescaled nodal coordinated and the scaling factor used for this operation.
+
+    Raises:
+    --------
+    ValueError:
+        If the mesh is degenerate with zero extent along the axis.
+    """
+    aabb = get_bounding_box_coords(coords)
+    size = aabb["max_corner"] - aabb["min_corner"]
+    current = size.max() if axis is None else size[axis.value]
+    if current <= 0:
+        raise ValueError("Degenerate mesh: zero extent along the chosen axis.")
+    factor = target / current
+    return (coords - aabb["center"]) * factor + aabb["center"], factor
+
+def place_at_coords(coords: np.ndarray,
+                    position: np.ndarray,
+                    anchor: Anchor = Anchor.CENTER) -> np.ndarray:
+    """
+    Moves the (node_count, 3) point cloud so that its anchor point ends up at world position.
+    
+    Parameters:
+    -----------
+    coords: np.ndarray
+        Shape (node_count, 3).The coordinates of the nodes in the mesh to be scaled.
+    target_position: np.ndarray
+        Target world position of the anchor point after the placement.
+    anchor: Anchor
+        Selected point on the mesh whose target is specified. Defaults to CENTER.
+    """
+    aabb = get_bounding_box_coords(coords)
+    delta = np.asarray(position, dtype=np.float64) - get_anchor_point(aabb, anchor)
+    return coords + delta
+
+def rotate_coords(coords: np.ndarray,
+                  rotation: Rotation,
+                  pivot: np.ndarray | None = None) -> np.ndarray:
+    """
+    Applies the passed rotation about the specified pivot to the a (node_count, 3) point cloud.
+    
+    Parameters:
+    -----------
+    coords: np.ndarray
+        Shape (node_count, 3).The coordinates of the nodes in the mesh to be scaled.
+    rotation: Rotation
+        The rotation to apply.
+    pivot: np.ndarray | None
+        Point used as a pivot around which the location is applied. Defaults to the bounding box center at timestep = 0.
+
+    Returns
+    --------
+    np.ndarray
+        The rotated nodal coordinates.
+   
+    """ 
+    if pivot is None:
+        pivot = get_bounding_box_coords(coords)["center"]
+    return (rotation.as_matrix() @ (coords - pivot).T).T + pivot
+
+def snap_to(move_rtmesh: RTMesh,
+            support_rtmesh: RTMesh,
+            axis: Axis = Axis.Y,
+            align: tuple[Axis, ...] = (Axis.X, Axis.Z),
+            gap: float = 0.0,
+            stack_above: bool = True,
+            timestep: int = 0) -> None:
+    """
+    Puts one RTMesh in contact with another along a specified axis, e.g., a ball on a table.
+    Note: This is a very basic version of this function. It will not work for:
+    - Concave meshes
+    - Geometries with rotation (unless you rotate them after calling this function, i.e., not at the point of positioning the mesh in the world)
+
+    Parameters:
+    -----------
+    move_rtmesh: RTMesh
+        Mesh to be aligned.
+    support_rtmesh: RTMesh
+        Mesh to be aligned to.
+    axis: Axis
+        Axis along which to align the meshes.
+    align: tuple[Axis,...]
+        Axes on which to center move_rtmesh over support_rtmesh. Pass () to keep the mover's lateral position unchanged. Defaults to (Axis.X, Axis.Z).
+    gap: float
+        Signed clearance in world units. 0 = touching (should be best for ray tracing, with no hover-shadow or hidden geometry).
+        Use a tiny positive value (e.g. 1e-4 * scene size) if you see z-fighting at the contact surface; negative values intentionally intersect.
+    stack_above: bool
+        - True: moving sits on top of support along +axis.
+        - False: moving hangs below support along -axis.
+    timestep: int
+        Optional. Timestep at which we consider the bounding boxes of the meshes, used for alignment. Defaults to 0.
+    """
+    
+    support_aabb = support_rtmesh._get_bounding_box(timestep)
+    move_aabb = move_rtmesh._get_bounding_box(timestep)
+    ax = axis.value
+
+    # Build target anchor on the support: its max (or min) face center
+    target = support_aabb["center"].copy()
+    target[ax] = support_aabb["max_corner"][ax] if stack_above else support_aabb["min_corner"][ax]
+
+    # Pick the corresponding extreme face on the mover
+    mover_anchor = move_aabb["center"].copy()
+    mover_anchor[ax] = move_aabb["min_corner"][ax] if stack_above else move_aabb["max_corner"][ax]
+
+    delta = target - mover_anchor
+    # Add the gap along the stacking axis (signed)
+    delta[ax] += gap if stack_above else -gap
+
+    # Lateral alignment: zero out delta on axes the user wants to leave alone
+    for a in (Axis.X, Axis.Y, Axis.Z):
+        if a is axis or a in align:
+            continue
+        delta[a.value] = 0.0
+
+    move_rtmesh._translate(delta)
+
+
+def make_axis_rotation(axis: "Axis | np.ndarray",
+                       angle: float,
+                       degrees: bool = True) -> Rotation:
+    """
+    Builds a Scipy Rotation about an arbitrary axis.
+
+    Parameters
+    ----------
+    axis : Axis | np.ndarray
+        Either an Axis enum (X/Y/Z) or a (3,) np.ndarray — need not be unit length; it is normalised internally.
+    angle : float
+        Rotation angle.
+    degrees : bool
+        If True (default), `angle` is in degrees.
+
+    Returns
+    -------
+    Rotation
+        A Scipy Rotation object.
+    """
+    if isinstance(axis, Axis):
+        v = np.zeros(3)
+        v[axis.value] = 1.0
+    else:
+        axis_normalised = np.linalg.norm(axis)
+        if axis_normalised == 0:
+            raise ValueError("Rotation axis must be non-zero.")
+        v = axis / axis_normalised
+    angle_radians = np.radians(angle) if degrees else angle
+    return Rotation.from_rotvec(angle_radians * v)
+
+# ================================================================================
 # UTILITY FUNCTIONS
 # ================================================================================
 
@@ -740,7 +1103,8 @@ def extract_submesh(pv_grid: pv.UnstructuredGrid | pv.PolyData,
                     chart_face_indices: np.ndarray,
                     element_node_count: ElementNodeCount,
                     spatial_dim: sens.EDim,
-                    render_mesh: RenderMesh = None) -> RTMesh:
+                    render_mesh: RenderMesh = None,
+                    scaling_factor: float = 1.0) -> RTMesh:
     """
     Extracts a submesh from the passed PyVista UnstructuredGrid or PolyData object based on the passed face indices.
 
@@ -756,6 +1120,8 @@ def extract_submesh(pv_grid: pv.UnstructuredGrid | pv.PolyData,
         The spatial dimension of the submesh.
     render_mesh: RenderMesh
         Optional. RenderMesh object passed for RTMesh generation if the mesh is SimData-based. Defaults to None.
+    scaling_factor: float
+        The scalar used to scale the nodal coordinates and displacements based on the desired position. Defaults to 1.0.
     
     Returns:
     chart_rtmesh: RTMesh
@@ -766,6 +1132,13 @@ def extract_submesh(pv_grid: pv.UnstructuredGrid | pv.PolyData,
             
     sub_coords = np.array(sub_ugrid.points)
     sub_connectivity = pyvista_faces_to_connectivity(sub_ugrid)
+
+    # Capture the mapping from local submesh node indices -> global render_mesh node indices so that get_mesh_data_over_time can slice the correct rows of the
+    # full-mesh displacement array
+    rm_point_ids = None
+    if render_mesh is not None and "vtkOriginalPointIds" in sub_ugrid.point_data:
+        rm_point_ids = np.ascontiguousarray(
+            sub_ugrid.point_data["vtkOriginalPointIds"], dtype=np.intp)
             
     # Create RTMesh for this specific chart
     chart_rtmesh = create_rtmesh(coords_mesh=sub_coords, 
@@ -773,7 +1146,9 @@ def extract_submesh(pv_grid: pv.UnstructuredGrid | pv.PolyData,
         element_node_count = element_node_count, 
         spatial_dim=spatial_dim,
         connectivity=sub_connectivity,
-        render_mesh = render_mesh)
+        render_mesh = render_mesh,
+        scaling_factor = scaling_factor,
+        rm_point_ids = rm_point_ids)
     return chart_rtmesh
 
 
@@ -1010,9 +1385,63 @@ def get_mesh_to_world_matrix(world_position: np.ndarray,
     return mesh_to_world_mat
 
 def orient_mesh_in_world(node_coords: np.ndarray,
+                         world_position: np.ndarray | None = None,
+                         world_rotation: Rotation | None = None,
+                         target_size: float | None = None,
+                         size_axis: Axis | None = None,
+                         anchor: Anchor = Anchor.CENTER,
+                         rotation_pivot: np.ndarray | None = None) -> tuple[np.ndarray, float]:
+    """
+    Orients a (node_count, 3) coordinate array in world space.
+
+    Processing order:
+      1. fit_size_coords — If target_size is given: uniform scale about centre
+      2. rotate_coords — About rotation_pivot (defaults to bounding box centre)
+      3. place_at_coords — So chosen anchor lands at world_position
+
+    Parameters
+    ----------
+    node_coords : np.ndarray
+        Shape (node_count, 3). Raw mesh coordinates (in file units).
+    world_position : np.ndarray, optional
+        Target world-space location for the chosen anchor. Defaults to origin.
+    world_rotation : Rotation, optional
+        Scipy Rotation. Use make_axis_rotation(...) for arbitrary-axis spins.
+    target_size : float, optional
+        World-space size to fit along size_axis (or longest axis if None).
+    size_axis : Axis, optional
+        Axis along which target_size is measured.
+    anchor : Anchor
+        Which point on the AABB ends up at world_position. Defaults to CENTER.
+    rotation_pivot : np.ndarray, optional
+        Override the rotation pivot. Defaults to the post-resize bounding box centre.
+    
+    Returns
+    -------
+    tuple[np.ndarray, float]
+        A (node_count, 3) array with adjusted node coordinates and the scaling_factor used to scale them.
+    
+    """
+    coords = np.asarray(node_coords, dtype=np.float64)
+
+    if target_size is not None:
+        coords, scaling_factor = fit_size_coords(coords, target_size, axis=size_axis)
+
+    if world_rotation is not None:
+        coords = rotate_coords(coords, world_rotation, pivot=rotation_pivot)
+
+    if world_position is None:
+        world_position = np.zeros(3, dtype=np.float64)
+    coords = place_at_coords(coords, world_position, anchor=anchor)
+
+    return np.ascontiguousarray(coords[:, :COORDS_PER_NODE]), scaling_factor
+
+
+"""
+def orient_mesh_in_world(node_coords: np.ndarray,
                         world_position: np.ndarray,
                         world_rotation: Rotation) -> np.ndarray:
-    """
+    
     Orient the mesh in world coordinates.
 
     Parameters:
@@ -1028,14 +1457,14 @@ def orient_mesh_in_world(node_coords: np.ndarray,
     --------
     np.ndarray
         The oriented node coordinates in world coordinates.
-    """
+    
     mesh_to_world_mat = get_mesh_to_world_matrix(world_position, world_rotation)
     node_count = node_coords.shape[0]
     # Stack horizontally (column-wise) so we have (node_count,4) matrix that can be multiplied by transformation matrix
     coords_stack = np.column_stack([node_coords, np.ones(node_count, dtype=np.float64)])
     node_coords_world = np.matmul(coords_stack, mesh_to_world_mat.T)
     return np.ascontiguousarray(node_coords_world[:,:COORDS_PER_NODE])
-
+"""
 def prune_internal_nodes(node_coords: np.ndarray,
                          connectivity: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -1072,7 +1501,9 @@ def create_rtmesh(coords_mesh: np.ndarray,
                   element_node_count: ElementNodeCount,
                   spatial_dim: EDim,
                   connectivity: np.ndarray,
-                  render_mesh: RenderMesh = None) -> RTMesh:
+                  render_mesh: RenderMesh = None,
+                  scaling_factor: float = 1.0,
+                  rm_point_ids: np.ndarray | None = None) -> RTMesh:
     """
     Creates an RTMesh object based on the passed data.
 
@@ -1090,6 +1521,10 @@ def create_rtmesh(coords_mesh: np.ndarray,
         Shape (element_count, nodes_per_element). The connectivity of the mesh elements.
     render_mesh: RenderMesh
             Optional. RenderMesh object used to fetch deformed nodal coordinates. Defaults to None.
+    scaling_factor: float
+        The scalar used to scale the nodal coordinates and displacements based on the desired position. Defaults to 1.0.
+    rm_point_ids: np.ndarray | None
+        Optional, used only with sub-meshes based on RenderMesh objects to keep the original RenderMesh indices mapping to extract nodal deformations.
 
     Raises:
     -------
@@ -1130,7 +1565,8 @@ def create_rtmesh(coords_mesh: np.ndarray,
         rtmesh.element_count = render_mesh.elem_count
         rtmesh.node_count = render_mesh.node_count
         rtmesh.nodes_per_element = element_node_count
-        rtmesh.get_mesh_data_over_time(render_mesh) # Pass render_mesh to extract deformation data
+        rtmesh._rm_point_ids = rm_point_ids  # None for full-mesh, array for submesh
+        rtmesh.get_mesh_data_over_time(render_mesh, scaling_factor) # Pass render_mesh to extract deformation data
     else: # No RenderMesh = not SimData
         rtmesh.connectivity = np.ascontiguousarray(connectivity, dtype=np.uint64)
         rtmesh.spatial_dimensions = spatial_dim
@@ -1143,7 +1579,7 @@ def create_rtmesh(coords_mesh: np.ndarray,
         rtmesh.nodes_per_element = element_node_count
         node_count = coords_mesh.shape[0]
         rtmesh.node_count = node_count
-        rtmesh.get_mesh_data_over_time()
+        rtmesh.get_mesh_data_over_time(scaling_factor)
 
     #print(f"Connectivity shape: {connectivity.shape}")
     #print(f"Node coords shape: {coords_mesh.shape}")
@@ -1152,10 +1588,7 @@ def create_rtmesh(coords_mesh: np.ndarray,
 def create_render_mesh_higher_order(sim_data: mh.SimData,
                        field_render_keys: tuple[str,...],
                        sim_spat_dim: EDim,
-                       field_disp_keys: tuple[str,...] | None = None,
-                       pos_world: np.ndarray | None  = None,
-                       rot_world: Rotation | None = None
-                       ) -> tuple[RenderMesh, pv.UnstructuredGrid]:
+                       field_disp_keys: tuple[str,...] | None = None) -> tuple[RenderMesh, pv.UnstructuredGrid]:
     """
     Creates the RenderMesh object from the passed SimData.
 
@@ -1209,8 +1642,7 @@ def create_render_mesh_higher_order(sim_data: mh.SimData,
     fields_render_by_node = np.zeros(field_render_shape + (len(field_render_keys),),
                                      dtype=np.float64)
     for ii, cc in enumerate(field_render_keys):
-        fields_render_by_node[:, :, ii] = np.ascontiguousarray(
-            np.array(pv_grid [cc]))
+        fields_render_by_node[:, :, ii] = np.ascontiguousarray(np.array(pv_grid [cc]))
 
     field_disp_by_node = None
     if field_disp_keys is not None:
@@ -1219,26 +1651,28 @@ def create_render_mesh_higher_order(sim_data: mh.SimData,
         field_disp_by_node = np.zeros(field_disp_shape + (len(field_disp_keys),),
                                       dtype=np.float64)
         for ii, cc in enumerate(field_disp_keys):
-            field_disp_by_node[:, :, ii] = np.ascontiguousarray(
-                np.array(pv_grid[cc]))
+            field_disp_by_node[:, :, ii] = np.ascontiguousarray(np.array(pv_grid[cc]))
 
 # Return pv_grid so we can use it for TEMPORARY triangulation later on
     return RenderMesh(coords=coords_world,
                       connectivity=connectivity,
                       fields_render=fields_render_by_node,
                       fields_disp=field_disp_by_node,
-                      pos_world=pos_world,
-                      rot_world=rot_world), pv_grid
+                      pos_world=None, # We set these to none because RTMesh has its own workflow that positions meshes a bit more intuitively in the scene
+                      rot_world=None), pv_grid
 
-
-# Linear meshes - use existing pyvale RenderMesh class and functions
 def simdata_to_rtmesh(pypath: Path,
                     field_components: tuple = ("disp_x", "disp_y", "disp_z"),
                     fields_to_render: tuple = ("disp_y", "disp_x"),
-                    spatial_dim: sens.EDim = sens.EDim.THREED,
-                    scale: float = 100.0,
+                    spatial_dim: sens.EDim = sens.EDim.TWOD,
                     world_position: np.ndarray = None,
-                    world_rotation: Rotation = None) -> RTMesh | list[RTMesh]:
+                    world_rotation: Rotation = None,
+                    target_size: float | None = None,
+                    size_axis: Axis | None = None,
+                    anchor: Anchor = Anchor.CENTER,
+                    rotation_axis: "Axis | np.ndarray | None" = None,
+                    rotation_angle_deg: float = 0.0,
+                    rotation_pivot: np.ndarray | None = None) -> RTMesh | list[RTMesh]:
     """
     Converts a SimData object to an RTMesh.
 
@@ -1250,42 +1684,67 @@ def simdata_to_rtmesh(pypath: Path,
         Component fields.
     fields_to_render: tuple
         Fields that are supposed to be rendered.
+    pypath: Path
+        The path to the mesh to convert.
     spatial_dim: sens.EDim
         The spatial dimension of the mesh.
-    scale: float
-        The scale factor to apply to the mesh.
     world_position: np.ndarray
-        The position of the mesh in world coordinates.
+        Optional. The position of the mesh in world coordinates.
     world_rotation: Rotation
-        The rotation of the mesh in world coordinates.
+        Optional. The rotation of the mesh in world coordinates.
+    target_size:
+        Optional. Target mesh size in world units.
+    size_axis: Axis | None
+        Optional. The axis about which the target size is defined. Defaults to None (longest axis).
+    anchor: Anchor
+        Optional. Anchor on the bounding box (CENTER, BASE, TOP, MIN, MAX) used for positioning.  E.g. anchor=Anchor.BASE, world_position=[0,-1,-3] puts the bottom
+    centre of the bbox at (0, -1, -3) regardless of where the file's origin is.
+    rotation_axis: Axis | np.ndarray | None
+        Optional. The axis about which the mesh is rotated.
+    rotation_angle_deg: float
+        Optional. Rotation angle about the specified axis in degrees.
+    rotation_pivot: np.ndarray | None
+        Pivot about which the rotation is applied.
 
     Returns:
     --------
     RTMesh | list[RTMesh]
         The converted RTMesh object or a list of two RTMesh objects in order [outer, inner] based on their bounding box size.
     """
+     # There are two ways to pass the rotation, so they need to be reconciled
+    if world_rotation is not None and rotation_axis is not None:
+        raise ValueError("Pass either world_rotation or rotation_axis/rotation_angle_deg, not both.")
+    if rotation_axis is not None:
+        world_rotation = make_axis_rotation(rotation_axis, rotation_angle_deg, degrees=True)
+
     # Convert the simulation output into a SimData object
     sim_data = mh.ExodusLoader(pypath).load_all_sim_data()  # Pyvale 2026.1.0
     # Scale the coordinates and displacement fields to mm
-    sim_data = sens.scale_length_units(scale=scale, sim_data=sim_data, disp_keys=field_components)
+    #sim_data = sens.scale_length_units(scale=scale, sim_data=sim_data, disp_keys=field_components)
     #render_mesh, pv_surf = sens.create_render_mesh(sim_data, fields_to_render, sim_spat_dim=spatial_dim,
                                           #field_disp_keys=field_components)
     # Extract surface mesh only
     sim_data = extract_surf_mesh(sim_data)
     # Create RenderMesh and triangulated surface. This function preserves the higher order elements
-    render_mesh, pv_grid = create_render_mesh_higher_order(sim_data, fields_to_render, sim_spat_dim=sens.EDim.TWOD,
+    render_mesh, pv_grid = create_render_mesh_higher_order(sim_data, fields_to_render, sim_spat_dim=spatial_dim,
                                           field_disp_keys=field_components)
 
     # Set world position and rotation (where applicable)
-    if world_position is not None:
-        render_mesh.set_pos(world_position)
-    if world_rotation is not None:
-        render_mesh.set_rot(world_rotation)
+    if world_position is None:
+        world_position = np.zeros(3, dtype=np.float64)
 
-    # Handle nodal coordinates
-    coords_world = np.matmul(render_mesh.coords, render_mesh.mesh_to_world_mat.T)  # Convert to world coordinates
-    render_mesh.coords = coords_world  # Replace nodal coordinates in RenderMesh with their world coordinate equivalents. We can do that since for deformed nodes, we just add values
-    coords = np.ascontiguousarray(render_mesh.coords[:, :COORDS_PER_NODE])
+
+    # World positioning - handle nodal coordinates (scaling, positioning)
+    coords_file = np.ascontiguousarray(render_mesh.coords[:, :COORDS_PER_NODE], dtype=np.float64) # Mesh coordinates as they are passed in the SimData
+    # Fit the mesh size, rotate, and place in the world
+    coords_mesh, scaling_factor = orient_mesh_in_world(coords_file,
+        world_position=world_position,
+        world_rotation=world_rotation,
+        target_size=target_size,
+        size_axis=size_axis,
+        anchor=anchor,
+        rotation_pivot=rotation_pivot)
+    pv_grid.points = coords_mesh
 
     connectivity = np.ascontiguousarray(render_mesh.connectivity, dtype=np.uint64)
     element_node_count = render_mesh.nodes_per_elem
@@ -1297,15 +1756,15 @@ def simdata_to_rtmesh(pypath: Path,
     #print(f"Charts: {charts}"
     if chart_count == 2:
         print("Detected mesh with more than 1 surface. It will be treated as a hollowed solid, and returned as 2 separate RTMesh objects: [outer, inner]. \nAssign surface data to the inner surface only if the object is supposed to be refractive.")
-        sub_rtmesh_1 = extract_submesh(pv_grid, charts[0], element_node_count, spatial_dim, render_mesh)
-        sub_rtmesh_2 = extract_submesh(pv_grid, charts[1], element_node_count, spatial_dim, render_mesh)
+        sub_rtmesh_1 = extract_submesh(pv_grid, charts[0], element_node_count, spatial_dim, render_mesh, scaling_factor)
+        sub_rtmesh_2 = extract_submesh(pv_grid, charts[1], element_node_count, spatial_dim, render_mesh, scaling_factor)
         # Compare bounding boxes; bigger => this RTMesh is the outer shell
         if sub_rtmesh_1.get_size(0).min() > sub_rtmesh_2.get_size(0).max():
             return [sub_rtmesh_1, sub_rtmesh_2] # Outer, inner
         else:
             return [sub_rtmesh_2, sub_rtmesh_1] #Outer, inner
     elif chart_count == 1:
-        return create_rtmesh(coords, pv_grid, element_node_count, spatial_dim, connectivity, render_mesh)
+        return create_rtmesh(coords_mesh, pv_grid, element_node_count, spatial_dim, connectivity, render_mesh, scaling_factor)
     else:
         raise IOError(f"Detected mesh with more than 2 surfaces: {chart_count}. This is currently not supported.") # More than 2 meshes - cannot guarantee what it is or why
 
@@ -1625,13 +2084,146 @@ def process_mesh_elements(mmesh: meshio.Mesh) -> tuple [None, None] | tuple[mesh
     else: # More than one type of volume elements in the mesh
         print("Mixed element type meshes are currently not supported.")
         return None, None
+    
 
+def any_mesh_to_rtmesh(pypath: Path,
+                       spatial_dim: sens.EDim = sens.EDim.THREED,
+                       world_position: np.ndarray = None,
+                       world_rotation: Rotation = None,
+                       target_size: float | None = None,
+                       size_axis: Axis | None = None,
+                       anchor: Anchor = Anchor.CENTER,
+                       rotation_axis: "Axis | np.ndarray | None" = None,
+                       rotation_angle_deg: float = 0.0,
+                       rotation_pivot: np.ndarray | None = None) -> RTMesh | list[RTMesh]:
+    """Converts any mesh to an RTMesh object.
+
+    Two equivalent ways to express rotation:
+      - world_rotation=<scipy Rotation>
+      - rotation_axis=<Axis or 3-vector> + rotation_angle_deg=<float> - convenience for the common "spin about one axis" case.
+
+    Parameters:
+    -----------
+    pypath: Path
+        The path to the mesh to convert.
+    spatial_dim: sens.EDim
+        The spatial dimension of the mesh.
+    world_position: np.ndarray
+        Optional. The position of the mesh in world coordinates.
+    world_rotation: Rotation
+        Optional. The rotation of the mesh in world coordinates.
+    target_size:
+        Optional. Target mesh size in world units.
+    size_axis: Axis | None
+        Optional. The axis about which the target size is defined. Defaults to None (longest axis).
+    anchor: Anchor
+        Optional. Anchor on the bounding box (CENTER, BASE, TOP, MIN, MAX) used for positioning.  E.g. anchor=Anchor.BASE, world_position=[0,-1,-3] puts the bottom
+    centre of the bbox at (0, -1, -3) regardless of where the file's origin is.
+    rotation_axis: Axis | np.ndarray | None
+        Optional. The axis about which the mesh is rotated.
+    rotation_angle_deg: float
+        Optional. Rotation angle about the specified axis in degrees.
+    rotation_pivot: np.ndarray | None
+        Pivot about which the rotation is applied.
+
+    Returns:
+    --------
+    RTMesh | list[RTMesh]
+        The converted RTMesh object or a list of two RTMesh objects in order [outer, inner] based on their bounding box size.
+
+    Raises:
+    -------
+    IOError
+        If the mesh cannot be processed or converted.
+    """
+    # There are two ways to pass the rotation, so they need to be reconciled
+    if world_rotation is not None and rotation_axis is not None:
+        raise ValueError("Pass either world_rotation or rotation_axis/rotation_angle_deg, not both.")
+    if rotation_axis is not None:
+        world_rotation = make_axis_rotation(rotation_axis, rotation_angle_deg, degrees=True)
+
+    # File-type checking and conversions to ensure compatible index winding
+    file_type = pypath.suffix.lower()
+    # Check if mesh is .vtk and convert if not to ensure winding compatibility
+    if file_type != ".vtk" and file_type != ".vtu":
+        print(f"Non-VTK mesh. Converting to ensure index winding compatibility...")
+        converted_filepath = Path.joinpath(pypath.parent, "temp") # Path to save the converted mesh in the same directory
+        # Implement as "switch" statement in case we discover that other types also need special treatment to convert
+        match file_type:
+            case ".vol":
+                _convert_netgen_mesh(pypath, converted_filepath)
+                pypath = converted_filepath.with_suffix(".vtk") # Update path to read the mesh from
+            case _:
+                _convert_any_to_vtk_mesh(pypath, converted_filepath)
+                pypath = converted_filepath.with_suffix(".vtk") # Update path to read the mesh from
+    mesh = meshio.read(pypath)
+    # Check what element types are in the mesh
+    element_types = len(mesh.cells_dict)
+    if element_types >= 1:
+        # Determine element types in the mesh and extract the surface for rendering
+        surface_mesh, element_type = process_mesh_elements(mesh)
+        if surface_mesh is None:
+            raise IOError("Mesh processing failed. Please check the mesh format and element types.")
+    else: # 0 elements
+        raise IOError("No elements detected in the mesh. Please check the mesh format and element types.")
+    # Rest of logic for RTMesh
+
+    # We will need pyvista format for SeamSplitter and texturing, so convert to pyvista unstructured grid
+    # Normally, we would go pv_surf = pv_ugrid.extract_surface() but this triangulates, so we will keep on using grid
+    pv_ugrid = pv.from_meshio(surface_mesh) # Convert meshio to pyvista unstructured grid
+
+    # Set world position
+    if world_position is None:
+        world_position = np.array((0.0, 0.0, 0.0), dtype=np.float64)
+
+    # World positioning - handle nodal coordinates (scaling, positioning)
+    coords_file = np.asarray(pv_ugrid.points, dtype=np.float64) # Mesh coordinates as they are passed in the input file, so might be positioned randomly
+    # Fit the mesh size, rotate, and place in the world
+    coords_mesh, scaling_factor = orient_mesh_in_world(coords_file,
+        world_position=world_position,
+        world_rotation=world_rotation,
+        target_size=target_size,
+        size_axis=size_axis,
+        anchor=anchor,
+        rotation_pivot=rotation_pivot)
+    pv_ugrid.points = coords_mesh # Replace with oriented points - this is for triangulated surface for texturing
+
+    # Helper to display mesh with node indices in case there are winding issues:
+    #display_pyvista_grid_with_indices(pv_ugrid)
+
+    # Connectivity
+    connectivity = pyvista_faces_to_connectivity(pv_ugrid)
+    element_node_count = MESHIO_TO_ELEMENTNODECOUNT[element_type] # Convert meshio element type to ElementNodeCount to keep the same interface as simdata pipeline
+
+    # Check whether mesh has more than 1 surface and get its adjacency matrix
+    chart_labels, chart_count, charts, adjacency_matrix = segment_into_charts(connectivity)
+
+    if chart_count == 2:
+        print("Detected mesh with more than 1 surface. It will be treated as a hollowed solid, and returned as 2 separate RTMesh objects: [outer, inner]. \nAssign surface data to the inner surface only if the object is supposed to be refractive.")
+        sub_rtmesh_1 = extract_submesh(pv_ugrid, charts[0], element_node_count, spatial_dim, scaling_factor)
+        sub_rtmesh_2 = extract_submesh(pv_ugrid, charts[1], element_node_count, spatial_dim, scaling_factor)
+        # Compare bounding boxes; bigger => this RTMesh is the outer shell
+        if sub_rtmesh_1.get_size(0).min() > sub_rtmesh_2.get_size(0).max():
+            sub_rtmesh_1.mesh_type = MeshType.SHELL
+            sub_rtmesh_2.mesh_type = MeshType.SHELL
+            return [sub_rtmesh_1, sub_rtmesh_2]
+        else:
+            sub_rtmesh_1.mesh_type = MeshType.SHELL
+            sub_rtmesh_2.mesh_type = MeshType.SHELL
+            return [sub_rtmesh_2, sub_rtmesh_1]
+    elif chart_count == 1:
+        return create_rtmesh(coords_mesh, pv_ugrid, element_node_count, spatial_dim, connectivity, None, scaling_factor)
+    else:
+        raise IOError(f"Detected mesh with more than 2 surfaces: {chart_count}. This is currently not supported.") # More than 2 meshes - cannot guarantee what it is or why
+    
+
+"""
 def any_mesh_to_rtmesh(pypath: Path,
                        scale: float = 100.0,
                        spatial_dim: sens.EDim = sens.EDim.THREED,
                        world_position: np.ndarray = None,
                        world_rotation: Rotation = None) -> RTMesh | list[RTMesh]:
-    """Converts any mesh to an RTMesh object.
+    Converts any mesh to an RTMesh object.
 
     Parameters:
     -----------
@@ -1655,7 +2247,7 @@ def any_mesh_to_rtmesh(pypath: Path,
     -------
     IOError
         If the mesh cannot be processed or converted.
-    """
+    
 
     # Set world position and rotation (where applicable)
     if world_position is None:
@@ -1750,161 +2342,4 @@ def any_mesh_to_rtmesh(pypath: Path,
         return create_rtmesh(coords_mesh, pv_ugrid, element_node_count, spatial_dim, connectivity)
     else:
         raise IOError(f"Detected mesh with more than 2 surfaces: {chart_count}. This is currently not supported.") # More than 2 meshes - cannot guarantee what it is or why
-
-# ================================================================================
-# TESTS
-# ================================================================================
-
-def volume_meshes_conversion_test():
-    """
-    Test function to test reading and converting various volume meshes to RTMesh objects.
-
-    """
-    import time
-    # Test Wiera's TET10 sphere (.vtk format)
-    name = "sphere_1"
-    mesh_path = Path.joinpath(Path.cwd(), name + ".vtk")
-    test_rtmesh = any_mesh_to_rtmesh(mesh_path, scale=500, world_position=np.array([1.0, -23, -1.0]))
-    print("\nWiera's TET10 sphere in .vtk format:")
-    print(f"Node count: {test_rtmesh.node_count}")
-    print(f"Element count: {test_rtmesh.element_count}")
-    print(f"Node coords shape: {test_rtmesh.node_coords.shape}")
-    print(f"Connectivity shape: {test_rtmesh.connectivity.shape}")
-    print(f"Nodes per element: {test_rtmesh.nodes_per_element}")
-
-    time.sleep(2)
-    # Test Wiera's TET10 sphere (.vol format)
-    name = "sphere_1"
-    mesh_path = Path.joinpath(Path.cwd(), name + ".vol")
-    test_rtmesh = any_mesh_to_rtmesh(mesh_path, scale=500, world_position=np.array([1.0, -23, -1.0]))
-    print("\nWWiera's TET10 sphere in .vol format:")
-    print(f"Node count: {test_rtmesh.node_count}")
-    print(f"Element count: {test_rtmesh.element_count}")
-    print(f"Node coords shape: {test_rtmesh.node_coords.shape}")
-    print(f"Connectivity shape: {test_rtmesh.connectivity.shape}")
-    print(f"Nodes per element: {test_rtmesh.nodes_per_element}")
-
-    time.sleep(2)
-    # Test quadratic 3d sphere from gmsh
-    name = "curved_sphere_3d_verycoarse"
-    mesh_path = Path.joinpath(Path.cwd(), name + ".vtk")
-    test_rtmesh = any_mesh_to_rtmesh(mesh_path, scale=500, world_position=np.array([1.0, -23, -1.0]))
-    print("\nWcurved_sphere_3d_verycoarse:")
-    print(f"Node count: {test_rtmesh.node_count}")
-    print(f"Element count: {test_rtmesh.element_count}")
-    print(f"Node coords shape: {test_rtmesh.node_coords.shape}")
-    print(f"Connectivity shape: {test_rtmesh.connectivity.shape}")
-    print(f"Nodes per element: {test_rtmesh.nodes_per_element}")
-
-    time.sleep(2)
-    # Test linear 3d sphere from gmsh
-    name = "sphere_gmsh_vtk_test_3d_rough"
-    mesh_path = Path.joinpath(Path.cwd(), name + ".vtk")
-    test_rtmesh = any_mesh_to_rtmesh(mesh_path, scale=500, world_position=np.array([1.0, -23, -1.0]))
-    print("\n3D sphere made up of linear elements: sphere_gmsh_vtk_test_3d_rough")
-    print(f"Node count: {test_rtmesh.node_count}")
-    print(f"Element count: {test_rtmesh.element_count}")
-    print(f"Node coords shape: {test_rtmesh.node_coords.shape}")
-    print(f"Connectivity shape: {test_rtmesh.connectivity.shape}")
-    print(f"Nodes per element: {test_rtmesh.nodes_per_element}")
-    time.sleep(2)
-    # Test linear 2d sphere from gmsh (triangles)
-    name = "sphere_gmsh_vtk_test_2d_simpler"
-    mesh_path = Path.joinpath(Path.cwd(), name + ".vtk")
-    test_rtmesh = any_mesh_to_rtmesh(mesh_path, scale=500, world_position=np.array([1.0, -23, -1.0]))
-    print("\nW2D (surface) sphere made up of linear elements: sphere_gmsh_vtk_test_2d_simpler")
-    print(f"Node count: {test_rtmesh.node_count}")
-    print(f"Element count: {test_rtmesh.element_count}")
-    print(f"Node coords shape: {test_rtmesh.node_coords.shape}")
-    print(f"Connectivity shape: {test_rtmesh.connectivity.shape}")
-    print(f"Nodes per element: {test_rtmesh.nodes_per_element}")
-
-#volume_meshes_conversion_test()
-
-
-
-"""
-def test_vtk_mesh_loader():
-    # Seems to pass for both 2d and 3d vtk meshes so keep it for now
-    data_path = Path(Path().resolve().joinpath("cyl_gmsh_vtk_test_2d.vtk"))
-    rtmesh = vtk_mesh_to_rtmesh(data_path, scale=500, world_position=np.array([1.0, -23, -1.0]))
-    assert rtmesh.nodes_per_element == ElementNodeCount(3)
-    assert rtmesh.timestep_count == 1
-    assert rtmesh.node_coords.shape == (rtmesh.node_count, COORDS_PER_NODE)
-    assert rtmesh.connectivity.shape == (rtmesh.element_count, rtmesh.nodes_per_element)
-    assert rtmesh.node_coords_over_time.shape == (rtmesh.timestep_count, rtmesh.node_count, COORDS_PER_NODE)
-    assert rtmesh.node_coords_expanded_over_time.shape == (rtmesh.timestep_count, rtmesh.element_count, rtmesh.nodes_per_element, COORDS_PER_NODE)
-
-test_vtk_mesh_loader()
-
-def compare_indexing():
-    # Check if we need mesh.GetElementCoords() or if we can use the same indexing as for everything else - Yes, we can
-    # Quadratic sphere
-    data_path_sph = Path(Path().resolve().joinpath("sphere_1.vol"))
-    rtmesh_sph = vol_mesh_to_rtmesh(data_path_sph, scale=500, world_position=np.array([1.0, -23, -1.0]))
-
-    # Single curved tet
-    #data_path_cur = Path(Path().resolve().joinpath("one_tet_1.vol"))
-    #rtmesh_cur_tet = vol_mesh_to_rtmesh(data_path_cur, scale=500, world_position=np.array([1.0, -23, -1.0]))
-
-compare_indexing()
-
-
-def test_rtmesh_conversion():
-    # Test if RTMesh is created correctly for both "regular" (simdata) meshes and volume meshes
-    # Simdata example
-    import pyvale.dataset as dataset
-    data_path = dataset.render_mechanical_3d_path()  # Test mesh 2
-    rtmesh_lin = simdata_to_rtmesh(data_path, scale=500, world_position=np.array([1.0, -23, -1.0]))
-    # Assertions for known data
-    print(rtmesh_lin.nodes_per_element)
-    assert rtmesh_lin.timestep_count == 11
-    assert rtmesh_lin.node_coords_over_time.shape == (11, rtmesh_lin.node_count, COORDS_PER_NODE)
-    assert rtmesh_lin.element_count == rtmesh_lin.connectivity.shape[0]
-    assert rtmesh_lin.connectivity.shape == (rtmesh_lin.element_count, rtmesh_lin.nodes_per_element)
-    assert rtmesh_lin.node_coords_expanded_over_time.shape == (rtmesh_lin.timestep_count, rtmesh_lin.element_count, rtmesh_lin.nodes_per_element, COORDS_PER_NODE)
-
-    # Single curved tet
-    data_path_cur = Path(Path().resolve().joinpath(
-        "one_tet_1.vol"))
-    rtmesh_cur_tet = vol_mesh_to_rtmesh(data_path_cur, scale=500, world_position=np.array([1.0, -23, -1.0]))
-    assert rtmesh_cur_tet.timestep_count == 1
-    assert rtmesh_cur_tet.node_coords_over_time.shape == (1, rtmesh_cur_tet.node_count, COORDS_PER_NODE)
-    assert rtmesh_cur_tet.element_count == 1 # Single tet, so we expect one element
-    assert rtmesh_cur_tet.connectivity.shape == (rtmesh_cur_tet.element_count, rtmesh_cur_tet.nodes_per_element)
-    assert rtmesh_cur_tet.node_coords_expanded_over_time.shape == (rtmesh_cur_tet.timestep_count, rtmesh_cur_tet.element_count, rtmesh_cur_tet.nodes_per_element, COORDS_PER_NODE)
-
-    # Quadratic sphere
-    data_path_sph = Path(Path().resolve().joinpath("sphere_1.vol"))
-    rtmesh_sph = vol_mesh_to_rtmesh(data_path_sph, scale=500, world_position=np.array([1.0, -23, -1.0]))
-    assert rtmesh_sph.timestep_count == 1
-    assert rtmesh_sph.node_coords_over_time.shape == (1, rtmesh_sph.node_count, COORDS_PER_NODE)
-    assert rtmesh_sph.connectivity.shape == (rtmesh_sph.element_count, rtmesh_sph.nodes_per_element)
-    assert rtmesh_sph.node_coords_expanded_over_time.shape == (rtmesh_sph.timestep_count, rtmesh_sph.element_count, rtmesh_sph.nodes_per_element, COORDS_PER_NODE)
-
-test_rtmesh_conversion() # All passed - sweet
-"""
-
-
-####################################################### OLD FUNCTIONS ##########################################################
-
-"""
-def get_pyvista_surface(rtmesh: RTMesh):
-    Helper function to get a PyVista surface mesh for anything that isn't a mesh in the VTK format or a SimData object
-    as these have their own dedicated functions embedded within the converters.
-    # VTK format: [node_count, id0, id1, ..., node_count, id0, id1, ...]
-    connectivity = np.empty((rtmesh.element_count, rtmesh.nodes_per_element + 1), dtype=np.int32)
-    connectivity[:, 0] = rtmesh.nodes_per_element
-    connectivity[:, 1:] = np.arange(rtmesh.element_count * rtmesh.nodes_per_element).reshape(rtmesh.element_count, rtmesh.nodes_per_element)
-
-    pv_cell_type = sens.fieldconverter._get_pyvista_cell_type(rtmesh.nodes_per_element, rtmesh.spatial_dimensions) # Accessing protected member might be bad practice but it's perfect here, so
-    print("Sphere cell type: ", pv_cell_type, "")
-    cell_type = np.full(rtmesh.element_count, [pv_cell_type])  # Update cell type (see pyvale field converter)
-    raw_vertices = rtmesh.node_coords_expanded_over_time[0].reshape(-1, COORDS_PER_NODE)  # view, not a copy. Need to reshape it to work with pyvista. Shape is # (number_of_elements * 3, 3)
-    grid = pv.UnstructuredGrid(connectivity.ravel(), cell_type, raw_vertices)
-    # merge_points finds nodes within 'tolerance' and fuses them
-    #grid = grid.merge_points(tolerance=1e-5)  # Might change node/point ID, so need old->new mapping. Test if need to uncomment this or not
-    # Now, extract the boundary surface
-    surf = grid.extract_surface()
-    return surf
 """
