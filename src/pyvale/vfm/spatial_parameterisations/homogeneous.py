@@ -15,41 +15,61 @@ from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
 )
 
 
+# TODO: How do I flag whether value should be a dof or fixed?
+#   Maybe a constructor with a is_value_fixed var which informs
+#   how we should construct
 @dataclass(slots=True, init=False)
 class HomogeneousSpatialParameterisation(ISpatialParameterisation):
-    value: DegreeOfFreedom
+    value: float | DegreeOfFreedom | None = None
 
     @property
     def num_degrees_of_freedom(self) -> int:
-        return 1
-
-    def to_map(
-        self,
-        size: npt.NDArray[np.uint32]
-    ) -> npt.NDArray[np.float64]:
-        return np.full((size[0], size[1]), self.value.value)
-
-    def collect_degrees_of_freedom(
-        self,
-    ) -> list[DegreeOfFreedom]:
-        return [copy(self.value)]
-
-    def update_from_degrees_of_freedom(
-        self,
-        degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
-    ) -> None:
-        # TODO: length list check to match num dofs
-        if isinstance(degrees_of_freedom, list):
-            self.value = degrees_of_freedom[0]
+        if isinstance(self.value, DegreeOfFreedom):
+            return 1
         else:
-            self.value.value = degrees_of_freedom[0]
+            return 0
 
     def update_from_constitutive_parameter(
         self,
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
-        self.value =  DegreeOfFreedom(
-            constitutive_parameter.value[0, 0],
-            constitutive_parameter.lower_bound,
-            constitutive_parameter.upper_bound,
-        )
+        if isinstance(self.value, DegreeOfFreedom):
+            self.value =  DegreeOfFreedom(
+                float(np.mean(constitutive_parameter.value)),
+                constitutive_parameter.lower_bound,
+                constitutive_parameter.upper_bound,
+            )
+        else:
+            self.value = float(np.mean(constitutive_parameter.value))
+
+    def to_map(
+        self,
+        size: npt.NDArray[np.uint32]
+    ) -> npt.NDArray[np.float64]:
+        if isinstance(self.value, DegreeOfFreedom):
+            value = self.value.value
+        else:
+            value = self.value
+
+        return np.full((size[0], size[1]), value)
+
+    def collect_degrees_of_freedom(
+        self,
+    ) -> list[DegreeOfFreedom]:
+        if isinstance(self.value, DegreeOfFreedom):
+            return [copy(self.value)]
+        else:
+            return []
+
+    # TODO: length check to match num dofs
+    def update_from_degrees_of_freedom(
+        self,
+        degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
+    ) -> None:
+        if isinstance(degrees_of_freedom, list):
+            if isinstance(self.value, DegreeOfFreedom):
+                self.value = degrees_of_freedom[0]
+        else:
+            if isinstance(self.value, DegreeOfFreedom):
+                self.value.value = degrees_of_freedom[0]
+

@@ -16,11 +16,17 @@ from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
 
 @dataclass(slots=True, init=False)
 class KnownSpatialParameterisation(ISpatialParameterisation):
-    value: npt.NDArray[np.float64]
+    value: npt.NDArray[np.float64] | None = None
 
     @property
     def num_degrees_of_freedom(self) -> int:
         return 0
+
+    def update_from_constitutive_parameter(
+        self,
+        constitutive_parameter: ConstitutiveParameter
+    ) -> None:
+        self.value = constitutive_parameter.value
 
     def to_map(
         self,
@@ -40,9 +46,3 @@ class KnownSpatialParameterisation(ISpatialParameterisation):
         degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
     ) -> None:
         return
-
-    def update_from_constitutive_parameter(
-        self,
-        constitutive_parameter: ConstitutiveParameter
-    ) -> None:
-        self.value = constitutive_parameter.value

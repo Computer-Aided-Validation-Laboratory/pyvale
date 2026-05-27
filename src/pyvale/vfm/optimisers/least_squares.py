@@ -38,7 +38,7 @@ class LeastSquares(IOptimiser):
 
         for sp in spatial_parameterisations.values():
             if sp.num_degrees_of_freedom == 0:
-                continue 
+                continue
 
             degrees_of_freedom = sp.collect_degrees_of_freedom()
 
