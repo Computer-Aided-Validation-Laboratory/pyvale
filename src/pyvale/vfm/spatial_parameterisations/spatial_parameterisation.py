@@ -13,12 +13,20 @@ from pyvale.vfm.spatial_parameterisations.degree_of_freedom import (
 )
 
 
-# For the update from dof methods, we assume the order of the list/array is
-# the same as the order we provided when we collected the dofs
+# In general, spatial parameterisations should start out empty,
+# then the update_from_constituitive_parameter fills
+# the dofs with values
 class ISpatialParameterisation(ABC):
     @property
     @abstractmethod
     def num_degrees_of_freedom(self) -> int:
+        pass
+
+    @abstractmethod
+    def update_from_constitutive_parameter(
+        self,
+        constitutive_parameter: ConstitutiveParameter
+    ) -> None:
         pass
 
     @abstractmethod
@@ -34,17 +42,12 @@ class ISpatialParameterisation(ABC):
     ) -> list[DegreeOfFreedom]:
         pass
 
+    # We assume the order of the list/array is
+    # the same as the order we provided when we collected the dofs
     @abstractmethod
     def update_from_degrees_of_freedom(
         self,
         degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def update_from_constitutive_parameter(
-        self,
-        constitutive_parameter: ConstitutiveParameter
     ) -> None:
         pass
 
