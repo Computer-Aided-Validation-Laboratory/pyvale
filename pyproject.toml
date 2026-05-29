@@ -53,3 +53,6 @@ build.verbose = false
 logging.level = "INFO"
 ninja.make-fallback = false
 build-dir = "build"
+
+[tool.uv]
+exclude-newer = "30 days"
