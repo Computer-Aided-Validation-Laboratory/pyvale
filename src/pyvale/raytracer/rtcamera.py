@@ -101,8 +101,6 @@ class Camera:
             The right direction of the camera.
         basis_vector_up: np.ndarray
             The up direction of the camera.
-        xxxfocal_length: float
-            xxxDistance between the camera center and the point the camera is looking at.
         
         Returns:
         --------
@@ -139,7 +137,7 @@ class Camera:
 
 
 
-    def calculate_view_dims(self) -> None:
+    def calculate_view_dims(self) -> tuple[float, float, float]:
         """
         Calculates the dimensions for the given camera view: focal length, the height and width of the viewport, and the position of the bottom right corner.
 
@@ -153,14 +151,12 @@ class Camera:
         
         """
         h_temp = tan(self.angle_vertical_view / 2)
-        basis_vector_forward = self.camera_center - self.point_camera_target
-        focal_length = np.sqrt(basis_vector_forward.dot(basis_vector_forward)) # Might need to add the focus distance with DoF camera
-        viewport_height = 2 * h_temp * focal_length  # world units (arbitrary)
+        viewport_height = 2 * h_temp * self.focal_length  # world units (arbitrary)
         viewport_width = viewport_height * (self.image_width / self.image_height)  # world units (arbitrary)
         viewport_bottom_right = np.array(
             [self.viewport_upper_left[0] + viewport_width, self.viewport_upper_left[1] - viewport_height,
                 self.viewport_upper_left[2]])
-        return focal_length, viewport_height, viewport_width, viewport_bottom_right
+        return viewport_height, viewport_width, viewport_bottom_right
     
     def print_view_dims(self) -> None:
         """
@@ -177,11 +173,11 @@ class Camera:
         None
         
         """
-        focal_length, viewport_height, viewport_width, viewport_bottom_right = self.calculate_view_dims()
+        viewport_height, viewport_width, viewport_bottom_right = self.calculate_view_dims()
         print(f"Camera position [world units]: {np.round(self.camera_center,3)}")
         print(f"Lookat position [world units]: {np.round(self.point_camera_target,3)}")
         print(f"Vertical FOV [degrees]: {np.round(np.degrees(self.angle_vertical_view),3)}")
-        print(f"Focal length [world units]: {np.round(focal_length,2)}")
+        print(f"Focal length [world units]: {np.round(self.focal_length,2)}")
         print(f"Viewport size [world units]:\n \twidth: {np.round(viewport_width,3)}\n \theight: {np.round(viewport_height,)}")
         print(f"Viewport coordinates[world units]:\n \ttop left corner: {np.round(self.viewport_upper_left,3)}\n \tbottom right corner: {np.round(viewport_bottom_right,3)}")
         print(f"Pixel spacing [world units]:\n \thorizontal (left->right): {np.round(self.matrix_pixel_spacing[0,0],6)}\n \tvertical (top->bottom): {np.abs(np.round(self.matrix_pixel_spacing[1,1],6))}")

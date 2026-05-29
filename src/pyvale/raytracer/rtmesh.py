@@ -9,6 +9,7 @@ import meshio
 import pandas as pd
 import numpy as np
 import pyvista as pv
+# import matplotlib as plt # for cmap face color determination
 from pathlib import Path
 from scipy.spatial.transform import Rotation
 from enum import StrEnum, IntEnum
@@ -17,13 +18,12 @@ from enum import Enum
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 from collections import defaultdict
-# import matplotlib as plt # for cmap face color determination
 
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.sensorsim.simtools as simtools
 from pyvale.sensorsim import RenderMesh, EDim, simdata_to_pyvista_interp, extract_surf_mesh
 from pyvale.raytracer.rtcamera import Camera
+from pyvale.raytracer.rtpresets import Material
 
 # ================================================================================
 # CONSTANTS AND ENUMS
@@ -176,14 +176,13 @@ class RTMesh:
     """
     node_coords: np.ndarray = field(default=None)
     connectivity: np.ndarray = field(default=None)
-    node_coords_expanded_over_time: np.ndarray = field(default=None)
+    node_coords_over_time: np.ndarray = field(default=None) # Not expanded (so we still need connectivity); needed to enable changing mesh after it is initialised; shape (timesteps, node_count, 3)
     face_colors_over_time: np.ndarray = field(default=None)
-    node_normals_expanded_over_time: np.ndarray = field(default=None) # Node normals that will be used to find shading normals
     #uvs_over_time: np.ndarray = field(default=None) # Temporary used in development. But uvs should not change over time and they can be massive, so this was deprecated to reduce memory consumption. Keeping it just in case
     uvs: np.ndarray = field(default=None)
     seams: list = field(default_factory=list)
     texture: np.ndarray = field(default=None)
-    material: MaterialType = field(default=None)
+    material_type: MaterialType = field(default=None)
     refractive_index: float = field(default=1.0003) # Refractive index of the material comprising the mesh; defaults to 1.003 for air, i.e., no refraction
     priority: int = field(default=0) # Mesh priority to determine refraction in nested volumes. 0 is the default, value not used for non-refractive cases
     mesh_type: MeshType = field(default=MeshType.SOLID) # Type of mesh determining the refractive behaviour
@@ -214,26 +213,18 @@ class RTMesh:
         scaling_factor: float
             The scalar used to scale the deformed nodal coordinates based on the desired position. Defaults to 1.0.
         """
-        timestep_count = self.timestep_count
-        nodes_per_element = self.nodes_per_element
-        element_count = self.element_count
         coords = self.node_coords
-        connectivity = self.connectivity
+        
         # Process data for the 0th element - always the same for deformable and static images
-        # Node coords and normals expanded
-        node_coords_expanded_over_time = np.ndarray(shape=(timestep_count, element_count, nodes_per_element, COORDS_PER_NODE),
-                                                    dtype=np.float64)  # Store nodal coordinates over all timesteps
-        node_coords_expanded_over_time[0] = coords[connectivity, :COORDS_PER_NODE]  # Expanded nodal coords, so we do not need the connectivity array
-        node_normals_expanded_over_time  = np.ndarray(shape=(timestep_count, element_count, nodes_per_element, COORDS_PER_NODE),
-                                                    dtype=np.float64)  # Store nodal normals over all timesteps
-        node_normals = find_node_normals(coords, connectivity, element_count) # Find node normals for shading; same shape as node_coords
-        node_normals_expanded_over_time[0] = node_normals[connectivity, :COORDS_PER_NODE]
+        # Node coords over time
+        node_coords_over_time = np.ndarray(shape=(self.timestep_count, self.node_count, COORDS_PER_NODE),dtype=np.float64)  # Store nodal coords over all timesteps
+        node_coords_over_time[0] = coords
 
         # Get data over multiple timesteps
-        if timestep_count != 1:
+        if self.timestep_count != 1:
             if render_mesh is not None:
                 base_displacement = get_displacement_at_timestep(0, render_mesh)  # shape (node_count, 3)
-                for timestep in range(1, timestep_count):
+                for timestep in range(1, self.timestep_count):
                     current_displacement = get_displacement_at_timestep(timestep, render_mesh)
                     delta_disp = (current_displacement - base_displacement) * scaling_factor  # shape (node_count, 3)
 
@@ -248,24 +239,41 @@ class RTMesh:
                     # Apply delta on top of the already world-positioned coords
                     deformed_coords = coords + local_delta  # (N_local, 3)
                     deformed_coords = np.ascontiguousarray(deformed_coords)
-
-
-                    node_coords_expanded_over_time[timestep, :, :, :] = deformed_coords[connectivity] # Expand nodal coords
-                    node_normals = find_node_normals(coords, connectivity, element_count)
-                    node_normals_expanded_over_time[timestep, :, :, :] = node_normals[connectivity]
+                    node_coords_over_time[timestep] = deformed_coords
             else: # Any other mesh
                 print("Timesteps aren't currently supported for meshes that aren't imported as SimData.")
                 # Data "over time" - currently not supported for non-simdata as other formats don't seem to work with multi-step data, so not sure how this would look like?
                 # But data extraction overall should be similar to what is done in the simdata branch
-                # Node coords and normals expanded
-                node_coords_expanded_over_time[0, :, :, :] = coords[connectivity]
-                node_normals_expanded_over_time[0, :, :, :] = node_normals[connectivity]
 
         # Update the rtmesh object
-        self.node_coords_expanded_over_time = node_coords_expanded_over_time
-        self.node_normals_expanded_over_time = node_normals_expanded_over_time
+        self.node_coords_over_time = node_coords_over_time
 
-    def _translate(self, delta: np.ndarray) -> None:
+    
+    def get_expanded_coords(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Helper function that expands the nodal coordinates and node normals over time, so the connectivity array does not need to be passed.
+
+        It also calculated node normals to ensure these stem from the current coordinate values in case they have changed.
+
+        It is used when the mesh is added to the scene to avoid re-calculating all this data whenever the mesh is rescaled etc.
+
+        Returns
+        --------
+        tuple[np.ndarray, np.ndarray]
+            Expanded nodal coordinates and nodal normals over time, shaped (timestep_count, element_count, nodes_per_element, 3).
+        """
+        connectivity = self.connectivity
+        node_coords_expanded_over_time = np.ndarray(shape=(self.timestep_count, self.element_count, self.nodes_per_element, COORDS_PER_NODE),dtype=np.float64)  # Store nodal coordinates over all timesteps
+        node_normals_expanded_over_time = np.ndarray(shape=(self.timestep_count, self.element_count, self.nodes_per_element, COORDS_PER_NODE), dtype=np.float64)  # Store nodal normals over all timesteps
+
+        for timestep in range(self.timestep_count):
+            coords_at_t = self.node_coords_over_time[timestep]
+            node_coords_expanded_over_time[timestep] = coords_at_t[connectivity]
+            node_normals_expanded_over_time[timestep]  = find_node_normals(coords_at_t, connectivity, self.element_count)[connectivity]
+
+        return np.ascontiguousarray(node_coords_expanded_over_time), np.ascontiguousarray(node_normals_expanded_over_time)
+
+    def translate(self, delta: np.ndarray) -> None:
         """
         In-place world-space translation by a given vector delta.
 
@@ -275,8 +283,9 @@ class RTMesh:
             The translation vector. Expected to be shaped (3).
         """
 
-        self.node_coords_expanded_over_time[..., :] += delta
+        self.node_coords_over_time[..., :] += delta
         self.node_coords = self.node_coords + delta
+        self.pyvista_surface.points = self.pyvista_surface.points + delta
 
     def place_at(self, target_position: np.ndarray,
              anchor: Anchor = Anchor.CENTER,
@@ -291,10 +300,10 @@ class RTMesh:
         anchor: Anchor
             Selected point on the mesh whose target is specified. Defaults to CENTER.
         timestep: int
-            Optional. Timestep at which the bounding box is calculated.
+            Optional. Timestep at which the bounding box is calculated .
         """
         aabb = self._get_bounding_box(timestep)
-        self._translate(np.ascontiguousarray(target_position, dtype=np.float64) - get_anchor_point(aabb, anchor))
+        self.translate(np.ascontiguousarray(target_position, dtype=np.float64) - get_anchor_point(aabb, anchor))
 
     def fit_size(self, target_size: float,
              axis: Axis | None = None,
@@ -323,8 +332,10 @@ class RTMesh:
             raise ValueError("Degenerate mesh.")
         factor = target_size / current
         centre = self.get_bounding_box(timestep)["center"]
-        self.node_coords_expanded_over_time[...] = (self.node_coords_expanded_over_time - centre) * factor + centre
+        self.node_coords_over_time[...] = (self.node_coords_over_time - centre) * factor + centre
         self.node_coords = (self.node_coords - centre) * factor + centre
+        self.avg_element_length *= factor
+        self.pyvista_surface.points = (self.pyvista_surface.points - centre) * factor + centre
         return factor
     
     def rotate(self, rotation: Rotation,
@@ -345,9 +356,9 @@ class RTMesh:
         if pivot is None:
             pivot = self._get_bounding_box(timestep)["center"]
         R = rotation.as_matrix()
-        arr = self.node_coords_expanded_over_time
-        arr[...] = ((arr - pivot) @ R.T) + pivot
         self.node_coords = ((self.node_coords - pivot) @ R.T) + pivot
+        self.node_coords_over_time = ((self.node_coords_over_time - pivot) @ R.T) + pivot
+        self.pyvista_surface.points = ((self.pyvista_surface.points - pivot) @ R.T) + pivot
 
     def _set_refractive_index(self, refractive_index: float) -> None:
         """
@@ -370,7 +381,8 @@ class RTMesh:
         else: 
             raise ValueError("Refractive index can be negative only for metamaterials, and these are not supported yet.")
     
-    def _set_reference_thickness(self, reference_thickness: float, mesh_type: MeshType) -> float:
+    def _set_reference_thickness(self, reference_thickness: float,
+                                 mesh_type: MeshType) -> float:
         """
         Validates and sets the reference thickness of a (refractive) mesh.
 
@@ -415,7 +427,8 @@ class RTMesh:
                 # Still, best if user passes their own value, based on whatever scene units they choose
         return reference_thickness
         
-    def _set_thickness(self, thickness: float, mesh_type: MeshType) -> None:
+    def _set_thickness(self, thickness: float,
+                       mesh_type: MeshType) -> None:
         """
         Sets the thickness of the shell mesh.
 
@@ -448,15 +461,15 @@ class RTMesh:
             else:
                 self.thickness = thickness
 
-    def set_surface(self,
-                    surface_type: SurfType = SurfType.FIELD_COLOR,
+    def set_surface(self, surface_type: SurfType = SurfType.FIELD_COLOR,
                     surface_fill: np.ndarray = None,
-                    material: MaterialType = MaterialType.UNLIT,
-                    refractive_index: float = 1.0003,
+                    material_type: MaterialType = MaterialType.UNLIT,
                     priority: int = 0,
+                    refractive_index: float = 1.0003,
                     mesh_type: MeshType = MeshType.SOLID,
                     thickness: float | None = None,
-                    reference_thickness: float | None = None) -> None:
+                    reference_thickness: float | None = None, 
+                    material: Material | None = None) -> None:
         """
         Sets the surface type and fill for the mesh.
         
@@ -469,28 +482,30 @@ class RTMesh:
         surface_type: SurfType
             The type of surface to apply to the mesh. Can be either FIELD_COLOR or TEXTURE.
         surface_fill: np.ndarray
-            The fill to apply to the mesh, clamped to the [0,1] intensity range. The expected format depends on the surface type:
+            The fill to apply to the mesh, clamped to the [0,1] intensity range (linear sRGB). The expected format depends on the surface type:
             - For FIELD_COLOR:
                 - If shape is (3,), it is interpreted as a single RGB color applied to the entire mesh.
                 - If shape is (element_count, 3), it is interpreted as an RGB color for each element, applied to the entire time series.
                 - If shape is (timestep_count, element_count, 3), it is interpreted as an RGB color for each element at each timestep.
             - For TEXTURE:
                 - The surface_fill should be a 2D array representing the texture image. The UV coordinates must be set for the mesh to apply the texture correctly.
-        material: MaterialType
+        material_type: MaterialType
             The material type to apply to the mesh. Defaults to UNLIT for no shading effects.
-        refractive_index: float
-            The refractive index to apply to the mesh. Applicable only for refractive materials. Defaults to 1.0003 for air. 
         priority: int
-            The priority of the mesh. Used only if the material is set to refractive. The higher the priority, the more internal the mesh is, so e.g., a glass cup would have a lower priority than the water contained (nested) in it.
+            The priority of the mesh. Used only if the material_type is set to refractive. The higher the priority, the more internal the mesh is, so e.g., for for a glass of water with ice cubes in it, you'd want to set glass = 0, water = 1, ice cubes = 2.
             Defaults to 0.
+        refractive_index: float
+            Optional. The refractive index to apply to the mesh. Applicable only for refractive materials. Defaults to 1.0003 for air. 
         mesh_type: MeshType
-            The type of mesh, which will affect the refractive behaviour, where applicable. Defaults to SOLID.
+            Optional. The type of mesh, which will affect the refractive behaviour, where applicable. Defaults to SOLID.
         thickness: float
-            The thickness of the mesh shell, counted INWARDS from the actual boundary. Optional. Defaults to None or the maximum allowed thickness for a given shell given as 1/10 of the average element length.
+            Optional. The thickness of the mesh shell, counted INWARDS from the actual boundary. Defaults to None or the maximum allowed thickness for a given shell given as 1/10 of the average element length.
         reference_thickness: float | None
             Optional. Used only for refractive materials. Defines how thick the slab of a medium should be to see exactly the colour passed in surface_fil to determine the absorption via Beer-Lambert's law. Defaults to None, and then we assign:
             - For MeshType.SHELL: reference_thickness = thickness
             - For MeshType.SOLID: reference_thickness = bounding box diagonal
+        material: Material | None
+            Optional. Material class containing the data about colour and RI. Defaults to None.
             
         Raises:
         -------
@@ -500,21 +515,21 @@ class RTMesh:
             - Refractive_index is less than 0; or
             - Mesh thickness/relative_thickness has an unphysical value.
         TypeError:
-            If the material is set to REFRACTIVE and texture is passed, as this is currently not supported.
+            If the material_type is set to REFRACTIVE and texture is passed, as this is currently not supported.
         """
         # Reset everything if user is changing the surface type
         if self.surface_type is not None and surface_type != self.surface_type:
             self.face_colors_over_time = None
             self.texture = None
             self.uvs = None
-            self.material = None
+            self.material_type = None
             self.refractive_index = 1.0003
             self.priority = 0
             self.mesh_type = MeshType.SOLID
             self.thickness = 1.0
             #self.uvs_over_time = None
         self.surface_type = surface_type
-        self.material = material
+        self.material_type = material_type
         self.mesh_type = mesh_type
         
         # Priority
@@ -524,10 +539,15 @@ class RTMesh:
             raise ValueError("Priority should be greater or equal to 0.")
         
         self._set_thickness(thickness, mesh_type)
+
+        # If using a material preset
+        if material is not None:
+            refractive_index = material.RI
+            surface_fill = material.color
                 
         # Solid colors
         if surface_type == SurfType.FIELD_COLOR:
-            #if material == MaterialType.REFRACTIVE:
+            #if material_type == MaterialType.REFRACTIVE:
             #    print("Tinting for refractive materials is currently not supported, so the colour data will be ignored.")
             if surface_fill is None:
                 print("No colour data passed. Pre-filling automatically with grey.")
@@ -539,9 +559,11 @@ class RTMesh:
                     print("Passed colour data contains values exceeding 1.0. It is assumed that it was given as regular RBG values in range [0, 255], so they will be clamped.")
                     surface_fill = np.clip(surface_fill/255, 0.0, 1.0)
                 # For refractive materials, we want to turn tint into absorption based on the Beer-Lambert law to get tinting and set all other quantities that we need
-                if material == MaterialType.REFRACTIVE:
+                if material_type == MaterialType.REFRACTIVE:
                     self._set_refractive_index(refractive_index)
                     reference_thickness = self._set_reference_thickness(reference_thickness, mesh_type) # Validate and update value if needed
+                    if reference_thickness is None:
+                        raise ValueError("Reference thickness is required for refractive materials.")
                     surface_fill = -np.log(surface_fill) / reference_thickness # This is the sigma_a in the equation, given in (length unit)^-1
                     print(f"Absorption: {surface_fill}")
                 # Process data based on the shape
@@ -568,7 +590,7 @@ class RTMesh:
                 raise ValueError("UV coordinates are required to append texture.")
             if surface_fill.ndim != 2:
                 raise ValueError("Wrong number of dimensions. The array containing the texture should be two-dimensional.")
-            if material == MaterialType.REFRACTIVE:
+            if material_type == MaterialType.REFRACTIVE:
                 raise TypeError("Textures with refractive materials are currently not supported.") # They might be in the future if we use transparency etc.
             # Convert UVs to the format similar to node_coords_expanded: (element_count, nodes_per_element, 2)
             # NOTE: UVS should **NOT** change across the frames, so we do not need that. If you need to use it, uncomment relevant lines in rtscene.py and copy_data_to_blas_tex in rtbvh.cpp
@@ -576,8 +598,7 @@ class RTMesh:
             # TO DO: Add check for shape of texture array
             self.texture = surface_fill
 
-    def set_custom_uvs(self,
-                       uv_coords: np.ndarray = None,
+    def set_custom_uvs(self, uv_coords: np.ndarray = None,
                        face_mapping: np.ndarray = None) -> None:
         """
         Allows user to set custom UV coordinates for texture mapping.
@@ -618,7 +639,7 @@ class RTMesh:
                 raise ValueError(f"UV coordinates must be of shape (element_count, nodes_per_element, 2). Got {uv_coords.shape}. If you triangulated your mesh independently, you need to map the uvs back to the original surface mesh.")
             self.uvs = np.ascontiguousarray(uv_coords, dtype=np.double)
 
-    def import_seams_from_csv(self, filepath) -> None:
+    def import_seams_from_csv(self, filepath: str) -> None:
         """
         Imports seams from a CSV file and stores them in the RTMesh object, without having to go through SeamSplitter.
 
@@ -671,7 +692,8 @@ class RTMesh:
         np.ndarray
             The size of the mesh in world units at the given timestep.
         """
-        coords = self.node_coords_expanded_over_time[timestep, :, :] # Coords
+        coords = self.node_coords_over_time[timestep, :, :]
+        #coords = self.node_coords_expanded_over_time[timestep, :, :] # Coords
         spans = np.abs(coords.max(axis=(0,1)) - coords.min(axis=(0,1)))
         return spans
 
@@ -687,12 +709,14 @@ class RTMesh:
         Returns
         -------
         dict
-            A dictionary containing the minimum and maximum x, y, and z coordinates, and the center (mean nodal position; not an actual nodal position) in world coordinates at the given timestep.
+            A dictionary containing the minimum and maximum x, y, and z coordinates, and the center in world coordinates at the given timestep.
         """
-        coords = self.node_coords_expanded_over_time[timestep, :, :]
-        center = coords.mean(axis=(0,1))
-        minimal_coords = coords.min(axis=(0,1))
-        maximal_coords = coords.max(axis=(0,1))
+        #coords = self.node_coords_expanded_over_time[timestep, :, :]
+        coords = self.node_coords_over_time[timestep, :]
+        #center = coords.mean(axis=(0,1))
+        minimal_coords = coords.min(axis=0)
+        maximal_coords = coords.max(axis=0)
+        center = 0.5 * (minimal_coords + maximal_coords)
         return {"min_corner": minimal_coords, "max_corner": maximal_coords, "center": center}
     
     def is_visible_in_viewport(self, camera: Camera, timestep: int = 0):
@@ -829,9 +853,9 @@ def get_bounding_box_coords(coords: np.ndarray) -> dict:
         A dictionary containing the minimum and maximum x, y, and z coordinates, and the center (mean nodal position; not an actual nodal position) in world coordinates at the given timestep.
     """
     # Here coords is a (N, 3) array with (x, y, z) coordinates
-    center = coords.mean(axis=(0))
     minimal_coords = coords.min(axis=(0))
     maximal_coords = coords.max(axis=(0))
+    center = 0.5 * (minimal_coords + maximal_coords)
     return {"min_corner": minimal_coords, "max_corner": maximal_coords, "center": center}
 
 def get_anchor_point(aabb: dict, anchor: Anchor) -> np.ndarray:
@@ -939,9 +963,10 @@ def snap_to(move_rtmesh: RTMesh,
             timestep: int = 0) -> None:
     """
     Puts one RTMesh in contact with another along a specified axis, e.g., a ball on a table.
-    Note: This is a very basic version of this function. It will not work for:
-    - Concave meshes
-    - Geometries with rotation (unless you rotate them after calling this function, i.e., not at the point of positioning the mesh in the world)
+    Note: This is a very basic version of this function, which doesn't work for:
+    - Concave meshes;
+    - Rotated meshes that aren't center aligned - and even in this case, they have to be rotated AFTER aligning.
+    In these cases, you may find SceneVisualiser more useful as it will allow you to select the anchor points and translate meshes directly.
 
     Parameters:
     -----------
@@ -985,8 +1010,7 @@ def snap_to(move_rtmesh: RTMesh,
             continue
         delta[a.value] = 0.0
 
-    move_rtmesh._translate(delta)
-
+    move_rtmesh.translate(delta)
 
 def make_axis_rotation(axis: "Axis | np.ndarray",
                        angle: float,
@@ -1023,14 +1047,14 @@ def make_axis_rotation(axis: "Axis | np.ndarray",
 # UTILITY FUNCTIONS
 # ================================================================================
 
-def segment_into_charts(connectivity):
+def segment_into_charts(connectivity: np.ndarray):
     """
     Segment mesh into charts using sparse adjacency matrix.
 
     Parameters:
     -----------
-    connectivity : ndarray, shape (element_count, nodes_per_element)
-        Face connectivity after seam cutting
+    connectivity : ndarray
+        Face connectivity after seam cutting. Shape (element_count, nodes_per_element)
 
     Returns:
     --------
@@ -1436,35 +1460,6 @@ def orient_mesh_in_world(node_coords: np.ndarray,
 
     return np.ascontiguousarray(coords[:, :COORDS_PER_NODE]), scaling_factor
 
-
-"""
-def orient_mesh_in_world(node_coords: np.ndarray,
-                        world_position: np.ndarray,
-                        world_rotation: Rotation) -> np.ndarray:
-    
-    Orient the mesh in world coordinates.
-
-    Parameters:
-    -----------
-    node_coords: np.ndarray
-        Shape (node_count, 3).The coordinates of the nodes in the mesh.
-    world_position: np.ndarray
-        3D vector. The position of the mesh in world coordinates.
-    world_rotation: Rotation
-        The rotation of the mesh in world coordinates.
-
-    Returns:
-    --------
-    np.ndarray
-        The oriented node coordinates in world coordinates.
-    
-    mesh_to_world_mat = get_mesh_to_world_matrix(world_position, world_rotation)
-    node_count = node_coords.shape[0]
-    # Stack horizontally (column-wise) so we have (node_count,4) matrix that can be multiplied by transformation matrix
-    coords_stack = np.column_stack([node_coords, np.ones(node_count, dtype=np.float64)])
-    node_coords_world = np.matmul(coords_stack, mesh_to_world_mat.T)
-    return np.ascontiguousarray(node_coords_world[:,:COORDS_PER_NODE])
-"""
 def prune_internal_nodes(node_coords: np.ndarray,
                          connectivity: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -1525,6 +1520,11 @@ def create_rtmesh(coords_mesh: np.ndarray,
         The scalar used to scale the nodal coordinates and displacements based on the desired position. Defaults to 1.0.
     rm_point_ids: np.ndarray | None
         Optional, used only with sub-meshes based on RenderMesh objects to keep the original RenderMesh indices mapping to extract nodal deformations.
+
+    Returns:
+    --------
+    RTMesh
+        A RTMesh object.
 
     Raises:
     -------
@@ -1719,7 +1719,7 @@ def simdata_to_rtmesh(pypath: Path,
 
     # Convert the simulation output into a SimData object
     sim_data = mh.ExodusLoader(pypath).load_all_sim_data()  # Pyvale 2026.1.0
-    # Scale the coordinates and displacement fields to mm
+    # Scale the coordinates and displacement fields to mm - Deprecated in this pipeline, it makes positioning counterintuitive
     #sim_data = sens.scale_length_units(scale=scale, sim_data=sim_data, disp_keys=field_components)
     #render_mesh, pv_surf = sens.create_render_mesh(sim_data, fields_to_render, sim_spat_dim=spatial_dim,
                                           #field_disp_keys=field_components)
@@ -2087,7 +2087,6 @@ def process_mesh_elements(mmesh: meshio.Mesh) -> tuple [None, None] | tuple[mesh
     
 
 def any_mesh_to_rtmesh(pypath: Path,
-                       spatial_dim: sens.EDim = sens.EDim.THREED,
                        world_position: np.ndarray = None,
                        world_rotation: Rotation = None,
                        target_size: float | None = None,
@@ -2106,8 +2105,6 @@ def any_mesh_to_rtmesh(pypath: Path,
     -----------
     pypath: Path
         The path to the mesh to convert.
-    spatial_dim: sens.EDim
-        The spatial dimension of the mesh.
     world_position: np.ndarray
         Optional. The position of the mesh in world coordinates.
     world_rotation: Rotation
@@ -2198,10 +2195,11 @@ def any_mesh_to_rtmesh(pypath: Path,
     # Check whether mesh has more than 1 surface and get its adjacency matrix
     chart_labels, chart_count, charts, adjacency_matrix = segment_into_charts(connectivity)
 
+    # Below we always set the spatial dim in create_rtmesh to TWOD since we skin to surface mesh + this is only for compatibility with SimData anyway.
     if chart_count == 2:
         print("Detected mesh with more than 1 surface. It will be treated as a hollowed solid, and returned as 2 separate RTMesh objects: [outer, inner]. \nAssign surface data to the inner surface only if the object is supposed to be refractive.")
-        sub_rtmesh_1 = extract_submesh(pv_ugrid, charts[0], element_node_count, spatial_dim, scaling_factor)
-        sub_rtmesh_2 = extract_submesh(pv_ugrid, charts[1], element_node_count, spatial_dim, scaling_factor)
+        sub_rtmesh_1 = extract_submesh(pv_ugrid, charts[0], element_node_count, EDim.TWOD, scaling_factor)
+        sub_rtmesh_2 = extract_submesh(pv_ugrid, charts[1], element_node_count, EDim.TWOD, scaling_factor)
         # Compare bounding boxes; bigger => this RTMesh is the outer shell
         if sub_rtmesh_1.get_size(0).min() > sub_rtmesh_2.get_size(0).max():
             sub_rtmesh_1.mesh_type = MeshType.SHELL
@@ -2212,134 +2210,6 @@ def any_mesh_to_rtmesh(pypath: Path,
             sub_rtmesh_2.mesh_type = MeshType.SHELL
             return [sub_rtmesh_2, sub_rtmesh_1]
     elif chart_count == 1:
-        return create_rtmesh(coords_mesh, pv_ugrid, element_node_count, spatial_dim, connectivity, None, scaling_factor)
+        return create_rtmesh(coords_mesh, pv_ugrid, element_node_count, EDim.TWOD, connectivity, None, scaling_factor)
     else:
         raise IOError(f"Detected mesh with more than 2 surfaces: {chart_count}. This is currently not supported.") # More than 2 meshes - cannot guarantee what it is or why
-    
-
-"""
-def any_mesh_to_rtmesh(pypath: Path,
-                       scale: float = 100.0,
-                       spatial_dim: sens.EDim = sens.EDim.THREED,
-                       world_position: np.ndarray = None,
-                       world_rotation: Rotation = None) -> RTMesh | list[RTMesh]:
-    Converts any mesh to an RTMesh object.
-
-    Parameters:
-    -----------
-    pypath: Path
-        The path to the mesh to convert.
-    scale: float
-        The scale factor to apply to the mesh.
-    spatial_dim: sens.EDim
-        The spatial dimension of the mesh.
-    world_position: np.ndarray
-        The position of the mesh in world coordinates.
-    world_rotation: Rotation
-        The rotation of the mesh in world coordinates.
-
-    Returns:
-    --------
-    RTMesh | list[RTMesh]
-        The converted RTMesh object or a list of two RTMesh objects in order [outer, inner] based on their bounding box size.
-
-    Raises:
-    -------
-    IOError
-        If the mesh cannot be processed or converted.
-    
-
-    # Set world position and rotation (where applicable)
-    if world_position is None:
-        world_position = np.array((0.0, 0.0, 0.0), dtype=np.float64)
-    if world_rotation is None:
-        world_rotation = Rotation.from_euler("zyx", (0.0, 0.0, 0.0), degrees=True)
-
-    # File-type checking and conversions to ensure compatible index winding
-    file_type = pypath.suffix.lower()
-    # Check if mesh is .vtk and convert if not to ensure winding compatibility
-    if file_type != ".vtk" and file_type != ".vtu":
-        print(f"Non-VTK mesh. Converting to ensure index winding compatibility...")
-        converted_filepath = Path.joinpath(pypath.parent, "temp") # Path to save the converted mesh in the same directory
-        # Implement as "switch" statement in case we discover that other types also need special treatment to convert
-        match file_type:
-            case ".vol":
-                _convert_netgen_mesh(pypath, converted_filepath)
-                pypath = converted_filepath.with_suffix(".vtk") # Update path to read the mesh from
-            case _:
-                _convert_any_to_vtk_mesh(pypath, converted_filepath)
-                pypath = converted_filepath.with_suffix(".vtk") # Update path to read the mesh from
-    mesh = meshio.read(pypath)
-    # Check what element types are in the mesh
-    element_types = len(mesh.cells_dict)
-    if element_types >= 1:
-        # Determine element types in the mesh and extract the surface for rendering
-        surface_mesh, element_type = process_mesh_elements(mesh)
-        if surface_mesh is None:
-            raise IOError("Mesh processing failed. Please check the mesh format and element types.")
-    else: # 0 elements
-        raise IOError("No elements detected in the mesh. Please check the mesh format and element types.")
-    # Rest of logic for RTMesh
-
-    # We will need pyvista format for SeamSplitter and texturing, so convert to pyvista unstructured grid
-    pv_ugrid = pv.from_meshio(surface_mesh) # Convert meshio to pyvista unstructured grid
-    #print(f"Original ugrid: {pv_ugrid}")
-    # Normally, we would go pv_surf = pv_ugrid.extract_surface() but this triangulates, so we will keep on using grid
-    #print(pv_ugrid.cells) # Equivalent of pv_surface.faces, but preserves the element type
-    #pv_surf = pv_ugrid.extract_surface() # this triangulates. May also remove points etc.
-    #print(f"Extracted surface: {pv_surf}")
-    #nosubd = pv_ugrid.extract_surface(nonlinear_subdivision=0)
-    #print(f"Extracted surface with nonlinear subdivision = 0: {nosubd}")
-    #print(f"No subdivision points: {nosubd.points}")
-    #print(f"Triangulate: {pv_surf.triangulate()}")
-    #print(pv_surf.point_data["vtkOriginalPointIds"]) # Could be used for mapping back?
-    # grid = mesh.merge_points(tolerance=1e-5)  # Might change node/point ID, so need old->new mapping
-    # pv_surf = grid.extract_surface()
-
-    # World positioning - handle nodal coordinates (scaling, positioning)
-    #coords_world = np.array(pv_ugrid.points) * scale
-    coords_world = np.array(pv_ugrid.points)
-    coords_mesh = orient_mesh_in_world(coords_world, world_position, world_rotation)
-    coords_mesh *= scale
-    pv_ugrid.points = coords_mesh # Replace with oriented points - this is for triangulated surface for texturing
-
-    # Helper to display mesh with node indices in case there are winding issues:
-    #display_pyvista_grid_with_indices(pv_ugrid)
-
-    # Connectivity
-    connectivity = pyvista_faces_to_connectivity(pv_ugrid)
-    element_node_count = MESHIO_TO_ELEMENTNODECOUNT[element_type] # Convert meshio element type to ElementNodeCount to keep the same interface as simdata pipeline
-    #faces = np.array(pv_ugrid.cells)
-    #first_elem_nodes_per_face = faces[0]
-    #nodes_per_face_vec = faces[0::(first_elem_nodes_per_face + 1)]
-    #nodes_per_face = first_elem_nodes_per_face
-    #num_faces = int(faces.shape[0] / (nodes_per_face + 1))
-    #connectivity = np.reshape(faces, (num_faces, nodes_per_face + 1))
-    # shape=(num_elems,nodes_per_elem), C format
-    #connectivity = np.ascontiguousarray(connectivity[:, 1:], dtype=np.uintp)
-
-    # Check whether mesh has more than 1 surface and get its adjacency matrix
-    chart_labels, chart_count, charts, adjacency_matrix = segment_into_charts(connectivity)
-    #print(f"Chart labels: {chart_labels}")
-    #print(f"Number of charts: {chart_count}")
-    #print(f"Charts: {charts}"
-    if chart_count == 2:
-        print("Detected mesh with more than 1 surface. It will be treated as a hollowed solid, and returned as 2 separate RTMesh objects: [outer, inner]. \nAssign surface data to the inner surface only if the object is supposed to be refractive.")
-        sub_rtmesh_1 = extract_submesh(pv_ugrid, charts[0], element_node_count, spatial_dim)
-        sub_rtmesh_2 = extract_submesh(pv_ugrid, charts[1], element_node_count, spatial_dim)
-        # Compare bounding boxes; bigger => this RTMesh is the outer shell
-        if sub_rtmesh_1.get_size(0).min() > sub_rtmesh_2.get_size(0).max():
-            sub_rtmesh_1.mesh_type = MeshType.SHELL
-            sub_rtmesh_2.mesh_type = MeshType.SHELL
-            return [sub_rtmesh_1, sub_rtmesh_2]
-        else:
-            sub_rtmesh_1.mesh_type = MeshType.SHELL
-            sub_rtmesh_2.mesh_type = MeshType.SHELL
-            return [sub_rtmesh_2, sub_rtmesh_1]
-    #else:
-    #    return create_rtmesh(connectivity, coords_mesh, pv_ugrid, element_type, spatial_dim) # For now, because for higher order elements, it detects far too many charts idk why
-    elif chart_count == 1:
-        return create_rtmesh(coords_mesh, pv_ugrid, element_node_count, spatial_dim, connectivity)
-    else:
-        raise IOError(f"Detected mesh with more than 2 surfaces: {chart_count}. This is currently not supported.") # More than 2 meshes - cannot guarantee what it is or why
-"""

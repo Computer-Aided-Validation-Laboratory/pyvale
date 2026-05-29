@@ -5,10 +5,14 @@
 # ================================================================================
 
 from pathlib import Path
-from pyvale.raytracer.rtscene import Scene, RenderType, TextureSampler, ShadingType, find_max_displacements
-from pyvale.raytracer.rtmesh import SurfType, ElementNodeCount, RTMesh
+from pyvale.raytracer.rtscene import *
+from pyvale.raytracer.rtmesh import SurfType
 
 from pyvale.raytracer.rtmaincpp import cpp_render_scene # Import C++ backend
+
+# ================================================================================
+# CHECKERS
+# ================================================================================
 
 def check_uniform_surfaces(scene: Scene):
     """
@@ -45,6 +49,9 @@ def check_uniform_elements(scene: Scene):
     elements_detected = set(scene.nodes_per_element) # Remove duplicates
     return len(elements_detected) == 1 # True if all element types are the same
 
+# ================================================================================
+# MAIN DISPATCHER
+# ================================================================================
 
 def render_scene(image_height: int,
                  image_width: int,
