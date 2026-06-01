@@ -206,9 +206,59 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // multiwindow FFTCC
         // ----------------------------------------------------------------------------------------
         else if (conf.scan_method == "MULTIWINDOW") {
+
+            if (conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf)) {
+                img_num_ref_l = img_num_def_l - 1;
+                img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
+                interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
+
+                bool* roi_updated = propagate_roi(img_roi, results_def_l, conf, ss_grid_l);
+                multiwindow_l.clear();
+                multiwindow_init_partial(multiwindow_l, roi_updated, conf, mwconf, saveconf,
+                                        mwconf.overlap.size() - 1);
+
+                WindowLevel last_level;
+                last_level.u.assign(ss_grid_l.num, 0.0);
+                last_level.v.assign(ss_grid_l.num, 0.0);
+                last_level.cost.assign(ss_grid_l.num, 0.0);
+                last_level.max_val.assign(ss_grid_l.num, 0.0);
+                last_level.level         = mwconf.overlap.size() - 1;
+                last_level.mad_filter    = conf.fft_mad;
+                last_level.mad_scale     = conf.fft_mad_scale;
+                last_level.fft_save      = conf.fft_save;
+                last_level.saveconf      = saveconf;
+                last_level.step          = mwconf.overlap.back();
+                last_level.template_size = mwconf.subset_size.back();
+                last_level.search_area   = mwconf.search_area.back();
+
+
+                // Step 1: update active flags on ss_grid_l
+                if (img_num_def_l > 1){
+                    for (int i = 0; i < ss_grid_l.num; i++) {
+                        if (!results_ref_l.above_thresh[i]) {
+                            ss_grid_l.active_ss[i] = false;
+                        }
+                    }
+                }
+                last_level.layout = ss_grid_l;
+                for (int i = 0; i < ss_grid_l.num; i++) {
+                    if (ss_grid_l.active_ss[i]) {
+                        last_level.layout.coords[2*i]   += results_ref_l.u[i];
+                        last_level.layout.coords[2*i+1] += results_ref_l.v[i];
+                    }
+                }
+
+                multiwindow_l.push_back(std::move(last_level));
+                multiwindow_l.back().gen_neighlist(multiwindow_l[multiwindow_l.size()-2].layout);
+
+            }
+
             multiwindow_only(img_ref_l, img_def_l, *interp_ref_l, *interp_def_l,
-                            multiwindow_l, ss_grid_l, conf,
-                            img_num_ref_l, img_num_def_l, results_def_l);
+                            multiwindow_l, conf,
+                            img_num_ref_l, img_num_def_l, results_ref_l, results_def_l);
+
+
+            results_ref_l = results_def_l;
         }
 
 
@@ -233,7 +283,9 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // multiwindow FFTCC + reliability Guided
         // ----------------------------------------------------------------------------------------
         else if (conf.scan_method == "MULTIWINDOW_RG") {
-            if (conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf)) {
+
+            bool update_ref = conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf);
+            if (update_ref) {
                 img_num_ref_l = img_num_def_l - 1;
                 img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
                 interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
@@ -244,7 +296,6 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                         mwconf.overlap.size() - 1);
 
                 WindowLevel last_level;
-                last_level.layout        = ss_grid_l;  // original coords, untouched
                 last_level.u.assign(ss_grid_l.num, 0.0);
                 last_level.v.assign(ss_grid_l.num, 0.0);
                 last_level.cost.assign(ss_grid_l.num, 0.0);
@@ -284,7 +335,6 @@ void engine(const py::array_t<bool>& img_roi_arr,
                         multiwindow_l, conf, img_num_ref_l, img_num_def_l,
                         results_ref_l, results_def_l);
 
-            results_ref_l  = results_def_l;
 
             // ------------------------------------------------------------
             // stereo
@@ -300,7 +350,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                 img_def_r,
                                 *interp_def_l,
                                 *interp_def_r,
-                                ss_grid_l_inc,
+                                multiwindow_l.back().layout,
                                 conf,
                                 img_num_def_l,
                                 img_num_def_r,
@@ -308,7 +358,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                 results_def_l,
                                 results_def_r);
 
-                stereo::pixel_to_world(ss_grid_l_inc,
+                stereo::pixel_to_world(multiwindow_l.back().layout,
                                     calib,
                                     results_def_l,
                                     results_def_r,
@@ -317,6 +367,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                     stereo_geom.R,
                                     conf.ss_size);
             }
+            if (update_ref) results_ref_l = results_def_l;
+
         }
         else {
             throw std::invalid_argument("Unsupported scan method: " + conf.scan_method);
