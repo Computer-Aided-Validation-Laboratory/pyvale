@@ -45,10 +45,11 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         self,
         x: npt.NDArray[np.float64],
         y: npt.NDArray[np.float64],
-        region_of_interest: npt.NDArray[np.uint32],
+        region_of_interest: npt.NDArray[np.bool_],
         edge_conditions: EdgeConditions,
         mesh_size: npt.NDArray[np.uint32],
-        # TODO: option to adjust fraction of largest timesteps used for calculating VF scaling factor
+        # TODO: option to adjust fraction of largest timesteps used for
+        #   calculating VF scaling factor
         vf_scaling_fraction: float | None = None
     ) -> None:
 
@@ -121,7 +122,7 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
             internal_virtual_work_4d = (
                 stress
                 * sbvf.virtual_strain
-                * pixel_area
+                * pixel_area * 1e6
                 * experiment_data.specimen_geometry.thickness
             )
 

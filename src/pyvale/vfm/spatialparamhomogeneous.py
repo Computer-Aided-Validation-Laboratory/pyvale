@@ -26,7 +26,7 @@ class HomogeneousSpatialParameterisation(ISpatialParameterisation):
         self,
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
-        if isinstance(self.value, DegreeOfFreedom):
+        if self.value is None or isinstance(self.value, DegreeOfFreedom):
             self.value =  DegreeOfFreedom(
                 float(np.mean(constitutive_parameter.value)),
                 constitutive_parameter.lower_bound,
