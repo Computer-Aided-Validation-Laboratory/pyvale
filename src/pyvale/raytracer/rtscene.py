@@ -98,11 +98,9 @@ class Scene:
         self.matrix_pixel_spacing.append(camera.matrix_pixel_spacing)
         self.matrix_defocus_disc.append(camera.matrix_defocus_disc)
 
-    def add_rtmesh(self, rtmesh: RTMesh) -> None:
+    def _add_mesh(self, rtmesh: RTMesh) -> None:
         """
-        Adds a RTMesh object to the scene.
-
-        Note before: If you modify a RTMesh after adding it to the scene, these changes will not be reflected.
+        Helper to avoid repeating oneself in add_rtmesh.
 
         Parameters:
         -----------
@@ -146,8 +144,31 @@ class Scene:
         self.mesh_object_types.append(rtmesh.mesh_type)
         self.mesh_thickness.append(rtmesh.thickness)
         self.mesh_count += 1
-        
 
+    def add_rtmesh(self, rtmesh: RTMesh | list[RTMesh]):
+        """
+        Adds a RTMesh object to the scene.
+
+        Note before: If you modify a RTMesh after adding it to the scene, these changes will not be reflected.
+
+        Parameters:
+        -----------
+        rtmesh: RTMesh | list[RTMesh]
+            The RTMesh object to add to the scene, or list of those.
+        
+        Returns:
+        --------
+        None
+        """
+        if isinstance(rtmesh, list):
+            for idx, mesh in enumerate(rtmesh):
+                try:
+                    self._add_mesh(mesh)
+                except ValueError: # Propagate and adjust the ValueError to let the user know which mesh is set incorrectly
+                    print(f"Mesh ID {idx}: Surface type not set for mesh before adding it to the scene.")
+        else:
+            self._add_mesh(rtmesh)
+        
     def set_refractive_index(self, refractive_index: float):
         """
         Sets the refractive index of the scene.

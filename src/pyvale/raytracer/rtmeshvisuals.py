@@ -10,7 +10,7 @@ import vedo
 import vtk
 import pandas as pd
 from pathlib import Path
-from enum import Enum
+from scipy.spatial.transform import Rotation
 
 from pyvale.raytracer.rtcamera import Camera
 from pyvale.raytracer.rtmesh import RTMesh
@@ -30,12 +30,14 @@ SNAPPING_INSTR = (vedo.Text2D("\n\nSelect the anchor point on the mesh to be mov
 
 # Create instructions for the user. Dict, so it is easier to modify if needed
 # All controls displayed to the user
+# Nb4 keybindings are what they are to avoid conflicting with the defaults existing in vedo as they cannot be overwritten
 INSTRUCTIONS_CAM = {
     "e": "'e': Toggle snapping meshes together ON/OFF",
     "b": "'LMB (click) + b': Make mesh invisible",
     "v": "'v': Show invisible meshes",
     "c": "'c': Toggle camera locators ON/OFF",
-    "m": "'m': Reset view to camera POV (if it breaks, just scroll the mouse wheel front and back once.)"}
+    "m": "'m': Reset view to camera POV (if it breaks, just scroll the mouse wheel front and back once.)",
+    "ESC": "'ESC': Quit."}
 
 # No camera passed - we ignore the camera-related controls
 INSTRUCTIONS_NO_CAM = INSTRUCTIONS_CAM.copy()
@@ -49,10 +51,11 @@ INSTRUCTIONS_NO_CAM_TEXT = vedo.Text2D(NO_CAM_STRING, pos="top-left", s=SCENE_VI
 INSTRUCTIONS_CAM_TEXT = vedo.Text2D(CAM_STRING, pos="top-left", s=SCENE_VIS_FONT_SIZE)
 
 NEWLINE_LOCATORS = '\n' * (len(INSTRUCTIONS_CAM) + 1) # How many newlines we need to offset the camera locator text to avoid printing it on top of the controls
-CAM_POS_TXT = vedo.Text2D(NEWLINE_LOCATORS+ 'Camera position', pos="top-left", s=SCENE_VIS_FONT_SIZE, c="blue")
-CAM_LOOKAT_TXT = vedo.Text2D(NEWLINE_LOCATORS +'\nCamera lookat vector', pos="top-left", s=SCENE_VIS_FONT_SIZE, c="red")
-
-
+CAM_POS_TXT = vedo.Text2D(NEWLINE_LOCATORS+ 'Camera position', pos="top-left", s=SCENE_VIS_FONT_SIZE, c="teal")
+CAM_LOOKAT_TXT = vedo.Text2D(NEWLINE_LOCATORS +'\nCamera lookat vector', pos="top-left", s=SCENE_VIS_FONT_SIZE, c="indigo")
+VIEWPORT_TXT = vedo.Text2D(NEWLINE_LOCATORS +'\n\nViewport', pos="top-left", s=SCENE_VIS_FONT_SIZE, c="plum")
+CONE_TXT = vedo.Text2D(NEWLINE_LOCATORS +'\n\n\nDefocus disk/cone', pos="top-left", s=SCENE_VIS_FONT_SIZE, c="turquoise")
+CAM_LOC_TXT = [CAM_POS_TXT, CAM_LOOKAT_TXT, VIEWPORT_TXT]
 
 class SceneVisualiser:
     """ 
@@ -102,13 +105,33 @@ class SceneVisualiser:
         """
         # Rectangle that will show there the camera is located
         cam_size = self.vmeshes[0].diagonal_size() / 50 # Size of the camera is based on the diagonal size of the first mesh passed to the class
-        camera_vmesh = vedo.Sphere(pos = self.camera.camera_center, r=cam_size, c="blue")
+        camera_vmesh = vedo.Star3D(pos = self.camera.camera_center, r=cam_size, c="teal", alpha = 0.6)
         self.plotter.add(camera_vmesh)
         lookat_width = cam_size/10
-        camera_lookat = vedo.Line(self.camera.camera_center, self.camera.point_camera_target, lw=lookat_width, c="red")
+        camera_lookat = vedo.Arrow2D(self.camera.camera_center, self.camera.point_camera_target, shaft_width = lookat_width, head_width = 6*lookat_width, c="indigo")
         self.plotter.add(camera_lookat)
+        # Vedo asks for bottom left and top right corners, so we flip the x-axis to display the viewport correctly
+        viewport = vedo.Rectangle(self.camera.viewport_bottom_right[:1]*np.array([-1, 1]), self.camera.viewport_upper_left[:1]*np.array([-1, 1]), c="plum", alpha = 0.4)
+        # Now we offset the z-location as by default, the rectangle is created at the origin which may not be correct
+        # (You can pass a 3D array to vedo.Rectangle, but it created the rectangle incorrectly: while the specified corners had correct positions, the remaining two were always at z=0, so it was bent)
+        viewport.pos([0,0,self.camera.viewport_bottom_right[2]] + viewport.transform.position)
+        self.plotter.add(viewport)
+        self.camera_locators.append(viewport)
         self.camera_locators.append(camera_vmesh)
         self.camera_locators.append(camera_lookat)
+        # Show cone for DoF in thin lens approximation if applicable
+        cone_tan = np.tan(self.camera.angle_cone / 2)
+        radius_defocus_disc = self.camera.focal_length * cone_tan
+        if radius_defocus_disc > 0:
+            # Find the axis around which the cone is oriented; it's equivalent to the camera basis forward vector. Must be normalised
+            axis = self.camera.matrix_camera_to_world[2, :3] # 3rd row in camera_to_world_matrix = normalised basis forward vector
+            v = vedo.utils.versor(axis) * self.camera.focal_length / 2 # This is what vedo uses to offset the base and top, so we reverse engineer to find the center
+            focus_cone = vedo.Cone(pos=self.camera.camera_center - v, r=radius_defocus_disc, height = self.camera.focal_length, c="turquoise", alpha = 0.15)
+            # Unfortunately, vedo cone always starts so that base_z < top_z and we want the apex to be at the viewport, so we must flip it around the basis vector up
+            focus_cone.rotate(180, axis = self.camera.vector_view_up, point = self.camera.camera_center - v)
+            self.plotter.add(focus_cone)
+            self.camera_locators.append(focus_cone)
+            CAM_LOC_TXT.append(CONE_TXT)
         self.display_locators = True # Toggle flag
 
     def _toggle_camera_locators(self, event) -> None:
@@ -119,10 +142,10 @@ class SceneVisualiser:
             if self.display_locators: # If we display those, then we know that the list is not empty so we don't check that
                 self.plotter.remove(self.camera_locators[0])
                 self.plotter.remove(self.camera_locators[1])
-                self.plotter.remove(CAM_POS_TXT, CAM_LOOKAT_TXT)
+                self.plotter.remove(CAM_LOC_TXT)
             else:
                 self.plotter.add(self.camera_locators)
-                self.plotter.add(CAM_POS_TXT, CAM_LOOKAT_TXT)
+                self.plotter.add(CAM_LOC_TXT)
             self.display_locators = not self.display_locators # Set flat to its opposite
             self.plotter.render() # Update the plot
     
@@ -163,10 +186,10 @@ class SceneVisualiser:
         if self.camera is not None:
             self.plotter.add_callback('KeyPress', self._snap_back_to_camera_pov)
             self.plotter.add_callback('KeyPress', self._toggle_camera_locators)
-            # Add text - these are created and added once, so we can just have them here
-            self.plotter.add(INSTRUCTIONS_CAM_TEXT) 
-            self.plotter.add(CAM_POS_TXT, CAM_LOOKAT_TXT)
             self._add_camera_locator()
+            self.plotter.add(INSTRUCTIONS_CAM_TEXT) 
+            self.plotter.add(CAM_LOC_TXT)
+            
         else:
             self.plotter.add(INSTRUCTIONS_NO_CAM_TEXT)
 
@@ -313,7 +336,7 @@ class SceneVisualiser:
         if event.keypress.lower() == "s":
             moved_mesh_idx = self.vmeshes.index(self.affected_meshes[0]) # Find index of the mesh that we want to move
             # Translate the RTMesh
-            print(f"Translation vector: {self.translation_vector}") # Print, because more often than not we will want to make note of this vector and use it to programatically translate the mesh for good
+            print(f"Translation vector for RTMesh with index {moved_mesh_idx}: {self.translation_vector}") # Print, because more often than not we will want to make note of this vector and use it to programatically translate the mesh for good
             self.rtmeshes[moved_mesh_idx].translate(self.translation_vector)
             # This updates the pyvista surface used to create the vedo vmesh, so we need to update it
             new_vmesh = vedo.Mesh(self.rtmeshes[moved_mesh_idx].pyvista_surface).c("silver").lw(0.1)
