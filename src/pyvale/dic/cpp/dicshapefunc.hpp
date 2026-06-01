@@ -75,6 +75,8 @@ struct Affine {
     */
     static void compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB);
 
+    static void compose_inverse(std::vector<double>& p_new, const std::vector<double>& p, const std::vector<double>& dp);
+
     static constexpr int num_params = 6; /**< Number of shape function parameters */
 };
 
@@ -137,6 +139,8 @@ struct Quad {
     */
     static void compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB);
 
+    static void compose_inverse(std::vector<double>& p_new, const std::vector<double>& p, const std::vector<double>& dp);
+
     static constexpr int num_params = 12; /**< Number of shape function parameters */
 };
 
@@ -192,6 +196,8 @@ struct Rigid {
     * @param[in]  pB  Shape function parameters for shape1->shape2 (2 elements)
     */
     static void compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB);
+
+    static void compose_inverse(std::vector<double>& p_new, const std::vector<double>& p, const std::vector<double>& dp);
 
     static constexpr int num_params = 2; /**< Number of shape function parameters */
 };
