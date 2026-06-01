@@ -192,7 +192,6 @@ namespace subset {
 
         ss_grid.mask.resize(ss_grid.num_in_mask, -1);
         ss_grid.coords.resize(2*ss_grid.num_in_mask, -1);
-        ss_grid.active_ss.resize(ss_grid.num_in_mask, true);
 
 
         // temp array for storing subset coords for each thread
@@ -254,6 +253,7 @@ namespace subset {
         int total_valid = thread_offsets.back() + thread_counts.back();
         ss_grid.coords.resize(2 * total_valid);
         ss_grid.num = total_valid;
+        ss_grid.active_ss.resize(total_valid, true);
 
         // Reset thread counts to use as writing indices
         std::fill(thread_counts.begin(), thread_counts.end(), 0);
@@ -310,8 +310,8 @@ namespace subset {
                 if (valid) {
                     const int tid = omp_get_thread_num();
                     const int offset = thread_offsets[tid] + thread_counts[tid];
-                    ss_grid.coords[2*offset]     = ss_x + ss_size_x/2;
-                    ss_grid.coords[2*offset + 1] = ss_y + ss_size_y/2;
+                    ss_grid.coords[2*offset]     = ss_x + static_cast<double>(ss_size_x)/2-0.5;
+                    ss_grid.coords[2*offset + 1] = ss_y + static_cast<double>(ss_size_y)/2-0.5;
                     ss_grid.mask[j * num_ss_x + i] = offset;
                     thread_counts[tid]++;
                 }
