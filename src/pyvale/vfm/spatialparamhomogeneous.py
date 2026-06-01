@@ -12,7 +12,7 @@ from pyvale.vfm.spatialparam import ISpatialParameterisation
 # TODO: How do I flag whether value should be a dof or fixed?
 #   Maybe a constructor with a is_value_fixed var which informs
 #   how we should construct
-@dataclass(slots=True, init=False)
+@dataclass(slots=True)
 class HomogeneousSpatialParameterisation(ISpatialParameterisation):
     value: float | DegreeOfFreedom | None = None
 
