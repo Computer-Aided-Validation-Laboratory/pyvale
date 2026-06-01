@@ -38,12 +38,11 @@ void matching(const Image &img_l,
               const Interpolator &interp_r,
               const subset::Grid &ss_grid,
               const util::Config &conf,
-              const int img_num_l,
-              const int img_num_r,
+              const int img_num_def_l,
+              const int img_num_def_r,
               const Eigen::Matrix3d &F,
               const ResultArrays &results_l,
               ResultArrays &results_r){
-
 
 
 
@@ -57,14 +56,14 @@ void matching(const Image &img_l,
         const int ss_step = ss_grid.step;
 
 
-        auto get_initial_guess = [&](std::vector<double> &p, double cx, double cy) {
+        auto get_initial_guess = [&](std::vector<double> &p, double cx, double cy, bool print) {
             stereo::get_rigid_translation_from_rectified_fft(p, cx, cy, ss_size_x, ss_size_y,
-                                                             2*conf.max_disp, 1.5*ss_size_y, F,
-                                                             img_l, interp_r);
+                                                             2*conf.max_disp, ss_size_y, F,
+                                                             interp_l, interp_r, print);
         };
 
-        std::string bar_title = "Stereo  matching for \033[1;4m" + conf.basenames[img_num_l] +
-                                    "\033[0m and \033[1;4m" + conf.basenames[img_num_r] + 
+        std::string bar_title = "Stereo  matching for \033[1;4m" + conf.basenames[img_num_def_l] +
+                                    "\033[0m and \033[1;4m" + conf.basenames[img_num_def_r] + 
                                     "\033[0m:";
 
         ProgressBar pbar(bar_title, num_ss);
@@ -125,7 +124,7 @@ void matching(const Image &img_l,
                     // get the centre coordinates for the subset in img k
                     double cx = cx_img0;
                     double cy = cy_img0;
-                    if (img_num_l>0){
+                    if (img_num_def_l>0){
                         // displacements are from k0 to k
                         cx += results_l.u[idx];
                         cy += results_l.v[idx];
@@ -137,14 +136,14 @@ void matching(const Image &img_l,
                     subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
 
                     // if the first image. Take the optimization parameters from rigid fourier
-                    get_initial_guess(opt.p, cx, cy);
+                    get_initial_guess(opt.p, cx, cy, false);
 
                     // run optimizer
                     OptResult seed_res = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
                     rg::check_convergence(cx_img0, cy_img0, seed_res);
 
                     // add deformation from reference image to new results
-                    if (img_num_l > 0){
+                    if (img_num_def_l > 0){
                         std::vector<double> pA(conf.num_params);
                         std::vector<double> pB = seed_res.p;
                         std::vector<double> pC(conf.num_params);
@@ -188,10 +187,9 @@ void matching(const Image &img_l,
 
                         double cx = cx_img0;
                         double cy = cy_img0;
-                        if (img_num_l>0){
-                            cx += results_l.u[nidx];
-                            cy += results_l.v[nidx];
-                        }
+
+                        cx += results_l.u[nidx];
+                        cy += results_l.v[nidx];
 
                         // fill the reference subset using the updated cx,cy and
                         // the shape function parameters for the correlation of
@@ -203,34 +201,33 @@ void matching(const Image &img_l,
                         opt.copy_params_from_neigh(results_r.p, idx);
 
                         OptResult nres = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
-                        rg::check_convergence(cx_img0, cy_img0, nres);
+
+                        rg::check_convergence(cx_img0, cy_img0, nres, false);
 
                         // add deformation from reference image to new results
-                        if (img_num_l > 0){
-                            std::vector<double> pA(conf.num_params);
-                            std::vector<double> pB = nres.p;
-                            std::vector<double> pC(conf.num_params);
+                        std::vector<double> pA(conf.num_params);
+                        std::vector<double> pB = nres.p;
+                        std::vector<double> pC(conf.num_params);
 
 
-                            // pA: k0 -> k_l
-                            std::copy(results_l.p.begin() + nidx*conf.num_params,
-                                    results_l.p.begin() + nidx*conf.num_params + conf.num_params,
-                                    pA.begin());
+                        // pA: k0 -> k_l
+                        std::copy(results_l.p.begin() + nidx*conf.num_params,
+                                results_l.p.begin() + nidx*conf.num_params + conf.num_params,
+                                pA.begin());
 
-                            if (conf.shape_func == "RIGID") {
-                                Rigid::compose(pC, pA, pB);
-                                Rigid::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
-                            }
-                            else if (conf.shape_func == "AFFINE"){
-                                Affine::compose(pC, pA, pB);
-                                Affine::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
-                            }
-                            else if (conf.shape_func == "QUAD") {
-                                Quad::compose(pC, pA, pB);
-                                Quad::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
-                            }
-                            nres.p = pC;
+                        if (conf.shape_func == "RIGID") {
+                            Rigid::compose(pC, pA, pB);
+                            Rigid::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
                         }
+                        else if (conf.shape_func == "AFFINE"){
+                            Affine::compose(pC, pA, pB);
+                            Affine::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                        }
+                        else if (conf.shape_func == "QUAD") {
+                            Quad::compose(pC, pA, pB);
+                            Quad::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
+                        }
+                        nres.p = pC;
 
 
                         // append the results for the current subset to result vectors
@@ -289,10 +286,9 @@ void matching(const Image &img_l,
                         // add displacements from base to subset coords in img0
                         double cx = cx_img0;
                         double cy = cy_img0;
-                        if (img_num_l > 0){
-                            cx += results_l.u[nidx];
-                            cy += results_l.v[nidx];
-                        }
+
+                        cx += results_l.u[nidx];
+                        cy += results_l.v[nidx];
 
                         // fill the reference subset using the updated cx,cy and
                         // the shape function parameters for the correlation of
@@ -301,17 +297,16 @@ void matching(const Image &img_l,
                         subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
-                        if (results_r.cost[current.idx] < conf.threshold){
-                            get_initial_guess(opt.p, cx, cy);
-                        }
-                        else {
+                        if (results_r.above_thresh[current.idx])
                             opt.copy_params_from_neigh(results_r.p, current.idx);
-                        }
+                        else
+                            get_initial_guess(opt.p, cx, cy, false);
 
                         // optimize
                         OptResult nres = opt.solve(cx, cy, ss_l, ss_r, interp_r);
+
                         // add deformation from reference image to new results
-                        if ((nres.above_thresh) && (img_num_l > 0)){
+                        if (nres.above_thresh){
                             std::vector<double> pA(conf.num_params);
                             std::vector<double> pB = nres.p;
                             std::vector<double> pC(conf.num_params);

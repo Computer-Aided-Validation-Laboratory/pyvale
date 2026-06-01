@@ -30,8 +30,8 @@ namespace stereo {
                 const Interpolator &interp_r,
                 const subset::Grid &ss_grid,
                 const util::Config &conf,
-                const int img_num_l,
-                const int img_num_r,
+                const int img_num_def_l,
+                const int img_num_def_r,
                 const Eigen::Matrix3d &F,
                 const ResultArrays &results_l,
                 ResultArrays &results_r);
