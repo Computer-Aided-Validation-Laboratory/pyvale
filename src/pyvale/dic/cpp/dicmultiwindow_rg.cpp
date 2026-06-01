@@ -58,7 +58,7 @@ void multiwindow_rg(const Image &img_ref,
     // displacement using FFTCC
     for (int lvl = 0; lvl < multiwindow.size(); lvl++){
         multiwindow[lvl].calc_rigid_displacements(multiwindow[std::max(0,lvl-1)],
-                                                    img_ref, img_def,
+                                                    interp_ref,
                                                     interp_def,
                                                     img_num_ref, img_num_def,
                                                     lvl, multiwindow.size(),
@@ -138,10 +138,8 @@ void multiwindow_rg(const Image &img_ref,
 
                 rg::check_convergence(seed_x, seed_y, seed_res);
 
-                if (img_num_ref > 0){
-                    seed_res.u += results_ref.u[idx];
-                    seed_res.v += results_ref.v[idx];
-                }
+                seed_res.u += results_ref.u[idx];
+                seed_res.v += results_ref.v[idx];
 
                 // append the results for the current subset to result vectors
                 results_def.append(seed_res, idx);
@@ -176,10 +174,8 @@ void multiwindow_rg(const Image &img_ref,
 
                     rg::check_convergence(cx, cy, nres, true);
 
-                    if (img_num_ref > 0){
-                        nres.u += results_ref.u[nidx];
-                        nres.v += results_ref.v[nidx];
-                    }
+                    nres.u += results_ref.u[nidx];
+                    nres.v += results_ref.v[nidx];
 
                     // append the results for the current subset to result vectors
                     results_def.append(nres, nidx);
@@ -252,10 +248,8 @@ void multiwindow_rg(const Image &img_ref,
                     // optimize
                     if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
-                    if (img_num_ref > 0){
-                        nres.u += results_ref.u[nidx];
-                        nres.v += results_ref.v[nidx];
-                    }
+                    nres.u += results_ref.u[nidx];
+                    nres.v += results_ref.v[nidx];
 
                     // append results
                     results_def.append(nres, nidx);
