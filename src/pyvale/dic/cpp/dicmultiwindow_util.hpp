@@ -214,8 +214,7 @@ struct WindowLevel {
     * Writes to disjoint indices of @c u, @c v, @c max_val, making it thread-safe.
     */
     void calc_rigid_displacements(const WindowLevel &prev,
-                                  const Image &img_ref,
-                                  const Image &img_def,
+                                  const Interpolator &interp_ref,
                                   const Interpolator &interp_def,
                                   const int img_num_ref,
                                   const int img_num_def,

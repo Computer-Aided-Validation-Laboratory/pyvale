@@ -253,8 +253,7 @@ void WindowLevel::remove_outliers(std::vector<double> &u,
 }
 
 void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
-                                           const Image &img_ref,
-                                           const Image &img_def,
+                                           const Interpolator &interp_ref,
                                            const Interpolator &interp_def,
                                            const int img_num_ref,
                                            const int img_num_def,
@@ -281,7 +280,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         std::atomic<int> current_progress = 0;
 
 
-        #pragma omp parallel shared(stop_request, level, prev, interp_def, search_area, u, v, max_val)
+        #pragma omp parallel shared(stop_request, level, prev, interp_def, img_num_ref, search_area, u, v, max_val)
         {
 
 
@@ -310,12 +309,12 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                 std::vector<double> p(6,0.0);
                 double maxv_local = 0.0;
                 get_single_window_fftcc_peak_centre(fft, p, maxv_local,
-                                             cx, cy,
-                                             prev_u, prev_v,
-                                             template_size, template_size,
-                                             search_area, search_area,
-                                             img_ref, img_def,
-                                             interp_def);
+                                                cx, cy,
+                                                prev_u, prev_v,
+                                                template_size, template_size,
+                                                search_area, search_area,
+                                                interp_ref, interp_def, false);
+
                 max_val[ss] = maxv_local;
 
                 u[ss] = prev_u+p[0];
@@ -386,8 +385,6 @@ void WindowLevel::get_displacement_from_prev_window(double &prev_x,
                                                     const double cy) {
 
     if (num_neigh_list[ss] == 0){
-        prev_x = 0.0;
-        prev_y = 0.0;
         return;
     }
 
