@@ -4,7 +4,9 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
+#include "dicinterp.hpp"
 #include "dicsubset.hpp"
+#include <atomic>
 #define _USE_MATH_DEFINES
 #include <cmath>
 
@@ -39,9 +41,9 @@ namespace stereo {
                         const Calib &calib,
                         ResultArrays &temporal,
                         ResultArrays &stereo,
-                        const Eigen::Matrix3d K0,
-                        const Eigen::Matrix3d K1,
-                        const Eigen::Matrix3d R, 
+                        const Eigen::Matrix3d &K0,
+                        const Eigen::Matrix3d &K1,
+                        const Eigen::Matrix3d &R, 
                         const int ss_size
                         ){
 
@@ -148,12 +150,11 @@ namespace stereo {
         }
     }
 
-    void undistortPoint(double &x_undistorted, double  &y_undistorted,
+    void undistortPoint(double &x_undistorted, double &y_undistorted,
                         const double x_distorted, const double y_distorted,
                         const Eigen::Matrix3d &K,
                         const std::vector<double> &d) {
 
-        // helps readability
         const double fx = K(0,0);
         const double fy = K(1,1);
         const double fs = K(0,1);
@@ -165,54 +166,62 @@ namespace stereo {
         const double p2 = d[3];
         const double k3 = d[4];
 
-
-        // normed coords
+        // Normalize to camera coords
         double y_n = (y_distorted - cy) / fy;
         double x_n = (x_distorted - cx - fs * y_n) / fx;
 
-        // initial guess
+        // Initial guess = normalized distorted point
         double x_u = x_n;
         double y_u = y_n;
 
-        // simple NR
-        // TODO: fix number of iterations here.
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 100; i++) {
             double r2 = x_u*x_u + y_u*y_u;
             double r4 = r2*r2;
             double r6 = r2*r4;
 
             double radial = 1.0 + k1*r2 + k2*r4 + k3*r6;
 
-            double dx = 2.0*p1*x_u*y_u + p2*(r2 + 2.0*x_u*x_u);
+            // Tangential distortion terms
+            double dx = 2.0*p1*x_u*y_u       + p2*(r2 + 2.0*x_u*x_u);
             double dy = p1*(r2 + 2.0*y_u*y_u) + 2.0*p2*x_u*y_u;
 
-            // distortion model
-            double x_distorted_predicted = x_u*radial + dx;
-            double y_distorted_predicted = y_u*radial + dy;
+            // Predicted distorted point
+            double x_pred = x_u*radial + dx;
+            double y_pred = y_u*radial + dy;
 
-            // Update
-            double error_x = x_n - x_distorted_predicted;
-            double error_y = y_n - y_distorted_predicted;
+            double ex = x_n - x_pred;
+            double ey = y_n - y_pred;
 
-            x_u += error_x;
-            y_u += error_y;
-
-            // Check convergence
-            if (std::abs(error_x) < 1e-10 && std::abs(error_y) < 1e-10) {
+            if (std::abs(ex) < 1e-12 && std::abs(ey) < 1e-12)
                 break;
-            }
+
+            double drad_dr2 = k1 + 2.0*k2*r2 + 3.0*k3*r4;
+            double drad_dxu = 2.0*x_u*drad_dr2;
+            double drad_dyu = 2.0*y_u*drad_dr2;
+
+            double J00 = radial + x_u*drad_dxu + 2.0*p1*y_u + 6.0*p2*x_u;
+            double J01 =          x_u*drad_dyu + 2.0*p1*x_u + 2.0*p2*y_u;
+            double J10 =          y_u*drad_dxu + 2.0*p1*x_u + 2.0*p2*y_u;
+            double J11 = radial + y_u*drad_dyu + 6.0*p1*y_u + 2.0*p2*x_u;
+
+            // Solve 2x2
+            double det = J00*J11 - J01*J10;
+            if (std::abs(det) < 1e-14)
+                break;  // singular, shouldn't happen in practice
+
+            x_u += (J11*ex - J01*ey) / det;
+            y_u += (J00*ey - J10*ex) / det;
         }
-        
+
         x_undistorted = x_u;
         y_undistorted = y_u;
     }
-
 
     void compute_epi(Eigen::Vector2d &nearest_point, 
                      Eigen::Vector2d &direction, 
                      const double x,
                      const double y,
-                     const Eigen::Matrix3d F){
+                     const Eigen::Matrix3d &F){
 
 
 
@@ -246,7 +255,7 @@ namespace stereo {
                                                   const int ss_size_x, const int ss_size_y,
                                                   const int window_size_x, const int window_size_y,
                                                   const Eigen::Matrix3d &F,
-                                                  const Image &img_ref,
+                                                  const Interpolator &interp_ref,
                                                   const Interpolator &interp_def,
                                                   const bool print){
 
@@ -263,21 +272,19 @@ namespace stereo {
         // put the subset at the corner of the window.
         // for the FFT I'm just using a square subset and not the shape function
         // parameters. I've not found a case where this has been insufficient
-        int corner_x = cx - ss_size_x/2;
-        int corner_y = cy - ss_size_y/2;
-        fill_fft_window_with_subset_at_corner(fft.ss_ref, img_ref,
-                                              corner_x, corner_y, px_hori, px_vert,
+        fill_fft_window_with_subset_at_centre(fft.ss_ref, interp_ref,
+                                              cx, cy, px_hori, px_vert,
                                               ss_size_x, ss_size_y,
                                               window_size_x, window_size_y);
 
         // equation of epipolar line for the corner
         Eigen::Vector2d closest_point, dir;
-        stereo::compute_epi(closest_point, dir, corner_x, corner_y, F);
+        stereo::compute_epi(closest_point, dir, cx, cy, F);
 
 
 
         // TODO: Add a proper flag for this 
-        bool subpx = false;
+        bool subpx = true;
 
         Eigen::Vector2d perp(dir(1), -dir(0));
 
@@ -301,45 +308,41 @@ namespace stereo {
         }
 
         // zero norm the subsets
-        bool normed_ref = fft.zero_norm_subset(fft.ss_ref, ss_size_x,ss_size_y);
+        bool normed_ref = fft.zero_norm_subsets_centered(fft.ss_ref, ss_size_x,ss_size_y, window_size_x, window_size_y);
         bool normed_def = fft.zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
 
         // get peaks from the cross correlation
         double max_val = 0.0, peak_x = 0.0, peak_y = 0.0;
         if (normed_ref && normed_def){
             fft.correlate();
-            fft.get_peak_nowrap(peak_x, peak_y, max_val, subpx, "GAUSSIAN_2D");
+            fft.get_peak(peak_x, peak_y, max_val, subpx, "GAUSSIAN_2D");
         }
         //std::cout << "peak: " << peak_x << " " << peak_y << std::endl;
 
         // coordinate transform
-        peak_x = peak_x - window_half_x;
-        peak_y = peak_y - window_half_y;
+        // peak_x = peak_x - window_half_x;
+        // peak_y = peak_y - window_half_y;
 
-        // if (corner_x==1443 && corner_y==657){
-        //     std::cout << std::endl;
-        //     for (int row = 0; row < window_size_y; ++row) {
-        //         for (int col = 0; col < window_size_x; ++col) {
-        //             int idx  = row*window_size_x+col;
-        //             std::cout << col << " " << row << " ";
-        //             std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
-        //             std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
-        //             std::cout << fft.cross_corr[idx] << std::endl;
-        //         }
-        //     }
-        //
-        //     std::cout << std::endl;
-        //     std::cout << peak_x << " " << peak_y << std::endl;
-        //     exit(0);
-        // }
+        if (print) {
+            for (int row = 0; row < window_size_y; ++row) {
+                for (int col = 0; col < window_size_x; ++col) {
+                    int idx  = row*window_size_x+col;
+                    std::cout << col << " " << row << " ";
+                    std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
+                    std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
+                    std::cout << fft.cross_corr[idx] << std::endl;
+                }
+            }
+            std::cout << std::endl;
+        }
 
 
         // Compute the unrectified position in the right image
         Eigen::Vector2d unrectified_pos = closest_point + peak_x * dir - peak_y * perp;
 
         //std::cout << "unrectified_pos: " << unrectified_pos(0) << " " << unrectified_pos(1) << std::endl;
-        p[0] = unrectified_pos(0) - corner_x;
-        p[1] = unrectified_pos(1) - corner_y;
+        p[0] = unrectified_pos(0) - cx;
+        p[1] = unrectified_pos(1) - cy;
         p[2] = dir(0) - 1.0;
         p[3] = -perp(0);
         p[4] = dir(1);

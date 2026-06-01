@@ -190,9 +190,9 @@ namespace stereo {
                         const Calib &calib,
                         ResultArrays &temporal,
                         ResultArrays &stereo,
-                        const Eigen::Matrix3d K0,
-                        const Eigen::Matrix3d K1,
-                        const Eigen::Matrix3d R, 
+                        const Eigen::Matrix3d &K0,
+                        const Eigen::Matrix3d &K1,
+                        const Eigen::Matrix3d &R, 
                         const int ss_size);
 
 
@@ -236,7 +236,7 @@ namespace stereo {
                      Eigen::Vector2d &direction,
                      const double x,
                      const double y,
-                     const Eigen::Matrix3d F);
+                     const Eigen::Matrix3d &F);
 
  
 
@@ -259,7 +259,7 @@ namespace stereo {
                                                   const int ss_size_x, const int ss_size_y,
                                                   const int window_size_x, const int window_size_y,
                                                   const Eigen::Matrix3d &F,
-                                                  const Image &img_ref,
+                                                  const Interpolator &interp_ref,
                                                   const Interpolator &interp_def,
                                                   const bool print=false);
 
