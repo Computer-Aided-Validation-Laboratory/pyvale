@@ -26,12 +26,9 @@
 #include "./dicinterp.hpp"
 #include "./dicoptimizer.hpp"
 #include "./dicutil.hpp"
-#include "./dicrg.hpp"
-#include "./dicfourier.hpp"
 #include "./dicsubset.hpp"
 #include "./dicresults.hpp"
 #include "./dicmultiwindow_util.hpp"
-#include "./dicshapefunc.hpp"
 
 
 void multiwindow_only(const Image &img_ref,
@@ -39,27 +36,28 @@ void multiwindow_only(const Image &img_ref,
                         const Interpolator &interp_ref,
                         const Interpolator &interp_def,
                         std::vector<WindowLevel> &multiwindow,
-                        const subset::Grid &ss_grid,
                         const util::Config &conf,
                         const int img_num_ref,
                         const int img_num_def,
-                        ResultArrays &result_arrays){
+                        const ResultArrays &results_ref,
+                        ResultArrays &results_def){
 
     // loop over the window sizes and calculate estimates for rigid
     // displacement using FFTCC
     for (int lvl = 0; lvl < multiwindow.size(); lvl++){
         multiwindow[lvl].calc_rigid_displacements(multiwindow[std::max(0,lvl-1)],
-                                                    img_ref, img_def,
+                                                    interp_ref,
                                                     interp_def,
                                                     img_num_ref, img_num_def,
                                                     lvl, multiwindow.size(),
                                                     conf.basenames);
     }
 
+    const subset::Grid &ss_grid = multiwindow.back().layout;
     const int nsizes = multiwindow.size();
     const int last_size = nsizes-1;
 
-    #pragma omp parallel shared(stop_request, result_arrays, multiwindow, ss_grid, conf, interp_ref, interp_def)
+    #pragma omp parallel shared(stop_request, results_ref, results_def, multiwindow, ss_grid, conf, interp_ref, interp_def)
     {
 
         subset::Pixels ss_ref(ss_grid.size_x, ss_grid.size_y);
@@ -130,8 +128,14 @@ void multiwindow_only(const Image &img_ref,
 
             res.cost = zncc;
             res.converged=true;
-            res.above_thresh=true;
-            result_arrays.append(res, ss);
+
+            if (zncc>=conf.threshold)
+                res.above_thresh=true;
+
+            res.u += results_ref.u[ss];
+            res.v += results_ref.v[ss];
+
+            results_def.append(res, ss);
         }
     }
 }

@@ -1,3 +1,19 @@
+#ifndef DICMULTIWINDOW_ONLY_H
+#define DICMULTIWINDOW_ONLY_H
+
+// STD library Header files
+#include <vector>
+
+// common_cpp headers
+
+// Eigen Header files
+#include <Eigen/Dense>
+
+// Program Header files
+#include "./dicinterp.hpp"
+#include "./dicutil.hpp"
+#include "./dicresults.hpp"
+#include "./dicmultiwindow_util.hpp"
 
 /**
  * @brief Multi Window Fast Fourier Transform (FFT) DIC method.
@@ -17,8 +33,11 @@ void multiwindow_only(const Image &img_ref,
                         const Interpolator &interp_ref,
                         const Interpolator &interp_def,
                         std::vector<WindowLevel> &multiwindow,
-                        const subset::Grid &ss_grid,
                         const util::Config &conf,
                         const int img_num_ref,
                         const int img_num_def,
-                        ResultArrays &result_arrays);
+                        const ResultArrays &results_ref,
+                        ResultArrays &results_def);
+
+
+#endif // DICMULTIWINDOW_ONLY_H
