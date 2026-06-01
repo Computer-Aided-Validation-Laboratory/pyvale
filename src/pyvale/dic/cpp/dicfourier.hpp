@@ -494,14 +494,14 @@ struct FFT {
                                              const int ss_size_y, 
                                              const int window_size_x,
                                              const int window_size_y,
-                                             const Image &img_ref, const Image &img_def,
+                                             const Interpolator &interp_ref,
                                              const Interpolator &interp_def,
                                              const bool debug=false);
 
     void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
-                                     const Image &img_ref,
-                                     const int ss_x,
-                                     const int ss_y,
+                                     const Interpolator &interp_ref,
+                                     const double ss_x,
+                                     const double ss_y,
                                      const int px_hori,
                                      const int px_vert,
                                      const int ss_size_x,

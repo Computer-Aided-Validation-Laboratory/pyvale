@@ -23,6 +23,14 @@
 #include "dicinterp.hpp"
 
 
+// Helper: returns the center offset (0-based) for a given size
+// odd  size N -> (N-1)/2   e.g. 31 -> 15
+// even size N -> (N-1)/2.0 e.g. 32 -> 15.5
+inline double half_offset(int size) {
+    return (size - 1) * 0.5;
+}
+
+
 void smooth_field(std::vector<double>& shift,
                 const subset::Grid& ss_grid,
                 double sigma = 1.0,
@@ -137,11 +145,6 @@ void get_single_window_fftcc_peak(FFT &fft,
     // some consts
     const int px_hori = interp_def.px_hori;
     const int px_vert = interp_def.px_vert;
-    const int window_half_x = window_size_x/2;
-    const int window_half_y = window_size_y/2;
-    const int ss_half_x = ss_size_x/2;
-    const int ss_half_y = ss_size_y/2;
-
 
     // reset p values
     std::fill(p.begin(), p.end(),0.0);
@@ -150,8 +153,8 @@ void get_single_window_fftcc_peak(FFT &fft,
     bool subpx = true;
 
     // top left corner of the subset
-    int corner_x = cx - ss_size_x/2;
-    int corner_y = cy - ss_size_y/2;
+    int corner_x = (int)std::floor(cx - (ss_size_x - 1) * 0.5);
+    int corner_y = (int)std::floor(cy - (ss_size_y - 1) * 0.5);
 
     fill_fft_window_with_subset_at_corner(fft.ss_ref, img_ref,
                                           corner_x, corner_y, px_hori, px_vert,
@@ -160,8 +163,8 @@ void get_single_window_fftcc_peak(FFT &fft,
 
     // populate deformed subset
     subset::fill_from_img_subpx(fft.ss_def,
-                                corner_x-window_half_x,
-                                corner_y-window_half_y,
+                                cx - half_offset(window_size_x),
+                                cy - half_offset(window_size_y),
                                 interp_def);
 
     // zero norm the subsets
@@ -177,8 +180,8 @@ void get_single_window_fftcc_peak(FFT &fft,
     } 
 
     // coordinate transform
-    p[0] = peak_x - window_half_x;
-    p[1] = peak_y - window_half_y;
+    p[0] = peak_x - half_offset(window_size_x);
+    p[1] = peak_y - half_offset(window_size_y);
 
     // debugging
     if (debug) {
@@ -205,17 +208,17 @@ void get_single_window_fftcc_peak_centre(FFT &fft,
                                          const int ss_size_y, 
                                          const int window_size_x,
                                          const int window_size_y,
-                                         const Image &img_ref, const Image &img_def,
+                                         const Interpolator &interp_ref,
                                          const Interpolator &interp_def,
                                          const bool debug){
 
     // some consts
     const int px_hori = interp_def.px_hori;
     const int px_vert = interp_def.px_vert;
-    const int window_half_x = window_size_x/2;
-    const int window_half_y = window_size_y/2;
-    const int ss_half_x = ss_size_x/2;
-    const int ss_half_y = ss_size_y/2;
+    const double window_half_x = half_offset(window_size_x);
+    const double window_half_y = half_offset(window_size_y);
+    const double ss_half_x = half_offset(ss_size_x);
+    const double ss_half_y = half_offset(ss_size_y);
 
 
     // reset p values
@@ -224,12 +227,8 @@ void get_single_window_fftcc_peak_centre(FFT &fft,
     // TODO: Add a proper flag for this 
     bool subpx = true;
 
-    // top left corner of the subset
-    int corner_x = cx - ss_size_x/2;
-    int corner_y = cy - ss_size_y/2;
-
-    fill_fft_window_with_subset_at_centre(fft.ss_ref, img_ref,
-                                          corner_x, corner_y, px_hori, px_vert,
+    fill_fft_window_with_subset_at_centre(fft.ss_ref, interp_ref,
+                                          cx, cy, px_hori, px_vert,
                                           ss_size_x, ss_size_y,
                                           window_size_x, window_size_y);
 
@@ -273,93 +272,55 @@ void get_single_window_fftcc_peak_centre(FFT &fft,
 }
 
 
-
-
-template<typename T>
-void fill_fft_window_with_subset_at_centre_impl(subset::Pixels &ss_ref,
-                                            const std::vector<T> &img,
-                                            const int corner_x,
-                                            const int corner_y,
-                                            const int px_hori,
-                                            const int px_vert,
-                                            const int ss_size_x,
-                                            const int ss_size_y,
-                                            const int window_size_x,
-                                            const int window_size_y){
-
-    const int window_half_x = window_size_x / 2;
-    const int window_half_y = window_size_y / 2;
-    const int ss_half_x = ss_size_x / 2;
-    const int ss_half_y = ss_size_y / 2;
-
-    const int cx = corner_x + ss_half_x;
-    const int cy = corner_y + ss_half_y;
-
-    // Iterate over subset pixels using offsets relative to the subset center
-    for (int row = -ss_half_y; row < ss_size_y - ss_half_y; ++row) {
-        for (int col = -ss_half_x; col < ss_size_x - ss_half_x; ++col) {
-
-            int px_x = cx + col;
-            int px_y = cy + row;
-
-            int target_x = window_half_x + col;
-            int target_y = window_half_y + row;
-
-            int idx_img    = px_y * px_hori + px_x;
-            int idx_window = target_y * window_size_x + target_x;
-            double coeff = 1.0; //hamming(row + ss_half_y, col + ss_half_x, ss_size_x, ss_size_y);
-            ss_ref.x[idx_window]    = px_x;
-            ss_ref.y[idx_window]    = px_y;
-            if (px_x < 0 || px_x >= px_hori || px_y < 0 || px_y >= px_vert) {
-                ss_ref.vals[idx_window] = 0.0;
-            }
-            else { 
-                ss_ref.vals[idx_window] = coeff * img[idx_img];
-            }
-
-            //std::cout << px_x << " " << px_y << " " << target_x << " " << target_y << " " << idx_img << " " << idx_window << " " << ss_ref.x[idx_window] << " " << ss_ref.y[idx_window] << " " << int(img[idx_img]) << std::endl;
-        }
-    }
-    //exit(0);
-}
-
 void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
-                                           const Image &img_ref,
-                                           const int corner_x,
-                                           const int corner_y,
+                                           const Interpolator &interp_ref,
+                                           const double cx,
+                                           const double cy,
                                            const int px_hori,
                                            const int px_vert,
                                            const int ss_size_x,
                                            const int ss_size_y,
                                            const int window_size_x,
                                            const int window_size_y) {
-    switch (img_ref.type) {
-        case PixelType::UINT8:
-            fill_fft_window_with_subset_at_centre_impl(
-                ss_ref, img_ref.data8,
-                corner_x, corner_y, px_hori, px_vert,
-                ss_size_x, ss_size_y,
-                window_size_x, window_size_y);
-            break;
 
-        case PixelType::UINT16:
-            fill_fft_window_with_subset_at_centre_impl(
-                ss_ref, img_ref.data16,
-                corner_x, corner_y, px_hori, px_vert,
-                ss_size_x, ss_size_y,
-                window_size_x, window_size_y);
-            break;
+    const double w_half_x = half_offset(window_size_x);  // e.g. 15.5 for 32
+    const double w_half_y = half_offset(window_size_y);
+    const double ss_half_x = half_offset(ss_size_x);
+    const double ss_half_y = half_offset(ss_size_y);
 
-        case PixelType::UINT32:
-            fill_fft_window_with_subset_at_centre_impl(
-                ss_ref, img_ref.data32,
-                corner_x, corner_y, px_hori, px_vert,
-                ss_size_x, ss_size_y,
-                window_size_x, window_size_y);
-            break;
+    // col offset runs over ss pixels: 0, 1, ..., ss_size_x-1
+    // pixel coord = cx - ss_half_x + col  (exact, works for even & odd)
+    // window coord = col + (w_half_x - ss_half_x)  (centred in window)
 
-        default:
-            throw std::runtime_error("Unsupported pixel type");
+    const double win_origin_x = w_half_x - ss_half_x; // offset of ss[0] in window
+    const double win_origin_y = w_half_y - ss_half_y;
+
+    for (int row = 0; row < ss_size_y; ++row) {
+        for (int col = 0; col < ss_size_x; ++col) {
+
+            // true (possibly fractional) image coordinate
+            double px_x = (cx - ss_half_x) + col;
+            double px_y = (cy - ss_half_y) + row;
+
+            // nearest integer pixel for bounds check & x/y storage
+            int ipx_x = (int)std::round(px_x);
+            int ipx_y = (int)std::round(px_y);
+
+            // window index — round to nearest integer window cell
+            int target_x = (int)std::round(win_origin_x + col);
+            int target_y = (int)std::round(win_origin_y + row);
+
+            int idx_window = target_y * window_size_x + target_x;
+
+            ss_ref.x[idx_window] = px_x;
+            ss_ref.y[idx_window] = px_y;
+
+            if (ipx_x < 0 || ipx_x >= px_hori || ipx_y < 0 || ipx_y >= px_vert) {
+                ss_ref.vals[idx_window] = 0.0;
+            } else {
+                ss_ref.vals[idx_window] = interp_ref.eval(0, 0, px_x, px_y);
+            }
+        }
     }
 }
 
