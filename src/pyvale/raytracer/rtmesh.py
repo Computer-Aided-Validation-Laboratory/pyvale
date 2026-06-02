@@ -298,7 +298,7 @@ class RTMesh:
             node_coords_expanded_over_time[timestep] = coords_at_t[connectivity]
             node_normals_expanded_over_time[timestep]  = find_node_normals(coords_at_t, connectivity, self.element_count)[connectivity]
 
-        return np.ascontiguousarray(node_coords_expanded_over_time), np.ascontiguousarray(node_normals_expanded_over_time)
+        return np.ascontiguousarray(node_coords_expanded_over_time, dtype=np.float64), np.ascontiguousarray(node_normals_expanded_over_time, dtype = np.float64)
 
     def translate(self, delta: np.ndarray) -> None:
         """
@@ -312,7 +312,7 @@ class RTMesh:
         # This will be None when we _orient_in_world at the moment of converting SimData/other meshes to RTMesh, so to avoid errors
         if self.node_coords_over_time is not None:
             self.node_coords_over_time[..., :] += delta
-        self.node_coords = self.node_coords + delta
+        self.node_coords[...] = self.node_coords + delta
         self.pyvista_surface.points = self.pyvista_surface.points + delta # Update pyvista surface, so it displays properly in SeamSelector and UV unwrapping
         self.translation = self.translation + delta # Update translation
 
@@ -363,8 +363,8 @@ class RTMesh:
         centre = self._get_bounding_box(timestep)["center"]
         # This will be None when we _orient_in_world at the moment of converting SimData/other meshes to RTMesh, so to avoid errors
         if self.node_coords_over_time is not None:
-            self.node_coords_over_time[...] = (self.node_coords_over_time - centre) * factor + centre
-        self.node_coords = (self.node_coords - centre) * factor + centre
+            self.node_coords_over_time[..., :] = (self.node_coords_over_time - centre) * factor + centre
+        self.node_coords[...] = (self.node_coords - centre) * factor + centre
         self.avg_element_length *= factor # If we use _orient_in_world, this is just 0 (default) * scaling factor, so harmless, and we can keep it without if statements
         self.pyvista_surface.points = (self.pyvista_surface.points - centre) * factor + centre # Update pyvista surface, so it displays properly in SeamSelector and UV unwrapping
         self.scale *= factor # Update scaling
@@ -388,10 +388,10 @@ class RTMesh:
         if pivot is None:
             pivot = self._get_bounding_box(timestep)["center"]
         R = rotation.as_matrix() if not isinstance(rotation, np.ndarray) else rotation
-        self.node_coords = ((self.node_coords - pivot) @ R.T) + pivot
+        self.node_coords[...] = ((self.node_coords - pivot) @ R.T) + pivot
         # This will be None when we _orient_in_world at the moment of converting SimData/other meshes to RTMesh, so to avoid errors
         if self.node_coords_over_time is not None:
-            self.node_coords_over_time = ((self.node_coords_over_time - pivot) @ R.T) + pivot
+            self.node_coords_over_time[...,:] = ((self.node_coords_over_time - pivot) @ R.T) + pivot
         self.pyvista_surface.points = ((self.pyvista_surface.points - pivot) @ R.T) + pivot # Update pyvista surface, so it displays properly in SeamSelector and UV unwrapping
         self.rotation = R @ self.rotation # Update rotation
         self.translation = R @ (self.translation - pivot) + pivot
@@ -407,7 +407,7 @@ class RTMesh:
         to the (node_count, 3) array of nodal coordinates in file/simulation units.
 
         Applies scaling, rotation, and translation to the supplied raw coordinate array in that order, then stores the computed transforms
-        and the pre-translation axis-aligned bounding box resting_aabb) so that oriented bounding box (OBB) queries can reconstruct the world-space box
+        and the axis-aligned bounding box resting_aabb so that oriented bounding box (OBB) queries can reconstruct the world-space box
         without re-scanning all nodes.
 
         Processing order:
@@ -455,7 +455,7 @@ class RTMesh:
         # 4. Translate
         if world_position is not None:
             self.place_at(world_position, anchor=anchor)
-    
+
 
     def _set_refractive_index(self, refractive_index: float) -> None:
         """
@@ -730,11 +730,11 @@ class RTMesh:
                 raise ValueError("Face mapping is required to set custom UVs.")
             if face_mapping.shape != (self.element_count, self.nodes_per_element):
                 raise ValueError(f"Face mapping must be of shape (element_count, nodes_per_element). Got {face_mapping.shape}. If you triangulated your mesh independently, you need to map the uvs back to the original surface mesh.")
-            self.uvs = np.ascontiguousarray(uv_coords[face_mapping], dtype=np.double)
+            self.uvs = np.ascontiguousarray(uv_coords[face_mapping], dtype=np.float64)
         elif uv_coords.ndim == 3: # UVs in expanded format (element_count, nodes_per_element, 2)
             if uv_coords_shape[0] != self.element_count or uv_coords_shape[1] != self.nodes_per_element: # Check that the dimensions match expectations
                 raise ValueError(f"UV coordinates must be of shape (element_count, nodes_per_element, 2). Got {uv_coords.shape}. If you triangulated your mesh independently, you need to map the uvs back to the original surface mesh.")
-            self.uvs = np.ascontiguousarray(uv_coords, dtype=np.double)
+            self.uvs = np.ascontiguousarray(uv_coords, dtype=np.float64)
 
     def import_seams_from_csv(self, filepath: str) -> None:
         """
@@ -789,12 +789,13 @@ class RTMesh:
         np.ndarray
             The size of the mesh in world units at the given timestep.
         """
+        # node_coords_over_time[timestep] and node_coords are both (node_count, 3),
+        # so we reduce over the node axis (axis 0) only to get per-axis spans.
         if self.node_coords_over_time is not None:
             coords = self.node_coords_over_time[timestep, :, :]
-            spans = np.abs(coords.max(axis=(0,1)) - coords.min(axis=(0,1)))
         else:
             coords = self.node_coords
-            spans = np.abs(coords.max(axis=(0)) - coords.min(axis=(0)))
+        spans = np.abs(coords.max(axis=0) - coords.min(axis=0))
         return spans
 
     def _get_bounding_box(self, timestep: int = 0) -> dict:
@@ -811,12 +812,10 @@ class RTMesh:
         dict
             A dictionary containing the minimum and maximum x, y, and z coordinates, and the center in world coordinates at the given timestep.
         """
-        #coords = self.node_coords_expanded_over_time[timestep, :, :]
         if self.node_coords_over_time is not None:
             coords = self.node_coords_over_time[timestep, :]
         else:
             coords = self.node_coords
-        #center = coords.mean(axis=(0,1))
         minimal_coords = coords.min(axis=0)
         maximal_coords = coords.max(axis=0)
         center = 0.5 * (minimal_coords + maximal_coords)
@@ -1031,13 +1030,15 @@ def snap_to(move_rtmesh: RTMesh,
     delta_local = R_support.T @ delta_full
     keep = np.zeros(3, dtype=bool)
     keep[axis.value] = True
+    # This is in case we align to one axis (e.g., (Axis.X)) because for this to work, we would need to type (Axis.X,) and not all users might know about that
+    if isinstance(align, Axis):
+        align = (align,)  # normalize to tuple
     for a in align:
         keep[a.value] = True
     delta_local = np.where(keep, delta_local, 0.0)
     delta = R_support @ delta_local
 
     move_rtmesh.translate(delta)
-
 
 def make_axis_rotation(axis: "Axis | np.ndarray",
                        angle: float,
@@ -1179,7 +1180,9 @@ def extract_submesh(rtmesh: RTMesh,
     # Extract sub-grid based on the chart connectivity
     sub_ugrid = rtmesh.pyvista_surface.extract_cells(chart_face_indices, pass_point_ids=True)
             
-    sub_coords = np.ascontiguousarray(sub_ugrid.points, dtype = np.double)
+    # Explicit copy so node_coords does not share memory with sub_ugrid.points; otherwise any later in-place transform (translate/rotate/fit_size) would
+    # mutate the grid twice (see the note in any_mesh_to_rtmesh).
+    sub_coords = np.array(sub_ugrid.points, dtype = np.float64)
     sub_connectivity = pyvista_faces_to_connectivity(sub_ugrid)
 
     # Capture the mapping from local submesh node indices -> global render_mesh node indices so that get_mesh_data_over_time can slice the correct rows of the
@@ -1190,12 +1193,14 @@ def extract_submesh(rtmesh: RTMesh,
             sub_ugrid.point_data["vtkOriginalPointIds"], dtype=np.intp)
 
     # Copy the parent RTMesh to preserve its transform fields etc., to share the world-space orientation with the parent,
-    # but replace coordinates, connectivity, and pyvista grid with the values appropriate for the submesh
-    # Deep copy to create a new object, so changes do not propagate between the parent and the child
-    chart_rtmesh = RTMesh().deepcopy()
-    chart_rtmesh.connectivity = sub_connectivity
+    # but replace coordinates, connectivity, and pyvista grid with the values appropriate for the submesh.
+    # Deep copy to create a new object, so changes do not propagate between the parent and the child.
+    chart_rtmesh = deepcopy(rtmesh)
+    chart_rtmesh.connectivity = np.ascontiguousarray(sub_connectivity, dtype=np.uint64)
     chart_rtmesh.node_coords = sub_coords
-    chart_rtmesh.pyvista_surface = sub_ugrid
+    chart_rtmesh.pyvista_surface = sub_ugrid # Oriented sub-grid; create_rtmesh will (re)triangulate it for UV-unwrapping if needed
+    # The over-time series belongs to the parent's node set, so reset it; create_rtmesh rebuilds it for this submesh
+    chart_rtmesh.node_coords_over_time = None
     chart_rtmesh.rm_point_ids = rm_point_ids
 
     # Populate the chart RTMesh with geometry and topology
@@ -1484,14 +1489,19 @@ def create_rtmesh(rtmesh: RTMesh,
         _orient_in_world and are left untouched here.
     render_mesh: RenderMesh
         Optional. RenderMesh object used to fetch deformed nodal coordinates. Defaults to None.
-    scaling_factor: float
 
     Returns:
     --------
     RTMesh
         The populated RTMesh object (same instance that was passed in).
     """
-    # Triangulation and mapping for everything that is not a TRI3 for UV unwrapping (QUAD4 would pass in Blender, but not SeamSplitter) 
+    # Ensure topology/coords are in the expected contiguous formats before any downstream use
+    rtmesh.connectivity = np.ascontiguousarray(rtmesh.connectivity, dtype=np.uint64)
+    rtmesh.node_coords = np.ascontiguousarray(rtmesh.node_coords, dtype=np.double)
+
+    # Triangulation and mapping for everything that is not a TRI3 for UV unwrapping (QUAD4 would pass in Blender, but not SeamSplitter).
+    # The pyvista_surface was already oriented in-place by _orient_in_world, so the triangulated surface inherits the world-space coordinates,
+    # keeping it usable for SceneVisualiser and the UV-unwrapping pipeline.
     if rtmesh.nodes_per_element != ElementNodeCount.TRI3:
         pv_triangulated, mapped_face_ids, mapped_coords = triangulate_and_map(rtmesh.pyvista_surface)
         rtmesh.pyvista_surface = pv_triangulated
@@ -1520,8 +1530,6 @@ def create_rtmesh(rtmesh: RTMesh,
         rtmesh.node_count = rtmesh.node_coords.shape[0]
         rtmesh.get_mesh_data_over_time()
 
-    #print(f"Connectivity shape: {connectivity.shape}")
-    #print(f"Node coords shape: {coords_mesh.shape}")
     return rtmesh
 
 def create_render_mesh_higher_order(sim_data: mh.SimData,
@@ -1679,7 +1687,11 @@ def simdata_to_rtmesh(pypath: Path,
 
 
     # World positioning - handle nodal coordinates (scaling, positioning)
-    coords_file = np.ascontiguousarray(render_mesh.coords[:, :COORDS_PER_NODE], dtype=np.double) # Mesh coordinates as they are passed in the SimData    
+    # IMPORTANT: node_coords and pyvista_surface.points are transformed independently (with the same pivot/factor) inside fit_size/rotate/translate,
+    # so they MUST be backed by separate buffers. Both np.ascontiguousarray(...) on a contiguous array AND PyVista's grid.points = arr setter return
+    # memory-sharing views, so we make explicit copies to fully decouple node_coords from render_mesh.coords and from the grid; otherwise the first
+    # in-place write also mutates the grid, which then gets transformed a second time (e.g. scaled by factor**2).
+    coords_file = np.array(render_mesh.coords[:, :COORDS_PER_NODE], dtype=np.float64) # Independent copy of the SimData nodal coordinates
 
     # Create RTMesh early so _orient_in_world can record transforms directly onto it
     rtmesh = RTMesh()
@@ -1691,7 +1703,12 @@ def simdata_to_rtmesh(pypath: Path,
     rtmesh.pyvista_surface = pv_grid # Grid also will be updated in place within _orient_in_world
     rtmesh.spatial_dimensions = spatial_dim
     rtmesh.connectivity = np.ascontiguousarray(render_mesh.connectivity, dtype=np.uint64)
-   
+    # The interpolated pv_grid and render_mesh.coords are the same node set in the same order, but they may not be bit-identical (interpolation, dtype).
+    # Sync the grid to node_coords up front so the in-place transforms applied by _orient_in_world keep pyvista_surface and node_coords in lockstep
+    # (matching the proven coords-version behaviour where pv_grid.points is overwritten with the oriented coordinates). Assign a COPY so the grid does
+    # not share memory with node_coords (the PyVista points setter aliases its input).
+    rtmesh.pyvista_surface.points = np.array(rtmesh.node_coords, dtype=np.float64)
+
     # Fit the mesh size, rotate, and place in the world
     rtmesh._orient_in_world(world_position=world_position,
         world_rotation=world_rotation,
@@ -1702,9 +1719,6 @@ def simdata_to_rtmesh(pypath: Path,
 
     # Check whether mesh has more than 1 surface and get its adjacency matrix
     chart_labels, chart_count, charts, adjacency_matrix = segment_into_charts(rtmesh.connectivity)
-    #print(f"Chart labels: {chart_labels}")
-    #print(f"Number of charts: {chart_count}")
-    #print(f"Charts: {charts}"
     if chart_count == 2:
         print("Detected mesh with more than 1 surface. It will be treated as a hollowed solid, and returned as 2 separate RTMesh objects: [outer, inner]. \nAssign surface data to the inner surface only if the object is supposed to be refractive.")
         sub_rtmesh_1 = extract_submesh(rtmesh, charts[0], render_mesh)
@@ -2035,7 +2049,6 @@ def process_mesh_elements(mmesh: meshio.Mesh) -> tuple [None, None] | tuple[mesh
     else: # More than one type of volume elements in the mesh
         print("Mixed element type meshes are currently not supported.")
         return None, None
-    
 
 def any_mesh_to_rtmesh(pypath: Path,
                        world_position: np.ndarray = None,
@@ -2127,7 +2140,11 @@ def any_mesh_to_rtmesh(pypath: Path,
         world_position = np.array((0.0, 0.0, 0.0), dtype=np.float64)
 
     # World positioning - handle nodal coordinates (scaling, positioning)
-    coords_file = np.ascontiguousarray(pv_ugrid.points, dtype=np.double) # Mesh coordinates as they are passed in the input file, so might be positioned randomly
+    # IMPORTANT: np.ascontiguousarray(pv_ugrid.points) returns a VIEW that shares memory with the grid when the points are already contiguous float64.
+    # node_coords and pyvista_surface.points are transformed independently (but with the same pivot/factor) inside fit_size/rotate/translate, so they MUST be
+    # separate buffers - otherwise the first in-place write also mutates the grid, and the grid then gets transformed a second time (e.g. scaled by factor**2).
+    # Use an explicit copy to fully decouple them.
+    coords_file = np.array(pv_ugrid.points, dtype=np.float64) # Independent copy of the input-file coordinates (which might be positioned randomly)
 
     # Create RTMesh early so _orient_in_world can record transforms directly onto it
     rtmesh = RTMesh()
@@ -2150,7 +2167,7 @@ def any_mesh_to_rtmesh(pypath: Path,
         rotation_pivot=rotation_pivot)
 
     # Helper to display mesh with node indices in case there are winding issues:
-    #display_pyvista_grid_with_indices(rtmesh.pv_ugrid)
+    #display_pyvista_grid_with_indices(rtmesh.pyvista_surface)
 
     # Check whether mesh has more than 1 surface and get its adjacency matrix
     chart_labels, chart_count, charts, adjacency_matrix = segment_into_charts(rtmesh.connectivity)
@@ -2173,10 +2190,3 @@ def any_mesh_to_rtmesh(pypath: Path,
         return create_rtmesh(rtmesh, render_mesh = None)
     else:
         raise IOError(f"Detected mesh with more than 2 surfaces: {chart_count}. This is currently not supported.") # More than 2 meshes - cannot guarantee what it is or why
-    
-
-
-
-   
-    rtmesh = RTMesh()
-    

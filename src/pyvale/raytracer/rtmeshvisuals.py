@@ -72,7 +72,7 @@ class SceneVisualiser:
     """
     def __init__(self, rtmeshes: list[RTMesh], renderer_camera: Camera | None = None):
         self.plotter = vedo.Plotter(title="Scene visualiser", axes=1)
-        self.rtmeshes: list[RTMesh] = rtmeshes # RTMesh objects displayed
+        self.rtmeshes: list[RTMesh] | RTMesh = rtmeshes # RTMesh objects displayed
         self.vmeshes: list[vedo.Mesh] = [] # Vedo Mesh objects corresponding to the passed RTMesh objects
         self.invisible_vmeshes: list[vedo.Mesh] = []
         self.camera: Camera | None = renderer_camera
@@ -169,11 +169,20 @@ class SceneVisualiser:
         """
         Sets up the plotter by displaying instructions, adding callbacks, and setting up the camera if applicable.
         """
-        if len(self.rtmeshes) == 0:
-            print("No meshes to display")
-            return
-        for rtmesh in self.rtmeshes:
-            self._add_rtmesh(rtmesh)
+        if isinstance(self.rtmeshes, list):
+            for rtmesh in self.rtmeshes:
+                self._add_rtmesh(rtmesh)
+        else:
+            self._add_rtmesh(self.rtmeshes)
+        
+        # Debug
+        #for idx, mesh in enumerate(self.vmeshes):
+        #    bound = mesh.bounds()
+        #    x_size = bound[1] - bound[0]
+        #    y_size = bound[3] - bound[2]
+        #    z_size = bound[5] - bound[4]
+        #    print(f"Mesh {idx} bounds. x: {x_size}, y: {y_size}, z: {z_size}")
+
 
         # Add general callbacks
         self.plotter.add_callback('KeyPress', self._snap_meshes)

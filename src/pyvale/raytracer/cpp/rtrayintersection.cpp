@@ -30,7 +30,7 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
 
     // Go through all the triangles and find an intersection of each triangle with a ray
     static constexpr int NODES_PER_ELEMENT = static_cast<int>(ElementNodeCount::TRI3); // Number of nodes per triangle/quad. Used for some of flat indexing.
-    double EPSILON = 1e-6;
+    double EPSILON = 1e-10;
     // Ray data broadcasted to use in vectorised operations on matrices
     // This is faster than doing it in a loop
     EiVectorD3d ray_directions = ray.direction.replicate(bvh_node_triangle_count, 1);
@@ -131,7 +131,7 @@ IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     // More specifically: Chapter 8, "Cool Patches: A Geometric Approach to Ray/Bilinear Patch Intersections" by A. Reshetov
 
     static constexpr int COORDS_PER_ELEMENT = static_cast<int>(ElementNodeCount::QUAD4) * NODE_COORDINATES;
-    static constexpr double EPSILON = 1e-8;
+    static constexpr double EPSILON = 1e-10;
     
     // 1. COORDINATES AND EDGES
     // Ray data broadcasted to use in vectorised operations on matrices
