@@ -69,8 +69,26 @@ function(apply_compile_flags target_name)
             message(STATUS "Applying MSVC release flags for ${target_name}")
             target_compile_options(${target_name} PRIVATE /O2)
         endif()
+    elseif(APPLE)
+        # MacOS
+
+        # Apple has explicitly disabled OpenMP support in their compilers, a
+        # workaround is to pass the -Xclang flag to the compile and link options
+        # while having the OpenMP runtime (built using Xcode compilers) installed
+        # on the machine
+        # see: https://mac.r-project.org/openmp/
+        target_compile_options(${target_name} PRIVATE -std=c++17 -Xclang -fopenmp)
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+            message(STATUS "Applying debug flags for ${target_name}")
+            target_compile_options(${target_name} PRIVATE -O0 -g)
+            target_link_options(${target_name} PRIVATE -Xclang -fopenmp -g)
+        else()
+            message(STATUS "Applying release flags for ${target_name}")
+            target_compile_options(${target_name} PRIVATE -O3)
+            target_link_options(${target_name} PRIVATE -Xclang -fopenmp)
+        endif()
     else()
-        # Linux / macOS
+        # Linux
         target_compile_options(${target_name} PRIVATE -std=c++17 -fopenmp)
         if(CMAKE_BUILD_TYPE STREQUAL "Debug")
             message(STATUS "Applying debug flags for ${target_name}")
