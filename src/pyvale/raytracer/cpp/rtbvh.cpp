@@ -297,7 +297,6 @@ void build_BLAS(BLAS &mesh_bvh,
     root.nodes_per_element = nodes_per_element;
     root.element_count = mesh_element_count;
     root.bounding_box = create_node_AABB(mesh_element_aabbs, mesh_element_indices, 0, mesh_element_count);
-    //root.min_elem_idx = 0;
     mesh_bvh.tree_nodes.push_back(root);
     node_minimum_element_index.push_back(0);
     mesh_bvh.root_idx = 0;
@@ -305,7 +304,7 @@ void build_BLAS(BLAS &mesh_bvh,
     //std::cout << "Initializing building BVH" << std::endl;
     // Stack-based builder
     std::vector<BuildTask> stack;
-    stack.push_back({root.element_count, mesh_bvh.root_idx, 0}); // push root onto the stack
+    stack.emplace_back(root.element_count, mesh_bvh.root_idx, 0); // push root onto the stack
    
     while(!stack.empty()){
         //std::cout << "Inside loop for building BVH" << std::endl;
@@ -352,12 +351,10 @@ void build_BLAS(BLAS &mesh_bvh,
          
         // Create left child directly in BVH
         mesh_bvh.tree_nodes.emplace_back(create_node_AABB(mesh_element_aabbs, mesh_element_indices, left_min_element_idx, left_count),
-            left_count,
-            -1);
+            left_count,-1);
          // Create right child directly in BVH
         mesh_bvh.tree_nodes.emplace_back(create_node_AABB(mesh_element_aabbs, mesh_element_indices, right_min_element_idx, right_count),
-            right_count,
-            -1);
+            right_count,-1);
 
          // Set parent data
         // This way instead of using references, as if the vector resizes when we add children, the references might become invalid and produce nonsensical results
@@ -365,8 +362,8 @@ void build_BLAS(BLAS &mesh_bvh,
         mesh_bvh.tree_nodes[node_idx].element_count = 0; // It is now an internal node
         
         // Push children to stack. LIFO -> Left child gets processed first
-        stack.push_back({right_count, right_child_idx, right_min_element_idx});
-        stack.push_back({left_count, left_child_idx, left_min_element_idx});
+        stack.emplace_back(right_count, right_child_idx, right_min_element_idx);
+        stack.emplace_back(left_count, left_child_idx, left_min_element_idx);
     }
 }
 
@@ -390,7 +387,7 @@ void build_TLAS(std::vector<TLAS_Node>& TLAS,
 
     // Stack-based builder
     std::vector<BuildTask> stack;
-    stack.push_back({scene_mesh_count, 0, 0});
+    stack.emplace_back(scene_mesh_count, 0, 0);
    
     while(!stack.empty()){
         //std::cout << "Inside loop for building BVH" << std::endl;
@@ -436,14 +433,10 @@ void build_TLAS(std::vector<TLAS_Node>& TLAS,
 
         // Create left child directly in TLAS
         TLAS.emplace_back(create_node_AABB(scene_blas_aabbs, scene_blas_indices, left_min_element_idx, left_count),
-            left_count,
-            -1,
-            left_min_element_idx);
+            left_count, -1, left_min_element_idx);
         // Create right child directly in TLAS
             TLAS.emplace_back(create_node_AABB(scene_blas_aabbs, scene_blas_indices, right_min_element_idx, right_count),
-            right_count,
-            -1,
-            right_min_element_idx);
+            right_count, -1,right_min_element_idx);
 
          // Set parent data
         // This way instead of using references, as if the vector resizes when we add children, the references might become invalid and produce nonsensical results
@@ -451,8 +444,8 @@ void build_TLAS(std::vector<TLAS_Node>& TLAS,
         TLAS[node_idx].blas_count = 0; // It is now an internal node
         
         // Push children to stack. LIFO -> Left child gets processed first
-        stack.push_back({right_count, right_child_idx, right_min_element_idx});
-        stack.push_back({left_count, left_child_idx, left_min_element_idx});
+        stack.emplace_back(right_count, right_child_idx, right_min_element_idx);
+        stack.emplace_back(left_count, left_child_idx, left_min_element_idx);
     }
 }
 
@@ -1087,11 +1080,6 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     build_TLAS(scene_TLAS.tlas_nodes, scene_blas_centroids, scene_blas_aabbs, scene_blas_indices, scene_mesh_count);
     copy_data_to_TLAS(scene_TLAS, scene_blases, scene_blas_indices);
     //std::cout << "TLAS successfully built." << std::endl;
-    //Ray test_ray;
-    //test_ray.origin = EiVector3d(0.0, 0.0, 0.0);
-    //test_ray.direction = EiVector3d(1.0, 0.0, 0.0);
-    //intersect_tlas(test_ray, scene_TLAS);
-    //print_TLAS(scene_TLAS);
 
     return scene_TLAS;
  } // SCENE (end of function)

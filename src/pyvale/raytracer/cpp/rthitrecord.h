@@ -16,9 +16,9 @@
 // Forward declaration (incomplete types) so we can use them in function pointers in BLAS while avoiding circular dependencies
 struct RayState;
 
-// Struct size [bytes]: 6 x 24 + 3 x 8 + 3 x 4 = 180 bytes
+// Struct size [bytes]: 6 x 24 + 3 x 8 + 2 x 4 + 1 = 177 bytes
 struct HitRecord {
-    EiVector3d point_intersection {EiVector3d::Zero()}; 
+    EiVector3d point_intersection {EiVector3d::Zero()}; // Where ray intersects the mesh element
     EiVector3d normal_surface {EiVector3d::Zero()}; // Geometric normal (might not be needed; tbd)
     EiVector3d normal_shading {EiVector3d::Zero()}; // Shading normal
     EiVector3d elem_interp_coords {EiVector3d::Zero()}; // E.g., barycentric coordinates for TRI3, bilinear interpolation coords for QUAD4
@@ -32,7 +32,7 @@ struct HitRecord {
     //ObjectType object_type;
     //int material;
     int hit_blas_idx; // ID of the intersected BLAS
-    int hit_blas_priority; // Priority of the intersected BLAS
+    uint8_t hit_blas_priority; // Priority of the intersected BLAS
     
     inline void flip_normals(const Ray& ray){
         // Flips the geometric normal so that it points against the incoming ray. Function we always want to call after getting our intersection
@@ -58,13 +58,3 @@ struct HitRecord {
         }
     }
 };
-
-/*
-inline void set_face_normal(const Ray& ray, EiVector3d& normal_surface) {
-    // Normalises the surface normal at the intersection point and determines which way the ray hits the object. Flips the normal if it hits the back face
-    normal_surface.normalize();
-    if (ray.direction.dot(normal_surface) > 0.0) {
-        normal_surface = -normal_surface; // Flip normal if it hits the back face
-    }
-};
-*/

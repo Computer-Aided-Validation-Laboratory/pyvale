@@ -28,6 +28,7 @@
 
 
 // Bounding volume structure - axis-aligned bounding boxes (AABB)
+// Struct size: 2 x 8 x 3 = 48 bytes
 struct AABB {
     double corner_min[3]{};
     double corner_max[3]{};
@@ -50,39 +51,6 @@ struct AABB {
             }
         }
     }
-/*
-    // Used for building AABBs for all mesh triangles
-    inline void build_for_tri3(const std::array<double,9> &triangle_node_coords){
-        for (int node = 0; node < 3; ++node) {
-        const int offset = node * 3;
-            for (int i = 0; i < 3; ++i) {
-                const double nodal_coordinate = triangle_node_coords[offset + i];
-                corner_min[i] = std::min(corner_min[i], nodal_coordinate);
-                corner_max[i] = std::max(corner_max[i], nodal_coordinate);
-            }
-        }
-    }   
-
-    // Used for building AABBs for quadratic tetrahedra (10 nodes)
-    inline void build_for_tet10(const std::array<double, 30> &node_coords) {
-        // Iterate through each of the 10 nodes
-        for (int node = 0; node < 10; ++node) {
-            const int offset = node * 3;
-            
-            // Iterate through dimensions (x, y, z)
-            for (int i = 0; i < 3; ++i) {
-                const double nodal_coordinate = node_coords[offset + i];
-                corner_min[i] = std::min(corner_min[i], nodal_coordinate);
-                corner_max[i] = std::max(corner_max[i], nodal_coordinate);
-            }
-        }
-
-        // double padding = 8.0; 
-        // for (int i = 0; i < 3; ++i) {
-        //     corner_min[i] -= padding;
-        //     corner_max[i] += padding;
-        // }
-    }*/
 
      // Used for SAH splitting
     inline void expand_to_include_point(const std::array<double,3>& point){
@@ -121,6 +89,7 @@ struct AABB {
     }
 };
 
+// Struct size: 48 + 4 = 52 bytes
 struct Bin {
     // Bin for binning SAH
     AABB bounding_box {};
@@ -128,12 +97,21 @@ struct Bin {
 };
 
 // Struct used as a temporary data carrier in build_BLAS and build_TLAS
+// Struct size: 8 (64-bit system) + 4 x 2 = 16 bytes
 struct BuildTask {
     size_t element_count; // Number of elements
     int node_idx;
     int min_element_idx; // First triangle index in element_indices
+
+    BuildTask() = default;
+    BuildTask(size_t element_count, int node_idx, int min_element_idx):
+        element_count(element_count),
+        node_idx(node_idx),
+        min_element_idx(min_element_idx)
+        {};
 };
 
+// Struct size: 8 (64-bit system) + 4 x 2 = 16 bytes
 struct Texture {
     const double* data {nullptr}; // Pointer to the texture, so we can just assign it to relevant BVH nodes and sample
     int height {0};
@@ -149,17 +127,18 @@ struct Texture {
 };
 
 // BLAS - Bottom Level Acceleration Structure. Each BLAS stores a BVH for one mesh in the scene
+// Struct size in worst case: 
+// Each vector: MAX_ELEMENTS_PER_LEAF (currently = 4) x  nodes_per_element (max. 9 for QUAD9) x 3 (x,y,z per node) x 8 (double) = 864 bytes
+// Rest: 48 + 8 (64-bit system) + 4 + 1
+// Total: 864 x 3 + 48 + 8 + 4 + 1 = 2653 bytes = 2.653 kB
 struct BLAS_Node {
     std::vector<double> node_coords; // Coordinates of nodes comprising the mesh elements stored in the node, if applicable
     std::vector<double> node_normals; // Normals of nodes comprising the mesh elements stored in the node, if applicable
     std::vector<double> face_color; // Either (faces, 3) array with color values or (faces,2) array with (u,v) coordinates
-    //std::vector<int> material; // Element materials based on the field values for the mesh
     AABB bounding_box {};
     size_t element_count {0}; // If not zero, this is the leaf
-    enum ElementNodeCount nodes_per_element {ElementNodeCount::TRI3}; // Default to triangles
     int left_child_idx {-1};
-   // int right_child_idx {-1}; // Removed as it's left + 1, but helpful to keep it here for debugging
-    //int min_elem_idx {-1};
+    enum ElementNodeCount nodes_per_element {ElementNodeCount::TRI3}; // Default to triangles
 
     // Constructors for emplace_back to avoid temporary copies
    BLAS_Node() = default;
@@ -173,6 +152,9 @@ struct BLAS_Node {
 // Forward declaration (incomplete types) so we can use them in function pointers in BLAS while avoiding circular dependencies (since they depend on BLAS_Node defined here)
 struct IntersectionOutput; 
 
+// Struct size (worst case):
+// Vector: number of elements in the mesh * 2653 bytes
+// Rest: 48 + 16 + 8 (64-bit system) + 8 x 2 + 8 (64-bit system) x 2 + 4 x 3 = 116 bytes
 struct BLAS {
     std::vector<BLAS_Node> tree_nodes;
     AABB bounding_box {};
@@ -184,7 +166,7 @@ struct BLAS {
     // Void function pointer will be 8 bytes in 64-bit system, 4 in a 32x, so this should be the best positioning of those for memory alignment
     void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx) {nullptr}; // Saving data to HitRecord depending on the surface type (color/texture) and element type
     void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
-    // Uncomment the below 2 lines if deciding to go for switch-based dispatcj in return_ray_color
+    // Uncomment the below 2 lines if deciding to go for switch-based dispatch in return_ray_color
     //ObjectType object_type;
     //int material;
     int priority; // Priority - tells us the ordering of nested volumes in the scene
@@ -195,6 +177,7 @@ struct BLAS {
 };
 
 // TLAS - Top Level Acceleration Structure. Stores all BLASes for the scene, used for preliminary intersection
+// Struct size: 48 + 4 x 3 = 60 bytes
 struct TLAS_Node {
     AABB bounding_box {};
     int blas_count {0}; // Number of BLASes in this node (consecutive in the array)
@@ -244,7 +227,6 @@ void process_element_data(size_t mesh_number_of_elements,
         // Use pointers - means we treat the 2D array as a flat 1D array and do the indexing manually by calculating the offset.
         // HAS to be contiguous in memory for this to work properly! c_contig flag in nanobind ensures that
         int element_min_index = timestep_stride + element_idx * coords_per_element; // Find the minimum index corresponding to the given element at given timestep
-        //int element_idx_at_t = element_idx + timestep_stride;
         
         // Gather coordinates for all nodes in the considered element
         // element_node_coords is structured as [x0, y0, z0, x1, y1, z1, ..., xn, yn, zn] where n = (element_node_count-1)
@@ -255,11 +237,9 @@ void process_element_data(size_t mesh_number_of_elements,
         // Find centroid for this element
         compute_element_centroid(&element_node_coords[0], element_centroid, nodes_per_element);
         mesh_element_centroids.push_back(element_centroid);
-        //std::cout << "Centroid " << element_centroid[0] << " " << element_centroid[1] << " " << element_centroid[2] << std::endl;
 
         // Create bounding volume for this element
         AABB element_aabb;
-        //element_aabb.build_for_tri3(element_node_coords);
         element_aabb.build_for_element(&element_node_coords[0], nodes_per_element);
         mesh_element_aabbs.push_back(element_aabb);
         //std::cout << "AABB max " << element_aabb.corner_max[0] << " " << element_aabb.corner_max[1] << " " << element_aabb.corner_max[2] << std::endl;

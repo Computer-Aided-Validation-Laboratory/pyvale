@@ -8,6 +8,7 @@
 
 // STD header files
 #include <vector>
+#include <cstdint>
 
 // raytracer header files
 #include "rteigentypes.h"
@@ -15,7 +16,8 @@
 #include "rtbvh.h"
 #include "rtmathutils.h"
 
-static constexpr int INTERIOR_LIST_MAX = 10; // Size of the interior list. Should be sufficient unless user  embeds many volumes within one another 
+static constexpr uint8_t INTERIOR_LIST_MAX = 10; // Size of the interior list. Should be sufficient unless user embeds many volumes within one another
+// Use uint8_t for everything related as we would need 255 nested meshes to exceed this quantity. Highly unlikely to occur
 
 // Struct size 8 + 2 x 4 = 16 bytes
 struct InteriorEntry{
@@ -54,20 +56,20 @@ struct RayState{
 */
 
 // Struct to store ray data in the stack-based shader
-// Size: 48 + 24 + 16 x 10 + 8 + 4 x 2 =  248 bytes
+// Size: 48 + 24 + 16 x 10 + 8 + 2 + 1 =  243 bytes
 struct RayState{
     Ray ray;
     EiVector3d accumulated_color {EiVector3d(1.0, 1.0, 1.0)}; // Accumulated multipliers (albedo, Fresnel terms, etc.)
     std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list {}; // List of objects entered by ray
     double outer_refractive_index {1.0003}; // Refractive index of the material where the ray originates; might be removed later, depending on how the interior list works
-    int depth {0};
-    int interior_count {0}; // 0 => Ray is in the ambient medium (whatever fills the scene, with RI = scene_ri)
+    uint16_t depth {0}; // Even without recursion, most ray tracers don't seem to have more than 50 bounces of depth, so we are being very generous here (max. value of 65535)
+    uint8_t interior_count {0}; // 0 => Ray is in the ambient medium (whatever fills the scene, with RI = scene_ri)
 
     //Constructors
     // First two are for the initial state with primary rays
     RayState(Ray ray_): ray(ray_) {};
     RayState(Ray ray_, double outer_refractive_index_): ray(ray_), outer_refractive_index(outer_refractive_index_) {};
-    RayState(Ray ray_, EiVector3d accumulated_color_, std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list_, double outer_refractive_index_, int depth_, int interior_count_):
+    RayState(Ray ray_, EiVector3d accumulated_color_, std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list_, double outer_refractive_index_, uint16_t depth_, uint8_t interior_count_):
         ray(ray_),
         accumulated_color(accumulated_color_),
         interior_list(interior_list_),
@@ -77,7 +79,7 @@ struct RayState{
 };
 
 
-inline int interior_find(const InteriorEntry* interior_list, int count, int blas_idx){
+inline int interior_find(const InteriorEntry* interior_list, uint8_t count, int blas_idx){
     for(int i = 0; i < count; i++){
         if (interior_list[i].blas_idx == blas_idx){
             return i;
@@ -86,7 +88,7 @@ inline int interior_find(const InteriorEntry* interior_list, int count, int blas
     return -1;
 };
 
-inline int interior_highest_priority_idx(const InteriorEntry* interior_list, int count){
+inline int interior_highest_priority_idx(const InteriorEntry* interior_list, uint8_t count){
     int highest_priority_idx = -1;
     int best_priority = std::numeric_limits<int>::min();
     for(int i = 0; i < count; i++){
@@ -99,7 +101,7 @@ inline int interior_highest_priority_idx(const InteriorEntry* interior_list, int
 };
 
 inline bool interior_toggle(InteriorEntry* interior_list,
-    int& count, // We update this value, hence pass by reference
+    uint8_t& count, // We update this value, hence pass by reference
     int blas_idx,
     int priority,
     double refractive_index,
@@ -107,7 +109,7 @@ inline bool interior_toggle(InteriorEntry* interior_list,
     // Add or remove the entry (toggle) for BLAS_ID.
     //Returns true if ray entered the object (add antry), false if exited (remove entry)
 
-    int idx = interior_find(interior_list, count, blas_idx);
+    uint8_t idx = interior_find(interior_list, count, blas_idx);
     if (idx >= 0){ // Exit: swap-erase
         interior_list[idx] = interior_list[count - 1];
         --count;
@@ -124,7 +126,7 @@ inline bool interior_toggle(InteriorEntry* interior_list,
 };
 
 inline double find_top_ri(const InteriorEntry* interior_list,
-    int interior_count,
+    uint8_t interior_count,
     double fallback_ri){
     // Finds the top refractive index in the interior list
     // fallback_ri = scene_ri, which we set if the list is empty
@@ -133,11 +135,11 @@ inline double find_top_ri(const InteriorEntry* interior_list,
 };
 
 inline EiVector3d find_top_absorption(const InteriorEntry* interior_list,
-    int interior_count,
+    uint8_t interior_count,
     const EiVector3d& fallback) { //
     // Finds the top refractive index in the interior list
     // fallback_ri = scene_ri
-    int idx = interior_highest_priority_idx(interior_list, interior_count);
+    uint8_t idx = interior_highest_priority_idx(interior_list, interior_count);
     return (idx < 0) ? fallback : interior_list[idx].absorption;
 }
 
@@ -160,14 +162,6 @@ void ray_specular(const RayState& current_state,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
     EiVector3d& total_color);
-
-    /*
-void ray_refractive(const RayState& current_state,
-    HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack,
-    EiVector3d& total_color);
-    */
 
 void ray_unlit(const RayState& current_state,
     HitRecord& intersection_record,
@@ -216,8 +210,7 @@ void ray_refractive(const RayState& current_state,
 
     // Ensure normals always point against the incident ray - for the nested volume case, we can flip normals like this;
     // for regular case, we cannot as we need the dot product to determine bool into to figure out if ray enters or exits; here we use priorities
-    //intersection_record.normalize_and_flip_normals(current_state.ray);
-    intersection_record.flip_normals(current_state.ray);
+    intersection_record.normalize_and_flip_normals(current_state.ray);
     intersection_record.align_normals();
     EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
     EiVector3d normal_shade = intersection_record.normal_shading; //  // Shading normal; use for Physics to dictate how light behaves
@@ -228,7 +221,7 @@ void ray_refractive(const RayState& current_state,
     
     // Build the refraction ray's interior list = parent list toggled by the current object
     std::array<InteriorEntry, INTERIOR_LIST_MAX> refracted_list;
-    int refracted_count = current_state.interior_count;
+    uint8_t refracted_count = current_state.interior_count;
     for (int i = 0; i < current_state.interior_count; i++){
         refracted_list[i] = current_state.interior_list[i];
     }

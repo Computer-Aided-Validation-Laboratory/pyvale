@@ -19,6 +19,11 @@
 #include "rtcolorsampling.h"
 #include "rtshapefuncs.h"
 
+// Struct size: 
+// elem_interp_coords: MAX_ELEMENTS_PER_LEAF (currently = 4) x 3 (u,v,w per element) x 8 (double) = 96 bytes
+// geometric_normals: MAX_ELEMENTS_PER_LEAF (currently = 4) x 3 (x,y,z per element) x 8 (double) = 96 bytes
+// t_values: MAX_ELEMENTS_PER_LEAF (currently = 4) x 8 (double) = 32 bytes 
+// Total: 224 bytes
 struct IntersectionOutput {
     Eigen::ArrayXXd elem_interp_coords; // E.g., barycentric coordinates for TRI3, bilinear interpolation coords for QUAD4
     EiVectorD3d geometric_normals;

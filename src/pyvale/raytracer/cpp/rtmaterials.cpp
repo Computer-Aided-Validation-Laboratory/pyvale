@@ -34,8 +34,7 @@ void ray_diffuse(const RayState& current_state,
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
     
-    //intersection_record.normalize_and_flip_normals(current_state.ray);
-    intersection_record.flip_normals(current_state.ray);
+    intersection_record.normalize_and_flip_normals(current_state.ray);
     intersection_record.align_normals();
     EiVector3d normal_shade = intersection_record.normal_shading; // Shading normal
 
@@ -99,8 +98,7 @@ void ray_specular(const RayState& current_state,
     const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     
-    intersection_record.flip_normals(current_state.ray);
-    //intersection_record.normalize_and_flip_normals(current_state.ray);
+    intersection_record.normalize_and_flip_normals(current_state.ray);
     intersection_record.align_normals();
     EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
     EiVector3d normal_shade = intersection_record.normal_shading; // Shading normal

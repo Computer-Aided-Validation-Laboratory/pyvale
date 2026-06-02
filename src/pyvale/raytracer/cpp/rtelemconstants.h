@@ -4,12 +4,14 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 #pragma once
-constexpr int NODE_COORDINATES = 3; // number of coordinates per each mesh node (x,y,z). Used for some of flat indexing
-constexpr int UV_COORDINATES = 2; // number of coordinates used for texturing (u,v). Used for some indexing
+#include <cstdint>
+
+constexpr int8_t NODE_COORDINATES = 3; // number of coordinates per each mesh node (x,y,z). Used for some of flat indexing
+constexpr int8_t UV_COORDINATES = 2; // number of coordinates used for texturing (u,v). Used for some indexing
 
 // Enum storing the number of nodes per element, so we can avoid hard-coding where possible and make it work with the Python data
 // Unscoped (not enum class) because we want the implicit casts to integers
-enum ElementNodeCount {
+enum ElementNodeCount : int8_t {
     TRI3 = 3,
     TRI6 = 6,
     QUAD4 = 4,
@@ -19,13 +21,13 @@ enum ElementNodeCount {
 
 // Scoped enum, so will not implicitly convert to int
 // Ensure that these match the enum in Python. Integers used to avoid using strings in C-interface
-enum class ShadingType{
+enum class ShadingType : int {
     FLAT = 0,
     BLENDED = 1,
     ANGLE_AVG_BLENDED = 2
 };
 
-enum class SurfaceType{
+enum class SurfaceType : int {
     SOLID_COLOR = 0, 
     TEXTURE = 1
 };
@@ -38,7 +40,7 @@ enum MaterialType : int {
     UNLIT = 4 
 };
 
-enum class ObjectType {
+enum class ObjectType : int {
     SOLID = 0,
     SHELL = 1
 };
