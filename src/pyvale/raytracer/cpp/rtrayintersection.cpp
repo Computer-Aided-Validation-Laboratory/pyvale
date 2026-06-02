@@ -171,8 +171,6 @@ IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     }
 
     EiArrayD3d normals = cross_rowwise(corners_br-corners_bl, corners_tl-corners_tr).array(); // not normalised! Shape (faces,3); original code
-    //EiArrayD3d normals = cross_rowwise(corners_br-corners_bl, corners_tr-corners_bl).array(); // not normalised! Shape (faces,3); non-parallel 
-    //EiArrayD3d normals = cross_rowwise(corners_tr-corners_bl, corners_tl-corners_br).array(); // not normalised! Shape (faces,3); try using diagonals
     // Translate only the coordinates that need ray-origin subtraction
     corners_bl -= ray_origins;
     corners_br -= ray_origins;

@@ -33,9 +33,17 @@ struct HitRecord {
     //int material;
     int hit_blas_idx; // ID of the intersected BLAS
     int hit_blas_priority; // Priority of the intersected BLAS
+    
+    inline void flip_normals(const Ray& ray){
+        // Flips the geometric normal so that it points against the incoming ray. Function we always want to call after getting our intersection
+        if (ray.direction.dot(normal_surface) > 0.0) {
+            normal_surface = -normal_surface; // Flip normal if it hits the back face
+        }
+    }
 
     inline void normalize_and_flip_normals(const Ray& ray){
-        // Normalizes normals and flips the geometric normal so that it points against the incoming ray. Function we always want to call after getting our intersection
+        // Normalizes normals and flips the geometric normal so that it points against the incoming ray
+        // Used previously always after getting out of the intersection; but now our normals are always normalised, so deprecated
         normal_shading.stableNormalize(); // Stable normalize reduces risk of under- and over- flow
         normal_surface.stableNormalize();
         if (ray.direction.dot(normal_surface) > 0.0) {

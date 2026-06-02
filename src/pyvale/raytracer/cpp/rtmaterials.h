@@ -216,7 +216,8 @@ void ray_refractive(const RayState& current_state,
 
     // Ensure normals always point against the incident ray - for the nested volume case, we can flip normals like this;
     // for regular case, we cannot as we need the dot product to determine bool into to figure out if ray enters or exits; here we use priorities
-    intersection_record.normalize_and_flip_normals(current_state.ray);
+    //intersection_record.normalize_and_flip_normals(current_state.ray);
+    intersection_record.flip_normals(current_state.ray);
     intersection_record.align_normals();
     EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
     EiVector3d normal_shade = intersection_record.normal_shading; //  // Shading normal; use for Physics to dictate how light behaves
