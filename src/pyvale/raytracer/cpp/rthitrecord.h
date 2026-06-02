@@ -33,13 +33,6 @@ struct HitRecord {
     //int material;
     int hit_blas_idx; // ID of the intersected BLAS
     uint8_t hit_blas_priority; // Priority of the intersected BLAS
-    
-    inline void flip_normals(const Ray& ray){
-        // Flips the geometric normal so that it points against the incoming ray. Function we always want to call after getting our intersection
-        if (ray.direction.dot(normal_surface) > 0.0) {
-            normal_surface = -normal_surface; // Flip normal if it hits the back face
-        }
-    }
 
     inline void normalize_and_flip_normals(const Ray& ray){
         // Normalizes normals and flips the geometric normal so that it points against the incoming ray

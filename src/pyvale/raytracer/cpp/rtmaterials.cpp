@@ -28,8 +28,8 @@ void ray_diffuse(const RayState& current_state,
     // Use non-uniform Lambertian distribution weighed by cos of the angle between the indicent ray and surface normal. Scattering is more likely close to the normal.
     //EiVector3d emitted = intersection_record.emission;
     const EiVector3d p = intersection_record.point_intersection; // Point of intersection
-    const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
-    //const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
 
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce

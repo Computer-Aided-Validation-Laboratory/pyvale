@@ -106,15 +106,15 @@ void render_scene(const int image_height,
             output_filepath = output_directory;
             output_filepath.append(filename);
             //std::cout << "Rendering frame " << (timestep+1) << "/" << timestep_count << std::endl;
-            //std::chrono::time_point t1_render = std::chrono::high_resolution_clock::now();
+            std::chrono::time_point t1_render = std::chrono::high_resolution_clock::now();
             //CALLGRIND_START_INSTRUMENTATION;
             render_function_ptr(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
             //mock_ray_shoot(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
             //CALLGRIND_STOP_INSTRUMENTATION;
-            //std::chrono::time_point t2_render = std::chrono::high_resolution_clock::now();
+            std::chrono::time_point t2_render = std::chrono::high_resolution_clock::now();
             
-            //std::chrono::duration t_render = std::chrono::duration_cast<std::chrono::milliseconds>(t2_render - t1_render);
-            //std::cout << "Render time: " << t_render.count() << " ms \n";
+            std::chrono::duration t_render = std::chrono::duration_cast<std::chrono::milliseconds>(t2_render - t1_render);
+            std::cout << "Render time: " << t_render.count() << " ms \n";
         }
 
             //std::chrono::duration t_build = std::chrono::duration_cast<std::chrono::nanoseconds>(t2_build - t1_build);

@@ -22,6 +22,8 @@ inline double clip(double number, double lower_boundary, double upper_boundary){
     return std::max(lower_boundary, std::min(number, upper_boundary));
 }
 
+/*
+// Not thread safe
 static std::uniform_real_distribution<double> distribution(0.0, 1.0);
 static std::mt19937 generator; // No seed
 //static std::mt19937 generator(123456u); // With seed to get deterministic results for regression tests. Guaranteed to get the same sequence for the same seed via the C++ standard
@@ -32,6 +34,22 @@ inline double random_double() {
 
 static std::uniform_real_distribution<double> distribution2(-1.0, 1.0);
 inline double random_double_disk() {
+    return distribution2(generator);
+}
+*/
+
+// Thread safe
+inline double random_double() {
+    thread_local std::uniform_real_distribution<double> distribution(0.0, 1.0);
+    thread_local std::mt19937 generator; // No seed
+    //static std::mt19937 generator(123456u); // With seed to get deterministic results for regression tests. Guaranteed to get the same sequence for the same seed via the C++ standard
+    //thread_local std::mt19937 generator(std::random_device{}()); // If we want to ensure each thread gets unique sequence
+    return distribution(generator);
+}
+
+inline double random_double_disk() {
+    thread_local std::uniform_real_distribution<double> distribution2(-1.0, 1.0);
+    thread_local std::mt19937 generator;
     return distribution2(generator);
 }
 

@@ -25,7 +25,9 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
     const TLAS& TLAS){
 
     EiVector3d total_color = EiVector3d::Zero();
-    std::vector<RayState> stack;
+    //std::vector<RayState> stack; // Not thread safe
+    thread_local std::vector<RayState> stack; // Thread safe
+    stack.clear();
     stack.reserve(MAX_DEPTH);
     stack.emplace_back(primary_ray, scene_ri);
 
