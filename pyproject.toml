@@ -55,4 +55,5 @@ ninja.make-fallback = false
 build-dir = "build"
 
 [tool.uv]
-exclude-newer = "30 days"
+required-version = ">=0.9.17"
+exclude-newer = "P30D"
