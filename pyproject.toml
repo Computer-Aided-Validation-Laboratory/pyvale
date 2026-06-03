@@ -53,3 +53,7 @@ build.verbose = false
 logging.level = "INFO"
 ninja.make-fallback = false
 build-dir = "build"
+
+[tool.uv]
+required-version = ">=0.9.17"
+exclude-newer = "P30D"
