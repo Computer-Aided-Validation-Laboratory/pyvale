@@ -240,7 +240,7 @@ def test_fft_large():
                      seed=[250,250],
                      subset_size=31,
                      subset_step=15,
-                     max_displacement=100,
+                     max_displacement=200,
                      correlation_criteria="ZNSSD",
                      shape_function="RIGID",
                      method="MULTIWINDOW",
