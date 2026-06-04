@@ -32,29 +32,6 @@ struct InteriorEntry{
     InteriorEntry(EiVector3d absorption_, double ri_, int priority_, int blas_idx_) : absorption(absorption_), refractive_index(ri_), priority(priority_), blas_idx(blas_idx_) {};
 };
 
-
-/*
-// Struct to store ray data in the stack-based shader
-// Size: 48 + 24 + 16 x 10 + 8 + 4 x 2 =  248 bytes
-struct RayState{
-    Ray ray;
-    EiVector3d accumulated_color {EiVector3d(1.0, 1.0, 1.0)}; // Accumulated multipliers (albedo, Fresnel terms, etc.)
-    double outer_refractive_index {1.0003}; // Refractive index of the material where the ray originates; might be removed later, depending on how the interior list works
-    int depth {0};
-
-    //Constructors
-    // First two are for the initial state with primary rays
-    RayState(Ray ray_): ray(ray_) {};
-    RayState(Ray ray_, double outer_refractive_index_): ray(ray_), outer_refractive_index(outer_refractive_index_) {};
-    RayState(Ray ray_, EiVector3d accumulated_color_, double outer_refractive_index_, int depth_):
-        ray(ray_),
-        accumulated_color(accumulated_color_),
-        outer_refractive_index(outer_refractive_index_),
-        depth(depth_) {};
-};
-
-*/
-
 // Struct to store ray data in the stack-based shader
 // Size: 48 + 24 + 16 x 10 + 8 + 2 + 1 =  243 bytes
 struct RayState{
@@ -109,7 +86,7 @@ inline bool interior_toggle(InteriorEntry* interior_list,
     // Add or remove the entry (toggle) for BLAS_ID.
     //Returns true if ray entered the object (add antry), false if exited (remove entry)
 
-    uint8_t idx = interior_find(interior_list, count, blas_idx);
+    int idx = interior_find(interior_list, count, blas_idx);
     if (idx >= 0){ // Exit: swap-erase
         interior_list[idx] = interior_list[count - 1];
         --count;
@@ -139,7 +116,7 @@ inline EiVector3d find_top_absorption(const InteriorEntry* interior_list,
     const EiVector3d& fallback) { //
     // Finds the top refractive index in the interior list
     // fallback_ri = scene_ri
-    uint8_t idx = interior_highest_priority_idx(interior_list, interior_count);
+    int idx = interior_highest_priority_idx(interior_list, interior_count);
     return (idx < 0) ? fallback : interior_list[idx].absorption;
 }
 
@@ -203,7 +180,8 @@ void ray_refractive(const RayState& current_state,
     EiVector3d next_accumulated_color_refracted = next_accumulated_color_reflected;
     const EiVector3d p = intersection_record.point_intersection; // Point of intersection
     //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
-    const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    //const double OFFSET = std::numeric_limits<double>::epsilon() * 1000.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    const double OFFSET = intersection_record.ray_offset;
     const double spawned_ray_t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm()); // t_min for the spawned secondary rays 
     EiVector3d ray_direction = current_state.ray.direction;
    
@@ -219,6 +197,7 @@ void ray_refractive(const RayState& current_state,
     double scene_ri = current_state.outer_refractive_index;
     double ri_from = find_top_ri(&current_state.interior_list[0], current_state.interior_count, scene_ri);
     
+    //std::cerr << "Check interior list in ray refractive" << std::endl;
     // Build the refraction ray's interior list = parent list toggled by the current object
     std::array<InteriorEntry, INTERIOR_LIST_MAX> refracted_list;
     uint8_t refracted_count = current_state.interior_count;
@@ -249,7 +228,7 @@ void ray_refractive(const RayState& current_state,
         //const int existing_idx = interior_find(&current_state.interior_list[0], current_state.interior_count, hit_idx);
 
         // For reflected ray, the list is the copy of the parent list
-        // 'to-index' = ri of the highest-priority entry in the REFRACTION ray's list, or scene_ri if empty
+        // to-index = ri of the highest-priority entry in the REFRACTION ray's list, or scene_ri if empty
         // NB: when entering the hit object, this is just hit_ri if hit_priority is the new max; the formula handles both cases uniformly
         ri_to = find_top_ri(&refracted_list[0], refracted_count, scene_ri); 
     }
@@ -294,7 +273,7 @@ void ray_refractive(const RayState& current_state,
         reflectance = (2.0 * R) / (1.0 + R); // Closed form double-interface for a shell with thickness
     }
     else if constexpr (object_type == ObjectType::SOLID){
-        double reflectance = R0 + (1 - R0) * (c * c * c * c * c);
+        reflectance = R0 + (1 - R0) * (c * c * c * c * c);
     }
 
     double transmittance = 1 - reflectance;
@@ -309,6 +288,7 @@ void ray_refractive(const RayState& current_state,
     refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_shade; // Transmitted/refracted direction
     refracted_ray.direction.stableNormalize();
     refracted_ray.t_min = spawned_ray_t_min;
+
 
     if constexpr (object_type == ObjectType::SHELL) {
         // Thin shell: do not move into a new volume; keep the stack unchanged
@@ -351,7 +331,7 @@ void ray_refractive(const RayState& current_state,
                 stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, current_state.interior_list,
                     scene_ri, current_state.depth + 1, current_state.interior_count);
             }
-            else if (object_type == ObjectType::SOLID){
+            else if constexpr (object_type == ObjectType::SOLID){
                 stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, refracted_list,
                     scene_ri, current_state.depth + 1, refracted_count);
             }

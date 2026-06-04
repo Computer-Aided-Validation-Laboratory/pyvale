@@ -154,7 +154,7 @@ struct IntersectionOutput;
 
 // Struct size (worst case):
 // Vector: number of elements in the mesh * 2653 bytes
-// Rest: 48 + 16 + 8 (64-bit system) + 8 x 2 + 8 (64-bit system) x 2 + 4 x 3 = 116 bytes
+// Rest: 48 + 16 + 8 (64-bit system) + 8 x 2 + 8 (64-bit system) x 2 + 2 x 4 x 3 = 120 bytes
 struct BLAS {
     std::vector<BLAS_Node> tree_nodes;
     AABB bounding_box {};
@@ -169,7 +169,8 @@ struct BLAS {
     // Uncomment the below 2 lines if deciding to go for switch-based dispatch in return_ray_color
     //ObjectType object_type;
     //int material;
-    int priority; // Priority - tells us the ordering of nested volumes in the scene
+    double ray_offset {0.0}; // Offset for secondary rays based on the bounding box diagonal
+    int priority {0}; // Priority - tells us the ordering of nested volumes in the scene
     int root_idx {-1};
     int blas_idx {-1}; // ID in TLAS, used for handling nested refractive volumes without OOP/pointers
 

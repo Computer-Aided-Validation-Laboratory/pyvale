@@ -30,7 +30,7 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
 
     // Go through all the triangles and find an intersection of each triangle with a ray
     static constexpr int NODES_PER_ELEMENT = static_cast<int>(ElementNodeCount::TRI3); // Number of nodes per triangle/quad. Used for some of flat indexing.
-    double EPSILON = 1e-10;
+    static constexpr double EPSILON = 1e-10;
     // Ray data broadcasted to use in vectorised operations on matrices
     // This is faster than doing it in a loop
     EiVectorD3d ray_directions = ray.direction.replicate(bvh_node_triangle_count, 1);
@@ -131,7 +131,7 @@ IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     // More specifically: Chapter 8, "Cool Patches: A Geometric Approach to Ray/Bilinear Patch Intersections" by A. Reshetov
 
     static constexpr int COORDS_PER_ELEMENT = static_cast<int>(ElementNodeCount::QUAD4) * NODE_COORDINATES;
-    static constexpr double EPSILON = 1e-10;
+    static constexpr double EPSILON = 1e-10; // This works sensibly so long as we don't have a mesh of size like 0.001 (in whatever world units are chosen), but adaptive epsilon setting could probably be useful
     
     // 1. COORDINATES AND EDGES
     // Ray data broadcasted to use in vectorised operations on matrices
@@ -1115,6 +1115,7 @@ void intersect_BLAS(const Ray& ray,
                 intersection_record.point_intersection = ray_at_t(closest_t, ray);
                 intersection_record.normal_surface = out_intersection.geometric_normals.row(min_row_idx);
                 intersection_record.ray_material_ptr = mesh_bvh.ray_material_ptr;
+                intersection_record.ray_offset = mesh_bvh.ray_offset;
                  // Uncomment the below 2 lines if deciding to go for switch-based dispatch in return_ray_color
                 //intersection_record.material = mesh_bvh.material;
                 //intersection_record.object_type = mesh_bvh.object_type;
@@ -1159,7 +1160,7 @@ bool intersect_TLAS(const Ray& ray,
             //std::cout << "TLAS: Leaf node reached with " << Node.blas_count << " BLASes." << std::endl;
             int node_max_index = Node.min_blas_idx + Node.blas_count;
             for (int i = Node.min_blas_idx; i < node_max_index; ++i){
-                // Note: Comment out the below check if MAX_ELEMENTS_PER_LEAF = 1; in build_TLAS because then TLAS node AABB = BLAS AABB, so this check is unnecessary
+                // Note: Comment out the below check if MAX_ELEMENTS_PER_LEAF = 1; in build_TLAS because then TLAS node AABB = BLAS AABB, so this check is unnecessary and we can also remove AABB from BLAS struct
                 if (!intersect_AABB(ray, scene_TLAS.blases[i].bounding_box)) continue; // Early exit if the ray does not intersect the AABB of the BLAS (mesh).
                 //std::cout << " TLAS: Intersected BLAS index: " << i << std::endl;
                 intersect_BLAS(ray, scene_TLAS.blases[i], out_intersection, out_intersection_record);

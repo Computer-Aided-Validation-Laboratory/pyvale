@@ -16,7 +16,7 @@
 // Forward declaration (incomplete types) so we can use them in function pointers in BLAS while avoiding circular dependencies
 struct RayState;
 
-// Struct size [bytes]: 6 x 24 + 3 x 8 + 2 x 4 + 1 = 177 bytes
+// Struct size [bytes]: 6 x 24 + 3 x 8 + 3 x 4 + 1 = 181 bytes
 struct HitRecord {
     EiVector3d point_intersection {EiVector3d::Zero()}; // Where ray intersects the mesh element
     EiVector3d normal_surface {EiVector3d::Zero()}; // Geometric normal (might not be needed; tbd)
@@ -25,8 +25,9 @@ struct HitRecord {
     EiVector3d face_color {EiVector3d::Zero()}; // 3D color - already sampled from texture or solid surface color. Albedo for diffuse/specular materials, absorption for refractive ones
     EiVector3d emission{ EiVector3d::Zero() };     // light source
     double t {std::numeric_limits<double>::infinity()};
-    double refractive_index;
-    double thickness;
+    double refractive_index {1.0003};
+    double thickness {1.0};
+    double ray_offset {0.0};
     void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
     // Uncomment the below 2 lines if deciding to go for switch-based dispatcj in return_ray_color
     //ObjectType object_type;

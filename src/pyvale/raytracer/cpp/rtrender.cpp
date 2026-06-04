@@ -16,7 +16,7 @@
 #include "rtrayintersection.h"
 #include "rtmaterials.h"
 
-static constexpr int MAX_DEPTH = 500; // Max depth for the secondary rays
+static constexpr int MAX_DEPTH = 50; // Max depth for the secondary rays
 
 // Radiance with refractive materials - but we could make this into a separate option if refractive materials are present in the scene to avoid needing to branch into true/false hits if not necessary?
 // This case would also have its own separate HitRecord, RayState structs since we could carry less data and fit more of those into cache lines
@@ -44,7 +44,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
         const bool hit_anything = intersect_TLAS(current_ray, TLAS, intersection, intersection_record);
 
         EiVector3d absorption = EiVector3d::Zero(); // Set default absorption to 0.0 = clear medium
-        bool has_medium = current_state.interior_count > 0; // Check if our ray has traversed any media that could attenuate the accumulated colour
+        const bool has_medium = current_state.interior_count > 0; // Check if our ray has traversed any media that could attenuate the accumulated colour
         if (has_medium){
             absorption = find_top_absorption(&current_state.interior_list[0], current_state.interior_count, EiVector3d::Zero());
         }
@@ -59,9 +59,11 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
             continue; // Early termination - no bounces here anyway
         }
 
+        
         if (has_absorption){
-            // path length = path_length = (intersection_record.point_intersection - current_ray.origin).norm() if we calculate things with unnormalised ray directions; or simply intersection point for normalised values
-            double path_length = intersection_record.point_intersection.norm();
+            // Note that since we store t from the ray equation ray(t) = origin_vector + t * direction_vector, t = (intersection_record.point_intersection - current_ray.origin).norm() (this has been tested within the code, too)
+            //double path_length = intersection_record.point_intersection.norm();
+            double path_length = intersection_record.t;
             apply_absorption(current_state.accumulated_color, absorption, path_length);
         }
        
@@ -88,15 +90,18 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
             
             // Check if it is a true hit
             if (!(current_state.interior_count == 0 || hit_priority >= top_priority)){
+                //std::cerr << "Inside interior count check" << std::endl;
                 // False hit: priority of hit object < max priority in interior list (Schmidt's algorithm for nested volumes)
                 // => Do not shade; re-cast the ray from hit point in the same direction by pushing a new RayState whose origin is the current hit point
                 RayState next_state = current_state;
                 interior_toggle(&next_state.interior_list[0], next_state.interior_count, hit_idx, hit_priority, hit_ri, intersection_record.face_color);
                 // Offset the ray minimnally to avoid self-intersecting - much like we do for all secondary rays
+                /*
                 const double offset = std::numeric_limits<double>::epsilon() * 10.0 *
                     std::max({std::fabs(intersection_record.point_intersection.x()),
                     std::fabs(intersection_record.point_intersection.y()),
-                    std::fabs(intersection_record.point_intersection.z())});
+                    std::fabs(intersection_record.point_intersection.z())});*/
+                const double offset = intersection_record.ray_offset;
                 next_state.ray.origin = intersection_record.point_intersection + offset * current_ray.direction;
                 next_state.ray.direction = current_ray.direction;
                 next_state.ray.t_min = current_ray.t_min;
@@ -106,7 +111,6 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
                 continue;
             }
         }
-
         // Explicit depth limit with ambient fallback
         if (current_state.depth >= MAX_DEPTH) {
             // Add a fallback ambient color to compensate for truncated energy 
@@ -115,6 +119,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
             total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission + ambient_fallback);
             continue; 
         }
+        
         
         EiVector3d albedo = intersection_record.face_color;
         if (current_state.depth > MAX_DEPTH/2) { // Start early termination if we are at least halfway through the maximum allowed depth

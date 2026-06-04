@@ -29,7 +29,8 @@ void ray_diffuse(const RayState& current_state,
     //EiVector3d emitted = intersection_record.emission;
     const EiVector3d p = intersection_record.point_intersection; // Point of intersection
     //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
-    const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    //const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    const double OFFSET = intersection_record.ray_offset;
 
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
@@ -95,7 +96,8 @@ void ray_specular(const RayState& current_state,
     //EiVector3d emitted = intersection_record.emission;
     const EiVector3d p = intersection_record.point_intersection; // Point of intersection
     //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
-    const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    //const double OFFSET = std::numeric_limits<double>::epsilon() * 10.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
+    const double OFFSET = intersection_record.ray_offset;
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     
     intersection_record.normalize_and_flip_normals(current_state.ray);
@@ -112,7 +114,7 @@ void ray_specular(const RayState& current_state,
         reflected = ray_direction - 2 * ray_direction.dot(normal_geo) * normal_geo;
     }
     Ray ray_new;
-    ray_new.origin = intersection_record.point_intersection - normal_geo * OFFSET;
+    ray_new.origin = intersection_record.point_intersection + normal_geo * OFFSET;
     ray_new.direction = reflected.stableNormalized();
     ray_new.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
 
