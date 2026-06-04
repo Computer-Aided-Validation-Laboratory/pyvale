@@ -78,8 +78,10 @@ docs/source/doxygen
 src/pyvale/cython/rastercyth.c
 src/pyvale/cython/rastercyth.html
 
-# Ruff linting cache
 .ruff_cache/
+.antigravitycli/
+/.*/
+uv.lock
 
 #-------------------------------------------------------------------------------
 # Python Standard Ignore
