@@ -144,6 +144,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
     std::vector<WindowLevel> multiwindow_r;
     subset::Grid *ss_grid_r = nullptr;
     ResultArrays stereo_matches;
+    ResultArrays results_ref_r;
     ResultArrays results_def_r;
     stereo::Geometry stereo_geom;
     common_util::SaveConfig saveconf_stereo;
@@ -153,6 +154,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
     // main bulk of initialisation for stereo matching
     int match_strat=3;
+
+    ResultArrays results_ref_l(ss_grid_l.num, conf.num_params, false);
 
     if (conf.stereo){
 
@@ -165,13 +168,48 @@ void engine(const py::array_t<bool>& img_roi_arr,
         interp_ref_r = make_interp(conf.interp_routine, img_ref_r);
 
         // resize the results based on subset information
+        results_ref_r = ResultArrays(ss_grid_l.num, conf.num_params, true);
         results_def_r = ResultArrays(ss_grid_l.num, conf.num_params, true);
 
         // sort out intrinsic and extrinsic matrices into struct
         stereo_geom = stereo::compute_stereo_geometry(calib);
+
+
+        Image img_l = read_img(conf.fullpaths[0]);
+        Image img_r = read_img(conf.fullpaths[conf.num_def_img+1]);
+        std::unique_ptr<Interpolator> interp_l = make_interp(conf.interp_routine, img_l);
+        std::unique_ptr<Interpolator> interp_r = make_interp(conf.interp_routine, img_r);
+
+        // do an initial stereo match
+        stereo::matching(img_l,
+                         img_r,
+                         *interp_l,
+                         *interp_r,
+                         ss_grid_l,
+                         conf,
+                         0,
+                         conf.num_def_img+1,
+                         stereo_geom.F,
+                         results_ref_l,
+                         results_def_r);
+
+
+        stereo::pixel_to_world(ss_grid_l,
+                            calib,
+                            results_def_l,
+                            results_ref_r,
+                            results_def_r,
+                            stereo_geom.K0,
+                            stereo_geom.K1,
+                            stereo_geom.R,
+                            conf.ss_size,
+                            true);
+
+        results_ref_r = results_def_r;
+
+        results_def_l.write_to_disk_stereo(results_def_r, saveconf, ss_grid_l, basenames_l[0]);
     }
 
-    ResultArrays results_ref_l(ss_grid_l.num, conf.num_params, false);
 
     // loop over deformed images. They start at index 1 in the stack
     for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){
@@ -332,9 +370,16 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
             }
 
-            multiwindow_rg(img_ref_l, img_def_l, *interp_ref_l, *interp_def_l,
-                        multiwindow_l, conf, img_num_ref_l, img_num_def_l,
-                        results_ref_l, results_def_l);
+            multiwindow_rg(img_ref_l, 
+                           img_def_l, 
+                           *interp_ref_l, 
+                           *interp_def_l,
+                           multiwindow_l, 
+                           conf, 
+                           img_num_ref_l, 
+                           img_num_def_l,
+                           results_ref_l, 
+                           results_def_l);
 
 
             // ------------------------------------------------------------
@@ -348,27 +393,32 @@ void engine(const py::array_t<bool>& img_roi_arr,
                 }
 
                 stereo::matching(img_def_l,
-                                img_def_r,
-                                *interp_def_l,
-                                *interp_def_r,
-                                multiwindow_l.back().layout,
-                                conf,
-                                img_num_def_l,
-                                img_num_def_r,
-                                stereo_geom.F,
-                                results_def_l,
-                                results_def_r);
+                                 img_def_r,
+                                 *interp_def_l,
+                                 *interp_def_r,
+                                 multiwindow_l.back().layout,
+                                 conf,
+                                 img_num_def_l,
+                                 img_num_def_r,
+                                 stereo_geom.F,
+                                 results_def_l,
+                                 results_def_r);
 
                 stereo::pixel_to_world(multiwindow_l.back().layout,
                                     calib,
                                     results_def_l,
+                                    results_ref_r,
                                     results_def_r,
                                     stereo_geom.K0,
                                     stereo_geom.K1,
                                     stereo_geom.R,
                                     conf.ss_size);
             }
-            if (update_ref) results_ref_l = results_def_l;
+
+            if (update_ref) {
+                results_ref_l = results_def_l;
+                if (conf.stereo) results_ref_r = results_def_r;
+            }
 
         }
         else {

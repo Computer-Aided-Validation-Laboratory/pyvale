@@ -173,7 +173,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
                 << full_filename
                 << file_ext;
 
-    outfile << std::fixed << std::setprecision(6);
+    outfile << std::fixed << std::setprecision(8);
 
     // set the img var to 0 after opening file if not saving at end
     //if (!saveconf.at_end) results_num = 0;
@@ -327,7 +327,7 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
                 << full_filename
                 << file_ext;
 
-    outfile << std::fixed << std::setprecision(6);
+    outfile << std::fixed << std::setprecision(8);
 
     // set the img var to 0 after opening file if not saving at end
     //if (!saveconf.at_end) results_num = 0;

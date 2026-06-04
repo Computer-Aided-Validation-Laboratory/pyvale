@@ -191,8 +191,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     if (isinstance(reference[0], (str, Path)) and isinstance(deformed[0], (str, Path)) and 
         isinstance(reference[1], (str, Path)) and isinstance(deformed[1], (str, Path))):
 
-        basenames0, fullpaths0, w0, h0 = dicchecks.check_images(reference[0],deformed[0],roi_mask,debug_level)
-        basenames1, fullpaths1, w1, h1 = dicchecks.check_images(reference[1],deformed[1],roi_mask,debug_level)
+        basenames0, fullpaths0, w0, h0, temp_dir = dicchecks.check_images(reference[0],deformed[0],roi_mask,debug_level)
+        basenames1, fullpaths1, w1, h1, temp_dir = dicchecks.check_images(reference[1],deformed[1],roi_mask,debug_level)
     else:
         raise ValueError("Currently only file paths are accepted for reference and deformed images. Please provide paths to the images you want to analyze.")
 
@@ -306,3 +306,14 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
         diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+
+
+    if temp_dir is not None:
+
+        # delete each file in filename
+        for filename in os.listdir(temp_dir):
+            file_path = os.path.join(temp_dir, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+
+        os.rmdir(temp_dir)

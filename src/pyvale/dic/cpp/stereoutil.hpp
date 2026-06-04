@@ -189,11 +189,13 @@ namespace stereo {
     void pixel_to_world(const subset::Grid &ss_grid,
                         const Calib &calib,
                         ResultArrays &temporal,
-                        ResultArrays &stereo,
+                        ResultArrays &stereo_ref,
+                        ResultArrays &stereo_def,
                         const Eigen::Matrix3d &K0,
                         const Eigen::Matrix3d &K1,
                         const Eigen::Matrix3d &R, 
-                        const int ss_size);
+                        const int ss_size,
+                        const bool first_frame=false);
 
 
 

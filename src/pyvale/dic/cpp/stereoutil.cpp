@@ -40,12 +40,13 @@ namespace stereo {
     void pixel_to_world(const subset::Grid &ss_grid,
                         const Calib &calib,
                         ResultArrays &temporal,
-                        ResultArrays &stereo,
+                        ResultArrays &stereo_ref,
+                        ResultArrays &stereo_def,
                         const Eigen::Matrix3d &K0,
                         const Eigen::Matrix3d &K1,
                         const Eigen::Matrix3d &R, 
-                        const int ss_size
-                        ){
+                        const int ss_size,
+                        const bool first_frame){
 
         Eigen::Vector3d t(calib.translation[0],calib.translation[1],calib.translation[2]);
         Eigen::Matrix<double,3,4> P0, P1;
@@ -57,7 +58,7 @@ namespace stereo {
         #pragma omp for schedule(dynamic, 10)
         for (int ss = 0; ss < ss_grid.num; ss++){
             
-            if (!temporal.above_thresh[ss] || !stereo.above_thresh[ss])
+            if ((!first_frame && !temporal.above_thresh[ss]) || !stereo_def.above_thresh[ss])
                 continue;
 
             // centre coords left
@@ -65,15 +66,9 @@ namespace stereo {
             double cy_l = ss_grid.coords[ss*2+1] + temporal.v[ss];
 
             // centre coords right
-            double cx_r = ss_grid.coords[ss*2] + stereo.u[ss];
-            double cy_r = ss_grid.coords[ss*2+1] + stereo.v[ss];
-            // double cx_r = cx_l+stereo.u[ss];
-            // double cy_r = cy_l+stereo.v[ss];
+            double cx_r = ss_grid.coords[ss*2] + stereo_def.u[ss];
+            double cy_r = ss_grid.coords[ss*2+1] + stereo_def.v[ss];
         
-            // std::cout << ss_grid.coords[2*ss] << " " << ss_grid.coords[2*ss+1] << " ";
-            // std::cout << cx_l << " " << cy_l << " " << temporal.cost[ss] << " ";
-            // std::cout << cx_r << " " << cy_r << " " << stereo.cost[ss] << std::endl;
-
             // undistorted pixel value
             double u_cx_l, u_cx_r, u_cy_l, u_cy_r;
             stereo::undistortPoint(u_cx_l, u_cy_l, cx_l, cy_l, K0, calib.cam0.distortion);
@@ -103,9 +98,20 @@ namespace stereo {
             double Y_mm = X(1);
             double Z_mm = X(2);
 
-            stereo.x_world[ss] = X_mm;
-            stereo.y_world[ss] = Y_mm;
-            stereo.z_world[ss] = Z_mm;
+            stereo_def.x_world[ss] = X_mm;
+            stereo_def.y_world[ss] = Y_mm;
+            stereo_def.z_world[ss] = Z_mm;
+
+            if (first_frame) {
+                stereo_def.u_world[ss] = 0.0;
+                stereo_def.v_world[ss] = 0.0;
+                stereo_def.w_world[ss] = 0.0;
+            }
+            else {
+                stereo_def.u_world[ss] = stereo_def.x_world[ss] - stereo_ref.x_world[ss];
+                stereo_def.v_world[ss] = stereo_def.y_world[ss] - stereo_ref.y_world[ss];
+                stereo_def.w_world[ss] = stereo_def.z_world[ss] - stereo_ref.z_world[ss];
+            }
         }
     }
 

@@ -117,30 +117,24 @@ void matching(const Image &img_l,
                     int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
                     // get the centre coordinates for the subset in img k0
-                    double cx_img0 = ss_grid.coords[2*idx];
-                    double cy_img0 = ss_grid.coords[2*idx+1];
-
+                    double cx_ref_l = ss_grid.coords[2*idx];
+                    double cy_ref_l = ss_grid.coords[2*idx+1];
 
                     // get the centre coordinates for the subset in img k
-                    double cx = cx_img0;
-                    double cy = cy_img0;
-                    if (img_num_def_l>0){
-                        // displacements are from k0 to k
-                        cx += results_l.u[idx];
-                        cy += results_l.v[idx];
-                    }
+                    double cx_def_l = cx_ref_l + results_l.u[idx];
+                    double cy_def_l = cy_ref_l + results_l.v[idx];
 
                     // populate the subset for img k using shape function parameters
                     // that map subset in img k0 to k.
                     opt.copy_params_from_neigh(results_l.p, idx);
-                    subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
+                    subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
 
                     // if the first image. Take the optimization parameters from rigid fourier
-                    get_initial_guess(opt.p, cx, cy, false);
+                    get_initial_guess(opt.p, cx_def_l, cy_def_l, false);
 
                     // run optimizer
-                    OptResult seed_res = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
-                    rg::check_convergence(cx_img0, cy_img0, seed_res);
+                    OptResult seed_res = opt.solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r, true);
+                    rg::check_convergence(cx_ref_l, cy_ref_l, seed_res);
 
                     // add deformation from reference image to new results
                     if (img_num_def_l > 0){
@@ -181,28 +175,24 @@ void matching(const Image &img_l,
                         // subset index of neighbour to the current point
                         int nidx = ss_grid.neigh[idx][n];
 
-                        double cx_img0 = ss_grid.coords[nidx*2];
-                        double cy_img0 = ss_grid.coords[nidx*2+1];
+                        double cx_ref_l = ss_grid.coords[nidx*2];
+                        double cy_ref_l = ss_grid.coords[nidx*2+1];
 
-
-                        double cx = cx_img0;
-                        double cy = cy_img0;
-
-                        cx += results_l.u[nidx];
-                        cy += results_l.v[nidx];
+                        double cx_def_l = cx_ref_l + results_l.u[nidx];
+                        double cy_def_l = cy_ref_l + results_l.v[nidx];
 
                         // fill the reference subset using the updated cx,cy and
                         // the shape function parameters for the correlation of
                         // the reference image
                         opt.copy_params_from_neigh(results_l.p, nidx);
-                        subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
+                        subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
 
                         // perform optimization for seed point neighbours
                         opt.copy_params_from_neigh(results_r.p, idx);
 
-                        OptResult nres = opt.solve(cx, cy, ss_l, ss_r, interp_r, true);
+                        OptResult nres = opt.solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r, true);
 
-                        rg::check_convergence(cx_img0, cy_img0, nres, false);
+                        rg::check_convergence(cx_ref_l, cy_ref_l, nres, false);
 
                         // add deformation from reference image to new results
                         std::vector<double> pA(conf.num_params);
@@ -280,30 +270,27 @@ void matching(const Image &img_l,
                     if (expected == 0) {
 
                         // coords of neigh
-                        double cx_img0 = ss_grid.coords[nidx*2];
-                        double cy_img0 = ss_grid.coords[nidx*2+1];
+                        double cx_ref_l = ss_grid.coords[nidx*2];
+                        double cy_ref_l = ss_grid.coords[nidx*2+1];
 
-                        // add displacements from base to subset coords in img0
-                        double cx = cx_img0;
-                        double cy = cy_img0;
-
-                        cx += results_l.u[nidx];
-                        cy += results_l.v[nidx];
+                        // add displacements from base to subset coords in ref_l
+                        double cx_def_l = cx_ref_l + results_l.u[nidx];
+                        double cy_def_l = cy_ref_l + results_l.v[nidx];
 
                         // fill the reference subset using the updated cx,cy and
                         // the shape function parameters for the correlation of
                         // the reference image
                         opt.copy_params_from_neigh(results_l.p, nidx);
-                        subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
+                        subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
                         if (results_r.above_thresh[current.idx])
                             opt.copy_params_from_neigh(results_r.p, current.idx);
                         else
-                            get_initial_guess(opt.p, cx, cy, false);
+                            get_initial_guess(opt.p, cx_def_l, cy_def_l, false);
 
                         // optimize
-                        OptResult nres = opt.solve(cx, cy, ss_l, ss_r, interp_r);
+                        OptResult nres = opt.solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r);
 
                         // add deformation from reference image to new results
                         if (nres.above_thresh){
@@ -396,14 +383,14 @@ void matching(const Image &img_l,
         //         }
         //
         //         if (best_neigh != -1) {
-        //             double cx_img0 = ss_grid.coords[idx*2];
-        //             double cy_img0 = ss_grid.coords[idx*2+1];
-        //             double cx = cx_img0 + (img_num_l > 0 ? results_l.u[idx] : 0);
-        //             double cy = cy_img0 + (img_num_l > 0 ? results_l.v[idx] : 0);
+        //             double cx_ref_l = ss_grid.coords[idx*2];
+        //             double cy_ref_l = ss_grid.coords[idx*2+1];
+        //             double cx = cx_ref_l + (img_num_l > 0 ? results_l.u[idx] : 0);
+        //             double cy = cy_ref_l + (img_num_l > 0 ? results_l.v[idx] : 0);
         //
         //             // Re-fill reference
         //             opt.copy_params_from_neigh(results_l.p, idx * conf.num_params);
-        //             subset::fill_from_shape_params(ss_l, cx_img0, cy_img0, opt.p, interp_l, conf.shape_func);
+        //             subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
         //
         //             // Use best neighbor's converged parameters as the new starting point
         //             opt.copy_params_from_neigh(results_r.p, best_neigh * conf.num_params);

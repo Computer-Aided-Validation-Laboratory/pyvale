@@ -6,7 +6,7 @@
 
 from .dic2d import calculate_2d
 from .dic3d import calculate_3d
-from .dicdataimport import import_2d
+from .dicimport2d import import_2d
 from .dicregionofinterest import RegionOfInterest
 from .dicresults import Results
 from .diccpp import Bspline, Interpolator
