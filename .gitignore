@@ -46,6 +46,8 @@ test-input/
 !tests/mooseherder/output_gold/sim-workdir-*/*.json
 !tests/mooseherder/txt_gold/*.csv
 !tests/mooseherder/txt_gold/*.npy
+!tests/blender/2D_gold/*.npy
+!tests/blender/3D_gold/*.npy
 
 # Image deformation test cases
 *.pkl
