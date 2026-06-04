@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
-
+import os
 from logging import debug
 import numpy as np
 from pathlib import Path
@@ -185,11 +185,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     # make sure ROI is in the correct format
     roi_c = np.ascontiguousarray(roi_mask)
 
-    if isinstance(reference, (str, Path)) and isinstance(deformed, (str, Path)):
-        basenames, fullpaths, w, h = dicchecks.check_images(reference,deformed,roi_mask, debug_level)
-    else:
-        raise ValueError("Currently only file paths are accepted for reference and deformed images. Please provide paths to the images you want to analyze.")
-        #image_stack, roi_c, basenames, fullpaths = dicchecks.check_and_get_images(reference,deformed,roi_mask, debug_level)
+    basenames, fullpaths, w, h, temp_dir = dicchecks.check_images(reference,deformed,roi_mask, debug_level)
 
 
     # string to enum
@@ -297,3 +293,17 @@ def calculate_2d(reference: np.ndarray | str | Path,
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
         diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+
+
+    # if there's a temp dir and the reference and deformed are np.ndarray
+    if temp_dir is not None and isinstance(reference, np.ndarray) and isinstance(deformed, np.ndarray):
+
+        # delete each file in filename
+        for filename in os.listdir(temp_dir):
+            file_path = os.path.join(temp_dir, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+
+        os.rmdir(temp_dir)
+
+

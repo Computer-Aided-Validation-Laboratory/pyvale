@@ -21,7 +21,7 @@ class ScanMethod(str, Enum):
     MULTIWINDOW_RG = "MULTIWINDOW_RG"
     SINGLEWINDOW_RG = "SINGLEWINDOW_RG"
     MULTIWINDOW = "MULTIWINDOW"
-    IMAGE = "IMAGE"
+    RASTER = "RASTER"
 
 class Shape(str, Enum):
     RIGID = "RIGID"
@@ -400,9 +400,9 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
 #         Image.fromarray(img_array).save(output_path)
 
 
-def check_images(reference: str | Path,
-                 deformed: str | Path | list[Path],
-                 roi: np.ndarray, debug_level: int) -> tuple[list[str], list[str], int, int]:
+def check_images(reference: np.ndarray | str | Path,
+                 deformed: np.ndarray | str | Path | list[Path],
+                 roi: np.ndarray, debug_level: int) -> tuple[list[str], list[str], int, int, Path | None]:
     """
     Validate reference and deformed images, checks consistency in shape/format.
 
@@ -424,7 +424,7 @@ def check_images(reference: str | Path,
     deformed : np.ndarray, str, pathlib.Path, list[pathlib.Path]
         Either a NumPy array representing a sequence of deformed images (shape: [N, H, W]),
         or a glob pattern string pointing to multiple image files.
-    std::cout << img_num_l << " " << img_num_r << std::endl;
+    roi : np.ndarray
         A 2D NumPy array defining the region of interest. Must match the reference image shape
         if ``reference`` is an array.
     debug_level: int
@@ -436,6 +436,14 @@ def check_images(reference: str | Path,
         List of base filenames of all images (empty if images are passed as arrays).
     fullpath : list of str
         List of full paths of all images (empty if images are passed as arrays).
+    w : int
+        Width of the images in pixels.
+    h : int
+        Height of the images in pixels.
+    temp_dir : pathlib.Path or None
+        Path to the temporary directory created to store array-based images on disk.
+        ``None`` if file-based input was used. Caller is responsible for cleanup
+        (e.g. ``shutil.rmtree(temp_dir)``).
 
     Raises
     ------
@@ -449,6 +457,7 @@ def check_images(reference: str | Path,
 
     basename = []
     fullpath = []
+    temp_dir = None
 
     # Normalize Path or str to Path
     if isinstance(reference, (str, Path)):
@@ -456,7 +465,7 @@ def check_images(reference: str | Path,
     if isinstance(deformed, (str, Path)):
         deformed = Path(deformed)
 
-    # check matching filetypes 
+    # check matching filetypes
     if isinstance(reference, np.ndarray):
         # both must be arrays
         if not isinstance(deformed, np.ndarray):
@@ -472,25 +481,16 @@ def check_images(reference: str | Path,
 
     # File-based input
     if isinstance(reference, Path):
-        assert isinstance(reference, Path)
-
         if not reference.is_file():
             raise ValueError(f"Reference image does not exist: {reference}")
 
-
-        if (debug_level>0):
+        if debug_level > 0:
             print("Using reference image: ")
             print(f"  - {reference}\n")
 
-        # Load reference image
         ref_img = Image.open(reference)
 
-        # if ref_arr.ndim == 3:
-        #     if (debug_level>0):
-        #         print(f"Reference image appears to have {ref_arr.shape[2]} channels. Using channel 0.")
-        #     ref_arr = ref_arr[:, :, 0]
-
-        if (debug_level>0):
+        if debug_level > 0:
             print(f"Reference image shape: {ref_img.size}")
             print("")
 
@@ -505,62 +505,88 @@ def check_images(reference: str | Path,
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
-
-
         if debug_level > 1:
             print(f"Found {len(files)} deformation images:")
             for file in files:
                 print(f"  - {file}")
             print("")
 
-        # populate filenames list. Stars with ref image.
         basename.extend(os.path.basename(f) for f in files)
         fullpath.extend(str(f) for f in files)
 
-        #def_arr = np.zeros((len(files), *ref_arr.size), dtype=ref_arr.dtype)
-
         for i, file in enumerate(files):
             def_img = Image.open(file)
-            # if img.ndim == 3:
-            #     print(f"Deformed image {file} appears to have {img.shape[2]} channels. Using channel 0.")
-            #     img = img[:, :, 0]
             if def_img.size != ref_img.size:
                 raise ValueError(f"Shape mismatch: '{file}' has shape {def_img.size}, expected {ref_img.size}")
-            #def_arr[i] = img
 
-
-    #TODO: Sort out the array based input
     # Array-based input
+    else:
+        assert isinstance(reference, np.ndarray)
+        assert isinstance(deformed, np.ndarray)
 
-    # else:
-    #     assert isinstance(reference, np.ndarray)
-    #     assert isinstance(deformed, np.ndarray)
-    #     ref_arr = reference
-    #     def_arr = deformed
-    #
-    #     # user might only pass a single deformed image. need to convert to 'stack'
-    #     if (reference.shape == deformed.shape):
-    #         def_arr = def_arr.reshape((1,def_arr.shape[0],def_arr.shape[1]))
-    #
-    #     elif (reference.shape != deformed[0].shape or reference.shape != roi.shape):
-    #         raise ValueError(f"Shape mismatch: reference={reference.shape}, "
-    #                          f"deformed[0]={deformed[0].shape}, roi={roi.shape}")
-    #
-    #     # check ROI dimensions agrees with reference image
-    #     if (reference.shape != roi.shape):
-    #         raise ValueError(f"Shape mismatch: reference={reference.shape}, "
-    #                          f"roi={roi.shape}")
-    #
-    #     # need to set some dummy filenames in the case that the user passes numpy arrays
-    #     basename = ["ref_img"]
-    #     for f in range(0,def_arr.shape[0]):
-    #         basename.append(f"def_img_{f:04d}")
-    #
+        ref_arr = reference
+        def_arr = deformed
+
+        # Promote a single deformed image to a stack [1, H, W]
+        if ref_arr.shape == def_arr.shape:
+            def_arr = def_arr.reshape((1, def_arr.shape[0], def_arr.shape[1]))
+
+        # Validate shapes
+        if ref_arr.shape != def_arr[0].shape:
+            raise ValueError(
+                f"Shape mismatch: reference={ref_arr.shape}, deformed[0]={def_arr[0].shape}"
+            )
+
+        if ref_arr.shape != roi.shape:
+            raise ValueError(
+                f"Shape mismatch: reference={ref_arr.shape}, roi={roi.shape}"
+            )
+
+        # Drop channel dim if multi-channel
+        if ref_arr.ndim == 3:
+            if debug_level > 0:
+                print(f"Reference array has {ref_arr.shape[2]} channels. Using channel 0.")
+            ref_arr = ref_arr[:, :, 0]
+
+        # Create a tmp directory under cwd
+        temp_dir = Path.cwd() / "tmp_dic"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+
+        if debug_level > 0:
+            print(f"Saving array images to temporary directory: {temp_dir}\n")
+
+        # Save reference image
+        ref_filename = "ref_img.bmp"
+        ref_path = temp_dir / ref_filename
+        Image.fromarray(ref_arr).save(ref_path)
+        basename.append(ref_filename)
+        fullpath.append(str(ref_path))
+
+        # Save deformed images
+        for i in range(def_arr.shape[0]):
+            frame = def_arr[i]
+            if frame.ndim == 3:
+                if debug_level > 0:
+                    print(f"Deformed array [{i}] has {frame.shape[2]} channels. Using channel 0.")
+                frame = frame[:, :, 0]
+
+            def_filename = f"def_img_{i:04d}.bmp"
+            def_path = temp_dir / def_filename
+            Image.fromarray(frame).convert("L").save(def_path)
+            basename.append(def_filename)
+            fullpath.append(str(def_path))
+
+        if debug_level > 1:
+            print(f"Saved {def_arr.shape[0]} deformed images to {temp_dir}")
+            for name in basename[1:]:
+                print(f"  - {name}")
+            print("")
+
+        ref_img = Image.open(ref_path)
+
     w, h = ref_img.size
 
-    return basename, fullpath, w, h
-
-
+    return basename, fullpath, w, h, temp_dir
 
 
 def print_title(a: str):

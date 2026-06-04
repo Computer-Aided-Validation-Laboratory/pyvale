@@ -207,7 +207,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // ----------------------------------------------------------------------------------------
         else if (conf.scan_method == "MULTIWINDOW") {
 
-            if (conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf)) {
+            bool update_ref = conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf);
+            if (update_ref) {
                 img_num_ref_l = img_num_def_l - 1;
                 img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
                 interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
@@ -258,7 +259,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                             img_num_ref_l, img_num_def_l, results_ref_l, results_def_l);
 
 
-            results_ref_l = results_def_l;
+            if (update_ref) results_ref_l = results_def_l;
         }
 
 
