@@ -259,3 +259,4 @@ docs/source/examples/
 # doxygen folder generated when compiling docs
 docs/source/doxygen
 
+.DS_Store

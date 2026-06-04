@@ -20,7 +20,7 @@ calculations.
 """
 
 
-def import_2d(data: str | Path,
+def import_2d(data: str | Path | list[Path],
               binary: bool = False,
               layout: str = "matrix",
               delimiter: str = ",") -> Results:
@@ -30,7 +30,7 @@ def import_2d(data: str | Path,
     Parameters
     ----------
 
-    data : str or pathlib.Path
+    data : str or pathlib.Path or list[pathlib.Path]
         Path pattern to the data files (can include wildcards). Default is "./".
 
     layout : str, optional
@@ -71,11 +71,13 @@ def import_2d(data: str | Path,
     if isinstance(data, Path):
         data = str(data)
 
-    files = sorted(glob.glob(data))
-    filenames = files
-    if not files:
-        raise FileNotFoundError(f"No results found in: {data}")
-
+    if isinstance(data, list):
+        files = list(map(str, data))
+    else:
+        files = sorted(glob.glob(data))
+        if not files:
+            raise FileNotFoundError(f"No results found in: {data}")
+    
     print(f"Found {len(files)} files containing DIC results:")
     for file in files:
         print(f"  - {file}")
@@ -131,7 +133,7 @@ def import_2d(data: str | Path,
 
         return Results(X, Y, arrays[0], arrays[1], arrays[2], arrays[3],
                           arrays[4], arrays[5], arrays[6], arrays[7], 
-                          shape_params, filenames)
+                          shape_params, files)
     # column layout
     else:
 
@@ -153,7 +155,7 @@ def import_2d(data: str | Path,
 
         return Results(ss_x_ref, ss_y_ref, arrays[0], arrays[1], arrays[2], arrays[3],
                           arrays[4], arrays[5], arrays[6], arrays[7], 
-                          shape_params, filenames)
+                          shape_params, files)
 
 
 
