@@ -12,7 +12,6 @@ from pathlib import Path
 import time
 from multiprocessing.pool import Pool
 import numpy as np
-import numba
 #import matplotlib.pyplot as plt
 import pyvale.dataset as dataset
 from pyvale.sensorsim.cameradata import CameraData
@@ -607,7 +606,6 @@ class RasterNP:
 
 
 #-------------------------------------------------------------------------------
-@numba.jit(nopython=True)
 def edge_function(vert_a: np.ndarray,
                   vert_b: np.ndarray,
                   vert_c: np.ndarray) -> np.ndarray:
@@ -615,7 +613,6 @@ def edge_function(vert_a: np.ndarray,
     return  ((vert_c[0] - vert_a[0]) * (vert_b[1] - vert_a[1])
               - (vert_c[1] - vert_a[1]) * (vert_b[0] - vert_a[0]))
 
-@numba.jit(nopython=True)
 def edge_function_slice(vert_a: np.ndarray,
                         vert_b: np.ndarray,
                         vert_c: np.ndarray) -> np.ndarray:
@@ -623,5 +620,3 @@ def edge_function_slice(vert_a: np.ndarray,
     return  ((vert_c[:,0] - vert_a[:,0]) * (vert_b[:,1] - vert_a[:,1])
               - (vert_c[:,1] - vert_a[:,1]) * (vert_b[:,0] - vert_a[:,0]))
 #-------------------------------------------------------------------------------
-
-
