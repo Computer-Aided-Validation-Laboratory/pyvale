@@ -339,8 +339,7 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
         for (int i = 0; i < ss_grid.num; ++i) {
 
             // if the subset has not met threshold, set values to nan
-            if ((!saveconf.output_below_threshold && !above_thresh[i]) ||
-               (!saveconf.output_below_threshold && !stereo.above_thresh[i])) {
+            if (!saveconf.output_below_threshold && !above_thresh[i]) {
 
                 u[i] = NAN;
                 v[i] = NAN;
@@ -355,6 +354,9 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
                 cost[i] = NAN;
                 ftol[i] = NAN;
                 xtol[i] = NAN;
+            }
+
+            if (!saveconf.output_below_threshold && !stereo.above_thresh[i]) {
                 stereo.cost[i] = NAN;
                 stereo.ftol[i] = NAN;
                 stereo.xtol[i] = NAN;
@@ -467,8 +469,7 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
 
             // if the subset has not met threshold, set values to nan
                         // if the subset has not met threshold, set values to nan
-            if ((!saveconf.output_below_threshold && !above_thresh[i]) ||
-               (!saveconf.output_below_threshold && !stereo.above_thresh[i])) {
+            if (!saveconf.output_below_threshold && !above_thresh[i]) {
 
                 u[i] = NAN;
                 v[i] = NAN;
@@ -483,6 +484,9 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
                 cost[i] = NAN;
                 ftol[i] = NAN;
                 xtol[i] = NAN;
+            }
+
+            if (!saveconf.output_below_threshold && !stereo.above_thresh[i]) {
                 stereo.cost[i] = NAN;
                 stereo.ftol[i] = NAN;
                 stereo.xtol[i] = NAN;
