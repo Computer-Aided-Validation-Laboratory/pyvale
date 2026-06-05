@@ -17,6 +17,7 @@
 #include "rtmaterials.h"
 
 static constexpr int MAX_DEPTH = 50; // Max depth for the secondary rays
+static constexpr double OFFSET_MAG = 100; // Secondary ray offset magnitude used to enlarge the base (machine epsilon, sitting at around 1e-12). To do: find the best value for that
 
 // Radiance with refractive materials - but we could make this into a separate option if refractive materials are present in the scene to avoid needing to branch into true/false hits if not necessary?
 // This case would also have its own separate HitRecord, RayState structs since we could carry less data and fit more of those into cache lines
@@ -31,7 +32,8 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
     stack.reserve(MAX_DEPTH);
     stack.emplace_back(primary_ray, scene_ri);
 
-    void (*ray_material_interaction_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color); // Pointer to the function determining the interaction between the ray and the mesh material
+    // Pointer to the function determining the interaction between the ray and the mesh material
+    void (*ray_material_interaction_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color, const double offset); 
 
     while(!stack.empty()){
         RayState current_state = stack.back();
@@ -62,14 +64,22 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
         
         if (has_absorption){
             // Note that since we store t from the ray equation ray(t) = origin_vector + t * direction_vector, t = (intersection_record.point_intersection - current_ray.origin).norm() (this has been tested within the code, too)
-            //double path_length = intersection_record.point_intersection.norm();
-            double path_length = intersection_record.t;
+            // double path_length = intersection_record.t;
+            // Needs to be double checked because the below shouldn't be correct, but it renders okay, whereas the above should be correct and ruins colours
+            double path_length = intersection_record.point_intersection.norm();
             apply_absorption(current_state.accumulated_color, absorption, path_length);
         }
        
         // Assign what happens with the secondary rays based on the material pointer
         ray_material_interaction_ptr = intersection_record.ray_material_ptr;
         
+        // Find the secondary ray offset factor based on the intersection point - we do it here, as it will potentially be reused in nested dielectrics
+        // and regular ray handling
+        const double adaptive_offset = std::numeric_limits<double>::epsilon() * OFFSET_MAG *
+                std::max({std::fabs(intersection_record.point_intersection.x()),
+                std::fabs(intersection_record.point_intersection.y()),
+                std::fabs(intersection_record.point_intersection.z())});
+
         // Handle nested dielectrics - if using function pointer approach
         // Classify nested dielectrics if material is refractive
         if (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID> || intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SHELL>) {
@@ -96,13 +106,8 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
                 RayState next_state = current_state;
                 interior_toggle(&next_state.interior_list[0], next_state.interior_count, hit_idx, hit_priority, hit_ri, intersection_record.face_color);
                 // Offset the ray minimnally to avoid self-intersecting - much like we do for all secondary rays
-                /*
-                const double offset = std::numeric_limits<double>::epsilon() * 10.0 *
-                    std::max({std::fabs(intersection_record.point_intersection.x()),
-                    std::fabs(intersection_record.point_intersection.y()),
-                    std::fabs(intersection_record.point_intersection.z())});*/
-                const double offset = intersection_record.ray_offset;
-                next_state.ray.origin = intersection_record.point_intersection + offset * current_ray.direction;
+                
+                next_state.ray.origin = intersection_record.point_intersection + adaptive_offset * current_ray.direction;
                 next_state.ray.direction = current_ray.direction;
                 next_state.ray.t_min = current_ray.t_min;
                 next_state.ray.t_max = std::numeric_limits<double>::infinity();
@@ -139,7 +144,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
         // Shade normally
         // Process ray and update the stack and total color based on the material of the intersected mesh
         // FUNCTION POINTER VARIANT
-        ray_material_interaction_ptr(current_state, intersection_record, albedo, stack, total_color);
+        ray_material_interaction_ptr(current_state, intersection_record, albedo, stack, total_color, adaptive_offset);
 
         // SWITCH DISPATCH VARIANT
         // Requires updating rtbvh.cpp and .h, rthitrecord, rtrayintersection (intersect_BLAS) to store material & object_type data

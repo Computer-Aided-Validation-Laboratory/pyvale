@@ -1115,7 +1115,6 @@ void intersect_BLAS(const Ray& ray,
                 intersection_record.point_intersection = ray_at_t(closest_t, ray);
                 intersection_record.normal_surface = out_intersection.geometric_normals.row(min_row_idx);
                 intersection_record.ray_material_ptr = mesh_bvh.ray_material_ptr;
-                intersection_record.ray_offset = mesh_bvh.ray_offset;
                  // Uncomment the below 2 lines if deciding to go for switch-based dispatch in return_ray_color
                 //intersection_record.material = mesh_bvh.material;
                 //intersection_record.object_type = mesh_bvh.object_type;

@@ -1006,12 +1006,8 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         set_BLAS_material(mesh_bvh, mesh_material, mesh_ri, scene_ri, mesh_object_type);
         mesh_bvh.priority = mesh_priorities[mesh_idx];
         mesh_bvh.thickness = scene_mesh_thickness[mesh_idx];
-        
-        // Find the offset of secondary rays for this mesh based on its AABB diagonal size
         mesh_bvh.bounding_box = mesh_aabb;
-        mesh_bvh.ray_offset = mesh_aabb.find_diagonal() * 1e-5;
-        //std::cerr << "Mesh BVH AABB diagonal: " << mesh_aabb.find_diagonal() << std::endl;
-        //std::cerr << "Mesh ray offset: " << mesh_bvh.ray_offset << std::endl;
+        
        
         int surface_type = scene_surface_types[mesh_idx];
 		nanobind::ndarray<const double, nanobind::c_contig> mesh_node_normals = scene_normals_expanded[mesh_idx];

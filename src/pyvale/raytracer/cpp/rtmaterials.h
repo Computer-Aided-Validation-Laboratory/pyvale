@@ -132,25 +132,29 @@ void ray_diffuse(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
-    EiVector3d& total_color);
+    EiVector3d& total_color,
+    const double offset);
 
 void ray_specular(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
-    EiVector3d& total_color);
+    EiVector3d& total_color,
+    const double offset);
 
 void ray_unlit(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
-    EiVector3d& total_color);
+    EiVector3d& total_color,
+    const double offset);
 
 void ray_undefined(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
-    EiVector3d& total_color);
+    EiVector3d& total_color,
+    const double offset);
 
 
 inline void apply_absorption(EiVector3d& accumulated_color, const EiVector3d& absorption, const double path_length){
@@ -167,7 +171,8 @@ void ray_refractive(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
     std::vector<RayState>& stack,
-    EiVector3d& total_color){
+    EiVector3d& total_color,
+    const double offset){
     // Secondary ray may reflect or refract
     // Depends on: surface normal, refractive indices, sometimes wavelength
     //EiVector3d emitted = intersection_record.emission;
@@ -180,8 +185,6 @@ void ray_refractive(const RayState& current_state,
     EiVector3d next_accumulated_color_refracted = next_accumulated_color_reflected;
     const EiVector3d p = intersection_record.point_intersection; // Point of intersection
     //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
-    //const double OFFSET = std::numeric_limits<double>::epsilon() * 1000.0 * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
-    const double OFFSET = intersection_record.ray_offset;
     const double spawned_ray_t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm()); // t_min for the spawned secondary rays 
     EiVector3d ray_direction = current_state.ray.direction;
    
@@ -248,7 +251,7 @@ void ray_refractive(const RayState& current_state,
     // Total internal reflection; should not occur for a thin shell
     if (sin2_theta_t > 1.0) {
         Ray reflected_ray;
-        reflected_ray.origin = intersection_record.point_intersection + normal_geo * OFFSET; // Push secondary rays slightly off the surface to remove the shadow acne
+        reflected_ray.origin = intersection_record.point_intersection + normal_geo * offset; // Push secondary rays slightly off the surface to remove the shadow acne
         reflected_ray.direction = reflected_dir;
         reflected_ray.t_min = spawned_ray_t_min;
         
@@ -280,7 +283,7 @@ void ray_refractive(const RayState& current_state,
 
     // Define new rays
     Ray reflected_ray;
-    reflected_ray.origin = intersection_record.point_intersection + normal_geo * OFFSET; // Push back into incident medium (i.e., off the surface)
+    reflected_ray.origin = intersection_record.point_intersection + normal_geo * offset; // Push back into incident medium (i.e., off the surface)
     reflected_ray.direction = reflected_dir;
     reflected_ray.t_min = spawned_ray_t_min;
 
@@ -293,7 +296,7 @@ void ray_refractive(const RayState& current_state,
     if constexpr (object_type == ObjectType::SHELL) {
         // Thin shell: do not move into a new volume; keep the stack unchanged
         // Offset slightly along the refracted direction to avoid immediately rehitting the same triangle.
-        //refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * OFFSET;
+        //refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * offset;
         EiVector3d in_slab_dir = refracted_ray.direction; // Refracted direction in-slab
         double cos_t_abs = std::max(1e-8, std::abs(in_slab_dir.dot(-normal_shade)));
         //std::cerr << "Cos t abs: " << cos_t_abs << std::endl;
@@ -306,13 +309,13 @@ void ray_refractive(const RayState& current_state,
         // Beer-Lambert law for the slab traversal. We consider it per channel
         const EiVector3d absorption = intersection_record.face_color; // sigma_a in Beer-Lambert law used for volumetric absorption to determine the tint
         apply_absorption(next_accumulated_color_refracted, absorption, path_in_slab);
-        refracted_ray.origin = exit_point - normal_geo * OFFSET;
+        refracted_ray.origin = exit_point - normal_geo * offset;
         refracted_ray.direction = ray_direction; // Parallel slabs cancel angular deflection, so the ougoing direction = incident direction; already normalised at creation
 
     }
     else if constexpr (object_type == ObjectType::SOLID){
          // Solid volume: push into the transmitted medium
-        refracted_ray.origin = intersection_record.point_intersection - normal_geo * OFFSET; // Push forward into new medium (i.e., into the surface)
+        refracted_ray.origin = intersection_record.point_intersection - normal_geo * offset; // Push forward into new medium (i.e., into the surface)
     }
 
     // Russian roulette between reflection and refraction

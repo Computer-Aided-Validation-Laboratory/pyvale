@@ -154,7 +154,7 @@ struct IntersectionOutput;
 
 // Struct size (worst case):
 // Vector: number of elements in the mesh * 2653 bytes
-// Rest: 48 + 16 + 8 (64-bit system) + 8 x 2 + 8 (64-bit system) x 2 + 2 x 4 x 3 = 120 bytes
+// Rest: 48 + 16 + 8 (64-bit system) + 8 x 2 + 8 (64-bit system) x 2 + 4 x 3 = 116 bytes
 struct BLAS {
     std::vector<BLAS_Node> tree_nodes;
     AABB bounding_box {};
@@ -165,11 +165,10 @@ struct BLAS {
     double thickness {1.0}; // Thickness of a SHELL mesh; unused for solids
     // Void function pointer will be 8 bytes in 64-bit system, 4 in a 32x, so this should be the best positioning of those for memory alignment
     void (*overwrite_intersection_function_ptr)(HitRecord&, const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx) {nullptr}; // Saving data to HitRecord depending on the surface type (color/texture) and element type
-    void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
+    void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color, const double offset) {nullptr}; // Pointer to the function determining the interaction between the ray and the mesh material
     // Uncomment the below 2 lines if deciding to go for switch-based dispatch in return_ray_color
     //ObjectType object_type;
     //int material;
-    double ray_offset {0.0}; // Offset for secondary rays based on the bounding box diagonal
     int priority {0}; // Priority - tells us the ordering of nested volumes in the scene
     int root_idx {-1};
     int blas_idx {-1}; // ID in TLAS, used for handling nested refractive volumes without OOP/pointers
