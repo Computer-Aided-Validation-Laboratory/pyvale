@@ -17,7 +17,7 @@
 #include "rtmaterials.h"
 
 static constexpr int MAX_DEPTH = 50; // Max depth for the secondary rays
-static constexpr double OFFSET_MAG = 100; // Secondary ray offset magnitude used to enlarge the base (machine epsilon, sitting at around 1e-12). To do: find the best value for that
+static constexpr double OFFSET_MAG = 10; // Secondary ray offset magnitude used to enlarge the base (machine epsilon, sitting at around 1e-16). To do: find the best value for that
 
 // Radiance with refractive materials - but we could make this into a separate option if refractive materials are present in the scene to avoid needing to branch into true/false hits if not necessary?
 // This case would also have its own separate HitRecord, RayState structs since we could carry less data and fit more of those into cache lines
@@ -63,10 +63,8 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
 
         
         if (has_absorption){
-            // Note that since we store t from the ray equation ray(t) = origin_vector + t * direction_vector, t = (intersection_record.point_intersection - current_ray.origin).norm() (this has been tested within the code, too)
-            // double path_length = intersection_record.t;
-            // Needs to be double checked because the below shouldn't be correct, but it renders okay, whereas the above should be correct and ruins colours
-            double path_length = intersection_record.point_intersection.norm();
+            // Since we store t from the ray equation ray(t) = origin_vector + t * direction_vector, t = (intersection_record.point_intersection - current_ray.origin).norm() (this has been confirmed within the code, too)
+            double path_length = intersection_record.t;
             apply_absorption(current_state.accumulated_color, absorption, path_length);
         }
        
@@ -75,10 +73,17 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
         
         // Find the secondary ray offset factor based on the intersection point - we do it here, as it will potentially be reused in nested dielectrics
         // and regular ray handling
+        // std::max because near world origin, we would have the offset close to 0/undeflow and users CAN place objects at origin
         const double adaptive_offset = std::numeric_limits<double>::epsilon() * OFFSET_MAG *
+            std::max({1.0,
+            std::fabs(intersection_record.point_intersection.x()),
+            std::fabs(intersection_record.point_intersection.y()),
+            std::fabs(intersection_record.point_intersection.z())});
+            /*
                 std::max({std::fabs(intersection_record.point_intersection.x()),
                 std::fabs(intersection_record.point_intersection.y()),
                 std::fabs(intersection_record.point_intersection.z())});
+            */
 
         // Handle nested dielectrics - if using function pointer approach
         // Classify nested dielectrics if material is refractive

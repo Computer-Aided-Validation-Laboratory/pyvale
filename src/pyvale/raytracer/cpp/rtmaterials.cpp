@@ -70,7 +70,12 @@ void ray_diffuse(const RayState& current_state,
     //ray_new.origin = intersection_record.point_intersection + direction_scatter * offset;
    
     EiVector3d direction_scatter = (b1 * cos(r1) * r2s + b2 * sin(r1) * r2s + normal_shade * sqrt(1 - r2));
-    ray_new.direction = direction_scatter.stableNormalized();
+    EiVector3d new_dir = direction_scatter.stableNormalized();
+    if (new_dir.squaredNorm() < 0.5){
+        new_dir = normal_shade; // Degenerate fallback - reuse normal
+    }
+    ray_new.direction = new_dir;
+    ray_new.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
 
     /*
     std::cerr << "DIFFUSE" << std::endl;

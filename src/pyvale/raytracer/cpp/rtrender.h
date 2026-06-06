@@ -83,6 +83,12 @@ void render_ppm_image(const EiVector3d& camera_center,
                     EiVector3d ray_origin = camera_center + defocus_disc_sample; // ray direction in thin lens approx
                     EiVector3d ray_direction = pixel_sample - ray_origin; // ray direction in thin lens approx
                     Ray current_ray{ ray_origin, ray_direction.stableNormalized() }; 
+                    EiVector3d sample = return_ray_color_stack(current_ray, scene_ri, TLAS);
+                    // Clamp fireflies - optional, makes images less bright
+                    //double lum = 0.2126*sample.x() + 0.7152*sample.y() + 0.0722*sample.z();
+                    //static constexpr double MAX_LUM = 10.0; // Tune per scene; hoist this out of the loop if using 
+                    //if (lum > MAX_LUM) sample *= MAX_LUM / lum;
+                    //pixel_color += sample;
                     pixel_color += return_ray_color_stack(current_ray, scene_ri, TLAS);
             
         }
@@ -92,9 +98,9 @@ void render_ppm_image(const EiVector3d& camera_center,
             pixel_color = pixel_color * color_scaling;
             if constexpr (color == RenderColor::GRAYSCALE) {
                 // Convert to a single-channel grayscale
+                pixel_color[0] = std::clamp(pixel_color[0], 0.0, 0.999);
                 double gray = 0.2126 * pixel_color[0] + 0.7152 * pixel_color[1] + 0.0722 * pixel_color[2];
                 // Clamp to the [0,1] range
-                std::clamp(pixel_color[0], 0.0, 0.999);
                 // Scale to bytes
                 uint8_t gray_byte = static_cast<uint8_t>(pixel_color[0] * 255.999);
                 buffer[px_idx] = gray_byte;

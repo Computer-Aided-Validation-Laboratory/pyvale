@@ -107,7 +107,7 @@ class SceneVisualiser:
         cam_size = self.vmeshes[0].diagonal_size() / 50 # Size of the camera is based on the diagonal size of the first mesh passed to the class
         camera_vmesh = vedo.Star3D(pos = self.camera.camera_center, r=cam_size, c="teal", alpha = 0.6)
         self.plotter.add(camera_vmesh)
-        lookat_width = cam_size/10
+        lookat_width = cam_size/100
         camera_lookat = vedo.Arrow2D(self.camera.camera_center, self.camera.point_camera_target, shaft_width = lookat_width, head_width = 6*lookat_width, c="indigo")
         self.plotter.add(camera_lookat)
         # Vedo asks for bottom left and top right corners, so we flip the x-axis to display the viewport correctly

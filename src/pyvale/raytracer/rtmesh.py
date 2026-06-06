@@ -355,6 +355,10 @@ class RTMesh:
             The scaling factor applied to the mesh.
         """
 
+        # Check that the size is within the bounds for which we can expect that the renders will still be correct with the given tolerances
+        if target_size <= 0.001:
+            return ValueError(f"The size {target_size} is too small and the render may feature artefacts that should not be there. Consider changing your world units to a larger magnitude.")
+
         size = self.get_size(timestep)
         current = size.max() if axis is None else size[axis.value]
         if current <= 0:
@@ -509,19 +513,14 @@ class RTMesh:
                 raise ValueError("Reference thickness cannot be negative.")
         else:
             if mesh_type == MeshType.SHELL:
-                reference_thickness = self.thickness
+                # x2 to account for thickness from both sides of the mesh, otherwise the shells come out far darker than the desired colour
+                reference_thickness = self.thickness*2
             elif mesh_type == MeshType.SOLID:
                 # For solids, set to the diagonal of the bounding box as a ballpark value that should give us decent enough values
                 # Below assumption is valid for previous mesh positioning/orienting where we were scaling the meshes massively, but in the new implementation, they are so small that they turn black
                 bounding_box = self._get_bounding_box()
                 diagonal = np.linalg.norm(bounding_box["max_corner"] - bounding_box["min_corner"])
-                #reference_thickness = diagonal 
-                # Safer assumption under the new implementation. Two options:
-                #reference_thickness = 1.0 # We just do not change the absorption. Meshes with target_size < 1 still come out dark, but not pitch black
-                # or
-                reference_thickness = diagonal * 10 # Artifically inflate it to get smaller absorption (since this is used to divide the value)
-                # With above, renders seem to come out better, regardless of their size, hence this is kept as a fallback
-                # Still, best if user passes their own value, based on whatever scene units they choose
+                reference_thickness = diagonal
         return reference_thickness
         
     def _set_thickness(self, thickness: float,
@@ -541,20 +540,28 @@ class RTMesh:
         Raises:
         -------
         ValueError:
-            If the reference thickness is negative.
+            If the reference thickness is negative or too small.
         """
         if mesh_type == MeshType.SOLID:
             if thickness is not None:
                 print("Thickness value is ignored for solid meshes.")
         elif mesh_type == MeshType.SHELL:
-            shell_thickness_cutoff = 0.1 * self.avg_element_length # Reissner-Mindlin cut-off for thickness that makes sense physically: 1/10 of a planar dimension, in this case edge length
+            # Reissner-Mindlin cut-off for thickness that makes sense physically: 1/10 of a planar dimension; we have 2 options, to be determined which one makes more sense for a ray-tracer
+            shell_thickness_cutoff_elem = 0.1 * self.avg_element_length # Mesh element edge length - might be too small if mesh is very fine
+            min_dimension_length = min(self.resting_aabb["max_corner"] - self.resting_aabb["min_corner"])
+            shell_thickness_cutoff_geom = 0.1 * min_dimension_length # Based on the smallest dimension of the mesh bounding box
             if thickness is None:
-                print(f"Thickness not set for a thin shell. Setting it to the maximum allowed value: {shell_thickness_cutoff:.6f}.") # Or we could just force it to be represented as solid?
-                self.thickness = shell_thickness_cutoff
+                #print(f"Thickness not set for a thin shell. Setting it to the maximum allowed value: {shell_thickness_cutoff_elem:.5f}.")
+                #self.thickness = shell_thickness_cutoff_shell
+                print(f"Thickness not set for a thin shell. Setting it to the maximum allowed value: {shell_thickness_cutoff_geom:.5f}.")
+                self.thickness = shell_thickness_cutoff_geom
             elif thickness < 0.0:
                 raise ValueError("Thickness of a shell cannot be negative.")
-            elif thickness > shell_thickness_cutoff:
-                raise ValueError(f"Thickness of the shell should not exceed 1/10th of the average edge length. The cut-off value is {shell_thickness_cutoff:.6f}. Current thickness is {thickness:.6f}.")
+            elif thickness > shell_thickness_cutoff_elem:
+                pass # Pass for now, because I found this cut-off to be too small
+                #raise ValueError(f"Thickness of the shell should not exceed 1/10th of the average edge length. The cut-off value is {shell_thickness_cutoff_elem:.6f}. Current thickness is {thickness:.6f}.")
+            elif thickness > shell_thickness_cutoff_geom: 
+                raise ValueError(f"Thickness of the shell should not exceed 1/10th of the smallest bounding box dimension. The cut-off value is {shell_thickness_cutoff_geom:.6f}. Current thickness is {thickness:.6f}.")
             else:
                 self.thickness = thickness
 
