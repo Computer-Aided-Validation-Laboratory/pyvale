@@ -83,7 +83,7 @@ void render_ppm_image(const EiVector3d& camera_center,
                     EiVector3d ray_origin = camera_center + defocus_disc_sample; // ray direction in thin lens approx
                     EiVector3d ray_direction = pixel_sample - ray_origin; // ray direction in thin lens approx
                     Ray current_ray{ ray_origin, ray_direction.stableNormalized() }; 
-                    EiVector3d sample = return_ray_color_stack(current_ray, scene_ri, TLAS);
+                    //EiVector3d sample = return_ray_color_stack(current_ray, scene_ri, TLAS);
                     // Clamp fireflies - optional, makes images less bright
                     //double lum = 0.2126*sample.x() + 0.7152*sample.y() + 0.0722*sample.z();
                     //static constexpr double MAX_LUM = 10.0; // Tune per scene; hoist this out of the loop if using 

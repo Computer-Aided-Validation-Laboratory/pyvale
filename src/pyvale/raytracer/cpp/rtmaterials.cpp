@@ -16,8 +16,6 @@
 #include "rtrayintersection.h"
 #include "rtmathutils.h"
 
-static constexpr double OFFSET_SHADOW = 1e-2;
-
 void ray_diffuse(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
@@ -27,15 +25,13 @@ void ray_diffuse(const RayState& current_state,
     // Secondary ray is randomly scattered from the hit point
     // Depends on: Incident ray direction
     // Use non-uniform Lambertian distribution weighed by cos of the angle between the indicent ray and surface normal. Scattering is more likely close to the normal.
-    //EiVector3d emitted = intersection_record.emission;
-    //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
 
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     EiVector3d next_accumulated_color = current_state.accumulated_color.cwiseProduct(albedo); // Pre-calculate the baseline for the next bounce
     
     intersection_record.normalize_and_flip_normals(current_state.ray);
     intersection_record.align_normals();
-    EiVector3d normal_shade = intersection_record.normal_shading; // Shading normal
+    const EiVector3d normal_shade = intersection_record.normal_shading; // Shading normal
 
     // Generate orthonormal basis (Hughes-Moller method)
     //EiVector3d b1 =
@@ -46,28 +42,25 @@ void ray_diffuse(const RayState& current_state,
     // Generate orthonormal basis (Duff et al. from Pixar method) (https://jcgt.org/published/0006/01/01/paper-lowres.pdf)
     // Determine the sign of the z-component using std::copysign to avoid branching
     // If n.z >= 0, sign is 1.0; else -1.0.
-    double sign = std::copysign(1.0f, normal_shade.z());
+    double sign = std::copysign(1.0, normal_shade.z());
     
     // Calculate intermediate values
-    double a = -1.0f / (sign + normal_shade.z());
+    double a = -1.0 / (sign + normal_shade.z());
     double b = normal_shade.x() * normal_shade.y() * a;
     
     // Generate the two perpendicular tangent vectors
-    EiVector3d b1 = EiVector3d(1.0f + sign * normal_shade.x() * normal_shade.x() * a, sign * b, -sign * normal_shade.x());
+    EiVector3d b1 = EiVector3d(1.0 + sign * normal_shade.x() * normal_shade.x() * a, sign * b, -sign * normal_shade.x());
     EiVector3d b2 = EiVector3d(b, sign + normal_shade.y() * normal_shade.y() * a, -normal_shade.y());
 
     // Cosine-weighted hemisphere sampling
-    //double r1 = 2 * M_PI * ((double)rand() / RAND_MAX);
-    //double r2 = (double)rand() / RAND_MAX;
     double r1 = 2 * M_PI * (random_double());
     double r2 = random_double();
     double r2s = sqrt(r2);
     
-    EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
+    const EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
 
     Ray ray_new;
     ray_new.origin = intersection_record.point_intersection + normal_geo * offset;
-    //ray_new.origin = intersection_record.point_intersection + direction_scatter * offset;
    
     EiVector3d direction_scatter = (b1 * cos(r1) * r2s + b2 * sin(r1) * r2s + normal_shade * sqrt(1 - r2));
     EiVector3d new_dir = direction_scatter.stableNormalized();
@@ -75,7 +68,9 @@ void ray_diffuse(const RayState& current_state,
         new_dir = normal_shade; // Degenerate fallback - reuse normal
     }
     ray_new.direction = new_dir;
-    ray_new.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
+    // Below is another safeguard (just like offsetting the spawned ray origin)
+    // Technically, you should be able to use one OR another, but many production renderers use both
+    ray_new.t_min = SPAWNED_T_MIN_BASE * std::max(1.0, intersection_record.point_intersection.norm());
 
     /*
     std::cerr << "DIFFUSE" << std::endl;
@@ -97,9 +92,7 @@ void ray_specular(const RayState& current_state,
     const double offset){
     // Secondary ray traced in the direction about the normal
     // Depends on: angle between the viewing direction and the surface normal
-    //EiVector3d emitted = intersection_record.emission;
     const EiVector3d p = intersection_record.point_intersection; // Point of intersection
-    //const double offset = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     
     intersection_record.normalize_and_flip_normals(current_state.ray);
@@ -118,9 +111,8 @@ void ray_specular(const RayState& current_state,
     Ray ray_new;
     ray_new.origin = intersection_record.point_intersection + normal_geo * offset;
     ray_new.direction = reflected.stableNormalized();
-    ray_new.t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm());
+    ray_new.t_min = SPAWNED_T_MIN_BASE * std::max(1.0, intersection_record.point_intersection.norm());
 
-    
     /* std::cerr << "SPECULAR" << std::endl;
     std::cerr << "\tShading normal: " << normal_shade.x() << ", " << normal_shade.y() << ", " << normal_shade.z() << std::endl;
     std::cerr << "\tGeometric normal: " << normal_geo.x() << ", " << normal_geo.y() << ", " << normal_geo.z() << std::endl;

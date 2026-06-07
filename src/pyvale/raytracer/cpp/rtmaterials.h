@@ -16,14 +16,16 @@
 #include "rtbvh.h"
 #include "rtmathutils.h"
 
-static constexpr uint8_t INTERIOR_LIST_MAX = 10; // Size of the interior list. Should be sufficient unless user embeds many volumes within one another
 // Use uint8_t for everything related as we would need 255 nested meshes to exceed this quantity. Highly unlikely to occur
+static constexpr uint8_t INTERIOR_LIST_MAX = 10; // Size of the interior list. Should be sufficient unless user embeds many volumes within one another
+static constexpr double SPAWNED_T_MIN_BASE = 1e-7;
+
 
 // Struct size 8 + 2 x 4 = 16 bytes
 struct InteriorEntry{
     EiVector3d absorption {EiVector3d::Zero()}; // (length unit)^-1, gives the tint/colour of the medium. (0.0, 0.0, 0.0) = clear
     double refractive_index {1.0003}; // Refractive index of the medium
-    int priority {-1}; // Priority - tells us the ordering of nested volumes in the scene (e.g.,lower number = higher priority)
+    int priority {-1}; // Priority - tells us the ordering of nested volumes in the scene (e.g., higher number = more nested)
     int blas_idx {-1}; // Index of the corresponding BLAS, so we know which mesh is intersected - used to index into TLAS
 
     // Constructor
@@ -184,8 +186,7 @@ void ray_refractive(const RayState& current_state,
     EiVector3d next_accumulated_color_reflected = current_state.accumulated_color.cwiseProduct(attenuation); 
     EiVector3d next_accumulated_color_refracted = next_accumulated_color_reflected;
     const EiVector3d p = intersection_record.point_intersection; // Point of intersection
-    //const double OFFSET = OFFSET_SHADOW * std::max({std::abs(p.x()), std::abs(p.y()), std::abs(p.z())});
-    const double spawned_ray_t_min = 1e-4 * std::max(1.0, intersection_record.point_intersection.norm()); // t_min for the spawned secondary rays 
+    const double spawned_ray_t_min = SPAWNED_T_MIN_BASE * std::max(1.0, intersection_record.point_intersection.norm()); // t_min for the spawned secondary rays 
     EiVector3d ray_direction = current_state.ray.direction;
    
 
@@ -240,32 +241,46 @@ void ray_refractive(const RayState& current_state,
     double cos_theta_i = std::clamp(-ray_direction.dot(normal_shade), 0.0, 1.0); // To avoid floating point errors
     EiVector3d reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_shade; // Reflection direction
     reflected_dir.stableNormalize();
-
+    
     if (reflected_dir.dot(normal_geo) < 0.0) { // If reflected ray points inside the geometry
-        reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_geo; 
+       double cos_theta_geo = std::max(0.0, -ray_direction.dot(normal_geo));
+        reflected_dir = ray_direction + 2.0 * cos_theta_geo * normal_geo;
+        reflected_dir.stableNormalize();
     }
 
     double ri_ratio = ri_from / ri_to; // In the nested implementation, these are already correct by construction
     double sin2_theta_t = ri_ratio * ri_ratio * (1.0 - cos_theta_i * cos_theta_i); // Sin^2 of the transmission angle
     
-    // Total internal reflection; should not occur for a thin shell
-    if (sin2_theta_t > 1.0) {
-        Ray reflected_ray;
-        reflected_ray.origin = intersection_record.point_intersection + normal_geo * offset; // Push secondary rays slightly off the surface to remove the shadow acne
-        reflected_ray.direction = reflected_dir;
-        reflected_ray.t_min = spawned_ray_t_min;
-        
-        stack.emplace_back(reflected_ray, next_accumulated_color_reflected, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
-        return;
+    // Check for Total Internal Reflection (TIR) - only for solid; in shell apprroximation it should never occur
+    if constexpr (object_type == ObjectType::SOLID){
+        if (sin2_theta_t > 1.0) {
+            Ray reflected_ray;
+            reflected_ray.origin = intersection_record.point_intersection + normal_geo * offset; // Push secondary rays slightly off the surface to remove the shadow acne
+            reflected_ray.direction = reflected_dir;
+            reflected_ray.t_min = spawned_ray_t_min;
+            
+            stack.emplace_back(reflected_ray, next_accumulated_color_reflected, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
+            return;
+        }
     }
-    
+
     // Schlick's approximation
     double a = ri_to - ri_from;
     double b = ri_to + ri_from;
     double R0 = (a * a) / (b * b);
 
     // Use cosine of the medium with the lower index of refraction
-    double cos_theta_t = sqrt(1.0 - sin2_theta_t);
+    double cos_theta_t = 0.0;
+    if constexpr (object_type == ObjectType::SHELL){
+        // TIR does not occur for SHELLs so we skip the return path when sin2_theta_t > 1.0 (possible close to grazing angles)
+        // In this case we'd have 1.0 - sin2_theta_t < 0 => Sqrt of that is imaginary => We clamp it
+        cos_theta_t = std::sqrt(std::max(0.0, 1.0 - sin2_theta_t));
+    }
+    else if constexpr (object_type == ObjectType::SOLID){
+        // No need to clamp - we won't reach this point if sin2_theta_t > 1.0
+        cos_theta_t = std::sqrt(1.0 - sin2_theta_t);
+    }
+    
     double c = 1 - (ri_from <= ri_to ? cos_theta_i : cos_theta_t);
 
     double reflectance = 0.0;
@@ -310,12 +325,16 @@ void ray_refractive(const RayState& current_state,
         const EiVector3d absorption = intersection_record.face_color; // sigma_a in Beer-Lambert law used for volumetric absorption to determine the tint
         apply_absorption(next_accumulated_color_refracted, absorption, path_in_slab);
         refracted_ray.origin = exit_point - normal_geo * offset;
+        // Some engines offset along the refracted direction - in my tests, this was worse, but keeping it here as an option
+        //refracted_ray.origin = exit_point + refracted_ray.direction * offset;
         refracted_ray.direction = ray_direction; // Parallel slabs cancel angular deflection, so the ougoing direction = incident direction; already normalised at creation
 
     }
     else if constexpr (object_type == ObjectType::SOLID){
          // Solid volume: push into the transmitted medium
         refracted_ray.origin = intersection_record.point_intersection - normal_geo * offset; // Push forward into new medium (i.e., into the surface)
+        // Some engines offset along the refracted direction - in my tests, this was worse, but keeping it here as an option
+        //refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * offset;
     }
 
     // Russian roulette between reflection and refraction

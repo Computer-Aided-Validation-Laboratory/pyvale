@@ -17,7 +17,7 @@
 #include "rtmaterials.h"
 
 static constexpr int MAX_DEPTH = 50; // Max depth for the secondary rays
-static constexpr double OFFSET_MAG = 10; // Secondary ray offset magnitude used to enlarge the base (machine epsilon, sitting at around 1e-16). To do: find the best value for that
+static constexpr double OFFSET_MAG = 1e7; // Secondary ray offset magnitude used to enlarge the base (machine epsilon, sitting at around 1e-16). To do: find the best value for that; current gets us to 1e-9
 
 // Radiance with refractive materials - but we could make this into a separate option if refractive materials are present in the scene to avoid needing to branch into true/false hits if not necessary?
 // This case would also have its own separate HitRecord, RayState structs since we could carry less data and fit more of those into cache lines
@@ -79,15 +79,11 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
             std::fabs(intersection_record.point_intersection.x()),
             std::fabs(intersection_record.point_intersection.y()),
             std::fabs(intersection_record.point_intersection.z())});
-            /*
-                std::max({std::fabs(intersection_record.point_intersection.x()),
-                std::fabs(intersection_record.point_intersection.y()),
-                std::fabs(intersection_record.point_intersection.z())});
-            */
 
         // Handle nested dielectrics - if using function pointer approach
         // Classify nested dielectrics if material is refractive
-        if (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID> || intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SHELL>) {
+        if (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID>) {
+        //if (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID> || intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SHELL>) {
 
             int hit_idx = intersection_record.hit_blas_idx;
             int hit_priority = intersection_record.hit_blas_priority;
@@ -104,6 +100,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
             }
             
             // Check if it is a true hit
+            //if (current_state.interior_count > 0 && hit_priority < top_priority) {
             if (!(current_state.interior_count == 0 || hit_priority >= top_priority)){
                 //std::cerr << "Inside interior count check" << std::endl;
                 // False hit: priority of hit object < max priority in interior list (Schmidt's algorithm for nested volumes)
@@ -114,7 +111,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
                 
                 next_state.ray.origin = intersection_record.point_intersection + adaptive_offset * current_ray.direction;
                 next_state.ray.direction = current_ray.direction;
-                next_state.ray.t_min = current_ray.t_min;
+                next_state.ray.t_min = SPAWNED_T_MIN_BASE * std::max(1.0, intersection_record.point_intersection.norm());
                 next_state.ray.t_max = std::numeric_limits<double>::infinity();
                 // DO NOT INCREMENT DEPTH - false hits are invisible according to the paper, so they do not affect the ray bounce count or energy
                 stack.push_back(next_state);
@@ -135,7 +132,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
         if (current_state.depth > MAX_DEPTH/2) { // Start early termination if we are at least halfway through the maximum allowed depth
             // Russian roulette early termination
             // Clamp to prevent infinite loops (p=1.0) and division by zero (p=0.0)
-            double p = std::clamp(albedo.maxCoeff(), 0.05, 0.95);
+            double p = std::clamp(albedo.maxCoeff(), 0.1, 0.95);
             if (random_double() > p){  // Note: for multi-threading this will have to be replaced with thread_local generator
             //if ((double)rand() / RAND_MAX > p){ // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
                 //return emitted;

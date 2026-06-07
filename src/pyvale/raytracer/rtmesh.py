@@ -275,6 +275,38 @@ class RTMesh:
         # Update the rtmesh object
         self.node_coords_over_time = node_coords_over_time
 
+    def _compute_average_element_length(self) -> float:
+        """
+        Computes the average element edge length for validating thickness for shells and mesh scale.
+
+        Uses a rough approximate from the triangulated surface where need be for now as the length parameter does not work for 2D elements (i.e., not lines),
+        so we have to use the area and reverse engineer it.
+        It assumes that a ~ h, so A_triangle ~ 0.5 * 2a => A_triangle ~ a, which definitely is not the best method moving forward, but should be an okay-ish ballpark
+        cut-off value for non-degenerate elements.
+
+        Returns:
+        --------
+        float
+            The average element edge length.
+        """
+
+        pv_temp = self.pyvista_surface.compute_cell_sizes(area = True)
+        avg_element_length = np.mean(pv_temp.cell_data['Area'])
+        return avg_element_length
+    
+    def _set_element_length(self, element_length: float) -> None:
+        """
+        Checks if the element length is valid and unlikely to cause rendering errors and sets its value if it is valid.
+
+        Raises:
+        -------
+        ValueError:
+            If the element length is too small.
+        """
+        if element_length < 1e-4:
+            raise ValueError("Element size {element_length} is too small. Consider changing the world units to a larger magnitude.")
+        else:
+            self.avg_element_length = element_length
     
     def get_expanded_coords(self) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -356,20 +388,22 @@ class RTMesh:
         """
 
         # Check that the size is within the bounds for which we can expect that the renders will still be correct with the given tolerances
-        if target_size <= 0.001:
-            return ValueError(f"The size {target_size} is too small and the render may feature artefacts that should not be there. Consider changing your world units to a larger magnitude.")
+        # NB4: this will not be enough if the mesh is very fine, so this would be best updated to check for the avg_element_length 
+        #if target_size <= 0.001:
+        #    return ValueError(f"The size {target_size} is too small and the render may feature artefacts that should not be there. Consider changing your world units to a larger magnitude.")
 
         size = self.get_size(timestep)
         current = size.max() if axis is None else size[axis.value]
         if current <= 0:
             raise ValueError("Degenerate mesh.")
         factor = target_size / current
+        scaled_element_length = self.avg_element_length * factor
+        self._set_element_length(scaled_element_length) # This also checks the validity of mesh dimensions
         centre = self._get_bounding_box(timestep)["center"]
         # This will be None when we _orient_in_world at the moment of converting SimData/other meshes to RTMesh, so to avoid errors
         if self.node_coords_over_time is not None:
             self.node_coords_over_time[..., :] = (self.node_coords_over_time - centre) * factor + centre
         self.node_coords[...] = (self.node_coords - centre) * factor + centre
-        self.avg_element_length *= factor # If we use _orient_in_world, this is just 0 (default) * scaling factor, so harmless, and we can keep it without if statements
         self.pyvista_surface.points = (self.pyvista_surface.points - centre) * factor + centre # Update pyvista surface, so it displays properly in SeamSelector and UV unwrapping
         self.scale *= factor # Update scaling
         return factor
@@ -445,7 +479,8 @@ class RTMesh:
             Overrides the rotation pivot. Defaults to the post-scale bounding box centre.
         """
 
-        # 1. Scale
+        # 1. Set the element length  and scale
+        self.avg_element_length = self._compute_average_element_length()
         if target_size is not None:
             self.fit_size(target_size, axis=size_axis)
         
@@ -1515,12 +1550,8 @@ def create_rtmesh(rtmesh: RTMesh,
         rtmesh.tri_face_mapping = np.ascontiguousarray(mapped_face_ids, dtype=np.int64)
         rtmesh.tri_node_mapping = np.ascontiguousarray(mapped_coords, dtype=np.int64)
 
-    # Compute average element edge length for validating thickness for shells. We use a rough approximate from the triangulated surface where need be for now as the
-    # length parameter does not work for 2D elements (i.e., not lines), so we have to use the area and reverse engineer it
-    # We assume that a ~ h, so A_triangle ~ 0.5 * 2a => A_triangle ~ a, which definitely is not the best method moving forward, but should be an okay-ish ballpark
-    # cut-off value for non-degenerate elements
-    pv_temp = rtmesh.pyvista_surface.compute_cell_sizes(area = True)
-    rtmesh.avg_element_length = np.mean(pv_temp.cell_data['Area'])
+    # Assign average element length
+    rtmesh.avg_element_length = rtmesh._compute_average_element_length()
 
     # RenderMesh passed = processing SimData object
     if render_mesh is not None:
