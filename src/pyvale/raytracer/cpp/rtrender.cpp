@@ -215,6 +215,87 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
     return total_color;
 } 
 
+// Same as above but withous nested dielectrics, i.e., pure Beer-Lambert
+/*
+EiVector3d return_ray_color_stack(const Ray& primary_ray,
+    const double scene_ri,
+    const TLAS& TLAS){
+
+    EiVector3d total_color = EiVector3d::Zero();
+    thread_local std::vector<RayState> stack;
+    stack.clear();
+    stack.reserve(MAX_DEPTH);
+    stack.emplace_back(primary_ray, scene_ri);
+
+    void (*ray_material_interaction_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color, const double offset);
+
+    while(!stack.empty()){
+        RayState current_state = stack.back();
+        stack.pop_back();
+        const Ray& current_ray = current_state.ray;
+
+        HitRecord intersection_record;
+        IntersectionOutput intersection;
+        const bool hit_anything = intersect_TLAS(current_ray, TLAS, intersection, intersection_record);
+
+        if (!hit_anything) {
+            total_color += current_state.accumulated_color.cwiseProduct(ray_blue_sky(current_ray));
+            continue;
+        }
+
+        // Determine if the intersected material is refractive.
+        // Refractive materials manage their own absorption (Beer-Lambert) internally,
+        // so we must NOT apply it here — doing so causes double-absorption and black output.
+        const bool is_refractive = (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID>
+                                 || intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SHELL>);
+
+
+        // Assign material interaction function pointer
+        ray_material_interaction_ptr = intersection_record.ray_material_ptr;
+
+        // Adaptive offset to avoid self-intersection (shadow acne).
+        // std::max guards against underflow near the world origin.
+        const double adaptive_offset = std::numeric_limits<double>::epsilon() * OFFSET_MAG *
+            std::max({1.0,
+            std::fabs(intersection_record.point_intersection.x()),
+            std::fabs(intersection_record.point_intersection.y()),
+            std::fabs(intersection_record.point_intersection.z())});
+
+        // Hard depth cap with ambient fallback to avoid pure-black truncated paths
+        if (current_state.depth >= MAX_DEPTH) {
+            EiVector3d ambient_fallback = ray_blue_sky(current_ray) * 0.2;
+            total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission + ambient_fallback);
+            continue;
+        }
+
+        EiVector3d albedo = intersection_record.face_color;
+
+        if (current_state.depth > MAX_DEPTH / 2) {
+            // Russian roulette early termination
+            // For refractive materials, face_color is an absorption coefficient (sigma_a), not a reflectance
+            // We use albedo = attenuation = (1,1,1) for refractive materials so Russian roulette (RR) never fires against them here;
+            // ray_refractive handles its own internal RR separately.
+            EiVector3d rr_albedo = is_refractive ? EiVector3d(1.0, 1.0, 1.0) : albedo;
+            double p = std::clamp(rr_albedo.maxCoeff(), 0.1, 0.95);
+            if (random_double() > p) {
+                total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission);
+                continue;
+            }
+            // Only rescale albedo for non-refractive materials; dielectrics pass attenuation=(1,1,1)
+            // into ray_refractive regardless, so scaling face_color here would corrupt the absorption coefficient stored in the same variable
+            if (!is_refractive) {
+                albedo /= p;
+            }
+        }
+
+        ray_material_interaction_ptr(current_state, intersection_record, albedo, stack, total_color, adaptive_offset);
+
+    } // Stack while loop
+
+    return total_color;
+}
+*/
+
 /*
 // Previous version without nested refractive materials or Beer-Lambert
 EiVector3d return_ray_color_stack_nr(const Ray& primary_ray, const double scene_ri, const TLAS& TLAS){

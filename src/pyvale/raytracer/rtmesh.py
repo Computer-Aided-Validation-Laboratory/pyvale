@@ -590,8 +590,8 @@ class RTMesh:
                 #self.thickness = shell_thickness_cutoff_shell
                 print(f"Thickness not set for a thin shell. Setting it to the maximum allowed value: {shell_thickness_cutoff_geom:.5f}.")
                 self.thickness = shell_thickness_cutoff_geom
-            elif thickness < 0.0:
-                raise ValueError("Thickness of a shell cannot be negative.")
+            elif thickness <= 0.0:
+                raise ValueError("Thickness of a shell cannot be negative or zero.")
             elif thickness > shell_thickness_cutoff_elem:
                 pass # Pass for now, because I found this cut-off to be too small
                 #raise ValueError(f"Thickness of the shell should not exceed 1/10th of the average edge length. The cut-off value is {shell_thickness_cutoff_elem:.6f}. Current thickness is {thickness:.6f}.")

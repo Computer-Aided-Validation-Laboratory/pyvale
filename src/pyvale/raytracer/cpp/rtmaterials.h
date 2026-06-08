@@ -167,6 +167,7 @@ inline void apply_absorption(EiVector3d& accumulated_color, const EiVector3d& ab
     accumulated_color = accumulated_color.cwiseProduct(segment_transmission);
 };
 
+
 // Implementation with thickness for thin shell 
 template <ObjectType object_type>
 void ray_refractive(const RayState& current_state,
@@ -177,9 +178,7 @@ void ray_refractive(const RayState& current_state,
     const double offset){
     // Secondary ray may reflect or refract
     // Depends on: surface normal, refractive indices, sometimes wavelength
-    //EiVector3d emitted = intersection_record.emission;
     EiVector3d attenuation(1.0, 1.0, 1.0); // Instead of albedo as for refractive materials, we absorb nothing and we want to make sure that is the case
-    // Data stored in albedo can be used later for tinting, though, so we keep the interface
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
     // Pre-calculate the baseline for the next bounces
     // We split the values as in the Beer-Lambert implementation they will differ
@@ -313,22 +312,34 @@ void ray_refractive(const RayState& current_state,
         // Offset slightly along the refracted direction to avoid immediately rehitting the same triangle.
         //refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * offset;
         EiVector3d in_slab_dir = refracted_ray.direction; // Refracted direction in-slab
-        double cos_t_abs = std::max(1e-8, std::abs(in_slab_dir.dot(-normal_shade)));
-        //std::cerr << "Cos t abs: " << cos_t_abs << std::endl;
-        double thickness = intersection_record.thickness;
-        double path_in_slab = thickness / cos_t_abs; // Distance travelled inside the shell with given thickness
-        //std::cerr << "Path in slab: " << path_in_slab << std::endl;
-        EiVector3d exit_point = intersection_record.point_intersection + in_slab_dir * path_in_slab;
-        //std::cerr << "Exit point: " << exit_point << std::endl;
-        
-        // Beer-Lambert law for the slab traversal. We consider it per channel
-        const EiVector3d absorption = intersection_record.face_color; // sigma_a in Beer-Lambert law used for volumetric absorption to determine the tint
-        apply_absorption(next_accumulated_color_refracted, absorption, path_in_slab);
-        refracted_ray.origin = exit_point - normal_geo * offset;
-        // Some engines offset along the refracted direction - in my tests, this was worse, but keeping it here as an option
-        //refracted_ray.origin = exit_point + refracted_ray.direction * offset;
+        //double cos_t_abs = std::max(1e-8, std::abs(in_slab_dir.dot(-normal_shade)));
+        double cos_t_abs = std::abs(in_slab_dir.dot(-normal_shade));
+        // At grazing angles the slab model breaks down — we cap the path to avoid launching exit_point arbitrarily far from the surface
+        constexpr double COS_SHELL_MIN = 0.01; // ~89.4 degrees — beyond this, slab approximation is invalid
+        if (cos_t_abs < COS_SHELL_MIN) {
+            // Near-grazing: skip slab offset entirely, treat as zero-thickness
+            refracted_ray.origin = intersection_record.point_intersection - normal_geo * offset;
+            // Some engines offset along the refracted direction - in my tests, this was worse, but keeping it here as an option
+            //refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * offset;
+            // Still apply absorption with a capped path to avoid energy injection
+            double path_in_slab = intersection_record.thickness / COS_SHELL_MIN;
+            apply_absorption(next_accumulated_color_refracted, intersection_record.face_color, path_in_slab);
+        } else {
+            double path_in_slab = intersection_record.thickness / cos_t_abs;
+            apply_absorption(next_accumulated_color_refracted, intersection_record.face_color, path_in_slab); // here face_color is sigma_a (absorption coeff.) in Beer-Lambert law used for volumetric absorption to determine the tint
+            EiVector3d exit_point = intersection_record.point_intersection + in_slab_dir * path_in_slab;
+            refracted_ray.origin = exit_point - normal_geo * offset;
+            // Some engines offset along the refracted direction - in my tests, this was worse, but keeping it here as an option
+            //refracted_ray.origin = exit_point + refracted_ray.direction * offset;
+            double displacement = (exit_point - intersection_record.point_intersection).norm();
+            /*
+            if (displacement > 1.0) { // tune threshold to your scene scale
+            std::cerr << "Large slab displacement: " << displacement
+                    << " thickness=" << intersection_record.thickness
+                    << " cos_t_abs=" << cos_t_abs << std::endl;
+            } *///comment out here
+        }
         refracted_ray.direction = ray_direction; // Parallel slabs cancel angular deflection, so the ougoing direction = incident direction; already normalised at creation
-
     }
     else if constexpr (object_type == ObjectType::SOLID){
          // Solid volume: push into the transmitted medium
@@ -339,7 +350,8 @@ void ray_refractive(const RayState& current_state,
 
     // Russian roulette between reflection and refraction
     if (current_state.depth > 2) {
-        double P = 0.25 + 0.5 * reflectance; // Reflection's chance of surviving
+        //double P = 0.25 + 0.5 * reflectance; // <- This was giving nonsensical and overshot ray energy whenver reflectance was >= 0.5 (visible when we had multiple bounces)
+        double P = std::clamp(reflectance, 0.1, 0.9); // Reflection's chance of surviving; 0.1 to prevent division by 0, 0.9 to give transmission a chance to survive, too
         if (random_double() < P){ // Note: for multi-threading this will have to be replaced with thread_local generator
         //if ((double)rand() / RAND_MAX < P) { // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
             // Reflection works the same way for shells and solids
@@ -374,3 +386,239 @@ void ray_refractive(const RayState& current_state,
         return;
     }
 }
+
+
+// Implementation without nested dielectrics, i.e., pure Beer-Lambert (but we have InteriorEntry etc., because that was implemented first and the below was
+// reverse engineered purely for troubleshooting)
+/*
+template <ObjectType object_type>
+void ray_refractive(const RayState& current_state,
+    HitRecord& intersection_record,
+    const EiVector3d& albedo,
+    std::vector<RayState>& stack,
+    EiVector3d& total_color,
+    const double offset){
+    // Secondary ray may reflect or refract
+    // Depends on: surface normal, refractive indices, sometimes wavelength
+    //EiVector3d emitted = intersection_record.emission;
+    EiVector3d attenuation(1.0, 1.0, 1.0); // Instead of albedo as for refractive materials, we absorb nothing and we want to make sure that is the case
+    // Data stored in albedo can be used later for tinting, though, so we keep the interface
+    total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
+    // Pre-calculate the baseline for the next bounces
+    // We split the values as in the Beer-Lambert implementation they will differ
+    EiVector3d next_accumulated_color_reflected = current_state.accumulated_color.cwiseProduct(attenuation); 
+    EiVector3d next_accumulated_color_refracted = next_accumulated_color_reflected;
+    const EiVector3d p = intersection_record.point_intersection; // Point of intersection
+    const double spawned_ray_t_min = SPAWNED_T_MIN_BASE * std::max(1.0, intersection_record.point_intersection.norm()); // t_min for the spawned secondary rays 
+    EiVector3d ray_direction = current_state.ray.direction;
+   
+    
+    bool into = ray_direction.dot(intersection_record.normal_surface) < 0;
+    // Ensure normals always point against the incident ray
+    intersection_record.align_normals();
+    EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
+    normal_geo.stableNormalize();
+    EiVector3d normal_shade = intersection_record.normal_shading; //  // Shading normal; use for Physics to dictate how light behaves
+    normal_shade.stableNormalize();
+
+    if (!into) {
+        normal_geo = -normal_geo;
+        normal_shade = -normal_shade;
+    };
+    
+
+    std::array<InteriorEntry, INTERIOR_LIST_MAX> refracted_list;
+    refracted_list = current_state.interior_list;
+    uint8_t refracted_count = current_state.interior_count;
+    double ri_from = current_state.outer_refractive_index; 
+    double ri_to = 1.0003; // Fallback assignment in case something breaks
+    double thickness = 0.0; // Used for thin shell only
+
+    if constexpr (object_type == ObjectType::SHELL) {
+        // Thin shell: We don't toggle volumes as we stay in the same bulk medium
+        // We use the shell RI only as an effective interface RI so the pane can still bend rays
+        ri_to = intersection_record.refractive_index;
+        thickness = intersection_record.thickness;
+    }
+    else if constexpr (object_type == ObjectType::SOLID){
+        // Solid volume boundary: toggle interior membership
+        const int hit_idx = intersection_record.hit_blas_idx;
+        const int hit_priority = intersection_record.hit_blas_priority;
+        const double hit_ri = intersection_record.refractive_index;
+        const EiVector3d hit_absorption = intersection_record.face_color;
+
+        //interior_toggle(&refracted_list[0], refracted_count, hit_idx, hit_priority, hit_ri, hit_absorption);
+
+        // Check whether ray enters or exits the object
+        //If it is in the current interior list, the ray exits
+        //const int existing_idx = interior_find(&current_state.interior_list[0], current_state.interior_count, hit_idx);
+
+        // For reflected ray, the list is the copy of the parent list
+        // to-index = ri of the highest-priority entry in the REFRACTION ray's list, or scene_ri if empty
+        // NB: when entering the hit object, this is just hit_ri if hit_priority is the new max; the formula handles both cases uniformly
+        //ri_to = find_top_ri(&refracted_list[0], refracted_count, scene_ri); 
+        ri_to = hit_ri;
+    }
+
+
+    double cos_theta_i = std::clamp(-ray_direction.dot(normal_shade), 0.0, 1.0); // To avoid floating point errors
+    EiVector3d reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_shade; // Reflection direction
+    reflected_dir.stableNormalize();
+    
+    if (reflected_dir.dot(normal_geo) < 0.0) { // If reflected ray points inside the geometry
+       double cos_theta_geo = std::max(0.0, -ray_direction.dot(normal_geo));
+        reflected_dir = ray_direction + 2.0 * cos_theta_geo * normal_geo;
+        reflected_dir.stableNormalize();
+    }
+
+    double ri_ratio = into ? ri_from / ri_to : ri_to / ri_from; 
+    //double ri_ratio = ri_from / ri_to; // In the nested implementation, these are already correct by construction
+    double sin2_theta_t = ri_ratio * ri_ratio * (1.0 - cos_theta_i * cos_theta_i); // Sin^2 of the transmission angle
+    
+    // Check for Total Internal Reflection (TIR) - only for solid; in shell apprroximation it should never occur
+    if constexpr (object_type == ObjectType::SOLID){
+        if (sin2_theta_t > 1.0) {
+            Ray reflected_ray;
+            reflected_ray.origin = intersection_record.point_intersection + normal_geo * offset; // Push secondary rays slightly off the surface to remove the shadow acne
+            reflected_ray.direction = reflected_dir;
+            reflected_ray.t_min = spawned_ray_t_min;
+            
+            stack.emplace_back(reflected_ray, next_accumulated_color_reflected, current_state.interior_list, ri_to, current_state.depth + 1, current_state.interior_count);
+            return;
+        }
+    }
+
+    // Schlick's approximation
+    double a = ri_to - ri_from;
+    double b = ri_to + ri_from;
+    double R0 = (a * a) / (b * b);
+
+    // Use cosine of the medium with the lower index of refraction
+    double cos_theta_t = 0.0;
+    if constexpr (object_type == ObjectType::SHELL){
+        // TIR does not occur for SHELLs so we skip the return path when sin2_theta_t > 1.0 (possible close to grazing angles)
+        // In this case we'd have 1.0 - sin2_theta_t < 0 => Sqrt of that is imaginary => We clamp it
+        cos_theta_t = std::sqrt(std::max(0.0, 1.0 - sin2_theta_t));
+    }
+    else if constexpr (object_type == ObjectType::SOLID){
+        // No need to clamp - we won't reach this point if sin2_theta_t > 1.0
+        cos_theta_t = std::sqrt(1.0 - sin2_theta_t);
+    }
+    
+    //double c = 1 - (ri_from <= ri_to ? cos_theta_i : cos_theta_t);
+    double c = 1 - (into ? cos_theta_i : cos_theta_t);
+
+    double reflectance = 0.0;
+    if constexpr (object_type == ObjectType::SHELL){
+        // In a thin shell with thickness, we have double-interface
+        // In ray-tracing we ignore interfecence for very thin films and use standard thin dielectric closed form from PBRT
+        double R = R0 + (1 - R0) * (c * c * c * c * c);
+        reflectance = (2.0 * R) / (1.0 + R); // Closed form double-interface for a shell with thickness
+    }
+    else if constexpr (object_type == ObjectType::SOLID){
+        reflectance = R0 + (1 - R0) * (c * c * c * c * c);
+    }
+
+    double transmittance = 1 - reflectance;
+
+    // Define new rays
+    Ray reflected_ray;
+    reflected_ray.origin = intersection_record.point_intersection + normal_geo * offset; // Push back into incident medium (i.e., off the surface)
+    reflected_ray.direction = reflected_dir;
+    reflected_ray.t_min = spawned_ray_t_min;
+
+    Ray refracted_ray;
+    refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_shade; // Transmitted/refracted direction
+    refracted_ray.direction.stableNormalize();
+    refracted_ray.t_min = spawned_ray_t_min;
+
+
+    if constexpr (object_type == ObjectType::SHELL) {
+        // Thin shell: do not move into a new volume; keep the stack unchanged
+        // Offset slightly along the refracted direction to avoid immediately rehitting the same triangle.
+        //refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * offset;
+        EiVector3d in_slab_dir = refracted_ray.direction; // Refracted direction in-slab
+        
+        double cos_t_abs = std::abs(in_slab_dir.dot(-normal_shade));
+
+        // At grazing angles the slab model breaks down — cap the path to avoid launching exit_point arbitrarily far from the surface
+        constexpr double COS_SHELL_MIN = 0.01; // ~89.4 degrees — beyond this, slab approx invalid
+        if (cos_t_abs < COS_SHELL_MIN) {
+            // Near-grazing: skip slab offset entirely, treat as zero-thickness
+            refracted_ray.origin = intersection_record.point_intersection - normal_geo * offset;
+            refracted_ray.direction = ray_direction;
+            // Still apply absorption with a capped path to avoid energy injection
+            double path_in_slab = intersection_record.thickness / COS_SHELL_MIN;
+            apply_absorption(next_accumulated_color_refracted, intersection_record.face_color, path_in_slab);
+        } else {
+            double path_in_slab = intersection_record.thickness / cos_t_abs;
+            apply_absorption(next_accumulated_color_refracted, intersection_record.face_color, path_in_slab);
+            EiVector3d exit_point = intersection_record.point_intersection + in_slab_dir * path_in_slab;
+            refracted_ray.origin = exit_point - normal_geo * offset;
+            refracted_ray.direction = ray_direction;
+            double displacement = (exit_point - intersection_record.point_intersection).norm();
+
+        }
+
+
+    }
+    else if constexpr (object_type == ObjectType::SOLID) {
+        // Apply Beer-Lambert for the segment just traversed through this solid's interior.
+        // This only has a physical meaning on the EXIT hit (ray leaving the medium), where intersection_record.t is the chord length through the material.
+        // On the ENTRY hit, the ray hasn't yet travelled inside, so absorption = 0 (face_color should be zeroed on entry, or we gate on !into).
+        if (!into) {
+            // Ray is exiting — it has just travelled intersection_record.t through the solid
+            const EiVector3d absorption = intersection_record.face_color;
+            const bool has_absorption = absorption.x() > 0.0 || absorption.y() > 0.0 || absorption.z() > 0.0;
+            if (has_absorption) {
+                double path_length = intersection_record.t; // distance from entry point to this exit point
+                apply_absorption(next_accumulated_color_reflected, absorption, path_length);
+                apply_absorption(next_accumulated_color_refracted, absorption, path_length);
+            }
+        }
+
+        refracted_ray.origin = intersection_record.point_intersection - normal_geo * offset;
+    }
+
+    constexpr double MAX_ENERGY = 10.0; // Tune to scene scale
+    next_accumulated_color_refracted = next_accumulated_color_refracted.cwiseMin(EiVector3d(MAX_ENERGY, MAX_ENERGY, MAX_ENERGY));
+    // Russian roulette between reflection and refraction
+    if (current_state.depth > 2) {
+        //double P = 0.25 + 0.5 * reflectance; // Reflection's chance of surviving
+        double P = std::clamp(reflectance, 0.1, 0.9); // survival prob for reflection branch
+        if (random_double() < P){ // Note: for multi-threading this will have to be replaced with thread_local generator
+        //if ((double)rand() / RAND_MAX < P) { // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
+            // Reflection works the same way for shells and solids
+            double P_reflect = reflectance / P; // Adjust original reflectance based on P
+            stack.emplace_back(reflected_ray, next_accumulated_color_reflected * P_reflect, current_state.interior_list, ri_from, current_state.depth + 1, current_state.interior_count);
+            return;
+        }
+        else {
+            double P_transmit = transmittance / (1.0 - P); // Adjust original transmittance based on P
+            if constexpr (object_type == ObjectType::SHELL) {
+                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, current_state.interior_list,
+                    ri_to, current_state.depth + 1, current_state.interior_count);
+            }
+            else if constexpr (object_type == ObjectType::SOLID){
+                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, refracted_list,
+                    ri_to, current_state.depth + 1, refracted_count);
+            }
+            return;
+        }
+    } 
+    else {
+        // Push both rays
+        stack.emplace_back(reflected_ray, next_accumulated_color_reflected * reflectance, current_state.interior_list, ri_from, current_state.depth + 1, current_state.interior_count);
+
+        if constexpr (object_type == ObjectType::SHELL) {
+            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance, current_state.interior_list,
+                ri_to, current_state.depth + 1, current_state.interior_count);
+        }
+        else if constexpr (object_type == ObjectType::SOLID){
+            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance, refracted_list,
+                ri_to, current_state.depth + 1, refracted_count);
+        }
+        return;
+    }
+}
+*/
