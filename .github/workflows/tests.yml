@@ -31,9 +31,9 @@ jobs:
           version: "0.9.17"
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Set default compiler on macOS to GCC
         if: startsWith(matrix.os, 'macos')

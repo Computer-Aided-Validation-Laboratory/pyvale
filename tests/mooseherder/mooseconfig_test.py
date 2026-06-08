@@ -49,6 +49,7 @@ def test_init_config_blank() -> None:
     assert moose_config is not None
 
 
+@pytest.mark.skipif(not hc.moose_present, reason="MOOSE not installed")
 def test_init_config(config: MooseConfig) -> None:
     assert config is not None
 
@@ -71,6 +72,7 @@ def test_init_config_path_err(config_dict_broken_path: dict[str, Path | str]
     assert msg == "Main path to MOOSE does not exist. Check path at key 'main_path'."
 
 
+@pytest.mark.skipif(not hc.moose_present, reason="MOOSE not installed")
 def test_get_config(config: MooseConfig,
                     config_dict: dict[str, Path | str]) -> None:
     check_config = config.get_config()
@@ -87,6 +89,7 @@ def test_blank_config_get_err() -> None:
     assert msg == 'Config dictionary must be initialised, load config file first.'
 
 
+@pytest.mark.skipif(not hc.moose_present, reason="MOOSE not installed")
 def test_convert_path_to_str(config_dict: dict[str, Path | str],
                              config_dict_str: dict[str, str]) -> None:
     conv_config = MooseConfig().convert_path_to_str(config_dict)
@@ -98,6 +101,7 @@ def test_convert_path_to_str_blank() -> None:
     assert conv_config is None
 
 
+@pytest.mark.skipif(not hc.moose_present, reason="MOOSE not installed")
 def test_convert_str_to_path(config_dict: dict[str, Path | str],
                              config_dict_str: dict[str, str]) -> None:
     conv_config = MooseConfig().convert_str_to_path(config_dict_str)
@@ -109,6 +113,7 @@ def test_convert_str_to_path_blank() -> None:
     assert conv_config is None
 
 
+@pytest.mark.skipif(not hc.moose_present, reason="MOOSE not installed")
 def test_save_config(config: MooseConfig) -> None:
     save_path = MOOSE_CONFIG_PATH/"moose-config.json"
     config.save_config(save_path)
@@ -116,6 +121,7 @@ def test_save_config(config: MooseConfig) -> None:
     os.remove(save_path)
 
 
+@pytest.mark.skipif(not hc.moose_present, reason="MOOSE not installed")
 def test_save_config_parent_dir_err(config: MooseConfig) -> None:
     save_path = Path.home()/"no-exist"/"no-exist"/"moose-config.json"
     with pytest.raises(MooseConfigError) as err_info:
@@ -125,6 +131,7 @@ def test_save_config_parent_dir_err(config: MooseConfig) -> None:
     assert msg == 'Parent path to save config file does not exist.'
 
 
+@pytest.mark.skipif(not hc.moose_present, reason="MOOSE not installed")
 def test_read_config(config_dict: dict[str, Path | str]) -> None:
     read_path = MOOSE_CONFIG_PATH / 'moose-config-test.json'
     read_config = MooseConfig().read_config(read_path)

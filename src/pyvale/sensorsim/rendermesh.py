@@ -83,7 +83,7 @@ def create_render_mesh(sim_data: mh.SimData,
                                         extract_keys,
                                         spatial_dims=sim_spat_dim)
 
-    pv_surf = pv_grid.extract_surface()
+    pv_surf = pv_grid.extract_surface(algorithm='dataset_surface')
     faces = np.array(pv_surf.faces)
 
     first_elem_nodes_per_face = faces[0]
