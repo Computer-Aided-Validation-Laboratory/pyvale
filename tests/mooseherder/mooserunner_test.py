@@ -15,6 +15,8 @@ MOOSE_INPUT_PATH = Path.cwd()/"tests"/"mooseherder"/"moose"
 
 @pytest.fixture()
 def runner() -> MooseRunner:
+    if not hc.moose_present:
+        pytest.skip("MOOSE app not installed at the expected path")
     moose_config = hc.create_moose_config()
     return MooseRunner(moose_config)
 
@@ -32,6 +34,8 @@ def input_broken() -> Path:
 
 @pytest.fixture()
 def input_runner(input_path: Path) -> MooseRunner:
+    if not hc.moose_present:
+        pytest.skip("MOOSE app not installed at the expected path")
     moose_config = hc.create_moose_config()
     my_runner = MooseRunner(moose_config)
     my_runner.set_input_file(input_path)

@@ -16,7 +16,7 @@ class RenderEngine(Enum):
     """Different render engines on Blender
     """
     CYCLES = "CYCLES"
-    EEVEE = "BLENDER_EEVEE_NEXT"
+    EEVEE = "BLENDER_EEVEE"
     WORKBENCH = "BLENDER_WORKBENCH"
 
 @dataclass(slots=True)
