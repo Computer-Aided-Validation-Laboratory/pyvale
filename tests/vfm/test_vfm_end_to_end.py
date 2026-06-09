@@ -41,7 +41,13 @@ from pyvale.vfm.spatial_parameterisations.known import (
     KnownSpatialParameterisation,
 )
 from pyvale.vfm.vfm import vfm
+from pyvale.vfm.constitutive_laws.radial_return import EUnloading, radial_return
 
+from interpolate_fe_elements_to_grid import (
+    interpolate_fe_elements_to_grid,
+    read_gmsh_element_centres,
+)
+ 
 
 PYVALE_ROOT = Path(__file__).resolve().parent.parent.parent
 VFMVERIF_ROOT = PYVALE_ROOT.parent / "vfmverif"
@@ -156,7 +162,7 @@ def test_end_to_end() -> None:
         yield_stress_out # shape: (timesteps)
     ) = load_sim_data_to_grid(
         exodus_file_name,
-        ("strain_xx", "strain_yy", "strain_xy")
+        ("strain_xx", "strain_yy", "strain_xy","vonmises_stress")
     )
 
     print("Shaping inputs...")
@@ -273,41 +279,88 @@ def test_end_to_end() -> None:
     X, Y = np.meshgrid(x, y)
 
     # Yield stress field
-    Yield = YieldInf + (PeakYield - YieldInf) * np.exp(
+    yield_stress_grid_analytical= YieldInf + (PeakYield - YieldInf) * np.exp(
         -0.5 * (
             ((X - centX) / stdX)**2 +
             ((Y - centY) / stdY)**2
         )
     )
 
-    plt.figure()
-    plt.imshow(
-        Yield,
-        extent=[x.min(), x.max(), y.min(), y.max()],
-        origin="lower",
-        aspect="auto"
-    )
-    plt.colorbar(label="Yield stress / Pa")
-    plt.xlabel("x / m")
-    plt.ylabel("y / m")
-    plt.axis("image")
-    plt.show()
+    # plt.figure()
+    # plt.imshow(
+    #     Yield,
+    #     extent=[x.min(), x.max(), y.min(), y.max()],
+    #     origin="lower",
+    #     aspect="auto"
+    # )
+    # plt.colorbar(label="Yield stress / Pa")
+    # plt.xlabel("x / m")
+    # plt.ylabel("y / m")
+    # plt.axis("image")
+    # plt.show()
    
 
-    # yield_stress_out is wrong shape (npts x timesteps)
-    plt.figure()
-    plt.imshow(
+    # # yield_stress_out is wrong shape (npts x timesteps)
+    # plt.figure()
+    # plt.imshow(
+    #     yield_stress_out,
+    #     origin="lower",
+    #     aspect="auto"
+    # )
+    # plt.colorbar(label="Yield stress / Pa")
+    # plt.xlabel("x / m")
+    # plt.ylabel("y / m")
+    # plt.axis("image")
+    # plt.show()
+
+
+    # Compare FE yield stess with analytical yield stress
+    DATA_DIR = Path(__file__).resolve().parent.parent.parent / "dev" / "vfm" / "rob-data"
+    MESH_PATH = DATA_DIR / "mesh3d_holeplate.msh"
+    element_centres = read_gmsh_element_centres(MESH_PATH)
+
+    yield_stress_fe_interpolated = interpolate_fe_elements_to_grid(
+        element_centres,
         yield_stress_out,
-        origin="lower",
-        aspect="auto"
+        X,
+        Y,
+        value_scale=1e-6,
+        specimen_mask=specimen_mask,
     )
-    plt.colorbar(label="Yield stress / Pa")
-    plt.xlabel("x / m")
-    plt.ylabel("y / m")
-    plt.axis("image")
+
+    yield_stress_grid_analytical = yield_stress_grid_analytical.copy()
+    yield_stress_grid_analytical[~specimen_mask] = np.nan
+
+    diff_grid = yield_stress_fe_interpolated - yield_stress_grid_analytical
+
+    print(f"{element_centres.shape[0]=}")
+    print(f"{yield_stress_fe_interpolated.shape=}")
+    print(f"yield_stress_fe_interpolated nanmean [MPa] = {np.nanmean(yield_stress_fe_interpolated):.6f}")
+    print(f"analytical nanmean [MPa] = {np.nanmean(yield_stress_grid_analytical):.6f}")
+    print(f"abs diff nanmax [MPa] = {np.nanmax(np.abs(diff_grid)):.6f}")
+
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4), constrained_layout=True)
+
+    plots = (
+        (yield_stress_fe_interpolated, "Interpolated FE Yield [MPa]"),
+        (yield_stress_grid_analytical, "Analytical Yield [MPa]"),
+        (diff_grid, "Difference [MPa]"),
+    )
+
+    for ax, (field, title) in zip(axes, plots, strict=True):
+        image = ax.imshow(
+            field,
+            extent=[x_grid.min(), x_grid.max(), y_grid.min(), y_grid.max()],
+            origin="lower",
+            aspect="equal",
+            cmap="viridis",
+        )
+        fig.colorbar(image, ax=ax)
+        ax.set_title(title)
+        ax.set_xlabel("x [m]")
+        ax.set_ylabel("y [m]")
+
     plt.show()
-
-
 
 
     parameters = {
@@ -321,7 +374,7 @@ def test_end_to_end() -> None:
         #     220, 100, 1000, np.array([101, 101])
         # ),
         "yield_strength": ConstitutiveParameter(
-            Yield, 100, 1000
+            yield_stress_grid_analytical, 100, 1000
         ),
         # TODO: what are the assumed units here, vfmverif value is
         # 1000 MPa
@@ -359,6 +412,90 @@ def test_end_to_end() -> None:
         parameters,
         phases
     )
+
+
+    constitutive_parameter_maps = {
+        "elastic_modulus": parameters["elastic_modulus"].value,
+        "poissons_ratio": parameters["poissons_ratio"].value,
+        "yield_strength": parameters["yield_strength"].value,
+        "hardening_modulus": parameters["hardening_modulus"].value,
+    }
+
+    strain = grid_data[:, 0:3, :, :]
+
+    # checks confirmed shear strain is in tensorial convention
+    # checks confirmed -1 * shear strain didnt help
+    stress, equivalent_stress_rr, yield_map, equivalent_plastic_strain = radial_return(
+            strain,
+            constitutive_parameter_maps,
+            constitutive_parameter_maps["elastic_modulus"],
+            constitutive_parameter_maps["poissons_ratio"],
+            LinearHardening(),
+            unloading = EUnloading.NoCompensation,
+        )
+
+    # stress = identification.constitutive_law.calculate_stress(grid_data[:, 0:2, :, :], constitutive_parameter_maps)
+    equivalent_stress_fe=grid_data[:, 3, :, :] * 1e-6
+
+
+
+    step = 6
+    data = equivalent_stress_fe[step, :, :]   
+    data_name='equivalent_stress_fe'
+    plt.figure()
+    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    plt.colorbar(label='Stress')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    #include param name and dof index in title
+    plt.title(f'{data_name}, step {step}')
+    vmin = np.nanpercentile(data, 5)
+    vmax = np.nanpercentile(data, 95)
+    im1.set_clim(vmin, vmax)
+    im1=plt.show()
+
+    data = equivalent_stress_rr[step, :, :]   
+    data_name='equivalent_stress_rr'
+    plt.figure()
+    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    plt.colorbar(label='Stress')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    #include param name and dof index in title
+    plt.title(f'{data_name}, step {step}')
+    vmin = np.nanpercentile(data, 5)
+    vmax = np.nanpercentile(data, 95)
+    im1.set_clim(vmin, vmax)
+    im1=plt.show()
+
+    data = equivalent_stress_rr[step, :, :] - equivalent_stress_fe[step, :, :]  
+    data_name='equivalent_stress_rr-fe'
+    plt.figure()
+    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    plt.colorbar(label='Stress')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    #include param name and dof index in title
+    plt.title(f'{data_name}, step {step}')
+    vmin = np.nanpercentile(data, 5)
+    vmax = np.nanpercentile(data, 95)
+    im1.set_clim(vmin, vmax)
+    im1=plt.show()
+
+
+    data = (np.abs(equivalent_stress_rr[step, :, :] - equivalent_stress_fe[step, :, :]) / equivalent_stress_fe[step, :, :]) * 100
+    data_name='equivalent_stress_rr-fe_abs_perc_diff'
+    plt.figure()
+    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    plt.colorbar(label='Stress')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    #include param name and dof index in title
+    plt.title(f'{data_name}, step {step}')
+    vmin = np.nanpercentile(data, 5)
+    vmax = np.nanpercentile(data, 95)
+    im1.set_clim(vmin, vmax)
+    im1=plt.show()
 
     print("Running VFM...")
     vfm_result = vfm(experiment_data, identification)
