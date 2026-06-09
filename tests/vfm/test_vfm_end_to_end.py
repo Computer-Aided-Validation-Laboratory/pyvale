@@ -56,11 +56,14 @@ def load_sim_data_to_grid(
     npt.NDArray[np.float64], # grid_data
     npt.NDArray[np.float64], # force
     npt.NDArray[np.float64], # time
+    npt.NDArray[np.float64], # yield_stress_out
 ]:
     exodus_file_path = VFMVERIF_ROOT / "data"/ exodus_file_name
 
     sim_data = mooseherder.ExodusLoader(exodus_file_path).load_all_sim_data()
-    # sensorsim.simtools.print_sim_data(sim_data)
+    sensorsim.simtools.print_sim_data(sim_data)
+    
+    yield_stress_out = sim_data.elem_vars[('yield_stress_out', 1)]
 
     plate_height = 35e-3
     plate_width = 25e-3
@@ -81,8 +84,8 @@ def load_sim_data_to_grid(
 
     y_vec = (
         grid_inner_vec(
-            plate_width / 2,
-            -plate_width / 2,
+            plate_height/ 2,
+            -plate_height / 2,
             grid_divs
         ) + plate_height / 2
     )
@@ -131,7 +134,8 @@ def load_sim_data_to_grid(
         y_grid,
         grid_data, 
         sim_data.glob_vars["react_y_top"],
-        sim_data.time
+        sim_data.time,
+        yield_stress_out
     )
 
 
@@ -140,6 +144,7 @@ def load_sim_data_to_grid(
 #   yield stress
 #   all input stuff really
 def test_end_to_end() -> None:
+    print("Loading data...")
     exodus_file_name = "hole3d_plas_het_24f.e"
 
     (
@@ -147,12 +152,14 @@ def test_end_to_end() -> None:
         y_grid, # shape: (x, y, z)
         grid_data, # shape: (x, y, z, components, timesteps)
         force, # shape: (timesteps)
-        time # shape: (timesteps)
+        time, # shape: (timesteps)
+        yield_stress_out # shape: (timesteps)
     ) = load_sim_data_to_grid(
         exodus_file_name,
         ("strain_xx", "strain_yy", "strain_xy")
     )
 
+    print("Shaping inputs...")
     # remove redundant z component
     x_grid = x_grid[:, :, 0] # shape: (x, y)
     y_grid = y_grid[:, :, 0] # shape: (x, y)
@@ -241,20 +248,85 @@ def test_end_to_end() -> None:
         time
     )
 
+
+
+    # Parameters
+    YieldInf = 200      # MPa
+    PeakYield = 240     # MPa
+
+    plateWidth = 25e-3      # m, change as required
+    plateHeight = 35e-3     # m, change as required
+
+    centX = 0.0
+    centY = plateHeight / 2
+
+    stdX = plateWidth / 2
+    stdY = plateWidth / 4
+
+    # Create 101 x 101 coordinate grid
+    nx = 101
+    ny = 101
+
+    x = np.linspace(-plateWidth / 2, plateWidth / 2, nx)
+    y = np.linspace(0, plateHeight, ny)
+
+    X, Y = np.meshgrid(x, y)
+
+    # Yield stress field
+    Yield = YieldInf + (PeakYield - YieldInf) * np.exp(
+        -0.5 * (
+            ((X - centX) / stdX)**2 +
+            ((Y - centY) / stdY)**2
+        )
+    )
+
+    plt.figure()
+    plt.imshow(
+        Yield,
+        extent=[x.min(), x.max(), y.min(), y.max()],
+        origin="lower",
+        aspect="auto"
+    )
+    plt.colorbar(label="Yield stress / Pa")
+    plt.xlabel("x / m")
+    plt.ylabel("y / m")
+    plt.axis("image")
+    plt.show()
+   
+
+    # yield_stress_out is wrong shape (npts x timesteps)
+    plt.figure()
+    plt.imshow(
+        yield_stress_out,
+        origin="lower",
+        aspect="auto"
+    )
+    plt.colorbar(label="Yield stress / Pa")
+    plt.xlabel("x / m")
+    plt.ylabel("y / m")
+    plt.axis("image")
+    plt.show()
+
+
+
+
     parameters = {
         "elastic_modulus": ConstitutiveParameter(
-            150_000, 150_000, 250_000, np.array([101, 101])
+            200_000, 100_000, 250_000, np.array([101, 101])
         ),
         "poissons_ratio": ConstitutiveParameter(
-            0.21, 0.2, 0.4, np.array([101, 101])
+            0.3, 0.2, 0.4, np.array([101, 101])
         ),
+        # "yield_strength": ConstitutiveParameter(
+        #     220, 100, 1000, np.array([101, 101])
+        # ),
         "yield_strength": ConstitutiveParameter(
-            900, 100, 1000, np.array([101, 101])
+            Yield, 100, 1000
         ),
         # TODO: what are the assumed units here, vfmverif value is
         # 1000 MPa
         "hardening_modulus": ConstitutiveParameter(
-            9000, 500, 10_000, np.array([101, 101])
+            1000, 500, 10_000, np.array([101, 101])
         ),
     }
 
@@ -288,6 +360,7 @@ def test_end_to_end() -> None:
         phases
     )
 
+    print("Running VFM...")
     vfm_result = vfm(experiment_data, identification)
 
     gold_parameters = {
