@@ -31,6 +31,7 @@ class ISpatialParameterisation(ABC):
         """
         pass
 
+    # TODO: change name to initialise_...
     @abstractmethod
     def initialise_from_constitutive_parameter(
         self,
