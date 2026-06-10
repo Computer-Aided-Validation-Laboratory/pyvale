@@ -16,48 +16,61 @@
 #include "rtbvh.h"
 #include "rtmathutils.h"
 
+// Base offset used for the t_min of of spawned rays. Used to reduce self-intersections when spawning secondary rays from a surface.
+static constexpr double SPAWNED_T_MIN_BASE = 1e-7; 
+
+// ================================================================================
+// Interior list for nested dielectrics
+// ================================================================================
+
 // Use uint8_t for everything related as we would need 255 nested meshes to exceed this quantity. Highly unlikely to occur
-static constexpr uint8_t INTERIOR_LIST_MAX = 10; // Size of the interior list. Should be sufficient unless user embeds many volumes within one another
-static constexpr double SPAWNED_T_MIN_BASE = 1e-7;
+// Size of the interior list. Should be sufficient unless user embeds many volumes within one another
+static constexpr uint8_t INTERIOR_LIST_MAX = 10;
 
 
-// Struct size 8 + 2 x 4 = 16 bytes
+/**
+ * @brief Stores one interior medium entry for nested dielectric tracking.
+ * 
+ * Contains the optical properties and scene identifiers of one medium currently
+ * occupied by the ray.
+ */
+// Struct size: 4 x 8 + 2 x 4 = 40 bytes
 struct InteriorEntry{
-    EiVector3d absorption {EiVector3d::Zero()}; // (length unit)^-1, gives the tint/colour of the medium. (0.0, 0.0, 0.0) = clear
+    EiVector3d absorption {EiVector3d::Zero()}; // Absorption coefficient of the medium (sigma_a) in (length unit)^-1. Gives the tint/colour of the medium; (0.0, 0.0, 0.0) = clear
     double refractive_index {1.0003}; // Refractive index of the medium
-    int priority {-1}; // Priority - tells us the ordering of nested volumes in the scene (e.g., higher number = more nested)
+    int priority {-1}; // Nesting priority - tells us the ordering of nested volumes in the scene (e.g., higher number = more nested)
     int blas_idx {-1}; // Index of the corresponding BLAS, so we know which mesh is intersected - used to index into TLAS
 
-    // Constructor
+    // Constructors
     InteriorEntry() = default;
+    /**
+     * @brief Constructs an interior entry with only a refractive index.
+     * 
+     * @param[in] ri_ (double) Refractive index of the medium
+     */
     InteriorEntry(double ri_): refractive_index(ri_) {};
+    /**
+     * @brief Constructs a fully specified interior entry.
+     * 
+     * @param[in] absorption_ (EiVector3d) Absorption coefficient of the medium
+     * @param[in] ri_ (double) Refractive index of the medium
+     * @param[in] priority_ (int) Nesting priority of the medium
+     * @param[in] blas_idx_ (int) BLAS index of the corresponding object
+     */
     InteriorEntry(EiVector3d absorption_, double ri_, int priority_, int blas_idx_) : absorption(absorption_), refractive_index(ri_), priority(priority_), blas_idx(blas_idx_) {};
 };
 
-// Struct to store ray data in the stack-based shader
-// Size: 48 + 24 + 16 x 10 + 8 + 2 + 1 =  243 bytes
-struct RayState{
-    Ray ray;
-    EiVector3d accumulated_color {EiVector3d(1.0, 1.0, 1.0)}; // Accumulated multipliers (albedo, Fresnel terms, etc.)
-    std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list {}; // List of objects entered by ray
-    double outer_refractive_index {1.0003}; // Refractive index of the material where the ray originates; might be removed later, depending on how the interior list works
-    uint16_t depth {0}; // Even without recursion, most ray tracers don't seem to have more than 50 bounces of depth, so we are being very generous here (max. value of 65535)
-    uint8_t interior_count {0}; // 0 => Ray is in the ambient medium (whatever fills the scene, with RI = scene_ri)
-
-    //Constructors
-    // First two are for the initial state with primary rays
-    RayState(Ray ray_): ray(ray_) {};
-    RayState(Ray ray_, double outer_refractive_index_): ray(ray_), outer_refractive_index(outer_refractive_index_) {};
-    RayState(Ray ray_, EiVector3d accumulated_color_, std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list_, double outer_refractive_index_, uint16_t depth_, uint8_t interior_count_):
-        ray(ray_),
-        accumulated_color(accumulated_color_),
-        interior_list(interior_list_),
-        outer_refractive_index(outer_refractive_index_),
-        depth(depth_),
-        interior_count(interior_count_) {};
-};
-
-
+/**
+ * @brief Finds an interior entry by BLAS index.
+ * 
+ * Searches the active interior list for an entry corresponding to the given BLAS.
+ * 
+ * @param[in] interior_list (const InteriorEntry*) Pointer to the interior list
+ * @param[in] count (uint8_t) Number of active entries in the list
+ * @param[in] blas_idx (int) BLAS index to search for
+ * 
+ * @return (int) Index of the matching entry, or -1 if not found.
+ */
 inline int interior_find(const InteriorEntry* interior_list, uint8_t count, int blas_idx){
     for(int i = 0; i < count; i++){
         if (interior_list[i].blas_idx == blas_idx){
@@ -67,7 +80,20 @@ inline int interior_find(const InteriorEntry* interior_list, uint8_t count, int 
     return -1;
 };
 
-inline int interior_highest_priority_idx(const InteriorEntry* interior_list, uint8_t count){
+/**
+ * @brief Finds the index of the highest-priority active interior entry.
+ * 
+ * Used to determine which medium currently dominates the ray state when
+ * multiple nested dielectric volumes are present.
+ * 
+ * @param[in] interior_list (const InteriorEntry*) Pointer to the interior list
+ * @param[in] count (uint8_t) Number of active entries in the list
+ * 
+ * @return (int) Index of the highest-priority entry, or -1 if the list is empty.
+ */
+inline int interior_highest_priority_idx(const InteriorEntry* interior_list,
+    uint8_t count){
+
     int highest_priority_idx = -1;
     int best_priority = std::numeric_limits<int>::min();
     for(int i = 0; i < count; i++){
@@ -79,14 +105,68 @@ inline int interior_highest_priority_idx(const InteriorEntry* interior_list, uin
     return highest_priority_idx;
 };
 
+/**
+ * @brief Finds the refractive index of the top active interior medium.
+ * 
+ * If the interior list is empty, returns the fallback refractive index,
+ * typically that of the ambient scene medium (scene_ri).
+ * 
+ * @param[in] interior_list (const InteriorEntry*) Pointer to the interior list
+ * @param[in] interior_count (uint8_t) Number of active entries in the list
+ * @param[in] fallback_ri (double) Refractive index to return if the list is empty
+ * 
+ * @return (double) Refractive index of the top active medium, or fallback_ri if none exists.
+ */
+inline double interior_top_ri(const InteriorEntry* interior_list,
+    uint8_t interior_count,
+    double fallback_ri){
+
+    int current_highest_idx = interior_highest_priority_idx(interior_list, interior_count);
+    return (current_highest_idx < 0) ? fallback_ri : interior_list[current_highest_idx].refractive_index;
+};
+
+/**
+ * @brief Finds the absorption coefficient of the top active interior medium.
+ * 
+ * If the interior list is empty, returns zero absorption.
+ * 
+ * @param[in] interior_list (const InteriorEntry*) Pointer to the interior list
+ * @param[in] interior_count (uint8_t) Number of active entries in the list
+ * 
+ * @return (EiVector3d) Absorption coefficient of the top active medium, or zero if none exists.
+ */
+inline EiVector3d interior_top_absorption(const InteriorEntry* interior_list,
+    uint8_t interior_count) { //
+
+    EiVector3d fallback(0.0, 0.0, 0.0); 
+    int idx = interior_highest_priority_idx(interior_list, interior_count);
+    return (idx < 0) ? fallback : interior_list[idx].absorption;
+}
+
+/**
+ * @brief Toggles membership of a BLAS in the active interior list.
+ * 
+ * If the BLAS (with given index) is already present, it is removed, corresponding to the ray
+ * exiting the object.
+ * Otherwise, a new entry is added, corresponding to the
+ * ray entering the object.
+ * 
+ * @param[in,out] interior_list (InteriorEntry*) Pointer to the interior list
+ * @param[in,out] count (uint8_t&) Number of active entries in the list
+ * @param[in] blas_idx (int) BLAS index of the object
+ * @param[in] priority (int) Nesting priority of the object
+ * @param[in] refractive_index (double) Refractive index of the object
+ * @param[in] absorption (const EiVector3d&) Absorption coefficient of the object
+ * 
+ * @return (bool) True if the ray entered the object, false if it exited.
+ */
 inline bool interior_toggle(InteriorEntry* interior_list,
     uint8_t& count, // We update this value, hence pass by reference
     int blas_idx,
     int priority,
     double refractive_index,
     const EiVector3d& absorption){
-    // Add or remove the entry (toggle) for BLAS_ID.
-    //Returns true if ray entered the object (add antry), false if exited (remove entry)
+
 
     int idx = interior_find(interior_list, count, blas_idx);
     if (idx >= 0){ // Exit: swap-erase
@@ -95,33 +175,84 @@ inline bool interior_toggle(InteriorEntry* interior_list,
         return false;
     }
     else { // Enter
-        interior_list[count].absorption = absorption;
-        interior_list[count].refractive_index = refractive_index;
-        interior_list[count].priority = priority;
-        interior_list[count].blas_idx = blas_idx;
+        interior_list[count] = InteriorEntry(absorption, refractive_index, priority, blas_idx);
+        //interior_list[count].absorption = absorption;
+        //interior_list[count].refractive_index = refractive_index;
+        //interior_list[count].priority = priority;
+        //interior_list[count].blas_idx = blas_idx;
         ++count;
         return true;
     }
 };
 
-inline double find_top_ri(const InteriorEntry* interior_list,
-    uint8_t interior_count,
-    double fallback_ri){
-    // Finds the top refractive index in the interior list
-    // fallback_ri = scene_ri, which we set if the list is empty
-    int current_highest_idx = interior_highest_priority_idx(interior_list, interior_count);
-    return (current_highest_idx < 0) ? fallback_ri : interior_list[current_highest_idx].refractive_index;
+// ================================================================================
+// Ray state struct
+// ================================================================================
+
+/**
+ * @brief Stores the full tracing state of one ray in the stack-based renderer.
+ * 
+ * Includes the ray geometry, accumulated payload, dielectric interior state,
+ * recursion depth, and ambient medium information.
+ */
+// Size: 48 + 24 + 16 x 10 + 8 + 2 + 1 =  243 bytes
+struct RayState{
+    Ray ray; // Current ray
+    EiVector3d accumulated_color {EiVector3d(1.0, 1.0, 1.0)}; // Accumulated payload multipliers (albedo, Fresnel terms, etc.)
+    std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list {}; // List of objects entered by ray
+    double scene_ri {1.0003}; // Refractive index of the ambient medium
+    uint16_t depth {0}; // Current ray depth
+    // Even without recursion, most ray tracers don't seem to have more than 50 bounces of depth, so we are being very generous here (max. value of 65535)
+    uint8_t interior_count {0}; // Number of active entries in interior_list. 0 => Ray is in the ambient medium (whatever fills the scene, with RI = scene_ri)
+
+    //Constructors
+    // First two are for the initial state with primary rays
+    /**
+     * @brief Constructs a ray state from a primary ray
+     * 
+     * @param[in] ray_ (Ray) Input ray.
+     */
+    RayState(Ray ray_): ray(ray_) {};
+    /**
+     * @brief Constructs a ray state from a primary ray and ambient refractive index.
+     * 
+     * @param[in] ray_ (Ray) Input ray
+     * @param[in] outer_refractive_index_ (double) Refractive index of the ambient medium
+     */
+    RayState(Ray ray_, double scene_ri_): ray(ray_), scene_ri(scene_ri_) {};
+    /**
+     * @brief Constructs a fully specified ray state.
+     * 
+     * @param[in] ray_ (Ray) Current ray
+     * @param[in] accumulated_color_ (EiVector3d) Current accumulated payload
+     * @param[in] interior_list_ (std::array<InteriorEntry, INTERIOR_LIST_MAX>) Active interior media list
+     * @param[in] outer_refractive_index_ (double) Refractive index of the ambient medium
+     * @param[in] depth_ (uint16_t) Current ray depth
+     * @param[in] interior_count_ (uint8_t) Number of active entries in interior_list
+     */
+    RayState(Ray ray_, EiVector3d accumulated_color_, std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list_, double scene_ri_, uint16_t depth_, uint8_t interior_count_):
+        ray(ray_),
+        accumulated_color(accumulated_color_),
+        interior_list(interior_list_),
+        scene_ri(scene_ri_),
+        depth(depth_),
+        interior_count(interior_count_) {};
 };
 
-inline EiVector3d find_top_absorption(const InteriorEntry* interior_list,
-    uint8_t interior_count,
-    const EiVector3d& fallback) { //
-    // Finds the top refractive index in the interior list
-    // fallback_ri = scene_ri
-    int idx = interior_highest_priority_idx(interior_list, interior_count);
-    return (idx < 0) ? fallback : interior_list[idx].absorption;
-}
+// ================================================================================
+// Material functions
+// ================================================================================
 
+/**
+ * @brief Returns a procedural sky color for a ray direction.
+ * 
+ * Produces a simple vertical white-to-blue gradient based on the y-component
+ * of the ray direction.
+ * 
+ * @param[in] ray (const Ray&) Input ray
+ * 
+ * @return (EiVector3d) RGB sky color corresponding to the ray direction.
+ */
 inline EiVector3d ray_blue_sky(const Ray& ray){
     double a = 0.5 * (ray.direction(1) + 1.0);
     static EiVector3d white, blue;
@@ -130,6 +261,19 @@ inline EiVector3d ray_blue_sky(const Ray& ray){
     return (1.0 - a) * white + a * blue;
 }
 
+/**
+ * @brief Computes diffuse material response and spawns a scattered ray.
+ * 
+ * Adds emitted radiance, updates throughput with albedo, and generates a
+ * cosine-weighted random hemisphere direction around the shading normal.
+ * 
+ * @param[in] current_state (const RayState&) Current ray state
+ * @param[in,out] intersection_record (HitRecord&) Intersection data for the hit point
+ * @param[in] albedo (const EiVector3d&) Surface albedo
+ * @param[in,out] stack (std::vector<RayState>&) Ray stack to which spawned rays are appended
+ * @param[in,out] total_color (EiVector3d&) Accumulated output color
+ * @param[in] offset (double) Spatial offset used when spawning the secondary ray
+ */
 void ray_diffuse(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
@@ -137,6 +281,20 @@ void ray_diffuse(const RayState& current_state,
     EiVector3d& total_color,
     const double offset);
 
+/**
+ * @brief Computes specular material response and spawns a reflected ray.
+ * 
+ * Adds emitted radiance, updates throughput with albedo, and reflects the
+ * incident ray about the shading normal, with a fallback to the geometric
+ * normal if needed.
+ * 
+ * @param[in] current_state (const RayState&) Current ray state
+ * @param[in,out] intersection_record (HitRecord&) Intersection data for the hit point
+ * @param[in] albedo (const EiVector3d&) Surface albedo
+ * @param[in,out] stack (std::vector<RayState>&) Ray stack to which spawned rays are appended
+ * @param[in,out] total_color (EiVector3d&) Accumulated output color
+ * @param[in] offset (double) Spatial offset used when spawning the secondary ray
+ */
 void ray_specular(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
@@ -144,6 +302,19 @@ void ray_specular(const RayState& current_state,
     EiVector3d& total_color,
     const double offset);
 
+/**
+ * @brief Computes response for an unlit material.
+ * 
+ * Terminates the path at the current hit and adds the face color directly
+ * to the accumulated output.
+ * 
+ * @param[in] current_state (const RayState&) Current ray state
+ * @param[in,out] intersection_record (HitRecord&) Intersection data for the hit point
+ * @param[in] albedo (const EiVector3d&) Unused parameter, present for signature consistency
+ * @param[in,out] stack (std::vector<RayState>&) Unused ray stack, present for signature consistency
+ * @param[in,out] total_color (EiVector3d&) Accumulated output color
+ * @param[in] offset (double) Unused parameter, present for signature consistency
+ */
 void ray_unlit(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
@@ -151,6 +322,19 @@ void ray_unlit(const RayState& current_state,
     EiVector3d& total_color,
     const double offset);
 
+/**
+ * @brief Fallback material response for undefined materials.
+ * 
+ * Terminates the path and adds a procedural sky color based on the current
+ * ray direction.
+ * 
+ * @param[in] current_state (const RayState&) Current ray state
+ * @param[in,out] intersection_record (HitRecord&) Intersection data for the hit point
+ * @param[in] albedo (const EiVector3d&) Unused parameter, present for signature consistency
+ * @param[in,out] stack (std::vector<RayState>&) Unused ray stack, present for signature consistency
+ * @param[in,out] total_color (EiVector3d&) Accumulated output color
+ * @param[in] offset (double) Unused parameter, present for signature consistency
+ */
 void ray_undefined(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,
@@ -158,16 +342,40 @@ void ray_undefined(const RayState& current_state,
     EiVector3d& total_color,
     const double offset);
 
-
+/**
+ * @brief Applies Beer-Lambert absorption to the accumulated payload.
+ * 
+ * Computes per-channel transmission over the given path length using the
+ * supplied absorption coefficient and multiplies it into accumulated_color.
+ * 
+ * @param[in,out] accumulated_color (EiVector3d&) Throughput to be attenuated
+ * @param[in] absorption (const EiVector3d&) Absorption coefficient per color channel
+ * @param[in] path_length (double) Travelled distance through the absorbing medium
+ */
 inline void apply_absorption(EiVector3d& accumulated_color, const EiVector3d& absorption, const double path_length){
-    // Applies the absorption from the Beer Lambert law; path length is the travelled distance over some segment
+    // Path length is the travelled distance over some segment
     EiVector3d segment_transmission;
     segment_transmission << std::exp(-absorption(0) * path_length), std::exp(-absorption(1) * path_length), std::exp(-absorption(2) * path_length);
     // Include absorption into the transmitted/refracted throughput
     accumulated_color = accumulated_color.cwiseProduct(segment_transmission);
 };
 
-
+/**
+ * @brief Computes refractive material response and spawns reflected and/or transmitted rays.
+ * 
+ * Handles both solid dielectric volumes and thin shells. Supports nested
+ * dielectric tracking, Schlick Fresnel reflectance, total internal reflection,
+ * Beer-Lambert absorption, and Russian roulette path termination.
+ * 
+ * @tparam object_type (ObjectType) Type of refractive object, e.g. SOLID or SHELL.
+ * 
+ * @param[in] current_state (const RayState&) Current ray state
+ * @param[in,out] intersection_record (HitRecord&) Intersection data for the hit point
+ * @param[in] albedo (const EiVector3d&) Currently unused input kept for interface consistency
+ * @param[in,out] stack (std::vector<RayState>&) Ray stack to which spawned rays are appended
+ * @param[in,out] total_color (EiVector3d&) Accumulated output color
+ * @param[in] offset (double) Spatial offset used when spawning secondary rays
+ */
 // Implementation with thickness for thin shell 
 template <ObjectType object_type>
 void ray_refractive(const RayState& current_state,
@@ -197,8 +405,8 @@ void ray_refractive(const RayState& current_state,
     EiVector3d normal_shade = intersection_record.normal_shading; //  // Shading normal; use for Physics to dictate how light behaves
 
     // ri_from = refractive index of the highest priority entry in the original list OR scene_ri if empty (highest idx = -1 -> Empty)
-    double scene_ri = current_state.outer_refractive_index;
-    double ri_from = find_top_ri(&current_state.interior_list[0], current_state.interior_count, scene_ri);
+    double scene_ri = current_state.scene_ri;
+    double ri_from = interior_top_ri(&current_state.interior_list[0], current_state.interior_count, scene_ri);
     
     //std::cerr << "Check interior list in ray refractive" << std::endl;
     // Build the refraction ray's interior list = parent list toggled by the current object
@@ -233,7 +441,7 @@ void ray_refractive(const RayState& current_state,
         // For reflected ray, the list is the copy of the parent list
         // to-index = ri of the highest-priority entry in the REFRACTION ray's list, or scene_ri if empty
         // NB: when entering the hit object, this is just hit_ri if hit_priority is the new max; the formula handles both cases uniformly
-        ri_to = find_top_ri(&refracted_list[0], refracted_count, scene_ri); 
+        ri_to = interior_top_ri(&refracted_list[0], refracted_count, scene_ri); 
     }
 
 
@@ -430,7 +638,7 @@ void ray_refractive(const RayState& current_state,
     std::array<InteriorEntry, INTERIOR_LIST_MAX> refracted_list;
     refracted_list = current_state.interior_list;
     uint8_t refracted_count = current_state.interior_count;
-    double ri_from = current_state.outer_refractive_index; 
+    double ri_from = current_state.scene_ri; 
     double ri_to = 1.0003; // Fallback assignment in case something breaks
     double thickness = 0.0; // Used for thin shell only
 
@@ -456,7 +664,7 @@ void ray_refractive(const RayState& current_state,
         // For reflected ray, the list is the copy of the parent list
         // to-index = ri of the highest-priority entry in the REFRACTION ray's list, or scene_ri if empty
         // NB: when entering the hit object, this is just hit_ri if hit_priority is the new max; the formula handles both cases uniformly
-        //ri_to = find_top_ri(&refracted_list[0], refracted_count, scene_ri); 
+        //ri_to = interior_top_ri(&refracted_list[0], refracted_count, scene_ri); 
         ri_to = hit_ri;
     }
 

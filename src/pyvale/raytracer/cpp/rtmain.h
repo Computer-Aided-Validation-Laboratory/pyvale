@@ -31,6 +31,16 @@
 
 namespace nb = nanobind;
 
+/**
+ * @brief Receives scene, image, and rendering data from Python.
+ * Dispatches to build acceleration structures, then iterates over cameras to generate images.
+ * 
+ * Parameter list to be updated:
+ * a) We will likely be sending much more data, so this is to be changed anyway
+ * b) This interface needs to be made C-compatible anyway, so datatypes will likely change
+ * c) It would be nice to compact it into something like a struct, because it is lengthy and becoming hard to keep track of
+ * 
+ */
 void render_scene(const int image_height,
     const int image_width,
     const int number_of_samples,
@@ -53,4 +63,5 @@ void render_scene(const int image_height,
     const std::vector<double>& scene_mesh_thickness,
     const int texture_sampler,
     const int shading_type,
+    const int output_format,
     const bool grayscale_flag);

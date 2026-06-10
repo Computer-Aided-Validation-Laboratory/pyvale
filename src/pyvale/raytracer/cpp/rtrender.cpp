@@ -48,7 +48,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
         EiVector3d absorption = EiVector3d::Zero(); // Set default absorption to 0.0 = clear medium
         const bool has_medium = current_state.interior_count > 0; // Check if our ray has traversed any media that could attenuate the accumulated colour
         if (has_medium){
-            absorption = find_top_absorption(&current_state.interior_list[0], current_state.interior_count, EiVector3d::Zero());
+            absorption = interior_top_absorption(&current_state.interior_list[0], current_state.interior_count);
         }
         const bool has_absorption = absorption.x() > 0.0 || absorption.y() > 0.0 || absorption.z() > 0.0; // Save ourselves having to compute exponentials if there is no absorption
         
@@ -82,8 +82,7 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
 
         // Handle nested dielectrics - if using function pointer approach
         // Classify nested dielectrics if material is refractive
-        if (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID>) {
-        //if (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID> || intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SHELL>) {
+        if (ray_material_interaction_ptr == &ray_refractive<ObjectType::SOLID>) {
 
             int hit_idx = intersection_record.hit_blas_idx;
             int hit_priority = intersection_record.hit_blas_priority;
@@ -100,8 +99,8 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
             }
             
             // Check if it is a true hit
-            //if (current_state.interior_count > 0 && hit_priority < top_priority) {
-            if (!(current_state.interior_count == 0 || hit_priority >= top_priority)){
+            if (current_state.interior_count > 0 && hit_priority < top_priority) {
+            //if (!(current_state.interior_count == 0 || hit_priority >= top_priority)){ // default
                 //std::cerr << "Inside interior count check" << std::endl;
                 // False hit: priority of hit object < max priority in interior list (Schmidt's algorithm for nested volumes)
                 // => Do not shade; re-cast the ray from hit point in the same direction by pushing a new RayState whose origin is the current hit point
@@ -139,7 +138,10 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
                 total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission);
                 continue;
             }
-            albedo /= p;
+            // Only change albedo for non-refractive materials
+            if (!(ray_material_interaction_ptr == &ray_refractive<ObjectType::SOLID> || ray_material_interaction_ptr == &ray_refractive<ObjectType::SHELL>)){
+                albedo /= p;
+            }
         }
 
         // True hit: priority of hit object >= max priority in interior list OR the list is empty
@@ -517,27 +519,144 @@ EiVector3d return_ray_color_new(const Ray& ray,
 }
 */
 
-/*
-// Original, no-shading function
-EiVector3d return_ray_color(const Ray& ray,
-    const TLAS& TLAS) {
+namespace outputwriter{
 
-    HitRecord intersection_record; // Create HitRecord struct
-    // Look for intersection
-    IntersectionOutput intersection;
-    intersect_TLAS(ray, TLAS, intersection, intersection_record);
+    void (*save_image)(const std::vector<uint8_t>& pixel_buffer,
+        const int image_height,
+        const int image_width,
+        std::filesystem::path& output_filepath);
 
-    if (intersection_record.t != std::numeric_limits<double>::infinity()) { // Instead of keeping a bool hit_anything, check if t value has changed from the default
-        //std::cout << "Coloring..." << std::endl;
-        set_face_normal(ray, intersection_record.normal_surface);
-        // Color interpolated for a triangle
-        //return intersection_record.elem_interp_coords(0) * intersection_record.face_color + intersection_record.elem_interp_coords(1) * intersection_record.face_color + intersection_record.elem_interp_coords(2) * intersection_record.face_color;
-        return intersection_record.face_color; // To test quads without any special coloring for now
+    // Helper that writes 16-bit integers in Little-Endian byte order
+    static inline void write_16bit(std::ofstream& image_file,
+        uint16_t value){
+
+        uint8_t bytes[2] = {static_cast<uint8_t>(value & 0xFF), static_cast<uint8_t>(value >> 8) };
+        image_file.write(reinterpret_cast<const char*>(bytes), 2);
     }
-    // Blue sky gradient
-    return ray_blue_sky(ray);
+
+    // Helper that writes 32-bit integers in Little-Endian byte order
+    static inline void write_32bit(std::ofstream& image_file,
+        uint32_t value){
+
+        uint8_t bytes[4] = { static_cast<uint8_t>(value & 0xFF),
+        static_cast<uint8_t>((value >> 8) & 0xFF),
+        static_cast<uint8_t>((value >> 16) & 0xFF),
+        static_cast<uint8_t>((value >> 24) & 0xFF) };
+        image_file.write(reinterpret_cast<const char*>(bytes), 4);
+    }
+
+    // Helper that writes a TIFF tag (12-byte IFD tag)
+    static inline void write_tag(std::ofstream& image_file,
+        uint16_t tag,
+        uint16_t type,
+        uint32_t count,
+        uint32_t value) {
+
+        write_16bit(image_file, tag);
+        write_16bit(image_file, type);
+        write_32bit(image_file, count);
+        write_32bit(image_file, value);
+    }
+
+    void saveTIFF(const std::vector<uint8_t>& pixel_buffer,
+        const int image_height,
+        const int image_width,
+        std::filesystem::path& output_filepath) {
+            
+        // Finish the output filepath with the appropriate extension
+        output_filepath.concat(".tiff"); // Concat will do "whatever_path_we_have.tiff", which is what we want as we already pass the name of the image file, we just need to add the extension
+        std::cout << "Output filepath:" << output_filepath << std::endl;
+
+        // std::ios::binary is important for TIFF so Windows doesn't corrupt the file by changing \n to \r\n
+        std::ofstream image_file(output_filepath, std::ios::binary);
+        if (!image_file.is_open()) {
+            std::cerr << "Failed to open the output file.\n";
+            return;
+        }
+
+        // Write the TIFF Header (8 bytes)
+        // "II" (little-endian), 42 (magic number), 8 (offset to first IFD)
+        image_file.write("II\x2A\x00\x08\x00\x00\x00", 8);
+
+        // Write the IFD (Image File Directory)
+        write_16bit(image_file, 12); // Number of directory entries
+
+        // TIFF tags must be written in strictly ascending order of the Tag ID
+        write_tag(image_file, 0x0100, 4, 1, image_width); // ImageWidth (LONG)
+        write_tag(image_file, 0x0101, 4, 1, image_height); // ImageLength (LONG)
+        write_tag(image_file, 0x0102, 3, 3, 158); // BitsPerSample (SHORTx3 -> Pointer offset 158)
+        write_tag(image_file, 0x0103, 3, 1, 1); // Compression (SHORT -> 1 = None)
+        write_tag(image_file, 0x0106, 3, 1, 2); // PhotometricInterpretation (SHORT -> 2 = RGB)
+        write_tag(image_file, 0x0111, 4, 1, 180); // StripOffsets (LONG -> Pointer offset 180)
+        write_tag(image_file, 0x0115, 3, 1, 3); // SamplesPerPixel (SHORT -> 3 channels)
+        write_tag(image_file, 0x0116, 4, 1, image_height); // RowsPerStrip (LONG)
+        write_tag(image_file, 0x0117, 4, 1, image_width * image_height * 3); // StripByteCounts (LONG -> Total pixel bytes)
+        write_tag(image_file, 0x011A, 5, 1, 164); // XResolution (RATIONAL -> Pointer offset 164)
+        write_tag(image_file, 0x011B, 5, 1, 172); // YResolution (RATIONAL -> Pointer offset 172)
+        write_tag(image_file, 0x0128, 3, 1, 2); // ResolutionUnit (SHORT -> 2 = Inches)
+
+        write_32bit(image_file, 0); // Offset to next IFD (0 indicates end of IFDs)
+
+        // Write data that exceeds the 4-byte limit in the IFD value fields
+        // Offset 158: BitsPerSample
+        write_16bit(image_file, 8); write_16bit(image_file, 8); write_16bit(image_file, 8); 
+        // Offset 164: XResolution (Numerator / Denominator = 72 / 1)
+        write_32bit(image_file, 72); write_32bit(image_file, 1);            
+        // Offset 172: YResolution (Numerator / Denominator = 72 / 1)
+        write_32bit(image_file, 72); write_32bit(image_file, 1);            
+
+        // Write pixel data
+        // Offset 180: StripOffsets matches this exact position in the file
+        image_file.write(reinterpret_cast<const char*>(pixel_buffer.data()), pixel_buffer.size());
+
+        image_file.close();
+        std::cout << "\r Done. \n";
+    }
+
+    void savePPM(const std::vector<uint8_t>& pixel_buffer,
+        const int image_height,
+        const int image_width,
+        std::filesystem::path& output_filepath){
+        
+        // Finish the output filepath with the appropriate extension
+        output_filepath.concat(".ppm");
+        std::cout << "Output filepath:" << output_filepath << std::endl;
+
+        std::ofstream image_file;
+
+        image_file.open(output_filepath);
+        if (!image_file.is_open()) {
+            std::cerr << "Failed to open the output file.\n";
+            return;
+        }
+
+        image_file << "P6\n" << image_width << ' ' << image_height << "\n255\n";
+        image_file.write(reinterpret_cast<const char*>(pixel_buffer.data()), pixel_buffer.size());
+
+        image_file.close();
+        std::cout << "\r Done. \n";
+    }
+
+    // Setter
+    void set(OutputType output_format){
+        switch (output_format){
+            case OutputType::PPM:
+                save_image = &savePPM;
+                break;
+            case OutputType::TIFF:
+                save_image = &saveTIFF;
+                break;
+            //case OutputType::NP_BUFFER:
+                //save_image = &saveNPBuffer;
+                //break;
+            default:
+                save_image = &savePPM;
+                break;
+        }
+    }
+
 }
-*/
+
 
 void mock_ray_shoot(const EiVector3d& camera_center,
     const EiVector3d& pixel_00_center,

@@ -131,7 +131,8 @@ IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     // More specifically: Chapter 8, "Cool Patches: A Geometric Approach to Ray/Bilinear Patch Intersections" by A. Reshetov
 
     static constexpr int COORDS_PER_ELEMENT = static_cast<int>(ElementNodeCount::QUAD4) * NODE_COORDINATES;
-    static constexpr double EPSILON = 1e-12; // This works sensibly so long as we don't have a mesh of size like 0.001 (in whatever world units are chosen), but adaptive epsilon setting could probably be useful
+    //static constexpr double EPSILON = 1e-8; // This works sensibly for meshes that are like 0.1+ order of magnitude; 1e-10 does not work as well. I tried 1e-9 and it works ok here, but not for smaller quads
+    static constexpr double EPSILON = 1e-10; // This is better for smaller meshes... It's hard to find a good common ground for QUAD4 specifically as they seem to be very sensitive to this epsilon
     
     // 1. COORDINATES AND EDGES
     // Ray data broadcasted to use in vectorised operations on matrices
@@ -333,7 +334,7 @@ static const double backtrack_factor= 0.5;
 // Evaluate S(xi, eta) = sum_i N_i(xi, eta) * x_i for the 9 quad9 nodes.
 static inline EiVector3d evaluate_surface_quad9(const double xi, const double eta,
         const std::array<EiVector3d, ElementNodeCount::QUAD9>& nodes) {
-    const std::array<double, ElementNodeCount::QUAD9> N = compute_shape_quad9(xi, eta);
+    const std::array<double, ElementNodeCount::QUAD9> N = shapefuncs::compute_shape_quad9(xi, eta);
     EiVector3d S = EiVector3d::Zero();
     for (int i = 0; i < ElementNodeCount::QUAD9; ++i) {
         S += N[i] * nodes[i];
@@ -434,7 +435,7 @@ double intersect_quad9(const Ray& ray,
                 break;
             }
 
-            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad9(xi, eta, nodes);
+            Eigen::Matrix<double, 3, 2> J = shapefuncs::get_face_Jacobian_quad9(xi, eta, nodes);
 
             Eigen::Matrix3d M;
             M.col(0) = ray.direction.transpose();
@@ -495,7 +496,7 @@ double intersect_quad9(const Ray& ray,
     if (!have_hit) return std::numeric_limits<double>::infinity();
 
     // Geometric normal at the converged hit, from the true quadratic Jacobian
-    Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad9(best_xi_eta.x(), best_xi_eta.y(), nodes);
+    Eigen::Matrix<double, 3, 2> J_hit = shapefuncs::get_face_Jacobian_quad9(best_xi_eta.x(), best_xi_eta.y(), nodes);
     EiVector3d normal = (J_hit.col(0).cross(J_hit.col(1))).transpose();
 
     surface_normals_out = normal;
@@ -572,7 +573,7 @@ IntersectionOutput intersect_bvh_quad9(const Ray& ray,
 static inline EiVector3d evaluate_surface_quad8(const double xi, const double eta,
         const std::array<EiVector3d, ElementNodeCount::QUAD8>& nodes) {
 
-    const std::array<double, ElementNodeCount::QUAD8> N = compute_shape_quad8(xi, eta);
+    const std::array<double, ElementNodeCount::QUAD8> N = shapefuncs::compute_shape_quad8(xi, eta);
     EiVector3d S = EiVector3d::Zero();
     for (int i = 0; i < ElementNodeCount::QUAD8; ++i) {
         S += N[i] * nodes[i];
@@ -661,7 +662,7 @@ double intersect_quad8(const Ray& ray,
                 break;
             }
 
-            Eigen::Matrix<double, 3, 2> J = get_face_Jacobian_quad8(xi, eta, nodes);
+            Eigen::Matrix<double, 3, 2> J = shapefuncs::get_face_Jacobian_quad8(xi, eta, nodes);
 
             Eigen::Matrix3d M;
             M.col(0) =  ray.direction.transpose();
@@ -719,7 +720,7 @@ double intersect_quad8(const Ray& ray,
 
     if (!have_hit) return std::numeric_limits<double>::infinity();
 
-    Eigen::Matrix<double, 3, 2> J_hit = get_face_Jacobian_quad8(best_xi_eta.x(), best_xi_eta.y(), nodes);
+    Eigen::Matrix<double, 3, 2> J_hit = shapefuncs::get_face_Jacobian_quad8(best_xi_eta.x(), best_xi_eta.y(), nodes);
     EiVector3d normal = (J_hit.col(0).cross(J_hit.col(1))).transpose();
 
     surface_normals_out = normal;
@@ -885,7 +886,7 @@ double intersect_tri6(const Ray &ray,
         double t = best_sub_t;
 
         for (int iter = 0; iter < iter_max; ++iter) {
-            Eigen::VectorXd N = compute_shape_tri6(gh.x(), gh.y());
+            Eigen::VectorXd N = shapefuncs::compute_shape_tri6(gh.x(), gh.y());
     
             EiVector3d P = EiVector3d::Zero();
             for (int i = 0; i < 6; ++i)
@@ -902,7 +903,7 @@ double intersect_tri6(const Ray &ray,
                             min_t = t;
         
                             Eigen::Matrix<double, 3, 2> J =
-                                get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
+                                shapefuncs::get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
         
                             EiVector3d normal =
                                 (J.col(0).cross(J.col(1))).transpose();
@@ -916,7 +917,7 @@ double intersect_tri6(const Ray &ray,
             }
     
             Eigen::Matrix<double, 3, 2> J =
-                get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
+                shapefuncs::get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
     
             Eigen::Matrix3d M;
             M.col(0) = ray.direction.transpose();

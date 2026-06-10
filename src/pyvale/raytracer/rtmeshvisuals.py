@@ -140,8 +140,7 @@ class SceneVisualiser:
         """
         if event.keypress.lower() == "c":
             if self.display_locators: # If we display those, then we know that the list is not empty so we don't check that
-                self.plotter.remove(self.camera_locators[0])
-                self.plotter.remove(self.camera_locators[1])
+                self.plotter.remove(self.camera_locators)
                 self.plotter.remove(CAM_LOC_TXT)
             else:
                 self.plotter.add(self.camera_locators)

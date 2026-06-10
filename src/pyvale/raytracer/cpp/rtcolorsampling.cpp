@@ -23,8 +23,8 @@ namespace texsampler{
         int height = texture.height;
         int width = texture.width;
         // Clip between 0.0 and 1.0
-        double u = clip(uvs(0), 0.0, 1.0);
-        double v = clip(uvs(1), 0.0, 1.0);
+        double u = std::clamp(uvs(0), 0.0, 1.0);
+        double v = std::clamp(uvs(1), 0.0, 1.0);
 
         // Get the nearest integer and cast to index into the texture array
         int ix = static_cast<int>(u * (width - 1)); //

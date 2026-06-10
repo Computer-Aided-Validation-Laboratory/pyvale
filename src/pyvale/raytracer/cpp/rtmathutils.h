@@ -6,6 +6,7 @@
 
 #pragma once // Header guard instead of ifndef
 
+
 // STD header files
 #include <cmath>
 #include <random>
@@ -14,15 +15,25 @@
 // raytracer header files
 #include "rteigentypes.h"
 
-inline double degreesToRadians(double angleDeg) {
-    return angleDeg * M_PI / 180;
+/**
+ * @brief Converts angle value from degrees to radians.
+ * 
+ * @param[in] angle_deg (double) Value in degrees to convert.
+ * @return (double) Passed value converted to radians.
+ */
+inline double degreesToRadians(const double angle_deg) {
+    return angle_deg * M_PI / 180;
 }
 
-inline double clip(double number, double lower_boundary, double upper_boundary){
-    return std::max(lower_boundary, std::min(number, upper_boundary));
-}
-
-// Thread safe
+/**
+ * @brief Generates a random double in the range [0, 1).
+ * 
+ * Thread-safe implementation using thread-local storage for both the
+ * random number generator and distribution. By default, the generator
+ * is not explicitly seeded, resulting in implementation-defined behavior.
+ * 
+ * @return (double) Random value uniformly distributed in [0, 1).
+ */
 inline double random_double() {
     thread_local std::uniform_real_distribution<double> distribution(0.0, 1.0);
     thread_local std::mt19937 generator; // No seed
@@ -31,13 +42,31 @@ inline double random_double() {
     return distribution(generator);
 }
 
-inline double random_double_disk() {
+/**
+ * @brief Generates a random double in the range [-1, 1).
+ * 
+ * Thread-safe implementation using thread-local storage for both the
+ * random number generator and distribution. Primarily intended for
+ * sampling coordinates within a square domain.
+ * 
+ * @return (double) Random value uniformly distributed in [-1, 1).
+ */
+static inline double random_double_disk() {
     thread_local std::uniform_real_distribution<double> distribution2(-1.0, 1.0);
     thread_local std::mt19937 generator;
     return distribution2(generator);
 }
 
-inline std::array<double,2> point_in_unit_disk(){
+/**
+ * @brief Generates a random 2D point inside the unit disk.
+ * 
+ * Uses rejection sampling by generating points in the square [-1, 1] × [-1, 1]
+ * and accepting only those that lie within the unit circle. This produces a
+ * uniform distribution over the disk, used for the camera defocus disc.
+ * 
+ * @return (std::array<double,2>) A 2D point (x,y) such that x^2 + y^2 < 1.
+ */
+static inline std::array<double,2> point_in_unit_disk(){
     while (true){
         std::array<double,2> offset = { random_double_disk(), random_double_disk()};
         if (offset[0] * offset[0] + offset[1] * offset[1] < 1.0){

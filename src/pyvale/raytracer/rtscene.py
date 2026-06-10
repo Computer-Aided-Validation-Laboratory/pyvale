@@ -24,7 +24,7 @@ class RenderType(Enum):
 class OutputType(IntEnum):
     IMG_PPM = 0
     IMG_TIFF = 1
-    NP_BUFFER = 2
+    #NP_BUFFER = 2 # Not implemented yet
 
 # Enum to specify the texture sampler type
 # Must match the enum in rtcolorsampling.h on the C++ side

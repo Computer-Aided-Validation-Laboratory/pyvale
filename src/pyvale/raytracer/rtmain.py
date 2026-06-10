@@ -62,6 +62,7 @@ def render_scene(image_height: int,
                  frames_to_render: int = None,
                  texture_sampler: TextureSampler | None = None,
                  shading_type: ShadingType = ShadingType.FLAT,
+                 output_format: OutputType = OutputType.IMG_TIFF,
                  grayscale: bool = True):
     """
     Performs checks and dispatches the scene to the C++ rendering backend.
@@ -87,6 +88,8 @@ def render_scene(image_height: int,
         The algorithm used to sample the textures onto the mesh surfaces. Defaults to None and gets set to nearest neighbour.
     shading_type: ShadingType
         The type of shading to use. Can be either FLAT (geometric normals used for shading) or BLENDED (node normals used for shading). Defaults to FLAT.
+    output_format: OutputType
+        The format of the output image. Can be either IMG_PPM or IMG_TIFF. Defaults to IMG_TIFF.
     grayscale: bool
         Flag to determine whether the image is to be rendered using grayscale or in colour. Defaults to True.
 
@@ -141,6 +144,10 @@ def render_scene(image_height: int,
     elif shading_type == ShadingType.ANGLE_AVG_BLENDED:
         print("Angle-averaged blended shading selected. Angle-averaged node normals will be used for all elements.")
     
+    if SurfType.TEXTURE in scene.surface_types and grayscale:
+        # This will not break the renderer, so just display an information
+        print("Please note that colorful textures are currently not supported and they will still be sampled in grayscale.")
+
     # Select appropriate rendering function based on these booleans to minimize branching in backend rendered if possible
     # Not sure if we will need to implement this yet - BVH builder is still fast with conditional checks (and we run it once per frame), and branching based on element/surface type was moved out of the hot loops
     #if uniform_surfaces and uniform_elements:
@@ -178,5 +185,6 @@ def render_scene(image_height: int,
                      scene.mesh_thickness,
                      texture_sampler,
                      shading_type,
+                     output_format,
                      grayscale)
     
