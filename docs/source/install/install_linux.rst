@@ -1,17 +1,16 @@
 .. _install_linux:
 
 Ubuntu Linux
-=============
+############
 
-Managing Python Versions
+Configuring Python3.11
 ------------------------
 
 To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` uses python 3.11. To install python 3.11 without corrupting your operating systems python installation first add the deadsnakes repository to apt:
 
 .. code-block:: bash
 
-   sudo add-apt-repository ppa:deadsnakes/ppa
-   sudo apt update && sudo apt upgrade -y
+   sudo add-apt-repository ppa:deadsnakes/ppa && sudo apt update
 
 Install python 3.11:
 
@@ -26,6 +25,9 @@ Check your python 3.11 install is working using the following command which shou
    python3.11
 
 If everything has worked you should see an interactive python console with Python 3.11.xx in the header. You can now exit the interpreter using ``quit()``.
+
+Interactive ROI Dependencies
+----------------------------
 
 For the interactive ROI tool to work, there's a couple of system level libraries that are required:
 
@@ -76,9 +78,19 @@ If there are no errors then everything has worked and you can now move on to loo
 
 Installation from Source
 ------------------------
-This will only be needed if you want an editable installation of ``pyvale`` for most applications users will want to use the PyPI version above.
 
-Clone ``pyvale`` to your local system using:
+
+When installing from source you'll need a C/C++ compiler. It's likely that
+you'll already have one. If not, you can install it using the ``apt`` package
+manager with:
+
+.. code-block:: bash
+
+   sudo apt update
+   sudo apt install gcc
+
+For the ROI tool, you'll need the `Interactive ROI dependencies`_.
+Once done, you can clone ``pyvale`` to your local system using:
 
 .. code-block:: bash
 
@@ -90,5 +102,13 @@ Clone ``pyvale`` to your local system using:
 
    pip install -e .
    
-This will create an editable/developer installation of ``pyvale``.
+This will create an editable/developer installation of ``pyvale``. Now check that you can import pyvale in the interpreter:
+
+.. code-block:: python
+
+   import pyvale
+
+If there are no errors then everything has worked and you can now move on to looking at some of our examples to get you started in the basics section.
+
+
 

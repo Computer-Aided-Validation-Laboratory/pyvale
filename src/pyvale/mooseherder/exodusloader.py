@@ -81,7 +81,7 @@ class ExodusLoader(IOutputLoader):
         if key not in self._data.variables or key is None:
             return None
 
-        return nc.chartostring(np.array(self._data.variables[key]))
+        return nc.chartostring(np.array(self._data.variables[key][:]))
 
 
     def get_var(self, key: str, time_inds: np.ndarray | None = None
@@ -107,7 +107,7 @@ class ExodusLoader(IOutputLoader):
         if key not in self._data.variables:
             return np.array([])
 
-        data = np.array(self._data.variables[key]).T
+        data = np.array(self._data.variables[key][:]).T
 
         if time_inds is None:
             return data
@@ -657,7 +657,9 @@ class ExodusLoader(IOutputLoader):
         time_steps = np.array([]
                               )
         if 'time_whole' in self._data.variables:
-            time_steps = np.array(self._data.variables['time_whole'])
+            time_steps = np.array(
+                self._data.variables['time_whole'][:]
+            )
 
             if time_inds is not None:
                 time_steps = time_steps[time_inds]

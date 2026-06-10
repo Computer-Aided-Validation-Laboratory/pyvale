@@ -41,7 +41,6 @@ class Scene():
 
         new_world = bpy.data.worlds.new('World')
         bpy.context.scene.world = new_world
-        new_world.use_nodes = True
         node_tree = new_world.node_tree
         nodes = node_tree.nodes
 

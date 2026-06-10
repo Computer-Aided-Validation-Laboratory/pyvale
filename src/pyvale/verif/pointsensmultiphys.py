@@ -166,7 +166,7 @@ def exp_sim_2d() -> dict[str,sens.ExperimentSimulator]:
                 # print(f"{ee=}")
                 # print(80*"-")
                 if err_chain_dict[ff][ee] is not None:
-                    err_int_opts = sens.ErrIntOpts()q
+                    err_int_opts = sens.ErrIntOpts()
                     this_sens.set_error_chain(err_chain_dict[ff][ee],
                                               err_int_opts)
 

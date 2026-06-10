@@ -63,7 +63,7 @@ roi.save_array(filename=roi_file, binary=False)
 roi.read_array(filename=roi_file, binary=False)
 
 # %%
-# Now we can run the 2D DIC engine using :func:`pyvale.dic_2d`.
+# Now we can run the 2D DIC engine using :func:`pyvale.dic.calculate_2d`.
 #
 # This function accepts many optional arguments — consult the documentation for full details.
 # At a minimum, you’ll need to specify:
@@ -80,34 +80,34 @@ roi.read_array(filename=roi_file, binary=False)
 # At present, the DIC engine doesn't return any results to the user, instead the results are saved to disk.
 # You can customize the filename, location, format, and delimiter using
 # the options options `output_basepath`, `output_prefix`, `output_delimiter`, and `output_binary`.
-# More info on these options can be found in the documentation for :func:`dic.two_dimensional`.
+# More info on these options can be found in the API documentation for :func:`pyvale.dic.calculate_2d`.
 # By default, the results will be saved with the prefix `dic_results_` followed
 # by the original filename. The file extension will be replaced will either ".csv" or "dic2d"
 # depending on whether the results are being saved in human-readable or binary format.
-dic.two_dimensional(reference=ref_img,
-                    deformed=def_img,
-                    roi_mask=roi.mask,
-                    seed=roi.seed,
-                    subset_size=subset_size,
-                    subset_step=10,
-                    shape_function="AFFINE",
-                    max_displacement=10,
-                    correlation_criteria="ZNSSD",
-                    output_basepath=output_path,
-                    output_delimiter=",",
-                    output_prefix="dic_results_")
+dic.calculate_2d(reference=ref_img,
+                 deformed=def_img,
+                 roi_mask=roi.mask,
+                 seed=roi.seed,
+                 subset_size=subset_size,
+                 subset_step=10,
+                 shape_function="AFFINE",
+                 max_displacement=10,
+                 correlation_criteria="ZNSSD",
+                 output_basepath=output_path,
+                 output_delimiter=",",
+                 output_prefix="dic_results_")
 
 # %%
 # If you saved the results in a human-readable format, you can use any tool
 # (e.g., Excel, Python, MATLAB) for post-processing.
 #
 # For convenience, we provide a utility function to import results back into Python
-# for analysis and visualization: :func:`pyvale.dic_data_import`.
+# for analysis and visualization: :func:`pyvale.dic.import_2d`.
 #
 # The returned object is an instance of :class:`pyvale.DICResults`. If the results
 # were saved in binary format or with a custom delimiter, be sure to specify those parameters.
 dic_files = output_path / "dic_results_*.csv"
-dicdata = dic.data_import(data=dic_files, delimiter=",", binary=False)
+dicdata = dic.import_2d(data=dic_files, delimiter=",", binary=False)
 
 # %%
 # As an example, here's a simple visualization of the displacement (u, v) and
