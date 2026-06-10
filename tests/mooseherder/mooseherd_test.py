@@ -18,6 +18,8 @@ def dir_manager() -> DirectoryManager:
 
 @pytest.fixture()
 def herd_blank() -> MooseHerd:
+    if not hct.moose_present:
+        pytest.skip("MOOSE app not installed at the expected path")
     (moose_runner,moose_modifier) = hct.create_moose_objs(hct.MOOSE_INPUT)
     blank_manager = DirectoryManager(hct.NUM_DIRS)
     return MooseHerd([moose_runner],[moose_modifier],blank_manager)
@@ -25,12 +27,16 @@ def herd_blank() -> MooseHerd:
 
 @pytest.fixture()
 def herd(dir_manager) -> MooseHerd:
+    if not hct.moose_present:
+        pytest.skip("MOOSE app not installed at the expected path")
     (moose_runner,moose_modifier) = hct.create_moose_objs(hct.MOOSE_INPUT)
     return MooseHerd([moose_runner],[moose_modifier],dir_manager)
 
 
 @pytest.fixture()
 def herd_gmsh(dir_manager) -> MooseHerd:
+    if not hct.moose_present or not hct.gmsh_present:
+        pytest.skip("MOOSE or Gmsh app not installed at the expected path")
     (moose_runner,moose_modifier) = hct.create_moose_objs(hct.MOOSE_INPUT)
     (gmsh_runner,gmsh_modifier) = hct.create_gmsh_objs(hct.GMSH_INPUT)
 

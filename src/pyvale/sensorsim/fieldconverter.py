@@ -137,6 +137,7 @@ def extract_surf_mesh(sim_data: SimData) -> SimData:
     """Extracts a surface mesh from a 3D simulation dataclass. Useful for
     limiting the memory required for analysing sensors that only measure surface
     fields. This function currently supports:
+
         - A single connectivity table
         - Higher order retrahedral and hexahedral elements (but not wedges or
           pyramids)

@@ -70,6 +70,7 @@ def save_array(save_file: Path,
 
 class ESaveFieldOpt(enum.Enum):
     """Enumeration specifying how to save physics fields as:
+
     - 'BY_TIME': One array per time step where the first dimension is the nodal
         coordinates and the second dimension is the field component.
     - 'BY_FIELD': A single array per nodal field where the first dimension is

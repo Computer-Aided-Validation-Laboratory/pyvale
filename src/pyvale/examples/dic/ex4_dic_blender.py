@@ -51,21 +51,21 @@ if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
 # DIC Calculation
-dic.two_dimensional(reference=ref_img,
-                           deformed=def_img,
-                           roi_mask=roi.mask,
-                           seed=roi.seed,
-                           subset_size=subset_size,
-                           subset_step=10,
-                           shape_function="AFFINE",
-                           max_displacement=20,
-                           correlation_criteria="ZNSSD",
-                           output_basepath=output_path,
-                           output_prefix="blender_dic_")
+dic.calculate_2d(reference=ref_img,
+                 deformed=def_img,
+                 roi_mask=roi.mask,
+                 seed=roi.seed,
+                 subset_size=subset_size,
+                 subset_step=10,
+                 shape_function="AFFINE",
+                 max_displacement=20,
+                 correlation_criteria="ZNSSD",
+                 output_basepath=output_path,
+                 output_prefix="blender_dic_")
 
 # Import the Results
 data_path = output_path / "blender_dic_*.csv"
-dicdata = dic.data_import(data=data_path, delimiter=",",
+dicdata = dic.import_2d(data=data_path, delimiter=",",
                                  layout='matrix', binary=False)
 
 # %%

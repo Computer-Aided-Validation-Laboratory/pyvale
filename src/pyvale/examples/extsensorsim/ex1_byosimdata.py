@@ -82,7 +82,7 @@ io.save_sim_data_to_arrays(output_path,sim_data,save_opts)
 # virtual sensors but we will load it here to demonstrate mesh-based sensors. In 
 # this case each meshed object in the simulation has a connectivity table 
 # labelled "connectX" where X is an integer specifying the unique mesh in the 
-#  simulation. The "hex20_connect1.csv" has the shape 20 by number of elements 
+# simulation. The "hex20_connect1.csv" has the shape 20 by number of elements 
 # in the mesh as we are using 20 node hexahedral elements.
 #
 # We can also see the field files which are labelled "hex20_node_field_*" with
