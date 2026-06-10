@@ -396,8 +396,11 @@ def _should_transpose_connectivity(
                 return False
             if col_match and not row_match:
                 return True
-        if connect.shape[0] > connect.shape[1]:
-            return True
+        if mesh_in is not None and mesh_in.coords is not None:
+            return _score_orientation(connect.T, mesh_in.coords) > _score_orientation(
+                connect,
+                mesh_in.coords,
+            )
         return False
     raise NotImplementedError(
         "Could not infer connectivity orientation from shape "
@@ -499,6 +502,35 @@ def _as_row_major_zero_based(
         connect_out = connect_out - 1
     connect_out = _normalise_legacy_connectivity_order(connect_out, legacy_connect)
     return np.ascontiguousarray(connect_out, dtype=np.int64)
+
+
+def _score_orientation(connect_row_major: np.ndarray, coords: np.ndarray) -> int:
+    num_coords = coords.shape[0]
+    connect_eval = np.asarray(connect_row_major, dtype=np.int64)
+
+    if connect_eval.ndim != 2 or connect_eval.shape[1] not in _SUPPORTED_NODE_COUNTS:
+        return -1
+
+    if _needs_zero_based_shift(connect_eval, num_coords):
+        connect_eval = connect_eval - 1
+
+    if not _check_indices_zero_based(connect_eval, num_coords):
+        return -1
+
+    score = 0
+    for row in connect_eval:
+        if np.unique(row).shape[0] != row.shape[0]:
+            continue
+
+        try:
+            metric = _handedness_metric(row, coords)
+        except ValueError:
+            continue
+
+        if metric is not None and abs(metric) > _TOL:
+            score += 1
+
+    return score
 
 
 def _normalise_legacy_connectivity_order(

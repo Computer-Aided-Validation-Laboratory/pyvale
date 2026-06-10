@@ -304,7 +304,9 @@ def check_sim_data(data: SimData) -> None:
 
     assert tuple(data.connect.keys()) == CONNECT_NAMES
     for cc in data.connect:
-        assert data.connect[cc].shape == (NODES_PER_ELEM,NUM_ELEMS_PER_BLOCK)
+        assert data.connect[cc].shape == (NUM_ELEMS_PER_BLOCK,NODES_PER_ELEM)
+        assert np.min(data.connect[cc]) >= 0
+        assert np.max(data.connect[cc]) < NUM_NODES
 
     assert len(data.side_sets.keys()) == NUM_SIDESETS*2
     for ss in data.side_sets:
@@ -324,4 +326,3 @@ def check_sim_data(data: SimData) -> None:
     assert tuple(data.glob_vars.keys()) == GLO_VAR_NAMES
     for gg in data.glob_vars:
         data.glob_vars[gg].shape == (NUM_TIME_STEPS,)
-
