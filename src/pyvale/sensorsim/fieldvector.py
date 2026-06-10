@@ -9,6 +9,7 @@ import pyvista as pv
 from scipy.spatial.transform import Rotation
 
 from pyvale.dataio.simdata import SimData
+from pyvale.dataio.meshtools import enforce_mesh_convention
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldconverter import (simdata_to_pyvista_interp,
                                    simdata_to_pyvista_vis)
@@ -61,6 +62,8 @@ class FieldVector(IField):
         self.set_sim_data(sim_data)
 
     def set_sim_data(self, sim_data: SimData) -> None:
+        if sim_data.connect is not None:
+            sim_data = enforce_mesh_convention(sim_data)
         self._sim_data = sim_data
 
         self._visualiser = simdata_to_pyvista_vis(sim_data,
@@ -133,4 +136,3 @@ class FieldVector(IField):
                                                              field_data[ii,:,:])
 
         return field_data
-

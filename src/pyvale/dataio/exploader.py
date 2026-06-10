@@ -18,7 +18,6 @@ class IExpLoader(ABC):
 
 
 def load_exp_data(loaders: dict[str,IExpLoader]) -> dict[str,ExpData]:
-
     exp_data = {}    
     for kk,ll in loaders.items():
         exp_data[kk] = ll.load_data() 

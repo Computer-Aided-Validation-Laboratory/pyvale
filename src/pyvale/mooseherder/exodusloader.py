@@ -25,6 +25,7 @@ from pathlib import Path
 import netCDF4 as nc
 import numpy as np
 from pyvale.dataio.simdata import SimData, SimLoadConfig
+from pyvale.dataio.meshtools import enforce_mesh_convention
 from pyvale.mooseherder.outputloader import IOutputLoader
 
 
@@ -36,9 +37,11 @@ class ExodusLoader(IOutputLoader):
     read_all_sim_data() specified at the bottom of the class.
     """
 
-    __slots__ = ("_exodus_path","_data")
+    __slots__ = ("_exodus_path","_data","_enforce_convention")
 
-    def __init__(self, output_file: Path) -> None:
+    def __init__(self,
+                 output_file: Path,
+                 enforce_convention: bool = True) -> None:
         """
         Parameters
         ----------
@@ -57,6 +60,7 @@ class ExodusLoader(IOutputLoader):
 
         self._exodus_path = output_file
         self._data = nc.Dataset(str(self._exodus_path))
+        self._enforce_convention = enforce_convention
 
 
     def get_names(self, key: str | None) -> np.ndarray | None:
@@ -735,6 +739,11 @@ class ExodusLoader(IOutputLoader):
         data.glob_vars = self.get_glob_vars(read_config.glob_vars,
                                             read_config.time_inds)
 
+        if (read_config.enforce_convention
+            and data.connect is not None
+            and data.coords is not None):
+            data = enforce_mesh_convention(data)
+
         return data
 
 
@@ -750,15 +759,6 @@ class ExodusLoader(IOutputLoader):
             data class containing the data from the simulation.
 
         """
-        data = SimData()
-
-        data.time = self.get_time()
-        (data.coords,data.num_spat_dims) = self.get_coords()
-        data.connect = self.get_connectivity()
-        data.side_sets = self.get_all_sidesets()
-        data.node_vars = self.get_all_node_vars()
-        data.elem_vars = self.get_all_elem_vars()
-        data.glob_vars = self.get_all_glob_vars()
-
-        return data
-
+        read_config = self.get_read_config()
+        read_config.enforce_convention = self._enforce_convention
+        return self.load_sim_data(read_config)

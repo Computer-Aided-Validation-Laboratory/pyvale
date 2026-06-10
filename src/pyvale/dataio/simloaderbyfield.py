@@ -9,6 +9,7 @@ from multiprocessing.pool import Pool
 import numpy as np
 import pandas as pd
 from pyvale.dataio.simdata import SimData, SimLoadConfig
+from pyvale.dataio.meshtools import enforce_mesh_convention
 from pyvale.dataio.loadtools import (str_to_path,
                                         load_array,
                                         load_connectivity,
@@ -189,6 +190,11 @@ class SimLoaderByField:
             sim_data.node_vars = node_vars
 
             check_sim_data_consistency(sim_data)
+
+        if (load_config.enforce_convention
+            and sim_data.connect is not None
+            and sim_data.coords is not None):
+            sim_data = enforce_mesh_convention(sim_data)
 
         return sim_data
 

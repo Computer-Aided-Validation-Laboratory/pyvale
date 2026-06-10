@@ -16,6 +16,14 @@ from .loadtools import (str_to_path,
                            load_connectivity,
                            check_sim_data_consistency,
                            inv_group_dict)
+from .meshtools import (MeshConventionCheck,
+                        check_mesh_convention,
+                        enforce_mesh_convention,
+                        check_cw_winding,
+                        check_ccw_winding,
+                        enforce_cw_winding,
+                        enforce_ccw_winding,
+                        extract_surf_mesh)
 from .simloaderbytime import SimLoaderByTime
 from .simloaderbyfield import SimLoaderByField
 from .simsaver import (ESaveArray, 
