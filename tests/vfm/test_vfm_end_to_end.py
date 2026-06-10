@@ -153,19 +153,41 @@ def test_end_to_end() -> None:
     print("Loading data...")
     exodus_file_name = "hole3d_plas_het_24f.e"
 
+    # (
+    #     x_grid, # shape: (x, y, z)
+    #     y_grid, # shape: (x, y, z)
+    #     grid_data, # shape: (x, y, z, components, timesteps)
+    #     force, # shape: (timesteps)
+    #     time, # shape: (timesteps)
+    #     yield_stress_out # shape: (timesteps)
+    # ) = load_sim_data_to_grid(
+    #     exodus_file_name,
+    #     ("strain_xx", "strain_yy", "strain_xy","vonmises_stress")
+    # )
+
     (
-        x_grid, # shape: (x, y, z)
-        y_grid, # shape: (x, y, z)
-        grid_data, # shape: (x, y, z, components, timesteps)
-        force, # shape: (timesteps)
-        time, # shape: (timesteps)
-        yield_stress_out # shape: (timesteps)
+        x_grid,
+        y_grid,
+        grid_data,
+        force,
+        time,
+        yield_stress_out,
     ) = load_sim_data_to_grid(
         exodus_file_name,
-        ("strain_xx", "strain_yy", "strain_xy","vonmises_stress")
+        (
+            "strain_xx",
+            "strain_yy",
+            "strain_xy",
+            "strain_zz",
+            "strain_xz",
+            "strain_yz",
+            "vonmises_stress",
+        )
     )
 
-    print("Shaping inputs...")
+    # Reshape and flip data to match our conventions
+
+
     # remove redundant z component
     x_grid = x_grid[:, :, 0] # shape: (x, y)
     y_grid = y_grid[:, :, 0] # shape: (x, y)
@@ -182,16 +204,49 @@ def test_end_to_end() -> None:
     #   - x is always positive
     x_grid = np.fliplr(x_grid)
     x_grid += np.nanmax(x_grid)
+    grid_data = np.flip(grid_data, axis=2)
 
     # update y_grid values to use our conventions:
     #   - y increases as row number increases
     #   - y is constant in each row
     #   - y is always positive
     y_grid = np.flipud(y_grid)
-
-    # flip grid data to keep it consistent with x_grid and y_grid
-    grid_data = np.flip(grid_data, axis=2)
     grid_data = np.flip(grid_data, axis=3)
+    
+       
+    # unpack grid data
+    strain_xx = grid_data[:, 0, :, :]
+    strain_yy = grid_data[:, 1, :, :]
+    strain_xy = grid_data[:, 2, :, :]
+    strain_zz = grid_data[:, 3, :, :]
+    strain_xz = grid_data[:, 4, :, :]
+    strain_yz = grid_data[:, 5, :, :]
+    vonmises_stress = grid_data[:, 6, :, :]
+
+
+    # check in plane vs out of plane strains
+    in_plane = np.sqrt(
+        strain_xx**2
+        + strain_yy**2
+        + 2.0 * strain_xy**2
+    )
+
+    out_of_plane = np.sqrt(
+        strain_zz**2
+        + 2.0 * strain_xz**2
+        + 2.0 * strain_yz**2
+    )
+
+    ratio = out_of_plane / np.maximum(in_plane, 1e-12)
+
+    print(grid_data.shape)
+    print(np.nanmax(ratio[3]))
+    print(np.nanmax(ratio[24]))
+
+
+    print("Shaping inputs...")
+    
+
 
     # TODO: do we need to update shear strain?
     # need to plot shear stress vs shear strain, should have positive slope
@@ -203,7 +258,7 @@ def test_end_to_end() -> None:
     #     y_grid,
     # )
 
-    specimen_mask = ~np.isnan(grid_data[0, 0, :, :])
+    specimen_mask = ~np.isnan(strain_xx[0, :, :])
 
     plate_thickness = 1e-3
 
@@ -421,7 +476,11 @@ def test_end_to_end() -> None:
         "hardening_modulus": parameters["hardening_modulus"].value,
     }
 
-    strain = grid_data[:, 0:3, :, :]
+    strain = grid_data[:, 0:3, :, :]  # shape: (timesteps, 3, y, x) just xx,yy,xy strains
+
+    # strain_for_rr = grid_data[:, 0:3, :, :].copy()
+    # strain_for_rr[:, 2, :, :] *= 0.5
+    # strain = strain_for_rr
 
     # checks confirmed shear strain is in tensorial convention
     # checks confirmed -1 * shear strain didnt help
@@ -435,11 +494,11 @@ def test_end_to_end() -> None:
         )
 
     # stress = identification.constitutive_law.calculate_stress(grid_data[:, 0:2, :, :], constitutive_parameter_maps)
-    equivalent_stress_fe=grid_data[:, 3, :, :] * 1e-6
+    equivalent_stress_fe= vonmises_stress * 1e-6
 
 
 
-    step = 6
+    step = 4
     data = equivalent_stress_fe[step, :, :]   
     data_name='equivalent_stress_fe'
     plt.figure()
@@ -477,10 +536,11 @@ def test_end_to_end() -> None:
     plt.ylabel('y')
     #include param name and dof index in title
     plt.title(f'{data_name}, step {step}')
-    vmin = np.nanpercentile(data, 5)
-    vmax = np.nanpercentile(data, 95)
+    vmin = np.nanpercentile(data, 1)
+    vmax = np.nanpercentile(data, 99)
     im1.set_clim(vmin, vmax)
     im1=plt.show()
+    print(f"vm stress rr - fe: max abs diff [MPa] = {np.nanmax(np.abs(data)):.6f}")
 
 
     data = (np.abs(equivalent_stress_rr[step, :, :] - equivalent_stress_fe[step, :, :]) / equivalent_stress_fe[step, :, :]) * 100
@@ -496,6 +556,39 @@ def test_end_to_end() -> None:
     vmax = np.nanpercentile(data, 95)
     im1.set_clim(vmin, vmax)
     im1=plt.show()
+    print(f"vm stress rr - fe:max abs perc diff [%] = {np.nanmax(data):.6f}")
+
+
+    data = yield_map[step, :, :]
+    data_name='yield_map'
+    plt.figure()
+    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    plt.colorbar(label='Stress')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    #include param name and dof index in title
+    plt.title(f'{data_name}, step {step}')
+    # vmin = np.nanpercentile(data, 5)
+    # vmax = np.nanpercentile(data, 95)
+    # im1.set_clim(vmin, vmax)
+    im1=plt.show()
+    print(f"count of yielded points = {(yield_map[step, :, :] == 1).sum()}")
+
+    data = ratio[step, :, :]
+    data_name = 'out_of_plane_to_in_plane_strain_ratio'
+    plt.figure()
+    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    plt.colorbar(label='Strain ratio')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.title(f'{data_name}, step {step}')
+    vmin = np.nanpercentile(data, 5)
+    vmax = np.nanpercentile(data, 95)
+    im1.set_clim(vmin, vmax)
+    im1 = plt.show()
+    print(f"max out_of_plane / in_plane strain ratio = {np.nanmax(data):.6f}")
+
+
 
     print("Running VFM...")
     vfm_result = vfm(experiment_data, identification)
