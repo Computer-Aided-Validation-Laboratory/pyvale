@@ -78,7 +78,9 @@ def check_mesh_convention(mesh_in: SimData) -> MeshConventionCheck:
             valid_connectivity = False
             failures.append("connectivity_indices")
         else:
-            connect_check = _normalise_legacy_connectivity_order(connect_check, legacy_connect)
+            connect_check = _normalise_legacy_connectivity_order(
+                connect_check, legacy_connect
+            )
 
             if not _check_ccw_winding_table(connect_check, mesh_in.coords):
                 ccw = False
@@ -114,7 +116,12 @@ def check_mesh_convention(mesh_in: SimData) -> MeshConventionCheck:
 
 
 def enforce_mesh_convention(mesh_in: SimData) -> SimData:
-    """Normalises a mesh to the pyvale mesh convention."""
+    """Normalises a mesh to the pyvale mesh convention:
+    - 0-based indexing
+    - CCW node ordering when viewed from the outward/visible side
+    - Right-handed geometry conventions
+    - Check that all indices in the connectivity table map to a row in coords
+    """
 
     report = check_mesh_convention(mesh_in)
     if report.is_valid:
@@ -123,7 +130,7 @@ def enforce_mesh_convention(mesh_in: SimData) -> SimData:
     if mesh_in.connect is None:
         return mesh_in
     if mesh_in.coords is None:
-        raise ValueError("Mesh convention enforcement requires 'coords' to be set.")
+        raise ValueError("Mesh convention enforcement requires coords.")
 
     connect_out: dict[str, np.ndarray] = {}
     shift_all = _infer_mesh_zero_based_shift(mesh_in, mesh_in.coords.shape[0])
@@ -267,7 +274,7 @@ def extract_surf_mesh(
     if mesh_in.connect is None:
         raise ValueError("Surface extraction requires connectivity tables.")
     if mesh_in.coords is None:
-        raise ValueError("Surface extraction requires 'coords' to be set.")
+        raise ValueError("Surface extraction requires coords.")
 
     connect_norm: dict[str, np.ndarray] = {}
     source_zero_based = True
@@ -308,7 +315,8 @@ def extract_surf_mesh(
         if surf_faces.size:
             surf_node_inds = np.union1d(surf_node_inds, np.unique(surf_faces))
 
-    surf_coords = np.ascontiguousarray(mesh_in.coords[surf_node_inds], dtype=mesh_in.coords.dtype)
+    surf_coords = np.ascontiguousarray(mesh_in.coords[surf_node_inds], 
+                                       dtype=mesh_in.coords.dtype)
     coord_remap = np.full(mesh_in.coords.shape[0], -1, dtype=np.int64)
     coord_remap[surf_node_inds] = np.arange(surf_node_inds.shape[0], dtype=np.int64)
 
@@ -344,7 +352,8 @@ def extract_surf_mesh(
     return enforce_mesh_convention(surf_mesh)
 
 
-def _copy_sim_data(mesh_in: SimData, connect: dict[str, np.ndarray] | None = None) -> SimData:
+def _copy_sim_data(mesh_in: SimData, 
+                   connect: dict[str, np.ndarray] | None = None) -> SimData:
     mesh_out = SimData(
         num_spat_dims=mesh_in.num_spat_dims,
         time=mesh_in.time,
@@ -755,12 +764,12 @@ def _get_surface_map(nodes_per_elem: int) -> np.ndarray:
                          (0, 4, 5, 1, 16, 12, 17, 8),
                          (2, 6, 7, 3, 18, 14, 19, 10)), dtype=np.int64)
     if nodes_per_elem == 27:  # HEX27
-        return np.array(((0, 1, 2, 3, 8, 9, 10, 11, 21),
-                         (0, 3, 7, 4, 11, 15, 19, 16, 23),
-                         (4, 7, 6, 5, 15, 14, 13, 12, 22),
-                         (1, 5, 6, 2, 17, 13, 18, 9, 24),
-                         (0, 4, 5, 1, 16, 12, 17, 8, 25),
-                         (2, 6, 7, 3, 18, 14, 19, 10, 26)), dtype=np.int64)
+        return np.array(((0, 1, 2, 3, 8, 9, 10, 11, 24),
+                         (0, 3, 7, 4, 11, 15, 19, 16, 26),
+                         (4, 7, 6, 5, 15, 14, 13, 12, 25),
+                         (1, 5, 6, 2, 17, 13, 18, 9, 21),
+                         (0, 4, 5, 1, 16, 12, 17, 8, 22),
+                         (2, 6, 7, 3, 18, 14, 19, 10, 20)), dtype=np.int64)
     raise NotImplementedError(
         "Surface extraction is only implemented for tet and hex element families."
     )
@@ -820,3 +829,193 @@ def _restore_source_connectivity_style(
         connect_out[name] = np.ascontiguousarray(connect_fmt, dtype=np.int64)
 
     return _copy_sim_data(mesh_in, connect=connect_out)
+
+
+def extract_surf_between(
+    mesh_in: SimData,
+    point: np.ndarray | list[float] | tuple[float, ...],
+    normal: np.ndarray | list[float] | tuple[float, ...],
+    distance: float | None = None,
+    tolerance: float = 1.0e-6,
+    enforce_convention: bool = True,
+) -> SimData:
+    """Extracts a surface mesh between two planes defined by point, normal,
+    and distance.
+
+    Parameters
+    ----------
+    mesh_in : SimData
+        The input simulation data/mesh.
+    point : np.ndarray | list[float] | tuple[float, ...]
+        A point on the first plane.
+    normal : np.ndarray | list[float] | tuple[float, ...]
+        The normal vector of the planes.
+    distance : float | None, optional
+        The distance along the normal to the second plane. If None, the
+        surface is extracted at +/- tolerance about the first plane.
+    tolerance : float, optional
+        Numerical tolerance for checking if nodes lie between the planes.
+        Defaults to 1.0e-6.
+    enforce_convention : bool, optional
+        If True, normalizes the output mesh to the pyvale convention.
+        Defaults to True.
+
+    Returns
+    -------
+    SimData
+        The extracted surface mesh.
+    """
+    if mesh_in.connect is None:
+        raise ValueError("Surface extraction requires connectivity tables.")
+    if mesh_in.coords is None:
+        raise ValueError("Surface extraction requires coords.")
+
+    # Format point and normal to 3D arrays
+    point_arr = np.zeros(3, dtype=np.float64)
+    point_arr[:len(point)] = point
+
+    normal_arr = np.zeros(3, dtype=np.float64)
+    normal_arr[:len(normal)] = normal
+    norm_val = np.linalg.norm(normal_arr)
+    if norm_val < _TOL:
+        raise ValueError("Normal vector cannot be zero.")
+    normal_arr = normal_arr / norm_val
+
+    # Project coordinates along normal relative to point
+    diff = mesh_in.coords - point_arr
+    proj = diff @ normal_arr
+
+    # Determine bounds
+    if distance is not None:
+        d = float(distance)
+        min_bound = min(0.0, d) - tolerance
+        max_bound = max(0.0, d) + tolerance
+    else:
+        min_bound = -tolerance
+        max_bound = tolerance
+
+    connect_norm: dict[str, np.ndarray] = {}
+    source_zero_based = True
+    source_row_major = True
+    shift_all = _infer_mesh_zero_based_shift(
+        mesh_in, mesh_in.coords.shape[0]
+    )
+
+    for name, connect_raw in mesh_in.connect.items():
+        connect = _coerce_connect_array(connect_raw, name)
+        if _should_transpose_connectivity(connect, name, mesh_in):
+            source_row_major = False
+            connect = connect.T
+        legacy_connect = _table_needs_zero_based_shift(
+            connect,
+            mesh_in.coords.shape[0],
+            shift_all,
+        )
+        if legacy_connect:
+            source_zero_based = False
+            connect = connect - 1
+        if not _check_indices_zero_based(connect, mesh_in.coords.shape[0]):
+            raise ValueError(
+                f"Connectivity table '{name}' contains invalid indices "
+                "for surface extraction."
+            )
+        connect = _normalise_legacy_connectivity_order(
+            connect, legacy_connect
+        )
+        connect_norm[name] = _enforce_right_handed_table(
+            _enforce_ccw_winding_table(connect, mesh_in.coords),
+            mesh_in.coords,
+        )
+
+    surf_connect_global: dict[str, np.ndarray] = {}
+    surf_elem_sources: dict[str, np.ndarray] = {}
+    surf_node_inds = np.array([], dtype=np.int64)
+
+    for name, connect in connect_norm.items():
+        nodes_per_elem = connect.shape[1]
+        is_vol = nodes_per_elem in (4, 8, 10, 20, 27)
+        if is_vol:
+            face_map = _get_surface_map(nodes_per_elem)
+            faces_per_elem = face_map.shape[0]
+            faces_wound = connect[:, face_map]
+            faces_flat_wound = faces_wound.reshape((-1, face_map.shape[1]))
+            faces_flat_sorted = np.sort(faces_flat_wound, axis=1)
+
+            _, unique_inds = np.unique(
+                faces_flat_sorted,
+                axis=0,
+                return_index=True,
+            )
+            candidate_faces = faces_flat_wound[unique_inds]
+            parent_inds = unique_inds // faces_per_elem
+        else:
+            candidate_faces = connect
+            parent_inds = np.arange(connect.shape[0], dtype=np.int64)
+
+        if candidate_faces.size == 0:
+            continue
+
+        face_projs = proj[candidate_faces]
+        in_bounds = np.all(
+            (face_projs >= min_bound) & (face_projs <= max_bound),
+            axis=1
+        )
+
+        filtered_faces = candidate_faces[in_bounds]
+        filtered_parents = parent_inds[in_bounds]
+
+        if filtered_faces.size > 0:
+            surf_connect_global[name] = filtered_faces
+            surf_elem_sources[name] = filtered_parents
+            surf_node_inds = np.union1d(
+                surf_node_inds, np.unique(filtered_faces)
+            )
+
+    if len(surf_connect_global) == 0 or surf_node_inds.size == 0:
+        raise ValueError(
+            "No elements/faces found between the specified planes."
+        )
+
+    surf_coords = np.ascontiguousarray(
+        mesh_in.coords[surf_node_inds],
+        dtype=mesh_in.coords.dtype
+    )
+    coord_remap = np.full(mesh_in.coords.shape[0], -1, dtype=np.int64)
+    coord_remap[surf_node_inds] = np.arange(
+        surf_node_inds.shape[0], dtype=np.int64
+    )
+
+    surf_connect_local: dict[str, np.ndarray] = {}
+    for name, surf_faces in surf_connect_global.items():
+        surf_connect_local[name] = coord_remap[surf_faces]
+
+    surf_mesh = _copy_sim_data(mesh_in)
+    surf_mesh.coords = surf_coords
+    surf_mesh.connect = surf_connect_local
+    surf_mesh.side_sets = None
+
+    if mesh_in.node_vars is not None:
+        surf_mesh.node_vars = {
+            name: values[surf_node_inds, :]
+            for name, values in mesh_in.node_vars.items()
+        }
+
+    if mesh_in.elem_vars is not None:
+        surf_mesh.elem_vars = {}
+        for (var_name, block_id), values in mesh_in.elem_vars.items():
+            connect_key = f"connect{block_id}"
+            if connect_key in surf_elem_sources:
+                surf_mesh.elem_vars[(var_name, block_id)] = values[
+                    surf_elem_sources[connect_key], :
+                ]
+
+    if not enforce_convention:
+        surf_mesh = _restore_source_connectivity_style(
+            surf_mesh,
+            one_based=not source_zero_based,
+            transposed=not source_row_major,
+        )
+        return surf_mesh
+
+    return enforce_mesh_convention(surf_mesh)
+

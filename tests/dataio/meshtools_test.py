@@ -8,6 +8,8 @@ import numpy as np
 import pytest
 
 import pyvale.dataio as io
+import pyvale.mooseherder as mh
+import pyvale.dataset as dataset
 
 
 def _quad_coords() -> np.ndarray:
@@ -154,3 +156,172 @@ def test_extract_surf_mesh_preserves_legacy_style_when_requested() -> None:
     assert surf_mesh.connect is not None
     assert surf_mesh.connect["connect1"].shape == (3, 4)
     assert np.min(surf_mesh.connect["connect1"]) == 1
+
+
+def test_extract_surf_between_center_slice_hex8() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.HEX8)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+
+    # Slice at z = 0.005 (center line)
+    surf = io.extract_surf_between(
+        mesh,
+        point=(0.0, 0.0, 0.005),
+        normal=(0.0, 0.0, 1.0),
+        distance=None,
+        tolerance=1.0e-6,
+    )
+
+    assert surf.connect is not None
+    assert "connect1" in surf.connect
+    # 4 quad elements, each has 4 nodes
+    assert surf.connect["connect1"].shape == (4, 4)
+    # 9 nodes in a 3x3 grid
+    assert surf.coords.shape == (9, 3)
+    # Check Z coordinates are all exactly 0.005
+    assert np.all(np.abs(surf.coords[:, 2] - 0.005) < 1.0e-6)
+
+
+def test_extract_surf_between_boundary_slice_hex8() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.HEX8)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+
+    # Slice at z = 0.01 (top boundary)
+    surf = io.extract_surf_between(
+        mesh,
+        point=(0.0, 0.0, 0.01),
+        normal=(0.0, 0.0, 1.0),
+        distance=None,
+        tolerance=1.0e-6,
+    )
+
+    assert surf.connect is not None
+    assert "connect1" in surf.connect
+    assert surf.connect["connect1"].shape == (4, 4)
+    assert surf.coords.shape == (9, 3)
+    assert np.all(np.abs(surf.coords[:, 2] - 0.01) < 1.0e-6)
+
+
+def test_extract_surf_between_slab_hex8() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.HEX8)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+
+    # Slice from z = 0.005 to z = 0.01 (top half slab)
+    surf = io.extract_surf_between(
+        mesh,
+        point=(0.0, 0.0, 0.005),
+        normal=(0.0, 0.0, 1.0),
+        distance=0.005,
+        tolerance=1.0e-6,
+    )
+
+    assert surf.connect is not None
+    assert "connect1" in surf.connect
+    # 20 unique faces inside the top half
+    assert surf.connect["connect1"].shape == (20, 4)
+    # 18 nodes total (9 at z=0.005 and 9 at z=0.01)
+    assert surf.coords.shape == (18, 3)
+
+
+def test_extract_surf_between_raises_when_empty() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.HEX8)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+
+    # Try to slice at z = 0.05 (outside the 0.0 to 0.01 cube)
+    with pytest.raises(ValueError, match="No elements/faces found"):
+        io.extract_surf_between(
+            mesh,
+            point=(0.0, 0.0, 0.05),
+            normal=(0.0, 0.0, 1.0),
+            distance=None,
+            tolerance=1.0e-6,
+        )
+
+
+def test_extract_surf_between_boundary_slice_tet4() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.TET4)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+
+    # Slice at z = 0.0 (bottom boundary)
+    surf = io.extract_surf_between(
+        mesh,
+        point=(0.0, 0.0, 0.0),
+        normal=(0.0, 0.0, 1.0),
+        distance=None,
+        tolerance=1.0e-6,
+    )
+
+    assert surf.connect is not None
+    assert "connect1" in surf.connect
+    # 4 tri elements, each has 3 nodes
+    assert surf.connect["connect1"].shape == (4, 3)
+    assert surf.coords.shape == (5, 3)
+    assert np.all(np.abs(surf.coords[:, 2] - 0.0) < 1.0e-6)
+
+
+def test_extract_surf_between_boundary_slice_hex27() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.HEX27)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+
+    # Slice at z = 0.01 (top boundary)
+    surf = io.extract_surf_between(
+        mesh,
+        point=(0.0, 0.0, 0.01),
+        normal=(0.0, 0.0, 1.0),
+        distance=None,
+        tolerance=1.0e-6,
+    )
+
+    assert surf.connect is not None
+    assert "connect1" in surf.connect
+    # 4 quad elements, each has 9 nodes (quadratic HEX27 faces are QUAD9)
+    assert surf.connect["connect1"].shape == (4, 9)
+    # 25 nodes in a 5x5 grid
+    assert surf.coords.shape == (25, 3)
+    assert np.all(np.abs(surf.coords[:, 2] - 0.01) < 1.0e-6)
+
+
+def test_extract_surf_mesh_tet4() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.TET4)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+    surf = io.extract_surf_mesh(mesh)
+    assert surf.connect is not None
+    assert surf.connect["connect1"].shape == (24, 3)
+    assert surf.coords.shape == (14, 3)
+
+
+def test_extract_surf_mesh_tet10() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.TET10)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+    surf = io.extract_surf_mesh(mesh)
+    assert surf.connect is not None
+    assert surf.connect["connect1"].shape == (24, 6)
+    assert surf.coords.shape == (50, 3)
+
+
+def test_extract_surf_mesh_hex8() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.HEX8)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+    surf = io.extract_surf_mesh(mesh)
+    assert surf.connect is not None
+    assert surf.connect["connect1"].shape == (24, 4)
+    assert surf.coords.shape == (26, 3)
+
+
+def test_extract_surf_mesh_hex20() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+    surf = io.extract_surf_mesh(mesh)
+    assert surf.connect is not None
+    assert surf.connect["connect1"].shape == (24, 8)
+    assert surf.coords.shape == (74, 3)
+
+
+def test_extract_surf_mesh_hex27() -> None:
+    path = dataset.element_case_output_path(dataset.EElemTest.HEX27)
+    mesh = mh.ExodusLoader(path).load_all_sim_data()
+    surf = io.extract_surf_mesh(mesh)
+    assert surf.connect is not None
+    assert surf.connect["connect1"].shape == (24, 9)
+    assert surf.coords.shape == (98, 3)
+
+

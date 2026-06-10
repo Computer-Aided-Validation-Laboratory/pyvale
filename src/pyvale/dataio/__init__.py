@@ -23,7 +23,8 @@ from .meshtools import (MeshConventionCheck,
                         check_ccw_winding,
                         enforce_cw_winding,
                         enforce_ccw_winding,
-                        extract_surf_mesh)
+                        extract_surf_mesh,
+                        extract_surf_between)
 from .simloaderbytime import SimLoaderByTime
 from .simloaderbyfield import SimLoaderByField
 from .simsaver import (ESaveArray, 
