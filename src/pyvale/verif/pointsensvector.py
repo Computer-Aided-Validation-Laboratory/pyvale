@@ -6,6 +6,7 @@
 import copy
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
 import pyvale.verif.pointsensmech as pointsensmech
 import pyvale.verif.analyticsimdatafactory as asd
 

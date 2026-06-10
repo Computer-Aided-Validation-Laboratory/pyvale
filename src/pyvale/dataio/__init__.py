@@ -6,7 +6,7 @@
 
 from .simdata import SimData
 from .simdata import SimLoadConfig
-from .loadopts import (LoadOpts,SimLoadOpts)
+from .loadopts import (SimLoadOpts,ExpLoadOpts)
 from .loadtools import (str_to_path,
                            load_field_files,
                            load_field_dict,

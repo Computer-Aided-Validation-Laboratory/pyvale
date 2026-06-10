@@ -8,6 +8,7 @@ import numpy as np
 
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
 import pyvale.verif.pointsens as pointsens
 import pyvale.verif.pointsensconst as pointsensconst
 import pyvale.verif.analyticsimdatafactory as asd

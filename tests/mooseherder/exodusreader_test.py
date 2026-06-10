@@ -10,7 +10,7 @@ import pytest
 import numpy as np
 import numpy.typing as npt
 from pyvale.mooseherder.exodusloader import ExodusLoader
-from pyvale.mooseherder.simdata import SimData
+from pyvale.dataio.simdata import SimData
 import tests.mooseherder.herdchecker as hc
 
 NUM_TIME_STEPS = 4

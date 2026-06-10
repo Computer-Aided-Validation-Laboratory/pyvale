@@ -15,7 +15,7 @@ from pyvale.dataio.loadtools import (str_to_path,
                                      load_field_files,
                                      check_sim_data_consistency,
                                      load_glob_vars)
-from pyvale.dataio.loadopts import (LoadOpts,SimLoadOpts)
+from pyvale.dataio.loadopts import SimLoadOpts
 from pyvale.dataio.exceptions import SimLoadErr
 
 

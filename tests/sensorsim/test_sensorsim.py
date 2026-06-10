@@ -10,6 +10,7 @@ import numpy as np
 # Pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.mooseherder as mh
+import pyvale.dataio as io
 import pyvale.verif.pointsens as pointsens
 import pyvale.verif.pointsensscalar as pointsensscalar
 import pyvale.verif.pointsensvector as pointsensvector

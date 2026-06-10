@@ -17,6 +17,7 @@ point sensors.
 import numpy as np
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
 import pyvale.verif.pointsensconst as pointsensconst
 from pyvale.verif.pointsensconst import GOLD_SEED
 

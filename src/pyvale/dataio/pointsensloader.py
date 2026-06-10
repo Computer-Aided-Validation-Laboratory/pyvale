@@ -9,8 +9,8 @@ import numpy as np
 
 from pyvale.dataio.exploader import IExpLoader
 from pyvale.dataio.expdata import ExpData
-from pyvale.dataio.loadtools import (load_array)
-from pyvale.dataio.loadopts import LoadOpts
+from pyvale.dataio.loadtools import load_array
+from pyvale.dataio.loadopts import ExpLoadOpts
 from pyvale.dataio.exceptions import ExpLoadErr
 
 
@@ -28,7 +28,7 @@ class PointSensLoader(IExpLoader):
                  load_files: list[Path] | Path,
                  sens_cols: np.ndarray | list[int],
                  sens_labels: str | list[str] = "S",
-                 load_opts: LoadOpts | None = None,
+                 load_opts: ExpLoadOpts | None = None,
                  time_col: int | None = None,
                  time_slice: slice | None = None,
                  coord_file: Path | None = None,
