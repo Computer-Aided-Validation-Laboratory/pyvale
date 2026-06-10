@@ -1,10 +1,8 @@
 import numpy as np
 
-from pyvale.vfm.constitutive_laws.constitutive_law import EIdentificationType
-from pyvale.vfm.constitutive_laws.constitutive_parameter import (
-     ConstitutiveParameter,
-)
-from pyvale.vfm.experiment_data import ExperimentData
+from pyvale.vfm.constlaw import EIdentificationType
+from pyvale.vfm.constparam import ConstitutiveParameter
+from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.identification import Identification
 
 
@@ -14,11 +12,11 @@ from pyvale.vfm.identification import Identification
 #   - sum of weights must be 1.0
 #   - optimiser is compatible with objective function
 # TODO: think about io, no pickling
-def vfm(
+def run_identification(
     experiment_data: ExperimentData,
     identification: Identification
 ) -> dict[str, ConstitutiveParameter]:
-    match identification.constitutive_law.identification_type:
+    match identification.constitutive_law.get_identification_type():
         # TODO: implement linear case
         case EIdentificationType.Linear:
             ...

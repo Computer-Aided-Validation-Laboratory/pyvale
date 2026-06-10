@@ -2,16 +2,9 @@ from pathlib import Path
 
 import numpy as np
 
-from pyvale.vfm.constitutive_laws.constitutive_parameter import (
-    ConstitutiveParameter,
-)
-from pyvale.vfm.constitutive_laws.hardening_functions.linear import (
-    LinearHardening,
-)
-from pyvale.vfm.constitutive_laws.isotropic_von_mises_elastoplasticity import (
-    IsotropicVonMisesElastoplasticity,
-)
-from pyvale.vfm.experiment_data import (
+from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
+from pyvale.vfm.constparam import ConstitutiveParameter
+from pyvale.vfm.experimentdata import (
     BoundaryConditions,
     Edge,
     EdgeConditions,
@@ -19,21 +12,16 @@ from pyvale.vfm.experiment_data import (
     ExperimentData,
     SpecimenGeometry,
 )
+from pyvale.vfm.hardening import LinearHardening
 from pyvale.vfm.identification import Identification, IdentificationPhase
-from pyvale.vfm.metrics.virtual_fields.sensitivity_based_virtual_fields import (
-    SensitivityBasedVirtualFieldsMetric,
-)
-from pyvale.vfm.objective_functions.vector_first_result_passthrough import (
-    VectorFirstResultPassthrough,
-)
-from pyvale.vfm.optimisers.least_squares import LeastSquares
-from pyvale.vfm.spatial_parameterisations.homogeneous import (
+from pyvale.vfm.metricsbvf import SensitivityBasedVirtualFieldsMetric
+from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
+from pyvale.vfm.optimiserleastsquares import LeastSquares
+from pyvale.vfm.spatialparamhomogeneous import (
     HomogeneousSpatialParameterisation,
 )
-from pyvale.vfm.spatial_parameterisations.known import (
-    KnownSpatialParameterisation,
-)
-from pyvale.vfm.vfm import vfm
+from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
+from pyvale.vfm.vfm import run_identification
 
 inputs_path = Path(__file__).resolve().parent / "inputs"
 
@@ -120,7 +108,7 @@ def main():
         phases
     )
 
-    vfm_result = vfm(experiment_data, identification)
+    vfm_result = run_identification(experiment_data, identification)
     print(vfm_result)
 
 

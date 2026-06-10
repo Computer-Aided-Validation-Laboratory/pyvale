@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.experiment_data import Edge, EdgeConditions, EEdgeCondition
+from pyvale.vfm.experimentdata import Edge, EdgeConditions, EEdgeCondition
 
 
 @dataclass(slots=True)

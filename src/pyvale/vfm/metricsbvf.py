@@ -1,26 +1,27 @@
-from copy import deepcopy, copy
+from copy import copy, deepcopy
 from dataclasses import dataclass
 
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constitutive_laws.constitutive_law import IConstitutiveLaw
-from pyvale.vfm.experiment_data import EdgeConditions, ExperimentData, EEdgeCondition
-from pyvale.vfm.metrics.metric import IMetric
-from pyvale.vfm.metrics.virtual_fields.virtual_fields_mesh import (
-    VirtualFieldsMesh,
-    generate_virtual_fields_from_mesh,
-    generate_virtual_fields_mesh,
+from pyvale.vfm.constlaw import IConstitutiveLaw
+from pyvale.vfm.experimentdata import (
+    EdgeConditions,
+    EEdgeCondition,
+    ExperimentData,
 )
+from pyvale.vfm.metric import IMetric
 from pyvale.vfm.normalisation import (
     denormalise_degree_of_freedom,
     normalise_degree_of_freedom,
 )
-from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
-    ISpatialParameterisation,
+from pyvale.vfm.spatialparam import ISpatialParameterisation
+from pyvale.vfm.vfmesh import (
+    VirtualFieldsMesh,
+    generate_virtual_fields_from_mesh,
+    generate_virtual_fields_mesh,
 )
-
-import matplotlib.pyplot as plt
 
 
 @dataclass(slots=True)
@@ -33,6 +34,218 @@ class StressSensitivity:
 
     total: npt.NDArray[np.float64]
     incremental: npt.NDArray[np.float64]
+
+
+@dataclass(slots=True)
+class SensitivityBasedVirtualFieldsMetric(IMetric):
+    virtual_fields_mesh: VirtualFieldsMesh
+    vf_scaling_fraction: float | None
+
+    def __init__(
+        self,
+        x: npt.NDArray[np.float64],
+        y: npt.NDArray[np.float64],
+        region_of_interest: npt.NDArray[np.uint32],
+        edge_conditions: EdgeConditions,
+        mesh_size: npt.NDArray[np.uint32],
+        # TODO: option to adjust fraction of largest timesteps used for calculating VF scaling factor
+        vf_scaling_fraction: float | None = None
+    ) -> None:
+
+        self.virtual_fields_mesh = generate_virtual_fields_mesh(
+            x,
+            y,
+            region_of_interest,
+            edge_conditions,
+            mesh_size
+        )
+
+        self.vf_scaling_fraction = vf_scaling_fraction
+
+    def evaluate(
+        self,
+        stress: npt.NDArray[np.float64],
+        constitutive_law: IConstitutiveLaw,
+        parameter_map_size: npt.NDArray[np.uint32],
+        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        experiment_data: ExperimentData,
+    ) -> npt.NDArray[np.float64]:
+
+        # Compute stress sensitivites for each DOF or constitutive parameter (depending on perturbation type)
+        stress_sensitivities = self.calculate_stress_sensitivities(
+            experiment_data.strain,
+            stress,
+            constitutive_law,
+            parameter_map_size,
+            spatial_parameterisations,
+            experiment_data.delta_timesteps,
+            perturbation_type = "constitutive_parameter",
+        )
+        
+        # Generate sensitivity-based virtual fields (SBVF) from stress sensitivities
+        sensitivity_based_virtual_fields = []
+        for stress_sensitivity in stress_sensitivities:
+            sensitivity_based_virtual_fields.append(
+                generate_virtual_fields_from_mesh(
+                    stress_sensitivity.total,  # TODO: option to use incremental stress sensitivities
+                    self.virtual_fields_mesh
+                )
+            )
+
+        # Reshape pixel area to be broadcastable with stress and virtual strain arrays
+        pixel_area = experiment_data.specimen_geometry.pixel_area[np.newaxis, np.newaxis, :, :]
+               
+
+        # Determine which edge index has traction boundary condition # TODO: tidy up
+        for edge_name in ("min_x_edge", "max_x_edge", "min_y_edge", "max_y_edge"):
+            edge = getattr(experiment_data.boundary_conditions.edge_conditions, edge_name)
+            if edge.x is EEdgeCondition.Traction or edge.y is EEdgeCondition.Traction:
+                traction_edge_name = edge_name
+                break
+        else:
+            raise ValueError("No traction edge found")
+        edge_to_index = {
+            "min_y_edge": 0,
+            "min_x_edge": 1,
+            "max_y_edge": 2,
+            "max_x_edge": 3,
+        }
+        traction_edge_index = edge_to_index[traction_edge_name]
+
+
+        residual_vector = []
+        # Compute PVW residuals for each SBVF and concatenate into single residual vector
+        for sbvf in sensitivity_based_virtual_fields:
+            
+            # Compute 4d IVW term for current SBVF
+            internal_virtual_work_4d = (
+                stress
+                * sbvf.virtual_strain
+                * pixel_area
+                * experiment_data.specimen_geometry.thickness
+            )
+
+            # Set any NaN values in IVW to zero
+            internal_virtual_work_4d = np.nan_to_num(
+                internal_virtual_work_4d,
+                nan=0
+            )
+
+            # Sum IVW across spatial dimensions and components to get single IVW scalar for each timestep
+            internal_virtual_work_vector = np.sum(
+                internal_virtual_work_4d,
+                axis=(1, 2, 3)
+            )
+
+            # Compute 4d EVW term for current SBVF 
+            # force_x * virtual_displacement_x + force_y * virtual_displacement_y on traction edge 
+            # summed to get single EVW scalar for each timestep
+            external_virtual_work_vector = (
+                experiment_data.boundary_conditions.force[:, 0]   
+                * sbvf.virtual_displacement_edge[:, 0, traction_edge_index]
+                + experiment_data.boundary_conditions.force[:, 1]
+                * sbvf.virtual_displacement_edge[:, 1, traction_edge_index]
+            )
+
+            if self.vf_scaling_fraction is not None:
+                # Compute number of timesteps to use for scaling based on the chosen fraction (1 step min).
+                num_timesteps_used_for_scaling = max(
+                    1, 
+                    int(np.floor(len(external_virtual_work_vector) * self.vf_scaling_fraction)),
+                )
+
+                # Select the timesteps with the largest absolute IVW values.
+                # NumPy sorts ascending, so take the last n indices.
+                largest_ivw_indices = np.argsort(np.abs(internal_virtual_work_vector))[-num_timesteps_used_for_scaling:]
+
+                # Compute scaling factor as the reciprocal of the mean absolute IVW
+                # over the selected timesteps.
+                mean_abs_ivw_for_scaling = np.mean(
+                    np.abs(internal_virtual_work_vector[largest_ivw_indices])
+                )
+                if mean_abs_ivw_for_scaling != 0.0:
+                    vw_scaling_factor = 1.0 / mean_abs_ivw_for_scaling
+                else:
+                    vw_scaling_factor = 1.0
+
+                # Scale the full PVW residual for the current virtual field.
+                residual_vector.append(
+                    (internal_virtual_work_vector - external_virtual_work_vector)
+                    * vw_scaling_factor
+                )
+            else:
+                residual_vector.append(
+                    internal_virtual_work_vector - external_virtual_work_vector
+                )
+
+
+        return np.concatenate(residual_vector)
+    
+
+    def calculate_stress_sensitivities(
+        self,
+        strain: npt.NDArray[np.float64],
+        stress_reference: npt.NDArray[np.float64],
+        constitutive_law: IConstitutiveLaw,
+        parameter_map_size: npt.NDArray[np.uint32],
+        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        delta_timesteps: npt.NDArray[np.float64],
+        perturbation_type: str = "constitutive_parameter",   #TODO better as enum? 
+        perturbation_factor_param: float = 0.15,   #TODO: single perturbation factor or separate for param and dof? 
+        perturbation_factor_dof: float = 0.05,
+        
+    ) -> list[StressSensitivity]:
+        """Calculate stress sensitivity objects for the provided spatial parameterisations.
+        
+
+        stress_sensitivities_dof: 
+            - fixed additive step in normalised DOF space (e.g. 0.05 means perturbing by 5% of the full allowed range of the DOF)
+            - comparing sensitivities across DOFs with different scales, so a fixed step in 
+            normalised DOF space is a good simple choice
+
+
+        stress_sensitivities_parameter: 
+            - multiplicative step in physical parameter space (e.g. 0.15 means perturbing by 15% of the current parameter value)
+            - comparing sensitivities of physical constitutive parameters, so a multiplicative step in 
+            physical parameter space is a simple choice (that is used in Marek et al. 2023)
+
+
+        The pertubation type determines how many downstream virtual fields (VF) will 
+        be created by the SBVF metric:
+            -"constitutive_parameter": one sensitivity history per active constitutive parameter, 
+            so downstream nVF = nParameters.
+            - "dof": one sensitivity history per active optimisation DOF, so downstream nVF = nDof.
+        
+        
+        """
+
+        if perturbation_type == "constitutive_parameter":
+            stress_sensitivities = _calculate_stress_sensitivities_parameter(
+                strain,
+                stress_reference,
+                constitutive_law,
+                parameter_map_size,
+                spatial_parameterisations,
+                delta_timesteps,
+                perturbation_factor_param
+            )
+        elif perturbation_type == "dof":
+            stress_sensitivities = _calculate_stress_sensitivities_dof(
+                strain,
+                stress_reference,
+                constitutive_law,
+                parameter_map_size,
+                spatial_parameterisations,
+                delta_timesteps,
+                perturbation_factor_dof
+            )
+        else:
+            raise ValueError(
+                f"Invalid perturbation type: {perturbation_type}. "
+                "Supported types are 'constitutive_parameter' and 'dof'."
+            )
+
+        return stress_sensitivities
 
 
 def _calculate_stress_sensitivities_dof(
@@ -194,7 +407,7 @@ def _calculate_stress_sensitivities_parameter(
     for param_name, sp in spatial_parameterisations.items():
         
         # If constitutive parameter is not being identified: skip
-        if sp.num_degrees_of_freedom == 0:
+        if sp.get_num_degrees_of_freedom() == 0:
             continue
 
         # get parameter map for current spatial parameterisation
@@ -282,212 +495,3 @@ def _calculate_stress_sensitivities_parameter(
             im3=plt.show()
 
     return stress_sensitivities
-
-
-@dataclass(slots=True)
-class SensitivityBasedVirtualFieldsMetric(IMetric):
-    virtual_fields_mesh: VirtualFieldsMesh
-
-    def __init__(
-        self,
-        x: npt.NDArray[np.float64],
-        y: npt.NDArray[np.float64],
-        region_of_interest: npt.NDArray[np.uint32],
-        edge_conditions: EdgeConditions,
-        mesh_size: npt.NDArray[np.uint32],
-    ) -> None:
-
-        self.virtual_fields_mesh = generate_virtual_fields_mesh(
-            x,
-            y,
-            region_of_interest,
-            edge_conditions,
-            mesh_size
-        )
-
-    def evaluate(
-        self,
-        stress: npt.NDArray[np.float64],
-        constitutive_law: IConstitutiveLaw,
-        parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
-        experiment_data: ExperimentData,
-        use_vf_scaling: bool = True,   # TODO: option to turn on/off scaling of virtual fields
-        vf_scaling_timesteps_fraction: float = 0.3,   # TODO: option to adjust fraction of largest timesteps used for calculating VF scaling factor
-    ) -> npt.NDArray[np.float64]:
-        
-        # Compute stress sensitivites for each DOF or constitutive parameter (depending on perturbation type)
-        stress_sensitivities = self.calculate_stress_sensitivities(
-            experiment_data.strain,
-            stress,
-            constitutive_law,
-            parameter_map_size,
-            spatial_parameterisations,
-            experiment_data.delta_timesteps,
-            perturbation_type = "constitutive_parameter",
-        )
-        
-        # Generate sensitivity-based virtual fields (SBVF) from stress sensitivities
-        sensitivity_based_virtual_fields = []
-        for stress_sensitivity in stress_sensitivities:
-            sensitivity_based_virtual_fields.append(
-                generate_virtual_fields_from_mesh(
-                    stress_sensitivity.total,  # TODO: option to use incremental stress sensitivities
-                    self.virtual_fields_mesh
-                )
-            )
-
-        # Reshape pixel area to be broadcastable with stress and virtual strain arrays
-        pixel_area = experiment_data.specimen_geometry.pixel_area[np.newaxis, np.newaxis, :, :]
-               
-
-        # Determine which edge index has traction boundary condition # TODO: tidy up
-        for edge_name in ("min_x_edge", "max_x_edge", "min_y_edge", "max_y_edge"):
-            edge = getattr(experiment_data.boundary_conditions.edge_conditions, edge_name)
-            if edge.x is EEdgeCondition.Traction or edge.y is EEdgeCondition.Traction:
-                traction_edge_name = edge_name
-                break
-        else:
-            raise ValueError("No traction edge found")
-        edge_to_index = {
-            "min_y_edge": 0,
-            "min_x_edge": 1,
-            "max_y_edge": 2,
-            "max_x_edge": 3,
-        }
-        traction_edge_index = edge_to_index[traction_edge_name]
-
-
-        residual_vector = []
-        # Compute PVW residuals for each SBVF and concatenate into single residual vector
-        for sbvf in sensitivity_based_virtual_fields:
-            
-            # Compute 4d IVW term for current SBVF
-            internal_virtual_work_4d = (
-                stress
-                * sbvf.virtual_strain
-                * pixel_area
-                * experiment_data.specimen_geometry.thickness
-            )
-
-            # Set any NaN values in IVW to zero
-            internal_virtual_work_4d = np.nan_to_num(
-                internal_virtual_work_4d,
-                nan=0
-            )
-
-            # Sum IVW across spatial dimensions and components to get single IVW scalar for each timestep
-            internal_virtual_work_vector = np.sum(
-                internal_virtual_work_4d,
-                axis=(1, 2, 3)
-            )
-
-            # Compute 4d EVW term for current SBVF 
-            # force_x * virtual_displacement_x + force_y * virtual_displacement_y on traction edge 
-            # summed to get single EVW scalar for each timestep
-            external_virtual_work_vector = (
-                experiment_data.boundary_conditions.force[:, 0]   
-                * sbvf.virtual_displacement_edge[:, 0, traction_edge_index]
-                + experiment_data.boundary_conditions.force[:, 1]
-                * sbvf.virtual_displacement_edge[:, 1, traction_edge_index]
-            )
-
-            if use_vf_scaling:
-                # Compute number of timesteps to use for scaling based on the chosen fraction (1 step min).
-                num_timesteps_used_for_scaling = max(
-                    1, 
-                    int(np.floor(len(external_virtual_work_vector) * vf_scaling_timesteps_fraction)),
-                )
-
-                # Select the timesteps with the largest absolute IVW values.
-                # NumPy sorts ascending, so take the last n indices.
-                largest_ivw_indices = np.argsort(np.abs(internal_virtual_work_vector))[-num_timesteps_used_for_scaling:]
-
-                # Compute scaling factor as the reciprocal of the mean absolute IVW
-                # over the selected timesteps.
-                mean_abs_ivw_for_scaling = np.mean(
-                    np.abs(internal_virtual_work_vector[largest_ivw_indices])
-                )
-                if mean_abs_ivw_for_scaling != 0.0:
-                    vw_scaling_factor = 1.0 / mean_abs_ivw_for_scaling
-                else:
-                    vw_scaling_factor = 1.0
-
-                # Scale the full PVW residual for the current virtual field.
-                residual_vector.append(
-                    (internal_virtual_work_vector - external_virtual_work_vector)
-                    * vw_scaling_factor
-                )
-            else:
-                residual_vector.append(
-                    internal_virtual_work_vector - external_virtual_work_vector
-                )
-
-
-        return np.concatenate(residual_vector)
-    
-
-    def calculate_stress_sensitivities(
-        self,
-        strain: npt.NDArray[np.float64],
-        stress_reference: npt.NDArray[np.float64],
-        constitutive_law: IConstitutiveLaw,
-        parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
-        delta_timesteps: npt.NDArray[np.float64],
-        perturbation_type: str = "constitutive_parameter",   #TODO better as enum? 
-        perturbation_factor_param: float = 0.15,   #TODO: single perturbation factor or separate for param and dof? 
-        perturbation_factor_dof: float = 0.05,
-        
-    ) -> list[StressSensitivity]:
-        """Calculate stress sensitivity objects for the provided spatial parameterisations.
-        
-
-        stress_sensitivities_dof: 
-            - fixed additive step in normalised DOF space (e.g. 0.05 means perturbing by 5% of the full allowed range of the DOF)
-            - comparing sensitivities across DOFs with different scales, so a fixed step in 
-            normalised DOF space is a good simple choice
-
-
-        stress_sensitivities_parameter: 
-            - multiplicative step in physical parameter space (e.g. 0.15 means perturbing by 15% of the current parameter value)
-            - comparing sensitivities of physical constitutive parameters, so a multiplicative step in 
-            physical parameter space is a simple choice (that is used in Marek et al. 2023)
-
-
-        The pertubation type determines how many downstream virtual fields (VF) will 
-        be created by the SBVF metric:
-            -"constitutive_parameter": one sensitivity history per active constitutive parameter, 
-            so downstream nVF = nParameters.
-            - "dof": one sensitivity history per active optimisation DOF, so downstream nVF = nDof.
-        
-        
-        """
-
-        if perturbation_type == "constitutive_parameter":
-            stress_sensitivities = _calculate_stress_sensitivities_parameter(
-                strain,
-                stress_reference,
-                constitutive_law,
-                parameter_map_size,
-                spatial_parameterisations,
-                delta_timesteps,
-                perturbation_factor_param
-            )
-        elif perturbation_type == "dof":
-            stress_sensitivities = _calculate_stress_sensitivities_dof(
-                strain,
-                stress_reference,
-                constitutive_law,
-                parameter_map_size,
-                spatial_parameterisations,
-                delta_timesteps,
-                perturbation_factor_dof
-            )
-        else:
-            raise ValueError(
-                f"Invalid perturbation type: {perturbation_type}. "
-                "Supported types are 'constitutive_parameter' and 'dof'."
-            )
-        
-        return stress_sensitivities

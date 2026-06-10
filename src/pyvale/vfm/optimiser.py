@@ -3,11 +3,11 @@ from abc import ABC, abstractmethod
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constitutive_laws.constitutive_law import IConstitutiveLaw
-from pyvale.vfm.experiment_data import ExperimentData
-from pyvale.vfm.metrics.metric import IMetric
-from pyvale.vfm.objective_functions.objective_function import IObjectiveFunction
-from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
+from pyvale.vfm.constlaw import IConstitutiveLaw
+from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.metric import IMetric
+from pyvale.vfm.objectivefunc import IObjectiveFunction
+from pyvale.vfm.spatialparam import (
     ISpatialParameterisation,
     unpack_spatial_parameterisations,
 )
