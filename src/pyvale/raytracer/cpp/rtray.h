@@ -4,7 +4,8 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#pragma once
+#ifndef RTRAY_H
+#define RTRAY_H
 
 // STD header files
 #include <limits>
@@ -38,3 +39,5 @@ struct Ray {
 inline EiVector3d ray_at_t(const double t, const Ray& ray) {
     return ray.origin + t * ray.direction;
 };
+
+#endif // RTRAY_H

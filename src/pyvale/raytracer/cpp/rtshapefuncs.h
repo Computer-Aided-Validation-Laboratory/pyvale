@@ -3,7 +3,10 @@
 // License: MIT
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
-#pragma once 
+
+#ifndef RTSHAPEFUNCS_H
+#define RTSHAPEFUNCS_H
+
 // STD header files
 #include <iostream>
 #include <limits>
@@ -293,3 +296,5 @@ namespace shapefuncs{
         return J;
     }
 }
+
+#endif // RTSHAPEFUNCS_H

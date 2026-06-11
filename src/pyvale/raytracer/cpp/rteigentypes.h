@@ -4,7 +4,9 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#pragma once
+#ifndef RTEIGENCONST_H
+#define RTEIGENCONST_H
+
 #include "../../common_cpp/Eigen/Dense"
 #include <iostream>
 #include "rtelemconstants.h"
@@ -223,3 +225,5 @@ static inline double find_element_diagonal(const EiVector3d* nodes,
     const double d = (high - low).norm();
     return d > 0.0 ? d : 1.0;
 }
+
+#endif // RTEIGENCONST_H

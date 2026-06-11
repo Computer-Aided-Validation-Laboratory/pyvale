@@ -4,7 +4,8 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#pragma once
+#ifndef RTRAYINTERSECT_H
+#define RTRAYINTERSECT_H
 
 // STD header files
 #include <array>
@@ -706,3 +707,5 @@ bool intersect_TLAS(const Ray& ray,
     const TLAS& scene_TLAS,
     IntersectionOutput& out_intersection,
     HitRecord& out_intersection_record);
+
+#endif // RTINTERSECT_H

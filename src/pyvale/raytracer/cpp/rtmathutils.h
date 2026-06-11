@@ -4,8 +4,8 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#pragma once // Header guard instead of ifndef
-
+#ifndef RTMATHUTILS_H
+#define RTMATHUTILS_H
 
 // STD header files
 #include <cmath>
@@ -74,3 +74,5 @@ static inline std::array<double,2> point_in_unit_disk(){
         }
     }
 }
+
+#endif // RTMATHUTILS_H

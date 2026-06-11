@@ -4,7 +4,8 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#pragma once
+#ifndef RTCOLORSAMPLING_H
+#define RTCOLORSAMPLING_H
 // STD header files
 #include <vector>
 
@@ -403,3 +404,5 @@ namespace texsampler{
      */
     void set(TextureSampler sampler_type);
 }
+
+#endif // RTCOLORSAMPLING_H

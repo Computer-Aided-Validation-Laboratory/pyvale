@@ -4,7 +4,8 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#pragma once
+#ifndef RTRENDER_H
+#define RTRENDER_H
 
 // STD header files 
 #include <array>
@@ -268,3 +269,5 @@ void mock_ray_shoot(const EiVector3d& camera_center,
     const int number_of_samples,
     const double scene_ri,
     const std::filesystem::path output_filepath);
+
+#endif // RTRENDER_H

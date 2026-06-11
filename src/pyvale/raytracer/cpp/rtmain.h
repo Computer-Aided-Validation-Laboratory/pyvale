@@ -4,7 +4,8 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#pragma once
+#ifndef RTMAIN_H
+#define RTMAIN_H
 
 // nanobind header files
 #include <nanobind/nanobind.h>
@@ -65,3 +66,5 @@ void render_scene(const int image_height,
     const int shading_type,
     const int output_format,
     const bool grayscale_flag);
+
+#endif // RTMAIN_H

@@ -4,7 +4,8 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#pragma once
+#ifndef RTHITRECORD_H
+#define RTHITRECORD_H
 
 // STD header files
 #include <limits>
@@ -21,9 +22,8 @@ struct RayState;
  * 
  * The data is stored for a SINGLE element, so while a BLAS_Node intersected might contain e.g., 3 QUAD9's, HitRecord would
  * keep the data only for a single QUAD9 - the one that was specifically intersected.
- * 
- * Struct size [bytes]: 6 x 24 + 3 x 8 + 2 x 4 + 1 = 177 bytes
  */
+// Struct size [bytes]: 6 x 24 + 3 x 8 + 2 x 4 + 1 = 177 bytes
 struct HitRecord {
     EiVector3d point_intersection {EiVector3d::Zero()}; // Where ray intersects the mesh element
     EiVector3d normal_surface {EiVector3d::Zero()}; // Geometric normal vector
@@ -64,3 +64,5 @@ struct HitRecord {
         }
     }
 };
+
+#endif // RTHITRECORD_H

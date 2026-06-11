@@ -3,7 +3,10 @@
 // License: MIT
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
-#pragma once
+
+#ifndef RTELEMCONST_H
+#define RTELEMCONST_H
+
 #include <cstdint>
 
 // The below are specified, so it is always obvious where the indexing, loops, or array sizes come from
@@ -84,3 +87,5 @@ enum class ObjectType : int {
     SOLID = 0,
     SHELL = 1
 };
+
+#endif // RTELEMCONST_H

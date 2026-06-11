@@ -4,7 +4,8 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#pragma once
+#ifndef RTMATERIALS_H
+#define RTMATERIALS_H
 
 // STD header files
 #include <vector>
@@ -830,3 +831,5 @@ void ray_refractive(const RayState& current_state,
     }
 }
 */
+
+#endif // RTMATERIALS_H

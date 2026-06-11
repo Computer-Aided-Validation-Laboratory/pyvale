@@ -4,7 +4,9 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#pragma once
+#ifndef RTBVH_H
+#define RTBVH_H
+
 // STD header files
 #include <array>
 #include <vector>
@@ -771,3 +773,4 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     const int timestep_count);
 
 
+#endif // RTBVH_H
