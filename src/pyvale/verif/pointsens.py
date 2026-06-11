@@ -17,10 +17,11 @@ point sensors.
 import numpy as np
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
 import pyvale.verif.pointsensconst as pointsensconst
 from pyvale.verif.pointsensconst import GOLD_SEED
 
-def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
+def samp_times(sim_data: io.SimData) -> dict[str, None | np.ndarray]:
     sim_dims = sens.simtools.get_sim_dims(sim_data)
     sample_times = {}
 
@@ -30,7 +31,7 @@ def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
     return sample_times
 
 
-def sens_data_dict(sim_data: mh.SimData,
+def sens_data_dict(sim_data: io.SimData,
                    sens_pos: dict[str,np.ndarray]) -> dict[str,sens.SensorData]:
     sample_times = samp_times(sim_data)
 

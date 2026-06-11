@@ -50,19 +50,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
+import pyvale.mooseherder as mh
 import pyvale.dataset as dataset
-
-
 
 #%%
 # 1. Load physics simulation data
 # -------------------------------
 
 data_path: Path = dataset.thermal_3d_path()
-sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
-sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
 

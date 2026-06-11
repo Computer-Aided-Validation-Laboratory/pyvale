@@ -10,8 +10,7 @@ configurations without the user needing to configure all the sub-components
 themselves.
 """
 
-
-import pyvale.mooseherder as mh
+from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.fieldscalar import FieldScalar
 from pyvale.sensorsim.fieldvector import FieldVector
 from pyvale.sensorsim.fieldtensor import FieldTensor
@@ -23,7 +22,7 @@ from pyvale.sensorsim.enums import EDim
 
 class SensorFactory:
     @staticmethod
-    def scalar_point(sim_data: mh.SimData,
+    def scalar_point(sim_data: SimData,
                      sensor_data: SensorData,
                      comp_key: str,
                      spatial_dims: EDim,
@@ -35,7 +34,7 @@ class SensorFactory:
 
         Parameters
         ----------
-        sim_data : mh.SimData
+        sim_data : SimData
             Simulation data object containing the physical field that the v
             virtual sensor array will sample.
         sensor_data : SensorData
@@ -70,7 +69,7 @@ class SensorFactory:
         return sens_array
 
     @staticmethod
-    def vector_point(sim_data: mh.SimData,
+    def vector_point(sim_data: SimData,
                      sensor_data: SensorData,
                      comp_keys: tuple[str,...],
                      spatial_dims: EDim,
@@ -82,7 +81,7 @@ class SensorFactory:
 
         Parameters
         ----------
-        sim_data : mh.SimData
+        sim_data : SimData
             Simulation data object containing the physical field that the v
             virtual sensor array will sample.
         sensor_data : SensorData
@@ -120,7 +119,7 @@ class SensorFactory:
         return sens_array
 
     @staticmethod
-    def tensor_point(sim_data: mh.SimData,
+    def tensor_point(sim_data: SimData,
                      sensor_data: SensorData,
                      norm_comp_keys: tuple[str,...],
                      dev_comp_keys: tuple[str,...],
@@ -133,7 +132,7 @@ class SensorFactory:
 
         Parameters
         ----------
-        sim_data : mh.SimData
+        sim_data : SimData
             Simulation data object containing the physical field that the v
             virtual sensor array will sample.
         sensor_data : SensorData
