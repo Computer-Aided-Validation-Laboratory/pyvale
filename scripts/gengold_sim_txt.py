@@ -7,10 +7,10 @@
 from pathlib import Path
 import pyvale.dataset as dataset
 import pyvale.mooseherder as mh
-from pyvale.mooseherder.simsaver import (SimDataSaveOpts,
-                                            ESaveFieldOpt,
-                                            ESaveArray,
-                                            save_sim_data_to_arrays)
+from pyvale.dataio.simsaver import (SimDataSaveOpts,
+                                    ESaveFieldOpt,
+                                    ESaveArray,
+                                    save_sim_data_to_arrays)
 
 
 def main() -> None:
@@ -21,7 +21,7 @@ def main() -> None:
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
 
     project_root = Path(__file__).resolve().parents[1]
-    output_path = project_root / "tests" / "mooseherder" / "txt_gold"
+    output_path = project_root / "tests" / "dataio" / "txt_gold"
 
     if not output_path.is_dir():
         raise FileNotFoundError(f"Gold output directory '{output_path}'" \

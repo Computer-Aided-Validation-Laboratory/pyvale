@@ -32,10 +32,10 @@ def rectangle_mesh_2d(leng_x: float,
 
     Returns
     -------
-    tuple[np.ndarray,np.ndarray]
+        tuple[np.ndarray,np.ndarray]
         The coordinates and connectivity table as numpy arrays. The coordinates
-        have shape=(n_nodes,coord[x,y,z]). The connectivity tables has shape=
-        (nodes_per_elem,num_elems).
+        have shape=(n_nodes,coord[x,y,z]). The connectivity table has shape=
+        (num_elems,nodes_per_elem).
     """
     n_elems = n_elem_x*n_elem_y
     n_node_x = n_elem_x+1
@@ -60,8 +60,7 @@ def rectangle_mesh_2d(leng_x: float,
             row += 1
             nn += 1
 
-        connect[ee,:] = np.array([nn,nn+1,nn+n_node_x+1,nn+n_node_x])
-    connect = connect.T
+        connect[ee,:] = np.array([nn-1,nn,nn+n_node_x,nn+n_node_x-1])
 
     return (coords,connect)
 

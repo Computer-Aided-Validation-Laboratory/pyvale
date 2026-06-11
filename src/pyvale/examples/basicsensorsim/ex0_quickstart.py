@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 
 # pyvale imports
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.dataset as dataset
 
@@ -36,8 +37,8 @@ import pyvale.dataset as dataset
 # 1. Load physics simulation data
 # -------------------------------
 data_path: Path = dataset.thermomechanical_3d_path()
-sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
-sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
 
@@ -76,7 +77,7 @@ sens_array.set_error_chain(err_chain)
 # 3. Create & run simulated experiment
 # ------------------------------------
 
-sims: dict[str,mh.SimData] = {"sim_nominal":sim_data,}
+sims: dict[str,io.SimData] = {"sim_nominal":sim_data,}
 sensors: dict[str,sens.ISensorArray] = {"temp_sens":sens_array,}
 
 exp_sim_opts = sens.ExpSimOpts(workers=4,para=sens.EExpSimPara.ALL)

@@ -11,7 +11,8 @@ manipulating simulation data.
 from typing import Any
 import dataclasses
 import numpy as np
-import pyvale.mooseherder as mh
+
+from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.rendermesh import RenderMesh
 from pyvale.sensorsim.exceptions import Collapse2Dto3DError
 
@@ -33,7 +34,7 @@ def print_dataclass_fields(in_data: Any) -> None:
     print()
 
 
-def print_sim_data(sim_data: mh.SimData) -> None:
+def print_sim_data(sim_data: SimData) -> None:
     """Diagnostic function for inspecting a sim data object to work out shapes
     of time, coordinates, connectivity tables, node vars, elem vars as well as
     the associated keys in the dicttionaries for the connectivity,
@@ -41,7 +42,7 @@ def print_sim_data(sim_data: mh.SimData) -> None:
 
     Parameters
     ----------
-    sim_data : mh.SimData
+    sim_data : SimData
         SimData to print shapes of numpy arrays.
     """
     print()
@@ -74,13 +75,13 @@ def print_sim_data(sim_data: mh.SimData) -> None:
     print_dict(sim_data.glob_vars)
 
 
-def print_dimensions(sim_data: mh.SimData) -> None:
+def print_dimensions(sim_data: SimData) -> None:
     """Diagnostic function for quickly finding the coordinate limits for from a
     given simulation.
 
     Parameters
     ----------
-    sim_data : mh.SimData
+    sim_data : SimData
         Simulation data object containing the nodal coordinates.
     """
     print(80*"-")
@@ -95,7 +96,7 @@ def print_dimensions(sim_data: mh.SimData) -> None:
     print(80*"-")
 
 
-def get_sim_dims(sim_data: mh.SimData) -> dict[str,tuple[float,float]]:
+def get_sim_dims(sim_data: SimData) -> dict[str,tuple[float,float]]:
     """Diagnostic function for extracting the dimensional limits in space and
     time from a SimData object. Useful for finding the spatial dimensions over
     which simulated sensors can be placed as well as the times over which they
@@ -103,7 +104,7 @@ def get_sim_dims(sim_data: mh.SimData) -> dict[str,tuple[float,float]]:
 
     Parameters
     ----------
-    sim_data : mh.SimData
+    sim_data : SimData
         Simulation data object containing the coordinates and time steps.
 
     Returns
@@ -176,9 +177,9 @@ def get_deformed_nodes(timestep: int,
 
 
 def scale_length_units(scale: float,
-                       sim_data: mh.SimData,
+                       sim_data: SimData,
                        disp_keys: tuple[str,...] | None = None,
-                       ) -> mh.SimData:
+                       ) -> SimData:
     """Used to scale the length units of a simulation. Commonly used to convert
     SI units to mm for use with visualisation tools and rendering algorithms.
 
@@ -187,7 +188,7 @@ def scale_length_units(scale: float,
     scale : float
         Scale multiplier used to scale the coordinates and displacement fields
         if specified.
-    sim_data : mh.SimData
+    sim_data : SimData
         Simulation dataclass that will be scaled.
     disp_keys : tuple[str,...] | None, optional
         Tuple of string keys for the displacement keys to be scaled, by default
@@ -195,7 +196,7 @@ def scale_length_units(scale: float,
 
     Returns
     -------
-    mh.SimData
+    SimData
         Simulation dataclass with scaled length units.
     """
     sim_data.coords = sim_data.coords*scale

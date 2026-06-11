@@ -272,7 +272,7 @@ class Scene():
 
         Parameters
         ----------
-        sim_data : mh.SimData
+        sim_data : io.SimData
             A dataclass containing the simulation information i.e. the displacements
             to all the nodes in the mesh.
         part : bpy.data.objects

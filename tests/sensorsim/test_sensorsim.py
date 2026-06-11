@@ -10,6 +10,7 @@ import numpy as np
 # Pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.mooseherder as mh
+import pyvale.dataio as io
 import pyvale.verif.pointsens as pointsens
 import pyvale.verif.pointsensscalar as pointsensscalar
 import pyvale.verif.pointsensvector as pointsensvector
@@ -183,7 +184,7 @@ def test_get_meas_tensor(get_sensors: Callable[[], Dict[str, Any]]) -> None:
 
 #-------------------------------------------------------------------------------
 # Analytic field comparison tests
-def analytic_interp_2d(sim_data: mh.SimData,
+def analytic_interp_2d(sim_data: io.SimData,
                         analytic_gen: asg.AnalyticSimDataGen,
                         sens_data_2d_dict: Callable,
                         sens_array_noerrs: Callable,

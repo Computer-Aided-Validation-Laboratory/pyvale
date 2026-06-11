@@ -10,7 +10,7 @@ NOTE: this module is a feature under developement.
 
 import numpy as np
 from scipy.spatial.transform import Rotation
-import pyvale.mooseherder as mh
+from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
 from pyvale.sensorsim.enums import EDim
 
@@ -67,7 +67,7 @@ class RenderMesh:
 
 
 
-def create_render_mesh(sim_data: mh.SimData,
+def create_render_mesh(sim_data: SimData,
                        field_render_keys: tuple[str,...],
                        sim_spat_dim: EDim,
                        field_disp_keys: tuple[str,...] | None = None,
