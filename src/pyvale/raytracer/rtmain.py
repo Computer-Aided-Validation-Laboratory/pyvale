@@ -148,6 +148,8 @@ def render_scene(image_height: int,
         # This will not break the renderer, so just display an information
         print("Please note that colorful textures are currently not supported and they will still be sampled in grayscale.")
 
+    print(f"The output will be written to: {out_directory_path}")
+
     # Select appropriate rendering function based on these booleans to minimize branching in backend rendered if possible
     # Not sure if we will need to implement this yet - BVH builder is still fast with conditional checks (and we run it once per frame), and branching based on element/surface type was moved out of the hot loops
     #if uniform_surfaces and uniform_elements:

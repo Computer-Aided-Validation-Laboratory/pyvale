@@ -303,7 +303,7 @@ class RTMesh:
         ValueError:
             If the element length is too small.
         """
-        if element_length < 1e-4:
+        if element_length < 1e-5:
             raise ValueError("Element size {element_length} is too small. Consider changing the world units to a larger magnitude.")
         else:
             self.avg_element_length = element_length
@@ -1549,9 +1549,6 @@ def create_rtmesh(rtmesh: RTMesh,
         rtmesh.pyvista_surface = pv_triangulated
         rtmesh.tri_face_mapping = np.ascontiguousarray(mapped_face_ids, dtype=np.int64)
         rtmesh.tri_node_mapping = np.ascontiguousarray(mapped_coords, dtype=np.int64)
-
-    # Assign average element length
-    rtmesh.avg_element_length = rtmesh._compute_average_element_length()
 
     # RenderMesh passed = processing SimData object
     if render_mesh is not None:

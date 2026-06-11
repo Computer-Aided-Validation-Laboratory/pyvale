@@ -16,8 +16,13 @@
 #include "rtrayintersection.h"
 #include "rtmaterials.h"
 
+// TO DO: Add interface to let the user select depth (50 will be very excessive for scenes without refractive materials)
 static constexpr int MAX_DEPTH = 50; // Max depth for the secondary rays
 static constexpr double OFFSET_MAG = 1e7; // Secondary ray offset magnitude used to enlarge the base (machine epsilon, sitting at around 1e-16). To do: find the best value for that; current gets us to 1e-9
+
+// ================================================================================
+// Main loop for shooting rays and determining their colour
+// ================================================================================
 
 // Radiance with refractive materials - but we could make this into a separate option if refractive materials are present in the scene to avoid needing to branch into true/false hits if not necessary?
 // This case would also have its own separate HitRecord, RayState structs since we could carry less data and fit more of those into cache lines
@@ -25,89 +30,86 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
     const double scene_ri,
     const TLAS& TLAS){
 
-    EiVector3d total_color = EiVector3d::Zero();
-    //std::vector<RayState> stack; // Not thread safe
-    thread_local std::vector<RayState> stack; // Thread safe
-    stack.clear();
-    stack.reserve(MAX_DEPTH);
-    stack.emplace_back(primary_ray, scene_ri);
-
-    // Pointer to the function determining the interaction between the ray and the mesh material
+    // Assign material interaction function pointer
     void (*ray_material_interaction_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color, const double offset); 
 
+    //std::vector<RayState> stack; // Not thread safe
+    thread_local std::vector<RayState> stack; // Thread safe
+    stack.clear(); // Ensure clean state before starting
+    stack.reserve(MAX_DEPTH);
+    stack.emplace_back(primary_ray, scene_ri);
+    EiVector3d total_color = EiVector3d::Zero(); // Starting ray colour
+
+    // Iterate over rays until stack is empty or we terminate early (Russian roulette/hit MAX_DEPTH limit)
     while(!stack.empty()){
         RayState current_state = stack.back();
         stack.pop_back();
         const Ray& current_ray = current_state.ray;
 
-        HitRecord intersection_record; // Create HitRecord struct
         // Look for the intersection for this ray
-        IntersectionOutput intersection;
-        const bool hit_anything = intersect_TLAS(current_ray, TLAS, intersection, intersection_record);
+        HitRecord intersection_record;
+        const bool hit_anything = intersect_TLAS(current_ray, TLAS, intersection_record);
 
+        // Determine volumetric absorption for the current ray segment
         EiVector3d absorption = EiVector3d::Zero(); // Set default absorption to 0.0 = clear medium
-        const bool has_medium = current_state.interior_count > 0; // Check if our ray has traversed any media that could attenuate the accumulated colour
-        if (has_medium){
+        // // Check if our ray has traversed any media that could attenuate the accumulated colour)
+        if (current_state.interior_count > 0){ 
             absorption = interior_top_absorption(&current_state.interior_list[0], current_state.interior_count);
         }
         const bool has_absorption = absorption.x() > 0.0 || absorption.y() > 0.0 || absorption.z() > 0.0; // Save ourselves having to compute exponentials if there is no absorption
-        
+
+        // Handle escaping rays
         if (!hit_anything) {
             if (has_absorption) {
-                // Apply huge distance - ray travels into the sky, so we account for the light lost as the ray travels from inside of some absorbing medium out of the scene
+                // Apply a huge distance to account for light lost traveling out of the scene
                 apply_absorption(current_state.accumulated_color, absorption, 1e30);
             }
             total_color += current_state.accumulated_color.cwiseProduct(ray_blue_sky(current_ray)); // Sky/background colour
             continue; // Early termination - no bounces here anyway
         }
 
-        
+        // Apply Beer-Lambert absorption globally for the traversed path segment
         if (has_absorption){
-            // Since we store t from the ray equation ray(t) = origin_vector + t * direction_vector, t = (intersection_record.point_intersection - current_ray.origin).norm() (this has been confirmed within the code, too)
-            double path_length = intersection_record.t;
-            apply_absorption(current_state.accumulated_color, absorption, path_length);
+            // Since we store t from the ray equation ray(t) = origin_vector + t * direction_vector
+            // t = (intersection_record.point_intersection - current_ray.origin).norm() (this has been confirmed within the code, too)
+            // => path_length = t
+            apply_absorption(current_state.accumulated_color, absorption, intersection_record.t);
         }
-       
-        // Assign what happens with the secondary rays based on the material pointer
+    
+
+        // Assign material interaction function pointer
         ray_material_interaction_ptr = intersection_record.ray_material_ptr;
-        
-        // Find the secondary ray offset factor based on the intersection point - we do it here, as it will potentially be reused in nested dielectrics
-        // and regular ray handling
-        // std::max because near world origin, we would have the offset close to 0/undeflow and users CAN place objects at origin
+
+        // Adaptive offset to avoid self-intersection (shadow acne)
+        // Calculated here as we use it here (nested dielectrics) as well as in material interactions
+        // std::max guards against 0/underflow near the world origin (and users CAN place objects at origin)
         const double adaptive_offset = std::numeric_limits<double>::epsilon() * OFFSET_MAG *
             std::max({1.0,
             std::fabs(intersection_record.point_intersection.x()),
             std::fabs(intersection_record.point_intersection.y()),
             std::fabs(intersection_record.point_intersection.z())});
 
-        // Handle nested dielectrics - if using function pointer approach
-        // Classify nested dielectrics if material is refractive
+        // False hit detection from Schmidt's nested dielectrics algorithm (if using function pointer approach)
+        // Shells don't participate in nested dielectrics (we enter-exit in one go, so they don't toggle the interior list)
         if (ray_material_interaction_ptr == &ray_refractive<ObjectType::SOLID>) {
-
             int hit_idx = intersection_record.hit_blas_idx;
             int hit_priority = intersection_record.hit_blas_priority;
             double hit_ri = intersection_record.refractive_index;
+            const EiVector3d hit_absorption = intersection_record.face_color; // Face color = absorption for refractive materials
+            
             // Get and compare the max priority currently surrounding the ray (or min value of int, if the list is empty)
             int top_idx = interior_highest_priority_idx(&current_state.interior_list[0], current_state.interior_count);
-            int top_priority;
-
-            if (top_idx < 0){
-                top_priority = std::numeric_limits<int>::min();
-            }
-            else {
-                top_priority = current_state.interior_list[top_idx].priority;
-            }
+            int top_priority = (top_idx < 0) ? std::numeric_limits<int>::min() : current_state.interior_list[top_idx].priority;
             
             // Check if it is a true hit
             if (current_state.interior_count > 0 && hit_priority < top_priority) {
-            //if (!(current_state.interior_count == 0 || hit_priority >= top_priority)){ // default
+                // False hit: this boundary is inside a higher-priority medium
+                // Toggle the list (track that we crossed it) but do not shade
+                // Then re-cast the ray from hit point in the same direction by pushing a new RayState whose origin is the current hit point
                 //std::cerr << "Inside interior count check" << std::endl;
-                // False hit: priority of hit object < max priority in interior list (Schmidt's algorithm for nested volumes)
-                // => Do not shade; re-cast the ray from hit point in the same direction by pushing a new RayState whose origin is the current hit point
                 RayState next_state = current_state;
-                interior_toggle(&next_state.interior_list[0], next_state.interior_count, hit_idx, hit_priority, hit_ri, intersection_record.face_color);
+                interior_toggle(&next_state.interior_list[0], next_state.interior_count, hit_idx, hit_priority, hit_ri, hit_absorption);
                 // Offset the ray minimnally to avoid self-intersecting - much like we do for all secondary rays
-                
                 next_state.ray.origin = intersection_record.point_intersection + adaptive_offset * current_ray.direction;
                 next_state.ray.direction = current_ray.direction;
                 next_state.ray.t_min = SPAWNED_T_MIN_BASE * std::max(1.0, intersection_record.point_intersection.norm());
@@ -117,6 +119,11 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
                 continue;
             }
         }
+
+        const bool is_refractive = (intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SOLID>
+                                 || intersection_record.ray_material_ptr == &ray_refractive<ObjectType::SHELL>);
+        
+        
         // Explicit depth limit with ambient fallback
         if (current_state.depth >= MAX_DEPTH) {
             // Add a fallback ambient color to compensate for truncated energy 
@@ -126,28 +133,34 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
             continue; 
         }
         
-        
         EiVector3d albedo = intersection_record.face_color;
         if (current_state.depth > MAX_DEPTH/2) { // Start early termination if we are at least halfway through the maximum allowed depth
             // Russian roulette early termination
+            // For refractive materials, face_color is an absorption coefficient (sigma_a),
+            // not a reflectance - using it as a survival probability causes strongly-tinted dielectrics to be terminated often
+            // We use albedo = (1,1,1) for refractive materials so RR never fires against them here;
+            // ray_refractive handles its own internal RR separately.
+        
             // Clamp to prevent infinite loops (p=1.0) and division by zero (p=0.0)
-            double p = std::clamp(albedo.maxCoeff(), 0.1, 0.95);
-            if (random_double() > p){  // Note: for multi-threading this will have to be replaced with thread_local generator
+            EiVector3d rr_albedo = is_refractive ? EiVector3d(1.0, 1.0, 1.0) : albedo;
+            double p = std::clamp(rr_albedo.maxCoeff(), 0.1, 0.95);
+            if (random_double() > p){ 
             //if ((double)rand() / RAND_MAX > p){ // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
-                //return emitted;
                 total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission);
                 continue;
             }
-            // Only change albedo for non-refractive materials
-            if (!(ray_material_interaction_ptr == &ray_refractive<ObjectType::SOLID> || ray_material_interaction_ptr == &ray_refractive<ObjectType::SHELL>)){
-                albedo /= p;
-            }
+            // Only rescale albedo for non-refractive materials; dielectrics pass albedo=attenuation=(1,1,1)
+            // into ray_refractive regardless, so scaling face_color here would corrupt sigma_a
+            // Note: Currently ray_refractive knows that it shouldn't use albedo, so we do not need this check
+            // However, if you were to directly overwrite intersection_record.face_color and remove albedo from ray_material_interaction_ptr,
+            // then yes, this check would be necessary
+            //if (!(is_refractive)){
+            //    albedo /= p;
+            //}
         }
 
         // True hit: priority of hit object >= max priority in interior list OR the list is empty
-        // Shade normally
-        // Process ray and update the stack and total color based on the material of the intersected mesh
-        // FUNCTION POINTER VARIANT
+        // Shade normally - FUNCTION POINTER VARIANT
         ray_material_interaction_ptr(current_state, intersection_record, albedo, stack, total_color, adaptive_offset);
 
         // SWITCH DISPATCH VARIANT
@@ -216,6 +229,177 @@ EiVector3d return_ray_color_stack(const Ray& primary_ray,
     } // Stack while loop
     return total_color;
 } 
+
+// ================================================================================
+// Writing the output
+// ================================================================================
+namespace outputwriter{
+
+    void (*save_image)(const std::vector<uint8_t>& pixel_buffer,
+        const int image_height,
+        const int image_width,
+        std::filesystem::path& output_filepath);
+
+    // Helper that writes 16-bit integers in Little-Endian byte order
+    static inline void write_16bit(std::ofstream& image_file,
+        uint16_t value){
+
+        uint8_t bytes[2] = {static_cast<uint8_t>(value & 0xFF), static_cast<uint8_t>(value >> 8) };
+        image_file.write(reinterpret_cast<const char*>(bytes), 2);
+    }
+
+    // Helper that writes 32-bit integers in Little-Endian byte order
+    static inline void write_32bit(std::ofstream& image_file,
+        uint32_t value){
+
+        uint8_t bytes[4] = { static_cast<uint8_t>(value & 0xFF),
+        static_cast<uint8_t>((value >> 8) & 0xFF),
+        static_cast<uint8_t>((value >> 16) & 0xFF),
+        static_cast<uint8_t>((value >> 24) & 0xFF) };
+        image_file.write(reinterpret_cast<const char*>(bytes), 4);
+    }
+
+    // Helper that writes a TIFF tag (12-byte IFD tag)
+    static inline void write_tag(std::ofstream& image_file,
+        uint16_t tag,
+        uint16_t type,
+        uint32_t count,
+        uint32_t value) {
+
+        write_16bit(image_file, tag);
+        write_16bit(image_file, type);
+        write_32bit(image_file, count);
+        write_32bit(image_file, value);
+    }
+
+    void saveTIFF(const std::vector<uint8_t>& pixel_buffer,
+        const int image_height,
+        const int image_width,
+        std::filesystem::path& output_filepath) {
+            
+        // Finish the output filepath with the appropriate extension
+        output_filepath.concat(".tiff"); // Concat will do "whatever_path_we_have.tiff", which is what we want as we already pass the name of the image file, we just need to add the extension
+        //std::cout << "Output filepath:" << output_filepath << std::endl; // For checking if path is generated correctly
+
+        // std::ios::binary is important for TIFF so Windows doesn't corrupt the file by changing \n to \r\n
+        std::ofstream image_file(output_filepath, std::ios::binary);
+        if (!image_file.is_open()) {
+            std::cerr << "Failed to open the output file.\n";
+            return;
+        }
+
+        // Write the TIFF Header (8 bytes)
+        // "II" (little-endian), 42 (magic number), 8 (offset to first IFD)
+        image_file.write("II\x2A\x00\x08\x00\x00\x00", 8);
+
+        // Write the IFD (Image File Directory)
+        write_16bit(image_file, 12); // Number of directory entries
+
+        // TIFF tags must be written in strictly ascending order of the Tag ID
+        write_tag(image_file, 0x0100, 4, 1, image_width); // ImageWidth (LONG)
+        write_tag(image_file, 0x0101, 4, 1, image_height); // ImageLength (LONG)
+        write_tag(image_file, 0x0102, 3, 3, 158); // BitsPerSample (SHORTx3 -> Pointer offset 158)
+        write_tag(image_file, 0x0103, 3, 1, 1); // Compression (SHORT -> 1 = None)
+        write_tag(image_file, 0x0106, 3, 1, 2); // PhotometricInterpretation (SHORT -> 2 = RGB)
+        write_tag(image_file, 0x0111, 4, 1, 180); // StripOffsets (LONG -> Pointer offset 180)
+        write_tag(image_file, 0x0115, 3, 1, 3); // SamplesPerPixel (SHORT -> 3 channels)
+        write_tag(image_file, 0x0116, 4, 1, image_height); // RowsPerStrip (LONG)
+        write_tag(image_file, 0x0117, 4, 1, image_width * image_height * 3); // StripByteCounts (LONG -> Total pixel bytes)
+        write_tag(image_file, 0x011A, 5, 1, 164); // XResolution (RATIONAL -> Pointer offset 164)
+        write_tag(image_file, 0x011B, 5, 1, 172); // YResolution (RATIONAL -> Pointer offset 172)
+        write_tag(image_file, 0x0128, 3, 1, 2); // ResolutionUnit (SHORT -> 2 = Inches)
+
+        write_32bit(image_file, 0); // Offset to next IFD (0 indicates end of IFDs)
+
+        // Write data that exceeds the 4-byte limit in the IFD value fields
+        // Offset 158: BitsPerSample
+        write_16bit(image_file, 8); write_16bit(image_file, 8); write_16bit(image_file, 8); 
+        // Offset 164: XResolution (Numerator / Denominator = 72 / 1)
+        write_32bit(image_file, 72); write_32bit(image_file, 1);            
+        // Offset 172: YResolution (Numerator / Denominator = 72 / 1)
+        write_32bit(image_file, 72); write_32bit(image_file, 1);            
+
+        // Write pixel data
+        // Offset 180: StripOffsets matches this exact position in the file
+        image_file.write(reinterpret_cast<const char*>(pixel_buffer.data()), pixel_buffer.size());
+
+        image_file.close();
+        std::cout << "\r Done. \n";
+    }
+
+    void savePPM(const std::vector<uint8_t>& pixel_buffer,
+        const int image_height,
+        const int image_width,
+        std::filesystem::path& output_filepath){
+        
+        // Finish the output filepath with the appropriate extension
+        output_filepath.concat(".ppm");
+        //std::cout << "Output filepath:" << output_filepath << std::endl; // For checking if path is generated correctly
+
+        std::ofstream image_file;
+
+        image_file.open(output_filepath);
+        if (!image_file.is_open()) {
+            std::cerr << "Failed to open the output file.\n";
+            return;
+        }
+
+        image_file << "P6\n" << image_width << ' ' << image_height << "\n255\n";
+        image_file.write(reinterpret_cast<const char*>(pixel_buffer.data()), pixel_buffer.size());
+
+        image_file.close();
+        std::cout << "\r Done. \n";
+    }
+
+    // Setter
+    void set(OutputType output_format){
+        switch (output_format){
+            case OutputType::PPM:
+                save_image = &savePPM;
+                break;
+            case OutputType::TIFF:
+                save_image = &saveTIFF;
+                break;
+            //case OutputType::NP_BUFFER:
+                //save_image = &saveNPBuffer;
+                //break;
+            default:
+                save_image = &savePPM;
+                break;
+        }
+    }
+
+}
+
+// ================================================================================
+// Debug helper
+// ================================================================================
+
+void mock_ray_shoot(const EiVector3d& camera_center,
+    const EiVector3d& pixel_00_center,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
+    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_defocus_disc,
+    const TLAS& TLAS,
+    const int image_height,
+    const int image_width,
+    const int number_of_samples,
+    const double scene_ri,
+    const std::filesystem::path output_filepath) {
+    // Shoot a single mock ray to see what happens - helpful in debugging
+
+    Ray mock_ray;
+    //mock_ray.origin = EiVector3d(0.0, 0.0, 410.0); wedge tests
+    //mock_ray.direction = EiVector3d(0.15963, -0.0311445, -0.986686);
+    mock_ray.origin = EiVector3d(0.0, 0.0, 410.0); //normals tests
+    mock_ray.direction = EiVector3d(0.0814686, 0.171913, -0.981738);
+    EiVector3d pixel_color = EiVector3d::Zero();
+    pixel_color += return_ray_color_stack(mock_ray, scene_ri, TLAS);
+    std::cerr << "Final color: " << pixel_color.x() << ", " << pixel_color.y() << ", " << pixel_color.z() << std::endl;
+}
+
+// ================================================================================
+// Old versions of return_ray_color in case they are helpful for debugging/dev
+// ================================================================================
 
 // Same as above but withous nested dielectrics, i.e., pure Beer-Lambert
 /*
@@ -518,164 +702,3 @@ EiVector3d return_ray_color_new(const Ray& ray,
     return emitted;
 }
 */
-
-namespace outputwriter{
-
-    void (*save_image)(const std::vector<uint8_t>& pixel_buffer,
-        const int image_height,
-        const int image_width,
-        std::filesystem::path& output_filepath);
-
-    // Helper that writes 16-bit integers in Little-Endian byte order
-    static inline void write_16bit(std::ofstream& image_file,
-        uint16_t value){
-
-        uint8_t bytes[2] = {static_cast<uint8_t>(value & 0xFF), static_cast<uint8_t>(value >> 8) };
-        image_file.write(reinterpret_cast<const char*>(bytes), 2);
-    }
-
-    // Helper that writes 32-bit integers in Little-Endian byte order
-    static inline void write_32bit(std::ofstream& image_file,
-        uint32_t value){
-
-        uint8_t bytes[4] = { static_cast<uint8_t>(value & 0xFF),
-        static_cast<uint8_t>((value >> 8) & 0xFF),
-        static_cast<uint8_t>((value >> 16) & 0xFF),
-        static_cast<uint8_t>((value >> 24) & 0xFF) };
-        image_file.write(reinterpret_cast<const char*>(bytes), 4);
-    }
-
-    // Helper that writes a TIFF tag (12-byte IFD tag)
-    static inline void write_tag(std::ofstream& image_file,
-        uint16_t tag,
-        uint16_t type,
-        uint32_t count,
-        uint32_t value) {
-
-        write_16bit(image_file, tag);
-        write_16bit(image_file, type);
-        write_32bit(image_file, count);
-        write_32bit(image_file, value);
-    }
-
-    void saveTIFF(const std::vector<uint8_t>& pixel_buffer,
-        const int image_height,
-        const int image_width,
-        std::filesystem::path& output_filepath) {
-            
-        // Finish the output filepath with the appropriate extension
-        output_filepath.concat(".tiff"); // Concat will do "whatever_path_we_have.tiff", which is what we want as we already pass the name of the image file, we just need to add the extension
-        std::cout << "Output filepath:" << output_filepath << std::endl;
-
-        // std::ios::binary is important for TIFF so Windows doesn't corrupt the file by changing \n to \r\n
-        std::ofstream image_file(output_filepath, std::ios::binary);
-        if (!image_file.is_open()) {
-            std::cerr << "Failed to open the output file.\n";
-            return;
-        }
-
-        // Write the TIFF Header (8 bytes)
-        // "II" (little-endian), 42 (magic number), 8 (offset to first IFD)
-        image_file.write("II\x2A\x00\x08\x00\x00\x00", 8);
-
-        // Write the IFD (Image File Directory)
-        write_16bit(image_file, 12); // Number of directory entries
-
-        // TIFF tags must be written in strictly ascending order of the Tag ID
-        write_tag(image_file, 0x0100, 4, 1, image_width); // ImageWidth (LONG)
-        write_tag(image_file, 0x0101, 4, 1, image_height); // ImageLength (LONG)
-        write_tag(image_file, 0x0102, 3, 3, 158); // BitsPerSample (SHORTx3 -> Pointer offset 158)
-        write_tag(image_file, 0x0103, 3, 1, 1); // Compression (SHORT -> 1 = None)
-        write_tag(image_file, 0x0106, 3, 1, 2); // PhotometricInterpretation (SHORT -> 2 = RGB)
-        write_tag(image_file, 0x0111, 4, 1, 180); // StripOffsets (LONG -> Pointer offset 180)
-        write_tag(image_file, 0x0115, 3, 1, 3); // SamplesPerPixel (SHORT -> 3 channels)
-        write_tag(image_file, 0x0116, 4, 1, image_height); // RowsPerStrip (LONG)
-        write_tag(image_file, 0x0117, 4, 1, image_width * image_height * 3); // StripByteCounts (LONG -> Total pixel bytes)
-        write_tag(image_file, 0x011A, 5, 1, 164); // XResolution (RATIONAL -> Pointer offset 164)
-        write_tag(image_file, 0x011B, 5, 1, 172); // YResolution (RATIONAL -> Pointer offset 172)
-        write_tag(image_file, 0x0128, 3, 1, 2); // ResolutionUnit (SHORT -> 2 = Inches)
-
-        write_32bit(image_file, 0); // Offset to next IFD (0 indicates end of IFDs)
-
-        // Write data that exceeds the 4-byte limit in the IFD value fields
-        // Offset 158: BitsPerSample
-        write_16bit(image_file, 8); write_16bit(image_file, 8); write_16bit(image_file, 8); 
-        // Offset 164: XResolution (Numerator / Denominator = 72 / 1)
-        write_32bit(image_file, 72); write_32bit(image_file, 1);            
-        // Offset 172: YResolution (Numerator / Denominator = 72 / 1)
-        write_32bit(image_file, 72); write_32bit(image_file, 1);            
-
-        // Write pixel data
-        // Offset 180: StripOffsets matches this exact position in the file
-        image_file.write(reinterpret_cast<const char*>(pixel_buffer.data()), pixel_buffer.size());
-
-        image_file.close();
-        std::cout << "\r Done. \n";
-    }
-
-    void savePPM(const std::vector<uint8_t>& pixel_buffer,
-        const int image_height,
-        const int image_width,
-        std::filesystem::path& output_filepath){
-        
-        // Finish the output filepath with the appropriate extension
-        output_filepath.concat(".ppm");
-        std::cout << "Output filepath:" << output_filepath << std::endl;
-
-        std::ofstream image_file;
-
-        image_file.open(output_filepath);
-        if (!image_file.is_open()) {
-            std::cerr << "Failed to open the output file.\n";
-            return;
-        }
-
-        image_file << "P6\n" << image_width << ' ' << image_height << "\n255\n";
-        image_file.write(reinterpret_cast<const char*>(pixel_buffer.data()), pixel_buffer.size());
-
-        image_file.close();
-        std::cout << "\r Done. \n";
-    }
-
-    // Setter
-    void set(OutputType output_format){
-        switch (output_format){
-            case OutputType::PPM:
-                save_image = &savePPM;
-                break;
-            case OutputType::TIFF:
-                save_image = &saveTIFF;
-                break;
-            //case OutputType::NP_BUFFER:
-                //save_image = &saveNPBuffer;
-                //break;
-            default:
-                save_image = &savePPM;
-                break;
-        }
-    }
-
-}
-
-
-void mock_ray_shoot(const EiVector3d& camera_center,
-    const EiVector3d& pixel_00_center,
-    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
-    const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_defocus_disc,
-    const TLAS& TLAS,
-    const int image_height,
-    const int image_width,
-    const int number_of_samples,
-    const double scene_ri,
-    const std::filesystem::path output_filepath) {
-    // Shoot a single mock ray to see what happens - helpful in debugging
-
-    Ray mock_ray;
-    //mock_ray.origin = EiVector3d(0.0, 0.0, 410.0); wedge tests
-    //mock_ray.direction = EiVector3d(0.15963, -0.0311445, -0.986686);
-    mock_ray.origin = EiVector3d(0.0, 0.0, 410.0); //normals tests
-    mock_ray.direction = EiVector3d(0.0814686, 0.171913, -0.981738);
-    EiVector3d pixel_color = EiVector3d::Zero();
-    pixel_color += return_ray_color_stack(mock_ray, scene_ri, TLAS);
-    std::cerr << "Final color: " << pixel_color.x() << ", " << pixel_color.y() << ", " << pixel_color.z() << std::endl;
-}

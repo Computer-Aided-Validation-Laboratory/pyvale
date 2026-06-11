@@ -20,9 +20,9 @@
 
 
 
-/* ********************************************** 
- * TRI3 intersection
-********************************************** */
+// ================================================================================
+// TRI3 intersection
+// ================================================================================
 
 IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     const std::vector<double>& node_coords,
@@ -119,9 +119,9 @@ IntersectionOutput intersect_bvh_tri3(const Ray& ray,
     return IntersectionOutput{ barycentric_coordinates, geometric_normals, t_values };
 }
 
-/* ********************************************** 
- *  QUAD4 intersection
-********************************************** */
+// ================================================================================
+ //  QUAD4 intersection
+// ================================================================================
 
 IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     const std::vector<double>& node_coords,
@@ -131,8 +131,12 @@ IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     // More specifically: Chapter 8, "Cool Patches: A Geometric Approach to Ray/Bilinear Patch Intersections" by A. Reshetov
 
     static constexpr int COORDS_PER_ELEMENT = static_cast<int>(ElementNodeCount::QUAD4) * NODE_COORDINATES;
-    //static constexpr double EPSILON = 1e-8; // This works sensibly for meshes that are like 0.1+ order of magnitude; 1e-10 does not work as well. I tried 1e-9 and it works ok here, but not for smaller quads
-    static constexpr double EPSILON = 1e-10; // This is better for smaller meshes... It's hard to find a good common ground for QUAD4 specifically as they seem to be very sensitive to this epsilon
+    // TO DO:
+    // Either scale these based on average element length (available in Python; but has to be individual per mesh (in case we have big and small quad in the scene);or
+    // Stop users from making their quads too small and keep a single value
+    // QUAD4 seem to be very sensitive to this epsilon and it's hard to find a common ground. Particularly sensitive for refractive materials if using Schlick (Fresnel seems more forgiving?))
+    //static constexpr double EPSILON = 1e-8; // Usually fixes bigger quads
+    static constexpr double EPSILON = 1e-11; // This is better for smaller meshes, where average element length is 1e-4 or smaller
     
     // 1. COORDINATES AND EDGES
     // Ray data broadcasted to use in vectorised operations on matrices
@@ -301,9 +305,9 @@ IntersectionOutput intersect_bvh_quad4(const Ray& ray,
     }
 
 
-/* ********************************************** 
- *  Precision parameters for QUAD8 and QUAD9
-********************************************** */
+// ================================================================================
+//  Precision parameters for QUAD8 and QUAD9
+// ================================================================================
 
 // Sub-triangle Moller-Trumbore acceptance slack (on barycentrics)
 static const double eps_sub_bary = 1e-6;
@@ -327,9 +331,9 @@ static const int iter_max = 30;
 static const int backtrack_max = 8;
 static const double backtrack_factor= 0.5;
 
-/* ********************************************** 
- *  QUAD9
-********************************************** */
+// ================================================================================
+//  QUAD9
+// ================================================================================
 
 // Evaluate S(xi, eta) = sum_i N_i(xi, eta) * x_i for the 9 quad9 nodes.
 static inline EiVector3d evaluate_surface_quad9(const double xi, const double eta,
@@ -560,9 +564,9 @@ IntersectionOutput intersect_bvh_quad9(const Ray& ray,
     return IntersectionOutput{ quad_coords, geometric_normals, t_values };
 }
 
-/* ********************************************** 
- *  QUAD8
-********************************************** */
+// ================================================================================
+//  QUAD8
+// ================================================================================
 // Same structure as QUAD9, but:
 // - Shape-function set has 8 entries (no centre node),
 // - We synthesise a proxy centre at (xi, eta) = (0, 0) from the average of
@@ -779,9 +783,9 @@ IntersectionOutput intersect_bvh_quad8(const Ray& ray,
     return IntersectionOutput{ quad_coords, geometric_normals, t_values };
 }
 
-/* ********************************************** 
- *  TRI6
-********************************************** */
+// ================================================================================
+//  TRI6
+// ================================================================================
 
 // Mapping for sub-triangulation (indices within the 6-node nodes vector)
 // Quadratic layout: 0,1,2 are corners; 3,4,5 are midpoints of (0-1), (1-2), (2-0)
@@ -802,26 +806,7 @@ double intersect_tri6(const Ray &ray,
     const std::array<EiVector3d, ElementNodeCount::TRI6> nodes,
     EiVector3d &surface_normals_out,
     Eigen::Vector2d &uv) {
-    /* 
-    Function to find intersection between one TRI6 triangle and a ray.
 
-    Parameters
-    ----------
-    ray : const Ray
-        Ray with which the intersection is found
-    nodes : const std::array<EiVector3d, 6>
-        Triangle node coordinates
-    surface_normals_out : EiVector3d
-        Empty vector to which the normal at the intersection point should be loaded
-    uv : Eigen::Vector2d
-        Empty vector to which the triangle-relative UV coordinates at the intersection point should be loaded
-
-    Returns
-    -------
-    double
-        The distance t from the ray origin to the intersection point 
-    */
-    
     // Set precision parameters
     const double eps_init_guess1 = 1e-10;
     const double eps_init_guess2 = 0.1;
@@ -943,23 +928,6 @@ double intersect_tri6(const Ray &ray,
 IntersectionOutput intersect_bvh_tri6(const Ray& ray,
     const std::vector<double>& node_coords,
     const unsigned int bvh_node_triangle_count) {
-    /* 
-    Function to find intersection between given TRI6 triangles and a ray.
-
-    Parameters
-    ----------
-    ray : const Ray
-        Ray with which the intersection is found
-    node_coords : const std::vector<double>
-        Triangle node coordinates
-    bvh_node_triangle_count : const unsigned int
-        Number of the given triangles
-
-    Returns
-    -------
-    IntersectionOutput
-        Intersection result containing information about intersections of each triangle with the ray 
-    */
 
     // Define default negative output if there is no intersection
     IntersectionOutput negative_output{
@@ -1024,9 +992,9 @@ IntersectionOutput intersect_bvh_tri6(const Ray& ray,
 
 }
 
-/* ********************************************** 
- *  AABB
-********************************************** */
+// ================================================================================
+//  AABB
+// ================================================================================
 
 bool intersect_AABB (const Ray& ray, const AABB& AABB) {
     // Slab method for ray-AABB intersection
@@ -1044,8 +1012,8 @@ bool intersect_AABB (const Ray& ray, const AABB& AABB) {
     // Find the maximum t for each axis (x, y, z), then find minimum of these for (x,y,z)
     double t_max = std::min(std::min(std::max(t_axis[0], t_axis[1]), std::max(t_axis[2], t_axis[3])), std::max(t_axis[4], t_axis[5]));
 
-    // Temporary debug because it often indicates something went wrong with secondary rays
-    
+    // Uncomment below for debug - often indicates something went wrong with secondary rays
+    /*
     if (std::isnan(t_min) || std::isnan(t_max)) {
     std::cerr << "NaN slab: origin=" << ray.origin.transpose()
               << " dir=" << ray.direction.transpose()
@@ -1053,6 +1021,7 @@ bool intersect_AABB (const Ray& ray, const AABB& AABB) {
               << " max=" << AABB.corner_max[0] << "," << AABB.corner_max[1] << "," << AABB.corner_max[2]
               << "\n";
     }
+    */
     
     // t_min < t_max - Ray which just touches a corner, edge, or face of the AABB will be considered non-intersecting
     // t_min <= t_max - Rays which touch the box boundary are considered intersecting. A bit of a degenerate case, but decided to include it here, hence more relaxed inequality.
@@ -1060,19 +1029,15 @@ bool intersect_AABB (const Ray& ray, const AABB& AABB) {
     return t_min <= t_max && t_max > 0.0 && t_min < ray.t_max; // False => No overlap => Ray does not intersect the AABB.
 }
 
-/* ********************************************** 
- *  BLAS and TLAS
-********************************************** */
+// ================================================================================
+//  BLAS
+// ================================================================================
 
 void intersect_BLAS(const Ray& ray,
     const BLAS& mesh_bvh,
-    IntersectionOutput& out_intersection,
     HitRecord& intersection_record) {
 
     //std::cout << "  BLAS: Starting BVH intersection test" << std::endl;
-
-    // Find the number of nodes per mesh element NOW to limit branching
-    // This is valid only if we assume that one mesh can contain only one type of element
     Texture texture = mesh_bvh.texture;
 
     // this could be stored in BLAS and assigned when we build it to remove these checks
@@ -1100,7 +1065,7 @@ void intersect_BLAS(const Ray& ray,
             
             //std::cout << "We are trying to intersect elements in node now" << std::endl;
             
-            out_intersection = intersection_function_ptr(ray, Node.node_coords, Node.element_count);
+            IntersectionOutput out_intersection = intersection_function_ptr(ray, Node.node_coords, Node.element_count);
 
             Eigen::Index min_row_idx, min_col_idx;
             //std::cout << "Number of t_values: " << out_intersection.t_values.size() << std::endl;
@@ -1141,9 +1106,12 @@ void intersect_BLAS(const Ray& ray,
      }
 }
 
+// ================================================================================
+// TLAS
+// ================================================================================
+
 bool intersect_TLAS(const Ray& ray,
     const TLAS& scene_TLAS,
-    IntersectionOutput& out_intersection,
     HitRecord& out_intersection_record){
 
     //std::cout << "TLAS: Starting BVH intersection test" << std::endl;
@@ -1156,14 +1124,14 @@ bool intersect_TLAS(const Ray& ray,
 
         if (!intersect_AABB(ray, Node.bounding_box)) continue; // Early exit if ray does not intersect the AABB of the node
         if (Node.left_child_idx == -1) {
-            // No children => Leaf node => Intersect triangles
+            // No children => Leaf node => Intersect individual meshes
             //std::cout << "TLAS: Leaf node reached with " << Node.blas_count << " BLASes." << std::endl;
             int node_max_index = Node.min_blas_idx + Node.blas_count;
             for (int i = Node.min_blas_idx; i < node_max_index; ++i){
                 // Note: Comment out the below check if MAX_ELEMENTS_PER_LEAF = 1; in build_TLAS because then TLAS node AABB = BLAS AABB, so this check is unnecessary and we can also remove AABB from BLAS struct
                 if (!intersect_AABB(ray, scene_TLAS.blases[i].bounding_box)) continue; // Early exit if the ray does not intersect the AABB of the BLAS (mesh).
                 //std::cout << " TLAS: Intersected BLAS index: " << i << std::endl;
-                intersect_BLAS(ray, scene_TLAS.blases[i], out_intersection, out_intersection_record);
+                intersect_BLAS(ray, scene_TLAS.blases[i], out_intersection_record);
             }
         }
         else { // Not a leaf node => Test children nodes for intersections

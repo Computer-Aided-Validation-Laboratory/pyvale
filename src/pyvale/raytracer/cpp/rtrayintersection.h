@@ -678,15 +678,18 @@ double intersect_tri6(const Ray &ray,
  * Traverses the BLAS tree for the given mesh, finds the closest intersected
  * element, and updates the output IntersectionOutput and HitRecord with
  * the corresponding intersection data.
+ * 
+ * Assumes that one BLAS can store only one mesh. This mesh can contain only:
+ *  - One material type;
+ *  - One element type;
+ *  - One surface type (i.e., we can't mix textures and solid colours).
  *
  * @param[in] ray (const Ray&) Ray to trace through the BLAS
  * @param[in] mesh_bvh (const BLAS&) BLAS representing the mesh BVH
- * @param[out] out_intersection (IntersectionOutput&) Per-node intersection data for the leaf
  * @param[out] intersection_record (HitRecord&) Hit record to populate with final intersection info
  */
 void intersect_BLAS(const Ray& ray,
     const BLAS& mesh_bvh,
-    IntersectionOutput& out_intersection,
     HitRecord& intersection_record);
 
 /**
@@ -698,14 +701,12 @@ void intersect_BLAS(const Ray& ray,
  *
  * @param[in] ray (const Ray&) Ray to trace through the scene
  * @param[in] scene_TLAS (const TLAS&) Top-level acceleration structure for the scene
- * @param[out] out_intersection (IntersectionOutput&) Intersection data for the "victorious" BLAS leaf
  * @param[out] out_intersection_record (HitRecord&) Final hit record containing intersection details
  *
  * @return (bool) True if an intersection was found, otherwise false.
  */
 bool intersect_TLAS(const Ray& ray,
     const TLAS& scene_TLAS,
-    IntersectionOutput& out_intersection,
     HitRecord& out_intersection_record);
 
 #endif // RTINTERSECT_H

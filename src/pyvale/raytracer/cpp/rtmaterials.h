@@ -201,7 +201,7 @@ struct RayState{
     Ray ray; // Current ray
     EiVector3d accumulated_color {EiVector3d(1.0, 1.0, 1.0)}; // Accumulated payload multipliers (albedo, Fresnel terms, etc.)
     std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list {}; // List of objects entered by ray
-    double scene_ri {1.0003}; // Refractive index of the ambient medium
+    double scene_ri {1.0003}; // Refractive index of the ambient medium; without nested volumes, use this to store the ri_from
     uint16_t depth {0}; // Current ray depth
     // Even without recursion, most ray tracers don't seem to have more than 50 bounces of depth, so we are being very generous here (max. value of 65535)
     uint8_t interior_count {0}; // Number of active entries in interior_list. 0 => Ray is in the ambient medium (whatever fills the scene, with RI = scene_ri)
@@ -218,7 +218,7 @@ struct RayState{
      * @brief Constructs a ray state from a primary ray and ambient refractive index.
      * 
      * @param[in] ray_ (Ray) Input ray
-     * @param[in] outer_refractive_index_ (double) Refractive index of the ambient medium
+     * @param[in] scene_ri_ (double) Refractive index of the ambient medium
      */
     RayState(Ray ray_, double scene_ri_): ray(ray_), scene_ri(scene_ri_) {};
     /**
@@ -227,7 +227,7 @@ struct RayState{
      * @param[in] ray_ (Ray) Current ray
      * @param[in] accumulated_color_ (EiVector3d) Current accumulated payload
      * @param[in] interior_list_ (std::array<InteriorEntry, INTERIOR_LIST_MAX>) Active interior media list
-     * @param[in] outer_refractive_index_ (double) Refractive index of the ambient medium
+     * @param[in] scene_ri_ (double) Refractive index of the ambient medium
      * @param[in] depth_ (uint16_t) Current ray depth
      * @param[in] interior_count_ (uint8_t) Number of active entries in interior_list
      */
@@ -343,6 +343,10 @@ void ray_undefined(const RayState& current_state,
     EiVector3d& total_color,
     const double offset);
 
+// ================================================================================
+// Everything for refractive materials
+// ================================================================================
+
 /**
  * @brief Applies Beer-Lambert absorption to the accumulated payload.
  * 
@@ -362,6 +366,63 @@ inline void apply_absorption(EiVector3d& accumulated_color, const EiVector3d& ab
 };
 
 /**
+ * @brief Calculates the reflectance using unpolarised Fresnel equations.
+ * 
+ * More accurate than Schlick's approximation, but slower.
+ * 
+ * @param[in] ri_from (const double) Refractive index of the incident medium
+ * @param[in] ri_to (const double) Refractive index of the refracted medium
+ * @param[in] cos_theta_i (const double) Angle of incidence
+ * @param[in] cos_theta_t (const double) Angle of refraction
+ * @return (double) Reflectance (for solids)
+ */
+static inline double reflectance_fresnel(const double ri_from,
+    const double ri_to,
+    const double cos_theta_i,
+    const double cos_theta_t){
+    // Unpolarised Fresnel reflectance; more accurate, but slower
+
+    const double n1_cti = ri_from * cos_theta_i;
+    const double n2_ctt = ri_to * cos_theta_t;
+    const double n1_ctt = ri_from * cos_theta_t;
+    const double n2_cti = ri_to * cos_theta_i;
+
+    const double rs_num = n1_cti - n2_ctt;
+    const double rs_den = n1_cti + n2_ctt;
+    const double rp_num = n1_ctt - n2_cti;
+    const double rp_den = n1_ctt + n2_cti;
+
+    const double Rs = (rs_num / rs_den) * (rs_num / rs_den);
+    const double Rp = (rp_num / rp_den) * (rp_num / rp_den);
+    // Reflectance for solids; a value we use for shells 
+    return 0.5 * (Rs + Rp);
+}
+
+/**
+ * @brief Calculates the reflectance using Schlick's approximation.
+ * 
+ * Faster than Fresnel equations, not as accurate.
+ * 
+ * @param[in] ri_from (const double) Refractive index of the incident medium
+ * @param[in] ri_to (const double) Refractive index of the refracted medium
+ * @param[in] cos_theta_i (const double) Angle of incidence
+ * @param[in] cos_theta_t (const double) Angle of refraction
+ * @return (double) Reflectance (for solids)
+ */
+static inline double reflectance_schlick(const double ri_from,
+    const double ri_to,
+    const double cos_theta_i,
+    const double cos_theta_t){
+    // Schlick's approximation
+    const double a = ri_to - ri_from;
+    const double b = ri_to + ri_from;
+    const double R0 = (a * a) / (b * b);
+    const double c = 1 - (ri_from <= ri_to ? cos_theta_i : cos_theta_t); // Again, in nested dielectrics this replaces the "if into" check
+    // Reflectance for solids; a value we use for shells 
+    return R0 + (1 - R0) * (c * c * c * c * c);
+}
+
+/**
  * @brief Computes refractive material response and spawns reflected and/or transmitted rays.
  * 
  * Handles both solid dielectric volumes and thin shells. Supports nested
@@ -377,7 +438,6 @@ inline void apply_absorption(EiVector3d& accumulated_color, const EiVector3d& ab
  * @param[in,out] total_color (EiVector3d&) Accumulated output color
  * @param[in] offset (double) Spatial offset used when spawning secondary rays
  */
-// Implementation with thickness for thin shell 
 template <ObjectType object_type>
 void ray_refractive(const RayState& current_state,
     HitRecord& intersection_record,
@@ -386,45 +446,56 @@ void ray_refractive(const RayState& current_state,
     EiVector3d& total_color,
     const double offset){
     // Secondary ray may reflect or refract
-    // Depends on: surface normal, refractive indices, sometimes wavelength
+    // Depends on: surface normal, refractive indices, sometimes wavelength (TO DO: ADD WAVELENGTHS)
+    // This is a bit convoluted with shell/solid split and nested dielectrics, so this is sectioned
+
+    //---------------------------------------------------------------------------------
+    // 1. Retrieve data and pre-calculate baseline for the next bounces
+    //---------------------------------------------------------------------------------
+
     EiVector3d attenuation(1.0, 1.0, 1.0); // Instead of albedo as for refractive materials, we absorb nothing and we want to make sure that is the case
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission); // Add emission for the current intersection
-    // Pre-calculate the baseline for the next bounces
-    // We split the values as in the Beer-Lambert implementation they will differ
+
+    // We split the colour values as in the Beer-Lambert implementation they will differ for reflected and refracted rays
     EiVector3d next_accumulated_color_reflected = current_state.accumulated_color.cwiseProduct(attenuation); 
     EiVector3d next_accumulated_color_refracted = next_accumulated_color_reflected;
-    const EiVector3d p = intersection_record.point_intersection; // Point of intersection
-    const double spawned_ray_t_min = SPAWNED_T_MIN_BASE * std::max(1.0, intersection_record.point_intersection.norm()); // t_min for the spawned secondary rays 
+    const EiVector3d p_intersect = intersection_record.point_intersection; // Point of intersection
+    const double spawned_ray_t_min = SPAWNED_T_MIN_BASE * std::max(1.0, p_intersect.norm()); // t_min for the spawned secondary rays 
     EiVector3d ray_direction = current_state.ray.direction;
-   
+    uint8_t interior_count = current_state.interior_count;
+    std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list = current_state.interior_list;
 
-    // Ensure normals always point against the incident ray - for the nested volume case, we can flip normals like this;
-    // for regular case, we cannot as we need the dot product to determine bool into to figure out if ray enters or exits; here we use priorities
+    // Ensure normals always point against the incident ray - for the nested volume case, we can flip normals just like this - we keep track of what is being exited/entered
+    // Otherwise, this needed to be handled with the dot product to determine bool into to figure out if ray enters or exits
     intersection_record.normalize_and_flip_normals(current_state.ray);
     intersection_record.align_normals();
     EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
-    EiVector3d normal_shade = intersection_record.normal_shading; //  // Shading normal; use for Physics to dictate how light behaves
-
-    // ri_from = refractive index of the highest priority entry in the original list OR scene_ri if empty (highest idx = -1 -> Empty)
-    double scene_ri = current_state.scene_ri;
-    double ri_from = interior_top_ri(&current_state.interior_list[0], current_state.interior_count, scene_ri);
+    EiVector3d normal_shade = intersection_record.normal_shading; // Shading normal; use for physics to dictate how light behaves
     
-    //std::cerr << "Check interior list in ray refractive" << std::endl;
-    // Build the refraction ray's interior list = parent list toggled by the current object
+    // Build the refracted ray's interior list = parent list toggled by the current object (we note that we enter/exit a new volume)
+    // Reflected ray uses the parent's interior list (we stay in the same volume)
     std::array<InteriorEntry, INTERIOR_LIST_MAX> refracted_list;
-    uint8_t refracted_count = current_state.interior_count;
-    for (int i = 0; i < current_state.interior_count; i++){
-        refracted_list[i] = current_state.interior_list[i];
+    uint8_t refracted_count = interior_count;
+    for (int i = 0; i < interior_count; i++){
+        refracted_list[i] = interior_list[i];
     }
+
+    //---------------------------------------------------------------------------------
+    // 2. Handle refractive indices
+    //---------------------------------------------------------------------------------
    
+    // ri_from = RI of the medium the ray is currently in = top of CURRENT list
+    // top = of the highest priority entry in the original list OR scene_ri if empty (highest idx = -1 => empty)
+    double scene_ri = current_state.scene_ri;
+    double ri_from = interior_top_ri(&interior_list[0], current_state.interior_count, scene_ri);
+
+    // ri_to = RI of the medium the refracted ray will be in; value depends if it's shell or solid
     double ri_to = scene_ri; // Fallback assignment in case something breaks
-    double thickness = 0.0; // Used for thin shell only
 
     if constexpr (object_type == ObjectType::SHELL) {
-        // Thin shell: We don't toggle volumes as we stay in the same bulk medium
-        // We use the shell RI only as an effective interface RI so the pane can still bend rays
+        // Thin shell: Don't toggle volumes as we stay in the same bulk medium
+        // Use the shell RI only as the effective interface RI so the pane can still bend rays
         ri_to = intersection_record.refractive_index;
-        thickness = intersection_record.thickness;
     }
     else if constexpr (object_type == ObjectType::SOLID){
         // Solid volume boundary: toggle interior membership
@@ -435,19 +506,34 @@ void ray_refractive(const RayState& current_state,
 
         interior_toggle(&refracted_list[0], refracted_count, hit_idx, hit_priority, hit_ri, hit_absorption);
 
-        // Check whether ray enters or exits the object
-        //If it is in the current interior list, the ray exits
-        //const int existing_idx = interior_find(&current_state.interior_list[0], current_state.interior_count, hit_idx);
-
-        // For reflected ray, the list is the copy of the parent list
-        // to-index = ri of the highest-priority entry in the REFRACTION ray's list, or scene_ri if empty
-        // NB: when entering the hit object, this is just hit_ri if hit_priority is the new max; the formula handles both cases uniformly
+        // ri_to = RI of the highest-priority entry in the REFRACTED ray's list, or scene_ri if empty
+        // When entering the hit object, this is just hit_ri if hit_priority is the new max; the formula handles both cases uniformly
         ri_to = interior_top_ri(&refracted_list[0], refracted_count, scene_ri); 
+
+        // Beer-Lambert - this technically shouldn't be here with nested dielectrics, but keeping it here in case
+        /*
+        // Check if we entered or left the volume (-1 => not in the list => we are entering)
+        bool into = interior_find(&interior_list[0], interior_count, hit_idx) >= 0 ? false : true;
+        if (!into){
+            // Ray is exiting: it has travelled intersection_record.t through the current medium
+            const EiVector3d current_absorption = interior_top_absorption(
+                &interior_list[0], interior_count);
+            const bool has_absorption = current_absorption.x() > 0.0
+                                     || current_absorption.y() > 0.0
+                                     || current_absorption.z() > 0.0;
+            if (has_absorption) {
+                apply_absorption(next_accumulated_color_reflected, current_absorption, intersection_record.t);
+                apply_absorption(next_accumulated_color_refracted, current_absorption, intersection_record.t);
+            }
+        }*/
     }
 
+    //---------------------------------------------------------------------------------
+    // 3. Calculate Fresnel reflections
+    //---------------------------------------------------------------------------------
 
     double cos_theta_i = std::clamp(-ray_direction.dot(normal_shade), 0.0, 1.0); // To avoid floating point errors
-    EiVector3d reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_shade; // Reflection direction
+    EiVector3d reflected_dir = ray_direction + 2.0 * cos_theta_i * normal_shade; 
     reflected_dir.stableNormalize();
     
     if (reflected_dir.dot(normal_geo) < 0.0) { // If reflected ray points inside the geometry
@@ -456,27 +542,24 @@ void ray_refractive(const RayState& current_state,
         reflected_dir.stableNormalize();
     }
 
-    double ri_ratio = ri_from / ri_to; // In the nested implementation, these are already correct by construction
+    double ri_ratio = ri_from / ri_to; // In the nested implementation, these are already correct by construction; no need for "if into" check
     double sin2_theta_t = ri_ratio * ri_ratio * (1.0 - cos_theta_i * cos_theta_i); // Sin^2 of the transmission angle
     
-    // Check for Total Internal Reflection (TIR) - only for solid; in shell apprroximation it should never occur
+    // Check for Total Internal Reflection (TIR)
+    // Only for solid; in shell apprroximation it should never occur
     if constexpr (object_type == ObjectType::SOLID){
         if (sin2_theta_t > 1.0) {
             Ray reflected_ray;
-            reflected_ray.origin = intersection_record.point_intersection + normal_geo * offset; // Push secondary rays slightly off the surface to remove the shadow acne
+            reflected_ray.origin = p_intersect + normal_geo * offset; // Push secondary rays slightly off the surface to remove the shadow acne
             reflected_ray.direction = reflected_dir;
             reflected_ray.t_min = spawned_ray_t_min;
             
-            stack.emplace_back(reflected_ray, next_accumulated_color_reflected, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
+            // TIR — reflected ray travels in the SAME medium, so keep the parent list
+            stack.emplace_back(reflected_ray, next_accumulated_color_reflected,
+                interior_list, scene_ri, current_state.depth + 1, interior_count);
             return;
         }
     }
-
-    // Schlick's approximation
-    double a = ri_to - ri_from;
-    double b = ri_to + ri_from;
-    double R0 = (a * a) / (b * b);
-
     // Use cosine of the medium with the lower index of refraction
     double cos_theta_t = 0.0;
     if constexpr (object_type == ObjectType::SHELL){
@@ -488,114 +571,116 @@ void ray_refractive(const RayState& current_state,
         // No need to clamp - we won't reach this point if sin2_theta_t > 1.0
         cos_theta_t = std::sqrt(1.0 - sin2_theta_t);
     }
-    
-    double c = 1 - (ri_from <= ri_to ? cos_theta_i : cos_theta_t);
 
-    double reflectance = 0.0;
+    // TO DO:
+    // Add a switch in Python to let the users decide between Fresnel (accuracy) and speed (Schlick)
+
+    // Calculate reflectance (for solids; for shells, we need to adjust it)
+    //double reflectance = reflectance_schlick(ri_from, ri_to, cos_theta_i, cos_theta_t); 
+    double reflectance = reflectance_fresnel(ri_from, ri_to, cos_theta_i, cos_theta_t); 
     if constexpr (object_type == ObjectType::SHELL){
-        // In a thin shell with thickness, we have double-interface
-        // In ray-tracing we ignore interfecence for very thin films and use standard thin dielectric closed form from PBRT
-        double R = R0 + (1 - R0) * (c * c * c * c * c);
-        reflectance = (2.0 * R) / (1.0 + R); // Closed form double-interface for a shell with thickness
-    }
-    else if constexpr (object_type == ObjectType::SOLID){
-        reflectance = R0 + (1 - R0) * (c * c * c * c * c);
-    }
-
+    // Thin shell with thickness => Double-interface
+    // In ray-tracing we ignore interfecence for very thin films and use closed form double-interface dielectric from PBRT
+    reflectance = (2.0 * reflectance) / (1.0 + reflectance); // reflectance
+    }  
+        
     double transmittance = 1 - reflectance;
 
-    // Define new rays
+    //---------------------------------------------------------------------------------
+    // 4. Define new rays
+    //---------------------------------------------------------------------------------
     Ray reflected_ray;
-    reflected_ray.origin = intersection_record.point_intersection + normal_geo * offset; // Push back into incident medium (i.e., off the surface)
+    reflected_ray.origin = p_intersect + normal_geo * offset; // Push back into incident medium (i.e., off the surface)
     reflected_ray.direction = reflected_dir;
     reflected_ray.t_min = spawned_ray_t_min;
 
     Ray refracted_ray;
-    refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_shade; // Transmitted/refracted direction
+    refracted_ray.direction = ri_ratio * ray_direction + (ri_ratio * cos_theta_i - cos_theta_t) * normal_shade;
     refracted_ray.direction.stableNormalize();
     refracted_ray.t_min = spawned_ray_t_min;
 
-
+    // Set the origin of the refracted ray
     if constexpr (object_type == ObjectType::SHELL) {
         // Thin shell: do not move into a new volume; keep the stack unchanged
-        // Offset slightly along the refracted direction to avoid immediately rehitting the same triangle.
-        //refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * offset;
+        // Offset slightly along the refracted direction to avoid immediately rehitting the same mesh element
         EiVector3d in_slab_dir = refracted_ray.direction; // Refracted direction in-slab
-        //double cos_t_abs = std::max(1e-8, std::abs(in_slab_dir.dot(-normal_shade)));
         double cos_t_abs = std::abs(in_slab_dir.dot(-normal_shade));
         // At grazing angles the slab model breaks down — we cap the path to avoid launching exit_point arbitrarily far from the surface
         constexpr double COS_SHELL_MIN = 0.01; // ~89.4 degrees — beyond this, slab approximation is invalid
         if (cos_t_abs < COS_SHELL_MIN) {
             // Near-grazing: skip slab offset entirely, treat as zero-thickness
-            refracted_ray.origin = intersection_record.point_intersection - normal_geo * offset;
+            refracted_ray.origin = p_intersect - normal_geo * offset;
             // Some engines offset along the refracted direction - in my tests, this was worse, but keeping it here as an option
-            //refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * offset;
+            // refracted_ray.origin = p_intersect + refracted_ray.direction * offset;
             // Still apply absorption with a capped path to avoid energy injection
             double path_in_slab = intersection_record.thickness / COS_SHELL_MIN;
             apply_absorption(next_accumulated_color_refracted, intersection_record.face_color, path_in_slab);
         } else {
             double path_in_slab = intersection_record.thickness / cos_t_abs;
-            apply_absorption(next_accumulated_color_refracted, intersection_record.face_color, path_in_slab); // here face_color is sigma_a (absorption coeff.) in Beer-Lambert law used for volumetric absorption to determine the tint
-            EiVector3d exit_point = intersection_record.point_intersection + in_slab_dir * path_in_slab;
+            // Here face_color is sigma_a (absorption coeff.) in Beer-Lambert law used for volumetric absorption to determine the tint
+            apply_absorption(next_accumulated_color_refracted, intersection_record.face_color, path_in_slab); 
+            EiVector3d exit_point = p_intersect + in_slab_dir * path_in_slab;
             refracted_ray.origin = exit_point - normal_geo * offset;
             // Some engines offset along the refracted direction - in my tests, this was worse, but keeping it here as an option
             //refracted_ray.origin = exit_point + refracted_ray.direction * offset;
-            double displacement = (exit_point - intersection_record.point_intersection).norm();
-            /*
-            if (displacement > 1.0) { // tune threshold to your scene scale
-            std::cerr << "Large slab displacement: " << displacement
-                    << " thickness=" << intersection_record.thickness
-                    << " cos_t_abs=" << cos_t_abs << std::endl;
-            } *///comment out here
         }
         refracted_ray.direction = ray_direction; // Parallel slabs cancel angular deflection, so the ougoing direction = incident direction; already normalised at creation
     }
     else if constexpr (object_type == ObjectType::SOLID){
          // Solid volume: push into the transmitted medium
-        refracted_ray.origin = intersection_record.point_intersection - normal_geo * offset; // Push forward into new medium (i.e., into the surface)
+        refracted_ray.origin = p_intersect - normal_geo * offset; // Push forward into new medium (i.e., into the surface)
         // Some engines offset along the refracted direction - in my tests, this was worse, but keeping it here as an option
         //refracted_ray.origin = intersection_record.point_intersection + refracted_ray.direction * offset;
     }
 
-    // Russian roulette between reflection and refraction
+    //---------------------------------------------------------------------------------
+    // 5. Russian roulette (depth > 2) or push both (depth <= 2)
+    //---------------------------------------------------------------------------------
     if (current_state.depth > 2) {
         //double P = 0.25 + 0.5 * reflectance; // <- This was giving nonsensical and overshot ray energy whenver reflectance was >= 0.5 (visible when we had multiple bounces)
-        double P = std::clamp(reflectance, 0.1, 0.9); // Reflection's chance of surviving; 0.1 to prevent division by 0, 0.9 to give transmission a chance to survive, too
-        if (random_double() < P){ // Note: for multi-threading this will have to be replaced with thread_local generator
-        //if ((double)rand() / RAND_MAX < P) { // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
+        double P = std::clamp(reflectance, 0.1, 0.9); // Reflection's chance of surviving; 0.1 to prevent division by 0, 0.9 to give transmission a chance to survive
+        if (random_double() < P){ 
             // Reflection works the same way for shells and solids
             double P_reflect = reflectance / P; // Adjust original reflectance based on P
-            stack.emplace_back(reflected_ray, next_accumulated_color_reflected * P_reflect, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
+            stack.emplace_back(reflected_ray, next_accumulated_color_reflected * P_reflect, interior_list,
+                scene_ri, current_state.depth + 1, interior_count);
             return;
         }
         else {
             double P_transmit = transmittance / (1.0 - P); // Adjust original transmittance based on P
             if constexpr (object_type == ObjectType::SHELL) {
-                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, current_state.interior_list,
-                    scene_ri, current_state.depth + 1, current_state.interior_count);
+                // Shell: medium unchanged, parent list and RI preserved
+                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit,
+                    interior_list, scene_ri, current_state.depth + 1, interior_count);
             }
             else if constexpr (object_type == ObjectType::SOLID){
-                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, refracted_list,
-                    scene_ri, current_state.depth + 1, refracted_count);
+                // Solid: ray enters/exits a volume, use the toggled list
+                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit,
+                    refracted_list, scene_ri, current_state.depth + 1, refracted_count);
             }
             return;
         }
     } 
-    else {
-        // Push both rays
-        stack.emplace_back(reflected_ray, next_accumulated_color_reflected * reflectance, current_state.interior_list, scene_ri, current_state.depth + 1, current_state.interior_count);
+    else { // Push both rays
+        stack.emplace_back(reflected_ray, next_accumulated_color_reflected * reflectance, interior_list,
+            scene_ri, current_state.depth + 1, interior_count);
         if constexpr (object_type == ObjectType::SHELL) {
-            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance, current_state.interior_list,
-                scene_ri, current_state.depth + 1, current_state.interior_count);
+            // Shell: medium unchanged, parent list and RI preserved
+            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance,
+                interior_list, scene_ri, current_state.depth + 1, interior_count);
         }
         else if constexpr (object_type == ObjectType::SOLID){
-            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance, refracted_list,
-                scene_ri, current_state.depth + 1, refracted_count);
+            // Solid: ray enters/exits a volume, use the toggled list
+            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance,
+                refracted_list, scene_ri, current_state.depth + 1, refracted_count);
         }
         return;
     }
 }
 
+// ================================================================================
+// Previous versions of ray_refractive to help with debug/dev
+// ================================================================================
 
 // Implementation without nested dielectrics, i.e., pure Beer-Lambert (but we have InteriorEntry etc., because that was implemented first and the below was
 // reverse engineered purely for troubleshooting)
