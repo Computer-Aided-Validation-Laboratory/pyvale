@@ -24,12 +24,14 @@
 // Program Header files
 #include "./dicinterp.hpp"
 #include "./dicoptimizer.hpp"
+#include "./dicoptimizericgn.hpp"
 #include "./dicutil.hpp"
 #include "./dicrg.hpp"
 #include "./dicfourier.hpp"
 #include "./dicsubset.hpp"
 #include "./dicresults.hpp"
 #include "./dicsinglewindow_rg.hpp"
+#include "./stereoutil.hpp"
 
 
 void singlewindow_rg(const Image &img_ref,
@@ -56,15 +58,22 @@ void singlewindow_rg(const Image &img_ref,
     const int ss_size_y = ss_grid.size_y;
     const int ss_step = ss_grid.step;
 
-
-    auto get_initial_guess = [&](FFT &fft, std::vector<double> &p, double &max_val, double cx, double cy, int ss_size_x, int ss_size_y, bool debug) {
+    auto get_initial_guess_temporal = [&](FFT &fft, std::vector<double> &p, double &max_val, double cx, double cy, int ss_size_x, int ss_size_y, bool debug) {
         get_single_window_fftcc_peak(fft, p, max_val, cx, cy,
                                         ss_size_x, ss_size_y,
                                         conf.max_disp, conf.max_disp,
                                         img_ref, img_def, interp_def, debug);
+
     };
 
-    std::string bar_title = "Temporal matching for \033[1;4m" + conf.basenames[img_num_ref] +
+
+    auto get_initial_guess_stereo = [&](std::vector<double> &p, double cx, double cy, bool print) {
+            stereo::get_rigid_translation_from_rectified_fft(p, cx, cy, ss_size_x, ss_size_y,
+                                                                2*conf.max_disp, ss_size_y, F.value(),
+                                                                interp_ref, interp_def, print);
+    };
+
+    std::string bar_title = mode + " matching for \033[1;4m" + conf.basenames[img_num_ref] +
                                         "\033[0m and \033[1;4m" + conf.basenames[img_num_def] + 
                                         "\033[0m:";
 
@@ -122,38 +131,25 @@ void singlewindow_rg(const Image &img_ref,
                 int grid_y = seed_y / ss_step;
                 int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
-
-
                 // get the centre coordinates for the subset in img k0
-                double cx_img0 = ss_grid.coords[2*idx];
-                double cy_img0 = ss_grid.coords[2*idx+1];
-
-
-                // get the centre coordinates for the subset in img k
-                double cx = cx_img0;
-                double cy = cy_img0;
-                if (img_num_ref>0){
-                    // displacements are from k0 to k
-                    cx += results_ref.u[idx];
-                    cy += results_ref.v[idx];
-                }
+                double cx = ss_grid.coords[2*idx];
+                double cy = ss_grid.coords[2*idx+1];
 
                 // fill the reference subset
                 subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
                 // if the first image. Take the optimization parameters from rigid fourier
-                get_initial_guess(fft, opt.p, max_val, cx, cy, ss_size_x, ss_size_y, false);
+                if (mode=="temporal") get_initial_guess_temporal(fft, opt.p, max_val, cx, cy, ss_size_x, ss_size_y, false);
+                if (mode=="stereo") get_initial_guess_stereo(opt.p, cx, cy, false);
 
 
                 // run optimizer
                 OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
-                rg::check_convergence(cx_img0, cy_img0, seed_res);
+                rg::check_convergence(seed_x, seed_y, seed_res);
 
                 // add deformation from reference image to new results
-                if (img_num_ref > 0){
-                    seed_res.u += results_ref.u[idx];
-                    seed_res.v += results_ref.v[idx];
-                }
+                seed_res.u += results_ref.u[idx];
+                seed_res.v += results_ref.v[idx];
 
                 // append the results for the current subset to result vectors
                 results_def.append(seed_res, idx);
@@ -169,27 +165,18 @@ void singlewindow_rg(const Image &img_ref,
                     // subset index of neighbour to the current point
                     int nidx = ss_grid.neigh[idx][n];
 
-                    double cx_img0 = ss_grid.coords[nidx*2];
-                    double cy_img0 = ss_grid.coords[nidx*2+1];
-
-
-                    double cx = cx_img0;
-                    double cy = cy_img0;
-                    if (img_num_ref>0){
-                        cx += results_ref.u[nidx];
-                        cy += results_ref.v[nidx];
-                    }
+                    double cx = ss_grid.coords[nidx*2];
+                    double cy = ss_grid.coords[nidx*2+1];
 
                     // fill the reference subset
                     subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-
 
                     // perform optimization for seed point neighbours
                     opt.copy_params_from_neigh(results_def.p, idx);
 
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                    rg::check_convergence(cx_img0, cy_img0, nres, true);
+                    rg::check_convergence(cx, cy, nres, true);
 
                     // add deformation from reference image to new results
                     if (img_num_ref > 0){
@@ -248,35 +235,28 @@ void singlewindow_rg(const Image &img_ref,
                 if (expected == 0) {
 
                     // coords of neigh
-                    double cx_img0 = ss_grid.coords[nidx*2];
-                    double cy_img0 = ss_grid.coords[nidx*2+1];
-
-                    // add displacements from base to subset coords in img0
-                    double cx = cx_img0;
-                    double cy = cy_img0;
+                    double cx = ss_grid.coords[nidx*2];
+                    double cy = ss_grid.coords[nidx*2+1];
 
                     OptResult nres(opt.num_params);
 
-                    if (img_num_ref == 0 || results_ref.above_thresh[nidx]){
-
-                        cx += results_ref.u[nidx];
-                        cy += results_ref.v[nidx];
-
-                        // fill the reference subset
-                        subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-
-                        if (results_def.above_thresh[current.idx]){
-                            opt.copy_params_from_neigh(results_def.p, current.idx);
-                            if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, false);
-                        }
-
-                        // add deformation from reference image to new results
-                        if ((nres.above_thresh) && (img_num_ref > 0)){
-                            nres.u += results_ref.u[nidx];
-                            nres.v += results_ref.v[nidx];
-                        }
-
+                    // if the subset is no longer active then skip
+                    if (!ss_grid.active_ss[nidx]){
+                        results_def.append(nres, nidx);
+                        continue;
                     }
+
+                    // fill the reference subset
+                    subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
+
+                    if (results_def.above_thresh[current.idx]){
+                        opt.copy_params_from_neigh(results_def.p, current.idx);
+                        if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, false);
+                    }
+
+                    // add deformation from reference image to new results
+                    nres.u += results_ref.u[nidx];
+                    nres.v += results_ref.v[nidx];
 
                     // append results
                     results_def.append(nres, nidx);
