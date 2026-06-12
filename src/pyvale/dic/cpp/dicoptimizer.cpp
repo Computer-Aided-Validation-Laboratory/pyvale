@@ -580,10 +580,10 @@ void Optimizer::populate_hessian_lower_tri(std::vector<double> &H, double lambda
 void Optimizer::update_lambda(double costp, double costpdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda, int num_params){
 
     if (costp < costpdp){
-        lambda *= 10.0;
+        lambda *= 2.0;
     }
     else{
-        lambda *= 0.1;
+        lambda *= 0.5;
         for (int i = 0; i < num_params; i++){
             p[i] = pdp[i];
         }

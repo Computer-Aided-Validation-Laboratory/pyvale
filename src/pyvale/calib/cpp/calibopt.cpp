@@ -35,7 +35,7 @@ namespace optimization {
         double ftol = 0;
         double xtol = 0;
         bool converged = false;
-        opt.lambda = 0.001;
+        opt.lambda = 0.01;
         const double eps = 1e-10;
 
         while (iter < opt.max_iter) {
