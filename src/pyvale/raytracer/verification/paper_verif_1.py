@@ -140,7 +140,7 @@ def accepted_mask(rows: list[dict[str, str]]) -> np.ndarray:
 
 def get_reproj_err_array(rows: list[dict[str, str]]) -> np.ndarray:
     return np.asarray([float(row["reproj_err"]) for row in rows], dtype=float)
-
+    # return np.asarray([float(row["err_dir"]) for row in rows], dtype=float)
 
 def get_iters_array(rows: list[dict[str, str]]) -> np.ndarray:
     return np.asarray([float(row["iters"]) for row in rows], dtype=float)
@@ -325,13 +325,15 @@ def save_png_figure(
     ax.set_yticks(tick_vals, tick_labels)
     if scale_exp == 0:
         ax.set_title(
-            r"$\epsilon_{rp}$ [px]",
+            # r"$\epsilon_{rp}$ [px]",
+            r"$\epsilon_{rp}$ [\%]",
             fontsize=PLOT_TITLE_FONT_SIZE,
             pad=16.0,
         )
     else:
         ax.set_title(
-            rf"$\epsilon_{{rp}}$ [px] $(\times 10^{{{scale_exp}}})$",
+            # rf"$\epsilon_{{rp}}$ [px] $(\times 10^{{{scale_exp}}})$",
+            rf"$\epsilon_{{rp}}$ [%] $(\times 10^{{{scale_exp}}})$",
             fontsize=PLOT_TITLE_FONT_SIZE,
             pad=16.0,
         )
@@ -462,48 +464,52 @@ def generate_case_figure(
 
 
 def generate_all_figures(style: PlotStyle) -> None:
-    print("Generating bulge RMSE figures...")
-    # for mesh_name in ["tri6", "quad8", "quad9"]:
-    for mesh_name in ["tri6"]:
-        frame_cases = [
-            ("bulge_out_limit", bulge_out_limit_frame(mesh_name)),
-            ("bulge_out", bulge_out_frame(mesh_name)),
-            ("bulge_regular", bulge_regular_frame(mesh_name)),
-            ("bulge_in", bulge_in_frame(mesh_name)),
-            ("bulge_in_limit", bulge_in_limit_frame(mesh_name)),
-        ]
-        for suffix, frame_idx in frame_cases:
-            out_name = f"fig_verifa_{mesh_name}_{suffix}.png"
-            print(
-                f"  {mesh_name} {suffix}: frame {frame_idx} -> {out_name}",
-            )
-            generate_case_figure(
-                mesh_name,
-                "bulge",
-                frame_idx,
-                out_name,
-                style,
-            )
+#     print("Generating bulge RMSE figures...")
+#     for mesh_name in ["tri6", "quad8", "quad9"]:
+#         frame_cases = [
+#             ("bulge_out_limit", bulge_out_limit_frame(mesh_name)),
+#             ("bulge_out", bulge_out_frame(mesh_name)),
+#             ("bulge_regular", bulge_regular_frame(mesh_name)),
+#             ("bulge_in", bulge_in_frame(mesh_name)),
+#             ("bulge_in_limit", bulge_in_limit_frame(mesh_name)),
+#         ]
+#         for suffix, frame_idx in frame_cases:
+#             out_name = f"fig_verifa_{mesh_name}_{suffix}.png"
+#             print(
+#                 f"  {mesh_name} {suffix}: frame {frame_idx} -> {out_name}",
+#             )
+#             generate_case_figure(
+#                 mesh_name,
+#                 "bulge",
+#                 frame_idx,
+#                 out_name,
+#                 style,
+#             )
 
-    # print("Generating shear RMSE figures...")
+    print("Generating shear RMSE figures...")
     # for elem_label, mesh_name in [
     #     ("quad4", "quad4newton"),
     #     ("tri6", "tri6"),
     #     ("quad8", "quad8"),
     #     ("quad9", "quad9"),
-    # ]:
-    #     for suffix, frame_idx in [("regular", SHEAR_REGULAR), ("shear", SHEAR_SHEAR)]:
-    #         out_name = f"fig_verifa_{elem_label}_{suffix}.png"
-    #         print(
-    #             f"  {elem_label} {suffix}: frame {frame_idx} -> {out_name}",
-    #         )
-    #         generate_case_figure(
-    #             mesh_name,
-    #             "shear",
-    #             frame_idx,
-    #             out_name,
-    #             style,
-    #         )
+
+    for elem_label, mesh_name in [
+        ("tri6", "tri6"),
+        ("quad8", "quad8"),
+        ("quad9", "quad9"),
+    ]:
+        for suffix, frame_idx in [("regular", SHEAR_REGULAR), ("shear", SHEAR_SHEAR)]:
+            out_name = f"fig_verifa_{elem_label}_{suffix}.png"
+            print(
+                f"  {elem_label} {suffix}: frame {frame_idx} -> {out_name}",
+            )
+            generate_case_figure(
+                mesh_name,
+                "shear",
+                frame_idx,
+                out_name,
+                style,
+            )
 
 
 def write_tex_outputs(

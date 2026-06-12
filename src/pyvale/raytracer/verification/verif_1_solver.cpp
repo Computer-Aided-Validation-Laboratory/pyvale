@@ -26,14 +26,14 @@
 
 const std::string verif_subdir_name = "verif_1";
 
-// const std::size_t structured_grid_quad_num = 250;
-// const std::size_t structured_grid_tri_num = 250;
+const std::size_t structured_grid_quad_num = 250;
+const std::size_t structured_grid_tri_num = 250;
 
 // const std::size_t structured_grid_quad_num = 20;
 // const std::size_t structured_grid_tri_num = 20;
 
-const std::size_t structured_grid_quad_num = 60;
-const std::size_t structured_grid_tri_num = 60;
+// const std::size_t structured_grid_quad_num = 60;
+// const std::size_t structured_grid_tri_num = 60;
 
 
 double directionError(const EiVector3d& d_true,
@@ -90,6 +90,35 @@ SampleGrid buildSampleList()
     };
 }
 
+// template<ElementNodeCount nodes_per_element>
+// double forwardMap(
+//                 const double xi, 
+//                 const double eta,
+//                 const EiVector3d& camera_center,
+//                 const NodeArray<nodes_per_element>& nodes,
+//                 EiVector3d& d)
+// {
+
+//     Eigen::VectorXd N(nodes_per_element);
+//     if constexpr (nodes_per_element == 6) {
+//         N = compute_shape_tri6(xi, eta);
+//     }
+//     else if constexpr (nodes_per_element == 8) {
+//         N = compute_shape_quad8(xi, eta);
+//     }
+
+//     EiVector3d P = EiVector3d::Zero();
+//     for (int i = 0; i < nodes_per_element; ++i)
+//         P += N[i] * nodes[i];
+
+//     d = (P - camera_center).normalized();
+//     double t = (P - camera_center).norm();
+
+//     return t;
+// }
+
+
+
 template<ElementNodeCount nodes_per_element>
 double forwardMap(
                 const double xi, 
@@ -98,21 +127,33 @@ double forwardMap(
                 const NodeArray<nodes_per_element>& nodes,
                 EiVector3d& d)
 {
-
-    Eigen::VectorXd N(nodes_per_element);
-    if constexpr (nodes_per_element == 6) {
-        N = compute_shape_tri6(xi, eta);
-    }
-
     EiVector3d P = EiVector3d::Zero();
-    for (int i = 0; i < nodes_per_element; ++i)
-        P += N[i] * nodes[i];
 
+    if constexpr (nodes_per_element == 6)
+    {
+        Eigen::VectorXd N = compute_shape_tri6(xi, eta);
+        for (int i = 0; i < 6; ++i)
+            P += N[i] * nodes[i];
+    }
+    else if constexpr (nodes_per_element == 8)
+    {
+        std::array<double, nodes_per_element> N = compute_shape_quad8(xi, eta);
+        for (int i = 0; i < 8; ++i)
+            P += N[i] * nodes[i];
+    }
+    else if constexpr (nodes_per_element == 9)
+    {
+        std::array<double, nodes_per_element> N = compute_shape_quad9(xi, eta);
+        for (int i = 0; i < 9; ++i)
+            P += N[i] * nodes[i];
+    }
+    
     d = (P - camera_center).normalized();
     double t = (P - camera_center).norm();
 
     return t;
 }
+
 
 template<ElementNodeCount nodes_per_element>
 double inverseMap(
@@ -126,6 +167,12 @@ double inverseMap(
     double t = 0;
     if constexpr (nodes_per_element == 6) {
         t = intersect_tri6(ray, nodes, n_tmp, gh_rec);
+    }
+    else if constexpr (nodes_per_element == 8) {
+        t = intersect_quad8(ray, nodes, n_tmp, gh_rec);
+    }
+    else if constexpr (nodes_per_element == 9) {
+        t = intersect_quad9(ray, nodes, n_tmp, gh_rec);
     }
     xi = gh_rec.x();
     eta = gh_rec.y();
@@ -174,7 +221,8 @@ void evalSample(const EiVector3d& camera_center,
 
     double err_dir = directionError(d_true, d_rec);
     double err_t = t_rec - t_true;
-    double err_t_reproj = t_reproj - t_true;
+    // double err_t_reproj = t_reproj - t_true;
+    double err_t_reproj = ((t_reproj - t_true) / t_true) * 100;
     
     // std::cout << "t_true = " << t_true << "\n";
     // std::cout << "t_rec = " << t_rec << "\n";
@@ -462,6 +510,18 @@ int main(){
         
             case ElementNodeCount::TRI6:
                 runDistortCase<ElementNodeCount::TRI6>(
+                    case_spec,
+                    global_reproj_errs);
+                break;
+
+            case ElementNodeCount::QUAD8:
+                runDistortCase<ElementNodeCount::QUAD8>(
+                    case_spec,
+                    global_reproj_errs);
+                break;
+
+            case ElementNodeCount::QUAD9:
+                runDistortCase<ElementNodeCount::QUAD9>(
                     case_spec,
                     global_reproj_errs);
                 break;

@@ -170,23 +170,15 @@ void writeSolverStatsCsv(
     for (const SampleRecord& record : records)
     {
         file
-            << record.xi_true << ','
-            << record.eta_true << ','
-            << record.xi_rec << ','
-            << record.eta_rec << ','
-            << record.err_xi << ','
-            << record.err_eta << ','
-            << record.err_param << ','
-            << record.err_dir << ','
-            << record.t_true << ','
-            << record.t_rec << ','
-            << record.t_reproj << ','
-            << record.err_t << ','
-            << record.err_t_reproj << ','
+            << record.xi_true << ',' << record.eta_true << ','
+            << record.xi_rec << ',' << record.eta_rec << ','
+            << record.err_xi << ',' << record.err_eta << ','
+            << record.err_param << ',' << record.err_dir << ','
+            << record.t_true << ',' << record.t_rec << ',' << record.t_reproj << ','
+            << record.err_t << ',' << record.err_t_reproj << ','
             << record.converged << ','
             << record.in_domain << ','
-            << record.row_idx << ','
-            << record.col_idx
+            << record.row_idx << ',' << record.col_idx
             << '\n';
     }
 
