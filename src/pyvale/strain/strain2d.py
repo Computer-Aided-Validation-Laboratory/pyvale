@@ -5,17 +5,19 @@
 # ================================================================================
 
 from pathlib import Path
+from typing import Literal
+import numpy as np
 
 # pyvale
 from pyvale.strain.strainresults import StrainResults
 from pyvale.strain.strainchecks import check_strain_files
-from pyvale.dic.dicdataimport import import_2d
+from pyvale.dic.dicimport2d import import_2d
 from pyvale.dic.dicresults import Results as dicResults
 from pyvale.common_py.util import check_output_directory
 import pyvale.strain.strain_cpp as strain_cpp
 import pyvale.common_cpp.common_cpp as common_cpp
 
-def calculate_2d(data: dicResults | str | Path,
+def calculate_2d(data: dicResults | str | Path | list[Path],
               window_size: int=5, 
               window_element: int=9,
               input_binary: bool=False,
@@ -24,7 +26,7 @@ def calculate_2d(data: dicResults | str | Path,
               output_binary: bool=False,
               output_prefix: str="strain_",
               output_delimiter: str=",",
-              strain_formulation: str="HENCKY"):
+              strain_formulation: Literal["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"] = "HENCKY"):
     """
     Compute strain fields from DIC displacement data using a finite element smoothing approach.
 
@@ -33,7 +35,7 @@ def calculate_2d(data: dicResults | str | Path,
 
     Parameters
     ----------
-    data : dic.Results, pathlib.Path or str
+    data : dic.Results, pathlib.Path, list[pathlib.Path] str
         input data can either be a dic.Results object or pathlib.Path / str if importing data 
         straight from a file
     input_delimiter: str
@@ -83,11 +85,11 @@ def calculate_2d(data: dicResults | str | Path,
         raise ValueError(f"Invalid strain window size: '{window_size}'. Must be an odd number.")
 
 
-    if isinstance(data, (str, Path)):
+    if isinstance(data, (str, Path, list)):
         filenames = check_strain_files(strain_files=data)
 
         # Load data if a file path is given
-        dicresults = import_2d(layout="matrix", data=str(data), 
+        dicresults = import_2d(layout="matrix", data=data, 
                             binary=input_binary, delimiter=input_delimiter)
 
     elif isinstance(data, dicResults):
@@ -124,9 +126,12 @@ def calculate_2d(data: dicResults | str | Path,
 
     print(type(filenames))
 
+    # make an empty array for w 
+    w_dummy = np.zeros_like(dicresults.u)
+
     # Call to C++ backend
     strain_cpp.strain_engine(dicresults.ss_x, dicresults.ss_y,
-                           dicresults.u, dicresults.v,
+                           dicresults.u, dicresults.v, w_dummy,
                            nss_x, nss_y, nimg,
                            window_size, window_element, 
                            strain_formulation, filenames,

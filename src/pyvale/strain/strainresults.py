@@ -25,18 +25,38 @@ class StrainResults:
         The xx component of the 2D deformation gradient. shape=(img_num,y,x)
     def_xy : np.ndarray
         The xy component of the 2D deformation gradient. shape=(img_num,y,x)
+    def_xz : np.ndarray
+        The xz component of the 2D deformation gradient. shape=(img_num,y,x)
     def_yx : np.ndarray
         The yx component of the 2D deformation gradient. shape=(img_num,y,x)
     def_yy : np.ndarray
         The yy component of the 2D deformation gradient. shape=(img_num,y,x)
+    def_yz : np.ndarray
+        The yz component of the 2D deformation gradient. shape=(img_num,y,x)
+    def_zx : np.ndarray
+        The zx component of the 2D deformation gradient. shape=(img_num,y,x)
+    def_zy : np.ndarray
+        The zy component of the 2D deformation gradient. shape=(img_num,y,x)
+    def_zz : np.ndarray
+        The zz component of the 2D deformation gradient. shape=(img_num,y,x)
     eps_xx : np.ndarray
         The xx component of the 2D strain tensor. shape=(img_num,y,x)
     eps_xy : np.ndarray
         The xy component of the 2D strain tensor. shape=(img_num,y,x)
+    eps_xz : np.ndarray
+        The xz component of the 2D strain tensor. shape=(img_num,y,x)
     eps_yx : np.ndarray
         The yx component of the 2D strain tensor. shape=(img_num,y,x)
     eps_yy : np.ndarray
         The yy component of the 2D strain tensor. shape=(img_num,y,x)
+    eps_yz : np.ndarray
+        The yz component of the 2D strain tensor. shape=(img_num,y,x)
+    eps_zx : np.ndarray
+        The zx component of the 2D strain tensor. shape=(img_num,y,x)
+    eps_zy : np.ndarray
+        The zy component of the 2D strain tensor. shape=(img_num,y,x)
+    eps_zz : np.ndarray
+        The zz component of the 2D strain tensor. shape=(img_num,y,x)
     filenames : list[str]
         name of Strain result files that have been found
     """
@@ -45,10 +65,20 @@ class StrainResults:
     window_y: np.ndarray
     def_xx: np.ndarray
     def_xy: np.ndarray
+    def_xz: np.ndarray
     def_yx: np.ndarray
     def_yy: np.ndarray
+    def_yz: np.ndarray
+    def_zx: np.ndarray
+    def_zy: np.ndarray
+    def_zz: np.ndarray
     eps_xx: np.ndarray
     eps_xy: np.ndarray
+    eps_xz: np.ndarray
     eps_yx: np.ndarray
     eps_yy: np.ndarray
+    eps_yz: np.ndarray
+    eps_zx: np.ndarray
+    eps_zy: np.ndarray
+    eps_zz: np.ndarray
     filenames: list[str]

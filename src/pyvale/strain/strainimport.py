@@ -94,7 +94,7 @@ def import_2d(data: str | Path,
         frames.append(f)
 
     # Stack fields into arrays
-    arrays = [np.stack([frame[i] for frame in frames]) for i in range(8)]
+    arrays = [np.stack([frame[i] for frame in frames]) for i in range(18)]
 
     # if reading into a matrix layout we need to convert to meshgrids
     if layout == "matrix":
@@ -115,50 +115,101 @@ def import_2d(data: str | Path,
         current_shape = arrays[0].shape # (file,x,y)
         def_xx = np.zeros(current_shape)
         def_xy = np.zeros(current_shape)
+        def_xz = np.zeros(current_shape)
         def_yx = np.zeros(current_shape)
         def_yy = np.zeros(current_shape)
+        def_yz = np.zeros(current_shape)
+        def_zx = np.zeros(current_shape)
+        def_zy = np.zeros(current_shape)
+        def_zz = np.zeros(current_shape)
+        
         eps_xx = np.zeros(current_shape)
         eps_xy = np.zeros(current_shape)
+        eps_xz = np.zeros(current_shape)
         eps_yx = np.zeros(current_shape)
         eps_yy = np.zeros(current_shape)
-
+        eps_yz = np.zeros(current_shape)
+        eps_zx = np.zeros(current_shape)
+        eps_zy = np.zeros(current_shape)
+        eps_zz = np.zeros(current_shape)
 
         def_xx[:,:,:] = arrays[0]
         def_xy[:,:,:] = arrays[1]
-        def_yx[:,:,:] = arrays[2]
-        def_yy[:,:,:] = arrays[3]
-        eps_xx[:,:,:] = arrays[4]
-        eps_xy[:,:,:] = arrays[5]
-        eps_yx[:,:,:] = arrays[6]
-        eps_yy[:,:,:] = arrays[7]
+        def_xz[:,:,:] = arrays[2]
+        def_yx[:,:,:] = arrays[3]
+        def_yy[:,:,:] = arrays[4]
+        def_yz[:,:,:] = arrays[5]
+        def_zx[:,:,:] = arrays[6]
+        def_zy[:,:,:] = arrays[7]
+        def_zz[:,:,:] = arrays[8]
+        eps_xx[:,:,:] = arrays[9]
+        eps_xy[:,:,:] = arrays[10]
+        eps_xz[:,:,:] = arrays[11]
+        eps_yx[:,:,:] = arrays[12]
+        eps_yy[:,:,:] = arrays[13]
+        eps_yz[:,:,:] = arrays[14]
+        eps_zx[:,:,:] = arrays[15]
+        eps_zy[:,:,:] = arrays[16]
+        eps_zz[:,:,:] = arrays[17]
 
 
         return StrainResults(X, Y,
-                             def_xx, def_xy, def_yx, def_yy,
-                             eps_xx, eps_xy, eps_yx, eps_yy,
+                             def_xx, def_xy, def_xz,
+                             def_yx, def_yy, def_yz,
+                             def_zx, def_zy, def_zz,
+                             eps_xx, eps_xy, eps_xz,
+                             eps_yx, eps_yy, eps_yz,
+                             eps_zx, eps_zy, eps_zz,
                              filenames)
 
     else:
         current_shape = arrays[0].shape
         def_xx = np.zeros(current_shape)
         def_xy = np.zeros(current_shape)
+        def_xz = np.zeros(current_shape)
         def_yx = np.zeros(current_shape)
         def_yy = np.zeros(current_shape)
+        def_yz = np.zeros(current_shape)
+        def_zx = np.zeros(current_shape)
+        def_zy = np.zeros(current_shape)
+        def_zz = np.zeros(current_shape)
+        
         eps_xx = np.zeros(current_shape)
         eps_xy = np.zeros(current_shape)
+        eps_xz = np.zeros(current_shape)
         eps_yx = np.zeros(current_shape)
         eps_yy = np.zeros(current_shape)
+        eps_yz = np.zeros(current_shape)
+        eps_zx = np.zeros(current_shape)
+        eps_zy = np.zeros(current_shape)
+        eps_zz = np.zeros(current_shape)
+        
         def_xx[:,:,:] = arrays[0]
         def_xy[:,:,:] = arrays[1]
-        def_yx[:,:,:] = arrays[2]
-        def_yy[:,:,:] = arrays[3]
-        eps_xx[:,:,:] = arrays[4]
-        eps_xy[:,:,:] = arrays[5]
-        eps_yx[:,:,:] = arrays[6]
-        eps_yy[:,:,:] = arrays[7]
+        def_xz[:,:,:] = arrays[2]
+        def_yx[:,:,:] = arrays[3]
+        def_yy[:,:,:] = arrays[4]
+        def_yz[:,:,:] = arrays[5]
+        def_zx[:,:,:] = arrays[6]
+        def_zy[:,:,:] = arrays[7]
+        def_zz[:,:,:] = arrays[8]
+        eps_xx[:,:,:] = arrays[9]
+        eps_xy[:,:,:] = arrays[10]
+        eps_xz[:,:,:] = arrays[11]
+        eps_yx[:,:,:] = arrays[12]
+        eps_yy[:,:,:] = arrays[13]
+        eps_yz[:,:,:] = arrays[14]
+        eps_zx[:,:,:] = arrays[15]
+        eps_zy[:,:,:] = arrays[16]
+        eps_zz[:,:,:] = arrays[17]
+
         return StrainResults(window_x_ref, window_y_ref, 
-                             def_xx, def_xy, def_yx, def_yy,
-                             eps_xx, eps_xy, eps_yx, eps_yy,
+                             def_xx, def_xy, def_xz,
+                             def_yx, def_yy, def_yz,
+                             def_zx, def_zy, def_zz,
+                             eps_xx, eps_xy, eps_xz,
+                             eps_yx, eps_yy, eps_yz,
+                             eps_zx, eps_zy, eps_zz,
                              filenames)
 
 
@@ -253,8 +304,12 @@ def read_text(file: str, delimiter: str):
     return (
         data[:, 0].astype(np.int32), # window_x
         data[:, 1].astype(np.int32), # window_y
-        data[:, 2], data[:, 3], data[:, 4], data[:, 5], #def_grad
-        data[:, 6], data[:, 7], data[:, 8], data[:, 9]  #eps
+        data[:, 2], data[:, 3], data[:, 4],     #def_grad_xx, def_grad_xy, def_grad_xz
+        data[:, 5], data[:, 6], data[:, 7],     #def_grad_xx, def_grad_xy, def_grad_xz
+        data[:, 8], data[:, 9], data[:, 10],    #def_grad_xx, def_grad_xy, def_grad_xz
+        data[:, 11], data[:, 12], data[:, 13],  #eps_xx, eps_xy, eps_xz
+        data[:, 14], data[:, 15], data[:, 16],  #eps_yx, eps_yy, eps_yz
+        data[:, 17], data[:, 18], data[:, 19]   #eps_zx, eps_zy, eps_zz
     )
 
 
