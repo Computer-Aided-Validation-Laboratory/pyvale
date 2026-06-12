@@ -313,7 +313,7 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
     std::ofstream outfile;
 
     std::string file_ext;
-    if (saveconf.binary) file_ext=".dic2d";
+    if (saveconf.binary) file_ext=".dic3d";
     else file_ext=".csv";
 
     std::string full_filename = filename;
