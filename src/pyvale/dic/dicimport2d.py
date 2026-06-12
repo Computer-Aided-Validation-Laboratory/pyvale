@@ -10,6 +10,7 @@ import numpy as np
 import glob
 import os
 from pathlib import Path
+from typing import Literal
 
 # Pyvale modules
 from pyvale.dic.dicresults import Results
@@ -21,9 +22,10 @@ calculations.
 
 
 def import_2d(data: str | Path | list[Path],
+              delimiter: str,
               binary: bool = False,
-              layout: str = "matrix",
-              delimiter: str = ",") -> Results:
+              layout: Literal["column", "matrix"] = "matrix") -> Results:
+
     """
     Import DIC result data from human readable text or binary files.
 
@@ -106,59 +108,34 @@ def import_2d(data: str | Path | list[Path],
         X, Y = np.meshgrid(x_unique, y_unique)
         shape = (len(files), len(y_unique), len(x_unique))
 
-
         arrays = [to_grid(a,shape,ss_x_ref, ss_y_ref, x_unique,y_unique) for a in arrays]
 
+        return Results(ss_x=X,
+                       ss_y=Y,
+                       u=arrays[0],
+                       v=arrays[1],
+                       mag=arrays[2],
+                       converged=arrays[3],
+                       cost=arrays[4],
+                       ftol=arrays[5],
+                       xtol=arrays[6],
+                       niter=arrays[7],
+                       filenames=files)
 
-        # sorting out shape function parameters if they are present in the files
-        current_shape = arrays[0].shape  # (file,x,y)
-        shape_params = np.zeros(())
-
-        # rigid
-        if len(fields) == 10:
-            shape_params = np.zeros(current_shape+(2,))
-            shape_params[:,:,:,0] = arrays[8]
-            shape_params[:,:,:,1] = arrays[9]
-        if len(fields) == 14:
-            shape_params = np.zeros(current_shape+(6,))
-            shape_params[:,:,:,0] = arrays[8]
-            shape_params[:,:,:,1] = arrays[9]
-            shape_params[:,:,:,2] = arrays[10]
-            shape_params[:,:,:,3] = arrays[11]
-            shape_params[:,:,:,4] = arrays[12]
-            shape_params[:,:,:,5] = arrays[13]
-
-
-
-
-        return Results(X, Y, arrays[0], arrays[1], arrays[2], arrays[3],
-                          arrays[4], arrays[5], arrays[6], arrays[7], 
-                          shape_params, files)
     # column layout
     else:
 
-        shape_params = np.zeros(())
-        current_shape = arrays[0].shape # (file,(x,y))
-        # rigid
-        if len(fields) == 10:
-            shape_params = np.zeros(current_shape+(2,))
-            shape_params[:,:,0] = arrays[8]
-            shape_params[:,:,1] = arrays[9]
-        if len(fields) == 14:
-            shape_params = np.zeros(current_shape+(6,))
-            shape_params[:,:,0] = arrays[8]
-            shape_params[:,:,1] = arrays[9]
-            shape_params[:,:,2] = arrays[10]
-            shape_params[:,:,3] = arrays[11]
-            shape_params[:,:,4] = arrays[12]
-            shape_params[:,:,5] = arrays[13]
-
-        return Results(ss_x_ref, ss_y_ref, arrays[0], arrays[1], arrays[2], arrays[3],
-                          arrays[4], arrays[5], arrays[6], arrays[7], 
-                          shape_params, files)
-
-
-
+        return Results(ss_x=ss_x_ref, 
+                       ss_y=ss_y_ref,
+                       u=arrays[0],
+                       v=arrays[1],
+                       mag=arrays[2],
+                       converged=arrays[3],
+                       cost=arrays[4],
+                       ftol=arrays[5],
+                       xtol=arrays[6],
+                       niter=arrays[7],
+                       filenames=files)
 
 
 def read_binary(file: str, delimiter: str):
@@ -197,43 +174,19 @@ def read_binary(file: str, delimiter: str):
     with open(file, "rb") as f:
         raw = f.read()
 
-    has_shape_params = False
-    has_rigid_params = False
-    has_affine_params = False
-    has_quad_params = False
-
     row_size_basic = 3 * 4 + 6 * 8 + 1           # 61 bytes
-    row_size_with_rigid = row_size_basic + 2 * 8 # 77 bytes
-    row_size_with_affine = row_size_basic + 6 * 8 # 109 bytes
-    row_size_with_quad = row_size_basic + 12 * 8 # 157 bytes
 
-    if len(raw) % row_size_basic == 0:
-        row_size = row_size_basic
-        has_shape_params = False
-    elif len(raw) % row_size_with_rigid == 0:
-        has_shape_params = True
-        row_size = row_size_with_rigid
-        has_rigid_params = True
-    elif len(raw) % row_size_with_affine == 0:
-        has_shape_params = True
-        row_size = row_size_with_affine
-        has_affine_params = True
-    elif len(raw) % row_size_with_quad == 0:
-        has_shape_params = True
-        row_size = row_size_with_quad
-        has_quad_params = True
-    else:
+    file_size = len(raw)
+
+    if file_size % row_size_basic != 0:
         raise ValueError(
             f"Binary file has incomplete rows: {file}. "
-            f"Expected row size: 65 ((without shape params), "
-            f"81 (with rigid shape params) bytes, "
-            f"109 (with affine shape params). "
-            f"157 (with quad shape params). "
+            f"Expected row size: 61, "
             f"Actual size: {len(raw)} bytes."
         )
 
-    rows = len(raw) // row_size
-    arr = np.frombuffer(raw, dtype=np.uint8).reshape(rows, row_size)
+    rows = file_size // row_size_basic
+    arr = np.frombuffer(raw, dtype=np.uint8).reshape(rows, row_size_basic)
 
     def extract(col, dtype, start):
         return np.frombuffer(arr[:, start:start+col].copy(), dtype=dtype)
@@ -249,35 +202,7 @@ def read_binary(file: str, delimiter: str):
     xtol  = extract(8, np.float64, 49)
     niter = extract(4, np.int32, 57)
 
-    if has_shape_params:
-        if has_rigid_params:
-            p0 = extract(8, np.float64, 61)
-            p1 = extract(8, np.float64, 69)
-            return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter, p0,p1
-        if has_affine_params:
-            p0 = extract(8, np.float64, 61)
-            p1 = extract(8, np.float64, 69)
-            p2 = extract(8, np.float64, 77)
-            p3 = extract(8, np.float64, 85)
-            p4 = extract(8, np.float64, 93)
-            p5 = extract(8, np.float64, 101)
-            return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter,p0,p1,p2,p3,p4,p5
-        if has_quad_params:
-            p0 = extract(8, np.float64, 61)
-            p1 = extract(8, np.float64, 69)
-            p2 = extract(8, np.float64, 77)
-            p3 = extract(8, np.float64, 85)
-            p4 = extract(8, np.float64, 93)
-            p5 = extract(8, np.float64, 101)
-            p6 = extract(8, np.float64, 109)
-            p7 = extract(8, np.float64, 117)
-            p8 = extract(8, np.float64, 125)
-            p9 = extract(8, np.float64, 133)
-            p10 = extract(8, np.float64, 141)
-            p11 = extract(8, np.float64, 149)
-            return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter,p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11
-    else:
-        return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter
+    return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter
 
 
 
@@ -302,62 +227,28 @@ def read_text(file: str, delimiter: str):
     -------
     tuple of np.ndarray
         Arrays corresponding to:
-        (ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter, shape_params)
+        (ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter)
 
     Raises
     ------
     ValueError
         If the text file has fewer than 9 columns.
     """
-
+    
+    check_delimiter(file, delimiter)
     data = np.loadtxt(file, delimiter=delimiter, skiprows=1)
     
-    if data.shape[1] < 9:
-        raise ValueError("Text data must have at least 9 columns.")
-    
-    if data.shape[1] == 10:
-        return (
-            data[:, 0].astype(np.int32),  # ss_x
-            data[:, 1].astype(np.int32),  # ss_y
-            data[:, 2], data[:, 3], data[:, 4], # u, v, mag
-            data[:, 5].astype(np.bool_), # convergence
-            data[:, 6], data[:, 7], data[:,8], # cost, ftol, xtol
-            data[:, 9].astype(np.int32) #niter
-        )
-    #rigid
-    elif data.shape[1]==12:
-        return (
-            data[:, 0].astype(np.int32),  # ss_x
-            data[:, 1].astype(np.int32),  # ss_y
-            data[:, 2], data[:, 3], data[:, 4], # u, v, mag
-            data[:, 5].astype(np.bool_), # convergence
-            data[:, 6], data[:, 7], data[:,8], # cost, ftol, xtol
-            data[:, 9].astype(np.int32), #niter
-            data[:,10], data[:,11] # shape params (rigid)
-        )
-    #affine
-    elif data.shape[1]==16:
-        return (
-            data[:, 0].astype(np.int32),  # ss_x
-            data[:, 1].astype(np.int32),  # ss_y
-            data[:, 2], data[:, 3], data[:, 4], # u, v, mag
-            data[:, 5].astype(np.bool_), # convergence
-            data[:, 6], data[:, 7], data[:,8], # cost, ftol, xtol
-            data[:, 9].astype(np.int32), #niter
-            data[:,10], data[:,11], data[:,12], data[:,13], data[:,14], data[:,15] # shape params (affine)
-        )
-    #quad
-    elif data.shape[1]==22:
-        return (
-            data[:, 0].astype(np.int32),  # ss_x
-            data[:, 1].astype(np.int32),  # ss_y
-            data[:, 2], data[:, 3], data[:, 4], # u, v, mag
-            data[:, 5].astype(np.bool_), # convergence
-            data[:, 6], data[:, 7], data[:,8], # cost, ftol, xtol
-            data[:, 9].astype(np.int32), #niter
-            data[:,10], data[:,11], data[:,12], data[:,13], data[:,14], data[:,15],
-            data[:,16], data[:,17], data[:,18], data[:,19], data[:,20], data[:,21] # shape params (quad)
-        )
+    if data.shape[1] != 10:
+        raise ValueError("Input DIC data must have exactly 10 columns.")
+
+    return ( 
+        data[:, 0].astype(np.int32),  # ss_x
+        data[:, 1].astype(np.int32),  # ss_y
+        data[:, 2], data[:, 3], data[:, 4], # u, v, mag
+        data[:, 5].astype(np.bool_), # convergence
+        data[:, 6], data[:, 7], data[:,8], # cost, ftol, xtol
+        data[:, 9].astype(np.int32) #niter
+    )
 
 
 
@@ -401,3 +292,25 @@ def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
         y_idx = np.where(y_unique == y)[0][0]
         grid[:, y_idx, x_idx] = data[:, i]
     return grid
+
+def check_delimiter(fname: str, delimiter: str | None) -> None:
+    with open(fname, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                first_line = line
+                break
+        else:
+            return
+
+    if delimiter == "," and "," not in first_line:
+        raise ValueError(
+            f"Expected comma-separated data but first data row contains no commas:\n"
+            f"    {first_line[:120]}"
+        )
+
+    if delimiter == "\t" and "\t" not in first_line:
+        raise ValueError(
+            f"Expected tab-separated data but first data row contains no tabs:\n"
+            f"    {first_line[:120]}"
+        )
