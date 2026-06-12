@@ -181,17 +181,18 @@ void engine(const py::array_t<bool>& img_roi_arr,
         std::unique_ptr<Interpolator> interp_r = make_interp(conf.interp_routine, img_r);
 
         // do an initial stereo match
-        stereo::matching(img_l,
-                         img_r,
-                         *interp_l,
-                         *interp_r,
-                         ss_grid_l,
-                         conf,
-                         0,
-                         conf.num_def_img+1,
-                         stereo_geom.F,
-                         results_ref_l,
-                         results_def_r);
+        singlewindow_rg(img_l,
+                        img_r,
+                        *interp_l,
+                        *interp_r,
+                        multiwindow_l.back().layout,
+                        conf,
+                        0,
+                        conf.num_def_img+1,
+                        results_ref_l,
+                        results_def_r,
+                        "stereo",
+                        stereo_geom.F);
 
 
         stereo::pixel_to_world(ss_grid_l,
@@ -211,10 +212,11 @@ void engine(const py::array_t<bool>& img_roi_arr,
     }
 
 
+    int img_num_ref_l = 0;
+
     // loop over deformed images. They start at index 1 in the stack
     for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){
 
-        int img_num_ref_l = 0;
         int img_num_def_l = img_num;
         int img_num_def_r = conf.num_def_img+1+img_num;
 
@@ -248,6 +250,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
             bool update_ref = conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf);
             if (update_ref) {
                 img_num_ref_l = img_num_def_l - 1;
+                results_ref_l = results_def_l;
                 img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
                 interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
 
@@ -297,7 +300,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                             img_num_ref_l, img_num_def_l, results_ref_l, results_def_l);
 
 
-            if (update_ref) results_ref_l = results_def_l;
+
         }
 
 
@@ -326,6 +329,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
             bool update_ref = conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf);
             if (update_ref) {
                 img_num_ref_l = img_num_def_l - 1;
+                results_ref_l = results_def_l;
+                if (conf.stereo) results_ref_r = results_def_r;
                 img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
                 interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
 
@@ -392,17 +397,18 @@ void engine(const py::array_t<bool>& img_roi_arr,
                     exit(0);
                 }
 
-                stereo::matching(img_def_l,
-                                 img_def_r,
-                                 *interp_def_l,
-                                 *interp_def_r,
-                                 multiwindow_l.back().layout,
-                                 conf,
-                                 img_num_def_l,
-                                 img_num_def_r,
-                                 stereo_geom.F,
-                                 results_def_l,
-                                 results_def_r);
+                singlewindow_rg(img_ref_l,
+                                img_def_r,
+                                *interp_ref_l,
+                                *interp_def_r,
+                                multiwindow_l.back().layout,
+                                conf,
+                                img_num_ref_l,
+                                img_num_def_r,
+                                results_ref_l,
+                                results_def_r,
+                                "stereo",
+                                stereo_geom.F);
 
                 stereo::pixel_to_world(multiwindow_l.back().layout,
                                     calib,
@@ -413,11 +419,6 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                     stereo_geom.K1,
                                     stereo_geom.R,
                                     conf.ss_size);
-            }
-
-            if (update_ref) {
-                results_ref_l = results_def_l;
-                if (conf.stereo) results_ref_r = results_def_r;
             }
 
         }
