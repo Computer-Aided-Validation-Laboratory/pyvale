@@ -55,7 +55,7 @@ namespace stereo {
         P1 << R, t;   // just gonna assume t is in mm for now
 
 
-        #pragma omp for schedule(dynamic, 10)
+        #pragma omp parallel for schedule(dynamic, 10)
         for (int ss = 0; ss < ss_grid.num; ss++){
             
             if ((!first_frame && !temporal.above_thresh[ss]) || !stereo_def.above_thresh[ss])
@@ -77,7 +77,6 @@ namespace stereo {
             // 3d pixel coords guess
             Eigen::Vector3d xl(u_cx_l, u_cy_l, 1.0);
             Eigen::Vector3d xr(u_cx_r, u_cy_r, 1.0);
-
 
             // Build DLT system
             Eigen::Matrix4d A;
@@ -108,50 +107,9 @@ namespace stereo {
                 stereo_def.w_world[ss] = 0.0;
             }
             else {
-                stereo_def.u_world[ss] = stereo_def.x_world[ss] - stereo_ref.x_world[ss];
-                stereo_def.v_world[ss] = stereo_def.y_world[ss] - stereo_ref.y_world[ss];
-                stereo_def.w_world[ss] = stereo_def.z_world[ss] - stereo_ref.z_world[ss];
-            }
-        }
-    }
-
-    void search_epi_line(double &best_zncc, 
-                         double &best_disp_x, 
-                         double &best_disp_y,
-                         const double x,
-                         const double y,
-                         const subset::Pixels &ss_l,
-                         subset::Pixels &ss_r,
-                         const Eigen::Vector2d P,
-                         const Eigen::Vector2d dir,
-                         const Interpolator &interp_r,
-                         const int range){
-
-
-        
-
-        best_zncc = -1.0;
-        best_disp_x = 0.0;
-        best_disp_y = 0.0;
-
-        double corner_x, corner_y, zncc;
-        Eigen::Vector2d P_i;
-
-        for (int i = -range; i < range; i++){
-
-            P_i = P + static_cast<double>(i)*dir;
-
-            // Convert to CORNER position for get_subpx_from_img
-            subset::get_corner(corner_x,corner_y, P_i(0),P_i(1),ss_l.size_x,ss_l.size_y);
-
-            subset::fill_from_img_subpx(ss_r, corner_x, corner_y, interp_r);
-
-            zncc = subset::zncc(ss_l, ss_r);
-
-            if (zncc > best_zncc) {
-                best_zncc = zncc;
-                best_disp_x = corner_x - x;
-                best_disp_y = corner_y - y;
+                stereo_def.u_world[ss] = X_mm - stereo_ref.x_world[ss];
+                stereo_def.v_world[ss] = Y_mm - stereo_ref.y_world[ss];
+                stereo_def.w_world[ss] = Z_mm - stereo_ref.z_world[ss];
             }
         }
     }
@@ -222,6 +180,49 @@ namespace stereo {
         x_undistorted = x_u;
         y_undistorted = y_u;
     }
+
+    void search_epi_line(double &best_zncc, 
+                         double &best_disp_x, 
+                         double &best_disp_y,
+                         const double x,
+                         const double y,
+                         const subset::Pixels &ss_l,
+                         subset::Pixels &ss_r,
+                         const Eigen::Vector2d P,
+                         const Eigen::Vector2d dir,
+                         const Interpolator &interp_r,
+                         const int range){
+
+
+        
+
+        best_zncc = -1.0;
+        best_disp_x = 0.0;
+        best_disp_y = 0.0;
+
+        double corner_x, corner_y, zncc;
+        Eigen::Vector2d P_i;
+
+        for (int i = -range; i < range; i++){
+
+            P_i = P + static_cast<double>(i)*dir;
+
+            // Convert to CORNER position for get_subpx_from_img
+            subset::get_corner(corner_x,corner_y, P_i(0),P_i(1),ss_l.size_x,ss_l.size_y);
+
+            subset::fill_from_img_subpx(ss_r, corner_x, corner_y, interp_r);
+
+            zncc = subset::zncc(ss_l, ss_r);
+
+            if (zncc > best_zncc) {
+                best_zncc = zncc;
+                best_disp_x = corner_x - x;
+                best_disp_y = corner_y - y;
+            }
+        }
+    }
+
+
 
     void compute_epi(Eigen::Vector2d &nearest_point, 
                      Eigen::Vector2d &direction, 
