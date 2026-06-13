@@ -14,6 +14,9 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <omp.h>
+#include <atomic>
+#include <csignal>
 
 // nanobind header files
 #include <nanobind/nanobind.h>
@@ -26,6 +29,11 @@
 #include "rtray.h"
 #include "rtbvh.h"
 #include "rtmathutils.h"
+#include "rtsignal.h"
+
+// commmon header files
+#include "../../common_cpp/progressbar.hpp"
+//#include "../../common_cpp/dicsignalhandler.hpp" in the future
 
 // ================================================================================
 // Enums for output render configuration
@@ -190,12 +198,19 @@ void render_image(const EiVector3d& camera_center,
     const EiVector3d defocus_row_1 = matrix_defocus_disc.row(1);
     static const double color_scaling = 1.0 /number_of_samples; // Multiplication is faster than division, so we pre-divide it before looping
 
-    #pragma omp parallel for schedule(dynamic) 
+    // Progress bar - useful for higher anti-aliasing and/or refractive scenes
+    std::string bar_title = "Processing scanlines:";
+    ProgressBar pbar(bar_title, image_height);
+    std::atomic<int> current_progress = 0;
+
+    #pragma omp parallel for shared(stop_request) schedule(dynamic) 
     for (int j = 0; j < image_height; j++) {
-        //std::cerr << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush << std::endl;
         for (int i = 0; i < image_width; i++) {
             EiVector3d pixel_color = EiVector3d::Zero();
             for (int k = 0; k < number_of_samples; k++) {
+                // Exit the main loop in rtmain when CTRL+C is pressed
+                if (stop_request) continue;
+
                 double offset[2] = { random_double() - 0.5, random_double() - 0.5 };
                 EiVector3d pixel_sample = pixel_00_center +
                     (i + offset[0]) * pixel_row_0 + (j + offset[1]) * pixel_row_1;
@@ -219,7 +234,6 @@ void render_image(const EiVector3d& camera_center,
                     pixel_color += return_ray_color_stack(current_ray, scene_ri, TLAS);
             
         }
-            
             int px_idx = (i + j * image_width) * 3;
             // Divide by the number of samples to get the mean colour
             pixel_color = pixel_color * color_scaling;
@@ -244,8 +258,14 @@ void render_image(const EiVector3d& camera_center,
                 buffer[px_idx + 2] = static_cast<uint8_t>(pixel_color.z());
             }
         }
+        
+        // Update progress bar
+        int progress = current_progress.fetch_add(1);
+        if (omp_get_thread_num()==0) pbar.update(progress);
     }
-
+    // Finish progress bar
+    int progress = current_progress;
+    pbar.finish();
     // Write the buffer in whatever output format we want
     outputwriter::save_image(buffer, image_height, image_width, output_filepath);
 };

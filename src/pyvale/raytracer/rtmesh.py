@@ -6,6 +6,9 @@
 
 import itertools
 import meshio
+import vedo
+import csv
+import os
 import pandas as pd
 import numpy as np
 import pyvista as pv
@@ -25,6 +28,7 @@ import pyvale.sensorsim as sens
 from pyvale.sensorsim import RenderMesh, EDim, simdata_to_pyvista_interp, extract_surf_mesh
 from pyvale.raytracer.rtcamera import Camera
 from pyvale.raytracer.rtpresets import Material
+from pyvale.raytracer.rtuvalign import get_transformed_uvs, UVAlignmentInteractor
 
 # ================================================================================
 # CONSTANTS AND ENUMS
@@ -156,6 +160,8 @@ MESHIO_TO_ELEMENTNODECOUNT = {
 # ================================================================================
 # Drop-in (for compatibility) that should probably go to simtools
 # ================================================================================
+
+
 
 def get_displacement_at_timestep(timestep: int,
                                   render_mesh: RenderMesh) -> np.ndarray | None:
@@ -744,14 +750,14 @@ class RTMesh:
 
         Parameters:
         -----------
-            uv_coords: np.ndarray
-                The UV coordinates to set for the mesh. The expected format can be either:
-                - (new_node_count, 2): Standard UV format where each row corresponds to a unique node in the mesh. The face_mapping argument is required in this case to map the UVs to the correct nodes in the triangulated mesh.
-                - (element_count, nodes_per_element, 2): Expanded UV format where each row corresponds to a unique element in the mesh and each column corresponds to a node in that element. This format is already expanded to match
-                the triangulated mesh, so the face_mapping argument is not required in this case.
-            face_mapping: np.ndarray
-                An array of shape (element_count, nodes_per_element) that maps the original nodes of the mesh to the nodes in the triangulated mesh. This is required if the uv_coords are provided in standard format (new_node_count, 2)
-                to correctly assign UVs to the triangulated mesh nodes. The values in face_mapping should be indices that correspond to the rows in uv_coords.
+        uv_coords: np.ndarray
+            The UV coordinates to set for the mesh. The expected format can be either:
+            - (new_node_count, 2): Standard UV format where each row corresponds to a unique node in the mesh. The face_mapping argument is required in this case to map the UVs to the correct nodes in the triangulated mesh.
+            - (element_count, nodes_per_element, 2): Expanded UV format where each row corresponds to a unique element in the mesh and each column corresponds to a node in that element. This format is already expanded to match
+            the triangulated mesh, so the face_mapping argument is not required in this case.
+        face_mapping: np.ndarray
+            An array of shape (element_count, nodes_per_element) that maps the original nodes of the mesh to the nodes in the triangulated mesh. This is required if the uv_coords are provided in standard format (new_node_count, 2)
+            to correctly assign UVs to the triangulated mesh nodes. The values in face_mapping should be indices that correspond to the rows in uv_coords.
         Raises:
         -------
         ValueError:
@@ -778,16 +784,154 @@ class RTMesh:
                 raise ValueError(f"UV coordinates must be of shape (element_count, nodes_per_element, 2). Got {uv_coords.shape}. If you triangulated your mesh independently, you need to map the uvs back to the original surface mesh.")
             self.uvs = np.ascontiguousarray(uv_coords, dtype=np.float64)
 
-    def import_seams_from_csv(self, filepath: str) -> None:
+    def export_uvs(self, filepath: Path, expanded: bool = True) -> None:
         """
-        Imports seams from a CSV file and stores them in the RTMesh object, without having to go through SeamSplitter.
+        Exports self.uvs to a CSV file compatible with set_custom_uvs().
+
+        Parameters
+        ----------
+        filepath : Path
+            Output path, e.g. "mesh_uvs.csv".
+        expanded: bool
+            Determines the export mode. Defaults to True.
+            Modes available:
+             1. Expanded: Writes the (element_count, nodes_per_element, 2) array flattened to rows.
+             Each row: [element_idx, node_idx, u, v].
+             Reloads via the 3D branch of set_custom_uvs (no face_mapping needed).
+
+             2. Standard: Deduplicates UVs and writes unique (u, v) rows plus a
+                separate face-mapping file (<filepath>.facemap.csv).
+                Reloads via the 2D branch of set_custom_uvs.
+        """
+        if self.uvs is None:
+            raise ValueError("No UV data to export.")
+
+        mode = "expanded"
+        if expanded:
+            elems, nodes, _ = self.uvs.shape
+            with open(filepath, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["element_idx", "node_idx", "u", "v"])  # Headers
+                for ei in range(elems):
+                    for ni in range(nodes):
+                        u, v = self.uvs[ei, ni]
+                        writer.writerow([ei, ni, f"{u:.10f}", f"{v:.10f}"])
+        else: # Standard mode
+            mode = "standard"
+            flat = self.uvs.reshape(-1, 2)  # (elements * nodes, 2)
+
+            # Deduplicate while preserving order — use a dict keyed on rounded tuple to avoid float noise creating spurious duplicates
+            seen = {}
+            face_mapping = np.empty(len(flat), dtype=np.int64)
+            unique_uvs   = []
+
+            for i, uv in enumerate(flat):
+                key = (round(uv[0], 10), round(uv[1], 10))
+                if key not in seen:
+                    seen[key] = len(unique_uvs)
+                    unique_uvs.append(uv)
+                face_mapping[i] = seen[key]
+
+            unique_uvs   = np.array(unique_uvs)
+            face_mapping = face_mapping.reshape(self.element_count, self.nodes_per_element)
+
+            # Write the UV file
+            with open(filepath, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["node_idx", "u", "v"]) # Headers
+                for i, (u, v) in enumerate(unique_uvs):
+                    writer.writerow([i, f"{u:.10f}", f"{v:.10f}"])
+
+            # Write face mapping as a companion file
+            #facemap_path = filepath + ".facemap.csv"
+            facemap_path = filepath.with_suffix(".facemap.csv")  # Replaces extension 
+            with open(facemap_path, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["element_idx"] + [f"node_{n}" for n in range(self.nodes_per_element)])
+                for ei, row in enumerate(face_mapping):
+                    writer.writerow([ei] + row.tolist())
+
+            print(f"Wrote {len(unique_uvs)} unique UVs to {filepath}")
+            print(f"Wrote face mapping to {facemap_path}")
+
+        print(f"Exported {self.element_count}×{self.nodes_per_element} UVs to {filepath} (mode='{mode}')")
+
+    def import_uvs(self, filepath: Path ) -> None:
+        """
+        Reads a UV CSV exported by export_uvs() and calls set_custom_uvs() to populate self.uvs, performing all the same validation.
+
+        Auto-detects mode from the CSV header:
+        a) Header has 4 columns (element_idx, node_idx, u, v) => Expanded mode
+        b) Header has 3 column (node_idx, u, v) => Standard mode
+            (companion .facemap.csv must exist alongside the UV file)
+
+        Parameters
+        ----------
+        filepath : Path
+            Path to the CSV file written by export_uvs().
+        """
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"UV file not found: {filepath}")
+
+        with open(filepath, "r", newline="") as f:
+            reader = csv.reader(f)
+            header = next(reader)
+            rows = list(reader)
+
+        header = [h.strip().lower() for h in header]
+
+        # Expanded mode (fits self.uvs right away)
+        if header == ["element_idx", "node_idx", "u", "v"]:
+            # Reconstruct shape from the data — don't assume self.element_count
+            # is already set correctly (caller may be loading into a fresh object)
+            data = np.array([[float(r[2]), float(r[3])] for r in rows])  # (N * M, 2)
+
+            # Infer element/node counts from the index columns
+            element_indices = np.array([int(r[0]) for r in rows])
+            node_indices = np.array([int(r[1]) for r in rows])
+            n_elems = element_indices.max() + 1
+            n_nodes = node_indices.max() + 1
+
+            uv_expanded = data.reshape(n_elems, n_nodes, 2)
+            self.set_custom_uvs(uv_coords=uv_expanded)
+
+        # Standard mode (should be compatible with most other software)
+        elif header == ["node_idx", "u", "v"]:
+            facemap_path = filepath.with_suffix(".facemap.csv")
+            if not os.path.exists(facemap_path):
+                raise FileNotFoundError(
+                    f"Standard-mode UV file requires a companion face mapping at:\n"
+                    f"{facemap_path}\n"
+                    f"Re-export with 'expanded=False' to regenerate it.")
+
+            uv_coords = np.array([[float(r[1]), float(r[2])] for r in rows])
+
+            with open(facemap_path, "r", newline="") as f:
+                fm_reader = csv.reader(f)
+                next(fm_reader)  # Skip header
+                fm_rows = list(fm_reader)
+
+            face_mapping = np.array(
+                [[int(v) for v in r[1:]] for r in fm_rows],  # Skip element_idx col
+                dtype=np.int64)
+            self.set_custom_uvs(uv_coords=uv_coords, face_mapping=face_mapping)
+
+        else:
+            raise ValueError(f"Unrecognised CSV header: {header}\n"
+                f"Expected ['element_idx','node_idx','u','v'] or ['node_idx','u','v'].")
+
+        print(f"Loaded UVs from {filepath} (self.uvs.shape = {self.uvs.shape})")
+
+    def import_seams_from_csv(self, filepath: Path) -> None:
+        """
+        Imports seams from a CSV file and stores them in the RTMesh object, without having to go through SeamSelector.
 
         The method reads the CSV file, processes each row to extract the seam ID and corresponding node IDs, and stores them in the seams attribute of the RTMesh object as a list of lists, where each inner list represents a seam with
         its associated node IDs.
         
         Parameters:
         -----------
-        filepath: str
+        filepath: Path
             The path to the CSV file containing the seam data.
         
         Notes:
@@ -977,6 +1121,136 @@ class RTMesh:
 
         print(f"Mesh is fully visible in viewport. It should occupy about {pct_coverage:.2f}% of the viewport.")
         return True
+    
+    
+    def display_with_texture(self) -> None:
+        """
+        Visualises the flattened mesh using the RTMesh UV format overlaid on a texture, showing the exact sampling locations.
+
+        Unlike its twin in BlenderUnwrapper(), this represents the actual mesh grid (e.g., quads), not the triangulated version.
+        """
+        if self.uvs is None:
+            raise ValueError("UV data has not been generated yet.")
+
+        height, width = self.texture.shape  # Get exact texture pixel dimensions
+        
+        # Flatten the (element_count, node_count, 2) array into a continuous (element_count * node_count, 2) list of vertices
+        flat_uvs = self.uvs.reshape(-1, 2) # view, not a copy
+        
+        # Set up the texture background
+        texture_bg = vedo.Image(self.texture).alpha(0.5) 
+        
+        # Scale the UVs
+        # This mimics the C++ kernel: texel_x = u * width, texel_y = v * height (nearest neighbour)
+        scaled_uvs = flat_uvs * np.array([width, height])
+        
+        # Insert Z=0 coordinate for 3D visualization
+        uv_3d = np.insert(scaled_uvs, 2, 0, axis=1)
+        
+        # Reconstruct faces using sequential blocks
+        elements = self.element_count
+        nodes = self.nodes_per_element
+        if nodes > 4:
+            corners = 3 if nodes in [6, 10] else 4 
+            faces = np.arange(elements  * nodes).reshape(elements , nodes)[:, :corners]
+        else:
+            faces = np.arange(elements * nodes).reshape(elements , nodes)
+            
+        # Create the vedo mesh and display
+        packed_mesh = vedo.Mesh([uv_3d, faces]).c('tomato').wireframe()
+        
+        # Use max dimension for a consistent wireframe thickness
+        packed_mesh.linewidth(max(width, height) / 1000)
+    
+        vedo.show([packed_mesh, texture_bg], "UV-unwrapped mesh on top of texture", new=True)
+    
+    def align_uvs(self) -> None:
+        """
+        Interactive UV alignment overlay; updates the UVs stored in the mesh.
+
+        Controls:
+        LEFT-DRAG => translate UV wireframe
+        RIGHT-DRAG => rotate  UV wireframe (pivot = click point)
+        MIDDLE-DRAG => scale   UV wireframe (drag up=grow, down=shrink)
+        SCROLL => zoom camera
+        SHIFT+SCROLL => fine scale (±2% per tick)
+        R => reset all transforms
+        Q / Escape => confirm & close
+
+        After close, the following are populated on self:
+        self.uv_translation : np.array([dx_px, dy_px])
+        self.uv_rotation_deg : float
+        self.uv_scale : float
+        self.uv_new : (N,2) transformed UV coords in [0,1]^2
+        self.uv_delta : (N,2) per-vertex UV delta from original
+        """
+        if self.uvs is None:
+            raise ValueError("UV data has not been generated yet.")
+
+        height, width = self.texture.shape[:2]
+        flat_uvs = self.uvs.reshape(-1, 2)
+        scaled_uvs = flat_uvs * np.array([width, height])
+        uv_3d = np.insert(scaled_uvs, 2, 0, axis=1) # (N,3)
+
+        elements = self.element_count
+        nodes = self.nodes_per_element
+        if nodes > 4:
+            corners = 3 if nodes in [6, 10] else 4
+            faces = np.arange(elements * nodes).reshape(elements, nodes)[:, :corners]
+        else:
+            faces = np.arange(elements * nodes).reshape(elements, nodes)
+
+        packed_mesh = vedo.Mesh([uv_3d, faces]).c('tomato').wireframe()   
+        # Use max dimension for a consistent wireframe thickness
+        packed_mesh.linewidth(max(width, height) / 1000)
+        
+         #Set up the texture background
+        texture_bg  = vedo.Image(self.texture).alpha(0.5)
+
+        # Initialise output attributes
+        self.uv_translation  = np.zeros(2)
+        self.uv_rotation_deg = 0.0
+        self.uv_scale = 1.0
+        self.uv_new = flat_uvs.copy() # UV coords after all the applied changes
+        self.uv_delta = np.zeros_like(flat_uvs)
+
+        def on_transform_update(current_verts, orig_verts, tex_w, tex_h,
+                                tot_trans, tot_angle, tot_scale, pivot):
+            new_uvs, delta_uvs = get_transformed_uvs(current_verts, orig_verts, tex_w, tex_h)
+
+            self.uv_translation  = tot_trans.copy()
+            self.uv_rotation_deg = tot_angle
+            self.uv_scale = tot_scale
+            self.uv_new = new_uvs
+            self.uv_delta = delta_uvs
+
+            # Representative global delta (mean over all nodes)
+            mean_du, mean_dv = delta_uvs.mean(axis=0)
+            print(f"\n─── UV transform ───────────────────────────────\n"
+                f"  Translation : {tot_trans[0]:+.1f} px, {tot_trans[1]:+.1f} px\n"
+                f"  Rotation    : {tot_angle:+.3f}°   (last pivot ≈ {pivot})\n"
+                f"  Scale       : {tot_scale:.4f}×\n"
+                f"  Mean UV Δ   : du={mean_du:+.5f}, dv={mean_dv:+.5f}\n"
+                f"────────────────────────────────────────────────")
+
+        # Keypresses are non-capital on purpose, because for some of those in capital letters vedo has
+        # its own built-in callbacks, so the distinction matters
+        instr_txt = vedo.Text2D("LMB-drag: translate\nRMB-drag: rotate\nWheel-drag: scale\nShift+scroll: fine scale\nr: reset\nq: confirm \n", pos="top-left", s=0.7)
+        plt = vedo.Plotter(title=("UV alignment"))
+        plt.show([packed_mesh, texture_bg, instr_txt], interactive=False, resetcam=True, mode=0)
+
+        style = UVAlignmentInteractor(mesh_actor = packed_mesh,
+            original_verts = uv_3d,
+            plt = plt,
+            texture_shape = self.texture.shape,
+            on_transform_update = on_transform_update)
+        style.renderer = plt.renderer
+        plt.interactor.SetInteractorStyle(style)
+
+        plt.interactive()
+        plt.close()
+        self.uvs = self.uv_new.reshape(self.uvs.shape) # Save new UVs
+
 
 # ================================================================================
 # POSITIONING HELPERS
@@ -1454,6 +1728,12 @@ def triangulate_and_map(pv_grid: pv.UnstructuredGrid | pv.PolyData) -> tuple[pv.
     pv_grid.cell_data["original_face_ids"] = np.arange(pv_grid.n_cells)
     pv_grid.point_data["original_node_ids"] = np.arange(pv_grid.n_points)
     pv_triangulated = pv_grid.triangulate()
+
+    # Enforce consistent winding and waterightness
+    # This is necessary to make Blender and single-face-selection work SOMEWHAT and still not great
+    #pv_triangulated = pv_triangulated.extract_surface(algorithm='dataset_surface') # test
+    #pv_triangulated.compute_normals(cell_normals=True, point_normals=False, consistent_normals=True, inplace=True)
+
     # Retrieve the mapped IDs
     mapped_face_ids = pv_triangulated.cell_data["original_face_ids"]  # Contains duplicate IDs where an element was split
     mapped_coords = pv_triangulated.point_data["original_node_ids"]
@@ -1549,6 +1829,11 @@ def create_rtmesh(rtmesh: RTMesh,
         rtmesh.pyvista_surface = pv_triangulated
         rtmesh.tri_face_mapping = np.ascontiguousarray(mapped_face_ids, dtype=np.int64)
         rtmesh.tri_node_mapping = np.ascontiguousarray(mapped_coords, dtype=np.int64)
+    #else:
+        #Enforce consistent winding and waterightness
+        # This is necessary to make Blender and single-face-selection work SOMEWHAT and still incorrectly
+        # And it seems to break full mesh unwrapping if used...
+        #rtmesh.pyvista_surface = rtmesh.pyvista_surface.extract_surface()
 
     # RenderMesh passed = processing SimData object
     if render_mesh is not None:
@@ -1772,7 +2057,7 @@ def simdata_to_rtmesh(pypath: Path,
 # ANY MESH -> RTMESH
 # ================================================================================
 
-def _convert_netgen_mesh(mesh_path, converted_filepath) -> None:
+def _convert_netgen_mesh(mesh_path: Path, converted_filepath: Path) -> None:
     """
     Converts a Netgen .vol mesh to VTK format, which is stored in the passed converted_filepath.
 
@@ -1856,7 +2141,7 @@ def _convert_netgen_mesh(mesh_path, converted_filepath) -> None:
     mesh.write(converted_filepath.with_suffix(".vtk"), file_format='vtk')
 
 
-def _convert_any_to_vtk_mesh(mesh_path, converted_filepath) -> None:
+def _convert_any_to_vtk_mesh(mesh_path: Path, converted_filepath: Path) -> None:
     """
     Converts any mesh to VTK format.
 

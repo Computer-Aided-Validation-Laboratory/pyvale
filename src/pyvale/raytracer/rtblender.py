@@ -100,6 +100,7 @@ class BlenderUnwrapper:
         mesh_data = self.blender_obj.data
         # Build a lookup dictionary: (v1, v2) -> edge_index
         edge_key_to_index = {k: i for i, k in enumerate(mesh_data.edge_keys)}
+
         seam_nodes = set()
         seam_edges = set()
         for seam_path in self.seams:
@@ -440,6 +441,7 @@ class BlenderUnwrapper:
             #self.rtmesh.connectivity_uv = np.ascontiguousarray(orig_face_indices, dtype=np.uint64)
             self.rtmesh.uvs = np.ascontiguousarray(orig_uvs[orig_face_indices], dtype=np.float64) # To get shape (element count, nodes_per_element, 2)
 
+    
     def _get_uvs_selected(self):
         """
         Get UVs only for currently selected faces (after loop_to_region) after unwrapping it.
@@ -454,8 +456,7 @@ class BlenderUnwrapper:
     
         # Extract only selected faces
         self.uvs, self.vertex_map, self.faces_cut = self._get_xatlas_uv_selected_format(self.blender_obj.data)
-        print(
-            f"Selected region - uvs: {self.uvs.shape}, vmapping: {self.vertex_map.shape}, indices: {self.faces_cut.shape}")
+        print(f"Selected region - uvs: {self.uvs.shape}, vmapping: {self.vertex_map.shape}, indices: {self.faces_cut.shape}")
         if self.rtmesh.tri_face_mapping is None or self.rtmesh.tri_node_mapping is None: # Triangular mesh
             #self.rtmesh.uvs = np.ascontiguousarray(self.uvs)
             #self.rtmesh.connectivity_uv = np.ascontiguousarray(self.faces_cut, dtype=np.uint64)
@@ -465,7 +466,7 @@ class BlenderUnwrapper:
             #self.rtmesh.uvs = np.ascontiguousarray(orig_uvs, dtype=np.float64)
             #self.rtmesh.connectivity_uv = np.ascontiguousarray(orig_face_indices, dtype=np.uint64)
             self.rtmesh.uvs = np.ascontiguousarray(orig_uvs[orig_face_indices], dtype=np.float64) # To get shape (element count, nodes_per_element, 2)
-
+    
     def smart_unwrap(self,
                      pack_islands=True,
                      angle_limit=None) -> None:
@@ -551,6 +552,11 @@ class BlenderUnwrapper:
                     iterations=10) -> None:
         """
         Performs manual UV unwrapping based on the selected algorithm and seam markings on the SELECTED FACES.
+
+        IMPORTANT NOTE: SINGLE FACE SELECTION DOES NOT WORK ANYMORE.
+        It works with pyvale's native RenderMesh data, which is based on triangles and pyvista's extract_surface.
+        We don't use it anymore to support higher order elements, and Blender doesn't handle it well, i.e., it does not detect
+        the faces. We probably need to rebuild the data from ground up, ensuring compatible winding, etc.
             
         Calls Blender's unwrap method with the specified algorithm, using the seams marked in the mesh to guide the unwrapping process.
 
@@ -578,17 +584,16 @@ class BlenderUnwrapper:
         # Edge select mode
         bpy.ops.mesh.select_mode(type='EDGE')
         bpy.ops.object.mode_set(mode='OBJECT')  # Brief switch
-        print(bpy.context.object.data.count_selected_items())
+        #print(f"Blender selected items (before selection): {bpy.context.object.data.count_selected_items()} (expect (0,0,0))")
     
         # Select all seams we marked before as the loop boundary
         for edge in self.blender_mesh.edges:
             edge.select = edge.use_seam  # Both are boolean, so if an edge is a seam, select it
         bpy.ops.object.mode_set(mode='EDIT')
-        print(bpy.context.object.data.count_selected_items())  # Check that edges have been selected
+        #print(f"Blender selected items (seams): {bpy.context.object.data.count_selected_items()}") # Check that edges have been selected
     
         # Convert the boundary loop edge into a face-region selection
-        bpy.ops.mesh.loop_to_region(
-            select_bigger=False)  # This will have to be passed, depending if our seleted face is bigger than the rest of the mesh or not
+        bpy.ops.mesh.loop_to_region(select_bigger=False)  # This will have to be passed, depending if our seleted face is bigger than the rest of the mesh or not
         # print(bpy.context.object.data.count_selected_items()) # Check that the number increased, isn't 0, but also shouldn't cover the whole mesh
         if bpy.context.object.data.count_selected_items()[2] == 0:
             raise ValueError("No faces selected - check seam loop")
@@ -601,8 +606,8 @@ class BlenderUnwrapper:
             bpy.ops.uv.unwrap(method=algorithm.value)
         bpy.ops.object.mode_set(mode='OBJECT')
         # Get UVs only for selected faces
-        # if pack_islands: # Technically shouldn't need packing for a single face?
-        # bpy.ops.uv.pack_islands()
+        #if pack_islands: # Technically shouldn't need packing for a single face?
+            #bpy.ops.uv.pack_islands()
         self._get_uvs_selected()
 
     def display_flat_mesh(self) -> None:
@@ -619,45 +624,8 @@ class BlenderUnwrapper:
         """
         uv_3d = np.hstack((self.uvs, np.zeros((len(self.uvs), 1))))
         flat_mesh = vedo.Mesh([uv_3d, self.faces_cut]).c('tomato').wireframe()
-        vedo.show(flat_mesh, "UV unwrapped result", new=True)  # New so it doesn't open in the SeamSplitter
-
-    def display_mesh_with_texture(self, texture: np.ndarray) -> None:
-        """
-        Visualises the flattened mesh by using uv as x,y coordinates, overlaid on top of the texture to visualise the mapping.
-
-        Implemented as a part of the BlenderUnwrapper class since it relies on the UV data generated by the unwrapping process that does not get saved back to the RTMesh in the same format.
-
-        Parameters:
-        ----------
-          texture: np.ndarray
-            Shape (H, W) - Grayscale image representing the texture to be displayed under the UV-mapped mesh. This should be the output of ImageTools.load_image_grayscale(path) or a similar
-            function that loads an image as a 2D numpy array. The UV coordinates will be scaled to match the dimensions of this texture for accurate visualization.
+        vedo.show(flat_mesh, "UV unwrapped result", new=True)  # New so it doesn't open in the SeamSelector
         
-        Notes:
-        ------
-            - uvs - nd.ndarray of shape (N,2) containing the UV coordinates for each vertex in the flattened mesh. These coordinates are used as x and y positions for visualization, with z set to 0.
-            - faces_cut - nd.ndarray of shape (F, 3) containing the indices of the vertices that form each triangle in the flattened mesh. Equivalent to connectivity, just cut.
-        
-        Raises:
-        -------
-            ValueError
-                If UV data has not been generated yet.
-
-        """
-        if self.uvs is None:
-            raise ValueError("UV data has not been generated yet.")
-        uvs = self.uvs
-        uv_3d = np.hstack((uvs, np.zeros((len(uvs), 1))))
-        texture_bg = vedo.Image(texture)
-        texture_bg.alpha(0.5)  # Set transparency to the texture, otherwise it is really hard to see the wireframe
-        # Output uvs are in the [0,1] space so scale them to match the texture dimensions as scaling down gives terrible interpolation artifacts
-        scaled_uvs = uvs * min(texture_bg.dimensions())
-        uv_3d = np.insert(scaled_uvs, 2, 0, axis=1)
-        packed_mesh = vedo.Mesh([uv_3d, self.faces_cut]).c('tomato').wireframe()
-        packed_mesh.linewidth(min(texture_bg.dimensions()) / 1000)
-        vedo.show([packed_mesh, texture_bg], "UV unwrapped mesh on the texture", new=True)
-        # Example usage with xatlas: vmapping, indices, uvs = xatlas.parametrize(coords_o, connectivity_o)
-        # Then call display_mesh_with_texture(uvs, indices, texture)
 """
     def blender_test(self):
         # Smart unwrapping (automatic)

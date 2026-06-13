@@ -18,16 +18,19 @@
 #include <iostream>
 #include <array>
 #include <vector>
+#include <signal.h>
 //#include <chrono>
 #include <valgrind/callgrind.h>
 
 // common_cpp header files
 #include "../../common_cpp/Eigen/Dense"
+//#include "../../common_cpp/dicsignalhandler.hpp" // In the future when nanobind cooperates
 
 // raytracer header files
 #include "rteigentypes.h"
 #include "rtrender.h"
 #include "rtcolorsampling.h"
+#include "rtsignal.h"
 
 namespace nb = nanobind;
 
@@ -56,6 +59,8 @@ void render_scene(const int image_height,
     const int output_format,
     const bool grayscale_flag) {
 
+    // Register signal handler for Ctrl+C
+    signal(SIGINT, signalHandler);
 
     //CALLGRIND_START_INSTRUMENTATION;
     size_t num_cameras = camera_centers.size();
@@ -105,7 +110,7 @@ void render_scene(const int image_height,
             std::chrono::time_point t1_render = std::chrono::high_resolution_clock::now();
             //CALLGRIND_START_INSTRUMENTATION;
             render_function_ptr(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
-
+            if (stop_request) break;
             // Debug function that can be used instead of rendering a full image if we want to shoot and track a single ray
             //mock_ray_shoot(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
             //CALLGRIND_STOP_INSTRUMENTATION;

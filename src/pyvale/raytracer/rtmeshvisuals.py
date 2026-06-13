@@ -201,30 +201,26 @@ class SceneVisualiser:
         else:
             self.plotter.add(INSTRUCTIONS_NO_CAM_TEXT)
 
-    def _adjust_snapping_instructions(self, add = True) -> None:
+    def _adjust_snapping_instructions(self, previous_count: int | None = None) -> None:
         """
         Updates the displayed instructions for the user for mesh snapping depending on the number of selected points.
 
         Parameters
         ----------
-        add: bool
-            Specifies if points are being selected or unselected, as otherwise it does not work properly for unselecting points. Defaults to True.
+        previous_count : int | None
+            The number of selected points *before* the state change. Pass this to remove the previous instruction. If None, no removal is attempted.
         """
+        # Get current count of selected points
         selected_pts_count = len(self.selected_points)
 
-        # If unselecting points, we need to remove the current instruction and replace it with the previous one
-        # Unselecting function checks if a valid point was selected, which prevents us from trying to index sub-0
-        if not add:
-            self.plotter.remove(SNAPPING_INSTR[selected_pts_count+1])
-        else:
-            # Remove the instruction for the previous number of points
-            self.plotter.remove(SNAPPING_INSTR[selected_pts_count-1])
+        # Remove the instruction that was shown before the state change
+        if previous_count is not None and 0 <= previous_count < len(SNAPPING_INSTR):
+            self.plotter.remove(SNAPPING_INSTR[previous_count])
 
-        if self.snapping_on:
-            # If snapping is on, add the instructionc corresponding to the current number of selected points
+        if self.snapping_on and 0 <= selected_pts_count < len(SNAPPING_INSTR):
             self.plotter.add(SNAPPING_INSTR[selected_pts_count])
-        else:
-           self.plotter.remove(SNAPPING_INSTR[selected_pts_count]) # Remove the first instruction if snapping is toggled off
+        elif not self.snapping_on and 0 <= selected_pts_count < len(SNAPPING_INSTR):
+            self.plotter.remove(SNAPPING_INSTR[selected_pts_count])
 
     def _snap_meshes(self, event) -> None:
         """
@@ -238,7 +234,7 @@ class SceneVisualiser:
                 self.plotter.add(SNAPPING_INSTR[0]) # Add instruction about selecting the first point
             else:
                 self.plotter.remove(SNAPPING_INSTR_CONST)
-                self._adjust_snapping_instructions() # Remove instructions
+                self._adjust_snapping_instructions(previous_count=len(self.selected_points)) # Remove instructions
             self.plotter.render()
 
     def _select_point(self, event) -> None:
@@ -278,6 +274,7 @@ class SceneVisualiser:
                 print("You cannot snap a mesh to itself.")
                 return
             
+        previous_count = len(self.selected_points)
         self.selected_points.append(point_coords)
         self.affected_meshes.append(v_mesh)
         # Highlight the selected node with a red sphere
@@ -285,7 +282,7 @@ class SceneVisualiser:
         self.visual_markers.append(node_marker)
         self.plotter.add(node_marker)
 
-        self._adjust_snapping_instructions() # Change instructions based on how many points we have selected
+        self._adjust_snapping_instructions(previous_count) # Change instructions based on how many points we have selected
 
         if len(self.selected_points) == 2:
             self.translation_vector = self.selected_points[1] - self.selected_points[0]
@@ -308,6 +305,7 @@ class SceneVisualiser:
             return
 
         if len(self.visual_markers) > 1:  # We must have at least 2 nodes selected
+            previous_count = len(self.selected_points)  # Capture BEFORE pop
             self.selected_points.pop()  # Remove the last point
             self.affected_meshes.pop()
             self.plotter.remove(self.visual_markers[-1])
@@ -316,23 +314,25 @@ class SceneVisualiser:
             self.plotter.remove(self.visual_markers[-1])
             self.visual_markers.pop()
         elif len(self.visual_markers) == 1:  # We only have one node selected => No lines
+            previous_count = len(self.selected_points)  # Capture BEFORE clear
             self.selected_points.clear() 
             self.plotter.remove(self.visual_markers[-1])
             self.visual_markers.pop()
-        self._adjust_snapping_instructions(add=False)
+        self._adjust_snapping_instructions(previous_count)
         self.plotter.render()
 
     def _reset_snapping(self) -> None:
         """
         Resets the attributes related to snapping meshes.
         """
+        previous_count = len(self.selected_points)
         self.selected_points.clear() 
         self.affected_meshes.clear()
         self.translation_vector = np.zeros(3)
         for marker in self.visual_markers:
             self.plotter.remove(marker)
         self.visual_markers.clear()
-        self._adjust_snapping_instructions()
+        self._adjust_snapping_instructions(previous_count)
     
 
     def _translate_mesh(self, event) -> None:
@@ -343,8 +343,12 @@ class SceneVisualiser:
             return
         if event.keypress.lower() == "s":
             moved_mesh_idx = self.vmeshes.index(self.affected_meshes[0]) # Find index of the mesh that we want to move
+            # Print, because more often than not we will want to make note of this vector and use it to programatically translate the mesh for good
+            print(f"\n─── Mesh snapping ────────────────────────────\n"
+                f"  Moved mesh idx     : {moved_mesh_idx}\n"
+                f"  Translation vector : {self.translation_vector}\n"
+                f"────────────────────────────────────────────────")
             # Translate the RTMesh
-            print(f"Translation vector for RTMesh with index {moved_mesh_idx}: {self.translation_vector}") # Print, because more often than not we will want to make note of this vector and use it to programatically translate the mesh for good
             self.rtmeshes[moved_mesh_idx].translate(self.translation_vector)
             # This updates the pyvista surface used to create the vedo vmesh, so we need to update it
             new_vmesh = vedo.Mesh(self.rtmeshes[moved_mesh_idx].pyvista_surface).c("silver").lw(0.1)
@@ -414,9 +418,26 @@ class SceneVisualiser:
 # SEAM SELECTOR/SPLITTER FOR UV UNWRAPPING
 # ================================================================================
 
+# TO DO / ROOM FOR IMPROVEMENT:
+# 1. Consider tinkering SeamSelector so that meshes can be swapped within a single
+# instance like in BlenderUnwrapper instead of having to spawn one for each
+# mesh.
+#   => Can probably re-use some of the code for that from SceneVisualiser (written much later)
+# 2. Better CSV export:
+#   2.1 It currently asks for output filename in the terminal with SeamSelector displayed
+#   => A bit clunky
+#   => You cannot specify the directory, just the filename. Which works, but again, not ideal.
+#   2.2. Add the option to specify the separator, so the file can be viewed in Excel
+#   without breaking (currently has to be hard-coded). Otherwise has to be another CSV viewer.
+# 3. Better way to handle seams/temporary seams while maintaining the undo/redo ability, but
+# without having multiple nested lists. Although it does work and this part is not performance critical,
+# so tbd later in the future.
+
 # Constants for the plotter
 
 # Create instructions for the user. Dicts, so it is easier to modify if needed
+# Keypresses are non-capital on purpose, because for some of those in capital letters vedo has
+# its own built-in callbacks, so the distinction matters
 INSTRUCTIONS_EDGE_ON = {
     "LMB": "LMB: Select nodes to create the edge (and move mesh freely)",
     "RMB": "RMB: Unselect the last node",
@@ -569,7 +590,9 @@ class SeamSelector:
         if (point_id not in self.selected_node_indices) or (self.selected_node_indices[-1] != point_id):
             # if pt_id not in selected_node_indices: # Expanded to allow creation of closed boundaries
             self.selected_node_indices.append(point_id)
-            print(f"Selected node indices after clicking: {self.selected_node_indices}")
+            print(f"\n─── Selected node indices after clicking ─────\n"
+                f"{self.selected_node_indices}\n"
+                f"────────────────────────────────────────────────")
             # Highlight the selected node with a red sphere
             node_marker = vedo.Sphere(point_coords, r=self.v_mesh.diagonal_size() / 100, c="red")
             self.visual_markers.append(node_marker)
@@ -647,7 +670,7 @@ class SeamSelector:
     def _save_seam_points(self, event) -> None:
         """
          Saves the selected seam points as an edge on the S key press. Saved seams cannot be modified.
-         NB: Currently, the seam points are saved as a list of lists of node IDs, which is not ideal, but it allows for the ability to undo selections and save multiple seams before exporting
+         NB: Currently, the seam points are saved as a list of lists of node IDs, which is not ideal, but it allows to undo selections and save multiple seams before exporting.
          """
         if event.keypress.lower() == "s":
             if len(self.selected_node_indices) < 2:
@@ -661,12 +684,13 @@ class SeamSelector:
                     one_seam.append(node_id)
             self.seams.append(one_seam)
             # seams.append(temp_seams.copy())
-            random_color = list(
-                np.random.random(size=3) * 256)  # Random color to distinguish between different saved edges
+            random_color = list(np.random.random(size=3) * 256)  # Random color to distinguish between different saved edges
             for marker in self.visual_markers:
                 marker.c(random_color)
             self.plotter.render()
-            print(f"Saved seam points: {self.seams}")
+            print(f"\n─── Saved seam points: ──────────────────────\n"
+                f"{self.seams}\n"
+                f"────────────────────────────────────────────────")
             self.selected_node_indices.clear()
             self.visual_markers.clear()
             self.temp_seams.clear()
@@ -700,7 +724,8 @@ class SeamSelector:
 
     def _print_on_close(self, event) -> None:
         """
-        Prints the final seam node indices on the Q or ESC key press, which also closes the plotter. The seams are saved in the RTMesh object, so they can be used later in the workflow.
+        Saves the seams in the RTMesh object, and prints the final seam node indices on the Q or ESC key press,
+        which also closes the plotter.
         """
         if event.keypress.lower() == "q" or event.keypress.lower() == "esc":
             self.plotter.close()
@@ -716,7 +741,7 @@ class SeamSelector:
             if len(self.seams) == 0:
                 print("No seams to export")
                 return
-            base_dir = Path.cwd() / "pyvale-output"
+            base_dir = Path.cwd() / "pyvale-output" # TO DO: un-hardcode this
             # Could also do this with tkinter to open file explorer and let the user select; didn't do it to avoid extra dependencies (and not sure how this would work on Linux)
             filename = input("Enter output filename (without the extension) or leave empty to keep it as 'seams.csv': ")
             if filename == "":
@@ -726,6 +751,7 @@ class SeamSelector:
             #for col in temp_df.columns:
             #    temp_df[col] = temp_df[col].astype("Int64")
             temp_df.to_csv(filepath, header=False, index=False) # Use sep=";" if viewing in Excel as otherwise it stacks the data in one cell
+            print(f"Exported seams to {filepath}")
 
     def import_seams_and_run(self, filepath: str) -> None:
         """
