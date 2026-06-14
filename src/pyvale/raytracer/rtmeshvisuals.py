@@ -18,6 +18,9 @@ from pyvale.raytracer.rtmesh import RTMesh
 # ================================================================================
 # SCENE VISUALISER
 # ================================================================================
+# TO DO:
+# Add the option to display a specific timestep, so users can make sure that the mesh is still within FOV
+
 SCENE_VIS_FONT_SIZE = 0.6
 # Text display for the plotter
 

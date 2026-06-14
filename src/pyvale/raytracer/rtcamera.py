@@ -27,13 +27,18 @@ class Camera:
     
     
 
-    def __init__(self, image_width: int, image_height: int, camera_center: np.ndarray = np.array([0.0, 0.0, 0.0]), point_camera_target: np.ndarray = np.array([0, 0, -1]),
-                 angle_vertical_view: float = 90.0, focal_length: float = 0.0, angle_cone: float = 0.0):
+    def __init__(self, image_width: int,
+                 image_height: int,
+                 camera_center: np.ndarray = np.array([0.0, 0.0, 0.0]),
+                 point_camera_target: np.ndarray = np.array([0, 0, -1]),
+                 angle_vertical_view: float = 90.0,
+                 focal_length: float = 0.0,
+                 angle_cone: float = 0.0):
         # Defining camera parameters
         self.image_width: int = image_width
         self.image_height: int = image_height
-        self.camera_center: np.ndarray = camera_center
-        self.point_camera_target: np.ndarray = point_camera_target
+        self.camera_center: np.ndarray = np.asarray(camera_center, dtype=np.float64) # Convert in case user inputs sth like np.array([0.0, 0.0, 410]) because then it will throw an error due to lack of floating point
+        self.point_camera_target: np.ndarray = np.asarray(point_camera_target, dtype=np.float64)
         self.angle_vertical_view: float = radians(angle_vertical_view)  # Assume angle_vertical_view is in degrees, so convert to radians. It determines the FOV
         self.vector_view_up: np.ndarray = np.array([0.0, 1.0, 0.0]) # View up vector orthogonal to basis_vector_right. Defines sideways tilt. Value can be changed, this is the default for the camera to be straight.
         # Parameters for Depth of Field (thin lens approximation)

@@ -281,6 +281,35 @@ class RTMesh:
         # Update the rtmesh object
         self.node_coords_over_time = node_coords_over_time
 
+    def add_temporal_displacement(self, displacement_data: np.ndarray) -> None:
+        """
+        Manually adds the temporal displacement to an RTMesh object from the provided array, and updates the timestep count.
+
+        Note that it assumes that the displacement data was generated in the desired world units (or manually rescaled).
+
+        Parameters:
+        -----------
+        displacement_data: np.ndarray
+            The temporal displacement data. The expected shape is (timestep_count, node_count, 3).
+        
+        Raises:
+        -------
+        ValueError:
+            If the temporal displacement is for the wrong number of nodes.
+        """
+        timestep_count, node_count, _ = displacement_data.shape
+        # Check if the data has the correct shape
+        if node_count != self.node_count:
+            raise ValueError(f"The temporal displacement is for the wrong number of nodes. It has data for {node_count} nodes, but the mesh has {self.node_count} nodes.")
+        base_position = self.node_coords
+        node_coords_over_time = np.ndarray(shape=(timestep_count, node_count, COORDS_PER_NODE))
+        node_coords_over_time[0] = base_position
+        for timestep in range(1, timestep_count): # 0 is just (0,0) so skip that
+            node_coords_over_time[timestep] = base_position + displacement_data[timestep]
+        self.node_coords_over_time = node_coords_over_time
+        self.timestep_count = timestep_count
+        print(f"Successfully appended temporal displacement to RTMesh. Current timestep count: {self.timestep_count}.")
+
     def _compute_average_element_length(self) -> float:
         """
         Computes the average element edge length for validating thickness for shells and mesh scale.
@@ -295,9 +324,19 @@ class RTMesh:
         float
             The average element edge length.
         """
-
         pv_temp = self.pyvista_surface.compute_cell_sizes(area = True)
         avg_element_length = np.mean(pv_temp.cell_data['Area'])
+
+        # This only ever happened with the temporary workaround in simdata_csv_to_rtmesh and might, or might not be a render-breaking issue
+        # => Just warn the user, but do not throw an error
+        if not np.any(pv_temp.cell_data['Area']):
+            print("WARNING: Average element area/length evaluated to 0.0 for all mesh elements." \
+            "This likely indicates that it either degenerate, not a surface mesh, or there is an issue with the PyVista surface." \
+            "\n Please use rtmesh_name.pyvista_surface.plot() to investigate the issue.")
+            # Estimate using the first element instead (should be ok unless there is a large difference between mesh element sizes)
+            # We need a ballpark value to validate the element length 
+            avg_element_length = np.abs(self.node_coords[0,1] - self.node_coords[0,0]) 
+
         return avg_element_length
     
     def _set_element_length(self, element_length: float) -> None:
@@ -310,7 +349,7 @@ class RTMesh:
             If the element length is too small.
         """
         if element_length < 1e-5:
-            raise ValueError("Element size {element_length} is too small. Consider changing the world units to a larger magnitude.")
+            raise ValueError(f"Element size {element_length:.5f} is too small. Consider changing the world units to a larger magnitude.")
         else:
             self.avg_element_length = element_length
     
@@ -744,7 +783,8 @@ class RTMesh:
             self.texture = surface_fill
 
     def set_custom_uvs(self, uv_coords: np.ndarray = None,
-                       face_mapping: np.ndarray = None) -> None:
+                       tri_face_mapping: np.ndarray = None,
+                       triangulated = False) -> None:
         """
         Allows user to set custom UV coordinates for texture mapping.
 
@@ -752,12 +792,16 @@ class RTMesh:
         -----------
         uv_coords: np.ndarray
             The UV coordinates to set for the mesh. The expected format can be either:
-            - (new_node_count, 2): Standard UV format where each row corresponds to a unique node in the mesh. The face_mapping argument is required in this case to map the UVs to the correct nodes in the triangulated mesh.
+            - (triangulated_node_count, 2): Standard UV format where each row corresponds to a unique node in the mesh. The tri_face_mapping argument is required in this case to map the UVs to the correct nodes in the triangulated mesh.
+            - (node_count, 2): The same standard UV format, but the UVs are already mapped back to the original element nodes (e.g., QUAD4). No mapping needed.
             - (element_count, nodes_per_element, 2): Expanded UV format where each row corresponds to a unique element in the mesh and each column corresponds to a node in that element. This format is already expanded to match
             the triangulated mesh, so the face_mapping argument is not required in this case.
-        face_mapping: np.ndarray
+        tri_face_mapping: np.ndarray
             An array of shape (element_count, nodes_per_element) that maps the original nodes of the mesh to the nodes in the triangulated mesh. This is required if the uv_coords are provided in standard format (new_node_count, 2)
             to correctly assign UVs to the triangulated mesh nodes. The values in face_mapping should be indices that correspond to the rows in uv_coords.
+        triangulated: bool
+            Specifies if the passed UVs are for a triangulated mesh and require mapping back via tri_face_mapping, or not.
+            
         Raises:
         -------
         ValueError:
@@ -773,16 +817,22 @@ class RTMesh:
         if uv_coords_shape[-1] != 2:
             raise ValueError(f"Invalid uv coordinate array shape: {uv_coords.shape}. UV coordinates must be of shape (new_node_count, 2) or (element_count, nodes_per_element, 2).")
 
-        if uv_coords.ndim == 2: # UVs in standard format (u,v) - we need to know the face mapping to use that
-            if face_mapping is None:
-                raise ValueError("Face mapping is required to set custom UVs.")
-            if face_mapping.shape != (self.element_count, self.nodes_per_element):
-                raise ValueError(f"Face mapping must be of shape (element_count, nodes_per_element). Got {face_mapping.shape}. If you triangulated your mesh independently, you need to map the uvs back to the original surface mesh.")
-            self.uvs = np.ascontiguousarray(uv_coords[face_mapping], dtype=np.float64)
+        if uv_coords.ndim == 2: # UVs in standard format (u,v)
+            if triangulated: # Pass UVs from a triangulated mesh - we need tri_face_mapping to match them to the original nodes of the mesh
+                if tri_face_mapping is None:
+                    raise ValueError("Face mapping is required to set custom UVs.")
+                if tri_face_mapping.shape != (self.element_count, self.nodes_per_element):
+                    raise ValueError(f"Face mapping must be of shape (element_count, nodes_per_element). Got {tri_face_mapping.shape}. If you triangulated your mesh independently, you need to map the uvs back to the original surface mesh.")
+                self.uvs = np.ascontiguousarray(uv_coords[tri_face_mapping], dtype=np.float64)
+            else: # (u,v), but for a non-triangulated mesh, so we can just use connectivity
+                if uv_coords_shape[0] != self.node_count:
+                    raise ValueError(f"UV coordinates must be of shape (node_count, 2). Got {uv_coords.shape}.")
+                self.uvs = np.ascontiguousarray(uv_coords[self.connectivity], dtype=np.float64)
         elif uv_coords.ndim == 3: # UVs in expanded format (element_count, nodes_per_element, 2)
             if uv_coords_shape[0] != self.element_count or uv_coords_shape[1] != self.nodes_per_element: # Check that the dimensions match expectations
                 raise ValueError(f"UV coordinates must be of shape (element_count, nodes_per_element, 2). Got {uv_coords.shape}. If you triangulated your mesh independently, you need to map the uvs back to the original surface mesh.")
             self.uvs = np.ascontiguousarray(uv_coords, dtype=np.float64)
+        print(f"Successfully set custom UVs. UVs shape: {self.uvs.shape} for {self.element_count}×{self.nodes_per_element} elements.")
 
     def export_uvs(self, filepath: Path, expanded: bool = True) -> None:
         """
@@ -1250,7 +1300,6 @@ class RTMesh:
         plt.interactive()
         plt.close()
         self.uvs = self.uv_new.reshape(self.uvs.shape) # Save new UVs
-
 
 # ================================================================================
 # POSITIONING HELPERS
@@ -1928,7 +1977,7 @@ def create_render_mesh_higher_order(sim_data: mh.SimData,
                       pos_world=None, # We set these to none because RTMesh has its own workflow that positions meshes a bit more intuitively in the scene
                       rot_world=None), pv_grid
 
-def simdata_to_rtmesh(pypath: Path,
+def simdata_to_rtmesh(source, # Path OR SimData; left unspecified because for that we need to import SimData and in new pyvale this is dataio, which has parts that don't always agree with the below pipeline, so left unhinted for now  
                     field_components: tuple = ("disp_x", "disp_y", "disp_z"),
                     fields_to_render: tuple = ("disp_y", "disp_x"),
                     spatial_dim: sens.EDim = sens.EDim.TWOD,
@@ -1941,12 +1990,13 @@ def simdata_to_rtmesh(pypath: Path,
                     rotation_angle_deg: float = 0.0,
                     rotation_pivot: np.ndarray | None = None) -> RTMesh | list[RTMesh]:
     """
-    Converts a SimData object to an RTMesh.
+    Converts a SimData object to an RTMesh, either from a given path or from a SimData object.
+
 
     Parameters:
     -----------
-    pypath: Path
-        The path to the mesh to convert.
+    source: Path | SimData
+        The path to the mesh to convert or the SimData object. If using SimData, it is expected that the surface has not been extracted.
     fields_component: tuple
         Component fields.
     fields_to_render: tuple
@@ -1990,7 +2040,10 @@ def simdata_to_rtmesh(pypath: Path,
         world_rotation = make_axis_rotation(rotation_axis, rotation_angle_deg, degrees=True)
 
     # Convert the simulation output into a SimData object
-    sim_data = mh.ExodusLoader(pypath).load_all_sim_data()  # Pyvale 2026.1.0
+    if isinstance(source, Path):
+        sim_data = mh.ExodusLoader(source).load_all_sim_data()  # Pyvale 2026.1.0
+    else:
+        sim_data = source
     # Scale the coordinates and displacement fields to mm - Deprecated in this pipeline, it makes positioning counterintuitive
     #sim_data = sens.scale_length_units(scale=scale, sim_data=sim_data, disp_keys=field_components)
     #render_mesh, pv_surf = sens.create_render_mesh(sim_data, fields_to_render, sim_spat_dim=spatial_dim,
@@ -2008,9 +2061,9 @@ def simdata_to_rtmesh(pypath: Path,
 
     # World positioning - handle nodal coordinates (scaling, positioning)
     # IMPORTANT: node_coords and pyvista_surface.points are transformed independently (with the same pivot/factor) inside fit_size/rotate/translate,
-    # so they MUST be backed by separate buffers. Both np.ascontiguousarray(...) on a contiguous array AND PyVista's grid.points = arr setter return
+    # so they MUST be backed by separate buffers. Both np.ascontiguousarray on a contiguous array AND PyVista's grid.points = array setter return
     # memory-sharing views, so we make explicit copies to fully decouple node_coords from render_mesh.coords and from the grid; otherwise the first
-    # in-place write also mutates the grid, which then gets transformed a second time (e.g. scaled by factor**2).
+    # in-place write also mutates the grid, which then gets transformed a second time (e.g. scaled by factor**2)
     coords_file = np.array(render_mesh.coords[:, :COORDS_PER_NODE], dtype=np.float64) # Independent copy of the SimData nodal coordinates
 
     # Create RTMesh early so _orient_in_world can record transforms directly onto it
@@ -2025,8 +2078,7 @@ def simdata_to_rtmesh(pypath: Path,
     rtmesh.connectivity = np.ascontiguousarray(render_mesh.connectivity, dtype=np.uint64)
     # The interpolated pv_grid and render_mesh.coords are the same node set in the same order, but they may not be bit-identical (interpolation, dtype).
     # Sync the grid to node_coords up front so the in-place transforms applied by _orient_in_world keep pyvista_surface and node_coords in lockstep
-    # (matching the proven coords-version behaviour where pv_grid.points is overwritten with the oriented coordinates). Assign a COPY so the grid does
-    # not share memory with node_coords (the PyVista points setter aliases its input).
+    # Assign a COPY so the grid does not share memory with node_coords (the PyVista points setter aliases its input)
     rtmesh.pyvista_surface.points = np.array(rtmesh.node_coords, dtype=np.float64)
 
     # Fit the mesh size, rotate, and place in the world
@@ -2510,3 +2562,225 @@ def any_mesh_to_rtmesh(pypath: Path,
         return create_rtmesh(rtmesh, render_mesh = None)
     else:
         raise IOError(f"Detected mesh with more than 2 surfaces: {chart_count}. This is currently not supported.") # More than 2 meshes - cannot guarantee what it is or why
+    
+# ================================================================================
+# ANIMATION HELPERS
+# ================================================================================
+
+def create_rigid_linear_translation(node_count: int,
+                            target_timestep_count: int = 2,
+                            final_displacement: tuple[float,...] | float = (0.0, 0.0, 0.0),
+                            direction: tuple[Axis,...] | Axis = (Axis.X, Axis.Y, Axis.Z)) -> np.ndarray:
+    """
+    Creates a rigid linear translation of nodal displacements along specified axes that can be applied to RTMesh objects.
+
+    Note that if target_timestep_count = 1, the mesh is static, so the displacement is zero.
+
+    Parameters:
+    -----------
+    node_count: int
+        The number of nodes in the mesh.
+    target_timestep_count: int
+        The target number of timesteps/frames for the animation.
+    final_displacement: tuple[float, ...] | float
+        Tuple representing the final displacement values along the specified motion axes.
+        - Single value => The same value is applied to all direction axes.
+        - Multiple values => Each value is interpreted as the final value for the given axes.
+    direction: tuple[Axis,...] | Axis
+        Axes along which the displacement is applied.
+
+    Returns:
+    --------
+    np.ndarray
+        Shaped (target_timestep_count, node_count, COORDS_PER_NODE) with the nodal displacements over the desired timestep count.
+    
+    Raises:
+    -------
+    ValueError:
+        If target_timestep_count is < 1.
+    """
+    # As warned in the docstring, if target timestep count is 1, we just return zero displacement
+    if target_timestep_count == 1:
+        return np.zeros((node_count, COORDS_PER_NODE))
+    elif target_timestep_count < 1:
+        raise ValueError("target_timestep_count must be >= 1.")
+    
+    # Normalize input to tuple
+    # This is in case we have single direction axis (e.g., (Axis.X)) and displacement  because for this to work, we would need to type (Axis.X,) and not all users might know about that
+    if isinstance(direction, Axis):
+        direction = (direction,)  
+    if isinstance(final_displacement, (int, float)): # In case int is passed despite asking for floats
+        final_displacement = (final_displacement,)
+
+    # Process the displacement input
+    # If user passed single max displacement, assume it applies to all axes uniformly
+    max_displacement = np.zeros(COORDS_PER_NODE) # Zero displacement in (x,y,z)
+    if len(final_displacement) == 1:
+        for axis in direction:
+            max_displacement[axis.value] = final_displacement[0]
+    elif len(final_displacement) > 1:
+        # We expect e.g., max_displacement = (1.0, 2.0) if direction = (Axis.X, Axis.Y), etc.
+        if len(final_displacement) != len(direction):
+            raise ValueError("The number of displacement axes and the number of specified displacement values must match (i.e., one value per axis).")
+        for i, axis in enumerate(direction):
+            max_displacement[axis.value] = final_displacement[i]
+
+    # Create nodal displacements via linear interpolation between [0, max_displacement]
+    # Pre-allocate array
+    nodal_displacements = np.zeros((target_timestep_count, node_count, COORDS_PER_NODE))
+    # t=0 stays zero (mesh at rest); t=target_timestep_count-1 reaches max_displacement
+    # np.linspace produces target_timestep_count evenly spaced scalars in [0, 1]
+    timesteps = np.linspace(0.0, 1.0, target_timestep_count)  # shape: (T,)
+
+    # max_displacement is (3,); reshape to (1, 3) so it aligns with the last two axes.
+    # timesteps reshaped to (timesteps, 1) so it aligns with the first two non-node axes.
+    nodal_displacements[:, :, :] = (timesteps[:, np.newaxis] # (timesteps, 1)
+    * max_displacement[np.newaxis, :] # (1, 3)
+    )[:, np.newaxis, :] # (timesteps, 1, 3) => broadcasts to (timesteps, nodes, 3) via pre-alloc shape
+
+    return nodal_displacements 
+
+# ================================================================================
+# MANUAL SIMDATA READERS
+# Temporary until SimData pathways fully cooperate
+# ================================================================================
+def _read_connectivity(filepath: Path) -> np.ndarray:
+    """
+    Returns array of shape (element_count, nodes_per_element).
+    Each row is an element; each column is a node index.
+    """
+    return np.ascontiguousarray(np.loadtxt(filepath, delimiter=",", dtype=np.int64))
+
+
+def _read_coords(filepath: Path) -> np.ndarray:
+    """
+    Returns array of shape (node_count, 3).
+    Each row is a node; columns are x, y, z.
+    """
+    return np.ascontiguousarray(np.loadtxt(filepath, delimiter=",", dtype=np.float64))
+
+
+def _read_uvs(filepath: Path) -> np.ndarray:
+    """
+    Returns array of shape (node_count, 2).
+    Each row is a node; columns are u, v.
+    """
+    return np.ascontiguousarray(np.loadtxt(filepath, delimiter=",", dtype=np.float64))
+
+def _read_nodal_displacements(filepath_x: Path,
+    filepath_y: Path,
+    filepath_z: Path,) -> np.ndarray:
+    """
+    Reads three displacement component files and stacks them into a single array.
+
+    Each file has shape (node_count, timestep_count) — rows are nodes, columns are timesteps.
+    Returns array of shape (timestep_count, node_count, 3), where the last axis is [dx, dy, dz].
+    """
+    # atleast_2d in case we have 1 timestep, although we should not
+    disp_x = np.atleast_2d(np.loadtxt(filepath_x, delimiter=",", dtype=np.float64)) # (node_count, timestep_count)
+    disp_y = np.atleast_2d(np.loadtxt(filepath_y, delimiter=",", dtype=np.float64))
+    disp_z = np.atleast_2d(np.loadtxt(filepath_z, delimiter=",", dtype=np.float64))
+
+    # Stack along new last axis => (node_count, timestep_count, 3), then transpose axes
+    nodal_displacements = np.stack([disp_x, disp_y, disp_z], axis=-1) # (node_count, timestep_count, 3)
+    nodal_displacements = nodal_displacements.transpose(1, 0, 2) # (timestep_count, node_count, 3)
+
+    return nodal_displacements
+
+def _gen_pv_grid(connectivity: np.ndarray, coords: np.ndarray, spatial_dim: sens.EDim):
+    """
+    Temporary version of _gen_pyvista_grid that does not use SimData.  
+    """
+    (element_count,nodes_per_element) = connectivity.shape
+    flat_connect = np.array([],dtype=np.int64)
+    cell_types = np.array([],dtype=np.int64)
+
+    from pyvale.sensorsim.fieldconverter import _get_pyvista_cell_type
+    cell_type = _get_pyvista_cell_type(nodes_per_element, spatial_dim)
+    assert cell_type is not None, ("Cell type with dimension " +
+            f"{spatial_dim} and {nodes_per_element} nodes per element not " +
+            "recognised.")
+    connectivity = connectivity.flatten()
+    idxs = np.arange(0, element_count *nodes_per_element, nodes_per_element, dtype=np.int64)
+
+    connectivity = np.insert(connectivity, idxs, nodes_per_element)
+
+    cell_types = np.hstack((cell_types, np.full(element_count, cell_type)))
+    flat_connect = np.hstack((flat_connect, connectivity),dtype=np.int64)
+
+    cells = flat_connect
+
+    points = coords
+    pv_grid = pv.UnstructuredGrid(cells, cell_types, points)
+    return pv_grid
+
+def simdata_csv_to_rtmesh(directory: Path,
+                        spatial_dim: sens.EDim = sens.EDim.TWOD,
+                        world_position: np.ndarray = None,
+                        world_rotation: Rotation = None,
+                        target_size: float | None = None,
+                        size_axis: Axis | None = None,
+                        anchor: Anchor = Anchor.CENTER,
+                        rotation_axis: "Axis | np.ndarray | None" = None,
+                        rotation_angle_deg: float = 0.0,
+                        rotation_pivot: np.ndarray | None = None) -> RTMesh:
+    """
+    Loads all SimData CSVs needed for simple, preliminary tests and packs them into an RTMesh, where only connectivity, coords, uvs,
+    and displacements are needed.
+
+    Assumes that the filenames are always the same (they should be), there are no embedded volumes, etc.
+
+    Nb4: it doesn't extract surface meshes, so while they should still render correctly, it will take considerably longer.
+    This is because extract_surf_mesh doesn't work with TRI6, and the entire purpose of this function is to be able to 
+    read in and render TRI6 SimData-based meshes for the time being (or other cases of something being temperamental during development).
+    """
+    # Read data from the specified directory
+    directory = Path(directory)
+    connectivity = _read_connectivity(directory / "connect.csv")
+    coords = _read_coords(directory / "coords.csv") * 1000
+    uvs = _read_uvs(directory / "uvs.csv")
+    nodal_displacements = _read_nodal_displacements(
+        directory / "field_disp_x.csv",
+        directory / "field_disp_y.csv",
+        directory / "field_disp_z.csv")
+    
+    # Infer remaining data
+    element_node_count = ElementNodeCount(connectivity.shape[1])
+    node_count = coords.shape[0]
+    element_count = connectivity.shape[0]
+    pv_grid = _gen_pv_grid(connectivity, coords, spatial_dim)
+    print(pv_grid)
+
+    # Set world position
+    if world_position is None:
+        world_position = np.array((0.0, 0.0, 0.0), dtype=np.float64)
+
+    # Create RTMesh early so _orient_in_world can record transforms directly onto it
+    rtmesh = RTMesh()
+    try:
+        rtmesh.nodes_per_element = ElementNodeCount(element_node_count)
+    except ValueError:
+        print(f"Error: Invalid nodes_per_elem value: {element_node_count}.")
+    rtmesh.node_coords = coords
+    rtmesh.pyvista_surface = pv_grid
+    rtmesh.spatial_dimensions = spatial_dim
+    rtmesh.connectivity = connectivity
+    rtmesh.node_count = node_count
+    rtmesh.element_count = element_count
+
+    # Fit the mesh size, rotate, and place in the world; transforms stored on rtmesh
+    rtmesh._orient_in_world(world_position=world_position,
+        world_rotation=world_rotation,
+        target_size=target_size,
+        size_axis=size_axis,
+        anchor=anchor,
+        rotation_pivot=rotation_pivot)
+
+    # Helper to display mesh with node indices in case there are winding issues:
+    #display_pyvista_grid_with_indices(rtmesh.pyvista_surface)
+
+    rtmesh = create_rtmesh(rtmesh, render_mesh = None)
+    # Manually set the extracted values for node displacements and custom UVs
+    rtmesh.add_temporal_displacement(nodal_displacements) # Add extracted displacements
+    rtmesh.set_custom_uvs(uvs)
+    return rtmesh

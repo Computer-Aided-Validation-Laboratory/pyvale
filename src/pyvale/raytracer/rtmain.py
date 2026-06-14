@@ -189,4 +189,3 @@ def render_scene(image_height: int,
                      shading_type,
                      output_format,
                      grayscale)
-    
