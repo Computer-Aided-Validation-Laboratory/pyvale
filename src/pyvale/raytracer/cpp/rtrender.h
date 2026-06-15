@@ -46,8 +46,10 @@ enum class RenderColor{
 
 enum class OutputType{
     PPM = 0,
-    TIFF = 1
-    //NP_BUFFER = 2 // Not available yet
+    TIFF = 1,
+    BMP_24BIT = 2,
+    BMP_8BIT = 3
+    //NP_BUFFER = 4 // Not available yet
 };
 
 // ================================================================================
@@ -84,6 +86,52 @@ namespace outputwriter{
         uint16_t type,
         uint32_t count,
         uint32_t value);
+
+    /**
+     * @brief Saves the stored pixel buffer in BMP (24-bit) format.
+     * 
+     * This should be fine for both RGB and grayscale renders without any losses.
+     * 
+     * 24-bit format => 8 bits per channel (R,G,B) => 256 shades per channel.
+     * 
+     * Adds ".bmp" extension to the passed filepath, opens the file, writes appropriate tags,
+     * converts the buffer and writes it to the file.
+     * 
+     * @param[in] pixel_buffer (std::vector<uint8_t>) Buffer storing pixel colour values ready to write, either in RGB or grayscale.
+     * @param[in] image_height (const int) Output image height
+     * @param[in] image_width (const int) Output image width
+     * @param[in] output_filepath (std::filesystem::path&) Filepath for the output image that will be written into, already storing the name
+     *            of the image, but without extension. For example, /home/user1/pyvale-output/rtimage_1_cam0
+     */
+    void saveBMP_24bit(const std::vector<uint8_t>& pixel_buffer,
+        const int image_height,
+        const int image_width,
+        std::filesystem::path& output_filepath);
+
+
+    /**
+     * @brief Saves the stored pixel buffer in BMP (8-bit) format.
+     * 
+     * This is intended for grayscale renders only.
+     * 
+     * 24-bit format => 1 byte per pixel to represent colours between [0, 255]
+     * => Needs to include a colour table to display colours
+     * => Each 1-byte pixel is an index poinitng to a specific 24-bit RGB colour stored in this table.
+     * 
+     * Adds ".bmp" extension to the passed filepath, opens the file, writes appropriate tags,
+     * converts the buffer and writes it to the file.
+     * 
+     * @param[in] pixel_buffer (std::vector<uint8_t>) Buffer storing pixel colour values ready to write, either in RGB or grayscale.
+     * @param[in] image_height (const int) Output image height
+     * @param[in] image_width (const int) Output image width
+     * @param[in] output_filepath (std::filesystem::path&) Filepath for the output image that will be written into, already storing the name
+     *            of the image, but without extension. For example, /home/user1/pyvale-output/rtimage_1_cam0
+     */
+    void saveBMP_8bit(const std::vector<uint8_t>& pixel_buffer,
+        const int image_height,
+        const int image_width,
+        std::filesystem::path& output_filepath);
+
 
     /**
      * @brief Saves the stored pixel buffer in TIFF format.
@@ -129,26 +177,70 @@ namespace outputwriter{
 // ================================================================================
 // Return ray color 
 // ================================================================================
+namespace renderer{
+    /// @brief Maximum depth for the secondary rays.
+    extern int MAX_DEPTH;
+    extern EiVector3d background_color;
 
-/**
- * @brief Processes a single primary primary ray to find its corresponding pixel colour via iterative tracking of secondary rays.
- * 
- * Creates a thread-safe stack of RayState objects, then dispatches to intersect_TLAS to find the nearest intersection.
- * Adds a blue sky colour if there is no intersection. Otherwise, it checks and applies material absorption,
- * and verifies the InteriorList for nested dielectrics where applicable, to evaluate if the hit is true or false.
- * Finally, dispatches to the appropriate material colour and adds the output iteratively to the stack.
- * The stack is traversed until empty, terminated early due to Russian rulette, or the MAX_DEPTH is reached.
- * 
- * @param[in] primary_ray (const Ray&) The primary Ray with direction and origin determined by its corresponing pixel in render_image.
- * @param[in] scene_ri (const double) Refractive index of the scene (ambient medium) which is used as a fallback value in shading.
- * @param[in] TLAS (const &TLAS) Top level acceleration structure (BVH) storing smaller BVHs for each mesh in its nodes.
- * 
- * @return (EiVector3d) A 3D, row-major Eigen vector storing the final colour of the pixel in the (r,g,b) format.
- * 
- */
-EiVector3d return_ray_color_stack(const Ray& primary_ray,
-    const double scene_ri,
-    const TLAS& TLAS);
+    /**
+     * @brief Returns a procedural sky color for a ray direction.
+     * 
+     * Produces a simple vertical white-to-blue gradient based on the y-component
+     * of the ray direction.
+     * 
+     * Note: This has been used for a very long time as the default background (stemming
+     * from Ray Tracing in One Weekend), but realistically, we probably do not need that
+     * for a virtual laboratory.
+     * Replaced with a solid background colour; feel free to remove it, or let users 
+     * pick between this and a solid background, etc.
+     * 
+     * @param[in] ray (const Ray&) Input ray
+     * 
+     * @return (EiVector3d) RGB sky color corresponding to the ray direction.
+     */
+    inline EiVector3d ray_blue_sky(const Ray& ray){
+        double a = 0.5 * (ray.direction(1) + 1.0);
+        static EiVector3d white, blue;
+        white << 1.0, 1.0, 1.0;
+        blue << 0.5, 0.7, 1.0;
+        return (1.0 - a) * white + a * blue;
+    }
+
+    /**
+     * @brief Processes a single primary primary ray to find its corresponding pixel colour via iterative tracking of secondary rays.
+     * 
+     * Creates a thread-safe stack of RayState objects, then dispatches to intersect_TLAS to find the nearest intersection.
+     * Adds a blue sky colour if there is no intersection. Otherwise, it checks and applies material absorption,
+     * and verifies the InteriorList for nested dielectrics where applicable, to evaluate if the hit is true or false.
+     * Finally, dispatches to the appropriate material colour and adds the output iteratively to the stack.
+     * The stack is traversed until empty, terminated early due to Russian rulette, or the MAX_DEPTH is reached.
+     * 
+     * @param[in] primary_ray (const Ray&) The primary Ray with direction and origin determined by its corresponing pixel in render_image.
+     * @param[in] scene_ri (const double) Refractive index of the scene (ambient medium) which is used as a fallback value in shading.
+     * @param[in] TLAS (const &TLAS) Top level acceleration structure (BVH) storing smaller BVHs for each mesh in its nodes.
+     * 
+     * @return (EiVector3d) A 3D, row-major Eigen vector storing the final colour of the pixel in the (r,g,b) format.
+     * 
+     */
+    EiVector3d return_ray_color_stack(const Ray& primary_ray,
+        const double scene_ri,
+        const TLAS& TLAS);
+
+    /**
+     * @brief Setter for the MAX_DEPTH of the secondary ray bounces.
+     * 
+     * @param[in] max_depth (const int). Desired maximum depth. Higher is needed for refractive materials.
+     */
+    void set_depth(int max_depth);
+
+     /**
+     * @brief Setter for the background colour of the scene.
+     * 
+     * @param[in] color (const EiVector3d&) Desired background colour as an RGB triplet in the [0,1] range.
+     */
+    void set_background(const EiVector3d& color);
+
+}
 
 // ================================================================================
 // render_image template for colour and grayscale
@@ -231,7 +323,7 @@ void render_image(const EiVector3d& camera_center,
                     //static constexpr double MAX_LUM = 10.0; // Tune per scene; hoist this out of the loop if using 
                     //if (lum > MAX_LUM) sample *= MAX_LUM / lum;
                     //pixel_color += sample;
-                    pixel_color += return_ray_color_stack(current_ray, scene_ri, TLAS);
+                    pixel_color += renderer::return_ray_color_stack(current_ray, scene_ri, TLAS);
             
         }
             int px_idx = (i + j * image_width) * 3;

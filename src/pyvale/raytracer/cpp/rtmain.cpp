@@ -54,9 +54,11 @@ void render_scene(const int image_height,
     const std::vector<int>& scene_mesh_priorities,
     const std::vector<int>& scene_mesh_object_types,
     const std::vector<double>& scene_mesh_thickness,
+    const nb::DRef<EiVector3d>& background_color,
     const int texture_sampler,
     const int shading_type,
     const int output_format,
+    const int max_depth,
     const bool grayscale_flag) {
 
     // Register signal handler for Ctrl+C
@@ -68,9 +70,15 @@ void render_scene(const int image_height,
     std::filesystem::path output_filepath;
     std::string filename; // Output image file
     
-    // Set the texture sampling kernel and output writer based on the passed values
+    // Set the texture sampling kernel and 
     texsampler::set(TextureSampler(texture_sampler));
+    // Set the output format
     outputwriter::set(OutputType(output_format));
+    // Set the maximum depth for the secondary rays
+    // Value checks done in Python, so no need to do it here
+    renderer::set_depth(max_depth);
+    renderer::set_background(background_color);
+
 
     // Get the refractive index of the scene (typically air, but in case it is not)
     const int last_index = scene_refractive_indices.size() - 1;
@@ -92,6 +100,7 @@ void render_scene(const int image_height,
         render_function_ptr = &render_image<RenderColor::COLOR>;
     }
 
+
     for (int timestep = 0; timestep < timestep_count; ++timestep){
         //std::chrono::time_point t1_build = std::chrono::high_resolution_clock::now();
         TLAS current_TLAS = build_acceleration_structures(scene_coords_expanded, scene_normals_expanded, scene_face_colors, materials, scene_uvs, scene_textures, scene_surface_types, scene_refractive_indices, scene_mesh_priorities, scene_mesh_object_types, scene_mesh_thickness, shading_type, timestep, timestep_count);
@@ -107,17 +116,17 @@ void render_scene(const int image_height,
             output_filepath = output_directory; // Overwrite it here so we can have a "fresh" base for each image
             output_filepath.append(filename);
             std::cout << "Rendering frame " << (timestep+1) << "/" << timestep_count << std::endl;
-            std::chrono::time_point t1_render = std::chrono::high_resolution_clock::now();
+            //std::chrono::time_point t1_render = std::chrono::high_resolution_clock::now();
             //CALLGRIND_START_INSTRUMENTATION;
             render_function_ptr(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
             if (stop_request) break;
             // Debug function that can be used instead of rendering a full image if we want to shoot and track a single ray
             //mock_ray_shoot(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
             //CALLGRIND_STOP_INSTRUMENTATION;
-            std::chrono::time_point t2_render = std::chrono::high_resolution_clock::now();
+            //std::chrono::time_point t2_render = std::chrono::high_resolution_clock::now();
             
-            std::chrono::duration t_render = std::chrono::duration_cast<std::chrono::milliseconds>(t2_render - t1_render);
-            std::cout << "Render time: " << t_render.count() << " ms \n";
+            //std::chrono::duration t_render = std::chrono::duration_cast<std::chrono::milliseconds>(t2_render - t1_render);
+            //std::cout << "Render time: " << t_render.count() << " ms \n";
         }
 
             //std::chrono::duration t_build = std::chrono::duration_cast<std::chrono::nanoseconds>(t2_build - t1_build);

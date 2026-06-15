@@ -60,16 +60,14 @@ enum class SurfaceType : int {
  * @brief Enum with MaterialType data.
  * 
  * Material types:
- * NOT_DEFINED - Should not get triggered, but if it is, it will default to UNLIT.
  * DIFFUSE - Matte/Lambertian material, e.g., wood.
  * SPECULAR - Material that reflects, e.g., polished metal, mirrors.
  * REFRACTIVE - Material that reflects and refracts, e.g., glass, certain plastics, water.
- * UNLIT - Material for which there are no shading effects applied.
+ * UNLIT - Material for which there are no shading effects applied. Default if not set.
  * 
  * Ensure that these match the enum in Python. Integers used to avoid using strings in C-interface.
  */
 enum MaterialType : int { 
-    NOT_DEFINED = 0,
     DIFFUSE = 1, 
     SPECULAR = 2, 
     REFRACTIVE = 3,

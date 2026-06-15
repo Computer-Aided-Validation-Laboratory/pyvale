@@ -6,7 +6,7 @@
 
 from pathlib import Path
 from pyvale.raytracer.rtscene import *
-from pyvale.raytracer.rtmesh import SurfType
+from pyvale.raytracer.rtmesh import SurfType, MaterialType
 
 from pyvale.raytracer.rtmaincpp import cpp_render_scene # Import C++ backend
 
@@ -49,6 +49,50 @@ def check_uniform_elements(scene: Scene):
     elements_detected = set(scene.nodes_per_element) # Remove duplicates
     return len(elements_detected) == 1 # True if all element types are the same
 
+def set_max_depth(scene: Scene, max_depth: int | None) -> int:
+    """
+    Checks and sets the maximum depth for secondary rays.
+
+    Parameters:
+    -----------
+    scene: Scene
+        The scene to set the maximum depth for.
+    max_depth: int | None
+        The maximum depth for secondary rays.
+
+    Returns:
+    --------
+    int
+        The maximum depth for secondary rays.
+    
+    Raises:
+    -------
+    ValueError:
+        If the maximum depth is less than 1 or greater than 2147483647.
+
+    """
+    if max_depth is None:
+        # Refractive materials => We need more depth
+        if MaterialType.REFRACTIVE.as_int in scene.materials:
+            # More than 3 different priority (nestedness) values => Likely highely nested scenario => Need more depth
+            if len(set(scene.mesh_priorities)) > 3:
+                max_depth = 50
+            # No high nestedness - we should be fine with less
+            else:
+                max_depth = 30
+        # If scene only contains specular and/or diffuse materials, we usually can get away with way less
+        else:
+            max_depth = 15
+        print(f"Maximum depth not set. Automatically set value to {max_depth}.")
+    else: # Check user-defined values
+        if max_depth < 1:
+            raise ValueError("Maximum depth cannot be less than 1.")
+        if max_depth >= 2147483646:
+            raise ValueError("Maximum depth cannot be greater than 2147483646 as it will overflow the integer.")
+        if max_depth > 500: # Warn but do not throw an error, maybe it is a legitimate use (although unlikely)
+            print(f"Maximum depth exceeds 500 - this is very high. Proceed at your own risk.")
+    return max_depth
+
 # ================================================================================
 # MAIN DISPATCHER
 # ================================================================================
@@ -62,7 +106,8 @@ def render_scene(image_height: int,
                  frames_to_render: int = None,
                  texture_sampler: TextureSampler | None = None,
                  shading_type: ShadingType = ShadingType.FLAT,
-                 output_format: OutputType = OutputType.IMG_TIFF,
+                 output_format: OutputType = OutputType.IMG_BMP_8BIT,
+                 max_depth: int | None = None,
                  grayscale: bool = True):
     """
     Performs checks and dispatches the scene to the C++ rendering backend.
@@ -90,6 +135,8 @@ def render_scene(image_height: int,
         The type of shading to use. Can be either FLAT (geometric normals used for shading) or BLENDED (node normals used for shading). Defaults to FLAT.
     output_format: OutputType
         The format of the output image. Can be either IMG_PPM or IMG_TIFF. Defaults to IMG_TIFF.
+    max_depth: int | None
+        Maximum depth for secondary rays. Higher value is recommended for refractive materials. Defaults to None.
     grayscale: bool
         Flag to determine whether the image is to be rendered using grayscale or in colour. Defaults to True.
 
@@ -144,11 +191,14 @@ def render_scene(image_height: int,
     elif shading_type == ShadingType.ANGLE_AVG_BLENDED:
         print("Angle-averaged blended shading selected. Angle-averaged node normals will be used for all elements.")
     
-    if SurfType.TEXTURE in scene.surface_types and grayscale:
+    if SurfType.TEXTURE in scene.surface_types and not grayscale:
         # This will not break the renderer, so just display an information
         print("Please note that colorful textures are currently not supported and they will still be sampled in grayscale.")
 
-    print(f"The output will be written to: {out_directory_path}")
+    # Check and set max depth
+    max_depth = set_max_depth(scene, max_depth)
+    
+
 
     # Select appropriate rendering function based on these booleans to minimize branching in backend rendered if possible
     # Not sure if we will need to implement this yet - BVH builder is still fast with conditional checks (and we run it once per frame), and branching based on element/surface type was moved out of the hot loops
@@ -164,6 +214,8 @@ def render_scene(image_height: int,
     #else:
         # Worst case: mixture of different surface and element types
     #    pass
+
+    print(f"The output will be written to: {out_directory_path}")
     
     cpp_render_scene(image_height,
                      image_width,
@@ -185,7 +237,9 @@ def render_scene(image_height: int,
                      scene.mesh_priorities,
                      scene.mesh_object_types,
                      scene.mesh_thickness,
+                     scene.background_color,
                      texture_sampler,
                      shading_type,
                      output_format,
+                     max_depth,
                      grayscale)

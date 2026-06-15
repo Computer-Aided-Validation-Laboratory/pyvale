@@ -134,15 +134,3 @@ void ray_unlit(const RayState& current_state,
     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.face_color);
     return;
 }
-
-void ray_undefined(const RayState& current_state,
-    HitRecord& intersection_record,
-    const EiVector3d& albedo,
-    std::vector<RayState>& stack,
-    EiVector3d& total_color,
-    const double offset){
-    
-    const EiVector3d blue_sky = ray_blue_sky(current_state.ray); // Early termination - no bounces here anyway
-    total_color += current_state.accumulated_color.cwiseProduct(blue_sky);
-    return;
-}

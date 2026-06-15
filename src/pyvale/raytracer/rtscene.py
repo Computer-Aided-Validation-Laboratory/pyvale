@@ -24,7 +24,9 @@ class RenderType(Enum):
 class OutputType(IntEnum):
     IMG_PPM = 0
     IMG_TIFF = 1
-    #NP_BUFFER = 2 # Not implemented yet
+    IMG_BMP_24BIT = 2
+    IMG_BMP_8BIT = 3
+    #NP_BUFFER = 4 # Not implemented yet
 
 # Enum to specify the texture sampler type
 # Must match the enum in rtcolorsampling.h on the C++ side
@@ -79,7 +81,9 @@ class Scene:
     scene_ri: float = 1.0003 # Refractive index of the material filling the scene. 1.0 set as default for air
     timestep_count: int = 1 # Number of timesteps with the default value being 1 for static images
     mesh_count: int = 0 # Store the number of meshes in the scene simply because it is used quite a lot
-
+    background_color: np.ndarray = field(default_factory=lambda:np.ones(3) * 0.7) # Need to use a lambda, otherwise this will return 'numpy.ndarray' object is not callable because it expects a zero-argument callable;
+    # Default background is darker than the default mesh colour
+    
     def add_camera(self, camera: Camera) -> None:
         """
         Adds a camera to the scene.
@@ -191,6 +195,30 @@ class Scene:
             self.scene_ri = refractive_index
         else:
             raise ValueError("Refractive index can be negative only for metamaterials, and it is highly unlikely that the entire scene is filled with one.")
+        
+    def set_background(self, background_color: np.ndarray) -> None:
+        """
+        Sets the background colour of the image.
+
+        Parameters:
+        -----------
+        background_color: np.ndarray
+            The background colour of the image.
+
+        Raises:
+        -------
+        ValueError:
+            If the background colour is not of shape (3,) or the passed colour is negative.
+        """
+        # Check values
+        if not background_color.shape == (3,): 
+            raise ValueError("Background colour must be of shape (3,).")
+        if np.any(background_color < 0.0):
+            raise ValueError("Background colour cannot be negative.")
+        elif np.any(background_color > 1.0):
+            print("Passed colour data contains values exceeding 1.0. It is assumed that it was given as regular RBG values in range [0, 255], so they will be clamped.")
+            background_color = np.clip(background_color/255, 0.0, 1.0)
+        self.background_color = background_color
 
     def _fill_empty_timesteps(self) -> None:
         """

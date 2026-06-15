@@ -645,7 +645,11 @@ void copy_data_to_TLAS(TLAS &tlas,
     }
  }
 
-inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const double mesh_ri, const double scene_ri, const enum ObjectType object_type){
+inline void set_BLAS_material(BLAS &mesh_bvh,
+    const int mesh_material,
+    const double mesh_ri,
+    const double scene_ri,
+    const enum ObjectType object_type){
     // Uncomment the below 2 lines if deciding to go for switch-based dispatcj in return_ray_color
     //mesh_bvh.material = mesh_material;
     //mesh_bvh.object_type = object_type;
@@ -676,8 +680,8 @@ inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const dou
             mesh_bvh.refractive_index = mesh_ri;
             return;
         }
-        default: { // Undefined - removed, so this should never, technically, get assigned
-            mesh_bvh.ray_material_ptr = &ray_undefined;
+        default: { // This should never get triggered (Python prevents that), but if it does, default to unlit
+            mesh_bvh.ray_material_ptr = &ray_unlit;
             mesh_bvh.refractive_index = scene_ri;
             return;
         }
@@ -685,7 +689,9 @@ inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const dou
 }
 
 // Unfortunately, these switches have to be this long if we want compile-time resolution of what happens inside these functions
-inline void set_BLAS_intersection_texture(BLAS &mesh_bvh, const enum ElementNodeCount nodes_per_element, const enum ShadingType shading_type){
+inline void set_BLAS_intersection_texture(BLAS &mesh_bvh,
+    const enum ElementNodeCount nodes_per_element,
+    const enum ShadingType shading_type){
     // Assigns appropriate texture interpolation function pointer
     switch(nodes_per_element){
         case TRI3:
@@ -765,7 +771,9 @@ inline void set_BLAS_intersection_texture(BLAS &mesh_bvh, const enum ElementNode
     }
 }
 
-inline void set_BLAS_intersection_color(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element, const enum ShadingType shading_type){
+inline void set_BLAS_intersection_color(BLAS &mesh_bvh,
+    const enum ElementNodeCount nodes_per_element,
+    const enum ShadingType shading_type){
     // Assigns appropriate color interpolation function pointer
     switch(nodes_per_element){
         case TRI3:

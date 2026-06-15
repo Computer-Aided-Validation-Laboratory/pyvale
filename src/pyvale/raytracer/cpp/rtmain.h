@@ -62,9 +62,11 @@ void render_scene(const int image_height,
     const std::vector<int>& scene_mesh_priorities,
     const std::vector<int>& scene_mesh_object_types,
     const std::vector<double>& scene_mesh_thickness,
+    const nb::DRef<EiVector3d>& background_color,
     const int texture_sampler,
     const int shading_type,
     const int output_format,
+    const int max_depth,
     const bool grayscale_flag);
 
 #endif // RTMAIN_H

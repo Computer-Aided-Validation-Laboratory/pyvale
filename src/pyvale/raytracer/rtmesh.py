@@ -333,9 +333,9 @@ class RTMesh:
             print("WARNING: Average element area/length evaluated to 0.0 for all mesh elements." \
             "This likely indicates that it either degenerate, not a surface mesh, or there is an issue with the PyVista surface." \
             "\n Please use rtmesh_name.pyvista_surface.plot() to investigate the issue.")
-            # Estimate using the first element instead (should be ok unless there is a large difference between mesh element sizes)
+            # Estimate using the edge between nodes 0 and 1 for all elements
             # We need a ballpark value to validate the element length 
-            avg_element_length = np.abs(self.node_coords[0,1] - self.node_coords[0,0]) 
+            avg_element_length = np.mean(np.abs(self.node_coords[:,1] - self.node_coords[:,0]))
 
         return avg_element_length
     
@@ -736,7 +736,7 @@ class RTMesh:
             if surface_fill is None:
                 print("No colour data passed. Pre-filling automatically with grey.")
             else:
-                # Validate input values
+                # Check input values
                 if np.any(surface_fill < 0.0):
                     raise ValueError("Surface fill cannot be negative.")
                 elif np.any(surface_fill > 1.0):

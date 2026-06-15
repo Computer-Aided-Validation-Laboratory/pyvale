@@ -245,24 +245,6 @@ struct RayState{
 // ================================================================================
 
 /**
- * @brief Returns a procedural sky color for a ray direction.
- * 
- * Produces a simple vertical white-to-blue gradient based on the y-component
- * of the ray direction.
- * 
- * @param[in] ray (const Ray&) Input ray
- * 
- * @return (EiVector3d) RGB sky color corresponding to the ray direction.
- */
-inline EiVector3d ray_blue_sky(const Ray& ray){
-    double a = 0.5 * (ray.direction(1) + 1.0);
-    static EiVector3d white, blue;
-    white << 1.0, 1.0, 1.0;
-    blue << 0.5, 0.7, 1.0;
-    return (1.0 - a) * white + a * blue;
-}
-
-/**
  * @brief Computes diffuse material response and spawns a scattered ray.
  * 
  * Adds emitted radiance, updates throughput with albedo, and generates a
