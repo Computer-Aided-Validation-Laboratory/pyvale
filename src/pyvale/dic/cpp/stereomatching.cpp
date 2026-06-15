@@ -442,7 +442,5 @@ void matching(const Image &img_l,
         }
     }
 
-
-
 } // namespace
 

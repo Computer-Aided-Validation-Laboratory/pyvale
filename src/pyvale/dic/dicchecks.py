@@ -48,13 +48,22 @@ def multiwindow_init(subset_size: int,
                      max_displacement: int,
                      multiwindow_overlap: float,
                      multiwindow_subset_size: list[int],
-                     multiwindow_search_area: list[int]) -> tuple[list [int], list[int], list[int]]:
+                     multiwindow_search_area: list[int]) -> tuple[list[int], list[int], list[int]]:
 
 
     # check multiwindow_subset_size and multiwindow_search_area are same length
     if len(multiwindow_subset_size) != len(multiwindow_search_area):
         raise ValueError(f"multiwindow_subset_size and multiwindow_search_area must be the same length. "
                          f"Got lengths {len(multiwindow_subset_size)} and {len(multiwindow_search_area)}")
+
+    # check if multiwindow_subset_size and multiwindow_search_area are descending
+    if any(multiwindow_subset_size[i] < multiwindow_subset_size[i+1] for i in range(len(multiwindow_subset_size)-1)):
+        raise ValueError(f"multiwindow_subset_size must be in descending order. "
+                         f"Got {multiwindow_subset_size}")
+
+    if any(multiwindow_search_area[i] < multiwindow_search_area[i+1] for i in range(len(multiwindow_search_area)-1)):
+        raise ValueError(f"multiwindow_search_area must be in descending order. "
+                         f"Got {multiwindow_search_area}")
 
     # check if the overlap is a value between 0 and 100
     if multiwindow_overlap < 0 or multiwindow_overlap > 1:
@@ -63,17 +72,20 @@ def multiwindow_init(subset_size: int,
 
     # if they are both empty then use max_displacement as the largest subset_size and multiwindow_search_area
     if len(multiwindow_subset_size) == 0 and len(multiwindow_search_area) == 0:
-        multiwindow_subset_size = [max_displacement]
-        multiwindow_search_area = [max_displacement]
 
         # get descending powers from max_displacement down
-        powers_of_two = [2**i for i in range(int(np.floor(np.log2(max_displacement))), -1, -1)]
+        powers_of_two = [2**i for i in range(int(np.floor(np.log2(max(max_displacement, subset_size)))), -1, -1)]
 
         # if elements of power_of_two are less than subset_size then remove them
         powers_of_two = [p for p in powers_of_two if p >= subset_size]
 
-        multiwindow_subset_size = multiwindow_subset_size + powers_of_two
-        multiwindow_search_area = multiwindow_search_area + powers_of_two
+        # only append max_displacement if it is greater than or equal to subset_size
+        if max_displacement >= subset_size:
+            multiwindow_subset_size = [max_displacement] + powers_of_two
+            multiwindow_search_area = [max_displacement] + powers_of_two
+        else:
+            multiwindow_subset_size = powers_of_two
+            multiwindow_search_area = powers_of_two
 
     # check that all multiwindow_subset_sizes are less than or equal to the
     # multiwindow_search_area elements
