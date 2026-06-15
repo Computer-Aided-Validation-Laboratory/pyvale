@@ -276,7 +276,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
 
         // progress bar initialisation
         std::string bar_title = "FFT windowing " + std::to_string(search_area) + "x" + std::to_string(search_area) + " for \033[1;4m" + filenames[img_num_ref] + "\033[0m and \033[1;4m" + filenames[img_num_def] + "\033[0m:";
-        ProgressBar pbar(bar_title, layout.num);
+        ProgressBar pbar(bar_title, layout.active_total);
         std::atomic<int> current_progress = 0;
 
 

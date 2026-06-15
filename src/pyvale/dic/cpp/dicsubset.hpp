@@ -33,6 +33,7 @@ namespace subset {
         std::vector<int> mask;
         std::vector<std::vector<int>> neigh;
         std::vector<bool> active_ss;
+        int active_total;
     };
 
     /**

@@ -279,6 +279,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                     for (int i = 0; i < ss_grid_l.num; i++) {
                         if (!results_ref_l.above_thresh[i]) {
                             ss_grid_l.active_ss[i] = false;
+                            ss_grid_l.active_total += -1;
                         }
                     }
                 }
@@ -359,6 +360,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                     for (int i = 0; i < ss_grid_l.num; i++) {
                         if (!results_ref_l.above_thresh[i]) {
                             ss_grid_l.active_ss[i] = false;
+                            ss_grid_l.active_total += -1;
                         }
                     }
                 }

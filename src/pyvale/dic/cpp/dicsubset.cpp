@@ -258,6 +258,7 @@ namespace subset {
         ss_grid.coords.resize(2 * total_valid);
         ss_grid.num = total_valid;
         ss_grid.active_ss.resize(total_valid, true);
+        ss_grid.active_total = total_valid;
 
         // Reset thread counts to use as writing indices
         std::fill(thread_counts.begin(), thread_counts.end(), 0);

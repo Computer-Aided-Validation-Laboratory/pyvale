@@ -128,7 +128,7 @@ namespace rg {
     }
 
 
-    void check_convergence(const int x, const int y, const OptResult &res, bool direct_neigh) {
+    bool check_convergence(const int x, const int y, const OptResult &res, std::string &msg, bool direct_neigh) {
         if (!res.above_thresh) {
             std::ostringstream oss;
 
@@ -144,9 +144,10 @@ namespace rg {
                 << "above_thresh: " << static_cast<unsigned>(res.above_thresh) << "\n"
                 << "converged: " << static_cast<unsigned>(res.converged) << "\n"
                 << "iterations: " << res.iter;
-
-            throw std::runtime_error(oss.str());
+            msg = oss.str();
+            return false;
         }
+        return true;
     }
 }
 

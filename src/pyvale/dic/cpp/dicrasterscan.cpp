@@ -46,7 +46,7 @@ void raster(const Image &img_ref,
 
     // progress bar
     std::string bar_title = "Temporal matching for \033[1;4m" + conf.basenames[img_num_ref] + "\033[0m and \033[1;4m" + conf.basenames[img_num_def] + "\033[0m:";
-    ProgressBar pbar(bar_title, num_ss);
+    ProgressBar pbar(bar_title, ss_grid.active_total);
     std::atomic<int> current_progress = 0;
     int prev_pct = 0;
 

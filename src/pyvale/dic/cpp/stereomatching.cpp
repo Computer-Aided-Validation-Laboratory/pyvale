@@ -66,14 +66,8 @@ void matching(const Image &img_l,
                                     "\033[0m and \033[1;4m" + conf.basenames[img_num_def_r] + 
                                     "\033[0m:";
 
-        ProgressBar pbar(bar_title, num_ss);
+        ProgressBar pbar(bar_title, ss_grid.active_total);
         std::atomic<int> current_progress(0);
-
-        // quick check for the initial seed point
-        // if (!rg::is_valid_point(seed_x, seed_y, ss_grid)) {
-        //     return;
-        // }
-
 
         // Initialize binary mask for computed points (initialized to 0)
         std::vector<std::atomic<int>> computed_mask(ss_grid.mask.size());
@@ -81,6 +75,9 @@ void matching(const Image &img_l,
 
         // queue for each thread
         rg::QueueGlobal queue(omp_get_max_threads()); 
+
+        std::atomic<bool> error_flag(false);
+        std::string error_message;
 
         # pragma omp parallel
         {
@@ -134,7 +131,11 @@ void matching(const Image &img_l,
 
                     // run optimizer
                     OptResult seed_res = opt.solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r, true);
-                    rg::check_convergence(cx_ref_l, cy_ref_l, seed_res);
+            
+                    if (!rg::check_convergence(cx_ref_l, cy_ref_l, seed_res, error_message)) {
+                        error_flag.store(true);
+                        break;
+                    }
 
                     // add deformation from reference image to new results
                     if (img_num_def_l > 0){
@@ -192,7 +193,10 @@ void matching(const Image &img_l,
 
                         OptResult nres = opt.solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r, true);
 
-                        rg::check_convergence(cx_ref_l, cy_ref_l, nres, false);
+                        if (!rg::check_convergence(cx_def_l, cy_def_l, nres, error_message, true)) {
+                            error_flag.store(true);
+                            break;
+                        }
 
                         // add deformation from reference image to new results
                         std::vector<double> pA(conf.num_params);
@@ -251,7 +255,7 @@ void matching(const Image &img_l,
 
             rg::Point current(0, 0);
 
-            while (!stop_request) {
+            while (!stop_request && !error_flag.load()) {
 
                 if (!queue.pop(tid, current))
                     break;
@@ -432,7 +436,13 @@ void matching(const Image &img_l,
             pbar.update(current_progress+1);
             pbar.finish();
         }
+
+        if (error_flag.load()) {
+            throw std::runtime_error(error_message);
+        }
     }
+
+
 
 } // namespace
 

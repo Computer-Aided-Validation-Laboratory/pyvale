@@ -68,7 +68,7 @@ void multiwindow_rg(const Image &img_ref,
 
     // progress bar
     std::string bar_title = "Temporal matching for \033[1;4m" + conf.basenames[img_num_ref] + "\033[0m and \033[1;4m" + conf.basenames[img_num_def] + "\033[0m:";
-    ProgressBar pbar(bar_title, num_ss);
+    ProgressBar pbar(bar_title, ss_grid.active_total);
     std::atomic<int> current_progress(0);
 
     const auto t0 = std::chrono::steady_clock::now();
@@ -78,6 +78,10 @@ void multiwindow_rg(const Image &img_ref,
     for (auto& val : computed_mask) val.store(0); 
 
     rg::QueueGlobal queue(omp_get_max_threads());
+
+
+    std::atomic<bool> error_flag(false);
+    std::string error_message;
 
     # pragma omp parallel
     {
@@ -119,9 +123,12 @@ void multiwindow_rg(const Image &img_ref,
                 int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
                 // if a seed subset is no longer active then we've hit a problemo
-                if (!ss_grid.active_ss[idx]){
-                    throw std::runtime_error("Seed subset (" + std::to_string(seed_x) + "," +
-                                             std::to_string(seed_y) + ") is no longer active. The seed subset failed to converge in a previous calculation");
+                if (!ss_grid.active_ss[idx]) {
+                    error_message = "Seed subset (" + std::to_string(seed_x) + "," +
+                                    std::to_string(seed_y) + ") is no longer active. " +
+                                    "The seed subset failed to converge in a previous calculation";
+                    error_flag.store(true);
+                    break;
                 }
 
                 double cx = ss_grid.coords[2*idx];
@@ -136,7 +143,10 @@ void multiwindow_rg(const Image &img_ref,
 
                 OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                rg::check_convergence(seed_x, seed_y, seed_res);
+                if (!rg::check_convergence(seed_x, seed_y, seed_res, error_message)) {
+                    error_flag.store(true);
+                    break;
+                }
 
                 seed_res.u += results_ref.u[idx];
                 seed_res.v += results_ref.v[idx];
@@ -157,10 +167,12 @@ void multiwindow_rg(const Image &img_ref,
                     const double cx = ss_grid.coords[nidx*2];
                     const double cy = ss_grid.coords[nidx*2+1];
 
-                    if (!ss_grid.active_ss[nidx]){
-                    throw std::runtime_error("Direct neighbour (" + std::to_string(cx) + "," + 
-                                                std::to_string(cy) + ") of seed subset (" + std::to_string(seed_x) + "," +
-                                                std::to_string(seed_y) + ") is no longer active. The seed subset failed to converge in a previous calculation");
+                    if (!ss_grid.active_ss[nidx]) {
+                        error_message = "Direct neighbour (" + std::to_string(cx) + "," + std::to_string(cy) +
+                                        ") of seed subset (" + std::to_string(seed_x) + "," + std::to_string(seed_y) +
+                                        ") is no longer active. The seed subset failed to converge in a previous calculation";
+                        error_flag.store(true);
+                        break;
                     }
 
                     // fill the reference subset
@@ -172,7 +184,10 @@ void multiwindow_rg(const Image &img_ref,
                     // perform optimization for seed point neighbours
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                    rg::check_convergence(cx, cy, nres, true);
+                    if (!rg::check_convergence(seed_x, seed_y, seed_res, error_message, true)) {
+                        error_flag.store(true);
+                        break;
+                    }
 
                     nres.u += results_ref.u[nidx];
                     nres.v += results_ref.v[nidx];
@@ -208,7 +223,7 @@ void multiwindow_rg(const Image &img_ref,
 
         rg::Point current(0, 0);
 
-        while (!stop_request) {
+        while (!stop_request && !error_flag.load()) {
 
             if (!queue.pop(tid, current))
                 break;
@@ -270,5 +285,9 @@ void multiwindow_rg(const Image &img_ref,
     if (g_debug_level>0){
         pbar.update(current_progress+1);
         pbar.finish();
+    }
+
+    if (error_flag.load()) {
+        throw std::runtime_error(error_message);
     }
 }

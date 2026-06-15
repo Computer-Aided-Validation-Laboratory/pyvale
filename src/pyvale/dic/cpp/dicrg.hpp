@@ -158,7 +158,7 @@ namespace rg {
 
 
 
-    void check_convergence(const int x, const int y, const OptResult &res, bool direct_neigh=false);
+    bool check_convergence(const int x, const int y, const OptResult &res, std::string &msg, bool direct_neigh=false);
 
 }
 

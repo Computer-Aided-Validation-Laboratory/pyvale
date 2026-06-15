@@ -77,13 +77,8 @@ void singlewindow_rg(const Image &img_ref,
                                         "\033[0m and \033[1;4m" + conf.basenames[img_num_def] + 
                                         "\033[0m:";
 
-    ProgressBar pbar(bar_title, num_ss);
+    ProgressBar pbar(bar_title, ss_grid.active_total);
     std::atomic<int> current_progress(0);
-
-    // quick check for the initial seed point
-    // if (!rg::is_valid_point(seed_x, seed_y, ss_grid)) {
-    //     return;
-    // }
 
     // Initialize binary mask for computed points (initialized to 0)
     std::vector<std::atomic<int>> computed_mask(ss_grid.mask.size());
@@ -91,6 +86,9 @@ void singlewindow_rg(const Image &img_ref,
 
     // queue for each thread
     rg::QueueGlobal queue(omp_get_max_threads()); 
+
+    std::atomic<bool> error_flag(false);
+    std::string error_message;
 
     # pragma omp parallel
     {
@@ -131,6 +129,15 @@ void singlewindow_rg(const Image &img_ref,
                 int grid_y = seed_y / ss_step;
                 int idx = ss_grid.mask[grid_y * ss_grid.num_ss_x + grid_x];
 
+                // if a seed subset is no longer active then we've hit a problemo
+                if (!ss_grid.active_ss[idx]) {
+                    error_message = "Seed subset (" + std::to_string(seed_x) + "," +
+                                    std::to_string(seed_y) + ") is no longer active. " +
+                                    "The seed subset failed to converge in a previous calculation";
+                    error_flag.store(true);
+                    break;
+                }
+
                 // get the centre coordinates for the subset in img k0
                 double cx = ss_grid.coords[2*idx];
                 double cy = ss_grid.coords[2*idx+1];
@@ -145,7 +152,11 @@ void singlewindow_rg(const Image &img_ref,
 
                 // run optimizer
                 OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
-                rg::check_convergence(seed_x, seed_y, seed_res);
+
+                if (!rg::check_convergence(seed_x, seed_y, seed_res, error_message)) {
+                    error_flag.store(true);
+                    break;
+                }
 
                 // add deformation from reference image to new results
                 seed_res.u += results_ref.u[idx];
@@ -168,6 +179,14 @@ void singlewindow_rg(const Image &img_ref,
                     double cx = ss_grid.coords[nidx*2];
                     double cy = ss_grid.coords[nidx*2+1];
 
+                    if (!ss_grid.active_ss[nidx]) {
+                        error_message = "Direct neighbour (" + std::to_string(cx) + "," + std::to_string(cy) +
+                                        ") of seed subset (" + std::to_string(seed_x) + "," + std::to_string(seed_y) +
+                                        ") is no longer active. The seed subset failed to converge in a previous calculation";
+                        error_flag.store(true);
+                        break;
+                    }
+
                     // fill the reference subset
                     subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
@@ -176,7 +195,10 @@ void singlewindow_rg(const Image &img_ref,
 
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                    rg::check_convergence(cx, cy, nres, true);
+                    if (!rg::check_convergence(seed_x, seed_y, seed_res, error_message, true)) {
+                        error_flag.store(true);
+                        break;
+                    }
 
                     // add deformation from reference image to new results
                     if (img_num_ref > 0){
@@ -371,5 +393,9 @@ void singlewindow_rg(const Image &img_ref,
     if (g_debug_level>0){
         pbar.update(current_progress+1);
         pbar.finish();
+    }
+
+    if (error_flag.load()) {
+        throw std::runtime_error(error_message);
     }
 }
