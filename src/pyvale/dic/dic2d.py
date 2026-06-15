@@ -193,7 +193,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     shape_function_enum = dicchecks.Shape(shape_function)
     correlation_criteria_enum = dicchecks.CorrCrit(correlation_criteria)
     interpolation_routine_enum = dicchecks.Interp(interpolation_routine)
-    incremental_update_condition_enum = dicchecks.InrementalMethod(incremental_update_condition)
+    incremental_update_condition_enum = dicchecks.IncrementalMethod(incremental_update_condition)
 
     # checks on the config
     mw_overlap, mw_subset_size, mw_search_area  = dicchecks.multiwindow_init(subset_size,
@@ -219,13 +219,13 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.threshold = threshold
     config.bf_threshold = bf_threshold
     config.max_disp = max_displacement
-    config.corr_crit = correlation_criteria_enum.value
-    config.shape_func = shape_function_enum.value
-    config.interp_routine = interpolation_routine_enum.value
-    config.shape_func = shape_function_enum.value
-    config.scan_method = method_enum.value
+    config.corr_crit = getattr(diccpp.CorrCrit, correlation_criteria_enum.name)
+    config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
+    config.interp_routine = getattr(diccpp.InterpRoutine, interpolation_routine_enum.name)
+    config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
+    config.scan_method = getattr(diccpp.ScanMethod, method_enum.name)
     config.incremental = incremental
-    config.incremental_update_cond = incremental_update_condition_enum.value
+    config.incremental_update_cond = getattr(diccpp.IncrementalCond, incremental_update_condition_enum.name)
     config.incremental_update_val = incremental_update_value
 
     config.num_params = num_params
@@ -291,8 +291,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
         common_cpp.set_num_threads(num_threads)
 
     # calling the c++ dic engine
-    with diccpp.ostream_redirect(stdout=True, stderr=True):
-        diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+    diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
 
 
     # if there's a temp dir and the reference and deformed are np.ndarray

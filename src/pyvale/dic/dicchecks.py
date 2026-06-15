@@ -37,7 +37,7 @@ class Interp(str, Enum):
     BSPLINE = "BSPLINE"
     HERMITE = "HERMITE"
 
-class InrementalMethod(str, Enum):
+class IncrementalMethod(str, Enum):
     IMAGE = "IMAGE"
     COST = "COST"
     ITER = "ITER"

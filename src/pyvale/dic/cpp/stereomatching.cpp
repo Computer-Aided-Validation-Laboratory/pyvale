@@ -148,15 +148,15 @@ void matching(const Image &img_l,
                                 results_l.p.begin() + idx*conf.num_params + conf.num_params,
                                 pA.begin());
 
-                        if (conf.shape_func == "RIGID") {
+                        if (conf.shape_func == util::ShapeFunc::RIGID) {
                             Rigid::compose(pC, pA, pB);
                             Rigid::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
                         }
-                        else if (conf.shape_func == "AFFINE"){
+                        else if (conf.shape_func == util::ShapeFunc::AFFINE){
                             Affine::compose(pC, pA, pB);
                             Affine::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
                         }
-                        else if (conf.shape_func == "QUAD") {
+                        else if (conf.shape_func == util::ShapeFunc::QUAD) {
                             Quad::compose(pC, pA, pB);
                             Quad::get_displacement(seed_res.u, seed_res.v, 0.0, 0.0, pC);
                         }
@@ -205,15 +205,15 @@ void matching(const Image &img_l,
                                 results_l.p.begin() + nidx*conf.num_params + conf.num_params,
                                 pA.begin());
 
-                        if (conf.shape_func == "RIGID") {
+                        if (conf.shape_func == util::ShapeFunc::RIGID) {
                             Rigid::compose(pC, pA, pB);
                             Rigid::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
                         }
-                        else if (conf.shape_func == "AFFINE"){
+                        else if (conf.shape_func == util::ShapeFunc::AFFINE){
                             Affine::compose(pC, pA, pB);
                             Affine::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
                         }
-                        else if (conf.shape_func == "QUAD") {
+                        else if (conf.shape_func == util::ShapeFunc::QUAD) {
                             Quad::compose(pC, pA, pB);
                             Quad::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
                         }
@@ -303,15 +303,15 @@ void matching(const Image &img_l,
                                     results_l.p.begin() + nidx*conf.num_params + conf.num_params,
                                     pA.begin());
 
-                            if (conf.shape_func == "RIGID") {
+                            if (conf.shape_func == util::ShapeFunc::RIGID) {
                                 Rigid::compose(pC, pA, pB);
                                 Rigid::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
                             }
-                            else if (conf.shape_func == "AFFINE"){
+                            else if (conf.shape_func == util::ShapeFunc::AFFINE){
                                 Affine::compose(pC, pA, pB);
                                 Affine::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
                             }
-                            else if (conf.shape_func == "QUAD") {
+                            else if (conf.shape_func == util::ShapeFunc::QUAD) {
                                 Quad::compose(pC, pA, pB);
                                 Quad::get_displacement(nres.u, nres.v, 0.0, 0.0, pC);
                             }
@@ -408,15 +408,15 @@ void matching(const Image &img_l,
         //                             results_l.p.begin() + idx*conf.num_params + conf.num_params,
         //                             pA.begin());
         //
-        //                     if (conf.shape_func == "RIGID") {
+        //                     if (conf.shape_func == util::ShapeFunc::RIGID) {
         //                         Rigid::compose(pC, pA, pB);
         //                         Rigid::get_displacement(retry_res.u, retry_res.v, 0.0, 0.0, pC);
         //                     }
-        //                     else if (conf.shape_func == "AFFINE"){
+        //                     else if (conf.shape_func == util::ShapeFunc::AFFINE){
         //                         Affine::compose(pC, pA, pB);
         //                         Affine::get_displacement(retry_res.u, retry_res.v, 0.0, 0.0, pC);
         //                     }
-        //                     else if (conf.shape_func == "QUAD") {
+        //                     else if (conf.shape_func == util::ShapeFunc::QUAD) {
         //                         Quad::compose(pC, pA, pB);
         //                         Quad::get_displacement(retry_res.u, retry_res.v, 0.0, 0.0, pC);
         //                     }

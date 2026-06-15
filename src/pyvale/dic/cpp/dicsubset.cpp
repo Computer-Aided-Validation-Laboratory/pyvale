@@ -110,16 +110,20 @@ namespace subset {
                                      const double cx, const double cy,
                                      const std::vector<double>& p,
                                      const Interpolator &interp,
-                                     const std::string &shape_func){
+                                     util::ShapeFunc shape_func){
 
         // Get the right shape function
         void (*get_pixel)(double&, double&, const double, const double, const std::vector<double>&);
-        if (shape_func == "AFFINE") get_pixel = &Affine::get_pixel;
-        else if (shape_func == "RIGID") get_pixel = &Rigid::get_pixel;
-        else if (shape_func == "QUAD") get_pixel = &Quad::get_pixel;
-        else {
-            std::cerr << "Unknown shape function: " << shape_func << std::endl;
-            exit(EXIT_FAILURE);
+        switch (shape_func) {
+            case util::ShapeFunc::AFFINE:
+                get_pixel = &Affine::get_pixel;
+                break;
+            case util::ShapeFunc::RIGID:
+                get_pixel = &Rigid::get_pixel;
+                break;
+            case util::ShapeFunc::QUAD:
+                get_pixel = &Quad::get_pixel;
+                break;
         }
 
 

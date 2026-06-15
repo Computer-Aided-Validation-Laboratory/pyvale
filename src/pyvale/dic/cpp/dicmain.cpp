@@ -14,6 +14,7 @@
 #include <signal.h>
 #include <memory>
 #include <algorithm>
+#include <numeric>
 
 // pybind header files
 #include <pybind11/pybind11.h>
@@ -59,37 +60,37 @@ void engine(const py::array_t<bool>& img_roi_arr,
     signal(SIGINT, signalHandler);
     g_debug_level = conf.debug_level;
 
-    // ------------------------------------------------------------------------
-    // Initialisation
-    // ------------------------------------------------------------------------
-    if (g_debug_level>0){
-    TITLE("Config");
-    INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
-    INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
-    INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
-    INFO_OUT("Max number of solver iterations: ", conf.max_iter);
-    INFO_OUT("Correlation Criterion: ", conf.corr_crit);
-    INFO_OUT("Shape Function: ", conf.shape_func);
-    INFO_OUT("Interpolation Routine: ", conf.interp_routine);
-    INFO_OUT("FFT MAD outlier removal enabled: ", conf.fft_mad);
-    INFO_OUT("FFT MAD scale: ", conf.fft_mad_scale);
-    INFO_OUT("Image Scan Method: ", conf.scan_method);
-    INFO_OUT("Optimization Precision:", conf.precision);
-    INFO_OUT("Correlation Cutoff Threshold:", conf.threshold);
-    INFO_OUT("Estimate for Max Displacement:", conf.max_disp << " [px]");
-    INFO_OUT("Subset Size:", conf.ss_size << " [px]");
-    INFO_OUT("Subset Step:", conf.ss_step << " [px]" );
-    INFO_OUT("Number of OMP threads:", omp_get_max_threads());
-    INFO_OUT("Debug level: ", conf.debug_level);
-    // if (conf.scan_method.find("RG") != std::string::npos)INFO_OUT("Reliability Guided Seed central px location: ", "(" 
-    //                                      << conf.rg_seed.first+conf.ss_size/2 << ", " << conf.rg_seed.second+conf.ss_size/2 << ") [px] " )
-    }
+    // // ------------------------------------------------------------------------
+    // // Initialisation
+    // // ------------------------------------------------------------------------
+    // if (g_debug_level>0){
+    // TITLE("Config");
+    // INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
+    // INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
+    // INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
+    // INFO_OUT("Max number of solver iterations: ", conf.max_iter);
+    // INFO_OUT("Correlation Criterion: ", conf.corr_crit);
+    // INFO_OUT("Shape Function: ", conf.shape_func);
+    // INFO_OUT("Interpolation Routine: ", conf.interp_routine);
+    // INFO_OUT("FFT MAD outlier removal enabled: ", conf.fft_mad);
+    // INFO_OUT("FFT MAD scale: ", conf.fft_mad_scale);
+    // INFO_OUT("Image Scan Method: ", conf.scan_method);
+    // INFO_OUT("Optimization Precision:", conf.precision);
+    // INFO_OUT("Correlation Cutoff Threshold:", conf.threshold);
+    // INFO_OUT("Estimate for Max Displacement:", conf.max_disp << " [px]");
+    // INFO_OUT("Subset Size:", conf.ss_size << " [px]");
+    // INFO_OUT("Subset Step:", conf.ss_step << " [px]" );
+    // INFO_OUT("Number of OMP threads:", omp_get_max_threads());
+    // INFO_OUT("Debug level: ", conf.debug_level);
+    // // if (conf.scan_method.find("RG") != std::string::npos)INFO_OUT("Reliability Guided Seed central px location: ", "(" 
+    // //                                      << conf.rg_seed.first+conf.ss_size/2 << ", " << conf.rg_seed.second+conf.ss_size/2 << ") [px] " )
+    // }
 
 
     int num_px_in_image = conf.px_hori * conf.px_vert;
 
     // get raw pointers
-    bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
+    const bool *img_roi = img_roi_arr.data();
 
     // ------------------------------------------------------------------------
     // get a list of ss coordinates within RIO;
@@ -98,20 +99,19 @@ void engine(const py::array_t<bool>& img_roi_arr,
     subset::Grid ss_grid_l;
     subset::Grid ss_grid_l_inc;
 
-    if (conf.scan_method == "MULTIWINDOW_RG" || conf.scan_method == "MULTIWINDOW") {
+    if (conf.scan_method == util::ScanMethod::MULTIWINDOW_RG || conf.scan_method == util::ScanMethod::MULTIWINDOW) {
         multiwindow_init(multiwindow_l, img_roi, conf, mwconf, saveconf);
         ss_grid_l = multiwindow_l.back().layout;
         ss_grid_l_inc = ss_grid_l;
     }
-    else if (conf.scan_method == "SINGLEWINDOW_RG" ||
-             conf.scan_method == "SINGLEWINDOW_RG_INCREMENTAL" ||
-             conf.scan_method == "RASTER") {
+    else if (conf.scan_method == util::ScanMethod::SINGLEWINDOW_RG ||
+             conf.scan_method == util::ScanMethod::RASTER) {
         ss_grid_l = subset::create_grid(img_roi, conf.ss_step,
                                         conf.ss_size, conf.ss_size,
                                         conf.px_hori, conf.px_vert, false);
     }
     else {
-        throw std::invalid_argument("Unsupported scan method: " + conf.scan_method);
+        throw std::invalid_argument("Unsupported scan method");
     }
 
 
@@ -234,9 +234,9 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // ----------------------------------------------------------------------------------------
         // raster scan
         // ----------------------------------------------------------------------------------------
-        if (conf.scan_method == "RASTER") {
+        if (conf.scan_method == util::ScanMethod::RASTER) {
             if (conf.stereo) 
-                throw std::invalid_argument("Unsupported scan method: " + conf.scan_method);
+                throw std::invalid_argument("Unsupported scan method");
 
             raster(img_ref_l, *interp_def_l, ss_grid_l, conf, 0, img_num, results_def_l);
         }
@@ -245,7 +245,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // ----------------------------------------------------------------------------------------
         // multiwindow FFTCC
         // ----------------------------------------------------------------------------------------
-        else if (conf.scan_method == "MULTIWINDOW") {
+        else if (conf.scan_method == util::ScanMethod::MULTIWINDOW) {
 
             bool update_ref = conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf);
             if (update_ref) {
@@ -307,7 +307,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // ----------------------------------------------------------------------------------------
         // singlewindow FFTCC + RG
         // ----------------------------------------------------------------------------------------
-        else if (conf.scan_method == "SINGLEWINDOW_RG") {
+        else if (conf.scan_method == util::ScanMethod::SINGLEWINDOW_RG) {
             if (conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf)) {
                 img_num_ref_l = img_num_def_l - 1;
                 img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
@@ -324,7 +324,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // ----------------------------------------------------------------------------------------
         // multiwindow FFTCC + reliability Guided
         // ----------------------------------------------------------------------------------------
-        else if (conf.scan_method == "MULTIWINDOW_RG") {
+        else if (conf.scan_method == util::ScanMethod::MULTIWINDOW_RG) {
 
             bool update_ref = conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf);
             if (update_ref) {
@@ -423,7 +423,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
         }
         else {
-            throw std::invalid_argument("Unsupported scan method: " + conf.scan_method);
+            throw std::invalid_argument("Unsupported scan method");
         }
 
         if (!conf.stereo){
@@ -457,17 +457,31 @@ bool should_update_ref(const int img_num_def_l, const ResultArrays& results, con
         return false;
     }
 
-    if (conf.incremental_update_cond == "IMAGE") {
-        int interval = static_cast<int>(conf.incremental_update_val);
-        return (img_num_def_l - 1) % interval == 0;
+    switch (conf.incremental_update_cond) {
+
+        case util::IncrementalCond::IMAGE: {
+            int interval = static_cast<int>(conf.incremental_update_val);
+            return (img_num_def_l - 1) % interval == 0;
+        }
+
+        case util::IncrementalCond::ITER: {
+            if (results.niter.empty()) return false;
+
+            double avg = std::accumulate(results.niter.begin(), results.niter.end(), 0.0) / results.niter.size();
+            return avg > conf.incremental_update_val;
+        }
+
+        case util::IncrementalCond::COST: {
+            if (results.cost.empty()) return false;
+
+            double avg = std::accumulate(results.cost.begin(), results.cost.end(), 0.0) / results.cost.size();
+            return avg > conf.incremental_update_val;
+        }
+
+        default:
+            throw std::runtime_error(
+                "Unknown incremental update condition: " +
+                std::to_string(static_cast<int>(conf.incremental_update_cond))
+            );
     }
-    if (conf.incremental_update_cond == "ITER") {
-        double avg = std::accumulate(results.niter.begin(), results.niter.end(), 0.0) / results.niter.size();
-        return avg > conf.incremental_update_val;
-    }
-    if (conf.incremental_update_cond == "COST") {
-        double avg = std::accumulate(results.cost.begin(), results.cost.end(), 0.0) / results.cost.size();
-        return avg > conf.incremental_update_val;
-    }
-    throw std::runtime_error("Unknown incremental update condition: " + conf.incremental_update_cond);
 }

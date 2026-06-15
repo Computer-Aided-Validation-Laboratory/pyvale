@@ -22,11 +22,12 @@
 #include "./dicshapefunc.hpp"
 #include "./dicresults.hpp"
 #include "./dicsubset.hpp"
+#include "dicutil.hpp"
 
 
 // Constructor
-Optimizer::Optimizer(const std::string& shape_func, 
-                        const std::string& cost_func,
+Optimizer::Optimizer(util::ShapeFunc shape_func, 
+                        util::CorrCrit cost_func,
                         int max_iter_,
                         double precision_,
                         double threshold_,
@@ -59,32 +60,36 @@ Optimizer::Optimizer(const std::string& shape_func,
 }
 
 // Get number of parameters from shape function name
-int Optimizer::get_num_params(const std::string& shape_name) {
-    if (shape_name == "RIGID") return Rigid::num_params;
-    else if (shape_name == "AFFINE") return Affine::num_params;
-    else if (shape_name == "QUAD") return Quad::num_params;
-    else throw std::invalid_argument("Unknown shape function: " + shape_name);
+int Optimizer::get_num_params(util::ShapeFunc shape_func) {
+    switch (shape_func) {
+        case util::ShapeFunc::RIGID:
+            return Rigid::num_params;
+        case util::ShapeFunc::AFFINE:
+            return Affine::num_params;
+        case util::ShapeFunc::QUAD:
+            return Quad::num_params;
+    }
+    throw std::invalid_argument("Unknown shape function");
 }
 
 // Set shape function
-void Optimizer::set_shape(const std::string& shape_name) {
-    if (shape_name == "AFFINE") {
-        get_pixel = &Affine::get_pixel;
-        get_dfdp = &Affine::get_dshape_dp;
-        get_displacement = &Affine::get_displacement;
-    } 
-    else if (shape_name == "RIGID") {
-        get_pixel = &Rigid::get_pixel;
-        get_dfdp = &Rigid::get_dshape_dp;
-        get_displacement = &Rigid::get_displacement;
-    } 
-    else if (shape_name == "QUAD") {
-        get_pixel = &Quad::get_pixel;
-        get_dfdp = &Quad::get_dshape_dp;
-        get_displacement = &Quad::get_displacement;
-    } 
-    else {
-        throw std::invalid_argument("Unknown shape function: " + shape_name);
+void Optimizer::set_shape(util::ShapeFunc shape_func) {
+    switch (shape_func) {
+        case util::ShapeFunc::AFFINE:
+            get_pixel = &Affine::get_pixel;
+            get_dfdp = &Affine::get_dshape_dp;
+            get_displacement = &Affine::get_displacement;
+            break;
+        case util::ShapeFunc::RIGID:
+            get_pixel = &Rigid::get_pixel;
+            get_dfdp = &Rigid::get_dshape_dp;
+            get_displacement = &Rigid::get_displacement;
+            break;
+        case util::ShapeFunc::QUAD:
+            get_pixel = &Quad::get_pixel;
+            get_dfdp = &Quad::get_dshape_dp;
+            get_displacement = &Quad::get_displacement;
+            break;
     }
 }
 
@@ -140,7 +145,7 @@ OptResult Optimizer::solve(const double cx,
 
         // Check converged
         if (converged) {
-            if (criteria == "SSD") break;
+            if (criteria == util::CorrCrit::SSD) break;
             if (!check_on_thresh || good_enough) break;
         }
         iter++;
@@ -607,15 +612,17 @@ void Optimizer::update_shapefunc_parameters(std::vector<double> &pdp, std::vecto
 }
 
 
-void Optimizer::set_cost_function(const std::string& corr_crit) {
-    if (corr_crit == "SSD") 
-        optimize_cost = &Optimizer::ssd;
-    else if (corr_crit == "NSSD") optimize_cost = &Optimizer::nssd;
-    else if (corr_crit == "ZNSSD") optimize_cost = &Optimizer::znssd;
-    else {
-        std::cerr << "Unexpected Correlation Criteria: '" << corr_crit << "'" << std::endl;
-        std::cerr << "Allowed Values: 'SSD', 'NSSD', 'ZNSSD'." << std::endl;
-        exit(EXIT_FAILURE);
+void Optimizer::set_cost_function(util::CorrCrit corr_crit) {
+    switch (corr_crit) {
+        case util::CorrCrit::SSD:
+            optimize_cost = &Optimizer::ssd;
+            break;
+        case util::CorrCrit::NSSD:
+            optimize_cost = &Optimizer::nssd;
+            break;
+        case util::CorrCrit::ZNSSD:
+            optimize_cost = &Optimizer::znssd;
+            break;
     }
     criteria = corr_crit;
 }

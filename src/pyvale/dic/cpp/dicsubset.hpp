@@ -14,6 +14,7 @@
 
 // Program Header files
 #include "./dicinterp.hpp"
+#include "./dicutil.hpp"
 
 // common_cpp header files
 #include "../../common_cpp/util.hpp"
@@ -129,13 +130,13 @@ namespace subset {
     * @param cy          Global y-coordinate of the SUBSET CENTRE in the reference image.
     * @param p           Shape function parameters (e.g. displacement, strain components).
     * @param interp_def  Interpolator for the deformed image.
-    * @param shape_func  Shape function type: "AFFINE", "RIGID", or "QUAD".
+    * @param shape_func  Shape function type enum.
     */
     void fill_from_shape_params(subset::Pixels &ss_def, 
                                      const double cx, const double cy,
                                      const std::vector<double>& p,
                                      const Interpolator &interp_def,
-                                     const std::string &shape_func);
+                                     util::ShapeFunc shape_func);
     /**
      * @brief Generates a list of subsets based on the provided image ROI and parameters.
      * 

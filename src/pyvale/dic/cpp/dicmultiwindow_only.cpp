@@ -89,7 +89,7 @@ void multiwindow_only(const Image &img_ref,
 
             // get the reference subset
             subset::fill_from_centre_coords(ss_ref, cx_img0, cy_img0, interp_ref);
-            subset::fill_from_shape_params(ss_def, cx_img0, cy_img0, res.p, interp_def, "RIGID");
+            subset::fill_from_shape_params(ss_def, cx_img0, cy_img0, res.p, interp_def, util::ShapeFunc::RIGID);
 
             // calculate zncc value
             double zncc = 0.0;

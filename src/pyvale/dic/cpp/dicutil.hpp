@@ -11,6 +11,7 @@
 // STD library Header files
 #include <vector>
 #include <string>
+#include <ostream>
 
 // common_cpp header files
 
@@ -19,6 +20,36 @@
 
 namespace util {
 
+    enum class CorrCrit {
+        SSD,
+        NSSD,
+        ZNSSD
+    };
+
+    enum class ShapeFunc {
+        RIGID,
+        AFFINE,
+        QUAD
+    };
+
+    enum class InterpRoutine {
+        BSPLINE,
+        HERMITE
+    };
+
+    enum class ScanMethod {
+        MULTIWINDOW_RG,
+        SINGLEWINDOW_RG,
+        MULTIWINDOW,
+        RASTER
+    };
+
+
+    enum class IncrementalCond {
+        IMAGE,
+        ITER,
+        COST
+    };
 
     // Custom hash from above
     struct PairHash {
@@ -42,10 +73,10 @@ namespace util {
         double bf_threshold;
         int max_disp;
         std::vector<int> rg_seeds;
-        std::string corr_crit;
-        std::string shape_func;
-        std::string interp_routine;
-        std::string scan_method;
+        CorrCrit corr_crit;
+        ShapeFunc shape_func;
+        InterpRoutine interp_routine;
+        ScanMethod scan_method;
         std::vector<std::string> basenames;
         std::vector<std::string> fullpaths;
         bool fft_mad;
@@ -54,7 +85,7 @@ namespace util {
         unsigned int debug_level;
         bool stereo;
         bool incremental;
-        std::string incremental_update_cond;
+        IncrementalCond incremental_update_cond;
         double incremental_update_val;
         int multiwindow_overlap;
         std::vector<int> multiwindow_subset_size;

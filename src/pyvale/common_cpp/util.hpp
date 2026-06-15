@@ -17,6 +17,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <cmath>
+#include <vector>
 
 // common_cpp header files
 #include "./defines.hpp"

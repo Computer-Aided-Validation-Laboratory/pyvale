@@ -16,6 +16,7 @@
 // Program Header files
 #include "./dicsubset.hpp"
 #include "./dicinterp.hpp"
+#include "./dicutil.hpp"
 
 
 struct OptResult {
@@ -36,8 +37,8 @@ class Optimizer {
 
     public:
         // Constructor
-        Optimizer(const std::string& shape_func, 
-                 const std::string& cost_func,
+        Optimizer(util::ShapeFunc shape_func, 
+                 util::CorrCrit cost_func,
                  int max_iter,
                  double precision,
                  double threshold,
@@ -72,7 +73,7 @@ class Optimizer {
 
     private:
 
-        std::string criteria;
+        util::CorrCrit criteria;
         double costp;
         double costpdp;
         std::vector<double> g;          // Gradient
@@ -99,19 +100,19 @@ class Optimizer {
         void (*get_displacement)(double&, double&, const double, const double, const std::vector<double>&);
         
         // Helper functions
-        static int get_num_params(const std::string& shape_name);
+        static int get_num_params(util::ShapeFunc shape_func);
 
 
 
 
-        void set_shape(const std::string& shape_name);
+        void set_shape(util::ShapeFunc shape_func);
     
         /**
         * @brief This function gets called before the corrolation optimization starts. Sets the function pointer for the user specified shape function.
         * 
-        * @param[in] corr_crit string for the correlation criteria, e.g. "SSD", "NSSD", "ZNSSD".
+        * @param[in] corr_crit correlation criteria enum.
         */
-        void set_cost_function(const std::string& corr_crit);
+        void set_cost_function(util::CorrCrit corr_crit);
 
         /**
         * @brief 

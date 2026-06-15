@@ -4,17 +4,19 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-// pybind header files
+// pybind11 header files
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 #include <pybind11/iostream.h>
 
+// Standard Library
+#include <vector>
+
 // common_cpp Header Files
 #include "../../common_cpp/util.hpp"
 
 // DIC Header files
-#include "./dicutil.hpp"
 #include "./dicutil.hpp"
 #include "./dicmain.hpp"
 #include "./dicinterp.hpp"
@@ -26,6 +28,31 @@ namespace py = pybind11;
 PYBIND11_MODULE(diccpp, m) {
 
     py::add_ostream_redirect(m, "ostream_redirect");
+
+    py::enum_<util::CorrCrit>(m, "CorrCrit")
+        .value("SSD", util::CorrCrit::SSD)
+        .value("NSSD", util::CorrCrit::NSSD)
+        .value("ZNSSD", util::CorrCrit::ZNSSD);
+
+    py::enum_<util::ShapeFunc>(m, "ShapeFunc")
+        .value("RIGID", util::ShapeFunc::RIGID)
+        .value("AFFINE", util::ShapeFunc::AFFINE)
+        .value("QUAD", util::ShapeFunc::QUAD);
+
+    py::enum_<util::InterpRoutine>(m, "InterpRoutine")
+        .value("BSPLINE", util::InterpRoutine::BSPLINE)
+        .value("HERMITE", util::InterpRoutine::HERMITE);
+
+    py::enum_<util::ScanMethod>(m, "ScanMethod")
+        .value("MULTIWINDOW_RG", util::ScanMethod::MULTIWINDOW_RG)
+        .value("SINGLEWINDOW_RG", util::ScanMethod::SINGLEWINDOW_RG)
+        .value("MULTIWINDOW", util::ScanMethod::MULTIWINDOW)
+        .value("RASTER", util::ScanMethod::RASTER);
+
+    py::enum_<util::IncrementalCond>(m, "IncrementalCond")
+        .value("IMAGE", util::IncrementalCond::IMAGE)
+        .value("ITER", util::IncrementalCond::ITER)
+        .value("COST", util::IncrementalCond::COST);
 
     py::class_<util::Config>(m, "Config")
         .def(py::init<>())
@@ -79,51 +106,49 @@ PYBIND11_MODULE(diccpp, m) {
         .def("eval_and_derivs", &Interpolator::eval_and_derivs);
 
     // 2d b-spline interpolator
+    using U8Array  = py::array_t<uint8_t,  py::array::c_style>;
+    using U16Array = py::array_t<uint16_t, py::array::c_style>;
+    using U32Array = py::array_t<uint32_t, py::array::c_style>;
+
     py::class_<Bspline, Interpolator>(m, "Bspline")
-    .def(py::init([](py::array arr) {
+        .def(py::init([](py::handle h) {
+            Image img;
 
-        if (arr.ndim() != 2)
-            throw std::runtime_error("img must be a 2D numpy array");
+            if (auto arr = U8Array::ensure(h)) {
+                if (arr.ndim() != 2)
+                    throw std::runtime_error("Unsupported array: expected 2D array");
 
-        int px_vert = arr.shape(0);
-        int px_hori = arr.shape(1);
+                img.width = arr.shape(1);
+                img.height = arr.shape(0);
+                img.type = PixelType::UINT8;
+                img.data8.assign(arr.data(), arr.data() + img.width * img.height);
+            } else if (auto arr = U16Array::ensure(h)) {
+                if (arr.ndim() != 2)
+                    throw std::runtime_error("Unsupported array: expected 2D array");
 
-        Image img;
-        img.width  = px_hori;
-        img.height = px_vert;
+                img.width = arr.shape(1);
+                img.height = arr.shape(0);
+                img.type = PixelType::UINT16;
+                img.data16.assign(arr.data(), arr.data() + img.width * img.height);
+            } else if (auto arr = U32Array::ensure(h)) {
+                if (arr.ndim() != 2)
+                    throw std::runtime_error("Unsupported array: expected 2D array");
 
-        // CHecking the type of the python array
-        if (py::isinstance<py::array_t<uint8_t>>(arr)) {
+                img.width = arr.shape(1);
+                img.height = arr.shape(0);
+                img.type = PixelType::UINT32;
+                img.data32.assign(arr.data(), arr.data() + img.width * img.height);
+            } else {
+                throw std::runtime_error(
+                    "Unsupported array: expected 2D C-contiguous NumPy array of dtype uint8/uint16/uint32"
+                );
+            }
 
-            img.type = PixelType::UINT8;
-            auto buf = arr.cast<py::array_t<uint8_t, py::array::c_style>>();
-
-            img.data8.assign(buf.data(), buf.data() + px_hori * px_vert);
-
-        } else if (py::isinstance<py::array_t<uint16_t>>(arr)) {
-
-            img.type = PixelType::UINT16;
-            auto buf = arr.cast<py::array_t<uint16_t, py::array::c_style>>();
-
-            img.data16.assign(buf.data(), buf.data() + px_hori * px_vert);
-
-        } else if (py::isinstance<py::array_t<uint32_t>>(arr)) {
-
-            img.type = PixelType::UINT32;
-            auto buf = arr.cast<py::array_t<uint32_t, py::array::c_style>>();
-
-            img.data32.assign(buf.data(), buf.data() + px_hori * px_vert);
-
-        } else {
-            throw std::runtime_error("Unsupported numpy dtype (expected uint8/uint16/uint32)");
-        }
-
-        return std::make_unique<Bspline>(img);
-    }))
-    .def("eval", &Bspline::eval)
-    .def("eval_dx", &Bspline::eval_dx)
-    .def("eval_dy", &Bspline::eval_dy)
-    .def("eval_and_derivs", &Bspline::eval_and_derivs);
+            return Bspline(img);
+        }))
+        .def("eval", &Bspline::eval)
+        .def("eval_dx", &Bspline::eval_dx)
+        .def("eval_dy", &Bspline::eval_dy)
+        .def("eval_and_derivs", &Bspline::eval_and_derivs);
 
 }
-
