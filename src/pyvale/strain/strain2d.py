@@ -100,11 +100,7 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
         assert dicresults.u.ndim == 3 and dicresults.v.ndim == 3, "u and v must be 3D"
         assert dicresults.u.shape == dicresults.v.shape, "u and v must have the same shape"
         assert dicresults.u.shape[1:] == dicresults.ss_x.shape, "Spatial dimensions of u must match ss_x"
-
-        # need to make dummy filenames
-        filenames = []
-        for f in range(0,dicresults.u.shape[0]):
-            filenames.append(f"strain_data_{f:04d}")
+        filenames = check_strain_files(data.filenames)
 
     else: 
         raise TypeError(f"Unexpected displacement data type: {type(data)}")
@@ -123,8 +119,6 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
     strain_save_conf.binary = output_binary
     strain_save_conf.prefix = output_prefix
     strain_save_conf.delimiter = output_delimiter
-
-    print(type(filenames))
 
     # make an empty array for w 
     w_dummy = np.zeros_like(dicresults.u)
