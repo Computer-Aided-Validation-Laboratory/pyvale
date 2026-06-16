@@ -32,8 +32,6 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  max_iterations: int=40,
                  precision: float=0.001,
                  threshold: float=0.9,
-                 bf_threshold: float=0.6,
-                 num_threads: int | None = None,
                  max_displacement: int=128,
                  method: Literal["MULTIWINDOW_RG","SINGLEWINDOW_RG","MULTIWINDOW","RASTER"] = "MULTIWINDOW_RG",
                  incremental: bool=False,
@@ -90,9 +88,6 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         Minimum correlation/cost coefficient value to be considered a matching subset (default: 0.9).
     num_threads : int, optional
         Number of threads to use for parallel computation (default: None, uses all available).
-    bf_threshold : float, optional
-        Correlation threshold used in rigid bruteforce check for a subset to be considered a
-        good match(default: 0.6).
     max_displacement : int, optional
         Estimate for the Maximum displacement in any direction (in pixels) (default: 128).
     method : str, optional
@@ -222,7 +217,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
 
     # checks on the config
-    dicchecks.check_thresholds(threshold, bf_threshold, precision)
+    dicchecks.check_thresholds(threshold, precision)
     common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks.check_subsets(subset_size, subset_step)
     updated_seeds = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, w0, h0, subset_size, subset_step)
@@ -235,8 +230,6 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.max_iter = max_iterations
     config.precision = precision
     config.threshold = threshold
-    config.bf_threshold = bf_threshold
-    config.max_disp = max_displacement
     config.corr_crit = getattr(diccpp.CorrCrit, correlation_criteria_enum.name)
     config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
     config.interp_routine = getattr(diccpp.InterpRoutine, interpolation_routine_enum.name)

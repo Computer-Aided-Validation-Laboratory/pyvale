@@ -70,7 +70,6 @@ namespace util {
         int num_params;
         double precision;
         double threshold;
-        double bf_threshold;
         int max_disp;
         std::vector<int> rg_seeds;
         CorrCrit corr_crit;

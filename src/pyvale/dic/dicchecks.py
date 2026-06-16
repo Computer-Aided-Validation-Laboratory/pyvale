@@ -220,7 +220,6 @@ def check_method(method: str) -> None:
 
 
 def check_thresholds(threshold: float, 
-                     bf_threshold: float, 
                      precision: float) -> None:
     """
     Ensures that ``threshold``, and ``precision``
@@ -230,8 +229,6 @@ def check_thresholds(threshold: float,
     ----------
     threshold : float
         correlation/cost coeff minumum value to be considered matching subset.
-    bf_threshold : float
-        Threshold for the brute-force optimization method.
     precision : float
         Desired precision for the optimizer.
 
@@ -245,10 +242,6 @@ def check_thresholds(threshold: float,
         raise ValueError("threshold must be a float "
                          "strictly between 0 and 1.")
 
-    if not (0 < bf_threshold < 1):
-        raise ValueError("bf_threshold must be a float "
-                         "strictly between 0 and 1.")
-    
     if not (0 < precision < 1):
         raise ValueError("Optimizer precision must be a float strictly "
                          "between 0 and 1.")
