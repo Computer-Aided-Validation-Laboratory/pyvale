@@ -6,8 +6,9 @@ import numpy as np
 from scipy.interpolate import LinearNDInterpolator
 
 
-GMSH_HEX20 = 17
-GMSH_VOLUME_DIM = 3
+# GMSH_HEX20 = 17
+GMSH_QUAD8 = 16
+GMSH_VOLUME_DIM = 2
 
 
 def read_gmsh_nodes(lines: list[str]) -> np.ndarray:
@@ -41,7 +42,7 @@ def read_gmsh_nodes(lines: list[str]) -> np.ndarray:
 def read_gmsh_element_connectivity(
     lines: list[str],
     entity_dim: int = GMSH_VOLUME_DIM,
-    element_type: int = GMSH_HEX20,
+    element_type: int = GMSH_QUAD8,
 ) -> np.ndarray:
     start = lines.index("$Elements") + 1
     num_entity_blocks, _, _, _ = map(int, lines[start].split())
@@ -70,7 +71,7 @@ def read_gmsh_element_connectivity(
 def read_gmsh_element_centres(
     mesh_path: Path,
     entity_dim: int = GMSH_VOLUME_DIM,
-    element_type: int = GMSH_HEX20,
+    element_type: int = GMSH_QUAD8,
 ) -> np.ndarray:
     lines = mesh_path.read_text().splitlines()
     nodes = read_gmsh_nodes(lines)
@@ -124,7 +125,7 @@ def load_and_interpolate_fe_elements(
     value_scale: float = 1.0,
     specimen_mask: np.ndarray | None = None,
     entity_dim: int = GMSH_VOLUME_DIM,
-    element_type: int = GMSH_HEX20,
+    element_type: int = GMSH_QUAD8,
 ) -> tuple[np.ndarray, np.ndarray]:
     element_centres = read_gmsh_element_centres(
         mesh_path,

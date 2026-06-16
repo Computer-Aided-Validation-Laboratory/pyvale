@@ -55,7 +55,8 @@ VFMVERIF_ROOT = PYVALE_ROOT.parent / "vfmverif"
 
 def load_sim_data_to_grid(
     exodus_file_name: str,
-    component_keys: tuple[str,...]
+    component_keys: tuple[str,...],
+    grid_divs
 ) -> tuple[
     npt.NDArray[np.float64], # x_grid
     npt.NDArray[np.float64], # y_grid
@@ -73,8 +74,6 @@ def load_sim_data_to_grid(
 
     plate_height = 35e-3
     plate_width = 25e-3
-
-    grid_divs = 101
 
     def grid_inner_vec(lower: float, upper: float, num_divs: int) -> np.ndarray:
         step = (upper - lower) / num_divs
@@ -115,7 +114,8 @@ def load_sim_data_to_grid(
     pyvista_interp = sensorsim.simdata_to_pyvista_interp(
         sim_data,
         component_keys,
-        sensorsim.EDim.THREED
+        sensorsim.EDim.TWOD
+        # sensorsim.EDim.THREED
     )
     pv_points = pv.PolyData(interp_points)
     sample_data = pv_points.sample(pyvista_interp)
@@ -151,7 +151,7 @@ def load_sim_data_to_grid(
 #   all input stuff really
 def test_end_to_end() -> None:
     print("Loading data...")
-    exodus_file_name = "hole3d_plas_het_24f.e"
+    exodus_file_name = "out_hole2d_plas_het_32f.e"
 
     # (
     #     x_grid, # shape: (x, y, z)
@@ -164,6 +164,8 @@ def test_end_to_end() -> None:
     #     exodus_file_name,
     #     ("strain_xx", "strain_yy", "strain_xy","vonmises_stress")
     # )
+
+    grid_divs = 101
 
     (
         x_grid,
@@ -179,14 +181,21 @@ def test_end_to_end() -> None:
             "strain_yy",
             "strain_xy",
             "strain_zz",
-            "strain_xz",
-            "strain_yz",
+            "stress_xx",
+            "stress_yy",
+            "stress_xy",
+            "stress_zz",
             "vonmises_stress",
-        )
+            "plastic_strain_xx",
+            "plastic_strain_yy",
+            "plastic_strain_xy",
+            "plastic_strain_zz",
+            "scalar_strain_zz"
+        ),
+        grid_divs,
     )
 
     # Reshape and flip data to match our conventions
-
 
     # remove redundant z component
     x_grid = x_grid[:, :, 0] # shape: (x, y)
@@ -213,35 +222,58 @@ def test_end_to_end() -> None:
     y_grid = np.flipud(y_grid)
     grid_data = np.flip(grid_data, axis=3)
     
+
+            # "strain_xx",
+            # "strain_yy",
+            # "strain_xy",
+            # "strain_zz",
+            # "stress_xx",
+            # "stress_yy",
+            # "stress_xy",
+            # "stress_zz",
+            # "vonmises_stress",
+            # "plastic_strain_xx",
+            # "plastic_strain_yy",
+            # "plastic_strain_xy",
+            # "plastic_strain_zz",
+            # "scalar_strain_zz"
        
     # unpack grid data
-    strain_xx = grid_data[:, 0, :, :]
-    strain_yy = grid_data[:, 1, :, :]
-    strain_xy = grid_data[:, 2, :, :]
-    strain_zz = grid_data[:, 3, :, :]
-    strain_xz = grid_data[:, 4, :, :]
-    strain_yz = grid_data[:, 5, :, :]
-    vonmises_stress = grid_data[:, 6, :, :]
+    grid_data[:,4:9, :, :] *= 1e-6 # convert stress to MPa
+    strain_xx_fe = grid_data[:, 0, :, :]
+    strain_yy_fe = grid_data[:, 1, :, :]
+    strain_xy_fe = grid_data[:, 2, :, :]
+    strain_zz_fe = grid_data[:, 3, :, :]
+    stress_xx_fe = grid_data[:, 4, :, :]
+    stress_yy_fe = grid_data[:, 5, :, :]
+    stress_xy_fe = grid_data[:, 6, :, :]
+    stress_zz_fe = grid_data[:, 7, :, :]
+    vonmises_stress_fe = grid_data[:, 8, :, :]
+    plastic_strain_xx = grid_data[:, 9, :, :]
+    plastic_strain_yy = grid_data[:, 10, :, :]
+    plastic_strain_xy = grid_data[:, 11, :, :]
+    plastic_strain_zz = grid_data[:, 12, :, :]
+    scalar_strain_zz = grid_data[:, 13, :, :]
 
 
     # check in plane vs out of plane strains
-    in_plane = np.sqrt(
-        strain_xx**2
-        + strain_yy**2
-        + 2.0 * strain_xy**2
-    )
+    # in_plane = np.sqrt(
+    #     strain_xx**2
+    #     + strain_yy**2
+    #     + 2.0 * strain_xy**2
+    # )
 
-    out_of_plane = np.sqrt(
-        strain_zz**2
-        + 2.0 * strain_xz**2
-        + 2.0 * strain_yz**2
-    )
+    # out_of_plane = np.sqrt(
+    #     strain_zz**2
+    #     + 2.0 * strain_xz**2
+    #     + 2.0 * strain_yz**2
+    # )
 
-    ratio = out_of_plane / np.maximum(in_plane, 1e-12)
+    # ratio = out_of_plane / np.maximum(in_plane, 1e-12)
 
     print(grid_data.shape)
-    print(np.nanmax(ratio[3]))
-    print(np.nanmax(ratio[24]))
+    # print(np.nanmax(ratio[3]))
+    # print(np.nanmax(ratio[24]))
 
 
     print("Shaping inputs...")
@@ -258,7 +290,7 @@ def test_end_to_end() -> None:
     #     y_grid,
     # )
 
-    specimen_mask = ~np.isnan(strain_xx[0, :, :])
+    specimen_mask = ~np.isnan(strain_xx_fe[0, :, :])
 
     plate_thickness = 1e-3
 
@@ -293,7 +325,7 @@ def test_end_to_end() -> None:
                 y=EEdgeCondition.Fixed
             ),
             max_y_edge=Edge(
-                x=EEdgeCondition.Fixed,
+                x=EEdgeCondition.Free,
                 y=EEdgeCondition.Traction
             )
         ),
@@ -302,14 +334,13 @@ def test_end_to_end() -> None:
         np.column_stack((np.zeros_like(force), force))
     )
 
+    strain_data = grid_data[:, 0:3, :, :]  # shape: (timesteps, 3, y, x) just xx,yy,xy strains
     experiment_data = ExperimentData(
-        grid_data,
+        strain_data,
         specimen_geometry,
         boundary_conditions,
         time
     )
-
-
 
     # Parameters
     YieldInf = 200      # MPa
@@ -325,8 +356,8 @@ def test_end_to_end() -> None:
     stdY = plateWidth / 4
 
     # Create 101 x 101 coordinate grid
-    nx = 101
-    ny = 101
+    nx = grid_divs
+    ny = grid_divs
 
     x = np.linspace(-plateWidth / 2, plateWidth / 2, nx)
     y = np.linspace(0, plateHeight, ny)
@@ -371,7 +402,7 @@ def test_end_to_end() -> None:
 
     # Compare FE yield stess with analytical yield stress
     DATA_DIR = Path(__file__).resolve().parent.parent.parent / "dev" / "vfm" / "rob-data"
-    MESH_PATH = DATA_DIR / "mesh3d_holeplate.msh"
+    MESH_PATH = DATA_DIR / "mesh2d_holeplate.msh"
     element_centres = read_gmsh_element_centres(MESH_PATH)
 
     yield_stress_fe_interpolated = interpolate_fe_elements_to_grid(
@@ -420,10 +451,10 @@ def test_end_to_end() -> None:
 
     parameters = {
         "elastic_modulus": ConstitutiveParameter(
-            200_000, 100_000, 250_000, np.array([101, 101])
+            200_000, 100_000, 250_000, np.array([grid_divs, grid_divs])
         ),
         "poissons_ratio": ConstitutiveParameter(
-            0.3, 0.2, 0.4, np.array([101, 101])
+            0.3, 0.2, 0.4, np.array([grid_divs, grid_divs])
         ),
         # "yield_strength": ConstitutiveParameter(
         #     220, 100, 1000, np.array([101, 101])
@@ -434,7 +465,7 @@ def test_end_to_end() -> None:
         # TODO: what are the assumed units here, vfmverif value is
         # 1000 MPa
         "hardening_modulus": ConstitutiveParameter(
-            1000, 500, 10_000, np.array([101, 101])
+            1000, 500, 10_000, np.array([grid_divs, grid_divs])
         ),
     }
 
@@ -478,13 +509,14 @@ def test_end_to_end() -> None:
 
     strain = grid_data[:, 0:3, :, :]  # shape: (timesteps, 3, y, x) just xx,yy,xy strains
 
-    # strain_for_rr = grid_data[:, 0:3, :, :].copy()
-    # strain_for_rr[:, 2, :, :] *= 0.5
+    # strain_for_rr = strain.copy()
+    # strain_for_rr[:, 2, :, :] *= 0.5 # engineering vs tensorial check
+    # strain_for_rr[:, 2, :, :] *= -1  # flip sign check
     # strain = strain_for_rr
 
     # checks confirmed shear strain is in tensorial convention
     # checks confirmed -1 * shear strain didnt help
-    stress, equivalent_stress_rr, yield_map, equivalent_plastic_strain = radial_return(
+    stress_rr, equivalent_stress_rr, yield_map, equivalent_plastic_strain = radial_return(
             strain,
             constitutive_parameter_maps,
             constitutive_parameter_maps["elastic_modulus"],
@@ -494,13 +526,17 @@ def test_end_to_end() -> None:
         )
 
     # stress = identification.constitutive_law.calculate_stress(grid_data[:, 0:2, :, :], constitutive_parameter_maps)
-    equivalent_stress_fe= vonmises_stress * 1e-6
 
+    # stack fe stress to same shape as rr stress for comparison
+    stress_fe = np.stack([stress_xx_fe, stress_yy_fe, stress_xy_fe], axis=1) # shape: (timesteps, 3, y, x)
 
-
-    step = 4
-    data = equivalent_stress_fe[step, :, :]   
-    data_name='equivalent_stress_fe'
+    # COMPARE XX STRESS FROM RR AND FE
+    step = 30
+    component_index = 2 # xx stress component
+    component_label_dict = {0: 'xx', 1: 'yy', 2: 'xy'}
+    component_label = component_label_dict[component_index]
+    data = (np.abs(stress_rr[step, component_index, :, :] - stress_fe[step, component_index, :, :]) / stress_fe[step, component_index, :, :]) * 100
+    data_name=f'stress_{component_label}_rr-fe_abs_perc_diff'
     plt.figure()
     im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
     plt.colorbar(label='Stress')
@@ -508,13 +544,15 @@ def test_end_to_end() -> None:
     plt.ylabel('y')
     #include param name and dof index in title
     plt.title(f'{data_name}, step {step}')
-    vmin = np.nanpercentile(data, 5)
-    vmax = np.nanpercentile(data, 95)
-    im1.set_clim(vmin, vmax)
+    # vmin = np.nanpercentile(data, 5)
+    # vmax = np.nanpercentile(data, 95)
+    # im1.set_clim(vmin, vmax)
     im1=plt.show()
+    print(f"vm stress {component_label} rr - fe: max abs perc diff [%] = {np.nanmax(data):.6f}")
 
-    data = equivalent_stress_rr[step, :, :]   
-    data_name='equivalent_stress_rr'
+
+    data = stress_rr[step, component_index, :, :] - stress_fe[step, component_index, :, :] 
+    data_name=f'stress_{component_label}_rr-fe_abs_diff'
     plt.figure()
     im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
     plt.colorbar(label='Stress')
@@ -522,13 +560,14 @@ def test_end_to_end() -> None:
     plt.ylabel('y')
     #include param name and dof index in title
     plt.title(f'{data_name}, step {step}')
-    vmin = np.nanpercentile(data, 5)
-    vmax = np.nanpercentile(data, 95)
-    im1.set_clim(vmin, vmax)
+    # vmin = np.nanpercentile(data, 5)
+    # vmax = np.nanpercentile(data, 95)
+    # im1.set_clim(vmin, vmax)
     im1=plt.show()
+    print(f"vm stress {component_label} rr - fe: max abs diff  = {np.nanmax(data):.6f}")
 
-    data = equivalent_stress_rr[step, :, :] - equivalent_stress_fe[step, :, :]  
-    data_name='equivalent_stress_rr-fe'
+    data = stress_rr[step, component_index, :, :]
+    data_name=f'stress_{component_label}_rr'
     plt.figure()
     im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
     plt.colorbar(label='Stress')
@@ -536,15 +575,14 @@ def test_end_to_end() -> None:
     plt.ylabel('y')
     #include param name and dof index in title
     plt.title(f'{data_name}, step {step}')
-    vmin = np.nanpercentile(data, 1)
-    vmax = np.nanpercentile(data, 99)
-    im1.set_clim(vmin, vmax)
+    # vmin = np.nanpercentile(data, 5)
+    # vmax = np.nanpercentile(data, 95)
+    # im1.set_clim(vmin, vmax)
     im1=plt.show()
-    print(f"vm stress rr - fe: max abs diff [MPa] = {np.nanmax(np.abs(data)):.6f}")
 
 
-    data = (np.abs(equivalent_stress_rr[step, :, :] - equivalent_stress_fe[step, :, :]) / equivalent_stress_fe[step, :, :]) * 100
-    data_name='equivalent_stress_rr-fe_abs_perc_diff'
+    data = stress_fe[step, component_index, :, :]
+    data_name=f'stress_{component_label}_fe'
     plt.figure()
     im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
     plt.colorbar(label='Stress')
@@ -552,11 +590,71 @@ def test_end_to_end() -> None:
     plt.ylabel('y')
     #include param name and dof index in title
     plt.title(f'{data_name}, step {step}')
-    vmin = np.nanpercentile(data, 5)
-    vmax = np.nanpercentile(data, 95)
-    im1.set_clim(vmin, vmax)
+    # vmin = np.nanpercentile(data, 5)
+    # vmax = np.nanpercentile(data, 95)
+    # im1.set_clim(vmin, vmax)
     im1=plt.show()
-    print(f"vm stress rr - fe:max abs perc diff [%] = {np.nanmax(data):.6f}")
+
+    print("done with stress comparison")
+
+    # data = equivalent_stress_fe[step, :, :]   
+    # data_name='equivalent_stress_fe'
+    # plt.figure()
+    # im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    # plt.colorbar(label='Stress')
+    # plt.xlabel('x')
+    # plt.ylabel('y')
+    # #include param name and dof index in title
+    # plt.title(f'{data_name}, step {step}')
+    # vmin = np.nanpercentile(data, 5)
+    # vmax = np.nanpercentile(data, 95)
+    # im1.set_clim(vmin, vmax)
+    # im1=plt.show()
+
+    # data = equivalent_stress_rr[step, :, :]   
+    # data_name='equivalent_stress_rr'
+    # plt.figure()
+    # im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    # plt.colorbar(label='Stress')
+    # plt.xlabel('x')
+    # plt.ylabel('y')
+    # #include param name and dof index in title
+    # plt.title(f'{data_name}, step {step}')
+    # vmin = np.nanpercentile(data, 5)
+    # vmax = np.nanpercentile(data, 95)
+    # im1.set_clim(vmin, vmax)
+    # im1=plt.show()
+
+    # data = equivalent_stress_rr[step, :, :] - equivalent_stress_fe[step, :, :]  
+    # data_name='equivalent_stress_rr-fe'
+    # plt.figure()
+    # im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    # plt.colorbar(label='Stress')
+    # plt.xlabel('x')
+    # plt.ylabel('y')
+    # #include param name and dof index in title
+    # plt.title(f'{data_name}, step {step}')
+    # vmin = np.nanpercentile(data, 1)
+    # vmax = np.nanpercentile(data, 99)
+    # im1.set_clim(vmin, vmax)
+    # im1=plt.show()
+    # print(f"vm stress rr - fe: max abs diff [MPa] = {np.nanmax(np.abs(data)):.6f}")
+
+
+    # data = (np.abs(equivalent_stress_rr[step, :, :] - equivalent_stress_fe[step, :, :]) / equivalent_stress_fe[step, :, :]) * 100
+    # data_name='equivalent_stress_rr-fe_abs_perc_diff'
+    # plt.figure()
+    # im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    # plt.colorbar(label='Stress')
+    # plt.xlabel('x')
+    # plt.ylabel('y')
+    # #include param name and dof index in title
+    # plt.title(f'{data_name}, step {step}')
+    # vmin = np.nanpercentile(data, 5)
+    # vmax = np.nanpercentile(data, 95)
+    # im1.set_clim(vmin, vmax)
+    # im1=plt.show()
+    # print(f"vm stress rr - fe:max abs perc diff [%] = {np.nanmax(data):.6f}")
 
 
     data = yield_map[step, :, :]
@@ -574,19 +672,19 @@ def test_end_to_end() -> None:
     im1=plt.show()
     print(f"count of yielded points = {(yield_map[step, :, :] == 1).sum()}")
 
-    data = ratio[step, :, :]
-    data_name = 'out_of_plane_to_in_plane_strain_ratio'
-    plt.figure()
-    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    plt.colorbar(label='Strain ratio')
-    plt.xlabel('x')
-    plt.ylabel('y')
-    plt.title(f'{data_name}, step {step}')
-    vmin = np.nanpercentile(data, 5)
-    vmax = np.nanpercentile(data, 95)
-    im1.set_clim(vmin, vmax)
-    im1 = plt.show()
-    print(f"max out_of_plane / in_plane strain ratio = {np.nanmax(data):.6f}")
+    # data = ratio[step, :, :]
+    # data_name = 'out_of_plane_to_in_plane_strain_ratio'
+    # plt.figure()
+    # im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
+    # plt.colorbar(label='Strain ratio')
+    # plt.xlabel('x')
+    # plt.ylabel('y')
+    # plt.title(f'{data_name}, step {step}')
+    # vmin = np.nanpercentile(data, 5)
+    # vmax = np.nanpercentile(data, 95)
+    # im1.set_clim(vmin, vmax)
+    # im1 = plt.show()
+    # print(f"max out_of_plane / in_plane strain ratio = {np.nanmax(data):.6f}")
 
 
 
@@ -594,11 +692,11 @@ def test_end_to_end() -> None:
     vfm_result = vfm(experiment_data, identification)
 
     gold_parameters = {
-        "elastic_modulus": np.full((101, 101), 200_000),
-        "poissons_ratio": np.full((101, 101), 0.3),
-        "yield_strength": np.full((101, 101), 200),
+        "elastic_modulus": np.full((grid_divs, grid_divs), 200_000),
+        "poissons_ratio": np.full((grid_divs, grid_divs), 0.3),
+        "yield_strength": np.full((grid_divs, grid_divs), 200),
         # TODO: what are the assumed units here
-        "hardening_modulus": np.full((101, 101), 1_000)
+        "hardening_modulus": np.full((grid_divs, grid_divs), 1_000)
     }
 
     for param_name, param in vfm_result.items():
