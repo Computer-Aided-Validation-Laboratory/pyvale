@@ -239,7 +239,6 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
         target_map = constitutive_parameter.map
-        map_size = np.array(target_map.shape, dtype=np.uint32)
 
         # place initial basis function kernel in the center of the map
         min_x = np.min(self.x)
@@ -279,8 +278,19 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         dof_variance = DegreeOfFreedom(
             10.0,
             0.0,
-            100.0
+            10000.0
         )
+
+        # threshold_factor = np.sqrt(-2.0 * np.log(feature_threshold))
+
+        # min_feature_radius = min_feature_size / 2.0
+        # max_feature_radius = max_feature_size / 2.0
+
+        # min_sigma = min_feature_radius / threshold_factor
+        # max_sigma = max_feature_radius / threshold_factor
+
+        # rbf_variance_range = np.array([min_sigma**2, max_sigma**2])
+
 
         self.kernels.append(
             BasisFunctionKernelUnivariate(
@@ -291,33 +301,72 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             )
         )
 
-        prev_rmspe = 1
-
-        for _ in range(10):
+        prev_outer_rmspes = []
+        convergence_threshold_percentage = 1.0
+        for _ in range(100):
             # perform fitting on the existing kernels
             updated_dofs = self.collect_degrees_of_freedom()
             normalised_dofs = normalise_degrees_of_freedom(updated_dofs)
 
-            # TODO: maybe move to pattern search, or Powell
-            # TODO: keep track of the rmspe every iteration of the for loop
-            # TODO: keep track of the rmspe every iteration of the optimisation
-            #   loop, and break when converged enough
-            res = minimize(
-                lambda x: self._calc_rmspe_from_dofs(x, target_map),
-                normalised_dofs,
-                method="L-BFGS-B",
-                bounds=Bounds(0.0, 1.0)
-            )
+            prev_rmspes = []
+            best_dofs = normalised_dofs.copy()
+            best_rmspe = self._calc_rmspe_from_dofs(normalised_dofs, target_map)
 
-            optimised_dofs = res.x
+            def opt_callback(xk: npt.NDArray[np.float64]) -> None:
+                nonlocal best_rmspe, best_dofs
+                current_rmspe = self._calc_rmspe_from_dofs(xk, target_map)
+
+                if prev_rmspes:
+                    best_prev_rmspe = min(prev_rmspes)
+
+                    percentage_change = (
+                        abs(current_rmspe - prev_rmspes[-1])
+                        / prev_rmspes[-1]
+                        * 100.0
+                    )
+                    if percentage_change < convergence_threshold_percentage:
+                        prev_rmspes.append(current_rmspe)
+
+                        if current_rmspe < best_rmspe:
+                            best_rmspe = current_rmspe
+                            best_dofs = xk.copy()
+
+                        raise StopIteration()
+
+                prev_rmspes.append(current_rmspe)
+
+                if current_rmspe < best_rmspe:
+                    best_rmspe = current_rmspe
+                    best_dofs = xk.copy()
+
+            try:
+                # TODO: maybe move to pattern search, or Powell
+                res = minimize(
+                    lambda x: self._calc_rmspe_from_dofs(x, target_map),
+                    normalised_dofs,
+                    method="L-BFGS-B",
+                    bounds=Bounds(0.0, 1.0),
+                    callback=opt_callback
+                )
+                optimised_dofs = res.x
+            except StopIteration:
+                optimised_dofs = best_dofs
 
             rmspe = self._calc_rmspe_from_dofs(optimised_dofs, target_map)
 
-            # TODO: what is the right constant for this break condition?
-            if (prev_rmspe - rmspe) < 0.005:
-                break
+            if prev_outer_rmspes:
+                best_outer_rmspe = min(prev_outer_rmspes)
 
-            prev_rmspe = rmspe
+                percentage_change = (
+                    abs(rmspe - prev_outer_rmspes[-1])
+                    / prev_outer_rmspes[-1]
+                    * 100.0
+                )
+                if percentage_change < convergence_threshold_percentage:
+                    prev_outer_rmspes.append(rmspe)
+                    break
+
+            prev_outer_rmspes.append(rmspe)
 
             lower_bounds = []
             upper_bounds = []
@@ -336,9 +385,10 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
 
             map = self.to_map(np.array(target_map.shape))
 
-            error_map = target_map - map
+            error_map = map - target_map
 
-            smoothed_error_map = uniform_filter(error_map, size=4)
+            # TODO: what is the behaviour of this at the edges?
+            smoothed_error_map = uniform_filter(error_map, size=5)
 
             abs_smoothed_error = np.abs(smoothed_error_map)
             max_idx = np.unravel_index(
@@ -362,7 +412,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             )
 
             dof_height = DegreeOfFreedom(
-                float(error_map[max_idx]),
+                float(-error_map[max_idx]),
                 -constitutive_parameter_range,
                 constitutive_parameter_range
             )
@@ -370,7 +420,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             dof_variance = DegreeOfFreedom(
                 10.0,
                 0.0,
-                100.0
+                10000.0
             )
 
             self.kernels.append(
@@ -387,14 +437,14 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         self,
         map: npt.NDArray[np.float64],
         target_map: npt.NDArray[np.float64]
-    ):
+    ) -> float:
         return np.sqrt(np.mean(((target_map - map) / target_map ) ** 2))
 
     def _calc_rmspe_from_dofs(
         self,
         degrees_of_freedom: npt.NDArray[np.float64],
         target_map: npt.NDArray[np.float64]
-    ):
+    ) -> float:
         lower_bounds = []
         upper_bounds = []
 
@@ -528,3 +578,6 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             kernel.update_from_degrees_of_freedom(dofs)
 
             index += num_dofs
+
+    def should_perform_refinement(self) -> bool:
+        return False
