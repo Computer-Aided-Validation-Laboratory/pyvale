@@ -503,11 +503,7 @@ int main(){
     for (const DistortCase& case_spec : distort_cases) {
         std::cout << case_spec.case_name << case_spec.data_dir << "\n";
         switch (case_spec.nodes_per_element) {
-            // case ElementNodeCount::TRI3:
-            //     runDistortCase<ElementNodeCount::TRI3>(
-            //         case_spec);
-            //     break;
-        
+            
             case ElementNodeCount::TRI6:
                 runDistortCase<ElementNodeCount::TRI6>(
                     case_spec,
