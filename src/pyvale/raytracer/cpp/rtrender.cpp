@@ -29,6 +29,8 @@ namespace renderer{
     // Set parameters with defaults
     int MAX_DEPTH = 2;
     EiVector3d background_color = EiVector3d::Zero();
+    uint32_t max_code_range = 255u; // Defaults to maximum for 8-bit
+    RenderingFunction render_image = nullptr;
 
     EiVector3d return_ray_color_stack(const Ray& primary_ray,
         const double scene_ri,
@@ -242,6 +244,53 @@ namespace renderer{
     void set_background(const EiVector3d& color){
         background_color = color;
     }
+
+    void set_max_code_range(const BitDepth bit_depth){
+        switch(bit_depth){
+            case BitDepth::BIT_8:
+                max_code_range = 255u; break;
+            case BitDepth::BIT_10:
+                max_code_range = 1023u; break;
+            case BitDepth::BIT_12:
+                max_code_range = 4095u; break;
+            case BitDepth::BIT_16:
+                max_code_range = 65535u; break;
+            default:
+                max_code_range = 65535u; break;
+        }
+    }
+
+    void set_rendering_function(const bool grayscale,
+        const BitDepth bit_depth,
+        const OutputFormat output_format){
+
+        if (grayscale){
+            if (output_format == OutputFormat::TIFF_16BIT){
+                    render_image = &render_img<RenderColor::GRAYSCALE, BufferType::UINT_16>;
+                    set_max_code_range(bit_depth); 
+                    std::cout <<"Tiff 16 bit, grayscale" << std::endl;
+                    std::cout << "Max code range: " << max_code_range << std::endl;
+                    std::cout << "Bit depth: " << static_cast<int>(bit_depth) << std::endl;
+                
+                } else {
+                    render_image = &render_img<RenderColor::GRAYSCALE, BufferType::UINT_8>;
+                }
+        }
+        else { // Color
+            // The only case when we need 16-bit is TIFF 16
+                if (output_format == OutputFormat::TIFF_16BIT){
+                    render_image = &render_img<RenderColor::COLOR, BufferType::UINT_16>;
+                    set_max_code_range(bit_depth); // Needed for setting our desired bit depth; else don't bother
+                    std::cout <<"Tiff 16 bit, grayscale" << std::endl;
+                    std::cout << "Max code range: " << max_code_range << std::endl;
+                    std::cout << "Bit depth: " << static_cast<int>(bit_depth) << std::endl;
+                } else {
+                    render_image = &render_img<RenderColor::COLOR, BufferType::UINT_8>;
+                }
+        }
+    
+    }
+
 }
 
 // ================================================================================
@@ -249,10 +298,9 @@ namespace renderer{
 // ================================================================================
 namespace outputwriter{
 
-    void (*save_image)(const std::vector<uint8_t>& pixel_buffer,
-        const int image_height,
-        const int image_width,
-        std::filesystem::path& output_filepath);
+    SaveImage8bitFn save_image_8bit = nullptr;
+    SaveImage16bitFn save_image_16bit = nullptr;
+    BitDepth bit_depth = BitDepth::BIT_8;
 
     // Helper that writes 16-bit integers in Little-Endian byte order
     static inline void write_16bit(std::ofstream& image_file,
@@ -284,6 +332,10 @@ namespace outputwriter{
         write_16bit(image_file, type);
         write_32bit(image_file, count);
         write_32bit(image_file, value);
+    }
+
+    void set_depth(BitDepth depth){
+        bit_depth = depth;
     }
 
     void saveBMP_24bit(const std::vector<uint8_t>& pixel_buffer,
@@ -458,39 +510,74 @@ namespace outputwriter{
 
     // Setter
     void set(OutputFormat output_format, ChannelCount channel_count){
+
+        // Reset both so only the valid one is active
+        save_image_8bit = nullptr;
+        save_image_16bit = nullptr;
+
         switch (output_format){
             case OutputFormat::PPM:
-                save_image = &savePPM;
+                save_image_8bit = &savePPM;
                 break;
             case OutputFormat::TIFF_8BIT:
                 switch(channel_count){
                     case(ChannelCount::MONO):
-                        save_image = &saveTIFF_8bit<ChannelCount::MONO>; break;
+                        save_image_8bit = &saveTIFF_8bit<ChannelCount::MONO>; break;
                     case (ChannelCount::RGB):
-                        save_image = &saveTIFF_8bit<ChannelCount::RGB>; break;
+                        save_image_8bit = &saveTIFF_8bit<ChannelCount::RGB>; break;
                 }
                 break;
-            //case OutputFormat::TIFF_16BIT:
-            //    switch(channel_count){
-            //        case(ChannelCount::MONO):
-            //            save_image = &saveTIFF_16bit<ChannelCount::MONO>; break;
-            //        case (ChannelCount::RGB):
-            //            save_image = &saveTIFF_16bit<ChannelCount::RGB>; break;
-            //    }
-            //    break;
+            case OutputFormat::TIFF_16BIT:
+                switch(channel_count){
+                    case(ChannelCount::MONO):
+                        save_image_16bit = &saveTIFF_16bit<ChannelCount::MONO>; break;
+                        std::cout << "16-bit mono tiff" << std::endl;
+                    case (ChannelCount::RGB):
+                        save_image_16bit = &saveTIFF_16bit<ChannelCount::RGB>; break;
+                        std::cout << "16-bit rgb tiff" << std::endl;
+                }
+                break;
             case OutputFormat::BMP_24BIT:
-                save_image = &saveBMP_24bit;
+                save_image_8bit = &saveBMP_24bit;
                 break;
             case OutputFormat::BMP_8BIT:
-                save_image = &saveBMP_8bit;
+                save_image_8bit = &saveBMP_8bit;
                 break;
             //case OutputFormat::NP_BUFFER:
-                //save_image = &saveNPBuffer;
+                //save_image_? = &saveNPBuffer;
                 //break;
             default:
-                save_image = &saveBMP_8bit;
+                save_image_8bit = &saveBMP_8bit;
                 break;
         }
+    }
+
+    // Overload for 8-bit pixel buffers
+    void save_image(const std::vector<uint8_t>& pixel_buffer,
+        const int image_height,
+        const int image_width,
+        std::filesystem::path& output_filepath) {
+
+        if (save_image_8bit == nullptr) {
+            throw std::runtime_error(
+                "No 8-bit output writer has been configured for the selected output format.");
+        }
+
+        save_image_8bit(pixel_buffer, image_height, image_width, output_filepath);
+    }
+
+
+    // Overload for 16-bit pixel buffers
+    void save_image(const std::vector<uint16_t>& pixel_buffer,
+        const int image_height,
+        const int image_width,
+        std::filesystem::path& output_filepath) {
+
+        if (save_image_16bit == nullptr) {
+            throw std::runtime_error(
+                "No 16-bit output writer has been configured for the selected output format.");
+        }
+        save_image_16bit(pixel_buffer, image_height, image_width, output_filepath);
     }
 
 }

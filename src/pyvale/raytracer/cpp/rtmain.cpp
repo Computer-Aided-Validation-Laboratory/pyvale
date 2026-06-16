@@ -75,37 +75,34 @@ void render_scene(const int image_height,
     // Set the texture sampling kernel and 
     texsampler::set(TextureSampler(texture_sampler));
     // Set the output format
+    outputwriter::set_depth(BitDepth(bit_depth));
     outputwriter::set(OutputFormat(output_format), ChannelCount(channel_count));
+    // Set the rendering function
+    renderer::set_rendering_function(grayscale_flag, BitDepth(bit_depth), OutputFormat(output_format));
     // Set the maximum depth for the secondary rays
     // Value checks done in Python, so no need to do it here
     renderer::set_depth(max_depth);
     renderer::set_background(background_color);
 
-
     // Get the refractive index of the scene (typically air, but in case it is not)
     const int last_index = scene_refractive_indices.size() - 1;
     const float scene_ri = scene_refractive_indices[last_index]; // Scene RI is always stored at the last position
 
-    // Render in colour or in grayscale; grayscale being the default
-    void (*render_function_ptr)(const EiVector3d& camera_center,
-        const EiVector3d& pixel_00_center,
-        const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
-        const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_defocus_disc,
-        const TLAS& TLAS,
-        const int image_height,
-        const int image_width,
-        const int number_of_samples,
-        const double scene_ri,
-        std::filesystem::path& output_filepath) = &render_image<RenderColor::GRAYSCALE>;
-
-    if (grayscale_flag == false){
-        render_function_ptr = &render_image<RenderColor::COLOR>;
-    }
-
-
     for (int timestep = 0; timestep < timestep_count; ++timestep){
         //std::chrono::time_point t1_build = std::chrono::high_resolution_clock::now();
-        TLAS current_TLAS = build_acceleration_structures(scene_coords_expanded, scene_normals_expanded, scene_face_colors, materials, scene_uvs, scene_textures, scene_surface_types, scene_refractive_indices, scene_mesh_priorities, scene_mesh_object_types, scene_mesh_thickness, shading_type, timestep, timestep_count);
+        TLAS current_TLAS = build_acceleration_structures(scene_coords_expanded,
+            scene_normals_expanded,
+            scene_face_colors, materials,
+            scene_uvs,
+            scene_textures,
+            scene_surface_types,
+            scene_refractive_indices,
+            scene_mesh_priorities,
+            scene_mesh_object_types,
+            scene_mesh_thickness,
+            shading_type,
+            timestep,
+            timestep_count);
         //std::chrono::time_point t2_build = std::chrono::high_resolution_clock::now();
         
         // Iterate over all cameras and render an image for each
@@ -120,7 +117,7 @@ void render_scene(const int image_height,
             std::cout << "Rendering frame " << (timestep+1) << "/" << timestep_count << std::endl;
             //std::chrono::time_point t1_render = std::chrono::high_resolution_clock::now();
             //CALLGRIND_START_INSTRUMENTATION;
-            render_function_ptr(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
+            renderer::render_image(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
             if (stop_request) break;
             // Debug function that can be used instead of rendering a full image if we want to shoot and track a single ray
             //mock_ray_shoot(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
