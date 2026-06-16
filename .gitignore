@@ -261,3 +261,5 @@ docs/source/examples/
 # doxygen folder generated when compiling docs
 docs/source/doxygen
 
+src/pyvale/raytracer/verification/verif
+
