@@ -5,7 +5,7 @@
 // ================================================================================
 
 #pragma once
-#include "../../common_cpp/Eigen/Dense"
+#include "../../../common_cpp/Eigen/Dense"
 // #include "/home/wiera/Documents/pyvale_dev/ray_tracing/pyvale_md-wb-dev/src/pyvale/common_cpp/Eigen/Dense"
 #include <iostream>
 #include "rtelemconstants.h"
