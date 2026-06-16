@@ -209,7 +209,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     shape_function_enum = dicchecks.Shape(shape_function)
     correlation_criteria_enum = dicchecks.CorrCrit(correlation_criteria)
     interpolation_routine_enum = dicchecks.Interp(interpolation_routine)
-    incremental_update_condition_enum = dicchecks.InrementalMethod(incremental_update_condition)
+    incremental_update_condition_enum = dicchecks.IncrementalMethod(incremental_update_condition)
 
     # checks on the config
     mw_overlap, mw_subset_size, mw_search_area  = dicchecks.multiwindow_init(subset_size,
