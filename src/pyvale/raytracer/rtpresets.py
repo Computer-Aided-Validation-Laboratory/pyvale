@@ -11,7 +11,8 @@ from dataclasses import dataclass, field
 # MATERIAL PRESETS
 # ================================================================================
 
-@dataclass(slots=True)
+# Notes: Material does not perform value validity checks, but RTMesh - where it is applied - does
+@dataclass(slots=True, frozen = True)
 class Material:
     """
     Convenience dataclass for storing material data.

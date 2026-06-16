@@ -2749,7 +2749,6 @@ def simdata_csv_to_rtmesh(directory: Path,
     node_count = coords.shape[0]
     element_count = connectivity.shape[0]
     pv_grid = _gen_pv_grid(connectivity, coords, spatial_dim)
-    print(pv_grid)
 
     # Set world position
     if world_position is None:

@@ -65,8 +65,10 @@ void render_scene(const int image_height,
     const nb::DRef<EiVector3d>& background_color,
     const int texture_sampler,
     const int shading_type,
-    const int output_format,
     const int max_depth,
-    const bool grayscale_flag);
+    const bool grayscale_flag,
+    const int output_format,
+    const int bit_depth,
+    const int channel_count);
 
 #endif // RTMAIN_H

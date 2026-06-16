@@ -6,6 +6,7 @@
 
 from pathlib import Path
 from pyvale.raytracer.rtscene import *
+from pyvale.raytracer.rtoutputformat import *
 from pyvale.raytracer.rtmesh import SurfType, MaterialType
 
 from pyvale.raytracer.rtmaincpp import cpp_render_scene # Import C++ backend
@@ -105,10 +106,9 @@ def render_scene(image_height: int,
                  render_type: RenderType = RenderType.DYNAMIC,
                  frames_to_render: int = None,
                  texture_sampler: TextureSampler | None = None,
-                 shading_type: ShadingType = ShadingType.FLAT,
-                 output_format: OutputType = OutputType.IMG_BMP_8BIT,
-                 max_depth: int | None = None,
-                 grayscale: bool = True):
+                 shading_type: ShadingType | None = None,
+                 image_format: ImageFormat | None = None,
+                 max_depth: int | None = None):
     """
     Performs checks and dispatches the scene to the C++ rendering backend.
 
@@ -131,14 +131,14 @@ def render_scene(image_height: int,
         Static renders: The number of the single frame to render; defaults to the first one otherwise. Nb4 this could maybe be a tuple to specify the range instead?
     texture_sampler: TextureSampler | None
         The algorithm used to sample the textures onto the mesh surfaces. Defaults to None and gets set to nearest neighbour.
-    shading_type: ShadingType
+    shading_type: ShadingType | None
         The type of shading to use. Can be either FLAT (geometric normals used for shading) or BLENDED (node normals used for shading). Defaults to FLAT.
-    output_format: OutputType
+    output_format: OutputType | None
         The format of the output image. Can be either IMG_PPM or IMG_TIFF. Defaults to IMG_TIFF.
+    image_format: ImageFormat | None
+        The format of the output image. Defaults to an 8-bit single-channel BMP image (grayscale by default).
     max_depth: int | None
         Maximum depth for secondary rays. Higher value is recommended for refractive materials. Defaults to None.
-    grayscale: bool
-        Flag to determine whether the image is to be rendered using grayscale or in colour. Defaults to True.
 
     Raises:
     -------
@@ -149,14 +149,14 @@ def render_scene(image_height: int,
     --------
     None, but rendered images will be saved to the specified output directory.
     """
-    # Assign default values depending on the render type if target frame count was not specified
+    # 1. Assign default values depending on the render type if target frame count was not specified
     if frames_to_render is None:
         if render_type == RenderType.STATIC:
             frames_to_render = 1
         elif render_type == RenderType.DYNAMIC:
             frames_to_render = scene.timestep_count
 
-     # Check if there are meshes in the scene and if there are, check their surfaces and element types
+     # 2. Check if there are meshes in the scene and if there are, check their surfaces and element types
     if scene.mesh_count == 0:
         raise ValueError("No meshes in scene.")
     if len(scene.camera_center) == 0:
@@ -165,7 +165,7 @@ def render_scene(image_height: int,
     #    uniform_surfaces = check_uniform_surfaces(scene)
     #    uniform_elements = check_uniform_elements(scene)
 
-    # Sanity check for the values
+    # 3. Sanity check for the values
     if frames_to_render <= scene.timestep_count:
         scene._clip_scene(frames_to_render, render_type)
         #max_displacement_per_step_array = find_max_displacements(scene, render_type) # Data for deciding if to update/rebuild TLAS/BLAS. Currently WIP and doesn't get passed
@@ -175,22 +175,34 @@ def render_scene(image_height: int,
     if render_type == RenderType.DYNAMIC:
         scene._fill_empty_timesteps() # VERY important to avoid segfaults if there is missing timestep data for some meshes in the scene
 
-    # If texture sampling method is not selected, set to nearest neighbour by default (both to be able to render and because C++ expects an int, so we want to pass a number even for solid surfaces)
+    # 4. If texture sampling method is not selected, set to nearest neighbour by default (both to be able to render and because C++ expects an int, so we want to pass a number even for solid surfaces)
     if texture_sampler is None:
         texture_sampler = TextureSampler.NEAREST_NEIGHBOUR
         # Display information about setting the algorithm type if there are textured meshes in the scene 
         if SurfType.TEXTURE in scene.surface_types:
             print("Texture sampler not selected. Using nearest neighbour.")
 
-    scene.refractive_indices.append(scene.scene_ri) # Append the scene RI at the end of the refractive indices list to pass fewer arguments to the renderer, while keeping indexing for the meshes consistent
+    # 5. # Append the scene RI at the end of the refractive indices list to pass fewer arguments to the renderer, while keeping indexing for the meshes consistent
+    scene.refractive_indices.append(scene.scene_ri) 
 
-    if shading_type == ShadingType.FLAT:
+    # 6. Shading type
+    if shading_type == None:
+        print("No shading selected. Defaulting to FLAT: geometric normals will be used for all elements.")
+    elif shading_type == ShadingType.FLAT:
         print("Flat shading selected. Geometric normals will be used for all elements.")
     elif shading_type == ShadingType.BLENDED:
         print("Blended shading selected. Angle-averaged node normals will be used for TRI3, and Jacobians for QUAD4, QUAD8, QUAD9, and TRI6.")
     elif shading_type == ShadingType.ANGLE_AVG_BLENDED:
         print("Angle-averaged blended shading selected. Angle-averaged node normals will be used for all elements.")
     
+    # 7. Image format setting
+    # Set default
+    if image_format is None:
+        image_format = ImageFormat(OutputFormat.IMG_BMP_8BIT, BitDepth.BIT_8, ChannelCount.MONO, True)
+        print(f"Output format not selected. Automatically set to {image_format.output_format}.")
+    # No checks - these are performed at creation of ImageFormat, which is immutable afterwards
+    grayscale = image_format.grayscale
+
     if SurfType.TEXTURE in scene.surface_types and not grayscale:
         # This will not break the renderer, so just display an information
         print("Please note that colorful textures are currently not supported and they will still be sampled in grayscale.")
@@ -198,8 +210,6 @@ def render_scene(image_height: int,
     # Check and set max depth
     max_depth = set_max_depth(scene, max_depth)
     
-
-
     # Select appropriate rendering function based on these booleans to minimize branching in backend rendered if possible
     # Not sure if we will need to implement this yet - BVH builder is still fast with conditional checks (and we run it once per frame), and branching based on element/surface type was moved out of the hot loops
     #if uniform_surfaces and uniform_elements:
@@ -240,6 +250,8 @@ def render_scene(image_height: int,
                      scene.background_color,
                      texture_sampler,
                      shading_type,
-                     output_format,
                      max_depth,
-                     grayscale)
+                     grayscale,
+                     image_format.output_format,
+                     image_format.bit_depth,
+                     image_format.channel_count)

@@ -432,61 +432,6 @@ namespace outputwriter{
         std::cout << "\r Done. \n";
     }
 
-    void saveTIFF(const std::vector<uint8_t>& pixel_buffer,
-        const int image_height,
-        const int image_width,
-        std::filesystem::path& output_filepath) {
-            
-        // Finish the output filepath with the appropriate extension
-        output_filepath.concat(".tiff"); // Concat will do "whatever_path_we_have.tiff", which is what we want as we already pass the name of the image file, we just need to add the extension
-        //std::cout << "Output filepath:" << output_filepath << std::endl; // For checking if path is generated correctly
-
-        // std::ios::binary is important for TIFF so Windows doesn't corrupt the file by changing \n to \r\n
-        std::ofstream image_file(output_filepath, std::ios::binary);
-        if (!image_file.is_open()) {
-            std::cerr << "Failed to open the output file.\n";
-            return;
-        }
-
-        // Write the TIFF Header (8 bytes)
-        // "II" (little-endian), 42 (magic number), 8 (offset to first IFD)
-        image_file.write("II\x2A\x00\x08\x00\x00\x00", 8);
-
-        // Write the IFD (Image File Directory)
-        write_16bit(image_file, 12); // Number of directory entries
-
-        // TIFF tags must be written in strictly ascending order of the Tag ID
-        write_tag(image_file, 0x0100, 4, 1, image_width); // ImageWidth (LONG)
-        write_tag(image_file, 0x0101, 4, 1, image_height); // ImageLength (LONG)
-        write_tag(image_file, 0x0102, 3, 3, 158); // BitsPerSample (SHORTx3 -> Pointer offset 158)
-        write_tag(image_file, 0x0103, 3, 1, 1); // Compression (SHORT -> 1 = None)
-        write_tag(image_file, 0x0106, 3, 1, 2); // PhotometricInterpretation (SHORT -> 2 = RGB)
-        write_tag(image_file, 0x0111, 4, 1, 180); // StripOffsets (LONG -> Pointer offset 180)
-        write_tag(image_file, 0x0115, 3, 1, 3); // SamplesPerPixel (SHORT -> 3 channels)
-        write_tag(image_file, 0x0116, 4, 1, image_height); // RowsPerStrip (LONG)
-        write_tag(image_file, 0x0117, 4, 1, image_width * image_height * 3); // StripByteCounts (LONG -> Total pixel bytes)
-        write_tag(image_file, 0x011A, 5, 1, 164); // XResolution (RATIONAL -> Pointer offset 164)
-        write_tag(image_file, 0x011B, 5, 1, 172); // YResolution (RATIONAL -> Pointer offset 172)
-        write_tag(image_file, 0x0128, 3, 1, 2); // ResolutionUnit (SHORT -> 2 = Inches)
-
-        write_32bit(image_file, 0); // Offset to next IFD (0 indicates end of IFDs)
-
-        // Write data that exceeds the 4-byte limit in the IFD value fields
-        // Offset 158: BitsPerSample
-        write_16bit(image_file, 8); write_16bit(image_file, 8); write_16bit(image_file, 8); 
-        // Offset 164: XResolution (Numerator / Denominator = 72 / 1)
-        write_32bit(image_file, 72); write_32bit(image_file, 1);            
-        // Offset 172: YResolution (Numerator / Denominator = 72 / 1)
-        write_32bit(image_file, 72); write_32bit(image_file, 1);            
-
-        // Write pixel data
-        // Offset 180: StripOffsets matches this exact position in the file
-        image_file.write(reinterpret_cast<const char*>(pixel_buffer.data()), pixel_buffer.size());
-
-        image_file.close();
-        std::cout << "\r Done. \n";
-    }
-
     void savePPM(const std::vector<uint8_t>& pixel_buffer,
         const int image_height,
         const int image_width,
@@ -512,25 +457,38 @@ namespace outputwriter{
     }
 
     // Setter
-    void set(OutputType output_format){
+    void set(OutputFormat output_format, ChannelCount channel_count){
         switch (output_format){
-            case OutputType::PPM:
+            case OutputFormat::PPM:
                 save_image = &savePPM;
                 break;
-            case OutputType::TIFF:
-                save_image = &saveTIFF;
+            case OutputFormat::TIFF_8BIT:
+                switch(channel_count){
+                    case(ChannelCount::MONO):
+                        save_image = &saveTIFF_8bit<ChannelCount::MONO>; break;
+                    case (ChannelCount::RGB):
+                        save_image = &saveTIFF_8bit<ChannelCount::RGB>; break;
+                }
                 break;
-            case OutputType::BMP_24BIT:
+            //case OutputFormat::TIFF_16BIT:
+            //    switch(channel_count){
+            //        case(ChannelCount::MONO):
+            //            save_image = &saveTIFF_16bit<ChannelCount::MONO>; break;
+            //        case (ChannelCount::RGB):
+            //            save_image = &saveTIFF_16bit<ChannelCount::RGB>; break;
+            //    }
+            //    break;
+            case OutputFormat::BMP_24BIT:
                 save_image = &saveBMP_24bit;
                 break;
-            case OutputType::BMP_8BIT:
+            case OutputFormat::BMP_8BIT:
                 save_image = &saveBMP_8bit;
                 break;
-            //case OutputType::NP_BUFFER:
+            //case OutputFormat::NP_BUFFER:
                 //save_image = &saveNPBuffer;
                 //break;
             default:
-                save_image = &savePPM;
+                save_image = &saveBMP_8bit;
                 break;
         }
     }

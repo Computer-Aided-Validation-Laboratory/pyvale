@@ -57,9 +57,11 @@ void render_scene(const int image_height,
     const nb::DRef<EiVector3d>& background_color,
     const int texture_sampler,
     const int shading_type,
-    const int output_format,
     const int max_depth,
-    const bool grayscale_flag) {
+    const bool grayscale_flag,
+    const int output_format,
+    const int bit_depth,
+    const int channel_count) {
 
     // Register signal handler for Ctrl+C
     signal(SIGINT, signalHandler);
@@ -73,7 +75,7 @@ void render_scene(const int image_height,
     // Set the texture sampling kernel and 
     texsampler::set(TextureSampler(texture_sampler));
     // Set the output format
-    outputwriter::set(OutputType(output_format));
+    outputwriter::set(OutputFormat(output_format), ChannelCount(channel_count));
     // Set the maximum depth for the secondary rays
     // Value checks done in Python, so no need to do it here
     renderer::set_depth(max_depth);
