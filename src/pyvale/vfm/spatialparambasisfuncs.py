@@ -1,6 +1,5 @@
-from abc import ABC, abstractmethod
 from copy import copy, deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -274,23 +273,13 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             constitutive_parameter_range
         )
 
-        # TODO: figure out how to set initial value and range
+        variance_range = _compute_variance_range(self.x, self.y)
+
         dof_variance = DegreeOfFreedom(
-            10.0,
-            0.0,
-            10000.0
+            float(np.mean(variance_range)),
+            variance_range[0],
+            variance_range[1]
         )
-
-        # threshold_factor = np.sqrt(-2.0 * np.log(feature_threshold))
-
-        # min_feature_radius = min_feature_size / 2.0
-        # max_feature_radius = max_feature_size / 2.0
-
-        # min_sigma = min_feature_radius / threshold_factor
-        # max_sigma = max_feature_radius / threshold_factor
-
-        # rbf_variance_range = np.array([min_sigma**2, max_sigma**2])
-
 
         self.kernels.append(
             BasisFunctionKernelUnivariate(
@@ -303,22 +292,22 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
 
         prev_outer_rmspes = []
         convergence_threshold_percentage = 1.0
-        for _ in range(100):
+        max_additional_kernels = 10
+
+        for _ in range(max_additional_kernels):
             # perform fitting on the existing kernels
             updated_dofs = self.collect_degrees_of_freedom()
             normalised_dofs = normalise_degrees_of_freedom(updated_dofs)
 
             prev_rmspes = []
             best_dofs = normalised_dofs.copy()
-            best_rmspe = self._calc_rmspe_from_dofs(normalised_dofs, target_map)
+            best_rmspe = _calc_rmspe_from_dofs(normalised_dofs, target_map, self)
 
             def opt_callback(xk: npt.NDArray[np.float64]) -> None:
                 nonlocal best_rmspe, best_dofs
-                current_rmspe = self._calc_rmspe_from_dofs(xk, target_map)
+                current_rmspe = _calc_rmspe_from_dofs(xk, target_map, self)
 
                 if prev_rmspes:
-                    best_prev_rmspe = min(prev_rmspes)
-
                     percentage_change = (
                         abs(current_rmspe - prev_rmspes[-1])
                         / prev_rmspes[-1]
@@ -342,7 +331,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             try:
                 # TODO: maybe move to pattern search, or Powell
                 res = minimize(
-                    lambda x: self._calc_rmspe_from_dofs(x, target_map),
+                    lambda x: _calc_rmspe_from_dofs(x, target_map, self),
                     normalised_dofs,
                     method="L-BFGS-B",
                     bounds=Bounds(0.0, 1.0),
@@ -352,11 +341,9 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             except StopIteration:
                 optimised_dofs = best_dofs
 
-            rmspe = self._calc_rmspe_from_dofs(optimised_dofs, target_map)
+            rmspe = _calc_rmspe_from_dofs(optimised_dofs, target_map, self)
 
             if prev_outer_rmspes:
-                best_outer_rmspe = min(prev_outer_rmspes)
-
                 percentage_change = (
                     abs(rmspe - prev_outer_rmspes[-1])
                     / prev_outer_rmspes[-1]
@@ -418,9 +405,9 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             )
 
             dof_variance = DegreeOfFreedom(
-                10.0,
-                0.0,
-                10000.0
+                float(np.mean(variance_range)),
+                variance_range[0],
+                variance_range[1]
             )
 
             self.kernels.append(
@@ -432,40 +419,8 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
                 )
             )
 
+        print("done")
 
-    def _calc_rmspe(
-        self,
-        map: npt.NDArray[np.float64],
-        target_map: npt.NDArray[np.float64]
-    ) -> float:
-        return np.sqrt(np.mean(((target_map - map) / target_map ) ** 2))
-
-    def _calc_rmspe_from_dofs(
-        self,
-        degrees_of_freedom: npt.NDArray[np.float64],
-        target_map: npt.NDArray[np.float64]
-    ) -> float:
-        lower_bounds = []
-        upper_bounds = []
-
-        for dof in self.collect_degrees_of_freedom():
-            lower_bounds.append(dof.lower_bound)
-            upper_bounds.append(dof.upper_bound)
-
-        dofs = denormalise_degrees_of_freedom(
-            degrees_of_freedom,
-            np.array(lower_bounds),
-            np.array(upper_bounds)
-        )
-
-        updated_parameterisation = deepcopy(self)
-        updated_parameterisation.update_from_degrees_of_freedom(dofs)
-
-        map = updated_parameterisation.to_map(
-            np.array(target_map.shape)
-        )
-
-        return self._calc_rmspe(map, target_map)
 
     def to_map(
         self,
@@ -581,3 +536,68 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
 
     def should_perform_refinement(self) -> bool:
         return False
+
+
+def _calc_rmspe(
+    map: npt.NDArray[np.float64],
+    target_map: npt.NDArray[np.float64]
+) -> float:
+    return np.sqrt(np.mean(((target_map - map) / target_map) ** 2))
+
+
+def _calc_rmspe_from_dofs(
+    degrees_of_freedom: npt.NDArray[np.float64],
+    target_map: npt.NDArray[np.float64],
+    spatial_parameterisation: ISpatialParameterisation,
+) -> float:
+    lower_bounds = []
+    upper_bounds = []
+
+    for dof in spatial_parameterisation.collect_degrees_of_freedom():
+        lower_bounds.append(dof.lower_bound)
+        upper_bounds.append(dof.upper_bound)
+
+    dofs = denormalise_degrees_of_freedom(
+        degrees_of_freedom,
+        np.array(lower_bounds),
+        np.array(upper_bounds)
+    )
+
+    updated_parameterisation = deepcopy(spatial_parameterisation)
+    updated_parameterisation.update_from_degrees_of_freedom(dofs)
+
+    map = updated_parameterisation.to_map(
+        np.array(target_map.shape)
+    )
+
+    return _calc_rmspe(map, target_map)
+
+
+def _compute_variance_range(
+    x: npt.NDArray[np.float64],
+    y: npt.NDArray[np.float64]
+) -> npt.NDArray[np.float64]:
+    min_feature_size_pts = 3
+    max_feature_size_fraction = 0.5
+    feature_threshold = 0.1
+
+    dx = x[0, 1] - x[0, 0]
+    dy = y[1, 0] - y[0, 0]
+
+    point_spacing = np.hypot(dx, dy)
+
+    min_feature_size = min_feature_size_pts * point_spacing
+
+    domain_diagonal = np.hypot(
+        np.max(x) - np.min(x),
+        np.max(y) - np.min(y)
+    )
+
+    max_feature_size = max_feature_size_fraction * domain_diagonal
+
+    threshold_factor = np.sqrt(-2.0 * np.log(feature_threshold))
+
+    min_sigma = (min_feature_size / 2.0) / threshold_factor
+    max_sigma = (max_feature_size / 2.0) / threshold_factor
+
+    return np.array([min_sigma ** 2, max_sigma ** 2])
