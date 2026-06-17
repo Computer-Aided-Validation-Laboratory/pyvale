@@ -268,9 +268,6 @@ namespace renderer{
             if (output_format == OutputFormat::TIFF_16BIT){
                     render_image = &render_img<RenderColor::GRAYSCALE, BufferType::UINT_16>;
                     set_max_code_range(bit_depth); 
-                    std::cout <<"Tiff 16 bit, grayscale" << std::endl;
-                    std::cout << "Max code range: " << max_code_range << std::endl;
-                    std::cout << "Bit depth: " << static_cast<int>(bit_depth) << std::endl;
                 
                 } else {
                     render_image = &render_img<RenderColor::GRAYSCALE, BufferType::UINT_8>;
@@ -281,9 +278,6 @@ namespace renderer{
                 if (output_format == OutputFormat::TIFF_16BIT){
                     render_image = &render_img<RenderColor::COLOR, BufferType::UINT_16>;
                     set_max_code_range(bit_depth); // Needed for setting our desired bit depth; else don't bother
-                    std::cout <<"Tiff 16 bit, grayscale" << std::endl;
-                    std::cout << "Max code range: " << max_code_range << std::endl;
-                    std::cout << "Bit depth: " << static_cast<int>(bit_depth) << std::endl;
                 } else {
                     render_image = &render_img<RenderColor::COLOR, BufferType::UINT_8>;
                 }
@@ -531,10 +525,8 @@ namespace outputwriter{
                 switch(channel_count){
                     case(ChannelCount::MONO):
                         save_image_16bit = &saveTIFF_16bit<ChannelCount::MONO>; break;
-                        std::cout << "16-bit mono tiff" << std::endl;
                     case (ChannelCount::RGB):
                         save_image_16bit = &saveTIFF_16bit<ChannelCount::RGB>; break;
-                        std::cout << "16-bit rgb tiff" << std::endl;
                 }
                 break;
             case OutputFormat::BMP_24BIT:
