@@ -1,15 +1,11 @@
 from dataclasses import dataclass
 
-from pyvale.vfm.constitutive_laws.constitutive_law import IConstitutiveLaw
-from pyvale.vfm.constitutive_laws.constitutive_parameter import (
-    ConstitutiveParameter,
-)
-from pyvale.vfm.metrics.metric import IMetric
-from pyvale.vfm.objective_functions.objective_function import IObjectiveFunction
-from pyvale.vfm.optimisers.optimiser import IOptimiser
-from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
-    ISpatialParameterisation,
-)
+from pyvale.vfm.constlaw import IConstitutiveLaw
+from pyvale.vfm.constparam import ConstitutiveParameter
+from pyvale.vfm.metric import IMetric
+from pyvale.vfm.objectivefunc import IObjectiveFunction
+from pyvale.vfm.optimiser import IOptimiser
+from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 
 @dataclass(slots=True)

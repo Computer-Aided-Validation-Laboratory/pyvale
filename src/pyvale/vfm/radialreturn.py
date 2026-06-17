@@ -3,9 +3,7 @@ import enum
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constitutive_laws.hardening_functions.hardening_function import (
-    IHardeningFunction,
-)
+from pyvale.vfm.hardening import IHardeningFunction
 
 
 class EUnloading(enum.Enum):

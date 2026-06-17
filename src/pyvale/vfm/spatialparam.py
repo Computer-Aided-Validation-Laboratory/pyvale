@@ -4,22 +4,17 @@ from abc import ABC, abstractmethod
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constitutive_laws.constitutive_parameter import (
-    ConstitutiveParameter,
-)
+from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.normalisation import denormalise_degrees_of_freedom
-from pyvale.vfm.spatial_parameterisations.degree_of_freedom import (
-    DegreeOfFreedom,
-)
+from pyvale.vfm.dof import DegreeOfFreedom
 
 
 # In general, spatial parameterisations should start out empty,
 # then the update_from_constituitive_parameter fills
 # the dofs with values
 class ISpatialParameterisation(ABC):
-    @property
     @abstractmethod
-    def num_degrees_of_freedom(self) -> int:
+    def get_num_degrees_of_freedom(self) -> int:
         pass
 
     @abstractmethod
@@ -74,7 +69,7 @@ def unpack_spatial_parameterisations(
 
     index = 0
     for param_name, sp in reference_spatial_parameterisations.items():
-        num_dofs = sp.num_degrees_of_freedom
+        num_dofs = sp.get_num_degrees_of_freedom()
 
         if num_dofs == 0:
             unpacked_spatial_parameterisations[param_name] = sp

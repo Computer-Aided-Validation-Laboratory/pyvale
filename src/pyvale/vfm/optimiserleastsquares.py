@@ -2,16 +2,16 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import least_squares
 
-from pyvale.vfm.constitutive_laws.constitutive_law import IConstitutiveLaw
-from pyvale.vfm.experiment_data import ExperimentData
-from pyvale.vfm.metrics.metric import IMetric
+from pyvale.vfm.constlaw import IConstitutiveLaw
+from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.metric import IMetric
 from pyvale.vfm.normalisation import normalise_degrees_of_freedom
-from pyvale.vfm.objective_functions.objective_function import IObjectiveFunction
-from pyvale.vfm.optimisers.optimiser import (
+from pyvale.vfm.objectivefunc import IObjectiveFunction
+from pyvale.vfm.optimiser import (
     IOptimiser,
     evaluate_candidate,
 )
-from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
+from pyvale.vfm.spatialparam import (
     ISpatialParameterisation,
     unpack_spatial_parameterisations,
 )
@@ -37,7 +37,7 @@ class LeastSquares(IOptimiser):
         normalised_degrees_of_freedom = []
 
         for sp in spatial_parameterisations.values():
-            if sp.num_degrees_of_freedom == 0:
+            if sp.get_num_degrees_of_freedom() == 0:
                 continue
 
             degrees_of_freedom = sp.collect_degrees_of_freedom()

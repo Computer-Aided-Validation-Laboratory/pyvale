@@ -1,8 +1,8 @@
 import numpy as np
 import numpy.typing as npt
-from pyvale.vfm.objective_functions.objective_function import (
-    IScalarObjectiveFunction,
-)
+
+from pyvale.vfm.objectivefunc import IScalarObjectiveFunction
+
 
 class ScalarFirstResultPassthrough(IScalarObjectiveFunction):
     def evaluate(

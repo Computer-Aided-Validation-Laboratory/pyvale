@@ -1,9 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.spatial_parameterisations.degree_of_freedom import (
-    DegreeOfFreedom,
-)
+from pyvale.vfm.dof import DegreeOfFreedom
 
 #TODO implement normalisation for various scaling types (e.g. linear, log etc)
 #TODO depending on above, could vectorise functions 

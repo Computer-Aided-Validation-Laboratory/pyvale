@@ -4,15 +4,9 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constitutive_laws.constitutive_parameter import (
-    ConstitutiveParameter,
-)
-from pyvale.vfm.spatial_parameterisations.degree_of_freedom import (
-    DegreeOfFreedom,
-)
-from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
-    ISpatialParameterisation,
-)
+from pyvale.vfm.constparam import ConstitutiveParameter
+from pyvale.vfm.dof import DegreeOfFreedom
+from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 
 # TODO: How do I flag whether value should be a dof or fixed?
@@ -22,8 +16,7 @@ from pyvale.vfm.spatial_parameterisations.spatial_parameterisation import (
 class HomogeneousSpatialParameterisation(ISpatialParameterisation):
     value: float | DegreeOfFreedom | None = None
 
-    @property
-    def num_degrees_of_freedom(self) -> int:
+    def get_num_degrees_of_freedom(self) -> int:
         if isinstance(self.value, DegreeOfFreedom):
             return 1
         else:

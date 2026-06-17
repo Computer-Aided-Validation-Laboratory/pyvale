@@ -11,9 +11,8 @@ class EIdentificationType(enum.Enum):
 
 
 class IConstitutiveLaw(ABC):
-    @property
     @abstractmethod
-    def identification_type(self) -> EIdentificationType:
+    def get_identification_type(self) -> EIdentificationType:
         pass
 
     @abstractmethod

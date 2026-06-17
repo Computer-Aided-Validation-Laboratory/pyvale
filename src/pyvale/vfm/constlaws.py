@@ -3,14 +3,12 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constitutive_laws.constitutive_law import (
+from pyvale.vfm.constlaw import (
     EIdentificationType,
     IConstitutiveLaw,
 )
-from pyvale.vfm.constitutive_laws.hardening_functions.hardening_function import (
-    IHardeningFunction,
-)
-from pyvale.vfm.constitutive_laws.radial_return import radial_return
+from pyvale.vfm.hardening import IHardeningFunction
+from pyvale.vfm.radialreturn import radial_return
 
 
 @dataclass(slots=True)
@@ -37,8 +35,7 @@ class IsotropicVonMisesElastoplasticity(IConstitutiveLaw):
         else:
             self.poissons_ratio_label = "poissons_ratio"
 
-    @property
-    def identification_type(self) -> EIdentificationType:
+    def get_identification_type(self) -> EIdentificationType:
         return EIdentificationType.Nonlinear
 
     def calculate_stress(
