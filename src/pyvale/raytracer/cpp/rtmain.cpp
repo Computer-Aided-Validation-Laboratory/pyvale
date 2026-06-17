@@ -87,6 +87,7 @@ void render_scene(const int image_height,
     // Get the refractive index of the scene (typically air, but in case it is not)
     const int last_index = scene_refractive_indices.size() - 1;
     const float scene_ri = scene_refractive_indices[last_index]; // Scene RI is always stored at the last position
+    materials::set_scene_ri(scene_ri);
 
     for (int timestep = 0; timestep < timestep_count; ++timestep){
         //std::chrono::time_point t1_build = std::chrono::high_resolution_clock::now();
@@ -117,10 +118,10 @@ void render_scene(const int image_height,
             std::cout << "Rendering frame " << (timestep+1) << "/" << timestep_count << std::endl;
             //std::chrono::time_point t1_render = std::chrono::high_resolution_clock::now();
             //CALLGRIND_START_INSTRUMENTATION;
-            renderer::render_image(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
+            renderer::render_image(camera_center,pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, output_filepath);
             if (stop_request) break;
             // Debug function that can be used instead of rendering a full image if we want to shoot and track a single ray
-            //mock_ray_shoot(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, scene_ri, output_filepath);
+            //mock_ray_shoot(camera_center, pixel_00_center, matrix_pixel_spacing, matrix_defocus_disc, current_TLAS, image_height, image_width, number_of_samples, output_filepath);
             //CALLGRIND_STOP_INSTRUMENTATION;
             //std::chrono::time_point t2_render = std::chrono::high_resolution_clock::now();
             

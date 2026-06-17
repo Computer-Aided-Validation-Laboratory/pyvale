@@ -677,10 +677,12 @@ void copy_data_to_TLAS(TLAS &tlas,
  * @param[in,out] mesh_bvh (BLAS&) BLAS corresponding to the mesh
  * @param[in] mesh_material (int) Material identifier (e.g. DIFFUSE, SPECULAR)
  * @param[in] mesh_ri (double) Refractive index of the mesh material
- * @param[in] scene_ri (double) Refractive index of the surrounding medium
  * @param[in] mesh_object_type (ObjectType) Object type (e.g. SOLID or SHELL)
  */
-inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const double mesh_ri, const double scene_ri, const enum ObjectType mesh_object_type);
+inline void set_BLAS_material(BLAS &mesh_bvh,
+    const int mesh_material,
+    const double mesh_ri,
+    const enum ObjectType mesh_object_type);
 
 /**
  * @brief Selects the intersection overwrite function for textured meshes.
@@ -692,7 +694,9 @@ inline void set_BLAS_material(BLAS &mesh_bvh, const int mesh_material, const dou
  * @param[in] nodes_per_element (ElementNodeCount) Element type for this mesh
  * @param[in] shading_type (ShadingType) Shading mode (flat, blended, etc.)
  */
-inline void set_BLAS_intersection_texture(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element, const enum ShadingType shading_type);
+inline void set_BLAS_intersection_texture(BLAS &mesh_bvh,
+    const enum ElementNodeCount nodes_per_element,
+    const enum ShadingType shading_type);
 
 /**
  * @brief Selects the intersection overwrite function for solid-colored meshes.
@@ -704,7 +708,9 @@ inline void set_BLAS_intersection_texture(BLAS &mesh_bvh,  const enum ElementNod
  * @param[in] nodes_per_element (ElementNodeCount) Element type for this mesh
  * @param[in] shading_type (ShadingType) Shading mode (flat, blended, etc.)
  */
-inline void set_BLAS_intersection_color(BLAS &mesh_bvh,  const enum ElementNodeCount nodes_per_element, const enum ShadingType shading_type);
+inline void set_BLAS_intersection_color(BLAS &mesh_bvh,
+    const enum ElementNodeCount nodes_per_element,
+    const enum ShadingType shading_type);
 
 // ================================================================================
 // High-level builder

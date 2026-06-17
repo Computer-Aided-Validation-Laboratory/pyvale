@@ -12,6 +12,7 @@
 
 // ray tracer header files
 #include "rteigentypes.h"
+#include "rtmathutils.h"
 
 /**
  * @brief Struct storing the data for each ray.
@@ -39,5 +40,26 @@ struct Ray {
 inline EiVector3d ray_at_t(const double t, const Ray& ray) {
     return ray.origin + t * ray.direction;
 };
+
+inline Ray primary_ray_thin_lens(const EiVector3d& camera_center,
+    const EiVector3d& pixel_sample,
+    const EiVector3d& defocus_row_0,
+    const EiVector3d& defocus_row_1){
+        //std::array<double, 2> defocus_disc_offset = concentric_disk_sample(s2, s3);
+        std::array<double, 2> defocus_disc_offset = point_in_unit_disk();
+        EiVector3d defocus_disc_sample = defocus_disc_offset[0] * defocus_row_0 + defocus_disc_offset[1] * defocus_row_1;
+        EiVector3d ray_origin = camera_center + defocus_disc_sample; // ray direction in thin lens approx
+        EiVector3d ray_direction = (pixel_sample - ray_origin).stableNormalized(); // ray direction in thin lens approx
+
+        return { ray_origin, ray_direction.stableNormalized() }; 
+};
+
+inline Ray primary_ray_pinhole(const EiVector3d& camera_center,
+    const EiVector3d& pixel_sample){
+        EiVector3d ray_direction = pixel_sample - camera_center;
+        // ray_origin = camera_center for pinhole
+        return { camera_center, ray_direction.stableNormalized() }; 
+    }
+
 
 #endif // RTRAY_H

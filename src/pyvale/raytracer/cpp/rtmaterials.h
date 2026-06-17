@@ -21,6 +21,26 @@
 static constexpr double SPAWNED_T_MIN_BASE = 1e-7; 
 
 // ================================================================================
+// Materials namespace — scene-level ambient medium
+// ================================================================================
+
+namespace materials {
+
+    /// @brief Refractive index of the ambient scene medium (air, vacuum, etc.).
+    /// Set once from main via set_scene_ri() before any rendering begins.
+    inline double scene_ri {1.0003};
+
+    /**
+     * @brief Sets the ambient refractive index for the entire scene.
+     * @param[in] ri (double) Refractive index of the ambient medium
+     */
+    inline void set_scene_ri(double ri){
+        scene_ri = ri;
+    }
+
+}
+
+// ================================================================================
 // Interior list for nested dielectrics
 // ================================================================================
 
@@ -196,12 +216,11 @@ inline bool interior_toggle(InteriorEntry* interior_list,
  * Includes the ray geometry, accumulated payload, dielectric interior state,
  * recursion depth, and ambient medium information.
  */
-// Size: 48 + 24 + 16 x 10 + 8 + 2 + 1 =  243 bytes
+// Size: 48 + 24 + 16 x 10 + 2 + 1 =  235 bytes
 struct RayState{
     Ray ray; // Current ray
     EiVector3d accumulated_color {EiVector3d(1.0, 1.0, 1.0)}; // Accumulated payload multipliers (albedo, Fresnel terms, etc.)
     std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list {}; // List of objects entered by ray
-    double scene_ri {1.0003}; // Refractive index of the ambient medium; without nested volumes, use this to store the ri_from
     uint16_t depth {0}; // Current ray depth
     // Even without recursion, most ray tracers don't seem to have more than 50 bounces of depth, so we are being very generous here (max. value of 65535)
     uint8_t interior_count {0}; // Number of active entries in interior_list. 0 => Ray is in the ambient medium (whatever fills the scene, with RI = scene_ri)
@@ -215,13 +234,6 @@ struct RayState{
      */
     RayState(Ray ray_): ray(ray_) {};
     /**
-     * @brief Constructs a ray state from a primary ray and ambient refractive index.
-     * 
-     * @param[in] ray_ (Ray) Input ray
-     * @param[in] scene_ri_ (double) Refractive index of the ambient medium
-     */
-    RayState(Ray ray_, double scene_ri_): ray(ray_), scene_ri(scene_ri_) {};
-    /**
      * @brief Constructs a fully specified ray state.
      * 
      * @param[in] ray_ (Ray) Current ray
@@ -231,11 +243,10 @@ struct RayState{
      * @param[in] depth_ (uint16_t) Current ray depth
      * @param[in] interior_count_ (uint8_t) Number of active entries in interior_list
      */
-    RayState(Ray ray_, EiVector3d accumulated_color_, std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list_, double scene_ri_, uint16_t depth_, uint8_t interior_count_):
+    RayState(Ray ray_, EiVector3d accumulated_color_, std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list_, uint16_t depth_, uint8_t interior_count_):
         ray(ray_),
         accumulated_color(accumulated_color_),
         interior_list(interior_list_),
-        scene_ri(scene_ri_),
         depth(depth_),
         interior_count(interior_count_) {};
 };
@@ -468,7 +479,7 @@ void ray_refractive(const RayState& current_state,
    
     // ri_from = RI of the medium the ray is currently in = top of CURRENT list
     // top = of the highest priority entry in the original list OR scene_ri if empty (highest idx = -1 => empty)
-    double scene_ri = current_state.scene_ri;
+    static const double scene_ri = materials::scene_ri;
     double ri_from = interior_top_ri(&interior_list[0], current_state.interior_count, scene_ri);
 
     // ri_to = RI of the medium the refracted ray will be in; value depends if it's shell or solid
@@ -538,7 +549,7 @@ void ray_refractive(const RayState& current_state,
             
             // TIR — reflected ray travels in the SAME medium, so keep the parent list
             stack.emplace_back(reflected_ray, next_accumulated_color_reflected,
-                interior_list, scene_ri, current_state.depth + 1, interior_count);
+                interior_list, current_state.depth + 1, interior_count);
             return;
         }
     }
@@ -625,7 +636,7 @@ void ray_refractive(const RayState& current_state,
             // Reflection works the same way for shells and solids
             double P_reflect = reflectance / P; // Adjust original reflectance based on P
             stack.emplace_back(reflected_ray, next_accumulated_color_reflected * P_reflect, interior_list,
-                scene_ri, current_state.depth + 1, interior_count);
+                current_state.depth + 1, interior_count);
             return;
         }
         else {
@@ -633,28 +644,28 @@ void ray_refractive(const RayState& current_state,
             if constexpr (object_type == ObjectType::SHELL) {
                 // Shell: medium unchanged, parent list and RI preserved
                 stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit,
-                    interior_list, scene_ri, current_state.depth + 1, interior_count);
+                    interior_list, current_state.depth + 1, interior_count);
             }
             else if constexpr (object_type == ObjectType::SOLID){
                 // Solid: ray enters/exits a volume, use the toggled list
                 stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit,
-                    refracted_list, scene_ri, current_state.depth + 1, refracted_count);
+                    refracted_list, current_state.depth + 1, refracted_count);
             }
             return;
         }
     } 
     else { // Push both rays
         stack.emplace_back(reflected_ray, next_accumulated_color_reflected * reflectance, interior_list,
-            scene_ri, current_state.depth + 1, interior_count);
+            current_state.depth + 1, interior_count);
         if constexpr (object_type == ObjectType::SHELL) {
             // Shell: medium unchanged, parent list and RI preserved
             stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance,
-                interior_list, scene_ri, current_state.depth + 1, interior_count);
+                interior_list, current_state.depth + 1, interior_count);
         }
         else if constexpr (object_type == ObjectType::SOLID){
             // Solid: ray enters/exits a volume, use the toggled list
             stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance,
-                refracted_list, scene_ri, current_state.depth + 1, refracted_count);
+                refracted_list, current_state.depth + 1, refracted_count);
         }
         return;
     }

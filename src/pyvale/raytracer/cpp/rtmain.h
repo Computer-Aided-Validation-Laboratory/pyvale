@@ -29,6 +29,7 @@
 #include "rteigentypes.h"
 #include "rtrender.h"
 #include "rtbvh.h"
+#include "rtiowriter.h"
 
 namespace nb = nanobind;
 

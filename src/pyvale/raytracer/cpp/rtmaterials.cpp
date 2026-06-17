@@ -81,7 +81,7 @@ void ray_diffuse(const RayState& current_state,
     */
     
     //stack.emplace_back(ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1);
-    stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.scene_ri, current_state.depth + 1, current_state.interior_count);
+    stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.depth + 1, current_state.interior_count);
 }
 
 void ray_specular(const RayState& current_state,
@@ -120,7 +120,7 @@ void ray_specular(const RayState& current_state,
     std::cerr << "\tPoint of intersection: " << intersection_record.point_intersection.x() << ", " << intersection_record.point_intersection.y() << ", " << intersection_record.point_intersection.z() << std::endl; */
 
     //stack.emplace_back(ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1);
-    stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.scene_ri, current_state.depth + 1, current_state.interior_count);
+    stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.depth + 1, current_state.interior_count);
 }
 
 // We don't really need most these arguments, but this is to match the function pointer signature to avoid having a switch in the rendering loop

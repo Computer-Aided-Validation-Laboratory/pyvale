@@ -648,7 +648,6 @@ void copy_data_to_TLAS(TLAS &tlas,
 inline void set_BLAS_material(BLAS &mesh_bvh,
     const int mesh_material,
     const double mesh_ri,
-    const double scene_ri,
     const enum ObjectType object_type){
     // Uncomment the below 2 lines if deciding to go for switch-based dispatcj in return_ray_color
     //mesh_bvh.material = mesh_material;
@@ -656,17 +655,17 @@ inline void set_BLAS_material(BLAS &mesh_bvh,
     switch (mesh_material) {
         case UNLIT: {
             mesh_bvh.ray_material_ptr = &ray_unlit;
-            mesh_bvh.refractive_index = scene_ri; // for non-refractive materials we expect mesh_ri = scene_ri, but just to be on the safe side
+            mesh_bvh.refractive_index = materials::scene_ri; // for non-refractive materials we expect mesh_ri = scene_ri, but just to be on the safe side
             return;
         }
         case DIFFUSE: { // Diffuse
             mesh_bvh.ray_material_ptr = &ray_diffuse;
-            mesh_bvh.refractive_index = scene_ri;
+            mesh_bvh.refractive_index = materials::scene_ri;
             return;
     }
         case SPECULAR: {// Specular (mirror)
             mesh_bvh.ray_material_ptr = &ray_specular;
-            mesh_bvh.refractive_index = scene_ri;
+            mesh_bvh.refractive_index = materials::scene_ri;
             return;
         }
         case REFRACTIVE: {// Refraction (dielectric)
@@ -682,7 +681,7 @@ inline void set_BLAS_material(BLAS &mesh_bvh,
         }
         default: { // This should never get triggered (Python prevents that), but if it does, default to unlit
             mesh_bvh.ray_material_ptr = &ray_unlit;
-            mesh_bvh.refractive_index = scene_ri;
+            mesh_bvh.refractive_index = materials::scene_ri;
             return;
         }
     }
@@ -928,10 +927,6 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
     std::vector<BLAS> scene_blases; // Store mesh_bvhs - this will be used for TLAS
     scene_blases.reserve(scene_mesh_count);
 
-    // Get the refractive index of the scene (typically air, but in case it is not)
-    const int last_index = scene_refractive_indices.size() - 1;
-    const float scene_ri = scene_refractive_indices[last_index]; // Scene RI is stored at the last position always
-
     // Get shading type
     ShadingType shading_type_enum = static_cast<ShadingType>(shading_type);
 
@@ -1011,7 +1006,7 @@ TLAS build_acceleration_structures(const std::vector <nanobind::ndarray<const do
         int mesh_material = materials[mesh_idx];
         double mesh_ri = scene_refractive_indices[mesh_idx];
         ObjectType mesh_object_type = static_cast<ObjectType>(mesh_object_types[mesh_idx]);
-        set_BLAS_material(mesh_bvh, mesh_material, mesh_ri, scene_ri, mesh_object_type);
+        set_BLAS_material(mesh_bvh, mesh_material, mesh_ri, mesh_object_type);
         mesh_bvh.priority = mesh_priorities[mesh_idx];
         mesh_bvh.thickness = scene_mesh_thickness[mesh_idx];
         mesh_bvh.bounding_box = mesh_aabb;

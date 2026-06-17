@@ -57,6 +57,21 @@ static inline double random_double_disk() {
     return distribution2(generator);
 }
 
+// Shirley's concentric disk map — maps [−1,1]^2 bijectively onto the unit disk
+// with no rejections and no bias
+inline std::array<double, 2> concentric_disk_sample(double a, double b) {
+    if (a == 0.0 && b == 0.0) return {0.0, 0.0};
+    double r, theta;
+    if (std::abs(a) > std::abs(b)) {
+        r = a;
+        theta = (M_PI / 4.0) * (b / a);
+    } else {
+        r = b;
+        theta = (M_PI / 2.0) - (M_PI / 4.0) * (a / b);
+    }
+    return { r * std::cos(theta), r * std::sin(theta) };
+}
+
 /**
  * @brief Generates a random 2D point inside the unit disk.
  * 

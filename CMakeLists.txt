@@ -141,8 +141,9 @@ install(TARGETS strain_cpp LIBRARY DESTINATION pyvale/strain)
 # RAYTRACER module
 # ----------------------------
 file(GLOB RAYTRACER_SRC_FILES src/pyvale/raytracer/cpp/*.cpp)
+file(GLOB SOBOL_SRC_FILES src/pyvale/raytracer/cpp/sobol/*.cpp)
 
-nanobind_add_module(rtmaincpp MODULE ${RAYTRACER_SRC_FILES})
+nanobind_add_module(rtmaincpp MODULE ${RAYTRACER_SRC_FILES} ${SOBOL_SRC_FILES})
 target_include_directories(rtmaincpp PRIVATE src/pyvale/common_cpp src/pyvale/raytracer)
 target_link_libraries(rtmaincpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
 apply_compile_flags(rtmaincpp)
