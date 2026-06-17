@@ -6,19 +6,16 @@ import numpy.testing as np_test
 import numpy.typing as npt
 import pytest
 import pyvista as pv
+from interpolate_fe_elements_to_grid import (
+    interpolate_fe_elements_to_grid,
+    read_gmsh_element_centres,
+)
 
 from pyvale import mooseherder, sensorsim
 from pyvale.mooseherder.simdata import SimData
-from pyvale.vfm.constitutive_laws.constitutive_parameter import (
-    ConstitutiveParameter,
-)
-from pyvale.vfm.constitutive_laws.hardening_functions.linear import (
-    LinearHardening,
-)
-from pyvale.vfm.constitutive_laws.isotropic_von_mises_elastoplasticity import (
-    IsotropicVonMisesElastoplasticity,
-)
-from pyvale.vfm.experiment_data import (
+from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
+from pyvale.vfm.constparam import ConstitutiveParameter
+from pyvale.vfm.experimentdata import (
     BoundaryConditions,
     Edge,
     EdgeConditions,
@@ -26,28 +23,17 @@ from pyvale.vfm.experiment_data import (
     ExperimentData,
     SpecimenGeometry,
 )
+from pyvale.vfm.hardening import LinearHardening
 from pyvale.vfm.identification import Identification, IdentificationPhase
-from pyvale.vfm.metrics.virtual_fields.sensitivity_based_virtual_fields import (
-    SensitivityBasedVirtualFieldsMetric,
-)
-from pyvale.vfm.objective_functions.vector_first_result_passthrough import (
-    VectorFirstResultPassthrough,
-)
-from pyvale.vfm.optimisers.least_squares import LeastSquares
-from pyvale.vfm.spatial_parameterisations.homogeneous import (
+from pyvale.vfm.metricsbvf import SensitivityBasedVirtualFieldsMetric
+from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
+from pyvale.vfm.optimiserleastsquares import LeastSquares
+from pyvale.vfm.radialreturn import EUnloading, radial_return
+from pyvale.vfm.spatialparamhomogeneous import (
     HomogeneousSpatialParameterisation,
 )
-from pyvale.vfm.spatial_parameterisations.known import (
-    KnownSpatialParameterisation,
-)
-from pyvale.vfm.vfm import vfm
-from pyvale.vfm.constitutive_laws.radial_return import EUnloading, radial_return
-
-from interpolate_fe_elements_to_grid import (
-    interpolate_fe_elements_to_grid,
-    read_gmsh_element_centres,
-)
- 
+from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
+from pyvale.vfm.vfm import run_identification
 
 PYVALE_ROOT = Path(__file__).resolve().parent.parent.parent
 VFMVERIF_ROOT = PYVALE_ROOT.parent / "vfmverif"
