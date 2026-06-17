@@ -31,6 +31,7 @@
 #include "rtmathutils.h"
 #include "rtsignal.h"
 #include "rtiowriter.h"
+#include "rtsobolsampler.h"
 
 // commmon header files
 #include "../../common_cpp/progressbar.hpp"
@@ -49,6 +50,11 @@ enum class RenderColor{
 enum class BufferType{
     UINT_8 = 0,
     UINT_16 = 1
+};
+
+enum class CameraType{
+    PINHOLE = 0,
+    THIN_LENS = 1
 };
 
 // ================================================================================
@@ -114,7 +120,8 @@ namespace renderer{
      * 
      */
     EiVector3d return_ray_color_stack(const Ray& primary_ray,
-        const TLAS& TLAS);
+        const TLAS& TLAS,
+        const SobolSampler& sampler);      // [SOBOL] Comment out to test MT19937
 
     /**
      * @brief Iterates over each pixel in the viewport to shoot rays and retrieve their colours.
@@ -139,7 +146,7 @@ namespace renderer{
      * @param[in] output_filepath (std::filesystem::path&) Filepath for the output image that will be written into, already storing the name
      *            of the image, but without extension. For example, /home/user1/pyvale-output/rtimage_1_cam0
      */
-    template <RenderColor color, BufferType buffer_type>
+    template <RenderColor color, BufferType buffer_type, CameraType camera_type>
     void render_img(const EiVector3d& camera_center,
         const EiVector3d& pixel_00_center,
         const Eigen::Matrix<double, 2, 3, Eigen::StorageOptions::RowMajor>& matrix_pixel_spacing,
@@ -166,7 +173,7 @@ namespace renderer{
         const EiVector3d pixel_row_1 = matrix_pixel_spacing.row(1);
         const EiVector3d defocus_row_0 = matrix_defocus_disc.row(0);
         const EiVector3d defocus_row_1 = matrix_defocus_disc.row(1);
-        static const double color_scaling = 1.0 /number_of_samples; // Multiplication is faster than division, so we pre-divide it before looping
+        const double color_scaling = 1.0 /number_of_samples; // Multiplication is faster than division, so we pre-divide it before looping
 
         // Progress bar - useful for higher anti-aliasing and/or refractive scenes
         std::string bar_title = "Processing scanlines:";
@@ -174,34 +181,47 @@ namespace renderer{
         std::atomic<int> current_progress = 0;
 
         #pragma omp parallel for shared(stop_request) schedule(dynamic) 
-        for (int j = 0; j < image_height; j++) {
-            for (int i = 0; i < image_width; i++) {
+        for (size_t j = 0; j < image_height; j++) {
+            for (size_t i = 0; i < image_width; i++) {
                 EiVector3d pixel_color = EiVector3d::Zero();
-                for (int k = 0; k < number_of_samples; k++) {
+                // [SOBOL] One scramble value per pixel decorrelates the Sobol sequence between pixels (scrambled / randomized Sobol)
+                // Derived deterministically from (i, j), so runs are reproducible
+                 const unsigned long long pixel_scramble = sobol_pixel_scramble(static_cast<uint32_t>(i), static_cast<uint32_t>(j));
+                for (size_t k = 0; k < number_of_samples; k++) {
                     // Exit the main loop in rtmain when CTRL+C is pressed
                     if (stop_request) continue;
 
-                    double offset[2] = { random_double() - 0.5, random_double() - 0.5 };
+                    // [SOBOL] Sobol' point index = the sample number k within this pixel; same scramble for all samples of this pixel
+                    SobolSampler sampler(static_cast<unsigned long long>(k), pixel_scramble);
+                    // [SOBOL] Pixel anti-aliasing jitter from the reserved pixel dimensions (remapped from [0,1) to [-0.5, 0.5), much like we did for random_double)
+                     const std::array<double,2> jitter = sampler.pixel_jitter();
+                     double offset[2] = { jitter[0] - 0.5, jitter[1] - 0.5 };
+                    //[MT19937 - LEGACY] white-noise AA jitter
+                    //double offset[2] = { random_double() - 0.5, random_double() - 0.5 };
                     EiVector3d pixel_sample = pixel_00_center +
                         (i + offset[0]) * pixel_row_0 + (j + offset[1]) * pixel_row_1;
-                        // Below is true for pinhole camera
-                        //EiVector3d ray_origin = camera_center;
-                        //EiVector3d ray_direction = pixel_sample - camera_center;
-
-                        // Thin lens approximation camera
-                        std::array<double, 2> defocus_disc_offset = point_in_unit_disk();
-                        EiVector3d defocus_disc_sample = defocus_disc_offset[0] * defocus_row_0 + defocus_disc_offset[1] * defocus_row_1;
-                        EiVector3d ray_origin = camera_center + defocus_disc_sample; // ray direction in thin lens approx
-                        EiVector3d ray_direction = pixel_sample - ray_origin; // ray direction in thin lens approx
-                        Ray current_ray{ ray_origin, ray_direction.stableNormalized() }; 
-
+                        Ray current_ray;
+                        if constexpr (camera_type == CameraType::THIN_LENS){
+                            // [SOBOL] Thin lens consumes the reserved lens dimensions
+                            current_ray = primary_ray_thin_lens(camera_center, pixel_sample, defocus_row_0, defocus_row_1, sampler);
+                            //[MT19937 - LEGACY]
+                            //current_ray = primary_ray_thin_lens(camera_center, pixel_sample, defocus_row_0, defocus_row_1);
+                        }
+                        else if constexpr (camera_type == CameraType::PINHOLE){
+                            current_ray = primary_ray_pinhole(camera_center, pixel_sample);
+                        }
                         //Clamp fireflies - optional, makes images less bright
                         //EiVector3d sample = return_ray_color_stack(current_ray, TLAS);
                         //double lum = 0.2126*sample.x() + 0.7152*sample.y() + 0.0722*sample.z();
                         //static constexpr double MAX_LUM = 10.0; // Tune per scene; hoist this out of the loop if using 
                         //if (lum > MAX_LUM) sample *= MAX_LUM / lum;
                         //pixel_color += sample;
-                        pixel_color += renderer::return_ray_color_stack(current_ray, TLAS);
+
+                        // [SOBOL] Pass the per-path sampler into the path tracer
+                        pixel_color += renderer::return_ray_color_stack(current_ray, TLAS, sampler);
+                        //[MT19937 - LEGACY]
+                        //pixel_color += renderer::return_ray_color_stack(current_ray, TLAS);
+
                 
             }
                 int px_idx = (i + j * image_width) * 3;
@@ -267,17 +287,19 @@ namespace renderer{
      */
     void set_background(const EiVector3d& color);
 
+    /**
+     * @brief Sets the maximum integer value based on the desired bit-depth in the output image.
+     * This way we can store 8/10/12-bit depth images in 16-bit TIFF without scaling.
+     * 
+     * @param bit_depth (BitDepth) Desired bit-depth of the output image.
+     */
     void set_max_code_range(const BitDepth bit_depth);
 
+    /// @brief Picks the rendering function based on the grayscale setting, bit-depth, and output format.
     void set_rendering_function(const bool grayscale,
         const BitDepth bit_depth,
         const OutputFormat output_format);
 }
-
-// ================================================================================
-// render_image template for colour and grayscale
-// ================================================================================
-
 
 // ================================================================================
 // Mock ray shooter for debug

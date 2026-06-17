@@ -33,7 +33,8 @@ namespace renderer{
     RenderingFunction render_image = nullptr;
 
     EiVector3d return_ray_color_stack(const Ray& primary_ray,
-        const TLAS& TLAS){
+        const TLAS& TLAS,
+        const SobolSampler& sampler){ // [SOBOL] Per-path sdampler for this pixel sample
 
         // Assign material interaction function pointer
         void (*ray_material_interaction_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color, const double offset); 
@@ -42,7 +43,11 @@ namespace renderer{
         thread_local std::vector<RayState> stack; // Thread safe
         stack.clear(); // Ensure clean state before starting
         stack.reserve(MAX_DEPTH);
-        stack.emplace_back(primary_ray);
+         // [SOBOL] Seed the primary ray state with the per-path sampler so it is inherited by every spawned secondary ray (the sampler is copied on
+        // each emplace_back; depth selects the dimensions)
+        stack.emplace_back(primary_ray, sampler);
+        // [MT19937 - LEGACY]] RayState stack
+        //stack.emplace_back(primary_ray);
         EiVector3d total_color = EiVector3d::Zero(); // Starting ray colour
 
         // Iterate over rays until stack is empty or we terminate early (Russian roulette/hit MAX_DEPTH limit)
@@ -150,7 +155,13 @@ namespace renderer{
                 // Clamp to prevent infinite loops (p=1.0) and division by zero (p=0.0)
                 EiVector3d rr_albedo = is_refractive ? EiVector3d(1.0, 1.0, 1.0) : albedo;
                 double p = std::clamp(rr_albedo.maxCoeff(), 0.1, 0.95);
-                if (random_double() > p){ 
+                // [SOBOL] Path-survival decision uses this bounce's reserved decision dimension. This only fires for non-refractive
+                // materials (refractive uses rr_albedo=(1,1,1) so it never terminates here and runs its own internal RR), so a given
+                // bounce consumes the decision dimension for EITHER the Fresnel branch (refractive) OR path survival (diffuse/specular) - never
+                // both - so there is no dimension collision
+                if (current_state.sampler.bounce_decision(current_state.depth) > p){
+                // [MT19937 - LEGACY] White-noise path-survival decision
+                // if (random_double() > p){
                 //if ((double)rand() / RAND_MAX > p){ // std rand() won't work if we multi-thread this (mutex lock) + has poor statistical distribution
                     total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission);
                     continue;
@@ -259,33 +270,36 @@ namespace renderer{
         }
     }
 
+    // TO DO: 
+    // Either split this into set_rendering_function _pinhole + _thin_lens
+    // or add switches inside of this
+    // (thin lens is fully implemented, just not currently used for tests and we don't have an explicit switch in the Python API for that either)
     void set_rendering_function(const bool grayscale,
         const BitDepth bit_depth,
         const OutputFormat output_format){
 
         if (grayscale){
             if (output_format == OutputFormat::TIFF_16BIT){
-                    render_image = &render_img<RenderColor::GRAYSCALE, BufferType::UINT_16>;
+                    render_image = &render_img<RenderColor::GRAYSCALE, BufferType::UINT_16, CameraType::PINHOLE>;
                     set_max_code_range(bit_depth); 
                 
                 } else {
-                    render_image = &render_img<RenderColor::GRAYSCALE, BufferType::UINT_8>;
+                    render_image = &render_img<RenderColor::GRAYSCALE, BufferType::UINT_8, CameraType::PINHOLE>;
                 }
         }
         else { // Color
             // The only case when we need 16-bit is TIFF 16
                 if (output_format == OutputFormat::TIFF_16BIT){
-                    render_image = &render_img<RenderColor::COLOR, BufferType::UINT_16>;
+                    render_image = &render_img<RenderColor::COLOR, BufferType::UINT_16,CameraType::PINHOLE>;
                     set_max_code_range(bit_depth); // Needed for setting our desired bit depth; else don't bother
                 } else {
-                    render_image = &render_img<RenderColor::COLOR, BufferType::UINT_8>;
+                    render_image = &render_img<RenderColor::COLOR, BufferType::UINT_8, CameraType::PINHOLE>;
                 }
         }
     
     }
 
 }
-
 
 // ================================================================================
 // Debug helper
@@ -308,7 +322,11 @@ void mock_ray_shoot(const EiVector3d& camera_center,
     mock_ray.origin = EiVector3d(0.0, 0.0, 410.0); //normals tests
     mock_ray.direction = EiVector3d(0.0814686, 0.171913, -0.981738);
     EiVector3d pixel_color = EiVector3d::Zero();
-    pixel_color += renderer::return_ray_color_stack(mock_ray, TLAS);
+    // [SOBOL] Mock shoot uses a fixed sampler (index 0, no scramble) for a single reproducible debug ray
+    SobolSampler mock_sampler(0ULL, 0ULL);
+    pixel_color += renderer::return_ray_color_stack(mock_ray, TLAS, mock_sampler);
+    //[MT19937 - LEGACY]
+    //pixel_color += renderer::return_ray_color_stack(mock_ray, TLAS);
     std::cerr << "Final color: " << pixel_color.x() << ", " << pixel_color.y() << ", " << pixel_color.z() << std::endl;
 }
 

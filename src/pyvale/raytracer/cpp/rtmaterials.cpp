@@ -53,8 +53,14 @@ void ray_diffuse(const RayState& current_state,
     EiVector3d b2 = EiVector3d(b, sign + normal_shade.y() * normal_shade.y() * a, -normal_shade.y());
 
     // Cosine-weighted hemisphere sampling
-    double r1 = 2 * M_PI * (random_double());
-    double r2 = random_double();
+    // [SOBOL] Pull the two scatter dimensions reserved for this bounce depth
+    // Using the same depth for both ensures a well-distributed 2D projection
+    const std::array<double,2> s = current_state.sampler.bounce_scatter(current_state.depth);
+    double r1 = 2 * M_PI * s[0];
+    double r2 = s[1];
+    // [MT19937 - LEGACY]
+    // double r1 = 2 * M_PI * (random_double());
+    // double r2 = random_double();
     double r2s = sqrt(r2);
     
     const EiVector3d normal_geo = intersection_record.normal_surface; // Geometric normal
@@ -80,8 +86,11 @@ void ray_diffuse(const RayState& current_state,
     std::cerr << "\tPoint of intersection: " << p.x() << ", " << p.y() << ", " << p.z() << std::endl; 
     */
     
-    //stack.emplace_back(ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1);
-    stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.depth + 1, current_state.interior_count);
+    // [SOBOL] Propagate the per-path sampler to the spawned (child) ray so it reads the next bounce's reserved dimensions
+    stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.depth + 1, current_state.interior_count, current_state.sampler);
+    // [MT19937 - LEGACY]
+    //stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.depth + 1, current_state.interior_count);
+
 }
 
 void ray_specular(const RayState& current_state,
@@ -119,11 +128,12 @@ void ray_specular(const RayState& current_state,
     std::cerr << "Reflected ray direction: " << reflected.x() << ", " << reflected.y() << ", " << reflected.z() << std::endl;
     std::cerr << "\tPoint of intersection: " << intersection_record.point_intersection.x() << ", " << intersection_record.point_intersection.y() << ", " << intersection_record.point_intersection.z() << std::endl; */
 
-    //stack.emplace_back(ray_new, next_accumulated_color, intersection_record.refractive_index, current_state.depth + 1);
-    stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.depth + 1, current_state.interior_count);
+    // [SOBOL] Propagate the per-path sampler to the spawned (child) ray so it reads the next bounce's reserved dimensions
+    stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.depth + 1, current_state.interior_count, current_state.sampler);
+    // [MT19937 - LEGACY]
+    //stack.emplace_back(ray_new, next_accumulated_color, current_state.interior_list, current_state.depth + 1, current_state.interior_count);
 }
 
-// We don't really need most these arguments, but this is to match the function pointer signature to avoid having a switch in the rendering loop
 void ray_unlit(const RayState& current_state,
     HitRecord& intersection_record,
     const EiVector3d& albedo,

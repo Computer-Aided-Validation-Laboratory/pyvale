@@ -216,11 +216,15 @@ inline bool interior_toggle(InteriorEntry* interior_list,
  * Includes the ray geometry, accumulated payload, dielectric interior state,
  * recursion depth, and ambient medium information.
  */
-// Size: 48 + 24 + 16 x 10 + 2 + 1 =  235 bytes
+// [MT19937 - LEGACY] Size: 48 + 24 + 16 x 10 + 2 + 1 =  235 bytes
+// [SOBOL] Size: 48 + 24 + 16 x 10 + 16 + 2 + 1 = 251 bytes
 struct RayState{
     Ray ray; // Current ray
     EiVector3d accumulated_color {EiVector3d(1.0, 1.0, 1.0)}; // Accumulated payload multipliers (albedo, Fresnel terms, etc.)
     std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list {}; // List of objects entered by ray
+    // [SOBOL] Per-path Sobol sampler. Carried through the bounce stack so each bounce can read its reserved Sobol dimensions
+    // Point index + scramble are fixed for the whole path; only the dimension (derived from `depth`) changes per bounce
+    SobolSampler sampler {};
     uint16_t depth {0}; // Current ray depth
     // Even without recursion, most ray tracers don't seem to have more than 50 bounces of depth, so we are being very generous here (max. value of 65535)
     uint8_t interior_count {0}; // Number of active entries in interior_list. 0 => Ray is in the ambient medium (whatever fills the scene, with RI = scene_ri)
@@ -234,19 +238,50 @@ struct RayState{
      */
     RayState(Ray ray_): ray(ray_) {};
     /**
+     * @brief [SOBOL] Constructs a primary-ray state with a per-path Sobol' sampler.
+     *
+     * @param[in] ray_ (Ray) Input ray.
+     * @param[in] sampler_ (SobolSampler) Per-path Sobol' sampler for this pixel sample.
+     */
+    RayState(Ray ray_, SobolSampler sampler_): ray(ray_), sampler(sampler_) {};
+    /**
      * @brief Constructs a fully specified ray state.
      * 
      * @param[in] ray_ (Ray) Current ray
      * @param[in] accumulated_color_ (EiVector3d) Current accumulated payload
      * @param[in] interior_list_ (std::array<InteriorEntry, INTERIOR_LIST_MAX>) Active interior media list
-     * @param[in] scene_ri_ (double) Refractive index of the ambient medium
      * @param[in] depth_ (uint16_t) Current ray depth
      * @param[in] interior_count_ (uint8_t) Number of active entries in interior_list
+     * 
+     * NOTE [SOBOL]: this constructor preserves the original signature so existing spawn sites (ray_diffuse / ray_specular / ray_refractive) need no change to
+     * their argument lists. The child's sampler is inherited from the parent RayState by the caller copying current_state first. Where a spawn builds the child in place
+     * via emplace_back, the sampler is propagated explicitly with the overload below.
      */
     RayState(Ray ray_, EiVector3d accumulated_color_, std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list_, uint16_t depth_, uint8_t interior_count_):
         ray(ray_),
         accumulated_color(accumulated_color_),
         interior_list(interior_list_),
+        depth(depth_),
+        interior_count(interior_count_) {};
+
+    /**
+     * @brief [SOBOL] Fully specified ray state that also propagates the Sobol' sampler.
+     *
+     * Same as the constructor above plus the per-path sampler, so spawned (child) rays keep the parent's Sobol point index and scramble. Bounce
+     * dimensions are selected from depth_, so the sampler itself is unchanged between parent and child.
+     *
+     * @param[in] ray_ (Ray) Current ray
+     * @param[in] accumulated_color_ (EiVector3d) Current accumulated payload
+     * @param[in] interior_list_ (std::array<InteriorEntry, INTERIOR_LIST_MAX>) Active interior media list
+     * @param[in] depth_ (uint16_t) Current ray depth
+     * @param[in] interior_count_ (uint8_t) Number of active entries in interior_list
+     * @param[in] sampler_ (SobolSampler) Per-path Sobol' sampler inherited from the parent
+     */
+    RayState(Ray ray_, EiVector3d accumulated_color_, std::array<InteriorEntry, INTERIOR_LIST_MAX> interior_list_, uint16_t depth_, uint8_t interior_count_, SobolSampler sampler_):
+        ray(ray_),
+        accumulated_color(accumulated_color_),
+        interior_list(interior_list_),
+        sampler(sampler_),
         depth(depth_),
         interior_count(interior_count_) {};
 };
@@ -548,8 +583,11 @@ void ray_refractive(const RayState& current_state,
             reflected_ray.t_min = spawned_ray_t_min;
             
             // TIR — reflected ray travels in the SAME medium, so keep the parent list
-            stack.emplace_back(reflected_ray, next_accumulated_color_reflected,
-                interior_list, current_state.depth + 1, interior_count);
+
+            // [SOBOL]
+            stack.emplace_back(reflected_ray, next_accumulated_color_reflected, interior_list, current_state.depth + 1, interior_count, current_state.sampler);
+            // [MT19937 - LEGACY]
+            //stack.emplace_back(reflected_ray, next_accumulated_color_reflected, interior_list, current_state.depth + 1, interior_count);
             return;
         }
     }
@@ -632,40 +670,55 @@ void ray_refractive(const RayState& current_state,
     if (current_state.depth > 2) {
         //double P = 0.25 + 0.5 * reflectance; // <- This was giving nonsensical and overshot ray energy whenver reflectance was >= 0.5 (visible when we had multiple bounces)
         double P = std::clamp(reflectance, 0.1, 0.9); // Reflection's chance of surviving; 0.1 to prevent division by 0, 0.9 to give transmission a chance to survive
-        if (random_double() < P){ 
+        // [SOBOL] Reflect-vs-transmit decision uses this bounce's reserved decision dimension (the first of the two dims for this depth)
+        if (current_state.sampler.bounce_decision(current_state.depth) < P){
+        // [MT19937 - LEGACY]
+        //if (random_double() < P){ 
             // Reflection works the same way for shells and solids
             double P_reflect = reflectance / P; // Adjust original reflectance based on P
-            stack.emplace_back(reflected_ray, next_accumulated_color_reflected * P_reflect, interior_list,
-                current_state.depth + 1, interior_count);
+            // [SOBOL] Propagate the per-path sampler to the child ray
+            stack.emplace_back(reflected_ray, next_accumulated_color_reflected * P_reflect, interior_list, current_state.depth + 1, interior_count, current_state.sampler);    
+            // [MT19937 - LEGACY]
+            //stack.emplace_back(reflected_ray, next_accumulated_color_reflected * P_reflect, interior_list, current_state.depth + 1, interior_count);
             return;
         }
         else {
             double P_transmit = transmittance / (1.0 - P); // Adjust original transmittance based on P
             if constexpr (object_type == ObjectType::SHELL) {
                 // Shell: medium unchanged, parent list and RI preserved
-                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit,
-                    interior_list, current_state.depth + 1, interior_count);
+                // [SOBOL]
+                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, interior_list, current_state.depth + 1, interior_count, current_state.sampler); 
+                // [MT19937 - LEGACY]
+                //stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, interior_list, current_state.depth + 1, interior_count);
             }
             else if constexpr (object_type == ObjectType::SOLID){
                 // Solid: ray enters/exits a volume, use the toggled list
-                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit,
-                    refracted_list, current_state.depth + 1, refracted_count);
+                // [SOBOL]
+                stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, refracted_list, current_state.depth + 1, refracted_count, current_state.sampler);
+                // [MT19937 - LEGACY]
+                //stack.emplace_back(refracted_ray, next_accumulated_color_refracted * P_transmit, refracted_list, current_state.depth + 1, refracted_count);
             }
             return;
         }
     } 
     else { // Push both rays
-        stack.emplace_back(reflected_ray, next_accumulated_color_reflected * reflectance, interior_list,
-            current_state.depth + 1, interior_count);
+        // [SOBOL] Both children inherit the same per-path sampler; they diverge by depth, so each reads its own reserved dimensions on the next bounce
+        stack.emplace_back(reflected_ray, next_accumulated_color_reflected * reflectance, interior_list, current_state.depth + 1, interior_count, current_state.sampler);
+        // [MT19937 - LEGACY]
+        //stack.emplace_back(reflected_ray, next_accumulated_color_reflected * reflectance, interior_list, current_state.depth + 1, interior_count);
         if constexpr (object_type == ObjectType::SHELL) {
             // Shell: medium unchanged, parent list and RI preserved
-            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance,
-                interior_list, current_state.depth + 1, interior_count);
+            // [SOBOL]
+            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance, interior_list, current_state.depth + 1, interior_count, current_state.sampler);
+            // [MT19937 - LEGACY]
+           //stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance, interior_list, current_state.depth + 1, interior_count);
         }
         else if constexpr (object_type == ObjectType::SOLID){
             // Solid: ray enters/exits a volume, use the toggled list
-            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance,
-                refracted_list, current_state.depth + 1, refracted_count);
+            // [SOBOL]
+            stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance, refracted_list, current_state.depth + 1, refracted_count, current_state.sampler);
+            // [MT19937 - LEGACY]
+            //stack.emplace_back(refracted_ray, next_accumulated_color_refracted * transmittance, refracted_list, current_state.depth + 1, refracted_count);
         }
         return;
     }
