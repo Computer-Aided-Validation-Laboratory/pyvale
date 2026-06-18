@@ -187,6 +187,7 @@ def render_scene(image_height: int,
 
     # 6. Shading type
     if shading_type == None:
+        shading_type = ShadingType.FLAT
         print("No shading selected. Defaulting to FLAT: geometric normals will be used for all elements.")
     elif shading_type == ShadingType.FLAT:
         print("Flat shading selected. Geometric normals will be used for all elements.")
