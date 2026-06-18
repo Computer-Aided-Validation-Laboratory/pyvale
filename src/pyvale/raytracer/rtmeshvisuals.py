@@ -114,7 +114,7 @@ class SceneVisualiser:
         camera_lookat = vedo.Arrow2D(self.camera.camera_center, self.camera.point_camera_target, shaft_width = lookat_width, head_width = 6*lookat_width, c="indigo")
         self.plotter.add(camera_lookat)
         # Vedo asks for bottom left and top right corners, so we flip the x-axis to display the viewport correctly
-        viewport = vedo.Rectangle(self.camera.viewport_bottom_right[:1]*np.array([-1, 1]), self.camera.viewport_upper_left[:1]*np.array([-1, 1]), c="plum", alpha = 0.4)
+        viewport = vedo.Rectangle(self.camera.viewport_bottom_right[:2]*np.array([-1, 1]), self.camera.viewport_upper_left[:2]*np.array([-1, 1]), c="plum", alpha = 0.4)
         # Now we offset the z-location as by default, the rectangle is created at the origin which may not be correct
         # (You can pass a 3D array to vedo.Rectangle, but it created the rectangle incorrectly: while the specified corners had correct positions, the remaining two were always at z=0, so it was bent)
         viewport.pos([0,0,self.camera.viewport_bottom_right[2]] + viewport.transform.position)

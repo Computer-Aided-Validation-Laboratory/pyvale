@@ -164,7 +164,7 @@ class Camera:
         None
         
         """
-        viewport_height, viewport_width, viewport_bottom_right = self.calculate_view_dims()
+        #viewport_height, viewport_width, viewport_bottom_right = self.calculate_view_dims()
         print(f"Camera position [world units]: {np.round(self.camera_center,3)}")
         print(f"Lookat position [world units]: {np.round(self.point_camera_target,3)}")
         print(f"Vertical FOV [degrees]: {np.round(np.degrees(self.angle_vertical_view),3)}")
