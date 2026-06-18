@@ -69,6 +69,12 @@ class Optimizer {
         void copy_params_from_neigh(const std::vector<double> &results_p,
                                     const int idx);
 
+        void copy_params_from_neigh(const std::vector<double> &results_p,
+                                    const std::vector<double> &results_cost,
+                                    const std::vector<uint8_t> &results_above_thresh,
+                                    const std::vector<int> &neigh,
+                                    const int fallback_idx);
+
         void reset_params();
 
     private:

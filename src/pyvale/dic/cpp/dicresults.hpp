@@ -42,12 +42,12 @@ class ResultArrays {
         std::vector<uint8_t> above_thresh;
 
         // incremental tracking;
-        std::vector<double> u_last_good;
-        std::vector<double> v_last_good;
-        std::vector<double> du_dt;
-        std::vector<double> dv_dt;
-        std::vector<int> last_success_frame;
-        std::vector<char> has_good_history;
+        // std::vector<double> u_last_good;
+        // std::vector<double> v_last_good;
+        // std::vector<double> du_dt;
+        // std::vector<double> dv_dt;
+        // std::vector<int> last_success_frame;
+        // std::vector<char> has_good_history;
 
         // world coordinates
         std::vector<double> x_world; 
@@ -67,7 +67,10 @@ class ResultArrays {
         void append(OptResult &res, const int ss);
 
 
-        void get_latest_matches(const ResultArrays &results_def, const int img_num_def);
+        void reset();
+
+
+        //void get_latest_matches(const ResultArrays &results_def, const int img_num_def);
 
         void write_to_disk_2d(const common_util::SaveConfig &saveconf,
                               const subset::Grid &ss_grid,

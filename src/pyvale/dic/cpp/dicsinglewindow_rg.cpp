@@ -34,9 +34,7 @@
 #include "./stereoutil.hpp"
 
 
-void singlewindow_rg(const Image &img_ref,
-                     const Image &img_def,
-                     const Interpolator &interp_ref,
+void singlewindow_rg(const Interpolator &interp_ref,
                      const Interpolator &interp_def,
                      const subset::Grid &ss_grid,
                      const util::Config &conf,
@@ -58,18 +56,21 @@ void singlewindow_rg(const Image &img_ref,
     const int ss_size_y = ss_grid.size_y;
     const int ss_step = ss_grid.step;
 
-    auto get_initial_guess_temporal = [&](FFT &fft, std::vector<double> &p, double &max_val, double cx, double cy, int ss_size_x, int ss_size_y, bool debug) {
-        get_single_window_fftcc_peak(fft, p, max_val, cx, cy,
-                                        ss_size_x, ss_size_y,
-                                        conf.max_disp, conf.max_disp,
-                                        img_ref, img_def, interp_def, debug);
+    auto get_initial_guess_temporal = [&](FFT &fft, std::vector<double> &p, double &max_val, double cx, double cy, bool debug) {
+        get_single_window_fftcc_peak_centre(fft, p, max_val, 
+                                            cx, cy,
+                                            0, 0,
+                                            ss_size_x, ss_size_y,
+                                            std::max(2*conf.max_disp, ss_size_x), 
+                                            std::max(2*conf.max_disp, ss_size_y),
+                                            interp_ref, interp_def, debug);
 
     };
 
 
     auto get_initial_guess_stereo = [&](std::vector<double> &p, double cx, double cy, bool print) {
             stereo::get_rigid_translation_from_rectified_fft(p, cx, cy, ss_size_x, ss_size_y,
-                                                                2*conf.max_disp, ss_size_y, F.value(),
+                                                                2*conf.epi_distance, ss_size_y, F.value(),
                                                                 interp_ref, interp_def, print);
     };
 
@@ -90,6 +91,8 @@ void singlewindow_rg(const Image &img_ref,
     std::atomic<bool> error_flag(false);
     std::string error_message;
 
+    int count = 0;
+
     # pragma omp parallel
     {
 
@@ -100,7 +103,7 @@ void singlewindow_rg(const Image &img_ref,
         subset::Pixels ss_ref(ss_size_x, ss_size_y);
 
         // initialize FFT stuff
-        FFT fft(conf.max_disp, conf.max_disp);
+        FFT fft(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y));
 
         double max_val = 0.0;
 
@@ -142,11 +145,18 @@ void singlewindow_rg(const Image &img_ref,
                 double cx = ss_grid.coords[2*idx];
                 double cy = ss_grid.coords[2*idx+1];
 
+                // std::cout << count << " " << cx << " " << cy << std::endl;
+                // count++;
+
                 // fill the reference subset
                 subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
+                for (int px = 0; px < ss_ref.num_px; px++) {
+                    ss_ref.x[px] -= cx;
+                    ss_ref.y[px] -= cy;
+                }
 
                 // if the first image. Take the optimization parameters from rigid fourier
-                if (mode=="temporal") get_initial_guess_temporal(fft, opt.p, max_val, cx, cy, ss_size_x, ss_size_y, false);
+                if (mode=="temporal") get_initial_guess_temporal(fft, opt.p, max_val, cx, cy, false);
                 if (mode=="stereo") get_initial_guess_stereo(opt.p, cx, cy, false);
 
 
@@ -179,6 +189,9 @@ void singlewindow_rg(const Image &img_ref,
                     double cx = ss_grid.coords[nidx*2];
                     double cy = ss_grid.coords[nidx*2+1];
 
+                    // std::cout << count << " " << cx << " " << cy << std::endl;
+                    // count++;
+
                     if (!ss_grid.active_ss[nidx]) {
                         error_message = "Direct neighbour (" + std::to_string(cx) + "," + std::to_string(cy) +
                                         ") of seed subset (" + std::to_string(seed_x) + "," + std::to_string(seed_y) +
@@ -189,9 +202,17 @@ void singlewindow_rg(const Image &img_ref,
 
                     // fill the reference subset
                     subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
+                    for (int px = 0; px < ss_ref.num_px; px++) {
+                        ss_ref.x[px] -= cx;
+                        ss_ref.y[px] -= cy;
+                    }
 
                     // perform optimization for seed point neighbours
-                    opt.copy_params_from_neigh(results_def.p, idx);
+                    opt.copy_params_from_neigh(results_def.p,
+                                               results_def.cost,
+                                               results_def.above_thresh,
+                                               ss_grid.neigh[nidx],
+                                               idx);
 
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
@@ -260,6 +281,9 @@ void singlewindow_rg(const Image &img_ref,
                     double cx = ss_grid.coords[nidx*2];
                     double cy = ss_grid.coords[nidx*2+1];
 
+                    // std::cout << count << " " << cx << " " << cy << std::endl;
+                    // count++;
+
                     OptResult nres(opt.num_params);
 
                     // if the subset is no longer active then skip
@@ -270,9 +294,17 @@ void singlewindow_rg(const Image &img_ref,
 
                     // fill the reference subset
                     subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
+                    for (int px = 0; px < ss_ref.num_px; px++) {
+                        ss_ref.x[px] -= cx;
+                        ss_ref.y[px] -= cy;
+                    }
 
                     if (results_def.above_thresh[current.idx]){
-                        opt.copy_params_from_neigh(results_def.p, current.idx);
+                        opt.copy_params_from_neigh(results_def.p,
+                                                   results_def.cost,
+                                                   results_def.above_thresh,
+                                                   ss_grid.neigh[nidx],
+                                                   current.idx);
                         if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, false);
                     }
 

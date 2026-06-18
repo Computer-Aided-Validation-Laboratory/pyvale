@@ -28,16 +28,14 @@
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void multiwindow_only(const Image &img_ref,
-                        const Image &img_def,
-                        const Interpolator &interp_ref,
-                        const Interpolator &interp_def,
-                        std::vector<WindowLevel> &multiwindow,
-                        const util::Config &conf,
-                        const int img_num_ref,
-                        const int img_num_def,
-                        const ResultArrays &results_ref,
-                        ResultArrays &results_def);
+void multiwindow_only(const Interpolator &interp_ref,
+                      const Interpolator &interp_def,
+                      std::vector<WindowLevel> &multiwindow,
+                      const util::Config &conf,
+                      const int img_num_ref,
+                      const int img_num_def,
+                      const ResultArrays &results_ref,
+                      ResultArrays &results_def);
 
 
 #endif // DICMULTIWINDOW_ONLY_H

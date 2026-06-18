@@ -127,17 +127,12 @@ void engine(const py::array_t<bool>& img_roi_arr,
     }
     common_util::Timer timer("DIC Engine:");
 
-    // pointer to reference images at start of stack
-    //double *img_ref_l = img_stack;
-    Image img_ref_l = read_img(conf.fullpaths[0]);
-    Image img_ref_r;
-
     // pointer to hold the reference interpolators (will be created once)
     std::unique_ptr<Interpolator> interp_ref_l;
     std::unique_ptr<Interpolator> interp_ref_r;
     std::unique_ptr<Interpolator> interp_def_l;
     std::unique_ptr<Interpolator> interp_def_r;
-    interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
+    interp_ref_l = make_interp(conf.interp_routine, conf.fullpaths[0]);
 
 
     // objects only needed for stereo
@@ -159,14 +154,6 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
     if (conf.stereo){
 
-        // image series goes l0,r0,l1,r1,l2,r2
-        //img_ref_r = img_stack + (conf.num_def_img+1)*num_px_in_image; // r0 image
-        img_ref_r = read_img(conf.fullpaths[conf.num_def_img+1]);
-
-        // interpolators
-        interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
-        interp_ref_r = make_interp(conf.interp_routine, img_ref_r);
-
         // resize the results based on subset information
         results_ref_r = ResultArrays(ss_grid_l.num, conf.num_params, true);
         results_def_r = ResultArrays(ss_grid_l.num, conf.num_params, true);
@@ -174,41 +161,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // sort out intrinsic and extrinsic matrices into struct
         stereo_geom = stereo::compute_stereo_geometry(calib);
 
-
-        Image img_l = read_img(conf.fullpaths[0]);
-        Image img_r = read_img(conf.fullpaths[conf.num_def_img+1]);
-        std::unique_ptr<Interpolator> interp_l = make_interp(conf.interp_routine, img_l);
-        std::unique_ptr<Interpolator> interp_r = make_interp(conf.interp_routine, img_r);
-
-        // do an initial stereo match
-        singlewindow_rg(img_l,
-                        img_r,
-                        *interp_l,
-                        *interp_r,
-                        multiwindow_l.back().layout,
-                        conf,
-                        0,
-                        conf.num_def_img+1,
-                        results_ref_l,
-                        results_def_r,
-                        "stereo",
-                        stereo_geom.F);
-
-
-        stereo::pixel_to_world(ss_grid_l,
-                            calib,
-                            results_def_l,
-                            results_ref_r,
-                            results_def_r,
-                            stereo_geom.K0,
-                            stereo_geom.K1,
-                            stereo_geom.R,
-                            conf.ss_size,
-                            true);
-
-        results_ref_r = results_def_r;
-
-        results_def_l.write_to_disk_stereo(results_def_r, saveconf, ss_grid_l, basenames_l[0]);
+        std::unique_ptr<Interpolator> interp_l = make_interp(conf.interp_routine, conf.fullpaths[0]);
+        std::unique_ptr<Interpolator> interp_r = make_interp(conf.interp_routine, conf.fullpaths[conf.num_def_img+1]);
     }
 
 
@@ -220,17 +174,16 @@ void engine(const py::array_t<bool>& img_roi_arr,
         int img_num_def_l = img_num;
         int img_num_def_r = conf.num_def_img+1+img_num;
 
-        Image img_def_l, img_def_r;
-
         // interpolator for the L image
-        img_def_l = read_img(conf.fullpaths[img_num_def_l]);
-        interp_def_l = make_interp(conf.interp_routine, img_def_l);
+        interp_def_l = make_interp(conf.interp_routine, conf.fullpaths[img_num_def_l]);
 
         // interpolator for the R image
         if (conf.stereo) {
-            img_def_r = read_img(conf.fullpaths[img_num_def_r]);
-            interp_def_r = make_interp(conf.interp_routine, img_def_r);
+            interp_def_r = make_interp(conf.interp_routine, conf.fullpaths[img_num_def_r]);
         }
+
+        // clear the image buffers. Dont need them anymore
+
         // ----------------------------------------------------------------------------------------
         // raster scan
         // ----------------------------------------------------------------------------------------
@@ -238,7 +191,15 @@ void engine(const py::array_t<bool>& img_roi_arr,
             if (conf.stereo) 
                 throw std::invalid_argument("Unsupported scan method");
 
-            raster(img_ref_l, *interp_def_l, ss_grid_l, conf, 0, img_num, results_def_l);
+            results_def_l.reset();
+            results_def_r.reset();
+
+            raster(*interp_ref_l,
+                   *interp_def_l,
+                   ss_grid_l,
+                   conf, 0,
+                   img_num,
+                   results_def_l);
         }
 
 
@@ -251,8 +212,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
             if (update_ref) {
                 img_num_ref_l = img_num_def_l - 1;
                 results_ref_l = results_def_l;
-                img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
-                interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
+                interp_ref_l = make_interp(conf.interp_routine, conf.fullpaths[img_num_ref_l]);
 
                 bool* roi_updated = propagate_roi(img_roi, results_def_l, conf, ss_grid_l);
                 multiwindow_l.clear();
@@ -293,13 +253,24 @@ void engine(const py::array_t<bool>& img_roi_arr,
                 }
 
                 multiwindow_l.push_back(std::move(last_level));
-                multiwindow_l.back().gen_neighlist(multiwindow_l[multiwindow_l.size()-2].layout);
+                if (multiwindow_l.size() > 1) {
+                    multiwindow_l.back().gen_neighlist(multiwindow_l[multiwindow_l.size()-2].layout);
+                }
 
             }
 
-            multiwindow_only(img_ref_l, img_def_l, *interp_ref_l, *interp_def_l,
-                            multiwindow_l, conf,
-                            img_num_ref_l, img_num_def_l, results_ref_l, results_def_l);
+
+            results_def_l.reset();
+            results_def_r.reset();
+
+            multiwindow_only(*interp_ref_l, 
+                             *interp_def_l,
+                             multiwindow_l, 
+                             conf,
+                             img_num_ref_l, 
+                             img_num_def_l, 
+                             results_ref_l, 
+                             results_def_l);
 
 
 
@@ -311,15 +282,69 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // ----------------------------------------------------------------------------------------
         else if (conf.scan_method == util::ScanMethod::SINGLEWINDOW_RG) {
             if (conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf)) {
+
+                // update left image vars
                 img_num_ref_l = img_num_def_l - 1;
-                img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
-                interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
-                std::swap(results_ref_l, results_def_l);
-                //results_ref_l.get_latest_matches(results_def_l, img_num_def_l);
+                results_ref_l = results_def_l;
+                interp_ref_l = make_interp(conf.interp_routine, conf.fullpaths[img_num_ref_l]);
+
+                // update right image vars
+                if (conf.stereo)
+                    results_ref_r = results_def_r;
+
+                // Step 1: update active flags on ss_grid_l
+                if (img_num_def_l > 1){
+                    for (int i = 0; i < ss_grid_l.num; i++) {
+                        if (!results_ref_l.above_thresh[i]) {
+                            ss_grid_l.active_ss[i] = false;
+                        }
+                    }
+                    ss_grid_l.active_total = std::count(ss_grid_l.active_ss.begin(),
+                                                        ss_grid_l.active_ss.end(), true);
+                }
             }
-            singlewindow_rg(img_ref_l, img_def_l, *interp_ref_l, *interp_def_l,
-                            ss_grid_l, conf, img_num_ref_l, img_num_def_l,
-                            results_ref_l, results_def_l);
+
+            results_def_l.reset();
+            results_def_r.reset();
+
+            singlewindow_rg(*interp_ref_l, 
+                            *interp_def_l,
+                            ss_grid_l, 
+                            conf, 
+                            img_num_ref_l, 
+                            img_num_def_l,
+                            results_ref_l, 
+                            results_def_l);
+
+            if (conf.stereo) {
+
+                if (match_strat != 3) {
+                    std::cerr << "UNKNOWN MATCH_STRAT\n";
+                    exit(0);
+                }
+
+                singlewindow_rg(*interp_ref_l,
+                                *interp_def_r,
+                                ss_grid_l,
+                                conf,
+                                img_num_ref_l,
+                                img_num_def_r,
+                                results_ref_l,
+                                results_def_r,
+                                "stereo",
+                                stereo_geom.F);
+
+                stereo::pixel_to_world(ss_grid_l,
+                                    calib,
+                                    results_def_l,
+                                    results_ref_r,
+                                    results_def_r,
+                                    stereo_geom.K0,
+                                    stereo_geom.K1,
+                                    stereo_geom.R,
+                                    conf.ss_size,
+                                    (img_num_def_l==1));
+            }
         }
 
 
@@ -330,11 +355,16 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
             bool update_ref = conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf);
             if (update_ref) {
+
+                // update left image vars
                 img_num_ref_l = img_num_def_l - 1;
                 results_ref_l = results_def_l;
-                if (conf.stereo) results_ref_r = results_def_r;
-                img_ref_l = read_img(conf.fullpaths[img_num_ref_l]);
-                interp_ref_l = make_interp(conf.interp_routine, img_ref_l);
+                interp_ref_l = make_interp(conf.interp_routine, conf.fullpaths[img_num_ref_l]);
+
+                // update right image vars
+                if (conf.stereo)
+                    results_ref_r = results_def_r;
+
 
                 bool* roi_updated = propagate_roi(img_roi, results_def_l, conf, ss_grid_l);
                 multiwindow_l.clear();
@@ -375,13 +405,16 @@ void engine(const py::array_t<bool>& img_roi_arr,
                 }
 
                 multiwindow_l.push_back(std::move(last_level));
-                multiwindow_l.back().gen_neighlist(multiwindow_l[multiwindow_l.size()-2].layout);
+                if (multiwindow_l.size() > 1) {
+                    multiwindow_l.back().gen_neighlist(multiwindow_l[multiwindow_l.size()-2].layout);
+                }
 
             }
 
-            multiwindow_rg(img_ref_l, 
-                           img_def_l, 
-                           *interp_ref_l, 
+            results_def_l.reset();
+            results_def_r.reset();
+
+            multiwindow_rg(*interp_ref_l, 
                            *interp_def_l,
                            multiwindow_l, 
                            conf, 
@@ -389,6 +422,19 @@ void engine(const py::array_t<bool>& img_roi_arr,
                            img_num_def_l,
                            results_ref_l, 
                            results_def_l);
+
+            // multiwindow_rg_stereo(*interp_ref_l, 
+            //                       *interp_def_l,
+            //                       *interp_def_r,
+            //                       multiwindow_l, 
+            //                       conf, 
+            //                       img_num_ref_l, 
+            //                       img_num_def_l,
+            //                       results_ref_l, 
+            //                       results_ref_r, 
+            //                       results_def_l,
+            //                       results_def_r,
+            //                       stereo_geom.F);
 
 
             // ------------------------------------------------------------
@@ -401,9 +447,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                     exit(0);
                 }
 
-                singlewindow_rg(img_ref_l,
-                                img_def_r,
-                                *interp_ref_l,
+                singlewindow_rg(*interp_ref_l,
                                 *interp_def_r,
                                 multiwindow_l.back().layout,
                                 conf,
@@ -422,7 +466,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                     stereo_geom.K0,
                                     stereo_geom.K1,
                                     stereo_geom.R,
-                                    conf.ss_size);
+                                    conf.ss_size,
+                                    (img_num_def_l==1));
             }
 
         }

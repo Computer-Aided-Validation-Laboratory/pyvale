@@ -114,12 +114,6 @@ OptResult Optimizer::solve(const double cx,
     const double eps = 1e-10;
 
 
-    // trying relative instead of global coordinates for the optimization
-    for (int px = 0; px < ss_ref.num_px; px++){
-        ss_ref.x[px] -= cx;
-        ss_ref.y[px] -= cy;
-    }
-
     while (iter < max_iter) {
 
         // if (cx == 360 && cy ==300){
@@ -654,6 +648,42 @@ void Optimizer::copy_params_from_neigh(const std::vector<double> &results_p,
     const int idx_p = idx*num_params;
     for (int i = 0; i < p.size(); i++)
         p[i] = results_p[idx_p+i];
+}
+
+void Optimizer::copy_params_from_neigh(const std::vector<double> &results_p,
+                            const std::vector<double> &results_cost,
+                            const std::vector<uint8_t> &results_above_thresh,
+                            const std::vector<int> &neigh,
+                            const int fallback_idx) {
+    std::fill(p.begin(), p.end(), 0.0);
+
+    double weight_sum = 0.0;
+    int count = 0;
+
+    for (int nidx : neigh) {
+        if (count == 4) break;
+        if (!results_above_thresh[nidx]) continue;
+
+        const double weight = results_cost[nidx];
+        if (weight <= 0.0) continue;
+
+        const int idx_p = nidx * num_params;
+        for (int i = 0; i < static_cast<int>(p.size()); i++) {
+            p[i] += weight * results_p[idx_p + i];
+        }
+
+        weight_sum += weight;
+        count++;
+    }
+
+    if (weight_sum <= 0.0) {
+        copy_params_from_neigh(results_p, fallback_idx);
+        return;
+    }
+
+    for (int i = 0; i < static_cast<int>(p.size()); i++) {
+        p[i] /= weight_sum;
+    }
 }
 
 // Reset parameters to zero

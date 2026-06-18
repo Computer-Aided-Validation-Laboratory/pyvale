@@ -25,9 +25,7 @@
 /**
 * @brief reliability guided scan method with incremental updating.
 */
-void singlewindow_rg(const Image &img_ref,
-                     const Image &img_def,
-                     const Interpolator &interp_ref,
+void singlewindow_rg(const Interpolator &interp_ref,
                      const Interpolator &interp_def,
                      const subset::Grid &ss_grid,
                      const util::Config &conf,

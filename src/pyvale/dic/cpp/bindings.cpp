@@ -62,6 +62,7 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("precision", &util::Config::precision)
         .def_readwrite("threshold", &util::Config::threshold)
         .def_readwrite("max_disp", &util::Config::max_disp)
+        .def_readwrite("epi_distance", &util::Config::epi_distance)
         .def_readwrite("corr_crit", &util::Config::corr_crit)
         .def_readwrite("shape_func", &util::Config::shape_func)
         .def_readwrite("interp_routine", &util::Config::interp_routine)

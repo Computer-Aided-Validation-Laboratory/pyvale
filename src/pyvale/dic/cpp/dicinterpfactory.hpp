@@ -19,6 +19,7 @@
 
 // common_cpp header files
 #include "../../common_cpp/util.hpp"
+#include "../../common_cpp/img_read.hpp"
 
 /**
  * @brief Factory function for creating interpolator instances.
@@ -30,7 +31,10 @@
  *
  * @throws std::invalid_argument if @p routine is not a recognised method.
  */
-inline std::unique_ptr<Interpolator> make_interp(util::InterpRoutine routine, const Image &img) {
+inline std::unique_ptr<Interpolator> make_interp(util::InterpRoutine routine, const std::string &image_str) {
+
+    Image img = read_img(image_str);
+
     switch (routine) {
         case util::InterpRoutine::BSPLINE:
             return std::make_unique<Bspline>(img);

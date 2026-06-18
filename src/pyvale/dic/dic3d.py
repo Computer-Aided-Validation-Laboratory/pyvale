@@ -32,7 +32,9 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  max_iterations: int=40,
                  precision: float=0.001,
                  threshold: float=0.9,
+                 num_threads: int | None = None,
                  max_displacement: int=128,
+                 epi_distance: int=300,
                  method: Literal["MULTIWINDOW_RG","SINGLEWINDOW_RG","MULTIWINDOW","RASTER"] = "MULTIWINDOW_RG",
                  incremental: bool=False,
                  incremental_update_condition: Literal["IMAGE","COST","ITER"]="IMAGE",
@@ -89,7 +91,11 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     num_threads : int, optional
         Number of threads to use for parallel computation (default: None, uses all available).
     max_displacement : int, optional
-        Estimate for the Maximum displacement in any direction (in pixels) (default: 128).
+        Estimate for the Maximum displacement for images from the same camera in any 
+        direction (in pixels) (default: 128).
+    epi_distance : int, optional
+        Estimate for the maximum distance along the epipolar line (in pixels) between a identical point in 
+        the left and right image (default: 300).
     method : str, optional
         Subset scanning method: 
         * ``"MULTIWINDOW_RG"``: 
@@ -248,6 +254,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.fft_mad = fft_mad
     config.fft_mad_scale = fft_mad_scale
     config.debug_level = debug_level
+    config.epi_distance = epi_distance
+    config.max_disp = max_displacement
 
     multiwindowconf = diccpp.MultiwindowConfig()
     multiwindowconf.overlap = mw_overlap

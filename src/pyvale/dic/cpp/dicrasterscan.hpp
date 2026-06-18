@@ -10,10 +10,10 @@
  * @param conf pointer to DIC config struct
  * @param img_num current image number
  */
-void raster(const Image &img_ref,
-           const Interpolator &interp_def,
-           const subset::Grid &ss_grid,
-           const util::Config &conf,
-           const int img_num_ref,
-           const int img_num_def,
-           ResultArrays &result_arrays);
+void raster(const Interpolator &interp_ref, 
+            const Interpolator &interp_def,
+            const subset::Grid &ss_grid,
+            const util::Config &conf,
+            const int img_num_ref,
+            const int img_num_def,
+            ResultArrays &result_arrays);

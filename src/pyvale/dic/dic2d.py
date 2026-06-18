@@ -235,6 +235,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.fft_mad_scale = fft_mad_scale
     config.fft_save = fft_save
     config.debug_level = debug_level
+    config.epi_distance = 0
 
     multiwindowconf = diccpp.MultiwindowConfig()
     multiwindowconf.overlap = mw_overlap

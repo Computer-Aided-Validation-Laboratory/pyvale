@@ -32,9 +32,7 @@
 #include "./dicmultiwindow_util.hpp"
 #include "./dicmultiwindow_rg.hpp"
 
-void multiwindow_rg(const Image &img_ref,
-                    const Image &img_def,
-                    const Interpolator &interp_ref,
+void multiwindow_rg(const Interpolator &interp_ref,
                     const Interpolator &interp_def,
                     std::vector<WindowLevel> &multiwindow,
                     const util::Config &conf,
@@ -140,6 +138,10 @@ void multiwindow_rg(const Image &img_ref,
 
                 // Extract reference subset and solve for starting seed point
                 subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
+                for (int px = 0; px < ss_ref.num_px; px++) {
+                    ss_ref.x[px] -= cx;
+                    ss_ref.y[px] -= cy;
+                }
 
                 OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
@@ -177,9 +179,17 @@ void multiwindow_rg(const Image &img_ref,
 
                     // fill the reference subset
                     subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
+                    for (int px = 0; px < ss_ref.num_px; px++) {
+                        ss_ref.x[px] -= cx;
+                        ss_ref.y[px] -= cy;
+                    }
 
                     // perform optimization for seed point neighbours
-                    opt.copy_params_from_neigh(results_def.p, idx);
+                    opt.copy_params_from_neigh(results_def.p,
+                                               results_def.cost,
+                                               results_def.above_thresh,
+                                               ss_grid.neigh[nidx],
+                                               idx);
 
                     // perform optimization for seed point neighbours
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
@@ -254,9 +264,17 @@ void multiwindow_rg(const Image &img_ref,
 
                     // fill the reference subset
                     subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
+                    for (int px = 0; px < ss_ref.num_px; px++) {
+                        ss_ref.x[px] -= cx;
+                        ss_ref.y[px] -= cy;
+                    }
 
                     if (results_def.above_thresh[current.idx])
-                        opt.copy_params_from_neigh(results_def.p, current.idx);
+                        opt.copy_params_from_neigh(results_def.p,
+                                                   results_def.cost,
+                                                   results_def.above_thresh,
+                                                   ss_grid.neigh[nidx],
+                                                   current.idx);
                     else
                         opt.copy_params_from_fft(nidx, multiwindow.back().u, multiwindow.back().v);
 

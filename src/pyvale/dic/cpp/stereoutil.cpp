@@ -53,9 +53,9 @@ namespace stereo {
 
         P0 << Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero();
         P1 << R, t;   // just gonna assume t is in mm for now
+    
 
-
-        #pragma omp parallel for schedule(dynamic, 10)
+        #pragma omp parallel for
         for (int ss = 0; ss < ss_grid.num; ss++){
             
             if ((!first_frame && !temporal.above_thresh[ss]) || !stereo_def.above_thresh[ss])
@@ -112,6 +112,7 @@ namespace stereo {
                 stereo_def.w_world[ss] = Z_mm - stereo_ref.z_world[ss];
             }
         }
+        if (first_frame) stereo_ref = stereo_def;
     }
 
     void undistortPoint(double &x_undistorted, double &y_undistorted,

@@ -71,6 +71,7 @@ namespace util {
         double precision;
         double threshold;
         int max_disp;
+        int epi_distance;
         std::vector<int> rg_seeds;
         CorrCrit corr_crit;
         ShapeFunc shape_func;

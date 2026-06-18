@@ -31,7 +31,7 @@
 #include "./dicrasterscan.hpp"
 
 
-void raster(const Image &img_ref,
+void raster(const Interpolator &interp_ref,
             const Interpolator &interp_def,
             const subset::Grid &ss_grid,
             const util::Config &conf,
@@ -72,11 +72,9 @@ void raster(const Image &img_ref,
             // Converting to top left corner for optimization routine
             double cx = ss_grid.coords[ss*2];
             double cy = ss_grid.coords[ss*2+1];
-            const int corner_x = int(cx - ss_size_x/2);
-            const int corner_y = int(cy - ss_size_y/2);
 
             // get the reference subset
-            subset::fill_from_img(ss_ref, corner_x, corner_y, conf.px_hori, conf.px_vert, img_ref);
+            subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
 
             for (int i = 0; i < opt.num_params; i++){
                 opt.p[i] = 0.0;

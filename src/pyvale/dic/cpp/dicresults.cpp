@@ -42,12 +42,12 @@ ResultArrays::ResultArrays(int num_ss,
 
 
     // incremental tracking
-    u_last_good.resize(num_ss, 0.0);
-    v_last_good.resize(num_ss, 0.0);
-    du_dt.resize(num_ss, 0.0);
-    dv_dt.resize(num_ss, 0.0);
-    last_success_frame.resize(num_ss, -1);
-    has_good_history.resize(num_ss, 0);
+    // u_last_good.resize(num_ss, 0.0);
+    // v_last_good.resize(num_ss, 0.0);
+    // du_dt.resize(num_ss, 0.0);
+    // dv_dt.resize(num_ss, 0.0);
+    // last_success_frame.resize(num_ss, -1);
+    // has_good_history.resize(num_ss, 0);
 
     if (stereo){
         x_world.resize(num_ss,0.0);
@@ -75,67 +75,87 @@ void ResultArrays::append(OptResult &res, const int i) {
     }
 }
 
+  void ResultArrays::reset() {
+    std::fill(niter.begin(), niter.end(), 0);
+    std::fill(u.begin(), u.end(), 0.0);
+    std::fill(v.begin(), v.end(), 0.0);
+    std::fill(p.begin(), p.end(), 0.0);
+    std::fill(ftol.begin(), ftol.end(), 0.0);
+    std::fill(xtol.begin(), xtol.end(), 0.0);
+    std::fill(cost.begin(), cost.end(), 0.0);
+    std::fill(conv.begin(), conv.end(), false);
+    std::fill(above_thresh.begin(), above_thresh.end(), false);
 
-void ResultArrays::get_latest_matches(const ResultArrays &results_def, const int img_num_def) {
-
-    // Naive check that that results_ref and results_def are the same size
-    if (u.size() != results_def.u.size()){
-        niter.resize(num_ss, 0.0);
-        u.resize(num_ss, 0.0);
-        v.resize(num_ss, 0.0);
-        p.resize(num_ss * num_params, 0.0);
-        ftol.resize(num_ss, 0.0);
-        xtol.resize(num_ss, 0.0);
-        cost.resize(num_ss, 0.0);
-        conv.resize(num_ss, 0.0);
-        above_thresh.resize(num_ss);
-
-
-        // incremental tracking
-        u_last_good.resize(num_ss, 0.0);
-        v_last_good.resize(num_ss, 0.0);
-        du_dt.resize(num_ss, 0.0);
-        dv_dt.resize(num_ss, 0.0);
-        last_success_frame.resize(num_ss, -1);
-        has_good_history.resize(num_ss, 0);
-
-        if (stereo){
-            x_world.resize(num_ss,0.0);
-            y_world.resize(num_ss,0.0);
-            z_world.resize(num_ss,0.0);
-            u_world.resize(num_ss,0.0);
-            v_world.resize(num_ss,0.0);
-            w_world.resize(num_ss,0.0);
-        }
+    if (stereo) {
+        std::fill(x_world.begin(), x_world.end(), 0.0);
+        std::fill(y_world.begin(), y_world.end(), 0.0);
+        std::fill(z_world.begin(), z_world.end(), 0.0);
+        std::fill(u_world.begin(), u_world.end(), 0.0);
+        std::fill(v_world.begin(), v_world.end(), 0.0);
+        std::fill(w_world.begin(), w_world.end(), 0.0);
     }
+  }
 
-    for (int i = 0; i < u.size(); i++){
-
-        if (results_def.above_thresh[i]){
-
-            if (has_good_history[i]){
-
-                int dt = img_num_def - last_success_frame[i];
-
-                if (dt > 0){
-                    du_dt[i] = (results_def.u[i] - u_last_good[i]) / dt;
-                    dv_dt[i] = (results_def.v[i] - v_last_good[i]) / dt;
-                }
-            }
-
-            // update last good state
-            u_last_good[i] = results_def.u[i];
-            v_last_good[i] = results_def.v[i];
-            last_success_frame[i] = img_num_def;
-            has_good_history[i] = 1;
-            u[i] = results_def.u[i];
-            v[i] = results_def.v[i];
-            p[i] = results_def.p[i];
-            above_thresh[i] = 1;
-        }
-    }
-}
-
+// void ResultArrays::get_latest_matches(const ResultArrays &results_def, const int img_num_def) {
+//
+//     // Naive check that that results_ref and results_def are the same size
+//     if (u.size() != results_def.u.size()){
+//         niter.resize(num_ss, 0.0);
+//         u.resize(num_ss, 0.0);
+//         v.resize(num_ss, 0.0);
+//         p.resize(num_ss * num_params, 0.0);
+//         ftol.resize(num_ss, 0.0);
+//         xtol.resize(num_ss, 0.0);
+//         cost.resize(num_ss, 0.0);
+//         conv.resize(num_ss, 0.0);
+//         above_thresh.resize(num_ss);
+//
+//
+//         // incremental tracking
+//         u_last_good.resize(num_ss, 0.0);
+//         v_last_good.resize(num_ss, 0.0);
+//         du_dt.resize(num_ss, 0.0);
+//         dv_dt.resize(num_ss, 0.0);
+//         last_success_frame.resize(num_ss, -1);
+//         has_good_history.resize(num_ss, 0);
+//
+//         if (stereo){
+//             x_world.resize(num_ss,0.0);
+//             y_world.resize(num_ss,0.0);
+//             z_world.resize(num_ss,0.0);
+//             u_world.resize(num_ss,0.0);
+//             v_world.resize(num_ss,0.0);
+//             w_world.resize(num_ss,0.0);
+//         }
+//     }
+//
+//     for (int i = 0; i < u.size(); i++){
+//
+//         if (results_def.above_thresh[i]){
+//
+//             if (has_good_history[i]){
+//
+//                 int dt = img_num_def - last_success_frame[i];
+//
+//                 if (dt > 0){
+//                     du_dt[i] = (results_def.u[i] - u_last_good[i]) / dt;
+//                     dv_dt[i] = (results_def.v[i] - v_last_good[i]) / dt;
+//                 }
+//             }
+//
+//             // update last good state
+//             u_last_good[i] = results_def.u[i];
+//             v_last_good[i] = results_def.v[i];
+//             last_success_frame[i] = img_num_def;
+//             has_good_history[i] = 1;
+//             u[i] = results_def.u[i];
+//             v[i] = results_def.v[i];
+//             p[i] = results_def.p[i];
+//             above_thresh[i] = 1;
+//         }
+//     }
+// }
+//
 
 
 // int ResultArrays::index(const int subset_idx, const int results_num){
