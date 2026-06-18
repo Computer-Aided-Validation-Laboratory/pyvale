@@ -123,7 +123,7 @@ namespace coarsefine {
             if (!ok_ref || !ok_def) continue;
 
             // Run FFT cross-correlation
-            FFT fft(ss_size, ss_size);
+            FFT fft(ss_size, ss_size, true);
             fft.ss_ref.vals = patch_ref;
             fft.ss_def.vals = patch_def;
             // fft.zero_norm_subset(fft.ss_ref, ss_size, ss_size);

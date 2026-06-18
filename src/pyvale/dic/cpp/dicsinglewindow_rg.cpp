@@ -103,7 +103,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
         subset::Pixels ss_ref(ss_size_x, ss_size_y);
 
         // initialize FFT stuff
-        FFT fft(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y));
+        FFT fft(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y), false);
 
         double max_val = 0.0;
 

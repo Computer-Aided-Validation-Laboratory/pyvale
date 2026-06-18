@@ -42,8 +42,10 @@ namespace subset {
         for (int y = ss_y; y < ss_y + ss_ref.size_y; ++y) {
             for (int x = ss_x; x < ss_x + ss_ref.size_x; ++x) {
                 int idx = y * px_hori + x;
-                ss_ref.x[count] = x;
-                ss_ref.y[count] = y;
+                if (ss_ref.has_coords()) {
+                    ss_ref.x[count] = x;
+                    ss_ref.y[count] = y;
+                }
                 ss_ref.vals[count] = data[idx];
                 ss_ref.sum += data[idx];
                 count++;
@@ -92,11 +94,15 @@ namespace subset {
         for (int y = 0; y < ss_def.size_y; y++){
             for (int x = 0; x < ss_def.size_x; x++){
                 // get coordinate values
-                ss_def.x[count] = subpx_x+x; 
-                ss_def.y[count] = subpx_y+y; 
+                const double px_x = subpx_x + x;
+                const double px_y = subpx_y + y;
+                if (ss_def.has_coords()) {
+                    ss_def.x[count] = px_x; 
+                    ss_def.y[count] = px_y; 
+                }
 
                 // get pixel values
-                ss_def.vals[count] = interp_def.eval(0, 0, ss_def.x[count], ss_def.y[count]);
+                ss_def.vals[count] = interp_def.eval(0, 0, px_x, px_y);
 
                 // debugging
                 //std::cout << ss_def.x[count] << " " << ss_def.y[count] << " " << ss_def.vals[count] << std::endl;
@@ -136,10 +142,16 @@ namespace subset {
         for (int y = 0; y < ss.size_y; y++){
             const double rel_y = y - half_y;
             for (int x = 0; x < ss.size_x; x++){
-                get_pixel(ss.x[count], ss.y[count], x - half_x, rel_y, p);
-                ss.x[count]+=cx;
-                ss.y[count]+=cy;
-                ss.vals[count] = interp.eval(cx, cy, ss.x[count], ss.y[count]);
+                double px_x = 0.0;
+                double px_y = 0.0;
+                get_pixel(px_x, px_y, x - half_x, rel_y, p);
+                px_x += cx;
+                px_y += cy;
+                if (ss.has_coords()) {
+                    ss.x[count] = px_x;
+                    ss.y[count] = px_y;
+                }
+                ss.vals[count] = interp.eval(cx, cy, px_x, px_y);
                 ss.sum += ss.vals[count];
                 count++;
             }
@@ -158,11 +170,15 @@ namespace subset {
         ss_def.sum = 0.0;
         for (int y = 0; y < ss_def.size_y; y++) {
             for (int x = 0; x < ss_def.size_x; x++) {
-                ss_def.x[count] = cx + x - half_x;
-                ss_def.y[count] = cy + y - half_y;
+                const double px_x = cx + x - half_x;
+                const double px_y = cy + y - half_y;
+                if (ss_def.has_coords()) {
+                    ss_def.x[count] = px_x;
+                    ss_def.y[count] = px_y;
+                }
                 ss_def.vals[count] = interp_def.eval(cx, cy,
-                                                    ss_def.x[count],
-                                                    ss_def.y[count]);
+                                                    px_x,
+                                                    px_y);
                 ss_def.sum += ss_def.vals[count];
                 count++;
             }

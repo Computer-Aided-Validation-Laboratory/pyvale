@@ -275,7 +275,7 @@ namespace stereo {
         const int ss_half_y = ss_size_y/2;
 
         // class for FFT
-        FFT fft(window_size_x, window_size_y);
+        FFT fft(window_size_x, window_size_y, print);
 
         // put the subset at the corner of the window.
         // for the FFT I'm just using a square subset and not the shape function
@@ -301,9 +301,12 @@ namespace stereo {
                 Eigen::Vector2d centre = closest_point + (x-window_half_x)*dir;
                 Eigen::Vector2d sample_pt = centre - (y-window_half_y)*perp;
                 double val = interp_def.eval(0,0,sample_pt(0),sample_pt(1));
-                fft.ss_def.x[y*window_size_x+x] = sample_pt(0);
-                fft.ss_def.y[y*window_size_x+x] = sample_pt(1);
-                fft.ss_def.vals[y*window_size_x+x] = val;
+                const int idx = y * window_size_x + x;
+                if (fft.ss_def.has_coords()) {
+                    fft.ss_def.x[idx] = sample_pt(0);
+                    fft.ss_def.y[idx] = sample_pt(1);
+                }
+                fft.ss_def.vals[idx] = val;
             }
         }
 

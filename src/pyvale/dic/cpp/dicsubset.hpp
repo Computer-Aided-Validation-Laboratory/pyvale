@@ -51,14 +51,16 @@ namespace subset {
         int sum;
 
         // Constructor to initialize the vectors with ss_size
-        Pixels(int ss_size_x, int ss_size_y) 
+        Pixels(int ss_size_x, int ss_size_y, bool store_coords = true) 
             : vals(ss_size_x * ss_size_y, 0.0),
-            x(ss_size_x * ss_size_y, 0.0),
-            y(ss_size_x * ss_size_y, 0.0),
+            x(store_coords ? ss_size_x * ss_size_y : 0, 0.0),
+            y(store_coords ? ss_size_x * ss_size_y : 0, 0.0),
             size_x(ss_size_x),
             size_y(ss_size_y),
             num_px(ss_size_x * ss_size_y)
         {}
+
+        bool has_coords() const { return !x.empty() && !y.empty(); }
     };
 
     /**

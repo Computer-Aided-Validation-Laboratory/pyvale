@@ -49,12 +49,12 @@ struct FFT {
     Eigen::MatrixXd A;
     Eigen::VectorXd b;
 
-    FFT(int ss_size_x_, int ss_size_y_)
+    FFT(int ss_size_x_, int ss_size_y_, bool store_coords = false)
         : ss_size_x(ss_size_x_),
         ss_size_y(ss_size_y_),
         n_complex(ss_size_x_/2+1),
-        ss_def(ss_size_x_, ss_size_y_),
-        ss_ref(ss_size_x_, ss_size_y_),
+        ss_def(ss_size_x_, ss_size_y_, store_coords),
+        ss_ref(ss_size_x_, ss_size_y_, store_coords),
         fft_def(ss_size_y_*n_complex),
         fft_ref(ss_size_y_*n_complex),
         cross_corr(ss_size_x_ * ss_size_y_),

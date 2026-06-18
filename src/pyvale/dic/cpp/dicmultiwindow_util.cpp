@@ -285,7 +285,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
 
 
             // class for FFT
-            FFT fft(search_area, search_area);
+            FFT fft(search_area, search_area, false);
 
             // loop over subsets for each size/step
             #pragma omp for schedule(dynamic,10)

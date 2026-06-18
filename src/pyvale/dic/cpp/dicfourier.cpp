@@ -312,8 +312,10 @@ void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
 
             int idx_window = target_y * window_size_x + target_x;
 
-            ss_ref.x[idx_window] = px_x;
-            ss_ref.y[idx_window] = px_y;
+            if (ss_ref.has_coords()) {
+                ss_ref.x[idx_window] = px_x;
+                ss_ref.y[idx_window] = px_y;
+            }
 
             if (ipx_x < 0 || ipx_x >= px_hori || ipx_y < 0 || ipx_y >= px_vert) {
                 ss_ref.vals[idx_window] = 0.0;
@@ -349,8 +351,10 @@ void fill_fft_window_with_subset_at_corner_impl(subset::Pixels &ss_ref,
             int idx_img    = px_y * px_hori + px_x;
             int idx_window = row * window_size_x + col;
             double coeff = 1.0; //fourier::hamming(row, col, ss_size_x, ss_size_y);
-            ss_ref.x[idx_window]    = px_x;
-            ss_ref.y[idx_window]    = px_y;
+            if (ss_ref.has_coords()) {
+                ss_ref.x[idx_window] = px_x;
+                ss_ref.y[idx_window] = px_y;
+            }
 
             if (px_x < 0 || px_x >= px_hori || px_y < 0 || px_y >= px_vert) {
                 ss_ref.vals[idx_window] = 0.0;
