@@ -13,14 +13,14 @@ from pyvale.sensorsim.imagetools import ImageTools
 
 from pyvale.raytracer.rtmesh import *
 from pyvale.raytracer.rtmeshvisuals import *
-from pyvale.raytracer.rtblender import *
 from pyvale.raytracer.rtcamera import *
 from pyvale.raytracer.rtscene import *
 from pyvale.raytracer.rtpresets import *
 from pyvale.raytracer.rtmain import *
 from pyvale.raytracer.rtoutputformat import *
 
-# VERSION WITH BLENDER - WILL NOT WORK ON LINUX
+# VERSION WITHOUT BLENDER - SHOULD RUN ON LINUX 
+# Make sure you have pre-processed UVs for the meshes (in the same folder as the meshes; so thesis-data/mesh-name)
 
 # ================================================================================
 # Positioning
@@ -96,39 +96,6 @@ def sample_uv_path(sample_path: Path, element: Element):
     return Path.with_name(sample_path, "beam_" + element.label + "_uvs.csv")
 
 # ================================================================================
-# Preprocessing - UV unwrapping (has to be done on WSL/Windows)
-# ================================================================================
-
-def uv_unwrap():
-    # Run once to UV-unwrap the meshes for texturing and export those
-    tank_access = "thesis-data/" + Tank.RECTANGLE + "/" + Refinement.COARSE # Point the correct mesh locatrions   
-    # Set the sample path
-    sample_name = "thesis-data/beam/" + Refinement.COARSE + "/beam_surface_"
-    # Set BlenderUnwrapper
-    blender_uv = BlenderUnwrapper()
-    for name, element in iter_elements():
-        #tank_path = get_tank_path(tank_access, element)
-        #tank = any_mesh_to_rtmesh(tank_path, world_position = TANK_POSITION, anchor = Anchor.CENTER) # -24 is half the tank width so its front is at z=0.0
-        #blender_uv.add_rtmesh(tank)
-        #blender_uv.smart_unwrap()
-        #tank.export_uvs(tank_uv_path(tank_path, element))
-        #water_path = get_fill_path(tank_access, element)
-        #water = any_mesh_to_rtmesh(water_path, world_position = WATER_POSITION)
-        #blender_uv.add_rtmesh(water)
-        #blender_uv.smart_unwrap()
-        #water.export_uvs(fill_uv_path(water_path, element))
-        # Find and add our mesh for the desired element type
-        sample_path = full_path(sample_name + element.label + ".vtk")
-        beam = any_mesh_to_rtmesh(sample_path, world_position = BEAM_POSITION, anchor = Anchor.BASE)
-        snap_to(beam, tank, Axis.Y, align = (Axis.Z), gap = -BEAM_LEN + 2.0, stack_above = True)
-        # Append texture
-        blender_uv.add_rtmesh(beam)
-        blender_uv.smart_unwrap()
-        beam.export_uvs(sample_uv_path(sample_path, element))
-
-#uv_unwrap() # No need to call unless you change refinement - I have already created UVs for all COARSE meshes
-
-# ================================================================================
 # Convergence tester
 # ================================================================================
 
@@ -181,9 +148,8 @@ def bitwise_compare(data_path_new: Path, data_path_prev: Path | None = None, bit
     return rmse, similarity_rmse, similarity_identical
 
 # ================================================================================
-# Rendering test 2.1: Convergence, RAY TRACER; version with Blender (will not work on pure Linux/supercomputers)
+# Rendering test 2.1: Convergence, RAY TRACER; version with pre-processed UVs (Linux/supercomputer)-compatible
 # ================================================================================
-
 def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, starting_subsamples: int | None = None, thread_count: int | None = None):
     # NOTE: Resolution is a single digit, because these cameras had square viewport
     # NOTE 2: starting_subsamples must be set for everything that is not AIR_UNLIT
@@ -197,8 +163,6 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
     # Sample texture
     ref_texture = full_path("thesis-data/texture/speckle.tiff")
     beam_texture = ImageTools.load_image_greyscale(ref_texture) 
-    # Set BlenderUnwrapper
-    blender_uv = BlenderUnwrapper()
 
     # 2. Settings based on the selected case
     mat_type = MaterialType.UNLIT # Beam material
@@ -310,8 +274,7 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
         beam = any_mesh_to_rtmesh(sample_path, world_position = BEAM_POSITION, anchor = Anchor.BASE)
         snap_to(beam, tank, Axis.Y, align = (Axis.Z), gap = -BEAM_LEN + 2.0, stack_above = True)
         # Append texture
-        blender_uv.add_rtmesh(beam)
-        blender_uv.smart_unwrap()
+        beam.import_uvs(sample_uv_path(sample_path, element)) # Load pre-processed UVs
         beam.set_surface(SurfType.TEXTURE, beam_texture, mat_type)
         scene.add_rtmesh(beam)
         # Set target locations for the output
@@ -365,40 +328,8 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
                     print(f"Exceeded the maximum subsample limit of {SUBSAMPLE_LIMIT_MAX}. Terminating this case.")
                     break
         
-# ================================================================================
-# Post-processing
-# ================================================================================
 
-# Ray tracer: Need to do all 4 cases (they already iterate through all elements)
-def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False):
-    # Get the address of the directory with the data (assuming we haven't changed it)
-    base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
-
-    # Create plot
-    fig, ax = plt.subplots(figsize=FIGURE_SIZE)
-    #ax.set_title("Subsampling for high resolution/low resolution", fontsize=FONT_SIZES["suptitle"]) # If you want a title
-    ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
-    ax.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
-    ax.set_yscale("log")
-    ax.grid()
-    # Iterate over elements
-    for name, element in iter_elements():
-        elem_dir_name = base_data_dir + element.label  
-        data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / "convergence_log.csv" # Full path to the csv with all numerical data
-        #print(data_path)
-        # Convergence stores data as [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
-        elem_data = np.loadtxt(data_path, delimiter=",", skiprows=1, unpack=True)
-        # Sanity check to make sure all data is being read correctly and not just skipped
-        #print(name, "path:", data_path, "shape:", elem_data.shape, "rmse_minmax:", np.nanmin(elem_data[2]), np.nanmax(elem_data[2]))
-        ax.plot(elem_data[1], elem_data[2], label=name, color=element.color, marker="o", linestyle="-", linewidth=3, markersize=10)
-    ax.legend(loc='upper right', fontsize=FONT_SIZES["axis_labels"])
-    plt.tight_layout()
-    plt.show()
-    if save:
-        fig.savefig(base_data_dir + "convergence_plot.png", dpi=300)
-
-#conv_test_rt(TestCase.AIR_UNLIT, Resolution.HIGH, 1)
-#plot_results(TestCase.AIR_UNLIT, Resolution.HIGH, False)
+conv_test_rt(TestCase.AIR_UNLIT, Resolution.LOW, None)
 
 
 
