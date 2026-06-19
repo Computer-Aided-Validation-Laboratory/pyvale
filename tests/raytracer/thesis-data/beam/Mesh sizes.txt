@@ -1,0 +1,11 @@
+Coarse: (mesh size min&max 0.5)
+TRIs: 10,672
+QUADs: 5584
+
+Med-fine: (mesh size min&max 0.35)
+TRIs: 22,108
+QUADs: 12,048
+
+Fine (mesh size min&max = 0.2)
+TRIs: 64,828
+QUADs: 33,632

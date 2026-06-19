@@ -1,0 +1,98 @@
+import numpy as np
+from pathlib import Path
+from dataclasses import dataclass, field
+from enum import StrEnum
+
+from pyvale.raytracer.rtoutputformat import *
+
+# ================================================================================
+# GLOBAL UTILITIES AND SETTINGS
+# ================================================================================
+PARENT_DIR = Path(__file__).resolve().parent # Home directory to this specific file
+
+# Choose output directory for the rendered images
+BASE_TEST_DIR = Path(__file__).resolve().parent.parent / "thesis-output" # Home directory to this specific file
+if not BASE_TEST_DIR.is_dir():
+    BASE_TEST_DIR.mkdir(parents=True, exist_ok=True)
+
+def full_path(data_location: str):
+    """
+    Convenience helper to point to specific datasets in a directory relative to the current one's PARENT.
+    E.g., we are in pyvaleCom/thesis-tests and want to test pyvaleCom/tests/texture/cal_target.tiff => just pass "tests/texture/cal_target.tiff"
+    """
+    return (PARENT_DIR.parent / data_location)
+    #return Path(Path().resolve().joinpath(data_location)) # This is ok if we aren't travelling through the parent directory
+ 
+def test_dir(BASE_TEST_DIR: Path, test_name: str):
+    """
+    Small helper function to make separate directories for each test to avoid overwriting data.
+    """
+    test_dir = BASE_TEST_DIR.joinpath(test_name)
+    if not test_dir.is_dir():
+        test_dir.mkdir(parents=True, exist_ok=True)
+    return test_dir
+
+# Elements for plots etc.
+@dataclass(slots=True)
+class Element:
+    label: str = field(default_factory = None)
+    color: np.ndarray = field(default_factory= lambda: np.array([1.0,1.0,1.0]))
+    
+class Elements:
+    QUAD4 = Element("QUAD4", "#ead6c2") # Golden
+    QUAD8 = Element("QUAD8", "#53424c") # Dark burgyndy-ish
+    QUAD9 = Element("QUAD9", "#b9e1d8") # Mint
+    TRI3 = Element("TRI3", "#c99fb6") # Pink
+    TRI6 = Element("TRI6", "#826f99") # Purple
+
+
+def iter_elements():
+    # Iterates over elements above
+    for name, value in vars(Elements).items():
+        if isinstance(value, Element):
+            yield name, value
+# Use:
+#for name, elem in iter_elements():
+#   print(name, elem.label, elem.color)
+
+
+#B3D1E7 blue = rgb(179 209 231)
+#C3DCD8 mint = rgb(195 220 216)
+#DEC9F0 purple = rgb(222 201 240)
+#F7E5C3 gold = rgb(247 229 195)
+#EBE2DD beige for grids = rgb(235 226 221)
+
+# Plot settings
+FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22}
+FIGURE_SIZE = (12, 10)
+RESIZE_PLOT_FACTOR = 50
+SUBPLOT_SPACING = 0.3
+
+# ================================================================================
+# CAMERA DATA: Photron Nova S6, pinhole
+# ================================================================================
+image_width_phs6 = 1024  # px
+image_height_phs6 = 1024  # px
+sensor_height_phs6 = 20.48 # mm
+lens_focal_length_phs6 = 100 # mm; based on the lens I used
+# Need to set camera_target, camera_center, and angle_vertical_view depending on the test
+output_format_phs6 = ImageFormat(OutputFormat.IMG_TIFF_16BIT, BitDepth.BIT_12, ChannelCount.MONO, True)
+
+# Coloured output that is faster to write, to test if dielectrics are fine
+output_format_test_diel = ImageFormat(OutputFormat.IMG_BMP_24BIT, BitDepth.BIT_8, ChannelCount.RGB, False)
+
+
+def vertical_fov_from_sensor(sensor_height: float,
+                             focal_length: float) -> float:
+    v_angle_rad = 2.0 * np.arctan(sensor_height / (2.0 * focal_length))
+    return np.rad2deg(v_angle_rad)
+
+def vertical_fov_from_resolution(resolution: float, scale_px_per_mm: float, distance_to_sample: float) -> float:
+    """
+    Compute vertical FOV (degrees) from target image dimensions
+
+    Note: distance_to_sample is from lens (due to this being pinhole), not the camera itself
+    """
+    target_fov_mm = resolution / scale_px_per_mm  
+    target_half_fov = target_fov_mm / 2.0
+    return np.rad2deg(2 * np.arctan(target_half_fov / distance_to_sample))

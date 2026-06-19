@@ -1,0 +1,23 @@
+Coarse: (NX/NY/NZ = 25/49/25; mesh size min = 1.0, max = 3.0)
+TRIs: 
+	box: 10,478
+	fill: 5528
+QUADs:
+	box: 5415
+	fill: 2777
+
+Med-fine: (NX/NY/NZ = 25/49/25; mesh size min = 0.5, max = 1.5)
+TRIs: 
+	box: 40,880
+	fill: 21,316
+QUADs:
+	box: 20,422
+	fill: 10,808
+
+Fine: (NX/NY/NZ = 25/49/25; mesh size min = 0.25, max = 0.75)
+TRIs: 
+	box: 160,740
+	fill: 82,104
+QUADs:
+	box: 79,673
+	fill: 41,813

@@ -1,0 +1,26 @@
+MESH_SIZE_MIN = min(radius_o, height) / DIV_FACTOR
+MESH_SIZE_MAX = min(radius_o, height) / DIV_FACTOR
+
+Coarse: (N_CIRC/N_Z = 48/80; DIV_FACTOR = 7.5)
+TRIs: 
+	pipe: 13,006
+	fill: 6199
+QUADs:
+	pipe: 6650
+	fill: 3266
+
+Med-fine: (N_CIRC/N_Z = 48/80; DIV_FACTOR = 15.0)
+TRIs: 
+	pipe: 50,557
+	fill: 23,633
+QUADs:
+	pipe: 25,525
+	fill: 12,107
+
+Fine: (N_CIRC/N_Z = 48/80; DIV_FACTOR = 28.0)
+TRIs: 
+	pipe: 172,177
+	fill: 80,995
+QUADs:
+	pipe: 85,625
+	fill: 40,503
