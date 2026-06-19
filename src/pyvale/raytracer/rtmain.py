@@ -108,7 +108,8 @@ def render_scene(image_height: int,
                  texture_sampler: TextureSampler | None = None,
                  shading_type: ShadingType | None = None,
                  image_format: ImageFormat | None = None,
-                 max_depth: int | None = None):
+                 max_depth: int | None = None,
+                 omp_thread_count: int | None = None):
     """
     Performs checks and dispatches the scene to the C++ rendering backend.
 
@@ -133,12 +134,12 @@ def render_scene(image_height: int,
         The algorithm used to sample the textures onto the mesh surfaces. Defaults to None and gets set to nearest neighbour.
     shading_type: ShadingType | None
         The type of shading to use. Can be either FLAT (geometric normals used for shading) or BLENDED (node normals used for shading). Defaults to FLAT.
-    output_format: OutputType | None
-        The format of the output image. Can be either IMG_PPM or IMG_TIFF. Defaults to IMG_TIFF.
     image_format: ImageFormat | None
         The format of the output image. Defaults to an 8-bit single-channel BMP image (grayscale by default).
     max_depth: int | None
         Maximum depth for secondary rays. Higher value is recommended for refractive materials. Defaults to None.
+    omp_thread_count: int | None
+        Optional. Allows the user to set the number of cores used by OpenMP to parallelise the renderer.
 
     Raises:
     -------
@@ -210,6 +211,12 @@ def render_scene(image_height: int,
 
     # Check and set max depth
     max_depth = set_max_depth(scene, max_depth)
+
+    if omp_thread_count is not None:
+        if omp_thread_count <= 0:
+            raise ValueError("The number of threads cannot be zero or negative.")
+    else: # If none => set to 0 => renderer knows it means "use all available"
+        omp_thread_count = 0
     
     # Select appropriate rendering function based on these booleans to minimize branching in backend rendered if possible
     # Not sure if we will need to implement this yet - BVH builder is still fast with conditional checks (and we run it once per frame), and branching based on element/surface type was moved out of the hot loops
@@ -255,4 +262,5 @@ def render_scene(image_height: int,
                      grayscale,
                      image_format.output_format,
                      image_format.bit_depth,
-                     image_format.channel_count)
+                     image_format.channel_count,
+                     omp_thread_count)

@@ -24,6 +24,7 @@
 
 // common_cpp header files
 #include "../../common_cpp/Eigen/Dense"
+#include "../../common_cpp/util.hpp"
 //#include "../../common_cpp/dicsignalhandler.hpp" // In the future when nanobind cooperates
 
 // raytracer header files
@@ -61,10 +62,16 @@ void render_scene(const int image_height,
     const bool grayscale_flag,
     const int output_format,
     const int bit_depth,
-    const int channel_count) {
+    const int channel_count,
+    const int omp_thread_count) {
 
     // Register signal handler for Ctrl+C
     signal(SIGINT, signalHandler);
+    
+    // Set OMP cores if passed a valid value
+    if (omp_thread_count > 0){
+        omp_set_num_threads(omp_thread_count);
+    }
 
     //CALLGRIND_START_INSTRUMENTATION;
     size_t num_cameras = camera_centers.size();

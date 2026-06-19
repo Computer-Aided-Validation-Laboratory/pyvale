@@ -118,7 +118,7 @@ def bitwise_compare(data_path_new: Path, data_path_prev: Path | None = None, bit
 # Rendering test 2.1: Convergence, RAY TRACER
 # ================================================================================
 
-def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, starting_subsamples: int | None = None):
+def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, starting_subsamples: int | None = None, thread_count: int | None = None):
     # NOTE: Resolution is a single digit, because these cameras had square viewport
     # NOTE 2: starting_subsamples must be set for everything that is not AIR_UNLIT
     # 1. Set mesh data that we can set currently
@@ -280,7 +280,7 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
             csvfile.flush()
             os.fsync(csvfile.fileno())
             # Create the first image as our baseline
-            render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6)
+            render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6, omp_thread_count = thread_count)
             # Create the updated filename and change file name
             new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
             os.rename(target.joinpath(fresh_filename), target.joinpath(new_filename))
@@ -289,7 +289,7 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
                 prev_filename = new_filename
                 subsamples *=2
                 iteration_number += 1
-                render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6)
+                render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6, omp_thread_count = thread_count)
                  # Rename this file
                 new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
                 os.rename(target / fresh_filename, target / new_filename)
@@ -338,7 +338,7 @@ def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False
     for name, element in iter_elements():
         elem_dir_name = base_data_dir + element.label  
         data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / "convergence_log.csv" # Full path to the csv with all numerical data
-        print(data_path)
+        #print(data_path)
         # Convergence stores data as [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
         elem_data = np.loadtxt(data_path, delimiter=",", skiprows=1, unpack=True)
         # Sanity check to make sure all data is being read correctly and not just skipped
@@ -350,9 +350,8 @@ def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False
     if save:
         fig.savefig(base_data_dir + "convergence_plot.png", dpi=300)
 
-
-#conv_test_rt(TestCase.AIR_UNLIT, Resolution.HIGH, 1)
-#plot_results(TestCase.AIR_UNLIT, Resolution.HIGH)
+conv_test_rt(TestCase.AIR_UNLIT, Resolution.HIGH, 1)
+#plot_results(TestCase.AIR_UNLIT, Resolution.HIGH, False)
 
 
 

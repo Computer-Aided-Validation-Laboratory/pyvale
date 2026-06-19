@@ -70,6 +70,7 @@ void render_scene(const int image_height,
     const bool grayscale_flag,
     const int output_format,
     const int bit_depth,
-    const int channel_count);
+    const int channel_count,
+    const int omp_thread_count);
 
 #endif // RTMAIN_H
