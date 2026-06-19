@@ -263,9 +263,9 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     # sort precision to use for FFT windowing
     if fft_precision=="F32":
-        config.fft_precision = diccpp.FftPrecision.FLOAT32
+        config.fft_precision = diccpp.FFTPrecision.FLOAT32
     elif fft_precision=="F64":
-        config.fft_precision = diccpp.FftPrecision.FLOAT64
+        config.fft_precision = diccpp.FFTPrecision.FLOAT64
     else:
         raise ValueError("fft_precision must be one of: F64, F32")
 

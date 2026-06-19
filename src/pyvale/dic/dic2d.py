@@ -243,9 +243,9 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     # sort precision to use for FFT windowing
     if fft_precision=="F32":
-        config.fft_precision = diccpp.FftPrecision.FLOAT32
+        config.fft_precision = diccpp.FFTPrecision.FLOAT32
     elif fft_precision=="F64":
-        config.fft_precision = diccpp.FftPrecision.FLOAT64
+        config.fft_precision = diccpp.FFTPrecision.FLOAT64
     else:
         raise ValueError("fft_precision must be one of: F64, F32")
 
