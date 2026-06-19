@@ -259,7 +259,8 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                                            const int img_num_def,
                                            const int window_level,
                                            const int num_levels,
-                                           const std::vector<std::string> &filenames){
+                                           const std::vector<std::string> &filenames,
+                                           const util::FFTPrecision fft_precision){
 
         const int px_hori = interp_def.px_hori;
         const int px_vert = interp_def.px_vert;
@@ -280,14 +281,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         std::atomic<int> current_progress = 0;
 
 
-        #pragma omp parallel shared(stop_request, level, prev, interp_def, img_num_ref, search_area, u, v, max_val)
-        {
-
-
-            // class for FFT
-            FFT fft(search_area, search_area, false);
-
-            // loop over subsets for each size/step
+        auto run_fft_loop = [&](auto &fft) {
             #pragma omp for schedule(dynamic,10)
             for (int ss = 0; ss < layout.num; ss++){
 
@@ -324,6 +318,17 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                     int progress = current_progress.fetch_add(1);
                     if (omp_get_thread_num()==0) pbar.update(progress+1);
                 }
+            }
+        };
+
+        #pragma omp parallel shared(stop_request, level, prev, interp_def, img_num_ref, search_area, u, v, max_val)
+        {
+            if (fft_precision == util::FFTPrecision::FLOAT32) {
+                FFTf fft(search_area, search_area, false);
+                run_fft_loop(fft);
+            } else {
+                FFT fft(search_area, search_area, false);
+                run_fft_loop(fft);
             }
         }
 

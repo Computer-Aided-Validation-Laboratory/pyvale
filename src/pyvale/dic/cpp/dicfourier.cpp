@@ -129,8 +129,28 @@ double debugcost(const subset::Pixels &ss_ref, const subset::Pixels &ss_def){
 
 
 
+template<typename Real>
+void fill_fft_window_from_img_subpx(FFTPixels<Real> &ss_def,
+                                    const double subpx_x,
+                                    const double subpx_y,
+                                    const Interpolator &interp_def) {
+    int count = 0;
+    for (int y = 0; y < ss_def.size_y; y++) {
+        for (int x = 0; x < ss_def.size_x; x++) {
+            const double px_x = subpx_x + x;
+            const double px_y = subpx_y + y;
+            if (ss_def.has_coords()) {
+                ss_def.x[count] = px_x;
+                ss_def.y[count] = px_y;
+            }
+            ss_def.vals[count] = static_cast<Real>(interp_def.eval(0, 0, px_x, px_y));
+            count++;
+        }
+    }
+}
 
-void get_single_window_fftcc_peak(FFT &fft,
+template<typename Real>
+void get_single_window_fftcc_peak(FFTImpl<Real> &fft,
                                   std::vector<double> &p,
                                   double &max_val,
                                   const double cx, const double cy,
@@ -162,10 +182,10 @@ void get_single_window_fftcc_peak(FFT &fft,
                                           window_size_x, window_size_y);
 
     // populate deformed subset
-    subset::fill_from_img_subpx(fft.ss_def,
-                                cx - half_offset(window_size_x),
-                                cy - half_offset(window_size_y),
-                                interp_def);
+    fill_fft_window_from_img_subpx(fft.ss_def,
+                                    cx - half_offset(window_size_x),
+                                    cy - half_offset(window_size_y),
+                                    interp_def);
 
     // zero norm the subsets
     bool normed_ref = fft.zero_norm_subset(fft.ss_ref, ss_size_x,ss_size_y);
@@ -199,7 +219,8 @@ void get_single_window_fftcc_peak(FFT &fft,
 }
 
 
-void get_single_window_fftcc_peak_centre(FFT &fft,
+template<typename Real>
+void get_single_window_fftcc_peak_centre(FFTImpl<Real> &fft,
                                          std::vector<double> &p,
                                          double &max_val,
                                          const double cx, const double cy,
@@ -233,10 +254,10 @@ void get_single_window_fftcc_peak_centre(FFT &fft,
                                           window_size_x, window_size_y);
 
     // populate deformed subset
-    subset::fill_from_img_subpx(fft.ss_def,
-                                cx-window_half_x+offset_x,
-                                cy-window_half_y+offset_y,
-                                interp_def);
+    fill_fft_window_from_img_subpx(fft.ss_def,
+                                    cx-window_half_x+offset_x,
+                                    cy-window_half_y+offset_y,
+                                    interp_def);
 
 
 
@@ -272,7 +293,8 @@ void get_single_window_fftcc_peak_centre(FFT &fft,
 }
 
 
-void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
+template<typename Real>
+void fill_fft_window_with_subset_at_centre(FFTPixels<Real> &ss_ref,
                                            const Interpolator &interp_ref,
                                            const double cx,
                                            const double cy,
@@ -318,9 +340,9 @@ void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
             }
 
             if (ipx_x < 0 || ipx_x >= px_hori || ipx_y < 0 || ipx_y >= px_vert) {
-                ss_ref.vals[idx_window] = 0.0;
+                ss_ref.vals[idx_window] = Real(0);
             } else {
-                ss_ref.vals[idx_window] = interp_ref.eval(0, 0, px_x, px_y);
+                ss_ref.vals[idx_window] = static_cast<Real>(interp_ref.eval(0, 0, px_x, px_y));
             }
         }
     }
@@ -328,8 +350,8 @@ void fill_fft_window_with_subset_at_centre(subset::Pixels &ss_ref,
 
 
 
-template<typename T>
-void fill_fft_window_with_subset_at_corner_impl(subset::Pixels &ss_ref,
+template<typename Real, typename T>
+void fill_fft_window_with_subset_at_corner_impl(FFTPixels<Real> &ss_ref,
                                             const std::vector<T> &img,
                                             const int corner_x,
                                             const int corner_y,
@@ -357,17 +379,18 @@ void fill_fft_window_with_subset_at_corner_impl(subset::Pixels &ss_ref,
             }
 
             if (px_x < 0 || px_x >= px_hori || px_y < 0 || px_y >= px_vert) {
-                ss_ref.vals[idx_window] = 0.0;
+                ss_ref.vals[idx_window] = Real(0);
             }
             else { 
-                ss_ref.vals[idx_window] = coeff * img[idx_img];
+                ss_ref.vals[idx_window] = static_cast<Real>(coeff * img[idx_img]);
             }
 
         }
     }
 }
 
-void fill_fft_window_with_subset_at_corner(subset::Pixels &ss_ref,
+template<typename Real>
+void fill_fft_window_with_subset_at_corner(FFTPixels<Real> &ss_ref,
                                            const Image &img_ref,
                                            const int corner_x,
                                            const int corner_y,
@@ -420,5 +443,12 @@ double hamming(const int row, const int col, const int size_x, const int size_y)
     return ham_row * ham_col;
 }
 
-
+template void get_single_window_fftcc_peak<float>(FFTf&, std::vector<double>&, double&, double, double, int, int, int, int, const Image&, const Image&, const Interpolator&, bool);
+template void get_single_window_fftcc_peak<double>(FFT&, std::vector<double>&, double&, double, double, int, int, int, int, const Image&, const Image&, const Interpolator&, bool);
+template void get_single_window_fftcc_peak_centre<float>(FFTf&, std::vector<double>&, double&, double, double, double, double, int, int, int, int, const Interpolator&, const Interpolator&, bool);
+template void get_single_window_fftcc_peak_centre<double>(FFT&, std::vector<double>&, double&, double, double, double, double, int, int, int, int, const Interpolator&, const Interpolator&, bool);
+template void fill_fft_window_with_subset_at_centre<float>(FFTPixels<float>&, const Interpolator&, double, double, int, int, int, int, int, int);
+template void fill_fft_window_with_subset_at_centre<double>(FFTPixels<double>&, const Interpolator&, double, double, int, int, int, int, int, int);
+template void fill_fft_window_with_subset_at_corner<float>(FFTPixels<float>&, const Image&, int, int, int, int, int, int, int, int);
+template void fill_fft_window_with_subset_at_corner<double>(FFTPixels<double>&, const Image&, int, int, int, int, int, int, int, int);
 

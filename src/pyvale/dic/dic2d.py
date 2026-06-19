@@ -42,6 +42,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  fft_mad: bool=False,
                  fft_mad_scale: float=3.0,
                  fft_save: bool=False,
+                 fft_precision: Literal["F64","F32"]="F32",
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
                  output_prefix: str="dic_results_",
@@ -144,6 +145,9 @@ def calculate_2d(reference: np.ndarray | str | Path,
         ``fft_mad_scale`` times the MAD. This value choses the scaling factor that determines 
         the threshold for detecting outliers relative to the MAD. A larger ``fft_mad_scale`` 
         is more tolerant, while a smaller value kills larger deviations.
+    fft_precision : str, optional
+        Floating-point precision for FFT-only windowing buffers. Options are ``"F32"``
+        for single precision and ``"F64"`` for double precision. (default: ``"F32"``).
     output_basepath : str or pathlib.Path, optional
         Directory path where output files will be written (default: ``"./"``).
     output_binary : bool, optional
@@ -236,6 +240,14 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.fft_save = fft_save
     config.debug_level = debug_level
     config.epi_distance = 0
+
+    # sort precision to use for FFT windowing
+    if fft_precision=="F32":
+        config.fft_precision = diccpp.FftPrecision.FLOAT32
+    elif fft_precision=="F64":
+        config.fft_precision = diccpp.FftPrecision.FLOAT64
+    else:
+        raise ValueError("fft_precision must be one of: F64, F32")
 
     multiwindowconf = diccpp.MultiwindowConfig()
     multiwindowconf.overlap = mw_overlap

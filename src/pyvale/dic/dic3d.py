@@ -44,6 +44,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  multiwindow_search_areas: list[int] = [],
                  fft_mad: bool=False,
                  fft_mad_scale: float=3.0,
+                 fft_precision: Literal["F64","F32"]="F32",
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
                  output_prefix: str="dic_results_",
@@ -145,6 +146,9 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         Median Absolute Deviation (MAD), and determines whether the value at the current 
         subset is an outlier. If it is, the value is replaced with the median of 
         its neighbors. (default: False)
+    fft_precision : str, optional
+        Floating-point precision for FFT-only windowing buffers. Options are ``"F32"``
+        for single precision and ``"F64"`` for double precision. (default: ``"F32"``).
     fft_mad_scale : bool, optional
         An outlier is defined as a value whose deviation from the local median exceeds 
         `fft_mad_scale` times the MAD. This value choses the scaling factor that determines 
@@ -256,6 +260,14 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.debug_level = debug_level
     config.epi_distance = epi_distance
     config.max_disp = max_displacement
+
+    # sort precision to use for FFT windowing
+    if fft_precision=="F32":
+        config.fft_precision = diccpp.FftPrecision.FLOAT32
+    elif fft_precision=="F64":
+        config.fft_precision = diccpp.FftPrecision.FLOAT64
+    else:
+        raise ValueError("fft_precision must be one of: F64, F32")
 
     multiwindowconf = diccpp.MultiwindowConfig()
     multiwindowconf.overlap = mw_overlap

@@ -54,6 +54,10 @@ PYBIND11_MODULE(diccpp, m) {
         .value("ITER", util::IncrementalCond::ITER)
         .value("COST", util::IncrementalCond::COST);
 
+    py::enum_<util::FFTPrecision>(m, "FFTPrecision")
+        .value("FLOAT32", util::FFTPrecision::FLOAT32)
+        .value("FLOAT64", util::FFTPrecision::FLOAT64);
+
     py::class_<util::Config>(m, "Config")
         .def(py::init<>())
         .def_readwrite("ss_step", &util::Config::ss_step)
@@ -75,6 +79,7 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("fft_mad", &util::Config::fft_mad)
         .def_readwrite("fft_mad_scale", &util::Config::fft_mad_scale)
         .def_readwrite("fft_save", &util::Config::fft_save)
+        .def_readwrite("fft_precision", &util::Config::fft_precision)
         .def_readwrite("basenames", &util::Config::basenames)
         .def_readwrite("fullpaths", &util::Config::fullpaths)
         .def_readwrite("debug_level", &util::Config::debug_level)

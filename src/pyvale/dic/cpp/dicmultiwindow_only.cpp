@@ -48,7 +48,8 @@ void multiwindow_only(const Interpolator &interp_ref,
                                                     interp_def,
                                                     img_num_ref, img_num_def,
                                                     lvl, multiwindow.size(),
-                                                    conf.basenames);
+                                                    conf.basenames,
+                                                    conf.fft_precision);
     }
 
     const subset::Grid &ss_grid = multiwindow.back().layout;

@@ -56,7 +56,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
     const int ss_size_y = ss_grid.size_y;
     const int ss_step = ss_grid.step;
 
-    auto get_initial_guess_temporal = [&](FFT &fft, std::vector<double> &p, double &max_val, double cx, double cy, bool debug) {
+    auto get_initial_guess_temporal = [&](auto &fft, std::vector<double> &p, double &max_val, double cx, double cy, bool debug) {
         get_single_window_fftcc_peak_centre(fft, p, max_val, 
                                             cx, cy,
                                             0, 0,
@@ -103,7 +103,13 @@ void singlewindow_rg(const Interpolator &interp_ref,
         subset::Pixels ss_ref(ss_size_x, ss_size_y);
 
         // initialize FFT stuff
-        FFT fft(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y), false);
+        std::optional<FFTf> fft_float;
+        std::optional<FFT> fft_double;
+        if (conf.fft_precision == util::FFTPrecision::FLOAT32) {
+            fft_float.emplace(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y), false);
+        } else {
+            fft_double.emplace(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y), false);
+        }
 
         double max_val = 0.0;
 
@@ -156,7 +162,13 @@ void singlewindow_rg(const Interpolator &interp_ref,
                 }
 
                 // if the first image. Take the optimization parameters from rigid fourier
-                if (mode=="temporal") get_initial_guess_temporal(fft, opt.p, max_val, cx, cy, false);
+                if (mode=="temporal") {
+                    if (conf.fft_precision == util::FFTPrecision::FLOAT32) {
+                        get_initial_guess_temporal(*fft_float, opt.p, max_val, cx, cy, false);
+                    } else {
+                        get_initial_guess_temporal(*fft_double, opt.p, max_val, cx, cy, false);
+                    }
+                }
                 if (mode=="stereo") get_initial_guess_stereo(opt.p, cx, cy, false);
 
 

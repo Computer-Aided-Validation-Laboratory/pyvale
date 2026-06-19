@@ -220,7 +220,8 @@ struct WindowLevel {
                                   const int img_num_def,
                                   const int window_level,
                                   const int num_levels,
-                                  const std::vector<std::string> &filenames);
+                                  const std::vector<std::string> &filenames,
+                                  const util::FFTPrecision fft_precision);
 
 
 

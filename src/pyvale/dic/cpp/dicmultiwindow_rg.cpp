@@ -60,7 +60,8 @@ void multiwindow_rg(const Interpolator &interp_ref,
                                                     interp_def,
                                                     img_num_ref, img_num_def,
                                                     lvl, multiwindow.size(),
-                                                    conf.basenames);
+                                                    conf.basenames,
+                                                    conf.fft_precision);
     }
 
 

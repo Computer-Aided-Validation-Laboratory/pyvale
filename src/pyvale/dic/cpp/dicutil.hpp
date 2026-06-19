@@ -51,6 +51,11 @@ namespace util {
         COST
     };
 
+    enum class FFTPrecision {
+        FLOAT32,
+        FLOAT64
+    };
+
     // Custom hash from above
     struct PairHash {
         std::size_t operator()(const std::pair<int, int>& p) const {
@@ -81,6 +86,7 @@ namespace util {
         std::vector<std::string> fullpaths;
         bool fft_mad;
         bool fft_save;
+        FFTPrecision fft_precision;
         double fft_mad_scale;
         unsigned int debug_level;
         bool stereo;
