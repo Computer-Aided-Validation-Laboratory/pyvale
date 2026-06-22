@@ -329,12 +329,24 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
                     break
         
 
-conv_test_rt(TestCase.AIR_UNLIT, Resolution.LOW, None)
+#conv_test_rt(TestCase.AIR_UNLIT, Resolution.LOW, None)
 
-
-
-
-    
-
-
-
+# Manual compare for a single case if it got missed etc.
+"""
+output_dir_name = "convergence_rt/res_" + str(Resolution.LOW.value) + "/" + TestCase.AIR_UNLIT.value
+target = test_dir(BASE_TEST_DIR, output_dir_name + "/" + Elements.QUAD8.label)
+NEW_SUBSAMPLES = 524288
+prev_filename = "rtimage_" + "subsamples_" + str(262144) + ".tiff"
+new_filename = "rtimage_" + "subsamples_" + str(NEW_SUBSAMPLES) + ".tiff"
+rmse, sim_score_rmse, sim_score_identical = bitwise_compare(target / new_filename, target / prev_filename)
+csv_path = target / "convergence_log.csv"
+with open(csv_path, mode="a", newline="", encoding="utf-8") as csvfile:
+    writer = csv.DictWriter(csvfile, fieldnames=["iteration", "subsamples", "rmse", "sim_score_rmse", "sim_score_identical"])
+    writer.writerow({
+                    "iteration": 19,
+                    "subsamples": NEW_SUBSAMPLES,
+                    "rmse": rmse,
+                    "sim_score_rmse": sim_score_rmse,
+                    "sim_score_identical": sim_score_identical})
+    csvfile.flush()
+"""

@@ -63,7 +63,7 @@ def iter_elements():
 #EBE2DD beige for grids = rgb(235 226 221)
 
 # Plot settings
-FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22}
+FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22, "ticks": 13}
 FIGURE_SIZE = (12, 10)
 RESIZE_PLOT_FACTOR = 50
 SUBPLOT_SPACING = 0.3
