@@ -137,7 +137,8 @@ def load_sim_data_to_grid(
 #   all input stuff really
 def test_end_to_end() -> None:
     print("Loading data...")
-    exodus_file_name = "out_hole2d_plas_het_32f.e"
+    # exodus_file_name = "out_hole2d_plas_het_32f.e"
+    exodus_file_name = "out_hole2d_plas_het_32f_refined.e"
 
     # (
     #     x_grid, # shape: (x, y, z)
@@ -387,9 +388,10 @@ def test_end_to_end() -> None:
 
 
     # Compare FE yield stess with analytical yield stress
-    DATA_DIR = Path(__file__).resolve().parent.parent.parent / "dev" / "vfm" / "rob-data"
-    MESH_PATH = DATA_DIR / "mesh2d_holeplate.msh"
-    element_centres = read_gmsh_element_centres(MESH_PATH)
+    # DATA_DIR = Path(__file__).resolve().parent.parent.parent / "dev" / "vfm" / "rob-data"
+    # EXODUS_PATH = DATA_DIR / exodus_file_name
+    EXODUS_PATH = VFMVERIF_ROOT / "data" / exodus_file_name
+    element_centres = read_exodus_element_centres(EXODUS_PATH)
 
     yield_stress_fe_interpolated = interpolate_fe_elements_to_grid(
         element_centres,
@@ -432,7 +434,11 @@ def test_end_to_end() -> None:
         ax.set_xlabel("x [m]")
         ax.set_ylabel("y [m]")
 
-    plt.show()
+    SHOW_YIELD_STRESS_COMPARISON = True
+    if SHOW_YIELD_STRESS_COMPARISON:
+        plt.show()
+    else:
+        plt.close(fig)
 
 
     parameters = {
@@ -516,161 +522,76 @@ def test_end_to_end() -> None:
     # stack fe stress to same shape as rr stress for comparison
     stress_fe = np.stack([stress_xx_fe, stress_yy_fe, stress_xy_fe], axis=1) # shape: (timesteps, 3, y, x)
 
-    # COMPARE XX STRESS FROM RR AND FE
+    # FIGURES OF STRESS RR, FE, DIFF, PERC DIFF
+    PLOT_STRESS_RR = True
+    PLOT_STRESS_FE = True
+    PLOT_STRESS_RR_FE_DIFF = True
+    PLOT_STRESS_RR_FE_PERC_DIFF = True
+    PLOT_PERCENTILE_SCALED_DIFF = True # for each of the diff and % diff plots, create copy with clim between 5th and 95th percentile
+
+    # Plotting inputs
     step = 30
-    component_index = 2 # xx stress component
-    component_label_dict = {0: 'xx', 1: 'yy', 2: 'xy'}
-    component_label = component_label_dict[component_index]
-    data = (np.abs(stress_rr[step, component_index, :, :] - stress_fe[step, component_index, :, :]) / stress_fe[step, component_index, :, :]) * 100
-    data_name=f'stress_{component_label}_rr-fe_abs_perc_diff'
-    plt.figure()
-    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    plt.colorbar(label='Stress')
-    plt.xlabel('x')
-    plt.ylabel('y')
-    #include param name and dof index in title
-    plt.title(f'{data_name}, step {step}')
-    # vmin = np.nanpercentile(data, 5)
-    # vmax = np.nanpercentile(data, 95)
-    # im1.set_clim(vmin, vmax)
-    im1=plt.show()
-    print(f"vm stress {component_label} rr - fe: max abs perc diff [%] = {np.nanmax(data):.6f}")
 
+    # STRESS RECON REPORT
+    CREATE_STRESS_RECON_REPORT = True
+    if CREATE_STRESS_RECON_REPORT:
+        report_path = VFMVERIF_ROOT / "reports" / f"{Path(exodus_file_name).stem}_stress_recon_step_{step:03d}.pdf"
+        report_summary = create_stress_recon_report(
+            report_path,
+            exodus_file_name=exodus_file_name,
+            fe_element_count=element_centres.shape[0],
+            report_step=step,
+            grid_divs=grid_divs,
+            x_grid=x_grid,
+            y_grid=y_grid,
+            stress_rr=stress_rr,
+            stress_fe=stress_fe,
+            equivalent_stress_rr=equivalent_stress_rr,
+            vonmises_stress_fe=vonmises_stress_fe,
+            yield_map=yield_map,
+            specimen_mask=specimen_mask,
+        )
+        print(f"stress reconstruction report saved to {report_summary['report_path']}")
 
-    data = stress_rr[step, component_index, :, :] - stress_fe[step, component_index, :, :] 
-    data_name=f'stress_{component_label}_rr-fe_abs_diff'
-    plt.figure()
-    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    plt.colorbar(label='Stress')
-    plt.xlabel('x')
-    plt.ylabel('y')
-    #include param name and dof index in title
-    plt.title(f'{data_name}, step {step}')
-    # vmin = np.nanpercentile(data, 5)
-    # vmax = np.nanpercentile(data, 95)
-    # im1.set_clim(vmin, vmax)
-    im1=plt.show()
-    print(f"vm stress {component_label} rr - fe: max abs diff  = {np.nanmax(data):.6f}")
+        for component_label, metrics in report_summary["component_metrics"].items():
+            print(
+                f"stress {component_label} rr - fe: "
+                f"max abs diff [MPa] = {metrics['max_abs_diff']:.6f}, "
+                f"max abs perc diff [%] = {metrics['max_abs_percent_diff']:.6f}"
+            )
 
-    data = stress_rr[step, component_index, :, :]
-    data_name=f'stress_{component_label}_rr'
-    plt.figure()
-    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    plt.colorbar(label='Stress')
-    plt.xlabel('x')
-    plt.ylabel('y')
-    #include param name and dof index in title
-    plt.title(f'{data_name}, step {step}')
-    # vmin = np.nanpercentile(data, 5)
-    # vmax = np.nanpercentile(data, 95)
-    # im1.set_clim(vmin, vmax)
-    im1=plt.show()
+        equivalent_metrics = report_summary["equivalent_metrics"]
+        print(
+            "vm stress rr - fe: "
+            f"max abs diff [MPa] = {equivalent_metrics['max_abs_diff']:.6f}, "
+            f"max abs perc diff [%] = {equivalent_metrics['max_abs_percent_diff']:.6f}"
+        )
+        print(f"count of yielded points = {report_summary['yielded_point_count']}")
 
+    if any((
+        PLOT_STRESS_RR,
+        PLOT_STRESS_FE,
+        PLOT_STRESS_RR_FE_DIFF,
+        PLOT_STRESS_RR_FE_PERC_DIFF,
+    )):
+        create_stress_recon_plots(
+            report_step=step,
+            x_grid=x_grid,
+            y_grid=y_grid,
+            stress_rr=stress_rr,
+            stress_fe=stress_fe,
+            equivalent_stress_rr=equivalent_stress_rr,
+            vonmises_stress_fe=vonmises_stress_fe,
+            yield_map=yield_map,
+            specimen_mask=specimen_mask,
+            plot_stress_rr=PLOT_STRESS_RR,
+            plot_stress_fe=PLOT_STRESS_FE,
+            plot_stress_rr_fe_diff=PLOT_STRESS_RR_FE_DIFF,
+            plot_stress_rr_fe_perc_diff=PLOT_STRESS_RR_FE_PERC_DIFF,
+            plot_percentile_scaled_diff=PLOT_PERCENTILE_SCALED_DIFF,
+        )
+        plt.show()
 
-    data = stress_fe[step, component_index, :, :]
-    data_name=f'stress_{component_label}_fe'
-    plt.figure()
-    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    plt.colorbar(label='Stress')
-    plt.xlabel('x')
-    plt.ylabel('y')
-    #include param name and dof index in title
-    plt.title(f'{data_name}, step {step}')
-    # vmin = np.nanpercentile(data, 5)
-    # vmax = np.nanpercentile(data, 95)
-    # im1.set_clim(vmin, vmax)
-    im1=plt.show()
-
-    print("done with stress comparison")
-
-    # data = equivalent_stress_fe[step, :, :]   
-    # data_name='equivalent_stress_fe'
-    # plt.figure()
-    # im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    # plt.colorbar(label='Stress')
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-    # #include param name and dof index in title
-    # plt.title(f'{data_name}, step {step}')
-    # vmin = np.nanpercentile(data, 5)
-    # vmax = np.nanpercentile(data, 95)
-    # im1.set_clim(vmin, vmax)
-    # im1=plt.show()
-
-    # data = equivalent_stress_rr[step, :, :]   
-    # data_name='equivalent_stress_rr'
-    # plt.figure()
-    # im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    # plt.colorbar(label='Stress')
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-    # #include param name and dof index in title
-    # plt.title(f'{data_name}, step {step}')
-    # vmin = np.nanpercentile(data, 5)
-    # vmax = np.nanpercentile(data, 95)
-    # im1.set_clim(vmin, vmax)
-    # im1=plt.show()
-
-    # data = equivalent_stress_rr[step, :, :] - equivalent_stress_fe[step, :, :]  
-    # data_name='equivalent_stress_rr-fe'
-    # plt.figure()
-    # im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    # plt.colorbar(label='Stress')
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-    # #include param name and dof index in title
-    # plt.title(f'{data_name}, step {step}')
-    # vmin = np.nanpercentile(data, 1)
-    # vmax = np.nanpercentile(data, 99)
-    # im1.set_clim(vmin, vmax)
-    # im1=plt.show()
-    # print(f"vm stress rr - fe: max abs diff [MPa] = {np.nanmax(np.abs(data)):.6f}")
-
-
-    # data = (np.abs(equivalent_stress_rr[step, :, :] - equivalent_stress_fe[step, :, :]) / equivalent_stress_fe[step, :, :]) * 100
-    # data_name='equivalent_stress_rr-fe_abs_perc_diff'
-    # plt.figure()
-    # im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    # plt.colorbar(label='Stress')
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-    # #include param name and dof index in title
-    # plt.title(f'{data_name}, step {step}')
-    # vmin = np.nanpercentile(data, 5)
-    # vmax = np.nanpercentile(data, 95)
-    # im1.set_clim(vmin, vmax)
-    # im1=plt.show()
-    # print(f"vm stress rr - fe:max abs perc diff [%] = {np.nanmax(data):.6f}")
-
-
-    data = yield_map[step, :, :]
-    data_name='yield_map'
-    plt.figure()
-    im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    plt.colorbar(label='Stress')
-    plt.xlabel('x')
-    plt.ylabel('y')
-    #include param name and dof index in title
-    plt.title(f'{data_name}, step {step}')
-    # vmin = np.nanpercentile(data, 5)
-    # vmax = np.nanpercentile(data, 95)
-    # im1.set_clim(vmin, vmax)
-    im1=plt.show()
-    print(f"count of yielded points = {(yield_map[step, :, :] == 1).sum()}")
-
-    # data = ratio[step, :, :]
-    # data_name = 'out_of_plane_to_in_plane_strain_ratio'
-    # plt.figure()
-    # im1 = plt.imshow(data, aspect='auto', origin='lower', cmap='viridis')
-    # plt.colorbar(label='Strain ratio')
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-    # plt.title(f'{data_name}, step {step}')
-    # vmin = np.nanpercentile(data, 5)
-    # vmax = np.nanpercentile(data, 95)
-    # im1.set_clim(vmin, vmax)
-    # im1 = plt.show()
-    # print(f"max out_of_plane / in_plane strain ratio = {np.nanmax(data):.6f}")
 
 
 
