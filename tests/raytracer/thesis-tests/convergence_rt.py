@@ -393,7 +393,9 @@ def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False
     ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
     ax.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"]) # Set label sizes on the axis
     # Format x-axis as well
+    ax.xaxis.set_minor_locator(mticker.NullLocator())
     ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+    label_x = None
     # Iterate over elements
     for name, element in iter_elements():
         elem_dir_name = base_data_dir + element.label  
@@ -401,13 +403,30 @@ def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False
         #print(data_path)
         # Convergence stores data as [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
         elem_data = np.loadtxt(data_path, delimiter=",", skiprows=1, unpack=True) # Full data
+        if label_x is None:
+                # Option 1: Fetch data for x-values and plot those (all; not good if you start at 1 subsamples, because the smaller values are too close)
+                all_x = np.unique(elem_data[1])
+                subsamples = all_x
+                # Option 2: Fewer datapoints initially, then stack with the last X values 
+                label_x = np.array([1, 16384])
+                extra = all_x[all_x > 32768]
+                label_x = np.concatenate((label_x, extra))
+                label_x = np.unique(label_x)  # sort + deduplicate
         # Sanity check to make sure all data is being read correctly and not just skipped
         #print(name, "path:", data_path, "shape:", elem_data.shape, "rmse_minmax:", np.nanmin(elem_data[2]), np.nanmax(elem_data[2]))
         if not detailed:
-            ax.plot(elem_data[1], elem_data[2], label=name, color=element.color, marker="o", linestyle="-", linewidth=3, markersize=10)
+            ax.plot(elem_data[1], elem_data[2],
+                    label=name,
+                    color=element.color,
+                    marker="o",
+                    linestyle="-",
+                    linewidth=3,
+                    markersize=10)
+            #ax.plot(elem_data[1], elem_data[2], label=name, color=element.color, marker="o", linestyle="-", linewidth=3, markersize=10)
         # More detailed plot (focus on the last x values)
         else: 
             elem_data = elem_data[:, -4:] # Keep last 4 rows of original data (CSV) - if we want it more detailed
+            subsamples = np.unique(elem_data[1])
         # Plot RMSE values above the markers; don't do it on the full plot as they overlap and look poorly
             ax.plot(elem_data[1], elem_data[2], label=name, color=element.color, marker="o", linestyle="-", linewidth=3, markersize=10)
             for x, y in zip(elem_data[1], elem_data[2]):
@@ -419,6 +438,8 @@ def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False
                     ha="center",
                     va="bottom",
                     fontsize=FONT_SIZES["axis_labels"] - 4)
+    ax.set_xticks(label_x)
+    ax.set_xticklabels([f"{x:g}" for x in label_x])
     ax.legend(loc='upper right', fontsize=FONT_SIZES["axis_labels"])
     ax.grid(visible=True, which='both', axis='both')
     plt.tight_layout()
