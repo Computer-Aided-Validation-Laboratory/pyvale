@@ -1,6 +1,12 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "Cython>=3.0.0", "numpy>=2.0.0",
-    "pybind11>=2.13.6", "scikit-build-core>=0.11.6"]
+requires = [
+  "setuptools>=61.0",
+  "wheel",
+  "Cython>=3.0.0",
+  "numpy>=2.0.0",
+  "pybind11>=2.13.6",
+  "scikit-build-core>=0.11.6",
+]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -72,16 +78,13 @@ dev = [
   "trame",
   "trame-vtk",
   "trame-vuetify",
-  "urllib3"
+  "urllib3",
 ]
 
 [tool.pytest.ini_options]
-pythonpath = [
-    "src",
-    "tests"
-]
+pythonpath = ["src", "tests"]
 filterwarnings = [
-    "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning"
+  "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning",
 ]
 
 [project.urls]

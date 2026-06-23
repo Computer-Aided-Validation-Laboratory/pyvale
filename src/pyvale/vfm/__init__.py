@@ -33,3 +33,4 @@ from .objectivefuncvector import *
 
 from .dof import *
 from .normalisation import *
+from .vfmregionofinterest import *
