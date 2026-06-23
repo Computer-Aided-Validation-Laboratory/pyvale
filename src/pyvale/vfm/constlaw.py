@@ -5,14 +5,34 @@ import numpy as np
 import numpy.typing as npt
 
 
+# TODO: not sure about the below docstring
 class EIdentificationType(enum.Enum):
+    """Identifies whether a constitutive law uses linear or nonlinear VFM"""
+
     Linear = enum.auto()
+    """Parameters enter the virtual work equation linearly"""
     Nonlinear = enum.auto()
+    """Parameters enter the virtual work equation nonlinearly"""
 
 
 class IConstitutiveLaw(ABC):
+    """
+    Interface (abstract base class) for a constitutive law.
+
+    Provides the material model that relates strain to stress. Concrete
+    implementations define the specific constitutive equations and report
+    whether identification is linear or nonlinear
+    """
+
     @abstractmethod
     def get_identification_type(self) -> EIdentificationType:
+        """Indicate whether this law is linear or nonlinear in its parameters
+
+        Returns
+        -------
+        EIdentificationType
+            ``Linear`` or ``Nonlinear``
+        """
         pass
 
     @abstractmethod
@@ -21,4 +41,20 @@ class IConstitutiveLaw(ABC):
         strain: npt.NDArray[np.float64],
         constitutive_parameter_maps: dict[str, npt.NDArray[np.float64]],
     ) -> npt.NDArray[np.float64]:
+        """
+        Compute stress from the current strain and parameter maps.
+
+        Parameters
+        ----------
+        strain : npt.NDArray[np.float64]
+            Full-field strain history, shape ``(timesteps, components, y, x)``
+        constitutive_parameter_maps : dict[str, npt.NDArray[np.float64]]
+            Dictionary of current parameter values as 2D maps,
+            keyed by parameter name
+
+        Returns
+        -------
+        npt.NDArray[np.float64]
+            Stress field with the same shape as ``strain``
+        """
         pass

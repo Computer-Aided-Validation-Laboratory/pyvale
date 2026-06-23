@@ -19,18 +19,18 @@ class HomogeneousSpatialParameterisation(ISpatialParameterisation):
         else:
             return 0
 
-    def update_from_constitutive_parameter(
+    def initialise_from_constitutive_parameter(
         self,
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
         if self.value is None or isinstance(self.value, DegreeOfFreedom):
             self.value =  DegreeOfFreedom(
-                float(np.nanmean(constitutive_parameter.value)),
+                float(np.nanmean(constitutive_parameter.map)),
                 constitutive_parameter.lower_bound,
                 constitutive_parameter.upper_bound,
             )
         else:
-            self.value = float(np.nanmean(constitutive_parameter.value))
+            self.value = float(np.nanmean(constitutive_parameter.map))
 
     def to_map(
         self,

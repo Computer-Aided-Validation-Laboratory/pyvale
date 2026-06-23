@@ -9,6 +9,15 @@ from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 
 class IMetric(ABC):
+    """
+    Interface (abstract base class) for a virtual-work metric.
+
+    A metric evaluates the discrepancy between a candidate stress field and
+    the measured boundary conditions using the virtual work principle.
+    Multiple metrics (e.g. for different virtual fields) may be
+    combined in an objective function
+    """
+
     @abstractmethod
     def initialise(
         self,
@@ -32,6 +41,26 @@ class IMetric(ABC):
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
         spatial_parameterisations: dict[str, ISpatialParameterisation],
-        experiment_data: ExperimentData
+        experiment_data: ExperimentData,
     ) -> npt.NDArray[np.float64]:
+        """Evaluate the metric for a given stress candidate
+
+        Parameters
+        ----------
+        stress : npt.NDArray[np.float64]
+            Candidate stress field, shape ``(timesteps, components, y, x)``
+        constitutive_law : IConstitutiveLaw
+            Constitutive law used to produce the stress
+        parameter_map_size : npt.NDArray[np.uint32]
+            Spatial dimensions ``(y, x)`` of the parameter maps
+        spatial_parameterisations : dict[str, ISpatialParameterisation]
+            Current spatial parameterisations keyed by parameter name
+        experiment_data : ExperimentData
+            Measured DIC data
+
+        Returns
+        -------
+        npt.NDArray[np.float64]
+            Metric value(s) per timestep or per spatial point
+        """
         pass

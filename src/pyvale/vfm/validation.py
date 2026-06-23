@@ -135,12 +135,39 @@ def validate_experiment_data(
         )
 
 
-# TODO: config validation
-#   - no forward referencing in phases list
-#   - individual weights cant be greater than 1.0 in total
-#   - sum of weights must be 1.0
-#   - optimiser is compatible with objective function
+# TODO: constitutive laws will require certain params
 def validate_identification_config(
     config: IdentificationConfig
 ) -> None:
-    ...
+    # Structure checks
+    if not config.phases:
+        raise ValueError("identification must have at least one phase")
+
+    if not config.parameters:
+        raise ValueError("identification must have at least one parameter")
+
+    for i, phase in enumerate(config.phases):
+        if not phase.metrics:
+            raise ValueError(
+                f"phase {i} must have at least one metric"
+            )
+
+    # Cross-field consistency: parameter name agreement
+    param_names = set(config.parameters.keys())
+
+    for i, phase in enumerate(config.phases):
+        phase_param_names = set(phase.spatial_parameterisations.keys())
+
+        missing = phase_param_names - param_names
+        if missing:
+            raise ValueError(
+                f"phase {i} references unknown parameter(s): {missing}"
+            )
+
+    # Value constraints
+    for name, param in config.parameters.items():
+        if param.lower_bound >= param.upper_bound:
+            raise ValueError(
+                f"parameter '{name}': lower_bound ({param.lower_bound}) "
+                f"must be less than upper_bound ({param.upper_bound})"
+            )

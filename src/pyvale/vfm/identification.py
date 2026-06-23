@@ -32,7 +32,7 @@ def run_identification(
                 # Initialise spatial parameterisation from constitutive
                 # parameter maps
                 for param_name, sp in phase.spatial_parameterisations.items():
-                    sp.update_from_constitutive_parameter(identification_config.parameters[param_name])
+                    sp.initialise_from_constitutive_parameter(identification_config.parameters[param_name])
 
                 for metric in phase.metrics:
                     metric.initialise(experiment_data)
@@ -51,7 +51,7 @@ def run_identification(
                 # Update constitutive parameter maps from optimised spatial
                 # parameterisations
                 for param_name, sp in opt_spatial_parameterisations.items():
-                    identification_config.parameters[param_name].value = (
+                    identification_config.parameters[param_name].map = (
                         sp.to_map(parameter_map_size)
                     )
 

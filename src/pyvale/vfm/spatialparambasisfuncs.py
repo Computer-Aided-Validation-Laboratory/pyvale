@@ -241,7 +241,7 @@ class BasisFunctionSpatialParameterisation(ISpatialParameterisation):
         return num_dofs
 
     # TODO: create our initial basis functions with fitting
-    def update_from_constitutive_parameter(
+    def initialise_from_constitutive_parameter(
         self,
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
