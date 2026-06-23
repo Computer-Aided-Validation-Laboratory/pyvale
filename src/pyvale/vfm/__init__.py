@@ -4,10 +4,10 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
-from .vfm import *
+from .identification import *
+from .identificationconfig import *
 
 from .experimentdata import *
-from .identification import *
 
 from .constlaw import *
 from .constlaws import *

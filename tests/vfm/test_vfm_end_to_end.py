@@ -16,14 +16,17 @@ from pyvale.vfm.experimentdata import (
     SpecimenGeometry,
 )
 from pyvale.vfm.hardening import LinearHardening
-from pyvale.vfm.identification import Identification, IdentificationPhase
+from pyvale.vfm.identification import run_identification
+from pyvale.vfm.identificationconfig import (
+    IdentificationConfig,
+    IdentificationPhase,
+)
 from pyvale.vfm.metricsbvf import SensitivityBasedVirtualFieldsMetric
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import LeastSquares
 from pyvale.vfm.spatialparamhomogeneous import (
     HomogeneousSpatialParameterisation,
 )
-from pyvale.vfm.vfm import run_identification
 
 EXODUS_FILE_NAME = "out_hole2d_plas_32f.e"
 GRID_DIVS = 101
@@ -78,10 +81,14 @@ def test_end_to_end_homogeneous() -> None:
         )
     ]
 
-    identification = Identification(constitutive_law, parameters, phases)
+    ident_config = IdentificationConfig(
+        constitutive_law,
+        parameters,
+        phases
+    )
 
     print("Running identification...")
-    identified_parameters = run_identification(experiment_data, identification)
+    identified_parameters = run_identification(experiment_data, ident_config)
 
     for name, param in identified_parameters.items():
         print(f"{name} = {np.nanmean(param.value):.6f}")

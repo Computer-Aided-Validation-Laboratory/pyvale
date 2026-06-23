@@ -13,7 +13,11 @@ from pyvale.vfm.experimentdata import (
     SpecimenGeometry,
 )
 from pyvale.vfm.hardening import LinearHardening
-from pyvale.vfm.identification import Identification, IdentificationPhase
+from pyvale.vfm.identification import run_identification
+from pyvale.vfm.identificationconfig import (
+    IdentificationConfig,
+    IdentificationPhase,
+)
 from pyvale.vfm.metricsbvf import SensitivityBasedVirtualFieldsMetric
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import LeastSquares
@@ -21,7 +25,6 @@ from pyvale.vfm.spatialparamhomogeneous import (
     HomogeneousSpatialParameterisation,
 )
 from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
-from pyvale.vfm.vfm import run_identification
 
 inputs_path = Path(__file__).resolve().parent / "inputs"
 
@@ -94,7 +97,7 @@ def main():
         )
     ]
 
-    identification = Identification(
+    identification_config = IdentificationConfig(
         IsotropicVonMisesElastoplasticity(
             LinearHardening()
         ),
@@ -102,7 +105,7 @@ def main():
         phases
     )
 
-    vfm_result = run_identification(experiment_data, identification)
+    vfm_result = run_identification(experiment_data, identification_config)
     print(vfm_result)
 
 

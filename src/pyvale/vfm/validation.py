@@ -1,0 +1,146 @@
+import numpy as np
+
+from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.identificationconfig import IdentificationConfig
+
+
+def validate_experiment_data(
+    experiment_data: ExperimentData
+) -> None:
+    """Raise ValueError if experiment_data is inconsistent or malformed"""
+
+    geometry = experiment_data.specimen_geometry
+    boundary_conditions = experiment_data.boundary_conditions
+
+    # Shape and dtype checks
+    strain = experiment_data.strain
+    if strain.ndim != 4:
+        raise ValueError(
+            f"strain must be 4D (timesteps, components, y, x), "
+            f"got ndim={strain.ndim}"
+        )
+    if strain.shape[1] != 3:
+        raise ValueError(
+            f"strain must have exactly 3 components [xx, yy, xy], "
+            f"got {strain.shape[1]}"
+        )
+    if strain.dtype != np.float64:
+        raise ValueError(
+            f"strain must be float64, got {strain.dtype}"
+        )
+
+    timesteps = experiment_data.timesteps
+    if timesteps.ndim != 1:
+        raise ValueError(
+            f"timesteps must be 1D, got ndim={timesteps.ndim}"
+        )
+    if timesteps.dtype != np.float64:
+        raise ValueError(
+            f"timesteps must be float64, got {timesteps.dtype}"
+        )
+
+    force = boundary_conditions.force
+    if force.ndim != 2:
+        raise ValueError(
+            f"force must be 2D (timesteps, 2) with columns [Fx, Fy], "
+            f"got ndim={force.ndim}"
+        )
+    if force.dtype != np.float64:
+        raise ValueError(
+            f"force must be float64, got {force.dtype}"
+        )
+
+    for field_name, array in [
+        ("x", geometry.x),
+        ("y", geometry.y),
+        ("pixel_area", geometry.pixel_area),
+    ]:
+        if array.ndim != 2:
+            raise ValueError(
+                f"{field_name} must be 2D (y, x), got ndim={array.ndim}"
+            )
+        if array.dtype != np.float64:
+            raise ValueError(
+                f"{field_name} must be float64, got {array.dtype}"
+            )
+
+    region_of_interest = geometry.region_of_interest
+    if region_of_interest.ndim != 2:
+        raise ValueError(
+            f"region_of_interest must be 2D (y, x), "
+            f"got ndim={region_of_interest.ndim}"
+        )
+    if region_of_interest.dtype != np.bool_:
+        raise ValueError(
+            f"region_of_interest must be bool dtype, "
+            f"got {region_of_interest.dtype}"
+        )
+
+    # Cross-field dimension agreement
+    n_timesteps, _, n_y, n_x = strain.shape
+
+    if timesteps.shape[0] != n_timesteps:
+        raise ValueError(
+            f"timesteps length ({timesteps.shape[0]}) does not match "
+            f"strain timesteps ({n_timesteps})"
+        )
+    if force.shape[0] != n_timesteps:
+        raise ValueError(
+            f"force timesteps ({force.shape[0]}) does not match "
+            f"strain timesteps ({n_timesteps})"
+        )
+
+    if geometry.x.shape != (n_y, n_x):
+        raise ValueError(
+            f"x shape {geometry.x.shape} does not match "
+            f"strain spatial dims ({n_y}, {n_x})"
+        )
+    if geometry.y.shape != (n_y, n_x):
+        raise ValueError(
+            f"y shape {geometry.y.shape} does not match "
+            f"strain spatial dims ({n_y}, {n_x})"
+        )
+    if region_of_interest.shape != (n_y, n_x):
+        raise ValueError(
+            f"region_of_interest shape {region_of_interest.shape} "
+            f"does not match strain spatial dims ({n_y}, {n_x})"
+        )
+    if geometry.pixel_area.shape != (n_y, n_x):
+        raise ValueError(
+            f"pixel_area shape {geometry.pixel_area.shape} does not match "
+            f"strain spatial dims ({n_y}, {n_x})"
+        )
+
+    # Value constraints
+    if np.any(geometry.x < 0):
+        raise ValueError("x coordinates must be non-negative")
+    if np.any(geometry.y < 0):
+        raise ValueError("y coordinates must be non-negative")
+    if geometry.thickness <= 0:
+        raise ValueError(
+            f"thickness must be positive, got {geometry.thickness}"
+        )
+    if np.any(geometry.pixel_area <= 0):
+        raise ValueError("pixel_area must be positive everywhere")
+    if np.any(np.diff(timesteps) <= 0):
+        raise ValueError("timesteps must be strictly increasing")
+    if not np.all(np.isfinite(force)):
+        raise ValueError("force contains NaN or Inf values")
+    # NaN is only allowed where region_of_interest is False (outside the mask)
+    flat_roi = region_of_interest.ravel()
+    flat_strain = strain.reshape(strain.shape[0], strain.shape[1], -1)
+    if not np.all(np.isfinite(flat_strain[:, :, flat_roi])):
+        raise ValueError(
+            "strain contains NaN or Inf within the region of interest"
+        )
+
+
+# TODO: config validation
+#   - no forward referencing in phases list
+#   - individual weights cant be greater than 1.0 in total
+#   - sum of weights must be 1.0
+#   - optimiser is compatible with objective function
+def validate_identification_config(
+    config: IdentificationConfig
+) -> None:
+    ...
