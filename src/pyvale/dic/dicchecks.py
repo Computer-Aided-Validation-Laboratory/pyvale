@@ -319,10 +319,11 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
         return [0,0]
 
     # check that seed list is a multiple of 2
-    if (len(seed) % 2 != 0):
-        raise ValueError(f"Reliability Guided seed does not have an even number of  elements: " \
-                         f"seed={seed}. Seed " \
-                         f" must be a list of two integers: seed=[x0, y0, x1, y1, ...]")
+    if len(seed) < 2 or len(seed) % 2 != 0:
+        raise ValueError(
+            "Reliability Guided seed must contain one or more seed points "
+            "in the format [x0, y0, x1, y1, ...]."
+        )
 
     if not isinstance(seed, (list, np.ndarray)) or not all(isinstance(coord, (int, np.int32)) for coord in seed):
         raise ValueError("Reliability Guided seed must be a list of two integers: seed=[x, y]")
