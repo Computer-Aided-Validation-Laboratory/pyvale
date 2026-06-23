@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import numpy as np
@@ -14,22 +15,28 @@ from pyvale.vfm.experimentdata import (
 )
 from pyvale.vfm.hardening import LinearHardening
 from pyvale.vfm.identification import Identification, IdentificationPhase
-from pyvale.vfm.metricsbvf import SensitivityBasedVirtualFieldsMetric
+from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import LeastSquares
-from pyvale.vfm.spatialparamhomogeneous import (
-    HomogeneousSpatialParameterisation,
-)
+from pyvale.vfm.slicepartition import SliceConfig, build_slice_partition
+from pyvale.vfm.spatialparamhomogeneous import HomogeneousSpatialParameterisation
+from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
 from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
 from pyvale.vfm.vfm import run_identification
 from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
 
 
+def _resolve_inputs_path() -> Path:
+    dataset_root = Path(__file__).resolve().parent / "rob-data" / "wdbn4-temporally-processed-data-260622-1404"
+    prepared_candidates = sorted(dataset_root.glob("prepared-vfm-inputs-*"))
+    return prepared_candidates[-1] if prepared_candidates else dataset_root
 
 
-inputs_path = Path(__file__).resolve().parent / "rob-data" / "wdbn4-temporally-processed-data-260622-1404" / "prepared-vfm-inputs-260623-1453"
+inputs_path = _resolve_inputs_path()
 
 def main():
+    os.environ.setdefault("MPLCONFIGDIR", "/tmp/mplconfig")
+
     specimen_geometry = SpecimenGeometry(
         np.load(inputs_path / "x.npy"),
         np.load(inputs_path / "y.npy"),
@@ -66,19 +73,24 @@ def main():
         boundary_conditions,
         np.load(inputs_path / "time.npy"),
     )
+    parameter_map_size = np.array(specimen_geometry.x.shape)
+    slice_partition = build_slice_partition(
+        specimen_geometry,
+        slice_config=SliceConfig(axis="y", num_slices=3),
+    )
 
     parameters = {
         "elastic_modulus": ConstitutiveParameter(
-            190_000, 150_000, 250_000, np.array([113, 316])
+            190_000, 150_000, 250_000, parameter_map_size
         ),
         "poissons_ratio": ConstitutiveParameter(
-            0.28, 0.2, 0.4, np.array([113, 316])
+            0.28, 0.2, 0.4, parameter_map_size
         ),
         "yield_strength": ConstitutiveParameter(
-            320, 100, 1000, np.array([113, 316])
+            320, 100, 1000, parameter_map_size
         ),
         "hardening_modulus": ConstitutiveParameter(
-            3000, 1000, 10_000, np.array([113, 316])
+            3000, 1000, 10_000, parameter_map_size
         ),
     }
 
@@ -87,17 +99,11 @@ def main():
             {
                 "elastic_modulus": KnownSpatialParameterisation(),
                 "poissons_ratio": KnownSpatialParameterisation(),
-                "yield_strength": HomogeneousSpatialParameterisation(),
+                "yield_strength": SliceWiseSpatialParameterisation(slice_partition),
                 "hardening_modulus": HomogeneousSpatialParameterisation(),
             },
             [
-                SensitivityBasedVirtualFieldsMetric(
-                    experiment_data.specimen_geometry.x,
-                    experiment_data.specimen_geometry.y,
-                    experiment_data.specimen_geometry.specimen_mask,
-                    experiment_data.boundary_conditions.edge_conditions,
-                    np.array([5, 10]),
-                )
+                SliceWiseForceReconstructionMetric(slice_partition)
             ],
             VectorFirstResultPassthrough(),
             LeastSquares(),

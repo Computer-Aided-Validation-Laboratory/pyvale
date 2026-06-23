@@ -19,12 +19,15 @@ from .spatialparam import *
 from .spatialparamknown import *
 from .spatialparamhomogeneous import *
 from .spatialparambasisfuncs import *
+from .spatialparamslicewise import *
 
 from .optimiser import *
 from .optimiserleastsquares import *
 
 from .metric import *
 from .metricsbvf import *
+from .metricsliceforce import *
+from .slicepartition import *
 from .vfmesh import *
 
 from .objectivefunc import *

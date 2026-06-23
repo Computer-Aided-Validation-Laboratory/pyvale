@@ -87,6 +87,63 @@ def _extend_centroid_grid(
     return extended
 
 
+def _fill_missing_1d_axis(axis_values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    axis = np.asarray(axis_values, dtype=np.float64).copy()
+    finite_mask = np.isfinite(axis)
+    if not np.any(finite_mask):
+        raise ValueError("Could not infer a structured coordinate axis from all-NaN values.")
+    if np.all(finite_mask):
+        return axis
+
+    indices = np.arange(axis.size, dtype=np.float64)
+    finite_indices = indices[finite_mask]
+    finite_values = axis[finite_mask]
+    axis[~finite_mask] = np.interp(indices[~finite_mask], finite_indices, finite_values)
+
+    if finite_indices.size >= 2:
+        first_finite_index = int(finite_indices[0])
+        last_finite_index = int(finite_indices[-1])
+        leading_slope = (finite_values[1] - finite_values[0]) / (finite_indices[1] - finite_indices[0])
+        trailing_slope = (finite_values[-1] - finite_values[-2]) / (finite_indices[-1] - finite_indices[-2])
+
+        for index in range(first_finite_index - 1, -1, -1):
+            axis[index] = axis[index + 1] - leading_slope
+        for index in range(last_finite_index + 1, axis.size):
+            axis[index] = axis[index - 1] + trailing_slope
+
+    return axis
+
+
+def _structured_coordinate_grid_from_measurements(
+    x: npt.NDArray[np.float64],
+    y: npt.NDArray[np.float64],
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Infer structured coordinate grids from noisy/partially-missing measurements."""
+
+    x = np.asarray(x, dtype=np.float64)
+    y = np.asarray(y, dtype=np.float64)
+    if x.shape != y.shape:
+        raise ValueError("x and y must have the same shape.")
+    if x.ndim != 2:
+        raise ValueError("x and y must be 2D arrays.")
+
+    x_axis = np.empty(x.shape[1], dtype=np.float64)
+    for col_index in range(x.shape[1]):
+        finite_values = x[:, col_index][np.isfinite(x[:, col_index])]
+        x_axis[col_index] = float(np.median(finite_values)) if finite_values.size > 0 else np.nan
+    x_axis = _fill_missing_1d_axis(x_axis)
+
+    y_axis = np.empty(y.shape[0], dtype=np.float64)
+    for row_index in range(y.shape[0]):
+        finite_values = y[row_index, :][np.isfinite(y[row_index, :])]
+        y_axis[row_index] = float(np.median(finite_values)) if finite_values.size > 0 else np.nan
+    y_axis = _fill_missing_1d_axis(y_axis)
+
+    structured_x = np.broadcast_to(x_axis[None, :], x.shape).copy()
+    structured_y = np.broadcast_to(y_axis[:, None], y.shape).copy()
+    return structured_x, structured_y
+
+
 def _generate_data_mesh_nodal_coord(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
@@ -109,8 +166,9 @@ def _generate_data_mesh_nodal_coord(
     if x.shape[0] < 2 or x.shape[1] < 2:
         raise ValueError("Need at least a 2x2 measurement grid.")
 
-    x_ext = _extend_centroid_grid(x)
-    y_ext = _extend_centroid_grid(y)
+    structured_x, structured_y = _structured_coordinate_grid_from_measurements(x, y)
+    x_ext = _extend_centroid_grid(structured_x)
+    y_ext = _extend_centroid_grid(structured_y)
 
     nodal_coord_x = 0.25 * (
         x_ext[:-1, :-1]
@@ -161,6 +219,18 @@ def _compute_glyph_half_size_from_spacing(
         return 0.5 * fraction_of_spacing * span
 
     return 0.1
+
+
+def _estimate_positive_spacing_tolerance(
+    coordinates: npt.NDArray[np.float64],
+    *,
+    fraction_of_spacing: float = 0.05,
+) -> float:
+    spacing = np.abs(np.diff(np.asarray(coordinates, dtype=np.float64)))
+    finite_positive_spacing = spacing[np.isfinite(spacing) & (spacing > 0.0)]
+    if finite_positive_spacing.size == 0:
+        return 1.0e-12
+    return max(1.0e-12, fraction_of_spacing * float(np.min(finite_positive_spacing)))
 
 
 def _plot_node_constraint_glyphs(
@@ -1172,6 +1242,8 @@ def generate_virtual_fields_mesh(
 
     # Construct coarse virtual mesh (of user-defined size) by snapping a regular grid onto the data point element edges
     vf_mesh_nodal_coord = _generate_vf_mesh_nodal_coord(data_mesh_nodal_coord,mesh_size)
+    assignment_tolerance_x = _estimate_positive_spacing_tolerance(data_mesh_nodal_coord.nodal_coord_x[0, :])
+    assignment_tolerance_y = _estimate_positive_spacing_tolerance(data_mesh_nodal_coord.nodal_coord_y[:, 0])
 
     # Debug: plot virtual fields mesh and data mesh overlaid on data points 
     if generate_plots:
@@ -1272,10 +1344,10 @@ def generate_virtual_fields_mesh(
 
         points_in_element = (
             specimen_mask_flat
-            & (x_points >= x_min)
-            & (x_points <= x_max)
-            & (y_points >= y_min)
-            & (y_points <= y_max)
+            & (x_points >= x_min - assignment_tolerance_x)
+            & (x_points <= x_max + assignment_tolerance_x)
+            & (y_points >= y_min - assignment_tolerance_y)
+            & (y_points <= y_max + assignment_tolerance_y)
         )
 
         data_point_element_ids[points_in_element] = element_id
@@ -1300,6 +1372,16 @@ def generate_virtual_fields_mesh(
     specimen_point_indices = np.flatnonzero(specimen_mask_flat)
     n_specimen_points = specimen_point_indices.size
     n_total_dofs = DOF_PER_NODE * n_nodes
+
+    unassigned_specimen_points = specimen_point_indices[data_point_element_ids[specimen_point_indices] < 0]
+    if unassigned_specimen_points.size > 0:
+        vf_node_x_1d = vf_mesh_nodal_coord.nodal_coord_x[0, :]
+        vf_node_y_1d = vf_mesh_nodal_coord.nodal_coord_y[:, 0]
+        fallback_cols = np.searchsorted(vf_node_x_1d, x_points[unassigned_specimen_points], side="right") - 1
+        fallback_rows = np.searchsorted(vf_node_y_1d, y_points[unassigned_specimen_points], side="right") - 1
+        fallback_cols = np.clip(fallback_cols, 0, n_elem_cols - 1)
+        fallback_rows = np.clip(fallback_rows, 0, n_elem_rows - 1)
+        data_point_element_ids[unassigned_specimen_points] = fallback_rows * n_elem_cols + fallback_cols
 
     # Initialise global shape function matrix (which computes displacements at datapoints from nodal displacements)
     global_shape_function_matrix = np.zeros((n_specimen_points, n_nodes), dtype=np.float64)
