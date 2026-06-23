@@ -9,6 +9,7 @@ import re
 import tempfile
 from typing import Literal
 
+from matplotlib.path import Path as MatplotlibPath
 import numpy as np
 from PIL import Image, ImageDraw
 import yaml
@@ -135,6 +136,29 @@ class RoiDefinition:
         return candidate
 
 
+@dataclass(frozen=True)
+class VfmRegionOfInterest:
+    roi_definition: RoiDefinition
+
+    @classmethod
+    def from_yaml(cls, path: str | Path) -> "VfmRegionOfInterest":
+        return cls(load_roi_yaml(path))
+
+    @classmethod
+    def from_definition(cls, roi_definition: RoiDefinition) -> "VfmRegionOfInterest":
+        return cls(roi_definition)
+
+    def save_yaml(self, path: str | Path) -> Path:
+        return write_roi_yaml(self.roi_definition, path)
+
+    def sample_specimen_mask(
+        self,
+        x: np.ndarray,
+        y: np.ndarray,
+    ) -> np.ndarray:
+        return sample_roi_definition_at_coordinates(self.roi_definition, x, y)
+
+
 def load_roi_definition(
     input_path: str | Path,
     *,
@@ -219,6 +243,104 @@ def sample_roi_definition_at_pixel_coordinates(
 
     roi_mask = rasterise_roi_definition(roi_definition, image_shape=image_shape)
     return sample_roi_mask_at_pixel_coordinates(roi_mask, x_pixels, y_pixels)
+
+
+def sample_roi_definition_at_coordinates(
+    roi_definition: RoiDefinition,
+    x: np.ndarray,
+    y: np.ndarray,
+) -> np.ndarray:
+    """Evaluate a ROI definition directly on a physical coordinate grid."""
+
+    if x.shape != y.shape:
+        raise ValueError(f"x and y must have the same shape, got {x.shape} and {y.shape}.")
+
+    valid_coords = np.isfinite(x) & np.isfinite(y)
+    specimen_mask = np.zeros(x.shape, dtype=bool)
+    if not np.any(valid_coords):
+        return specimen_mask
+
+    points_xy = np.column_stack((x[valid_coords], y[valid_coords]))
+    boundary_tolerance = _estimate_coordinate_boundary_tolerance(x, y)
+    evaluated_mask = np.zeros(points_xy.shape[0], dtype=bool)
+    for shape in roi_definition.shapes:
+        shape_mask = _evaluate_shape_at_points(shape, points_xy, boundary_tolerance=boundary_tolerance)
+        if shape.is_cutting:
+            evaluated_mask &= ~shape_mask
+        else:
+            evaluated_mask |= shape_mask
+
+    specimen_mask[valid_coords] = evaluated_mask
+    return specimen_mask
+
+
+def convert_roi_definition_to_physical_coordinates(
+    roi_definition: RoiDefinition,
+    *,
+    x: np.ndarray,
+    y: np.ndarray,
+    x_pixels: np.ndarray,
+    y_pixels: np.ndarray,
+) -> RoiDefinition:
+    """Map a pixel-space ROI definition onto the physical DIC coordinates."""
+
+    mapped_shapes = tuple(
+        _map_shape_to_physical_coordinates(
+            shape,
+            x=x,
+            y=y,
+            x_pixels=x_pixels,
+            y_pixels=y_pixels,
+        )
+        for shape in roi_definition.shapes
+    )
+
+    generation = dict(roi_definition.generation)
+    generation["coordinate_space"] = "physical"
+    generation["physical_mapping"] = {
+        "method": "bilinear-interpolation-on-dic-grid",
+    }
+
+    return RoiDefinition(
+        shapes=mapped_shapes,
+        pixel_to_mm=None,
+        source_path=roi_definition.source_path,
+        mask_image_path=None,
+        mask_threshold=0,
+        source_image_path=roi_definition.source_image_path,
+        generation=generation,
+        metrics=dict(roi_definition.metrics),
+    )
+
+
+def convert_mask_to_physical_roi(
+    mask: np.ndarray,
+    *,
+    x: np.ndarray,
+    y: np.ndarray,
+    simplification_pixels: float = 0.0,
+) -> RoiDefinition:
+    """Convert a DIC-grid specimen mask into a physical-coordinate ROI definition."""
+
+    grid_mask = np.asarray(mask, dtype=bool)
+    if grid_mask.shape != x.shape or grid_mask.shape != y.shape:
+        raise ValueError("mask, x, and y must all have the same shape.")
+
+    index_center_x = np.broadcast_to(np.arange(grid_mask.shape[1], dtype=np.float64)[None, :] + 0.5, grid_mask.shape)
+    index_center_y = np.broadcast_to(np.arange(grid_mask.shape[0], dtype=np.float64)[:, None] + 0.5, grid_mask.shape)
+    index_space_definition = _mask_polygonised_roi_definition(
+        grid_mask,
+        pixel_to_mm=None,
+        source_image_path=None,
+        simplification_pixels=simplification_pixels,
+    )
+    return convert_roi_definition_to_physical_coordinates(
+        index_space_definition,
+        x=x,
+        y=y,
+        x_pixels=index_center_x,
+        y_pixels=index_center_y,
+    )
 
 
 def generate_vfm_input_roi(
@@ -316,6 +438,15 @@ def generate_vfm_input_roi(
         mask_shape=tuple(final_mask.shape),
         mask_pixel_count=int(np.count_nonzero(final_mask)),
     )
+
+
+def write_roi_yaml(
+    roi_definition: RoiDefinition,
+    path: str | Path,
+) -> Path:
+    """Write a ROI definition to the DIC-compatible YAML format."""
+
+    return _write_roi_yaml(roi_definition, Path(path))
 
 
 def infer_vfm_input_roi_source_kind(
@@ -562,6 +693,114 @@ def _yaml_entry_to_shape(entry: dict[str, object], *, index: int) -> RoiShape:
     raise ValueError(f"Unsupported legacy ROI entry type '{roi_type}'.")
 
 
+def _evaluate_shape_at_points(
+    shape: RoiShape,
+    points_xy: np.ndarray,
+    *,
+    boundary_tolerance: float = 0.0,
+) -> np.ndarray:
+    if shape.shape_type == "polygon":
+        if len(shape.vertices) < 3:
+            return np.zeros(points_xy.shape[0], dtype=bool)
+        path = MatplotlibPath(np.asarray(shape.vertices, dtype=np.float64), closed=True)
+        return path.contains_points(points_xy, radius=max(1.0e-12, float(boundary_tolerance)))
+
+    if shape.shape_type == "rectangle":
+        if shape.rectangle is None:
+            raise ValueError("Rectangle ROI shape is missing rectangle coordinates.")
+        x_origin, y_origin, width, height = map(float, shape.rectangle)
+        return (
+            (points_xy[:, 0] >= x_origin - boundary_tolerance)
+            & (points_xy[:, 0] <= x_origin + width + boundary_tolerance)
+            & (points_xy[:, 1] >= y_origin - boundary_tolerance)
+            & (points_xy[:, 1] <= y_origin + height + boundary_tolerance)
+        )
+
+    if shape.center is None or shape.radius is None:
+        raise ValueError("Circle ROI shape is missing its center or radius.")
+    return (
+        (points_xy[:, 0] - float(shape.center[0])) ** 2
+        + (points_xy[:, 1] - float(shape.center[1])) ** 2
+        <= (float(shape.radius) + boundary_tolerance) ** 2
+    )
+
+
+def _map_shape_to_physical_coordinates(
+    shape: RoiShape,
+    *,
+    x: np.ndarray,
+    y: np.ndarray,
+    x_pixels: np.ndarray,
+    y_pixels: np.ndarray,
+) -> RoiShape:
+    if shape.shape_type == "polygon":
+        mapped_vertices = _map_pixel_points_to_physical_coordinates(
+            np.asarray(shape.vertices, dtype=np.float64),
+            x=x,
+            y=y,
+            x_pixels=x_pixels,
+            y_pixels=y_pixels,
+        )
+        return RoiShape(
+            shape_type="polygon",
+            index=shape.index,
+            is_cutting=shape.is_cutting,
+            vertices=tuple((float(x_coord), float(y_coord)) for x_coord, y_coord in mapped_vertices),
+        )
+
+    if shape.shape_type == "rectangle":
+        if shape.rectangle is None:
+            raise ValueError("Rectangle ROI shape is missing rectangle coordinates.")
+        x_origin, y_origin, width, height = map(float, shape.rectangle)
+        rectangle_vertices = np.asarray(
+            (
+                (x_origin, y_origin),
+                (x_origin + width, y_origin),
+                (x_origin + width, y_origin + height),
+                (x_origin, y_origin + height),
+            ),
+            dtype=np.float64,
+        )
+        mapped_vertices = _map_pixel_points_to_physical_coordinates(
+            rectangle_vertices,
+            x=x,
+            y=y,
+            x_pixels=x_pixels,
+            y_pixels=y_pixels,
+        )
+        return RoiShape(
+            shape_type="polygon",
+            index=shape.index,
+            is_cutting=shape.is_cutting,
+            vertices=tuple((float(x_coord), float(y_coord)) for x_coord, y_coord in mapped_vertices),
+        )
+
+    if shape.center is None or shape.radius is None:
+        raise ValueError("Circle ROI shape is missing its center or radius.")
+    circle_vertices = np.asarray(
+        _ellipse_vertices(
+            centre_x=float(shape.center[0]),
+            centre_y=float(shape.center[1]),
+            radius_x=float(shape.radius),
+            radius_y=float(shape.radius),
+        ),
+        dtype=np.float64,
+    )
+    mapped_vertices = _map_pixel_points_to_physical_coordinates(
+        circle_vertices,
+        x=x,
+        y=y,
+        x_pixels=x_pixels,
+        y_pixels=y_pixels,
+    )
+    return RoiShape(
+        shape_type="polygon",
+        index=shape.index,
+        is_cutting=shape.is_cutting,
+        vertices=tuple((float(x_coord), float(y_coord)) for x_coord, y_coord in mapped_vertices),
+    )
+
+
 def _ellipse_vertices(
     *,
     centre_x: float,
@@ -577,6 +816,196 @@ def _ellipse_vertices(
         )
         for angle in np.linspace(0.0, 2.0 * math.pi, point_count, endpoint=False)
     )
+
+
+def _estimate_coordinate_boundary_tolerance(
+    x: np.ndarray,
+    y: np.ndarray,
+) -> float:
+    x_diffs = np.abs(np.diff(np.asarray(x, dtype=np.float64), axis=1))
+    y_diffs = np.abs(np.diff(np.asarray(y, dtype=np.float64), axis=0))
+    finite_x_diffs = x_diffs[np.isfinite(x_diffs) & (x_diffs > 0.0)]
+    finite_y_diffs = y_diffs[np.isfinite(y_diffs) & (y_diffs > 0.0)]
+
+    spacings: list[float] = []
+    if finite_x_diffs.size > 0:
+        spacings.append(float(np.median(finite_x_diffs)))
+    if finite_y_diffs.size > 0:
+        spacings.append(float(np.median(finite_y_diffs)))
+    if not spacings:
+        return 1.0e-12
+    return max(1.0e-12, 0.05 * min(spacings))
+
+
+def _map_pixel_points_to_physical_coordinates(
+    points_xy: np.ndarray,
+    *,
+    x: np.ndarray,
+    y: np.ndarray,
+    x_pixels: np.ndarray,
+    y_pixels: np.ndarray,
+) -> np.ndarray:
+    if x.shape != y.shape or x.shape != x_pixels.shape or x.shape != y_pixels.shape:
+        raise ValueError("x, y, x_pixels, and y_pixels must all have the same shape.")
+
+    col_axis = _fill_missing_axis_values(_grid_axis_median(x_pixels, axis=0))
+    row_axis = _fill_missing_axis_values(_grid_axis_median(y_pixels, axis=1))
+    col_indices = _interpolate_axis_to_fractional_indices(col_axis, np.asarray(points_xy[:, 0], dtype=np.float64))
+    row_indices = _interpolate_axis_to_fractional_indices(row_axis, np.asarray(points_xy[:, 1], dtype=np.float64))
+
+    mapped_x = _bilinear_interpolate_grid(x, row_indices, col_indices)
+    mapped_y = _bilinear_interpolate_grid(y, row_indices, col_indices)
+    if np.any(~np.isfinite(mapped_x)) or np.any(~np.isfinite(mapped_y)):
+        raise ValueError("Could not map all ROI vertices from pixel coordinates to physical coordinates.")
+
+    return np.column_stack((mapped_x, mapped_y))
+
+
+def _fill_missing_axis_values(axis_values: np.ndarray) -> np.ndarray:
+    axis = np.asarray(axis_values, dtype=np.float64).copy()
+    finite_mask = np.isfinite(axis)
+    if not np.any(finite_mask):
+        raise ValueError("Could not determine interpolation axis from all-NaN coordinate data.")
+    if np.all(finite_mask):
+        return axis
+
+    indices = np.arange(axis.size, dtype=np.float64)
+    finite_indices = indices[finite_mask]
+    finite_values = axis[finite_mask]
+    axis[~finite_mask] = np.interp(indices[~finite_mask], finite_indices, finite_values)
+
+    first_finite_index = int(finite_indices[0])
+    last_finite_index = int(finite_indices[-1])
+    if first_finite_index > 0 and finite_indices.size >= 2:
+        leading_slope = (finite_values[1] - finite_values[0]) / (finite_indices[1] - finite_indices[0])
+        for index in range(first_finite_index - 1, -1, -1):
+            axis[index] = axis[index + 1] - leading_slope
+    if last_finite_index < axis.size - 1 and finite_indices.size >= 2:
+        trailing_slope = (finite_values[-1] - finite_values[-2]) / (finite_indices[-1] - finite_indices[-2])
+        for index in range(last_finite_index + 1, axis.size):
+            axis[index] = axis[index - 1] + trailing_slope
+    return axis
+
+
+def _grid_axis_median(grid: np.ndarray, *, axis: int) -> np.ndarray:
+    if axis == 0:
+        slices = [grid[:, index] for index in range(grid.shape[1])]
+    elif axis == 1:
+        slices = [grid[index, :] for index in range(grid.shape[0])]
+    else:
+        raise ValueError("axis must be 0 or 1")
+
+    medians = np.empty(len(slices), dtype=np.float64)
+    for index, values in enumerate(slices):
+        finite_values = np.asarray(values, dtype=np.float64)
+        finite_values = finite_values[np.isfinite(finite_values)]
+        medians[index] = float(np.median(finite_values)) if finite_values.size > 0 else np.nan
+    return medians
+
+
+def _interpolate_axis_to_fractional_indices(
+    axis_values: np.ndarray,
+    target_values: np.ndarray,
+) -> np.ndarray:
+    axis = np.asarray(axis_values, dtype=np.float64)
+    targets = np.asarray(target_values, dtype=np.float64)
+    if axis.ndim != 1:
+        raise ValueError("Interpolation axis must be one-dimensional.")
+    if axis.size < 2:
+        raise ValueError("Interpolation axis must contain at least two values.")
+    if np.any(~np.isfinite(axis)):
+        raise ValueError("Interpolation axis contains non-finite values.")
+
+    increasing = axis[-1] >= axis[0]
+    if increasing:
+        interp_axis = axis
+        interp_indices = np.arange(axis.size, dtype=np.float64)
+        low_slope = 1.0 / (axis[1] - axis[0])
+        high_slope = 1.0 / (axis[-1] - axis[-2])
+    else:
+        interp_axis = axis[::-1]
+        interp_indices = np.arange(axis.size, dtype=np.float64)[::-1]
+        low_slope = 1.0 / (interp_axis[1] - interp_axis[0])
+        high_slope = 1.0 / (interp_axis[-1] - interp_axis[-2])
+
+    fractional_indices = np.interp(targets, interp_axis, interp_indices)
+    below = targets < interp_axis[0]
+    above = targets > interp_axis[-1]
+    if np.any(below):
+        fractional_indices[below] = interp_indices[0] + (targets[below] - interp_axis[0]) * low_slope
+    if np.any(above):
+        fractional_indices[above] = interp_indices[-1] + (targets[above] - interp_axis[-1]) * high_slope
+    return fractional_indices
+
+
+def _bilinear_interpolate_grid(
+    grid: np.ndarray,
+    row_indices: np.ndarray,
+    col_indices: np.ndarray,
+) -> np.ndarray:
+    n_rows, n_cols = grid.shape
+    clamped_rows = np.clip(row_indices, 0.0, n_rows - 1.0)
+    clamped_cols = np.clip(col_indices, 0.0, n_cols - 1.0)
+
+    row0 = np.floor(clamped_rows).astype(np.int64)
+    col0 = np.floor(clamped_cols).astype(np.int64)
+    row1 = np.clip(row0 + 1, 0, n_rows - 1)
+    col1 = np.clip(col0 + 1, 0, n_cols - 1)
+
+    row_weight = clamped_rows - row0
+    col_weight = clamped_cols - col0
+
+    sampled_values = np.empty(clamped_rows.shape[0], dtype=np.float64)
+    for point_index in range(sampled_values.shape[0]):
+        corner_values = np.asarray(
+            (
+                grid[row0[point_index], col0[point_index]],
+                grid[row0[point_index], col1[point_index]],
+                grid[row1[point_index], col0[point_index]],
+                grid[row1[point_index], col1[point_index]],
+            ),
+            dtype=np.float64,
+        )
+        corner_weights = np.asarray(
+            (
+                (1.0 - row_weight[point_index]) * (1.0 - col_weight[point_index]),
+                (1.0 - row_weight[point_index]) * col_weight[point_index],
+                row_weight[point_index] * (1.0 - col_weight[point_index]),
+                row_weight[point_index] * col_weight[point_index],
+            ),
+            dtype=np.float64,
+        )
+        finite_mask = np.isfinite(corner_values)
+        if not np.any(finite_mask):
+            sampled_values[point_index] = _nearest_finite_grid_value(
+                grid,
+                row0[point_index],
+                col0[point_index],
+            )
+            continue
+        sampled_values[point_index] = float(
+            np.sum(corner_values[finite_mask] * corner_weights[finite_mask])
+            / np.sum(corner_weights[finite_mask])
+        )
+    return sampled_values
+
+
+def _nearest_finite_grid_value(
+    grid: np.ndarray,
+    row_index: int,
+    col_index: int,
+) -> float:
+    max_radius = max(grid.shape)
+    for radius in range(max_radius):
+        row_min = max(0, row_index - radius)
+        row_max = min(grid.shape[0], row_index + radius + 1)
+        col_min = max(0, col_index - radius)
+        col_max = min(grid.shape[1], col_index + radius + 1)
+        window = np.asarray(grid[row_min:row_max, col_min:col_max], dtype=np.float64)
+        finite_values = window[np.isfinite(window)]
+        if finite_values.size > 0:
+            return float(finite_values[0])
+    return float("nan")
 
 
 def _derive_shape_only_image_shape(shapes: tuple[RoiShape, ...]) -> tuple[int, int]:

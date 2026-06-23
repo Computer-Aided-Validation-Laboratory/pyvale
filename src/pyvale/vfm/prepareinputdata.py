@@ -5,7 +5,6 @@ from datetime import datetime
 import json
 import os
 import re
-import shutil
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -124,6 +123,7 @@ def main() -> None:
         y,
         roi_alignment_x,
         roi_alignment_y,
+        output_folder,
         generated_outputs_folder,
     )
     validation_warnings.extend(roi_warnings)
@@ -641,6 +641,7 @@ def _prepare_specimen_mask(
     y: np.ndarray,
     roi_alignment_x: np.ndarray,
     roi_alignment_y: np.ndarray,
+    output_folder: Path,
     generated_outputs_folder: Path,
 ) -> tuple[np.ndarray, dict[str, Any] | None, list[str]]:
     warnings: list[str] = []
@@ -669,10 +670,18 @@ def _prepare_specimen_mask(
         roi_alignment_x,
         roi_alignment_y,
     )
+    physical_roi_definition = roi_helper.convert_mask_to_physical_roi(
+        specimen_mask,
+        x=x,
+        y=y,
+    )
+    region_of_interest_yaml = output_folder / "region_of_interest.yaml"
+    roi_helper.write_roi_yaml(physical_roi_definition, region_of_interest_yaml)
+    specimen_mask = roi_helper.sample_roi_definition_at_coordinates(physical_roi_definition, x, y)
 
     mismatch_mask = specimen_mask ^ coordinate_valid_mask
     mismatch_count = int(np.count_nonzero(mismatch_mask))
-    if mismatch_count > 0:
+    if mismatch_count > 10:
         warnings.append(
             f"ROI-derived specimen mask differs from the coordinate finite-value mask at {mismatch_count} points."
         )
@@ -689,10 +698,12 @@ def _prepare_specimen_mask(
         "mask_shape": list(roi_mask.shape),
         "sampled_mask_shape": list(specimen_mask.shape),
         "mask_pixel_count": int(artifacts.mask_pixel_count),
-        "roi_yaml": str(artifacts.roi_yaml),
+        "roi_yaml": str(region_of_interest_yaml),
+        "intermediate_pixel_roi_yaml": str(artifacts.roi_yaml),
         "metadata_json": str(artifacts.metadata_json),
         "mask_tiff": str(artifacts.mask_tiff),
         "overlay_image": str(artifacts.overlay_image) if artifacts.overlay_image is not None else None,
+        "coordinate_space": "physical",
         "alignment": alignment_summary,
         "mismatch_count_vs_coordinate_nan_mask": mismatch_count,
     }
@@ -757,16 +768,19 @@ def _save_region_of_interest_summary(
     saved_paths: dict[str, str] = {}
     roi_yaml = roi_summary.get("roi_yaml")
     if roi_yaml is not None:
-        roi_yaml_source = Path(str(roi_yaml))
-        roi_yaml_destination = output_folder / "region_of_interest.yaml"
-        shutil.copyfile(roi_yaml_source, roi_yaml_destination)
-        saved_paths["region_of_interest_yaml"] = str(roi_yaml_destination)
+        saved_paths["region_of_interest_yaml"] = str(Path(str(roi_yaml)))
 
     metadata_json = roi_summary.get("metadata_json")
     if metadata_json is not None:
         metadata_source = Path(str(metadata_json))
         metadata_destination = generated_outputs_folder / "region_of_interest.metadata.json"
-        shutil.copyfile(metadata_source, metadata_destination)
+        metadata_payload = json.loads(metadata_source.read_text(encoding="utf-8"))
+        metadata_payload["roi_yaml"] = str(saved_paths.get("region_of_interest_yaml", roi_summary.get("roi_yaml")))
+        metadata_payload["coordinate_space"] = str(roi_summary.get("coordinate_space", "physical"))
+        intermediate_pixel_roi_yaml = roi_summary.get("intermediate_pixel_roi_yaml")
+        if intermediate_pixel_roi_yaml is not None:
+            metadata_payload["intermediate_pixel_roi_yaml"] = str(intermediate_pixel_roi_yaml)
+        metadata_destination.write_text(json.dumps(metadata_payload, indent=2), encoding="utf-8")
         saved_paths["region_of_interest_metadata_json"] = str(metadata_destination)
 
     return saved_paths

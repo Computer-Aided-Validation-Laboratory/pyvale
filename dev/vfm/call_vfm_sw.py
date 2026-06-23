@@ -22,35 +22,39 @@ from pyvale.vfm.spatialparamhomogeneous import (
 )
 from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
 from pyvale.vfm.vfm import run_identification
+from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
 
-inputs_path = Path(__file__).resolve().parent / "rob-data" / "wdbn4-temporally-processed-data-260622-1404"
+
+
+
+inputs_path = Path(__file__).resolve().parent / "rob-data" / "wdbn4-temporally-processed-data-260622-1404" / "prepared-vfm-inputs-260623-1453"
 
 def main():
     specimen_geometry = SpecimenGeometry(
         np.load(inputs_path / "x.npy"),
         np.load(inputs_path / "y.npy"),
-        np.load(inputs_path / "specimen_mask.npy"),
-        1.8,
+        VfmRegionOfInterest.from_yaml(inputs_path / "region_of_interest.yaml"),
+        0.8,
         np.load(inputs_path / "pixel_area.npy"),
     )
 
     boundary_conditions = BoundaryConditions(
         EdgeConditions(
             Edge(
+                EEdgeCondition.Free,
+                EEdgeCondition.Free
+            ),
+            Edge(
+                EEdgeCondition.Free,
+                EEdgeCondition.Traction
+            ),
+            Edge(
+                EEdgeCondition.Free,
+                EEdgeCondition.Free
+            ),
+            Edge(
                 EEdgeCondition.Fixed,
                 EEdgeCondition.Fixed
-            ),
-            Edge(
-                EEdgeCondition.Traction,
-                EEdgeCondition.Fixed
-            ),
-            Edge(
-                EEdgeCondition.Free,
-                EEdgeCondition.Free
-            ),
-            Edge(
-                EEdgeCondition.Free,
-                EEdgeCondition.Free
             )
         ),
         np.load(inputs_path / "force.npy"),
@@ -90,7 +94,7 @@ def main():
                 SensitivityBasedVirtualFieldsMetric(
                     experiment_data.specimen_geometry.x,
                     experiment_data.specimen_geometry.y,
-                    experiment_data.specimen_geometry.region_of_interest,
+                    experiment_data.specimen_geometry.specimen_mask,
                     experiment_data.boundary_conditions.edge_conditions,
                     np.array([5, 10]),
                 )

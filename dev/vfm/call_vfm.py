@@ -28,6 +28,7 @@ from pyvale.vfm.spatialparamhomogeneous import (
     SpatialParameterisationHomogeneous,
 )
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
+from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
 
 inputs_path = Path(__file__).resolve().parent / "inputs"
 
@@ -35,7 +36,7 @@ def main():
     specimen_geometry = SpecimenGeometry(
         np.load(inputs_path / "x.npy"),
         np.load(inputs_path / "y.npy"),
-        np.load(inputs_path / "specimen_mask.npy"),
+        VfmRegionOfInterest.from_yaml(inputs_path / "region_of_interest.yaml"),
         1.8,
         np.load(inputs_path / "pixel_area.npy"),
     )
