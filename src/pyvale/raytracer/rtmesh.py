@@ -2737,13 +2737,17 @@ def simdata_csv_to_rtmesh(directory: Path,
     # Read data from the specified directory
     directory = Path(directory)
     connectivity = _read_connectivity(directory / "connect.csv")
+    if connectivity.ndim == 1:
+        print(f"Warning: Adding dimention to the connectivity array.")
+        connectivity = _read_connectivity(directory / "connect.csv")[np.newaxis, ...]
+    print(connectivity.shape)
     coords = _read_coords(directory / "coords.csv") * 1000
     uvs = _read_uvs(directory / "uvs.csv")
     nodal_displacements = _read_nodal_displacements(
         directory / "field_disp_x.csv",
         directory / "field_disp_y.csv",
         directory / "field_disp_z.csv")
-    
+
     # Infer remaining data
     element_node_count = ElementNodeCount(connectivity.shape[1])
     node_count = coords.shape[0]
