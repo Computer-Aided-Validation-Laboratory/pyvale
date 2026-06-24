@@ -2741,7 +2741,7 @@ def simdata_csv_to_rtmesh(directory: Path,
         print(f"Warning: Adding dimention to the connectivity array.")
         connectivity = _read_connectivity(directory / "connect.csv")[np.newaxis, ...]
     print(connectivity.shape)
-    coords = _read_coords(directory / "coords.csv") * 1000
+    coords = _read_coords(directory / "coords.csv")
     uvs = _read_uvs(directory / "uvs.csv")
     nodal_displacements = _read_nodal_displacements(
         directory / "field_disp_x.csv",

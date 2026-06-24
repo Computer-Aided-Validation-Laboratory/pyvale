@@ -425,8 +425,11 @@ def verif_case2_test() -> None:
 
         data_path = Path(Path().resolve().joinpath(case_spec["data_dir"]))
         out_dir = make_test_dir(base_dir, "b_" + str(case_spec["mesh_type"].name  + "_" + case_spec["case_name"]))
-        camera_target = np.array(case_spec["camera_input"]["pos_world"])
-        camera_center = np.array(case_spec["camera_input"]["roi_cent_world"])
+        # camera_target = np.array(case_spec["camera_input"]["pos_world"])
+        # camera_center = np.array(case_spec["camera_input"]["roi_cent_world"])
+
+        camera_target = np.array(case_spec["camera_input"]["roi_cent_world"])
+        camera_center = np.array(case_spec["camera_input"]["pos_world"])
 
         test_rtmesh = simdata_csv_to_rtmesh(directory = data_path, 
                                             spatial_dim = sens.EDim.TWOD, 
@@ -459,8 +462,11 @@ def verif_case2_test() -> None:
 
         image_width = camera_prepared.pixels_num[0]
         image_height = camera_prepared.pixels_num[1]
-        camera_center = camera_prepared.roi_cent_world
-        camera_target = camera_prepared.pos_world
+        # camera_center = camera_prepared.roi_cent_world
+        # camera_target = camera_prepared.pos_world
+
+        camera_center = camera_prepared.pos_world
+        camera_target = camera_prepared.roi_cent_world
         angle_vertical_view = camera_prepared.angle_vertical_view
 
         # print(image_width, image_height)
@@ -471,15 +477,11 @@ def verif_case2_test() -> None:
         dic_cam = Camera(image_width, image_height, camera_center, camera_target, angle_vertical_view)
 
         scene.add_camera(dic_cam)
-
-        test_rtmesh = simdata_csv_to_rtmesh(directory = data_path, 
-                                    spatial_dim = sens.EDim.TWOD,
-                                    world_position = camera_target)
         
         # print(test_rtmesh.node_coords_over_time)
     
     
-        test_rtmesh.set_surface( surface_type = SurfType.FIELD_COLOR,
+        test_rtmesh.set_surface(surface_type = SurfType.FIELD_COLOR,
                                 surface_fill = np.ones(3) * 1.0, # White
                                 material_type = MaterialType.UNLIT)
         scene.add_rtmesh(test_rtmesh)
