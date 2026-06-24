@@ -5,14 +5,16 @@ import numpy as np
 import numpy.typing as npt
 
 
-# TODO: not sure about the below docstring
 class EIdentificationType(enum.Enum):
-    """Identifies whether a constitutive law uses linear or nonlinear VFM"""
+    """
+    Identifies whether a constitutive law's parameters should be
+    identified with linear on nonlinear identification
+    """
 
     Linear = enum.auto()
-    """Parameters enter the virtual work equation linearly"""
+    """Identify parameters with linear identification"""
     Nonlinear = enum.auto()
-    """Parameters enter the virtual work equation nonlinearly"""
+    """Identify parameters with nonlinear identification"""
 
 
 class IConstitutiveLaw(ABC):
@@ -26,7 +28,8 @@ class IConstitutiveLaw(ABC):
 
     @abstractmethod
     def get_identification_type(self) -> EIdentificationType:
-        """Indicate whether this law is linear or nonlinear in its parameters
+        """
+        Indicate whether this law is linear or nonlinear in its parameters.
 
         Returns
         -------

@@ -46,7 +46,7 @@ class IVectorObjectiveFunction(ABC):
         metric_results: list[npt.NDArray[np.float64]],
     ) -> npt.NDArray[np.float64]:
         """
-        Aggregate metric results into a residual vector
+        Aggregate metric results into a residual vector.
 
         Parameters
         ----------

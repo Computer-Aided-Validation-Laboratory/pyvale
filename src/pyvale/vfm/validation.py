@@ -2,13 +2,12 @@ import numpy as np
 
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.identificationconfig import IdentificationConfig
+from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
 
 
 def validate_experiment_data(
     experiment_data: ExperimentData
 ) -> None:
-    """Raise ValueError if experiment_data is inconsistent or malformed"""
-
     geometry = experiment_data.specimen_geometry
     boundary_conditions = experiment_data.boundary_conditions
 
@@ -187,6 +186,16 @@ def validate_identification_config(
             raise ValueError(
                 f"phase {i}: optimiser requires {required_type.__name__}, "
                 f"got {type(phase.objective_function).__name__}"
+            )
+
+        if all(
+            isinstance(sp, KnownSpatialParameterisation)
+            for sp in phase.spatial_parameterisations.values()
+        ):
+            raise ValueError(
+                f"phase {i}: all spatial parameterisations are "
+                f"KnownSpatialParameterisation; at least one"
+                f"must be identifiable"
             )
 
     # Value constraints

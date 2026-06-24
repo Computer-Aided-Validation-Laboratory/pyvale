@@ -7,19 +7,26 @@ import numpy.typing as npt
 
 @dataclass(slots=True)
 class SpecimenGeometry:
-    """Physical geometry of the test specimen.
+    """
+    Physical geometry of the test specimen.
 
     Stores the spatial coordinates, region-of-interest mask, thickness, and
     per-point physical area of the DIC grid
     """
 
     x: npt.NDArray[np.float64]
-    """x-coordinates at each grid point, shape ``(y, x)`` (mm).
-    Always positive, increasing left to right (column index)"""
+    """
+    x-coordinates at each grid point, shape ``(y, x)`` (mm).
+
+    Always positive, increasing left to right (column index)
+    """
 
     y: npt.NDArray[np.float64]
-    """y-coordinates at each grid point, shape ``(y, x)`` (mm).
-    Always positive, increasing top to bottom (row index)"""
+    """
+    y-coordinates at each grid point, shape ``(y, x)`` (mm).
+
+    Always positive, increasing top to bottom (row index)
+    """
 
     region_of_interest: npt.NDArray[np.bool_]
     """Boolean mask of valid analysis points, shape ``(y, x)``"""
@@ -57,7 +64,8 @@ class Edge:
 
 @dataclass(slots=True)
 class EdgeConditions:
-    """Boundary conditions on the four edges of the specimen.
+    """
+    Boundary conditions on the four edges of the specimen.
 
     Edges are identified by the minimum/maximum coordinate value along each
     axis
@@ -84,8 +92,10 @@ class BoundaryConditions:
     """Kinematic constraints on all four edges of the specimen"""
 
     force: npt.NDArray[np.float64]
-    """Measured force history, shape ``(timesteps, 2)`` with columns
-    ``[Fx, Fy]`` (x-direction, y-direction)"""
+    """
+    Measured force history, shape ``(timesteps, 2)`` with columns
+    ``[Fx, Fy]`` (x-direction, y-direction)
+    """
 
 
 def _calculate_timestep_deltas(

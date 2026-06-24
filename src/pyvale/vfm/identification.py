@@ -10,7 +10,6 @@ from pyvale.vfm.validation import (
 from pyvale.vfm.identificationconfig import IdentificationConfig
 
 
-# TODO: think about io, no pickling
 def run_identification(
     experiment_data: ExperimentData,
     identification_config: IdentificationConfig

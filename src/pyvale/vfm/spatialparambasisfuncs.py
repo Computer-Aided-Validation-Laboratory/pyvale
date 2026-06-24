@@ -69,7 +69,6 @@ class UnivariateBasisFunctionKernel(IBasisFunctionKernel):
 
         return dofs
 
-    # TODO: length check to match num dofs
     def update_from_degrees_of_freedom(
         self,
         degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
@@ -159,7 +158,6 @@ class BivariateBasisFunctionKernel(IBasisFunctionKernel):
 
         return dofs
 
-    # TODO: length check to match num dofs
     def update_from_degrees_of_freedom(
         self,
         degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
@@ -253,6 +251,12 @@ class BasisFunctionSpatialParameterisation(ISpatialParameterisation):
         self,
         size: npt.NDArray[np.uint32]
     ) -> npt.NDArray[np.float64]:
+        if not self.kernels:
+            raise RuntimeError(
+                "self.kernels is empty, initialise_from_constitutive_parameter"
+                "must be called before to_map"
+            )
+
         ...
         # map = np.zeros((size[0], size[1]))
 
@@ -307,6 +311,12 @@ class BasisFunctionSpatialParameterisation(ISpatialParameterisation):
         self,
         degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
     ) -> None:
+        if len(degrees_of_freedom) != self.get_num_degrees_of_freedom():
+            raise ValueError(
+                f"expected {self.get_num_degrees_of_freedom()} degrees of "
+                f"freedom, got {len(degrees_of_freedom)}"
+            )
+
         index = 0
 
         if isinstance(self.floor, DegreeOfFreedom):

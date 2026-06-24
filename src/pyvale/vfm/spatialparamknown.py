@@ -25,7 +25,17 @@ class KnownSpatialParameterisation(ISpatialParameterisation):
         self,
         size: npt.NDArray[np.uint32]
     ) -> npt.NDArray[np.float64]:
-        # TODO: value error if param value not the right size
+        if self.value is None:
+            raise RuntimeError(
+                "self.value is None, initialise_from_constitutive_parameter"
+                "must be called before to_map"
+            )
+
+        if self.value.shape != (size[0], size[1]):
+            raise ValueError(
+                f"parameter map shape {self.value.shape} does not match "
+                f"expected size ({size[0]}, {size[1]})"
+            )
 
         return self.value
 

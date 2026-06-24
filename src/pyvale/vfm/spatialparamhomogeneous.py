@@ -36,6 +36,12 @@ class HomogeneousSpatialParameterisation(ISpatialParameterisation):
         self,
         size: npt.NDArray[np.uint32]
     ) -> npt.NDArray[np.float64]:
+        if self.value is None:
+            raise RuntimeError(
+                "self.value is None, initialise_from_constitutive_parameter"
+                "must be called before to_map"
+            )
+
         if isinstance(self.value, DegreeOfFreedom):
             value = self.value.value
         else:
@@ -51,11 +57,16 @@ class HomogeneousSpatialParameterisation(ISpatialParameterisation):
         else:
             return []
 
-    # TODO: length check to match num dofs
     def update_from_degrees_of_freedom(
         self,
         degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
     ) -> None:
+        if len(degrees_of_freedom) != self.get_num_degrees_of_freedom():
+            raise ValueError(
+                f"expected {self.get_num_degrees_of_freedom()} degrees of "
+                f"freedom, got {len(degrees_of_freedom)}"
+            )
+
         if isinstance(degrees_of_freedom, list):
             if isinstance(self.value, DegreeOfFreedom):
                 self.value = degrees_of_freedom[0]

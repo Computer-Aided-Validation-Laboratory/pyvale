@@ -43,7 +43,8 @@ class IMetric(ABC):
         spatial_parameterisations: dict[str, ISpatialParameterisation],
         experiment_data: ExperimentData,
     ) -> npt.NDArray[np.float64]:
-        """Evaluate the metric for a given stress candidate
+        """
+        Evaluate the metric for a given stress candidate.
 
         Parameters
         ----------

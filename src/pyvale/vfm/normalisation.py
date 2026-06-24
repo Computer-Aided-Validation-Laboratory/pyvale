@@ -56,7 +56,7 @@ def denormalise_degree_of_freedom(
     upper_bound: float,
 ) -> float:
     """
-    Reverse the normalisation from ``[0, 1]`` back to physical units
+    Reverse the normalisation from ``[0, 1]`` back to physical units.
 
     Parameters
     ----------
@@ -81,7 +81,7 @@ def denormalise_degrees_of_freedom(
     upper_bounds: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """
-    Reverse the normalisation for an array of values
+    Reverse the normalisation for an array of values.
 
     Parameters
     ----------
