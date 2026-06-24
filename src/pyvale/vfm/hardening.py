@@ -26,6 +26,19 @@ class IHardeningFunction(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_required_parameters(self) -> list[str]:
+        """
+        Return the list of constitutive parameters required for
+        this hardening law.
+
+        Returns
+        -------
+        list[str]
+            All parameter name strings this hardening law requires
+        """
+        pass
+
 
 @dataclass(slots=True)
 class LinearHardening(IHardeningFunction):
@@ -46,6 +59,9 @@ class LinearHardening(IHardeningFunction):
             self.hardening_modulus_label = hardening_modulus_label
         else:
             self.hardening_modulus_label = "hardening_modulus"
+
+    def get_required_parameters(self) -> list[str]:
+        return [self.yield_strength_label, self.hardening_modulus_label]
 
     def hardening(
         self,
@@ -93,6 +109,13 @@ class SwiftHardening(IHardeningFunction):
             self.hardening_exponent_label = hardening_exponent_label
         else:
             self.hardening_exponent_label = "hardening_exponent"
+
+    def get_required_parameters(self) -> list[str]:
+        return [
+            self.strength_coefficient_label,
+            self.strain_offset_label,
+            self.hardening_exponent_label,
+        ]
 
     def hardening(
         self,
@@ -160,6 +183,14 @@ class VoceHardening(IHardeningFunction):
         else:
             self.rate_parameter_label = "rate_parameter"
 
+    def get_required_parameters(self) -> list[str]:
+        return [
+            self.yield_strength_label,
+            self.hardening_modulus_label,
+            self.saturation_stress_label,
+            self.rate_parameter_label,
+        ]
+
     def hardening(
         self,
         constitutive_parameter_maps: dict[str, npt.NDArray[np.float64]],
@@ -223,6 +254,13 @@ class LudwikHardening(IHardeningFunction):
             self.hardening_exponent_label = hardening_exponent_label
         else:
             self.hardening_exponent_label = "hardening_exponent"
+
+    def get_required_parameters(self) -> list[str]:
+        return [
+            self.yield_strength_label,
+            self.strength_coefficient_label,
+            self.hardening_exponent_label,
+        ]
 
     def hardening(
         self,

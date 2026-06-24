@@ -135,7 +135,6 @@ def validate_experiment_data(
         )
 
 
-# TODO: constitutive laws will require certain params
 def validate_identification_config(
     config: IdentificationConfig
 ) -> None:
@@ -152,22 +151,53 @@ def validate_identification_config(
                 f"phase {i} must have at least one metric"
             )
 
+    # Constitutive-law parameter requirements
+    required = set(config.constitutive_law.get_required_parameters())
+    given = set(config.parameters.keys())
+
+    extra = given - required
+    missing = required - given
+
+    if extra:
+        raise ValueError(f"unexpected parameter(s): {extra}")
+    if missing:
+        raise ValueError(f"missing required parameter(s): {missing}")
+
     # Cross-field consistency: parameter name agreement
     param_names = set(config.parameters.keys())
 
     for i, phase in enumerate(config.phases):
         phase_param_names = set(phase.spatial_parameterisations.keys())
 
-        missing = phase_param_names - param_names
-        if missing:
+        if phase_param_names != param_names:
+            missing = param_names - phase_param_names
+            extra = phase_param_names - param_names
+            parts = []
+            if missing:
+                parts.append(f"missing: {missing}")
+            if extra:
+                parts.append(f"unknown: {extra}")
             raise ValueError(
-                f"phase {i} references unknown parameter(s): {missing}"
+                f"phase {i} spatial parameterisations do not match "
+                f"config parameters; {'; '.join(parts)}"
+            )
+
+        required_type = phase.optimiser.get_required_objective_function_type()
+        if not isinstance(phase.objective_function, required_type):
+            raise ValueError(
+                f"phase {i}: optimiser requires {required_type.__name__}, "
+                f"got {type(phase.objective_function).__name__}"
             )
 
     # Value constraints
     for name, param in config.parameters.items():
-        if param.lower_bound >= param.upper_bound:
+        if not np.isfinite(param.lower_bound):
             raise ValueError(
                 f"parameter '{name}': lower_bound ({param.lower_bound}) "
-                f"must be less than upper_bound ({param.upper_bound})"
+                f"must be finite"
+            )
+        if not np.isfinite(param.upper_bound):
+            raise ValueError(
+                f"parameter '{name}': upper_bound ({param.upper_bound}) "
+                f"must be finite"
             )

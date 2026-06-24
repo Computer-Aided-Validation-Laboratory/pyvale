@@ -36,6 +36,21 @@ class IConstitutiveLaw(ABC):
         pass
 
     @abstractmethod
+    def get_required_parameters(self) -> list[str]:
+        """
+        Return the list of required constitutive parameters for this law.
+
+        Concrete implementations should combine their own parameter names
+        with those from any nested hardening law
+
+        Returns
+        -------
+        list[str]
+            All parameter name strings this law requires
+        """
+        pass
+
+    @abstractmethod
     def calculate_stress(
         self,
         strain: npt.NDArray[np.float64],

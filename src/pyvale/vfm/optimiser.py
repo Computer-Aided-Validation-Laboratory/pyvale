@@ -23,6 +23,18 @@ class IOptimiser(ABC):
     """
 
     @abstractmethod
+    def get_required_objective_function_type(self) -> type:
+        """
+        Return the required objective function type for this optimiser.
+
+        Returns
+        -------
+        type
+            ``IScalarObjectiveFunction`` or ``IVectorObjectiveFunction``
+        """
+        pass
+
+    @abstractmethod
     def optimise(
         self,
         constitutive_law: IConstitutiveLaw,

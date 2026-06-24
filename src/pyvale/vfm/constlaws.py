@@ -38,6 +38,11 @@ class IsotropicVonMisesElastoplasticity(IConstitutiveLaw):
     def get_identification_type(self) -> EIdentificationType:
         return EIdentificationType.Nonlinear
 
+    def get_required_parameters(self) -> list[str]:
+        params = [self.elastic_modulus_label, self.poissons_ratio_label]
+        params.extend(self.hardening_function.get_required_parameters())
+        return params
+
     def calculate_stress(
         self,
         strain: npt.NDArray[np.float64],
