@@ -9,7 +9,6 @@
 
 #include "dicresults.hpp"
 #include "dicutil.hpp"
-#include <opencv2/opencv.hpp>
 #include <cmath>
 
 
