@@ -95,7 +95,7 @@ file(GLOB COMMON_SRC_FILES src/pyvale/common_cpp/*.cpp)
 
 pybind11_add_module(common_cpp MODULE ${COMMON_SRC_FILES})
 target_include_directories(common_cpp PRIVATE src/pyvale/common_cpp)
-target_link_libraries(common_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(common_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
 apply_compile_flags(common_cpp)
 install(TARGETS common_cpp LIBRARY DESTINATION pyvale/common_cpp)
 
@@ -106,7 +106,7 @@ file(GLOB DIC_SRC_FILES src/pyvale/dic/cpp/*.cpp)
 
 pybind11_add_module(diccpp MODULE ${DIC_SRC_FILES} ${COMMON_SRC_FILES})
 target_include_directories(diccpp PRIVATE src/pyvale/common_cpp src/pyvale/dic)
-target_link_libraries(diccpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(diccpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
 apply_compile_flags(diccpp)
 install(TARGETS diccpp LIBRARY DESTINATION pyvale/dic)
 
@@ -117,7 +117,7 @@ file(GLOB CALIB_SRC_FILES src/pyvale/calib/cpp/*.cpp)
 
 pybind11_add_module(calibcpp MODULE ${CALIB_SRC_FILES} ${COMMON_SRC_FILES})
 target_include_directories(calibcpp PRIVATE src/pyvale/common_cpp src/pyvale/calib)
-target_link_libraries(calibcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(calibcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
 apply_compile_flags(calibcpp)
 install(TARGETS calibcpp LIBRARY DESTINATION pyvale/calib)
 
@@ -128,7 +128,7 @@ file(GLOB STRAIN_SRC_FILES src/pyvale/strain/cpp/*.cpp)
 
 pybind11_add_module(strain_cpp MODULE ${STRAIN_SRC_FILES} ${COMMON_SRC_FILES})
 target_include_directories(strain_cpp PRIVATE src/pyvale/common_cpp src/pyvale/strain)
-target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES} ${OpenCV_LIBS}) 
+target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES}) 
 apply_compile_flags(strain_cpp)
 install(TARGETS strain_cpp LIBRARY DESTINATION pyvale/strain)
 
