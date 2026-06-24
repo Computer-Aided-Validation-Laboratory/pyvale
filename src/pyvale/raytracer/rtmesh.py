@@ -2736,18 +2736,21 @@ def simdata_csv_to_rtmesh(directory: Path,
     """
     # Read data from the specified directory
     directory = Path(directory)
-    connectivity = _read_connectivity(directory / "connect.csv")
-    if connectivity.ndim == 1:
-        print(f"Warning: Adding dimention to the connectivity array.")
-        connectivity = _read_connectivity(directory / "connect.csv")[np.newaxis, ...]
-    print(connectivity.shape)
+    try:
+        connectivity = _read_connectivity(directory / "connect.csv")
+    except FileNotFoundError: # Sometimes stored under different name
+        connectivity = _read_connectivity(directory / "connectivity.csv")
     coords = _read_coords(directory / "coords.csv") * 1000
     uvs = _read_uvs(directory / "uvs.csv")
-    nodal_displacements = _read_nodal_displacements(
-        directory / "field_disp_x.csv",
-        directory / "field_disp_y.csv",
-        directory / "field_disp_z.csv")
-
+    nodal_displacements = None
+    try:
+        nodal_displacements = _read_nodal_displacements(
+            directory / "field_disp_x.csv",
+            directory / "field_disp_y.csv",
+            directory / "field_disp_z.csv")
+    except FileNotFoundError:
+        pass
+    
     # Infer remaining data
     element_node_count = ElementNodeCount(connectivity.shape[1])
     node_count = coords.shape[0]
@@ -2784,6 +2787,7 @@ def simdata_csv_to_rtmesh(directory: Path,
 
     rtmesh = create_rtmesh(rtmesh, render_mesh = None)
     # Manually set the extracted values for node displacements and custom UVs
-    rtmesh.add_temporal_displacement(nodal_displacements) # Add extracted displacements
+    if nodal_displacements is not None:
+        rtmesh.add_temporal_displacement(nodal_displacements) # Add extracted displacements
     rtmesh.set_custom_uvs(uvs)
     return rtmesh

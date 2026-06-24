@@ -9,7 +9,7 @@ import matplotlib.ticker as mticker
 from matplotlib.ticker import FormatStrFormatter
 
 
-#import smplotlib # For nicer figures (imo), but no need to install if you don't want
+import smplotlib # For nicer figures (imo), but no need to install if you don't want
 
 from pyvale.sensorsim import EDim
 from pyvale.sensorsim.imagetools import ImageTools
@@ -396,6 +396,8 @@ def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False
     ax.xaxis.set_minor_locator(mticker.NullLocator())
     ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
     label_x = None
+    title = f"Convergence for test case: {test_case.value} at {resolution.value} px resolution"
+    ax.set_title(title, fontsize=FONT_SIZES["suptitle"])
     # Iterate over elements
     for name, element in iter_elements():
         elem_dir_name = base_data_dir + element.label  
@@ -406,12 +408,14 @@ def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False
         if label_x is None:
                 # Option 1: Fetch data for x-values and plot those (all; not good if you start at 1 subsamples, because the smaller values are too close)
                 all_x = np.unique(elem_data[1])
-                subsamples = all_x
+                label_x = all_x
                 # Option 2: Fewer datapoints initially, then stack with the last X values 
-                label_x = np.array([1, 16384])
-                extra = all_x[all_x > 32768]
-                label_x = np.concatenate((label_x, extra))
-                label_x = np.unique(label_x)  # sort + deduplicate
+                #extra = all_x[all_x > 32768]
+                #label_x = np.array([1, 16384])
+                #extra = all_x[all_x > 1024]
+                #label_x = np.array([1, 1024])
+                #label_x = np.concatenate((label_x, extra))
+                #label_x = np.unique(label_x)  # sort + deduplicate
         # Sanity check to make sure all data is being read correctly and not just skipped
         #print(name, "path:", data_path, "shape:", elem_data.shape, "rmse_minmax:", np.nanmin(elem_data[2]), np.nanmax(elem_data[2]))
         if not detailed:
@@ -426,7 +430,7 @@ def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False
         # More detailed plot (focus on the last x values)
         else: 
             elem_data = elem_data[:, -4:] # Keep last 4 rows of original data (CSV) - if we want it more detailed
-            subsamples = np.unique(elem_data[1])
+            label_x = np.unique(elem_data[1])
         # Plot RMSE values above the markers; don't do it on the full plot as they overlap and look poorly
             ax.plot(elem_data[1], elem_data[2], label=name, color=element.color, marker="o", linestyle="-", linewidth=3, markersize=10)
             for x, y in zip(elem_data[1], elem_data[2]):
@@ -448,7 +452,7 @@ def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False
         fig.savefig(Path.joinpath(target_path, "convergence_plot.png"), dpi=300)
 
 #conv_test_rt(TestCase.AIR_UNLIT, Resolution.HIGH, 1)
-plot_results(TestCase.AIR_UNLIT, Resolution.LOW, True, False)
+plot_results(TestCase.AIR_DIFFUSE, Resolution.LOW, True, False)
 
 
 
