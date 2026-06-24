@@ -41,7 +41,7 @@ namespace optimization {
         while (iter < opt.max_iter) {
 
             // calculate updated parameters
-            iterate_cost(opt, dots_cam0, dots_cam1, grid, num_img, lengths);
+            iterate_cost(opt, dots_cam0, dots_cam1, grid, num_img, lengths, iter);
 
             // relative change of all parameters
             const double dp_norm = std::sqrt(std::inner_product(opt.dp.begin(), opt.dp.end(), opt.dp.begin(), 0.0));
@@ -66,8 +66,13 @@ namespace optimization {
     }
 
 
-    void iterate_cost(Parameters &opt, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1, 
-                    const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths){
+    void iterate_cost(Parameters &opt,
+                      const std::vector<double> &dots_cam0,
+                      const std::vector<double> &dots_cam1, 
+                      const std::vector<double> &grid, 
+                      const size_t num_img, 
+                      const std::vector<int> &lengths, 
+                      const int iter){
 
 
         // Compute residuals at current point. p get updated in this
@@ -83,18 +88,29 @@ namespace optimization {
         // Hessian
         Eigen::MatrixXd H = J.transpose() * J;
 
+        // Remove fixed parameters from the linear system while retaining the
+        // coupled solution for every parameter that is allowed to vary.
+        for (int i = 0; i < opt.num_params; ++i) {
+            if (!opt.vary[i]) {
+                H.row(i).setZero();
+                H.col(i).setZero();
+                H(i, i) = 1.0;
+                g(i) = 0.0;
+            }
+        }
+
         // (H + lambda*diag(H))
         Eigen::VectorXd diagH = H.diagonal();
         Eigen::MatrixXd D = diagH.asDiagonal();
         Eigen::MatrixXd A = H + opt.lambda*D;
         //Eigen::MatrixXd A = H + opt.lambda * Eigen::MatrixXd::Identity(H.rows(), H.cols());
-    //
+
         // get change in parameters
         Eigen::VectorXd dp = A.ldlt().solve(-g);
 
         // Updated parameters
         for (int i = 0; i < opt.p.size(); i++) {
-            opt.dp[i] = dp(i);
+            opt.dp[i] = opt.vary[i] ? dp(i) : 0.0;
             opt.pdp[i] = opt.p[i] + opt.dp[i];
         }
 
@@ -124,29 +140,33 @@ namespace optimization {
             cost_cam0_pdp += r0x*r0x + r0y*r0y;
             cost_cam1_pdp += r1x*r1x + r1y*r1y;
         }
-        std::cout << std::setprecision(10) << "cost image 0 =" << cost_cam0_p << "cost image 1 =" << cost_cam1_p << " ";
-        std::cout << std::setprecision(10) << "cost updated 0=" << cost_cam0_pdp << " cost updated 1=" << cost_cam1_pdp << "\n";
-
-        //std::cout << opt.costp << " " << opt.costpdp << std::endl;
-            
-        // Accept or reject step
-        // if (opt.costpdp < opt.costp) {
-        //     opt.p = opt.pdp;
-        //     opt.lambda *= 0.1;
-        // } 
-        // else {
-        //     opt.lambda *= 10.0;
-        // }
-
+        
         double actual = opt.costp - opt.costpdp;
         double predicted = -g.dot(dp) - 0.5 * dp.dot(H * dp);
         double rho = actual / predicted;
+        const bool step_accepted = rho > 0.0;
+
+        
+        std::cout << std::scientific << std::setprecision(4)
+          << "[iter " << std::setw(3) << iter << "] "
+          << "cost=" << opt.costp
+          << " -> " << opt.costpdp
+          << "  dcost=" << actual
+          << "  rho=" << rho
+          << "  lambda=" << opt.lambda
+          << "  |dp|=" << dp.norm()
+          << "  cam0=" << cost_cam0_p << "->" << cost_cam0_pdp
+          << "  cam1=" << cost_cam1_p << "->" << cost_cam1_pdp
+          << "  step=" << (step_accepted ? "accepted" : "rejected")
+          << '\n';
+
         if (rho > 0) {
             opt.p = opt.pdp;
             opt.lambda *= std::max(1.0/3.0, 1.0 - pow(2*rho - 1, 3));
         } else {
             opt.lambda *= 2.0;
         }
+
 
     }
 

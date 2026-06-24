@@ -36,6 +36,16 @@ PYBIND11_MODULE(calibcpp, m) {
         .def_readwrite("rotation", &Calib::rotation)
         .def_readwrite("translation", &Calib::translation);
 
-    m.def("calibrate_stereo", &calibrate_stereo, "calibrate_stereo");
+    py::class_<StereoCalibResult>(m, "StereoCalibResult")
+        .def_readonly("calib", &StereoCalibResult::calib)
+        .def_readonly("errors_cam0", &StereoCalibResult::errors_cam0)
+        .def_readonly("errors_cam1", &StereoCalibResult::errors_cam1);
+
+    py::enum_<ReprojError>(m, "ReprojError")
+        .value("RMSE", ReprojError::RMSE)
+        .value("MEAN", ReprojError::MEAN)
+        .value("MSE",  ReprojError::MSE);
+
+    m.def("calibrate_stereo", &calibrate_stereo, "Run stereo bundle adjustment and return calibrated parameters and per-image errors.");
 }
 

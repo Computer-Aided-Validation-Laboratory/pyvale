@@ -10,17 +10,29 @@ import numpy as np
 import cv2
 import math
 from pathlib import Path
-
+from typing import Literal
+from enum import Enum
 
 import pyvale.calib.calibcpp as calibcpp
+from pyvale.calib.calib_dataclass import Calib, CamIntrinsics
+import pyvale.common_cpp.common_cpp as common_cpp
 
+class ReprojError(str, Enum):
+    RMSE = "RMSE"
+    MEAN = "MEAN"
+    MSE = "MSE"
 
 def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray, 
                      dots_cam1: list[np.ndarray] | np.ndarray, 
                      grid: list[np.ndarray] | np.ndarray, 
                      img_dims: list[int] | np.ndarray, 
-                     method: str="bundle_adjustment", 
-                     filenames: list[str] | list[Path] | None = None) -> None:
+                     filenames: list[str] | list[Path] | None = None,
+                     optimize_distortion: bool = True,
+                     precision: float = 0.001,
+                     max_iter: int = 40,
+                     num_threads: int | None = None,
+                     error_formulation: Literal["RMSE", "MEAN", "MSE"] = "RMSE"
+                     ) -> tuple[Calib, np.ndarray, np.ndarray]:
 
 
 
@@ -62,10 +74,8 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
     if any(d <= 0 for d in img_dims):
         raise ValueError(f"img_dims must be positive, got {img_dims}")
 
-    # --- method check ---
-    valid_methods = {"bundle_adjustment", "Zhang"}
-    if method not in valid_methods:
-        raise ValueError(f"Unknown method '{method}'. Valid options: {valid_methods}")
+    if not isinstance(optimize_distortion, (bool, np.bool_)):
+        raise TypeError("optimize_distortion must be a boolean")
 
     num_file_pairs = len(dots_cam0)
 
@@ -106,7 +116,7 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
 
         proj, _ = cv2.projectPoints(grid[i], cv2.Rodrigues(R1_expected)[0], T1_expected, K1_stereo, D1_stereo)
         err = np.mean(np.linalg.norm(proj.squeeze() - dots_cam1[i].squeeze(), axis=1))
-        print(f"Refinement: Image {i} cam1 reprojection error: {err:.4f} px")
+        #print(f"Refinement: Image {i} cam1 reprojection error: {err:.4f} px")
 
     # visualize_initial_projection_no_images(
     #     grid,
@@ -124,6 +134,9 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
     # distortion
     D0 = D0_stereo.flatten()
     D1 = D1_stereo.flatten()
+    if not optimize_distortion:
+        D0 = np.zeros_like(D0)
+        D1 = np.zeros_like(D1)
 
     # intrinsic cam matrix
     fx0, fy0, fs0, cx0, cy0 = K0_stereo[0, 0], K0_stereo[1, 1], K0_stereo[0,1], K0_stereo[0, 2], K0_stereo[1, 2]
@@ -145,89 +158,43 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
     flat_initial_params = initial_params.ravel().tolist()
 
 
-    if method=="bundle_adjustment":
-        calibcpp.calibrate_stereo(flat_initial_params,
-                                flat_dots_cam0,
-                                flat_dots_cam1,
-                                flat_grid,
-                                lengths,
-                                img_dims[0],
-                                img_dims[1],
-                                num_file_pairs)
+    error_formulation_enum = ReprojError(error_formulation)
+    error_formulation_cpp  = getattr(calibcpp.ReprojError, error_formulation_enum.name)
 
+    #set the number of OMP threads
+    if num_threads is not None:
+        common_cpp.set_num_threads(num_threads)
 
-def import_guess(dots_cam0, dots_cam1, grid, img_dims, num_file_pairs):
+    result_cpp = calibcpp.calibrate_stereo(flat_initial_params,
+                                           flat_dots_cam0,
+                                           flat_dots_cam1,
+                                           flat_grid,
+                                           lengths,
+                                           img_dims[0],
+                                           img_dims[1],
+                                           num_file_pairs,
+                                           bool(optimize_distortion),
+                                           precision, 
+                                           max_iter,
+                                           error_formulation_cpp)
 
-    # Flatten for C++ later
-    flat_dots_cam0 = np.concatenate(dots_cam0, axis=0).astype(np.float32).ravel().tolist()
-    flat_dots_cam1 = np.concatenate(dots_cam1, axis=0).astype(np.float32).ravel().tolist()
-    flat_grid      = np.concatenate(grid,      axis=0).astype(np.float32).ravel().tolist()
-    lengths        = np.array([arr.shape[0] for arr in dots_cam1], dtype=np.int32).tolist()
-
-
-
-    rvec_stereo = np.array([0.03253, 25.55, -0.08994]) * (math.pi/180.0)
-    T_stereo = np.array([-146.9, -0.2991, 34.75])
-
-    # intrinsics_cam0
-    fx0 = 1.063E+04 
-    fy0 = 1.061E+04 
-    fs0 = 5.202 
-    D0 = np.array([-0.01244, 5.341, 0.00005374, 0.002604, -151.1]) 
-    cx0 = 1298.0
-    cy0 = 1049.0
-
-    # intrinsics_cam1
-    fx1 = 1.07E+04
-    fy1 = 1.07E+04
-    fs1 = 2.735
-    D1 = np.array([-0.02676, 5.793, 0.001099, 0.004286, -203.9]) 
-    cx1 = 1366.0
-    cy1 = 1056.0
-
-    data =np.loadtxt("/home/kc4736/ukaea/stereo_test_chal/35mm/calib/matchid_corr_nofilenames.txt", delimiter=" ")
-
-    initial_poses_cam0 = []
-    for i in range(0,data.shape[0],2):
-
-        initial_poses_cam0.append(data[i,8] * (math.pi/180.0)) # theta
-        initial_poses_cam0.append(data[i,9] * (math.pi/180.0)) # phi
-        initial_poses_cam0.append(data[i,10] * (math.pi/180.0)) # psi
-        initial_poses_cam0.append(data[i,11]) # Tx
-        initial_poses_cam0.append(data[i,12]) # Ty
-        initial_poses_cam0.append(data[i,13]) # Tz
-        #print(i, data[i,8] * 0.01745329, data[i,9] * 0.01745329, data[i,10] * 0.01745329,data[i,11],data[i,12],data[i,13])
-
-
-    # final flat parameter list
-    initial_params = np.hstack([
-        fx0, fy0, fs0, cx0, cy0, D0,
-        fx1, fy1, fs1, cx1, cy1, D1,
-        rvec_stereo.flatten(), T_stereo.flatten(),
-        initial_poses_cam0
-    ])
-
-    flat_initial_params = initial_params.astype(np.float64).ravel().tolist()
-
-
-    # errors0, errors1 = compute_reprojection_errors(
-    #     dots_cam0, dots_cam1,
-    #     grid,
-    #     initial_poses_cam0,
-    #     fx0, fy0, fs0, cx0, cy0, D0,
-    #     fx1, fy1, fs1, cx1, cy1, D1,
-    #     rvec_stereo, T_stereo,
-    #     euler_order="ZYX"   # try "XYZ" if results are large
-    # )
-    # for i, (e0, e1) in enumerate(zip(errors0, errors1)):
-    #     print(f"Image {i:02d} | Cam0 RMS: {e0:.4f} px | Cam1 RMS: {e1:.4f} px")
-    #
-    # print("\nOverall mean:")
-    # print("Cam0:", np.mean(errors0))
-    # print("Cam1:", np.mean(errors1))
-
-    calibcpp.calibrate_stereo(
-        flat_initial_params, flat_dots_cam0, flat_dots_cam1, flat_grid,
-        lengths, img_dims[0], img_dims[1], num_file_pairs
+    calib_cpp = result_cpp.calib
+    calib = Calib(
+        cam0=CamIntrinsics(calib_cpp.cam0.fx, calib_cpp.cam0.fy, calib_cpp.cam0.fs,
+                            calib_cpp.cam0.cx, calib_cpp.cam0.cy,
+                            np.asarray(calib_cpp.cam0.distortion, dtype=np.float64)),
+        cam1=CamIntrinsics(calib_cpp.cam1.fx, calib_cpp.cam1.fy, calib_cpp.cam1.fs,
+                            calib_cpp.cam1.cx, calib_cpp.cam1.cy,
+                            np.asarray(calib_cpp.cam1.distortion, dtype=np.float64)),
+        translation=np.asarray(calib_cpp.translation, dtype=np.float64),
+        rotation=np.asarray(np.rad2deg(calib_cpp.rotation), dtype=np.float64),
     )
+
+    errors0 = np.asarray(result_cpp.errors_cam0, dtype=np.float64)
+    errors1 = np.asarray(result_cpp.errors_cam1, dtype=np.float64)
+
+    return calib, errors0, errors1
+
+
+
 

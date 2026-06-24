@@ -19,12 +19,11 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
                 cam1: Path | list[Path] | np.ndarray | str,
                 grid_height: int, grid_width: int,
                 grid_spacing: float,
-                min_num_dots: int | None = None,
+                missing_dots: list[tuple[int, int]],
+                min_dot_fraction: float=0.5,
                 visualisationCV2: bool=False,
-                visualisationPLT: bool=False) -> tuple[list, list, list, np.ndarray, list]:
+                visualisationPLT: bool=False) -> tuple[list, list, list]:
 
-    if min_num_dots is None:
-        min_num_dots = int(0.5 * grid_width * grid_height)
 
     files_cam0 = []
     files_cam1 = []
@@ -41,6 +40,16 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
             raise ValueError(
                 f"cam0 and cam1 are different numpy shapes: cam0.shape={cam0.shape}, cam1.shape={cam1.shape}"
             )
+
+
+    if (len(missing_dots) != 3
+            or not all(isinstance(dot, tuple)
+                       and len(dot) == 2
+                       and all(isinstance(v, int) and v >= 0 for v in dot)
+                       for dot in missing_dots)):
+        raise ValueError(
+            "missing_dots must contain exactly three (x, y) tuples of non-negative integers."
+        )
 
     # handle strings. convert to path for import
     elif isinstance(cam0, (str, Path)) and isinstance(cam1, (str, Path)):
@@ -71,11 +80,9 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
     fullgrid_3d[:, :2] *= grid_spacing
 
 
-    missing_idx = np.array([
-        [2, grid_height-2-1],
-        [2, 2],
-        [grid_width-2-1, grid_height-2-1],
-    ])
+    # order by their internal triangle angles
+    missing_idx = order_triangle_points_by_angle(np.asarray(missing_dots))
+    missing_idx = missing_idx.astype(np.intp)
 
     missing_grid = (missing_idx * grid_spacing - 2*grid_spacing)
     missing_grid = missing_grid.astype(np.float32)
@@ -95,7 +102,8 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
     gridpoints = []
     dots_cam0 = []
     dots_cam1 = []
-    filenames = []
+    filenames_cam0 = []
+    filenames_cam1 = []
 
     num_file_pairs = len(files_cam1)
     img_dims = np.zeros((2))
@@ -300,9 +308,9 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
 
 
         # if the number of matches is less than minimum requirement then skip
-        if (matched_grid.shape[0] < min_num_dots):
+        if (matched_grid.shape[0] < min_dot_fraction*grid_height*grid_width):
             print(f"WARNING: Skipping pair due to insufficient number of matches."
-                  f"Number of mutual points: {matched_grid.shape[0]}. Minimum is {min_num_dots}")
+                  f"Number of mutual points: {matched_grid.shape[0]}. Minimum fraction is {min_dot_fraction}")
             continue
 
         # Append for calibration
@@ -310,7 +318,8 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
         gridpoints.append(matched_grid)
         dots_cam0.append(matched_cam0)
         dots_cam1.append(matched_cam1)
-        filenames.append([files_cam0[i], files_cam1[i]])
+        filenames_cam0.append(Path(files_cam0[i]).name)
+        filenames_cam1.append(Path(files_cam1[i]).name)
 
 
         print(f"Points found in cam0: {len(pts_cam0_raw)+len(light_pts_cam0)}, "
@@ -416,7 +425,7 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
             # plt.close(fig)
             plt.show()
     
-    return dots_cam0, dots_cam1, gridpoints, img_dims, filenames
+    return dots_cam0, dots_cam1, gridpoints, filenames_cam0, filenames_cam1
 
 
 def initial_reconstruction(dots_cam0, dots_cam1, grid, 

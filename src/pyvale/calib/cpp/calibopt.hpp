@@ -29,6 +29,7 @@ namespace optimization {
         std::vector<double> p; // hard coded optimzation parameters
         std::vector<double> dp; // deltaP
         std::vector<double> pdp; // P + deltaP
+        std::vector<bool> vary; // whether each parameter is optimized
         int max_iter;
         double precision;
         int px_vert;
@@ -48,6 +49,7 @@ namespace optimization {
             p(num_params, 0.0),
             dp(num_params, 0.0),
             pdp(num_params, 0.0),
+            vary(num_params, true),
             max_iter(max_iter_),
             precision(precision_) {}
     };
@@ -65,7 +67,7 @@ namespace optimization {
 
     // single iteration of optimization
     void iterate_cost(Parameters &opt, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1, 
-                    const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths);
+                    const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths, const int iter);
 
     // calculate jacobian
     Eigen::MatrixXd calc_jac(std::vector<double> &p, const Eigen::VectorXd &r, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1, 
