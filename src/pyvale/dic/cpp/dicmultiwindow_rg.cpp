@@ -195,7 +195,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
                     // perform optimization for seed point neighbours
                     OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
-                    if (!rg::check_convergence(seed_x, seed_y, seed_res, error_message, true)) {
+                    if (!rg::check_convergence(seed_x, seed_y, nres, error_message, true)) {
                         error_flag.store(true);
                         break;
                     }
