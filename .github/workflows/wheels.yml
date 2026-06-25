@@ -37,16 +37,21 @@ jobs:
           echo "CC=gcc-15" >> $GITHUB_ENV
           echo "CXX=g++-15" >> $GITHUB_ENV
 
-      - name: install libtiff
+      - name: Install libtiff (macOS)
         if: startsWith(matrix.os, 'macos')
         run: |
           brew install libtiff
+
+      - name: Install libtiff (Windows)
         if: startsWith(matrix.os, 'windows')
         run: |
           vcpkg install tiff
+
+      - name: Install libtiff (Ubuntu)
         if: startsWith(matrix.os, 'ubuntu')
         run: |
-          sudo apt install libtiff-dev libtiff-tools
+          sudo apt-get update
+          sudo apt-get install -y libtiff-dev libtiff-tools
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
