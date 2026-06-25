@@ -74,15 +74,15 @@ def multiwindow_init(subset_size: int,
     if len(multiwindow_subset_size) == 0 and len(multiwindow_search_area) == 0:
 
         # get descending powers from max_displacement down
-        powers_of_two = [2**i for i in range(int(np.floor(np.log2(max(max_displacement, subset_size)))), -1, -1)]
+        powers_of_two = [2**i for i in range(int(np.floor(np.log2(max(2*max_displacement, subset_size)))), -1, -1)]
 
         # if elements of power_of_two are less than subset_size then remove them
         powers_of_two = [p for p in powers_of_two if p >= subset_size]
 
         # only append max_displacement if it is greater than or equal to subset_size
-        if max_displacement >= subset_size:
-            multiwindow_subset_size = [max_displacement] + powers_of_two
-            multiwindow_search_area = [max_displacement] + powers_of_two
+        if 2*max_displacement >= subset_size:
+            multiwindow_subset_size = [2*max_displacement] + powers_of_two
+            multiwindow_search_area = [2*max_displacement] + powers_of_two
         else:
             multiwindow_subset_size = powers_of_two
             multiwindow_search_area = powers_of_two

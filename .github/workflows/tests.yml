@@ -42,6 +42,17 @@ jobs:
           sudo apt update
           sudo apt install -y libegl1 libgl1 libxext6 libx11-6
 
+      - name: install libtiff
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install libtiff
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          vcpkg install tiff
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt install libtiff-dev libtiff-tools
+
       - name: Install with pip
         if: matrix.env-type == 'pip'
         run: |
