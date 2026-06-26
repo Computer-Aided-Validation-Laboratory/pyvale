@@ -12,15 +12,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-26]
         env-type: [pip]
         include:
           - os: macos-14
             llvm: llvm@15
           - os: macos-15-intel
             llvm: llvm@18
-          - os: macos-latest
-            llvm: llvm@18
+          - os: macos-26
+            llvm: llvm@20
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
