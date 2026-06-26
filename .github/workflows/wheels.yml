@@ -49,14 +49,13 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
         env:
-          CIBW_SKIP: "pp* *musllinux*"
+          CIBW_SKIP: "*-win32 pp* *musllinux*"
 
           CIBW_BEFORE_BUILD_LINUX: |
             yum install -y libtiff-devel
 
           CIBW_BEFORE_ALL_WINDOWS: |
-            vcpkg install tiff:x64-windows
-            vcpkg install tiff:x86-windows
+            vcpkg install tiff
 
           CIBW_CONFIG_SETTINGS_WINDOWS: >
             cmake.define.CMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
