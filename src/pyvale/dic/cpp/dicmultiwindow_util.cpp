@@ -321,7 +321,11 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
             }
         };
 
-        #pragma omp parallel shared(stop_request, level, prev, interp_def, img_num_ref, search_area, u, v, max_val)
+        #ifdef _MSC_VER
+            #pragma omp parallel
+        #else
+            #pragma omp parallel shared(stop_request, level, prev, interp_def, img_num_ref, search_area, u, v, max_val)
+        #endif
         {
             if (fft_precision == util::FFTPrecision::FLOAT32) {
                 FFTf fft(search_area, search_area, false);

@@ -70,8 +70,7 @@ Hermite::Hermite(const Image &img) {
     ProgressBar pbar("Interpolator Initialisation:", niters);
 
     #ifdef _MSC_VER
-        // Windows/MSVC - no explicit sharing of member variables
-        #pragma omp parallel for shared(px_hori, px_vert, stop_request)
+        #pragma omp parallel for shared(stop_request)
     #else
         // Linux/GCC - explicit sharing works
         #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request)
@@ -105,7 +104,7 @@ Hermite::Hermite(const Image &img) {
 
     #ifdef _MSC_VER
         // Windows/MSVC - no explicit sharing of member variables
-        #pragma omp parallel for shared(px_hori, px_vert, stop_request)
+        #pragma omp parallel for shared(stop_request)
     #else
         // Linux/GCC - explicit sharing works
         #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request)
@@ -141,7 +140,7 @@ Hermite::Hermite(const Image &img) {
     //
     #ifdef _MSC_VER
     // Windows/MSVC - no explicit sharing of member variables
-        #pragma omp parallel for shared(px_hori, px_vert, stop_request)
+        #pragma omp parallel for shared(stop_request)
     #else
         // Linux/GCC - explicit sharing works
         #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request)
