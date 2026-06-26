@@ -47,12 +47,6 @@ jobs:
         run: |
           vcpkg install tiff
 
-      - name: Install libtiff (Ubuntu)
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libtiff-dev libtiff-tools
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         with:
@@ -60,7 +54,12 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
         env:
-          CIBW_SKIP: "pp*"
+          CIBW_SKIP: "pp* *musllinux*"
+
+          # Runs inside cibuildwheel's Linux container, not on the Ubuntu host. 
+          CIBW_BEFORE_BUILD_LINUX: |
+            yum install -y libtiff-devel
+
       - uses: actions/upload-artifact@v4
         with:
           name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}
