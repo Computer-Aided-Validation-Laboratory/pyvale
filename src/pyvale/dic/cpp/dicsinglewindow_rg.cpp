@@ -24,7 +24,6 @@
 // Program Header files
 #include "./dicinterp.hpp"
 #include "./dicoptimizer.hpp"
-#include "./dicoptimizericgn.hpp"
 #include "./dicutil.hpp"
 #include "./dicrg.hpp"
 #include "./dicfourier.hpp"
