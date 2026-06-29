@@ -5,6 +5,8 @@
 // ================================================================================
 
 // STD library Header files
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <iostream>
 #include <cstring>
 #include <omp.h>
@@ -12,8 +14,6 @@
 #include <iomanip>
 #include <vector>
 #include <numeric>
-#define _USE_MATH_DEFINES
-#include <cmath>
 
 // common_cpp Header files
 #include "../../common_cpp/defines.hpp"

@@ -4,18 +4,15 @@
 // Copyright (C) 2025 The Computer Aided Validation Team
 // ================================================================================
 
-#include "dicinterp.hpp"
-#include "dicsubset.hpp"
-#include <atomic>
 #define _USE_MATH_DEFINES
 #include <cmath>
-
-
 
 // dic header files
 #include "./stereoutil.hpp"
 #include "./dicfourier.hpp"
 #include "./dicresults.hpp"
+#include "./dicinterp.hpp"
+#include "./dicsubset.hpp"
 
 // calib header files
 #include "../../calib/cpp/calibstereo.hpp"

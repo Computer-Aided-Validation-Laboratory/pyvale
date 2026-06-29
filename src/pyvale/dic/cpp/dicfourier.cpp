@@ -6,12 +6,11 @@
 
 
 // STD library Header files
-#include "dicutil.hpp"
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <vector>
-#define _USE_MATH_DEFINES
-#include <cmath>
 #include <omp.h>
 #include <csignal>
 
