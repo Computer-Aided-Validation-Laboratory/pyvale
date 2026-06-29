@@ -1,5 +1,30 @@
 from __future__ import annotations
 
+"""Prepare DIC data for VFM and normalise specimen ROI inputs.
+
+The ``region_of_interest_input_file`` can currently be one of:
+
+- a ROI defined in the reference-image pixel space during DIC processing,
+  such as MatchID ``.m2inp``/``.m3inp`` files or a pyvale ROI
+  ``.yaml``/``.yml`` file
+- a logical specimen mask derived from DIC outputs, such as arrays or text
+  grids whose finite values represent specimen pixels and whose ``NaN`` values
+  represent non-specimen pixels
+
+In the future we also want to support FE mesh files that define specimen
+geometry from nodal coordinates, but that is not implemented yet.
+
+Any supported ROI source can be used. More accurate ROI definitions generally
+improve inverse identification (as virtual field metrics depend on the specimen geometry).
+
+Prepared outputs are normalised to include:
+
+- ``region_of_interest.yaml`` in physical coordinates
+- ``specimen_mask.npy`` as the confirmed specimen definition
+- filled ``x.npy`` and ``y.npy`` coordinate grids once the user confirms the
+  ROI-derived specimen mask against the original DIC ``NaN`` mask
+"""
+
 import csv
 from datetime import datetime
 import json
@@ -7,15 +32,29 @@ import os
 import re
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
 
 @dataclass(slots=True)
 class PreparationConfig:
+    """Inputs and options for preparing one VFM dataset.
+
+    ``region_of_interest_input_file`` accepts a reference-image ROI definition
+    or a logical specimen mask. MatchID ``.m2inp``/``.m3inp`` files and pyvale
+    ROI ``.yaml``/``.yml`` files preserve the reference-image ROI resolution.
+    Mask-like inputs can also be used, including DIC-style arrays/text grids
+    that distinguish specimen and non-specimen pixels with finite values and
+    ``NaN`` values respectively, but the resulting geometry is only as accurate
+    as that source mask.
+
+    FE mesh ROI inputs are planned for a future version and are not supported
+    by this script yet.
+    """
+
     input_folder: Path
     output_folder: Path
     x_coordinates_input_file: str
@@ -27,10 +66,81 @@ class PreparationConfig:
     y_coordinates_pixel_input_file: str | None = None
     region_of_interest_input_file: str | None = None
     reference_image_file: str | None = None
+    metadata_file: str | None = "metadata.json"
+    selected_spatial_indices_file: str | None = "selected_spatial_indices.txt"
     strain_h5_dataset_names: tuple[str, ...] = ("exx", "eyy", "exy")
     strain_component_order: tuple[str, ...] = ("exx", "eyy", "exy")
     csv_preview_rows: int = 5
 
+
+BoundaryDofState = Literal["free", "fixed", "traction"]
+ForceComponent = Literal["x", "y"]
+ForceDirectionSign = Literal["+", "-"]
+
+
+@dataclass(slots=True, frozen=True)
+class EdgeBoundaryConfig:
+    x: BoundaryDofState = "free"
+    y: BoundaryDofState = "free"
+
+
+@dataclass(slots=True, frozen=True)
+class BoundaryConditionConfig:
+    min_x_edge: EdgeBoundaryConfig = field(default_factory=EdgeBoundaryConfig)
+    max_x_edge: EdgeBoundaryConfig = field(default_factory=EdgeBoundaryConfig)
+    min_y_edge: EdgeBoundaryConfig = field(default_factory=EdgeBoundaryConfig)
+    max_y_edge: EdgeBoundaryConfig = field(default_factory=EdgeBoundaryConfig)
+    force_component: ForceComponent = "x"
+    force_positive_direction: ForceDirectionSign = "+"
+    arrow_scale_fraction: float = 0.18
+    arrow_label: str = "Applied force"
+
+
+@dataclass(slots=True, frozen=True)
+class CoordinateConventionTransform:
+    reflect_x: bool = False
+    reflect_y: bool = False
+
+    @property
+    def applied(self) -> bool:
+        return self.reflect_x or self.reflect_y
+
+
+# Edit this section for a new dataset.
+CONFIG = PreparationConfig(
+    input_folder=Path(
+        "/home/robh/1_Projects/dic-processing-tools/data/wdbn4-spatial-temporal-processed-data-260629-1528"
+    ),
+    output_folder=Path(
+        "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/wdbn4-vfm-input-data"
+    ),
+    x_coordinates_input_file="x_ref.csv",
+    y_coordinates_input_file="y_ref.csv",
+    strain_input_file="strain_data.h5",
+    force_input_file="force_history.csv",
+    time_input_file="force_history.csv",
+    x_coordinates_pixel_input_file="x_ref_pixel.csv",
+    y_coordinates_pixel_input_file="y_ref_pixel.csv",
+    # Preferred: a reference-image ROI definition in pixel space, such as a MatchID .m2inp/.m3inp file or a pyvale ROI .yaml/.yml file
+    # Alternative (but less accurate): a logical mask derived from DIC outputs, such as a x.csv whose finite values represent specimen pixels and whose NaN values represent non-specimen pixels
+    region_of_interest_input_file="WDBN4_correlation_cam0_SS49_ST3_SFaffine_SW3_Q4.m3inp",
+    reference_image_file="Image_0000_0.tiff",
+    strain_h5_dataset_names=("exx", "eyy", "exy"),
+    strain_component_order=("exx", "eyy", "exy"),
+)
+
+# Edit this section so the prepared-data diagnostics use the same intended
+# boundary-condition convention as the later VFM identification setup.
+BOUNDARY_CONDITIONS = BoundaryConditionConfig(
+    min_x_edge=EdgeBoundaryConfig(x="free", y="free"),
+    max_x_edge=EdgeBoundaryConfig(x="free", y="free"),
+    min_y_edge=EdgeBoundaryConfig(x="fixed", y="fixed"),
+    max_y_edge=EdgeBoundaryConfig(x="free", y="traction"),
+    force_component="y",
+    force_positive_direction="+",
+    arrow_scale_fraction=0.14,
+    arrow_label="Applied load",
+)
 
 @dataclass(slots=True)
 class CsvTable:
@@ -43,31 +153,9 @@ class CsvTable:
     def column_count(self) -> int:
         return len(self.header)
 
-
-# Edit this section for a new dataset.
-CONFIG = PreparationConfig(
-    input_folder=Path(
-        "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/wdbn4-temporally-processed-data-260622-1404"
-    ),
-    output_folder=Path(
-        "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/wdbn4-temporally-processed-data-260622-1404/prepared-vfm-inputs"
-    ),
-    x_coordinates_input_file="Image_0000_0.tiff_x.csv",
-    y_coordinates_input_file="Image_0000_0.tiff_y.csv",
-    strain_input_file="strain_data.h5",
-    force_input_file="force_history.csv",
-    time_input_file="force_history.csv",
-    x_coordinates_pixel_input_file="Image_0000_0.tiff_x_pic.csv",
-    y_coordinates_pixel_input_file="Image_0000_0.tiff_y_pic.csv",
-    region_of_interest_input_file="WDBN4_correlation_cam0_SS49_ST3_SFaffine_SW3_Q4.m3inp",
-    reference_image_file="Image_0000_0.tiff",
-    strain_h5_dataset_names=("exx", "eyy", "exy"),
-    strain_component_order=("exx", "eyy", "exy"),
-)
-
-
 def main() -> None:
     config = CONFIG
+    boundary_conditions = BOUNDARY_CONDITIONS
     timestamp = datetime.now().strftime("%y%m%d-%H%M")
     output_folder = config.output_folder.parent / f"{config.output_folder.name}-{timestamp}"
     generated_outputs_folder = output_folder / "generated-outputs"
@@ -80,18 +168,22 @@ def main() -> None:
     strain = _load_strain_data(config)
     validation_warnings: list[str] = []
 
-    x, y, coordinate_load_info = _load_main_coordinate_grids(config, strain.shape[2:])
-    _validate_coordinate_grids(x, y)
-    _validate_strain_shape(strain, x.shape)
+    x_raw, y_raw, coordinate_load_info = _load_main_coordinate_grids(config, strain.shape[2:])
+    _validate_coordinate_grids(x_raw, y_raw)
+    _validate_strain_shape(strain, x_raw.shape)
     validation_warnings.extend(coordinate_load_info["warnings"])
+    spatial_selection_info = _load_spatial_selection_info(config, x_raw.shape)
+
+    original_coordinate_valid_mask = np.isfinite(x_raw) & np.isfinite(y_raw)
 
     roi_alignment_x, roi_alignment_y, roi_alignment_info = _load_roi_alignment_coordinate_grids(
         config=config,
-        fallback_x=x,
-        fallback_y=y,
+        fallback_x=x_raw,
+        fallback_y=y_raw,
         target_shape=strain.shape[2:],
     )
     validation_warnings.extend(roi_alignment_info["warnings"])
+    validation_warnings.extend(_check_main_and_pixel_coordinate_grids(x_raw, y_raw, roi_alignment_x, roi_alignment_y))
 
     csv_cache: dict[Path, CsvTable] = {}
     previewed_paths: set[Path] = set()
@@ -115,24 +207,75 @@ def main() -> None:
     time, time_offset_correction = _maybe_zero_time_offset(time, time_info["unit"])
 
     validation_warnings.extend(_validate_force_and_time(force, time, strain.shape[0]))
-    validation_warnings.extend(_check_coordinate_conventions(x, y))
+    raw_coordinate_convention_warnings = _check_coordinate_conventions(x_raw, y_raw)
 
     specimen_mask, roi_summary, roi_warnings = _prepare_specimen_mask(
         config,
-        x,
-        y,
+        x_raw,
+        y_raw,
         roi_alignment_x,
         roi_alignment_y,
         output_folder,
         generated_outputs_folder,
+        spatial_selection_info=spatial_selection_info,
     )
     validation_warnings.extend(roi_warnings)
+
+    roi_confirmation = _confirm_specimen_mask(
+        specimen_mask=specimen_mask,
+        original_coordinate_valid_mask=original_coordinate_valid_mask,
+        x_raw=x_raw,
+        y_raw=y_raw,
+        output_folder=generated_outputs_folder,
+        roi_summary=roi_summary,
+    )
+
+    x, y, coordinate_fill_info = _fill_coordinate_grids_after_confirmation(
+        x_raw=x_raw,
+        y_raw=y_raw,
+        specimen_mask=specimen_mask,
+        roi_summary=roi_summary,
+        roi_confirmed=roi_confirmation["confirmed"],
+    )
+
+    orientation_transform = _determine_coordinate_convention_transform(x, y)
+    x_raw_display = _apply_coordinate_convention_to_axis_grid(x_raw, reflect_axis=orientation_transform.reflect_x)
+    y_raw_display = _apply_coordinate_convention_to_axis_grid(y_raw, reflect_axis=orientation_transform.reflect_y)
+    x = _apply_coordinate_convention_to_axis_grid(x, reflect_axis=orientation_transform.reflect_x)
+    y = _apply_coordinate_convention_to_axis_grid(y, reflect_axis=orientation_transform.reflect_y)
+    strain = _apply_coordinate_convention_to_strain(
+        strain,
+        orientation_transform,
+        component_names=config.strain_component_order,
+    )
+    force = _apply_coordinate_convention_to_force(
+        force,
+        orientation_transform,
+        boundary_conditions=boundary_conditions,
+    )
+
+    final_coordinate_convention_warnings = _check_coordinate_conventions(x, y)
+    validation_warnings.extend(final_coordinate_convention_warnings)
+
+    specimen_mask, roi_summary, roi_final_warnings = _finalise_region_of_interest_outputs(
+        specimen_mask=specimen_mask,
+        x=x,
+        y=y,
+        roi_alignment_x=roi_alignment_x,
+        roi_alignment_y=roi_alignment_y,
+        output_folder=output_folder,
+        generated_outputs_folder=generated_outputs_folder,
+        roi_summary=roi_summary,
+        reference_image_path=_resolve_input_path(config, config.reference_image_file),
+        spatial_selection_info=spatial_selection_info,
+        orientation_transform=orientation_transform,
+    )
+    validation_warnings.extend(roi_final_warnings)
 
     pixel_area = _estimate_point_area(x, y)
     area_checks, area_warnings = _check_specimen_area(
         point_area=pixel_area,
-        x=x,
-        y=y,
+        original_coordinate_valid_mask=original_coordinate_valid_mask,
         specimen_mask=specimen_mask,
     )
     validation_warnings.extend(area_warnings)
@@ -158,14 +301,20 @@ def main() -> None:
 
     plot_paths = _create_diagnostic_plots(
         output_folder=generated_outputs_folder,
-        x=x,
-        y=y,
+        x_main=x_raw_display,
+        y_main=y_raw_display,
+        x_main_prepared=x,
+        y_main_prepared=y,
+        x_pixel=roi_alignment_x,
+        y_pixel=roi_alignment_y,
         strain=strain,
         component_names=config.strain_component_order,
         force=force,
         time=time,
         specimen_mask=specimen_mask,
+        original_coordinate_valid_mask=original_coordinate_valid_mask,
         roi_summary=roi_summary,
+        boundary_conditions=boundary_conditions,
     )
 
     summary = {
@@ -193,14 +342,25 @@ def main() -> None:
             "pixel_area": list(pixel_area.shape),
         },
         "strain_component_order": list(config.strain_component_order),
+        "boundary_conditions": _serialise_boundary_conditions(boundary_conditions),
+        "spatial_selection": spatial_selection_info,
         "coordinate_load_info": coordinate_load_info,
+        "coordinate_fill": coordinate_fill_info,
         "roi_alignment_coordinate_info": roi_alignment_info,
+        "coordinate_convention_check_before_transform": {
+            "warnings": raw_coordinate_convention_warnings,
+        },
+        "coordinate_convention_transform": _serialise_coordinate_convention_transform(orientation_transform),
+        "coordinate_convention_check_after_transform": {
+            "warnings": final_coordinate_convention_warnings,
+        },
         "force_selection": force_info,
         "time_selection": {
             **time_info,
             "time_offset_corrected": time_offset_correction,
         },
         "roi_summary": roi_summary,
+        "roi_confirmation": roi_confirmation,
         "plots": {name: str(path) for name, path in plot_paths.items()},
         "warnings": validation_warnings,
     }
@@ -208,7 +368,15 @@ def main() -> None:
     summary_path.write_text(json.dumps(summary, indent=2))
 
     print("\nSaved arrays:")
-    for name in ("x.npy", "y.npy", "strain.npy", "force.npy", "time.npy", "pixel_area.npy"):
+    for name in (
+        "x.npy",
+        "y.npy",
+        "strain.npy",
+        "force.npy",
+        "time.npy",
+        "pixel_area.npy",
+        "specimen_mask.npy",
+    ):
         print(f"  - {output_folder / name}")
     print(f"  - {generated_outputs_folder / 'specimen_mask.npy'}")
 
@@ -217,6 +385,14 @@ def main() -> None:
         print(f"  - {name}: {path}")
 
     print(f"\nSaved summary: {summary_path}")
+
+    transform_description = _serialise_coordinate_convention_transform(orientation_transform)
+    print("\nCoordinate convention transform:")
+    print(
+        "  "
+        f"reflect_x={transform_description['reflect_x']}, "
+        f"reflect_y={transform_description['reflect_y']}"
+    )
 
     if validation_warnings:
         print("\nWarnings:")
@@ -325,6 +501,76 @@ def _load_roi_alignment_coordinate_grids(
         "used_fallback_main_coordinates": False,
         "warnings": warnings,
     }
+
+
+def _load_spatial_selection_info(
+    config: PreparationConfig,
+    target_shape: tuple[int, int],
+) -> dict[str, Any] | None:
+    metadata_path = _resolve_input_path(config, config.metadata_file)
+    indices_path = _resolve_input_path(config, config.selected_spatial_indices_file)
+
+    metadata_payload: dict[str, Any] | None = None
+    if metadata_path is not None and metadata_path.exists():
+        metadata_payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+
+    selection_payload = metadata_payload.get("selection") if isinstance(metadata_payload, dict) else None
+    row_indices = _coerce_index_list(selection_payload.get("selected_spatial_row_indices")) if isinstance(selection_payload, dict) else None
+    col_indices = _coerce_index_list(selection_payload.get("selected_spatial_column_indices")) if isinstance(selection_payload, dict) else None
+
+    if (row_indices is None or col_indices is None) and indices_path is not None and indices_path.exists():
+        parsed_rows, parsed_cols = _parse_selected_spatial_indices_file(indices_path)
+        row_indices = parsed_rows if row_indices is None else row_indices
+        col_indices = parsed_cols if col_indices is None else col_indices
+
+    if row_indices is None and col_indices is None and metadata_payload is None:
+        return None
+
+    info: dict[str, Any] = {
+        "metadata_path": str(metadata_path) if metadata_path is not None and metadata_path.exists() else None,
+        "selected_spatial_indices_path": (
+            str(indices_path) if indices_path is not None and indices_path.exists() else None
+        ),
+        "row_count": len(row_indices) if row_indices is not None else None,
+        "column_count": len(col_indices) if col_indices is not None else None,
+        "row_range": [row_indices[0], row_indices[-1]] if row_indices else None,
+        "column_range": [col_indices[0], col_indices[-1]] if col_indices else None,
+        "matches_prepared_grid_shape": (
+            len(row_indices) == target_shape[0] and len(col_indices) == target_shape[1]
+            if row_indices is not None and col_indices is not None
+            else None
+        ),
+        "note": (
+            "These selected spatial indices describe the crop in the full DIC grid. "
+            "ROI alignment still uses the pixel-coordinate grids because the uncropped ROI source lives in the "
+            "reference-image pixel space."
+        ),
+    }
+    return info
+
+
+def _coerce_index_list(values: Any) -> list[int] | None:
+    if values is None:
+        return None
+    if not isinstance(values, list):
+        return None
+    return [int(value) for value in values]
+
+
+def _parse_selected_spatial_indices_file(path: Path) -> tuple[list[int] | None, list[int] | None]:
+    text = path.read_text(encoding="utf-8")
+    row_match = re.search(r"selected_spatial_row_indices\s*=\s*\[([^\]]*)\]", text, flags=re.MULTILINE)
+    col_match = re.search(r"selected_spatial_column_indices\s*=\s*\[([^\]]*)\]", text, flags=re.MULTILINE)
+
+    def _parse_match(match: re.Match[str] | None) -> list[int] | None:
+        if match is None:
+            return None
+        body = match.group(1).strip()
+        if not body:
+            return []
+        return [int(value.strip()) for value in body.split(",") if value.strip()]
+
+    return _parse_match(row_match), _parse_match(col_match)
 
 
 def _import_h5py():
@@ -614,6 +860,28 @@ def _check_coordinate_conventions(x: np.ndarray, y: np.ndarray) -> list[str]:
     return warnings
 
 
+def _check_main_and_pixel_coordinate_grids(
+    x_main: np.ndarray,
+    y_main: np.ndarray,
+    x_pixel: np.ndarray,
+    y_pixel: np.ndarray,
+) -> list[str]:
+    warnings: list[str] = []
+    finite_mask = np.isfinite(x_main) & np.isfinite(y_main) & np.isfinite(x_pixel) & np.isfinite(y_pixel)
+    if not np.any(finite_mask):
+        return warnings
+
+    same_x = np.allclose(x_main[finite_mask], x_pixel[finite_mask], rtol=0.0, atol=1.0e-9)
+    same_y = np.allclose(y_main[finite_mask], y_pixel[finite_mask], rtol=0.0, atol=1.0e-9)
+    if same_x and same_y:
+        warnings.append(
+            "The main x/y coordinate grids are numerically identical to the pixel-coordinate grids. "
+            "No physical-unit conversion has been applied, so the 'coordinate_fields_mm' diagnostics will still "
+            "show pixel-valued coordinates unless different physical x/y inputs are provided."
+        )
+    return warnings
+
+
 def _safe_nanmedian(array: np.ndarray) -> float | None:
     finite = np.asarray(array, dtype=np.float64)
     finite = finite[np.isfinite(finite)]
@@ -643,6 +911,7 @@ def _prepare_specimen_mask(
     roi_alignment_y: np.ndarray,
     output_folder: Path,
     generated_outputs_folder: Path,
+    spatial_selection_info: dict[str, Any] | None,
 ) -> tuple[np.ndarray, dict[str, Any] | None, list[str]]:
     warnings: list[str] = []
     coordinate_valid_mask = np.isfinite(x) & np.isfinite(y)
@@ -665,19 +934,22 @@ def _prepare_specimen_mask(
 
     artifacts = roi_helper.generate_vfm_input_roi(roi_input_path, output_dir, **roi_kwargs)
     roi_mask = roi_helper.rasterise_roi_definition(artifacts.roi_definition)
-    specimen_mask, alignment_summary = roi_helper.sample_roi_mask_at_pixel_coordinates(
+    sampled_mask, alignment_summary = roi_helper.sample_roi_mask_at_pixel_coordinates(
         roi_mask,
         roi_alignment_x,
         roi_alignment_y,
     )
-    physical_roi_definition = roi_helper.convert_mask_to_physical_roi(
-        specimen_mask,
-        x=x,
-        y=y,
+
+    sampled_pixel_roi_yaml = generated_outputs_folder / "region_of_interest_pixel_source-aligned.yaml"
+    sampled_pixel_mask_tiff = generated_outputs_folder / "region_of_interest_pixel_source-aligned_mask.tiff"
+    sampled_pixel_roi_definition = roi_helper.convert_mask_to_physical_roi(
+        sampled_mask,
+        x=roi_alignment_x,
+        y=roi_alignment_y,
     )
-    region_of_interest_yaml = output_folder / "region_of_interest.yaml"
-    roi_helper.write_roi_yaml(physical_roi_definition, region_of_interest_yaml)
-    specimen_mask = roi_helper.sample_roi_definition_at_coordinates(physical_roi_definition, x, y)
+    roi_helper.write_roi_yaml(sampled_pixel_roi_definition, sampled_pixel_roi_yaml)
+    roi_helper.write_mask_tiff(sampled_mask, sampled_pixel_mask_tiff)
+    specimen_mask = sampled_mask.copy()
 
     mismatch_mask = specimen_mask ^ coordinate_valid_mask
     mismatch_count = int(np.count_nonzero(mismatch_mask))
@@ -695,19 +967,450 @@ def _prepare_specimen_mask(
     summary = {
         "source_kind": artifacts.source_kind,
         "input_path": str(roi_input_path),
-        "mask_shape": list(roi_mask.shape),
+        "source_mask_shape": list(roi_mask.shape),
         "sampled_mask_shape": list(specimen_mask.shape),
         "mask_pixel_count": int(artifacts.mask_pixel_count),
-        "roi_yaml": str(region_of_interest_yaml),
+        "roi_yaml": None,
         "intermediate_pixel_roi_yaml": str(artifacts.roi_yaml),
+        "sampled_pixel_roi_yaml": str(sampled_pixel_roi_yaml),
+        "sampled_pixel_mask_tiff": str(sampled_pixel_mask_tiff),
         "metadata_json": str(artifacts.metadata_json),
-        "mask_tiff": str(artifacts.mask_tiff),
-        "overlay_image": str(artifacts.overlay_image) if artifacts.overlay_image is not None else None,
-        "coordinate_space": "physical",
+        "source_mask_tiff": str(artifacts.mask_tiff),
+        "source_overlay_image": str(artifacts.overlay_image) if artifacts.overlay_image is not None else None,
+        "coordinate_space": "pixel-sampled-then-physical",
         "alignment": alignment_summary,
+        "spatial_selection": spatial_selection_info,
         "mismatch_count_vs_coordinate_nan_mask": mismatch_count,
+        "notes": [
+            "The ROI source artifacts remain in the uncropped source-image space.",
+            "The sampled pixel-space ROI artifacts represent the effective cropped ROI on the prepared DIC grid.",
+        ],
     }
     return specimen_mask, summary, warnings
+
+
+def _confirm_specimen_mask(
+    *,
+    specimen_mask: np.ndarray,
+    original_coordinate_valid_mask: np.ndarray,
+    x_raw: np.ndarray,
+    y_raw: np.ndarray,
+    output_folder: Path,
+    roi_summary: dict[str, Any] | None,
+) -> dict[str, Any]:
+    mismatch_mask = specimen_mask ^ original_coordinate_valid_mask
+    roi_only_mask = specimen_mask & ~original_coordinate_valid_mask
+    coordinate_only_mask = original_coordinate_valid_mask & ~specimen_mask
+    mismatch_count = int(np.count_nonzero(mismatch_mask))
+    roi_only_count = int(np.count_nonzero(roi_only_mask))
+    coordinate_only_count = int(np.count_nonzero(coordinate_only_mask))
+
+    plot_path = output_folder / "specimen_mask_confirmation.png"
+    mismatch_report_path = output_folder / "specimen_mask_mismatches.txt"
+    _save_mask_comparison_plot(
+        output_path=plot_path,
+        specimen_mask=specimen_mask,
+        coordinate_mask=original_coordinate_valid_mask,
+    )
+    mismatch_preview = _write_mismatch_report(
+        output_path=mismatch_report_path,
+        specimen_mask=specimen_mask,
+        coordinate_mask=original_coordinate_valid_mask,
+        x_raw=x_raw,
+        y_raw=y_raw,
+    )
+
+    if roi_summary is None:
+        print(
+            "\nNo ROI-derived specimen mask was created, so the original coordinate NaN mask "
+            "will remain the specimen definition."
+        )
+        return {
+            "confirmed": False,
+            "confirmation_required": False,
+            "mismatch_count": mismatch_count,
+            "roi_only_count": roi_only_count,
+            "coordinate_only_count": coordinate_only_count,
+            "comparison_plot": str(plot_path),
+            "mismatch_report": str(mismatch_report_path),
+            "mismatch_preview": mismatch_preview,
+        }
+
+    print("\nSpecimen mask review:")
+    print(f"  ROI source: {roi_summary['input_path']}")
+    print(f"  Comparison plot: {plot_path}")
+    print(f"  Mismatch report: {mismatch_report_path}")
+    print(f"  Total ROI vs coordinate-mask differences: {mismatch_count}")
+    print(f"  ROI-only points (inside ROI, NaN in original x/y): {roi_only_count}")
+    print(f"  Coordinate-only points (finite in original x/y, outside ROI): {coordinate_only_count}")
+    _print_mismatch_preview(mismatch_preview)
+
+    response = input(
+        "Confirm this specimen mask and fill the NaN holes in x/y for the prepared outputs? [y/N]: "
+    ).strip()
+    confirmed = response.lower() in {"y", "yes"}
+    if not confirmed:
+        raise SystemExit(
+            "Preparation cancelled so the ROI or mask can be reviewed before filling coordinate NaNs."
+        )
+
+    return {
+        "confirmed": True,
+        "confirmation_required": True,
+        "mismatch_count": mismatch_count,
+        "roi_only_count": roi_only_count,
+        "coordinate_only_count": coordinate_only_count,
+        "comparison_plot": str(plot_path),
+        "mismatch_report": str(mismatch_report_path),
+        "mismatch_preview": mismatch_preview,
+    }
+
+
+def _fill_coordinate_grids_after_confirmation(
+    *,
+    x_raw: np.ndarray,
+    y_raw: np.ndarray,
+    specimen_mask: np.ndarray,
+    roi_summary: dict[str, Any] | None,
+    roi_confirmed: bool,
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    x_missing_mask = ~np.isfinite(x_raw)
+    y_missing_mask = ~np.isfinite(y_raw)
+
+    if roi_summary is None:
+        return x_raw, y_raw, {
+            "performed": False,
+            "reason": "No ROI-derived specimen mask was available for confirmation.",
+            "x_missing_before": int(np.count_nonzero(x_missing_mask)),
+            "y_missing_before": int(np.count_nonzero(y_missing_mask)),
+        }
+
+    if not roi_confirmed:
+        return x_raw, y_raw, {
+            "performed": False,
+            "reason": "ROI-derived specimen mask was not confirmed.",
+            "x_missing_before": int(np.count_nonzero(x_missing_mask)),
+            "y_missing_before": int(np.count_nonzero(y_missing_mask)),
+        }
+
+    x_filled = _reconstruct_uniform_x_grid(x_raw)
+    y_filled = _reconstruct_uniform_y_grid(y_raw)
+    return x_filled, y_filled, {
+        "performed": True,
+        "reason": "Filled after the ROI-derived specimen mask was confirmed by the user.",
+        "method": "column-wise x reconstruction and row-wise y reconstruction",
+        "x_missing_before": int(np.count_nonzero(x_missing_mask)),
+        "y_missing_before": int(np.count_nonzero(y_missing_mask)),
+        "x_missing_inside_specimen_before": int(np.count_nonzero(x_missing_mask & specimen_mask)),
+        "y_missing_inside_specimen_before": int(np.count_nonzero(y_missing_mask & specimen_mask)),
+        "x_missing_after": int(np.count_nonzero(~np.isfinite(x_filled))),
+        "y_missing_after": int(np.count_nonzero(~np.isfinite(y_filled))),
+    }
+
+
+def _reconstruct_uniform_x_grid(x_raw: np.ndarray) -> np.ndarray:
+    x_axis = _representative_axis_from_grid(x_raw, axis=0)
+    return np.broadcast_to(x_axis[None, :], x_raw.shape).copy()
+
+
+def _reconstruct_uniform_y_grid(y_raw: np.ndarray) -> np.ndarray:
+    y_axis = _representative_axis_from_grid(y_raw, axis=1)
+    return np.broadcast_to(y_axis[:, None], y_raw.shape).copy()
+
+
+def _representative_axis_from_grid(grid: np.ndarray, *, axis: int) -> np.ndarray:
+    representative = np.empty(grid.shape[1] if axis == 0 else grid.shape[0], dtype=np.float64)
+    if axis == 0:
+        for col_index in range(grid.shape[1]):
+            median = _safe_nanmedian(grid[:, col_index])
+            representative[col_index] = np.nan if median is None else median
+    elif axis == 1:
+        for row_index in range(grid.shape[0]):
+            median = _safe_nanmedian(grid[row_index, :])
+            representative[row_index] = np.nan if median is None else median
+    else:
+        raise ValueError("axis must be 0 for columns or 1 for rows.")
+
+    return _fill_missing_axis_values(representative)
+
+
+def _fill_missing_axis_values(axis_values: np.ndarray) -> np.ndarray:
+    filled = np.asarray(axis_values, dtype=np.float64).copy()
+    finite_mask = np.isfinite(filled)
+    if not np.any(finite_mask):
+        raise ValueError("Could not reconstruct a coordinate axis from all-NaN values.")
+    if np.all(finite_mask):
+        return filled
+
+    indices = np.arange(filled.size, dtype=np.float64)
+    finite_indices = indices[finite_mask]
+    finite_values = filled[finite_mask]
+    filled[~finite_mask] = np.interp(indices[~finite_mask], finite_indices, finite_values)
+
+    if finite_indices.size >= 2:
+        first_finite_index = int(finite_indices[0])
+        last_finite_index = int(finite_indices[-1])
+        leading_slope = (finite_values[1] - finite_values[0]) / (finite_indices[1] - finite_indices[0])
+        trailing_slope = (finite_values[-1] - finite_values[-2]) / (finite_indices[-1] - finite_indices[-2])
+        for index in range(first_finite_index - 1, -1, -1):
+            filled[index] = filled[index + 1] - leading_slope
+        for index in range(last_finite_index + 1, filled.size):
+            filled[index] = filled[index - 1] + trailing_slope
+    return filled
+
+
+def _write_mismatch_report(
+    *,
+    output_path: Path,
+    specimen_mask: np.ndarray,
+    coordinate_mask: np.ndarray,
+    x_raw: np.ndarray,
+    y_raw: np.ndarray,
+) -> list[str]:
+    mismatch_indices = np.argwhere(specimen_mask ^ coordinate_mask)
+    lines = [
+        "# specimen mask mismatch report",
+        "# columns: row_index, col_index, mismatch_type, roi_mask, coordinate_mask, x_raw, y_raw",
+    ]
+    preview: list[str] = []
+    for row_index, col_index in mismatch_indices:
+        roi_value = bool(specimen_mask[row_index, col_index])
+        coordinate_value = bool(coordinate_mask[row_index, col_index])
+        mismatch_type = "roi_only" if roi_value and not coordinate_value else "coordinate_only"
+        x_value = x_raw[row_index, col_index]
+        y_value = y_raw[row_index, col_index]
+        line = (
+            f"{row_index}, {col_index}, {mismatch_type}, "
+            f"{int(roi_value)}, {int(coordinate_value)}, {x_value:.9g}, {y_value:.9g}"
+        )
+        lines.append(line)
+        if len(preview) < 10:
+            preview.append(line)
+
+    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return preview
+
+
+def _print_mismatch_preview(preview_lines: list[str]) -> None:
+    if not preview_lines:
+        print("  Mismatch preview: no mismatched points")
+        return
+    print("  Mismatch preview:")
+    for line in preview_lines:
+        print(f"    {line}")
+
+
+def _determine_coordinate_convention_transform(
+    x: np.ndarray,
+    y: np.ndarray,
+) -> CoordinateConventionTransform:
+    mean_dx_columns = _safe_nanmedian(np.diff(x, axis=1))
+    mean_dy_rows = _safe_nanmedian(np.diff(y, axis=0))
+    return CoordinateConventionTransform(
+        reflect_x=bool(mean_dx_columns is not None and mean_dx_columns < 0.0),
+        reflect_y=bool(mean_dy_rows is not None and mean_dy_rows < 0.0),
+    )
+
+
+def _apply_coordinate_convention_to_axis_grid(
+    grid: np.ndarray,
+    *,
+    reflect_axis: bool,
+) -> np.ndarray:
+    transformed = np.asarray(grid, dtype=np.float64).copy()
+    if not reflect_axis:
+        return transformed
+
+    finite_mask = np.isfinite(transformed)
+    if not np.any(finite_mask):
+        return transformed
+
+    min_value = float(np.min(transformed[finite_mask]))
+    max_value = float(np.max(transformed[finite_mask]))
+    transformed[finite_mask] = min_value + max_value - transformed[finite_mask]
+    return transformed
+
+
+def _apply_coordinate_convention_to_strain(
+    strain: np.ndarray,
+    transform: CoordinateConventionTransform,
+    *,
+    component_names: tuple[str, ...],
+) -> np.ndarray:
+    transformed = np.asarray(strain, dtype=np.float64).copy()
+    should_flip_shear_sign = transform.reflect_x ^ transform.reflect_y
+    if not should_flip_shear_sign:
+        return transformed
+
+    for component_index in _find_shear_component_indices(component_names, strain.shape[1]):
+        transformed[:, component_index, :, :] *= -1.0
+    return transformed.copy()
+
+
+def _find_shear_component_indices(
+    component_names: tuple[str, ...],
+    component_count: int,
+) -> list[int]:
+    indices: list[int] = []
+    for component_index in range(min(component_count, len(component_names))):
+        component_name = component_names[component_index].strip().lower()
+        if (
+            "xy" in component_name
+            or "yx" in component_name
+            or component_name in {"exy", "eyx", "c12", "c21", "e12", "e21"}
+            or "12" in component_name
+            or "21" in component_name
+            or "shear" in component_name
+        ):
+            indices.append(component_index)
+    return indices
+
+
+def _apply_coordinate_convention_to_force(
+    force: np.ndarray,
+    transform: CoordinateConventionTransform,
+    *,
+    boundary_conditions: BoundaryConditionConfig,
+) -> np.ndarray:
+    transformed = np.asarray(force, dtype=np.float64).copy()
+    reflected_axis = (
+        transform.reflect_x if boundary_conditions.force_component == "x" else transform.reflect_y
+    )
+    if not reflected_axis:
+        return transformed
+
+    if transformed.ndim == 1:
+        transformed *= -1.0
+        return transformed
+
+    if transformed.ndim != 2:
+        raise ValueError(f"Unsupported force array shape {transformed.shape}.")
+
+    component_index = 0 if boundary_conditions.force_component == "x" else 1
+    if transformed.shape[1] <= component_index:
+        raise ValueError(
+            f"Force array shape {transformed.shape} does not contain the required "
+            f"{boundary_conditions.force_component}-component."
+        )
+    transformed[:, component_index] *= -1.0
+    return transformed
+
+
+def _serialise_coordinate_convention_transform(
+    transform: CoordinateConventionTransform,
+) -> dict[str, Any]:
+    return {
+        "applied": transform.applied,
+        "reflect_x": transform.reflect_x,
+        "reflect_y": transform.reflect_y,
+        "method": "coordinate-axis reflection in place",
+        "notes": [
+            "The physical coordinate fields are reflected, when needed, so x increases left-to-right and y increases top-to-bottom.",
+            "If exactly one axis is reflected, shear strain components are negated.",
+            "If the configured force component lies on a reflected axis, that force sign is negated too.",
+        ],
+    }
+
+
+def _finalise_region_of_interest_outputs(
+    *,
+    specimen_mask: np.ndarray,
+    x: np.ndarray,
+    y: np.ndarray,
+    roi_alignment_x: np.ndarray,
+    roi_alignment_y: np.ndarray,
+    output_folder: Path,
+    generated_outputs_folder: Path,
+    roi_summary: dict[str, Any] | None,
+    reference_image_path: Path | None,
+    spatial_selection_info: dict[str, Any] | None,
+    orientation_transform: CoordinateConventionTransform,
+) -> tuple[np.ndarray, dict[str, Any] | None, list[str]]:
+    if roi_summary is None:
+        return specimen_mask, roi_summary, []
+
+    roi_helper = _import_roi_helper()
+    warnings: list[str] = []
+
+    physical_roi_definition = roi_helper.convert_mask_to_physical_roi(
+        specimen_mask,
+        x=x,
+        y=y,
+    )
+    region_of_interest_yaml = output_folder / "region_of_interest.yaml"
+    roi_helper.write_roi_yaml(physical_roi_definition, region_of_interest_yaml)
+    specimen_mask = roi_helper.sample_roi_definition_at_coordinates(physical_roi_definition, x, y)
+
+    sampled_pixel_roi_definition = roi_helper.convert_mask_to_physical_roi(
+        specimen_mask,
+        x=roi_alignment_x,
+        y=roi_alignment_y,
+    )
+    sampled_pixel_roi_yaml = generated_outputs_folder / "region_of_interest_pixel.yaml"
+    sampled_pixel_mask_tiff = generated_outputs_folder / "region_of_interest_pixel_mask.tiff"
+    roi_helper.write_roi_yaml(sampled_pixel_roi_definition, sampled_pixel_roi_yaml)
+    roi_helper.write_mask_tiff(specimen_mask, sampled_pixel_mask_tiff)
+
+    cropped_overlay_path = None
+    source_mask_tiff = roi_summary.get("source_mask_tiff")
+    if (
+        reference_image_path is not None
+        and reference_image_path.exists()
+        and source_mask_tiff is not None
+        and Path(str(source_mask_tiff)).exists()
+    ):
+        cropped_overlay_path = generated_outputs_folder / "region_of_interest_pixel_overlay.png"
+        _save_cropped_source_space_roi_overlay(
+            reference_image_path=reference_image_path,
+            source_mask_path=Path(str(source_mask_tiff)),
+            x_pixels=roi_alignment_x,
+            y_pixels=roi_alignment_y,
+            output_path=cropped_overlay_path,
+        )
+
+    roi_summary["roi_yaml"] = str(region_of_interest_yaml)
+    roi_summary["sampled_pixel_roi_yaml"] = str(sampled_pixel_roi_yaml)
+    roi_summary["sampled_pixel_mask_tiff"] = str(sampled_pixel_mask_tiff)
+    roi_summary["pixel_overlay_image"] = str(cropped_overlay_path) if cropped_overlay_path is not None else None
+    roi_summary["spatial_selection"] = spatial_selection_info
+    roi_summary["coordinate_convention_transform"] = _serialise_coordinate_convention_transform(orientation_transform)
+
+    consistency_mask = roi_helper.sample_roi_definition_at_coordinates(physical_roi_definition, x, y)
+    consistency_mismatch_count = int(np.count_nonzero(consistency_mask ^ specimen_mask))
+    roi_summary["final_consistency_mismatch_count"] = consistency_mismatch_count
+    if consistency_mismatch_count > 0:
+        warnings.append(
+            f"The final physical ROI YAML differs from the saved specimen mask at {consistency_mismatch_count} points."
+        )
+
+    return specimen_mask, roi_summary, warnings
+
+
+def _save_cropped_source_space_roi_overlay(
+    *,
+    reference_image_path: Path,
+    source_mask_path: Path,
+    x_pixels: np.ndarray,
+    y_pixels: np.ndarray,
+    output_path: Path,
+) -> Path:
+    roi_helper = _import_roi_helper()
+    reference_image = roi_helper.load_grayscale_image(reference_image_path)
+    source_mask = roi_helper.load_grayscale_image(source_mask_path) > 0
+    valid = np.isfinite(x_pixels) & np.isfinite(y_pixels)
+    if not np.any(valid):
+        raise ValueError("Could not create a pixel-space ROI overlay because the pixel-coordinate grids are all NaN.")
+
+    min_col = max(0, int(np.floor(np.nanmin(x_pixels[valid]))))
+    max_col = min(reference_image.shape[1], int(np.ceil(np.nanmax(x_pixels[valid]))) + 1)
+    min_row = max(0, int(np.floor(np.nanmin(y_pixels[valid]))))
+    max_row = min(reference_image.shape[0], int(np.ceil(np.nanmax(y_pixels[valid]))) + 1)
+
+    image_crop = reference_image[min_row:max_row, min_col:max_col]
+    overlay_mask = source_mask[min_row:max_row, min_col:max_col]
+
+    roi_helper.save_roi_overlay_plot(image_crop, overlay_mask, output_path)
+    return output_path
 
 
 def _estimate_point_area(x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -721,13 +1424,11 @@ def _estimate_point_area(x: np.ndarray, y: np.ndarray) -> np.ndarray:
 def _check_specimen_area(
     *,
     point_area: np.ndarray,
-    x: np.ndarray,
-    y: np.ndarray,
+    original_coordinate_valid_mask: np.ndarray,
     specimen_mask: np.ndarray,
 ) -> tuple[dict[str, Any], list[str]]:
     warnings: list[str] = []
-    coordinate_valid_mask = np.isfinite(x) & np.isfinite(y)
-    area_from_coordinate_mask = float(np.nansum(np.where(coordinate_valid_mask, point_area, 0.0)))
+    area_from_coordinate_mask = float(np.nansum(np.where(original_coordinate_valid_mask, point_area, 0.0)))
     area_from_specimen_mask = float(np.nansum(np.where(specimen_mask, point_area, 0.0)))
     point_count = int(np.count_nonzero(specimen_mask))
 
@@ -780,6 +1481,28 @@ def _save_region_of_interest_summary(
         intermediate_pixel_roi_yaml = roi_summary.get("intermediate_pixel_roi_yaml")
         if intermediate_pixel_roi_yaml is not None:
             metadata_payload["intermediate_pixel_roi_yaml"] = str(intermediate_pixel_roi_yaml)
+        sampled_pixel_roi_yaml = roi_summary.get("sampled_pixel_roi_yaml")
+        if sampled_pixel_roi_yaml is not None:
+            metadata_payload["sampled_pixel_roi_yaml"] = str(sampled_pixel_roi_yaml)
+            saved_paths["sampled_pixel_roi_yaml"] = str(sampled_pixel_roi_yaml)
+        sampled_pixel_mask_tiff = roi_summary.get("sampled_pixel_mask_tiff")
+        if sampled_pixel_mask_tiff is not None:
+            metadata_payload["sampled_pixel_mask_tiff"] = str(sampled_pixel_mask_tiff)
+            saved_paths["sampled_pixel_mask_tiff"] = str(sampled_pixel_mask_tiff)
+        pixel_overlay_image = roi_summary.get("pixel_overlay_image")
+        if pixel_overlay_image is not None:
+            metadata_payload["pixel_overlay_image"] = str(pixel_overlay_image)
+            saved_paths["pixel_overlay_image"] = str(pixel_overlay_image)
+        source_mask_tiff = roi_summary.get("source_mask_tiff")
+        if source_mask_tiff is not None:
+            metadata_payload["source_mask_tiff"] = str(source_mask_tiff)
+        source_overlay_image = roi_summary.get("source_overlay_image")
+        if source_overlay_image is not None:
+            metadata_payload["source_overlay_image"] = str(source_overlay_image)
+        metadata_payload["alignment"] = roi_summary.get("alignment")
+        metadata_payload["spatial_selection"] = roi_summary.get("spatial_selection")
+        metadata_payload["coordinate_convention_transform"] = roi_summary.get("coordinate_convention_transform")
+        metadata_payload["notes"] = roi_summary.get("notes", [])
         metadata_destination.write_text(json.dumps(metadata_payload, indent=2), encoding="utf-8")
         saved_paths["region_of_interest_metadata_json"] = str(metadata_destination)
 
@@ -804,30 +1527,37 @@ def _save_outputs(
     np.save(output_folder / "force.npy", force)
     np.save(output_folder / "time.npy", time)
     np.save(output_folder / "pixel_area.npy", pixel_area)
+    np.save(output_folder / "specimen_mask.npy", specimen_mask.astype(bool))
     np.save(generated_outputs_folder / "specimen_mask.npy", specimen_mask.astype(bool))
 
 
 def _create_diagnostic_plots(
     *,
     output_folder: Path,
-    x: np.ndarray,
-    y: np.ndarray,
+    x_main: np.ndarray,
+    y_main: np.ndarray,
+    x_main_prepared: np.ndarray,
+    y_main_prepared: np.ndarray,
+    x_pixel: np.ndarray,
+    y_pixel: np.ndarray,
     strain: np.ndarray,
     component_names: tuple[str, ...],
     force: np.ndarray,
     time: np.ndarray,
     specimen_mask: np.ndarray,
+    original_coordinate_valid_mask: np.ndarray,
     roi_summary: dict[str, Any] | None,
+    boundary_conditions: BoundaryConditionConfig,
 ) -> dict[str, Path]:
     pyplot = _load_pyplot()
     plot_paths: dict[str, Path] = {}
 
-    coordinate_mask = np.isfinite(x) & np.isfinite(y)
+    coordinate_mask = np.asarray(original_coordinate_valid_mask, dtype=bool)
 
-    coordinate_plot_path = output_folder / "coordinate_fields.png"
+    coordinate_plot_path = output_folder / "coordinate_fields_mm.png"
     fig, axes = pyplot.subplots(1, 3, figsize=(15, 4.5))
-    _imshow_with_colorbar(pyplot, fig, axes[0], x, "x coordinates")
-    _imshow_with_colorbar(pyplot, fig, axes[1], y, "y coordinates")
+    _scatter_with_colorbar(pyplot, fig, axes[0], x_main, y_main, x_main, "Configured main x coordinates")
+    _scatter_with_colorbar(pyplot, fig, axes[1], x_main, y_main, y_main, "Configured main y coordinates")
     axes[2].imshow(coordinate_mask, cmap="gray", interpolation="nearest")
     axes[2].set_title("Coordinate valid mask")
     axes[2].set_xlabel("x index")
@@ -835,7 +1565,20 @@ def _create_diagnostic_plots(
     fig.tight_layout()
     fig.savefig(coordinate_plot_path, dpi=200)
     pyplot.close(fig)
-    plot_paths["coordinate_fields"] = coordinate_plot_path
+    plot_paths["coordinate_fields_mm"] = coordinate_plot_path
+
+    coordinate_plot_pixel_path = output_folder / "coordinate_fields_pixel.png"
+    fig, axes = pyplot.subplots(1, 3, figsize=(15, 4.5))
+    _scatter_with_colorbar(pyplot, fig, axes[0], x_pixel, y_pixel, x_pixel, "x pixel coordinates")
+    _scatter_with_colorbar(pyplot, fig, axes[1], x_pixel, y_pixel, y_pixel, "y pixel coordinates")
+    axes[2].imshow(coordinate_mask, cmap="gray", interpolation="nearest")
+    axes[2].set_title("Coordinate valid mask")
+    axes[2].set_xlabel("x index")
+    axes[2].set_ylabel("y index")
+    fig.tight_layout()
+    fig.savefig(coordinate_plot_pixel_path, dpi=200)
+    pyplot.close(fig)
+    plot_paths["coordinate_fields_pixel"] = coordinate_plot_pixel_path
 
     load_plot_path = output_folder / "force_time_checks.png"
     fig, axes = pyplot.subplots(1, 3, figsize=(15, 4.5))
@@ -860,32 +1603,144 @@ def _create_diagnostic_plots(
     pyplot.close(fig)
     plot_paths["force_time_checks"] = load_plot_path
 
-    strain_plot_path = output_folder / "strain_component_checks.png"
+    strain_plot_path = output_folder / "strain_component_checks_mm.png"
     component_count = min(strain.shape[1], len(component_names))
     fig, axes = pyplot.subplots(2, component_count, figsize=(5 * component_count, 8))
     axes_array = np.atleast_2d(axes)
     for component_index in range(component_count):
         component_name = component_names[component_index]
-        _imshow_with_colorbar(
+        _scatter_with_colorbar(
             pyplot,
             fig,
             axes_array[0, component_index],
+            x_main_prepared,
+            y_main_prepared,
             strain[0, component_index],
-            f"{component_name} at first timestep",
+            f"{component_name} at first timestep (main coords)",
+            valid_mask=specimen_mask,
         )
-        _imshow_with_colorbar(
+        _scatter_with_colorbar(
             pyplot,
             fig,
             axes_array[1, component_index],
+            x_main_prepared,
+            y_main_prepared,
             strain[-1, component_index],
-            f"{component_name} at last timestep",
+            f"{component_name} at last timestep (main coords)",
+            valid_mask=specimen_mask,
         )
     fig.tight_layout()
     fig.savefig(strain_plot_path, dpi=200)
     pyplot.close(fig)
-    plot_paths["strain_component_checks"] = strain_plot_path
+    plot_paths["strain_component_checks_mm"] = strain_plot_path
+
+    strain_plot_pixel_path = output_folder / "strain_component_checks_px.png"
+    fig, axes = pyplot.subplots(2, component_count, figsize=(5 * component_count, 8))
+    axes_array = np.atleast_2d(axes)
+    for component_index in range(component_count):
+        component_name = component_names[component_index]
+        _scatter_with_colorbar(
+            pyplot,
+            fig,
+            axes_array[0, component_index],
+            x_pixel,
+            y_pixel,
+            strain[0, component_index],
+            f"{component_name} at first timestep (pixel coords)",
+            valid_mask=specimen_mask,
+        )
+        _scatter_with_colorbar(
+            pyplot,
+            fig,
+            axes_array[1, component_index],
+            x_pixel,
+            y_pixel,
+            strain[-1, component_index],
+            f"{component_name} at last timestep (pixel coords)",
+            valid_mask=specimen_mask,
+        )
+    fig.tight_layout()
+    fig.savefig(strain_plot_pixel_path, dpi=200)
+    pyplot.close(fig)
+    plot_paths["strain_component_checks_px"] = strain_plot_pixel_path
 
     mask_plot_path = output_folder / "mask_checks.png"
+    _save_mask_comparison_plot(
+        output_path=mask_plot_path,
+        specimen_mask=specimen_mask,
+        coordinate_mask=coordinate_mask,
+    )
+    plot_paths["mask_checks"] = mask_plot_path
+
+    boundary_plot_path = output_folder / "boundary_conditions.png"
+    _save_boundary_condition_plot(
+        output_path=boundary_plot_path,
+        x=x_main_prepared,
+        y=y_main_prepared,
+        specimen_mask=specimen_mask,
+        force=force,
+        boundary_conditions=boundary_conditions,
+    )
+    plot_paths["boundary_conditions"] = boundary_plot_path
+
+    if roi_summary is not None and roi_summary.get("pixel_overlay_image") is not None:
+        plot_paths["roi_pixel_overlay"] = Path(str(roi_summary["pixel_overlay_image"]))
+
+    return plot_paths
+
+
+def _imshow_with_colorbar(pyplot, fig, ax, image: np.ndarray, title: str) -> None:
+    im = ax.imshow(image, interpolation="nearest")
+    ax.set_title(title)
+    ax.set_xlabel("x index")
+    ax.set_ylabel("y index")
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+
+
+def _scatter_with_colorbar(
+    pyplot,
+    fig,
+    ax,
+    x_coords: np.ndarray,
+    y_coords: np.ndarray,
+    values: np.ndarray,
+    title: str,
+    valid_mask: np.ndarray | None = None,
+) -> None:
+    valid = np.isfinite(x_coords) & np.isfinite(y_coords) & np.isfinite(values)
+    if valid_mask is not None:
+        valid &= np.asarray(valid_mask, dtype=bool)
+    if not np.any(valid):
+        ax.set_title(title)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        return
+
+    scatter = ax.scatter(
+        x_coords[valid],
+        y_coords[valid],
+        c=values[valid],
+        s=6,
+        linewidths=0.0,
+        cmap="viridis",
+    )
+    ax.set_title(title)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect("equal")
+    unique_y = np.unique(y_coords[valid])
+    if unique_y.size >= 2 and np.nanmedian(np.diff(unique_y)) > 0.0:
+        ax.invert_yaxis()
+    fig.colorbar(scatter, ax=ax, fraction=0.046, pad=0.04)
+
+
+def _save_mask_comparison_plot(
+    *,
+    output_path: Path,
+    specimen_mask: np.ndarray,
+    coordinate_mask: np.ndarray,
+) -> None:
+    pyplot = _load_pyplot()
     fig, axes = pyplot.subplots(1, 3, figsize=(15, 4.5))
     axes[0].imshow(specimen_mask, cmap="gray", interpolation="nearest")
     axes[0].set_title("Final specimen mask")
@@ -901,22 +1756,173 @@ def _create_diagnostic_plots(
     axes[2].set_xlabel("x index")
     axes[2].set_ylabel("y index")
     fig.tight_layout()
-    fig.savefig(mask_plot_path, dpi=200)
+    fig.savefig(output_path, dpi=200)
     pyplot.close(fig)
-    plot_paths["mask_checks"] = mask_plot_path
-
-    if roi_summary is not None and roi_summary.get("overlay_image") is not None:
-        plot_paths["roi_overlay"] = Path(str(roi_summary["overlay_image"]))
-
-    return plot_paths
 
 
-def _imshow_with_colorbar(pyplot, fig, ax, image: np.ndarray, title: str) -> None:
-    im = ax.imshow(image, interpolation="nearest")
-    ax.set_title(title)
-    ax.set_xlabel("x index")
-    ax.set_ylabel("y index")
-    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+def _save_boundary_condition_plot(
+    *,
+    output_path: Path,
+    x: np.ndarray,
+    y: np.ndarray,
+    specimen_mask: np.ndarray,
+    force: np.ndarray,
+    boundary_conditions: BoundaryConditionConfig,
+) -> None:
+    pyplot = _load_pyplot()
+    valid = specimen_mask & np.isfinite(x) & np.isfinite(y)
+    if not np.any(valid):
+        raise ValueError("Could not plot boundary conditions because the specimen mask is empty.")
+
+    x_valid = x[valid]
+    y_valid = y[valid]
+    x_min = float(np.min(x_valid))
+    x_max = float(np.max(x_valid))
+    y_min = float(np.min(y_valid))
+    y_max = float(np.max(y_valid))
+    width = max(x_max - x_min, 1.0)
+    height = max(y_max - y_min, 1.0)
+    edge_line_width = 3.0
+
+    fig, ax = pyplot.subplots(figsize=(7, 6))
+    ax.scatter(x_valid, y_valid, s=3, c="#c7d2da", alpha=0.6, linewidths=0.0, label="Specimen points")
+    ax.set_aspect("equal")
+    ax.invert_yaxis()
+    ax.set_xlabel("Physical x")
+    ax.set_ylabel("Physical y")
+    ax.set_title("Boundary-condition diagnostic")
+
+    edge_segments = {
+        "min_x_edge": ((x_min, y_min), (x_min, y_max), boundary_conditions.min_x_edge),
+        "max_x_edge": ((x_max, y_min), (x_max, y_max), boundary_conditions.max_x_edge),
+        "min_y_edge": ((x_min, y_min), (x_max, y_min), boundary_conditions.min_y_edge),
+        "max_y_edge": ((x_min, y_max), (x_max, y_max), boundary_conditions.max_y_edge),
+    }
+
+    for edge_name, (start, end, edge_config) in edge_segments.items():
+        color = _edge_boundary_colour(edge_config)
+        ax.plot(
+            [start[0], end[0]],
+            [start[1], end[1]],
+            color=color,
+            linewidth=edge_line_width,
+            solid_capstyle="round",
+        )
+        midpoint_x = 0.5 * (start[0] + end[0])
+        midpoint_y = 0.5 * (start[1] + end[1])
+        ax.text(
+            midpoint_x,
+            midpoint_y,
+            _edge_boundary_label(edge_name, edge_config),
+            fontsize=8,
+            color=color,
+            ha="center",
+            va="center",
+            bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none", "pad": 1.0},
+        )
+
+    arrow_vector = _resolve_force_arrow_vector(force, boundary_conditions)
+    traction_edge_name = _find_traction_edge_name(boundary_conditions)
+    if traction_edge_name is not None:
+        arrow_length = boundary_conditions.arrow_scale_fraction * max(width, height)
+        if traction_edge_name == "min_x_edge":
+            arrow_origin = (x_min, 0.5 * (y_min + y_max))
+        elif traction_edge_name == "max_x_edge":
+            arrow_origin = (x_max, 0.5 * (y_min + y_max))
+        elif traction_edge_name == "min_y_edge":
+            arrow_origin = (0.5 * (x_min + x_max), y_min)
+        else:
+            arrow_origin = (0.5 * (x_min + x_max), y_max)
+
+        ax.arrow(
+            arrow_origin[0],
+            arrow_origin[1],
+            arrow_length * arrow_vector[0],
+            arrow_length * arrow_vector[1],
+            color="tab:orange",
+            width=0.01 * max(width, height),
+            length_includes_head=True,
+            head_width=0.04 * max(width, height),
+            head_length=0.06 * max(width, height),
+        )
+        ax.text(
+            arrow_origin[0] + 0.55 * arrow_length * arrow_vector[0],
+            arrow_origin[1] + 0.55 * arrow_length * arrow_vector[1],
+            boundary_conditions.arrow_label,
+            color="tab:orange",
+            fontsize=9,
+            ha="left" if arrow_vector[0] >= 0.0 else "right",
+            va="bottom" if arrow_vector[1] <= 0.0 else "top",
+        )
+
+    margin_x = 0.08 * width
+    margin_y = 0.08 * height
+    ax.set_xlim(x_min - margin_x, x_max + margin_x)
+    ax.set_ylim(y_max + margin_y, y_min - margin_y)
+    ax.grid(True, alpha=0.15)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=200)
+    pyplot.close(fig)
+
+
+def _edge_boundary_colour(edge_config: EdgeBoundaryConfig) -> str:
+    states = {edge_config.x, edge_config.y}
+    if "traction" in states:
+        return "tab:orange"
+    if "fixed" in states:
+        return "tab:red"
+    return "tab:green"
+
+
+def _edge_boundary_label(edge_name: str, edge_config: EdgeBoundaryConfig) -> str:
+    return (
+        f"{edge_name}\n"
+        f"x={edge_config.x}, y={edge_config.y}"
+    )
+
+
+def _find_traction_edge_name(boundary_conditions: BoundaryConditionConfig) -> str | None:
+    ordered_edges = (
+        ("min_x_edge", boundary_conditions.min_x_edge),
+        ("max_x_edge", boundary_conditions.max_x_edge),
+        ("min_y_edge", boundary_conditions.min_y_edge),
+        ("max_y_edge", boundary_conditions.max_y_edge),
+    )
+    for edge_name, edge_config in ordered_edges:
+        if edge_config.x == "traction" or edge_config.y == "traction":
+            return edge_name
+    return None
+
+
+def _resolve_force_arrow_vector(
+    force: np.ndarray,
+    boundary_conditions: BoundaryConditionConfig,
+) -> tuple[float, float]:
+    representative_sign = 1.0
+    nonzero_force = force[np.isfinite(force) & ~np.isclose(force, 0.0)]
+    if nonzero_force.size > 0:
+        representative_sign = float(np.sign(nonzero_force[-1]))
+
+    configured_sign = 1.0 if boundary_conditions.force_positive_direction == "+" else -1.0
+    direction_sign = representative_sign * configured_sign
+    if boundary_conditions.force_component == "x":
+        return direction_sign, 0.0
+    return 0.0, direction_sign
+
+
+def _serialise_boundary_conditions(
+    boundary_conditions: BoundaryConditionConfig,
+) -> dict[str, Any]:
+    return {
+        "min_x_edge": {"x": boundary_conditions.min_x_edge.x, "y": boundary_conditions.min_x_edge.y},
+        "max_x_edge": {"x": boundary_conditions.max_x_edge.x, "y": boundary_conditions.max_x_edge.y},
+        "min_y_edge": {"x": boundary_conditions.min_y_edge.x, "y": boundary_conditions.min_y_edge.y},
+        "max_y_edge": {"x": boundary_conditions.max_y_edge.x, "y": boundary_conditions.max_y_edge.y},
+        "force_component": boundary_conditions.force_component,
+        "force_positive_direction": boundary_conditions.force_positive_direction,
+        "arrow_scale_fraction": boundary_conditions.arrow_scale_fraction,
+        "arrow_label": boundary_conditions.arrow_label,
+    }
 
 
 def _load_pyplot():

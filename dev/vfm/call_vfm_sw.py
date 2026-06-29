@@ -26,23 +26,20 @@ from pyvale.vfm.vfm import run_identification
 from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
 
 
-def _resolve_inputs_path() -> Path:
-    dataset_root = Path(__file__).resolve().parent / "rob-data" / "wdbn4-temporally-processed-data-260622-1404"
-    prepared_candidates = sorted(dataset_root.glob("prepared-vfm-inputs-*"))
-    return prepared_candidates[-1] if prepared_candidates else dataset_root
 
 
-inputs_path = _resolve_inputs_path()
+
+inputs_path =Path(__file__).resolve().parent / "rob-data" / "wdbn4-temporally-processed-data-260622-1404" / "prepared-vfm-inputs-260623-1453"
 
 def main():
-    os.environ.setdefault("MPLCONFIGDIR", "/tmp/mplconfig")
 
+    
     specimen_geometry = SpecimenGeometry(
-        np.load(inputs_path / "x.npy"),
-        np.load(inputs_path / "y.npy"),
-        VfmRegionOfInterest.from_yaml(inputs_path / "region_of_interest.yaml"),
-        0.8,
-        np.load(inputs_path / "pixel_area.npy"),
+        x = np.load(inputs_path / "x.npy"),
+        y = np.load(inputs_path / "y.npy"),
+        region_of_interest = VfmRegionOfInterest.from_yaml(inputs_path / "region_of_interest.yaml"),
+        thickness = 0.8,
+        pixel_area = np.load(inputs_path / "pixel_area.npy"),
     )
 
     boundary_conditions = BoundaryConditions(
@@ -73,6 +70,8 @@ def main():
         boundary_conditions,
         np.load(inputs_path / "time.npy"),
     )
+
+    # Define slice wise parameterisation
     parameter_map_size = np.array(specimen_geometry.x.shape)
     slice_partition = build_slice_partition(
         specimen_geometry,

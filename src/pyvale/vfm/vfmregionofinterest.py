@@ -167,7 +167,21 @@ def load_roi_definition(
     image_shape: tuple[int, int] | None = None,
     simplification_pixels: float = 1.0,
 ) -> RoiDefinition:
-    """Load a ROI source and normalise it to the canonical VFM ROI definition."""
+    """Load a ROI source and normalise it to the canonical VFM ROI definition.
+
+    Supported inputs currently include:
+
+    - reference-image ROI definitions such as MatchID ``.m2inp``/``.m3inp``
+    - pyvale ROI ``.yaml``/``.yml`` files
+    - logical specimen masks stored as images, ``.npy`` arrays, or text grids
+      such as ``.csv`` data
+
+    Any supported source can be used, but more accurate ROI definitions usually
+    lead to better downstream specimen metrics.
+
+    FE mesh inputs are intended for a future implementation and are not yet
+    supported here.
+    """
 
     resolved_input = Path(input_path)
     resolved_reference_image = Path(reference_image) if reference_image is not None else None
@@ -354,12 +368,20 @@ def generate_vfm_input_roi(
 ) -> VfmInputRoiArtifacts:
     """Generate a canonical ROI for VFM identification.
 
-    Valid input files:
+    Valid input files currently include:
       - MatchID input files: `.m2inp`, `.m3inp`
-      - legacy `dicregionofinterest.py` ROI YAML files: `.yaml`, `.yml`
+      - pyvale or legacy ROI YAML files: `.yaml`, `.yml`
       - binary mask images: `.tif`, `.tiff`, `.png`, `.bmp`, `.jpg`, `.jpeg`
       - NumPy masks: `.npy`
       - text masks: `.txt`, `.csv`, `.dat`
+
+    Any supported source can be normalised to the canonical VFM ROI format.
+    Reference-image ROI definitions are typically the most accurate. Logical
+    masks are also supported, but the resulting geometry is limited by the
+    source mask resolution.
+
+    FE mesh files are not implemented yet, but they are an intended future ROI
+    source for nodal specimen geometry.
 
     The output directory receives:
       - `<stem>_vfm_roi.yaml`
