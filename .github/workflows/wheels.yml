@@ -64,7 +64,7 @@ jobs:
             cmake.define.CMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
 
           CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >
-            "delvewheel repair -w {dest_dir} {wheel}"
+            delvewheel repair -w "{dest_dir}" "{wheel}"
 
       - uses: actions/upload-artifact@v4
         with:
