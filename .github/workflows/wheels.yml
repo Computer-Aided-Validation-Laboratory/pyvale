@@ -51,6 +51,9 @@ jobs:
         env:
           CIBW_SKIP: "*-win32 pp* *musllinux*"
 
+          CIBW_ENVIRONMENT_WINDOWS: >
+            PATH="C:/vcpkg/installed/x64-windows/bin;$PATH"
+
           CIBW_BEFORE_BUILD_LINUX: |
             yum install -y libtiff-devel
 
