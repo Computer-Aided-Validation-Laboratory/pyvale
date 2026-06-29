@@ -18,9 +18,12 @@ from pyvale.vfm.identification import Identification, IdentificationPhase
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import LeastSquares
-from pyvale.vfm.slicepartition import SliceConfig, build_slice_partition
 from pyvale.vfm.spatialparamhomogeneous import HomogeneousSpatialParameterisation
-from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
+from pyvale.vfm.spatialparamslicewise import (
+    SliceConfig,
+    SliceWiseSpatialParameterisation,
+    build_slice_partition,
+)
 from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
 from pyvale.vfm.vfm import run_identification
 from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
@@ -29,7 +32,7 @@ from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
 
 
 
-inputs_path =Path(__file__).resolve().parent / "rob-data" / "wdbn4-temporally-processed-data-260622-1404" / "prepared-vfm-inputs-260623-1453"
+inputs_path =Path(__file__).resolve().parent / "rob-data" / "wdbn4-vfm-input-data-260629-1530"
 
 def main():
 
@@ -44,21 +47,21 @@ def main():
 
     boundary_conditions = BoundaryConditions(
         EdgeConditions(
-            Edge(
+            min_x_edge=Edge(
                 EEdgeCondition.Free,
                 EEdgeCondition.Free
             ),
-            Edge(
-                EEdgeCondition.Free,
-                EEdgeCondition.Traction
-            ),
-            Edge(
+            max_x_edge=Edge(
                 EEdgeCondition.Free,
                 EEdgeCondition.Free
             ),
-            Edge(
+            min_y_edge=Edge(
                 EEdgeCondition.Fixed,
                 EEdgeCondition.Fixed
+            ),
+            max_y_edge=Edge(
+                EEdgeCondition.Free,
+                EEdgeCondition.Traction
             )
         ),
         np.load(inputs_path / "force.npy"),
@@ -72,12 +75,12 @@ def main():
     )
 
     # Define slice wise parameterisation
-    parameter_map_size = np.array(specimen_geometry.x.shape)
     slice_partition = build_slice_partition(
         specimen_geometry,
         slice_config=SliceConfig(axis="y", num_slices=3),
     )
 
+    parameter_map_size = np.array(specimen_geometry.x.shape)
     parameters = {
         "elastic_modulus": ConstitutiveParameter(
             190_000, 150_000, 250_000, parameter_map_size

@@ -8,7 +8,7 @@ import numpy.typing as npt
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.metric import IMetric
-from pyvale.vfm.slicepartition import SlicePartition
+from pyvale.vfm.spatialparamslicewise import SlicePartition
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 

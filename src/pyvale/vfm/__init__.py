@@ -27,7 +27,6 @@ from .optimiserleastsquares import *
 from .metric import *
 from .metricsbvf import *
 from .metricsliceforce import *
-from .slicepartition import *
 from .vfmesh import *
 
 from .objectivefunc import *
