@@ -1,0 +1,7 @@
+Compares the same set-up (TestCase.WATER, i.e., tank filled with water) for Blender and the ray tracer
+- Anti-aliasing samples = 2 for all of these
+- Dist = camera distance set in convergence_rt for debugging
+- Flat/blended/blendedall= shading mode; in Blender:
+	- Blended - Blended are tank and water, beam is flat
+	- Blendedall - Blended is everything, included beam (this is to compare directly to the ray tracer, which doesn't have a selective shading setting per object)
+Blender: overlap = Dielectrics overlap, i.e., identical setting as the ray tracer. Blender doesn't seem to have set rules for handling nested dielectrics and a lot is up to the modeller, so...
