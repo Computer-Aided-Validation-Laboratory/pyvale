@@ -5,6 +5,18 @@ from pyvale.vfm.identificationconfig import IdentificationConfig
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 
 
+# TODO:
+#   - chech x, y, pixel area, strain (y, x) dims have same shape 
+#   - roi validation
+#   - specimen mask validation
+# 
+# # check specimen mask agrees with x, y, pixel_area
+# x_valid = np.isfinite(x)
+# y_valid = np.isfinite(y)
+# pixel_area_valid = np.isfinite(pixel_area)
+# if not np.array_equal(self.specimen_mask, x_valid & y_valid & pixel_area_valid):
+#     raise ValueError("Specimen mask does not agree with x, y, and pixel_area.")
+
 def validate_experiment_data(
     experiment_data: ExperimentData
 ) -> None:

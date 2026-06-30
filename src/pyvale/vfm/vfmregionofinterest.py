@@ -12,6 +12,9 @@ from typing import Literal
 from matplotlib.path import Path as MatplotlibPath
 import numpy as np
 from PIL import Image, ImageDraw
+from shapely.geometry import Point, Polygon, box
+from shapely.geometry.base import BaseGeometry
+from shapely.ops import unary_union
 import yaml
 
 
@@ -210,6 +213,49 @@ def rasterise_roi_definition(
     """Rasterise a ROI definition to a boolean mask."""
 
     return np.asarray(roi_definition.rasterise_mask(image_shape=image_shape), dtype=bool)
+
+
+def build_roi_geometry(roi_definition: RoiDefinition) -> BaseGeometry:
+    """Convert the ROI definition into a shapely geometry."""
+
+    additive_geometries: list[BaseGeometry] = []
+    cutting_geometries: list[BaseGeometry] = []
+    for shape in roi_definition.shapes:
+        geometry = _roi_shape_to_geometry(shape)
+        if shape.is_cutting:
+            cutting_geometries.append(geometry)
+        else:
+            additive_geometries.append(geometry)
+
+    if not additive_geometries:
+        raise ValueError("ROI geometry could not be built because no additive shapes were defined.")
+
+    roi_geometry = unary_union(additive_geometries)
+    if cutting_geometries:
+        roi_geometry = roi_geometry.difference(unary_union(cutting_geometries))
+
+    if roi_geometry.is_empty:
+        raise ValueError("ROI geometry is empty after applying the cutting shapes.")
+    return roi_geometry.buffer(0.0)
+
+
+def _roi_shape_to_geometry(shape: RoiShape) -> BaseGeometry:
+    """Convert one ROI shape to the equivalent shapely geometry."""
+
+    if shape.shape_type == "polygon":
+        if len(shape.vertices) < 3:
+            raise ValueError("Polygon ROI shape must contain at least three vertices.")
+        return Polygon(shape.vertices)
+
+    if shape.shape_type == "rectangle":
+        if shape.rectangle is None:
+            raise ValueError("Rectangle ROI shape is missing rectangle coordinates.")
+        x_origin, y_origin, width, height = map(float, shape.rectangle)
+        return box(x_origin, y_origin, x_origin + width, y_origin + height)
+
+    if shape.center is None or shape.radius is None:
+        raise ValueError("Circle ROI shape is missing its centre or radius.")
+    return Point(float(shape.center[0]), float(shape.center[1])).buffer(float(shape.radius))
 
 
 def sample_roi_mask_at_pixel_coordinates(

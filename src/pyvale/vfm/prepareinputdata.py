@@ -122,7 +122,7 @@ CONFIG = PreparationConfig(
     x_coordinates_pixel_input_file="x_ref_pixel.csv",
     y_coordinates_pixel_input_file="y_ref_pixel.csv",
     # Preferred: a reference-image ROI definition in pixel space, such as a MatchID .m2inp/.m3inp file or a pyvale ROI .yaml/.yml file
-    # Alternative (but less accurate): a logical mask derived from DIC outputs, such as a x.csv whose finite values represent specimen pixels and whose NaN values represent non-specimen pixels
+    # Alternative (but less accurate): a logical mask derived from DIC outputs, such as a x_ref.csv whose finite values represent specimen pixels and whose NaN values represent non-specimen pixels
     region_of_interest_input_file="WDBN4_correlation_cam0_SS49_ST3_SFaffine_SW3_Q4.m3inp",
     reference_image_file="Image_0000_0.tiff",
     strain_h5_dataset_names=("exx", "eyy", "exy"),

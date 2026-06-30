@@ -1,6 +1,6 @@
-import os
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
@@ -17,8 +17,7 @@ from pyvale.vfm.hardening import LinearHardening
 from pyvale.vfm.identification import Identification, IdentificationPhase
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
-from pyvale.vfm.optimiserleastsquares import LeastSquares
-from pyvale.vfm.spatialparamhomogeneous import HomogeneousSpatialParameterisation
+from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
 from pyvale.vfm.spatialparamslicewise import (
     SliceConfig,
     SliceWiseSpatialParameterisation,
@@ -77,22 +76,24 @@ def main():
     # Define slice wise parameterisation
     slice_partition = build_slice_partition(
         specimen_geometry,
-        slice_config=SliceConfig(axis="y", num_slices=3),
+        slice_config=SliceConfig(axis="y", num_slices=20),
+        plot_diagnostic=True,
+        
     )
 
     parameter_map_size = np.array(specimen_geometry.x.shape)
     parameters = {
         "elastic_modulus": ConstitutiveParameter(
-            190_000, 150_000, 250_000, parameter_map_size
+            210_000, 150_000, 250_000, parameter_map_size
         ),
         "poissons_ratio": ConstitutiveParameter(
-            0.28, 0.2, 0.4, parameter_map_size
+            0.3, 0.2, 0.4, parameter_map_size
         ),
         "yield_strength": ConstitutiveParameter(
-            320, 100, 1000, parameter_map_size
+            200, 100, 2000, parameter_map_size
         ),
         "hardening_modulus": ConstitutiveParameter(
-            3000, 1000, 10_000, parameter_map_size
+            3000, 1000, 15_000, parameter_map_size
         ),
     }
 
@@ -102,13 +103,13 @@ def main():
                 "elastic_modulus": KnownSpatialParameterisation(),
                 "poissons_ratio": KnownSpatialParameterisation(),
                 "yield_strength": SliceWiseSpatialParameterisation(slice_partition),
-                "hardening_modulus": HomogeneousSpatialParameterisation(),
+                "hardening_modulus": SliceWiseSpatialParameterisation(slice_partition),
             },
             [
                 SliceWiseForceReconstructionMetric(slice_partition)
             ],
             VectorFirstResultPassthrough(),
-            LeastSquares(),
+            SliceWiseIndependentLeastSquares(),
         )
     ]
 
@@ -122,6 +123,19 @@ def main():
 
     vfm_result = run_identification(experiment_data, identification)
     print(vfm_result)
+
+    # Plot
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4), constrained_layout=True)
+    for ax, param_name, title in zip(
+        axes,
+        ("yield_strength", "hardening_modulus"),
+        ("Yield Strength", "Hardening Modulus"),
+        strict=True,
+    ):
+        image = ax.imshow(vfm_result[param_name].value, origin="lower", cmap="viridis")
+        ax.set_title(title)
+        fig.colorbar(image, ax=ax)
+    plt.show()
 
 
 if __name__ == "__main__":
