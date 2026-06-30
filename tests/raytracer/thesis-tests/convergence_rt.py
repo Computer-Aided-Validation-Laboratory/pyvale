@@ -40,9 +40,12 @@ BEAM_POSITION = np.array([0.0, 4, 0.0]) # Doesn't really matter; x = 0.0 is key,
 BEAM_OFFSET = np.array([1.5, 0.0, 3.5]) 
 CAMERA_DISTANCE = 110 # From original set-up
 CAMERA_HEIGHT = 10.0
-CAMERA__Z= CAMERA_DISTANCE + TANK_MID_Z + BEAM_OFFSET[2] # Wwe account here for the fact that the sample is at some -z position because it's centered within the tank and the offset
-#CAMERA_DISTANCE = 260 # Use this to sanity check nested dielectric set-up
+#CAMERA_Z = CAMERA_DISTANCE + TANK_MID_Z + BEAM_OFFSET[2] # We account here for the fact that the sample is at some -z position because it's centered within the tank and the offset
 SCALE_PX_PER_MM = 45.06
+# Camera distances to for sanity-checking nested dielectrics - uncomment for debug only
+# You also need to increase angle_vfov to something like 20 in the main rendering function
+#CAMERA_DISTANCE = 180 # See tank edges (slightly zoomed out)
+CAMERA_DISTANCE = 300 # See full tank (top and bottom)
 VIEWPORT_Z = CAMERA_DISTANCE - 1 # Viewport position
 CAMERA_POSITION = np.array([BEAM_OFFSET[0] - 0.5, CAMERA_HEIGHT, CAMERA_DISTANCE]) # Camera was slightly moved right to center on the beam, too
 CAMERA_TARGET = np.array([BEAM_OFFSET[0] - 0.5, CAMERA_HEIGHT, VIEWPORT_Z])
@@ -53,7 +56,7 @@ CAMERA_TARGET = np.array([BEAM_OFFSET[0] - 0.5, CAMERA_HEIGHT, VIEWPORT_Z])
 
 # Number of anti-aliasing samples at which we end the test regardless of whether the convergence
 # has been reached or not
-SUBSAMPLE_LIMIT_MAX = 16384 # 2^14, so 14 runs per sample
+SUBSAMPLE_LIMIT_MAX = 4 
 RMSE_LIMIT_MIN = 1e-6 # When rmse < RMSE_LIMIT_MIN, we say it is converged
 
 # Convenience enums for accessing the right meshes
@@ -177,9 +180,11 @@ def bitwise_compare(data_path_new: Path, data_path_prev: Path | None = None, bit
     
     # Calculate our metrics
     similarity_identical = num_identical / total_pixels # Similarity score based on how many pixels are exactly identical
-    rmse = np.sqrt(np.mean((pixel_array_new - pixel_array_prev) ** 2)) # Root mean square error
+    # Cast to float since original data is uint16, so we may risk overflow
+    difference_float = pixel_array_new.astype(np.float64) - pixel_array_prev.astype(np.float64)
+    rmse = np.sqrt(np.mean(difference_float ** 2)) # Root mean square error
     # RMSE similarity - based on the RMSE and the max. integer value for this picture (less sensitive to tiny per-pixel differences)
-    similarity_rmse = 1.0 - rmse / max_value 
+    similarity_rmse = 1.0 - rmse / float(max_value)
 
     return rmse, similarity_rmse, similarity_identical
 
@@ -230,14 +235,12 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
     # Data for Photron Nova S6
     image_width = resolution
     image_height = resolution
-    output_format = output_format_phs6
     camera_center = CAMERA_POSITION
     camera_target = CAMERA_TARGET
     # Angle vfov is in degrees
-    import math
-    distance_to_sample = 110
     #angle_vfov = vertical_fov_from_sensor(sensor_height_phs6, lens_focal_length_phs6)
     angle_vfov = vertical_fov_from_resolution(resolution, SCALE_PX_PER_MM, CAMERA_DISTANCE) # this works better (more truthfully for this)
+    angle_vfov = 20
     cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
 
     # ------------------------------------------------
@@ -285,7 +288,7 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
         # We need to make tank RTMesh regardless of the case to snap the beam position correctly...
         tank_path = get_tank_path(tank_access, element)
         #tank_path = get_tank_path(tank_access, Elements.TRI3) # if pipe
-        tank = any_mesh_to_rtmesh(tank_path, world_position = TANK_POSITION, anchor = Anchor.CENTER) # -24 is half the tank width so its front is at z=0.0
+        tank = any_mesh_to_rtmesh(tank_path, world_position = TANK_POSITION, anchor = Anchor.CENTER)
         if test_case == TestCase.TANK: # Tank with air
             tank.set_surface(SurfType.FIELD_COLOR,
                          material = MaterialPresets.PLASTIC_ACRYLIC,
@@ -331,7 +334,8 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
             csvfile.flush()
             os.fsync(csvfile.fileno())
             # Create the first image as our baseline
-            render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6, omp_thread_count = thread_count)
+            #render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6, omp_thread_count = thread_count)
+            render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.BLENDED, image_format = output_format_phs6, omp_thread_count = thread_count)
             # Create the updated filename and change file name
             new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
             os.rename(target.joinpath(fresh_filename), target.joinpath(new_filename))
@@ -372,10 +376,35 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
 # Post-processing
 # ================================================================================
 
-# Ray tracer: Need to do all 4 cases (they already iterate through all elements)
-def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False, detailed = False):
-    # Get the address of the directory with the data (assuming we haven't changed it)
+def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resolution, start_subsamples: int, end_subsamples: int):
+    base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    elem_dir_name = base_data_dir + element.label
+    data_path = test_dir(BASE_TEST_DIR, elem_dir_name)
+    csv_path = data_path / "convergence_log.csv" # Full path to the csv with all numerical data
+    image_base_name = "rtimage_subsamples_"
+    image_suffix = ".tiff"
+    subsamples = start_subsamples * 2 # Assuming we increase the subsample count in powers of 2
+    iteration = 1
+    prev_filename = image_base_name + str(start_subsamples) + image_suffix
+    with open(csv_path, mode="w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=["iteration", "subsamples", "rmse", "sim_score_rmse", "sim_score_identical"])
+            writer.writeheader()
+            while subsamples <= end_subsamples:
+                current_filename = image_base_name + str(subsamples) + image_suffix
+                rmse, sim_score_rmse, sim_score_identical = bitwise_compare(data_path / current_filename, data_path / prev_filename)
+                writer.writerow({
+                    "iteration": iteration,
+                    "subsamples": subsamples,
+                    "rmse": rmse,
+                    "sim_score_rmse": sim_score_rmse,
+                    "sim_score_identical": sim_score_identical})
+                prev_filename = current_filename
+                subsamples *= 2
+                iteration += 1
 
+# Ray tracer: Need to do all 4 cases (they already iterate through all elements)
+def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = False, detailed = False):
+    # Get the address of the directory with the data (assuming we haven't changed it)
     base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
     filename = test_case.value + "_convergence_plot.png"
@@ -451,8 +480,156 @@ def plot_results(test_case: TestCase, resolution: Resolution, save: bool = False
     if save:
         fig.savefig(Path.joinpath(target_path, "convergence_plot.png"), dpi=300)
 
+
+def difference_image(data_path_higher: Path, data_path_lower: Path, label: str, bit_depth: BitDepth = BitDepth.BIT_12):
+    max_value = 4095 # Max integer value for 12-bit uint; assign by default
+    if bit_depth == BitDepth.BIT_8:
+        max_value = 255 # Max integer value for 8-bit uint
+    elif bit_depth == BitDepth.BIT_16:
+        max_value = 65535 # Max integer value for 16-bit uint
+
+    # cv2.IMREAD_ANYDEPTH forces OpenCV to keep the 16-bit depth instead of downsampling it to 8-bit
+    img_a = cv2.imread(str(data_path_higher), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+    img_b = cv2.imread(str(data_path_lower), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+
+    # If it loaded as a 3-channel image, grab just the first channel
+    if len(img_a .shape) == 3:
+        img_a  = img_a [:, :, 0]
+    if len(img_b.shape) == 3:
+        img_b = img_b[:, :, 0]
+
+    # 1. Raw difference between the two images
+    difference = cv2.absdiff(img_a, img_b).astype(np.uint16)
+    output_dir = data_path_higher.parent
+    output_name = f"difference_raw_{label}.tiff"
+    raw_path = output_dir / output_name
+
+    ok = cv2.imwrite(str(raw_path), difference)
+    if not ok:
+        raise IOError(f"Could not write output image: {raw_path}")
+    
+    # 2. Save stretched 8-bit visualization for human inspection
+    diff_float = difference.astype(np.float32)
+
+    dmax = diff_float.max()
+    if dmax > 0:
+        diff_vis = diff_float * (max_value / dmax)
+    else:
+        diff_vis = diff_float.copy()
+
+    diff_vis_8 = np.clip(diff_vis * (255.0 / max_value), 0, 255).astype(np.uint8)
+
+    vis_path = output_dir / f"difference_vis_{label}.png"
+    ok = cv2.imwrite(str(vis_path), diff_vis_8)
+    if not ok:
+        raise IOError(f"Could not write visualized difference image: {vis_path}")
+
+   # 3. Optional: binary mask of changed pixels
+    threshold_value = 2
+    mask = (difference > threshold_value).astype(np.uint8) * 255
+
+    # Make changed pixels easier to see
+    dilate_size = 3
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_size, dilate_size))
+    mask_vis = cv2.dilate(mask, kernel, iterations=1)
+
+    mask_path = output_dir / f"difference_mask_{label}.png"
+    ok = cv2.imwrite(str(mask_path), mask_vis)
+    if not ok:
+        raise IOError(f"Could not write mask image: {mask_path}")
+
+    # 4. Overlay
+    base_8 = np.clip(img_a.astype(np.float32) * (255.0 / max_value), 0, 255).astype(np.uint8)
+    overlay = cv2.cvtColor(base_8, cv2.COLOR_GRAY2BGR)
+
+    # Paint dilated mask pink (matching historgram), not the raw exact-difference pixels
+    overlay[mask_vis == 255] = (194, 119, 227) # BGR, not RGB
+
+    overlay_path = output_dir / f"difference_overlay_{label}.png"
+    ok = cv2.imwrite(str(overlay_path), overlay)
+    if not ok:
+        raise IOError(f"Could not write overlay image: {overlay_path}")
+    
+    # 5. Histogram of absolute differences
+    hist_path = output_dir / f"difference_hist_{label}.png"
+
+    diff_1d = difference.ravel()
+    bins = np.arange(0, int(diff_1d.max()) + 2) - 0.5
+
+    fig, ax = plt.subplots(figsize=(8, 5), dpi=150)
+    ax.hist(diff_1d, bins=bins, color="tab:pink", edgecolor="black")
+    ax.set_title("Histogram of absolute pixel differences")
+    ax.set_xlabel("Absolute pixel difference")
+    ax.set_ylabel("Pixel count")
+
+    # Uncomment if most pixels are identical and the zero bin dominates:
+    # ax.set_yscale("log")
+
+    plt.tight_layout()
+    plt.savefig(hist_path, bbox_inches="tight")
+    plt.close(fig)
+
+    return raw_path, vis_path, mask_path
+
+def difference_heatmap(data_path_higher: Path,
+    data_path_lower: Path,
+    label: str,
+    bit_depth: BitDepth = BitDepth.BIT_12,
+    vmax: float | None = None):
+    max_value = 4095
+    if bit_depth == BitDepth.BIT_8:
+        max_value = 255
+    elif bit_depth == BitDepth.BIT_16:
+        max_value = 65535
+
+    img1 = cv2.imread(str(data_path_higher), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+    img2 = cv2.imread(str(data_path_lower), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+
+    if len(img1.shape) == 3:
+        img1 = img1[:, :, 0]
+    if len(img2.shape) == 3:
+        img2 = img2[:, :, 0]
+
+    # Cast before subtracting
+    diff = np.abs(img1.astype(np.float32) - img2.astype(np.float32))
+    diff_norm = diff / max_value
+
+    output_dir = data_path_higher.parent
+    output_path = output_dir / f"difference_heatmap_{label}.png"
+
+    fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
+
+    im = ax.imshow(diff_norm, cmap="magma", vmin=0, vmax=0.01, origin="upper")
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label("Absolute pixel difference (fraction of full scale)")
+
+    ax.set_title("Per-pixel absolute difference")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+
+    plt.tight_layout()
+    plt.savefig(output_path, bbox_inches="tight")
+    plt.close(fig)
+
+    return output_path
+
+def check_difference(element: Element, test_case:TestCase, resolution: Resolution, start_subsamples: int, end_subsamples: int):
+    base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    elem_dir_name = base_data_dir + element.label  
+    data_path = test_dir(BASE_TEST_DIR, elem_dir_name)
+    data_path_higher = data_path / ("rtimage_subsamples_" + str(end_subsamples) + ".tiff")
+    data_path_lower = data_path / ("rtimage_subsamples_" + str(start_subsamples) + ".tiff")
+
+    label = str(end_subsamples) + "_" + str(start_subsamples)
+    difference_image(data_path_higher, data_path_lower, label)
+    difference_heatmap(data_path_higher, data_path_lower, label)
+
+#check_difference(Elements.QUAD9, TestCase.AIR_DIFFUSE, Resolution.HIGH, 524288, 1048576)
+#check_difference(Elements.QUAD9, TestCase.AIR_DIFFUSE, Resolution.HIGH, 262144, 1048576)
 #conv_test_rt(TestCase.AIR_UNLIT, Resolution.HIGH, 1)
-plot_results(TestCase.AIR_DIFFUSE, Resolution.LOW, True, False)
+
+fill_convergence_log(Elements.TRI6, TestCase.AIR_UNLIT, Resolution.LOW, 1, 2097152)
+#plot_results_all(TestCase.AIR_DIFFUSE, Resolution.HIGH, True, False)
 
 
 
