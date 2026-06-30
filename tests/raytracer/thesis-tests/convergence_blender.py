@@ -27,14 +27,10 @@ import csv
 import os
 import bpy
 import numpy as np
-from collections import defaultdict
 import timeit
 
 from pyvale.raytracer.rtblender import BlenderUnwrapper
 from pyvale.raytracer.rtmesh import RTMesh, pyvista_faces_to_connectivity
-from pyvale.sensorsim import EDim
-from pyvale.sensorsim.imagetools import ImageTools
-from pyvale.blender.blendertools import Tools
 
 from pyvale.raytracer.rtmesh import *
 from pyvale.raytracer.rtmeshvisuals import *
@@ -781,10 +777,17 @@ def conv_test_blender(test_case: TestCase,
     csv_path = target / "convergence_log.csv"
     iteration_number = 0
     subsamples = starting_subsamples  # Anti-aliasing samples
+    # For saving render time data - useful for CPU rendering to compare directly to the ray-tracer
+    time_csv_path = target / "gpu_render_time_log.csv"
+    if cpu:
+        time_csv_path = target / "cpu_render_time_log.csv"
+    time_log_exists = os.path.isfile(time_csv_path)
+    time_mode = "a" if time_log_exists else "w" # Append if time log already exists
+    
     times = defaultdict()
-    with open(csv_path, mode="w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.DictWriter(
-            csvfile,
+    with open(csv_path, mode="w", newline="", encoding="utf-8") as csvfile, \
+        open(time_csv_path, mode=time_mode, newline="", encoding="utf-8") as timefile:
+        writer = csv.DictWriter(csvfile,
             fieldnames=[
                 "iteration",
                 "subsamples",
@@ -798,7 +801,13 @@ def conv_test_blender(test_case: TestCase,
         # Baseline render
         # Need lambda in timeit since we're using local variables
         time = timeit.timeit(lambda: render_scene_blender(image_width, image_height, subsamples, target, image_format=output_format, flat_shading=True, fresh_filename=fresh_filename, cpu=cpu), number=1)
-        times[str(subsamples)] = time
+        time_writer = csv.DictWriter(timefile, fieldnames=["subsamples","time (s)"])
+        if not time_log_exists:
+            time_writer.writeheader()
+        time_writer.writerow({"subsamples": subsamples, "time (s)": time})
+        timefile.flush()
+        os.fsync(timefile.fileno())
+
         new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
         os.rename(target.joinpath(fresh_filename), target.joinpath(new_filename))
 
@@ -809,10 +818,13 @@ def conv_test_blender(test_case: TestCase,
             iteration_number += 1
 
             time = timeit.timeit(lambda: render_scene_blender(image_width, image_height, subsamples, target, image_format=output_format, flat_shading=True, fresh_filename=fresh_filename, cpu=cpu), number=1)
-            times[str(subsamples)] = time
+            # Rename file
             new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
             os.rename(target / fresh_filename, target / new_filename)
-
+            # Store time data
+            time_writer.writerow({"subsamples": subsamples, "time (s)": time})
+            timefile.flush()
+            os.fsync(timefile.fileno())
             # Compare this render with the previous one
             rmse, sim_score_rmse, sim_score_identical = bitwise_compare(target / new_filename, target / prev_filename)
             print(f"-------------------------------- \nCURRENT SUBSAMPLE COUNT: {subsamples}"
@@ -835,14 +847,9 @@ def conv_test_blender(test_case: TestCase,
             if subsamples >= SUBSAMPLE_LIMIT_MAX:
                 print(f"Exceeded the maximum subsample limit of {SUBSAMPLE_LIMIT_MAX}. Terminating this case.")
                 break
-        # Save time taken at the end - useful for CPU rendering to compare directly to the ray-tracer
-        time_csv_path = target / "gpu_render_time_log.csv"
-        if cpu:
-            time_csv_path = target / "cpu_render_time_log.csv"
+        
         with open(time_csv_path, mode="w", newline="", encoding="utf-8") as csvfile:
-            writer = csv.DictWriter(csvfile,
-                fieldnames=["subsamples",
-                    "time (s)"])
+            writer = csv.DictWriter(csvfile, fieldnames=["subsamples", "time (s)"])
             writer.writeheader()
             for subsample_count in times.keys():
                 writer.writerow({
