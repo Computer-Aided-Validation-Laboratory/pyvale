@@ -45,7 +45,7 @@ SCALE_PX_PER_MM = 45.06
 # Camera distances to for sanity-checking nested dielectrics - uncomment for debug only
 # You also need to increase angle_vfov to something like 20 in the main rendering function
 #CAMERA_DISTANCE = 180 # See tank edges (slightly zoomed out)
-CAMERA_DISTANCE = 300 # See full tank (top and bottom)
+#CAMERA_DISTANCE = 300 # See full tank (top and bottom)
 VIEWPORT_Z = CAMERA_DISTANCE - 1 # Viewport position
 CAMERA_POSITION = np.array([BEAM_OFFSET[0] - 0.5, CAMERA_HEIGHT, CAMERA_DISTANCE]) # Camera was slightly moved right to center on the beam, too
 CAMERA_TARGET = np.array([BEAM_OFFSET[0] - 0.5, CAMERA_HEIGHT, VIEWPORT_Z])
@@ -240,7 +240,7 @@ def conv_test_rt(test_case: TestCase, resolution: Resolution = Resolution.HIGH, 
     # Angle vfov is in degrees
     #angle_vfov = vertical_fov_from_sensor(sensor_height_phs6, lens_focal_length_phs6)
     angle_vfov = vertical_fov_from_resolution(resolution, SCALE_PX_PER_MM, CAMERA_DISTANCE) # this works better (more truthfully for this)
-    angle_vfov = 20
+    #angle_vfov = 20
     cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
 
     # ------------------------------------------------

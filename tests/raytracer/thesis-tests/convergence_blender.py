@@ -25,9 +25,10 @@ falls back to.
 """
 import csv
 import os
-
 import bpy
 import numpy as np
+from collections import defaultdict
+import timeit
 
 from pyvale.raytracer.rtblender import BlenderUnwrapper
 from pyvale.raytracer.rtmesh import RTMesh, pyvista_faces_to_connectivity
@@ -496,7 +497,8 @@ def configure_render_settings(image_width: int,
     image_height: int,
     subsamples: int,
     image_format: ImageFormat = output_format_phs6,
-    flat_shading: bool = True) -> None:
+    flat_shading: bool = True,
+    cpu: bool = False) -> None:
     """
     Configure Blender's render engine to match the ray tracer's pinhole +
     ambient + anti-aliasing-subsampling setup, and to write a comparable image.
@@ -518,6 +520,9 @@ def configure_render_settings(image_width: int,
     flat_shading : bool
         Whether the scene is being rendered with FLAT shading. Recorded for
         clarity; the actual per-object flat flag is set via shade_rtmesh_flat.
+    cpu : bool
+        Whether to render with CPU instead of GPU. This is to compare directly with
+        the ray tracer. Defaults to false
     """
     scene = bpy.context.scene
 
@@ -537,7 +542,19 @@ def configure_render_settings(image_width: int,
         scene.cycles.max_bounces = 30
         scene.cycles.transmission_bounces = 30
         scene.cycles.transparent_max_bounces = 30
+
+        # CPU settings if relevant
+        if cpu:
+            scene.cycles.device = "CPU"
+            # Access Cycles add-on preferences
+            prefs = bpy.context.preferences
+            cprefs = prefs.addons["cycles"].preferences
+            # CPU-only compute device type; "None" <=> CPU-only in newer Blender versions
+            cprefs.compute_device_type = "NONE"
+            print("Switched Blender to use CPU.")
+
     except AttributeError:
+        print("Cycles engine is not available. Falling black to EEVEE.")
         # If Cycles is unavailable, fall back to EEVEE with TAA samples
         scene.render.engine = "BLENDER_EEVEE_NEXT"
         scene.eevee.taa_render_samples = int(subsamples)
@@ -575,7 +592,8 @@ def render_scene_blender(image_width: int,
     target_dir,
     image_format: ImageFormat = output_format_phs6,
     flat_shading: bool = True,
-    fresh_filename: str = "rtimage_0_cam0.tiff") -> str:
+    fresh_filename: str = "rtimage_0_cam0.tiff",
+    cpu: bool = False) -> str:
     """
     Render the current Blender scene to target_dir / fresh_filename.
 
@@ -598,6 +616,9 @@ def render_scene_blender(image_width: int,
         Whether FLAT shading is in effect (passed to settings for clarity).
     fresh_filename : str
         Base output filename (kept constant so the loop can rename it).
+    cpu : bool
+        Whether to render with CPU instead of GPU. This is to compare directly with
+        the ray tracer. Defaults to false
 
     Returns
     -------
@@ -609,7 +630,8 @@ def render_scene_blender(image_width: int,
         image_height,
         subsamples,
         image_format=image_format,
-        flat_shading=flat_shading)
+        flat_shading=flat_shading,
+        cpu = cpu) # Set to true to compare directly to ray-tracer, otherwise keep at False for speed
 
     out_path = os.fspath(target_dir / fresh_filename)
     bpy.context.scene.render.filepath = out_path
@@ -622,7 +644,8 @@ def render_scene_blender(image_width: int,
 # ================================================================================
 def conv_test_blender(test_case: TestCase,
     resolution: Resolution = Resolution.HIGH,
-    starting_subsamples: int | None = None) -> None:
+    starting_subsamples: int | None = None,
+    cpu: bool = False) -> None:
     """
     Blender re-implementation of the ray tracer's conv_test/
 
@@ -666,7 +689,7 @@ def conv_test_blender(test_case: TestCase,
     camera_target = CAMERA_TARGET
     # Angle vfov is in degrees
     angle_vfov = vertical_fov_from_resolution(resolution, SCALE_PX_PER_MM, CAMERA_DISTANCE)
-    angle_vfov = 20 # Uncomment to sanity-check nested dielectric set-up
+    #angle_vfov = 20 # Uncomment to sanity-check nested dielectric set-up
     cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
 
     # Translate the camera into Blender and set the ambient-only world
@@ -758,7 +781,7 @@ def conv_test_blender(test_case: TestCase,
     csv_path = target / "convergence_log.csv"
     iteration_number = 0
     subsamples = starting_subsamples  # Anti-aliasing samples
-
+    times = defaultdict()
     with open(csv_path, mode="w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(
             csvfile,
@@ -773,13 +796,9 @@ def conv_test_blender(test_case: TestCase,
         os.fsync(csvfile.fileno())
 
         # Baseline render
-        render_scene_blender(image_width,
-            image_height,
-            subsamples,
-            target,
-            image_format=output_format,
-            flat_shading=True,
-            fresh_filename=fresh_filename)
+        # Need lambda in timeit since we're using local variables
+        time = timeit.timeit(lambda: render_scene_blender(image_width, image_height, subsamples, target, image_format=output_format, flat_shading=True, fresh_filename=fresh_filename, cpu=cpu), number=1)
+        times[str(subsamples)] = time
         new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
         os.rename(target.joinpath(fresh_filename), target.joinpath(new_filename))
 
@@ -789,13 +808,8 @@ def conv_test_blender(test_case: TestCase,
             subsamples *= 2
             iteration_number += 1
 
-            render_scene_blender(image_width,
-                image_height,
-                subsamples,
-                target,
-                image_format=output_format,
-                flat_shading=True,
-                fresh_filename=fresh_filename)
+            time = timeit.timeit(lambda: render_scene_blender(image_width, image_height, subsamples, target, image_format=output_format, flat_shading=True, fresh_filename=fresh_filename, cpu=cpu), number=1)
+            times[str(subsamples)] = time
             new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
             os.rename(target / fresh_filename, target / new_filename)
 
@@ -821,5 +835,18 @@ def conv_test_blender(test_case: TestCase,
             if subsamples >= SUBSAMPLE_LIMIT_MAX:
                 print(f"Exceeded the maximum subsample limit of {SUBSAMPLE_LIMIT_MAX}. Terminating this case.")
                 break
+        # Save time taken at the end - useful for CPU rendering to compare directly to the ray-tracer
+        time_csv_path = target / "gpu_render_time_log.csv"
+        if cpu:
+            time_csv_path = target / "cpu_render_time_log.csv"
+        with open(time_csv_path, mode="w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.DictWriter(csvfile,
+                fieldnames=["subsamples",
+                    "time (s)"])
+            writer.writeheader()
+            for subsample_count in times.keys():
+                writer.writerow({
+                    "subsamples": int(subsample_count),
+                    "time (s)": times[subsample_count]})      
 
-conv_test_blender(TestCase.TANK, Resolution.HIGH, 2)
+#conv_test_blender(TestCase.AIR_DIFFUSE, Resolution.HIGH, 2, True)
