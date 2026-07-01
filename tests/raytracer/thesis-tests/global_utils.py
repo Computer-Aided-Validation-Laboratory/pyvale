@@ -45,25 +45,27 @@ class Elements:
     TRI3 = Element("TRI3", "#c99fb6") # Pink
     TRI6 = Element("TRI6", "#826f99") # Purple
 
-
 def iter_elements():
     # Iterates over elements above
     for name, value in vars(Elements).items():
         if isinstance(value, Element):
             yield name, value
+
+def iter_elements_plot_order():
+    """
+    Iterate through the elements starting with triangles for neater plots.
+    """
+    order = ("TRI3", "TRI6", "QUAD4", "QUAD9", "QUAD8")
+    for name in order:
+        yield name, getattr(Elements, name)
+    
 # Use:
 #for name, elem in iter_elements():
 #   print(name, elem.label, elem.color)
 
 
-#B3D1E7 blue = rgb(179 209 231)
-#C3DCD8 mint = rgb(195 220 216)
-#DEC9F0 purple = rgb(222 201 240)
-#F7E5C3 gold = rgb(247 229 195)
-#EBE2DD beige for grids = rgb(235 226 221)
-
 # Plot settings
-FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22, "ticks": 13}
+FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22, "ticks": 13, "subplot_labels": 16}
 FIGURE_SIZE = (12, 10)
 RESIZE_PLOT_FACTOR = 50
 SUBPLOT_SPACING = 0.3
@@ -96,3 +98,13 @@ def vertical_fov_from_resolution(resolution: float, scale_px_per_mm: float, dist
     target_fov_mm = resolution / scale_px_per_mm  
     target_half_fov = target_fov_mm / 2.0
     return np.rad2deg(2 * np.arctan(target_half_fov / distance_to_sample))
+
+# ================================================================================
+# Other
+# ================================================================================
+
+# Enum with test cases for applications 1 and 2
+class TestCaseApp(StrEnum):
+    AIR_DIFFUSE = "air_diffuse"
+    PIPE = "pipe"
+    WATER = "water"

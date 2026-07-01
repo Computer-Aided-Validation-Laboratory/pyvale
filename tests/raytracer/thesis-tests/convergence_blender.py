@@ -43,7 +43,7 @@ from pyvale.raytracer.rtoutputformat import *
 from convergence_rt import * # This also imports global positioning of the scene, so we don't need to copy it here
 from global_utils import *
 
-SUBSAMPLE_LIMIT_MAX = 4 # Overwrite the value from convergence_rt to set limits for Blender separately if needed
+SUBSAMPLE_LIMIT_MAX = 16384 # Overwrite the value from convergence_rt to set limits for Blender separately if needed
 
 # ================================================================================
 # CONVENIENCE CONVERTERS: pyvale scene objects -> Blender datablocks
@@ -856,4 +856,4 @@ def conv_test_blender(test_case: TestCase,
                     "subsamples": int(subsample_count),
                     "time (s)": times[subsample_count]})      
 
-#conv_test_blender(TestCase.AIR_DIFFUSE, Resolution.HIGH, 2, True)
+conv_test_blender(TestCase.AIR_UNLIT, Resolution.HIGH, 1, True)

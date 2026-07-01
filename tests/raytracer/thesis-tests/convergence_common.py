@@ -5,6 +5,7 @@ they are dedicated for Linux, Blender, single image case, or others.
 from enum import StrEnum, IntEnum
 import numpy as np
 import cv2
+import csv
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from matplotlib.ticker import FormatStrFormatter
@@ -142,7 +143,7 @@ def bitwise_compare(data_path_new: Path, data_path_prev: Path | None = None, bit
 
 
 # ================================================================================
-# Post-processing
+# Post-processing: Convergence
 # ================================================================================
 
 def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resolution, start_subsamples: int, end_subsamples: int):
@@ -175,32 +176,32 @@ def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resol
                 subsamples *= 2
                 iteration += 1
 
-def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = False, detailed = False):
+def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
     """
     Plots all convergence results on the same plot.
     """
     # Get the address of the directory with the data (assuming we haven't changed it)
     base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
-    filename = test_case.value + "_convergence_plot.png"
-    if detailed:
-        filename = test_case.value + "_convergence_plot_detailed.png"
+    filename = f"{test_case.value}_{resolution.value}_convergence_plot.png"
 
     # Create plot
     fig, ax = plt.subplots(figsize=FIGURE_SIZE)
     #ax.set_title("Subsampling for high resolution/low resolution", fontsize=FONT_SIZES["suptitle"]) # If you want a title
     ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
     ax.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
-    ax.set_yscale("log")
     # Format the y-axis as by default it just shows orders of magnitude
     ax.yaxis.set_major_formatter(mticker.NullFormatter())
     ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
     ax.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"]) # Set label sizes on the axis
     # Format x-axis as well
+    ax.set_xscale("log")
     ax.xaxis.set_minor_locator(mticker.NullLocator())
     ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
     label_x = None
-    title = f"Convergence for test case: {test_case.value} at {resolution.value} px resolution"
+    min_x = np.inf
+    max_x = -np.inf
+    title = f"Convergence for test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution"
     ax.set_title(title, fontsize=FONT_SIZES["suptitle"])
     # Iterate over elements
     for name, element in iter_elements():
@@ -209,52 +210,136 @@ def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = F
         #print(data_path)
         # Convergence stores data as [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
         elem_data = np.loadtxt(data_path, delimiter=",", skiprows=1, unpack=True) # Full data
-        if label_x is None:
-                # Option 1: Fetch data for x-values and plot those (all; not good if you start at 1 subsamples, because the smaller values are too close)
-                all_x = np.unique(elem_data[1])
-                label_x = all_x
-                # Option 2: Fewer datapoints initially, then stack with the last X values 
-                #extra = all_x[all_x > 32768]
-                #label_x = np.array([1, 16384])
-                #extra = all_x[all_x > 1024]
-                #label_x = np.array([1, 1024])
-                #label_x = np.concatenate((label_x, extra))
-                #label_x = np.unique(label_x)  # sort + deduplicate
-        # Sanity check to make sure all data is being read correctly and not just skipped
-        #print(name, "path:", data_path, "shape:", elem_data.shape, "rmse_minmax:", np.nanmin(elem_data[2]), np.nanmax(elem_data[2]))
-        if not detailed:
-            ax.plot(elem_data[1], elem_data[2],
+        all_x = np.unique(elem_data[1])
+        curr_min_x = np.min(all_x)
+        curr_max_x = np.max(all_x)
+        # Handle x-labels in case some elements have different number of samples
+        if label_x is None: # First element
+            label_x = all_x
+            min_x = curr_min_x
+            max_x = curr_max_x
+        else:
+            if curr_min_x < min_x:
+                min_x = curr_min_x
+            if curr_max_x > max_x:
+                max_x = curr_max_x
+            # Extend x-labels to include all range of x-values across the dataset
+            label_x = np.union1d(label_x, all_x)
+        ax.plot(elem_data[1], elem_data[2],
                     label=name,
                     color=element.color,
                     marker="o",
                     linestyle="-",
                     linewidth=3,
                     markersize=10)
-            #ax.plot(elem_data[1], elem_data[2], label=name, color=element.color, marker="o", linestyle="-", linewidth=3, markersize=10)
-        # More detailed plot (focus on the last x values)
-        else: 
-            elem_data = elem_data[:, -4:] # Keep last 4 rows of original data (CSV) - if we want it more detailed
-            label_x = np.unique(elem_data[1])
-        # Plot RMSE values above the markers; don't do it on the full plot as they overlap and look poorly
-            ax.plot(elem_data[1], elem_data[2], label=name, color=element.color, marker="o", linestyle="-", linewidth=3, markersize=10)
-            for x, y in zip(elem_data[1], elem_data[2]):
-                ax.annotate(
-                    f"{y:.3g}", # RMSE value
-                    xy=(x, y),
-                    xytext=(12, 8), # 20 points to the right, 8 points above (w.r.t. marker dot)
-                    textcoords="offset points",
-                    ha="center",
-                    va="bottom",
-                    fontsize=FONT_SIZES["axis_labels"] - 4)
     ax.set_xticks(label_x)
-    ax.set_xticklabels([f"{x:g}" for x in label_x])
+    # Plot x-labels as 2^power for clarity
+    ax.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
     ax.legend(loc='upper right', fontsize=FONT_SIZES["axis_labels"])
     ax.grid(visible=True, which='both', axis='both')
     plt.tight_layout()
-    plt.show()
-    if save:
-        fig.savefig(Path.joinpath(target_path, "convergence_plot.png"), dpi=300)
 
+    if show:
+     plt.show()
+    if save:
+        fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
+
+def plot_results_subplots(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
+    """
+    Plots convergence results for all elements on separate subplots in one figure.
+
+    """
+    base_data_dir = f"convergence_rt/res_{resolution.value}/{test_case.value}/"
+    target_path = test_dir(BASE_TEST_DIR, base_data_dir)
+    filename = f"{test_case.value}_{resolution.value}_convergence_subplots.png"
+
+    # Define subplot layout
+    # Elements are stacked neatly by type (triangles/quads), then on the left we have "usual" elements and higher order ones on the right
+    fig, axes = plt.subplot_mosaic(
+        [["TRI3", "TRI6"],
+            ["QUAD4","QUAD8"],
+            [".",  "QUAD9"],],
+        figsize=(14, 14),
+        constrained_layout=True)
+
+    fig.suptitle(f"Convergence for test case: {test_case.value} at {resolution.value} px resolution", fontsize=FONT_SIZES["suptitle"])
+
+    for name, element in iter_elements_plot_order():
+        ax = axes[name]
+
+        elem_dir_name = base_data_dir + element.label
+        data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / "convergence_log.csv"
+
+        # Convergence stores data as [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
+        elem_data = np.loadtxt(data_path, delimiter=",", skiprows=1, unpack=True)
+
+        # Values for ticks so we only display values from actual data
+        all_x = np.unique(elem_data[1])
+
+        ax.plot(elem_data[1],elem_data[2],
+            color=element.color,
+            marker="o",
+            linestyle="-",
+            linewidth=2,
+            markersize=5)
+            
+        ax.set_title(name, fontsize=FONT_SIZES["subtitle"])
+        ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["subplot_labels"])
+        ax.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["subplot_labels"])
+
+        # Y-axis formatting
+        ax.tick_params(axis="y", which="both", labelsize=FONT_SIZES["ticks"])
+        all_y = np.unique(elem_data[2])
+        # Small dataset (usually 131+k samples) => We can display actual RMSE values on the plot
+        if all_y.shape[0] < 8:
+            ax.set_yticks(all_y)
+        # Big dataset (usually starting at 1 sample) => Matplotlib doesn't like it => Leave default major ticks
+        # But point at min and max values as otherwise ~0 looks like exact 0 etc.
+        else:
+                # Last point (important for big datasets)
+            x_last = elem_data[1][-1]
+            y_last = elem_data[2][-1]
+
+            # Display y-value above the marker in a box with arrow
+            ax.annotate(f"{y_last:.3g}",
+                xy=(x_last, y_last),
+                xytext=(-1, 100), # Offset up vertically above the marker
+                textcoords="offset pixels",
+                ha="center",
+                va="bottom",
+                fontsize=FONT_SIZES["subplot_labels"]-1,
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=element.color, lw=1), # Box storing the text
+                arrowprops=dict(arrowstyle="->", color=element.color, lw=2, shrinkA=0, shrinkB=0),
+                annotation_clip=True)
+            
+            # First point
+            x_first = elem_data[1][0]
+            y_first = elem_data[2][0]
+            # Display y-value below the marker in a box with arrow
+            ax.annotate(f"{y_first:.3g}",
+                xy=(x_first, y_first),
+                xytext=(0, -150), # Offset up vertically above the marker
+                textcoords="offset pixels",
+                ha="center",
+                va="bottom",
+                fontsize=FONT_SIZES["subplot_labels"]-1,
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=element.color, lw=1), # Box storing the text
+                arrowprops=dict(arrowstyle="->", color=element.color, lw=2, shrinkA=0, shrinkB=0),
+                annotation_clip=True)
+
+        # X-axis formatting
+        ax.set_xscale("log")
+        ax.xaxis.set_minor_locator(mticker.NullLocator())
+        ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+
+        ax.set_xticks(all_x)
+        ax.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in all_x])
+
+        ax.grid(visible=True, which="major", axis="both")
+    if show:
+        plt.show()
+    if save:
+        fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
 
 def difference_image(data_path_higher: Path, data_path_lower: Path, label: str, bit_depth: BitDepth = BitDepth.BIT_12):
     """
@@ -397,6 +482,8 @@ def difference_heatmap(data_path_higher: Path,
 def check_difference(element: Element, test_case:TestCase, resolution: Resolution, start_subsamples: int, end_subsamples: int):
     """
     Plots all difference plots for the given two images.
+
+    Useful for checking which pixels are different, etc.
     """
     base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
     elem_dir_name = base_data_dir + element.label  
@@ -409,8 +496,10 @@ def check_difference(element: Element, test_case:TestCase, resolution: Resolutio
     difference_heatmap(data_path_higher, data_path_lower, label)
 
 
+#fill_convergence_log(Elements.QUAD9, TestCase.AIR_UNLIT, Resolution.HIGH, 1, 16384)
+plot_results_all(TestCase.AIR_DIFFUSE, Resolution.HIGH, True, False)
+plot_results_subplots(TestCase.AIR_DIFFUSE, Resolution.HIGH, True, False)
 
 #check_difference(Elements.QUAD9, TestCase.AIR_DIFFUSE, Resolution.HIGH, 524288, 1048576)
-#check_difference(Elements.QUAD9, TestCase.AIR_DIFFUSE, Resolution.HIGH, 262144, 1048576)
-#fill_convergence_log(Elements.TRI6, TestCase.AIR_UNLIT, Resolution.LOW, 1, 2097152)
-#plot_results_all(TestCase.AIR_DIFFUSE, Resolution.HIGH, True, False)
+
+
