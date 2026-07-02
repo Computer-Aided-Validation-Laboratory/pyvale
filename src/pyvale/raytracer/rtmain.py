@@ -129,7 +129,7 @@ def render_scene(image_height: int,
         The type of rendering to perform. Can be either DYNAMIC or STATIC.
     frames_to_render: int
         Dynamic renders: The number of frames to render. Defaults to the maximum timesteps there is available data for; if some meshes lack data for all timeframes, it is pre-filled with last known values.
-        Static renders: The number of the single frame to render; defaults to the first one otherwise. Nb4 this could maybe be a tuple to specify the range instead?
+        Static renders: Index of the single frame to render; defaults to the first one otherwise. Nb4 this could maybe be a tuple to specify the range instead?
     texture_sampler: TextureSampler | None
         The algorithm used to sample the textures onto the mesh surfaces. Defaults to None and gets set to nearest neighbour.
     shading_type: ShadingType | None
@@ -153,7 +153,7 @@ def render_scene(image_height: int,
     # 1. Assign default values depending on the render type if target frame count was not specified
     if frames_to_render is None:
         if render_type == RenderType.STATIC:
-            frames_to_render = 1
+            frames_to_render = 0
         elif render_type == RenderType.DYNAMIC:
             frames_to_render = scene.timestep_count
 
@@ -167,14 +167,14 @@ def render_scene(image_height: int,
     #    uniform_elements = check_uniform_elements(scene)
 
     # 3. Sanity check for the values
+    if render_type == RenderType.DYNAMIC:
+        scene._fill_empty_timesteps() # VERY important to avoid segfaults if there is missing timestep data for some meshes in the scene
+
     if frames_to_render <= scene.timestep_count:
         scene._clip_scene(frames_to_render, render_type)
         #max_displacement_per_step_array = find_max_displacements(scene, render_type) # Data for deciding if to update/rebuild TLAS/BLAS. Currently WIP and doesn't get passed
     else:
-        raise ValueError("Number of requested frames exceeds the number of timesteps with availabile data.")
-
-    if render_type == RenderType.DYNAMIC:
-        scene._fill_empty_timesteps() # VERY important to avoid segfaults if there is missing timestep data for some meshes in the scene
+        raise ValueError(f"Number of requested frames ({frames_to_render}) exceeds the number of timesteps with availabile data ({scene.timestep_count}).")
 
     # 4. If texture sampling method is not selected, set to nearest neighbour by default (both to be able to render and because C++ expects an int, so we want to pass a number even for solid surfaces)
     if texture_sampler is None:

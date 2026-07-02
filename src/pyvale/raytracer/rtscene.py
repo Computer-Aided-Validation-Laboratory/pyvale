@@ -268,6 +268,7 @@ class Scene:
             else:
                 self.timestep_count = frames_to_render
                 for mesh in range(self.mesh_count):
+                    print(self.coords_expanded[mesh].shape)
                     self.coords_expanded[mesh] = self.coords_expanded[mesh][:frames_to_render]
                     self.normals_expanded[mesh] = self.normals_expanded[mesh][:frames_to_render]
                     # self.deform_vals = self.deform_vals[mesh][:frames_to_render]
@@ -285,17 +286,20 @@ class Scene:
                 # Check if we have enough timestep data for all meshes to render the desired frame number
                 if (self.coords_expanded[mesh].shape[0] < frames_to_render):
                     # If there is missing data for any mesh, fill it only up to the required frame to enable rendering
-                    self.timestep_count = frames_to_render
+                    self.timestep_count = frames_to_render +1 # +1 to avoid indexing error since we're passing the index
                     self._fill_empty_timesteps() # This will raise an exception if SurfType not set, so no need to do it below
                     break
             for mesh in range(self.mesh_count):
-                self.coords_expanded[mesh] = self.coords_expanded[mesh][:frames_to_render]
-                self.normals_expanded[mesh] = self.normals_expanded[mesh][:frames_to_render]
+                # Ray tracer expects to have arrays dimensioned (timesteps, mesh_element_count, nodes, 3)
+                # => Use a slice of length 1 to preserve the timestep dimension of length 1 for static renders
+                # Otherwise it collapses and breaks (indexing as [frames_to_render] would create a rank-reduced array)
+                self.coords_expanded[mesh] = self.coords_expanded[mesh][frames_to_render:frames_to_render+1]
+                self.normals_expanded[mesh] = self.normals_expanded[mesh][frames_to_render:frames_to_render+1]
                 if self.surface_types[mesh] == SurfType.FIELD_COLOR:
-                    self.face_colors[mesh] = self.face_colors[mesh][:frames_to_render]
+                    self.face_colors[mesh] = self.face_colors[mesh][frames_to_render:frames_to_render+1]
                 # Uncomment if you use uvs_over_time in rtmesh; otherwise, not necessary as uvs do not change across timeframes.
                 #elif self.surface_types[mesh] == SurfType.TEXTURE:
-                    #self.uvs[mesh] = self.uvs[mesh][:frames_to_render]
+                    #self.uvs[mesh] = self.uvs[mesh][frames_to_render]
             self.timestep_count = 1   
 
     def _add_texture(self, texture: np.ndarray) -> None:

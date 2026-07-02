@@ -143,7 +143,7 @@ def bitwise_compare(data_path_new: Path, data_path_prev: Path | None = None, bit
 
 
 # ================================================================================
-# Post-processing: Convergence
+# Post-processing: Convergence log
 # ================================================================================
 
 def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resolution, start_subsamples: int, end_subsamples: int):
@@ -175,6 +175,10 @@ def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resol
                 prev_filename = current_filename
                 subsamples *= 2
                 iteration += 1
+
+# ================================================================================
+# Post-processing: Plotters for RT convergence
+# ================================================================================
 
 def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
     """
@@ -494,6 +498,201 @@ def check_difference(element: Element, test_case:TestCase, resolution: Resolutio
     label = str(end_subsamples) + "_" + str(start_subsamples)
     difference_image(data_path_higher, data_path_lower, label)
     difference_heatmap(data_path_higher, data_path_lower, label)
+
+# ================================================================================
+# Post-processing: Plotters for Blender/ Blender vs RT comparison
+# ================================================================================
+def plot_results_blender(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
+    """
+    Plots Blender convergence plot with RMSE on the left and render time on the right.
+    """
+    # All access paths
+    base_data_dir = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    elem_dir_name = base_data_dir + Elements.TRI3.label
+    target_path = test_dir(BASE_TEST_DIR, base_data_dir)
+    data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / "convergence_log.csv"
+    time_data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / "cpu_render_time_log.csv"
+    filename = f"{test_case.value}_{resolution.value}_blender_convergence_plot.png"
+
+    # Load data
+    # Convergence data: [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
+    elem_data = np.loadtxt(data_path, delimiter=",", skiprows=1, unpack=True)
+
+    # Render time data: [subsamples, time(s)]
+    time_data = np.loadtxt(time_data_path, delimiter=",", skiprows=1, unpack=True)
+
+    label_x = np.unique(elem_data[1])
+
+    # Create two side-by-side plots with shared x-axis
+    fig, (ax_rmse, ax_time) = plt.subplots(1, 2, figsize=FIGURE_SIZE, sharex=True)
+
+    title = f"Convergence for test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution"
+    fig.suptitle(title, fontsize=FONT_SIZES["suptitle"])
+
+    # ------------------
+    # Left plot: RMSE
+    # ------------------
+    ax_rmse.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+    ax_rmse.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
+
+    ax_rmse.yaxis.set_major_formatter(mticker.NullFormatter())
+    ax_rmse.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
+    ax_rmse.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
+    ax_rmse.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+
+    ax_rmse.set_xscale("log")
+    ax_rmse.xaxis.set_minor_locator(mticker.NullLocator())
+
+    ax_rmse.plot(
+        elem_data[1], elem_data[2],
+        label=Elements.TRI3.label,
+        color=Elements.TRI3.color,
+        marker="o",
+        linestyle="-",
+        linewidth=3,
+        markersize=10
+    )
+
+    ax_rmse.set_xticks(label_x)
+    ax_rmse.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+    ax_rmse.legend(loc="upper right", fontsize=FONT_SIZES["axis_labels"])
+    ax_rmse.grid(visible=True, which="both", axis="both")
+
+    # ------------------
+    # Right plot: Render time
+    # ------------------
+    ax_time.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+    ax_time.set_ylabel("Render time [s]", fontsize=FONT_SIZES["axis_labels"])
+    ax_time.tick_params(axis="both", which="both", labelsize=FONT_SIZES["ticks"])
+
+    ax_time.set_xscale("log")
+    ax_time.xaxis.set_minor_locator(mticker.NullLocator())
+
+    ax_time.plot(
+        time_data[0], time_data[1],
+        label="CPU render time",
+        color="tab:red",
+        marker="o",
+        linestyle="-",
+        linewidth=3,
+        markersize=10
+    )
+
+    ax_time.set_xticks(label_x)
+    ax_time.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+    ax_time.legend(loc="upper left", fontsize=FONT_SIZES["axis_labels"])
+    ax_time.grid(visible=True, which="both", axis="both")
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+    if show:
+        plt.show()
+    if save:
+        fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
+
+def plot_results_blender_rt(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
+    """
+    Plots convergence plots: ray tracer on the left, Blender on the right.
+    """
+    base_data_dir_b = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    target_path = test_dir(BASE_TEST_DIR, base_data_dir_b)
+
+    # Blender data path
+    elem_dir_name_b = base_data_dir_b + Elements.TRI3.label
+    data_path_b = test_dir(BASE_TEST_DIR, elem_dir_name_b) / "convergence_log.csv"
+
+    filename = f"{test_case.value}_{resolution.value}_blender_rt_convergence_plot.png"
+
+    base_data_dir_rt = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
+
+    # Ray tracer data path
+    elem_dir_name_rt = base_data_dir_rt + Elements.TRI3.label
+    data_path_rt = test_dir(BASE_TEST_DIR, elem_dir_name_rt) / "convergence_log.csv"
+
+    # Load data
+    # Convergence data: [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
+    elem_data_b = np.loadtxt(data_path_b, delimiter=",", skiprows=1, unpack=True)
+    elem_data_rt = np.loadtxt(data_path_rt, delimiter=",", skiprows=1, unpack=True)
+
+    # x-axis values
+    label_x_b = np.unique(elem_data_b[1])
+    label_x_rt = np.unique(elem_data_rt[1])
+
+    # If both datasets use the same subsample positions, either is fine.
+    # Using the union is a bit safer.
+    label_x = np.unique(np.concatenate((label_x_rt, label_x_b)))
+
+    # Create two side-by-side plots with shared x and y axes
+    fig, (ax_rt, ax_b) = plt.subplots(1, 2, figsize=FIGURE_SIZE, sharex=True, sharey=True)
+
+    title = (
+        f"Ray tracer and Blender convergence\n"
+        f"Test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution"
+    )
+    fig.suptitle(title, fontsize=FONT_SIZES["suptitle"])
+
+    # ------------------
+    # Left plot: Ray tracer
+    # ------------------
+    ax_rt.set_title("Ray tracer", fontsize=FONT_SIZES["axis_labels"])
+    ax_rt.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+    ax_rt.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
+
+    ax_rt.yaxis.set_major_formatter(mticker.NullFormatter())
+    ax_rt.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
+    ax_rt.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
+    ax_rt.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+
+    ax_rt.set_xscale("log")
+    ax_rt.xaxis.set_minor_locator(mticker.NullLocator())
+
+    ax_rt.plot(
+        elem_data_rt[1], elem_data_rt[2],
+        label=Elements.TRI3.label,
+        color=Elements.TRI3.color,
+        marker="o",
+        linestyle="-",
+        linewidth=3,
+        markersize=10)
+
+    ax_rt.set_xticks(label_x)
+    ax_rt.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+    ax_rt.legend(loc="upper right", fontsize=FONT_SIZES["axis_labels"])
+    ax_rt.grid(visible=True, which="both", axis="both")
+
+    # ------------------
+    # Right plot: Blender
+    # ------------------
+    ax_b.set_title("Blender", fontsize=FONT_SIZES["axis_labels"])
+    ax_b.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+
+    ax_b.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+    ax_b.tick_params(axis="y", which="both", left=False, labelleft=False)
+
+    ax_b.set_xscale("log")
+    ax_b.xaxis.set_minor_locator(mticker.NullLocator())
+
+    ax_b.plot(
+        elem_data_b[1], elem_data_b[2],
+        label=Elements.TRI3.label,
+        color=Elements.TRI3.color,
+        marker="o",
+        linestyle="-",
+        linewidth=3,
+        markersize=10)
+
+    ax_b.set_xticks(label_x)
+    ax_b.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+    ax_b.legend(loc="upper right", fontsize=FONT_SIZES["axis_labels"])
+    ax_b.grid(visible=True, which="both", axis="both")
+
+    plt.tight_layout(rect=[0, 0, 1, 0.93])
+
+    if show:
+        plt.show()
+    if save:
+        fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
+
 
 
 #fill_convergence_log(Elements.TRI6, TestCase.AIR_DIFFUSE, Resolution.HIGH, 131072, 524288)

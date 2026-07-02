@@ -10,6 +10,7 @@ import numpy as np
 from pathlib import Path
 from global_utils import *
 from convergence_common import *
+from copy import deepcopy
 
 from pyvale.sensorsim.imagetools import ImageTools
 import os
@@ -21,6 +22,7 @@ from pyvale.raytracer.rtpresets import *
 from pyvale.raytracer.rtmain import *
 from pyvale.raytracer.rtoutputformat import *
 # No Blender imports => Should work on Linux
+
 
 def plate_test(test_case: TestCaseApp):
     # 1. Paths and access to all data used in the scene
@@ -45,7 +47,7 @@ def plate_test(test_case: TestCaseApp):
 
     # 3. Camera and output settings
     # Output settings and directory
-    output_format = ImageFormat(OutputFormat.IMG_TIFF_8BIT, BitDepth.BIT_8, ChannelCount.MONO, True)
+    output_format = ImageFormat(OutputFormat.IMG_BMP_8BIT, BitDepth.BIT_8, ChannelCount.MONO, True)
     base_data_dir = f"app2_fea/renders/{test_case.value}"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
     # Anti-aliasing
@@ -89,10 +91,34 @@ def plate_test(test_case: TestCaseApp):
     # But if scaling is needed refer to application_1_rbm
     scene.add_rtmesh(object)
 
+    # 5. Pick frames to render
+    # We only want 2:
+    # 1. Undeformed, so at t=0
+    # 2. Deformed, somewhere s.t., displacement is <= 1 px
+    scale = spatial_scale(fov_height, image_height) # mm/px, so 1 px = this in mm; 0.0390625 in this case
+    temp_frame_idx = object.timestep_count - 1 # Start checking displacements from the last frame
+    displaced_frame_idx = 0
+    max_displacement = scale * 2 # Starting value to make sure this is always bigger 
+    while (max_displacement > scale):
+        total_displacements = object.node_coords_over_time[temp_frame_idx] - object.node_coords_over_time[0] # Displacement between t=frame_idx and t=0
+        max_displacement = np.max(total_displacements)
+        displaced_frame_idx = temp_frame_idx
+        temp_frame_idx -= 1
+    print(f"Displaced frame idx: {displaced_frame_idx}, with maximum displacement of {max_displacement} mm")
     # 5. Render
     scene.add_camera(cam)
-    print(scene.timestep_count)
-    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    scene_deformed = deepcopy(scene)
 
-#plate_test(TestCaseApp.WATER)
+    fresh_filename = "rtimage_0_cam0.bmp"
+    # Render undeformed image
+    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    new_filename = "rtimage_frame0.bmp"
+    os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
+    # Render deformed image
+    render_scene(image_height, image_width, scene_deformed, anti_alias, target_path, RenderType.STATIC, frames_to_render=displaced_frame_idx, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    new_filename = f"rtimage_frame{displaced_frame_idx}.bmp"
+    os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
+
+
+#plate_test(TestCaseApp.AIR_DIFFUSE)
     
