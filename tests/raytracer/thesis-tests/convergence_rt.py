@@ -203,6 +203,8 @@ def conv_test_rt(test_case: TestCase,
         subsamples = starting_subsamples # Anti-aliasing samples
         if single_image:
             time = timeit.timeit(lambda: render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6, omp_thread_count = thread_count), number=1)
+            new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
+            os.rename(target.joinpath(fresh_filename), target.joinpath(new_filename))
             with open(time_csv_path, mode=time_mode, newline="", encoding="utf-8") as timefile:
                 time_writer = csv.DictWriter(timefile, fieldnames=["subsamples","time (s)"])
                 if not time_log_exists:

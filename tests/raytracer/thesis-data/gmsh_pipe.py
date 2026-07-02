@@ -7,6 +7,7 @@ from pathlib import Path
 # ============================================================
 
 OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe"
+#OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe_shark"
 
 # ----------------------------
 # Pipe geometry inputs
@@ -15,9 +16,15 @@ OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe"
 # For outer cylinder, so general pipe geometry
 y_base = -47.0 # ~ Half of height
 height = 95.0
+# For shark:
+#y_base = - 37
+#height = 74
 
 diameter_i = 21.1 # mm, ID
 diameter_o = 24.77 # mm, OD
+# For shark:
+#diameter_i = 35
+#diameter_o = 39 # 2mm thick wall
 
 radius_i = diameter_i / 2.0
 radius_o = diameter_o / 2.0
@@ -63,13 +70,13 @@ N_Y    = 80   # number of nodes along the axis (y direction)
 # Smaller values generally mean finer mesh
 
 # Coarse
-#DIV_FACTOR = 7.5
+DIV_FACTOR = 7.5
 
 # Med-fine
 #DIV_FACTOR = 15.0
 
 # Fine
-DIV_FACTOR = 28.0 # To be comparable to fine in rectangular tank
+#DIV_FACTOR = 28.0 # To be comparable to fine in rectangular tank
 
 MESH_SIZE_MIN = min(radius_o, height) / DIV_FACTOR
 MESH_SIZE_MAX = min(radius_o, height) / DIV_FACTOR

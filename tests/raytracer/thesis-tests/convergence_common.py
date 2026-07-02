@@ -496,7 +496,7 @@ def check_difference(element: Element, test_case:TestCase, resolution: Resolutio
     difference_heatmap(data_path_higher, data_path_lower, label)
 
 
-#fill_convergence_log(Elements.QUAD9, TestCase.AIR_UNLIT, Resolution.HIGH, 1, 16384)
+#fill_convergence_log(Elements.TRI6, TestCase.AIR_DIFFUSE, Resolution.HIGH, 131072, 524288)
 plot_results_all(TestCase.AIR_DIFFUSE, Resolution.HIGH, True, False)
 plot_results_subplots(TestCase.AIR_DIFFUSE, Resolution.HIGH, True, False)
 
