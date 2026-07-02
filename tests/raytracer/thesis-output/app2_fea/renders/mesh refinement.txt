@@ -1,0 +1,10 @@
+Here (both TRI3 and TRI6)
+COARSE element count:
+	Pipe: 4852
+	Water: 2430
+MED-FINE element count:
+	Pipe: 18686
+	Water: 9278
+FINE element count:
+	Pipe: 63598
+	Water: 31644

@@ -6,8 +6,9 @@ from pathlib import Path
 # IMPORTANT USER INPUTS
 # ============================================================
 
-OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe"
+#OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe"
 #OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe_shark"
+OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe_plate"
 
 # ----------------------------
 # Pipe geometry inputs
@@ -19,12 +20,18 @@ height = 95.0
 # For shark:
 #y_base = - 37
 #height = 74
+# For plate:
+y_base = - 23
+height = 46
 
 diameter_i = 21.1 # mm, ID
 diameter_o = 24.77 # mm, OD
 # For shark:
 #diameter_i = 35
 #diameter_o = 39 # 2mm thick wall
+# For plate:
+diameter_i = 33
+diameter_o = 37
 
 radius_i = diameter_i / 2.0
 radius_o = diameter_o / 2.0
