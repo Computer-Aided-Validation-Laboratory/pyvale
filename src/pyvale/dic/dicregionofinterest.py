@@ -86,11 +86,10 @@ class RegionOfInterest:
         self.subset_size = None
         self.coord_label = None
 
-    def interactive_selection(self, subset_size):
+    def interactive_selection(self):
         """
         Interactive GUI to select a region of interest (ROI) in the image using openCV.
         """
-        self.subset_size = subset_size
         self.__roi_selected = True
         
         # Initialize GUI
