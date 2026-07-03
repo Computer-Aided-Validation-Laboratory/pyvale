@@ -73,8 +73,8 @@ void singlewindow_rg(const Interpolator &interp_ref,
                                                                 interp_ref, interp_def, print);
     };
 
-    std::string bar_title = mode + " matching for \033[1;4m" + conf.basenames[img_num_ref] +
-                                        "\033[0m and \033[1;4m" + conf.basenames[img_num_def] + 
+    std::string bar_title = mode + " \033[1;4m" + conf.basenames[img_num_ref] +
+                                        "\033[0m -> \033[1;4m" + conf.basenames[img_num_def] + 
                                         "\033[0m:";
 
     ProgressBar pbar(bar_title, ss_grid.active_total);

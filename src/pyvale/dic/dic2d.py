@@ -15,7 +15,7 @@ import pyvale.dic.diccpp as diccpp
 import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic.dicchecks as dicchecks
 import pyvale.common_py.util as common_py_util
-from pyvale.calib.calib_dataclass import Calib
+from pyvale.calib.calibdataclass import Calib
 import pyvale.common_cpp.common_cpp as common_cpp
 
 def calculate_2d(reference: np.ndarray | str | Path,
@@ -62,30 +62,41 @@ def calculate_2d(reference: np.ndarray | str | Path,
     ----------
     reference : np.ndarray, str or pathlib.Path
         The reference image (2D array) or path to the image file.
+
     deformed : np.ndarray, str , pathlib.Path or list[pathlib.Path]
         The deformed image(s) (3D array for multiple images) or path/pattern to image files.
+
     roi_mask : np.ndarray
         A binary mask indicating the Region of Interest (ROI) for analysis (same size as image).
+
     seed : list[int], list[np.int32] or np.ndarray
         Coordinates `[x, y]` of the seed point for Reliability-Guided (RG) scanning. It's possible
-        to provide mutiple seed points using `[x0, y0, x1, y1,...]` format. If the method is not 
+        to provide mutiple seed points using ``[x0, y0, x1, y1,...]`` format. If the method is not 
         RG, this will be ignored.
+
     subset_size : int, optional
         Size of the square subset window in pixels (default: 21).
+
     subset_step : int, optional
         Step size between subset centers in pixels (default: 10).
+
     correlation_criteria : str, optional
         Metric for matching subsets: ``"ZNSSD"``, ``"NSSD"`` or ``"SSD"`` (default: ``"ZNSSD"``).
+
     shape_function : str, optional
         Deformation model: e.g., ``"AFFINE"``, ``"QUAD"``, ``"RIGID"`` (default: ``"AFFINE"``).
+
     interpolation_routine : str, optional
         Interpolation method used on image intensity. Options are ``"BSPLINE"`` and
         ``"HERMITE"``. Implementation details can be found in our DIC theory
         documentation.  (default: `"BSPLINE"``).
+
     max_iterations : int, optional
         Maximum number of iterations allowed for subset optimization (default: 40).
+
     precision : float, optional
         Precision threshold for iterative optimization convergence (default: 0.001).
+
     threshold : float, optional
         Minimum correlation/cost coefficient value to be considered a matching subset (default: 0.9).
     num_threads : int, optional
@@ -93,38 +104,35 @@ def calculate_2d(reference: np.ndarray | str | Path,
     max_displacement : int, optional
         Estimate for the Maximum displacement in any direction (in pixels) (default: 128).
     method : str, optional
-        Subset scanning method: 
-        * ``"MULTIWINDOW_RG"``: 
-          for multi-window Reliability-Guided DIC (best overall approach),
-        * ``"SINGLEWINDOW_RG"``:
-          uses a single window for the rigid estimate for
-          each subset. The size of the window is determined by the `max_displacement` parameter.
-        * ``"MULTIWINDOW"``:
-          only uses the multi-window FFT strategy. Only works
-          for rigid shape functions and is not recommended for general use, but
-          can be very fast for large rigid displacements.
-        * ``"RASTER"``:
-          no FFT initialization. Performs a raster scan of the image. 
-          No seed location is used and work is split evenly between threads. 
-          Not recommended except for testing with small displacements
+        The core algorithmic method used to perform the DIC. Options include:
+
+        * ``"MULTIWINDOW_RG"``: Multi-window Reliability-Guided DIC (best overall approach).
+
+        * ``"SINGLEWINDOW_RG"``: Uses a single window for the rigid estimate for each subset. 
+            The size of the window is determined by the ``max_displacement`` parameter.
+
+        * ``"MULTIWINDOW"``: Uses only the multi-window FFT strategy.
+
+        * ``"RASTER"``: No FFT initialization. Performs a raster scan of the image.
+
     incremental : bool, optional
         If True, then references images will be updated depending on the
-        condition set by argument `incremental_update_condition`. This is useful
+        condition set by argument ``incremental_update_condition``. This is useful
         for large deformations where the original reference may no longer be
         valid for tracking. If False, the original reference image(s) will be
         used for tracking all deformed images. Displacements will still be given relative to the 
         first reference image. Note, cost values will be reported for relative to the deformed and 
         updated reference image. (default: False).
     incremental_update_condition : str, optional
-        Condition for updating reference images when `incremental` is True. Options include:
-        `"IMAGE"` to update every `N` images, `"COST"` to update when the average ZNCC cost
-        value falls below a threshold, `"ITER"` to update when the average number
-        of subset optimizer iterations exceeds a threshold. (default: `"PER_IMAGE"`).
+        Condition for updating reference images when ``incremental`` is True. Options include:
+        ``"IMAGE"`` to update every ``N`` images, ``"COST"`` to update when the average ZNCC cost
+        value falls below a threshold, ``"ITER"`` to update when the average number
+        of subset optimizer iterations exceeds a threshold. (default: ``"PER_IMAGE"``).
     incremental_update_value : float, optional
-        Value corresponding to the `incremental_update_condition`. For example,
-        if the condition is "IMAGE", this would be the number of images after
-        which to update the reference. If the condition is `"COST"`, this would be
-        the cost threshold for updating. If the condition is `"ITER"`, this would
+        Value corresponding to the ``incremental_update_condition``. For example,
+        if the condition is ``"IMAGE"``, this would be the number of images after
+        which to update the reference. If the condition is ``"COST"``, this would be
+        the cost threshold for updating. If the condition is ``"ITER"``, this would
         be the iteration threshold for updating. (default: 1).
     multiwindow_overlap : float, optional
         For multi-window methods, the percentage overlap between adjacent FFT windows 
@@ -132,7 +140,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     multiwindow_subset_sizes: list[int], optional
         List of subset_sizes for the multi-window FFT approach. If
         None, defaults to powers of 2 with the largest window size determined by
-        the next power of 2 above `max_displacement` (default: None).
+        the next power of 2 above ``max_displacement`` (default: None).
     multiwindow_search_areas: list[int], optional
         List of search window sizes for the multi-window FFT approach. If None,
         defaults to the corresponding template window size (default: None).
@@ -297,6 +305,13 @@ def calculate_2d(reference: np.ndarray | str | Path,
     #set the number of OMP threads
     if num_threads is not None:
         common_cpp.set_num_threads(num_threads)
+
+    dicchecks.print_config_summary(
+        w, h, config.num_def_img, max_iterations, correlation_criteria,
+        shape_function, interpolation_routine, fft_mad, fft_mad_scale, method,
+        precision, threshold, max_displacement, subset_size, subset_step,
+        num_threads, debug_level, updated_seeds, None
+    )
 
     # calling the c++ dic engine
     diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)

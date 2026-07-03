@@ -25,6 +25,9 @@ namespace stereo {
 
 
     Geometry compute_stereo_geometry(const Calib &calib) {
+
+        common_util::Timer timer("to compute stereo geometry:", 2);
+
         Geometry geom;
         geom.K0  = camera_matrix(calib.cam0);
         geom.K1  = camera_matrix(calib.cam1);

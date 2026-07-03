@@ -12,6 +12,8 @@ from PIL import Image
 from pathlib import Path
 from enum import Enum
 
+import pyvale.common_py.util as common_py_util
+
 """
 This module contains functions for checking arguments passed to the 2D DIC
 Engine.
@@ -491,14 +493,12 @@ def check_images(reference: np.ndarray | str | Path,
             raise ValueError(f"Reference image does not exist: {reference}")
 
         if debug_level > 0:
-            print("Using reference image: ")
-            print(f"  - {reference}\n")
+            common_py_util.info("Ref img: " + str(reference))
 
         ref_img = Image.open(reference)
 
         if debug_level > 0:
-            print(f"Reference image shape: {ref_img.size}")
-            print("")
+            common_py_util.info(f"Ref img shape: {ref_img.size}")
 
         basename.append(os.path.basename(reference))
         fullpath.append(str(reference))
@@ -512,10 +512,7 @@ def check_images(reference: np.ndarray | str | Path,
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
         if debug_level > 1:
-            print(f"Found {len(files)} deformation images:")
-            for file in files:
-                print(f"  - {file}")
-            print("")
+            common_py_util.info(f"Found {len(files)} deformation images in dir: {os.path.dirname(files[0])}")
 
         basename.extend(os.path.basename(f) for f in files)
         fullpath.extend(str(f) for f in files)
@@ -593,6 +590,52 @@ def check_images(reference: np.ndarray | str | Path,
     w, h = ref_img.size
 
     return basename, fullpath, w, h, temp_dir
+
+
+def print_config_summary(image_width: int,
+                         image_height: int,
+                         num_def_img: int,
+                         max_iterations: int,
+                         correlation_criteria: str,
+                         shape_function: str,
+                         interpolation_routine: str,
+                         fft_mad: bool,
+                         fft_mad_scale: float,
+                         method: str,
+                         precision: float,
+                         threshold: float,
+                         max_displacement: int,
+                         subset_size: int,
+                         subset_step: int,
+                         num_threads: int | None,
+                         debug_level: int,
+                         updated_seeds: list[int] | None = None,
+                         epi_distance: int | None = None) -> None:
+    if debug_level <= 0:
+        return
+
+    print_title("Config")
+    common_py_util.info_out("Width of Images: ", f"{image_width} [px]")
+    common_py_util.info_out("Height of Images: ", f"{image_height} [px]")
+    common_py_util.info_out("Number of Deformed Images: ", num_def_img)
+    common_py_util.info_out("Max number of solver iterations: ", max_iterations)
+    common_py_util.info_out("Correlation Criterion: ", correlation_criteria)
+    common_py_util.info_out("Shape Function: ", shape_function)
+    common_py_util.info_out("Interpolation Routine: ", interpolation_routine)
+    common_py_util.info_out("FFT MAD outlier removal enabled: ", fft_mad)
+    common_py_util.info_out("FFT MAD scale: ", fft_mad_scale)
+    common_py_util.info_out("Image Scan Method: ", method)
+    common_py_util.info_out("Optimization Precision:", precision)
+    common_py_util.info_out("Correlation Cutoff Threshold:", threshold)
+    common_py_util.info_out("Estimate for Max Displacement:", f"{max_displacement} [px]")
+    if epi_distance is not None:
+        common_py_util.info_out("Estimate for Epipolar Distance:", f"{epi_distance} [px]")
+    common_py_util.info_out("Subset Size:", f"{subset_size} [px]")
+    common_py_util.info_out("Subset Step:", f"{subset_step} [px]")
+    common_py_util.info_out("Number of OMP threads:", num_threads if num_threads is not None else "default")
+    common_py_util.info_out("Debug level: ", debug_level)
+    if updated_seeds is not None and "RG" in method:
+        common_py_util.info_out("Reliability Guided Seeds:", updated_seeds)
 
 
 def print_title(a: str):

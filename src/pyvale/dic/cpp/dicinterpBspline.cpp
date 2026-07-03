@@ -12,8 +12,13 @@
 
 #include "./dicinterpBspline.hpp"
 
-// In your constructor
+#include "../../common_cpp/util.hpp"
+
+
+
 Bspline::Bspline(const Image &img) {
+
+    common_util::Timer time("to init " + img.filename + " interp:", 2);
 
     this->px_hori = img.width;
     this->px_vert = img.height;
@@ -33,6 +38,7 @@ Bspline::Bspline(const Image &img) {
     };
 
     // Fill entire padded array using clamped reads — handles interior, edges, and corners
+    #pragma omp parallel for collapse(2) schedule(static)
     for (int y = 0; y < padded_vert; y++)
         for (int x = 0; x < padded_hori; x++)
             coeff_padded[y * padded_hori + x] = getpix(x - 2, y - 2);
@@ -67,11 +73,13 @@ void Bspline::prefilter_x() {
     const double lambda = (1.0 - z)*(1.0 - 1.0/z);
 
     // Normalize
+    #pragma omp parallel for collapse(2) schedule(static)
     for (int y = 0; y < padded_vert; y++)
         for (int x = 0; x < padded_hori; x++)
             coeff_padded[y*padded_hori + x] *= lambda;
 
     // Causal
+    #pragma omp parallel for schedule(static)
     for (int y = 0; y < padded_vert; y++) {
         double* row = &coeff_padded[y*padded_hori];
         for (int x = 1; x < padded_hori; x++)
@@ -79,6 +87,7 @@ void Bspline::prefilter_x() {
     }
 
     // Anticausal
+    #pragma omp parallel for schedule(static)
     for (int y = 0; y < padded_vert; y++) {
         double* row = &coeff_padded[y*padded_hori];
         row[padded_hori-1] = z/(z*z - 1.0) * row[padded_hori-1];
@@ -95,17 +104,20 @@ void Bspline::prefilter_y() {
     const double lambda = (1.0 - z)*(1.0 - 1.0/z);
 
     // Normalize
+    #pragma omp parallel for collapse(2) schedule(static)
     for (int y = 0; y < padded_vert; y++)
         for (int x = 0; x < padded_hori; x++)
             coeff_padded[y*padded_hori + x] *= lambda;
 
     // Causal
+    #pragma omp parallel for schedule(static)
     for (int x = 0; x < padded_hori; x++) {
         for (int y = 1; y < padded_vert; y++)
             coeff_padded[y*padded_hori + x] += z * coeff_padded[(y-1)*padded_hori + x];
     }
 
     // Anticausal
+    #pragma omp parallel for schedule(static)
     for (int x = 0; x < padded_hori; x++) {
         coeff_padded[(padded_vert-1)*padded_hori + x] = z/(z*z - 1.0) * coeff_padded[(padded_vert-1)*padded_hori + x];
         for (int y = padded_vert-2; y >= 0; y--)

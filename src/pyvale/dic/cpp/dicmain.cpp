@@ -24,7 +24,6 @@
 
 // common_cpp header files
 #include "../../common_cpp/dicsignalhandler.hpp"
-#include "../../common_cpp/img_read.hpp"
 #include "../../common_cpp/defines.hpp"
 #include "../../common_cpp/util.hpp"
 
@@ -41,7 +40,6 @@
 #include "./dicrasterscan.hpp"
 
 // stereo header files
-#include "./stereomatching.hpp"
 #include "./stereoutil.hpp"
 
 // cuda Header files
@@ -60,31 +58,13 @@ void engine(const py::array_t<bool>& img_roi_arr,
     signal(SIGINT, signalHandler);
     g_debug_level = conf.debug_level;
 
-    // // ------------------------------------------------------------------------
-    // // Initialisation
-    // // ------------------------------------------------------------------------
-    // if (g_debug_level>0){
-    // TITLE("Config");
-    // INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
-    // INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
-    // INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
-    // INFO_OUT("Max number of solver iterations: ", conf.max_iter);
-    // INFO_OUT("Correlation Criterion: ", conf.corr_crit);
-    // INFO_OUT("Shape Function: ", conf.shape_func);
-    // INFO_OUT("Interpolation Routine: ", conf.interp_routine);
-    // INFO_OUT("FFT MAD outlier removal enabled: ", conf.fft_mad);
-    // INFO_OUT("FFT MAD scale: ", conf.fft_mad_scale);
-    // INFO_OUT("Image Scan Method: ", conf.scan_method);
-    // INFO_OUT("Optimization Precision:", conf.precision);
-    // INFO_OUT("Correlation Cutoff Threshold:", conf.threshold);
-    // INFO_OUT("Estimate for Max Displacement:", conf.max_disp << " [px]");
-    // INFO_OUT("Subset Size:", conf.ss_size << " [px]");
-    // INFO_OUT("Subset Step:", conf.ss_step << " [px]" );
-    // INFO_OUT("Number of OMP threads:", omp_get_max_threads());
-    // INFO_OUT("Debug level: ", conf.debug_level);
-    // // if (conf.scan_method.find("RG") != std::string::npos)INFO_OUT("Reliability Guided Seed central px location: ", "(" 
-    // //                                      << conf.rg_seed.first+conf.ss_size/2 << ", " << conf.rg_seed.second+conf.ss_size/2 << ") [px] " )
-    // }
+    // -----------------------------------------------------------------------
+    // loop over deformed images and perform DIC
+    // -----------------------------------------------------------------------
+    if (g_debug_level>0){
+        std::cout << std::endl;
+        common_util::title("DIC Engine Setup");
+    }
 
 
     int num_px_in_image = conf.px_hori * conf.px_vert;
@@ -106,6 +86,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
     }
     else if (conf.scan_method == util::ScanMethod::SINGLEWINDOW_RG ||
              conf.scan_method == util::ScanMethod::RASTER) {
+
+        common_util::Timer timer("to create subset grid:", 2);
         ss_grid_l = subset::create_grid(img_roi, conf.ss_step,
                                         conf.ss_size, conf.ss_size,
                                         conf.px_hori, conf.px_vert, false);
@@ -118,14 +100,6 @@ void engine(const py::array_t<bool>& img_roi_arr,
     // resize the results based on subset information
     ResultArrays results_def_l(ss_grid_l.num, conf.num_params, false);
 
-    // -----------------------------------------------------------------------
-    // loop over deformed images and perform DIC
-    // -----------------------------------------------------------------------
-    if (g_debug_level>0){
-        std::cout << std::endl;
-        TITLE("Starting Correlation")
-    }
-    common_util::Timer timer("DIC Engine:");
 
     // pointer to hold the reference interpolators (will be created once)
     std::unique_ptr<Interpolator> interp_ref_l;
@@ -167,6 +141,14 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
 
     int img_num_ref_l = 0;
+
+    // -----------------------------------------------------------------------
+    // loop over deformed images and perform DIC
+    // -----------------------------------------------------------------------
+    if (g_debug_level>0){
+        std::cout << std::endl;
+        common_util::title("Starting Correlation");
+    }
 
     // loop over deformed images. They start at index 1 in the stack
     for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){

@@ -23,8 +23,7 @@ ResultArrays::ResultArrays(int num_ss,
                            int num_params,
                            bool stereo){
 
-    if (g_debug_level>0) 
-        common_util::Timer timer("resizing of result arrays:");
+    common_util::Timer timer("to resize result arrays:", 2);
 
     this->num_ss = num_ss;
     this->num_params = num_params;
@@ -172,6 +171,9 @@ void ResultArrays::append(OptResult &res, const int i) {
 void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
                                     const subset::Grid &ss_grid,
                                     const std::string &filename){
+
+
+    common_util::Timer timer("to write DIC results to disk:", 2);
 
     const std::string delimiter = saveconf.delimiter;
 

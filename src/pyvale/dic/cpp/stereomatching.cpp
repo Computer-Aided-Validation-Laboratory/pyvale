@@ -62,8 +62,8 @@ void matching(const Image &img_l,
                                                              interp_l, interp_r, print);
         };
 
-        std::string bar_title = "Stereo  matching for \033[1;4m" + conf.basenames[img_num_def_l] +
-                                    "\033[0m and \033[1;4m" + conf.basenames[img_num_def_r] + 
+        std::string bar_title = "Stereo \033[1;4m" + conf.basenames[img_num_def_l] +
+                                    "\033[0m -> \033[1;4m" + conf.basenames[img_num_def_r] + 
                                     "\033[0m:";
 
         ProgressBar pbar(bar_title, ss_grid.active_total);

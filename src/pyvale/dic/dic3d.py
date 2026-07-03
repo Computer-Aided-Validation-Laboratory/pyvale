@@ -15,7 +15,7 @@ import pyvale.dic.diccpp as diccpp
 import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic.dicchecks as dicchecks
 import pyvale.common_py.util as common_py_util
-from pyvale.calib.calib_dataclass import Calib
+from pyvale.calib.calibdataclass import Calib
 import pyvale.common_cpp.common_cpp as common_cpp
 
 
@@ -70,19 +70,19 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         A binary mask indicating the Region of Interest (ROI) for analysis (same size as image).
     seed : list[int], list[np.int32] or np.ndarray
         Coordinates `[x, y]` of the seed point for Reliability-Guided (RG) scanning. It's possible
-        to provide mutiple seed points using `[x0, y0, x1, y1,...]` format. If the method is not 
+        to provide mutiple seed points using ``[x0, y0, x1, y1,...]`` format. If the method is not 
         RG, this will be ignored.
     subset_size : int, optional
         Size of the square subset window in pixels (default: 21).
     subset_step : int, optional
         Step size between subset centers in pixels (default: 10).
     correlation_criteria : str, optional
-        Metric for matching subsets: "ZNSSD", "NSSD" or "SSD" (default: "ZNSSD").
+        Metric for matching subsets: ``"ZNSSD"``, ``"NSSD"`` or ``"SSD"`` (default: ``"ZNSSD"``).
     shape_function : str, optional
         Deformation model: e.g., "AFFINE", "RIGID" (default: "AFFINE").
     interpolation_routine : str, optional
-        Interpolation method used on image intensity. "BICUBIC" is currently the
-        only supported option.
+        Interpolation method used on image intensity. Options are ``"BSPLINE"`` and ``"HERMITE"``. 
+        Implementation details can be found in our DIC theory documentation. (default: ``“BSPLINE”``).
     max_iterations : int, optional
         Maximum number of iterations allowed for subset optimization (default: 40).
     precision : float, optional
@@ -98,20 +98,22 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         Estimate for the maximum distance along the epipolar line (in pixels) between a identical point in 
         the left and right image (default: 300).
     method : str, optional
-        Subset scanning method: 
-        * ``"MULTIWINDOW_RG"``: 
-          for multi-window Reliability-Guided DIC (best overall approach),
-        * ``"SINGLEWINDOW_RG"``:
-          uses a single window for the rigid estimate for
-          each subset. The size of the window is determined by the `max_displacement` parameter.
-        * ``"MULTIWINDOW"``:
-          only uses the multi-window FFT strategy. Only works
-          for rigid shape functions and is not recommended for general use, but
-          can be very fast for large rigid displacements.
-        * ``"RASTER"``:
-          no FFT initialization. Performs a raster scan of the image. 
-          No seed location is used and work is split evenly between threads. 
-          Not recommended except for testing with small displacements
+        The core algorithmic method used to perform the DIC.
+
+        Options include:
+
+        * ``"MULTIWINDOW_RG"``: Multi-window Reliability-Guided DIC
+        (best overall approach).
+
+        * ``"SINGLEWINDOW_RG"``: Uses a single window for the rigid estimate
+        for each subset. The size of the window is determined by the
+        ``max_displacement`` parameter.
+
+        * ``"MULTIWINDOW"``: Uses only the multi-window FFT strategy.
+
+        * ``"RASTER"``: No FFT initialization. Performs a raster scan of
+        the image.
+
     incremental : bool, optional
         If True, then references images will be updated depending on the
         condition set by argument `incremental_update_condition`. This is useful
@@ -119,15 +121,15 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         valid for tracking. If False, the original reference image(s) will be
         used for tracking all deformed images (default: False).
     incremental_update_condition : str, optional
-        Condition for updating reference images when `incremental` is True. Options include:
-        `"IMAGE"` to update every `N` images, `"COST"` to update when the average ZNCC cost
-        value falls below a threshold, `"ITER"` to update when the average number
+        Condition for updating reference images when ``incremental`` is True. Options include:
+        ``"IMAGE"`` to update every ``N`` images, ``"COST"`` to update when the average ZNCC cost
+        value falls below a threshold, ``"ITER"`` to update when the average number
         of subset optimizer iterations exceeds a threshold. (default: `"PER_IMAGE"`).
     incremental_update_value : float, optional
-        Value corresponding to the `incremental_update_condition`. For example,
+        Value corresponding to the ``incremental_update_condition``. For example,
         if the condition is "IMAGE", this would be the number of images after
-        which to update the reference. If the condition is `"COST"`, this would be
-        the cost threshold for updating. If the condition is `"ITER"`, this would
+        which to update the reference. If the condition is ``"COST"``, this would be
+        the cost threshold for updating. If the condition is ``"ITER"``, this would
         be the iteration threshold for updating. (default: 1).
     multiwindow_overlap : int, optional
         For multi-window methods, the percentage overlap between adjacent FFT windows 
@@ -135,10 +137,10 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     multiwindow_template : list[int], optional
         List of template window sizes for the multi-window FFT approach. If
         None, defaults to powers of 2 with the largest window size determined by
-        the next power of 2 above `max_displacement` (default: None).
+        the next power of 2 above ``max_displacement`` (default: ``None``).
     multiwindow_search : list[int], optional
         List of search window sizes for the multi-window FFT approach. If None,
-        defaults to the corresponding template window size (default: None).
+        defaults to the corresponding template window size (default: ``None``).
     fft_mad : bool, optional
         The option to smooth FFT windowing data by identifying and replacing outliers using 
         a robust statistical method. For each subset, the function collects values from its 
@@ -154,20 +156,20 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         `fft_mad_scale` times the MAD. This value choses the scaling factor that determines 
         the threshold for detecting outliers relative to the MAD.
     output_basepath : str or pathlib.Path, optional
-        Directory path where output files will be written (default: "./").
+        Directory path where output files will be written (default: ``"./"``).
     output_binary : bool, optional
         Whether to write output in binary format (default: False).
     output_prefix : str, optional
-        Prefix for all output files (default: "dic_results_"). results will be
+        Prefix for all output files (default: ``"dic_results_"``). results will be
         named with output_prefix + original filename. THe extension will be
-        changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
+        changed to ``".csv"`` or ``".dic2d"`` depending on whether outputting as a binary.
     output_delimiter : str, optional
-        Delimiter used in text output files (default: ",").
+        Delimiter used in text output files (default: ``","``).
     output_below_threshold : bool, optional
-        If True, subset results with cost values that did not exceed the cost threshold
-        will still be present in output (default: False).
+        If ``True``, subset results with cost values that did not exceed the cost threshold
+        will still be present in output (default: ``False``).
     output_shape_params : bool, optional
-        If True, all shape parameters will be saved in the output files (default: False).
+        If True, all shape parameters will be saved in the output files (default: ``False``).
     debug_level:
 
     Returns
@@ -315,6 +317,13 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     #set the number of OMP threads
     if num_threads is not None:
         common_cpp.set_num_threads(num_threads)
+
+    dicchecks.print_config_summary(
+        w0, h0, config.num_def_img, max_iterations, correlation_criteria,
+        shape_function, interpolation_routine, fft_mad, fft_mad_scale, method,
+        precision, threshold, max_displacement, subset_size, subset_step,
+        num_threads, debug_level, updated_seeds, epi_distance
+    )
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):

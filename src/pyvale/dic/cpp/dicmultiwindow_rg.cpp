@@ -66,7 +66,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
 
 
     // progress bar
-    std::string bar_title = "Temporal matching for \033[1;4m" + conf.basenames[img_num_ref] + "\033[0m and \033[1;4m" + conf.basenames[img_num_def] + "\033[0m:";
+    std::string bar_title = "Temporal \033[1;4m" + conf.basenames[img_num_ref] + "\033[0m -> \033[1;4m" + conf.basenames[img_num_def] + "\033[0m:";
     ProgressBar pbar(bar_title, ss_grid.active_total);
     std::atomic<int> current_progress(0);
 

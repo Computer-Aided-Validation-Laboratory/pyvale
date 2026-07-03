@@ -23,7 +23,7 @@
 
 Hermite::Hermite(const Image &img) {
 
-    //Timer timer("interpolator initialisation");
+    common_util::Timer time("to init " + img.filename + " interp:", 2);
 
     // intitialise vars used globally within Interpolator.
     image.resize(px_hori*px_vert);

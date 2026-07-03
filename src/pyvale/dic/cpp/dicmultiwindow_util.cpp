@@ -33,6 +33,7 @@ void multiwindow_init(std::vector<WindowLevel> &level,
                       const MultiwindowConfig &mwconf,
                       const common_util::SaveConfig &saveconf) {
 
+    common_util::Timer timer("to init multiwindow levels:", 2);
 
     for (size_t lvl = 0; lvl < mwconf.overlap.size(); lvl++) {
 
@@ -276,7 +277,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         std::fill(v.begin(), v.end(), 0.0);
 
         // progress bar initialisation
-        std::string bar_title = "FFT windowing " + std::to_string(search_area) + "x" + std::to_string(search_area) + " for \033[1;4m" + filenames[img_num_ref] + "\033[0m and \033[1;4m" + filenames[img_num_def] + "\033[0m:";
+        std::string bar_title = "FFT " + std::to_string(search_area) + "x" + std::to_string(search_area) + " \033[1;4m" + filenames[img_num_ref] + "\033[0m -> \033[1;4m" + filenames[img_num_def] + "\033[0m:";
         ProgressBar pbar(bar_title, layout.active_total);
         std::atomic<int> current_progress = 0;
 

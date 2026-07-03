@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cstdlib>
 #include <stdexcept>
+#include <cstring>
+#include <filesystem>
 
 #include "./util.hpp"
 #include "./img_read.hpp"
@@ -19,6 +21,10 @@
 #include "../common_cpp/stb_image.h"
 
 Image read_img(const std::string& fullpath) {
+
+
+    common_util::Timer time("to read " +std::filesystem::path(fullpath).filename().string() + ":");
+
     // Find extension
     auto dotPos = fullpath.find_last_of('.');
     if (dotPos == std::string::npos) {
@@ -53,6 +59,7 @@ Image read_tiff(const std::string &fullpath) {
     TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bps);
     TIFFGetField(tif, TIFFTAG_SAMPLESPERPIXEL, &spp);
     Image img;
+    img.filename = std::filesystem::path(fullpath).filename().string();
     img.width = width;
     img.height = height;
     std::vector<uint8_t> scanline(TIFFScanlineSize(tif));
@@ -62,8 +69,15 @@ Image read_tiff(const std::string &fullpath) {
         for (uint32_t row = 0; row < height; ++row) {
             if (TIFFReadScanline(tif, scanline.data(), row) < 0)
                 throw std::runtime_error("Failed to read row " + std::to_string(row));
-            for (uint32_t x = 0; x < width; ++x)
-                img.data8[row * width + x] = scanline[x * spp];
+            if (spp == 1) {
+                std::memcpy(img.data8.data() + static_cast<size_t>(row) * width,
+                            scanline.data(),
+                            width * sizeof(uint8_t));
+            }
+            else {
+                for (uint32_t x = 0; x < width; ++x)
+                    img.data8[row * width + x] = scanline[x * spp];
+            }
         }
     } 
     else if (bps == 16) {
@@ -73,8 +87,15 @@ Image read_tiff(const std::string &fullpath) {
             if (TIFFReadScanline(tif, scanline.data(), row) < 0)
                 throw std::runtime_error("Failed to read row " + std::to_string(row));
             auto *p = reinterpret_cast<uint16_t*>(scanline.data());
-            for (uint32_t x = 0; x < width; ++x)
-                img.data16[row * width + x] = p[x * spp];
+            if (spp == 1) {
+                std::memcpy(img.data16.data() + static_cast<size_t>(row) * width,
+                            scanline.data(),
+                            static_cast<size_t>(width) * sizeof(uint16_t));
+            }
+            else {
+                for (uint32_t x = 0; x < width; ++x)
+                    img.data16[row * width + x] = p[x * spp];
+            }
         }
     }
     else if (bps == 32) {
@@ -84,8 +105,15 @@ Image read_tiff(const std::string &fullpath) {
             if (TIFFReadScanline(tif, scanline.data(), row) < 0)
                 throw std::runtime_error("Failed to read row " + std::to_string(row));
             auto *p = reinterpret_cast<uint32_t*>(scanline.data());
-            for (uint32_t x = 0; x < width; ++x)
-                img.data32[row * width + x] = p[x * spp];
+            if (spp == 1) {
+                std::memcpy(img.data32.data() + static_cast<size_t>(row) * width,
+                            scanline.data(),
+                            static_cast<size_t>(width) * sizeof(uint32_t));
+            }
+            else {
+                for (uint32_t x = 0; x < width; ++x)
+                    img.data32[row * width + x] = p[x * spp];
+            }
         }
     }
     else {
@@ -116,16 +144,24 @@ Image read_bmp(const std::string& fullpath) {
         }
 
         Image img;
+        img.filename = std::filesystem::path(fullpath).filename().string();
         img.width = static_cast<uint32_t>(width);
         img.height = static_cast<uint32_t>(height);
         img.type = PixelType::UINT16;
-        img.data16.resize(static_cast<size_t>(width) * height);
+        const size_t pixel_count = static_cast<size_t>(width) * height;
+        img.data16.resize(pixel_count);
 
-        // Use first channel only
-        for (int y = 0; y < height; ++y) {
-            for (int x = 0; x < width; ++x) {
-                img.data16[y * width + x] =
-                    raw[(y * width + x) * channels];
+        if (channels == 1) {
+            std::memcpy(img.data16.data(), raw, pixel_count * sizeof(uint16_t));
+        }
+        else {
+            // Use first channel only
+            #pragma omp parallel for schedule(static)
+            for (int y = 0; y < height; ++y) {
+                for (int x = 0; x < width; ++x) {
+                    img.data16[y * width + x] =
+                        raw[(y * width + x) * channels];
+                }
             }
         }
 
@@ -149,16 +185,24 @@ Image read_bmp(const std::string& fullpath) {
         }
 
         Image img;
+        img.filename = std::filesystem::path(fullpath).filename().string();
         img.width = static_cast<uint32_t>(width);
         img.height = static_cast<uint32_t>(height);
         img.type = PixelType::UINT8;
-        img.data8.resize(static_cast<size_t>(width) * height);
+        const size_t pixel_count = static_cast<size_t>(width) * height;
+        img.data8.resize(pixel_count);
 
-        // Use first channel only
-        for (int y = 0; y < height; ++y) {
-            for (int x = 0; x < width; ++x) {
-                img.data8[y * width + x] =
-                    raw[(y * width + x) * channels];
+        if (channels == 1) {
+            std::memcpy(img.data8.data(), raw, pixel_count * sizeof(uint8_t));
+        }
+        else {
+            // Use first channel only
+            #pragma omp parallel for schedule(static)
+            for (int y = 0; y < height; ++y) {
+                for (int x = 0; x < width; ++x) {
+                    img.data8[y * width + x] =
+                        raw[(y * width + x) * channels];
+                }
             }
         }
 

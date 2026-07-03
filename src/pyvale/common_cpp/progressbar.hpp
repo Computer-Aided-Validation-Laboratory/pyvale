@@ -10,6 +10,8 @@
 #include <cmath>
 #include <algorithm>
 
+#include "./util.hpp"
+
 class ProgressBar {
 private:
     std::string message;
@@ -20,7 +22,7 @@ private:
     int last_iter;
     bool started;
 
-    static constexpr int BAR_WIDTH = 30;
+    static constexpr int BAR_WIDTH = 36;
 
 public:
     // Constructor
@@ -38,8 +40,11 @@ public:
             last_update_time = start_time;
             started = true;
             hide_cursor();
+
+            std::string time = "[" + common_util::current_datetime_ms() +"] ";
+
             // Print message line once — never overwritten
-            std::cout << message << "\n";
+            std::cout << time << message << "\n";
             // Print empty progress line so the first \033[1A has a line to go up to
             std::cout << "\n" << std::flush;
         }
@@ -53,7 +58,7 @@ public:
         // Time
         auto now = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
-        std::string time_str = format_duration(duration);
+        std::string time_str = common_util::format_duration_ms(duration);
 
         last_update_time = now;
         last_iter = current_iter;
@@ -70,7 +75,7 @@ public:
                  << "(" << std::setw(6) << current_iter
                  << "/" << std::setw(6) << total_iterations << ")  "
                  << std::setprecision(2)
-                 << "Time: [" << std::setw(10) << time_str << "]";
+                 << "Time: " << std::setw(10) << time_str;
 
         // Move up 1 to overwrite only the progress line, never the message line
         std::cout << "\033[1A"   // move up 1 line
