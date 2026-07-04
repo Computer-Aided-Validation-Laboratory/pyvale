@@ -18,7 +18,7 @@ from pyvale.raytracer.rtoutputformat import *
 # VERSION WITH BLENDER - WILL NOT WORK ON LINUX
 # Number of anti-aliasing samples at which we end the test regardless of whether the convergence
 # has been reached or not
-SUBSAMPLE_LIMIT_MAX = 2
+SUBSAMPLE_LIMIT_MAX = 2**17
 
 # ================================================================================
 # Preprocessing - UV unwrapping (has to be done on WSL/Windows)
@@ -276,7 +276,7 @@ def conv_test_rt(test_case: TestCase,
                         print(f"Exceeded the maximum subsample limit of {SUBSAMPLE_LIMIT_MAX}. Terminating this case.")
                         break
         
-conv_test_rt(TestCase.AIR_UNLIT, Resolution.LOW, 1, None, 1, False)
+#conv_test_rt(TestCase.AIR_UNLIT, Resolution.LOW, 2**0, None, 1, False)
 
 
 

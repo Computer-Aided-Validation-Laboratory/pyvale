@@ -43,7 +43,7 @@ from pyvale.raytracer.rtoutputformat import *
 from convergence_rt import * # This also imports global positioning of the scene, so we don't need to copy it here
 from global_utils import *
 
-SUBSAMPLE_LIMIT_MAX = 16384 # Overwrite the value from convergence_rt to set limits for Blender separately if needed
+SUBSAMPLE_LIMIT_MAX = 2**20 # Overwrite the value from convergence_rt to set limits for Blender separately if needed
 
 # ================================================================================
 # CONVENIENCE CONVERTERS: pyvale scene objects -> Blender datablocks
@@ -431,7 +431,8 @@ def create_blender_material(name: str,
         img.colorspace_settings.name = "Non-Color"
         node_tex.image = img
         # Clamp (no tiling) + cubic interpolation (closest to Catmull-Rom used in tests)
-        node_tex.extension = "EXTEND"
+        node_tex.extension = "EXTEND" # Original setting
+        #node_tex.extension = "CLIP"
         node_tex.interpolation = "Cubic"
         # Bind to the exact UV layer written by write_uvs_to_blender_object
         node_uv = nodes.new(type="ShaderNodeUVMap")
@@ -452,7 +453,6 @@ def create_blender_material(name: str,
             node_emission.inputs["Color"].default_value = base_color
 
         links.new(node_emission.outputs["Emission"], node_output.inputs["Surface"])
-
     else:
         # DIFFUSE and REFRACTIVE both use a Principled BSDF
         node_bsdf = nodes.new(type="ShaderNodeBsdfPrincipled")
@@ -533,6 +533,7 @@ def configure_render_settings(image_width: int,
         scene.cycles.use_adaptive_sampling = False
         scene.cycles.use_denoising = False
         scene.cycles.seed = 0
+        #scene.cycles.use_guiding = True # TEST THIS; this is default and will do denoising even with denosing off
         # Allow enough refraction/transmission bounces for the dielectric cases (tank / water / nested dielectric)
         # Our ray-tracer goes to depth of 30 for this sample scene, so we apply the same cap here
         scene.cycles.max_bounces = 30
@@ -672,7 +673,8 @@ def conv_test_blender(test_case: TestCase,
     tank = any_mesh_to_rtmesh(tank_path, world_position = TANK_POSITION, anchor = Anchor.CENTER)
 
     # Sample (speckle) texture for the beam; no need to load it into numpy array
-    ref_texture = full_path("thesis-data/texture/speckle.tiff")
+    #ref_texture = full_path("thesis-data/texture/speckle.tiff")
+    ref_texture = full_path("thesis-data/texture/grid.tif")
 
     # BlenderUnwrapper reused for the beam's UVs (same as ray tracer)
     blender_uv = BlenderUnwrapper()
@@ -701,7 +703,7 @@ def conv_test_blender(test_case: TestCase,
             starting_subsamples = 1
     else:
         # This helps us speed up
-        if starting_subsamples is None or starting_subsamples < 2:
+        if starting_subsamples is None or starting_subsamples < 1:
             raise ValueError("Please base your starting subsample count on the UNLIT case, otherwise this will run for ages.")
         if test_case == TestCase.AIR_DIFFUSE:
             print(f"--------------------------------\nTESTED CASE: AIR DIFFUSE\n--------------------------------")
@@ -751,11 +753,19 @@ def conv_test_blender(test_case: TestCase,
     beam_uv_name = write_uvs_to_blender_object(beam_obj, beam, uv_map_name="RTUVMap")
 
     # Equivalent of RT's "set_surface"
+    
     beam_mat = create_blender_material("BeamSpeckle",
         MaterialPresets.OFFICE_PAPER, # Just to have the syntax agree, it is irrelevant for textured non-refractive beam
         mat_type,
         texture_path=ref_texture,
         uv_map_name=beam_uv_name)
+    """
+    beam_mat = create_blender_material("BeamSpeckle",
+        Material(color=np.array([1.0, 0.0, 0.0]), RI=None),  # or your Material type ctor
+        MaterialType.UNLIT,   # or DIFFUSE
+        texture_path=None
+    )
+    """
     assign_material(beam_obj, beam_mat)
 
     # Set shading
@@ -763,10 +773,10 @@ def conv_test_blender(test_case: TestCase,
     for obj in bpy.data.objects:
         if obj.type == "MESH":
             # Option 1: Blended shading (can choose materials for this above)
-            shade_rtmesh_flat(obj, smooth=(obj.name in blended_names))
+            #shade_rtmesh_flat(obj, smooth=(obj.name in blended_names))
             # Option 2: Flat for everything - preferred
             # Matches the ray tracer convergence test set-up, and renders better
-            #shade_rtmesh_flat(obj, smooth=False)
+            shade_rtmesh_flat(obj, smooth=False)
 
     # --------------------------------------------------------------------------
     # ITERATIVE ANTI-ALIASING SUBSAMPLE CONVERGENCE
@@ -856,4 +866,6 @@ def conv_test_blender(test_case: TestCase,
                     "subsamples": int(subsample_count),
                     "time (s)": times[subsample_count]})      
 
-conv_test_blender(TestCase.AIR_UNLIT, Resolution.HIGH, 1, True)
+#conv_test_blender(TestCase.TANK, Resolution.HIGH, 2**14, False)
+#conv_test_blender(TestCase.AIR_UNLIT, Resolution.HIGH, 2**18, False)
+#conv_test_blender(TestCase.AIR_UNLIT, Resolution.LOW, 2**20, False)

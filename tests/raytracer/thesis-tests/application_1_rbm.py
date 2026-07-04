@@ -353,7 +353,8 @@ def rmb_test(test_case: TestCaseApp):
     output_format = output_format_cx5
     # Anti-aliasing
     anti_alias = 1; # for anti-aliasing
-    #print(angle_vertical_view)
+    print(f"VFOV angle: {angle_vertical_view} with camera distance: {camera_distance}")
+
     #cam.print_view_dims()
 
     # 2. Paths and access to all data used in the scene
@@ -412,7 +413,7 @@ def rmb_test(test_case: TestCaseApp):
 
     # 6. Render
     scene.add_camera(cam)
-    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.DYNAMIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    #render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.DYNAMIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
 
 
     

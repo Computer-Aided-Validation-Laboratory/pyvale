@@ -104,21 +104,21 @@ def plate_test(test_case: TestCaseApp):
         max_displacement = np.max(total_displacements)
         displaced_frame_idx = temp_frame_idx
         temp_frame_idx -= 1
-    print(f"Displaced frame idx: {displaced_frame_idx}, with maximum displacement of {max_displacement} mm")
+    print(f"Displaced frame idx: {displaced_frame_idx}, with maximum displacement of {max_displacement} mm, which is less than the scale 1 px = {scale} mm")
     # 5. Render
     scene.add_camera(cam)
     scene_deformed = deepcopy(scene)
 
     fresh_filename = "rtimage_0_cam0.bmp"
     # Render undeformed image
-    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
-    new_filename = "rtimage_frame0.bmp"
-    os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
+    #render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    #new_filename = "rtimage_frame0.bmp"
+    #os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
     # Render deformed image
-    render_scene(image_height, image_width, scene_deformed, anti_alias, target_path, RenderType.STATIC, frames_to_render=displaced_frame_idx, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
-    new_filename = f"rtimage_frame{displaced_frame_idx}.bmp"
-    os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
+    #render_scene(image_height, image_width, scene_deformed, anti_alias, target_path, RenderType.STATIC, frames_to_render=displaced_frame_idx, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    #new_filename = f"rtimage_frame{displaced_frame_idx}.bmp"
+    #os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
 
 
 #plate_test(TestCaseApp.AIR_DIFFUSE)
-    
+   

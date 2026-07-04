@@ -4,11 +4,14 @@ they are dedicated for Linux, Blender, single image case, or others.
 """
 from enum import StrEnum, IntEnum
 import numpy as np
+from PIL import Image
+import numpy as np
 import cv2
 import csv
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from matplotlib.ticker import FormatStrFormatter
+from matplotlib.offsetbox import TextArea, HPacker, VPacker, AnchoredOffsetbox
 
 import smplotlib # For nicer figures (imo), but no need to install if you don't want it
 
@@ -141,17 +144,18 @@ def bitwise_compare(data_path_new: Path, data_path_prev: Path | None = None, bit
 
     return rmse, similarity_rmse, similarity_identical
 
-
 # ================================================================================
 # Post-processing: Convergence log
 # ================================================================================
 
-def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resolution, start_subsamples: int, end_subsamples: int):
+def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resolution, start_subsamples: int, end_subsamples: int, blender: bool = False):
     """
     Fills the convergence log; useful if the rendering was interrupted or split across machines, etc.
     to get the data in the same csv effortlessly.
     """
     base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    if blender:
+        base_data_dir = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
     elem_dir_name = base_data_dir + element.label
     data_path = test_dir(BASE_TEST_DIR, elem_dir_name)
     csv_path = data_path / "convergence_log.csv" # Full path to the csv with all numerical data
@@ -502,7 +506,7 @@ def check_difference(element: Element, test_case:TestCase, resolution: Resolutio
 # ================================================================================
 # Post-processing: Plotters for Blender/ Blender vs RT comparison
 # ================================================================================
-def plot_results_blender(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
+def plot_results_blender(test_case: TestCase, resolution: Resolution, time: bool = False, save: bool = False, show: bool = False):
     """
     Plots Blender convergence plot with RMSE on the left and render time on the right.
     """
@@ -523,89 +527,124 @@ def plot_results_blender(test_case: TestCase, resolution: Resolution, save: bool
 
     label_x = np.unique(elem_data[1])
 
-    # Create two side-by-side plots with shared x-axis
-    fig, (ax_rmse, ax_time) = plt.subplots(1, 2, figsize=FIGURE_SIZE, sharex=True)
+    title = f"Blender convergence for test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution"
 
-    title = f"Convergence for test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution"
-    fig.suptitle(title, fontsize=FONT_SIZES["suptitle"])
+    # Create two side-by-side plots with shared x-axis if plotting CPU render time
+    if time:
+        fig, (ax_rmse, ax_time) = plt.subplots(1, 2, figsize=FIGURE_SIZE, sharex=True)
+        fig.suptitle(title, fontsize=FONT_SIZES["suptitle"])
 
-    # ------------------
-    # Left plot: RMSE
-    # ------------------
-    ax_rmse.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
-    ax_rmse.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
+        # ------------------
+        # Left plot: RMSE
+        # ------------------
+        ax_rmse.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+        ax_rmse.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
 
-    ax_rmse.yaxis.set_major_formatter(mticker.NullFormatter())
-    ax_rmse.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
-    ax_rmse.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
-    ax_rmse.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+        ax_rmse.yaxis.set_major_formatter(mticker.NullFormatter())
+        ax_rmse.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
+        ax_rmse.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
+        ax_rmse.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
 
-    ax_rmse.set_xscale("log")
-    ax_rmse.xaxis.set_minor_locator(mticker.NullLocator())
+        ax_rmse.set_xscale("log")
+        ax_rmse.xaxis.set_minor_locator(mticker.NullLocator())
 
-    ax_rmse.plot(
-        elem_data[1], elem_data[2],
-        label=Elements.TRI3.label,
-        color=Elements.TRI3.color,
-        marker="o",
-        linestyle="-",
-        linewidth=3,
-        markersize=10
-    )
+        ax_rmse.plot(
+            elem_data[1], elem_data[2],
+            label=Elements.TRI3.label,
+            color=Elements.TRI3.color,
+            marker="o",
+            linestyle="-",
+            linewidth=3,
+            markersize=10)
 
-    ax_rmse.set_xticks(label_x)
-    ax_rmse.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
-    ax_rmse.legend(loc="upper right", fontsize=FONT_SIZES["axis_labels"])
-    ax_rmse.grid(visible=True, which="both", axis="both")
+        ax_rmse.set_xticks(label_x)
+        ax_rmse.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+        ax_rmse.legend(loc="upper right", fontsize=FONT_SIZES["axis_labels"])
+        ax_rmse.grid(visible=True, which="both", axis="both")
 
-    # ------------------
-    # Right plot: Render time
-    # ------------------
-    ax_time.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
-    ax_time.set_ylabel("Render time [s]", fontsize=FONT_SIZES["axis_labels"])
-    ax_time.tick_params(axis="both", which="both", labelsize=FONT_SIZES["ticks"])
+        # ------------------
+        # Right plot: Render time
+        # ------------------
+        ax_time.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+        ax_time.set_ylabel("Render time [s]", fontsize=FONT_SIZES["axis_labels"])
+        ax_time.tick_params(axis="both", which="both", labelsize=FONT_SIZES["ticks"])
 
-    ax_time.set_xscale("log")
-    ax_time.xaxis.set_minor_locator(mticker.NullLocator())
+        ax_time.set_xscale("log")
+        ax_time.xaxis.set_minor_locator(mticker.NullLocator())
 
-    ax_time.plot(
-        time_data[0], time_data[1],
-        label="CPU render time",
-        color="tab:red",
-        marker="o",
-        linestyle="-",
-        linewidth=3,
-        markersize=10
-    )
+        ax_time.plot(
+            time_data[0], time_data[1],
+            label="CPU render time",
+            color="tab:red",
+            marker="o",
+            linestyle="-",
+            linewidth=3,
+            markersize=10)
 
-    ax_time.set_xticks(label_x)
-    ax_time.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
-    ax_time.legend(loc="upper left", fontsize=FONT_SIZES["axis_labels"])
-    ax_time.grid(visible=True, which="both", axis="both")
+        ax_time.set_xticks(label_x)
+        ax_time.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+        ax_time.legend(loc="upper left", fontsize=FONT_SIZES["axis_labels"])
+        ax_time.grid(visible=True, which="both", axis="both")
 
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+    # Just convergence
+    else:
+        fig, ax_rmse = plt.subplots(figsize=FIGURE_SIZE)
+        fig.suptitle(title, fontsize=FONT_SIZES["suptitle"])
+
+        # ------------------
+        # Left plot: RMSE
+        # ------------------
+        ax_rmse.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+        ax_rmse.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
+
+        ax_rmse.yaxis.set_major_formatter(mticker.NullFormatter())
+        ax_rmse.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
+        ax_rmse.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
+        ax_rmse.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+
+        ax_rmse.set_xscale("log")
+        ax_rmse.xaxis.set_minor_locator(mticker.NullLocator())
+
+        ax_rmse.plot(
+            elem_data[1], elem_data[2],
+            label=Elements.TRI3.label,
+            color=Elements.TRI3.color,
+            marker="o",
+            linestyle="-",
+            linewidth=3,
+            markersize=10)
+
+        ax_rmse.set_xticks(label_x)
+        ax_rmse.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+        ax_rmse.legend(loc="upper right", fontsize=FONT_SIZES["axis_labels"])
+        ax_rmse.grid(visible=True, which="both", axis="both")
+
+        plt.tight_layout()
 
     if show:
         plt.show()
     if save:
         fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
 
-def plot_results_blender_rt(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
+def format_spp_as_power_of_2(spp):
+    return rf"$2^{{{int(np.log2(spp))}}}$"
+
+def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
     """
-    Plots convergence plots: ray tracer on the left, Blender on the right.
+    Plots ray tracer and Blender convergence on a single plot.
     """
+    # Output directory
     base_data_dir_b = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir_b)
+    filename = f"{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot.png"
 
     # Blender data path
     elem_dir_name_b = base_data_dir_b + Elements.TRI3.label
     data_path_b = test_dir(BASE_TEST_DIR, elem_dir_name_b) / "convergence_log.csv"
 
-    filename = f"{test_case.value}_{resolution.value}_blender_rt_convergence_plot.png"
-
-    base_data_dir_rt = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
-
     # Ray tracer data path
+    base_data_dir_rt = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
     elem_dir_name_rt = base_data_dir_rt + Elements.TRI3.label
     data_path_rt = test_dir(BASE_TEST_DIR, elem_dir_name_rt) / "convergence_log.csv"
 
@@ -614,79 +653,106 @@ def plot_results_blender_rt(test_case: TestCase, resolution: Resolution, save: b
     elem_data_b = np.loadtxt(data_path_b, delimiter=",", skiprows=1, unpack=True)
     elem_data_rt = np.loadtxt(data_path_rt, delimiter=",", skiprows=1, unpack=True)
 
-    # x-axis values
-    label_x_b = np.unique(elem_data_b[1])
-    label_x_rt = np.unique(elem_data_rt[1])
+    # Shared x ticks
+    label_x = np.unique(np.concatenate((elem_data_rt[1], elem_data_b[1])))
 
-    # If both datasets use the same subsample positions, either is fine.
-    # Using the union is a bit safer.
-    label_x = np.unique(np.concatenate((label_x_rt, label_x_b)))
+    # Minimum RMSE values
+    min_rmse_rt = np.min(elem_data_rt[2])
+    min_rmse_b = np.min(elem_data_b[2])
 
-    # Create two side-by-side plots with shared x and y axes
-    fig, (ax_rt, ax_b) = plt.subplots(1, 2, figsize=FIGURE_SIZE, sharex=True, sharey=True)
+    # Optional: also report where the minima occur
+    min_idx_rt = np.argmin(elem_data_rt[2])
+    min_idx_b = np.argmin(elem_data_b[2])
+    min_x_rt = elem_data_rt[1][min_idx_rt]
+    min_x_b = elem_data_b[1][min_idx_b]
 
-    title = (
-        f"Ray tracer and Blender convergence\n"
-        f"Test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution"
-    )
-    fig.suptitle(title, fontsize=FONT_SIZES["suptitle"])
+    # Create figure
+    fig, ax = plt.subplots(figsize=FIGURE_SIZE)
 
-    # ------------------
-    # Left plot: Ray tracer
-    # ------------------
-    ax_rt.set_title("Ray tracer", fontsize=FONT_SIZES["axis_labels"])
-    ax_rt.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
-    ax_rt.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
+    title = (f"Ray tracer and Blender convergence for TRI3\n"
+        f"Test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution")
+    ax.set_title(title, fontsize=FONT_SIZES["suptitle"])
 
-    ax_rt.yaxis.set_major_formatter(mticker.NullFormatter())
-    ax_rt.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
-    ax_rt.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
-    ax_rt.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+    ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+    ax.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
 
-    ax_rt.set_xscale("log")
-    ax_rt.xaxis.set_minor_locator(mticker.NullLocator())
+    # Y-axis formatting
+    ax.yaxis.set_major_formatter(mticker.NullFormatter())
+    ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
+    ax.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
 
-    ax_rt.plot(
-        elem_data_rt[1], elem_data_rt[2],
-        label=Elements.TRI3.label,
+    # X-axis formatting
+    ax.set_xscale("log")
+    ax.xaxis.set_minor_locator(mticker.NullLocator())
+    ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+
+    # Ray tracer
+    ax.plot(elem_data_rt[1], elem_data_rt[2],
+        label="Ray tracer",
         color=Elements.TRI3.color,
         marker="o",
         linestyle="-",
         linewidth=3,
         markersize=10)
 
-    ax_rt.set_xticks(label_x)
-    ax_rt.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
-    ax_rt.legend(loc="upper right", fontsize=FONT_SIZES["axis_labels"])
-    ax_rt.grid(visible=True, which="both", axis="both")
-
-    # ------------------
-    # Right plot: Blender
-    # ------------------
-    ax_b.set_title("Blender", fontsize=FONT_SIZES["axis_labels"])
-    ax_b.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
-
-    ax_b.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
-    ax_b.tick_params(axis="y", which="both", left=False, labelleft=False)
-
-    ax_b.set_xscale("log")
-    ax_b.xaxis.set_minor_locator(mticker.NullLocator())
-
-    ax_b.plot(
-        elem_data_b[1], elem_data_b[2],
-        label=Elements.TRI3.label,
-        color=Elements.TRI3.color,
-        marker="o",
+    # Blender
+    ax.plot(elem_data_b[1], elem_data_b[2],
+        label="Blender Cycles",
+        color=Elements.TRI6.color,
+        marker="s",
         linestyle="-",
         linewidth=3,
         markersize=10)
 
-    ax_b.set_xticks(label_x)
-    ax_b.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
-    ax_b.legend(loc="upper right", fontsize=FONT_SIZES["axis_labels"])
-    ax_b.grid(visible=True, which="both", axis="both")
+    ax.set_xticks(label_x)
+    ax.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
 
-    plt.tight_layout(rect=[0, 0, 1, 0.93])
+    ax.legend(fontsize=FONT_SIZES["legend"])
+    ax.grid(visible=True, which="both", axis="both")
+
+    # Report the minimum values on the plot
+    # Text box with coloured labels
+    line1 = TextArea("Min RMSE:",
+        textprops=dict(color="black", fontsize=FONT_SIZES["legend"], ha="left"))
+
+    line2 = HPacker(
+        children=[
+            TextArea("Ray tracer: ",textprops=dict(color=Elements.TRI3.color, fontsize=FONT_SIZES["legend"])),
+            TextArea(f"{min_rmse_rt:.3g} at {format_spp_as_power_of_2(min_x_rt)} spp",textprops=dict(color="black", fontsize=FONT_SIZES["legend"])),
+        ],
+        align="left",
+        pad=0,
+        sep=0)
+
+    line3 = HPacker(
+        children=[
+            TextArea("Blender: ",textprops=dict(color=Elements.TRI6.color, fontsize=FONT_SIZES["legend"])),
+            TextArea(f"{min_rmse_b:.3g} at {format_spp_as_power_of_2(min_x_b)} spp",textprops=dict(color="black", fontsize=FONT_SIZES["legend"])),
+        ],
+        align="left",
+        pad=0,
+        sep=0)
+
+    stats_box = VPacker(children=[line1, line2, line3],align="left",pad=0,sep=2)
+
+    anchored_box = AnchoredOffsetbox(
+        loc="upper right",
+        child=stats_box,
+        pad=0.3,
+        frameon=True,
+        #bbox_to_anchor=(0.98, 0.78),
+        bbox_to_anchor=(1.0, 0.9),
+        bbox_transform=ax.transAxes,
+        borderpad=0.6)
+
+    anchored_box.patch.set_boxstyle("round")
+    anchored_box.patch.set_facecolor("white")
+    anchored_box.patch.set_alpha(0.85)
+    anchored_box.patch.set_edgecolor("gray")
+
+    ax.add_artist(anchored_box)
+
+    plt.tight_layout()
 
     if show:
         plt.show()
@@ -694,11 +760,120 @@ def plot_results_blender_rt(test_case: TestCase, resolution: Resolution, save: b
         fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
 
 
+# ================================================================================
+# Relative error distributions
+# ================================================================================
 
-#fill_convergence_log(Elements.TRI6, TestCase.AIR_DIFFUSE, Resolution.HIGH, 131072, 524288)
-plot_results_all(TestCase.AIR_DIFFUSE, Resolution.HIGH, True, False)
-plot_results_subplots(TestCase.AIR_DIFFUSE, Resolution.HIGH, True, False)
+def plot_relative_error_distribution(
+    test_case: TestCase,
+    resolution: Resolution,
+    subsamples_1: int,
+    subsamples_2: int,
+    save: bool = False,
+    show: bool = False,
+    blender: bool = False,
+    element: Elements = Elements.TRI3):
+    """
+    Plots relative pixel-wise error between two rendered images and show pixel coordinates on the axes.
+    """
+    subsamples_1 = str(subsamples_1)
+    subsamples_2 = str(subsamples_2)
+
+    base_data_dir = f"thesis-output/convergence_rt/res_{resolution.value}/{test_case.value}/"
+    base_image_file = "/rtimage_subsamples_"
+
+    if blender:
+        base_data_dir = f"thesis-output/convergence_blender/res_{resolution.value}/{test_case.value}/"
+        element = Elements.TRI3
+
+    elem_dir_name = base_data_dir + element.label
+
+    img1_path = full_path(elem_dir_name + base_image_file + subsamples_1 + ".tiff")
+    img2_path = full_path(elem_dir_name + base_image_file + subsamples_2 + ".tiff")
+
+    dynamic_range = 4095
+    k = 10
+
+    img1 = np.array(Image.open(str(img1_path)))
+    img2 = np.array(Image.open(str(img2_path)))
+
+    print("Shape1:", img1.shape)
+    print("Min/Max1:", img1.min(), img1.max())
+    print("Data type1:", img1.dtype)
+
+    print("Shape2:", img2.shape)
+    print("Min/Max2:", img2.min(), img2.max())
+    print("Data type2:", img2.dtype)
+
+    error = (img1.astype(np.int32) - img2.astype(np.int32)) * 100.0 / dynamic_range
+
+    print("Error:", error.min(), error.max())
+
+    max_val = np.max(error)
+    max_positions = np.argwhere(error == max_val)
+    print("Max value:", max_val)
+    print("Locations:", max_positions[:10])
+
+    flat_idx = np.argsort(error.ravel())[-k:]
+    top_positions = np.array(np.unravel_index(flat_idx, error.shape)).T
+
+    h, w = error.shape[:2]
+
+    fig, ax = plt.subplots(figsize=FIGURE_SIZE)
+
+    title = (f"Relative error for test case {test_case.value} at {resolution.value}x{resolution.value} px\n"
+        f"Between {subsamples_1} and {subsamples_2} subsamples for {element.label}")
+    if blender:
+        title += " (Blender)"
+
+    ax.set_title(title, fontsize=FONT_SIZES["suptitle"])
+
+    im = ax.imshow(error, cmap="viridis", vmin=error.min(),vmax=error.max(),origin="upper",)
+
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label("Relative error [%]")
+
+    for (i, j) in top_positions:
+        ax.scatter(j, i, color="red", s=50)
+        ax.text(j, i, f"({j}, {i})\n{error[i, j]:.2f}", color="white", fontsize=9, ha="left",va="bottom")
+
+    ax.set_xlabel("x pixel position")
+    ax.set_ylabel("y pixel position")
+
+    tick_step = max(1, resolution.value // 8)
+    ax.set_xticks(np.arange(0, w, tick_step))
+    ax.set_yticks(np.arange(0, h, tick_step))
+
+    ax.tick_params(axis="x", rotation=45)
+
+    ax.grid(False)
+    fig.tight_layout()
+
+    if save:
+        filename = f"{test_case.value}_{resolution.value}_error_distr_{subsamples_1}_{subsamples_2}.png"
+        save_path = full_path(elem_dir_name + "/" + filename)
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
+
+
+
+fill_convergence_log(Elements.TRI3, TestCase.AIR_UNLIT, Resolution.HIGH, 1, 65536, True)
+#fill_convergence_log(Elements.QUAD8, TestCase.AIR_UNLIT, Resolution.LOW, 1, 4194304, False)
+
+#plot_results_all(TestCase.AIR_UNLIT, Resolution.HIGH, True, True)
+#plot_results_subplots(TestCase.AIR_UNLIT, Resolution.HIGH, True, True)
 
 #check_difference(Elements.QUAD9, TestCase.AIR_DIFFUSE, Resolution.HIGH, 524288, 1048576)
 
+#plot_results_blender(TestCase.AIR_UNLIT, Resolution.HIGH, False, False, True)
+#plot_results_blender_rt_single(TestCase.AIR_UNLIT, Resolution.HIGH, True, True)
 
+
+# From 2**14 (16k) to 2**18 (262k) for Blender
+#plot_relative_error_distribution(TestCase.AIR_UNLIT, Resolution.HIGH, subsamples_1 = 2**14, subsamples_2=2**15, blender=True, save=True, show=True)
+
+#plot_relative_error_distribution(TestCase.AIR_DIFFUSE, Resolution.HIGH, subsamples_1 = 2**17, subsamples_2=2**18, blender=False, save=True, show=True, element=Elements.TRI3)

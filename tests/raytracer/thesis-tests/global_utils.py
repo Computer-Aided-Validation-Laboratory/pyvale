@@ -65,7 +65,7 @@ def iter_elements_plot_order():
 
 
 # Plot settings
-FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22, "ticks": 13, "subplot_labels": 16}
+FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22, "ticks": 13, "subplot_labels": 16, "legend": 15}
 FIGURE_SIZE = (12, 10)
 RESIZE_PLOT_FACTOR = 50
 SUBPLOT_SPACING = 0.3
