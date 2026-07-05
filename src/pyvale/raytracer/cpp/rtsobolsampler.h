@@ -18,9 +18,9 @@
  * -----------------------------------------------------------------------------------
  *      dim 0, 1: pixel anti-aliasing jitter (for x, y)
  *      dim 2, 3: thin-lens defocus disk
- *      dim 4 + 2 * d, 5 + 2 * d, etc.: bounce d
- *              first dimension: Russian roulette/Fresnel reflect or transmit/path survival
- *              second dimension: 2D hemisphere for a diffuse scatter (if it happens)
+ *      dim SOBOL_DIM_BOUNCE_BASE (4) + SOBOL_DIMS_PER_BOUNCE * d ...: bounce d
+ *              +0 (first dimension): Russian roulette/Fresnel reflect or transmit/path survival (scalar decision)
+ *              +1, +2 (second dimension): 2D hemisphere for the diffuse scatter (if it happens)
  * The Joe-Kuo 6.21201 table is specifically constructed for good high-dimensional
  * projections, so using genuine Sobol' dimensions for all 50 bounces (rather than
  * padding) is the recommended, accuracy-maximizing choice
@@ -68,17 +68,23 @@
 static constexpr unsigned SOBOL_DIM_PIXEL = 0u;   // uses dims 0, 1
 /// @brief First Sobol' dimension reserved for the thin-lens defocus disk sample
 static constexpr unsigned SOBOL_DIM_LENS = 2u;    // uses dims 2, 3
-/// @brief First Sobol' dimension reserved for the bounce sub-sequence.
+/// @brief First Sobol' dimension reserved for the bounce sub-sequence
 static constexpr unsigned SOBOL_DIM_BOUNCE_BASE = 4u;
-/// @brief Number of Sobol' dimensions consumed per bounce (decision + scatter pair)
-static constexpr unsigned SOBOL_DIMS_PER_BOUNCE = 2u;
+/// @brief Number of Sobol' dimensions consumed per bounce (decision + scatter pair) = 1 + 2 = 3
+static constexpr unsigned SOBOL_DIMS_PER_BOUNCE = 3u;
+/// @brief Offset (within a bounce's block) of the scalar decision dimension; i.e, we stay within the same dimension
+static constexpr unsigned SOBOL_BOUNCE_OFF_DECISION = 0u;
+/// @brief Offset (within a bounce's block) of the first BSDF-scatter dimension (2D pair)
+static constexpr unsigned SOBOL_BOUNCE_OFF_SCATTER = 1u;
 
 /**
  * @brief Returns the first Sobol' dimension reserved for a given bounce depth.
  *
- * Bounce d consumes [base + 2*d, base + 2*d + 1]. The first is the scalar
- * decision dimension (Russian roulette / Fresnel branch), the second pairs with
- * it to make the 2D diffuse hemisphere sample.
+ * Bounce d consumes the contiguous block
+ * [base + SOBOL_DIMS_PER_BOUNCE*d, base + SOBOL_DIMS_PER_BOUNCE*d + SOBOL_DIMS_PER_BOUNCE).
+ * The first is the scalar decision dimension (Russian roulette / Fresnel branch), 
+ * then the second pairs with it to make the 2D diffuse hemisphere sample. SOBOL_BOUNCE_OFF_SCATTER
+ * is the first of the hemisphere pair.
  *
  * @param[in] depth (unsigned) Current ray depth (0 = primary ray's first hit)
  * @return (unsigned) First Sobol' dimension for this bounce
@@ -149,7 +155,7 @@ struct SobolSampler{
      * @return (double) Decision value in [0, 1)
      */
     inline double bounce_decision(unsigned depth) const {
-        return get(sobol_bounce_dim(depth));
+        return get(sobol_bounce_dim(depth)+ SOBOL_BOUNCE_OFF_SCATTER);
     }
 
     /**
@@ -158,7 +164,7 @@ struct SobolSampler{
      * @return (std::array<double,2>) (r1u, r2) in [0, 1)
      */
     inline std::array<double, 2> bounce_scatter(unsigned depth) const {
-        const unsigned d = sobol_bounce_dim(depth);
+        const unsigned d = sobol_bounce_dim(depth) + SOBOL_BOUNCE_OFF_SCATTER;
         return { get(d), get(d + 1) };
     }
 };
