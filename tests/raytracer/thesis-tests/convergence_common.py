@@ -859,9 +859,191 @@ def plot_relative_error_distribution(
     else:
         plt.close(fig)
 
+# ================================================================================
+# Performance patch and NEE results
+# ================================================================================
+def get_patch_run_configs(test_case: TestCase, resolution: Resolution):
+    """
+    Returns the run configurations that are valid for the given test case/resolution.
+    Each config contains folder, display label, and plot color.
+    """
+    all_runs = [
+        {"folder": "thesis-output-bigpatch",
+            "label": "Big perf patch",
+            "color": "tab:blue"},
+        {"folder": "thesis-output-baseline",
+            "label": "Unmodified",
+            "color": "tab:orange"},
+        {"folder": "thesis-output-noneebutvarreduction",
+            "label": "Variance reduction (no NEE)",
+            "color": "tab:green"},
+        {"folder": "thesis-output-smallpatch",
+            "label": "Small perf patch",
+            "color": "tab:red"},
+        {"folder": "thesis-output-smallpatch-noneebutvarreduction",
+            "label": "Small perf patch + variance reduction",
+            "color": "tab:purple"}
+    ]
+
+    return [run for run in all_runs if run_is_applicable(run["folder"], test_case, resolution)]
 
 
-fill_convergence_log(Elements.TRI3, TestCase.AIR_UNLIT, Resolution.HIGH, 1, 65536, True)
+def run_is_applicable(run_folder: str, test_case: TestCase, resolution: Resolution) -> bool:
+    """
+    Encodes availability rules from the comment block.
+    """
+    # HIGH/WATER exists for everything
+    if test_case == TestCase.WATER and resolution == Resolution.HIGH:
+        return True
+
+    if test_case == TestCase.TANK and resolution == Resolution.LOW and run_folder == "thesis-output-bigpatch":
+        return True
+
+    # LOW/HIGH with AIR_DIFFUSE, AIR_UNLIT, TANK:
+    # available for everything except bigpatch and noneebutvarreduction
+    restricted_cases = {TestCase.AIR_DIFFUSE, TestCase.AIR_UNLIT, TestCase.TANK}
+    restricted_resolutions = {Resolution.LOW, Resolution.HIGH}
+    excluded_runs = {
+        "thesis-output-bigpatch",
+        "thesis-output-noneebutvarreduction",
+    }
+
+    if test_case in restricted_cases and resolution in restricted_resolutions:
+        return run_folder not in excluded_runs
+
+    return False
+
+
+def plot_results_subplots_patch(test_case: TestCase,
+    resolution: Resolution,
+    plot_time: bool = True,
+    save: bool = False,
+    show: bool = False,):
+    """
+    Plots render-time or convergence results for all element types on a subplot mosaic.
+    Each subplot contains one line per run configuration.
+    """
+    patch_results_dir = Path(__file__).resolve().parent.parent / "patch_results"
+    if not patch_results_dir.is_dir():
+        patch_results_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = f"{test_case.value}_{resolution.value}_rtime_subplots.png"
+    suptitle = f"Render time for test case: {test_case.value} at {resolution.value} px resolution"
+    csv_name = "render_time_log.csv"
+    y_label = "Time [s]"
+
+    if not plot_time:
+        filename = f"{test_case.value}_{resolution.value}_rconv_subplots.png"
+        suptitle = f"Convergence for test case: {test_case.value} at {resolution.value} px resolution"
+        csv_name = "convergence_log.csv"
+        y_label = "RMSE [GL]"
+
+    fig, axes = plt.subplot_mosaic(
+        [
+            ["TRI3", "TRI6"],
+            ["QUAD4", "QUAD8"],
+            [".", "QUAD9"],
+        ],
+        figsize=(14, 14),
+        constrained_layout=True)
+
+    fig.suptitle(suptitle, fontsize=FONT_SIZES["suptitle"])
+
+    run_configs = get_patch_run_configs(test_case, resolution)
+
+    legend_handles = []
+    legend_labels = []
+
+    for name, element in iter_elements_plot_order():
+        ax = axes[name]
+        ax.set_title(name, fontsize=FONT_SIZES["subtitle"])
+        ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["subplot_labels"])
+        ax.set_ylabel(y_label, fontsize=FONT_SIZES["subplot_labels"])
+
+        plotted_any = False
+        x_ticks_seen = set()
+        y_values_seen = []
+
+        for run in run_configs:
+            case_base = f"convergence_rt/res_{resolution.value}/{test_case.value}"
+            base_data_dir = Path(__file__).resolve().parent.parent / run["folder"] / case_base
+            elem_dir_name = base_data_dir / element.label
+            data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / csv_name
+
+            if not data_path.is_file():
+                continue
+
+            elem_data = np.loadtxt(data_path, delimiter=",", skiprows=1, unpack=True)
+
+            if plot_time:
+                # render_time_log.csv -> [subsamples, time]
+                x_data = elem_data[0]
+                y_data = elem_data[1]
+            else:
+                # convergence_log.csv -> [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
+                x_data = elem_data[1]
+                y_data = elem_data[2]
+
+            line, = ax.plot(
+                x_data,
+                y_data,
+                color=run["color"],
+                marker="o",
+                linestyle="-",
+                linewidth=2,
+                markersize=5,
+                label=run["label"])
+
+            plotted_any = True
+            x_ticks_seen.update(np.unique(x_data))
+            y_values_seen.extend(np.unique(y_data))
+
+            if run["label"] not in legend_labels:
+                legend_handles.append(line)
+                legend_labels.append(run["label"])
+
+        if not plotted_any:
+            ax.set_visible(False)
+            continue
+
+        # Y-axis formatting
+        ax.tick_params(axis="y", which="both", labelsize=FONT_SIZES["ticks"])
+        all_y = np.unique(y_values_seen)
+        if all_y.shape[0] < 8:
+            ax.set_yticks(all_y)
+
+        # X-axis formatting
+        all_x = np.array(sorted(x_ticks_seen))
+        ax.set_xscale("log")
+        ax.xaxis.set_minor_locator(mticker.NullLocator())
+        ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+        ax.set_xticks(all_x)
+        ax.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in all_x])
+
+        ax.grid(visible=True, which="major", axis="both")
+
+    if legend_handles:
+        fig.legend(
+        legend_handles,
+        legend_labels,
+        loc="lower left",
+        bbox_to_anchor=(0.08, 0.08),
+        ncol=1,
+        fontsize=FONT_SIZES["ticks"],
+        frameon=True)
+
+    if show:
+        plt.show()
+
+    if save:
+        fig.savefig(patch_results_dir / filename, dpi=300, bbox_inches="tight")
+
+
+#plot_results_subplots_patch(TestCase.TANK, Resolution.LOW, plot_time = False, save = True, show = False)
+
+
+
+#fill_convergence_log(Elements.TRI3, TestCase.AIR_UNLIT, Resolution.HIGH, 1, 65536, True)
 #fill_convergence_log(Elements.QUAD8, TestCase.AIR_UNLIT, Resolution.LOW, 1, 4194304, False)
 
 #plot_results_all(TestCase.AIR_UNLIT, Resolution.HIGH, True, True)

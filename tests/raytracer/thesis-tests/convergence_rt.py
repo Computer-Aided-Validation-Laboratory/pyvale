@@ -18,7 +18,7 @@ from pyvale.raytracer.rtoutputformat import *
 # VERSION WITH BLENDER - WILL NOT WORK ON LINUX
 # Number of anti-aliasing samples at which we end the test regardless of whether the convergence
 # has been reached or not
-SUBSAMPLE_LIMIT_MAX = 2**17
+SUBSAMPLE_LIMIT_MAX = 2**26
 
 # ================================================================================
 # Preprocessing - UV unwrapping (has to be done on WSL/Windows)
@@ -62,7 +62,8 @@ def conv_test_rt(test_case: TestCase,
                  starting_subsamples: int | None = None,
                  thread_count: int | None = None,
                  element_idx: int | None = None, # 0 = QUAD4, 1 = QUAD8, 2 = QUAD9, 3 = TRI3, 4 = TRI6; as in Elements in global_utils
-                 single_image: bool = False): # If true, renders only one image at the given starting_subsamples
+                 single_image: bool = False,
+                 subsample_limit: int | None = None): # If true, renders only one image at the given starting_subsamples
     # NOTE: Resolution is a single digit, because these cameras had square viewport
     # NOTE 2: starting_subsamples must be set for everything that is not AIR_UNLIT
     # 1. Set mesh data that we can set currently
@@ -78,17 +79,20 @@ def conv_test_rt(test_case: TestCase,
     # Set BlenderUnwrapper
     blender_uv = BlenderUnwrapper()
 
+    SUBSAMPLE_LIMIT = SUBSAMPLE_LIMIT_MAX
+    # Custom subsample limit - for convenience
+    if subsample_limit is not None and subsample_limit > 1:
+            SUBSAMPLE_LIMIT = subsample_limit
+    if starting_subsamples is None:
+            starting_subsamples = 1
+
     # 2. Settings based on the selected case
     mat_type = MaterialType.UNLIT # Beam material
     if test_case == TestCase.AIR_UNLIT:
         print(f"--------------------------------\nTESTED CASE: AIR UNLIT\n--------------------------------")
         mat_type = MaterialType.UNLIT
-        if starting_subsamples is None:
-            starting_subsamples = 1
     else:
         # This helps us speed up - it is certain that we will need more subsampling for shading
-        if starting_subsamples is None or starting_subsamples < 2:
-            raise ValueError("Please base your starting subsample count on the UNLIT case, otherwise this will run for ages.")
         if test_case == TestCase.AIR_DIFFUSE:
             print(f"--------------------------------\nTESTED CASE: AIR DIFFUSE\n--------------------------------")
             mat_type = MaterialType.DIFFUSE
@@ -181,6 +185,7 @@ def conv_test_rt(test_case: TestCase,
             water = any_mesh_to_rtmesh(water_path, world_position = WATER_POSITION)
             water.set_surface(SurfType.FIELD_COLOR,
                           material = MaterialPresets.WATER,
+                          #material = MaterialPresets.HONEY_LIQUID,
                           material_type = MaterialType.REFRACTIVE,
                           mesh_type = MeshType.SOLID,
                           priority = 1)
@@ -246,6 +251,7 @@ def conv_test_rt(test_case: TestCase,
                     iteration_number += 1
                     time = timeit.timeit(lambda: render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6, omp_thread_count = thread_count), number=1)
                     # Rename this file
+                    #new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
                     new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
                     os.rename(target / fresh_filename, target / new_filename)
                     # Store time data
@@ -272,16 +278,10 @@ def conv_test_rt(test_case: TestCase,
                         print("Images perfectly converged. Terminating this case.")
                         break
                     # Fallback: subsample count
-                    if subsamples >= SUBSAMPLE_LIMIT_MAX:
+                    if subsamples >= SUBSAMPLE_LIMIT:
                         print(f"Exceeded the maximum subsample limit of {SUBSAMPLE_LIMIT_MAX}. Terminating this case.")
                         break
         
-#conv_test_rt(TestCase.AIR_UNLIT, Resolution.LOW, 2**0, None, 1, False)
-
-
-
-
-    
-
-
-
+#conv_test_rt(TestCase.AIR_DIFFUSE, Resolution.HIGH, 2**0, None, None, False)
+#conv_test_rt(TestCase.TANK, Resolution.LOW, 2**0, None, None, False)
+#conv_test_rt(TestCase.AIR_DIFFUSE, Resolution.HIGH, 2**0, None, None, False)

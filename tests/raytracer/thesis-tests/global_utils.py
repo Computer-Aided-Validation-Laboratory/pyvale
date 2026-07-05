@@ -82,6 +82,7 @@ pixel_pitch_ph6 = 20 # mm; 20 um
 
 # Need to set camera_target, camera_center, and angle_vertical_view depending on the test
 output_format_phs6 = ImageFormat(OutputFormat.IMG_TIFF_16BIT, BitDepth.BIT_12, ChannelCount.MONO, True)
+#output_format_phs6 = ImageFormat(OutputFormat.IMG_TIFF_16BIT, BitDepth.BIT_12, ChannelCount.RGB, False) # For specific tests where colour is needed
 
 # Coloured output that is faster to write, to test if dielectrics are fine
 output_format_test_diel = ImageFormat(OutputFormat.IMG_BMP_24BIT, BitDepth.BIT_8, ChannelCount.RGB, False)
