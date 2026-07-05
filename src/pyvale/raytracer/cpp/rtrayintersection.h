@@ -687,10 +687,12 @@ double intersect_tri6(const Ray &ray,
  * @param[in] ray (const Ray&) Ray to trace through the BLAS
  * @param[in] mesh_bvh (const BLAS&) BLAS representing the mesh BVH
  * @param[out] intersection_record (HitRecord&) Hit record to populate with final intersection info
+ * @param[in] inverse_direction (EiVector3d&) Precomputed inverse direction of the intersecting ray
  */
 void intersect_BLAS(const Ray& ray,
     const BLAS& mesh_bvh,
-    HitRecord& intersection_record);
+    HitRecord& intersection_record,
+    const EiVector3d& inverse_direction);
 
 /**
  * @brief Intersects a ray with the TLAS (scene-level BVH).

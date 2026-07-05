@@ -996,10 +996,13 @@ IntersectionOutput intersect_bvh_tri6(const Ray& ray,
 //  AABB
 // ================================================================================
 
-bool intersect_AABB (const Ray& ray, const AABB& AABB) {
+bool intersect_AABB (const Ray& ray,
+    const AABB& AABB,
+    const EiVector3d& inverse_direction, // Passed inversed ray direction to avoid re-computing it 
+    double& t_near){ // OUTPUT variable that returns ray-distance to the box, used for child traversal (nearer first) to cull boxes that start beyond the closest hit
+
     // Slab method for ray-AABB intersection
     double t_axis[6]; // t values for each axis, so [0,1] are for x, [2,3] for y, and [4,5] for z
-    EiVector3d inverse_direction = 1/(ray.direction.array()); // Divide first to use cheaper multiplication later
 
     // Find ray intersections with planes defining the AABB in X, Y, Z
     for (int i = 0; i < 3; ++i) {
@@ -1011,6 +1014,9 @@ bool intersect_AABB (const Ray& ray, const AABB& AABB) {
     double t_min = std::max(std::max(std::min(t_axis[0], t_axis[1]), std::min(t_axis[2], t_axis[3])), std::min(t_axis[4], t_axis[5]));
     // Find the maximum t for each axis (x, y, z), then find minimum of these for (x,y,z)
     double t_max = std::min(std::min(std::max(t_axis[0], t_axis[1]), std::max(t_axis[2], t_axis[3])), std::max(t_axis[4], t_axis[5]));
+
+    // Entry distance used for near/far child ordering (clamped so an enclosing box sorts first)
+    t_near = std::max(t_min, 0.0);
 
     // Uncomment below for debug - often indicates something went wrong with secondary rays
     /*
@@ -1035,7 +1041,8 @@ bool intersect_AABB (const Ray& ray, const AABB& AABB) {
 
 void intersect_BLAS(const Ray& ray,
     const BLAS& mesh_bvh,
-    HitRecord& intersection_record) {
+    HitRecord& intersection_record,
+    const EiVector3d& inverse_direction) {
 
     //std::cout << "  BLAS: Starting BVH intersection test" << std::endl;
     Texture texture = mesh_bvh.texture;
@@ -1049,7 +1056,10 @@ void intersect_BLAS(const Ray& ray,
     intersection_function_ptr = mesh_bvh.intersection_function_ptr;
         
     // Create stack to intersect BLAS nodes. Stack (LIFO) so DFS
-    std::vector<int> stack; // Store node indices on the stack
+    // Store node indices on the stack
+    //std::vector<int> stack; Previous version - this works with parallelisation, but heap allocates the vector every time a ray calls intersect_BLAS, which is not good for performance
+    static thread_local std::vector<int> stack; // Reuse a per-thread stack. Each worker gets its own buffer so OpenMP safe
+    stack.clear(); // Needed in the thread_local variant; keeps the already-reserved capacity to remove heap allocation
     stack.push_back(mesh_bvh.root_idx);
 
      while(!stack.empty()){
@@ -1058,7 +1068,13 @@ void intersect_BLAS(const Ray& ray,
         //std::cout << "Intersecting BLAS node ID: " << node_id << std::endl;
         stack.pop_back();
 
-        if (!intersect_AABB(ray, Node.bounding_box)) continue; // Early exit if ray does not intersect the AABB of the node
+        double node_t_near; // For culling AABBs based on their distance
+        if (!intersect_AABB(ray, Node.bounding_box, inverse_direction, node_t_near)) continue; // Early exit if ray does not intersect the AABB of the node
+
+        // CLOSEST HIT CULL
+        // If the whole box starts further than the closest hit so far => Impossible to contain nearer intersections => Skip it
+        // I.e., every point within the box has t >= node_t_near > intersection_record.t
+        if (node_t_near > intersection_record.t) continue;
 
         // No children => Leaf node => Intersect triangles
         if (Node.left_child_idx == -1) {
@@ -1098,10 +1114,39 @@ void intersect_BLAS(const Ray& ray,
             // DFS order
             int left = Node.left_child_idx;
             int right = left + 1;
-            if (right != 0) stack.push_back(right);
-            if(left != -1) stack.push_back(left);
-            // Potential improvement: testing node distance vs. ray to push the farther one first, so we trasverse closer child first.
-            // How to: Compare t_near from intersect_AABB for both children and intersect the closer one first
+            // Previous version - DFS order
+            //if (right != 0) stack.push_back(right);
+            //if(left != -1) stack.push_back(left);
+
+            // Better version: closest-child ordering
+            // 1. Stack is LIFO => We push the futher child first, then the closer one, so the nearer leaf gets traversed first
+            // Starting with the nearer node shrinks intersection_record.t => We can skip more nodes in the culling above
+            // => Often worth the additional AABB intersections here
+
+            // t_near for a child that misses its AABB is left at +inf so it always sorts as the "far" child
+            // (and is culled on pop anyway). We still push missed children and let the pop-time AABB test
+            // reject them, keeping the control flow identical to the original DFS aside from ordering
+            double t_near_left = std::numeric_limits<double>::infinity();
+            double t_near_right = std::numeric_limits<double>::infinity();
+            const bool has_left  = (left != -1);
+            const bool has_right = (right != 0);
+            if (has_left)  intersect_AABB(ray, mesh_bvh.tree_nodes[left].bounding_box, inverse_direction, t_near_left);
+            if (has_right) intersect_AABB(ray, mesh_bvh.tree_nodes[right].bounding_box, inverse_direction, t_near_right);
+
+            // Push farther child first so the nearer child is popped and traversed first
+            if (has_left && has_right){
+                if (t_near_left <= t_near_right){
+                    stack.push_back(right); // Far
+                    stack.push_back(left);  // Near (popped first)
+                } else {
+                    stack.push_back(left);  // Far
+                    stack.push_back(right); // Near (popped first)
+                }
+            } else {
+                // Single-child case: preserve the original DFS order
+                if (has_right) stack.push_back(right);
+                if (has_left)  stack.push_back(left);
+            }
         }   
      }
 }
@@ -1115,31 +1160,67 @@ bool intersect_TLAS(const Ray& ray,
     HitRecord& out_intersection_record){
 
     //std::cout << "TLAS: Starting BVH intersection test" << std::endl;
-     std::vector<int> stack; // Store node indices on the stack
-     stack.push_back(0); // Push root index
+
+    // Precompute 1/ray_direction once for the whole traversal since it remains constant during the BVH traversal
+    // => Can reuse this instead of re-computing it for every AABB
+    const EiVector3d inverse_direction = 1.0/ray.direction.array();
+
+    // Create stack to intersect BLAS nodes. Stack (LIFO) so DFS
+    // Store node indices on the stack
+    //std::vector<int> stack; Previous version - this works with parallelisation, but heap allocates the vector every time a ray calls intersect_BLAS, which is not good for performance
+    static thread_local std::vector<int> stack; // Different thread_local buffer to the one in intersect_BLAS (separate function scope), so they do not clash in parallelised execution
+    stack.clear();
+    stack.push_back(0); // Push root index
 
      while(!stack.empty()){
         const TLAS_Node& Node = scene_TLAS.tlas_nodes[stack.back()];
         stack.pop_back();
 
-        if (!intersect_AABB(ray, Node.bounding_box)) continue; // Early exit if ray does not intersect the AABB of the node
+        // Early exit if the ray misses this node's AABB; also feeds into the closest hit cull below
+        // Full logic explained in intersect_BLAS
+        double node_t_near;
+        if (!intersect_AABB(ray, Node.bounding_box, inverse_direction, node_t_near)) continue; // Ray does not intersect the AABB of the node
+
+        // Closest-hit cull
+        if (node_t_near > out_intersection_record.t) continue;
+
         if (Node.left_child_idx == -1) {
             // No children => Leaf node => Intersect individual meshes
             //std::cout << "TLAS: Leaf node reached with " << Node.blas_count << " BLASes." << std::endl;
             int node_max_index = Node.min_blas_idx + Node.blas_count;
             for (int i = Node.min_blas_idx; i < node_max_index; ++i){
-                // Note: Comment out the below check if MAX_ELEMENTS_PER_LEAF = 1; in build_TLAS because then TLAS node AABB = BLAS AABB, so this check is unnecessary and we can also remove AABB from BLAS struct
-                if (!intersect_AABB(ray, scene_TLAS.blases[i].bounding_box)) continue; // Early exit if the ray does not intersect the AABB of the BLAS (mesh).
                 //std::cout << " TLAS: Intersected BLAS index: " << i << std::endl;
-                intersect_BLAS(ray, scene_TLAS.blases[i], out_intersection_record);
+                intersect_BLAS(ray, scene_TLAS.blases[i], out_intersection_record, inverse_direction);
             }
         }
         else { // Not a leaf node => Test children nodes for intersections
-            // DFS order
             int left = Node.left_child_idx;
             int right = left + 1;
-            if (right != 0) stack.push_back(right);
-            if(left != -1) stack.push_back(left);
+            // Previous DFS-order version 
+            //if (right != 0) stack.push_back(right);
+            //if(left != -1) stack.push_back(left);
+            // New: Closest-child-first traversal
+            double t_near_left = std::numeric_limits<double>::infinity();
+            double t_near_right = std::numeric_limits<double>::infinity();
+            const bool has_left  = (left != -1);
+            const bool has_right = (right != 0);
+            if (has_left)  intersect_AABB(ray, scene_TLAS.tlas_nodes[left].bounding_box, inverse_direction, t_near_left);
+            if (has_right) intersect_AABB(ray, scene_TLAS.tlas_nodes[right].bounding_box, inverse_direction, t_near_right);
+
+            // Push farther child first so the nearer child is popped and traversed first
+            if (has_left && has_right){
+                if (t_near_left <= t_near_right){
+                    stack.push_back(right); // Far
+                    stack.push_back(left);  // Near (popped first)
+                } else {
+                    stack.push_back(left);  // Far
+                    stack.push_back(right); // Near (popped first)
+                }
+            } else {
+                // Single-child case: preserve the original DFS order
+                if (has_right) stack.push_back(right);
+                if (has_left)  stack.push_back(left);
+            }
         }
      }
      // To avoid having to evaluate this in the return_ray_color loop directly
