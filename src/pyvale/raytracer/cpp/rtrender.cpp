@@ -74,7 +74,7 @@ namespace renderer{
                     // Apply a huge distance to account for light lost traveling out of the scene
                     apply_absorption(current_state.accumulated_color, absorption, 1e30);
                 }
-                total_color += current_state.accumulated_color.cwiseProduct(renderer::background_color); // Sky colour
+                total_color += current_state.accumulated_color.cwiseProduct(renderer::background_color); // Background colour
                 //total_color += current_state.accumulated_color.cwiseProduct(ray_blue_sky(current_ray)); // Sky colour
                 continue; // Early termination - no bounces here anyway
             }
@@ -139,7 +139,8 @@ namespace renderer{
             if (current_state.depth >= MAX_DEPTH) {
                 // Add a fallback ambient color to compensate for truncated energy 
                 // Avoids the "plain black shadows" caused by zero light return
-                EiVector3d ambient_fallback = ray_blue_sky(current_ray) * 0.2; 
+                //EiVector3d ambient_fallback = ray_blue_sky(current_ray) * 0.2; // Legacy if using sky colour gradient
+                const EiVector3d ambient_fallback = renderer::background_color;
                 total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission + ambient_fallback);
                 continue; 
             }
