@@ -265,11 +265,73 @@ def enforce_ccw_winding(mesh_in: SimData) -> SimData:
     return _copy_sim_data(mesh_in, connect=connect_out)
 
 
+def is_mesh_2d(mesh_in: SimData) -> bool:
+    if mesh_in.coords is None or mesh_in.connect is None:
+        return False
+
+    # 1. Check coordinate flatness
+    coord_ranges = np.ptp(mesh_in.coords, axis=0)
+    if np.any(coord_ranges < 1e-12):
+        return True
+
+    # 2. Check elements in connectivity tables
+    for name, connect_raw in mesh_in.connect.items():
+        connect = np.asarray(connect_raw, dtype=np.int64)
+        if _should_transpose_connectivity(connect, name, mesh_in):
+            connect = connect.T
+
+        nodes_per_elem = connect.shape[1]
+        if nodes_per_elem in (3, 6, 7, 9):
+            return True
+        if nodes_per_elem in (10, 20, 27):
+            return False
+
+        if nodes_per_elem == 4:
+            # Check if elements are TET4 (3D) or QUAD4 (2D)
+            num_check = min(10, connect.shape[0])
+            is_tet = False
+            for i in range(num_check):
+                elem = connect[i]
+                v = mesh_in.coords[elem]
+                vol = np.abs(
+                    np.dot(v[1] - v[0], np.cross(v[2] - v[0], v[3] - v[0]))
+                )
+                if vol > 1e-10:
+                    is_tet = True
+                    break
+            if not is_tet:
+                return True
+
+        if nodes_per_elem == 8:
+            # Check if elements are HEX8 (3D) or QUAD8 (2D)
+            num_check = min(10, connect.shape[0])
+            is_hex = False
+            for i in range(num_check):
+                elem = connect[i]
+                v = mesh_in.coords[elem]
+                vol = np.abs(
+                    np.dot(v[1] - v[0], np.cross(v[2] - v[0], v[4] - v[0]))
+                )
+                if vol > 1e-10:
+                    is_hex = True
+                    break
+            if not is_hex:
+                return True
+
+    return False
+
+
 def extract_surf_mesh(
     mesh_in: SimData,
     enforce_convention: bool = True,
 ) -> SimData:
     """Extracts the external surface mesh from supported 3D volume elements."""
+
+    if is_mesh_2d(mesh_in):
+        raise ValueError(
+            "Surface extraction is only supported for 3D meshes. "
+            "The provided mesh appears to be 2D."
+        )
 
     if mesh_in.connect is None:
         raise ValueError("Surface extraction requires connectivity tables.")
