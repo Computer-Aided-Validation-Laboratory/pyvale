@@ -36,6 +36,95 @@ def _tet_coords(offset: float = 0.0) -> np.ndarray:
     )
 
 
+def _calc_face_normal(face_coords: np.ndarray) -> np.ndarray:
+    if face_coords.shape[0] in (3, 6, 7):
+        corners = face_coords[:3, :]
+    else:
+        corners = face_coords[:4, :]
+
+    face_normal = np.cross(
+        corners[1] - corners[0],
+        corners[2] - corners[0],
+    )
+    normal_mag = np.linalg.norm(face_normal)
+
+    if normal_mag <= 1.0e-12 and corners.shape[0] == 4:
+        face_normal = np.cross(
+            corners[2] - corners[0],
+            corners[3] - corners[0],
+        )
+        normal_mag = np.linalg.norm(face_normal)
+
+    assert normal_mag > 1.0e-12
+    return face_normal / normal_mag
+
+
+def _assert_extracted_surface_points_outward(surf: io.SimData) -> None:
+    assert surf.connect is not None
+    assert surf.coords is not None
+
+    mesh_centroid = np.mean(surf.coords, axis=0)
+
+    for connect in surf.connect.values():
+        for face_connect in connect:
+            face_coords = surf.coords[face_connect]
+            face_normal = _calc_face_normal(face_coords)
+
+            if face_coords.shape[0] in (3, 6, 7):
+                face_centroid = np.mean(face_coords[:3, :], axis=0)
+            else:
+                face_centroid = np.mean(face_coords[:4, :], axis=0)
+
+            outward_dir = face_centroid - mesh_centroid
+            assert np.dot(face_normal, outward_dir) > 0.0
+
+
+def _assert_higher_order_surface_edge_order(surf: io.SimData) -> None:
+    assert surf.connect is not None
+    assert surf.coords is not None
+
+    for connect in surf.connect.values():
+        nodes_per_face = connect.shape[1]
+
+        if nodes_per_face == 6:
+            edge_corner_pairs = ((0, 1), (1, 2), (2, 0))
+            mid_inds = (3, 4, 5)
+        elif nodes_per_face == 7:
+            edge_corner_pairs = ((0, 1), (1, 2), (2, 0))
+            mid_inds = (3, 4, 5)
+        elif nodes_per_face == 8:
+            edge_corner_pairs = ((0, 1), (1, 2), (2, 3), (3, 0))
+            mid_inds = (4, 5, 6, 7)
+        elif nodes_per_face == 9:
+            edge_corner_pairs = ((0, 1), (1, 2), (2, 3), (3, 0))
+            mid_inds = (4, 5, 6, 7)
+        else:
+            continue
+
+        for face_connect in connect:
+            face_coords = surf.coords[face_connect]
+            edge_midpoints = np.array(
+                [
+                    0.5 * (
+                        face_coords[start_ind, :] +
+                        face_coords[end_ind, :]
+                    )
+                    for (start_ind, end_ind) in edge_corner_pairs
+                ],
+                dtype=np.float64,
+            )
+            midside_coords = face_coords[np.array(mid_inds, dtype=np.int64), :]
+            edge_dists = np.linalg.norm(
+                midside_coords[:, None, :] - edge_midpoints[None, :, :],
+                axis=2,
+            )
+            expected_mid_order = np.argmin(edge_dists, axis=0)
+            assert np.array_equal(
+                expected_mid_order,
+                np.arange(len(mid_inds), dtype=np.int64),
+            )
+
+
 def test_check_mesh_convention_passes_for_canonical_quad() -> None:
     mesh = io.SimData(
         num_spat_dims=2,
@@ -287,6 +376,7 @@ def test_extract_surf_mesh_tet4() -> None:
     assert surf.connect is not None
     assert surf.connect["connect1"].shape == (24, 3)
     assert surf.coords.shape == (14, 3)
+    _assert_extracted_surface_points_outward(surf)
 
 
 def test_extract_surf_mesh_tet10() -> None:
@@ -296,6 +386,8 @@ def test_extract_surf_mesh_tet10() -> None:
     assert surf.connect is not None
     assert surf.connect["connect1"].shape == (24, 6)
     assert surf.coords.shape == (50, 3)
+    _assert_extracted_surface_points_outward(surf)
+    _assert_higher_order_surface_edge_order(surf)
 
 
 def test_extract_surf_mesh_hex8() -> None:
@@ -305,6 +397,7 @@ def test_extract_surf_mesh_hex8() -> None:
     assert surf.connect is not None
     assert surf.connect["connect1"].shape == (24, 4)
     assert surf.coords.shape == (26, 3)
+    _assert_extracted_surface_points_outward(surf)
 
 
 def test_extract_surf_mesh_hex20() -> None:
@@ -314,6 +407,8 @@ def test_extract_surf_mesh_hex20() -> None:
     assert surf.connect is not None
     assert surf.connect["connect1"].shape == (24, 8)
     assert surf.coords.shape == (74, 3)
+    _assert_extracted_surface_points_outward(surf)
+    _assert_higher_order_surface_edge_order(surf)
 
 
 def test_extract_surf_mesh_hex27() -> None:
@@ -323,5 +418,6 @@ def test_extract_surf_mesh_hex27() -> None:
     assert surf.connect is not None
     assert surf.connect["connect1"].shape == (24, 9)
     assert surf.coords.shape == (98, 3)
-
+    _assert_extracted_surface_points_outward(surf)
+    _assert_higher_order_surface_edge_order(surf)
 
