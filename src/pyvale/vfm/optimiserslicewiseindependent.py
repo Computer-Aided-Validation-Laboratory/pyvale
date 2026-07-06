@@ -15,6 +15,7 @@ from pyvale.vfm.metricsliceforce import (
     SliceLocalForceReconstructionProblem,
     SliceWiseForceReconstructionMetric,
 )
+from pyvale.vfm.metricsliceforcearea import SliceWiseAreaForceReconstructionMetric
 from pyvale.vfm.normalisation import (
     denormalise_degrees_of_freedom,
     normalise_degrees_of_freedom,
@@ -37,13 +38,17 @@ class _SliceSolveData:
     fixed_parameter_maps: dict[str, npt.NDArray[np.float64]]
 
 
+SliceMetricType = SliceWiseForceReconstructionMetric | SliceWiseAreaForceReconstructionMetric
+
+
 @dataclass(slots=True)
 class SliceWiseIndependentLeastSquares(IOptimiser):
     """Identify each slice independently using a local least-squares solve.
 
     This optimiser is intended for slice-wise identification with the
-    slice force-reconstruction metric. All unknown parameters must therefore
-    use `SliceWiseSpatialParameterisation` with the same `SlicePartition`.
+    selected slice force-reconstruction metric. All unknown parameters must
+    therefore use `SliceWiseSpatialParameterisation` with the same slice
+    partition object.
     """
 
     method: str = "trf"
@@ -111,25 +116,29 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
         return optimised_spatial_parameterisations
 
 
-def _resolve_slice_metric(metrics: list[IMetric]) -> SliceWiseForceReconstructionMetric:
-    if len(metrics) != 1 or not isinstance(metrics[0], SliceWiseForceReconstructionMetric):
+def _resolve_slice_metric(metrics: list[IMetric]) -> SliceMetricType:
+    if len(metrics) != 1 or not isinstance(
+        metrics[0],
+        (SliceWiseForceReconstructionMetric, SliceWiseAreaForceReconstructionMetric),
+    ):
         raise ValueError(
             "SliceWiseIndependentLeastSquares requires exactly one "
-            "SliceWiseForceReconstructionMetric."
+            "SliceWiseForceReconstructionMetric or "
+            "SliceWiseAreaForceReconstructionMetric."
         )
     return metrics[0]
 
 
 def _validate_slice_parameterisations(
     spatial_parameterisations: dict[str, ISpatialParameterisation],
-    slice_metric: SliceWiseForceReconstructionMetric,
+    slice_metric: SliceMetricType,
 ) -> None:
     for param_name, spatial_parameterisation in spatial_parameterisations.items():
         if isinstance(spatial_parameterisation, SliceWiseSpatialParameterisation):
             if spatial_parameterisation.slice_partition is not slice_metric.slice_partition:
                 raise ValueError(
                     "All SliceWiseSpatialParameterisation instances must share the same "
-                    "SlicePartition used by SliceWiseForceReconstructionMetric."
+                    "slice partition used by the selected slice force metric."
                 )
             continue
 
@@ -145,7 +154,7 @@ def _build_slice_solve_data(
     slice_index: int,
     parameter_map_size: npt.NDArray[np.uint32],
     spatial_parameterisations: dict[str, ISpatialParameterisation],
-    slice_metric: SliceWiseForceReconstructionMetric,
+    slice_metric: SliceMetricType,
     experiment_data: ExperimentData,
 ) -> _SliceSolveData:
     local_problem = slice_metric.build_local_problem(experiment_data, slice_index)
@@ -243,7 +252,7 @@ def _evaluate_slice_candidate(
     normalised_degrees_of_freedom: npt.NDArray[np.float64],
     constitutive_law: IConstitutiveLaw,
     objective_function: IObjectiveFunction,
-    slice_metric: SliceWiseForceReconstructionMetric,
+    slice_metric: SliceMetricType,
     experiment_data: ExperimentData,
     slice_solve_data: _SliceSolveData,
 ) -> npt.NDArray[np.float64]:

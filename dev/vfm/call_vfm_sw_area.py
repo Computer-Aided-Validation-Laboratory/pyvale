@@ -15,62 +15,74 @@ from pyvale.vfm.experimentdata import (
 )
 from pyvale.vfm.hardening import LinearHardening
 from pyvale.vfm.identification import Identification, IdentificationPhase
-from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.metricsliceforcearea import SliceWiseAreaForceReconstructionMetric
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
-from pyvale.vfm.spatialparamslicewise import (
-    SliceConfig,
-    SliceWiseSpatialParameterisation,
-    build_slice_partition,
-)
 from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
+from pyvale.vfm.spatialparamslicewise import SliceConfig, SliceWiseSpatialParameterisation
+from pyvale.vfm.spatialparamslicewisearea import build_slice_area_partition
 from pyvale.vfm.vfm import run_identification
 from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
 
 
+INPUTS_PATH = Path(__file__).resolve().parent / "rob-data" / "wdbn4-vfm-input-data-260629-1530"
+SLICE_AXIS = "y"
+NUM_SLICES = 20
+PLOT_SLICE_PARTITION = True
+PLOT_SLICE_INDEX = 0
 
 
+def _print_coverage_diagnostic(slice_partition) -> None:
+    mean_coverage = float(np.mean(slice_partition.coverage_fractions))
+    min_slice_index = int(np.argmin(slice_partition.coverage_fractions))
+    min_slice_coverage = float(slice_partition.coverage_fractions[min_slice_index])
+    overall_coverage = float(np.sum(slice_partition.areas) / np.sum(slice_partition.geometric_areas))
 
-inputs_path =Path(__file__).resolve().parent / "rob-data" / "wdbn4-vfm-input-data-260629-1530"
+    print("Slice coverage diagnostic:")
+    print(f"  overall area coverage ratio: {overall_coverage:.6f}")
+    print(f"  mean slice coverage ratio:   {mean_coverage:.6f}")
+    print(f"  minimum slice coverage:      {min_slice_coverage:.6f} (slice {min_slice_index})")
+    print("  per-slice coverage ratios:")
+    for slice_index, coverage in enumerate(slice_partition.coverage_fractions):
+        print(f"    slice {slice_index:>2d}: {float(coverage):.6f}")
 
-def main():
 
-    
+def main() -> None:
     specimen_geometry = SpecimenGeometry(
-        x = np.load(inputs_path / "x.npy"),
-        y = np.load(inputs_path / "y.npy"),
-        region_of_interest = VfmRegionOfInterest.from_yaml(inputs_path / "region_of_interest.yaml"),
-        thickness = 0.8,
-        pixel_area = np.load(inputs_path / "pixel_area.npy"),
+        x=np.load(INPUTS_PATH / "x.npy"),
+        y=np.load(INPUTS_PATH / "y.npy"),
+        region_of_interest=VfmRegionOfInterest.from_yaml(INPUTS_PATH / "region_of_interest.yaml"),
+        thickness=0.8,
+        pixel_area=np.load(INPUTS_PATH / "pixel_area.npy"),
     )
 
     boundary_conditions = BoundaryConditions(
         EdgeConditions(
             min_x_edge=Edge(
                 EEdgeCondition.Free,
-                EEdgeCondition.Free
+                EEdgeCondition.Free,
             ),
             max_x_edge=Edge(
                 EEdgeCondition.Free,
-                EEdgeCondition.Free
+                EEdgeCondition.Free,
             ),
             min_y_edge=Edge(
                 EEdgeCondition.Fixed,
-                EEdgeCondition.Fixed
+                EEdgeCondition.Fixed,
             ),
             max_y_edge=Edge(
                 EEdgeCondition.Free,
-                EEdgeCondition.Traction
-            )
+                EEdgeCondition.Traction,
+            ),
         ),
-        np.load(inputs_path / "force.npy"),
+        np.load(INPUTS_PATH / "force.npy"),
     )
 
     experiment_data = ExperimentData(
-        np.load(inputs_path / "strain.npy"),
+        np.load(INPUTS_PATH / "strain.npy"),
         specimen_geometry,
         boundary_conditions,
-        np.load(inputs_path / "time.npy"),
+        np.load(INPUTS_PATH / "time.npy"),
     )
 
     parameter_map_size = np.array(specimen_geometry.x.shape)
@@ -89,13 +101,13 @@ def main():
         ),
     }
 
-    # Define slice wise parameterisation
-    slice_partition = build_slice_partition(
+    slice_partition = build_slice_area_partition(
         specimen_geometry,
-        slice_config=SliceConfig(axis="y", num_slices=20),
-        plot_diagnostic=True,
-        
+        slice_config=SliceConfig(axis=SLICE_AXIS, num_slices=NUM_SLICES),
+        plot_diagnostic=PLOT_SLICE_PARTITION,
+        diagnostic_slice_index=PLOT_SLICE_INDEX,
     )
+    _print_coverage_diagnostic(slice_partition)
 
     phases = [
         IdentificationPhase(
@@ -106,7 +118,7 @@ def main():
                 "hardening_modulus": SliceWiseSpatialParameterisation(slice_partition),
             },
             [
-                SliceWiseForceReconstructionMetric(slice_partition)
+                SliceWiseAreaForceReconstructionMetric(slice_partition),
             ],
             VectorFirstResultPassthrough(),
             SliceWiseIndependentLeastSquares(),
@@ -118,13 +130,12 @@ def main():
             LinearHardening()
         ),
         parameters,
-        phases
+        phases,
     )
 
     vfm_result = run_identification(experiment_data, identification)
     print(vfm_result)
 
-    # Plot
     fig, axes = plt.subplots(1, 2, figsize=(10, 4), constrained_layout=True)
     for ax, param_name, title in zip(
         axes,

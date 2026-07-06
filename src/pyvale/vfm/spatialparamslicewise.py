@@ -169,6 +169,7 @@ def build_slice_partition(
         valid_point_mask=valid_point_mask,
     )
 
+    # Build the slice partition object with all computed properties and associations.
     partition = SlicePartition(
         axis=config.axis,
         boundaries=boundaries,
@@ -204,11 +205,11 @@ def plot_slice_partition_diagnostic(
     ax.scatter(
         specimen_geometry.x[valid_points],
         specimen_geometry.y[valid_points],
-        s=6,
+        s=3,
         c="0.75",
         marker="s",
         linewidths=0.0,
-        alpha=0.5,
+        alpha=0.2,
     )
 
     colours = ("#4C78A8", "#F58518", "#54A24B", "#E45756")
@@ -221,8 +222,8 @@ def plot_slice_partition_diagnostic(
                 slice_partition.spans[slice_index],
                 facecolor=colour,
                 edgecolor=colour,
-                alpha=0.25,
-                linewidth=1.5,
+                alpha=0.5,
+                linewidth=2,
             )
             text_x = float(slice_partition.cross_centres[slice_index])
             text_y = float(slice_partition.centres[slice_index])
@@ -233,8 +234,8 @@ def plot_slice_partition_diagnostic(
                 slice_partition.widths[slice_index],
                 facecolor=colour,
                 edgecolor=colour,
-                alpha=0.25,
-                linewidth=1.5,
+                alpha=0.5,
+                linewidth=2,
             )
             text_x = float(slice_partition.centres[slice_index])
             text_y = float(slice_partition.cross_centres[slice_index])
@@ -289,7 +290,7 @@ def _build_slice_geometry_from_roi(
 
     default_cross_centre = 0.5 * (cross_min + cross_max)
     for slice_index, span in enumerate(spans):
-        # Build a rectangular slice band that spans the ROI cross-section
+        # Build a rectangular slice band (shapely polygon object) that spans the ROI cross-section
         slice_band =_build_slice_band(
                 axis=axis,
                 along_min=float(boundaries[slice_index]),
@@ -299,7 +300,7 @@ def _build_slice_geometry_from_roi(
                 cross_pad=cross_pad,
             )
         
-        # Compute the polygon of the overlapping region between the ROI and the slice band
+        # Compute the polygon of the overlapping region between the ROI and the slice band #NEED TO CHECK THIS WITH HOLE (MULTIPLE POLYGONS?)
         slice_geometry = roi_geometry.intersection(slice_band)
 
 
