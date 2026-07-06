@@ -280,6 +280,18 @@ def is_mesh_2d(mesh_in: SimData) -> bool:
         if _should_transpose_connectivity(connect, name, mesh_in):
             connect = connect.T
 
+        # Normalize 1-based indexing if present to avoid out-of-bounds errors
+        shift_all = _infer_mesh_zero_based_shift(
+            mesh_in, mesh_in.coords.shape[0]
+        )
+        legacy_connect = _table_needs_zero_based_shift(
+            connect,
+            mesh_in.coords.shape[0],
+            shift_all,
+        )
+        if legacy_connect:
+            connect = connect - 1
+
         nodes_per_elem = connect.shape[1]
         if nodes_per_elem in (3, 6, 7, 9):
             return True
@@ -288,35 +300,47 @@ def is_mesh_2d(mesh_in: SimData) -> bool:
 
         if nodes_per_elem == 4:
             # Check if elements are TET4 (3D) or QUAD4 (2D)
-            num_check = min(10, connect.shape[0])
-            is_tet = False
-            for i in range(num_check):
-                elem = connect[i]
-                v = mesh_in.coords[elem]
-                vol = np.abs(
-                    np.dot(v[1] - v[0], np.cross(v[2] - v[0], v[3] - v[0]))
-                )
-                if vol > 1e-10:
-                    is_tet = True
-                    break
-            if not is_tet:
-                return True
+            try:
+                num_check = min(10, connect.shape[0])
+                is_tet = False
+                for i in range(num_check):
+                    elem = connect[i]
+                    v = mesh_in.coords[elem]
+                    vol = np.abs(
+                        np.dot(
+                            v[1] - v[0],
+                            np.cross(v[2] - v[0], v[3] - v[0]),
+                        )
+                    )
+                    if vol > 1e-10:
+                        is_tet = True
+                        break
+                if not is_tet:
+                    return True
+            except IndexError:
+                pass
 
         if nodes_per_elem == 8:
             # Check if elements are HEX8 (3D) or QUAD8 (2D)
-            num_check = min(10, connect.shape[0])
-            is_hex = False
-            for i in range(num_check):
-                elem = connect[i]
-                v = mesh_in.coords[elem]
-                vol = np.abs(
-                    np.dot(v[1] - v[0], np.cross(v[2] - v[0], v[4] - v[0]))
-                )
-                if vol > 1e-10:
-                    is_hex = True
-                    break
-            if not is_hex:
-                return True
+            try:
+                num_check = min(10, connect.shape[0])
+                is_hex = False
+                for i in range(num_check):
+                    elem = connect[i]
+                    v = mesh_in.coords[elem]
+                    vol = np.abs(
+                        np.dot(
+                            v[1] - v[0],
+                            np.cross(v[2] - v[0], v[4] - v[0]),
+                        )
+                    )
+                    if vol > 1e-10:
+                        is_hex = True
+                        break
+                if not is_hex:
+                    return True
+            except IndexError:
+                pass
 
     return False
 
