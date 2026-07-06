@@ -18,7 +18,10 @@
 #include "rtmathutils.h"
 
 // Base offset used for the t_min of of spawned rays. Used to reduce self-intersections when spawning secondary rays from a surface.
-static constexpr double SPAWNED_T_MIN_BASE = 1e-7; 
+static constexpr double SPAWNED_T_MIN_BASE = 1e-7;
+// RR delay for dielectrics
+// We trace the first few rays deterministically and push both reflected and refracted rays, then use RR to avoid exponential blow-up
+static constexpr uint16_t RR_MIN_DEPTH_DIELECTRIC = 4u; 
 
 // ================================================================================
 // Materials namespace — scene-level ambient medium
@@ -665,9 +668,10 @@ void ray_refractive(const RayState& current_state,
     }
 
     //---------------------------------------------------------------------------------
-    // 5. Russian roulette (depth > 2) or push both (depth <= 2)
+    // 5. Russian roulette (depth >= RR_MIN_DEPTH_DIELECTRIC) or push both
     //---------------------------------------------------------------------------------
-    if (current_state.depth > 2) {
+    //if (current_state.depth > 2) { // Previous condition - lots of black dots in dielectrics
+    if (current_state.depth >= RR_MIN_DEPTH_DIELECTRIC) { // RR delay - lower variance
         //double P = 0.25 + 0.5 * reflectance; // <- This was giving nonsensical and overshot ray energy whenver reflectance was >= 0.5 (visible when we had multiple bounces)
         double P = std::clamp(reflectance, 0.1, 0.9); // Reflection's chance of surviving; 0.1 to prevent division by 0, 0.9 to give transmission a chance to survive
         // [SOBOL] Reflect-vs-transmit decision uses this bounce's reserved decision dimension (the first of the two dims for this depth)

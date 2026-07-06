@@ -146,6 +146,7 @@ namespace renderer{
             }
             
             EiVector3d albedo = intersection_record.face_color;
+            // Previous condition
             if (current_state.depth > MAX_DEPTH/2) { // Start early termination if we are at least halfway through the maximum allowed depth
                 // Russian roulette early termination
                 // For refractive materials, face_color is an absorption coefficient (sigma_a),
