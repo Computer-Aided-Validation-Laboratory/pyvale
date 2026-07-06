@@ -84,10 +84,12 @@ namespace util {
         ScanMethod scan_method;
         std::vector<std::string> basenames;
         std::vector<std::string> fullpaths;
-        bool fft_mad;
+        bool fft_filter;
         bool fft_save;
         FFTPrecision fft_precision;
-        double fft_mad_scale;
+        double fft_filter_threshold;
+        int fft_filter_radius;
+        double fft_filter_corr_power;
         unsigned int debug_level;
         bool stereo;
         bool incremental;

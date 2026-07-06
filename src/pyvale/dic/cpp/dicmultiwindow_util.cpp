@@ -46,7 +46,8 @@ void multiwindow_init(std::vector<WindowLevel> &level,
                            mwconf.search_area[lvl],
                            conf.px_hori, conf.px_vert, 
                            !is_last, lvl, 
-                           conf.fft_mad, conf.fft_mad_scale,
+                           conf.fft_filter, conf.fft_filter_threshold,
+                           conf.fft_filter_radius, conf.fft_filter_corr_power,
                            conf.fft_save, saveconf,
                            prev);
 
@@ -71,7 +72,8 @@ void multiwindow_init_partial(std::vector<WindowLevel> &level,
                            mwconf.search_area[lvl],
                            conf.px_hori, conf.px_vert,
                            !is_last, lvl,
-                           conf.fft_mad, conf.fft_mad_scale,
+                           conf.fft_filter, conf.fft_filter_threshold,
+                           conf.fft_filter_radius, conf.fft_filter_corr_power,
                            conf.fft_save, saveconf,
                            prev);
     }
@@ -192,67 +194,6 @@ void WindowLevel::gen_neighlist(const subset::Grid &layout_prev) {
     }
 }
 
-void WindowLevel::remove_outliers(std::vector<double> &u,
-                                  const double mad_scale) {
-
-    std::vector<double> u_new = u;
-
-    int radius = 2;
-
-    for (int ss = 0; ss < layout.num; ss++) {
-        
-        // subset coords
-        int ss_x = layout.coords[2*ss];
-        int ss_y = layout.coords[2*ss+1];
-
-        // subset x and y index in 2d mask
-        int idx_x = ss_x / layout.step;
-        int idx_y = ss_y / layout.step;
-
-        std::vector<double> neigh_vals;
-
-        int min_x = std::max(0, idx_x-radius);
-        int min_y = std::max(0, idx_y-radius);
-        int max_y = std::min(layout.num_ss_y, idx_y+radius+1);
-        int max_x = std::min(layout.num_ss_x, idx_x+radius+1);
-
-        for (int y = min_y; y < max_y; ++y) {
-            for (int x = min_x; x < max_x; ++x) {
-
-                // index of neighbour 
-                int nss_idx = layout.mask[y*layout.num_ss_x+x];
-
-                // check if invalid neigh
-                if (nss_idx == -1 || nss_idx == ss) continue; 
-
-                neigh_vals.push_back(u[nss_idx]);
-            }
-        }
-
-        if (neigh_vals.size() < 4) continue;
-
-        // Median
-        std::sort(neigh_vals.begin(), neigh_vals.end());
-        size_t sz = neigh_vals.size();
-        double median = (sz % 2 == 0) ? 0.5 * (neigh_vals[sz/2 - 1] + neigh_vals[sz/2]) : neigh_vals[sz/2];
-
-        // MAD
-        std::vector<double> abs_devs;
-        abs_devs.reserve(sz);
-        for (double v : neigh_vals) abs_devs.push_back(std::abs(v - median));
-
-        std::sort(abs_devs.begin(), abs_devs.end());
-        double mad = (sz % 2 == 0) ? 0.5 * (abs_devs[sz/2 - 1] + abs_devs[sz/2]) : abs_devs[sz/2];
-
-        if (mad < 1e-12) continue;
-
-        if (std::abs(u[ss] - median) > mad_scale * mad) {
-            u_new[ss] = median;
-        }
-    }
-    u = std::move(u_new);
-}
-
 void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                                            const Interpolator &interp_ref,
                                            const Interpolator &interp_def,
@@ -338,8 +279,9 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         }
 
         // remove outliers in fft
-        if (mad_filter && (window_level != num_levels-1)){
-            remove_outliers_vector(u,v,max_val);
+        if (fft_filter && (window_level != num_levels-1)){
+            remove_outliers_vector(u, v, max_val, fft_filter_threshold,
+                                   fft_filter_radius, fft_filter_corr_power);
         }
 
         if (fft_save){

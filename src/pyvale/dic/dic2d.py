@@ -39,8 +39,10 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  multiwindow_overlap: float=0.5,
                  multiwindow_subset_sizes: list[int] = [],
                  multiwindow_search_areas: list[int] = [],
-                 fft_mad: bool=False,
-                 fft_mad_scale: float=3.0,
+                 fft_filter: bool=True,
+                 fft_filter_radius: int=3,
+                 fft_filter_threshold: float=3.0,
+                 fft_filter_corr_power: float=2.0,
                  fft_save: bool=False,
                  fft_precision: Literal["F64","F32"]="F32",
                  output_basepath: Path | str = "./",
@@ -144,15 +146,19 @@ def calculate_2d(reference: np.ndarray | str | Path,
     multiwindow_search_areas: list[int], optional
         List of search window sizes for the multi-window FFT approach. If None,
         defaults to the corresponding template window size (default: None).
-    fft_mad : bool, optional
-        Median Absolute Deviation (MAD) outlier removal flag that 
-        will kill likely incorrect spikes in the rigid estimates 
-        for each FFTCC window size. (default: ``False``)
-    fft_mad_scale : bool, optional
-        An outlier is defined as a value whose deviation from the local median exceeds 
-        ``fft_mad_scale`` times the MAD. This value choses the scaling factor that determines 
-        the threshold for detecting outliers relative to the MAD. A larger ``fft_mad_scale`` 
-        is more tolerant, while a smaller value kills larger deviations.
+    fft_filter : bool, optional
+        Enables outlier filtering for rigid FFT displacement estimates at each
+        FFTCC window size. (default: ``False``)
+    fft_filter_threshold : float, optional
+        Rejection threshold for the FFT displacement outlier filter. Larger
+        values are more tolerant, while smaller values reject more vectors.
+        (default: ``3.0``)
+    fft_filter_radius : int, optional
+        Neighbourhood radius, in subset-grid steps, used by the FFT displacement
+        outlier filter. (default: ``3``)
+    fft_filter_corr_power : float, optional
+        Exponent applied to correlation confidence when weighting neighbours in
+        the FFT displacement outlier filter. (default: ``2.0``)
     fft_precision : str, optional
         Floating-point precision for FFT-only windowing buffers. Options are ``"F32"``
         for single precision and ``"F64"`` for double precision. (default: ``"F32"``).
@@ -243,8 +249,10 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.rg_seeds = updated_seeds
     config.basenames = basenames
     config.fullpaths = fullpaths
-    config.fft_mad = fft_mad
-    config.fft_mad_scale = fft_mad_scale
+    config.fft_filter = fft_filter
+    config.fft_filter_threshold = fft_filter_threshold
+    config.fft_filter_radius = fft_filter_radius
+    config.fft_filter_corr_power = fft_filter_corr_power
     config.fft_save = fft_save
     config.debug_level = debug_level
     config.epi_distance = 0
@@ -308,7 +316,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     dicchecks.print_config_summary(
         w, h, config.num_def_img, max_iterations, correlation_criteria,
-        shape_function, interpolation_routine, fft_mad, fft_mad_scale, method,
+        shape_function, interpolation_routine, fft_filter,
+        fft_filter_threshold, fft_filter_radius, fft_filter_corr_power, method,
         precision, threshold, max_displacement, subset_size, subset_step,
         num_threads, debug_level, updated_seeds, None
     )

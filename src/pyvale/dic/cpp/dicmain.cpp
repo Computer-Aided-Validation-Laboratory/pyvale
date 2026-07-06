@@ -207,8 +207,10 @@ void engine(const py::array_t<bool>& img_roi_arr,
                 last_level.cost.assign(ss_grid_l.num, 0.0);
                 last_level.max_val.assign(ss_grid_l.num, 0.0);
                 last_level.level         = mwconf.overlap.size() - 1;
-                last_level.mad_filter    = conf.fft_mad;
-                last_level.mad_scale     = conf.fft_mad_scale;
+                last_level.fft_filter             = conf.fft_filter;
+                last_level.fft_filter_threshold   = conf.fft_filter_threshold;
+                last_level.fft_filter_radius      = conf.fft_filter_radius;
+                last_level.fft_filter_corr_power  = conf.fft_filter_corr_power;
                 last_level.fft_save      = conf.fft_save;
                 last_level.saveconf      = saveconf;
                 last_level.step          = mwconf.overlap.back();
@@ -359,8 +361,10 @@ void engine(const py::array_t<bool>& img_roi_arr,
                 last_level.cost.assign(ss_grid_l.num, 0.0);
                 last_level.max_val.assign(ss_grid_l.num, 0.0);
                 last_level.level         = mwconf.overlap.size() - 1;
-                last_level.mad_filter    = conf.fft_mad;
-                last_level.mad_scale     = conf.fft_mad_scale;
+                last_level.fft_filter             = conf.fft_filter;
+                last_level.fft_filter_threshold   = conf.fft_filter_threshold;
+                last_level.fft_filter_radius      = conf.fft_filter_radius;
+                last_level.fft_filter_corr_power  = conf.fft_filter_corr_power;
                 last_level.fft_save      = conf.fft_save;
                 last_level.saveconf      = saveconf;
                 last_level.step          = mwconf.overlap.back();

@@ -77,8 +77,10 @@ struct WindowLevel {
     size_t max_num_neigh = 4;
     size_t level; // 0 is largest window
     subset::Grid layout;
-    bool mad_filter;
-    double mad_scale;
+    bool fft_filter;
+    double fft_filter_threshold;
+    int fft_filter_radius;
+    double fft_filter_corr_power;
     bool fft_save;
     common_util::SaveConfig saveconf;
     int step;
@@ -96,8 +98,10 @@ struct WindowLevel {
            const int px_vert,
            const bool allow_outside,
            const size_t level,
-           const bool mad_filter,
-           const double mad_scale,
+           const bool fft_filter,
+           const double fft_filter_threshold,
+           const int fft_filter_radius,
+           const double fft_filter_corr_power,
            const bool fft_save,
            const common_util::SaveConfig &saveconf,
            const subset::Grid *prev_layout) {
@@ -110,8 +114,10 @@ struct WindowLevel {
         max_val.resize(layout.num);
 
         this->level = level;
-        this->mad_filter = mad_filter;
-        this->mad_scale = mad_scale;
+        this->fft_filter = fft_filter;
+        this->fft_filter_threshold = fft_filter_threshold;
+        this->fft_filter_radius = fft_filter_radius;
+        this->fft_filter_corr_power = fft_filter_corr_power;
         this->fft_save = fft_save;
         this->saveconf = saveconf;
         this->step = step;
@@ -153,29 +159,6 @@ struct WindowLevel {
     * `num_neigh_list` and `neigh_list`, making it thread-safe for the given buffers.
     */
     void gen_neighlist(const subset::Grid &layout_prev);
-
-    /**
-    * @brief Remove local outliers from a displacement component using MAD filtering.
-    *
-    * For each subset, computes the median and MAD (median absolute deviation) of
-    * valid neighbouring values (in a square radius = 2 window in index space).
-    * If the current value deviates from the local median by more than
-    * @p mad_scale * MAD, it is replaced by the median. Operates on a copy and writes
-    * back upon completion to avoid biasing neighbourhood statistics.
-    *
-    * @param[in,out] u         Displacement component (e.g., u or v) to be filtered in-place.
-    * @param[in]     mad_scale Threshold multiplier for MAD-based rejection (larger -> less aggressive).
-    *
-    * @pre  @c layout must be initialized and consistent with the size of @p u.
-    * @post @p u is modified in-place with suspected outliers replaced by the local median.
-    *
-    * @note Neighbourhood is defined in the grid index space via @c layout.mask with radius = 2.
-    * @note If < 4 valid neighbours are found for a subset, that subset is skipped.
-    * @note If MAD is extremely small (< 1e-12), the subset is skipped to avoid division blow-up.
-    * @complexity Approximately O(N * K log K) where N = number of subsets and K ~ neighbourhood size.
-    */
-    void remove_outliers(std::vector<double> &u,
-                         const double mad_scale);
 
 
 

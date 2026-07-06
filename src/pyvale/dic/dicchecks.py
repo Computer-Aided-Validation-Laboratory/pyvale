@@ -599,8 +599,10 @@ def print_config_summary(image_width: int,
                          correlation_criteria: str,
                          shape_function: str,
                          interpolation_routine: str,
-                         fft_mad: bool,
-                         fft_mad_scale: float,
+                         fft_filter: bool,
+                         fft_filter_threshold: float,
+                         fft_filter_radius: int,
+                         fft_filter_corr_power: float,
                          method: str,
                          precision: float,
                          threshold: float,
@@ -622,8 +624,10 @@ def print_config_summary(image_width: int,
     common_py_util.info_out("Correlation Criterion: ", correlation_criteria)
     common_py_util.info_out("Shape Function: ", shape_function)
     common_py_util.info_out("Interpolation Routine: ", interpolation_routine)
-    common_py_util.info_out("FFT MAD outlier removal enabled: ", fft_mad)
-    common_py_util.info_out("FFT MAD scale: ", fft_mad_scale)
+    common_py_util.info_out("FFT displacement filter enabled: ", fft_filter)
+    common_py_util.info_out("FFT displacement filter threshold: ", fft_filter_threshold)
+    common_py_util.info_out("FFT displacement filter radius: ", fft_filter_radius)
+    common_py_util.info_out("FFT displacement filter correlation power: ", fft_filter_corr_power)
     common_py_util.info_out("Image Scan Method: ", method)
     common_py_util.info_out("Optimization Precision:", precision)
     common_py_util.info_out("Correlation Cutoff Threshold:", threshold)

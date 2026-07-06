@@ -42,8 +42,11 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  multiwindow_overlap: float=0.5,
                  multiwindow_subset_sizes: list[int] = [],
                  multiwindow_search_areas: list[int] = [],
-                 fft_mad: bool=False,
-                 fft_mad_scale: float=3.0,
+                 fft_filter: bool=False,
+                 fft_filter_threshold: float=3.0,
+                 fft_filter_radius: int=3,
+                 fft_filter_corr_power: float=2.0,
+                 fft_save: bool=False,
                  fft_precision: Literal["F64","F32"]="F32",
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
@@ -141,20 +144,22 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     multiwindow_search : list[int], optional
         List of search window sizes for the multi-window FFT approach. If None,
         defaults to the corresponding template window size (default: ``None``).
-    fft_mad : bool, optional
-        The option to smooth FFT windowing data by identifying and replacing outliers using 
-        a robust statistical method. For each subset, the function collects values from its 
-        neighboring subsets (within a 5x5 window, i.e., radius = 2), computes the median and 
-        Median Absolute Deviation (MAD), and determines whether the value at the current 
-        subset is an outlier. If it is, the value is replaced with the median of 
-        its neighbors. (default: False)
+    fft_filter : bool, optional
+        Enables outlier filtering for rigid FFT displacement estimates at each
+        FFTCC window size. (default: ``False``)
+    fft_filter_threshold : float, optional
+        Rejection threshold for the FFT displacement outlier filter. Larger
+        values are more tolerant, while smaller values reject more vectors.
+        (default: ``3.0``)
+    fft_filter_radius : int, optional
+        Neighbourhood radius, in subset-grid steps, used by the FFT displacement
+        outlier filter. (default: ``3``)
+    fft_filter_corr_power : float, optional
+        Exponent applied to correlation confidence when weighting neighbours in
+        the FFT displacement outlier filter. (default: ``2.0``)
     fft_precision : str, optional
         Floating-point precision for FFT-only windowing buffers. Options are ``"F32"``
         for single precision and ``"F64"`` for double precision. (default: ``"F32"``).
-    fft_mad_scale : bool, optional
-        An outlier is defined as a value whose deviation from the local median exceeds 
-        `fft_mad_scale` times the MAD. This value choses the scaling factor that determines 
-        the threshold for detecting outliers relative to the MAD.
     output_basepath : str or pathlib.Path, optional
         Directory path where output files will be written (default: ``"./"``).
     output_binary : bool, optional
@@ -257,8 +262,11 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.rg_seeds = updated_seeds
     config.basenames = basenames
     config.fullpaths = fullpaths
-    config.fft_mad = fft_mad
-    config.fft_mad_scale = fft_mad_scale
+    config.fft_filter = fft_filter
+    config.fft_filter_threshold = fft_filter_threshold
+    config.fft_filter_radius = fft_filter_radius
+    config.fft_filter_corr_power = fft_filter_corr_power
+    config.fft_save = fft_save
     config.debug_level = debug_level
     config.epi_distance = epi_distance
     config.max_disp = max_displacement
@@ -320,7 +328,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     dicchecks.print_config_summary(
         w0, h0, config.num_def_img, max_iterations, correlation_criteria,
-        shape_function, interpolation_routine, fft_mad, fft_mad_scale, method,
+        shape_function, interpolation_routine, fft_filter,
+        fft_filter_threshold, fft_filter_radius, fft_filter_corr_power, method,
         precision, threshold, max_displacement, subset_size, subset_step,
         num_threads, debug_level, updated_seeds, epi_distance
     )
