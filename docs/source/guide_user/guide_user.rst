@@ -12,6 +12,7 @@ Module Specific Guides
    guide_sensorsim.rst
    guide_dic.rst
    guide_blender.rst
+   guide_vfm.rst
 
 
 What is pyvale?
