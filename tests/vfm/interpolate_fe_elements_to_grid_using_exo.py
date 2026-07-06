@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 from scipy.interpolate import LinearNDInterpolator
 
-from pyvale import mooseherder
 
+from pyvale import mooseherder
 
 def _normalise_connectivity(connectivity: np.ndarray) -> np.ndarray:
     connectivity = np.asarray(connectivity, dtype=np.int64)

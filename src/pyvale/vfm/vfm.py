@@ -32,6 +32,7 @@ def run_identification(
                 for param_name, sp in phase.spatial_parameterisations.items():
                     sp.update_from_constitutive_parameter(identification.parameters[param_name])
 
+                print('Optimising phase')
                 optimised_spatial_parameterisations = phase.optimiser.optimise(
                     identification.constitutive_law,
                     parameter_map_size,

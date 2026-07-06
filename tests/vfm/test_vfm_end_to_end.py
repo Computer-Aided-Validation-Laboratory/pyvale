@@ -6,10 +6,11 @@ import numpy.testing as np_test
 import numpy.typing as npt
 import pytest
 import pyvista as pv
-from interpolate_fe_elements_to_grid import (
+from interpolate_fe_elements_to_grid_using_exo import (
     interpolate_fe_elements_to_grid,
-    read_gmsh_element_centres,
+    read_exodus_element_centres,
 )
+from create_stress_recon_report import create_stress_recon_report, create_stress_recon_plots
 
 from pyvale import mooseherder, sensorsim
 from pyvale.mooseherder.simdata import SimData
@@ -296,6 +297,7 @@ def test_end_to_end() -> None:
     )
 
     # force = force * -1
+    force=force/1000  #seems to be an issue with FE input force data
 
     boundary_conditions = BoundaryConditions(
         EdgeConditions(
@@ -434,7 +436,7 @@ def test_end_to_end() -> None:
         ax.set_xlabel("x [m]")
         ax.set_ylabel("y [m]")
 
-    SHOW_YIELD_STRESS_COMPARISON = True
+    SHOW_YIELD_STRESS_COMPARISON = False
     if SHOW_YIELD_STRESS_COMPARISON:
         plt.show()
     else:
@@ -443,7 +445,7 @@ def test_end_to_end() -> None:
 
     parameters = {
         "elastic_modulus": ConstitutiveParameter(
-            200_000, 100_000, 250_000, np.array([grid_divs, grid_divs])
+            200_000, 199_000, 201_000, np.array([grid_divs, grid_divs])
         ),
         "poissons_ratio": ConstitutiveParameter(
             0.3, 0.2, 0.4, np.array([grid_divs, grid_divs])
@@ -466,7 +468,7 @@ def test_end_to_end() -> None:
             {
                 "elastic_modulus": HomogeneousSpatialParameterisation(),
                 "poissons_ratio": HomogeneousSpatialParameterisation(),
-                "yield_strength": HomogeneousSpatialParameterisation(),
+                "yield_strength": KnownSpatialParameterisation(),
                 "hardening_modulus": HomogeneousSpatialParameterisation(),
             },
             [
@@ -523,17 +525,17 @@ def test_end_to_end() -> None:
     stress_fe = np.stack([stress_xx_fe, stress_yy_fe, stress_xy_fe], axis=1) # shape: (timesteps, 3, y, x)
 
     # FIGURES OF STRESS RR, FE, DIFF, PERC DIFF
-    PLOT_STRESS_RR = True
-    PLOT_STRESS_FE = True
-    PLOT_STRESS_RR_FE_DIFF = True
-    PLOT_STRESS_RR_FE_PERC_DIFF = True
-    PLOT_PERCENTILE_SCALED_DIFF = True # for each of the diff and % diff plots, create copy with clim between 5th and 95th percentile
+    PLOT_STRESS_RR = False
+    PLOT_STRESS_FE = False
+    PLOT_STRESS_RR_FE_DIFF = False
+    PLOT_STRESS_RR_FE_PERC_DIFF = False
+    PLOT_PERCENTILE_SCALED_DIFF = False # for each of the diff and % diff plots, create copy with clim between 5th and 95th percentile
 
     # Plotting inputs
-    step = 30
+    step = 18
 
     # STRESS RECON REPORT
-    CREATE_STRESS_RECON_REPORT = True
+    CREATE_STRESS_RECON_REPORT = False
     if CREATE_STRESS_RECON_REPORT:
         report_path = VFMVERIF_ROOT / "reports" / f"{Path(exodus_file_name).stem}_stress_recon_step_{step:03d}.pdf"
         report_summary = create_stress_recon_report(
@@ -593,10 +595,20 @@ def test_end_to_end() -> None:
         plt.show()
 
 
-
-
     print("Running VFM...")
-    vfm_result = vfm(experiment_data, identification)
+    vfm_result = run_identification(experiment_data, identification)
+
+    for param_name, param in vfm_result.items():
+        print(f"{param_name}={param.value}")
+        # np_test.assert_allclose(param_map, gold_parameters[param_name], rtol=, atol=)
+        # np_test.assert_allclose(param.value, gold_parameters[param_name])
+
+    ## Post-processing and validation of results
+    # reconstruct stress from identified parameters
+
+    # compare sbvf metric using identified parameters vs known parameters
+
+    # check EVW and IVW values
 
     gold_parameters = {
         "elastic_modulus": np.full((grid_divs, grid_divs), 200_000),
@@ -606,10 +618,7 @@ def test_end_to_end() -> None:
         "hardening_modulus": np.full((grid_divs, grid_divs), 1_000)
     }
 
-    for param_name, param in vfm_result.items():
-        print(f"{param_name}={param.value}")
-        # np_test.assert_allclose(param_map, gold_parameters[param_name], rtol=, atol=)
-        # np_test.assert_allclose(param.value, gold_parameters[param_name])
+
 
 
 def debug_plot(data, x_grid, y_grid):
