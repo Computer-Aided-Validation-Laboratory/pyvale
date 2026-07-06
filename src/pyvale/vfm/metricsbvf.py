@@ -1,5 +1,5 @@
 from copy import copy, deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,7 +7,6 @@ import numpy.typing as npt
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import (
-    EdgeConditions,
     EEdgeCondition,
     ExperimentData,
 )
@@ -39,48 +38,55 @@ class StressSensitivity:
 
 @dataclass(slots=True)
 class SensitivityBasedVirtualFieldsMetric(IMetric):
-    virtual_fields_mesh: VirtualFieldsMesh
-    vf_scaling_fraction: float | None
+    mesh_size: npt.NDArray[np.uint32]
+    # TODO: option to adjust fraction of largest timesteps used for
+    #   calculating VF scaling factor
+    vf_scaling_fraction: float | None = None
+
+    _virtual_fields_mesh: VirtualFieldsMesh | None = field(
+        default=None,
+        init=False
+    )
 
     # Internal and external virtual work vectors computed by the most recent
     # call to evaluate, stacked per virtual field with shape
-    # (num_virtual_fields, timesteps). Both are None until evaluate has run.
-    _internal_virtual_work: npt.NDArray[np.float64] | None
-    _external_virtual_work: npt.NDArray[np.float64] | None
+    # (num_virtual_fields, timesteps). Both are None until evaluate has run
+    _internal_virtual_work: npt.NDArray[np.float64] | None = field(
+        default=None,
+        init=False
+    )
+    _external_virtual_work: npt.NDArray[np.float64] | None = field(
+        default=None,
+        init=False
+    )
 
     # Cached sensitivity-based virtual fields. They are (re)computed when the
     # cache is None or when _recompute_virtual_fields is True, and otherwise
-    # reused across evaluations to avoid recomputing the stress sensitivities.
-    _sensitivity_based_virtual_fields: list[GlobalVirtualFields] | None
-    _recompute_virtual_fields: bool
+    # reused across evaluations to avoid recomputing the stress sensitivities
+    _sensitivity_based_virtual_fields: list[GlobalVirtualFields] | None = field(
+        default=None,
+        init=False
+    )
 
-    def __init__(
+    # Toggle whether to recompute sensitivity based virtual fields
+    # on each metric evaluation
+    _recompute_virtual_fields: bool = field(
+        default=False,
+        init=False
+    )
+
+
+    def initialise(
         self,
-        x: npt.NDArray[np.float64],
-        y: npt.NDArray[np.float64],
-        region_of_interest: npt.NDArray[np.bool_],
-        edge_conditions: EdgeConditions,
-        mesh_size: npt.NDArray[np.uint32],
-        # TODO: option to adjust fraction of largest timesteps used for
-        #   calculating VF scaling factor
-        vf_scaling_fraction: float | None = None
+        experiment_data: ExperimentData
     ) -> None:
-
-        self.virtual_fields_mesh = generate_virtual_fields_mesh(
-            x,
-            y,
-            region_of_interest,
-            edge_conditions,
-            mesh_size
+        self._virtual_fields_mesh = generate_virtual_fields_mesh(
+            experiment_data.specimen_geometry.x,
+            experiment_data.specimen_geometry.y,
+            experiment_data.specimen_geometry.region_of_interest,
+            experiment_data.boundary_conditions.edge_conditions,
+            self.mesh_size
         )
-
-        self.vf_scaling_fraction = vf_scaling_fraction
-
-        self._internal_virtual_work = None
-        self._external_virtual_work = None
-
-        self._sensitivity_based_virtual_fields = None
-        self._recompute_virtual_fields = True
 
     def evaluate(
         self,
@@ -90,12 +96,19 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         spatial_parameterisations: dict[str, ISpatialParameterisation],
         experiment_data: ExperimentData,
     ) -> npt.NDArray[np.float64]:
+        if self._virtual_fields_mesh is None:
+            raise RuntimeError(
+                "Virtual fields mesh has not been generated. "
+                "initialise() must be called before evaluate()."
+            )
+
 
         if (
             self._sensitivity_based_virtual_fields is None
             or self._recompute_virtual_fields
         ):
-            # Compute stress sensitivites for each DOF or constitutive parameter (depending on perturbation type)
+            # Compute stress sensitivites for each DOF or constitutive
+            # parameter (depending on perturbation type)
             stress_sensitivities = self.calculate_stress_sensitivities(
                 experiment_data.strain,
                 stress,
@@ -106,13 +119,15 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
                 perturbation_type = "constitutive_parameter",
             )
 
-            # Generate sensitivity-based virtual fields (SBVF) from stress sensitivities
+            # Generate sensitivity-based virtual fields (SBVF) from
+            # stress sensitivities
             sensitivity_based_virtual_fields = []
             for stress_sensitivity in stress_sensitivities:
                 sensitivity_based_virtual_fields.append(
+                    # TODO: option to use incremental stress sensitivities
                     generate_virtual_fields_from_mesh(
-                        stress_sensitivity.total,  # TODO: option to use incremental stress sensitivities
-                        self.virtual_fields_mesh
+                        stress_sensitivity.total,  
+                        self._virtual_fields_mesh
                     )
                 )
 
@@ -120,9 +135,10 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         else:
             sensitivity_based_virtual_fields = self._sensitivity_based_virtual_fields
 
-        # Reshape pixel area to be broadcastable with stress and virtual strain arrays
+        # Reshape pixel area to be broadcastable with stress and
+        # virtual strain arrays
         pixel_area = experiment_data.specimen_geometry.pixel_area[np.newaxis, np.newaxis, :, :]
-               
+
 
         # Determine which edge index has traction boundary condition # TODO: tidy up
         for edge_name in ("min_x_edge", "max_x_edge", "min_y_edge", "max_y_edge"):
@@ -150,6 +166,10 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         # Compute PVW residuals for each SBVF and concatenate into single residual vector
         for sbvf in sensitivity_based_virtual_fields:
             # Compute 4d IVW term for current SBVF
+            # TODO: we have a 1e6 term here as stress in in MPa,
+            #   and pixel area is in m^2, would be nice to avoid
+            #   having this magic number, maybe rescale stress into Pa
+            #   at the start of the func?
             internal_virtual_work_4d = (
                 stress
                 * sbvf.virtual_strain
@@ -234,10 +254,9 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         perturbation_type: str = "constitutive_parameter",   #TODO better as enum? 
         perturbation_factor_param: float = 0.15,   #TODO: single perturbation factor or separate for param and dof? 
         perturbation_factor_dof: float = 0.05,
-        
     ) -> list[StressSensitivity]:
         """Calculate stress sensitivity objects for the provided spatial parameterisations.
-        
+
 
         stress_sensitivities_dof: 
             - fixed additive step in normalised DOF space (e.g. 0.05 means perturbing by 5% of the full allowed range of the DOF)
@@ -256,8 +275,6 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
             -"constitutive_parameter": one sensitivity history per active constitutive parameter, 
             so downstream nVF = nParameters.
             - "dof": one sensitivity history per active optimisation DOF, so downstream nVF = nDof.
-        
-        
         """
 
         if perturbation_type == "constitutive_parameter":
@@ -299,7 +316,7 @@ def _calculate_stress_sensitivities_dof(
         perturbation_factor: float,
     ) -> list[StressSensitivity]:
     """Calculate stress sensitivity maps for the provided spatial parameterisations by perturbing each DOF.
-    
+
     Perturb DOF in normalised space to ensure consistent perturbation factor across different DOF types and ranges
 
     normalised_perturbed = normalised_dof - perturbation_factor
@@ -309,7 +326,7 @@ def _calculate_stress_sensitivities_dof(
     Hence, 0.05 means perturbing by 5% of the full allowed range of the DOF, not 5% of current value.
 
     """
-    
+
     stress_sensitivities = []
     # Loop through each constitutive parameter
     for param_name, sp in spatial_parameterisations.items():
@@ -341,7 +358,7 @@ def _calculate_stress_sensitivities_dof(
             perturbed_dofs = deepcopy(dofs)           # copy list of DOFs
             perturbed_dofs[i] = perturbed_dof         # update current perturbed DOF in list of DOFs            
 
-            
+
             # Update spatial parameterisation using perturbed DOF
             perturbed_spatial_parameterisations[
                 param_name
@@ -436,7 +453,7 @@ def _calculate_stress_sensitivities_parameter(
         perturbation_factor: float,
     ) -> list[StressSensitivity]:
     """Calculate stress sensitivity maps for the provided spatial parameterisations by perturbing each parameter map datapoint.
-    
+
     Perturb DOF in physical space
 
     value_perturbed = value * (1 - perturbation_factor)
@@ -446,7 +463,7 @@ def _calculate_stress_sensitivities_parameter(
     stress_sensitivities = []
     # Loop through each constitutive parameter
     for param_name, sp in spatial_parameterisations.items():
-        
+
         # If constitutive parameter is not being identified: skip
         if sp.get_num_degrees_of_freedom() == 0:
             continue

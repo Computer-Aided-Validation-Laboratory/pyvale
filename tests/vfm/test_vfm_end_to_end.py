@@ -37,7 +37,7 @@ KNOWN_PARAMETERS = {
     "hardening_modulus": 1_000.0,  # MPa
 }
 
-PLOT_IDENTIFICATION_DIFF = True
+PLOT_IDENTIFICATION_DIFF = False
 
 
 def test_end_to_end_homogeneous() -> None:
@@ -62,13 +62,7 @@ def test_end_to_end_homogeneous() -> None:
         ),
     }
 
-    metric = SensitivityBasedVirtualFieldsMetric(
-        experiment_data.specimen_geometry.x,
-        experiment_data.specimen_geometry.y,
-        experiment_data.specimen_geometry.region_of_interest,
-        experiment_data.boundary_conditions.edge_conditions,
-        np.array([15, 15]),
-    )
+    metric = SensitivityBasedVirtualFieldsMetric(np.array([15, 15]))
 
     phases = [
         IdentificationPhase(

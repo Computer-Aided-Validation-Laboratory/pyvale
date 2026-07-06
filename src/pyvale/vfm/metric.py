@@ -10,6 +10,22 @@ from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 class IMetric(ABC):
     @abstractmethod
+    def initialise(
+        self,
+        experiment_data: ExperimentData
+    ) -> None:
+        """
+        Perform one-off setup for the metric before evaluation,
+        any expensive precomputation should be performed here.
+
+        Parameters
+        ----------
+        experiment_data : ExperimentData
+            Measured DIC data
+        """
+        pass
+
+    @abstractmethod
     def evaluate(
         self,
         stress: npt.NDArray[np.float64],

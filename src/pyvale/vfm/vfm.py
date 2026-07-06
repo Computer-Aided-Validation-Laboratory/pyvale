@@ -34,6 +34,9 @@ def run_identification(
                         identification.parameters[param_name]
                     )
 
+                for metric in phase.metrics:
+                    metric.initialise(experiment_data)
+
                 # Optimise the degrees of freedom of the spatial
                 # parameterisations
                 opt_spatial_parameterisations = phase.optimiser.optimise(

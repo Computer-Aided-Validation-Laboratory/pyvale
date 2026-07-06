@@ -75,6 +75,8 @@ def test_sbvf_metric_with_vfs_locked():
 
     parameter_map_size = np.array([GRID_DIVS, GRID_DIVS], dtype=np.uint32)
 
+    sbvf_metric.initialise(experiment_data)
+
     sbvf_metric.evaluate(
         stress_fe,
         ident.constitutive_law,
@@ -176,6 +178,8 @@ def test_sbvf_metric_with_vfs_free():
         )
 
     parameter_map_size = np.array([GRID_DIVS, GRID_DIVS], dtype=np.uint32)
+
+    sbvf_metric.initialise(experiment_data)
 
     sbvf_metric.evaluate(
         stress_fe,
@@ -304,13 +308,7 @@ def _setup_identification(experiment_data: ExperimentData) -> Identification:
         ),
     }
 
-    metric = SensitivityBasedVirtualFieldsMetric(
-        experiment_data.specimen_geometry.x,
-        experiment_data.specimen_geometry.y,
-        experiment_data.specimen_geometry.region_of_interest,
-        experiment_data.boundary_conditions.edge_conditions,
-        np.array([15, 15]),
-    )
+    metric = SensitivityBasedVirtualFieldsMetric(np.array([15, 15]))
 
     phases = [
         IdentificationPhase(

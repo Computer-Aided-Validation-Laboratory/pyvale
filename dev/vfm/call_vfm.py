@@ -87,13 +87,7 @@ def main():
                 "hardening_modulus": HomogeneousSpatialParameterisation(),
             },
             [
-                SensitivityBasedVirtualFieldsMetric(
-                    experiment_data.specimen_geometry.x,
-                    experiment_data.specimen_geometry.y,
-                    experiment_data.specimen_geometry.region_of_interest,
-                    experiment_data.boundary_conditions.edge_conditions,
-                    np.array([5, 10]),
-                )
+                SensitivityBasedVirtualFieldsMetric(np.array([5, 10]))
             ],
             VectorFirstResultPassthrough(),
             LeastSquares(),
