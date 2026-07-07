@@ -42,8 +42,9 @@ QUAD_FACTOR = 0.5
 QUAD_ALGORITHM = 8
 QUAD_HIGH_ORDER_OPTIMIZE = 2
 
-shark_svg_path = full_path("thesis-data/app1_rbm/fatshark.svg")
-target_dir = os.path.dirname(shark_svg_path)
+pet_name = "fatshark"
+pet_svg_path = full_path(f"thesis-data/app1_rbm/{pet_name}.svg")
+target_dir = os.path.dirname(pet_svg_path)
 
 def load_outline_path(svg_path):
     paths, _ = svg2paths(svg_path)
@@ -305,19 +306,19 @@ def mesh_svg(svg_path, element, target_length=TARGET_LENGTH, edge_fraction=EDGE_
         gmsh.finalize()
 
 # Turn SVG into mesh
-#mesh_svg(shark_svg_path, Elements.TRI3)
+#mesh_svg(pet_svg_path, Elements.TRI3)
 
 
 # Unwrap the mesh to avoid Blender dependency in the main test
 def uv_unwrap():
     from pyvale.raytracer.rtblender import BlenderUnwrapper
     blender_uv = BlenderUnwrapper()
-    object_path = full_path("thesis-data/app1_rbm/fatshark_TRI3/fatshark_TRI3.vtk")   
+    object_path = full_path("thesis-data/app1_rbm/{pet_name}_TRI3/{pet_name}_TRI3.vtk")   
     object = any_mesh_to_rtmesh(object_path, world_position = np.array([0.0, 0.0, 0.0]), anchor = Anchor.CENTER,
                                 target_size=50, size_axis = Axis.Y) # Shark 50 mm long => 30 mm wide
     blender_uv.add_rtmesh(object)
     blender_uv.smart_unwrap()
-    object.export_uvs(full_path("thesis-data/app1_rbm/fatshark_TRI3/fatshark_TRI3_uvs.csv"))
+    object.export_uvs(full_path(f"thesis-data/app1_rbm/{pet_name}_TRI3/{pet_name}_TRI3_uvs.csv"))
    
 #uv_unwrap()
 
@@ -326,10 +327,10 @@ def uv_unwrap():
 # ================================================================================
 #calplate_dict_names = ["quad4_calplate3d", "quad8_calplate3d", "quad9_calplate3d", "tri3_calplate3d", "tri6_calplate3d"]
 
-def rmb_test(test_case: TestCaseApp):
+def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
     # 1. Camera and output settings
-    shark_height = 51 # mm
-    shark_displacement = 2 # mm; we don't really use it in practice, but it is to mock some tiny experimental ROI
+    pet_height = 51 # mm
+    pet_displacement = 2 # mm; we don't really use it in practice, but it is to mock some tiny experimental ROI
     # Swap height and width ("rotated" camera) as our ROI is more vertical than horizontal
     # Then scale down by 10 - we still see something, but the image is small
     image_width = int(image_height_cx5 / 10)
@@ -339,7 +340,7 @@ def rmb_test(test_case: TestCaseApp):
     # Derived camera parameters
     active_sensor_side_length = active_sensor_height(image_height, pixel_pitch)
     angle_vertical_view = vertical_fov_from_sensor(sensor_height=active_sensor_side_length, focal_length=focal_length)
-    fov_height = shark_height + shark_displacement + 1 # We want to see the shark's motion + have some safety of 1 mm
+    fov_height = pet_height + pet_displacement + 1 # We want to see the shark's motion + have some safety of 1 mm
     camera_distance = camera_working_distance(focal_length, fov_height, active_sensor_side_length)
     # Camera positioning
     target_distance = camera_distance - focal_length
@@ -352,23 +353,24 @@ def rmb_test(test_case: TestCaseApp):
     # Output format
     output_format = output_format_cx5
     # Anti-aliasing
-    anti_alias = 1; # for anti-aliasing
+    anti_alias = aa_samples; # for anti-aliasing
     print(f"VFOV angle: {angle_vertical_view} with camera distance: {camera_distance}")
 
     #cam.print_view_dims()
 
     # 2. Paths and access to all data used in the scene
     # Object = main mesh that moves
-    object_path = full_path("thesis-data/app1_rbm/fatshark_TRI3/fatshark_TRI3.vtk")
+    object_path = full_path(f"thesis-data/app1_rbm/{pet_name}_TRI3/{pet_name}_TRI3.vtk")
     # Pipe and water - as in convergence_rt, but shorter and wider to reduce unnecessary computations
     pipe_access = "thesis-data/pipe_shark"
-    pipe_path = get_tank_path(pipe_access, Elements.TRI3) # TRI3 or TRI6 only for pipe
-    water_path = get_fill_path(pipe_access, Elements.TRI3)
+    pipe_path = get_tank_path(pipe_access, Elements.TRI6) # TRI3 or TRI6 only for pipe
+    water_path = get_fill_path(pipe_access, Elements.TRI6)
 
     # 3. Set up the meshes
     scene = Scene()
-    object = any_mesh_to_rtmesh(object_path, world_position = np.array([0.0, 0.0, 0.0]), anchor = Anchor.CENTER,
-                                target_size=51, size_axis = Axis.Y) # Shark 50 mm long => 30 mm wide (hammer); 32 mm (fatshark); pipe is 35 mm ID
+    object = any_mesh_to_rtmesh(object_path, world_position = np.array([0.0, 0.0, 0.0]), anchor = Anchor.CENTER, 
+                                target_size=30, size_axis = Axis.Y) # Shark 50 mm long => 30 mm wide (hammer); 32 mm (fatshark); pipe is 35 mm ID
+    object.rotate(rotation=Rotation.from_euler('z', 90, degrees=True))
     print(object.get_size())
     pipe = any_mesh_to_rtmesh(pipe_path)
     water = any_mesh_to_rtmesh(water_path)
@@ -403,7 +405,7 @@ def rmb_test(test_case: TestCaseApp):
     # This is huge compared to the target resolution, so we need to change it or the speckles will be just noise
     # We could downsample the texture OR, since we're scaling down and the UV's will not go over the [0,1] range
     # simply rescale those without altering the image
-    object.import_uvs(Path.with_name(object_path, "fatshark_TRI3_uvs.csv")) # Load pre-processed UVs
+    object.import_uvs(Path.with_name(object_path, f"{pet_name}_TRI3_uvs.csv")) # Load pre-processed UVs
     object_texture = ImageTools.load_image_greyscale(dic_pattern_5mpx_path())
     object.set_surface(SurfType.TEXTURE, surface_fill=object_texture, material_type=MaterialType.DIFFUSE)
     # Scale the UVs to get 3.5 px speckles in the rendered images
@@ -413,8 +415,8 @@ def rmb_test(test_case: TestCaseApp):
 
     # 6. Render
     scene.add_camera(cam)
-    #render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.DYNAMIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
 
 
     
-#rmb_test(TestCaseApp.PIPE)
+rmb_test(TestCaseApp.WATER, aa_samples=1)

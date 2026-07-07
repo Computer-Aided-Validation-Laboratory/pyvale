@@ -67,6 +67,7 @@ def iter_elements_plot_order():
 # Plot settings
 FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22, "ticks": 13, "subplot_labels": 16, "legend": 15}
 FIGURE_SIZE = (12, 10)
+FIGURE_SIZE_STACKED_HOR = (12, 16)
 RESIZE_PLOT_FACTOR = 50
 SUBPLOT_SPACING = 0.3
 
@@ -168,9 +169,6 @@ def speckle_scaling(image_width: int,
     # a) Downscale the texture as e.g., tex_width *= tile_factor_vert
     # b) Multiply the uvs, mesh_uvs *= tile_factor_array
     return np.array([tile_factor_hor, tile_factor_vert], dtype=np.float64)
-
-
-
 
 # ================================================================================
 # Other

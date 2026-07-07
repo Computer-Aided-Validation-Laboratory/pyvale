@@ -14,7 +14,7 @@ import matplotlib.ticker as mticker
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib.offsetbox import TextArea, HPacker, VPacker, AnchoredOffsetbox
 
-#import smplotlib # For nicer figures (imo), but no need to install if you don't want it
+import smplotlib # For nicer figures (imo), but no need to install if you don't want it
 
 from pyvale.raytracer.rtoutputformat import *
 from global_utils import *
@@ -433,19 +433,25 @@ def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = F
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
     filename = f"{test_case.value}_{resolution.value}_convergence_plot.png"
 
+
     # Create plot
-    fig, ax = plt.subplots(figsize=FIGURE_SIZE)
+    fig, (ax, ax_bottom) = plt.subplots(2, 1, figsize=FIGURE_SIZE_STACKED_HOR, sharex=True)
     #ax.set_title("Subsampling for high resolution/low resolution", fontsize=FONT_SIZES["suptitle"]) # If you want a title
-    ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+    ax_bottom.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
     ax.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
+    ax_bottom.set_ylabel("Maximum absolute error [GL]", fontsize=FONT_SIZES["axis_labels"])
     # Format the y-axis as by default it just shows orders of magnitude
     ax.yaxis.set_major_formatter(mticker.NullFormatter())
     ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
     ax.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"]) # Set label sizes on the axis
+    ax_bottom.tick_params(axis="y", which="both", labelsize=FONT_SIZES["ticks"]) # Set label sizes on the axis
     # Format x-axis as well
     ax.set_xscale("log")
+    ax_bottom.set_xscale("log")
     ax.xaxis.set_minor_locator(mticker.NullLocator())
+    ax_bottom.xaxis.set_minor_locator(mticker.NullLocator())
     ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+    ax_bottom.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
     label_x = None
     min_x = np.inf
     max_x = -np.inf
@@ -456,7 +462,7 @@ def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = F
         elem_dir_name = base_data_dir + element.label  
         data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / "convergence_log.csv" # Full path to the csv with all numerical data
         #print(data_path)
-        # Convergence stores data as [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
+        # Convergence stores data as ["iteration", "subsamples", "rmse", "max_ae", "99p_abs_error", "identical_px_count", "tot_px_roi"]
         elem_data = np.loadtxt(data_path, delimiter=",", skiprows=1, unpack=True) # Full data
         all_x = np.unique(elem_data[1])
         curr_min_x = np.min(all_x)
@@ -480,26 +486,42 @@ def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = F
                     linestyle="-",
                     linewidth=3,
                     markersize=10)
-    ax.set_xticks(label_x)
+        ax_bottom.plot(elem_data[1], elem_data[3],
+                    color=element.color,
+                    marker="o",
+                    linestyle="-",
+                    linewidth=3,
+                    markersize=10)
+    ax_bottom.set_xticks(label_x)
     # Plot x-labels as 2^power for clarity
-    ax.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+    ax_bottom.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
     ax.legend(loc='upper right', fontsize=FONT_SIZES["axis_labels"])
     ax.grid(visible=True, which='both', axis='both')
+    ax_bottom.grid(visible=True, which='both', axis='both')
     plt.tight_layout()
+
 
     if show:
      plt.show()
     if save:
         fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
 
-def plot_results_subplots(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
+def plot_results_subplots(test_case: TestCase, resolution: Resolution, rmse: bool = False, save: bool = False, show: bool = False):
     """
     Plots convergence results for all elements on separate subplots in one figure.
 
     """
     base_data_dir = f"convergence_rt/res_{resolution.value}/{test_case.value}/"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
-    filename = f"{test_case.value}_{resolution.value}_convergence_subplots.png"
+    filename = f"{test_case.value}_{resolution.value}_convergence_subplots"
+    if rmse:
+        data_index = 2 # Index corresponding to this data in elem_data
+        y_label = "RMSE [GL]"
+        filename = filename + "_rmse.png"
+    else:
+        data_index = 3
+        y_label = "Maximum absolute error [GL]"
+        filename = filename + "_maxae.png"
 
     # Define subplot layout
     # Elements are stacked neatly by type (triangles/quads), then on the left we have "usual" elements and higher order ones on the right
@@ -522,9 +544,12 @@ def plot_results_subplots(test_case: TestCase, resolution: Resolution, save: boo
         elem_data = np.loadtxt(data_path, delimiter=",", skiprows=1, unpack=True)
 
         # Values for ticks so we only display values from actual data
+        x_data = elem_data[1]
+        y_data = elem_data[data_index]
+
         all_x = np.unique(elem_data[1])
 
-        ax.plot(elem_data[1],elem_data[2],
+        ax.plot(x_data,y_data,
             color=element.color,
             marker="o",
             linestyle="-",
@@ -533,23 +558,30 @@ def plot_results_subplots(test_case: TestCase, resolution: Resolution, save: boo
             
         ax.set_title(name, fontsize=FONT_SIZES["subtitle"])
         ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["subplot_labels"])
-        ax.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["subplot_labels"])
+        ax.set_ylabel(y_label, fontsize=FONT_SIZES["subplot_labels"])
 
         # Y-axis formatting
         ax.tick_params(axis="y", which="both", labelsize=FONT_SIZES["ticks"])
-        all_y = np.unique(elem_data[2])
+        all_y = np.unique(y_data)
         # Small dataset (usually 131+k samples) => We can display actual RMSE values on the plot
         if all_y.shape[0] < 8:
             ax.set_yticks(all_y)
         # Big dataset (usually starting at 1 sample) => Matplotlib doesn't like it => Leave default major ticks
         # But point at min and max values as otherwise ~0 looks like exact 0 etc.
         else:
-                # Last point (important for big datasets)
-            x_last = elem_data[1][-1]
-            y_last = elem_data[2][-1]
-
+            # Min RMSE/MaxAE - important for big datasets
+            y_last = np.min(y_data)
+            idx_last = np.argmin(y_data) # Index of first occurrence of that minimum
+            x_last = x_data[idx_last]
+            annotation_min = " "
+            if rmse:
+                maxae_here = elem_data[3][idx_last] # MaxAE at this point
+                annotation_min = f"RMSE: {y_last:.3g}\nMaxAE: {maxae_here:.3g}"
+            else:
+                rmse_here = elem_data[2][idx_last] # RMSE at this point
+                annotation_min = f"MaxAE: {y_last:.3g}\nRMSE: {rmse_here:.3g}"
             # Display y-value above the marker in a box with arrow
-            ax.annotate(f"{y_last:.3g}",
+            ax.annotate(annotation_min,
                 xy=(x_last, y_last),
                 xytext=(-1, 100), # Offset up vertically above the marker
                 textcoords="offset pixels",
@@ -559,14 +591,21 @@ def plot_results_subplots(test_case: TestCase, resolution: Resolution, save: boo
                 bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=element.color, lw=1), # Box storing the text
                 arrowprops=dict(arrowstyle="->", color=element.color, lw=2, shrinkA=0, shrinkB=0),
                 annotation_clip=True)
-            
-            # First point
-            x_first = elem_data[1][0]
-            y_first = elem_data[2][0]
+
+            x_first = x_data[0]
+            y_first = y_data[0]
+            annotation_first = " "
+            if rmse:
+                maxae_here = elem_data[3][0] # MaxAE at this point
+                annotation_first = f"RMSE: {y_first:.3g}\nMaxAE: {maxae_here:.3g}"
+            else:
+                rmse_here = elem_data[2][0] # RMSE at this point
+                annotation_first = f"MaxAE: {y_first:.3g}\nRMSE: {rmse_here:.3g}"
+
             # Display y-value below the marker in a box with arrow
-            ax.annotate(f"{y_first:.3g}",
-                xy=(x_first, y_first),
-                xytext=(0, -150), # Offset up vertically above the marker
+            ax.annotate(annotation_first,
+                xy=(x_first, y_first), #(horizontal_offset, vertical_offset)
+                xytext=(275, -55), # Offset up vertically above the marker
                 textcoords="offset pixels",
                 ha="center",
                 va="bottom",
@@ -871,7 +910,7 @@ def format_spp_as_power_of_2(spp):
     return rf"$2^{{{int(np.log2(spp))}}}$"
 
 def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, save: bool = False,
-    show: bool = False, as_percent: bool = False, log_y: bool = False):
+    show: bool = False, as_percent: bool = False, rmse: bool = False):
     """
     Plots ray tracer and Blender convergence on a single plot, using
     NRMSE (RMSE normalized by each source's full-scale maximum) so the
@@ -884,8 +923,7 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     Parameters
     ----------
     as_percent : if True, plot NRMSE as a percentage of full scale (x100).
-    log_y      : if True, use a logarithmic y-axis (recommended for
-                 convergence tails). Zero/negative values are masked.
+    rmse: whether to plot RMSE or MaxAE. If rmse, do not apply as_percent.
     """
     # Full-scale maxima for normalization
     RT_MAX = 4095.0        # 12-bit ray tracer
@@ -895,7 +933,6 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     base_data_dir_b = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir_b)
     suffix = "_pct" if as_percent else ""
-    suffix += "_logy" if log_y else ""
     filename = f"{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot{suffix}.png"
 
     # Blender data path
@@ -907,51 +944,57 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     elem_dir_name_rt = base_data_dir_rt + Elements.TRI3.label
     data_path_rt = test_dir(BASE_TEST_DIR, elem_dir_name_rt) / "convergence_log.csv"
 
+    # Colors
+    rt_color = Elements.TRI3.color
+    blender_color = Elements.TRI6.color
+
     # Load data
     # Convergence data: [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
     elem_data_b = np.loadtxt(data_path_b, delimiter=",", skiprows=1, unpack=True)
     elem_data_rt = np.loadtxt(data_path_rt, delimiter=",", skiprows=1, unpack=True)
 
-    # Normalize RMSE (column 2) to NRMSE in [0, 1] (or %)
-    scale = 100.0 if as_percent else 1.0
-    elem_data_rt[2] = elem_data_rt[2] / RT_MAX * scale
-    elem_data_b[2] = elem_data_b[2] / BLENDER_MAX * scale
+    # Create figure
+    fig, ax = plt.subplots(figsize=FIGURE_SIZE)
+    
+    if rmse:
+        # Normalize RMSE (column 2) to NRMSE in [0, 1] (or %)
+        data_index = 2 # Position of data in elem_data
+        scale = 100.0 if as_percent else 1.0
+        elem_data_rt[data_index] = elem_data_rt[data_index] / RT_MAX * scale
+        elem_data_b[data_index] = elem_data_b[data_index] / BLENDER_MAX * scale
+        y_unit = "%" if as_percent else "fraction of full scale"
+        ax.set_ylabel(f"NRMSE [{y_unit}]", fontsize=FONT_SIZES["axis_labels"])
+    else:
+        data_index = 3
+        ax.set_ylabel(f"Maximum absolute error [GL]", fontsize=FONT_SIZES["axis_labels"])
+        # No scaling here (we care if it's within 1 bit or not), so display ceiling instead
+        #ax.axhline(y=BLENDER_MAX, color=blender_color, linestyle="--", linewidth=2)
+        #ax.axhline(y=RT_MAX, color=rt_color, linestyle="--", linewidth=2)
+        
+    
 
     # Shared x ticks
     label_x = np.unique(np.concatenate((elem_data_rt[1], elem_data_b[1])))
 
     # Minimum NRMSE values
-    min_rmse_rt = np.min(elem_data_rt[2])
-    min_rmse_b = np.min(elem_data_b[2])
+    min_val_rt = np.min(elem_data_rt[data_index])
+    min_val_b = np.min(elem_data_b[data_index ])
 
     # Also report where the minima occur
-    min_idx_rt = np.argmin(elem_data_rt[2])
-    min_idx_b = np.argmin(elem_data_b[2])
+    min_idx_rt = np.argmin(elem_data_rt[data_index])
+    min_idx_b = np.argmin(elem_data_b[data_index])
     min_x_rt = elem_data_rt[1][min_idx_rt]
     min_x_b = elem_data_b[1][min_idx_b]
-
-    # Create figure
-    fig, ax = plt.subplots(figsize=FIGURE_SIZE)
 
     title = (f"Ray tracer and Blender convergence for TRI3\n"
         f"Test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution")
     ax.set_title(title, fontsize=FONT_SIZES["suptitle"])
 
     ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
-    y_unit = "%" if as_percent else "fraction of full scale"
-    ax.set_ylabel(f"NRMSE [{y_unit}]", fontsize=FONT_SIZES["axis_labels"])
-
-    # Y-axis formatting
-    if log_y:
-        ax.set_yscale("log")
-        # Show sensible labels on a log axis (major + minor)
-        ax.yaxis.set_major_formatter(FormatStrFormatter("%.3g"))
-        ax.yaxis.set_minor_formatter(mticker.NullFormatter())
-        ax.tick_params(axis="y", which="both", labelsize=FONT_SIZES["ticks"])
-    else:
-        ax.yaxis.set_major_formatter(mticker.NullFormatter())
-        ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
-        ax.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
+    
+    ax.yaxis.set_major_formatter(mticker.NullFormatter())
+    ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
+    ax.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
 
     # X-axis formatting
     ax.set_xscale("log")
@@ -959,18 +1002,18 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
 
     # Ray tracer
-    ax.plot(elem_data_rt[1], elem_data_rt[2],
+    ax.plot(elem_data_rt[1], elem_data_rt[data_index],
         label="Ray tracer",
-        color=Elements.TRI3.color,
+        color=rt_color,
         marker="o",
         linestyle="-",
         linewidth=3,
         markersize=10)
 
     # Blender
-    ax.plot(elem_data_b[1], elem_data_b[2],
+    ax.plot(elem_data_b[1], elem_data_b[data_index],
         label="Blender Cycles",
-        color=Elements.TRI6.color,
+        color=blender_color,
         marker="s",
         linestyle="-",
         linewidth=3,
@@ -983,22 +1026,24 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     ax.grid(visible=True, which="both", axis="both")
 
     # Report the minimum values on the plot
-    unit_str = "%" if as_percent else ""
-    line1 = TextArea("Min NRMSE:",
+    unit_str = "%" if as_percent and rmse else ""
+    quantity_str = "Min NRMSE:" if rmse else "Min MaxAE:"
+
+    line1 = TextArea(quantity_str,
         textprops=dict(color="black", fontsize=FONT_SIZES["legend"], ha="left"))
 
     line2 = HPacker(
         children=[
-            TextArea("Ray tracer: ", textprops=dict(color=Elements.TRI3.color, fontsize=FONT_SIZES["legend"])),
-            TextArea(f"{min_rmse_rt:.3g}{unit_str} at {format_spp_as_power_of_2(min_x_rt)} spp",
+            TextArea("Ray tracer: ", textprops=dict(color=rt_color, fontsize=FONT_SIZES["legend"])),
+            TextArea(f"{min_val_rt:.3g}{unit_str} at {format_spp_as_power_of_2(min_x_rt)} spp",
                      textprops=dict(color="black", fontsize=FONT_SIZES["legend"])),
         ],
         align="left", pad=0, sep=0)
 
     line3 = HPacker(
         children=[
-            TextArea("Blender: ", textprops=dict(color=Elements.TRI6.color, fontsize=FONT_SIZES["legend"])),
-            TextArea(f"{min_rmse_b:.3g}{unit_str} at {format_spp_as_power_of_2(min_x_b)} spp",
+            TextArea("Blender: ", textprops=dict(color=blender_color, fontsize=FONT_SIZES["legend"])),
+            TextArea(f"{min_val_b:.3g}{unit_str} at {format_spp_as_power_of_2(min_x_b)} spp",
                      textprops=dict(color="black", fontsize=FONT_SIZES["legend"])),
         ],
         align="left", pad=0, sep=0)
@@ -1345,14 +1390,14 @@ def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blend
         fill_convergence_log(element, test_case, resolution, subsamples_min, subsamples_max, False)
     try:
         plot_results_all(test_case, resolution, True, False)
-        plot_results_subplots(test_case, resolution, True, False)
+        plot_results_subplots(test_case, resolution, True, True, False) # RMSE plot
+        plot_results_subplots(test_case, resolution, False, True, False) # Max AE plot
     except Exception as e: # Likely missing enough data for plots, so we just skip them
         print(f"Error plotting the results: {e}.\nLikely from missing sufficient data for some elements. Plotting skipped.")
 
 
-
-
-#fill_all_convergence_logs(TestCase.AIR_UNLIT, Resolution.LOW, blender=False)
+#fill_all_convergence_logs(TestCase.AIR_UNLIT, Resolution.LOW, blender=True)
+#fill_convergence_log(Elements.QUAD8, TestCase.TANK, Resolution.LOW, 131072, 2097152, False)
 
 #get_roi(TestCase.AIR_UNLIT)
 
@@ -1364,7 +1409,7 @@ def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blend
 #check_difference(Elements.QUAD9, TestCase.AIR_DIFFUSE, Resolution.HIGH, 524288, 1048576)
 
 #plot_results_blender(TestCase.TANK, Resolution.LOW, False, True, True)
-#plot_results_blender_rt_single(TestCase.AIR_UNLIT, Resolution.LOW, True, True)
+#plot_results_blender_rt_single(TestCase.AIR_UNLIT, Resolution.LOW, save=True, show=True, rmse=False)
 
 
 # From 2**14 (16k) to 2**18 (262k) for Blender

@@ -673,8 +673,7 @@ def conv_test_blender(test_case: TestCase,
     tank = any_mesh_to_rtmesh(tank_path, world_position = TANK_POSITION, anchor = Anchor.CENTER)
 
     # Sample (speckle) texture for the beam; no need to load it into numpy array
-    #ref_texture = full_path("thesis-data/texture/speckle.tiff")
-    ref_texture = full_path("thesis-data/texture/grid.tif")
+    ref_texture = full_path("thesis-data/texture/speckle.tiff")
 
     # BlenderUnwrapper reused for the beam's UVs (same as ray tracer)
     blender_uv = BlenderUnwrapper()

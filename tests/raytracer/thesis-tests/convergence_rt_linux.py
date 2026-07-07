@@ -228,7 +228,7 @@ def conv_test_rt(test_case: TestCase,
                         break
                     # Fallback: subsample count
                     if subsamples >= SUBSAMPLE_LIMIT:
-                        print(f"Exceeded the maximum subsample limit of {SUBSAMPLE_LIMIT_MAX}. Terminating this case.")
+                        print(f"Exceeded the maximum subsample limit of {SUBSAMPLE_LIMIT}. Terminating this case.")
                         break
 
-#conv_test_rt(TestCase.AIR_UNLIT, Resolution.LOW, 1, None, 1, True)
+#conv_test_rt(TestCase.AIR_UNLIT, Resolution.LOW, 1, None, 1, False, 4)
