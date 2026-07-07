@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
@@ -52,10 +52,7 @@ class SliceAreaPartition:
     support_node_x: npt.NDArray[np.float64]
     support_node_y: npt.NDArray[np.float64]
     slice_geometries: tuple[BaseGeometry, ...]
-
-    @property
-    def num_slices(self) -> int:
-        return int(self.spans.size)
+    num_slices: int
 
     def get_slice_mask(self, slice_index: int) -> npt.NDArray[np.bool_]:
         return self.slice_id_map == slice_index
@@ -78,67 +75,50 @@ class SliceAreaComparison:
     slice_partition: SlicePartition
     area_partition: SliceAreaPartition
     point_area_sums: npt.NDArray[np.float64]
+    line_integral_areas: npt.NDArray[np.float64] = field(init=False)
+    polygon_areas: npt.NDArray[np.float64] = field(init=False)
+    overlap_areas: npt.NDArray[np.float64] = field(init=False)
+    spans: npt.NDArray[np.float64] = field(init=False)
+    line_integral_widths: npt.NDArray[np.float64] = field(init=False)
+    polygon_widths: npt.NDArray[np.float64] = field(init=False)
+    overlap_widths: npt.NDArray[np.float64] = field(init=False)
+    point_area_widths: npt.NDArray[np.float64] = field(init=False)
+    line_minus_polygon_area: npt.NDArray[np.float64] = field(init=False)
+    overlap_minus_polygon_area: npt.NDArray[np.float64] = field(init=False)
+    point_minus_polygon_area: npt.NDArray[np.float64] = field(init=False)
+    line_vs_polygon_relative_error: npt.NDArray[np.float64] = field(init=False)
+    overlap_vs_polygon_relative_error: npt.NDArray[np.float64] = field(init=False)
+    point_vs_polygon_relative_error: npt.NDArray[np.float64] = field(init=False)
 
-    @property
-    def line_integral_areas(self) -> npt.NDArray[np.float64]:
-        return self.slice_partition.areas
-
-    @property
-    def polygon_areas(self) -> npt.NDArray[np.float64]:
-        return self.area_partition.geometric_areas
-
-    @property
-    def overlap_areas(self) -> npt.NDArray[np.float64]:
-        return self.area_partition.areas
-
-    @property
-    def spans(self) -> npt.NDArray[np.float64]:
-        return self.slice_partition.spans
-
-    @property
-    def line_integral_widths(self) -> npt.NDArray[np.float64]:
-        return self.slice_partition.widths
-
-    @property
-    def polygon_widths(self) -> npt.NDArray[np.float64]:
-        return self.area_partition.geometric_widths
-
-    @property
-    def overlap_widths(self) -> npt.NDArray[np.float64]:
-        return self.area_partition.widths
-
-    @property
-    def point_area_widths(self) -> npt.NDArray[np.float64]:
-        return np.divide(
+    def __post_init__(self) -> None:
+        spans = self.slice_partition.spans
+        line_integral_areas = self.slice_partition.areas
+        polygon_areas = self.area_partition.geometric_areas
+        overlap_areas = self.area_partition.areas
+        line_integral_widths = self.slice_partition.widths
+        polygon_widths = self.area_partition.geometric_widths
+        overlap_widths = self.area_partition.widths
+        point_area_widths = np.divide(
             self.point_area_sums,
-            self.spans,
+            spans,
             out=np.zeros_like(self.point_area_sums),
-            where=self.spans > 0.0,
+            where=spans > 0.0,
         )
 
-    @property
-    def line_minus_polygon_area(self) -> npt.NDArray[np.float64]:
-        return self.line_integral_areas - self.polygon_areas
-
-    @property
-    def overlap_minus_polygon_area(self) -> npt.NDArray[np.float64]:
-        return self.overlap_areas - self.polygon_areas
-
-    @property
-    def point_minus_polygon_area(self) -> npt.NDArray[np.float64]:
-        return self.point_area_sums - self.polygon_areas
-
-    @property
-    def line_vs_polygon_relative_error(self) -> npt.NDArray[np.float64]:
-        return _safe_relative_error(self.line_integral_areas, self.polygon_areas)
-
-    @property
-    def overlap_vs_polygon_relative_error(self) -> npt.NDArray[np.float64]:
-        return _safe_relative_error(self.overlap_areas, self.polygon_areas)
-
-    @property
-    def point_vs_polygon_relative_error(self) -> npt.NDArray[np.float64]:
-        return _safe_relative_error(self.point_area_sums, self.polygon_areas)
+        object.__setattr__(self, "line_integral_areas", line_integral_areas)
+        object.__setattr__(self, "polygon_areas", polygon_areas)
+        object.__setattr__(self, "overlap_areas", overlap_areas)
+        object.__setattr__(self, "spans", spans)
+        object.__setattr__(self, "line_integral_widths", line_integral_widths)
+        object.__setattr__(self, "polygon_widths", polygon_widths)
+        object.__setattr__(self, "overlap_widths", overlap_widths)
+        object.__setattr__(self, "point_area_widths", point_area_widths)
+        object.__setattr__(self, "line_minus_polygon_area", line_integral_areas - polygon_areas)
+        object.__setattr__(self, "overlap_minus_polygon_area", overlap_areas - polygon_areas)
+        object.__setattr__(self, "point_minus_polygon_area", self.point_area_sums - polygon_areas)
+        object.__setattr__(self, "line_vs_polygon_relative_error", _safe_relative_error(line_integral_areas, polygon_areas))
+        object.__setattr__(self, "overlap_vs_polygon_relative_error", _safe_relative_error(overlap_areas, polygon_areas))
+        object.__setattr__(self, "point_vs_polygon_relative_error", _safe_relative_error(self.point_area_sums, polygon_areas))
 
 
 def build_slice_area_partition(
@@ -266,6 +246,7 @@ def build_slice_area_partition(
         support_node_x=support_node_x,
         support_node_y=support_node_y,
         slice_geometries=slice_geometries,
+        num_slices=int(spans.size),
     )
 
     if plot_diagnostic:
