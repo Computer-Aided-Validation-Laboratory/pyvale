@@ -41,6 +41,8 @@ def evaluate_candidate(
     objective_function: IObjectiveFunction,
     experiment_data: ExperimentData,
 ) -> float | npt.NDArray[np.float64]:
+    
+    print("Evaluating candidate with degrees of freedom:", degrees_of_freedom)
     updated_spatial_parameterisations = unpack_spatial_parameterisations(
         spatial_parameterisations,
         degrees_of_freedom

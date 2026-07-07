@@ -45,9 +45,10 @@ KNOWN_PARAMETERS = {
 }
 
 # Plot toggles for each stage of the test.
-PLOT_STRESS_RECON_ABS_DIFF = False
-PLOT_METRIC_IDENTIFIED_DIFF = False
-PLOT_IDENTIFICATION_DIFF = False
+PLOT_STRESS_RECON_ABS_DIFF = True
+PLOT_STRESS_RECON_ABS_PERC_DIFF = True
+PLOT_METRIC_IDENTIFIED_DIFF = True
+PLOT_IDENTIFICATION_DIFF = True
 
 STRESS_COMPONENT_LABELS = ("xx", "yy", "xy")
 
@@ -83,6 +84,25 @@ def _plot_stress_abs_diff(
         ax.invert_yaxis()
     plt.show()
 
+def _plot_stress_abs_perc_diff(
+    x_grid: npt.NDArray[np.float64],
+    y_grid: npt.NDArray[np.float64],
+    abs_perc_diff: npt.NDArray[np.float64],
+) -> None:
+    """Plot the absolute percentage difference of each stress component."""
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4), constrained_layout=True)
+    for ax, label, component in zip(
+        axes, STRESS_COMPONENT_LABELS, range(3), strict=True
+    ):
+        field = abs_perc_diff[component, :, :]
+        image = ax.pcolormesh(x_grid, y_grid, field)
+        fig.colorbar(image, ax=ax, label="|calc - FE| / |FE| [%]")
+        image.set_clim(np.nanpercentile(field, 5), np.nanpercentile(field, 95))
+        ax.set_title(f"stress_{label} abs % diff")
+        ax.set_xlabel("x [m]")
+        ax.set_ylabel("y [m]")
+        ax.invert_yaxis()
+    plt.show()
 
 def _plot_metric_virtual_work(
     internal_virtual_work_a: npt.NDArray[np.float64],
@@ -453,6 +473,16 @@ def test_end_to_end() -> None:
 
     if PLOT_STRESS_RECON_ABS_DIFF:
         _plot_stress_abs_diff(x_grid, y_grid, stress_abs_diff)
+
+    stress_abs_perc_diff = np.full_like(stress_fe[-1], np.nan, dtype=np.float64)
+    valid = np.abs(stress_fe[-1]) > 0.01 #avoid division by zero
+    stress_abs_perc_diff[valid] = (
+        np.abs(stress_calc[-1][valid] - stress_fe[-1][valid])
+        / np.abs(stress_fe[-1][valid])
+    ) * 100.0  # shape: (3, y, x)
+
+    if PLOT_STRESS_RECON_ABS_PERC_DIFF:
+        _plot_stress_abs_perc_diff(x_grid, y_grid, stress_abs_perc_diff)
 
     stress_abs_diff_mean = float(np.nanmean(stress_abs_diff))
     stress_abs_diff_max = float(np.nanmax(stress_abs_diff))
