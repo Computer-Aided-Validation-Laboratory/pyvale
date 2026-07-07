@@ -41,6 +41,12 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
     virtual_fields_mesh: VirtualFieldsMesh
     vf_scaling_fraction: float | None
 
+    # Internal and external virtual work vectors computed by the most recent
+    # call to evaluate, stacked per virtual field with shape
+    # (num_virtual_fields, timesteps). Both are None until evaluate has run.
+    _internal_virtual_work: npt.NDArray[np.float64] | None
+    _external_virtual_work: npt.NDArray[np.float64] | None
+
     def __init__(
         self,
         x: npt.NDArray[np.float64],
@@ -62,6 +68,9 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         )
 
         self.vf_scaling_fraction = vf_scaling_fraction
+
+        self._internal_virtual_work = None
+        self._external_virtual_work = None
 
     def evaluate(
         self,
@@ -114,10 +123,14 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         traction_edge_index = edge_to_index[traction_edge_name]
 
 
+        # Store per-virtual-field IVW/EVW vectors so they can be accessed later
+        internal_virtual_work_vectors = []
+        external_virtual_work_vectors = []
+
         residual_vector = []
+
         # Compute PVW residuals for each SBVF and concatenate into single residual vector
         for sbvf in sensitivity_based_virtual_fields:
-            
             # Compute 4d IVW term for current SBVF
             internal_virtual_work_4d = (
                 stress
@@ -142,11 +155,15 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
             # force_x * virtual_displacement_x + force_y * virtual_displacement_y on traction edge 
             # summed to get single EVW scalar for each timestep
             external_virtual_work_vector = (
-                experiment_data.boundary_conditions.force[:, 0]   
+                experiment_data.boundary_conditions.force[:, 0]
                 * sbvf.virtual_displacement_edge[:, 0, traction_edge_index]
                 + experiment_data.boundary_conditions.force[:, 1]
                 * sbvf.virtual_displacement_edge[:, 1, traction_edge_index]
             )
+
+            # Store the (unscaled) IVW/EVW vectors for the current virtual field
+            internal_virtual_work_vectors.append(internal_virtual_work_vector)
+            external_virtual_work_vectors.append(external_virtual_work_vector)
 
             if self.vf_scaling_fraction is not None:
                 # Compute number of timesteps to use for scaling based on the chosen fraction (1 step min).
@@ -180,8 +197,13 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
                 )
 
 
+        # Stack per-virtual-field vectors into (num_virtual_fields, timesteps)
+        # arrays and store them for later access.
+        self._internal_virtual_work = np.array(internal_virtual_work_vectors)
+        self._external_virtual_work = np.array(external_virtual_work_vectors)
+
         return np.concatenate(residual_vector)
-    
+
 
     def calculate_stress_sensitivities(
         self,

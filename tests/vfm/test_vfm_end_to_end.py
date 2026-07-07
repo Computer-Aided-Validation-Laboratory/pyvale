@@ -2,18 +2,10 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import numpy.testing as np_test
 import numpy.typing as npt
-import pytest
 import pyvista as pv
-from interpolate_fe_elements_to_grid_using_exo import (
-    interpolate_fe_elements_to_grid,
-    read_exodus_element_centres,
-)
-from create_stress_recon_report import create_stress_recon_report, create_stress_recon_plots
 
 from pyvale import mooseherder, sensorsim
-from pyvale.mooseherder.simdata import SimData
 from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.experimentdata import (
@@ -29,38 +21,244 @@ from pyvale.vfm.identification import Identification, IdentificationPhase
 from pyvale.vfm.metricsbvf import SensitivityBasedVirtualFieldsMetric
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import LeastSquares
-from pyvale.vfm.radialreturn import EUnloading, radial_return
 from pyvale.vfm.spatialparamhomogeneous import (
     HomogeneousSpatialParameterisation,
 )
-from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
 from pyvale.vfm.vfm import run_identification
 
 PYVALE_ROOT = Path(__file__).resolve().parent.parent.parent
-VFMVERIF_ROOT = PYVALE_ROOT.parent / "vfmverif"
+VFMVERIF_ROOT = PYVALE_ROOT.parent / "vfmverif_meshref_1"
+
+EXODUS_FILE_NAME = "out_hole2d_plas_32f.e"
+GRID_DIVS = 101
+
+PLATE_WIDTH = 25e-3     # m
+PLATE_HEIGHT = 35e-3    # m
+PLATE_THICKNESS = 1e-3  # m
+
+# Known homogeneous constitutive parameters used to generate the FE data.
+KNOWN_PARAMETERS = {
+    "elastic_modulus": 200_000.0,  # MPa
+    "poissons_ratio": 0.3,
+    "yield_strength": 200.0,       # MPa
+    "hardening_modulus": 1_000.0,  # MPa
+}
+
+# Plot toggles for each stage of the test.
+PLOT_STRESS_RECON_ABS_DIFF = False
+PLOT_METRIC_IDENTIFIED_DIFF = False
+PLOT_IDENTIFICATION_DIFF = False
+
+STRESS_COMPONENT_LABELS = ("xx", "yy", "xy")
 
 
-def load_sim_data_to_grid(
+def _rms(array: npt.NDArray[np.float64]) -> float:
+    return float(np.sqrt(np.nanmean(np.square(array))))
+
+
+def _root_mean_square_percentage_error(
+    predicted: npt.NDArray[np.float64],
+    known: npt.NDArray[np.float64],
+) -> float:
+    percentage_error = (predicted - known) / known * 100.0
+    return float(np.sqrt(np.nanmean(np.square(percentage_error))))
+
+
+def _plot_stress_abs_diff(
+    x_grid: npt.NDArray[np.float64],
+    y_grid: npt.NDArray[np.float64],
+    abs_diff: npt.NDArray[np.float64],
+) -> None:
+    """Plot the abs difference of each stress component at a single timestep."""
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4), constrained_layout=True)
+    for ax, label, component in zip(
+        axes, STRESS_COMPONENT_LABELS, range(3), strict=True
+    ):
+        field = abs_diff[component, :, :]
+        image = ax.pcolormesh(x_grid, y_grid, field)
+        fig.colorbar(image, ax=ax, label="|calc - FE| [MPa]")
+        ax.set_title(f"stress_{label} abs diff")
+        ax.set_xlabel("x [m]")
+        ax.set_ylabel("y [m]")
+        ax.invert_yaxis()
+    plt.show()
+
+
+def _plot_metric_virtual_work(
+    internal_virtual_work_a: npt.NDArray[np.float64],
+    external_virtual_work_a: npt.NDArray[np.float64],
+    internal_virtual_work_b: npt.NDArray[np.float64],
+    external_virtual_work_b: npt.NDArray[np.float64],
+    label_a: str,
+    label_b: str,
+    sbvf_labels: tuple[str, ...],
+) -> None:
+    """Compare the internal/external virtual work of two metric evaluations.
+
+    Each virtual work array has shape (num_virtual_fields, timesteps). One row
+    of plots is drawn per SBVF, showing the IVW, EVW, abs difference and
+    percentage difference between the two evaluations. Each SBVF corresponds to
+    the single degree of freedom of one homogeneous constitutive parameter, so
+    ``sbvf_labels`` names the parameter driving each row.
+    """
+    num_virtual_fields = internal_virtual_work_a.shape[0]
+
+    # Figure 1: per-SBVF comparison of IVW and EVW between the two evaluations.
+    fig_work, axes = plt.subplots(
+        num_virtual_fields,
+        4,
+        figsize=(18, 3.5 * num_virtual_fields),
+        constrained_layout=True,
+        squeeze=False,
+    )
+
+    # Figure 2: per-SBVF comparison of the PVW residual |IVW - EVW| between the
+    # two evaluations. Shown at the same time as figure 1.
+    fig_residual, residual_axes = plt.subplots(
+        num_virtual_fields,
+        3,
+        figsize=(13.5, 3.5 * num_virtual_fields),
+        constrained_layout=True,
+        squeeze=False,
+    )
+
+    for vf in range(num_virtual_fields):
+        ivw_a = internal_virtual_work_a[vf]
+        ivw_b = internal_virtual_work_b[vf]
+        evw_a = external_virtual_work_a[vf]
+        evw_b = external_virtual_work_b[vf]
+
+        ivw_abs_diff = np.abs(ivw_b - ivw_a)
+        evw_abs_diff = np.abs(evw_b - evw_a)
+        # Guard against division by zero (e.g. zero virtual work at the first
+        # timestep), leaving those points as NaN so they are skipped in the plot.
+        ivw_percentage_diff = np.divide(
+            ivw_abs_diff * 100.0,
+            np.abs(ivw_a),
+            out=np.full_like(ivw_abs_diff, np.nan),
+            where=ivw_a != 0.0,
+        )
+        evw_percentage_diff = np.divide(
+            evw_abs_diff * 100.0,
+            np.abs(evw_a),
+            out=np.full_like(evw_abs_diff, np.nan),
+            where=evw_a != 0.0,
+        )
+
+        # PVW residual magnitude |IVW - EVW| for each evaluation, and the
+        # residual as a percentage of EVW, separately for each evaluation.
+        ivw_evw_diff_a = np.abs(ivw_a - evw_a)
+        ivw_evw_diff_b = np.abs(ivw_b - evw_b)
+        ivw_evw_percentage_diff_a = np.divide(
+            ivw_evw_diff_a * 100.0,
+            np.abs(evw_a),
+            out=np.full_like(evw_a, np.nan),
+            where=evw_a != 0.0,
+        )
+        ivw_evw_percentage_diff_b = np.divide(
+            ivw_evw_diff_b * 100.0,
+            np.abs(evw_b),
+            out=np.full_like(evw_b, np.nan),
+            where=evw_b != 0.0,
+        )
+
+        sbvf_label = sbvf_labels[vf]
+
+        axes[vf, 0].plot(ivw_a, marker=".", label=label_a)
+        axes[vf, 0].plot(ivw_b, marker=".", label=label_b)
+        axes[vf, 0].set_title(f"{sbvf_label} IVW")
+        axes[vf, 0].set_ylabel("internal virtual work")
+        axes[vf, 0].legend()
+
+        axes[vf, 1].plot(evw_a, marker=".", label=label_a)
+        axes[vf, 1].plot(evw_b, marker=".", label=label_b)
+        axes[vf, 1].set_title(f"{sbvf_label} EVW")
+        axes[vf, 1].set_ylabel("external virtual work")
+        axes[vf, 1].legend()
+
+        axes[vf, 2].plot(ivw_abs_diff, marker=".", label="IVW")
+        axes[vf, 2].plot(evw_abs_diff, marker=".", label="EVW")
+        axes[vf, 2].set_title(f"{sbvf_label} abs diff")
+        axes[vf, 2].set_ylabel(f"|{label_b} - {label_a}|")
+        axes[vf, 2].legend()
+
+        axes[vf, 3].plot(ivw_percentage_diff, marker=".", label="IVW")
+        axes[vf, 3].plot(evw_percentage_diff, marker=".", label="EVW")
+        axes[vf, 3].set_title(f"{sbvf_label} percentage diff")
+        axes[vf, 3].set_ylabel("% diff")
+        axes[vf, 3].legend()
+
+        # Evaluation a (e.g. known) in blue, b (e.g. calc) in orange; IVW solid,
+        # EVW dashed.
+        residual_axes[vf, 0].plot(
+            ivw_a, marker=".", color="blue", linestyle="-", label=f"IVW {label_a}"
+        )
+        residual_axes[vf, 0].plot(
+            evw_a, marker=".", color="blue", linestyle="--", label=f"EVW {label_a}"
+        )
+        residual_axes[vf, 0].plot(
+            ivw_b, marker=".", color="orange", linestyle="-", label=f"IVW {label_b}"
+        )
+        residual_axes[vf, 0].plot(
+            evw_b, marker=".", color="orange", linestyle="--", label=f"EVW {label_b}"
+        )
+        residual_axes[vf, 0].set_title(f"{sbvf_label} IVW & EVW")
+        residual_axes[vf, 0].set_ylabel("virtual work")
+        residual_axes[vf, 0].legend()
+
+        residual_axes[vf, 1].plot(ivw_evw_diff_a, marker=".", label=label_a)
+        residual_axes[vf, 1].plot(ivw_evw_diff_b, marker=".", label=label_b)
+        residual_axes[vf, 1].set_title(f"{sbvf_label} |IVW - EVW|")
+        residual_axes[vf, 1].set_ylabel("|IVW - EVW|")
+        residual_axes[vf, 1].legend()
+
+        residual_axes[vf, 2].plot(ivw_evw_percentage_diff_a, marker=".", label=label_a)
+        residual_axes[vf, 2].plot(ivw_evw_percentage_diff_b, marker=".", label=label_b)
+        residual_axes[vf, 2].set_title(f"{sbvf_label} |IVW - EVW| percentage diff")
+        residual_axes[vf, 2].set_ylabel("% diff (IVW vs EVW)")
+        residual_axes[vf, 2].legend()
+
+        for column in range(4):
+            axes[vf, column].set_xlabel("timestep")
+        for column in range(3):
+            residual_axes[vf, column].set_xlabel("timestep")
+
+    plt.show()
+
+
+def _plot_identification_diff(
+    x_grid: npt.NDArray[np.float64],
+    y_grid: npt.NDArray[np.float64],
+    identified_maps: dict[str, npt.NDArray[np.float64]],
+    known_maps: dict[str, npt.NDArray[np.float64]],
+) -> None:
+    """Plot the difference between the identified and known parameter maps."""
+    fig, axes = plt.subplots(1, len(known_maps), figsize=(16, 4), constrained_layout=True)
+    for ax, param_name in zip(axes, known_maps, strict=True):
+        field = identified_maps[param_name] - known_maps[param_name]
+        image = ax.pcolormesh(x_grid, y_grid, field)
+        fig.colorbar(image, ax=ax, label="identified - known")
+        ax.set_title(param_name)
+        ax.set_xlabel("x [m]")
+        ax.set_ylabel("y [m]")
+        ax.invert_yaxis()
+    plt.show()
+
+
+def _load_sim_data_to_grid(
     exodus_file_name: str,
-    component_keys: tuple[str,...],
-    grid_divs
+    component_keys: tuple[str, ...],
+    grid_divs: int,
 ) -> tuple[
-    npt.NDArray[np.float64], # x_grid
-    npt.NDArray[np.float64], # y_grid
-    npt.NDArray[np.float64], # grid_data
-    npt.NDArray[np.float64], # force
-    npt.NDArray[np.float64], # time
-    npt.NDArray[np.float64], # yield_stress_out
+    npt.NDArray[np.float64],  # x_grid, shape (x, y, z)
+    npt.NDArray[np.float64],  # y_grid, shape (x, y, z)
+    npt.NDArray[np.float64],  # grid_data, shape (x, y, z, components, timesteps)
+    npt.NDArray[np.float64],  # force, shape (timesteps)
+    npt.NDArray[np.float64],  # time, shape (timesteps)
 ]:
-    exodus_file_path = VFMVERIF_ROOT / "data"/ exodus_file_name
+    exodus_file_path = VFMVERIF_ROOT / exodus_file_name
 
     sim_data = mooseherder.ExodusLoader(exodus_file_path).load_all_sim_data()
-    sensorsim.simtools.print_sim_data(sim_data)
-    
-    yield_stress_out = sim_data.elem_vars[('yield_stress_out', 1)]
-
-    plate_height = 35e-3
-    plate_width = 25e-3
 
     def grid_inner_vec(lower: float, upper: float, num_divs: int) -> np.ndarray:
         step = (upper - lower) / num_divs
@@ -68,41 +266,23 @@ def load_sim_data_to_grid(
         stop = upper - (step / 2)
         return np.linspace(start, stop, num_divs)
 
-    x_vec = grid_inner_vec(
-        plate_width / 2,
-        -plate_width / 2,
-        grid_divs
-    )
-
+    x_vec = grid_inner_vec(PLATE_WIDTH / 2, -PLATE_WIDTH / 2, grid_divs)
     y_vec = (
-        grid_inner_vec(
-            plate_height/ 2,
-            -plate_height / 2,
-            grid_divs
-        ) + plate_height / 2
+        grid_inner_vec(PLATE_HEIGHT / 2, -PLATE_HEIGHT / 2, grid_divs)
+        + PLATE_HEIGHT / 2
     )
-
     z_vec = np.full((1,), 0.0, dtype=np.float64)
 
-    # x going from positive to negative down a col with 0 at row 50
-    # y going from higher to lower along a row, always positive
-    # TODO: does this need to be swapped around to fit our conventions?
-    (x_grid, y_grid, z_grid) = np.meshgrid(x_vec, y_vec, z_vec, indexing='ij')
+    (x_grid, y_grid, z_grid) = np.meshgrid(x_vec, y_vec, z_vec, indexing="ij")
 
-    # Stack them along a new first axis to create the (3, Nx, Ny, Nz) array
     interp_grid = np.stack([x_grid, y_grid, z_grid], axis=0)
-
-    # interp_grid shape is (3, Nx, Ny, Nz) -> spatial_shape is (Nx, Ny, Nz)
     spatial_grid_shape = interp_grid.shape[1:]
-
-    # Reshape to (N_total_points, 3)
     interp_points = interp_grid.reshape(3, -1).T
 
     pyvista_interp = sensorsim.simdata_to_pyvista_interp(
         sim_data,
         component_keys,
-        sensorsim.EDim.TWOD
-        # sensorsim.EDim.THREED
+        sensorsim.EDim.TWOD,
     )
     pv_points = pv.PolyData(interp_points)
     sample_data = pv_points.sample(pyvista_interp)
@@ -110,13 +290,13 @@ def load_sim_data_to_grid(
     invalid = ~sample_data["vtkValidPointMask"].astype(bool)
 
     n_comps = len(component_keys)
-    (n_sensors,n_time_steps) = np.array(sample_data[component_keys[0]]).shape
-    sample_at_sim_time = np.empty((n_sensors,n_comps,n_time_steps))
+    (n_sensors, n_time_steps) = np.array(sample_data[component_keys[0]]).shape
+    sample_at_sim_time = np.empty((n_sensors, n_comps, n_time_steps))
 
-    for ii,cc in enumerate(component_keys):
+    for ii, cc in enumerate(component_keys):
         data_mat = np.array(sample_data[cc])
-        data_mat[invalid,:] = np.nan
-        sample_at_sim_time[:,ii,:] = data_mat
+        data_mat[invalid, :] = np.nan
+        sample_at_sim_time[:, ii, :] = data_mat
 
     # Target: (Nx, Ny, Nz, n_comps, n_time_steps)
     final_shape = spatial_grid_shape + (n_comps, n_time_steps)
@@ -125,524 +305,277 @@ def load_sim_data_to_grid(
     return (
         x_grid,
         y_grid,
-        grid_data, 
+        grid_data,
         sim_data.glob_vars["react_y_top"],
         sim_data.time,
-        yield_stress_out
     )
 
 
-# TODO: plot (for 1 timestep):
-#   strain compnents
-#   yield stress
-#   all input stuff really
 def test_end_to_end() -> None:
+    # ------------------------------------------------------------------
+    # Setup: extract 2d strain and stress components from the .e file and
+    # build the grid data and identification objects.
+    # ------------------------------------------------------------------
     print("Loading data...")
-    # exodus_file_name = "out_hole2d_plas_het_32f.e"
-    exodus_file_name = "out_hole2d_plas_het_32f_refined.e"
-
-    # (
-    #     x_grid, # shape: (x, y, z)
-    #     y_grid, # shape: (x, y, z)
-    #     grid_data, # shape: (x, y, z, components, timesteps)
-    #     force, # shape: (timesteps)
-    #     time, # shape: (timesteps)
-    #     yield_stress_out # shape: (timesteps)
-    # ) = load_sim_data_to_grid(
-    #     exodus_file_name,
-    #     ("strain_xx", "strain_yy", "strain_xy","vonmises_stress")
-    # )
-
-    grid_divs = 101
-
-    (
-        x_grid,
-        y_grid,
-        grid_data,
-        force,
-        time,
-        yield_stress_out,
-    ) = load_sim_data_to_grid(
-        exodus_file_name,
-        (
-            "strain_xx",
-            "strain_yy",
-            "strain_xy",
-            "strain_zz",
-            "stress_xx",
-            "stress_yy",
-            "stress_xy",
-            "stress_zz",
-            "vonmises_stress",
-            "plastic_strain_xx",
-            "plastic_strain_yy",
-            "plastic_strain_xy",
-            "plastic_strain_zz",
-            "scalar_strain_zz"
-        ),
-        grid_divs,
+    component_keys = (
+        "strain_xx",
+        "strain_yy",
+        "strain_xy",
+        "stress_xx",
+        "stress_yy",
+        "stress_xy",
     )
 
-    # Reshape and flip data to match our conventions
+    (x_grid, y_grid, grid_data, force, time) = _load_sim_data_to_grid(
+        EXODUS_FILE_NAME,
+        component_keys,
+        GRID_DIVS,
+    )
 
+    # Reshape and flip data to match our conventions.
     # remove redundant z component
-    x_grid = x_grid[:, :, 0] # shape: (x, y)
-    y_grid = y_grid[:, :, 0] # shape: (x, y)
-    grid_data = grid_data[:, :, 0, :, :] # shape: (x, y, components, timesteps)
+    x_grid = x_grid[:, :, 0]  # shape: (x, y)
+    y_grid = y_grid[:, :, 0]  # shape: (x, y)
+    grid_data = grid_data[:, :, 0, :, :]  # shape: (x, y, components, timesteps)
 
     # reshape the grid and data to use our conventions
-    x_grid = x_grid.transpose(1, 0) # shape: (y, x)
-    y_grid = y_grid.transpose(1, 0) # shape: (y, x)
-    grid_data = grid_data.transpose(3, 2, 1, 0) # shape: (timesteps, components, y, x)
+    x_grid = x_grid.transpose(1, 0)  # shape: (y, x)
+    y_grid = y_grid.transpose(1, 0)  # shape: (y, x)
+    grid_data = grid_data.transpose(3, 2, 1, 0)  # shape: (timesteps, components, y, x)
 
-    # update x_grid values to use our conventions:
-    #   - x increases in value as column number increases
-    #   - x is constant in each column
-    #   - x is always positive
+    # x increases with column number, is constant in each column, always positive
     x_grid = np.fliplr(x_grid)
     x_grid += np.nanmax(x_grid)
     grid_data = np.flip(grid_data, axis=2)
 
-    # update y_grid values to use our conventions:
-    #   - y increases as row number increases
-    #   - y is constant in each row
-    #   - y is always positive
+    # y increases with row number, is constant in each row, always positive
     y_grid = np.flipud(y_grid)
     grid_data = np.flip(grid_data, axis=3)
-    
 
-            # "strain_xx",
-            # "strain_yy",
-            # "strain_xy",
-            # "strain_zz",
-            # "stress_xx",
-            # "stress_yy",
-            # "stress_xy",
-            # "stress_zz",
-            # "vonmises_stress",
-            # "plastic_strain_xx",
-            # "plastic_strain_yy",
-            # "plastic_strain_xy",
-            # "plastic_strain_zz",
-            # "scalar_strain_zz"
-       
-    # unpack grid data
-    grid_data[:,4:9, :, :] *= 1e-6 # convert stress to MPa
-    strain_xx_fe = grid_data[:, 0, :, :]
-    strain_yy_fe = grid_data[:, 1, :, :]
-    strain_xy_fe = grid_data[:, 2, :, :]
-    strain_zz_fe = grid_data[:, 3, :, :]
-    stress_xx_fe = grid_data[:, 4, :, :]
-    stress_yy_fe = grid_data[:, 5, :, :]
-    stress_xy_fe = grid_data[:, 6, :, :]
-    stress_zz_fe = grid_data[:, 7, :, :]
-    vonmises_stress_fe = grid_data[:, 8, :, :]
-    plastic_strain_xx = grid_data[:, 9, :, :]
-    plastic_strain_yy = grid_data[:, 10, :, :]
-    plastic_strain_xy = grid_data[:, 11, :, :]
-    plastic_strain_zz = grid_data[:, 12, :, :]
-    scalar_strain_zz = grid_data[:, 13, :, :]
+    # convert stress components from Pa to MPa
+    grid_data[:, 3:6, :, :] *= 1e-6
 
+    strain = grid_data[:, 0:3, :, :]  # shape: (timesteps, 3, y, x) [xx, yy, xy]
+    stress_fe = grid_data[:, 3:6, :, :]  # shape: (timesteps, 3, y, x) [xx, yy, xy]
 
-    # check in plane vs out of plane strains
-    # in_plane = np.sqrt(
-    #     strain_xx**2
-    #     + strain_yy**2
-    #     + 2.0 * strain_xy**2
-    # )
-
-    # out_of_plane = np.sqrt(
-    #     strain_zz**2
-    #     + 2.0 * strain_xz**2
-    #     + 2.0 * strain_yz**2
-    # )
-
-    # ratio = out_of_plane / np.maximum(in_plane, 1e-12)
-
-    print(grid_data.shape)
-    # print(np.nanmax(ratio[3]))
-    # print(np.nanmax(ratio[24]))
-
-
-    print("Shaping inputs...")
-    
-
-
-    # TODO: do we need to update shear strain?
-    # need to plot shear stress vs shear strain, should have positive slope
-    # lookup shear modulus
-
-    # debug_plot(
-    #     grid_data[-1, 3, :, :],
-    #     x_grid,
-    #     y_grid,
-    # )
-
-    specimen_mask = ~np.isnan(strain_xx_fe[0, :, :])
-
-    plate_thickness = 1e-3
+    specimen_mask = ~np.isnan(strain[0, 0, :, :])
 
     grid_element_area = (
-        (x_grid[0, 1] - x_grid[0, 0])
-        * (y_grid[1, 0] - y_grid[0, 0])
+        (x_grid[0, 1] - x_grid[0, 0]) * (y_grid[1, 0] - y_grid[0, 0])
     )
 
     specimen_geometry = SpecimenGeometry(
         x_grid,
         y_grid,
-        # TODO: get roi from sample data valid point mask
         specimen_mask,
-        plate_thickness,
-        np.full_like(x_grid, grid_element_area, dtype=np.float64)
+        PLATE_THICKNESS,
+        np.full_like(x_grid, grid_element_area, dtype=np.float64),
     )
 
-    # force = force * -1
-    force=force/1000  #seems to be an issue with FE input force data
+    # seems to be an issue with FE input force data being 1000x too large
+    force *= 1e-3
 
     boundary_conditions = BoundaryConditions(
         EdgeConditions(
-            min_x_edge=Edge(
-                x=EEdgeCondition.Free,
-                y=EEdgeCondition.Free
-            ),
-            max_x_edge=Edge(
-                x=EEdgeCondition.Free,
-                y=EEdgeCondition.Free
-            ),
-            min_y_edge=Edge(
-                x=EEdgeCondition.Fixed,
-                y=EEdgeCondition.Fixed
-            ),
-            max_y_edge=Edge(
-                x=EEdgeCondition.Free,
-                y=EEdgeCondition.Traction
-            )
+            min_x_edge=Edge(x=EEdgeCondition.Free, y=EEdgeCondition.Free),
+            max_x_edge=Edge(x=EEdgeCondition.Free, y=EEdgeCondition.Free),
+            min_y_edge=Edge(x=EEdgeCondition.Fixed, y=EEdgeCondition.Fixed),
+            max_y_edge=Edge(x=EEdgeCondition.Free, y=EEdgeCondition.Traction),
         ),
-        # TODO: needs to be reversed to be y,x to be the right convention
-        # and ensure the virtual displacement term also gets updated
-        np.column_stack((np.zeros_like(force), force))
+        np.column_stack((np.zeros_like(force), force)),
     )
 
-    strain_data = grid_data[:, 0:3, :, :]  # shape: (timesteps, 3, y, x) just xx,yy,xy strains
     experiment_data = ExperimentData(
-        strain_data,
+        strain,
         specimen_geometry,
         boundary_conditions,
-        time
+        time,
     )
 
-    # Parameters
-    YieldInf = 200      # MPa
-    PeakYield = 240     # MPa
+    constitutive_law = IsotropicVonMisesElastoplasticity(LinearHardening())
 
-    plateWidth = 25e-3      # m, change as required
-    plateHeight = 35e-3     # m, change as required
-
-    centX = 0.0
-    centY = plateHeight / 2
-
-    stdX = plateWidth / 2
-    stdY = plateWidth / 4
-
-    # Create 101 x 101 coordinate grid
-    nx = grid_divs
-    ny = grid_divs
-
-    x = np.linspace(-plateWidth / 2, plateWidth / 2, nx)
-    y = np.linspace(0, plateHeight, ny)
-
-    X, Y = np.meshgrid(x, y)
-
-    # Yield stress field
-    yield_stress_grid_analytical= YieldInf + (PeakYield - YieldInf) * np.exp(
-        -0.5 * (
-            ((X - centX) / stdX)**2 +
-            ((Y - centY) / stdY)**2
-        )
-    )
-
-    # plt.figure()
-    # plt.imshow(
-    #     Yield,
-    #     extent=[x.min(), x.max(), y.min(), y.max()],
-    #     origin="lower",
-    #     aspect="auto"
-    # )
-    # plt.colorbar(label="Yield stress / Pa")
-    # plt.xlabel("x / m")
-    # plt.ylabel("y / m")
-    # plt.axis("image")
-    # plt.show()
-   
-
-    # # yield_stress_out is wrong shape (npts x timesteps)
-    # plt.figure()
-    # plt.imshow(
-    #     yield_stress_out,
-    #     origin="lower",
-    #     aspect="auto"
-    # )
-    # plt.colorbar(label="Yield stress / Pa")
-    # plt.xlabel("x / m")
-    # plt.ylabel("y / m")
-    # plt.axis("image")
-    # plt.show()
-
-
-    # Compare FE yield stess with analytical yield stress
-    # DATA_DIR = Path(__file__).resolve().parent.parent.parent / "dev" / "vfm" / "rob-data"
-    # EXODUS_PATH = DATA_DIR / exodus_file_name
-    EXODUS_PATH = VFMVERIF_ROOT / "data" / exodus_file_name
-    element_centres = read_exodus_element_centres(EXODUS_PATH)
-
-    yield_stress_fe_interpolated = interpolate_fe_elements_to_grid(
-        element_centres,
-        yield_stress_out,
-        X,
-        Y,
-        value_scale=1e-6,
-        specimen_mask=specimen_mask,
-    )
-
-    yield_stress_grid_analytical = yield_stress_grid_analytical.copy()
-    yield_stress_grid_analytical[~specimen_mask] = np.nan
-
-    diff_grid = yield_stress_fe_interpolated - yield_stress_grid_analytical
-
-    print(f"{element_centres.shape[0]=}")
-    print(f"{yield_stress_fe_interpolated.shape=}")
-    print(f"yield_stress_fe_interpolated nanmean [MPa] = {np.nanmean(yield_stress_fe_interpolated):.6f}")
-    print(f"analytical nanmean [MPa] = {np.nanmean(yield_stress_grid_analytical):.6f}")
-    print(f"abs diff nanmax [MPa] = {np.nanmax(np.abs(diff_grid)):.6f}")
-
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4), constrained_layout=True)
-
-    plots = (
-        (yield_stress_fe_interpolated, "Interpolated FE Yield [MPa]"),
-        (yield_stress_grid_analytical, "Analytical Yield [MPa]"),
-        (diff_grid, "Difference [MPa]"),
-    )
-
-    for ax, (field, title) in zip(axes, plots, strict=True):
-        image = ax.imshow(
-            field,
-            extent=[x_grid.min(), x_grid.max(), y_grid.min(), y_grid.max()],
-            origin="lower",
-            aspect="equal",
-            cmap="viridis",
-        )
-        fig.colorbar(image, ax=ax)
-        ax.set_title(title)
-        ax.set_xlabel("x [m]")
-        ax.set_ylabel("y [m]")
-
-    SHOW_YIELD_STRESS_COMPARISON = False
-    if SHOW_YIELD_STRESS_COMPARISON:
-        plt.show()
-    else:
-        plt.close(fig)
-
+    parameter_map_size = np.array([GRID_DIVS, GRID_DIVS], dtype=np.uint32)
 
     parameters = {
         "elastic_modulus": ConstitutiveParameter(
-            200_000, 199_000, 201_000, np.array([grid_divs, grid_divs])
+            450_000, 100_000, 500_000, parameter_map_size
         ),
         "poissons_ratio": ConstitutiveParameter(
-            0.3, 0.2, 0.4, np.array([grid_divs, grid_divs])
+            0.45, 0.1, 0.5, parameter_map_size
         ),
-        # "yield_strength": ConstitutiveParameter(
-        #     220, 100, 1000, np.array([101, 101])
-        # ),
         "yield_strength": ConstitutiveParameter(
-            yield_stress_grid_analytical, 100, 1000
+            800, 100, 1000, parameter_map_size
         ),
-        # TODO: what are the assumed units here, vfmverif value is
-        # 1000 MPa
         "hardening_modulus": ConstitutiveParameter(
-            1000, 500, 10_000, np.array([grid_divs, grid_divs])
+            7000, 500, 10_000, parameter_map_size
         ),
     }
+
+    metric = SensitivityBasedVirtualFieldsMetric(
+        experiment_data.specimen_geometry.x,
+        experiment_data.specimen_geometry.y,
+        experiment_data.specimen_geometry.region_of_interest,
+        experiment_data.boundary_conditions.edge_conditions,
+        np.array([15, 15]),
+    )
 
     phases = [
         IdentificationPhase(
             {
                 "elastic_modulus": HomogeneousSpatialParameterisation(),
                 "poissons_ratio": HomogeneousSpatialParameterisation(),
-                "yield_strength": KnownSpatialParameterisation(),
+                "yield_strength": HomogeneousSpatialParameterisation(),
                 "hardening_modulus": HomogeneousSpatialParameterisation(),
             },
-            [
-                SensitivityBasedVirtualFieldsMetric(
-                    experiment_data.specimen_geometry.x,
-                    experiment_data.specimen_geometry.y,
-                    experiment_data.specimen_geometry.region_of_interest,
-                    experiment_data.boundary_conditions.edge_conditions,
-                    np.array([15, 15]),
-                )
-            ],
+            [metric],
             VectorFirstResultPassthrough(),
             LeastSquares(),
         )
     ]
 
-    identification = Identification(
-        IsotropicVonMisesElastoplasticity(
-            LinearHardening()
-        ),
-        parameters,
-        phases
-    )
+    identification = Identification(constitutive_law, parameters, phases)
 
-
-    constitutive_parameter_maps = {
-        "elastic_modulus": parameters["elastic_modulus"].value,
-        "poissons_ratio": parameters["poissons_ratio"].value,
-        "yield_strength": parameters["yield_strength"].value,
-        "hardening_modulus": parameters["hardening_modulus"].value,
+    # Known homogeneous constitutive parameter maps.
+    known_parameter_maps = {
+        name: np.full((GRID_DIVS, GRID_DIVS), value)
+        for name, value in KNOWN_PARAMETERS.items()
     }
 
-    strain = grid_data[:, 0:3, :, :]  # shape: (timesteps, 3, y, x) just xx,yy,xy strains
+    # ------------------------------------------------------------------
+    # Test the stress reconstruction: reconstruct stress from the known
+    # homogeneous parameters and compare against the FE stress.
+    # ------------------------------------------------------------------
+    print("Reconstructing stress...")
+    stress_calc = constitutive_law.calculate_stress(strain, known_parameter_maps)
 
-    # strain_for_rr = strain.copy()
-    # strain_for_rr[:, 2, :, :] *= 0.5 # engineering vs tensorial check
-    # strain_for_rr[:, 2, :, :] *= -1  # flip sign check
-    # strain = strain_for_rr
+    # abs difference between calculated and known (FE) stress at final timestep
+    stress_abs_diff = np.abs(stress_calc[-1] - stress_fe[-1])  # shape: (3, y, x)
 
-    # checks confirmed shear strain is in tensorial convention
-    # checks confirmed -1 * shear strain didnt help
-    stress_rr, equivalent_stress_rr, yield_map, equivalent_plastic_strain = radial_return(
-            strain,
-            constitutive_parameter_maps,
-            constitutive_parameter_maps["elastic_modulus"],
-            constitutive_parameter_maps["poissons_ratio"],
-            LinearHardening(),
-            unloading = EUnloading.NoCompensation,
-        )
+    if PLOT_STRESS_RECON_ABS_DIFF:
+        _plot_stress_abs_diff(x_grid, y_grid, stress_abs_diff)
 
-    # stress = identification.constitutive_law.calculate_stress(grid_data[:, 0:2, :, :], constitutive_parameter_maps)
+    stress_abs_diff_mean = float(np.nanmean(stress_abs_diff))
+    stress_abs_diff_max = float(np.nanmax(stress_abs_diff))
+    stress_abs_diff_rms = _rms(stress_abs_diff)
 
-    # stack fe stress to same shape as rr stress for comparison
-    stress_fe = np.stack([stress_xx_fe, stress_yy_fe, stress_xy_fe], axis=1) # shape: (timesteps, 3, y, x)
+    print(f"stress recon abs diff mean [MPa] = {stress_abs_diff_mean:.6f}")
+    print(f"stress recon abs diff max  [MPa] = {stress_abs_diff_max:.6f}")
+    print(f"stress recon abs diff rms  [MPa] = {stress_abs_diff_rms:.6f}")
 
-    # FIGURES OF STRESS RR, FE, DIFF, PERC DIFF
-    PLOT_STRESS_RR = False
-    PLOT_STRESS_FE = False
-    PLOT_STRESS_RR_FE_DIFF = False
-    PLOT_STRESS_RR_FE_PERC_DIFF = False
-    PLOT_PERCENTILE_SCALED_DIFF = False # for each of the diff and % diff plots, create copy with clim between 5th and 95th percentile
+    # The calculated stress reconstruction should be close to the known FE
+    # stress, so the abs difference statistics should be small relative to the
+    # stress magnitude (~hundreds of MPa).
+    assert stress_abs_diff_mean < 0.5
+    assert stress_abs_diff_max < 10.0
+    assert stress_abs_diff_rms < 1.0
 
-    # Plotting inputs
-    step = 18
+    # ------------------------------------------------------------------
+    # Run the identification with all constitutive parameters set to
+    # homogeneous.
+    # ------------------------------------------------------------------
+    print("Running identification...")
+    identified_parameters = run_identification(experiment_data, identification)
 
-    # STRESS RECON REPORT
-    CREATE_STRESS_RECON_REPORT = False
-    if CREATE_STRESS_RECON_REPORT:
-        report_path = VFMVERIF_ROOT / "reports" / f"{Path(exodus_file_name).stem}_stress_recon_step_{step:03d}.pdf"
-        report_summary = create_stress_recon_report(
-            report_path,
-            exodus_file_name=exodus_file_name,
-            fe_element_count=element_centres.shape[0],
-            report_step=step,
-            grid_divs=grid_divs,
-            x_grid=x_grid,
-            y_grid=y_grid,
-            stress_rr=stress_rr,
-            stress_fe=stress_fe,
-            equivalent_stress_rr=equivalent_stress_rr,
-            vonmises_stress_fe=vonmises_stress_fe,
-            yield_map=yield_map,
-            specimen_mask=specimen_mask,
-        )
-        print(f"stress reconstruction report saved to {report_summary['report_path']}")
+    # Copy the internal/external virtual work from the metric's final evaluation
+    # during the identification (i.e. at the identified parameters).
+    ivw_identified = metric._internal_virtual_work.copy()
+    evw_identified = metric._external_virtual_work.copy()
 
-        for component_label, metrics in report_summary["component_metrics"].items():
-            print(
-                f"stress {component_label} rr - fe: "
-                f"max abs diff [MPa] = {metrics['max_abs_diff']:.6f}, "
-                f"max abs perc diff [%] = {metrics['max_abs_percent_diff']:.6f}"
+    identified_maps = {
+        name: param.value for name, param in identified_parameters.items()
+    }
+
+    for name, param in identified_parameters.items():
+        print(f"{name} = {np.nanmean(param.value):.6f}")
+
+    # ------------------------------------------------------------------
+    # Test the performance of the metric: compare the SBVF metric evaluated with
+    # the known (FE) stress against the metric at the identified parameters.
+    # Both should give a similar residual vector. This only makes sense once the
+    # identification has produced parameters to compare against.
+    # ------------------------------------------------------------------
+    print("Evaluating metric...")
+    metric_spatial_parameterisations = {
+        name: HomogeneousSpatialParameterisation()
+        for name in KNOWN_PARAMETERS
+    }
+    for name, spatial_parameterisation in metric_spatial_parameterisations.items():
+        spatial_parameterisation.update_from_constitutive_parameter(
+            ConstitutiveParameter(
+                known_parameter_maps[name],
+                parameters[name].lower_bound,
+                parameters[name].upper_bound,
             )
-
-        equivalent_metrics = report_summary["equivalent_metrics"]
-        print(
-            "vm stress rr - fe: "
-            f"max abs diff [MPa] = {equivalent_metrics['max_abs_diff']:.6f}, "
-            f"max abs perc diff [%] = {equivalent_metrics['max_abs_percent_diff']:.6f}"
         )
-        print(f"count of yielded points = {report_summary['yielded_point_count']}")
 
-    if any((
-        PLOT_STRESS_RR,
-        PLOT_STRESS_FE,
-        PLOT_STRESS_RR_FE_DIFF,
-        PLOT_STRESS_RR_FE_PERC_DIFF,
-    )):
-        create_stress_recon_plots(
-            report_step=step,
-            x_grid=x_grid,
-            y_grid=y_grid,
-            stress_rr=stress_rr,
-            stress_fe=stress_fe,
-            equivalent_stress_rr=equivalent_stress_rr,
-            vonmises_stress_fe=vonmises_stress_fe,
-            yield_map=yield_map,
-            specimen_mask=specimen_mask,
-            plot_stress_rr=PLOT_STRESS_RR,
-            plot_stress_fe=PLOT_STRESS_FE,
-            plot_stress_rr_fe_diff=PLOT_STRESS_RR_FE_DIFF,
-            plot_stress_rr_fe_perc_diff=PLOT_STRESS_RR_FE_PERC_DIFF,
-            plot_percentile_scaled_diff=PLOT_PERCENTILE_SCALED_DIFF,
+    metric.evaluate(
+        stress_fe,
+        constitutive_law,
+        parameter_map_size,
+        metric_spatial_parameterisations,
+        experiment_data,
+    )
+    # Copy the internal/external virtual work for the known-stress evaluation.
+    ivw_known = metric._internal_virtual_work.copy()
+    evw_known = metric._external_virtual_work.copy()
+
+    # Each SBVF corresponds to the single dof of one homogeneous parameter, in
+    # the order the parameters are defined.
+    sbvf_labels = tuple(name.replace("_", " ") for name in KNOWN_PARAMETERS)
+
+    if PLOT_METRIC_IDENTIFIED_DIFF:
+        _plot_metric_virtual_work(
+            ivw_known, evw_known, ivw_identified, evw_identified,
+            "known", "identified", sbvf_labels,
         )
-        plt.show()
 
+    # Relative RMS difference of the internal/external virtual work between the
+    # known-stress evaluation and the identified parameters, normalised by the
+    # known-stress scale. The residual (IVW - EVW) itself is not compared because
+    # the identification drives it to ~0 by construction, whereas the known
+    # residual is non-zero.
+    ivw_relative_diff = _rms(ivw_identified - ivw_known) / _rms(ivw_known)
+    evw_relative_diff = _rms(evw_identified - evw_known) / _rms(evw_known)
 
-    print("Running VFM...")
-    vfm_result = run_identification(experiment_data, identification)
+    print(f"metric IVW relative diff (known vs identified) = {ivw_relative_diff:.6f}")
+    print(f"metric EVW relative diff (known vs identified) = {evw_relative_diff:.6f}")
 
-    for param_name, param in vfm_result.items():
-        print(f"{param_name}={param.value}")
-        # np_test.assert_allclose(param_map, gold_parameters[param_name], rtol=, atol=)
-        # np_test.assert_allclose(param.value, gold_parameters[param_name])
+    # The internal/external virtual work at the identified parameters should be
+    # close to those from the known (FE) stress.
+    assert ivw_relative_diff < 0.05
+    assert evw_relative_diff < 0.05
 
-    ## Post-processing and validation of results
-    # reconstruct stress from identified parameters
+    # ------------------------------------------------------------------
+    # Test the result of the identification: compare the identified parameter
+    # maps against the known parameter maps.
+    # ------------------------------------------------------------------
+    if PLOT_IDENTIFICATION_DIFF:
+        _plot_identification_diff(
+            x_grid, y_grid, identified_maps, known_parameter_maps
+        )
 
-    # compare sbvf metric using identified parameters vs known parameters
-
-    # check EVW and IVW values
-
-    gold_parameters = {
-        "elastic_modulus": np.full((grid_divs, grid_divs), 200_000),
-        "poissons_ratio": np.full((grid_divs, grid_divs), 0.3),
-        "yield_strength": np.full((grid_divs, grid_divs), 200),
-        # TODO: what are the assumed units here
-        "hardening_modulus": np.full((grid_divs, grid_divs), 1_000)
+    # Per-parameter tolerances on the RMS of the absolute difference. The
+    # hardening modulus is only weakly sensitive to the virtual fields and so
+    # is identified less accurately than the other parameters.
+    abs_diff_rms_tolerances = {
+        "elastic_modulus": 400.0,
+        "poissons_ratio": 1e-3,
+        "yield_strength": 1.0,
+        "hardening_modulus": 250.0,
     }
 
+    for name in KNOWN_PARAMETERS:
+        abs_diff = np.abs(identified_maps[name] - known_parameter_maps[name])
+        abs_diff_rms = _rms(abs_diff)
+        rmspe = _root_mean_square_percentage_error(
+            identified_maps[name], known_parameter_maps[name]
+        )
+        print(
+            f"{name}: abs diff rms = {abs_diff_rms:.6f}, rmspe = {rmspe:.6f} %"
+        )
 
-
-
-def debug_plot(data, x_grid, y_grid):
-    fig, ax = plt.subplots()
-
-    im = ax.pcolormesh(
-        x_grid,
-        y_grid,
-        data,
-        shading='auto',
-        cmap='viridis'
-    )
-
-    vmin = np.nanpercentile(data, 5)
-    vmax = np.nanpercentile(data, 95)
-    im.set_clim(vmin, vmax)
-
-    fig.colorbar(im, ax=ax)
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-
-    ax.invert_yaxis()
-
-    plt.show()
-
+        # The identified parameters should be close to the known parameters.
+        assert abs_diff_rms < abs_diff_rms_tolerances[name]
+        assert rmspe < 20.0
 
 test_end_to_end()
