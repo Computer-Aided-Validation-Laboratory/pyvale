@@ -184,8 +184,45 @@ def get_roi(test_case: TestCase, resolution: Resolution = Resolution.HIGH, bit_d
     target_path = data_path /csv_filename 
     roi = select_roi_from_path(image_path, bit_depth=bit_depth)
     roi_data = export_roi_mask(image_path, roi, target_path)
-    print(roi)
-    print(roi_data.shape)
+    #print(roi)
+    #print(roi_data.shape)
+
+def show_roi_overlay(image_path: Path, roi_path: Path, alpha: float = 0.35):
+    img = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+    if img is None:
+        raise FileNotFoundError(f"Could not load image: {image_path}")
+
+    if img.ndim == 3:
+        img = img[:, :, 0]
+
+    mask = np.loadtxt(roi_path, delimiter="," if roi_path.suffix.lower() == ".csv" else None, dtype=np.uint8, ndmin=2)
+
+    if mask.shape != img.shape:
+        raise ValueError(f"Mask shape {mask.shape} != image shape {img.shape}")
+
+    mask = mask.astype(bool)
+
+    preview = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    preview_bgr = cv2.cvtColor(preview, cv2.COLOR_GRAY2BGR)
+
+    overlay = preview_bgr.copy()
+    overlay[mask] = (0, 0, 255)  # red in BGR
+
+    blended = cv2.addWeighted(overlay, alpha, preview_bgr, 1 - alpha, 0)
+
+    ys, xs = np.where(mask)
+    if len(xs) > 0 and len(ys) > 0:
+        x1, x2 = xs.min(), xs.max()
+        y1, y2 = ys.min(), ys.max()
+        cv2.rectangle(blended, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+    cv2.imshow("ROI overlay", blended)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+#path_4 = full_path("thesis-output/convergence_rt_roitest/res_1024_roi/air_unlit/QUAD8/rtimage_subsamples_4096.tiff")
+#roi_path = full_path("thesis-data/roi_1024_air_unlit.csv" )
+#show_roi_overlay(path_4, roi_path)
 
 # ================================================================================
 # Convergence tester
