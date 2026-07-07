@@ -22,7 +22,7 @@ from pyvale.raytracer.rtoutputformat import *
 
 # Number of anti-aliasing samples at which we end the test regardless of whether the convergence
 # has been reached or not
-SUBSAMPLE_LIMIT_MAX = 2**26
+SUBSAMPLE_LIMIT_MAX = 2**22
 
 # ================================================================================
 # Rendering test 2.1: Convergence, RAY TRACER; version with pre-processed UVs (Linux/supercomputer)-compatible
@@ -48,11 +48,19 @@ def conv_test_rt(test_case: TestCase,
     beam_texture = ImageTools.load_image_greyscale(ref_texture) 
 
     SUBSAMPLE_LIMIT = SUBSAMPLE_LIMIT_MAX
+    first_criterion_hit = False # Flag to mark when we hit the MaxAE/RMSE criterion for the first time, to run one more time for sureness and only then terminate
+
     # Custom subsample limit - for convenience
     if subsample_limit is not None and subsample_limit > 1:
             SUBSAMPLE_LIMIT = subsample_limit
     if starting_subsamples is None:
             starting_subsamples = 1
+
+    roi_path = None
+    # ROI defined only for high res - for low, the entire image is our ROI
+    if resolution == Resolution.HIGH:
+        roi_path_access = f"thesis-data/roi_1024_{test_case.value}.csv" 
+        roi_path = full_path(roi_path_access)
 
     # 2. Settings based on the selected case
     mat_type = MaterialType.UNLIT # Beam material
@@ -162,7 +170,7 @@ def conv_test_rt(test_case: TestCase,
             # Open the CSV ready to append
             with open(csv_path, mode="w", newline="", encoding="utf-8") as csvfile, \
                 open(time_csv_path, mode=time_mode, newline="", encoding="utf-8") as timefile:
-                writer = csv.DictWriter(csvfile, fieldnames=["iteration", "subsamples", "rmse", "sim_score_rmse", "sim_score_identical"])
+                writer = csv.DictWriter(csvfile, fieldnames=CONV_CSV_COLS)
                 writer.writeheader()
                 # Push data from Python buffer to disk
                 csvfile.flush()
@@ -194,23 +202,29 @@ def conv_test_rt(test_case: TestCase,
                     timefile.flush()
                     os.fsync(timefile.fileno())
                     # Compare this brand new image with the previous one
-                    rmse, sim_score_rmse, sim_score_identical = bitwise_compare(target / new_filename, target / prev_filename)
+                    rmse, max_ae, percentile_diff, identical_count, total_pixels = bitwise_compare(target / new_filename, target / prev_filename, roi=roi_path, bit_depth=output_format_phs6.bit_depth)
                     print(f"-------------------------------- \nCURRENT SUBSAMPLE COUNT: {subsamples}"
-                        f"\n\t RMSE: {rmse}\n--------------------------------")
+                        f"\n\t RMSE: {rmse}"
+                        f"\n\t MAX ABS ERROR: {max_ae}\n--------------------------------")
                     # Store data in CSV/log
                     writer.writerow({
                         "iteration": iteration_number,
                         "subsamples": subsamples,
                         "rmse": rmse,
-                        "sim_score_rmse": sim_score_rmse,
-                        "sim_score_identical": sim_score_identical})
+                        "max_ae": max_ae,
+                        "99p_abs_error": percentile_diff,
+                        "identical_px_count": identical_count,
+                        "tot_px_roi": total_pixels})
                     csvfile.flush()
                     os.fsync(csvfile.fileno())
 
                     # Check if we can terminate for this element
                     # RMSE condition - the main one
-                    if rmse < RMSE_LIMIT_MIN: # ~ Root mean square error ~ 0.0 - we converged
-                        print("Images perfectly converged. Terminating this case.")
+                    if max_ae <= MAX_ABS_ERR_THRESHOLD: # RMSE is max. 1.0 for each individual pixel - we fall within least significant bit convergence
+                        if not first_criterion_hit:
+                            first_criterion_hit = True # True, so we terminate on the next case to make sure we've converged without weird behaviour
+                            continue
+                        print("Images converged to the least significant bit. Terminating this case.")
                         break
                     # Fallback: subsample count
                     if subsamples >= SUBSAMPLE_LIMIT:

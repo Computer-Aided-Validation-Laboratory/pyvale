@@ -1,4 +1,4 @@
-Here (both TRI3 and TRI6)
+TRIHere (both TRI3 and TRI6)
 COARSE element count:
 	Pipe: 4852
 	Water: 2430

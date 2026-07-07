@@ -43,7 +43,7 @@ from pyvale.raytracer.rtoutputformat import *
 from convergence_rt import * # This also imports global positioning of the scene, so we don't need to copy it here
 from global_utils import *
 
-SUBSAMPLE_LIMIT_MAX = 2**20 # Overwrite the value from convergence_rt to set limits for Blender separately if needed
+SUBSAMPLE_LIMIT_MAX = 2**22 # Overwrite the value from convergence_rt to set limits for Blender separately if needed
 
 # ================================================================================
 # CONVENIENCE CONVERTERS: pyvale scene objects -> Blender datablocks
@@ -695,6 +695,13 @@ def conv_test_blender(test_case: TestCase,
     setup_ambient_world(strength=1.0)
 
     # 3. Settings based on the selected case
+    first_criterion_hit = False # Flag to mark when we hit the MaxAE/RMSE criterion for the first time, to run one more time for sureness and only then terminate
+    roi_path = None
+    # ROI defined only for high res - for low, the entire image is our ROI
+    if resolution == Resolution.HIGH:
+        roi_path_access = f"thesis-data/roi_1024_{test_case.value}.csv" 
+        roi_path = full_path(roi_path_access)
+
     mat_type = MaterialType.UNLIT # Beam material (default)
     if test_case == TestCase.AIR_UNLIT:
         print(f"--------------------------------\nTESTED CASE: AIR UNLIT\n--------------------------------")
@@ -761,7 +768,7 @@ def conv_test_blender(test_case: TestCase,
         uv_map_name=beam_uv_name)
     """
     beam_mat = create_blender_material("BeamSpeckle",
-        Material(color=np.array([1.0, 0.0, 0.0]), RI=None),  # or your Material type ctor
+        Material(color=np.array([1.0, 0.0, 0.0]), RI=None),
         MaterialType.UNLIT,   # or DIFFUSE
         texture_path=None
     )
@@ -797,13 +804,7 @@ def conv_test_blender(test_case: TestCase,
     times = defaultdict()
     with open(csv_path, mode="w", newline="", encoding="utf-8") as csvfile, \
         open(time_csv_path, mode=time_mode, newline="", encoding="utf-8") as timefile:
-        writer = csv.DictWriter(csvfile,
-            fieldnames=[
-                "iteration",
-                "subsamples",
-                "rmse",
-                "sim_score_rmse",
-                "sim_score_identical"])
+        writer = csv.DictWriter(csvfile, fieldnames=CONV_CSV_COLS)
         writer.writeheader()
         csvfile.flush()
         os.fsync(csvfile.fileno())
@@ -836,22 +837,28 @@ def conv_test_blender(test_case: TestCase,
             timefile.flush()
             os.fsync(timefile.fileno())
             # Compare this render with the previous one
-            rmse, sim_score_rmse, sim_score_identical = bitwise_compare(target / new_filename, target / prev_filename)
+            rmse, max_ae, percentile_diff, identical_count, total_pixels = bitwise_compare(target / new_filename, target / prev_filename, roi_path, BitDepth.BIT_16)
             print(f"-------------------------------- \nCURRENT SUBSAMPLE COUNT: {subsamples}"
-                f"\n\t RMSE: {rmse}\n--------------------------------")
+                f"\n\t RMSE: {rmse}"
+                f"\n\t MAX ABS ERROR: {max_ae}\n--------------------------------")
             # Store data in CSV/log
             writer.writerow({
-                    "iteration": iteration_number,
-                    "subsamples": subsamples,
-                    "rmse": rmse,
-                    "sim_score_rmse": sim_score_rmse,
-                    "sim_score_identical": sim_score_identical})
+                        "iteration": iteration_number,
+                        "subsamples": subsamples,
+                        "rmse": rmse,
+                        "max_ae": max_ae,
+                        "99p_abs_error": percentile_diff,
+                        "identical_px_count": identical_count,
+                        "tot_px_roi": total_pixels})
             csvfile.flush()
             os.fsync(csvfile.fileno())
 
             # RMSE termination condition - the main one
-            if rmse < RMSE_LIMIT_MIN: # ~ Root mean square error ~ 0.0 - we converged
-                print("Images perfectly converged. Terminating this case.")
+            if max_ae <= MAX_ABS_ERR_THRESHOLD: # RMSE is max. 1.0 for each individual pixel - we fall within least significant bit convergence
+                if not first_criterion_hit:
+                    first_criterion_hit = True # True, so we terminate on the next case to make sure we've converged without weird behavIOUR
+                    continue
+                print("Images converged to the least significant bit. Terminating this case.")
                 break
             # Fallback: subsample count
             if subsamples >= SUBSAMPLE_LIMIT_MAX:

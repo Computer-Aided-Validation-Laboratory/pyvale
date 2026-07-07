@@ -3,6 +3,7 @@ Stores all common functions/data for the convergence tests, regardless if
 they are dedicated for Linux, Blender, single image case, or others.
 """
 from enum import StrEnum, IntEnum
+from typing import Tuple, Optional
 import numpy as np
 from PIL import Image
 import numpy as np
@@ -13,10 +14,19 @@ import matplotlib.ticker as mticker
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib.offsetbox import TextArea, HPacker, VPacker, AnchoredOffsetbox
 
-import smplotlib # For nicer figures (imo), but no need to install if you don't want it
+#import smplotlib # For nicer figures (imo), but no need to install if you don't want it
 
 from pyvale.raytracer.rtoutputformat import *
 from global_utils import *
+from tiff12_reader import *
+
+# ================================================================================
+# Constants for convergence metrics
+# ================================================================================
+
+MAX_ABS_ERR_THRESHOLD = 1.0 # When Max Absolute Error < MAX_ABS_ERR_THRESHOLD, we know that all pixels have RMSE <= 1.0, which matches least significant pixel criterion for convergence
+
+CONV_CSV_COLS = ["iteration", "subsamples", "rmse", "max_ae", "99p_abs_error", "identical_px_count", "tot_px_roi"]
 
 # ================================================================================
 # Positioning
@@ -42,7 +52,6 @@ VIEWPORT_Z = CAMERA_DISTANCE - 1 # Viewport position
 CAMERA_POSITION = np.array([BEAM_OFFSET[0] - 0.5, CAMERA_HEIGHT, CAMERA_DISTANCE]) # Camera was slightly moved right to center on the beam, too
 CAMERA_TARGET = np.array([BEAM_OFFSET[0] - 0.5, CAMERA_HEIGHT, VIEWPORT_Z])
 
-RMSE_LIMIT_MIN = 1e-6 # When rmse < RMSE_LIMIT_MIN, we say it is converged
 
 # Convenience enums for accessing the right meshes
 class Tank(StrEnum):
@@ -91,58 +100,232 @@ def sample_uv_path(sample_path: Path, element: Element):
     return Path.with_name(sample_path, "beam_" + element.label + "_uvs.csv")
 
 # ================================================================================
+# ROI selector
+# ================================================================================
+@dataclass(frozen=True)
+class ROI:
+    x: int
+    y: int
+    w: int
+    h: int
+
+    @property
+    def x2(self) -> int:
+        return self.x + self.w
+
+    @property
+    def y2(self) -> int:
+        return self.y + self.h
+    
+def make_display_preview(img: np.ndarray, bit_depth: BitDepth = BitDepth.BIT_12) -> np.ndarray:
+    if bit_depth == BitDepth.BIT_12:
+        max_value = 4095
+    elif bit_depth == BitDepth.BIT_8:
+        max_value = 255
+    elif bit_depth == BitDepth.BIT_16:
+        max_value = 65535
+    else:
+        max_value = int(img.max()) if img.size else 1
+
+    img_clipped = np.clip(img, 0, max_value)
+    preview = ((img_clipped.astype(np.float32) / max_value) * 255.0).astype(np.uint8)
+    return preview
+
+def preview_minmax(img: np.ndarray) -> np.ndarray:
+    # Best for visibility, but contrast changes image-to-image
+    return cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+
+def select_roi_from_path(image_path: Path, bit_depth: BitDepth = BitDepth.BIT_12, window_name: str = "Select ROI") -> ROI:
+    img = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+    if img is None:
+        raise FileNotFoundError(f"Could not load image: {image_path}")
+    #preview = make_display_preview(img, bit_depth=bit_depth)
+    preview = preview_minmax(img)
+
+    x, y, w, h = cv2.selectROI(window_name, preview, showCrosshair=True, fromCenter=False)
+    cv2.destroyAllWindows()
+
+    if w == 0 or h == 0:
+        raise ValueError("No ROI selected.")
+
+    return ROI(int(x), int(y), int(w), int(h))
+
+def crop_roi(img: np.ndarray, roi: ROI) -> np.ndarray:
+    return img[roi.y:roi.y2, roi.x:roi.x2]
+
+
+def export_roi_mask(image_path: Path, roi: ROI, output_path: Path) -> np.ndarray:
+    img = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+    if img is None:
+        raise FileNotFoundError(f"Could not load image: {image_path}")
+
+    mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    mask[roi.y:roi.y + roi.h, roi.x:roi.x + roi.w] = 1
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    suffix = output_path.suffix.lower()
+    if suffix == ".csv":
+        np.savetxt(output_path, mask, fmt="%d", delimiter=",")
+    elif suffix == ".dat":
+        np.savetxt(output_path, mask, fmt="%d")
+    else:
+        raise ValueError("Output must end in .csv or .dat")
+
+    return mask
+
+def get_roi(test_case: TestCase, resolution: Resolution = Resolution.HIGH, bit_depth: BitDepth = BitDepth.BIT_12):
+    base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value
+    data_path = test_dir(BASE_TEST_DIR, base_data_dir)
+    image_base_name = "rtimage_subsamples_2.tiff"
+    image_path = data_path / "QUAD4" / image_base_name
+    csv_filename = "roi_" + str(resolution.value) + "_" + test_case.value + ".csv"
+    target_path = data_path /csv_filename 
+    roi = select_roi_from_path(image_path, bit_depth=bit_depth)
+    roi_data = export_roi_mask(image_path, roi, target_path)
+    print(roi)
+    print(roi_data.shape)
+
+# ================================================================================
 # Convergence tester
 # ================================================================================
 
-def bitwise_compare(data_path_new: Path, data_path_prev: Path | None = None, bit_depth: BitDepth = BitDepth.BIT_12):
+def debug_image_stats(img: np.ndarray, name: str = "img") -> None:
     """
-    Checks if the images are bitwise identical. Written for 16-bit TIFFs (storing 12-bit images), but should
-    work with BMP etc. as well.
-    Created for the convergence tests, so it assumes that the size of the images is the same and does not check the format.
-
-    If data_path_prev is None, it assumes that we want to compare the same image to itself to verify that the bitmap
-    comparison works correctly (i.e., we get 100% similarity.)
-
-    1. Finds the absolute difference between the two images. In the difference array:
-        - 0 => Identical
-        - != 0 => Different
-    2. Counts number of non-zero entries in the difference array.
-    3. Verifies if the images are bitwise identical based on the difference array and the total pixel count.
-    4. Returns the similarity score.
+    Helper to see how the image is stored/read for troubleshooting.
     """
-    max_value = 4095 # Max integer value for 12-bit uint; assign by default
-    if bit_depth == BitDepth.BIT_8:
-        max_value = 255 # Max integer value for 8-bit uint
-    elif bit_depth == BitDepth.BIT_16:
-        max_value = 65535 # Max integer value for 16-bit uint
+    print(
+        f"{name}: dtype={img.dtype}, shape={img.shape}, "
+        f"min={img.min()}, max={img.max()}, "
+        f"unique_low_bits={np.unique(img & 0xF)[:16]}")
+
+def _load_image(path: Path, bit_depth: BitDepth) -> np.ndarray:
+    """
+    Load a grayscale image as a uint16 array of logical codes.
+
+    For BIT_12 the pyvale C++ writer packs samples tightly (BitsPerSample=12),
+    which OpenCV/libtiff decode incorrectly. We use a dedicated unpacker.
+    For other depths we fall back to OpenCV (16-bit / 8-bit TIFF, BMP, etc.).
+    """
+    if bit_depth == BitDepth.BIT_12:
+        return read_packed_12bit_tiff(path)
+
+    arr = cv2.imread(str(path), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+    if arr is None:
+        raise FileNotFoundError(f"Could not read image: {path}")
+    if arr.ndim == 3:
+        arr = arr[:, :, 0]
+    return arr
+
+def bitwise_compare(data_path_new: Path, data_path_prev: Path | None = None, roi: Path | None = None, bit_depth: BitDepth = BitDepth.BIT_12):
+    """
+    Checks if two images are bitwise identical, optionally within a ROI mask. If ROI is None, or loading fails for any reason, the whole image is used.
+
+    Handles pyvale's tightly-packed 12-bit TIFFs correctly (OpenCV cannot).
+    Assumes both images have the same dimensions.
+
+    If data_path_prev is None, the image is compared to itself (sanity check, should yield 100% similarity and RMSE 0).
+
+    Returns (rmse, similarity_rmse, similarity_identical).
+    """
+    max_value = {BitDepth.BIT_8: 255,
+        BitDepth.BIT_10: 1023,
+        BitDepth.BIT_12: 4095,
+        BitDepth.BIT_16: 65535}[bit_depth]
 
     if data_path_prev is None:
         data_path_prev = data_path_new
 
-    # cv2.IMREAD_ANYDEPTH forces OpenCV to keep the 16-bit depth instead of downsampling it to 8-bit
-    pixel_array_new = cv2.imread(str(data_path_new), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
-    pixel_array_prev = cv2.imread(str(data_path_prev), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+    pixel_array_new = _load_image(data_path_new, bit_depth)
+    pixel_array_prev = _load_image(data_path_prev, bit_depth)
 
-    # If it loaded as a 3-channel image, grab just the first channel
-    if len(pixel_array_new .shape) == 3:
-        pixel_array_new  = pixel_array_new [:, :, 0]
-    if len(pixel_array_prev.shape) == 3:
-        pixel_array_prev = pixel_array_prev[:, :, 0]
+    if pixel_array_new.shape != pixel_array_prev.shape:
+        raise ValueError(
+            f"Image shapes differ: {pixel_array_new.shape} vs {pixel_array_prev.shape}")
 
-    # Difference between the two images
-    difference = cv2.absdiff(pixel_array_new, pixel_array_prev)
-    total_pixels = pixel_array_new.shape[0] * pixel_array_new.shape[1] # Pixel count in the image
-    num_different = cv2.countNonZero(difference) # How many pixels are different
-    num_identical = total_pixels - num_different # How many are identical
-    
-    # Calculate our metrics
-    similarity_identical = num_identical / total_pixels # Similarity score based on how many pixels are exactly identical
-    # Cast to float since original data is uint16, so we may risk overflow
-    rmse = np.sqrt(np.mean((pixel_array_new - pixel_array_prev) ** 2)) # Root mean square error
-    # RMSE similarity - based on the RMSE and the max. integer value for this picture (less sensitive to tiny per-pixel differences)
-    similarity_rmse = 1.0 - rmse / float(max_value)
+    # ROI mask
+    roi_mask = None
+    if roi is not None:
+        try:
+            delimiter = "," if roi.suffix.lower() == ".csv" else None
+            roi_mask = np.loadtxt(roi, delimiter=delimiter, dtype=np.uint8)
+            if roi_mask.shape != pixel_array_new.shape:
+                raise ValueError(
+                    f"ROI mask shape does not match image shape: "
+                    f"{roi_mask.shape} vs {pixel_array_new.shape}"
+                )
+            roi_mask = roi_mask.astype(bool)
+            if not np.any(roi_mask):
+                raise ValueError("ROI mask contains no selected pixels.")
+        except Exception as e:
+            print(f"Warning: ROI load failed ({e}). Falling back to full image.")
+            roi_mask = np.ones(pixel_array_new.shape, dtype=bool)
+    else:
+        roi_mask = np.ones(pixel_array_new.shape, dtype=bool)
 
-    return rmse, similarity_rmse, similarity_identical
+    new_roi = pixel_array_new[roi_mask]
+    prev_roi = pixel_array_prev[roi_mask]
+
+    # Metrics (compute on the SAME masked region) 
+    # Cast to int32 to avoid uint16 wraparound in the subtraction
+    diff = new_roi.astype(np.int32) - prev_roi.astype(np.int32)
+
+    total_pixels = new_roi.size
+    different_count = int(np.count_nonzero(diff))
+    identical_count = total_pixels - different_count
+
+    rmse = float(np.sqrt(np.mean(diff.astype(np.float64) ** 2)))
+    max_diff = np.max(np.abs(diff))
+    percentile_diff = np.percentile(np.abs(diff), 99.9)
+
+    return rmse, max_diff, percentile_diff, identical_count, total_pixels
+
+# Debug area
+"""
+path_0_c = full_path("thesis-output/convergence_rt/res_1024_roi/air_unlit/QUAD8/256_crop.tiff")
+path_1_c = full_path("thesis-output/convergence_rt/res_1024_roi/air_unlit/QUAD8/512_crop.tiff")
+path_2_c = full_path("thesis-output/convergence_rt/res_1024_roi/air_unlit/QUAD8/1024_crop.tiff")
+path_3_c = full_path("thesis-output/convergence_rt/res_1024_roi/air_unlit/QUAD8/2048_crop.tiff")
+path_4_c = full_path("thesis-output/convergence_rt/res_1024_roi/air_unlit/QUAD8/4096_crop.tiff")
+print("MANUALLY CROPPED")
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_0_c, path_1_c, bit_depth = BitDepth.BIT_16)
+print(rmse)
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_1_c, path_2_c, bit_depth = BitDepth.BIT_16)
+print(rmse)
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_2_c, path_3_c, bit_depth = BitDepth.BIT_16)
+print(rmse)
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_3_c, path_4_c, bit_depth = BitDepth.BIT_16)
+print(rmse)
+path_0 = full_path("thesis-output/convergence_rt/res_1024_roi/air_unlit/QUAD8/rtimage_subsamples_256.tiff")
+path_1 = full_path("thesis-output/convergence_rt/res_1024_roi/air_unlit/QUAD8/rtimage_subsamples_512.tiff")
+path_2 = full_path("thesis-output/convergence_rt/res_1024_roi/air_unlit/QUAD8/rtimage_subsamples_1024.tiff")
+path_3 = full_path("thesis-output/convergence_rt/res_1024_roi/air_unlit/QUAD8/rtimage_subsamples_2048.tiff")
+path_4 = full_path("thesis-output/convergence_rt/res_1024_roi/air_unlit/QUAD8/rtimage_subsamples_4096.tiff")
+roi_path = full_path("thesis-data/roi_1024_air_unlit.csv" )
+print("ROI DEFINED, UNCROPPED")
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_0, path_1, roi_path)
+print(rmse)
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_1, path_2, roi_path)
+print(rmse)
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_2, path_3, roi_path)
+print(rmse)
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_3, path_4, roi_path)
+print(rmse)
+print("NO ROI DEFINED, UNCROPPED")
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_0, path_1)
+print(rmse)
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_1, path_2)
+print(rmse)
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_2, path_3)
+print(rmse)
+rmse, similarity_rmse, similarity_identical= bitwise_compare(path_3, path_4)
+print(rmse)
+
+path_4 = full_path("thesis-output/convergence_blender/res_1024_roi/air_unlit - original/TRI3/rtimage_subsamples_4096.tiff")
+blender_img = _load_image(path_4, BitDepth.BIT_12)
+debug_image_stats(blender_img)
+"""
 
 # ================================================================================
 # Post-processing: Convergence log
@@ -153,9 +336,17 @@ def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resol
     Fills the convergence log; useful if the rendering was interrupted or split across machines, etc.
     to get the data in the same csv effortlessly.
     """
+    roi_path = None
+    # ROI defined only for high res - for low, the entire image is our ROI
+    if resolution == Resolution.HIGH and not blender:
+        roi_path_access = f"thesis-data/roi_1024_{test_case.value}.csv" 
+        roi_path = full_path(roi_path_access)
+
     base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    bit_depth = BitDepth.BIT_12
     if blender:
         base_data_dir = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
+        bit_depth = BitDepth.BIT_16
     elem_dir_name = base_data_dir + element.label
     data_path = test_dir(BASE_TEST_DIR, elem_dir_name)
     csv_path = data_path / "convergence_log.csv" # Full path to the csv with all numerical data
@@ -165,17 +356,29 @@ def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resol
     iteration = 1
     prev_filename = image_base_name + str(start_subsamples) + image_suffix
     with open(csv_path, mode="w", newline="", encoding="utf-8") as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=["iteration", "subsamples", "rmse", "sim_score_rmse", "sim_score_identical"])
+            #writer = csv.DictWriter(csvfile, fieldnames=["iteration", "subsamples", "rmse", "sim_score_rmse", "sim_score_identical"])
+            writer = csv.DictWriter(csvfile, fieldnames=CONV_CSV_COLS)
             writer.writeheader()
             while subsamples <= end_subsamples:
                 current_filename = image_base_name + str(subsamples) + image_suffix
-                rmse, sim_score_rmse, sim_score_identical = bitwise_compare(data_path / current_filename, data_path / prev_filename)
+                #rmse, sim_score_rmse, sim_score_identical = bitwise_compare(data_path / current_filename, data_path / prev_filename, roi_path, bit_depth)
+                rmse, max_ae, percentile_diff, identical_count, total_pixels = bitwise_compare(data_path / current_filename, data_path / prev_filename, roi_path, bit_depth)
+                """
                 writer.writerow({
                     "iteration": iteration,
                     "subsamples": subsamples,
                     "rmse": rmse,
                     "sim_score_rmse": sim_score_rmse,
                     "sim_score_identical": sim_score_identical})
+                """
+                writer.writerow({
+                        "iteration": iteration,
+                        "subsamples": subsamples,
+                        "rmse": rmse,
+                        "max_ae": max_ae,
+                        "99p_abs_error": percentile_diff,
+                        "identical_px_count": identical_count,
+                        "tot_px_roi": total_pixels})
                 prev_filename = current_filename
                 subsamples *= 2
                 iteration += 1
@@ -630,14 +833,33 @@ def plot_results_blender(test_case: TestCase, resolution: Resolution, time: bool
 def format_spp_as_power_of_2(spp):
     return rf"$2^{{{int(np.log2(spp))}}}$"
 
-def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
+def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, save: bool = False,
+    show: bool = False, as_percent: bool = False, log_y: bool = False):
     """
-    Plots ray tracer and Blender convergence on a single plot.
+    Plots ray tracer and Blender convergence on a single plot, using
+    NRMSE (RMSE normalized by each source's full-scale maximum) so the
+    12-bit ray tracer and 16-bit Blender curves share a common y-axis.
+
+    The convergence logs store RMSE in native code units:
+        - Ray tracer : 12-bit codes -> divide by 4095
+        - Blender    : 16-bit codes -> divide by 65535
+
+    Parameters
+    ----------
+    as_percent : if True, plot NRMSE as a percentage of full scale (x100).
+    log_y      : if True, use a logarithmic y-axis (recommended for
+                 convergence tails). Zero/negative values are masked.
     """
+    # Full-scale maxima for normalization
+    RT_MAX = 4095.0        # 12-bit ray tracer
+    BLENDER_MAX = 65535.0  # 16-bit Blender
+
     # Output directory
     base_data_dir_b = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir_b)
-    filename = f"{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot.png"
+    suffix = "_pct" if as_percent else ""
+    suffix += "_logy" if log_y else ""
+    filename = f"{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot{suffix}.png"
 
     # Blender data path
     elem_dir_name_b = base_data_dir_b + Elements.TRI3.label
@@ -653,14 +875,19 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     elem_data_b = np.loadtxt(data_path_b, delimiter=",", skiprows=1, unpack=True)
     elem_data_rt = np.loadtxt(data_path_rt, delimiter=",", skiprows=1, unpack=True)
 
+    # Normalize RMSE (column 2) to NRMSE in [0, 1] (or %)
+    scale = 100.0 if as_percent else 1.0
+    elem_data_rt[2] = elem_data_rt[2] / RT_MAX * scale
+    elem_data_b[2] = elem_data_b[2] / BLENDER_MAX * scale
+
     # Shared x ticks
     label_x = np.unique(np.concatenate((elem_data_rt[1], elem_data_b[1])))
 
-    # Minimum RMSE values
+    # Minimum NRMSE values
     min_rmse_rt = np.min(elem_data_rt[2])
     min_rmse_b = np.min(elem_data_b[2])
 
-    # Optional: also report where the minima occur
+    # Also report where the minima occur
     min_idx_rt = np.argmin(elem_data_rt[2])
     min_idx_b = np.argmin(elem_data_b[2])
     min_x_rt = elem_data_rt[1][min_idx_rt]
@@ -674,12 +901,20 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     ax.set_title(title, fontsize=FONT_SIZES["suptitle"])
 
     ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
-    ax.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
+    y_unit = "%" if as_percent else "fraction of full scale"
+    ax.set_ylabel(f"NRMSE [{y_unit}]", fontsize=FONT_SIZES["axis_labels"])
 
     # Y-axis formatting
-    ax.yaxis.set_major_formatter(mticker.NullFormatter())
-    ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
-    ax.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
+    if log_y:
+        ax.set_yscale("log")
+        # Show sensible labels on a log axis (major + minor)
+        ax.yaxis.set_major_formatter(FormatStrFormatter("%.3g"))
+        ax.yaxis.set_minor_formatter(mticker.NullFormatter())
+        ax.tick_params(axis="y", which="both", labelsize=FONT_SIZES["ticks"])
+    else:
+        ax.yaxis.set_major_formatter(mticker.NullFormatter())
+        ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
+        ax.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
 
     # X-axis formatting
     ax.set_xscale("log")
@@ -711,36 +946,33 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     ax.grid(visible=True, which="both", axis="both")
 
     # Report the minimum values on the plot
-    # Text box with coloured labels
-    line1 = TextArea("Min RMSE:",
+    unit_str = "%" if as_percent else ""
+    line1 = TextArea("Min NRMSE:",
         textprops=dict(color="black", fontsize=FONT_SIZES["legend"], ha="left"))
 
     line2 = HPacker(
         children=[
-            TextArea("Ray tracer: ",textprops=dict(color=Elements.TRI3.color, fontsize=FONT_SIZES["legend"])),
-            TextArea(f"{min_rmse_rt:.3g} at {format_spp_as_power_of_2(min_x_rt)} spp",textprops=dict(color="black", fontsize=FONT_SIZES["legend"])),
+            TextArea("Ray tracer: ", textprops=dict(color=Elements.TRI3.color, fontsize=FONT_SIZES["legend"])),
+            TextArea(f"{min_rmse_rt:.3g}{unit_str} at {format_spp_as_power_of_2(min_x_rt)} spp",
+                     textprops=dict(color="black", fontsize=FONT_SIZES["legend"])),
         ],
-        align="left",
-        pad=0,
-        sep=0)
+        align="left", pad=0, sep=0)
 
     line3 = HPacker(
         children=[
-            TextArea("Blender: ",textprops=dict(color=Elements.TRI6.color, fontsize=FONT_SIZES["legend"])),
-            TextArea(f"{min_rmse_b:.3g} at {format_spp_as_power_of_2(min_x_b)} spp",textprops=dict(color="black", fontsize=FONT_SIZES["legend"])),
+            TextArea("Blender: ", textprops=dict(color=Elements.TRI6.color, fontsize=FONT_SIZES["legend"])),
+            TextArea(f"{min_rmse_b:.3g}{unit_str} at {format_spp_as_power_of_2(min_x_b)} spp",
+                     textprops=dict(color="black", fontsize=FONT_SIZES["legend"])),
         ],
-        align="left",
-        pad=0,
-        sep=0)
+        align="left", pad=0, sep=0)
 
-    stats_box = VPacker(children=[line1, line2, line3],align="left",pad=0,sep=2)
+    stats_box = VPacker(children=[line1, line2, line3], align="left", pad=0, sep=2)
 
     anchored_box = AnchoredOffsetbox(
         loc="upper right",
         child=stats_box,
         pad=0.3,
         frameon=True,
-        #bbox_to_anchor=(0.98, 0.78),
         bbox_to_anchor=(1.0, 0.9),
         bbox_transform=ax.transAxes,
         borderpad=0.6)
@@ -903,16 +1135,12 @@ def run_is_applicable(run_folder: str, test_case: TestCase, resolution: Resoluti
     # available for everything except bigpatch and noneebutvarreduction
     restricted_cases = {TestCase.AIR_DIFFUSE, TestCase.AIR_UNLIT, TestCase.TANK}
     restricted_resolutions = {Resolution.LOW, Resolution.HIGH}
-    excluded_runs = {
-        "thesis-output-bigpatch",
-        "thesis-output-noneebutvarreduction",
-    }
+    excluded_runs = {"thesis-output-bigpatch","thesis-output-noneebutvarreduction"}
 
     if test_case in restricted_cases and resolution in restricted_resolutions:
         return run_folder not in excluded_runs
 
     return False
-
 
 def plot_results_subplots_patch(test_case: TestCase,
     resolution: Resolution,
@@ -1038,21 +1266,68 @@ def plot_results_subplots_patch(test_case: TestCase,
     if save:
         fig.savefig(patch_results_dir / filename, dpi=300, bbox_inches="tight")
 
+# ================================================================================
+# Convenience for data plotting/updating in one go
+# ================================================================================
+
+def _get_min_max_subsamples(elem_dir: Path, base_prefix: str) -> Tuple[Optional[int], Optional[int]]:
+    """
+    Gets min/max subsample counts in a given folder based on the "rtimage_subsamples_SUBSAMPLES.tiff" filename pattern.
+    """
+    if not elem_dir.exists():
+        return None, None
+
+    counts = [int(file.stem.removeprefix(base_prefix)) for file in elem_dir.glob(f"{base_prefix}*.tiff")
+        if file.stem.removeprefix(base_prefix).isdigit()]
+
+    if not counts:
+        return None, None
+
+    return min(counts), max(counts)
+
+def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blender: bool = False):
+    # Need to detect these from image names
+    base_image_file = "rtimage_subsamples_"
+
+    if blender:
+        base_data_dir = f"thesis-output/convergence_blender/res_{resolution.value}/{test_case.value}/"
+        elem_path = full_path(base_data_dir + Elements.TRI3.label)
+        subsamples_min, subsamples_max = _get_min_max_subsamples(elem_path, base_image_file)
+        fill_convergence_log(Elements.TRI3, test_case, resolution, subsamples_min, subsamples_max, True)
+        try:
+            plot_results_blender(test_case, resolution, False, True, False)
+        except Exception as e: # Likely missing enough data for plots, so we just skip them
+            print(f"Error plotting the results: {e}.\nLikely from missing sufficient data for some elements. Plotting skipped.")
+        return
+    
+    base_data_dir = f"thesis-output/convergence_rt/res_{resolution.value}/{test_case.value}/"
+    for name, element in iter_elements():
+        # Detect the min/max subsamples in
+        elem_path = full_path(base_data_dir + element.label)
+        subsamples_min, subsamples_max = _get_min_max_subsamples(elem_path, base_image_file)
+        fill_convergence_log(element, test_case, resolution, subsamples_min, subsamples_max, False)
+    try:
+        plot_results_all(test_case, resolution, True, False)
+        plot_results_subplots(test_case, resolution, True, False)
+    except Exception as e: # Likely missing enough data for plots, so we just skip them
+        print(f"Error plotting the results: {e}.\nLikely from missing sufficient data for some elements. Plotting skipped.")
+
+
+
+
+#fill_all_convergence_logs(TestCase.AIR_UNLIT, Resolution.LOW, blender=False)
+
+#get_roi(TestCase.AIR_UNLIT)
 
 #plot_results_subplots_patch(TestCase.TANK, Resolution.LOW, plot_time = False, save = True, show = False)
 
-
-
-#fill_convergence_log(Elements.TRI3, TestCase.AIR_UNLIT, Resolution.HIGH, 1, 65536, True)
-#fill_convergence_log(Elements.QUAD8, TestCase.AIR_UNLIT, Resolution.LOW, 1, 4194304, False)
-
-#plot_results_all(TestCase.AIR_UNLIT, Resolution.HIGH, True, True)
+#plot_results_all(TestCase.TANK, Resolution.LOW, True, True)
 #plot_results_subplots(TestCase.AIR_UNLIT, Resolution.HIGH, True, True)
 
 #check_difference(Elements.QUAD9, TestCase.AIR_DIFFUSE, Resolution.HIGH, 524288, 1048576)
 
-#plot_results_blender(TestCase.AIR_UNLIT, Resolution.HIGH, False, False, True)
-#plot_results_blender_rt_single(TestCase.AIR_UNLIT, Resolution.HIGH, True, True)
+#plot_results_blender(TestCase.TANK, Resolution.LOW, False, True, True)
+#plot_results_blender_rt_single(TestCase.AIR_UNLIT, Resolution.LOW, True, True)
 
 
 # From 2**14 (16k) to 2**18 (262k) for Blender

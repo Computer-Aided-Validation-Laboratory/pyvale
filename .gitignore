@@ -7,7 +7,7 @@
 pyvale-env/
 .venv/
 .pytest_cache/
-*:Zone.Identifier
+*.Identifier
 
 # Output files
 *.npy
@@ -21,6 +21,8 @@ pyvale-env/
 *.csv
 *.json
 *.ppm
+*.bmp
+*.tif
 pyvale-output/
 pyvale-input/
 test-output/
@@ -262,4 +264,3 @@ docs/source/examples/
 docs/source/doxygen
 
 src/pyvale/raytracer/verification/verif
-
