@@ -4,6 +4,8 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
+"""Dot target detection utilities for stereo camera calibration."""
+
 import cv2
 import numpy as np
 import re
@@ -14,6 +16,7 @@ import glob
 from scipy.optimize import least_squares
 import matplotlib.pyplot as plt
 
+import pyvale.common_py.util as common_py_util
 
 def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
                 cam1: Path | list[Path] | np.ndarray | str,
@@ -23,7 +26,55 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
                 min_dot_fraction: float=0.5,
                 visualisationCV2: bool=False,
                 visualisationPLT: bool=False) -> tuple[list, list, list]:
+    """Detect and match calibration dots in synchronized stereo image pairs.
 
+    The calibration target is assumed to contain a regular dark-dot grid with
+    three missing locations marked by light dots. The light-dot triangle is used
+    to orient each image relative to the known grid, then dark blobs are matched
+    to the nearest expected grid locations. Only points detected consistently in
+    both cameras are retained.
+
+    Parameters
+    ----------
+    cam0, cam1 : pathlib.Path, list[pathlib.Path], np.ndarray, or str
+        Camera 0 and camera 1 inputs. Paths and strings may include glob
+        patterns. Lists must contain corresponding image paths for each camera.
+        Array inputs are currently only shape-checked.
+    grid_height, grid_width : int
+        Number of dot rows and columns in the full calibration target.
+    grid_spacing : float
+        Physical spacing between neighbouring dots in the target coordinate
+        system.
+    missing_dots : list[tuple[int, int]]
+        The three missing-dot locations, expressed as ``(x, y)`` grid indices.
+        These define the orientation marker used for matching.
+    min_dot_fraction : float, optional
+        Minimum fraction of grid points that must be matched for an image pair
+        to be accepted.
+    visualisationCV2 : bool, optional
+        If ``True``, show an OpenCV overlay of detected and matched points for
+        each accepted pair.
+    visualisationPLT : bool, optional
+        If ``True``, show Matplotlib diagnostic plots of the detected points and
+        grid mapping.
+
+    Returns
+    -------
+    tuple[list, list, list, list, list]
+        Matched 2D points for camera 0, matched 2D points for camera 1, matched
+        3D grid points, accepted camera 0 filenames, and accepted camera 1
+        filenames.
+
+    Raises
+    ------
+    TypeError
+        If the input type is unsupported.
+    ValueError
+        If camera inputs are incompatible, image lists have different lengths,
+        or ``missing_dots`` is not three non-negative ``(x, y)`` tuples.
+    FileNotFoundError
+        If a path or glob pattern does not resolve to any images.
+    """
 
     files_cam0 = []
     files_cam1 = []
@@ -110,9 +161,12 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
 
     for i in range(0, num_file_pairs):
 
-        print("Running Dot detection on image pair: "
-                f"{os.path.basename(files_cam0[i])}, "
-                f"{os.path.basename(files_cam1[i])}")
+        
+
+        common_py_util.info(f"Dot detection: "
+            f"\033[1;4m{os.path.basename(files_cam0[i])}\033[0m + "
+            f"\033[1;4m{os.path.basename(files_cam1[i])}\033[0m")
+
 
         # read images
         img0 = cv2.imread(str(files_cam0[i]), cv2.IMREAD_GRAYSCALE)
@@ -120,7 +174,7 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
 
 
         if img0 is None or img1 is None:
-            print(f"Skipping missing pair: {files_cam0[i]} {files_cam1[i]}")
+            common_py_util.info(f"Skipping missing pair: {files_cam0[i]} {files_cam1[i]}")
             continue
 
         img_dims0 = (img0.shape[1], img0.shape[0])
@@ -128,7 +182,7 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
 
         # check image dimensions agree
         if (img_dims0[0] != img_dims1[0]) or (img_dims0[1] != img_dims1[1]):
-            print("image dimensions don't agree: "
+            common_py_util.info("image dimensions don't agree: "
                 f" - dimensions of {files_cam0}: {img_dims0}"
                 f" - dimensions of {files_cam1}: {img_dims1}"
                 "Skipping image pair")
@@ -142,22 +196,15 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
 
         # there should always be 3 points in keypoints_lght_cam0 and keypoints_lght_cam1
         if len(keypoints_lght_cam0) != 3 or len(keypoints_lght_cam1) != 3:
-            print(f"Skipping pair due to insufficient light blobs.")
-            print("left:", len(keypoints_lght_cam0))
-            print("right:", len(keypoints_lght_cam1))
+            common_py_util.info(f"Skipping image pair. Insufficient num of axis markers.")
+            common_py_util.info(f"left: {len(keypoints_lght_cam0)}")
+            common_py_util.info(f"right: {len(keypoints_lght_cam1)}")
             num_file_pairs = num_file_pairs-1
             continue
 
         # Detect DARK blobs
         keypoints_dark_cam0 = detector_dark.detect(img0)
         keypoints_dark_cam1 = detector_dark.detect(img1)
-
-        # there should always be 3 points in keypoints_lght_cam0 and keypoints_lght_cam1
-        if len(keypoints_lght_cam0) != 3 or len(keypoints_lght_cam1) != 3:
-            print(f"WARNING: Skipping pair due to insufficient light blobs."
-                  f"left: {len(keypoints_lght_cam0)}"
-                  f"right: {len(keypoints_lght_cam1)}")
-            continue
 
         # Convert KeyPoints to NumPy arrays
         light_pts_cam0 = np.array([kp.pt for kp in keypoints_lght_cam0], dtype=np.float32)
@@ -322,10 +369,11 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
         filenames_cam1.append(Path(files_cam1[i]).name)
 
 
-        print(f"Points found in cam0: {len(pts_cam0_raw)+len(light_pts_cam0)}, "
-              f"cam1: {len(pts_cam1_raw)+len(light_pts_cam1)}, "
-              f"mutual: {matched_grid.shape[0]}")
-        print()
+        common_py_util.info("Num dots: "
+            f"\033[1;4mcam0\033[0m={len(pts_cam0_raw)+len(light_pts_cam0)}, "
+            f"\033[1;4mcam1\033[0m={len(pts_cam1_raw)+len(light_pts_cam1)}, "
+            f"\033[1;4mmutual\033[0m={matched_grid.shape[0]}"
+        )
 
         if visualisationCV2:
     
@@ -430,6 +478,30 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
 
 def initial_reconstruction(dots_cam0, dots_cam1, grid, 
                            img_dims, num_file_pairs: int) -> tuple[dict,dict]:
+    """Estimate per-image camera intrinsics and poses for an initial solution.
+
+    This helper performs independent nonlinear intrinsics fits for each camera
+    and image pair, then estimates the target pose with OpenCV ``solvePnP``. It
+    is mainly useful for diagnostics and older calibration experiments; the main
+    stereo calibration path uses OpenCV calibration followed by C++ refinement.
+
+    Parameters
+    ----------
+    dots_cam0, dots_cam1 : sequence[np.ndarray]
+        Detected 2D calibration dot coordinates for each camera.
+    grid : sequence[np.ndarray]
+        Matching 3D calibration target coordinates for each image pair.
+    img_dims : sequence[int]
+        Image dimensions as ``[width, height]`` in pixels.
+    num_file_pairs : int
+        Number of image pairs to process.
+
+    Returns
+    -------
+    tuple[list[dict], list[dict]]
+        Per-image intrinsic matrices, distortion vectors, poses, mean errors,
+        and optimizer success flags for camera 0 and camera 1.
+    """
 
     print(f"Running initial reconstruction with {len(grid)} valid image pairs...")
 
@@ -581,6 +653,24 @@ def initial_reconstruction(dots_cam0, dots_cam1, grid,
 
 
 def reprojection_intrinsics_error(params, gridpoints, dots):
+    """Return point-wise reprojection residuals for intrinsics optimization.
+
+    Parameters
+    ----------
+    params : array-like
+        Intrinsic and distortion parameters ordered as
+        ``[fx, fy, cx, cy, k1, k2, p1, p2, k3]``.
+    gridpoints : np.ndarray
+        3D calibration target coordinates.
+    dots : np.ndarray
+        Observed 2D dot coordinates for one image.
+
+    Returns
+    -------
+    np.ndarray
+        Flattened ``x`` and ``y`` reprojection residuals. If pose estimation
+        fails, a large residual vector is returned.
+    """
 
     fx, fy, cx, cy = params[0:4]
     k1, k2, p1, p2, k3 = params[4:9]
@@ -610,6 +700,20 @@ def reprojection_intrinsics_error(params, gridpoints, dots):
 
 
 def create_blob_detector(light: bool):
+    """Create an OpenCV blob detector for light or dark calibration dots.
+
+    Parameters
+    ----------
+    light : bool
+        If ``True``, detect bright dots. If ``False``, detect dark dots.
+
+    Returns
+    -------
+    cv2.SimpleBlobDetector
+        Configured blob detector with area, circularity, colour, and inertia
+        filters suitable for the calibration target.
+    """
+
     params = cv2.SimpleBlobDetector_Params()
     params.filterByArea = True
     params.minArea = 500
@@ -623,6 +727,27 @@ def create_blob_detector(light: bool):
     return cv2.SimpleBlobDetector_create(params)
 
 def get_file_list(path0: Path, path1: Path):
+    """Resolve and pair camera image paths from two glob patterns.
+
+    If the two glob patterns produce different numbers of files, paths with
+    unmatched base names are reported and excluded. Matching is based on
+    :func:`get_base_name`.
+
+    Parameters
+    ----------
+    path0, path1 : pathlib.Path
+        Glob patterns or concrete paths for camera 0 and camera 1 images.
+
+    Returns
+    -------
+    tuple[list[pathlib.Path], list[pathlib.Path]]
+        Paired camera 0 and camera 1 paths.
+
+    Raises
+    ------
+    FileNotFoundError
+        If either pattern resolves to no files.
+    """
 
     sorted_cam0 = sorted(glob.glob(str(path0)))
     sorted_cam1 = sorted(glob.glob(str(path1)))
@@ -678,10 +803,41 @@ def get_file_list(path0: Path, path1: Path):
 
 
 def get_base_name(filename):
+    """Return the shared base name used to pair stereo calibration images.
+
+    Parameters
+    ----------
+    filename : str or pathlib.Path
+        Calibration image filename expected to end with ``_<digit>.tiff``.
+
+    Returns
+    -------
+    str or None
+        Filename prefix before the camera/image suffix, or ``None`` if the
+        filename does not match the expected pattern.
+    """
+
     match = re.match(r"(.*)_\d\.tiff$", filename)
     return match.group(1) if match else None
 
 def order_triangle_points_by_angle(pts):
+    """Order three triangle points by decreasing internal angle.
+
+    The missing-dot marker is identified from a triangle of light blobs. Ordering
+    by internal angle gives a consistent point order before estimating the
+    affine mapping from image coordinates to target-grid coordinates.
+
+    Parameters
+    ----------
+    pts : np.ndarray
+        Three ``(x, y)`` points.
+
+    Returns
+    -------
+    np.ndarray
+        The same three points ordered from largest to smallest internal angle.
+    """
+
     angles = []
     for i in range(3):
         ang = angle_between(pts[(i+1)%3], pts[i], pts[(i+2)%3])
@@ -693,6 +849,19 @@ def order_triangle_points_by_angle(pts):
     return ordered_pts
 
 def angle_between(p1, p2, p3):
+    """Calculate the angle at ``p2`` formed by points ``p1``, ``p2``, and ``p3``.
+
+    Parameters
+    ----------
+    p1, p2, p3 : np.ndarray
+        Two-dimensional points.
+
+    Returns
+    -------
+    float
+        Angle in degrees.
+    """
+
     v1 = p1 - p2
     v2 = p3 - p2
     cos_theta = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))

@@ -21,6 +21,8 @@
 #include "./calibopt.hpp"
 #include "./calibstereo.hpp"
 
+#include "../../common_cpp/util.hpp"
+
 
 StereoCalibResult calibrate_stereo(const std::vector<double> &init_params,
                                    const std::vector<double> &dots_cam0, // 2d
@@ -60,6 +62,15 @@ StereoCalibResult calibrate_stereo(const std::vector<double> &init_params,
 
     // run optimization routine
     optimization::Output output = optimization::bundle_adjustment(opt, dots_cam0, dots_cam1, grid, num_img, lengths);
+    common_util::info_out("Optimization finished after " + std::to_string(output.iter+1) + " iterations.", "");
+
+    if ((output.iter+1) >= max_iter) {
+        common_util::info_out("WARN: Maximum number of iterations reached.", "");
+        common_util::info_out("WARN: Optimization may not have converged.", "");
+    }
+
+
+    common_util::info_out("Calculating final reprojection errors for each image...", "");
 
     // calculate the error for each image based on the final residuals
     std::vector<double> err0(num_img,0.0);
@@ -148,6 +159,9 @@ StereoCalibResult calibrate_stereo(const std::vector<double> &init_params,
         .translation = {opt.p[23], opt.p[24], opt.p[25]},
         .rotation = {opt.p[20], opt.p[21], opt.p[22]},
     };
+
+
+    common_util::info_out("Calibration Finished.", "");
 
     return {std::move(calib), std::move(err0), std::move(err1)};
 }

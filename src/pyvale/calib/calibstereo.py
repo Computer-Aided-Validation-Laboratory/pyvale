@@ -4,9 +4,12 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
+"""Stereo camera calibration routines for dot-target image pairs."""
+
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.optimize._lsq import common
 import cv2
 import math
 from pathlib import Path
@@ -14,10 +17,13 @@ from typing import Literal
 from enum import Enum
 
 import pyvale.calib.calibcpp as calibcpp
-from pyvale.calib.calib_dataclass import Calib, CamIntrinsics
+from pyvale.calib.calibdataclass import Calib, CamIntrinsics
 import pyvale.common_cpp.common_cpp as common_cpp
+import pyvale.common_py.util as common_py_util
 
 class ReprojError(str, Enum):
+    """Available reprojection error formulations for calibration refinement."""
+
     RMSE = "RMSE"
     MEAN = "MEAN"
     MSE = "MSE"
@@ -33,9 +39,55 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
                      num_threads: int | None = None,
                      error_formulation: Literal["RMSE", "MEAN", "MSE"] = "RMSE"
                      ) -> tuple[Calib, np.ndarray, np.ndarray]:
+    """Estimate stereo camera calibration parameters from matched dot targets.
 
+    The function starts with OpenCV single-camera and stereo calibration to get
+    an initial estimate, then passes the flattened parameters to the C++ bundle
+    adjustment routine for refinement. The returned calibration is stored in
+    Pyvale dataclasses and uses millimetres for translation and degrees for the
+    stereo rotation angles.
 
+    Parameters
+    ----------
+    dots_cam0, dots_cam1 : list[np.ndarray] or np.ndarray
+        Matched 2D image coordinates for camera 0 and camera 1. Each image pair
+        must contain the same number of points in the same order.
+    grid : list[np.ndarray] or np.ndarray
+        Corresponding 3D calibration target coordinates for each image pair.
+        The first dimension must match the number of image pairs.
+    img_dims : list[int] or np.ndarray
+        Image dimensions as ``[width, height]`` in pixels.
+    filenames : list[str] or list[pathlib.Path] or None, optional
+        Optional names for the calibration images. This is currently only
+        checked for length consistency when provided.
+    optimize_distortion : bool, optional
+        If ``True``, refine radial and tangential distortion coefficients. If
+        ``False``, distortion coefficients are set to zero before refinement.
+    precision : float, optional
+        Convergence tolerance passed to the C++ optimizer.
+    max_iter : int, optional
+        Maximum number of C++ refinement iterations.
+    num_threads : int or None, optional
+        Number of OpenMP threads to use in the C++ optimizer. If ``None``, the
+        current runtime default is used.
+    error_formulation : {"RMSE", "MEAN", "MSE"}, optional
+        Error metric used by the C++ calibration optimizer.
 
+    Returns
+    -------
+    tuple[Calib, np.ndarray, np.ndarray]
+        The refined stereo calibration, followed by per-point reprojection
+        errors for camera 0 and camera 1.
+
+    Raises
+    ------
+    TypeError
+        If the camera point arrays and grid are not provided using compatible
+        container types, or if ``optimize_distortion`` is not boolean.
+    ValueError
+        If image-pair counts, point counts, shapes, filenames, image dimensions,
+        or the error formulation are invalid.
+    """
 
     # Type checks
     if type(dots_cam0) != type(dots_cam1):
@@ -85,6 +137,9 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
     flat_grid = np.concatenate(grid, axis=0).astype(np.float32).ravel().tolist()
     lengths = np.array([arr.shape[0] for arr in dots_cam1],dtype=np.int32).tolist()
 
+
+    common_py_util.info(f"Performing Initial calibration guess...")
+
     # initial parameter guess with fixed distortion parameters
     flags = cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_ZERO_TANGENT_DIST
     _, K0, D0, rvecs0, tvecs0 = cv2.calibrateCamera(grid, dots_cam0, img_dims, None, None, flags=flags)
@@ -99,6 +154,9 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
         flags=cv2.CALIB_USE_INTRINSIC_GUESS,
         criteria=criteria
     )
+
+
+    common_py_util.info(f"Initial calibration guess completed.")
 
     # Compute consistent cam0 poses using refined intrinsics  
     rvecs0_consistent = []
@@ -165,6 +223,8 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
     if num_threads is not None:
         common_cpp.set_num_threads(num_threads)
 
+
+    common_py_util.info("Starting stereo calibration bundle adjustment...")
     result_cpp = calibcpp.calibrate_stereo(flat_initial_params,
                                            flat_dots_cam0,
                                            flat_dots_cam1,

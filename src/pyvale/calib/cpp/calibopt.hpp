@@ -59,24 +59,45 @@ namespace optimization {
         Eigen::VectorXd residuals;
         std::vector<double> proj0;
         std::vector<double> proj1;
+        int iter;
     };
 
     // master optimization routine
-    optimization::Output bundle_adjustment(Parameters &opt, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1,
-                            const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths);
+    optimization::Output bundle_adjustment(Parameters &opt, 
+                                           const std::vector<double> &dots_cam0, 
+                                           const std::vector<double> &dots_cam1,
+                                           const std::vector<double> &grid, 
+                                           const size_t num_img, 
+                                           const std::vector<int> &lengths);
 
     // single iteration of optimization
-    void iterate_cost(Parameters &opt, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1, 
-                    const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths, const int iter);
+    void iterate_cost(Parameters &opt, 
+                      const std::vector<double> &dots_cam0, 
+                      const std::vector<double> &dots_cam1, 
+                      const std::vector<double> &grid, 
+                      const size_t num_img, 
+                      const std::vector<int> &lengths, 
+                      const int iter);
 
     // calculate jacobian
-    Eigen::MatrixXd calc_jac(std::vector<double> &p, const Eigen::VectorXd &r, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1, 
-                            const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths);
+    Eigen::MatrixXd calc_jac(std::vector<double> &p, 
+                             const Eigen::VectorXd &r, 
+                             const std::vector<double> &dots_cam0, 
+                             const std::vector<double> &dots_cam1, 
+                             const std::vector<double> &grid, 
+                             const size_t num_img, 
+                             const int iter,
+                             const std::vector<int> &lengths);
 
     // calculate residuals
-    optimization::Output calc_residuals(std::vector<double> &p, const std::vector<double> &dots_cam0, 
-                                const std::vector<double> &dots_cam1, const std::vector<double> &grid, 
-                                const size_t num_img,  const std::vector<int> &lengths, const bool print_flag);
+    optimization::Output calc_residuals(std::vector<double> &p, 
+                                        const std::vector<double> &dots_cam0, 
+                                        const std::vector<double> &dots_cam1, 
+                                        const std::vector<double> &grid, 
+                                        const size_t num_img,
+                                        const std::vector<int> &lengths, 
+                                        const int iter,
+                                        const bool print_flag);
 
 
     // Function to convert Rodrigues rotation vector to rotation matrix using Eigen

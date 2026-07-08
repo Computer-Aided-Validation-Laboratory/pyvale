@@ -16,7 +16,7 @@
 #include <numeric>
 
 // common_cpp Header files
-#include "../../common_cpp/defines.hpp"
+#include "../../common_cpp/util.hpp"
 
 // Eigen Header Files
 #include <Eigen/Dense>
@@ -60,7 +60,8 @@ namespace optimization {
         }
 
         //return the residuals from the final iteration 
-        optimization::Output final_results = calc_residuals(opt.p, dots_cam0, dots_cam1, grid, num_img, lengths, false);
+        optimization::Output final_results = calc_residuals(opt.p, dots_cam0, dots_cam1, grid, num_img, lengths, iter, false);
+        final_results.iter = iter;
 
         return final_results;
     }
@@ -76,10 +77,10 @@ namespace optimization {
 
 
         // Compute residuals at current point. p get updated in this
-        optimization::Output res = calc_residuals(opt.p, dots_cam0, dots_cam1, grid, num_img, lengths, false);
+        optimization::Output res = calc_residuals(opt.p, dots_cam0, dots_cam1, grid, num_img, lengths, iter, false);
 
         // calculate jacobian
-        Eigen::MatrixXd J = calc_jac(opt.p, res.residuals, dots_cam0, dots_cam1, grid, num_img, lengths);
+        Eigen::MatrixXd J = calc_jac(opt.p, res.residuals, dots_cam0, dots_cam1, grid, num_img, iter, lengths);
 
 
         // calc gradient
@@ -116,7 +117,7 @@ namespace optimization {
 
 
         // Evaluate new cost
-        optimization::Output res_new = calc_residuals(opt.pdp, dots_cam0, dots_cam1, grid, num_img, lengths, false);
+        optimization::Output res_new = calc_residuals(opt.pdp, dots_cam0, dots_cam1, grid, num_img, lengths, iter, false);
         opt.costp = 0.0;
         opt.costpdp = 0.0;
         for (int i = 0; i < res_new.residuals.size(); i++){
@@ -147,18 +148,24 @@ namespace optimization {
         const bool step_accepted = rho > 0.0;
 
         
-        std::cout << std::scientific << std::setprecision(4)
-          << "[iter " << std::setw(3) << iter << "] "
-          << "cost=" << opt.costp
-          << " -> " << opt.costpdp
-          << "  dcost=" << actual
-          << "  rho=" << rho
-          << "  lambda=" << opt.lambda
-          << "  |dp|=" << dp.norm()
-          << "  cam0=" << cost_cam0_p << "->" << cost_cam0_pdp
-          << "  cam1=" << cost_cam1_p << "->" << cost_cam1_pdp
-          << "  step=" << (step_accepted ? "accepted" : "rejected")
-          << '\n';
+        // std::cout << std::scientific << std::setprecision(4
+        //   << "[iter " << std::setw(3) << iter << "] "
+        //   << "cost=" << opt.costp
+        //   << " -> " << opt.costpdp
+        //   << "  dcost=" << actual
+        //   << "  rho=" << rho
+        //   << "  lambda=" << opt.lambda
+        //   << "  |dp|=" << dp.norm()
+        //   << "  cam0=" << cost_cam0_p << "->" << cost_cam0_pdp
+        //   << "  cam1=" << cost_cam1_p << "->" << cost_cam1_pdp
+        //   << "  step=" << (step_accepted ? "accepted" : "rejected")
+        //   << '\n';
+
+        common_util::info_out(
+            "Iter= " + std::to_string(iter),
+            "cost=" + std::to_string(opt.costp) + "->" + std::to_string(opt.costpdp) +
+            " cam0=" + std::to_string(cost_cam0_pdp) +
+            " cam1=" + std::to_string(cost_cam1_pdp));
 
         if (rho > 0) {
             opt.p = opt.pdp;
@@ -283,7 +290,7 @@ namespace optimization {
 
         optimization::Output calc_residuals(std::vector<double> &p, const std::vector<double> &dots_cam0,
                                             const std::vector<double> &dots_cam1, const std::vector<double> &grid, 
-                                            const size_t num_img, const std::vector<int> &lengths,
+                                            const size_t num_img, const std::vector<int> &lengths, const int iter,
                                             const bool print_flag){
 
         // ------------------------------------------------------
@@ -407,12 +414,12 @@ namespace optimization {
             }
             if (print_flag) std::cout << std::endl;
         }
-        return {residuals, proj0, proj1};
+        return {residuals, proj0, proj1, iter};
     }
 
 
     Eigen::MatrixXd calc_jac(std::vector<double> &p, const Eigen::VectorXd &r, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1,
-                            const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths){
+                            const std::vector<double> &grid, const size_t num_img, const int iter, const std::vector<int> &lengths){
 
         const int m = r.size();
         const int n = p.size();
@@ -427,7 +434,7 @@ namespace optimization {
             double h_j = eps_fd; // * std::max(1.0, std::abs(p[j]));
             p_prime[j] += h_j;
 
-            auto [r_prime, proj0, proj1] = calc_residuals(p_prime, dots_cam0, dots_cam1, grid, num_img, lengths, false);
+            auto [r_prime, proj0, proj1, _] = calc_residuals(p_prime, dots_cam0, dots_cam1, grid, num_img, lengths, iter, false);
 
             for (int i = 0; i < m; i++) {
                 jac(i, j) = (r_prime[i] - r[i]) / h_j;
