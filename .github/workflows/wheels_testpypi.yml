@@ -49,6 +49,11 @@ jobs:
           CIBW_ENVIRONMENT_MACOS: >
             CC=gcc-15
             CXX=g++-15
+          CIBW_ENVIRONMENT_LINUX: >
+            CC=/usr/bin/gcc-13
+            CXX=/usr/bin/g++-13
+            CMAKE_C_COMPILER=/usr/bin/gcc-13
+            CMAKE_CXX_COMPILER=/usr/bin/g++-13
       - uses: actions/upload-artifact@v4
         with:
           name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}
