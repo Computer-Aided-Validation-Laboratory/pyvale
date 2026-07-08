@@ -7,8 +7,8 @@ from pathlib import Path
 # ============================================================
 
 #OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe"
-#OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe_shark"
-OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe_plate"
+OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe_shark"
+#OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe_plate"
 
 # ----------------------------
 # Pipe geometry inputs
@@ -18,20 +18,20 @@ OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "pipe_plate"
 y_base = -47.0 # ~ Half of height
 height = 95.0
 # For shark:
-#y_base = - 37
-#height = 74
+y_base = - 37
+height = 74
 # For plate:
-y_base = - 23
-height = 46
+#y_base = - 23
+#height = 46
 
 diameter_i = 21.1 # mm, ID
 diameter_o = 24.77 # mm, OD
 # For shark:
-#diameter_i = 35
-#diameter_o = 39 # 2mm thick wall
+diameter_i = 35
+diameter_o = 39 # 2mm thick wall
 # For plate:
-diameter_i = 33
-diameter_o = 37
+#diameter_i = 33
+#diameter_o = 37
 
 radius_i = diameter_i / 2.0
 radius_o = diameter_o / 2.0
@@ -57,11 +57,12 @@ radius_fill = diameter_fill / 2.0
 # IMPORTANT:
 # Fill starts slightly below the inner-cylinder base
 FILL_VERT_OFFSET = TRIM_VALUE / 2.0
-y_base_fill = y_base_i - FILL_VERT_OFFSET
+y_base_fill = y_base_i - 16
 
 # IMPORTANT:
 # Fill height based on inner-cylinder height; this mimics the fact that water wouldn't reach the top of the pipe (if we didn't want spills)
-WATER_LEVEL_OFFSET = 5.0
+#WATER_LEVEL_OFFSET = 5.0 # For convergence tests
+WATER_LEVEL_OFFSET = 3.0 # For plate
 height_fill = height_i - WATER_LEVEL_OFFSET
 
 # ----------------------------

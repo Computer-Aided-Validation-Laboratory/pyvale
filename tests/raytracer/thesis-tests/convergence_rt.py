@@ -27,6 +27,7 @@ def uv_unwrap():
     tank_access = "thesis-data/" + Tank.RECTANGLE + "/" + Refinement.COARSE # Point the correct mesh locatrions   
     # Set the sample path
     sample_name = "thesis-data/beam/" + Refinement.COARSE + "/beam_surface_"
+    #sample_name = "thesis-data/beam/exp_coarse/beam_surface_"
     # Set BlenderUnwrapper
     blender_uv = BlenderUnwrapper()
     for name, element in iter_elements():

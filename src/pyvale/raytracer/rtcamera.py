@@ -65,9 +65,9 @@ class Camera:
         """
         self.matrix_camera_to_world = np.zeros((4, 4))
         basis_vector_forward, basis_vector_right, basis_vector_up = self._compute_camera_basis_vectors()
-        self.matrix_camera_to_world[:, :3] = np.array(
-            [basis_vector_right, basis_vector_up, basis_vector_forward, self.camera_center])
-        self.matrix_camera_to_world[3] = np.array([0.0, 0.0, 0.0, 1.0])
+        self.matrix_camera_to_world[:3, :3] = np.column_stack((basis_vector_right, basis_vector_up, basis_vector_forward))
+        self.matrix_camera_to_world[:3, 3] = self.camera_center
+        self.matrix_camera_to_world[3, 3] = 1.0
         self.matrix_world_to_camera = np.linalg.inv(self.matrix_camera_to_world)
         self.matrix_rotation = np.column_stack((basis_vector_right, basis_vector_up, basis_vector_forward))
         self._create_viewport(basis_vector_forward, basis_vector_right, basis_vector_up)

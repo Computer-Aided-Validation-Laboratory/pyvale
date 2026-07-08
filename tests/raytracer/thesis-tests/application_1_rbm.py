@@ -42,7 +42,7 @@ QUAD_FACTOR = 0.5
 QUAD_ALGORITHM = 8
 QUAD_HIGH_ORDER_OPTIMIZE = 2
 
-pet_name = "fatshark"
+pet_name = "duck"
 pet_svg_path = full_path(f"thesis-data/app1_rbm/{pet_name}.svg")
 target_dir = os.path.dirname(pet_svg_path)
 
@@ -340,7 +340,9 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
     # Derived camera parameters
     active_sensor_side_length = active_sensor_height(image_height, pixel_pitch)
     angle_vertical_view = vertical_fov_from_sensor(sensor_height=active_sensor_side_length, focal_length=focal_length)
+    #angle_vertical_view = 1 # For rendering images further away (sanity checks)
     fov_height = pet_height + pet_displacement + 1 # We want to see the shark's motion + have some safety of 1 mm
+    #camera_distance = camera_working_distance(focal_length, fov_height, active_sensor_side_length) / 50 # Slightly nicer distance for checking the dielectric overlap in SceneVisualiser
     camera_distance = camera_working_distance(focal_length, fov_height, active_sensor_side_length)
     # Camera positioning
     target_distance = camera_distance - focal_length
@@ -369,7 +371,7 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
     # 3. Set up the meshes
     scene = Scene()
     object = any_mesh_to_rtmesh(object_path, world_position = np.array([0.0, 0.0, 0.0]), anchor = Anchor.CENTER, 
-                                target_size=30, size_axis = Axis.Y) # Shark 50 mm long => 30 mm wide (hammer); 32 mm (fatshark); pipe is 35 mm ID
+                                target_size=29, size_axis = Axis.Y) # Shark 50 mm long => 30 mm wide (hammer); 32 mm (fatshark); pipe is 35 mm ID
     object.rotate(rotation=Rotation.from_euler('z', 90, degrees=True))
     print(object.get_size())
     pipe = any_mesh_to_rtmesh(pipe_path)
@@ -388,7 +390,7 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
         pipe.set_surface(SurfType.FIELD_COLOR, material_type=MaterialType.REFRACTIVE, material=MaterialPresets.PLASTIC_ACRYLIC, priority=1)
         scene.add_rtmesh(pipe)
         water.set_surface(SurfType.FIELD_COLOR, material_type=MaterialType.REFRACTIVE, material=MaterialPresets.WATER, priority=0)
-        scene.add_rtmesh(pipe)
+        scene.add_rtmesh(water)
 
     # 4. Create mock displacement for the object
     frame_count = 10 # How many frames we want to render
@@ -418,5 +420,4 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
     render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
 
 
-    
-rmb_test(TestCaseApp.WATER, aa_samples=1)
+rmb_test(TestCaseApp.PIPE, aa_samples=1)

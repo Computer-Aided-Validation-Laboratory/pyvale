@@ -51,7 +51,7 @@ def plate_test(test_case: TestCaseApp):
     base_data_dir = f"app2_fea/renders/{test_case.value}"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
     # Anti-aliasing
-    anti_alias = 1; # for anti-aliasingr
+    anti_alias = 1; # for anti-aliasing
     image_width = image_width_phs6 # px
     image_height = image_width_phs6 # px; height = width for Novas
     pixel_pitch = pixel_pitch_ph6
@@ -67,7 +67,7 @@ def plate_test(test_case: TestCaseApp):
     angle_vertical_view = vertical_fov_from_sensor(sensor_height=sensor_height_mm, focal_length=focal_length)
     cam = Camera(image_width, image_height, camera_center, camera_target, angle_vertical_view)
 
-    #SceneVisualiser([object, pipe], cam) # Check positioning
+    #SceneVisualiser([pipe, water], cam) # Check positioning
     
     if test_case == TestCaseApp.AIR_DIFFUSE:
         print(f"--------------------------------\nTESTED CASE: AIR DIFFUSE\n--------------------------------")
@@ -80,7 +80,7 @@ def plate_test(test_case: TestCaseApp):
         pipe.set_surface(SurfType.FIELD_COLOR, material_type=MaterialType.REFRACTIVE, material=MaterialPresets.PLASTIC_ACRYLIC, priority=1)
         scene.add_rtmesh(pipe)
         water.set_surface(SurfType.FIELD_COLOR, material_type=MaterialType.REFRACTIVE, material=MaterialPresets.WATER, priority=0)
-        scene.add_rtmesh(pipe)
+        scene.add_rtmesh(water)
 
     # 4.Texture and speckle pattern information for the plate
     # The loaded texture is 2464 x 2056 px (5MPx), 8-bit .tiff; speckles sampled by 5 pixels
@@ -98,27 +98,43 @@ def plate_test(test_case: TestCaseApp):
     scale = spatial_scale(fov_height, image_height) # mm/px, so 1 px = this in mm; 0.0390625 in this case
     temp_frame_idx = object.timestep_count - 1 # Start checking displacements from the last frame
     displaced_frame_idx = 0
-    max_displacement = scale * 2 # Starting value to make sure this is always bigger 
-    while (max_displacement > scale):
+    max_displacement_mm = scale * 2 # Starting value to make sure this is always bigger 
+    while (max_displacement_mm > scale):
         total_displacements = object.node_coords_over_time[temp_frame_idx] - object.node_coords_over_time[0] # Displacement between t=frame_idx and t=0
-        max_displacement = np.max(total_displacements)
+        max_displacement_mm = np.max(total_displacements)
         displaced_frame_idx = temp_frame_idx
         temp_frame_idx -= 1
-    print(f"Displaced frame idx: {displaced_frame_idx}, with maximum displacement of {max_displacement} mm, which is less than the scale 1 px = {scale} mm")
+    print(f"Displaced frame idx: {displaced_frame_idx}, with maximum displacement of {max_displacement_mm} mm, which is less than the scale 1 px = {scale} mm")
+    # If max displacement is below 0.5 px, we scale it to 1.0 px
+    if max_displacement_mm <= 0.5 * scale:
+        target_displ_px = 1.0 # Target displacement in px
+        target_mm = scale * target_displ_px
+        factor = target_mm / max_displacement_mm
+        #print(f"Scaling factor = {factor}")
+        disp = object.node_coords_over_time[displaced_frame_idx] - object.node_coords_over_time[0]
+        scaled_disp = disp * factor
+        object.node_coords_over_time[displaced_frame_idx] = (object.node_coords_over_time[0] + scaled_disp)
+        # Recompute displacement to verify appropriate scaling
+        disp_check = object.node_coords_over_time[displaced_frame_idx] - object.node_coords_over_time[0]
+        max_disp_mm_check = np.max(np.linalg.norm(disp_check, axis=-1))
+        max_disp_px_check = max_disp_mm_check / scale
+        print(f"Scaled max displacement: {max_disp_mm_check} mm, {max_disp_px_check} px")
+
     # 5. Render
     scene.add_camera(cam)
     scene_deformed = deepcopy(scene)
 
     fresh_filename = "rtimage_0_cam0.bmp"
     # Render undeformed image
-    #render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
-    #new_filename = "rtimage_frame0.bmp"
-    #os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
+    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    new_filename = "rtimage_frame0.bmp"
+    os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
     # Render deformed image
-    #render_scene(image_height, image_width, scene_deformed, anti_alias, target_path, RenderType.STATIC, frames_to_render=displaced_frame_idx, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
-    #new_filename = f"rtimage_frame{displaced_frame_idx}.bmp"
-    #os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
+    render_scene(image_height, image_width, scene_deformed, anti_alias, target_path, RenderType.STATIC, frames_to_render=displaced_frame_idx, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    new_filename = f"rtimage_frame{displaced_frame_idx}.bmp"
+    os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
 
 
+# Run 3 cases, then shove them into DIC engine, that's it
 #plate_test(TestCaseApp.AIR_DIFFUSE)
    

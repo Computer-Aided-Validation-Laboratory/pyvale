@@ -78,7 +78,7 @@ image_width_phs6 = 1024  # px; max resolution
 image_height_phs6 = 1024  # px; max resolution, PH6 record squares
 sensor_height_phs6 = 20.48 # mm
 lens_focal_length_phs6 = 100 # mm; based on the lens I used
-pixel_pitch_ph6 = 20 # mm; 20 um
+pixel_pitch_ph6 = 0.020 # mm; 20 um
 
 
 # Need to set camera_target, camera_center, and angle_vertical_view depending on the test

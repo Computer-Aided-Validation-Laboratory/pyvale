@@ -6,24 +6,29 @@ from pathlib import Path
 # IMPORTANT USER INPUTS
 # ==========================================
 
-OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "beam"
+OUT_DIR = PARENT_DIR = Path(__file__).resolve().parent / "beam"/"exp_coarse"
 
 # Beam dimensions
 # Box(1) = {0, 0, 0, 12, 1, 144}; // 12 mm wide, 1 mm thick, 144 mm long beam
+# For convergence
 LX = 12.0 # mm
 LY = 48.0 # mm; length WITHOUT the T-head holding it
+LZ = 0.9 # mm
+# For experimental test
+LX = 12.11 # mm
+LY = 50.0 # mm; length WITHOUT the T-head holding it
 LZ = 0.9 # mm
 
 # Characteristic lengths for unstructured meshing
 # THIS ACTUALLY AFFECTS THE REFINEMENT
 
 # Coarse
-#MESH_SIZE_MIN = 0.5
-#MESH_SIZE_MAX = 0.5
+MESH_SIZE_MIN = 0.5
+MESH_SIZE_MAX = 0.5
 
 # Med-fine
-MESH_SIZE_MIN = 0.35
-MESH_SIZE_MAX = 0.35
+#MESH_SIZE_MIN = 0.35
+#MESH_SIZE_MAX = 0.35
 
 # Fine
 #MESH_SIZE_MIN = 0.2

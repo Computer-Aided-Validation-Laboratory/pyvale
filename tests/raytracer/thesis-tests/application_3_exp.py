@@ -42,10 +42,8 @@ class ExpTest:
     frame_range_end: tuple | None = field(default_factory=None)  # For static frames after motion; None is for static case where we consider all frames
     measured_displ_mm: float = 0.0 # Real mm displacement from the micrometer stage
 
-ri_matching_fluid = Material(np.zeros(3), 1.49) # Optimistically assuming it hasn't turned yellow yet
-
 class ExpTests:
-    STATIC = ExpTest(label_file = "static", label_plot = "static", color = "#ead6c2",
+    STATIC = ExpTest(label_file = "static", label_plot = "static", color = "#917457",
                      data_source_dir = base_input_dir / "Calibration/static01b_C001H001S0001/static01b_C001H001S0001",
                      output_save_dir = OUTPUT_DIR_PATH / "static",
                      frame_range_start = (1,300), frame_range_end = None, measured_displ_mm = 0.0)
@@ -73,6 +71,14 @@ class ExpTests:
                      data_source_dir = base_input_dir / "Dry/sidDyn03b_C001H001S0001/sidDyn03b_C001H001S0001",
                      output_save_dir = OUTPUT_DIR_PATH / "air_tank",
                      frame_range_start = (1,36), frame_range_end = (1044,1116), measured_displ_mm = 3.000)
+    AIR_BOTH_A = ExpTest(label_file = "air_both_a", label_plot = "empty tank and pipe (Run A)", color = "#ead6c2",
+                     data_source_dir = base_input_dir / "Dry/sidDyn04a_C001H001S0001/sidDyn04a_C001H001S0001",
+                     output_save_dir = OUTPUT_DIR_PATH / "air_both",
+                     frame_range_start = (1,40), frame_range_end = (1220, 1266), measured_displ_mm = 3.0003)
+    AIR_BOTH_B = ExpTest(label_file = "air_both_b", label_plot = "empty tank and pipe (Run B)", color = "#ead6c2",
+                     data_source_dir = base_input_dir / "Dry/sidDyn04b_C001H001S0001/sidDyn04b_C001H001S0001",
+                     output_save_dir = OUTPUT_DIR_PATH / "air_both",
+                     frame_range_start = (1,42), frame_range_end = (883,919), measured_displ_mm = 3.000)
     FLUID_PIPE_A = ExpTest(label_file = "fluid_pipe_a", label_plot = "RI-matching fluid in pipe, air in tank (Run A)", color = "#b9e1d8",
                      data_source_dir = base_input_dir / "Fluid/sidDyn05a_C001H001S0001/sidDyn05a_C001H001S0001",
                      output_save_dir = OUTPUT_DIR_PATH / "fluid_pipe",
@@ -90,59 +96,103 @@ class ExpTests:
                      output_save_dir = OUTPUT_DIR_PATH / "fluid",
                      frame_range_start = (1,42), frame_range_end = (800,832), measured_displ_mm = 3.001)
     
+@dataclass(slots=True)
+class RTTest:
+    label_file: str = field(default_factory = None)
+    label_plot: str = field(default_factory = None)
+    color: str = field(default_factory = None)
+    output_save_dir: Path = field(default_factory = None)
+
+class RTTests:
+    AIR = RTTest(label_file = "air_rt", label_plot = "air (RT)", color = "#53424c",
+                 output_save_dir = ExpTests.AIR_A.output_save_dir)
+    AIR_PIPE = RTTest(label_file = "air_pipe_rt", label_plot = "empty pipe (RT)", color = "#c99fb6",
+                 output_save_dir = ExpTests.AIR_PIPE_A.output_save_dir)
+    AIR_TANK = RTTest(label_file = "air_tank_rt", label_plot = "empty tank (RT)", color = "#826f99",
+                 output_save_dir = ExpTests.AIR_TANK_A.output_save_dir)
+    AIR_BOTH = RTTest(label_file = "air_both_rt", label_plot = "empty tank and pipe (RT)", color = "#ead6c2",
+                 output_save_dir = ExpTests.AIR_BOTH_A.output_save_dir)
+    FLUID_PIPE = RTTest(label_file = "fluid_pipe_rt", label_plot = "RI-matching fluid in pipe, air in tank (RT)", color = "#b9e1d8",
+                 output_save_dir = ExpTests.FLUID_PIPE_A.output_save_dir)
+    FLUID = RTTest(label_file = "fluid_rt", label_plot = "RI-matching fluid in tank and pipe (RT)", color = "#5f9ea0",
+                 output_save_dir = ExpTests.FLUID_A.output_save_dir)
+        
 # DIC params
-subset_size = 29 # px
-step_size = 19 # px
-scale_factor = 20.24 # px
+SUBSET_SIZE = 29 # px
+STEP_SIZE = 19 # px
+SCALE_PX_MM = 20.24 # px/mm scaling factor for this particular test; 20.24 px/mm <=>  20.24 px = 1 mm
 # From experimental tests
-output_format = ImageFormat(output_format=OutputFormat.IMG_TIFF_8BIT, bit_depth = BitDepth.BIT_8, channel_count = ChannelCount.MONO, grayscale=True)
+OUTPUT_FORMAT = ImageFormat(output_format=OutputFormat.IMG_TIFF_8BIT, bit_depth = BitDepth.BIT_8, channel_count = ChannelCount.MONO, grayscale=True)
+ri_matching_fluid = Material(np.zeros(3), 1.49) # Optimistically assuming it hasn't turned yellow yet
     
 # ================================================================================
 # Histograms from ROI on experimental data
 # ================================================================================
-"""
-mask = np.loadtxt(OUTPUT_DIR_PATH / "roi.dat")        # shape (1024, 1024)
-mask = mask.astype(bool)                 # convert 0/1 -> False/True
+def read_and_match_histogram():
+    # Use static images for the texture histogram
+    static_path_in = ExpTests.STATIC.data_source_dir
+    static_path_out = ExpTests.STATIC.output_save_dir
+    mask = np.loadtxt(static_path_out / "static_roi.dat") # shape (1024, 1024)
+    mask = mask.astype(bool) # convert 0/1 -> False/True
 
-image = cv2.imread(str(full_path(IMG_ACCESS + "static01b_C001H001S0001000001.tif")), cv2.IMREAD_GRAYSCALE)
+    image = cv2.imread(str(static_path_in / "static01b_C001H001S0001000001.tif"), cv2.IMREAD_GRAYSCALE)
 
-# Sanity check
-assert image.shape == mask.shape
+    # Sanity check
+    assert image.shape == mask.shape
 
-roi_pixels = image[mask]                 # 1D array of pixel values in ROI only
-plt.hist(roi_pixels.ravel(), bins=256, range=(0, 255))
-plt.xlabel("Intensity")
-plt.ylabel("Count")
-plt.title("Histogram of ROI")
-plt.show()
+    roi_pixels = image[mask] # 1D array of pixel values in ROI only
+    hist_roi, bin_edges_roi = np.histogram(roi_pixels, bins=256, range=(0, 255))
+    plt.figure()
+    plt.plot(bin_edges_roi[:-1], hist_roi)
+    plt.xlabel("Intensity")
+    plt.ylabel("Count in ROI")
+    plt.title("ROI intensity histogram")
+    #plt.show()
 
-mask_uint8 = mask.astype("uint8") * 255  # OpenCV mask is 0 or 255
-hist = cv2.calcHist([image], [0], mask_uint8, [256], [0, 256])
+    # Load the pyvale speckle texture whose histogram I want to adjust
+    ref_texture = full_path("thesis-data/texture/speckle.tiff")
+    beam_texture = ImageTools.load_image_greyscale(ref_texture) # height, width np.array storing the texture
 
+    from skimage.exposure import match_histograms
+    # match_histograms expects a 2D array, so reshape
+    N = roi_pixels.size
+    side = int(np.ceil(np.sqrt(N)))
+    ref = np.zeros((side * side,), dtype=roi_pixels.dtype)
+    ref[:N] = roi_pixels
+    ref = ref.reshape((side, side)) # Synthetic reference image
 
-image = cv2.imread("image.png", cv2.IMREAD_COLOR)
-b, g, r = cv2.split(image)
+    # Match histograms
+    tex_matched = match_histograms(beam_texture, ref, channel_axis=None)
 
-roi_b = b[mask]
-roi_g = g[mask]
-roi_r = r[mask]
+    # Check 
+    # Old texture
+    hist_tex_old, bin_edges_tex_old = np.histogram(beam_texture.ravel(), bins=256, range=(0, 255))
+    plt.figure()
+    plt.plot(bin_edges_roi[:-1], hist_roi / hist_roi.sum(), label="ROI")
+    plt.plot(bin_edges_tex_old[:-1], hist_tex_old / hist_tex_old.sum(), label="Texture (original)")
+    plt.legend()
+    plt.xlabel("Intensity")
+    plt.ylabel("Probability")
+    plt.title("Histogram comparison before matching")
+    #plt.show()
+    plt.savefig(OUTPUT_DIR_PATH / "unmatched_histograms.png")
 
-plt.figure(figsize=(10, 4))
-plt.subplot(1, 3, 1)
-plt.hist(roi_b.ravel(), bins=256, range=(0, 255), color='b')
-plt.title("Blue ROI")
+    # New texture hist after matching
+    hist_tex, bin_edges_tex = np.histogram(tex_matched.ravel(), bins=256, range=(0, 255))
 
-plt.subplot(1, 3, 2)
-plt.hist(roi_g.ravel(), bins=256, range=(0, 255), color='g')
-plt.title("Green ROI")
+    plt.figure()
+    plt.plot(bin_edges_roi[:-1], hist_roi / hist_roi.sum(), label="ROI")
+    plt.plot(bin_edges_tex[:-1], hist_tex / hist_tex.sum(), label="Texture matched")
+    plt.legend()
+    plt.xlabel("Intensity")
+    plt.ylabel("Probability")
+    plt.title("Histogram match check")
+    #plt.show()
+    plt.savefig(OUTPUT_DIR_PATH / "matched_histograms.png")
 
-plt.subplot(1, 3, 3)
-plt.hist(roi_r.ravel(), bins=256, range=(0, 255), color='r')
-plt.title("Red ROI")
+    np.savetxt(OUTPUT_DIR_PATH / "matched_texture.npy", tex_matched)
 
-plt.tight_layout()
-#plt.show()
-"""
+#read_and_match_histogram()
 
 # ================================================================================
 # Average experimental images
@@ -187,9 +237,8 @@ def get_avg_experimental_images(test: ExpTest):
         image_end = average_image(test.data_source_dir, test.output_save_dir, test.frame_range_end[0], test.frame_range_end[1], f"{test.label_file}_{END_IMG_NAME}")
     
     
-#get_avg_experimental_images(ExpTests.AIR_B)
+#get_avg_experimental_images(ExpTests.AIR_PIPE_A)
     
-
 # ================================================================================
 # Noise floor heatmap plotter adapted to pyvale DIC from my old code for davis outputs (https://github.com/AnalogArnold/2D-DIC-heatmap)
 # ================================================================================
@@ -266,8 +315,7 @@ def create_single_heatmap(data_map, output_path, tick_jump=8, title="", cbar_lab
 
     sns.heatmap(data_map, cmap="viridis", square=True, ax=ax, cbar_kws={"label": cbar_label, "shrink": 0.7})
 
-    ax.set_title(title, fontsize=FONT_SIZES["suptitle"])
-    ax.invert_yaxis()
+    ax.set_title(title, fontsize=FONT_SIZES["suptitle"]-6)
     apply_reduced_ticks(ax, tick_jump=tick_jump)
     ax.set_xlabel("$x$ [px]")
     ax.set_ylabel("$y$ [px]")
@@ -362,6 +410,11 @@ def run_dic_experimental_noise_floor():
                         output_delimiter=",",
                         output_prefix=dic_results_prefix)
                
+
+# ================================================================================
+# DIC runners and plotters
+# ================================================================================
+
 def process_dic_noise_floor(plot_heatmaps=True, heatmap_tick_jump=8):
     test = ExpTests.STATIC
     # DIC files are stored as static_exp_dic_results_static01b_C001H001S0001000002
@@ -443,10 +496,10 @@ def process_dic_noise_floor(plot_heatmaps=True, heatmap_tick_jump=8):
     return df_all, stats_df, global_stats
 
 #run_dic_experimental_noise_floor()
-process_dic_noise_floor()            
+#process_dic_noise_floor()            
 
 
-def run_dic_experimental(test: ExpTest):
+def run_dic_experimental(test: ExpTest, save_plot: bool = True, convert_to_mm: bool = True):
     """
     Runs DIC on the experimental images.
     """
@@ -467,35 +520,53 @@ def run_dic_experimental(test: ExpTest):
         # Select and save ROI if file doesn't exist
         roi.interactive_selection(subset_size=29)
         roi.save_array(filename=roi_file,binary=False)
-
-    roi.read_array(filename=roi_file, binary=False)
-    dic.calculate_2d(reference=ref_img,
-                    deformed=def_img,
-                    roi_mask=roi.mask,
-                    seed=[400,400],
-                    subset_size=29,
-                    subset_step=19,
-                    shape_function="AFFINE",
-                    correlation_criteria="ZNSSD",
-                    output_basepath=test.output_save_dir,
-                    output_delimiter=",",
-                    output_prefix=dic_results_prefix)
     
     dic_files =  test.output_save_dir / f"{dic_results_prefix}*.csv"
+    # The above is a wildcard, so it will not work for the os.path.exists condition below
+    dic_filename_check = test.output_save_dir / f"{dic_results_prefix}def_img_0000.csv"
+
+    if not os.path.exists(dic_filename_check):
+        # Run DIC analysis if it doesn't exist 
+        roi.read_array(filename=roi_file, binary=False)
+        dic.calculate_2d(reference=ref_img,
+                        deformed=def_img,
+                        roi_mask=roi.mask,
+                        seed=[400,400],
+                        subset_size=SUBSET_SIZE,
+                        subset_step=STEP_SIZE,
+                        shape_function="AFFINE",
+                        correlation_criteria="ZNSSD",
+                        output_basepath=test.output_save_dir,
+                        output_delimiter=",",
+                        output_prefix=dic_results_prefix)
+    
+    # Read data
     dicdata = dic.import_2d(data=dic_files, delimiter=",", binary=False)
 
+    # Data for the first deformation image (and the only one in this case)
+    horizontal_displacement = dicdata.u[0]
+    vertical_displacement = dicdata.v[0]
+    unit = "[px]"
+    figure_filename = f"{test.label_file}_exp_dic_plot_px.png"
+    if convert_to_mm:
+        horizontal_displacement /= SCALE_PX_MM
+        vertical_displacement /= SCALE_PX_MM
+        unit = "[mm]"
+        figure_filename = f"{test.label_file}_exp_dic_plot_mm.png"
+
+    # Plot data
     fig, axes = plt.subplots(1, 2, figsize=(15, 10))
     axes = axes.flatten()
     cmap = "magma"
 
     # First deformation image
-    im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u[0], cmap=cmap)
-    im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[0], cmap=cmap)
+    im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, horizontal_displacement, cmap=cmap)
+    im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, vertical_displacement, cmap=cmap)
 
     # Titles
     fig.suptitle(f"Experimental DIC results\nTest case: {test.label_plot}", fontsize=FONT_SIZES["suptitle"])
-    axes[0].set_title("Horizontal displacement [px]", fontsize=FONT_SIZES["subtitle"])
-    axes[1].set_title("Vertical displacement [px]", fontsize=FONT_SIZES["subtitle"])
+    axes[0].set_title(f"$U_x$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Horizontal displacement
+    axes[1].set_title(f"$U_y$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Vertical displacement
 
     for aa in axes:
         aa.set_aspect('equal')
@@ -506,9 +577,177 @@ def run_dic_experimental(test: ExpTest):
 
     plt.tight_layout()
     plt.show()
-    fig.savefig(test.output_save_dir / "exp_dic_plot.png", dpi=300, bbox_inches="tight")
+    if save_plot:
+        fig.savefig(test.output_save_dir / figure_filename, dpi=300, bbox_inches="tight")
 
-    #20 px/mm   20 px = 1 mm
-    # 61 px displacement ~ 3 mm - ok makes senseee
+#run_dic_experimental(ExpTests.AIR_B, True, True)
 
-#run_dic_experimental(ExpTests.AIR)
+
+# ================================================================================
+# Ray tracer rendering
+# ================================================================================
+from convergence_common import * # Some functions for path, and tank positioning
+
+def render_exp_images(test: RTTest):
+    # 1. Paths to data, etc.
+    pipe_access = "thesis-data/" + Tank.PIPE + "/" + Refinement.COARSE # Point the correct mesh locatrions
+    tank_access = "thesis-data/" + Tank.RECTANGLE + "/" + Refinement.COARSE # Point the correct mesh locatrions
+    pipe_path = get_tank_path(pipe_access, Elements.TRI6)
+    tank_path = get_tank_path(tank_access, Elements.TRI6)
+    water_tank_path = get_fill_path(tank_access, Elements.TRI6)
+    water_pipe_path = get_fill_path(pipe_access, Elements.TRI6)
+    # Set the sample path
+    sample_element = Elements.TRI3
+    sample_name = "thesis-data/beam/exp_coarse/beam_surface_"
+    sample_path = full_path(sample_name + sample_element.label + ".vtk")
+    # Sample texture
+    ref_texture = full_path("thesis-data/texture/speckle.tiff") # ADJUST THIS 
+    #beam_texture = ImageTools.load_image_greyscale(ref_texture)
+    beam_texture = np.loadtxt(OUTPUT_DIR_PATH / "matched_texture.npy")
+    
+    # 2. Mesh set-up
+    scene = Scene()
+    TANK_BOTTOM_HEIGHT = 4.0 # mm; height of the bottom wall of the tank
+    TANK_HEIGHT = 95.0
+    PIPE_INN_BOTTOM_Y = -43.0
+    # Pipe and tank were created to begin at the same y, so now we need to move the pipe up so that:
+    # 1. Dry case: It touches the bottom of the tank inside, rather than going through it
+    PIPE_SHIFT_DRY = np.array([0.0, TANK_BOTTOM_HEIGHT, 0.0])
+    # 2. Fluid case: There is slight overlap (and water needs to be shifted accordingly)
+    PIPE_SHIFT_FLUID = np.array([0.0, TANK_BOTTOM_HEIGHT/1.5, 0.0])
+    # Beam needs to be lifted up as well
+
+    # Tank and pipe
+    pipe = any_mesh_to_rtmesh(pipe_path, world_position = TANK_POSITION, anchor = Anchor.CENTER)
+    tank = any_mesh_to_rtmesh(tank_path, world_position = TANK_POSITION, anchor = Anchor.CENTER)
+    beam_position = np.array([0.0, PIPE_INN_BOTTOM_Y, TANK_MID_Z])
+    beam = any_mesh_to_rtmesh(sample_path, world_position = beam_position, anchor = Anchor.BASE) 
+    beam.translate(PIPE_SHIFT_DRY)
+    
+    if test == RTTests.AIR_PIPE:
+        print(f"--------------------------------\nTESTED CASE: AIR PIPE\n--------------------------------")
+        pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID)
+        pipe.translate(PIPE_SHIFT_DRY)
+        scene.add_rtmesh(pipe)
+    elif test == RTTests.AIR_TANK:
+        print(f"--------------------------------\nTESTED CASE: AIR TANK\n--------------------------------")
+        tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID)
+        scene.add_rtmesh(tank)
+    elif test == RTTests.AIR_BOTH:
+        print(f"--------------------------------\nTESTED CASE: AIR BOTH\n--------------------------------")
+        # No nested dielectrics yet because there is air separating tank and pipe
+        pipe.translate(PIPE_SHIFT_DRY)
+        pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID)
+        tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                                material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID)
+        scene.add_rtmesh([pipe, tank])
+    elif test == RTTests.FLUID_PIPE:
+        print(f"--------------------------------\nTESTED CASE: FLUID_PIPE\n--------------------------------")
+        # First nested dielectric case
+        pipe.translate(PIPE_SHIFT_DRY)
+        pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID,
+                         priority = 1)
+        tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                                material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID,
+                                priority = 0)
+        # Add water fill to the pipe only
+        water_pipe = any_mesh_to_rtmesh(water_pipe_path, world_position = WATER_POSITION)
+        water_pipe.translate(PIPE_SHIFT_DRY)
+        water_pipe.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+                          material_type = MaterialType.REFRACTIVE,
+                          mesh_type = MeshType.SOLID,
+                          priority = 0) # Pipe is open-ended => Water needs to have higher priority
+        scene.add_rtmesh([pipe, tank, water_pipe])
+    elif test == RTTests.FLUID:
+        # Very nested case - tinker carefully
+        # Order of dielectrics
+        # tank -> water_tank -> pipe -> water_pipe, BUT all are open-ended, so we need to reverse it
+        # Pipe might need to be moved down to intersect with the tank
+        print(f"--------------------------------\nTESTED CASE: FLUID\n--------------------------------")
+        pipe.translate(PIPE_SHIFT_FLUID)
+        pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID,
+                         priority = 1)
+        tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                        material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID,
+                        priority = 3)
+        # Add water fills
+        water_pipe = any_mesh_to_rtmesh(water_pipe_path, world_position = WATER_POSITION)
+        water_pipe.translate(PIPE_SHIFT_FLUID)
+        water_pipe.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+                          material_type = MaterialType.REFRACTIVE,
+                          mesh_type = MeshType.SOLID,
+                          priority = 0) # Pipe is open-ended => Water needs to have higher priority
+        water_tank = any_mesh_to_rtmesh(water_tank_path, world_position = WATER_POSITION)
+        water_tank.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+                          material_type = MaterialType.REFRACTIVE,
+                          mesh_type = MeshType.SOLID,
+                          priority = 2) # Pipe is open-ended => Water needs to have higher priority
+        scene.add_rtmesh([pipe, tank, water_pipe, water_tank])
+
+    # Check positioning - VERY IMPORTANT HERE
+    #SceneVisualiser([pipe, tank, beam])
+    #SceneVisualiser([pipe, tank, water_pipe])
+    #SceneVisualiser([pipe, tank, water_tank])
+    #SceneVisualiser([pipe, tank, water_pipe, water_tank])
+
+    # 3. Set camera data
+    # Data for Photron Nova S6
+    anti_alias = 1
+    image_width = image_width_phs6
+    image_height = image_width_phs6
+    output_format = output_format_phs6
+    focal_length = 100 # mm
+    CAMERA_DISTANCE = 1800 # mm; 1800 gives similar-ish scaling, but in reality it was more like 240
+    TARGET_DISTANCE = CAMERA_DISTANCE - focal_length #mm
+    beam_center_coords = beam._get_bounding_box()["center"]
+    beam_center_y = beam_center_coords[1]
+    camera_center = np.array([0.0, beam_center_y+2, CAMERA_DISTANCE])
+    camera_target = np.array([0.0, beam_center_y+2, TARGET_DISTANCE])
+    #target_distance = camera_distance - focal_length
+    #camera_distance = camera_working_distance(focal_length, fov_height, sensor_height_phs6)
+    # Sanity check for camera distance by reverse engineering it based on the beam size from experimental data
+    #beam_width = 12.11 # mm
+    #pixel_pitch = pixel_pitch_ph6
+    #pixel_count_width = 248 # px
+    #est_cam_dist = beam_width * focal_length / (pixel_pitch * pixel_count_width)
+    #print(f"Estimated camera distance: {est_cam_dist}")
+    # Beam was at line 280 mm on the table
+    # Lens finished slightly before the 100 mm line
+
+    # Angle vfov is in degrees
+    angle_vfov = vertical_fov_from_resolution(image_height, SCALE_PX_MM, CAMERA_DISTANCE)
+    print(f"Angle vfov with LV calibration: {angle_vfov}")
+    angle_vfov = vertical_fov_from_resolution(image_height, 20.4789, CAMERA_DISTANCE)
+    print(f"Angle vfov from beam width (manual): {angle_vfov}")
+    #angle_vfov = 20
+    cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
+    scene.add_camera(cam)
+
+    #SceneVisualiser([pipe, tank, beam], cam)
+
+    # 4. Create mock displacement for the beam
+    frame_count = 2
+    total_displacement = 3.000 # in mm
+    beam_nodal_displacements = create_rigid_linear_translation(beam.node_count, frame_count, total_displacement, Axis.X)
+    beam.add_temporal_displacement(beam_nodal_displacements)
+
+    # 5. Texture and speckle pattern information for the beam
+    # The loaded texture is 2464 x 2056 px (5MPx), 8-bit .tiff; speckles sampled by 5 pixels
+    # Adjust it to our resolution of 1 MPx and the experimental speckle sizes by scaling the UVs
+    beam.import_uvs(sample_uv_path(sample_path, sample_element)) # Load pre-processed UVs
+    beam.set_surface(SurfType.TEXTURE, beam_texture, MaterialType.DIFFUSE)
+    # Scale the UVs to get 3.5 px speckles in the rendered images
+    uv_scale = speckle_scaling(image_width, image_height, 2464, 2056, 5, 3.5) # Returns [delta_u, delta_v] array
+    beam.uvs = beam.uvs * uv_scale
+    scene.add_rtmesh(beam)
+
+    target_path = test.output_save_dir
+    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+
+
+render_exp_images(RTTests.AIR)
