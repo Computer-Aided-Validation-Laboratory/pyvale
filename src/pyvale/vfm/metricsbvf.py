@@ -18,6 +18,7 @@ from pyvale.vfm.normalisation import (
 )
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 from pyvale.vfm.vfmesh import (
+    GlobalVirtualFields,
     VirtualFieldsMesh,
     generate_virtual_fields_from_mesh,
     generate_virtual_fields_mesh,
@@ -47,6 +48,12 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
     _internal_virtual_work: npt.NDArray[np.float64] | None
     _external_virtual_work: npt.NDArray[np.float64] | None
 
+    # Cached sensitivity-based virtual fields. They are (re)computed when the
+    # cache is None or when _recompute_virtual_fields is True, and otherwise
+    # reused across evaluations to avoid recomputing the stress sensitivities.
+    _sensitivity_based_virtual_fields: list[GlobalVirtualFields] | None
+    _recompute_virtual_fields: bool
+
     def __init__(
         self,
         x: npt.NDArray[np.float64],
@@ -72,6 +79,9 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         self._internal_virtual_work = None
         self._external_virtual_work = None
 
+        self._sensitivity_based_virtual_fields = None
+        self._recompute_virtual_fields = True
+
     def evaluate(
         self,
         stress: npt.NDArray[np.float64],
@@ -81,26 +91,34 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         experiment_data: ExperimentData,
     ) -> npt.NDArray[np.float64]:
 
-        # Compute stress sensitivites for each DOF or constitutive parameter (depending on perturbation type)
-        stress_sensitivities = self.calculate_stress_sensitivities(
-            experiment_data.strain,
-            stress,
-            constitutive_law,
-            parameter_map_size,
-            spatial_parameterisations,
-            experiment_data.delta_timesteps,
-            perturbation_type = "constitutive_parameter",
-        )
-        
-        # Generate sensitivity-based virtual fields (SBVF) from stress sensitivities
-        sensitivity_based_virtual_fields = []
-        for stress_sensitivity in stress_sensitivities:
-            sensitivity_based_virtual_fields.append(
-                generate_virtual_fields_from_mesh(
-                    stress_sensitivity.total,  # TODO: option to use incremental stress sensitivities
-                    self.virtual_fields_mesh
-                )
+        if (
+            self._sensitivity_based_virtual_fields is None
+            or self._recompute_virtual_fields
+        ):
+            # Compute stress sensitivites for each DOF or constitutive parameter (depending on perturbation type)
+            stress_sensitivities = self.calculate_stress_sensitivities(
+                experiment_data.strain,
+                stress,
+                constitutive_law,
+                parameter_map_size,
+                spatial_parameterisations,
+                experiment_data.delta_timesteps,
+                perturbation_type = "constitutive_parameter",
             )
+
+            # Generate sensitivity-based virtual fields (SBVF) from stress sensitivities
+            sensitivity_based_virtual_fields = []
+            for stress_sensitivity in stress_sensitivities:
+                sensitivity_based_virtual_fields.append(
+                    generate_virtual_fields_from_mesh(
+                        stress_sensitivity.total,  # TODO: option to use incremental stress sensitivities
+                        self.virtual_fields_mesh
+                    )
+                )
+
+            self._sensitivity_based_virtual_fields = sensitivity_based_virtual_fields
+        else:
+            sensitivity_based_virtual_fields = self._sensitivity_based_virtual_fields
 
         # Reshape pixel area to be broadcastable with stress and virtual strain arrays
         pixel_area = experiment_data.specimen_geometry.pixel_area[np.newaxis, np.newaxis, :, :]
