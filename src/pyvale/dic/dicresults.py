@@ -16,10 +16,10 @@ class StereoResults:
     """
     
     u_px: np.ndarray
-    """Horizontal displacement to the right image. shape=(img_num,y,x)"""
+    """Horizontal displacement in pixels to the right image. shape=(img_num,y,x)"""
 
     v_px: np.ndarray
-    """Vertical displacement to the right image. shape=(img_num,y,x)"""
+    """Vertical displacement in pixels to the right image. shape=(img_num,y,x)"""
 
     u_mm: np.ndarray
     """Horizontal displacement in physical units of mm relative in cam0 world coordinate system. shape=(img_num,y,x)"""
@@ -71,11 +71,11 @@ class Results:
     ss_y: np.ndarray
     """The y-coordinates of the subset centers (in pixels). shape=(img_num,y,x)"""
 
-    u: np.ndarray
-    """Horizontal displacements at each subset location. shape=(img_num,y,x)"""
+    u_px: np.ndarray
+    """Horizontal displacements in pixels at each subset location. shape=(img_num,y,x)"""
 
-    v: np.ndarray
-    """Vertical displacements at each subset location. shape=(img_num,y,x)"""
+    v_px: np.ndarray
+    """Vertical displacements in pixels at each subset location. shape=(img_num,y,x)"""
 
     u_mm: np.ndarray | None = None
     """Horizontal displacement in physical units of mm relative in cam0 world coordinate system. shape=(img_num,y,x)"""
@@ -89,8 +89,8 @@ class Results:
     y_mm: np.ndarray | None = None
     """Y-coordinate in physical units of mm relative in cam0 world coordinate system. shape=(img_num,y,x)"""
 
-    mag: np.ndarray | None = None
-    """Displacement magnitude at each subset location, typically computed as sqrt(u^2 + v^2). shape=(img_num,y,x)"""
+    mag_px: np.ndarray | None = None
+    """Displacement magnitude in mm at each subset location, typically computed as sqrt(u^2 + v^2). shape=(img_num,y,x)"""
 
     converged: np.ndarray | None = None
     """boolean value for whether the subset has converged or not. shape=(img_num,y,x)"""
