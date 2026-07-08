@@ -106,7 +106,7 @@ namespace common_util {
     class Timer
     {
     public:
-        Timer(const std::string& label, int level = 1)
+        Timer(const std::string& label, int level = 2)
             : label_(label),
             enabled_(g_debug_level >= level),
             start_(std::chrono::high_resolution_clock::now())

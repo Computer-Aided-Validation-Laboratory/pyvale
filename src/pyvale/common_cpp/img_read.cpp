@@ -23,7 +23,7 @@
 Image read_img(const std::string& fullpath) {
 
 
-    common_util::Timer time("to read " +std::filesystem::path(fullpath).filename().string() + ":");
+    common_util::Timer time("to read " +std::filesystem::path(fullpath).filename().string() + ":", 2);
 
     // Find extension
     auto dotPos = fullpath.find_last_of('.');
