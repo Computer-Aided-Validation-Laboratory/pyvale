@@ -265,6 +265,8 @@ namespace stereo {
                                                   const Eigen::Matrix3d &F,
                                                   const Interpolator &interp_ref,
                                                   const Interpolator &interp_def,
+                                                  const double offset_x,
+                                                  const double offset_y,
                                                   const bool print){
 
         const int px_hori = interp_def.px_hori;
@@ -287,7 +289,7 @@ namespace stereo {
 
         // equation of epipolar line for the corner
         Eigen::Vector2d closest_point, dir;
-        stereo::compute_epi(closest_point, dir, cx, cy, F);
+        stereo::compute_epi(closest_point, dir, cx + offset_x, cy + offset_y, F);
 
 
 

@@ -42,7 +42,8 @@ void singlewindow_rg(const Interpolator &interp_ref,
                      const ResultArrays &results_ref,
                      ResultArrays &results_def,
                      const std::string &mode,
-                     const std::optional<Eigen::Matrix3d> &F){
+                     const std::optional<Eigen::Matrix3d> &F,
+                     const std::optional<ResultArrays> &results_def_l){
 
 
 
@@ -67,10 +68,10 @@ void singlewindow_rg(const Interpolator &interp_ref,
     };
 
 
-    auto get_initial_guess_stereo = [&](std::vector<double> &p, double cx, double cy, bool print) {
+    auto get_initial_guess_stereo = [&](std::vector<double> &p, double cx, double cy, double offset_x, double offset_y, bool print) {
             stereo::get_rigid_translation_from_rectified_fft(p, cx, cy, ss_size_x, ss_size_y,
                                                                 2*conf.epi_distance, ss_size_y, F.value(),
-                                                                interp_ref, interp_def, print);
+                                                                interp_ref, interp_def, offset_x, offset_y, print);
     };
 
     std::string bar_title = mode + " \033[1;4m" + conf.basenames[img_num_ref] +
@@ -168,7 +169,9 @@ void singlewindow_rg(const Interpolator &interp_ref,
                         get_initial_guess_temporal(*fft_double, opt.p, max_val, cx, cy, false);
                     }
                 }
-                if (mode=="stereo") get_initial_guess_stereo(opt.p, cx, cy, false);
+                if (mode=="stereo") {
+                    get_initial_guess_stereo(opt.p, cx, cy, results_def_l->u[idx], results_def_l->v[idx], false);
+                }
 
 
                 // run optimizer

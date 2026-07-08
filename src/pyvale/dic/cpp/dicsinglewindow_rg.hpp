@@ -34,7 +34,8 @@ void singlewindow_rg(const Interpolator &interp_ref,
                      const ResultArrays &results_ref,
                      ResultArrays &results_def,
                      const std::string &mode="temporal",
-                     const std::optional<Eigen::Matrix3d> &F=std::nullopt);
+                     const std::optional<Eigen::Matrix3d> &F=std::nullopt,
+                     const std::optional<ResultArrays> &results_def_l=std::nullopt);
 
 
 #endif //DICSINGLEWINDOW_RG_H

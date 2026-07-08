@@ -442,7 +442,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                 results_ref_l,
                                 results_def_r,
                                 "stereo",
-                                stereo_geom.F);
+                                stereo_geom.F,
+                                results_def_l);
 
                 stereo::pixel_to_world(multiwindow_l.back().layout,
                                     calib,

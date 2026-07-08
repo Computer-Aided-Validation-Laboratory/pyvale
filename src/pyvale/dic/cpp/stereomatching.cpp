@@ -59,7 +59,7 @@ void matching(const Image &img_l,
         auto get_initial_guess = [&](std::vector<double> &p, double cx, double cy, bool print) {
             stereo::get_rigid_translation_from_rectified_fft(p, cx, cy, ss_size_x, ss_size_y,
                                                              2*conf.max_disp, ss_size_y, F,
-                                                             interp_l, interp_r, print);
+                                                             interp_l, interp_r, 0.0, 0.0, print);
         };
 
         std::string bar_title = "Stereo \033[1;4m" + conf.basenames[img_num_def_l] +

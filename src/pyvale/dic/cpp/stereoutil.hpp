@@ -255,6 +255,8 @@ namespace stereo {
     * @param window_size_y FFT window height.
     * @param img_ref Pointer to reference image buffer.
     * @param interp_def Interpolator for the deformed image.
+    * @param offset_x Offset from reference left subset centre to current left centre.
+    * @param offset_y Offset from reference left subset centre to current left centre.
     */
     void get_rigid_translation_from_rectified_fft(std::vector<double> &p,
                                                   const double cx, const double cy,
@@ -263,6 +265,8 @@ namespace stereo {
                                                   const Eigen::Matrix3d &F,
                                                   const Interpolator &interp_ref,
                                                   const Interpolator &interp_def,
+                                                  const double offset_x=0.0,
+                                                  const double offset_y=0.0,
                                                   const bool print=false);
 
     /**
