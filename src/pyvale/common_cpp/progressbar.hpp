@@ -3,12 +3,20 @@
 
 // STD header files
 #include <string>
+#include <cstddef>
 #include <chrono>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
 #include <cmath>
 #include <algorithm>
+#include <cstdio>
+
+#if defined(_WIN32)
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 #include "./util.hpp"
 
@@ -21,6 +29,7 @@ private:
     std::chrono::steady_clock::time_point last_update_time;
     int last_iter;
     bool started;
+    std::size_t last_progress_chars;
 
     static constexpr int BAR_WIDTH = 36;
 
@@ -31,7 +40,8 @@ public:
           total_iterations(total_iters),
           current_iter(0),
           last_iter(0),
-          started(false) {}
+          started(false),
+          last_progress_chars(0) {}
 
     // Update progress
     void update(int iteration) {
@@ -43,10 +53,8 @@ public:
 
             std::string time = "[" + common_util::current_datetime_ms() +"] ";
 
-            // Print message line once — never overwritten
+            // Print message line once; keep the progress line open for carriage-return updates.
             std::cout << time << message << "\n";
-            // Print empty progress line so the first \033[1A has a line to go up to
-            std::cout << "\n" << std::flush;
         }
 
         current_iter = iteration;
@@ -77,11 +85,15 @@ public:
                  << std::setprecision(2)
                  << "Time: " << std::setw(10) << time_str;
 
-        // Move up 1 to overwrite only the progress line, never the message line
-        std::cout << "\033[1A"   // move up 1 line
-                  << "\r\033[K"  // clear line
-                  << progress.str() << "\n"
+        const std::string progress_line = progress.str();
+        const std::size_t padding =
+            last_progress_chars > progress_line.size()
+                ? last_progress_chars - progress_line.size()
+                : 0;
+
+        std::cout << "\r" << progress_line << std::string(padding, 32)
                   << std::flush;
+        last_progress_chars = progress_line.size();
     }
 
     // Increment helper
@@ -91,7 +103,9 @@ public:
 
     // Finish — leaves both message and progress bar visible, cursor on new line
     void finish() {
-        //std::cout << std::endl;
+        if (started) {
+            std::cout << "\n" << std::flush;
+        }
         show_cursor();
     }
 
@@ -100,6 +114,7 @@ public:
         current_iter = 0;
         last_iter = 0;
         started = false;
+        last_progress_chars = 0;
     }
 
 private:
@@ -144,11 +159,23 @@ private:
     }
 
     static void hide_cursor() {
-        std::cout << "\033[?25l" << std::flush;
+        if (is_terminal()) {
+            std::cout << "\033[?25l" << std::flush;
+        }
     }
 
     static void show_cursor() {
-        std::cout << "\033[?25h" << std::flush;
+        if (is_terminal()) {
+            std::cout << "\033[?25h" << std::flush;
+        }
+    }
+
+    static bool is_terminal() {
+#if defined(_WIN32)
+        return _isatty(_fileno(stdout)) != 0;
+#else
+        return isatty(fileno(stdout)) != 0;
+#endif
     }
 };
 
