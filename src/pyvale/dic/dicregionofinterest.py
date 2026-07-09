@@ -57,6 +57,8 @@ class RegionOfInterest:
 
         self.mask = np.zeros(self.ref_image.shape[:2], dtype=bool)
         self.seed = []
+        self.seed_rois = []
+        self.seed_roi = None
         self.__roi_selected = False
         self.roi_list = []
         self.add_list = []
@@ -83,7 +85,7 @@ class RegionOfInterest:
 
         self.height = None
         self.width = None
-        self.subset_size = None
+        self.subset_size = 21
         self.coord_label = None
 
     def interactive_selection(self):
@@ -197,7 +199,7 @@ class RegionOfInterest:
                 seed_input.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
                 
                 # Default subset size
-                seed_input.setText("21")
+                seed_input.setText(str(self.subset_size))
 
                 # Restrict to integer input
                 validator = QtGui.QIntValidator(1, 999)
@@ -209,15 +211,26 @@ class RegionOfInterest:
                     if text.isdigit():
                         val = int(text)
                         if val % 2 == 0:  # Convert even → odd
-                            seed_input.setText(str(val + 1))
+                            val += 1
+                            seed_input.setText(str(val))
                         
                         self.subset_size = val
-                        if hasattr(self, 'seed_roi') and self.seed_roi is not None:
-                            # Compute current center of existing ROI
-                            old_rect = self.seed_roi.pos()
-                            center = QtCore.QPointF(old_rect.x() + self.subset_size / 2,
-                                                    old_rect.y() + self.subset_size / 2)
-                            self._draw_seed_roi(center, fill_array, temp_mask)
+                        if self.seed_rois:
+                            centers = []
+                            for seed_roi in self.seed_rois:
+                                try:
+                                    old_rect = seed_roi.pos()
+                                    old_size = seed_roi.size()
+                                except RuntimeError:
+                                    continue
+                                centers.append(QtCore.QPointF(old_rect.x() + old_size.x() / 2,
+                                                              old_rect.y() + old_size.y() / 2))
+                                self._remove_graphics_item(seed_roi)
+
+                            self.seed_rois = []
+                            self.seed_roi = None
+                            for center in centers:
+                                self._draw_seed_roi(center, fill_array, temp_mask)
 
                 seed_input.editingFinished.connect(enforce_odd)
 
@@ -362,6 +375,8 @@ class RegionOfInterest:
         """Finish current drawing/removing mode."""
         self._reset_all_modes()
         self.main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        if 'add_seed' in self.buttons:
+            self.buttons['add_seed'].setEnabled(True)
         self._clear_redo_stack()
 
     def _mouse_clicked(self, event, fill_array: np.ndarray, temp_mask: np.ndarray) -> None:
@@ -393,20 +408,8 @@ class RegionOfInterest:
 
 
     def _draw_seed_roi(self, center_pos, fill_array, temp_mask):
-        """
-        Draw or redraw the seed ROI with current subset_size.
-        center_pos: QPointF in scene coordinates. If None, uses previous ROI center.
-        """
-        if hasattr(self, 'seed_roi') and self.seed_roi is not None:
-            # Save old center
-            old_rect = self.seed_roi.pos()
-            self.main_view.removeItem(self.seed_roi)
-            if center_pos is None:
-                center_pos = QtCore.QPointF(old_rect.x() + self.subset_size / 2,
-                                            old_rect.y() + self.subset_size / 2)
-
+        """Draw a seed ROI with current subset_size."""
         if center_pos is None:
-            # No previous position; nothing to draw
             return
 
         x = math.floor(center_pos.x() - self.subset_size / 2)
@@ -425,8 +428,9 @@ class RegionOfInterest:
             seed_roi.removeHandle(handle)
 
         self.main_view.addItem(seed_roi)
-        self.seed_roi = seed_roi#
-        self.seed_roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
+        self.seed_rois.append(seed_roi)
+        self.seed_roi = seed_roi
+        seed_roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
         self._redraw_fill_layer(fill_array, temp_mask)
 
     def _handle_seed_click(self, event, fill_array, temp_mask):
@@ -543,7 +547,7 @@ class RegionOfInterest:
     def _redraw_fill_layer(self, fill_array: np.ndarray, temp_mask: np.ndarray) -> None:
         """Redraw the fill layer based on current ROIs."""
 
-        has_seed = hasattr(self, 'seed_roi') and self.seed_roi is not None
+        has_seed = bool(self.seed_rois)
 
         if not self.roi_list and not has_seed:
             fill_array.fill(0)
@@ -569,10 +573,10 @@ class RegionOfInterest:
         #fill_array[:, :, 3] = np.flip(temp_mask,axis=0) * 80
         fill_array[:, :, 3] = temp_mask * 80
 
-        # Yellow fill for seed ROI
-        if has_seed:
-            pos = self.seed_roi.pos()
-            size = self.seed_roi.size()
+        # Yellow fill for seed ROIs
+        for seed_roi in self.seed_rois:
+            pos = seed_roi.pos()
+            size = seed_roi.size()
             x, y = int(pos[0]), int(pos[1])
             w, h = int(size[0]), int(size[1])
             
@@ -658,6 +662,13 @@ class RegionOfInterest:
         self.undo_list = []
         self._update_button_states()
 
+    def _remove_graphics_item(self, item) -> None:
+        """Remove a pyqtgraph item, tolerating stale Qt wrappers."""
+        try:
+            self.main_view.removeItem(item)
+        except RuntimeError:
+            pass
+
     def _undo_last(self, fill_array: np.ndarray, temp_mask: np.ndarray):
         """Undo the last ROI operation."""
         if self.roi_list:
@@ -695,13 +706,14 @@ class RegionOfInterest:
                 for roi, add in zip(self.roi_list, self.add_list)
             ]
 
-            # add ROI to serialized data
-            if hasattr(self, 'seed_roi'):
-                self._finalize_seed_selection()
+            # add seed ROIs to serialized data
+            for seed_roi in self.seed_rois:
+                pos = seed_roi.pos()
+                size = seed_roi.size()
                 seed_data = {
                     'type': 'SeedROI',
-                    'pos': [self.seed[0], self.seed[1]],
-                    'size': [self.subset_size, self.subset_size],
+                    'pos': [int(np.floor(pos.x())), int(np.floor(pos.y()))],
+                    'size': [int(size.x()), int(size.y())],
                     'add': True
                 }
                 serialized.append(seed_data)
@@ -724,7 +736,10 @@ class RegionOfInterest:
             self.roi_list = []
             self.add_list = []
 
-            self.seed_roi = None  # Clear existing seed
+            for seed_roi in self.seed_rois:
+                self._remove_graphics_item(seed_roi)
+            self.seed_rois = []
+            self.seed_roi = None
 
             for entry in data:
                 if entry.get('type') == 'SeedROI':
@@ -734,14 +749,19 @@ class RegionOfInterest:
                     w,h = entry.get('size', [21, 21])  # fallback default
                     #y = self.width-y
                     print(x,y,w,h)
-                    self.seed_roi = pg.RectROI(
+                    seed_roi = pg.RectROI(
                         [x, y], [w, h],
                         pen=pg.mkPen('b', width=3),
                         hoverPen=pg.mkPen('y', width=3),
                         handlePen='#0000',
                         handleHoverPen='#0000'
                     )
-                    self.main_view.addItem(self.seed_roi)
+                    for handle in seed_roi.getHandles():
+                        seed_roi.removeHandle(handle)
+                    self.seed_rois.append(seed_roi)
+                    self.seed_roi = seed_roi
+                    self.main_view.addItem(seed_roi)
+                    seed_roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_layer, temp_mask))
 
                 else:
                     # Restore standard ROI
@@ -828,11 +848,12 @@ class RegionOfInterest:
         """Process the final mask and seed location."""
         #mask = np.flipud(temp_mask.T)
 
-        if hasattr(self, 'seed_roi'):
-            pos = self.seed_roi.pos()
+        self.seed = []
+        for seed_roi in self.seed_rois:
+            pos = seed_roi.pos()
             x = int(np.floor(pos.x()))
             y = int(np.floor(pos.y()))
-            self.seed = [x, y]
+            self.seed.extend([x, y])
 
             #if not mask[y, x]:
             #    raise ValueError(f"Seed location [{x}, {y}] is not within the mask")
@@ -1040,13 +1061,14 @@ class RegionOfInterest:
                 for roi, add in zip(self.roi_list, self.add_list)
             ]
 
-            # add ROI to serialized data
-            if hasattr(self, 'seed_roi'):
-                self._finalize_seed_selection()
+            # add seed ROIs to serialized data
+            for seed_roi in self.seed_rois:
+                pos = seed_roi.pos()
+                size = seed_roi.size()
                 seed_data = {
                     'type': 'SeedROI',
-                    'pos': [self.seed[0], self.seed[1]],
-                    'size': [self.subset_size, self.subset_size],
+                    'pos': [int(np.floor(pos.x())), int(np.floor(pos.y()))],
+                    'size': [int(size.x()), int(size.y())],
                     'add': True
                 }
                 serialized.append(seed_data)
@@ -1086,7 +1108,10 @@ class RegionOfInterest:
             self.roi_list = []
             self.add_list = []
 
-            self.seed_roi = None  # Clear existing seed
+            for seed_roi in self.seed_rois:
+                self._remove_graphics_item(seed_roi)
+            self.seed_rois = []
+            self.seed_roi = None
 
             for entry in data:
                 if entry.get('type') == 'SeedROI':
@@ -1094,14 +1119,19 @@ class RegionOfInterest:
                     x, y = entry['pos']
                     #y = self.width-y
                     size = entry.get('size', [10, 10])  # fallback default
-                    self.seed_roi = pg.RectROI(
+                    seed_roi = pg.RectROI(
                         [x, y], size,
                         pen=pg.mkPen('y', width=3),
                         hoverPen=pg.mkPen('b', width=3),
                         handlePen='#0000',
                         handleHoverPen='#0000'
                     )
-                    self.main_view.addItem(self.seed_roi)
+                    for handle in seed_roi.getHandles():
+                        seed_roi.removeHandle(handle)
+                    self.seed_rois.append(seed_roi)
+                    self.seed_roi = seed_roi
+                    self.main_view.addItem(seed_roi)
+                    seed_roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
 
                 else:
                     # Restore standard ROI
