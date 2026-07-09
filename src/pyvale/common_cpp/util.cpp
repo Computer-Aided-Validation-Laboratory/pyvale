@@ -42,4 +42,8 @@ namespace common_util {
         omp_set_num_threads(n);
     }
 
+    int get_num_threads(){
+        return omp_get_max_threads();
+    }
+
 }

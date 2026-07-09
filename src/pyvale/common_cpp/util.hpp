@@ -177,6 +177,13 @@ namespace common_util {
     * @param n The number of threads to set for the DIC engine.
     */
     void set_num_threads(int n);
+
+    /**
+    *  Gets the maximum number of OpenMP threads available to a parallel region.
+    *
+    *  The maximum number of OpenMP threads.
+    */
+    int get_num_threads();
 }
 
 #endif //UTIL_H

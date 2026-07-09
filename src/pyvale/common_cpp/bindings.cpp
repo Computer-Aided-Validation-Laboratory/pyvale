@@ -29,4 +29,5 @@ PYBIND11_MODULE(common_cpp, m) {
         .def_readwrite("shape_params", &common_util::SaveConfig::shape_params);
 
     m.def("set_num_threads", &common_util::set_num_threads, "Set number of OMP threads");
+    m.def("get_num_threads", &common_util::get_num_threads, "Get number of OMP threads");
 }
