@@ -133,9 +133,9 @@ def import_3d(data: str | Path | list[Path],
         ss_x=ss_x_out,
         ss_y=ss_y_out,
 
-        u=arrays[0],
-        v=arrays[1],
-        mag=arrays[2],
+        u_px=arrays[0],
+        v_px=arrays[1],
+        mag_px=arrays[2],
 
         converged=arrays[3],
         cost=arrays[4],

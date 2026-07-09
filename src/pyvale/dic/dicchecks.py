@@ -275,11 +275,12 @@ def check_subsets(subset_size: int, subset_step: int) -> None:
 
 
 
-def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_mask: np.ndarray, 
-                             method: str, 
-                             px_hori: int, 
-                             px_vert: int, 
-                             subset_size: int, 
+def check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int, int]] | np.ndarray,
+                             roi_mask: np.ndarray,
+                             method: str,
+                             px_hori: int,
+                             px_vert: int,
+                             subset_size: int,
                              subset_step: int) -> list[int]:
     """
     Validate and update the region-growing seed location to align with image bounds and subset spacing.
@@ -288,13 +289,14 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
     scanning method. It adjusts the seed to the nearest valid grid point based on the subset step size,
     clamps it to the image dimensions, and ensures it lies within the region of interest (ROI) mask.
 
-    If the scanning method is not reliability guided, the function returns a default seed of [0, 0]. 
+    If the scanning method is not reliability guided, the function returns a default seed of [0, 0].
     This seed is not used any other scan method methods.
 
     Parameters
     ----------
-    seed : list[int], list[np.int32] or np.ndarray
-        The initial seed coordinates as a list of two integers: [x, y].
+    seed : list[int], list[np.int32], list[tuple[int, int]] or np.ndarray
+        Initial seed coordinates as either a flat list ``[x0, y0, x1, y1, ...]`` or a list of
+        coordinate tuples ``[(x0, y0), (x1, y1), ...]``.
     roi_mask : np.ndarray
         A 2D binary mask (same size as the image) indicating the region of interest.
     method : str
@@ -309,34 +311,70 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
     Returns
     -------
     list of int
-        The adjusted seed coordinates [x, y] aligned to the subset grid and within bounds.
+        The adjusted seed coordinates flattened as ``[x0, y0, x1, y1, ...]`` for the C++ engine.
 
     Raises
     ------
     ValueError
-        If the seed is improperly formatted, out of image bounds, or not a list of two integers.
+        If the seed is improperly formatted or out of image/ROI bounds.
     """
 
     if "RG" not in method:
         return [0,0]
 
-    # check that seed list is a multiple of 2
-    if len(seed) < 2 or len(seed) % 2 != 0:
+    valid_int_types = (int, np.integer)
+
+    if isinstance(seed, np.ndarray):
+        seed_values = seed.tolist()
+    else:
+        seed_values = seed
+
+    if not isinstance(seed_values, list) or len(seed_values) == 0:
         raise ValueError(
-            "Reliability Guided seed must contain one or more seed points "
-            "in the format [x0, y0, x1, y1, ...]."
+            "Reliability Guided seed must contain one or more seed points in either "
+            "[x0, y0, x1, y1, ...] or [(x0, y0), (x1, y1), ...] format."
         )
 
-    if not isinstance(seed, (list, np.ndarray)) or not all(isinstance(coord, (int, np.int32)) for coord in seed):
-        raise ValueError("Reliability Guided seed must be a list of two integers: seed=[x, y]")
-
+    if all(isinstance(seed_point, tuple) for seed_point in seed_values):
+        if not all(
+            len(seed_point) == 2
+            and all(isinstance(coord, valid_int_types) for coord in seed_point)
+            for seed_point in seed_values
+        ):
+            raise ValueError(
+                "Reliability Guided seed tuples must each contain two integers: "
+                "seed=[(x0, y0), (x1, y1), ...]"
+            )
+        seed_points = seed_values
+    elif all(isinstance(seed_point, list) for seed_point in seed_values):
+        if not all(
+            len(seed_point) == 2
+            and all(isinstance(coord, valid_int_types) for coord in seed_point)
+            for seed_point in seed_values
+        ):
+            raise ValueError(
+                "Reliability Guided seed coordinate lists must each contain two integers: "
+                "seed=[[x0, y0], [x1, y1], ...]"
+            )
+        seed_points = [tuple(seed_point) for seed_point in seed_values]
+    else:
+        if len(seed_values) < 2 or len(seed_values) % 2 != 0:
+            raise ValueError(
+                "Reliability Guided seed must contain one or more seed points in either "
+                "[x0, y0, x1, y1, ...] or [(x0, y0), (x1, y1), ...] format."
+            )
+        if not all(isinstance(coord, valid_int_types) for coord in seed_values):
+            raise ValueError(
+                "Reliability Guided seed must contain integer coordinates in either "
+                "[x0, y0, x1, y1, ...] or [(x0, y0), (x1, y1), ...] format."
+            )
+        seed_points = list(zip(seed_values[::2], seed_values[1::2]))
 
     updated_seeds = []
 
-    for idx in range(0,len(seed)//2):
+    for idx, seed_point in enumerate(seed_points):
 
-        x = seed[2*idx]
-        y = seed[2*idx+1]
+        x, y = seed_point
         if x < 0 or x >= px_hori or y < 0 or y >= px_vert:
             raise ValueError(f"Seed {idx} ({x}, {y}) goes outside the image bounds: ({px_hori}, {px_vert})")
 
@@ -376,37 +414,6 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | np.ndarray, roi_
         updated_seeds.append(new_y)
 
     return updated_seeds
-
-
-# def save_np_as_tiff(img_array: np.ndarray, output_path: str) -> None:
-#     """
-#     Save a NumPy array as a TIFF image file.
-#
-#     Parameters
-#     ----------
-#     img_array : np.ndarray
-#         The image data to be saved, expected to be a 2D array (grayscale) or 3D array (multi-channel).
-#     output_path : str
-#         The file path where the TIFF image will be saved.
-#     """
-#
-#     # Ensure the output directory exists
-#     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-#
-#     # check array dimensions
-#     if img_array.ndim != 2 and img_array.ndim != 3:
-#         raise ValueError(f"Expected a 2D or 3D array, but got an array with {img_array.ndim} dimensions.")
-#
-#     # save the 3D numpy array as separate TIFF files.
-#     if img_array.ndim == 3:
-#         for img in range(img_array.shape[0]):
-#             img_path = output_path.replace(".tiff", f"_{img:04d}.tiff")
-#             Image.fromarray(img_array[img]).save(img_path)
-#
-#
-#     if img_array.ndim == 2:
-#         Image.fromarray(img_array).save(output_path)
-
 
 def check_images(reference: np.ndarray | str | Path,
                  deformed: np.ndarray | str | Path | list[Path],
@@ -592,6 +599,7 @@ def check_images(reference: np.ndarray | str | Path,
     return basename, fullpath, w, h, temp_dir
 
 
+
 def print_config_summary(image_width: int,
                          image_height: int,
                          num_def_img: int,
@@ -636,10 +644,15 @@ def print_config_summary(image_width: int,
         common_py_util.info_out("Estimate for Epipolar Distance:", f"{epi_distance} [px]")
     common_py_util.info_out("Subset Size:", f"{subset_size} [px]")
     common_py_util.info_out("Subset Step:", f"{subset_step} [px]")
-    common_py_util.info_out("Number of OMP threads:", num_threads if num_threads is not None else "default")
+    if num_threads is None:
+        import pyvale.common_cpp.common_cpp as common_cpp
+        num_threads = common_cpp.get_num_threads()
+    common_py_util.info_out("Number of OMP threads:", num_threads)
     common_py_util.info_out("Debug level: ", debug_level)
     if updated_seeds is not None and "RG" in method:
-        common_py_util.info_out("Reliability Guided Seeds:", updated_seeds)
+        for i in range(0, len(updated_seeds), 2):
+            x, y = updated_seeds[i], updated_seeds[i + 1]
+            common_py_util.info_out(f"Reliability Guided Seed {i//2}:", f"({x}, {y})")
 
 
 def print_title(a: str):

@@ -23,7 +23,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  deformed:  list[np.ndarray] | list[str] | list[Path],
                  roi_mask: np.ndarray,
                  calibration: Calib,
-                 seed: list[int] | list[np.int32] | np.ndarray,
+                 seed: list[int] | list[np.int32] | list[tuple[int, int]] | np.ndarray,
                  subset_size: int = 21,
                  subset_step: int = 10,
                  correlation_criteria: Literal["ZNSSD","NSSD","SSD"]="ZNSSD",
@@ -71,10 +71,10 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         The deformed image(s) (3D array for multiple images) or path/pattern to image files.
     roi_mask : np.ndarray
         A binary mask indicating the Region of Interest (ROI) for analysis (same size as image).
-    seed : list[int], list[np.int32] or np.ndarray
-        Coordinates `[x, y]` of the seed point for Reliability-Guided (RG) scanning. It's possible
-        to provide mutiple seed points using ``[x0, y0, x1, y1,...]`` format. If the method is not 
-        RG, this will be ignored.
+    seed : list[int], list[np.int32], list[tuple[int, int]] or np.ndarray
+        Coordinates of the seed points for Reliability-Guided (RG) scanning. Accepts either
+        the existing flat format ``[x0, y0, x1, y1, ...]`` or tuple format
+        ``[(x0, y0), (x1, y1), ...]``. If the method is not RG, this will be ignored.
     subset_size : int, optional
         Size of the square subset window in pixels (default: 21).
     subset_step : int, optional
