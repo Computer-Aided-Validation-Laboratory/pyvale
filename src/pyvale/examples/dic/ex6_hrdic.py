@@ -53,8 +53,10 @@ dic.calculate_2d(reference="ref.tiff",
                  subset_size=31,
                  subset_step=15,
                  max_displacement=1000,
-                 fft_mad=True,
-                 fft_mad_scale=3.0,
+                 fft_filter=True,
+                 fft_filter_threshold=3.0,
+                 fft_filter_radius=3,
+                 fft_filter_corr_power=2.0,
                  correlation_criteria="ZNSSD",
                  shape_function="AFFINE",
                  threshold=0.8,
@@ -65,7 +67,7 @@ dic.calculate_2d(reference="ref.tiff",
 #
 #  * :code:`max_displacement`: Sets the assumed maximum displacment. It is better
 #    to overestimate rather than underestimate this value
-#  * :code:`fft_mad` and :code:`fft_mad_scale`: These remove outliers by
+#  * :code:`fft_filter` and related settings: These remove outliers by
 #    calculating a Mean Absolute Deviation (MAD) at each stage of the FFT windowing
 #    and prevent the propagation of incorrect rigid body estimates down through the window sizes.
 #    The mad scale value determines how strict the outlier removal is - larger values of 

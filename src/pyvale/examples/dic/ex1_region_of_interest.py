@@ -26,7 +26,7 @@ import pyvale.dic as dic
 # displayed as the underlay during ROI selection.
 ref_img = dataset.dic_plate_with_hole_ref()
 roi = dic.RegionOfInterest(ref_image=ref_img)
-roi.interactive_selection(subset_size=31)
+roi.interactive_selection()
 
 # create a directory for the the different outputs
 output_path = Path.cwd() / "pyvale-output"

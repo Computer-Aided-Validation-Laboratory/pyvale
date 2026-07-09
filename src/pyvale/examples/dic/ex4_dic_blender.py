@@ -43,7 +43,7 @@ def_img = "./blenderimages/blenderimage_*.tiff"
 
 # Interactive ROI selection
 roi = dic.RegionOfInterest(ref_img)
-roi.interactive_selection(subset_size)
+roi.interactive_selection()
 
 #output_path
 output_path = Path.cwd() / "pyvale-output"
