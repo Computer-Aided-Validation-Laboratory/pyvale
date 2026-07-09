@@ -273,7 +273,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
 
         rg::Point current(0, 0);
 
-        while (!stop_request) {
+        while (!stop_request && !error_flag.load()) {
 
             if (!queue.pop(tid, current))
                 break;
