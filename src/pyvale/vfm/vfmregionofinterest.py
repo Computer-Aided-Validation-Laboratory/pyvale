@@ -12,6 +12,7 @@ from typing import Literal
 from matplotlib.path import Path as MatplotlibPath
 import numpy as np
 from PIL import Image, ImageDraw
+from shapely import contains_xy
 from shapely.geometry import Point, Polygon, box
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
@@ -770,8 +771,12 @@ def _evaluate_shape_at_points(
     if shape.shape_type == "polygon":
         if len(shape.vertices) < 3:
             return np.zeros(points_xy.shape[0], dtype=bool)
-        path = MatplotlibPath(np.asarray(shape.vertices, dtype=np.float64), closed=True)
-        return path.contains_points(points_xy, radius=max(1.0e-12, float(boundary_tolerance)))
+        polygon = Polygon(np.asarray(shape.vertices, dtype=np.float64)).buffer(0.0)
+        if polygon.is_empty:
+            return np.zeros(points_xy.shape[0], dtype=bool)
+        if boundary_tolerance > 0.0:
+            polygon = polygon.buffer(float(boundary_tolerance))
+        return np.asarray(contains_xy(polygon, points_xy[:, 0], points_xy[:, 1]), dtype=bool)
 
     if shape.shape_type == "rectangle":
         if shape.rectangle is None:

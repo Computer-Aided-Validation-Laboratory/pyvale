@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Prepare DIC data for VFM and normalise specimen ROI inputs.
+"""Prepare DIC or interpolated FE data for VFM and normalise specimen ROI inputs.
 
 The ``region_of_interest_input_file`` can currently be one of:
 
@@ -11,8 +11,10 @@ The ``region_of_interest_input_file`` can currently be one of:
   grids whose finite values represent specimen pixels and whose ``NaN`` values
   represent non-specimen pixels
 
-In the future we also want to support FE mesh files that define specimen
-geometry from nodal coordinates, but that is not implemented yet.
+For FE centroid exports, this script can also interpolate element-centroid
+fields onto a regular grid. When a Gmsh ``.msh`` file is provided as the
+``region_of_interest_input_file``, the specimen mask is sampled from the mesh
+geometry so holes and other cut-outs are preserved.
 
 Any supported ROI source can be used. More accurate ROI definitions generally
 improve inverse identification (as virtual field metrics depend on the specimen geometry).
@@ -51,8 +53,8 @@ class PreparationConfig:
     ``NaN`` values respectively, but the resulting geometry is only as accurate
     as that source mask.
 
-    FE mesh ROI inputs are planned for a future version and are not supported
-    by this script yet.
+    If ``fe_element_data_file`` is provided, FE centroid data is interpolated
+    onto a regular grid before the rest of the preparation flow runs.
     """
 
     input_folder: Path
@@ -70,6 +72,10 @@ class PreparationConfig:
     selected_spatial_indices_file: str | None = "selected_spatial_indices.txt"
     strain_h5_dataset_names: tuple[str, ...] = ("exx", "eyy", "exy")
     strain_component_order: tuple[str, ...] = ("exx", "eyy", "exy")
+    fe_element_data_file: str | None = None
+    fe_strain_component_columns: tuple[str, ...] | None = None
+    fe_grid_upsample_factor: float = 2.0
+    fe_grid_spacing: float | None = None
     csv_preview_rows: int = 5
 
 
@@ -109,25 +115,85 @@ class CoordinateConventionTransform:
 # Edit this section for a new dataset.
 CONFIG = PreparationConfig(
     input_folder=Path(
-        "/home/robh/1_Projects/dic-processing-tools/data/wdbn4-spatial-temporal-processed-data-260629-1528"
+        "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/single-element-plane-stress/fe-data"
     ),
     output_folder=Path(
-        "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/wdbn4-vfm-input-data"
+        "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/single-element-plane-stress/vfm-input-data"
     ),
-    x_coordinates_input_file="x_ref.csv",
-    y_coordinates_input_file="y_ref.csv",
-    strain_input_file="strain_data.h5",
-    force_input_file="force_history.csv",
-    time_input_file="force_history.csv",
-    x_coordinates_pixel_input_file="x_ref_pixel.csv",
-    y_coordinates_pixel_input_file="y_ref_pixel.csv",
-    # Preferred: a reference-image ROI definition in pixel space, such as a MatchID .m2inp/.m3inp file or a pyvale ROI .yaml/.yml file
-    # Alternative (but less accurate): a logical mask derived from DIC outputs, such as a x_ref.csv whose finite values represent specimen pixels and whose NaN values represent non-specimen pixels
-    region_of_interest_input_file="WDBN4_correlation_cam0_SS49_ST3_SFaffine_SW3_Q4.m3inp",
-    reference_image_file="Image_0000_0.tiff",
-    strain_h5_dataset_names=("exx", "eyy", "exy"),
+    x_coordinates_input_file="x_coordinates.txt",
+    y_coordinates_input_file="y_coordinates.txt",
+    strain_input_file="element_data.csv",
+    force_input_file="reaction_history.csv",
+    time_input_file="time_values.txt",
+    region_of_interest_input_file="single_element_square.msh",
     strain_component_order=("exx", "eyy", "exy"),
+    fe_element_data_file="element_data.csv",
+    fe_strain_component_columns=("eps_xx", "eps_yy", "eps_xy"),
+    fe_grid_upsample_factor=2.0,
 )
+
+
+# CONFIG = PreparationConfig(
+#     input_folder=Path(
+#         "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/plate-with-hole-hom-lin-hard"
+#     ),
+#     output_folder=Path(
+#         "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/plate-with-hole-hom-lin-hard/vfm-input-data"
+#     ),
+#     x_coordinates_input_file="x_coordinates.txt",
+#     y_coordinates_input_file="y_coordinates.txt",
+#     strain_input_file="element_data.csv",
+#     force_input_file="reaction_history.csv",
+#     time_input_file="time_values.txt",
+#     region_of_interest_input_file="mesh2d_holeplate.msh",
+#     strain_component_order=("exx", "eyy", "exy"),
+#     fe_element_data_file="element_data.csv",
+#     fe_strain_component_columns=("eps_xx", "eps_yy", "eps_xy"),
+#     fe_grid_upsample_factor=2.0,
+# )
+
+# # Single-element FE smoke-test reference
+# CONFIG = PreparationConfig(
+#     input_folder=Path(
+#         "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/single-element-plane-stress/fe-data"
+#     ),
+#     output_folder=Path(
+#         "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/single-element-plane-stress/vfm-input-data"
+#     ),
+#     x_coordinates_input_file="x_coordinates.txt",
+#     y_coordinates_input_file="y_coordinates.txt",
+#     strain_input_file="element_data.csv",
+#     force_input_file="reaction_history.csv",
+#     time_input_file="time_values.txt",
+#     region_of_interest_input_file="single_element_square.msh",
+#     strain_component_order=("exx", "eyy", "exy"),
+#     fe_element_data_file="element_data.csv",
+#     fe_strain_component_columns=("eps_xx", "eps_yy", "eps_xy"),
+#     fe_grid_upsample_factor=2.0,
+# )
+
+# # DIC reference
+# CONFIG = PreparationConfig(
+#     input_folder=Path(
+#         "/home/robh/1_Projects/dic-processing-tools/data/wdbn4-spatial-temporal-processed-data-260629-1528"
+#     ),
+#     output_folder=Path(
+#         "/home/robh/1_Projects/pyvale/dev/vfm/rob-data/wdbn4-vfm-input-data"
+#     ),
+#     x_coordinates_input_file="x_ref.csv",
+#     y_coordinates_input_file="y_ref.csv",
+#     strain_input_file="strain_data.h5",
+#     force_input_file="force_history.csv",
+#     time_input_file="force_history.csv",
+#     x_coordinates_pixel_input_file="x_ref_pixel.csv",
+#     y_coordinates_pixel_input_file="y_ref_pixel.csv",
+#     # Preferred: a reference-image ROI definition in pixel space, such as a MatchID .m2inp/.m3inp file or a pyvale ROI .yaml/.yml file
+#     # Alternative (but less accurate): a logical mask derived from DIC outputs, such as a x_ref.csv whose finite values represent specimen pixels and whose NaN values represent non-specimen pixels
+#     region_of_interest_input_file="WDBN4_correlation_cam0_SS49_ST3_SFaffine_SW3_Q4.m3inp",
+#     reference_image_file="Image_0000_0.tiff",
+#     strain_h5_dataset_names=("exx", "eyy", "exy"),
+#     strain_component_order=("exx", "eyy", "exy"),
+# )
 
 # Edit this section so the prepared-data diagnostics use the same intended
 # boundary-condition convention as the later VFM identification setup.
@@ -165,25 +231,46 @@ def main() -> None:
     print(f"Input folder:  {config.input_folder}")
     print(f"Output folder: {output_folder}")
 
-    strain = _load_strain_data(config)
     validation_warnings: list[str] = []
+    fe_preparation = _load_fe_preparation_data(config)
+    point_area_total_override: float | None = None
 
-    x_raw, y_raw, coordinate_load_info = _load_main_coordinate_grids(config, strain.shape[2:])
-    _validate_coordinate_grids(x_raw, y_raw)
-    _validate_strain_shape(strain, x_raw.shape)
-    validation_warnings.extend(coordinate_load_info["warnings"])
-    spatial_selection_info = _load_spatial_selection_info(config, x_raw.shape)
+    if fe_preparation is None:
+        strain = _load_strain_data(config)
+        x_raw, y_raw, coordinate_load_info = _load_main_coordinate_grids(config, strain.shape[2:])
+        _validate_coordinate_grids(x_raw, y_raw)
+        _validate_strain_shape(strain, x_raw.shape)
+        validation_warnings.extend(coordinate_load_info["warnings"])
+        spatial_selection_info = _load_spatial_selection_info(config, x_raw.shape)
 
-    original_coordinate_valid_mask = np.isfinite(x_raw) & np.isfinite(y_raw)
+        original_coordinate_valid_mask = np.isfinite(x_raw) & np.isfinite(y_raw)
 
-    roi_alignment_x, roi_alignment_y, roi_alignment_info = _load_roi_alignment_coordinate_grids(
-        config=config,
-        fallback_x=x_raw,
-        fallback_y=y_raw,
-        target_shape=strain.shape[2:],
-    )
-    validation_warnings.extend(roi_alignment_info["warnings"])
-    validation_warnings.extend(_check_main_and_pixel_coordinate_grids(x_raw, y_raw, roi_alignment_x, roi_alignment_y))
+        roi_alignment_x, roi_alignment_y, roi_alignment_info = _load_roi_alignment_coordinate_grids(
+            config=config,
+            fallback_x=x_raw,
+            fallback_y=y_raw,
+            target_shape=strain.shape[2:],
+        )
+        validation_warnings.extend(roi_alignment_info["warnings"])
+        validation_warnings.extend(
+            _check_main_and_pixel_coordinate_grids(x_raw, y_raw, roi_alignment_x, roi_alignment_y)
+        )
+    else:
+        strain = fe_preparation["strain"]
+        x_raw = fe_preparation["x_raw"]
+        y_raw = fe_preparation["y_raw"]
+        coordinate_load_info = fe_preparation["coordinate_load_info"]
+        spatial_selection_info = None
+        original_coordinate_valid_mask = np.isfinite(x_raw) & np.isfinite(y_raw)
+        roi_alignment_x = fe_preparation["roi_alignment_x"]
+        roi_alignment_y = fe_preparation["roi_alignment_y"]
+        roi_alignment_info = fe_preparation["roi_alignment_info"]
+        point_area_total_override = fe_preparation["total_specimen_area"]
+        validation_warnings.extend(coordinate_load_info["warnings"])
+        validation_warnings.extend(roi_alignment_info["warnings"])
+        validation_warnings.extend(
+            _check_main_and_pixel_coordinate_grids(x_raw, y_raw, roi_alignment_x, roi_alignment_y)
+        )
 
     csv_cache: dict[Path, CsvTable] = {}
     previewed_paths: set[Path] = set()
@@ -196,6 +283,7 @@ def main() -> None:
         csv_cache=csv_cache,
         previewed_paths=previewed_paths,
     )
+    force, force_sign_flip_applied = _maybe_flip_force_sign(force)
     time, time_info = _load_signal_vector_from_file(
         config=config,
         file_name=config.time_input_file,
@@ -209,17 +297,22 @@ def main() -> None:
     validation_warnings.extend(_validate_force_and_time(force, time, strain.shape[0]))
     raw_coordinate_convention_warnings = _check_coordinate_conventions(x_raw, y_raw)
 
-    specimen_mask, roi_summary, roi_warnings = _prepare_specimen_mask(
-        config,
-        x_raw,
-        y_raw,
-        roi_alignment_x,
-        roi_alignment_y,
-        output_folder,
-        generated_outputs_folder,
-        spatial_selection_info=spatial_selection_info,
-    )
-    validation_warnings.extend(roi_warnings)
+    if fe_preparation is None:
+        specimen_mask, roi_summary, roi_warnings = _prepare_specimen_mask(
+            config,
+            x_raw,
+            y_raw,
+            roi_alignment_x,
+            roi_alignment_y,
+            output_folder,
+            generated_outputs_folder,
+            spatial_selection_info=spatial_selection_info,
+        )
+        validation_warnings.extend(roi_warnings)
+    else:
+        specimen_mask = fe_preparation["specimen_mask"]
+        roi_summary = fe_preparation["roi_summary"]
+        validation_warnings.extend(fe_preparation["warnings"])
 
     roi_confirmation = _confirm_specimen_mask(
         specimen_mask=specimen_mask,
@@ -272,7 +365,11 @@ def main() -> None:
     )
     validation_warnings.extend(roi_final_warnings)
 
-    pixel_area = _estimate_point_area(x, y)
+    pixel_area = _estimate_point_area(
+        x,
+        y,
+        total_area_override=point_area_total_override,
+    )
     area_checks, area_warnings = _check_specimen_area(
         point_area=pixel_area,
         original_coordinate_valid_mask=original_coordinate_valid_mask,
@@ -327,6 +424,10 @@ def main() -> None:
             "x_coordinates_pixel_input_file": config.x_coordinates_pixel_input_file,
             "y_coordinates_pixel_input_file": config.y_coordinates_pixel_input_file,
             "strain_input_file": config.strain_input_file,
+            "fe_element_data_file": config.fe_element_data_file,
+            "fe_strain_component_columns": list(config.fe_strain_component_columns)
+            if config.fe_strain_component_columns is not None
+            else None,
             "force_input_file": config.force_input_file,
             "time_input_file": config.time_input_file,
             "region_of_interest_input_file": config.region_of_interest_input_file,
@@ -345,6 +446,7 @@ def main() -> None:
         "boundary_conditions": _serialise_boundary_conditions(boundary_conditions),
         "spatial_selection": spatial_selection_info,
         "coordinate_load_info": coordinate_load_info,
+        "fe_interpolation": fe_preparation["fe_interpolation"] if fe_preparation is not None else None,
         "coordinate_fill": coordinate_fill_info,
         "roi_alignment_coordinate_info": roi_alignment_info,
         "coordinate_convention_check_before_transform": {
@@ -355,6 +457,7 @@ def main() -> None:
             "warnings": final_coordinate_convention_warnings,
         },
         "force_selection": force_info,
+        "force_sign_flip_applied": force_sign_flip_applied,
         "time_selection": {
             **time_info,
             "time_offset_corrected": time_offset_correction,
@@ -573,6 +676,127 @@ def _parse_selected_spatial_indices_file(path: Path) -> tuple[list[int] | None, 
     return _parse_match(row_match), _parse_match(col_match)
 
 
+def _import_fe_interpolator():
+    try:
+        from . import interpolate_fe_data_to_grid as fe_interpolator
+        return fe_interpolator
+    except Exception:
+        module_dir = Path(__file__).resolve().parent
+        if str(module_dir) not in sys.path:
+            sys.path.insert(0, str(module_dir))
+        import interpolate_fe_data_to_grid as fe_interpolator
+
+        return fe_interpolator
+
+
+def _load_fe_preparation_data(config: PreparationConfig) -> dict[str, Any] | None:
+    element_data_path = _resolve_input_path(config, config.fe_element_data_file)
+    if element_data_path is None:
+        return None
+
+    fe_interpolator = _import_fe_interpolator()
+    mesh_path = _resolve_input_path(config, config.region_of_interest_input_file)
+    component_columns = _resolve_fe_component_columns(config)
+    interpolated = fe_interpolator.interpolate_fe_data_to_grid(
+        element_data_path=element_data_path,
+        component_columns=component_columns,
+        mesh_path=mesh_path,
+        upsample_factor=config.fe_grid_upsample_factor,
+        target_spacing=config.fe_grid_spacing,
+    )
+
+    x_raw = np.asarray(interpolated.x_grid, dtype=np.float64)
+    y_raw = np.asarray(interpolated.y_grid, dtype=np.float64)
+    strain = np.asarray(interpolated.strain, dtype=np.float64)
+    _validate_coordinate_grids(x_raw, y_raw)
+    _validate_strain_shape(strain, x_raw.shape)
+
+    interpolation_warnings = list(interpolated.metadata.get("warnings", []))
+    if x_raw.shape[0] < 2 or x_raw.shape[1] < 2:
+        interpolation_warnings.append(
+            "The interpolated FE grid is smaller than 2x2, so some spatial diagnostics and downstream VFM steps "
+            "will be limited."
+        )
+
+    return {
+        "strain": strain,
+        "x_raw": x_raw,
+        "y_raw": y_raw,
+        "roi_alignment_x": x_raw,
+        "roi_alignment_y": y_raw,
+        "specimen_mask": np.asarray(interpolated.specimen_mask, dtype=bool),
+        "total_specimen_area": interpolated.total_specimen_area,
+        "warnings": interpolation_warnings,
+        "coordinate_load_info": {
+            "path_x": str(element_data_path),
+            "path_y": str(element_data_path),
+            "original_shape": [int(value) for value in x_raw.shape],
+            "final_shape": [int(value) for value in x_raw.shape],
+            "assumed_unit": "mm",
+            "warnings": [
+                "Main x/y coordinate grids were generated by interpolating FE centroid coordinates onto a regular grid.",
+            ],
+        },
+        "roi_alignment_info": {
+            "path_x": None,
+            "path_y": None,
+            "final_shape": [int(value) for value in x_raw.shape],
+            "used_fallback_main_coordinates": True,
+            "warnings": [
+                "Using the interpolated FE regular grid for ROI alignment coordinates.",
+            ],
+        },
+        "roi_summary": {
+            "source_kind": "fe-mesh" if mesh_path is not None else "fe-point-cloud",
+            "input_path": str(mesh_path) if mesh_path is not None else str(element_data_path),
+            "source_mask_shape": [int(value) for value in x_raw.shape],
+            "sampled_mask_shape": [int(value) for value in x_raw.shape],
+            "mask_pixel_count": int(np.count_nonzero(interpolated.specimen_mask)),
+            "roi_yaml": None,
+            "intermediate_pixel_roi_yaml": None,
+            "sampled_pixel_roi_yaml": None,
+            "sampled_pixel_mask_tiff": None,
+            "metadata_json": None,
+            "source_mask_tiff": None,
+            "source_overlay_image": None,
+            "coordinate_space": "physical-grid-from-fe",
+            "alignment": {
+                "mode": "fe-interpolated-physical-grid",
+                "grid_spacing": interpolated.metadata.get("grid_spacing"),
+            },
+            "spatial_selection": None,
+            "mismatch_count_vs_coordinate_nan_mask": 0,
+            "notes": [
+                "The FE centroid fields were interpolated onto a regular physical grid before VFM preparation.",
+                "The specimen mask was sampled from the FE mesh geometry when a .msh file was provided.",
+            ],
+        },
+        "fe_interpolation": dict(interpolated.metadata),
+    }
+
+
+def _resolve_fe_component_columns(config: PreparationConfig) -> tuple[str, ...]:
+    if config.fe_strain_component_columns is not None:
+        if len(config.fe_strain_component_columns) != len(config.strain_component_order):
+            raise ValueError(
+                "fe_strain_component_columns must have the same length as strain_component_order."
+            )
+        return config.fe_strain_component_columns
+
+    return tuple(_default_fe_component_column_name(name) for name in config.strain_component_order)
+
+
+def _default_fe_component_column_name(component_name: str) -> str:
+    normalised = component_name.strip().lower()
+    if normalised in {"exx", "e_xx", "strain_xx"}:
+        return "eps_xx"
+    if normalised in {"eyy", "e_yy", "strain_yy"}:
+        return "eps_yy"
+    if normalised in {"exy", "eyx", "e_xy", "e_yx", "e12", "e21", "c12", "c21", "strain_xy"}:
+        return "eps_xy"
+    return component_name
+
+
 def _import_h5py():
     try:
         import h5py
@@ -667,7 +891,7 @@ def _load_signal_vector_from_file(
 
         default_index = _guess_default_column_index(table.header, numeric_column_indices, default_name_hints)
 
-        if 2 <= table.column_count <= 10 and path not in previewed_paths:
+        if path not in previewed_paths:
             _print_csv_preview(table, config.csv_preview_rows)
             previewed_paths.add(path)
 
@@ -735,11 +959,42 @@ def _guess_default_column_index(
 
 
 def _print_csv_preview(table: CsvTable, n_rows: int) -> None:
+    columns_per_batch = 5
+    max_cell_width = 24
+
     print(f"\nPreview of {table.path}:")
-    header_cells = [f"[{index}] {name}" for index, name in enumerate(table.header)]
-    print(" | ".join(_truncate(cell, 28) for cell in header_cells))
-    for row in table.rows[:n_rows]:
-        print(" | ".join(_truncate(cell.strip(), 28) for cell in row))
+    preview_rows = table.rows[:n_rows]
+    for batch_start in range(0, table.column_count, columns_per_batch):
+        batch_end = min(table.column_count, batch_start + columns_per_batch)
+        print(f"\nColumns {batch_start}-{batch_end - 1}:")
+
+        header_cells = [f"[{index}] {table.header[index]}" for index in range(batch_start, batch_end)]
+        row_cells = [
+            [row[index].strip() for index in range(batch_start, batch_end)]
+            for row in preview_rows
+        ]
+        column_widths = []
+        for offset in range(batch_end - batch_start):
+            cells = [header_cells[offset], *(row[offset] for row in row_cells)]
+            width = max(len(_truncate(cell, max_cell_width)) for cell in cells)
+            column_widths.append(width)
+
+        print(_format_preview_line(header_cells, column_widths, max_cell_width=max_cell_width))
+        for row in row_cells:
+            print(_format_preview_line(row, column_widths, max_cell_width=max_cell_width))
+
+
+def _format_preview_line(
+    cells: list[str],
+    column_widths: list[int],
+    *,
+    max_cell_width: int,
+) -> str:
+    formatted_cells = [
+        _truncate(cell, max_cell_width).ljust(column_widths[index])
+        for index, cell in enumerate(cells)
+    ]
+    return " | ".join(formatted_cells)
 
 
 def _truncate(text: str, width: int) -> str:
@@ -815,6 +1070,14 @@ def _maybe_zero_time_offset(time: np.ndarray, unit: str | None) -> tuple[np.ndar
     ).strip()
     should_shift = response.lower() not in {"n", "no"}
     return (time - time[0], True) if should_shift else (time, False)
+
+
+def _maybe_flip_force_sign(force: np.ndarray) -> tuple[np.ndarray, bool]:
+    response = input("Multiply the selected force signal by -1 before saving? [y/N]: ").strip().lower()
+    should_flip = response in {"y", "yes"}
+    if not should_flip:
+        return force, False
+    return -np.asarray(force, dtype=np.float64), True
 
 
 def _validate_force_and_time(force: np.ndarray, time: np.ndarray, expected_timesteps: int) -> list[str]:
@@ -1027,6 +1290,19 @@ def _confirm_specimen_mask(
         )
         return {
             "confirmed": False,
+            "confirmation_required": False,
+            "mismatch_count": mismatch_count,
+            "roi_only_count": roi_only_count,
+            "coordinate_only_count": coordinate_only_count,
+            "comparison_plot": str(plot_path),
+            "mismatch_report": str(mismatch_report_path),
+            "mismatch_preview": mismatch_preview,
+        }
+
+    if mismatch_count == 0:
+        print("\nSpecimen mask review: ROI-derived specimen mask matches the coordinate mask exactly.")
+        return {
+            "confirmed": True,
             "confirmation_required": False,
             "mismatch_count": mismatch_count,
             "roi_only_count": roi_only_count,
@@ -1413,11 +1689,26 @@ def _save_cropped_source_space_roi_overlay(
     return output_path
 
 
-def _estimate_point_area(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+def _estimate_point_area(
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    total_area_override: float | None = None,
+) -> np.ndarray:
+    point_area = np.full(x.shape, np.nan, dtype=np.float64)
+    valid_mask = np.isfinite(x) & np.isfinite(y)
+    if not np.any(valid_mask):
+        return point_area
+
+    if x.shape[0] < 2 or x.shape[1] < 2:
+        if total_area_override is not None:
+            point_area[valid_mask] = float(total_area_override) / int(np.count_nonzero(valid_mask))
+        return point_area
+
     dx = np.abs(np.gradient(x, axis=1))
     dy = np.abs(np.gradient(y, axis=0))
     point_area = dx * dy
-    point_area[~np.isfinite(x) | ~np.isfinite(y)] = np.nan
+    point_area[~valid_mask] = np.nan
     return point_area
 
 

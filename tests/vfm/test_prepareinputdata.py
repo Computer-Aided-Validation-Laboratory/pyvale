@@ -4,16 +4,19 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from pyvale.vfm.prepareinputdata import (
     BOUNDARY_CONDITIONS,
     PreparationConfig,
+    _maybe_flip_force_sign,
     _apply_coordinate_convention_to_axis_grid,
     _apply_coordinate_convention_to_force,
     _apply_coordinate_convention_to_strain,
     _determine_coordinate_convention_transform,
     _load_spatial_selection_info,
 )
+from pyvale.vfm.vfmregionofinterest import RoiShape, sample_roi_definition_at_coordinates, RoiDefinition
 
 
 def test_determine_coordinate_convention_transform_detects_both_axis_reflections() -> None:
@@ -110,3 +113,32 @@ def test_apply_coordinate_convention_to_force_negates_reflected_component() -> N
     )
 
     np.testing.assert_array_equal(transformed_force, -force)
+
+
+def test_polygon_roi_sampling_keeps_full_rectangle() -> None:
+    x = np.array([[0.0, 1.0], [0.0, 1.0]], dtype=np.float64)
+    y = np.array([[0.0, 0.0], [1.0, 1.0]], dtype=np.float64)
+    roi_definition = RoiDefinition(
+        shapes=(
+            RoiShape(
+                shape_type="polygon",
+                index=0,
+                is_cutting=False,
+                vertices=((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)),
+            ),
+        )
+    )
+
+    sampled_mask = sample_roi_definition_at_coordinates(roi_definition, x, y)
+
+    np.testing.assert_array_equal(sampled_mask, np.ones((2, 2), dtype=bool))
+
+
+def test_maybe_flip_force_sign_applies_user_requested_sign_change(monkeypatch: pytest.MonkeyPatch) -> None:
+    force = np.array([1.0, -2.0, 3.0], dtype=np.float64)
+    monkeypatch.setattr("builtins.input", lambda _: "y")
+
+    flipped_force, applied = _maybe_flip_force_sign(force)
+
+    assert applied is True
+    np.testing.assert_array_equal(flipped_force, -force)
