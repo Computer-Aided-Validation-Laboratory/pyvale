@@ -30,8 +30,10 @@ private:
     int last_iter;
     bool started;
     std::size_t last_progress_chars;
+    double next_update_percent;
 
     static constexpr int BAR_WIDTH = 36;
+    static constexpr double UPDATE_INTERVAL_PERCENT = 1.0;
 
 public:
     // Constructor
@@ -41,10 +43,25 @@ public:
           current_iter(0),
           last_iter(0),
           started(false),
-          last_progress_chars(0) {}
+          last_progress_chars(0),
+          next_update_percent(0.0) {}
 
     // Update progress
     void update(int iteration) {
+        current_iter = std::clamp(iteration, 0, total_iterations);
+        double percent = 100.0;
+        if (total_iterations > 0) {
+            percent = (static_cast<double>(current_iter) / total_iterations) * 100.0;
+            percent = std::clamp(percent, 0.0, 100.0);
+        }
+
+        const bool is_first_update = !started;
+        const bool is_final_update = current_iter >= total_iterations;
+        const bool should_update =
+            is_first_update || is_final_update || percent >= next_update_percent;
+
+        if (!should_update) return;
+
         if (!started) {
             start_time = std::chrono::steady_clock::now();
             last_update_time = start_time;
@@ -57,11 +74,9 @@ public:
             std::cout << time << message << "\n";
         }
 
-        current_iter = iteration;
-
-        // Percentage
-        double percent = (static_cast<double>(current_iter) / total_iterations) * 100.0;
-        percent = std::clamp(percent, 0.0, 100.0);
+        while (next_update_percent <= percent) {
+            next_update_percent += UPDATE_INTERVAL_PERCENT;
+        }
 
         // Time
         auto now = std::chrono::steady_clock::now();
@@ -103,6 +118,9 @@ public:
 
     // Finish — leaves both message and progress bar visible, cursor on new line
     void finish() {
+        if (started && current_iter < total_iterations) {
+            update(total_iterations);
+        }
         if (started) {
             std::cout << "\n" << std::flush;
         }
@@ -115,6 +133,7 @@ public:
         last_iter = 0;
         started = false;
         last_progress_chars = 0;
+        next_update_percent = 0.0;
     }
 
 private:

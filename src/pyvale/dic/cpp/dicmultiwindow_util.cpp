@@ -323,7 +323,6 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         }
 
         if (g_debug_level>1){
-            pbar.update(current_progress);
             pbar.finish();
         }
     }

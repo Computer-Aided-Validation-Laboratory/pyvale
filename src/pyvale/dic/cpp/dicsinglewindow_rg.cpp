@@ -437,7 +437,6 @@ void singlewindow_rg(const Interpolator &interp_ref,
     // }
 
     if (g_debug_level>0){
-        pbar.update(current_progress+1);
         pbar.finish();
     }
 

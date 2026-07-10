@@ -433,7 +433,6 @@ void matching(const Image &img_l,
         // }
 
         if (g_debug_level>0){
-            pbar.update(current_progress+1);
             pbar.finish();
         }
 

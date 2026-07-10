@@ -173,7 +173,6 @@ Hermite::Hermite(const Image &img) {
 
 
     if (g_debug_level>1){
-        pbar.update(current_progress);
         pbar.finish();
     }
 }
